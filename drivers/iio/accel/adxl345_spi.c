@@ -60,8 +60,8 @@ static const struct adxl345_chip_info adxl375_spi_info = {
 };
 
 static const struct spi_device_id adxl345_spi_id[] = {
-	{ "adxl345", (kernel_ulong_t)&adxl345_spi_info },
-	{ "adxl375", (kernel_ulong_t)&adxl375_spi_info },
+	{ .name = "adxl345", .driver_data = (kernel_ulong_t)&adxl345_spi_info },
+	{ .name = "adxl375", .driver_data = (kernel_ulong_t)&adxl375_spi_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adxl345_spi_id);

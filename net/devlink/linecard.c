@@ -171,7 +171,7 @@ void devlink_linecards_notify_unregister(struct devlink *devlink)
 
 int devlink_nl_linecard_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_linecard *linecard;
 	struct sk_buff *msg;
 	int err;
@@ -371,7 +371,7 @@ out:
 int devlink_nl_linecard_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_linecard *linecard;
 	int err;
 

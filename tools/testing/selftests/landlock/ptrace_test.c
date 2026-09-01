@@ -11,7 +11,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
+#include <sched.h>
 #include <signal.h>
+#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -20,6 +22,7 @@
 
 #include "audit.h"
 #include "common.h"
+#include "trace.h"
 
 /* Copied from security/yama/yama_lsm.c */
 #define YAMA_SCOPE_DISABLED 0
@@ -428,6 +431,405 @@ TEST_F(audit, trace)
 	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
 	EXPECT_EQ(0, records.access);
 	EXPECT_EQ(0, records.domain);
+}
+
+/* Trace tests */
+
+/* clang-format off */
+FIXTURE(trace_ptrace) {
+	/* clang-format on */
+	int tracefs_ok;
+};
+
+FIXTURE_SETUP(trace_ptrace)
+{
+	int ret;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+
+	ret = tracefs_fixture_setup();
+	if (ret) {
+		clear_cap(_metadata, CAP_SYS_ADMIN);
+		self->tracefs_ok = 0;
+		SKIP(return, "tracefs not available");
+	}
+	self->tracefs_ok = 1;
+
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_DENY_PTRACE_ENABLE, true));
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+FIXTURE_TEARDOWN(trace_ptrace)
+{
+	if (!self->tracefs_ok)
+		return;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	tracefs_enable_event(TRACEFS_DENY_PTRACE_ENABLE, false);
+	tracefs_fixture_teardown();
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+/* clang-format off */
+FIXTURE_VARIANT(trace_ptrace)
+{
+	/* clang-format on */
+	bool sandbox;
+	bool sandbox_target;
+	int expect_denied;
+};
+
+/* Denied: sandboxed child ptraces unsandboxed parent (tracee_domain=0). */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace, denied) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = false,
+	.expect_denied = 1,
+};
+
+/*
+ * Denied: sandboxed child ptraces a sandboxed parent, so the tracee is in a
+ * domain and tracee_domain= is non-zero.
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace, denied_scoped_target) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = true,
+	.expect_denied = 1,
+};
+
+/* Allowed: unsandboxed child uses PTRACE_TRACEME. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace, allowed) {
+	/* clang-format on */
+	.sandbox = false,
+	.sandbox_target = false,
+	.expect_denied = 0,
+};
+
+TEST_F(trace_ptrace, deny_ptrace)
+{
+	char *buf, field[64], expected_pid[16];
+	int count, status;
+	pid_t child, parent;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	parent = getpid();
+
+	/*
+	 * Set a known comm so the denied variant can verify both the trace line
+	 * task name and the tracee_comm= field.
+	 */
+	prctl(PR_SET_NAME, "ll_trace_test");
+
+	/*
+	 * For the non-zero tracee_domain case, sandbox the parent (the tracee)
+	 * before forking.  The child inherits that domain and adds its own
+	 * layer, so the child (tracer) is not an ancestor of the tracee and the
+	 * ptrace is still denied, with tracee_domain= naming the parent's
+	 * domain.
+	 */
+	if (variant->sandbox_target)
+		create_domain(_metadata);
+
+	child = fork();
+	ASSERT_LE(0, child);
+
+	if (child == 0) {
+		if (variant->sandbox) {
+			struct landlock_ruleset_attr ruleset_attr = {
+				.scoped = LANDLOCK_SCOPE_SIGNAL,
+			};
+			int ruleset_fd;
+
+			/*
+			 * Any scope creates a domain.  Ptrace denial checks
+			 * domain ancestry, not specific flags.
+			 */
+			ruleset_fd = landlock_create_ruleset(
+				&ruleset_attr, sizeof(ruleset_attr), 0);
+			if (ruleset_fd < 0)
+				_exit(1);
+
+			prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+			if (landlock_restrict_self(ruleset_fd, 0)) {
+				close(ruleset_fd);
+				_exit(1);
+			}
+			close(ruleset_fd);
+
+			/* PTRACE_ATTACH on unsandboxed parent: denied. */
+			if (ptrace(PTRACE_ATTACH, parent, NULL, NULL) == 0) {
+				ptrace(PTRACE_DETACH, parent, NULL, NULL);
+				_exit(2);
+			}
+			if (errno != EPERM)
+				_exit(3);
+		} else {
+			/* No sandbox: ptrace should succeed. */
+			if (ptrace(PTRACE_TRACEME) != 0)
+				_exit(1);
+		}
+
+		_exit(0);
+	}
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_DENY_PTRACE("ll_trace_test"));
+	if (variant->expect_denied) {
+		EXPECT_EQ(variant->expect_denied, count)
+		{
+			TH_LOG("Expected deny_ptrace event, got %d\n%s", count,
+			       buf);
+		}
+
+		/* Verify tracee_pid is the parent's TGID. */
+		snprintf(expected_pid, sizeof(expected_pid), "%d", parent);
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_PTRACE("ll_trace_test"),
+				     "tracee_pid", field, sizeof(field)));
+		EXPECT_STREQ(expected_pid, field);
+
+		/* Verify tracee_comm matches prctl(PR_SET_NAME). */
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_PTRACE("ll_trace_test"),
+				     "tracee_comm", field, sizeof(field)));
+		EXPECT_STREQ("ll_trace_test", field);
+
+		/*
+		 * Verify tracee_domain: 0 when the tracee is unsandboxed,
+		 * non-zero when the tracee is in a domain.
+		 */
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_PTRACE("ll_trace_test"),
+				     "tracee_domain", field, sizeof(field)));
+		EXPECT_EQ(variant->sandbox_target, strcmp("0", field) != 0)
+		{
+			TH_LOG("Unexpected tracee_domain=%s", field);
+		}
+	} else {
+		EXPECT_EQ(0, count)
+		{
+			TH_LOG("Expected 0 deny_ptrace events, got %d\n%s",
+			       count, buf);
+		}
+	}
+
+	free(buf);
+}
+
+/* clang-format off */
+FIXTURE(trace_ptrace_traceme) {
+	/* clang-format on */
+	int tracefs_ok;
+};
+
+FIXTURE_SETUP(trace_ptrace_traceme)
+{
+	int ret;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+
+	ret = tracefs_fixture_setup();
+	if (ret) {
+		clear_cap(_metadata, CAP_SYS_ADMIN);
+		self->tracefs_ok = 0;
+		SKIP(return, "tracefs not available");
+	}
+	self->tracefs_ok = 1;
+
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_DENY_PTRACE_ENABLE, true));
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+FIXTURE_TEARDOWN(trace_ptrace_traceme)
+{
+	if (!self->tracefs_ok)
+		return;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	tracefs_enable_event(TRACEFS_DENY_PTRACE_ENABLE, false);
+	tracefs_fixture_teardown();
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+/* clang-format off */
+FIXTURE_VARIANT(trace_ptrace_traceme)
+{
+	/* clang-format on */
+	bool sandbox_tracer;
+	bool sandbox_tracee;
+	int expect_denied;
+};
+
+/*
+ * Denied: a sandboxed tracer cannot trace the unsandboxed child that asked to
+ * be traced with PTRACE_TRACEME (tracee_domain=0).
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace_traceme, denied) {
+	/* clang-format on */
+	.sandbox_tracer = true,
+	.sandbox_tracee = false,
+	.expect_denied = 1,
+};
+
+/*
+ * Denied: a sandboxed child in its own domain asks to be traced by a tracer in
+ * an unrelated domain, so the tracee is in a domain and tracee_domain= is
+ * non-zero.
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace_traceme, denied_scoped_tracee) {
+	/* clang-format on */
+	.sandbox_tracer = true,
+	.sandbox_tracee = true,
+	.expect_denied = 1,
+};
+
+/* Allowed: unsandboxed child uses PTRACE_TRACEME with an unsandboxed tracer. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_ptrace_traceme, allowed) {
+	/* clang-format on */
+	.sandbox_tracer = false,
+	.sandbox_tracee = false,
+	.expect_denied = 0,
+};
+
+TEST_F(trace_ptrace_traceme, deny_ptrace)
+{
+	char *buf, field[64], expected_pid[16];
+	int count, status, sync_pipe[2];
+	pid_t child;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	/*
+	 * Set a known comm so the denied variant can verify both the trace line
+	 * task name and the tracee_comm= field.  The tracee is the current
+	 * (child) task for PTRACE_TRACEME, so the child inherits this name.
+	 */
+	prctl(PR_SET_NAME, "ll_trace_test");
+
+	ASSERT_EQ(0, pipe2(sync_pipe, O_CLOEXEC));
+
+	child = fork();
+	ASSERT_LE(0, child);
+
+	if (child == 0) {
+		char c;
+
+		close(sync_pipe[1]);
+
+		/*
+		 * The tracee is the current task; for the non-zero
+		 * tracee_domain case it sandboxes itself in its own domain,
+		 * unrelated to the tracer's domain, so PTRACE_TRACEME is still
+		 * denied and tracee_domain= names the child's own domain.
+		 */
+		if (variant->sandbox_tracee)
+			create_domain(_metadata);
+
+		/* Waits for the tracer (parent) to enter its domain, if any. */
+		if (read(sync_pipe[0], &c, 1) != 1)
+			_exit(1);
+		close(sync_pipe[0]);
+
+		if (variant->expect_denied) {
+			if (ptrace(PTRACE_TRACEME) == 0)
+				_exit(2);
+			if (errno != EPERM)
+				_exit(3);
+		} else {
+			if (ptrace(PTRACE_TRACEME) != 0)
+				_exit(4);
+			/* Lets the tracer reap the trace-stop and detach. */
+			raise(SIGSTOP);
+		}
+
+		_exit(0);
+	}
+
+	close(sync_pipe[0]);
+
+	/*
+	 * For a denial, the proposed tracer must be in a domain that is not an
+	 * ancestor of the tracee's domain.  Sandboxing the parent after the
+	 * fork gives it a domain unrelated to the child.
+	 */
+	if (variant->sandbox_tracer)
+		create_domain(_metadata);
+
+	/* Signals the child that the tracer is in its domain, if any. */
+	ASSERT_EQ(1, write(sync_pipe[1], ".", 1));
+	close(sync_pipe[1]);
+
+	if (!variant->expect_denied) {
+		/* PTRACE_TRACEME succeeded: reap the SIGSTOP and detach. */
+		ASSERT_EQ(child, waitpid(child, &status, WUNTRACED));
+		ASSERT_TRUE(WIFSTOPPED(status));
+		ASSERT_EQ(0, ptrace(PTRACE_DETACH, child, NULL, 0));
+	}
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_DENY_PTRACE("ll_trace_test"));
+	if (variant->expect_denied) {
+		EXPECT_EQ(variant->expect_denied, count)
+		{
+			TH_LOG("Expected deny_ptrace event, got %d\n%s", count,
+			       buf);
+		}
+
+		/* Verify tracee_pid is the child's TGID (the traced task). */
+		snprintf(expected_pid, sizeof(expected_pid), "%d", child);
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_PTRACE("ll_trace_test"),
+				     "tracee_pid", field, sizeof(field)));
+		EXPECT_STREQ(expected_pid, field);
+
+		/*
+		 * Verify tracee_domain: 0 when the tracee is unsandboxed,
+		 * non-zero when the tracee is in a domain.
+		 */
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_PTRACE("ll_trace_test"),
+				     "tracee_domain", field, sizeof(field)));
+		EXPECT_EQ(variant->sandbox_tracee, strcmp("0", field) != 0)
+		{
+			TH_LOG("Unexpected tracee_domain=%s", field);
+		}
+	} else {
+		EXPECT_EQ(0, count)
+		{
+			TH_LOG("Expected 0 deny_ptrace events, got %d\n%s",
+			       count, buf);
+		}
+	}
+
+	free(buf);
 }
 
 TEST_HARNESS_MAIN

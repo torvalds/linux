@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/ti,da850-vpif.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments DA850/AM18x Video Port Interface (VPIF)
+
+maintainers:
+  - Lad, Prabhakar <prabhakar.csengg@gmail.com>
+
+description:
+  The Video Port Interface (VPIF) is the primary component for video capture
+  and display on the DA850/AM18x family of TI DaVinci/Sitara SoCs.
+
+  TI Document reference:- SPRUH82C, Chapter 35
+  https://www.ti.com/lit/pdf/spruh82
+
+properties:
+  compatible:
+    const: ti,da850-vpif
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      VPIF port when the bus is configured as a single 16-bit input
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          bus-width:
+            enum: [8, 16]
+
+patternProperties:
+  ^port@[0-1]$:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      VPIF has a 16-bit parallel bus input, supporting 2 8-bit channels or a
+      single 16-bit channel. It should contain one or two port child nodes
+      with child 'endpoint' node. If there are two ports then port@0 must
+      describe the input and port@1 output channels.
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          bus-width:
+            enum: [8, 16]
+
+      endpoint@0:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+        description:
+          First 8-bit channel using the lower data lines [7:0].
+
+        properties:
+          bus-width:
+            const: 8
+
+          data-shift:
+            const: 0
+
+      endpoint@1:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+        description:
+          Second 8-bit channel using the upper data lines [15:8].
+
+        properties:
+          bus-width:
+            const: 8
+
+          data-shift:
+            const: 8
+
+    anyOf:
+      - properties:
+          endpoint@0: false
+          endpoint@1: false
+      - properties:
+          endpoint: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+oneOf:
+  - properties:
+      port@0: false
+      port@1: false
+  - properties:
+      port: false
+
+additionalProperties: false
+
+examples:
+  - |
+    vpif@217000 {
+        compatible = "ti,da850-vpif";
+        reg = <0x217000 0x1000>;
+        interrupts = <92>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            vpif_input_ch0: endpoint@0 {
+                reg = <0>;
+                bus-width = <8>;
+                remote-endpoint = <&composite_in>;
+            };
+
+            vpif_input_ch1: endpoint@1 {
+                reg = <1>;
+                bus-width = <8>;
+                data-shift = <8>;
+            };
+        };
+
+        port@1 {
+            reg = <1>;
+
+            vpif_output_ch0: endpoint {
+                bus-width = <8>;
+                remote-endpoint = <&composite_out>;
+            };
+        };
+    };
+
+  - |
+    vpif@217000 {
+        compatible = "ti,da850-vpif";
+        reg = <0x217000 0x1000>;
+        interrupts = <92>;
+
+        port {
+            vpif_ch0: endpoint {
+                bus-width = <16>;
+            };
+        };
+    };

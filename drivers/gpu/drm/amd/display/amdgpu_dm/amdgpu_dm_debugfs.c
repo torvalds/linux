@@ -606,7 +606,7 @@ static int dp_lttpr_status_show(struct seq_file *m, void *unused)
 		break;
 	}
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -1081,7 +1081,7 @@ static int psr_capability_show(struct seq_file *m, void *data)
 	seq_printf(m, "Driver support: %s", str_yes_no(link->psr_settings.psr_feature_enabled));
 	if (link->psr_settings.psr_version)
 		seq_printf(m, " [0x%02x]", link->psr_settings.psr_version);
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -1266,7 +1266,7 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 	if (!hdcp_cap && !hdcp2_cap)
 		seq_printf(m, "%s ", "None");
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -2710,11 +2710,10 @@ static int ips_status_show(struct seq_file *m, void *unused)
 		rcg_count = ips_fw->rcg_exit_count;
 		ips1_count = ips_fw->ips1_exit_count;
 		ips2_count = ips_fw->ips2_exit_count;
-		seq_printf(m, "exit counts: rcg=%u ips1=%u ips2=%u",
+		seq_printf(m, "exit counts: rcg=%u ips1=%u ips2=%u\n",
 			   rcg_count,
 			   ips1_count,
 			   ips2_count);
-		seq_puts(m, "\n");
 	}
 	return 0;
 }
@@ -2971,7 +2970,7 @@ static ssize_t hdmi_cec_state_write(struct file *f, const char __user *buf,
 		ret = amdgpu_dm_initialize_hdmi_connector(aconnector);
 		if (ret)
 			return ret;
-		hdmi_cec_set_edid(aconnector);
+		amdgpu_dm_hdmi_cec_set_edid(aconnector);
 	} else {
 		if (!aconnector->notifier)
 			return -EINVAL;
@@ -2979,6 +2978,64 @@ static ssize_t hdmi_cec_state_write(struct file *f, const char __user *buf,
 		aconnector->notifier = NULL;
 	}
 
+	return size;
+}
+
+/**
+ * hdmi_automation_enable - Enable/Disable HDMI automation feature
+ * @f: file structure.
+ * @buf: userspace buffer. set to '1' to enable; '0' to disable automation feature.
+ * @size: size of buffer from userpsace.
+ * @pos: unused.
+ *
+ * Return size on success, error code on failure
+ */
+static ssize_t hdmi_automation_enable(struct file *f, const char __user *buf,
+	size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	char *wr_buf = NULL;
+	const uint32_t wr_buf_size = 40;
+	int max_param_num = 1;
+	uint8_t param_nums = 0;
+	long param[2];
+	bool hdmi_comp_auto;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return -ENOSPC;
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
+	}
+
+	switch (param[0]) {
+	case 0:
+		hdmi_comp_auto = false;
+		break;
+	case 1:
+	default:
+		hdmi_comp_auto = true;
+		break;
+	}
+
+	/* Persist setting across sink re-detection/hotplug. */
+	aconnector->hdmi_comp_auto = hdmi_comp_auto;
+
+	kfree(wr_buf);
 	return size;
 }
 
@@ -3099,6 +3156,12 @@ static const struct file_operations dp_mst_link_settings_debugfs_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations hdmi_automation_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = hdmi_automation_enable,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -3131,61 +3194,47 @@ static const struct {
 	const struct file_operations *fops;
 } hdmi_debugfs_entries[] = {
 		{"hdcp_sink_capability", &hdcp_sink_capability_fops},
-		{"hdmi_cec_state", &hdmi_cec_state_fops}
+		{"hdmi_cec_state", &hdmi_cec_state_fops},
+		{"hdmi_automation", &hdmi_automation_debugfs_fops}
 };
 
 /*
- * Force YUV420 output if available from the given mode
+ * Force a specific pixel encoding for the given connector, overriding the
+ * encoding that stream validation would otherwise pick. The value is an
+ * enum dc_pixel_encoding:
+ *
+ *   0 - PIXEL_ENCODING_UNDEFINED (no override, default)
+ *   1 - PIXEL_ENCODING_RGB
+ *   2 - PIXEL_ENCODING_YCBCR422
+ *   3 - PIXEL_ENCODING_YCBCR444
+ *   4 - PIXEL_ENCODING_YCBCR420
  */
-static int force_yuv420_output_set(void *data, u64 val)
+static int force_yuv_pixel_format_set(void *data, u64 val)
 {
 	struct amdgpu_dm_connector *connector = data;
 
-	connector->force_yuv420_output = (bool)val;
-	connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR420;
+	if (val >= PIXEL_ENCODING_COUNT)
+		return -EINVAL;
+
+	connector->force_yuv_pixel_format = (uint8_t)val;
 
 	return 0;
 }
 
 /*
- * Check if YUV420 is forced when available from the given mode
+ * Read back the pixel encoding currently forced on the given connector.
  */
-static int force_yuv420_output_get(void *data, u64 *val)
+static int force_yuv_pixel_format_get(void *data, u64 *val)
 {
 	struct amdgpu_dm_connector *connector = data;
 
-	*val = connector->force_yuv420_output;
+	*val = connector->force_yuv_pixel_format;
 
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
-			 force_yuv420_output_set, "%llu\n");
-
-static int force_yuv422_output_set(void *data, u64 val)
-{
-      struct amdgpu_dm_connector *connector = data;
-
-      connector->force_yuv422_output = (bool)val;
-      connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR422;
-
-      return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv422_output_fops, NULL,
-                       force_yuv422_output_set, "%llu\n");
-
-static int force_yuv444_output_set(void *data, u64 val)
-{
-      struct amdgpu_dm_connector *connector = data;
-
-      connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR444;
-
-      return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv444_output_fops, NULL,
-                       force_yuv444_output_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(force_yuv_pixel_format_fops, force_yuv_pixel_format_get,
+			 force_yuv_pixel_format_set, "%llu\n");
 
 /*
  *  Read Replay state
@@ -3635,9 +3684,7 @@ static const struct {
 	char *name;
 	const struct file_operations *fops;
 } connector_debugfs_entries[] = {
-		{"force_yuv420_output", &force_yuv420_output_fops},
-		{"force_yuv422_output", &force_yuv422_output_fops},
-		{"force_yuv444_output", &force_yuv444_output_fops},
+		{"force_yuv_pixel_format", &force_yuv_pixel_format_fops},
 		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
 		{"internal_display", &internal_display_fops},
 		{"odm_combine_segments", &odm_combine_segments_fops}

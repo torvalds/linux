@@ -1414,6 +1414,7 @@ static const struct of_device_id mt8192_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt8192-pinctrl", .data = &mt8192_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt8192_pinctrl_of_match);
 
 static struct platform_driver mt8192_pinctrl_driver = {
 	.driver = {
@@ -1431,3 +1432,4 @@ static int __init mt8192_pinctrl_init(void)
 arch_initcall(mt8192_pinctrl_init);
 
 MODULE_DESCRIPTION("MediaTek MT8192 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

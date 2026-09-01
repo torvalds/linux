@@ -4,6 +4,8 @@
 
 #ifdef __x86_64__
 
+#define _GNU_SOURCE
+#include <sched.h>
 #include <unistd.h>
 #include <asm/ptrace.h>
 #include <linux/compiler.h>
@@ -13,11 +15,12 @@
 #include <sys/syscall.h>
 #include <sys/prctl.h>
 #include <asm/prctl.h>
+#include <stdnoreturn.h>
 #include "uprobe_syscall.skel.h"
 #include "uprobe_syscall_executed.skel.h"
 #include "bpf/libbpf_internal.h"
 
-#define USDT_NOP .byte 0x0f, 0x1f, 0x44, 0x00, 0x00
+#define USDT_NOP .byte 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00
 #include "usdt.h"
 
 #pragma GCC diagnostic ignored "-Wattributes"
@@ -26,7 +29,7 @@ __attribute__((aligned(16)))
 __nocf_check __weak __naked unsigned long uprobe_regs_trigger(void)
 {
 	asm volatile (
-		".byte 0x0f, 0x1f, 0x44, 0x00, 0x00\n" /* nop5 */
+		".byte 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00\n" /* nop10 */
 		"movq $0xdeadbeef, %rax\n"
 		"ret\n"
 	);
@@ -345,9 +348,9 @@ cleanup:
 __attribute__((aligned(16)))
 __nocf_check __weak __naked void uprobe_test(void)
 {
-	asm volatile ("					\n"
-		".byte 0x0f, 0x1f, 0x44, 0x00, 0x00	\n"
-		"ret					\n"
+	asm volatile (
+		".byte 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00\n" /* nop10 */
+		"ret\n"
 	);
 }
 
@@ -355,6 +358,50 @@ __attribute__((aligned(16)))
 __nocf_check __weak void usdt_test(void)
 {
 	USDT(optimized_uprobe, usdt);
+}
+
+/*
+ * Assembly-level red zone clobbering test. Stores known values in the
+ * red zone (below RSP), executes a nop10 (uprobe site), and checks that
+ * the values survived. Returns 0 if intact, 1 if clobbered.
+ *
+ * The nop5 optimization used CALL (which pushes a return address to
+ * [rsp-8]), the value at -8(%rsp) was overwritten. The nop10 optimization
+ * should escape that by moving stackpointer below the redzone before
+ * doing the CALL.
+ *
+ * Align the code at 64 bytes, to make sure nop10 is not on page boundary.
+ */
+__attribute__((aligned(64)))
+__nocf_check __weak __naked unsigned long uprobe_red_zone_test(void)
+{
+	asm volatile (
+		"movabs $0x1111111111111111, %%rax\n"
+		"movq   %%rax, -8(%%rsp)\n"
+		"movabs $0x2222222222222222, %%rax\n"
+		"movq   %%rax, -16(%%rsp)\n"
+		"movabs $0x3333333333333333, %%rax\n"
+		"movq   %%rax, -24(%%rsp)\n"
+
+		".byte 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00\n" /* nop10: uprobe site */
+
+		"movabs $0x1111111111111111, %%rax\n"
+		"cmpq   %%rax, -8(%%rsp)\n"
+		"jne    1f\n"
+		"movabs $0x2222222222222222, %%rax\n"
+		"cmpq   %%rax, -16(%%rsp)\n"
+		"jne    1f\n"
+		"movabs $0x3333333333333333, %%rax\n"
+		"cmpq   %%rax, -24(%%rsp)\n"
+		"jne    1f\n"
+
+		"xorl   %%eax, %%eax\n"
+		"retq\n"
+		"1:\n"
+		"movl   $1, %%eax\n"
+		"retq\n"
+		::: "rax", "memory"
+	);
 }
 
 static int find_uprobes_trampoline(void *tramp_addr)
@@ -388,20 +435,31 @@ static int find_uprobes_trampoline(void *tramp_addr)
 	return ret;
 }
 
-static unsigned char nop5[5] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
+static unsigned char nop10[10]  = { 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static unsigned char lea_rsp[5] = { 0x48, 0x8d, 0x64, 0x24, 0x80 };
 
-static void *find_nop5(void *fn)
+static void *find_nop10(void *fn)
 {
 	int i;
 
-	for (i = 0; i < 10; i++) {
-		if (!memcmp(nop5, fn + i, 5))
+	for (i = 0; i < 128; i++) {
+		if (!memcmp(nop10, fn + i, 10))
 			return fn + i;
 	}
 	return NULL;
 }
 
 typedef void (__attribute__((nocf_check)) *trigger_t)(void);
+
+static void check_attach_notrigger(struct uprobe_syscall_executed *skel,
+				   void *addr, int executed)
+{
+	unsigned char *op = addr;
+
+	/* Make sure bpf program was not executed. */
+	ASSERT_EQ(skel->bss->executed, executed, "executed");
+	ASSERT_EQ(*op, 0xcc, "int3");
+}
 
 static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigger,
 			  void *addr, int executed)
@@ -420,7 +478,8 @@ static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigge
 	ASSERT_EQ(skel->bss->executed, executed, "executed");
 
 	/* .. and check the trampoline is as expected. */
-	call = (struct __arch_relative_insn *) addr;
+	ASSERT_OK(memcmp(addr, lea_rsp, 5), "lea_rsp");
+	call = (struct __arch_relative_insn *)(addr + 5);
 	tramp = (void *) (call + 1) + call->raddr;
 	ASSERT_EQ(call->op, 0xe8, "call");
 	ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
@@ -428,21 +487,26 @@ static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigge
 	return tramp;
 }
 
-static void check_detach(void *addr, void *tramp)
+static bool check_detach(void *addr, void *tramp)
 {
+	static const unsigned char nop10_prefix[] = { 0x66, 0x2e, 0x0f, 0x1f, 0x84 };
+	bool ok = true;
+
 	/* [uprobes_trampoline] stays after detach */
-	ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
-	ASSERT_OK(memcmp(addr, nop5, 5), "nop5");
+	ok &= ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
+	ok &= ASSERT_OK(memcmp(addr, nop10_prefix, 5), "nop10_prefix");
+	return ok;
 }
 
-static void check(struct uprobe_syscall_executed *skel, struct bpf_link *link,
-		  trigger_t trigger, void *addr, int executed)
+static void *check(struct uprobe_syscall_executed *skel, struct bpf_link *link,
+		   trigger_t trigger, void *addr, int executed)
 {
 	void *tramp;
 
 	tramp = check_attach(skel, trigger, addr, executed);
 	bpf_link__destroy(link);
 	check_detach(addr, tramp);
+	return tramp;
 }
 
 static void test_uprobe_legacy(void)
@@ -453,6 +517,7 @@ static void test_uprobe_legacy(void)
 	);
 	struct bpf_link *link;
 	unsigned long offset;
+	void *tramp;
 
 	offset = get_uprobe_offset(&uprobe_test);
 	if (!ASSERT_GE(offset, 0, "get_uprobe_offset"))
@@ -470,7 +535,30 @@ static void test_uprobe_legacy(void)
 	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_opts"))
 		goto cleanup;
 
-	check(skel, link, uprobe_test, uprobe_test, 2);
+	tramp = check(skel, link, uprobe_test, uprobe_test, 2);
+
+	/* reattach and detach without triggering optimization */
+	link = bpf_program__attach_uprobe_opts(skel->progs.test_uprobe,
+					       0, "/proc/self/exe", offset, NULL);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_opts"))
+		goto cleanup;
+
+	check_attach_notrigger(skel, uprobe_test, 2);
+
+	bpf_link__destroy(link);
+	if (!check_detach(uprobe_test, tramp))
+		goto cleanup;
+
+	uprobe_test();
+	ASSERT_EQ(skel->bss->executed, 2, "executed_no_probe");
+
+	/* reattach with triggering optimization */
+	link = bpf_program__attach_uprobe_opts(skel->progs.test_uprobe,
+				0, "/proc/self/exe", offset, NULL);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_opts"))
+		goto cleanup;
+
+	check(skel, link, uprobe_test, uprobe_test, 4);
 
 	/* uretprobe */
 	skel->bss->executed = 0;
@@ -492,6 +580,7 @@ static void test_uprobe_multi(void)
 	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts);
 	struct bpf_link *link;
 	unsigned long offset;
+	void *tramp;
 
 	offset = get_uprobe_offset(&uprobe_test);
 	if (!ASSERT_GE(offset, 0, "get_uprobe_offset"))
@@ -512,7 +601,30 @@ static void test_uprobe_multi(void)
 	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
 		goto cleanup;
 
-	check(skel, link, uprobe_test, uprobe_test, 2);
+	tramp = check(skel, link, uprobe_test, uprobe_test, 2);
+
+	/* reattach and detach without triggering optimization */
+	link = bpf_program__attach_uprobe_multi(skel->progs.test_uprobe_multi,
+				0, "/proc/self/exe", NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	check_attach_notrigger(skel, uprobe_test, 2);
+
+	bpf_link__destroy(link);
+	if (!check_detach(uprobe_test, tramp))
+		goto cleanup;
+
+	uprobe_test();
+	ASSERT_EQ(skel->bss->executed, 2, "executed_no_probe");
+
+	/* reattach with triggering optimization */
+	link = bpf_program__attach_uprobe_multi(skel->progs.test_uprobe_multi,
+				0, "/proc/self/exe", NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	check(skel, link, uprobe_test, uprobe_test, 4);
 
 	/* uretprobe.multi */
 	skel->bss->executed = 0;
@@ -536,6 +648,7 @@ static void test_uprobe_session(void)
 	);
 	struct bpf_link *link;
 	unsigned long offset;
+	void *tramp;
 
 	offset = get_uprobe_offset(&uprobe_test);
 	if (!ASSERT_GE(offset, 0, "get_uprobe_offset"))
@@ -555,7 +668,30 @@ static void test_uprobe_session(void)
 	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
 		goto cleanup;
 
-	check(skel, link, uprobe_test, uprobe_test, 4);
+	tramp = check(skel, link, uprobe_test, uprobe_test, 4);
+
+	/* reattach and detach without triggering optimization */
+	link = bpf_program__attach_uprobe_multi(skel->progs.test_uprobe_session,
+				0, "/proc/self/exe", NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	check_attach_notrigger(skel, uprobe_test, 4);
+
+	bpf_link__destroy(link);
+	if (!check_detach(uprobe_test, tramp))
+		goto cleanup;
+
+	uprobe_test();
+	ASSERT_EQ(skel->bss->executed, 4, "executed_no_probe");
+
+	/* reattach with triggering optimization */
+	link = bpf_program__attach_uprobe_multi(skel->progs.test_uprobe_session,
+				0, "/proc/self/exe", NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	check(skel, link, uprobe_test, uprobe_test, 8);
 
 cleanup:
 	uprobe_syscall_executed__destroy(skel);
@@ -565,11 +701,11 @@ static void test_uprobe_usdt(void)
 {
 	struct uprobe_syscall_executed *skel;
 	struct bpf_link *link;
-	void *addr;
+	void *addr, *tramp;
 
 	errno = 0;
-	addr = find_nop5(usdt_test);
-	if (!ASSERT_OK_PTR(addr, "find_nop5"))
+	addr = find_nop10(usdt_test);
+	if (!ASSERT_OK_PTR(addr, "find_nop10"))
 		return;
 
 	skel = uprobe_syscall_executed__open_and_load();
@@ -584,7 +720,32 @@ static void test_uprobe_usdt(void)
 	if (!ASSERT_OK_PTR(link, "bpf_program__attach_usdt"))
 		goto cleanup;
 
-	check(skel, link, usdt_test, addr, 2);
+	tramp = check(skel, link, usdt_test, addr, 2);
+
+	/* reattach and detach without triggering optimization */
+	link = bpf_program__attach_usdt(skel->progs.test_usdt,
+				-1 /* all PIDs */, "/proc/self/exe",
+				"optimized_uprobe", "usdt", NULL);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_usdt"))
+		goto cleanup;
+
+	check_attach_notrigger(skel, addr, 2);
+
+	bpf_link__destroy(link);
+	if (!check_detach(addr, tramp))
+		goto cleanup;
+
+	usdt_test();
+	ASSERT_EQ(skel->bss->executed, 2, "executed_no_probe");
+
+	/* reattach with triggering optimization */
+	link = bpf_program__attach_usdt(skel->progs.test_usdt,
+				-1 /* all PIDs */, "/proc/self/exe",
+				"optimized_uprobe", "usdt", NULL);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_usdt"))
+		goto cleanup;
+
+	check(skel, link, usdt_test, addr, 4);
 
 cleanup:
 	uprobe_syscall_executed__destroy(skel);
@@ -757,12 +918,124 @@ cleanup:
 #define __NR_uprobe 336
 #endif
 
+static void test_uprobe_red_zone(void)
+{
+	struct uprobe_syscall_executed *skel;
+	struct bpf_link *link;
+	void *nop10_addr;
+	size_t offset;
+	int i;
+
+	nop10_addr = find_nop10(uprobe_red_zone_test);
+	if (!ASSERT_NEQ(nop10_addr, NULL, "find_nop10"))
+		return;
+
+	skel = uprobe_syscall_executed__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		return;
+
+	offset = get_uprobe_offset(nop10_addr);
+	link = bpf_program__attach_uprobe_opts(skel->progs.test_uprobe,
+			0, "/proc/self/exe", offset, NULL);
+	if (!ASSERT_OK_PTR(link, "attach_uprobe"))
+		goto cleanup;
+
+	for (i = 0; i < 10; i++)
+		ASSERT_EQ(uprobe_red_zone_test(), 0, "red_zone_intact");
+
+	bpf_link__destroy(link);
+
+cleanup:
+	uprobe_syscall_executed__destroy(skel);
+}
+
 static void test_uprobe_error(void)
 {
 	long err = syscall(__NR_uprobe);
 
 	ASSERT_EQ(err, -1, "error");
-	ASSERT_EQ(errno, ENXIO, "errno");
+	ASSERT_EQ(errno, EPROTO, "errno");
+}
+
+__attribute__((aligned(16)))
+__nocf_check __weak __naked void uprobe_fork_test(void)
+{
+	asm volatile (
+		".byte 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00\n" /* nop10 */
+		"ret\n"
+	);
+}
+
+static noreturn int child_func(void *arg)
+{
+	struct uprobe_syscall_executed *skel = arg;
+
+	/* Make sure the child's probe is still there and optimized.. */
+	if (memcmp(uprobe_fork_test, lea_rsp, sizeof(lea_rsp)))
+		_exit(1);
+
+	skel->bss->pid = getpid();
+
+	/* .. and it executes properly. */
+	uprobe_fork_test();
+
+	if (skel->bss->executed != 3)
+		_exit(2);
+
+	_exit(0);
+}
+
+static void test_uprobe_fork_optimized(bool clone_vm)
+{
+	struct uprobe_syscall_executed *skel = NULL;
+	unsigned long offset;
+	int pid, status, err;
+	char stack[65535];
+
+	offset = get_uprobe_offset(&uprobe_fork_test);
+	if (!ASSERT_GE(offset, 0, "get_uprobe_offset"))
+		return;
+
+	skel = uprobe_syscall_executed__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		goto cleanup;
+
+	skel->links.test_uprobe = bpf_program__attach_uprobe_opts(skel->progs.test_uprobe,
+					-1, "/proc/self/exe", offset, NULL);
+	if (!ASSERT_OK_PTR(skel->links.test_uprobe, "attach_uprobe"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+
+	/* Trigger optimization of uprobe in uprobe_fork_test.  */
+	uprobe_fork_test();
+	uprobe_fork_test();
+
+	/* Make sure it got optimied. */
+	if (!ASSERT_OK(memcmp(uprobe_fork_test, lea_rsp, sizeof(lea_rsp)), "optimized"))
+		goto cleanup;
+
+	if (clone_vm) {
+		pid = clone(child_func, stack + sizeof(stack), CLONE_VM|SIGCHLD, skel);
+		if (!ASSERT_GT(pid, 0, "clone"))
+			goto cleanup;
+	} else {
+		pid = fork();
+		if (!ASSERT_GE(pid, 0, "fork"))
+			goto cleanup;
+		if (pid == 0)
+			child_func(skel);
+	}
+
+	/* Wait for the child and verify it exited properly with 0. */
+	err = waitpid(pid, &status, 0);
+	if (ASSERT_EQ(err, pid, "waitpid")) {
+		ASSERT_EQ(WIFEXITED(status), 1, "child_exited");
+		ASSERT_EQ(WEXITSTATUS(status), 0, "child_exit_code");
+	}
+
+cleanup:
+	uprobe_syscall_executed__destroy(skel);
 }
 
 static void __test_uprobe_syscall(void)
@@ -783,6 +1056,12 @@ static void __test_uprobe_syscall(void)
 		test_uprobe_usdt();
 	if (test__start_subtest("uprobe_race"))
 		test_uprobe_race();
+	if (test__start_subtest("uprobe_red_zone"))
+		test_uprobe_red_zone();
+	if (test__start_subtest("uprobe_optimized_fork"))
+		test_uprobe_fork_optimized(false);
+	if (test__start_subtest("uprobe_optimized_clone_vm"))
+		test_uprobe_fork_optimized(true);
 	if (test__start_subtest("uprobe_error"))
 		test_uprobe_error();
 	if (test__start_subtest("uprobe_regs_equal"))

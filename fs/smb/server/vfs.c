@@ -7,6 +7,7 @@
 #include <crypto/sha2.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/filelock.h>
 #include <linux/uaccess.h>
 #include <linux/backing-dev.h>
@@ -16,10 +17,10 @@
 #include <linux/fsnotify.h>
 #include <linux/dcache.h>
 #include <linux/slab.h>
+#include <linux/sizes.h>
 #include <linux/vmalloc.h>
 #include <linux/sched/xacct.h>
 #include <linux/crc32c.h>
-#include <linux/splice.h>
 #include <linux/fileattr.h>
 
 #include "glob.h"
@@ -67,8 +68,9 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 	}
 
 	CLASS(filename_kernel, filename)(pathname);
-	err = vfs_path_parent_lookup(filename, flags, path, &last,
-				     root_share_path);
+	scoped_with_init_fs()
+		err = vfs_path_parent_lookup(filename, flags, path, &last,
+					     root_share_path);
 	if (err)
 		return err;
 
@@ -297,9 +299,6 @@ static int check_lock_range(struct file *filp, loff_t start, loff_t end,
 	struct file_lock_context *ctx = locks_inode_context(file_inode(filp));
 	int error = 0;
 
-	if (start == end)
-		return 0;
-
 	if (!ctx || list_empty_careful(&ctx->flc_posix))
 		return 0;
 
@@ -345,7 +344,7 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 	ssize_t nbytes = 0;
 	struct inode *inode = file_inode(filp);
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode) && !ksmbd_stream_fd(fp))
 		return -EISDIR;
 
 	if (unlikely(count == 0))
@@ -474,7 +473,8 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 
 	if (work->conn->connection_type) {
 		if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_APPEND_DATA_LE)) ||
-		    S_ISDIR(file_inode(fp->filp)->i_mode)) {
+		    (S_ISDIR(file_inode(fp->filp)->i_mode) &&
+		     !ksmbd_stream_fd(fp))) {
 			pr_err("no right to write(%pD)\n", fp->filp);
 			err = -EACCES;
 			goto out;
@@ -623,7 +623,8 @@ int ksmbd_vfs_link(struct ksmbd_work *work, const char *oldname,
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
 
-	err = kern_path(oldname, LOOKUP_NO_SYMLINKS, &oldpath);
+	scoped_with_init_fs()
+		err = kern_path(oldname, LOOKUP_NO_SYMLINKS, &oldpath);
 	if (err) {
 		pr_err("cannot get linux path for %s, err = %d\n",
 		       oldname, err);
@@ -660,15 +661,35 @@ out1:
 	return err;
 }
 
-int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
-		     char *newname, int flags)
+int ksmbd_vfs_check_rename_share(struct ksmbd_work *work,
+				 const struct path *old_path)
 {
+	struct ksmbd_file *parent_fp;
+	int err = 0;
+
+	parent_fp = ksmbd_lookup_fd_inode(old_path->dentry->d_parent);
+	if (!parent_fp)
+		return 0;
+
+	if ((parent_fp->daccess & FILE_DELETE_LE) ||
+	    (!parent_fp->attrib_only &&
+	     !(parent_fp->saccess & FILE_SHARE_DELETE_LE))) {
+		ksmbd_debug(VFS, "parent dir blocks delete sharing\n");
+		err = -ESHARE;
+	}
+	ksmbd_fd_put(work, parent_fp);
+	return err;
+}
+
+int ksmbd_vfs_rename(struct ksmbd_work *work, struct ksmbd_file *old_fp,
+			     char *newname, int flags)
+{
+	const struct path *old_path = &old_fp->filp->f_path;
 	struct dentry *old_child = old_path->dentry;
 	struct path new_path;
 	struct qstr new_last;
 	struct renamedata rd;
 	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
-	struct ksmbd_file *parent_fp;
 	int err, lookup_flags = LOOKUP_NO_SYMLINKS;
 
 	if (ksmbd_override_fsids(work))
@@ -700,24 +721,27 @@ retry:
 	if (err)
 		goto out_drop_write;
 
-	if (!work->tcon->posix_extensions && d_is_dir(old_child) &&
-	    ksmbd_has_open_files(old_child)) {
+	if (d_is_dir(old_child) && ksmbd_has_nonposix_open_child(old_fp)) {
 		err = -EACCES;
 		goto out3;
 	}
 
-	parent_fp = ksmbd_lookup_fd_inode(old_child->d_parent);
-	if (parent_fp) {
-		if ((parent_fp->daccess & FILE_DELETE_LE) ||
-		    (!parent_fp->attrib_only &&
-		     !(parent_fp->saccess & FILE_SHARE_DELETE_LE))) {
-			pr_err("parent dir blocks delete sharing\n");
-			err = -ESHARE;
-			ksmbd_fd_put(work, parent_fp);
-			goto out3;
-		}
-		ksmbd_fd_put(work, parent_fp);
+	/*
+	 * See MS-FSA 2.1.5.15.12.
+	 * An overwrite rename must fail with STATUS_ACCESS_DENIED if the
+	 * existing target still has a non-POSIX open.
+	 */
+	if (!(flags & (RENAME_NOREPLACE | RENAME_EXCHANGE)) &&
+	    d_inode(rd.new_dentry) &&
+	    d_inode(rd.new_dentry) != d_inode(old_child) &&
+	    ksmbd_has_other_nonposix_open(rd.new_dentry)) {
+		err = -EACCES;
+		goto out3;
 	}
+
+	err = ksmbd_vfs_check_rename_share(work, old_path);
+	if (err)
+		goto out3;
 
 	if (d_is_symlink(rd.new_dentry)) {
 		err = -EACCES;
@@ -927,54 +951,205 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len)
 {
 	const struct cred *saved_cred;
+	loff_t pos = off, size;
+	char *zero_buf = NULL;
 	int err;
 
 	smb_break_all_levII_oplock(work, fp, 1);
+	if (!work->tcon->posix_extensions) {
+		loff_t size = i_size_read(file_inode(fp->filp));
+
+		if (off < size) {
+			err = check_lock_range(fp->filp, off,
+					       min(off + len, size) - 1,
+					       WRITE);
+			if (err)
+				return -EAGAIN;
+		}
+	}
+
 	saved_cred = override_creds(fp->filp->f_cred);
-	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE)
+	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE) {
 		err = vfs_fallocate(fp->filp,
 				    FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				    off, len);
-	else
-		err = vfs_fallocate(fp->filp,
-				    FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE,
-				    off, len);
+	} else {
+		size = i_size_read(file_inode(fp->filp));
+		if (off >= size) {
+			err = 0;
+			goto out;
+		}
+
+		len = min(len, size - off);
+		zero_buf = kvzalloc(SZ_64K, GFP_KERNEL);
+		if (!zero_buf) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		while (len) {
+			ssize_t written;
+			size_t count = min_t(loff_t, len, SZ_64K);
+
+			written = kernel_write(fp->filp, zero_buf, count, &pos);
+			if (written < 0) {
+				err = written;
+				goto out;
+			}
+			if (!written) {
+				err = -EIO;
+				goto out;
+			}
+			len -= written;
+		}
+		err = 0;
+	}
+out:
+	revert_creds(saved_cred);
+	kvfree(zero_buf);
+	return err;
+}
+
+int ksmbd_vfs_zero_holes(struct ksmbd_file *fp)
+{
+	struct file *f = fp->filp;
+	const struct cred *saved_cred;
+	loff_t size, pos = 0;
+	char *zero_buf;
+	int err;
+
+	err = file_write_and_wait(f);
+	if (err)
+		return err;
+
+	size = i_size_read(file_inode(f));
+	if (!size)
+		return 0;
+
+	/*
+	 * FALLOC_FL_ZERO_RANGE may leave unwritten extents, which SEEK_DATA
+	 * reports as holes. Write zeroes into each hole so that clearing the
+	 * sparse attribute leaves the file fully allocated.
+	 */
+	zero_buf = kvzalloc(SZ_64K, GFP_KERNEL);
+	if (!zero_buf)
+		return -ENOMEM;
+
+	saved_cred = override_creds(f->f_cred);
+	while (pos < size) {
+		loff_t data, hole;
+
+		hole = vfs_llseek(f, pos, SEEK_HOLE);
+		if (hole == -ENXIO || hole >= size)
+			break;
+		if (hole < 0) {
+			err = hole;
+			goto out;
+		}
+
+		data = vfs_llseek(f, hole, SEEK_DATA);
+		if (data == -ENXIO) {
+			data = size;
+		} else if (data < 0) {
+			err = data;
+			goto out;
+		}
+		data = min(data, size);
+		if (data <= hole) {
+			err = -EIO;
+			goto out;
+		}
+
+		pos = hole;
+		while (pos < data) {
+			ssize_t written;
+			size_t count = min_t(loff_t, data - pos, SZ_64K);
+
+			written = kernel_write(f, zero_buf, count, &pos);
+			if (written < 0) {
+				err = written;
+				goto out;
+			}
+			if (!written) {
+				err = -EIO;
+				goto out;
+			}
+		}
+	}
+	err = file_write_and_wait(f);
+out:
+	revert_creds(saved_cred);
+	kvfree(zero_buf);
+	return err;
+}
+
+int ksmbd_vfs_trim_data(struct ksmbd_work *work, struct ksmbd_file *fp,
+			loff_t off, loff_t len)
+{
+	const struct cred *saved_cred;
+	int err;
+
+	smb_break_all_levII_oplock(work, fp, 1);
+	if (!work->tcon->posix_extensions) {
+		loff_t size = i_size_read(file_inode(fp->filp));
+
+		if (off < size) {
+			err = check_lock_range(fp->filp, off,
+					       min(off + len, size) - 1,
+					       WRITE);
+			if (err)
+				return -EAGAIN;
+		}
+	}
+
+	saved_cred = override_creds(fp->filp->f_cred);
+	err = vfs_fallocate(fp->filp,
+			    FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+			    off, len);
 	revert_creds(saved_cred);
 	return err;
 }
 
-int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
-			 struct file_allocated_range_buffer *ranges,
-			 unsigned int in_count, unsigned int *out_count)
+int ksmbd_vfs_query_allocated_ranges(struct ksmbd_file *fp, loff_t start,
+				     loff_t length,
+				     struct file_allocated_range_buffer *ranges,
+				     unsigned int in_count,
+				     unsigned int *out_count)
 {
 	struct file *f = fp->filp;
 	struct inode *inode = file_inode(fp->filp);
-	loff_t maxbytes = (u64)inode->i_sb->s_maxbytes, end;
-	loff_t extent_start, extent_end;
+	loff_t maxbytes = inode->i_sb->s_maxbytes, size;
+	loff_t extent_start, extent_end, end;
 	int ret = 0;
 
+	*out_count = 0;
+	if (start < 0 || length < 0)
+		return -EINVAL;
 	if (start > maxbytes)
 		return -EFBIG;
-
 	if (!in_count)
 		return 0;
-
-	/*
-	 * Shrink request scope to what the fs can actually handle.
-	 */
-	if (length > maxbytes || (maxbytes - length) < start)
+	if (length > maxbytes || maxbytes - length < start)
 		length = maxbytes - start;
+	size = i_size_read(inode);
+	if (!length || start >= size)
+		return 0;
+	if (length > size - start)
+		length = size - start;
 
-	if (start + length > inode->i_size)
-		length = inode->i_size - start;
-
-	*out_count = 0;
 	end = start + length;
+	if ((fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE) &&
+	    start < end) {
+		ret = file_write_and_wait_range(f, start, end - 1);
+		if (ret)
+			return ret;
+	}
+
 	while (start < end && *out_count < in_count) {
 		extent_start = vfs_llseek(f, start, SEEK_DATA);
 		if (extent_start < 0) {
 			if (extent_start != -ENXIO)
-				ret = (int)extent_start;
+				ret = extent_start;
 			break;
 		}
 
@@ -984,7 +1159,7 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		extent_end = vfs_llseek(f, extent_start, SEEK_HOLE);
 		if (extent_end < 0) {
 			if (extent_end != -ENXIO)
-				ret = (int)extent_end;
+				ret = extent_end;
 			break;
 		} else if (extent_start >= extent_end) {
 			break;
@@ -993,9 +1168,11 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		ranges[*out_count].file_offset = cpu_to_le64(extent_start);
 		ranges[(*out_count)++].length =
 			cpu_to_le64(min(extent_end, end) - extent_start);
-
 		start = extent_end;
 	}
+
+	if (!ret && start < end && *out_count == in_count)
+		ret = -E2BIG;
 
 	return ret;
 }
@@ -1686,6 +1863,35 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 		}
 	}
 
+	/*
+	 * Only pay for this when it'll actually be used: AAPL
+	 * READDIR_ATTR_V2's flags field (AAPL_READDIR_ATTR_V2_NO_XATTR) is
+	 * the only consumer. XATTR_NAME_STREAM ("user.DosStream.") is a
+	 * reliable, distinct prefix for genuine ADS/stream xattrs -- unlike
+	 * DOSATTRIB or ACL xattrs, which live under different prefixes, so
+	 * this can't false-positive into telling Finder a file has no extra
+	 * data when it actually does.
+	 */
+	ksmbd_kstat->has_ads_stream = false;
+	if (work->conn->aapl_readdir_attr_v2) {
+		char *xattr_list = NULL, *name;
+		ssize_t xattr_list_len;
+
+		xattr_list_len = ksmbd_vfs_listxattr(dentry, &xattr_list);
+		if (xattr_list_len > 0) {
+			for (name = xattr_list;
+			     name - xattr_list < xattr_list_len;
+			     name += strlen(name) + 1) {
+				if (!strncmp(name, XATTR_NAME_STREAM,
+					     XATTR_NAME_STREAM_LEN)) {
+					ksmbd_kstat->has_ads_stream = true;
+					break;
+				}
+			}
+		}
+		kvfree(xattr_list);
+	}
+
 	return 0;
 }
 
@@ -1736,6 +1942,71 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	return 0;
 }
 
+static ssize_t ksmbd_vfs_copy_file_range_buffered(struct ksmbd_work *work,
+						  struct ksmbd_file *src_fp,
+						  struct ksmbd_file *dst_fp,
+						  loff_t src_off,
+						  loff_t dst_off, size_t len)
+{
+	size_t buf_size = min_t(size_t, len, SZ_1M);
+	size_t copied = 0;
+	char *buf;
+	ssize_t ret = 0;
+
+	buf = kvmalloc(buf_size, KSMBD_DEFAULT_GFP);
+	if (!buf)
+		return -ENOMEM;
+
+	while (copied < len) {
+		size_t chunk_size = min(buf_size, len - copied);
+		size_t done = 0;
+		loff_t src_pos, dst_pos;
+
+		if (dst_off > src_off) {
+			src_pos = src_off + len - copied - chunk_size;
+			dst_pos = dst_off + len - copied - chunk_size;
+		} else {
+			src_pos = src_off + copied;
+			dst_pos = dst_off + copied;
+		}
+
+		while (done < chunk_size) {
+			loff_t pos = src_pos + done;
+
+			ret = ksmbd_vfs_read(work, src_fp, chunk_size - done,
+					     &pos, buf + done);
+			if (ret <= 0) {
+				if (!ret)
+					ret = -EIO;
+				goto out;
+			}
+			done += ret;
+		}
+
+		done = 0;
+		while (done < chunk_size) {
+			loff_t pos = dst_pos + done;
+			ssize_t written = 0;
+
+			ret = ksmbd_vfs_write(work, dst_fp, buf + done,
+					      chunk_size - done, &pos, false,
+					      &written);
+			if (ret < 0)
+				goto out;
+			if (!written) {
+				ret = -EIO;
+				goto out;
+			}
+			done += written;
+		}
+		copied += chunk_size;
+	}
+	ret = copied;
+out:
+	kvfree(buf);
+	return ret;
+}
+
 int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 			       struct ksmbd_file *src_fp,
 			       struct ksmbd_file *dst_fp,
@@ -1763,9 +2034,6 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		return -EACCES;
 	}
 
-	if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp))
-		return -EBADF;
-
 	smb_break_all_levII_oplock(work, dst_fp, 1);
 
 	if (!work->tcon->posix_extensions) {
@@ -1783,35 +2051,138 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		}
 	}
 
-	src_file_size = i_size_read(file_inode(src_fp->filp));
+	if (ksmbd_stream_fd(src_fp)) {
+		const struct cred *saved_cred;
+
+		saved_cred = override_creds(src_fp->filp->f_cred);
+		src_file_size = ksmbd_vfs_casexattr_len(
+				file_mnt_idmap(src_fp->filp),
+				src_fp->filp->f_path.dentry,
+				src_fp->stream.name, src_fp->stream.size);
+		revert_creds(saved_cred);
+		if (src_file_size < 0)
+			return src_file_size;
+	} else {
+		src_file_size = i_size_read(file_inode(src_fp->filp));
+	}
+
+	/*
+	 * macOS Finder's Cmd+D duplicate sends FSCTL_SRV_COPYCHUNK with
+	 * ChunkCount=0 meaning "copy the whole file/stream", not the
+	 * standard SMB2 "query my copy limits, no data" semantics --
+	 * fsctl_copychunk() only reaches here with chunk_count == 0 for
+	 * AAPL-negotiated connections, so this doesn't affect compliant
+	 * non-AAPL clients. Without this, the destination stays at its
+	 * just-created 0 bytes / empty stream: the for loop below is a
+	 * no-op when chunk_count is 0, since it never has an iteration to
+	 * treat as "copy everything".
+	 */
+	if (chunk_count == 0 && work->conn->is_aapl) {
+		loff_t off = 0;
+
+		while (off < src_file_size) {
+			size_t remaining = src_file_size - off;
+			ssize_t copied;
+
+			/* Same source/destination offset here: an in-place,
+			 * same-inode copy at matching offsets is a degenerate
+			 * no-op range, not a real overlap, but vfs_copy_file_range
+			 * still doesn't support streams -- route those (and the
+			 * same-inode case defensively) through the buffered path.
+			 */
+			if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
+			    file_inode(src_fp->filp) == file_inode(dst_fp->filp)) {
+				copied = ksmbd_vfs_copy_file_range_buffered(work, src_fp, dst_fp,
+									    off, off, remaining);
+			} else {
+				copied = vfs_copy_file_range(src_fp->filp, off,
+							     dst_fp->filp, off,
+							     remaining, 0);
+				if (copied == -EOPNOTSUPP || copied == -EXDEV)
+					copied = vfs_copy_file_range(src_fp->filp, off,
+								     dst_fp->filp, off,
+								     remaining,
+								     COPY_FILE_SPLICE);
+			}
+			if (copied < 0)
+				return copied;
+			if (copied == 0)
+				break;
+			off += copied;
+		}
+
+		/*
+		 * This is a synthesized whole-file copy, not a response to
+		 * any chunk descriptor the client actually sent (it sent
+		 * none -- chunk_count is 0). Report zero chunks/chunk-bytes
+		 * rather than inventing a chunk that doesn't correspond to
+		 * anything in the request; only total_size_written (bytes
+		 * actually copied) is meaningful here.
+		 */
+		*chunk_count_written = 0;
+		*chunk_size_written = 0;
+		*total_size_written = off;
+		return 0;
+	}
 
 	for (i = 0; i < chunk_count; i++) {
+		bool stream_len_mismatch = false;
+		size_t copy_len;
+
 		src_off = le64_to_cpu(chunks[i].SourceOffset);
 		dst_off = le64_to_cpu(chunks[i].TargetOffset);
 		len = le32_to_cpu(chunks[i].Length);
+		copy_len = len;
 
-		if (src_off + len > src_file_size)
+		if (src_off < 0)
 			return -E2BIG;
 
+		if (src_off > src_file_size || len > src_file_size - src_off) {
+			/*
+			 * macOS can reuse the main file's chunk list when copying
+			 * streams, so the requested range can exceed the size of
+			 * the xattr-backed stream. For an AAPL connection, copy the
+			 * available stream data and report the requested length to
+			 * avoid a copy length mismatch.
+			 */
+			if (!work->conn->is_aapl ||
+			    !ksmbd_stream_fd(src_fp) ||
+			    !ksmbd_stream_fd(dst_fp))
+				return -E2BIG;
+
+			stream_len_mismatch = true;
+			if (src_off < src_file_size)
+				copy_len = src_file_size - src_off;
+			else
+				copy_len = 0;
+		}
+
 		/*
-		 * vfs_copy_file_range does not allow overlapped copying
-		 * within the same file.
+		 * vfs_copy_file_range does not support streams or overlapping
+		 * ranges within the same file.
 		 */
-		if (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
-				dst_off + len > src_off &&
-				dst_off < src_off + len)
-			ret = do_splice_direct(src_fp->filp, &src_off,
-					dst_fp->filp, &dst_off,
-					min_t(size_t, len, MAX_RW_COUNT), 0);
-		else
+		if (!copy_len) {
+			ret = 0;
+		} else if (ksmbd_stream_fd(src_fp) || ksmbd_stream_fd(dst_fp) ||
+		    (file_inode(src_fp->filp) == file_inode(dst_fp->filp) &&
+		     dst_off + copy_len > src_off &&
+		     dst_off < src_off + copy_len)) {
+			ret = ksmbd_vfs_copy_file_range_buffered(work, src_fp,
+							  dst_fp, src_off,
+							  dst_off, copy_len);
+		} else {
 			ret = vfs_copy_file_range(src_fp->filp, src_off,
-					dst_fp->filp, dst_off, len, 0);
-		if (ret == -EOPNOTSUPP || ret == -EXDEV)
-			ret = vfs_copy_file_range(src_fp->filp, src_off,
-						  dst_fp->filp, dst_off, len,
-						  COPY_FILE_SPLICE);
+					dst_fp->filp, dst_off, copy_len, 0);
+			if (ret == -EOPNOTSUPP || ret == -EXDEV)
+				ret = vfs_copy_file_range(src_fp->filp, src_off,
+							  dst_fp->filp, dst_off,
+							  copy_len,
+							  COPY_FILE_SPLICE);
+		}
 		if (ret < 0)
 			return ret;
+		if (stream_len_mismatch)
+			ret = len;
 
 		*chunk_count_written += 1;
 		*total_size_written += ret;
@@ -1904,15 +2275,11 @@ void ksmbd_vfs_update_compressed_fattr(struct dentry *dentry, __le32 *fattr)
 	struct file_kattr fa = { .flags_valid = true };
 
 	rc = vfs_fileattr_get(dentry, &fa);
-	if (rc == -ENOIOCTLCMD)
-		*fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
 	if (rc)
 		return;
 
 	if (fa.flags & FS_COMPR_FL)
 		*fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
-	else
-		*fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
 }
 
 int ksmbd_vfs_get_compression(struct ksmbd_file *fp, u16 *fmt)
@@ -1921,15 +2288,19 @@ int ksmbd_vfs_get_compression(struct ksmbd_file *fp, u16 *fmt)
 	int rc;
 
 	rc = vfs_fileattr_get(fp->filp->f_path.dentry, &fa);
-	if (rc == -ENOIOCTLCMD) {
-		*fmt = COMPRESSION_FORMAT_NONE;
+	if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+	    rc == -EOPNOTSUPP) {
+		if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_COMPRESSED_LE)
+			*fmt = COMPRESSION_FORMAT_LZNT1;
+		else
+			*fmt = COMPRESSION_FORMAT_NONE;
 		rc = 0;
 		goto out;
 	}
 	if (rc)
 		goto out;
 
-	if (fa.flags & FS_COMPR_FL)
+	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_COMPRESSED_LE)
 		*fmt = COMPRESSION_FORMAT_LZNT1;
 	else
 		*fmt = COMPRESSION_FORMAT_NONE;
@@ -1938,7 +2309,9 @@ out:
 	return rc;
 }
 
-int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u16 fmt)
+static int __ksmbd_vfs_set_compression(struct ksmbd_work *work,
+				       struct ksmbd_file *fp, u16 fmt,
+				       bool check_access)
 {
 	const struct cred *saved_cred = NULL;
 	struct file_kattr fa;
@@ -1948,13 +2321,23 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 	__le32 old_fattr;
 	int rc;
 
-	if (!(fp->daccess & FILE_WRITE_DATA_LE)) {
+	if (check_access && !(fp->daccess & FILE_WRITE_DATA_LE)) {
 		rc = -EACCES;
+		goto out;
+	}
+
+	if (fmt != COMPRESSION_FORMAT_NONE &&
+	    fmt != COMPRESSION_FORMAT_DEFAULT &&
+	    fmt != COMPRESSION_FORMAT_LZNT1) {
+		rc = -EINVAL;
 		goto out;
 	}
 
 	saved_cred = override_creds(fp->filp->f_cred);
 	rc = vfs_fileattr_get(dentry, &fa);
+	if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+	    rc == -EOPNOTSUPP)
+		goto update_fattr;
 	if (rc)
 		goto out;
 
@@ -1964,9 +2347,6 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 	} else if (fmt == COMPRESSION_FORMAT_DEFAULT ||
 		   fmt == COMPRESSION_FORMAT_LZNT1) {
 		flags |= FS_COMPR_FL;
-	} else {
-		rc = -EINVAL;
-		goto out;
 	}
 
 	if (flags != fa.flags) {
@@ -1977,28 +2357,34 @@ int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u1
 
 		rc = vfs_fileattr_set(idmap, dentry, &fa);
 		mnt_drop_write_file(fp->filp);
+		if (rc == -ENOIOCTLCMD || rc == -ENOTTY || rc == -EINVAL ||
+		    rc == -EOPNOTSUPP)
+			goto update_fattr;
 		if (rc)
 			goto out;
 	}
 
+update_fattr:
 	old_fattr = fp->f_ci->m_fattr;
 	if (fmt == COMPRESSION_FORMAT_NONE)
 		fp->f_ci->m_fattr &= ~FILE_ATTRIBUTE_COMPRESSED_LE;
 	else
 		fp->f_ci->m_fattr |= FILE_ATTRIBUTE_COMPRESSED_LE;
 
-	if (fp->f_ci->m_fattr != old_fattr &&
-	    test_share_config_flag(work->tcon->share_conf,
-				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
-		struct xattr_dos_attrib da;
+	if (fp->f_ci->m_fattr != old_fattr) {
+		struct xattr_dos_attrib da = {0};
 
 		rc = ksmbd_vfs_get_dos_attrib_xattr(idmap, dentry, &da);
 		if (rc <= 0) {
-			rc = 0;
-			goto out;
+			da.version = 4;
+			da.itime = fp->itime;
+			da.create_time = fp->create_time;
+			da.flags = XATTR_DOSINFO_CREATE_TIME |
+				XATTR_DOSINFO_ITIME;
 		}
 
 		da.attr = le32_to_cpu(fp->f_ci->m_fattr);
+		da.flags |= XATTR_DOSINFO_ATTRIB;
 		rc = ksmbd_vfs_set_dos_attrib_xattr(idmap,
 						    &fp->filp->f_path,
 						    &da, true);
@@ -2010,4 +2396,16 @@ out:
 	if (saved_cred)
 		revert_creds(saved_cred);
 	return rc;
+}
+
+int ksmbd_vfs_set_compression(struct ksmbd_work *work,
+			      struct ksmbd_file *fp, u16 fmt)
+{
+	return __ksmbd_vfs_set_compression(work, fp, fmt, true);
+}
+
+int ksmbd_vfs_set_compression_create(struct ksmbd_work *work,
+				     struct ksmbd_file *fp, u16 fmt)
+{
+	return __ksmbd_vfs_set_compression(work, fp, fmt, false);
 }

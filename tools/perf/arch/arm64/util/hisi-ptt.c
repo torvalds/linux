@@ -53,7 +53,7 @@ static int hisi_ptt_info_fill(struct auxtrace_record *itr,
 	if (priv_size != HISI_PTT_AUXTRACE_PRIV_SIZE)
 		return -EINVAL;
 
-	if (!session->evlist->core.nr_mmaps)
+	if (!evlist__core(session->evlist)->nr_mmaps)
 		return -EINVAL;
 
 	auxtrace_info->type = PERF_AUXTRACE_HISI_PTT;

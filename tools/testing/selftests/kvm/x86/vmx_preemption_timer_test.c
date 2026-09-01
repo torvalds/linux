@@ -66,8 +66,6 @@ void l2_guest_code(void)
 
 void l1_guest_code(struct vmx_pages *vmx_pages)
 {
-#define L2_GUEST_STACK_SIZE 64
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	u64 l1_vmx_pt_start;
 	u64 l1_vmx_pt_finish;
 	u64 l1_tsc_deadline, l2_tsc_deadline;
@@ -77,8 +75,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(load_vmcs(vmx_pages));
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
-	prepare_vmcs(vmx_pages, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code);
 
 	/*
 	 * Check for Preemption timer support

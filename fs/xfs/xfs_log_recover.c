@@ -3279,9 +3279,8 @@ xlog_do_recovery_pass(
 			 * checkpoints at this start LSN.
 			 *
 			 * Note: Shutting down the filesystem will result in the
-			 * delwri submission marking all the buffers stale,
-			 * completing them and cleaning up _XBF_LOGRECOVERY
-			 * state without doing any IO.
+			 * delwri submission marking all the buffers stale and
+			 * completing them without doing any IO.
 			 */
 			xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 		}

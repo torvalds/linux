@@ -606,6 +606,10 @@ static int orion_wdt_probe(struct platform_device *pdev)
 
 	/* Request the IRQ only after the watchdog is disabled */
 	irq = platform_get_irq_optional(pdev, 0);
+	if (irq < 0 && irq != -ENXIO) {
+		ret = irq;
+		goto disable_clk;
+	}
 	if (irq > 0) {
 		/*
 		 * Not all supported platforms specify an interrupt for the
@@ -613,22 +617,22 @@ static int orion_wdt_probe(struct platform_device *pdev)
 		 */
 		ret = devm_request_irq(&pdev->dev, irq, orion_wdt_irq, 0,
 				       pdev->name, dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to request IRQ\n");
+		if (ret < 0)
 			goto disable_clk;
-		}
 	}
 
 	/* Optional 2nd interrupt for pretimeout */
 	irq = platform_get_irq_optional(pdev, 1);
+	if (irq < 0 && irq != -ENXIO) {
+		ret = irq;
+		goto disable_clk;
+	}
 	if (irq > 0) {
 		orion_wdt_info.options |= WDIOF_PRETIMEOUT;
 		ret = devm_request_irq(&pdev->dev, irq, orion_wdt_pre_irq,
 				       0, pdev->name, dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to request IRQ\n");
+		if (ret < 0)
 			goto disable_clk;
-		}
 	}
 
 

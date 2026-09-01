@@ -839,11 +839,10 @@ static int agilent_82350b_pci_probe(struct pci_dev *dev, const struct pci_device
 }
 
 static const struct pci_device_id agilent_82350b_pci_table[] = {
-	{ PCI_VENDOR_ID_PLX,     PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_HP,
-	  PCI_SUBDEVICE_ID_82350A, 0, 0, 0 },
-	{ PCI_VENDOR_ID_AGILENT, PCI_DEVICE_ID_82350B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_AGILENT, PCI_DEVICE_ID_82351A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 }
+	{ PCI_VDEVICE_SUB(PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_HP, PCI_SUBDEVICE_ID_82350A) },
+	{ PCI_VDEVICE(AGILENT, PCI_DEVICE_ID_82350B) },
+	{ PCI_VDEVICE(AGILENT, PCI_DEVICE_ID_82351A) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, agilent_82350b_pci_table);
 

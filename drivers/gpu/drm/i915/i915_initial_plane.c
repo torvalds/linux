@@ -58,22 +58,22 @@ initial_plane_phys(struct drm_i915_private *i915,
 
 	if (intel_memory_type_is_local(mem->type) != is_local) {
 		drm_err(&i915->drm, "Initial plane FB PTE unsuitable for %s\n",
-			mem->region.name);
+			mem->name);
 		return false;
 	}
 
 	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
 		drm_err(&i915->drm,
 			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
-			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
+			&dma_addr, mem->name, &mem->region.start, &mem->region.end);
 		return false;
 	}
 
-	drm_dbg(&i915->drm, "Using dma_addr=%pa, based on initial plane programming\n",
-		&dma_addr);
-
 	*out_phys_base = dma_addr - mem->region.start;
 	*out_mem = mem;
+
+	drm_dbg_kms(&i915->drm, "Initial plane dma_addr=%pa phys_base=%pa mem=%s\n",
+		    &dma_addr, out_phys_base, mem->name);
 
 	return true;
 }
@@ -120,7 +120,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 					       I915_BO_PREALLOC);
 	if (IS_ERR(obj)) {
 		drm_dbg_kms(&i915->drm, "Failed to preallocate initial FB in %s\n",
-			    mem->region.name);
+			    mem->name);
 		return NULL;
 	}
 

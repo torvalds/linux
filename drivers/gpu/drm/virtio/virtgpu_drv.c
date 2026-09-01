@@ -119,10 +119,24 @@ err_free:
 	return ret;
 }
 
+/*
+ * Release pending virtqueue waits so the drm_dev_enter/exit() critical
+ * sections complete before drm_dev_unplug() blocks on synchronize_srcu().
+ */
+static void virtio_gpu_release_vqs(struct drm_device *dev)
+{
+	struct virtio_gpu_device *vgdev = dev->dev_private;
+
+	vgdev->vqs_released = true;
+	wake_up_all(&vgdev->ctrlq.ack_queue);
+	wake_up_all(&vgdev->cursorq.ack_queue);
+}
+
 static void virtio_gpu_remove(struct virtio_device *vdev)
 {
 	struct drm_device *dev = vdev->priv;
 
+	virtio_gpu_release_vqs(dev);
 	drm_dev_unplug(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -136,6 +150,7 @@ static void virtio_gpu_shutdown(struct virtio_device *vdev)
 {
 	struct drm_device *dev = vdev->priv;
 
+	virtio_gpu_release_vqs(dev);
 	/* stop talking to the device */
 	drm_dev_unplug(dev);
 }
@@ -168,6 +183,86 @@ static unsigned int features[] = {
 	VIRTIO_GPU_F_CONTEXT_INIT,
 	VIRTIO_GPU_F_BLOB_ALIGNMENT,
 };
+
+#ifdef CONFIG_PM_SLEEP
+static void virtgpu_hibernation_restore(struct virtio_gpu_device *vgdev)
+{
+	if (vgdev->hibernated) {
+		vgdev->hibernated = false;
+		virtio_gpu_object_restore_all(vgdev);
+	}
+}
+
+static int virtgpu_freeze(struct virtio_device *vdev)
+{
+	struct drm_device *dev = vdev->priv;
+	struct virtio_gpu_device *vgdev = dev->dev_private;
+	int error;
+
+	error = drm_mode_config_helper_suspend(dev);
+	if (error) {
+		DRM_ERROR("suspend error: %d\n", error);
+		return error;
+	}
+
+	if (vgdev->hibernated)
+		virtio_gpu_object_unref_all(vgdev);
+
+	flush_work(&vgdev->obj_free_work);
+	flush_work(&vgdev->ctrlq.dequeue_work);
+	flush_work(&vgdev->cursorq.dequeue_work);
+	flush_work(&vgdev->config_changed_work);
+
+	error = virtio_gpu_wait_queue(&vgdev->ctrlq, vgdev->ctrlq.vq->num_max);
+	if (error) {
+		DRM_ERROR("ctrlq wait failed: %d\n", error);
+		goto err_resume;
+	}
+
+	error = virtio_gpu_wait_queue(&vgdev->cursorq, vgdev->cursorq.vq->num_max);
+	if (error) {
+		DRM_ERROR("cursorq wait failed: %d\n", error);
+		goto err_resume;
+	}
+
+	vdev->config->del_vqs(vdev);
+
+	return 0;
+
+err_resume:
+	virtgpu_hibernation_restore(vgdev);
+
+	drm_mode_config_helper_resume(dev);
+
+	return error;
+}
+
+static int virtgpu_restore(struct virtio_device *vdev)
+{
+	struct drm_device *dev = vdev->priv;
+	struct virtio_gpu_device *vgdev = dev->dev_private;
+	int error;
+
+	error = virtio_gpu_find_vqs(vgdev);
+	if (error) {
+		DRM_ERROR("failed to find virt queues\n");
+		return error;
+	}
+
+	virtio_device_ready(vdev);
+
+	virtgpu_hibernation_restore(vgdev);
+
+	error = drm_mode_config_helper_resume(dev);
+	if (error) {
+		DRM_ERROR("resume error: %d\n", error);
+		return error;
+	}
+
+	return 0;
+}
+#endif
+
 static struct virtio_driver virtio_gpu_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
@@ -176,7 +271,11 @@ static struct virtio_driver virtio_gpu_driver = {
 	.probe = virtio_gpu_probe,
 	.remove = virtio_gpu_remove,
 	.shutdown = virtio_gpu_shutdown,
-	.config_changed = virtio_gpu_config_changed
+	.config_changed = virtio_gpu_config_changed,
+#ifdef CONFIG_PM_SLEEP
+	.freeze = virtgpu_freeze,
+	.restore = virtgpu_restore,
+#endif
 };
 
 static int __init virtio_gpu_driver_init(void)

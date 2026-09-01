@@ -847,7 +847,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	/* Construct UDP header */
 	b->udph.source = htons(68);
 	b->udph.dest = htons(67);
-	b->udph.len = htons(sizeof(struct bootp_pkt) - sizeof(struct iphdr));
+	udp_set_len_short(&b->udph, sizeof(struct bootp_pkt) - sizeof(struct iphdr));
 	/* UDP checksum not calculated -- explicitly allowed in BOOTP RFC */
 
 	/* Construct DHCP/BOOTP header */
@@ -1025,10 +1025,10 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (b->udph.source != htons(67) || b->udph.dest != htons(68))
 		goto drop;
 
-	if (ntohs(h->tot_len) < ntohs(b->udph.len) + sizeof(struct iphdr))
+	if (ntohs(h->tot_len) < udp_get_len_short(&b->udph) + sizeof(struct iphdr))
 		goto drop;
 
-	len = ntohs(b->udph.len) - sizeof(struct udphdr);
+	len = udp_get_len_short(&b->udph) - sizeof(struct udphdr);
 	ext_len = len - (sizeof(*b) -
 			 sizeof(struct iphdr) -
 			 sizeof(struct udphdr) -

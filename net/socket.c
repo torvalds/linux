@@ -465,6 +465,31 @@ static const struct xattr_handler sockfs_user_xattr_handler = {
 	.set = sockfs_user_xattr_set,
 };
 
+/**
+ * sock_read_xattr - read a user.* xattr from a socket's sockfs inode
+ * @sock: socket whose inode holds the xattr
+ * @name: full xattr name, e.g. "user.bpf_test"
+ * @value: output buffer
+ * @size: size of @value in bytes
+ *
+ * SOCK_INODE() is valid only for sockfs sockets; sock_from_file() rejects
+ * anything else (e.g. tun, tap).
+ * Lockless: simple_xattr_get() looks up the value under RCU, no inode lock.
+ *
+ * Return: length of the value on success, a negative errno on error.
+ */
+int sock_read_xattr(struct socket *sock, const char *name, void *value, size_t size)
+{
+	struct file *file = sock->file;
+	struct sockfs_inode *si;
+
+	if (!file || sock_from_file(file) != sock)
+		return -EOPNOTSUPP;
+
+	si = SOCKFS_I(SOCK_INODE(sock));
+	return simple_xattr_get(&sockfs_xa_cache, &si->xattrs, name, value, size);
+}
+
 static const struct xattr_handler * const sockfs_xattr_handlers[] = {
 	&sockfs_xattr_handler,
 	&sockfs_security_xattr_handler,
@@ -2103,6 +2128,20 @@ SYSCALL_DEFINE3(accept, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	return __sys_accept4(fd, upeer_sockaddr, upeer_addrlen, 0);
 }
 
+int connect_socket(struct socket *sock, struct sockaddr_storage *address,
+		   int addrlen, int flags)
+{
+	int err;
+
+	err = security_socket_connect(sock, (struct sockaddr *)address,
+				      addrlen);
+	if (err)
+		return err;
+
+	return READ_ONCE(sock->ops)->connect(sock, (struct sockaddr_unsized *)address,
+					     addrlen, flags);
+}
+
 /*
  *	Attempt to connect to a socket with the server address.  The address
  *	is in user space so we verify it is OK and move it to kernel space.
@@ -2119,23 +2158,13 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
 		       int addrlen, int file_flags)
 {
 	struct socket *sock;
-	int err;
 
 	sock = sock_from_file(file);
-	if (!sock) {
-		err = -ENOTSOCK;
-		goto out;
-	}
+	if (!sock)
+		return -ENOTSOCK;
 
-	err =
-	    security_socket_connect(sock, (struct sockaddr *)address, addrlen);
-	if (err)
-		goto out;
-
-	err = READ_ONCE(sock->ops)->connect(sock, (struct sockaddr_unsized *)address,
-					    addrlen, sock->file->f_flags | file_flags);
-out:
-	return err;
+	return connect_socket(sock, address, addrlen,
+			      sock->file->f_flags | file_flags);
 }
 
 int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)

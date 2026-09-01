@@ -31,6 +31,14 @@ Supported chips:
 
     Datasheet: https://sensirion.com/media/documents/4B40CEF3/640B2346/Sensirion_Humidity_Sensors_SHT85_Datasheet.pdf
 
+  * GXCAS GXHT30
+
+    Prefix: 'sht3x'
+
+    Addresses scanned: none
+
+    Datasheet: https://www.galaxy-cas.com/uploads/files/202509/GXHT30_datasheet_V3.9_20250919170350.pdf
+
 Author:
 
   - David Frey <david.frey@sensirion.com>
@@ -40,9 +48,12 @@ Description
 -----------
 
 This driver implements support for the Sensirion SHT3x-DIS, STS3x-DIS and SHT85
-series of humidity and temperature sensors. Temperature is measured in degrees
-celsius, relative humidity is expressed as a percentage. In the sysfs interface,
-all values are scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
+series of humidity and temperature sensors, as well as the compatible GXCAS
+GXHT30. The GXHT30 is a drop-in replacement for the SHT30: instantiate it from
+devicetree with the "gxcas,gxht30", "sensirion,sht30" compatibles, or manually
+using the sht3x device name. Temperature is measured in degrees celsius,
+relative humidity is expressed as a percentage. In the sysfs interface, all
+values are scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
 
 The device communicates with the I2C protocol. SHT3x sensors can have the I2C
 addresses 0x44 or 0x45 (0x4a or 0x4b for sts3x), depending on the wiring. SHT85

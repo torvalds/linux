@@ -152,3 +152,22 @@ module_exit(unregister_sts);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("sts: schedule implies task switch.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "sts_kunit.h"
+
+const struct rv_sts_ops rv_sts_ops = {
+	.mon = RV_MON_OPS_INIT(),
+#ifdef CONFIG_X86_LOCAL_APIC
+	.handle_vector_irq_entry = handle_vector_irq_entry,
+#endif
+	.handle_irq_disable = handle_irq_disable,
+	.handle_irq_enable = handle_irq_enable,
+	.handle_irq_entry = handle_irq_entry,
+	.handle_sched_switch = handle_sched_switch,
+	.handle_schedule_entry = handle_schedule_entry,
+	.handle_schedule_exit = handle_schedule_exit,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_sts_ops);
+#endif

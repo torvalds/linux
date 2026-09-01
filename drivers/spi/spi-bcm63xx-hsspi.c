@@ -884,13 +884,16 @@ static void bcm63xx_hsspi_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcm63xx_hsspi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct bcm63xx_hsspi *bs = spi_controller_get_devdata(host);
+	int ret;
 
-	spi_controller_suspend(host);
+	ret = spi_controller_suspend(host);
+	if (ret)
+		return ret;
+
 	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
 
@@ -915,14 +918,19 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 		}
 	}
 
-	spi_controller_resume(host);
+	ret = spi_controller_resume(host);
+	if (ret) {
+		if (bs->pll_clk)
+			clk_disable_unprepare(bs->pll_clk);
+		clk_disable_unprepare(bs->clk);
+		return ret;
+	}
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
-			 bcm63xx_hsspi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
+				bcm63xx_hsspi_resume);
 
 static const struct of_device_id bcm63xx_hsspi_of_match[] = {
 	{ .compatible = "brcm,bcm6328-hsspi", },
@@ -934,7 +942,7 @@ MODULE_DEVICE_TABLE(of, bcm63xx_hsspi_of_match);
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {
 		.name	= "bcm63xx-hsspi",
-		.pm	= &bcm63xx_hsspi_pm_ops,
+		.pm	= pm_sleep_ptr(&bcm63xx_hsspi_pm_ops),
 		.of_match_table = bcm63xx_hsspi_of_match,
 	},
 	.probe		= bcm63xx_hsspi_probe,

@@ -894,8 +894,8 @@ unsigned long long sched_clock(void)
 	return ((get_tick() * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT) - offset;
 }
 
-int read_current_timer(unsigned long *timer_val)
+bool delay_read_timer(unsigned long *timer_val)
 {
 	*timer_val = get_tick();
-	return 0;
+	return true;
 }

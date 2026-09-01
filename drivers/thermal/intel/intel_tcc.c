@@ -185,7 +185,7 @@ int intel_tcc_get_tjmax(int cpu)
 	int val, err;
 
 	if (cpu < 0)
-		err = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &msrval.l, &msrval.h);
+		err = rdmsrq_safe(MSR_IA32_TEMPERATURE_TARGET, &msrval.q);
 	else
 		err = rdmsrq_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &msrval.q);
 	if (err)
@@ -212,7 +212,7 @@ int intel_tcc_get_offset(int cpu)
 	int err;
 
 	if (cpu < 0)
-		err = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &val.l, &val.h);
+		err = rdmsrq_safe(MSR_IA32_TEMPERATURE_TARGET, &val.q);
 	else
 		err = rdmsrq_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &val.q);
 	if (err)
@@ -245,7 +245,7 @@ int intel_tcc_set_offset(int cpu, int offset)
 		return -EINVAL;
 
 	if (cpu < 0)
-		err = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &val.l, &val.h);
+		err = rdmsrq_safe(MSR_IA32_TEMPERATURE_TARGET, &val.q);
 	else
 		err = rdmsrq_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &val.q);
 	if (err)
@@ -259,7 +259,7 @@ int intel_tcc_set_offset(int cpu, int offset)
 	val.l |= offset << 24;
 
 	if (cpu < 0)
-		return wrmsr_safe(MSR_IA32_TEMPERATURE_TARGET, val.l, val.h);
+		return wrmsrq_safe(MSR_IA32_TEMPERATURE_TARGET, val.q);
 	else
 		return wrmsrq_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, val.q);
 }
@@ -288,7 +288,7 @@ int intel_tcc_get_temp(int cpu, int *temp, bool pkg)
 		return tjmax;
 
 	if (cpu < 0)
-		err = rdmsr_safe(msr, &val.l, &val.h);
+		err = rdmsrq_safe(msr, &val.q);
 	else
 		err = rdmsrq_safe_on_cpu(cpu, msr, &val.q);
 	if (err)

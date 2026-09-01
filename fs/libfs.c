@@ -1559,9 +1559,12 @@ int simple_fsync_noflush(struct file *file, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	if (!(inode_state_read_once(inode) & I_DIRTY_ALL))
+	if (!(inode_state_read_once(inode) &
+			(I_DIRTY_ALL | I_SYNC | I_METADATA_WRITEBACK)))
 		goto out;
-	if (datasync && !(inode_state_read_once(inode) & I_DIRTY_DATASYNC))
+	if (datasync &&
+	    !(inode_state_read_once(inode) &
+			(I_DIRTY_DATASYNC | I_SYNC | I_METADATA_WRITEBACK)))
 		goto out;
 
 	ret = sync_inode_metadata(inode, 1);

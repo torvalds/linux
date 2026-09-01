@@ -15,7 +15,6 @@
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 
 static bool use_low_level_irq;

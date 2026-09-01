@@ -121,42 +121,6 @@ static inline unsigned int exttable_size(struct extended_sigtable *et)
 	return et->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE;
 }
 
-
-/*
- * Use CPUID to generate a "vfm" value. Useful before cpuinfo_x86
- * structures are populated.
- */
-static u32 intel_cpuid_vfm(void)
-{
-	u32 eax   = cpuid_eax(1);
-	u32 fam   = x86_family(eax);
-	u32 model = x86_model(eax);
-
-	return IFM(fam, model);
-}
-
-u32 intel_get_platform_id(void)
-{
-	unsigned int val[2];
-
-	if (x86_hypervisor_present)
-		return 0;
-
-	/*
-	 * This can be called early. Use CPUID directly instead of
-	 * relying on cpuinfo_x86 which may not be fully initialized.
-	 * The PII does not have MSR_IA32_PLATFORM_ID. Everything
-	 * before _it_ has no microcode (for Linux at least).
-	 */
-	if (intel_cpuid_vfm() <= INTEL_PENTIUM_II_KLAMATH)
-		return 0;
-
-	/* get processor flags from MSR 0x17 */
-	native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
-
-	return (val[1] >> 18) & 7;
-}
-
 void intel_collect_cpu_info(struct cpu_signature *sig)
 {
 	sig->sig = cpuid_eax(1);

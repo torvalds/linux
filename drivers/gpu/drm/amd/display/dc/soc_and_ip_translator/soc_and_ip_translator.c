@@ -5,6 +5,8 @@
 #include "soc_and_ip_translator.h"
 #include "soc_and_ip_translator/dcn401/dcn401_soc_and_ip_translator.h"
 #include "soc_and_ip_translator/dcn42/dcn42_soc_and_ip_translator.h"
+#include "soc_and_ip_translator/dcn42b/dcn42b_soc_and_ip_translator.h"
+#include "soc_and_ip_translator/dcn60/dcn60_soc_and_ip_translator.h"
 
 static void dc_construct_soc_and_ip_translator(struct soc_and_ip_translator *soc_and_ip_translator,
 		enum dce_version dc_version)
@@ -14,8 +16,13 @@ static void dc_construct_soc_and_ip_translator(struct soc_and_ip_translator *soc
 		dcn401_construct_soc_and_ip_translator(soc_and_ip_translator);
 		break;
 	case DCN_VERSION_4_2:
-	case DCN_VERSION_4_2B:
 		dcn42_construct_soc_and_ip_translator(soc_and_ip_translator);
+		break;
+	case DCN_VERSION_4_2B:
+		dcn42b_construct_soc_and_ip_translator(soc_and_ip_translator);
+		break;
+	case DCN_VERSION_6_0:
+		dcn60_construct_soc_and_ip_translator(soc_and_ip_translator);
 		break;
 	default:
 		break;

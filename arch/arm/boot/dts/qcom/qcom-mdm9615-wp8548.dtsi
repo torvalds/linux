@@ -15,7 +15,7 @@
 
 	memory@48000000 {
 		device_type = "memory";
-		reg = <0x48000000 0x7F00000>;
+		reg = <0x48000000 0x7f00000>;
 	};
 };
 

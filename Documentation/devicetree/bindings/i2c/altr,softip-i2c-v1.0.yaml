@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/altr,softip-i2c-v1.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera I2C Controller
+
+maintainers:
+  - Thor Thayer <thor.thayer@linux.intel.com>
+  - Chaitanya Sabnis <chaitanya.msabnis@gmail.com>
+
+description:
+  Altera's synthesizable logic block I2C Controller for use in Altera's FPGAs.
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+properties:
+  compatible:
+    const: altr,softip-i2c-v1.0
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Size of the RX and TX FIFOs in bytes.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c@80000 {
+        compatible = "altr,softip-i2c-v1.0";
+        reg = <0x80000 0x40>;
+        interrupt-parent = <&intc>;
+        interrupts = <0 43 4>;
+        clocks = <&clk_0>;
+        clock-frequency = <100000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        fifo-size = <4>;
+
+        eeprom@51 {
+            compatible = "atmel,24c32";
+            reg = <0x51>;
+            pagesize = <32>;
+        };
+    };

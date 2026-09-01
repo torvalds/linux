@@ -182,7 +182,6 @@ static void const_reg_xfer(struct bpf_verifier_env *env, struct const_arg_info *
 		u64 val = 0;
 
 		if (!bpf_map_is_rdonly(map) || !map->ops->map_direct_value_addr ||
-		    map->map_type == BPF_MAP_TYPE_INSN_ARRAY ||
 		    off < 0 || off + size > map->value_size ||
 		    bpf_map_direct_read(map, off, size, &val, is_ldsx)) {
 			*dst = unknown;
@@ -199,14 +198,9 @@ process_call:
 			ci_out[r] = unknown;
 		break;
 	case BPF_STX:
-		if (mode != BPF_ATOMIC)
-			break;
-		if (insn->imm == BPF_CMPXCHG)
-			ci_out[BPF_REG_0] = unknown;
-		else if (insn->imm == BPF_LOAD_ACQ)
-			*dst = unknown;
-		else if (insn->imm & BPF_FETCH)
-			*src = unknown;
+		r = bpf_atomic_load_reg(insn);
+		if (r >= 0)
+			ci_out[r] = unknown;
 		break;
 	}
 }

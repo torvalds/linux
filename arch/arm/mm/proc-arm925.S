@@ -15,8 +15,6 @@
  * These are the low level assembler for performing cache and TLB
  * functions on the arm925.
  *
- *  CONFIG_CPU_ARM925_CPU_IDLE -> nohlt
- *
  * Some additional notes based on deciphering the TI TRM on OMAP-5910:
  *
  * NOTE1: The TI925T Configuration Register bit "D-cache clean and flush

@@ -43,7 +43,9 @@ patternProperties:
 
   "^BUCK[1-6]$":
     type: object
-    $ref: regulator.yaml#
+    allOf:
+      - $ref: regulator.yaml#
+      - $ref: rohm,pmic-states.yaml#
     description:
       Properties for single BUCK regulator.
 
@@ -54,28 +56,16 @@ patternProperties:
           should be "buck1", ..., "buck6"
 
       rohm,dvs-run-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "RUN" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
       rohm,dvs-idle-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "IDLE" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
       rohm,dvs-suspend-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "SUSPEND" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
         # Supported default DVS states:
         #
@@ -103,8 +93,8 @@ patternProperties:
       # Setups where regulator (especially the buck8) output voltage is scaled
       # by adding external connection where some other regulator output is
       # connected to feedback-pin (over suitable resistors) is getting popular
-      # amongst users of BD71837. (This allows for example scaling down the
-      # buck8 voltages to suit lover GPU voltages for projects where buck8 is
+      # amongst users of BD71837. This allows for example scaling down the
+      # buck8 voltages to suit lower GPU voltages for projects where buck8 is
       # (ab)used to supply power for GPU.
       #
       # So we allow describing this external connection from DT and scale the

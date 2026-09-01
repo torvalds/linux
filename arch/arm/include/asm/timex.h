@@ -10,7 +10,10 @@
 #define _ASMARM_TIMEX_H
 
 typedef unsigned long cycles_t;
-#define get_cycles()	({ cycles_t c; read_current_timer(&c) ? 0 : c; })
+// Temporary workaround until timex.h is cleaned up
+bool delay_read_timer(unsigned long *t);
+
+#define get_cycles()	({ cycles_t c; delay_read_timer(&c) ? c : 0; })
 #define random_get_entropy() (((unsigned long)get_cycles()) ?: random_get_entropy_fallback())
 
 #endif

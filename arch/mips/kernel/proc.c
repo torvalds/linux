@@ -109,7 +109,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, " mips64r5");
 	if (cpu_has_mips64r6)
 		seq_puts(m, " mips64r6");
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	seq_puts(m, "ASEs implemented\t:");
 	if (cpu_has_mips16)
@@ -273,7 +273,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, " mm_sysad");
 	if (cpu_has_mm_full)
 		seq_puts(m, " mm_full");
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	seq_printf(m, "shadow register sets\t: %d\n",
 		      cpu_data[n].srsets);

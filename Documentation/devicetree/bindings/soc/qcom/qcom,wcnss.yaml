@@ -19,8 +19,8 @@ properties:
     const: qcom,wcnss
 
   firmware-name:
-    $ref: /schemas/types.yaml#/definitions/string
-    default: wlan/prima/WCNSS_qcom_wlan_nv.bin
+    maxItems: 1
+    default: [ wlan/prima/WCNSS_qcom_wlan_nv.bin ]
     description:
       Relative firmware image path for the WLAN NV blob.
 
@@ -28,7 +28,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Reference to a node specifying the wcnss "ccu" and "dxe" register blocks.
-      The node must be compatible with one of the following::
+      The node must be compatible with one of the following:
            - qcom,riva"
            - qcom,pronto"
 

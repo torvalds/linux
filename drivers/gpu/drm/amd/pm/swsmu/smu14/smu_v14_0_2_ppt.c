@@ -59,6 +59,9 @@
 static void smu_v14_0_2_get_od_setting_limits(struct smu_context *smu,
 					      int od_feature_bit,
 					      int32_t *min, int32_t *max);
+static int smu_v14_0_2_init_ppt_limits(struct smu_context *smu);
+static int smu_v14_0_2_get_overdrive_table(struct smu_context *smu,
+					   OverDriveTableExternal_t *od_table);
 
 static const struct smu_feature_bits smu_v14_0_2_dpm_features = {
 	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
@@ -370,7 +373,7 @@ static int smu_v14_0_2_setup_pptable(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	return ret;
+	return smu_v14_0_2_init_ppt_limits(smu);
 }
 
 static int smu_v14_0_2_tables_init(struct smu_context *smu)
@@ -1610,58 +1613,69 @@ static int smu_v14_0_2_get_fan_speed_rpm(struct smu_context *smu,
 						speed);
 }
 
-static int smu_v14_0_2_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit,
-				       uint32_t *min_power_limit)
+static int smu_v14_0_2_get_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t *ppt_limit)
+{
+	OverDriveTableExternal_t od_table;
+	int ret;
+
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
+		return -EOPNOTSUPP;
+
+	ret = smu_v14_0_get_ppt_limit(smu, limit_type, ppt_limit);
+	if (ret)
+		return ret;
+
+	ret = smu_v14_0_2_get_overdrive_table(smu, &od_table);
+	if (ret)
+		return ret;
+
+	if (od_table.OverDriveTable.Ppt > 0)
+		*ppt_limit = *ppt_limit *
+			(100 + od_table.OverDriveTable.Ppt) / 100;
+
+	return 0;
+}
+
+static int smu_v14_0_2_init_ppt_limits(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_14_0_2_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 	CustomSkuTable_t *skutable = &pptable->CustomSkuTable;
-	uint32_t pp_limit = smu->adev->pm.ac_power ?
-		skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
-		skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
-	uint32_t msg_limit = pptable->SkuTable.MsgLimits.Power[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
-	uint32_t min_limit = min_t(uint32_t, pp_limit, msg_limit);
-	uint32_t max_limit = max_t(uint32_t, pp_limit, msg_limit);
 	int16_t od_percent_upper = 0, od_percent_lower = 0;
-	int ret;
+        uint32_t pp_limit, msg_limit, min_limit, max_limit;
+        int i;
 
-	if (current_power_limit) {
-		ret = smu_v14_0_get_current_power_limit(smu, current_power_limit);
-		if (ret)
-			*current_power_limit = pp_limit;
-	}
+        if (powerplay_table && 
+            smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
+                od_percent_upper = pptable->SkuTable.OverDriveLimitsBasicMax.Ppt;
+                od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
+        }
 
-	if (default_power_limit)
-		*default_power_limit = pp_limit;
+        for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+                pp_limit = i == SMU_POWER_SOURCE_AC ?
+                        skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
+                        skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
+                msg_limit = pptable->SkuTable.MsgLimits.Power
+                        [PPT_THROTTLER_PPT0][i];
+                min_limit = min(pp_limit, msg_limit);
+                max_limit = max(pp_limit, msg_limit);
 
-	if (powerplay_table) {
-		if (smu->od_enabled &&
-		    smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
-			od_percent_upper = pptable->SkuTable.OverDriveLimitsBasicMax.Ppt;
-			od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
-		} else if (smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
-			od_percent_upper = 0;
-			od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
-		}
-	}
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+                        pp_limit;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max = max_limit;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min =
+                        min_limit * (100 + od_percent_lower) / 100;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+                        max_limit * (100 + od_percent_upper) / 100;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min =
+                        smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min;
+        }
 
-	dev_dbg(smu->adev->dev, "od percent upper:%d, od percent lower:%d (default power: %d)\n",
-					od_percent_upper, od_percent_lower, pp_limit);
-
-	if (max_power_limit) {
-		*max_power_limit = max_limit * (100 + od_percent_upper);
-		*max_power_limit /= 100;
-	}
-
-	if (min_power_limit) {
-		*min_power_limit = min_limit * (100 + od_percent_lower);
-		*min_power_limit /= 100;
-	}
+        smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
 
 	return 0;
 }
@@ -1832,9 +1846,10 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 				return -ENOMEM;
 		}
 		if (custom_params && custom_params_max_idx) {
-			if (custom_params_max_idx != SMU_14_0_2_CUSTOM_PARAMS_COUNT)
-				return -EINVAL;
-			if (custom_params[0] >= SMU_14_0_2_CUSTOM_PARAMS_CLOCK_COUNT)
+			if (!smu_cmn_custom_params_count_valid(custom_params_max_idx,
+							       SMU_14_0_2_CUSTOM_PARAMS_COUNT) ||
+			    !smu_cmn_custom_params_clock_valid(custom_params[0],
+							       SMU_14_0_2_CUSTOM_PARAMS_CLOCK_COUNT))
 				return -EINVAL;
 			idx = custom_params[0] * SMU_14_0_2_CUSTOM_PARAMS_COUNT;
 			smu->custom_profile_params[idx] = 1;
@@ -2788,22 +2803,28 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v14_0_2_set_power_limit(struct smu_context *smu,
-				       enum smu_ppt_limit_type limit_type,
-				       uint32_t limit)
+static int smu_v14_0_2_set_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t limit)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t msg_limit = pptable->SkuTable.MsgLimits.Power[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
+	uint32_t msg_limit = pptable->SkuTable.MsgLimits.Power
+		[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
 	struct smu_table_context *table_context = &smu->smu_table;
 	OverDriveTableExternal_t *od_table =
 		(OverDriveTableExternal_t *)table_context->overdrive_table;
+	OverDriveTableExternal_t current_od_table;
 	int ret = 0;
 
-	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
 		return -EINVAL;
 
 	if (limit <= msg_limit) {
-		if (smu->current_power_limit > msg_limit) {
+		ret = smu_v14_0_2_get_overdrive_table(smu, &current_od_table);
+		if (ret)
+			return ret;
+
+		if (current_od_table.OverDriveTable.Ppt) {
 			od_table->OverDriveTable.Ppt = 0;
 			od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_PPT_BIT;
 
@@ -2813,9 +2834,9 @@ static int smu_v14_0_2_set_power_limit(struct smu_context *smu,
 				return ret;
 			}
 		}
-		return smu_v14_0_set_power_limit(smu, limit_type, limit);
+		return smu_v14_0_set_ppt_limit(smu, limit_type, limit);
 	} else if (smu->od_enabled) {
-		ret = smu_v14_0_set_power_limit(smu, limit_type, msg_limit);
+		ret = smu_v14_0_set_ppt_limit(smu, limit_type, msg_limit);
 		if (ret)
 			return ret;
 
@@ -2828,7 +2849,6 @@ static int smu_v14_0_2_set_power_limit(struct smu_context *smu,
 		  return ret;
 		}
 
-		smu->current_power_limit = limit;
 	} else {
 		return -EINVAL;
 	}
@@ -2882,8 +2902,8 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_unique_id = smu_v14_0_2_get_unique_id,
 	.get_fan_speed_pwm = smu_v14_0_2_get_fan_speed_pwm,
 	.get_fan_speed_rpm = smu_v14_0_2_get_fan_speed_rpm,
-	.get_power_limit = smu_v14_0_2_get_power_limit,
-	.set_power_limit = smu_v14_0_2_set_power_limit,
+	.get_ppt_limit = smu_v14_0_2_get_ppt_limit,
+	.set_ppt_limit = smu_v14_0_2_set_ppt_limit,
 	.get_power_profile_mode = smu_v14_0_2_get_power_profile_mode,
 	.set_power_profile_mode = smu_v14_0_2_set_power_profile_mode,
 	.run_btc = smu_v14_0_run_btc,
@@ -2893,8 +2913,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.deep_sleep_control = smu_v14_0_deep_sleep_control,
 	.gfx_ulv_control = smu_v14_0_gfx_ulv_control,
 	.get_bamaco_support = smu_v14_0_get_bamaco_support,
-	.baco_get_state = smu_v14_0_baco_get_state,
-	.baco_set_state = smu_v14_0_baco_set_state,
 	.baco_enter = smu_v14_0_2_baco_enter,
 	.baco_exit = smu_v14_0_2_baco_exit,
 	.mode1_reset_is_support = smu_v14_0_2_is_mode1_reset_supported,

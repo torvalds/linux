@@ -117,6 +117,7 @@ void __rds_put_mr_final(struct kref *kref)
 	struct rds_mr *mr = container_of(kref, struct rds_mr, r_kref);
 
 	rds_destroy_mr(mr);
+	sock_put(rds_rs_to_sk(mr->r_sock));
 	kfree(mr);
 }
 
@@ -243,7 +244,11 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	kref_init(&mr->r_kref);
 	RB_CLEAR_NODE(&mr->r_rb_node);
 	mr->r_trans = rs->rs_transport;
+	/* The MR can outlive its socket: a socket reference is held
+	 * until the final kref is dropped in __rds_put_mr_final().
+	 */
 	mr->r_sock = rs;
+	sock_hold(rds_rs_to_sk(rs));
 
 	if (args->flags & RDS_RDMA_USE_ONCE)
 		mr->r_use_once = 1;
@@ -483,22 +488,36 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 		kref_put(&mr->r_kref, __rds_put_mr_final);
 }
 
-void rds_rdma_free_op(struct rm_rdma_op *ro)
+void rds_rdma_op_unpin_pages(struct rm_rdma_op *ro)
 {
 	unsigned int i;
 
+	for (i = 0; i < ro->op_nents; i++) {
+		struct page *page = sg_page(&ro->op_sg[i]);
+
+		/* Mark page dirty if it was possibly modified, which
+		 * is the case for a RDMA_READ which copies from remote
+		 * to local memory
+		 */
+		unpin_user_pages_dirty_lock(&page, 1, !ro->op_write);
+	}
+}
+
+void rds_rdma_free_op(struct rm_rdma_op *ro)
+{
 	if (ro->op_odp_mr) {
 		kref_put(&ro->op_odp_mr->r_kref, __rds_put_mr_final);
+	} else if (in_task() || ro->op_write) {
+		/* An RDMA write's pages are only read by the remote
+		 * side; unpinning without dirtying does not sleep.
+		 */
+		rds_rdma_op_unpin_pages(ro);
 	} else {
-		for (i = 0; i < ro->op_nents; i++) {
-			struct page *page = sg_page(&ro->op_sg[i]);
-
-			/* Mark page dirty if it was possibly modified, which
-			 * is the case for a RDMA_READ which copies from remote
-			 * to local memory
-			 */
-			unpin_user_pages_dirty_lock(&page, 1, !ro->op_write);
-		}
+		/* Dirtying the pages on unpin can sleep; leave them
+		 * pinned and have rds_message_put() finish the unpin
+		 * from process context.
+		 */
+		ro->op_unpin_deferred = 1;
 	}
 
 	kfree(ro->op_notifier);
@@ -507,7 +526,7 @@ void rds_rdma_free_op(struct rm_rdma_op *ro)
 	ro->op_odp_mr = NULL;
 }
 
-void rds_atomic_free_op(struct rm_atomic_op *ao)
+void rds_atomic_op_unpin_page(struct rm_atomic_op *ao)
 {
 	struct page *page = sg_page(ao->op_sg);
 
@@ -515,6 +534,19 @@ void rds_atomic_free_op(struct rm_atomic_op *ao)
 	 * is the case for a RDMA_READ which copies from remote
 	 * to local memory */
 	unpin_user_pages_dirty_lock(&page, 1, true);
+}
+
+void rds_atomic_free_op(struct rm_atomic_op *ao)
+{
+	if (in_task()) {
+		rds_atomic_op_unpin_page(ao);
+	} else {
+		/* Dirtying the page on unpin can sleep; leave it
+		 * pinned and have rds_message_put() finish the unpin
+		 * from process context.
+		 */
+		ao->op_unpin_deferred = 1;
+	}
 
 	kfree(ao->op_notifier);
 	ao->op_notifier = NULL;
@@ -732,7 +764,12 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 			RB_CLEAR_NODE(&local_odp_mr->r_rb_node);
 			kref_init(&local_odp_mr->r_kref);
 			local_odp_mr->r_trans = rs->rs_transport;
+			/* The MR can outlive its socket: a socket
+			 * reference is held until the final kref is
+			 * dropped in __rds_put_mr_final().
+			 */
 			local_odp_mr->r_sock = rs;
+			sock_hold(rds_rs_to_sk(rs));
 			local_odp_mr->r_trans_private =
 				rs->rs_transport->get_mr(
 					NULL, 0, rs, &local_odp_mr->r_key, NULL,
@@ -741,7 +778,9 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 				ret = PTR_ERR(local_odp_mr->r_trans_private);
 				rdsdebug("get_mr ret %d %p\"", ret,
 					 local_odp_mr->r_trans_private);
-				kfree(local_odp_mr);
+				local_odp_mr->r_trans_private = NULL;
+				kref_put(&local_odp_mr->r_kref,
+					 __rds_put_mr_final);
 				ret = -EOPNOTSUPP;
 				goto out_pages;
 			}

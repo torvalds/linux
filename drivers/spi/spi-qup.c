@@ -1211,7 +1211,6 @@ error_dma:
 	return ret;
 }
 
-#ifdef CONFIG_PM
 static int spi_qup_pm_suspend_runtime(struct device *device)
 {
 	struct spi_controller *host = dev_get_drvdata(device);
@@ -1253,9 +1252,7 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
 static int spi_qup_suspend(struct device *device)
 {
 	struct spi_controller *host = dev_get_drvdata(device);
@@ -1312,7 +1309,6 @@ disable_clk:
 	clk_disable_unprepare(controller->iclk);
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static void spi_qup_remove(struct platform_device *pdev)
 {
@@ -1352,16 +1348,16 @@ static const struct of_device_id spi_qup_dt_match[] = {
 MODULE_DEVICE_TABLE(of, spi_qup_dt_match);
 
 static const struct dev_pm_ops spi_qup_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(spi_qup_suspend, spi_qup_resume)
-	SET_RUNTIME_PM_OPS(spi_qup_pm_suspend_runtime,
-			   spi_qup_pm_resume_runtime,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(spi_qup_suspend, spi_qup_resume)
+	RUNTIME_PM_OPS(spi_qup_pm_suspend_runtime,
+		       spi_qup_pm_resume_runtime,
+		       NULL)
 };
 
 static struct platform_driver spi_qup_driver = {
 	.driver = {
 		.name		= "spi_qup",
-		.pm		= &spi_qup_dev_pm_ops,
+		.pm		= pm_ptr(&spi_qup_dev_pm_ops),
 		.of_match_table = spi_qup_dt_match,
 	},
 	.probe = spi_qup_probe,

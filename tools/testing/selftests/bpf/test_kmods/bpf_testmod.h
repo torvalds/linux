@@ -103,9 +103,23 @@ struct bpf_testmod_ops2 {
 	int (*test_1)(void);
 };
 
+/* 16 bytes, so it takes two argument slots when passed by value */
+struct bpf_testmod_arena_pair {
+	u64 a;
+	u64 b;
+};
+
 struct bpf_testmod_ops3 {
 	int (*test_1)(void);
 	int (*test_2)(void);
+	/* Used to test arena pointer arguments. */
+	int (*test_arena)(u64 *ptr);
+	int (*test_arena_nullable)(u64 *ptr);
+	/* enough leading args to force @ptr onto the stack on x86 and arm64 */
+	int (*test_arena_stack)(u64 a, u64 b, u64 c, u64 d, u64 e, u64 f,
+				u64 g, u64 h, u64 *ptr);
+	/* a multi-slot leading arg, so @ptr is not at the slot its arg index suggests */
+	int (*test_arena_multislot)(struct bpf_testmod_arena_pair p, u64 *ptr);
 };
 
 struct st_ops_args {

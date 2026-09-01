@@ -80,7 +80,6 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "No Journal ID:            %d\n"
 		     "Mounted RO:               %d\n"
 		     "RO Recovery:              %d\n"
-		     "Skip DLM Unlock:          %d\n"
 		     "Force AIL Flush:          %d\n"
 		     "FS Freeze Initiator:      %d\n"
 		     "FS Frozen:                %d\n"
@@ -109,7 +108,6 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     test_bit(SDF_NOJOURNALID, &f),
 		     (sb_rdonly(sdp->sd_vfs) ? 1 : 0),
 		     test_bit(SDF_RORECOVERY, &f),
-		     test_bit(SDF_SKIP_DLM_UNLOCK, &f),
 		     test_bit(SDF_FORCE_AIL_FLUSH, &f),
 		     test_bit(SDF_FREEZE_INITIATOR, &f),
 		     test_bit(SDF_FROZEN, &f),

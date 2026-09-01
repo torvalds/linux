@@ -196,7 +196,6 @@ static int __dust_map_write(struct dust_device *dd, sector_t thisblock)
 		dd->badblock_count--;
 		kfree(bblk);
 		if (!dd->quiet_mode) {
-			sector_div(thisblock, dd->sect_per_block);
 			DMINFO("block %llu removed from badblocklist by write",
 			       (unsigned long long)thisblock);
 		}
@@ -224,15 +223,16 @@ static int dust_map_write(struct dust_device *dd, sector_t thisblock,
 static int dust_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dust_device *dd = ti->private;
+	sector_t dust_sector = dm_target_offset(ti, bio->bi_iter.bi_sector);
 	int r;
 
 	bio_set_dev(bio, dd->dev->bdev);
-	bio->bi_iter.bi_sector = dd->start + dm_target_offset(ti, bio->bi_iter.bi_sector);
+	bio->bi_iter.bi_sector = dd->start + dust_sector;
 
 	if (bio_data_dir(bio) == READ)
-		r = dust_map_read(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
+		r = dust_map_read(dd, dust_sector, dd->fail_read_on_bb);
 	else
-		r = dust_map_write(dd, bio->bi_iter.bi_sector, dd->fail_read_on_bb);
+		r = dust_map_write(dd, dust_sector, dd->fail_read_on_bb);
 
 	return r;
 }
@@ -415,7 +415,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 			char *result, unsigned int maxlen)
 {
 	struct dust_device *dd = ti->private;
-	sector_t size = bdev_nr_sectors(dd->dev->bdev);
+	sector_t size = dm_sector_div_up(ti->len, dd->sect_per_block);
 	bool invalid_msg = false;
 	int r = -EINVAL;
 	unsigned long long tmp, block;
@@ -462,8 +462,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 			return r;
 
 		block = tmp;
-		sector_div(size, dd->sect_per_block);
-		if (block > size) {
+		if (block >= size) {
 			DMERR("selected block value out of range");
 			return r;
 		}
@@ -490,8 +489,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 			return r;
 		}
 		wr_fail_cnt = tmp_ui;
-		sector_div(size, dd->sect_per_block);
-		if (block > size) {
+		if (block >= size) {
 			DMERR("selected block value out of range");
 			return r;
 		}

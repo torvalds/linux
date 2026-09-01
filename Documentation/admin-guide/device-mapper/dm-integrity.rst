@@ -190,6 +190,19 @@ allow_discards
 	Allow block discard requests (a.k.a. TRIM) for the integrity device.
 	Discards are only allowed to devices using internal hash.
 
+	A discarded block is marked with a constant filler tag that anyone
+	with raw write access to the backing device can forge without the
+	key. Use allow_discards_keyed instead on new volumes.
+
+allow_discards_keyed
+	Like allow_discards, but marks a discarded block with a keyed
+	checksum of the sector number, HMAC_key(salt || sector), instead of
+	the constant filler tag, so it can't be forged without the
+	integrity key.
+
+	Not compatible with volumes that already have discarded blocks
+	marked the old way; only use on a freshly formatted volume.
+
 fix_padding
 	Use a smaller padding of the tag area that is more
 	space-efficient. If this option is not present, large padding is

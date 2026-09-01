@@ -257,10 +257,8 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_node, 0),
 			       sun6i_msgbox_irq, 0, dev_name(dev), mbox);
-	if (ret) {
-		dev_err(dev, "Failed to register IRQ handler: %d\n", ret);
+	if (ret)
 		goto err_disable_unprepare;
-	}
 
 	mbox->controller.dev           = dev;
 	mbox->controller.ops           = &sun6i_msgbox_chan_ops;

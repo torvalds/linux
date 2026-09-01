@@ -256,9 +256,9 @@ static int max1118_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id max1118_id[] = {
-	{ "max1117", max1117 },
-	{ "max1118", max1118 },
-	{ "max1119", max1119 },
+	{ .name = "max1117", .driver_data = max1117 },
+	{ .name = "max1118", .driver_data = max1118 },
+	{ .name = "max1119", .driver_data = max1119 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max1118_id);

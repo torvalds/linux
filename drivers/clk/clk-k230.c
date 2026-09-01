@@ -2227,6 +2227,7 @@ static int k230_clk_set_rate_mul(struct clk_hw *hw, unsigned long rate,
 	guard(spinlock)(rate_self->lock);
 
 	mul_reg = readl(rate_self->reg + clk->mul_reg_off);
+	mul_reg &= ~(rate_self->mul_mask << rate_self->mul_shift);
 	mul_reg |= ((mul - 1) & rate_self->mul_mask) << (rate_self->mul_shift);
 	mul_reg |= BIT(rate_self->write_enable_bit);
 	writel(mul_reg, rate_self->reg + clk->mul_reg_off);
@@ -2257,6 +2258,7 @@ static int k230_clk_set_rate_div(struct clk_hw *hw, unsigned long rate,
 	guard(spinlock)(rate_self->lock);
 
 	div_reg = readl(rate_self->reg + clk->div_reg_off);
+	div_reg &= ~(rate_self->div_mask << rate_self->div_shift);
 	div_reg |= ((div - 1) & rate_self->div_mask) << (rate_self->div_shift);
 	div_reg |= BIT(rate_self->write_enable_bit);
 	writel(div_reg, rate_self->reg + clk->div_reg_off);
@@ -2287,11 +2289,13 @@ static int k230_clk_set_rate_mul_div(struct clk_hw *hw, unsigned long rate,
 	guard(spinlock)(rate_self->lock);
 
 	div_reg = readl(rate_self->reg + clk->div_reg_off);
+	div_reg &= ~(rate_self->div_mask << rate_self->div_shift);
 	div_reg |= ((div - 1) & rate_self->div_mask) << (rate_self->div_shift);
 	div_reg |= BIT(rate_self->write_enable_bit);
 	writel(div_reg, rate_self->reg + clk->div_reg_off);
 
 	mul_reg = readl(rate_self->reg + clk->mul_reg_off);
+	mul_reg &= ~(rate_self->mul_mask << rate_self->mul_shift);
 	mul_reg |= ((mul - 1) & rate_self->mul_mask) << (rate_self->mul_shift);
 	mul_reg |= BIT(rate_self->write_enable_bit);
 	writel(mul_reg, rate_self->reg + clk->mul_reg_off);

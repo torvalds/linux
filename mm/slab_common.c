@@ -52,7 +52,7 @@ struct kmem_cache *kmem_cache;
 		SLAB_OBJ_EXT_IN_OBJ)
 
 #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
-			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
+			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT | SLAB_MAY_ACCOUNT)
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
@@ -359,6 +359,13 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 		goto out_unlock;
 	}
 
+	/*
+	 * For now we assume any cache can be used with __GFP_ACCOUNT and thus
+	 * may need to store objcg pointers for objects
+	 */
+	if (!mem_cgroup_kmem_disabled())
+		flags |= SLAB_MAY_ACCOUNT;
+
 	/* Fail closed on bad usersize of useroffset values. */
 	if (!IS_ENABLED(CONFIG_HARDENED_USERCOPY) ||
 	    WARN_ON(!args->usersize && args->useroffset) ||
@@ -551,7 +558,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	}
 
 	/* Wait for deferred work from kmalloc/kfree_nolock() */
-	defer_free_barrier();
+	deferred_work_barrier();
 
 	cpus_read_lock();
 	mutex_lock(&slab_mutex);
@@ -984,11 +991,20 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type)
 #endif
 
 	/*
-	 * If CONFIG_MEMCG is enabled, disable cache merging for
-	 * KMALLOC_NORMAL caches.
+	 * If memcg_kmem is enabled and this is a KMALLOC_NORMAL cache and not
+	 * aliased with any other type, make sure it's never merged with any other
+	 * cache.
+	 *
+	 * In other cases the kmalloc cache may end up being used for a
+	 * __GFP_ACCOUNT allocation so mark it as such. The exception is a
+	 * KMALLOC_NO_OBJ_EXT cache.
 	 */
-	if (IS_ENABLED(CONFIG_MEMCG) && (type == KMALLOC_NORMAL))
-		flags |= SLAB_NO_MERGE;
+	if (!mem_cgroup_kmem_disabled()) {
+		if (type == KMALLOC_NORMAL && KMALLOC_RECLAIM != KMALLOC_NORMAL)
+			flags |= SLAB_NO_MERGE;
+		else if (!(flags & SLAB_NO_OBJ_EXT))
+			flags |= SLAB_MAY_ACCOUNT;
+	}
 
 	if (minalign > ARCH_KMALLOC_MINALIGN) {
 		aligned_size = ALIGN(aligned_size, minalign);
@@ -1280,13 +1296,40 @@ EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
 EXPORT_TRACEPOINT_SYMBOL(kfree);
 EXPORT_TRACEPOINT_SYMBOL(kmem_cache_free);
 
+void kfree_call_rcu_nolock(struct kvfree_rcu_head *head, void *ptr)
+{
+	struct slab *slab;
+
+	if (!IS_ENABLED(CONFIG_KVFREE_RCU_BATCHED))
+		goto fallback;
+
+	if (unlikely(is_vmalloc_addr(ptr)))
+		goto fallback;
+
+	slab = virt_to_slab(ptr);
+	if (unlikely(!slab))
+		goto fallback;
+
+	if (unlikely(IS_ENABLED(CONFIG_NUMA) && slab_nid(slab) != numa_mem_id()))
+		goto fallback;
+
+	if (unlikely(!__kfree_rcu_sheaf(slab->slab_cache, ptr, SLAB_FREE_NOLOCK)))
+		goto fallback;
+
+	return;
+
+fallback:
+	defer_kfree_rcu(head);
+}
+EXPORT_SYMBOL_GPL(kfree_call_rcu_nolock);
+
 #ifndef CONFIG_KVFREE_RCU_BATCHED
 
-void kvfree_call_rcu(struct rcu_head *head, void *ptr)
+void kvfree_call_rcu(struct kvfree_rcu_head *head, void *ptr)
 {
 	if (head) {
 		kasan_record_aux_stack(ptr);
-		call_rcu(head, kvfree_rcu_cb);
+		call_rcu(&head->head, kvfree_rcu_cb);
 		return;
 	}
 
@@ -1296,6 +1339,18 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 	kvfree(ptr);
 }
 EXPORT_SYMBOL_GPL(kvfree_call_rcu);
+
+void kvfree_rcu_barrier(void)
+{
+	deferred_work_barrier();
+	rcu_barrier();
+}
+
+void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
+{
+	deferred_work_barrier();
+	rcu_barrier();
+}
 
 void __init kvfree_rcu_init(void)
 {
@@ -1339,7 +1394,7 @@ static struct workqueue_struct *rcu_reclaim_wq;
  */
 struct kvfree_rcu_bulk_data {
 	struct list_head list;
-	struct rcu_gp_oldstate gp_snap;
+	struct rcu_gp_seq gp_snap;
 	unsigned long nr_records;
 	void *records[] __counted_by(nr_records);
 };
@@ -1363,8 +1418,8 @@ struct kvfree_rcu_bulk_data {
 
 struct kfree_rcu_cpu_work {
 	struct rcu_work rcu_work;
-	struct rcu_head *head_free;
-	struct rcu_gp_oldstate head_free_gp_snap;
+	struct kvfree_rcu_head *head_free;
+	struct rcu_gp_seq head_free_gp_snap;
 	struct list_head bulk_head_free[FREE_N_CHANNELS];
 	struct kfree_rcu_cpu *krcp;
 };
@@ -1399,7 +1454,7 @@ struct kfree_rcu_cpu_work {
 struct kfree_rcu_cpu {
 	// Objects queued on a linked list
 	// through their rcu_head structures.
-	struct rcu_head *head;
+	struct kvfree_rcu_head *head;
 	unsigned long head_gp_snap;
 	atomic_t head_count;
 
@@ -1540,12 +1595,12 @@ kvfree_rcu_bulk(struct kfree_rcu_cpu *krcp,
 }
 
 static void
-kvfree_rcu_list(struct rcu_head *head)
+kvfree_rcu_list(struct kvfree_rcu_head *head)
 {
-	struct rcu_head *next;
+	struct kvfree_rcu_head *next;
 
 	for (; head; head = next) {
-		void *ptr = (void *) head->func;
+		void *ptr = kvmalloc_obj_start_addr(head);
 		unsigned long offset = (void *) head - ptr;
 
 		next = head->next;
@@ -1569,10 +1624,10 @@ static void kfree_rcu_work(struct work_struct *work)
 	unsigned long flags;
 	struct kvfree_rcu_bulk_data *bnode, *n;
 	struct list_head bulk_head[FREE_N_CHANNELS];
-	struct rcu_head *head;
+	struct kvfree_rcu_head *head;
 	struct kfree_rcu_cpu *krcp;
 	struct kfree_rcu_cpu_work *krwp;
-	struct rcu_gp_oldstate head_gp_snap;
+	struct rcu_gp_seq head_gp_snap;
 	int i;
 
 	krwp = container_of(to_rcu_work(work),
@@ -1612,6 +1667,14 @@ static bool kfree_rcu_sheaf(void *obj)
 {
 	struct kmem_cache *s;
 	struct slab *slab;
+	unsigned int free_flags = SLAB_FREE_DEFAULT;
+
+	/*
+	 * It is not safe to spin on PREEMPT_RT because the kernel might be
+	 * holding a raw spinlock and slab acquires sleeping locks.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		free_flags = SLAB_FREE_NOLOCK;
 
 	if (is_vmalloc_addr(obj))
 		return false;
@@ -1622,7 +1685,7 @@ static bool kfree_rcu_sheaf(void *obj)
 
 	s = slab->slab_cache;
 	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id()))
-		return __kfree_rcu_sheaf(s, obj);
+		return __kfree_rcu_sheaf(s, obj, free_flags);
 
 	return false;
 }
@@ -1692,7 +1755,7 @@ kvfree_rcu_drain_ready(struct kfree_rcu_cpu *krcp)
 {
 	struct list_head bulk_ready[FREE_N_CHANNELS];
 	struct kvfree_rcu_bulk_data *bnode, *n;
-	struct rcu_head *head_ready = NULL;
+	struct kvfree_rcu_head *head_ready = NULL;
 	unsigned long flags;
 	int i;
 
@@ -1955,7 +2018,7 @@ void __init kfree_rcu_scheduler_running(void)
  * be free'd in workqueue context. This allows us to: batch requests together to
  * reduce the number of grace periods during heavy kfree_rcu()/kvfree_rcu() load.
  */
-void kvfree_call_rcu(struct rcu_head *head, void *ptr)
+void kvfree_call_rcu(struct kvfree_rcu_head *head, void *ptr)
 {
 	unsigned long flags;
 	struct kfree_rcu_cpu *krcp;
@@ -1971,7 +2034,7 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 	if (!head)
 		might_sleep();
 
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT) && kfree_rcu_sheaf(ptr))
+	if (kfree_rcu_sheaf(ptr))
 		return;
 
 	// Queue the object but don't yet schedule the batch.
@@ -1993,7 +2056,6 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 			// Inline if kvfree_rcu(one_arg) call.
 			goto unlock_return;
 
-		head->func = ptr;
 		head->next = krcp->head;
 		WRITE_ONCE(krcp->head, head);
 		atomic_inc(&krcp->head_count);
@@ -2115,7 +2177,6 @@ void kvfree_rcu_barrier(void)
 	flush_all_rcu_sheaves();
 	__kvfree_rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
 
 /**
  * kvfree_rcu_barrier_on_cache - Wait for in-flight kvfree_rcu() calls on a
@@ -2126,20 +2187,18 @@ EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
  */
 void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
 {
+	/* kfree_rcu_nolock() might have deferred frees even without sheaves */
+	deferred_work_barrier();
+
 	if (cache_has_sheaves(s)) {
 		cpus_read_lock();
 		flush_rcu_sheaves_on_cache(s);
 		cpus_read_unlock();
-		rcu_barrier();
 	}
 
-	/*
-	 * TODO: Introduce a version of __kvfree_rcu_barrier() that works
-	 * on a specific slab cache.
-	 */
+	rcu_barrier();
 	__kvfree_rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier_on_cache);
 
 static unsigned long
 kfree_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)

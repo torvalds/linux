@@ -28,7 +28,7 @@ static inline struct dma_coherent_mem *dev_get_coherent_memory(struct device *de
 }
 
 static inline dma_addr_t dma_get_device_base(struct device *dev,
-					     struct dma_coherent_mem * mem)
+					     struct dma_coherent_mem *mem)
 {
 	if (mem->use_dev_dma_pfn_offset)
 		return phys_to_dma(dev, PFN_PHYS(mem->pfn_base));
@@ -69,8 +69,8 @@ out_free_dma_mem:
 	kfree(dma_mem);
 out_unmap_membase:
 	memunmap(mem_base);
-	pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %zd MiB\n",
-		&phys_addr, size / SZ_1M);
+	pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %zu KiB\n",
+		&phys_addr, size / SZ_1K);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -236,14 +236,15 @@ static int __dma_mmap_from_coherent(struct dma_coherent_mem *mem,
 {
 	if (mem && vaddr >= mem->virt_base && vaddr + size <=
 		   (mem->virt_base + ((dma_addr_t)mem->size << PAGE_SHIFT))) {
-		unsigned long off = vma->vm_pgoff;
+		const pgoff_t pgoff_start = vma_start_pgoff(vma);
+		const pgoff_t pgoff_end = vma_end_pgoff(vma);
 		int start = (vaddr - mem->virt_base) >> PAGE_SHIFT;
 		unsigned long user_count = vma_pages(vma);
 		int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		*ret = -ENXIO;
-		if (off < count && user_count <= count - off) {
-			unsigned long pfn = mem->pfn_base + start + off;
+		if (pgoff_start < count && pgoff_end <= count) {
+			unsigned long pfn = mem->pfn_base + start + pgoff_start;
 			*ret = remap_pfn_range(vma, vma->vm_start, pfn,
 					       user_count << PAGE_SHIFT,
 					       vma->vm_page_prot);
@@ -384,8 +385,8 @@ static int __init rmem_dma_setup(unsigned long node, struct reserved_mem *rmem)
 	}
 #endif
 
-	pr_info("Reserved memory: created DMA memory pool at %pa, size %ld MiB\n",
-		&rmem->base, (unsigned long)rmem->size / SZ_1M);
+	pr_info("Reserved memory: created DMA memory pool at %pa, size %llu KiB\n",
+		&rmem->base, (unsigned long long)(rmem->size / SZ_1K));
 	return 0;
 }
 

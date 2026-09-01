@@ -26,6 +26,7 @@ int nv50_instobj_new(struct nvkm_instmem *, u32 size, u32 align, bool zero,
 		     struct nvkm_memory **);
 int nv50_instobj_wrap(struct nvkm_instmem *, struct nvkm_memory *vram,
 		      struct nvkm_memory **bar2);
+void *nv50_instmem_dtor(struct nvkm_instmem *base);
 
 void nvkm_instmem_ctor(const struct nvkm_instmem_func *, struct nvkm_device *,
 		       enum nvkm_subdev_type, int, struct nvkm_instmem *);

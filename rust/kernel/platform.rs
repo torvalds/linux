@@ -83,7 +83,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
 
         // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
-            bindings::__platform_driver_register(pdrv.get(), module.0, name.as_char_ptr())
+            bindings::__platform_driver_register(pdrv.get(), module.as_ptr(), name.as_char_ptr())
         })
     }
 
@@ -100,7 +100,8 @@ impl<T: Driver> Adapter<T> {
         //
         // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal<'_>>>() };
-        let info = <Self as driver::Adapter>::id_info(pdev.as_ref());
+        // SAFETY: `pdev` matched data is of type `Self::IdInfo`.
+        let info = unsafe { <Self as driver::Adapter>::id_info(pdev.as_ref()) };
 
         from_result(|| {
             let data = T::probe(pdev, info);
@@ -176,7 +177,6 @@ macro_rules! module_platform_driver {
 ///
 /// kernel::of_device_table!(
 ///     OF_TABLE,
-///     MODULE_OF_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
 ///         (of::DeviceId::new(c"test,device"), ())
@@ -185,7 +185,6 @@ macro_rules! module_platform_driver {
 ///
 /// kernel::acpi_device_table!(
 ///     ACPI_TABLE,
-///     MODULE_ACPI_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
 ///         (acpi::DeviceId::new(c"LNUXBEEF"), ())
@@ -340,22 +339,30 @@ macro_rules! define_irq_accessor_by_index {
         $handler_trait:ident
     ) => {
         $(#[$meta])*
-        pub fn $fn_name<'a, T: irq::$handler_trait + 'static>(
+        ///
+        /// # Safety
+        ///
+        /// Callers must not `mem::forget()` the resulting registration or otherwise prevent its
+        /// [`Drop`] implementation from running.
+        pub unsafe fn $fn_name<'a, T: irq::$handler_trait + 'a>(
             &'a self,
             flags: irq::Flags,
             index: u32,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+        ) -> impl PinInit<irq::$reg_type<'a, T>, Error> + 'a {
             pin_init::pin_init_scope(move || {
                 let request = self.$request_fn(index)?;
 
-                Ok(irq::$reg_type::<T>::new(
-                    request,
-                    flags,
-                    name,
-                    handler,
-                ))
+                // SAFETY: Caller guarantees the Registration will not be leaked.
+                Ok(unsafe {
+                    irq::$reg_type::<T>::new(
+                        request,
+                        flags,
+                        name,
+                        handler,
+                    )
+                })
             })
         }
     };
@@ -369,22 +376,30 @@ macro_rules! define_irq_accessor_by_name {
         $handler_trait:ident
     ) => {
         $(#[$meta])*
-        pub fn $fn_name<'a, T: irq::$handler_trait + 'static>(
+        ///
+        /// # Safety
+        ///
+        /// Callers must not `mem::forget()` the resulting registration or otherwise prevent its
+        /// [`Drop`] implementation from running.
+        pub unsafe fn $fn_name<'a, T: irq::$handler_trait + 'a>(
             &'a self,
             flags: irq::Flags,
             irq_name: &'a CStr,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+        ) -> impl PinInit<irq::$reg_type<'a, T>, Error> + 'a {
             pin_init::pin_init_scope(move || {
                 let request = self.$request_fn(irq_name)?;
 
-                Ok(irq::$reg_type::<T>::new(
-                    request,
-                    flags,
-                    name,
-                    handler,
-                ))
+                // SAFETY: Caller guarantees the Registration will not be leaked.
+                Ok(unsafe {
+                    irq::$reg_type::<T>::new(
+                        request,
+                        flags,
+                        name,
+                        handler,
+                    )
+                })
             })
         }
     };

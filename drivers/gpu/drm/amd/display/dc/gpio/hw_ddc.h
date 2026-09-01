@@ -46,4 +46,32 @@ void dal_hw_ddc_init(
 
 struct hw_gpio_pin *dal_hw_ddc_get_pin(struct gpio *gpio);
 
+void dal_hw_ddc_init_i3cpad(
+	struct hw_ddc **hw_ddc,
+	struct dc_context *ctx,
+	enum gpio_id id,
+	uint32_t en);
+
+bool dal_hw_ddc_open_i3cpad(
+	struct hw_gpio_pin *ptr,
+	enum gpio_mode mode);
+
+enum gpio_result dal_hw_ddc_get_value_i3cpad(
+	const struct hw_gpio_pin *ptr,
+	uint32_t *value);
+
+enum gpio_result dal_hw_ddc_set_value_i3cpad(
+	const struct hw_gpio_pin *ptr,
+	uint32_t value);
+
+enum gpio_result dal_hw_ddc_config_mode_i3cpad(
+	struct hw_ddc *ddc,
+	enum gpio_mode mode);
+
+enum gpio_result dal_hw_ddc_change_mode_i3cpad(
+	struct hw_gpio_pin *ptr,
+	enum gpio_mode mode);
+
+void dal_hw_ddc_close_i3cpad(
+	struct hw_gpio_pin *ptr);
 #endif

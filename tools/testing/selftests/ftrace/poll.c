@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	}
 	close(pfd.fd);
 
-	/* If timeout happned (ret == 0), exit code is 1 */
+	/* If timeout happened (ret == 0), exit code is 1 */
 	if (ret == 0)
 		return 1;
 

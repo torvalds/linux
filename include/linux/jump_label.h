@@ -71,7 +71,7 @@
  * Additional babbling in: Documentation/staging/static-keys.rst
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -100,12 +100,12 @@ struct static_key {
 #endif	/* CONFIG_JUMP_LABEL */
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #ifdef CONFIG_JUMP_LABEL
 #include <asm/jump_label.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef CONFIG_HAVE_ARCH_JUMP_LABEL_RELATIVE
 
 struct jump_entry {
@@ -180,7 +180,7 @@ static inline int jump_entry_size(struct jump_entry *entry)
 #endif
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 enum jump_label_type {
 	JUMP_LABEL_NOP = 0,
@@ -524,6 +524,6 @@ extern bool ____wrong_branch_error(void);
 #define static_branch_enable_cpuslocked(x)	static_key_enable_cpuslocked(&(x)->key)
 #define static_branch_disable_cpuslocked(x)	static_key_disable_cpuslocked(&(x)->key)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif	/* _LINUX_JUMP_LABEL_H */

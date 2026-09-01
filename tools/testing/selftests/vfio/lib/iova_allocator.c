@@ -29,8 +29,7 @@ struct iova_allocator *iova_allocator_init(struct iommu *iommu)
 	ranges = iommu_iova_ranges(iommu, &nranges);
 	VFIO_ASSERT_NOT_NULL(ranges);
 
-	allocator = malloc(sizeof(*allocator));
-	VFIO_ASSERT_NOT_NULL(allocator);
+	allocator = malloc_assert(sizeof(*allocator));
 
 	*allocator = (struct iova_allocator){
 		.ranges = ranges,
@@ -90,4 +89,3 @@ next_range:
 		allocator->range_offset = 0;
 	}
 }
-

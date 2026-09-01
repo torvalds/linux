@@ -423,14 +423,14 @@ static int virtio_mem_bbm_bb_states_prepare_next_bb(struct virtio_mem *vm)
 }
 
 #define virtio_mem_bbm_for_each_bb(_vm, _bb_id, _state) \
-	for (_bb_id = vm->bbm.first_bb_id; \
-	     _bb_id < vm->bbm.next_bb_id && _vm->bbm.bb_count[_state]; \
+	for (_bb_id = (_vm)->bbm.first_bb_id; \
+	     _bb_id < (_vm)->bbm.next_bb_id && (_vm)->bbm.bb_count[_state]; \
 	     _bb_id++) \
 		if (virtio_mem_bbm_get_bb_state(_vm, _bb_id) == _state)
 
 #define virtio_mem_bbm_for_each_bb_rev(_vm, _bb_id, _state) \
-	for (_bb_id = vm->bbm.next_bb_id - 1; \
-	     _bb_id >= vm->bbm.first_bb_id && _vm->bbm.bb_count[_state]; \
+	for (_bb_id = (_vm)->bbm.next_bb_id - 1; \
+	     _bb_id >= (_vm)->bbm.first_bb_id && (_vm)->bbm.bb_count[_state]; \
 	     _bb_id--) \
 		if (virtio_mem_bbm_get_bb_state(_vm, _bb_id) == _state)
 
@@ -1080,7 +1080,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		atomic64_sub(size, &vm->offline_size);
 		/*
 		 * Start adding more memory once we onlined half of our
-		 * threshold. Don't trigger if it's possibly due to our actipn
+		 * threshold. Don't trigger if it's possibly due to our action
 		 * (e.g., us adding memory which gets onlined immediately from
 		 * the core).
 		 */

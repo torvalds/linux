@@ -404,6 +404,9 @@ enum amd_sriov_mailbox_request_message {
 	MB_REQ_RAS_ERROR_COUNT = 203,
 	MB_REQ_RAS_CPER_DUMP = 204,
 	MB_REQ_RAS_BAD_PAGES = 205,
+	MB_REQ_RAS_CHK_CRITI = 206,
+	MB_REQ_RAS_REMOTE_CMD = 207,
+	MB_REQ_MSG_PTL_UPDATE = 208,
 };
 
 /* mailbox message send from host to guest  */
@@ -424,8 +427,32 @@ enum amd_sriov_mailbox_response_message {
 	MB_RES_MSG_RAS_BAD_PAGES_READY		= 15,
 	MB_RES_MSG_RAS_BAD_PAGES_NOTIFICATION	= 16,
 	MB_RES_MSG_UNRECOV_ERR_NOTIFICATION	= 17,
+	MB_RES_RAS_CHK_CRITI_READY		= 18,
+	MB_RES_RAS_REMOTE_CMD_READY		= 19,
+	MB_RES_MSG_PTL_UPDATE_READY		= 20,
 	MB_RES_MSG_TEXT_MESSAGE			= 255
 };
+
+/*
+ * Generic response status codes for mailbox data fields.
+ * Used in msg_data[1..N] to indicate operation result.
+ */
+enum amd_sriov_response_status {
+	AMD_SRIOV_RESP_SUCCESS		= 0,
+	AMD_SRIOV_RESP_FAIL		= 1,
+	AMD_SRIOV_RESP_UNSUPPORTED	= 2,
+};
+
+/*
+ * PTL mailbox data format:
+ * Request:  msg_data[1]=req_code, msg_data[2]=ptl_state, msg_data[3]=(fmt1<<16)|fmt2
+ * Response: msg_data[1]=(status<<16)|ptl_state, msg_data[2]=(fmt1<<16)|fmt2
+ */
+#define AMD_SRIOV_PTL_PACK_FORMATS(fmt1, fmt2)          ((((fmt1) & 0xFFFF) << 16) | ((fmt2) & 0xFFFF))
+#define AMD_SRIOV_PTL_UNPACK_STATUS(dw)                 (((dw) >> 16) & 0xFFFF)
+#define AMD_SRIOV_PTL_UNPACK_STATE(dw)                  ((dw) & 0xFFFF)
+#define AMD_SRIOV_PTL_UNPACK_FMT1(dw)                   (((dw) >> 16) & 0xFFFF)
+#define AMD_SRIOV_PTL_UNPACK_FMT2(dw)                   ((dw) & 0xFFFF)
 
 enum amd_sriov_ras_telemetry_gpu_block {
 	RAS_TELEMETRY_GPU_BLOCK_UMC		= 0,

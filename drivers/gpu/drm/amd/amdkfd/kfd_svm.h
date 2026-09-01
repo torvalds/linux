@@ -39,12 +39,11 @@
 			((adev)->hive ? (void *)(adev)->hive : (void *)(adev))
 
 struct svm_range_bo {
-	struct amdgpu_bo		*bo;
+	struct amdgpu_bo		bo;
 	struct kref			kref;
 	struct list_head		range_list; /* all svm ranges shared this bo */
 	spinlock_t			list_lock;
-	struct amdgpu_amdkfd_fence	*eviction_fence;
-	struct work_struct		eviction_work;
+	struct mm_struct		*mm;
 	uint32_t			evicting;
 	struct work_struct		release_work;
 	struct kfd_node			*node;
@@ -100,6 +99,9 @@ struct svm_work_list_item {
  * @child_list: list header for split ranges which are not added to svms yet
  * @bitmap_access: index bitmap of GPUs which can access the range
  * @bitmap_aip: index bitmap of GPUs which can access the range in place
+ * @bitmap_needs_unmap: index bitmap of GPUs which currently set NO_ACCESS
+ * @bitmap_mapped: index bitmap of GPUs which currently have the range mapped
+ * @mapping_done: true if range_validate_and_map complete successfully
  *
  * Data structure for virtual memory range shared by CPU and GPUs, it can be
  * allocated from system memory ram or device vram, and migrate from ram to vram
@@ -135,7 +137,9 @@ struct svm_range {
 	struct list_head		child_list;
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
-	bool				mapped_to_gpu;
+	DECLARE_BITMAP(bitmap_needs_unmap, MAX_GPU_INSTANCE);
+	DECLARE_BITMAP(bitmap_mapped, MAX_GPU_INSTANCE);
+	bool				mapping_done;
 	atomic_t			queue_refcount;
 };
 
@@ -169,13 +173,15 @@ struct svm_range *svm_range_from_addr(struct svm_range_list *svms,
 				      struct svm_range **parent);
 struct kfd_node *svm_range_get_node_by_id(struct svm_range *prange,
 					  uint32_t gpu_id);
+void svm_range_bo_destroy(struct ttm_buffer_object *tbo);
 int svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 			    bool clear);
 void svm_range_vram_node_free(struct svm_range *prange);
 int svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			    uint32_t vmid, uint32_t node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault);
-int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence);
+int svm_range_evict_svm_bo(struct amdgpu_bo *bo);
+
 void svm_range_add_list_work(struct svm_range_list *svms,
 			     struct svm_range *prange, struct mm_struct *mm,
 			     enum svm_work_list_ops op);
@@ -229,11 +235,13 @@ static inline int svm_range_restore_pages(struct amdgpu_device *adev,
 	return -EFAULT;
 }
 
-static inline int svm_range_schedule_evict_svm_bo(
-		struct amdgpu_amdkfd_fence *fence)
+static inline void svm_range_bo_destroy(struct ttm_buffer_object *tbo)
 {
-	WARN_ONCE(1, "SVM eviction fence triggered, but SVM is disabled");
-	return -EINVAL;
+}
+
+static inline int svm_range_evict_svm_bo(struct amdgpu_bo *bo)
+{
+	return 0;
 }
 
 static inline void svm_range_get_info(struct kfd_process *p,

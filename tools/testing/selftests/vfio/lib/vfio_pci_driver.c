@@ -6,12 +6,16 @@
 extern struct vfio_pci_driver_ops dsa_ops;
 extern struct vfio_pci_driver_ops ioat_ops;
 #endif
+extern struct vfio_pci_driver_ops nv_falcon_ops;
+extern struct vfio_pci_driver_ops igb_ops;
 
 static struct vfio_pci_driver_ops *driver_ops[] = {
 #ifdef __x86_64__
 	&dsa_ops,
 	&ioat_ops,
 #endif
+	&nv_falcon_ops,
+	&igb_ops,
 };
 
 void vfio_pci_driver_probe(struct vfio_pci_device *device)
@@ -106,7 +110,21 @@ int vfio_pci_driver_memcpy_wait(struct vfio_pci_device *device)
 int vfio_pci_driver_memcpy(struct vfio_pci_device *device,
 			   iova_t src, iova_t dst, u64 size)
 {
-	vfio_pci_driver_memcpy_start(device, src, dst, size, 1);
+	struct vfio_pci_driver *driver = &device->driver;
+	u64 offset = 0;
 
-	return vfio_pci_driver_memcpy_wait(device);
+	while (offset < size) {
+		u64 chunk = min(size - offset, driver->max_memcpy_size);
+		int ret;
+
+		vfio_pci_driver_memcpy_start(device, src + offset,
+					     dst + offset, chunk, 1);
+		ret = vfio_pci_driver_memcpy_wait(device);
+		if (ret)
+			return ret;
+
+		offset += chunk;
+	}
+
+	return 0;
 }

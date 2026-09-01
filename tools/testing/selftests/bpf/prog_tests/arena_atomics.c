@@ -222,7 +222,7 @@ static void test_store_release(struct arena_atomics *skel)
 		  "store_release64_result");
 }
 
-void test_arena_atomics(void)
+void serial_test_arena_atomics(void)
 {
 	struct arena_atomics *skel;
 	int err;

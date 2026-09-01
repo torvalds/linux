@@ -21,16 +21,15 @@ from generators.union import XdrUnionGenerator
 
 from xdr_ast import transform_parse_tree, _RpcProgram, Specification
 from xdr_ast import _XdrEnum, _XdrPointer, _XdrTypedef, _XdrStruct, _XdrUnion
+from xdr_ast import XdrSemanticError
 from xdr_parse import xdr_parser, set_xdr_annotate
 from xdr_parse import make_error_handler, XdrParseError
-from xdr_parse import handle_transform_error
+from xdr_parse import handle_transform_error, handle_semantic_error
 
 logger.setLevel(logging.INFO)
 
 
-def emit_header_declarations(
-    root: Specification, language: str, peer: str
-) -> None:
+def emit_header_declarations(root: Specification, language: str, peer: str) -> None:
     """Emit header declarations"""
     for definition in root.definitions:
         if isinstance(definition.value, _XdrEnum):
@@ -67,6 +66,9 @@ def subcmd(args: Namespace) -> int:
             ast = transform_parse_tree(parse_tree)
         except VisitError as e:
             handle_transform_error(e, source, args.filename)
+            return 1
+        except XdrSemanticError as e:
+            handle_semantic_error(e, source, args.filename)
             return 1
 
         gen = XdrHeaderTopGenerator(args.language, args.peer)

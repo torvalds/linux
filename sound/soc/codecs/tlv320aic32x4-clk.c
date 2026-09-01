@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Clock Tree for the Texas Instruments TLV320AIC32x4
  *
  * Copyright 2019 Annaliese McDermond
@@ -9,6 +9,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/device.h>
 
@@ -57,7 +58,7 @@ static void clk_aic32x4_pll_unprepare(struct clk_hw *hw)
 	struct clk_aic32x4 *pll = to_clk_aic32x4(hw);
 
 	regmap_update_bits(pll->regmap, AIC32X4_PLLPR,
-				AIC32X4_PLLEN, 0);
+			   AIC32X4_PLLEN, 0);
 }
 
 static int clk_aic32x4_pll_is_prepared(struct clk_hw *hw)
@@ -75,7 +76,7 @@ static int clk_aic32x4_pll_is_prepared(struct clk_hw *hw)
 }
 
 static int clk_aic32x4_pll_get_muldiv(struct clk_aic32x4 *pll,
-			struct clk_aic32x4_pll_muldiv *settings)
+				      struct clk_aic32x4_pll_muldiv *settings)
 {
 	/*	Change to use regmap_bulk_read? */
 	unsigned int val;
@@ -106,19 +107,19 @@ static int clk_aic32x4_pll_get_muldiv(struct clk_aic32x4 *pll,
 }
 
 static int clk_aic32x4_pll_set_muldiv(struct clk_aic32x4 *pll,
-			struct clk_aic32x4_pll_muldiv *settings)
+				      struct clk_aic32x4_pll_muldiv *settings)
 {
 	int ret;
 	/*	Change to use regmap_bulk_write for some if not all? */
 
 	ret = regmap_update_bits(pll->regmap, AIC32X4_PLLPR,
-				AIC32X4_PLL_R_MASK, settings->r);
+				 AIC32X4_PLL_R_MASK, settings->r);
 	if (ret < 0)
 		return ret;
 
 	ret = regmap_update_bits(pll->regmap, AIC32X4_PLLPR,
-				AIC32X4_PLL_P_MASK,
-				settings->p << AIC32X4_PLL_P_SHIFT);
+				 AIC32X4_PLL_P_MASK,
+				 settings->p << AIC32X4_PLL_P_SHIFT);
 	if (ret < 0)
 		return ret;
 
@@ -136,23 +137,21 @@ static int clk_aic32x4_pll_set_muldiv(struct clk_aic32x4 *pll,
 	return 0;
 }
 
-static unsigned long clk_aic32x4_pll_calc_rate(
-			struct clk_aic32x4_pll_muldiv *settings,
-			unsigned long parent_rate)
+static unsigned long clk_aic32x4_pll_calc_rate(struct clk_aic32x4_pll_muldiv *settings,
+					       unsigned long parent_rate)
 {
 	u64 rate;
 	/*
 	 * We scale j by 10000 to account for the decimal part of P and divide
 	 * it back out later.
 	 */
-	rate = (u64) parent_rate * settings->r *
-				((settings->j * 10000) + settings->d);
+	rate = (u64)parent_rate * settings->r * ((settings->j * 10000) + settings->d);
 
-	return (unsigned long) DIV_ROUND_UP_ULL(rate, settings->p * 10000);
+	return (unsigned long)DIV_ROUND_UP_ULL(rate, settings->p * 10000);
 }
 
 static int clk_aic32x4_pll_calc_muldiv(struct clk_aic32x4_pll_muldiv *settings,
-			unsigned long rate, unsigned long parent_rate)
+				       unsigned long rate, unsigned long parent_rate)
 {
 	u64 multiplier;
 
@@ -165,14 +164,14 @@ static int clk_aic32x4_pll_calc_muldiv(struct clk_aic32x4_pll_muldiv *settings,
 	 * of the multiplier.	This is because we can't do floating point
 	 * math in the kernel.
 	 */
-	multiplier = (u64) rate * settings->p * 10000;
+	multiplier = (u64)rate * settings->p * 10000;
 	do_div(multiplier, parent_rate);
 
 	/*
 	 * J can't be over 64, so R can scale this.
 	 * R can't be greater than 4.
 	 */
-	settings->r = ((u32) multiplier / 640000) + 1;
+	settings->r = ((u32)multiplier / 640000) + 1;
 	if (settings->r > 4)
 		return -1;
 	do_div(multiplier, settings->r);
@@ -184,14 +183,14 @@ static int clk_aic32x4_pll_calc_muldiv(struct clk_aic32x4_pll_muldiv *settings,
 		return -1;
 
 	/* Figure out the integer part, J, and the fractional part, D. */
-	settings->j = (u32) multiplier / 10000;
-	settings->d = (u32) multiplier % 10000;
+	settings->j = (u32)multiplier / 10000;
+	settings->d = (u32)multiplier % 10000;
 
 	return 0;
 }
 
 static unsigned long clk_aic32x4_pll_recalc_rate(struct clk_hw *hw,
-			unsigned long parent_rate)
+						 unsigned long parent_rate)
 {
 	struct clk_aic32x4 *pll = to_clk_aic32x4(hw);
 	struct clk_aic32x4_pll_muldiv settings;
@@ -220,8 +219,8 @@ static int clk_aic32x4_pll_determine_rate(struct clk_hw *hw,
 }
 
 static int clk_aic32x4_pll_set_rate(struct clk_hw *hw,
-			unsigned long rate,
-			unsigned long parent_rate)
+				    unsigned long rate,
+				    unsigned long parent_rate)
 {
 	struct clk_aic32x4 *pll = to_clk_aic32x4(hw);
 	struct clk_aic32x4_pll_muldiv settings;
@@ -236,7 +235,7 @@ static int clk_aic32x4_pll_set_rate(struct clk_hw *hw,
 		return ret;
 
 	/* 10ms is the delay to wait before the clocks are stable */
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	return 0;
 }
@@ -260,7 +259,6 @@ static u8 clk_aic32x4_pll_get_parent(struct clk_hw *hw)
 
 	return (val & AIC32X4_PLL_CLKIN_MASK) >> AIC32X4_PLL_CLKIN_SHIFT;
 }
-
 
 static const struct clk_ops aic32x4_pll_ops = {
 	.prepare = clk_aic32x4_pll_prepare,
@@ -311,11 +309,11 @@ static void clk_aic32x4_div_unprepare(struct clk_hw *hw)
 	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
 
 	regmap_update_bits(div->regmap, div->reg,
-			AIC32X4_DIVEN, 0);
+			   AIC32X4_DIVEN, 0);
 }
 
 static int clk_aic32x4_div_set_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate)
+				    unsigned long parent_rate)
 {
 	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
 	u8 divisor;
@@ -342,7 +340,7 @@ static int clk_aic32x4_div_determine_rate(struct clk_hw *hw,
 }
 
 static unsigned long clk_aic32x4_div_recalc_rate(struct clk_hw *hw,
-						unsigned long parent_rate)
+						 unsigned long parent_rate)
 {
 	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
 	unsigned int val;
@@ -399,7 +397,7 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 	{
 		.name = "pll",
 		.parent_names =
-			(const char* []) { "mclk", "bclk", "gpio", "din" },
+			(const char *[]) { "mclk", "bclk", "gpio", "din" },
 		.num_parents = 4,
 		.ops = &aic32x4_pll_ops,
 		.reg = 0,
@@ -414,28 +412,28 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 	},
 	{
 		.name = "ndac",
-		.parent_names = (const char * []) { "codec_clkin" },
+		.parent_names = (const char *[]) { "codec_clkin" },
 		.num_parents = 1,
 		.ops = &aic32x4_div_ops,
 		.reg = AIC32X4_NDAC,
 	},
 	{
 		.name = "mdac",
-		.parent_names = (const char * []) { "ndac" },
+		.parent_names = (const char *[]) { "ndac" },
 		.num_parents = 1,
 		.ops = &aic32x4_div_ops,
 		.reg = AIC32X4_MDAC,
 	},
 	{
 		.name = "nadc",
-		.parent_names = (const char * []) { "codec_clkin" },
+		.parent_names = (const char *[]) { "codec_clkin" },
 		.num_parents = 1,
 		.ops = &aic32x4_div_ops,
 		.reg = AIC32X4_NADC,
 	},
 	{
 		.name = "madc",
-		.parent_names = (const char * []) { "nadc" },
+		.parent_names = (const char *[]) { "nadc" },
 		.num_parents = 1,
 		.ops = &aic32x4_div_ops,
 		.reg = AIC32X4_MADC,
@@ -451,7 +449,7 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 };
 
 static struct clk *aic32x4_register_clk(struct device *dev,
-			struct aic32x4_clkdesc *desc)
+					struct aic32x4_clkdesc *desc)
 {
 	struct clk_init_data init;
 	struct clk_aic32x4 *priv;
@@ -464,8 +462,8 @@ static struct clk *aic32x4_register_clk(struct device *dev,
 	init.flags = 0;
 
 	priv = devm_kzalloc(dev, sizeof(struct clk_aic32x4), GFP_KERNEL);
-	if (priv == NULL)
-		return (struct clk *) -ENOMEM;
+	if (!priv)
+		return ERR_PTR(-ENOMEM);
 
 	priv->dev = dev;
 	priv->hw.init = &init;

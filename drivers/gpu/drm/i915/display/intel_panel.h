@@ -14,6 +14,7 @@ struct drm_connector;
 struct drm_connector_state;
 struct drm_display_mode;
 struct drm_edid;
+struct intel_atomic_state;
 struct intel_connector;
 struct intel_crtc_state;
 struct intel_display;
@@ -45,8 +46,9 @@ enum drm_mode_status
 intel_panel_mode_valid(struct intel_connector *connector,
 		       const struct drm_display_mode *mode,
 		       int *target_clock);
-int intel_panel_compute_config(struct intel_connector *connector,
-			       struct drm_display_mode *adjusted_mode);
+int intel_panel_compute_config(struct intel_atomic_state *state,
+			       struct intel_crtc_state *crtc_state,
+			       struct intel_connector *connector);
 void intel_panel_add_edid_fixed_modes(struct intel_connector *connector,
 				      bool use_alt_fixed_modes);
 void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector);

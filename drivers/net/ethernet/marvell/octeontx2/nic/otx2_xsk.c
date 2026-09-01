@@ -193,7 +193,8 @@ int otx2_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 
 void otx2_attach_xsk_buff(struct otx2_nic *pfvf, struct otx2_snd_queue *sq, int qidx)
 {
-	if (test_bit(qidx, pfvf->af_xdp_zc_qidx))
+	if (pfvf->af_xdp_zc_qidx &&
+	    test_bit(qidx, pfvf->af_xdp_zc_qidx))
 		sq->xsk_pool = xsk_get_pool_from_qid(pfvf->netdev, qidx);
 }
 

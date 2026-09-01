@@ -23,3 +23,19 @@ config PHY_SPACEMIT_K1_USB2
 	help
 	  Enable this to support K1 USB 2.0 PHY driver. This driver takes care of
 	  enabling and clock setup and will be used by K1 udc/ehci/otg/xhci driver.
+
+config PHY_SPACEMIT_K3_COMMON_OPS
+	tristate
+	select MFD_SYSCON
+	select GENERIC_PHY
+
+config PHY_SPACEMIT_K3_COMBO_PHY
+	tristate "SpacemiT K3 USB3/PCIe PHY support"
+	depends on (ARCH_SPACEMIT || COMPILE_TEST) && OF
+	depends on COMMON_CLK
+	select PHY_SPACEMIT_K3_COMMON_OPS
+	help
+	  Enable this to support K3 USB3/PCIe combo PHY driver. This
+	  driver takes care of enabling and clock setup and will be used
+	  by K3 dwc3 driver.
+	  If unsure, say N.

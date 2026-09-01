@@ -738,6 +738,39 @@ bool expr_contains_symbol(struct expr *dep, struct symbol *sym)
 	return false;
 }
 
+/*
+ * Check if the expression references 'sym' in a way that is satisfiable
+ * with 'sym' disabled, e.g.'sym!=y'.
+ *
+ * Expects that expr_transform() was already called on 'expr'.
+ */
+bool expr_contains_symbol_negated(struct expr *dep, struct symbol *sym)
+{
+	if (!dep)
+		return false;
+
+	switch (dep->type) {
+	case E_AND:
+	case E_OR:
+		return expr_contains_symbol_negated(dep->left.expr, sym) ||
+		       expr_contains_symbol_negated(dep->right.expr, sym);
+	case E_NOT:
+		return dep->left.expr->type == E_SYMBOL &&
+		       dep->left.expr->left.sym == sym;
+	case E_EQUAL:
+		/* sym=n */
+		return dep->left.sym == sym && dep->right.sym == &symbol_no;
+	case E_UNEQUAL:
+		/* sym!=y, sym!=m */
+		return dep->left.sym == sym &&
+		       (dep->right.sym == &symbol_yes ||
+			dep->right.sym == &symbol_mod);
+	default:
+		break;
+	}
+	return false;
+}
+
 bool expr_depends_symbol(struct expr *dep, struct symbol *sym)
 {
 	if (!dep)

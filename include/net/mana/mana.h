@@ -4,6 +4,7 @@
 #ifndef _MANA_H
 #define _MANA_H
 
+#include <linux/dim.h>
 #include <net/xdp.h>
 #include <net/net_shaper.h>
 
@@ -28,6 +29,12 @@ enum TRI_STATE {
 	TRI_STATE_UNKNOWN = -1,
 	TRI_STATE_FALSE = 0,
 	TRI_STATE_TRUE = 1
+};
+
+/* MANA ethtool private flag bit positions */
+enum mana_priv_flag_bits {
+	MANA_PRIV_FLAG_USE_FULL_PAGE_RXBUF = 0,
+	MANA_PRIV_FLAG_MAX,
 };
 
 /* Number of entries for hardware indirection table must be in power of 2 */
@@ -61,11 +68,27 @@ enum TRI_STATE {
 
 #define MAX_PORTS_IN_MANA_DEV 256
 
-/* Maximum number of packets per coalesced CQE */
+/* Maximum number of PPIs per coalesced CQE */
 #define MANA_RXCOMP_OOB_NUM_PPI 4
 
+/* 8-pkt mode packs up to 2 packets per PPI entry */
+#define MANA_CQE_COAL_PKTS_8 8
+
+/* Default/max interrupt moderation settings */
+#define MANA_INTR_MODR_USEC_DEF 0
+#define MANA_INTR_MODR_COMP_DEF 0
+
+#define MANA_ADAPTIVE_RX_DEF true
+#define MANA_ADAPTIVE_TX_DEF true
+
+/* DIM doorbell value field layout */
+#define MANA_INTR_MODR_USEC_MAX    GENMASK(9, 0)
+#define MANA_INTR_MODR_USEC_VLD    BIT(15)
+#define MANA_INTR_MODR_COMP_MAX    GENMASK(7, 0)
+#define MANA_INTR_MODR_COMP_MASK   GENMASK(23, 16)
+
 /* Update this count whenever the respective structures are changed */
-#define MANA_STATS_RX_COUNT (6 + MANA_RXCOMP_OOB_NUM_PPI - 1)
+#define MANA_STATS_RX_COUNT (6 + MANA_CQE_COAL_PKTS_8 - 1)
 #define MANA_STATS_TX_COUNT 11
 
 #define MANA_RX_FRAG_ALIGNMENT 64
@@ -77,7 +100,7 @@ struct mana_stats_rx {
 	u64 xdp_tx;
 	u64 xdp_redirect;
 	u64 pkt_len0_err;
-	u64 coalesced_cqe[MANA_RXCOMP_OOB_NUM_PPI - 1];
+	u64 coalesced_cqe[MANA_CQE_COAL_PKTS_8 - 1];
 	struct u64_stats_sync syncp;
 };
 
@@ -188,6 +211,7 @@ enum mana_cqe_type {
 	CQE_RX_COALESCED_4		= 2,
 	CQE_RX_OBJECT_FENCE		= 3,
 	CQE_RX_TRUNCATED		= 4,
+	CQE_RX_COALESCED_8		= 7,
 
 	CQE_TX_OKAY			= 32,
 	CQE_TX_SA_DROP			= 33,
@@ -224,12 +248,26 @@ struct mana_cqe_header {
 #define MANA_HASH_L4                                                         \
 	(NDIS_HASH_TCP_IPV4 | NDIS_HASH_UDP_IPV4 | NDIS_HASH_TCP_IPV6 |      \
 	 NDIS_HASH_UDP_IPV6 | NDIS_HASH_TCP_IPV6_EX | NDIS_HASH_UDP_IPV6_EX)
+#define MANA_HASH_ENABLE_SUPPORTED \
+	(NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4 | NDIS_HASH_UDP_IPV4 | \
+	 NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6 | NDIS_HASH_UDP_IPV6)
 
-struct mana_rxcomp_perpkt_info {
-	u32 pkt_len	: 16;
-	u32 reserved1	: 16;
-	u32 reserved2;
-	u32 pkt_hash;
+/* Read PPI in two different layouts based on cqe_type */
+union mana_rxcomp_perpkt_info {
+	struct {
+		u32 pkt_len : 16;
+		u32 reserved1 : 16;
+		u32 reserved2;
+		u32 pkt_hash;
+	};
+
+	/* Up to two pkts per PPI entry */
+	struct {
+		u32 pkt_hash0;
+		u16 pkt_len0;
+		u16 pkt_len1;
+		u32 pkt_hash1;
+	};
 }; /* HW DATA */
 
 /* Receive completion OOB */
@@ -250,7 +288,7 @@ struct mana_rxcomp_oob {
 	u32 rx_udp_csum_fail		: 1;
 	u32 reserved2			: 1;
 
-	struct mana_rxcomp_perpkt_info ppi[MANA_RXCOMP_OOB_NUM_PPI];
+	union mana_rxcomp_perpkt_info ppi[MANA_RXCOMP_OOB_NUM_PPI];
 
 	u32 rx_wqe_offset;
 }; /* HW DATA */
@@ -297,6 +335,17 @@ struct mana_cq {
 	int work_done;
 	int work_done_since_doorbell;
 	int budget;
+
+	/* DIM - Dynamic Interrupt Moderation */
+	struct dim dim;
+	u16 dim_event_ctr;
+
+	/* Cumulative TX completions fed to DIM. Updated and read only in
+	 * NAPI context (mana_poll_tx_cq() / mana_update_tx_dim()), so they
+	 * measure the hardware completion rate and need no u64_stats_sync.
+	 */
+	u64 tx_dim_pkts;
+	u64 tx_dim_bytes;
 };
 
 struct mana_recv_buf_oob {
@@ -505,6 +554,9 @@ struct mana_port_context {
 	struct net_device *ndev;
 	struct work_struct queue_reset_work;
 
+	/* Debug knob to log TX timeout but skip recovery reset */
+	bool tx_timeout_skip_reset;
+
 	u8 mac_addr[ETH_ALEN];
 
 	struct mana_eq *eqs;
@@ -539,6 +591,8 @@ struct mana_port_context {
 	u32 rxbpre_alloc_size;
 	u32 rxbpre_headroom;
 	u32 rxbpre_frag_count;
+
+	u32 priv_flags;
 
 	struct bpf_prog *bpf_prog;
 
@@ -579,7 +633,17 @@ struct mana_port_context {
 	bool port_st_save; /* Saved port state */
 
 	u8 cqe_coalescing_enable;
+	u8 cqe8_coalescing_enable;
 	u32 cqe_coalescing_timeout_ns;
+
+	/* Interrupt moderation settings */
+	u16 intr_modr_rx_usec;
+	u16 intr_modr_rx_comp;
+	u16 intr_modr_tx_usec;
+	u16 intr_modr_tx_comp;
+
+	bool rx_dim_enabled;
+	bool tx_dim_enabled;
 
 	struct mana_ethtool_stats eth_stats;
 
@@ -605,6 +669,8 @@ int mana_disable_vport_rx(struct mana_port_context *apc);
 int mana_alloc_queues(struct net_device *ndev);
 int mana_attach(struct net_device *ndev);
 int mana_detach(struct net_device *ndev, bool from_close);
+
+void mana_dim_change(struct mana_cq *cq, bool enable);
 
 int mana_probe(struct gdma_dev *gd, bool resuming);
 void mana_remove(struct gdma_dev *gd, bool suspending);
@@ -641,6 +707,9 @@ struct mana_obj_spec {
 	u32 queue_size;
 	u32 attached_eq;
 	u32 modr_ctx_id;
+	u8 req_cq_moderation;
+	u16 cq_moderation_comp;
+	u16 cq_moderation_usec;
 };
 
 enum mana_command_code {
@@ -709,6 +778,8 @@ struct mana_query_device_cfg_req {
 	u32 reserved;
 }; /* HW DATA */
 
+#define MANA_PF_FLAG_1_CQE_8_COALESCING_SUPPORTED BIT(5)
+
 struct mana_query_device_cfg_resp {
 	struct gdma_resp_hdr hdr;
 
@@ -772,6 +843,15 @@ struct mana_create_wqobj_req {
 	u32 cq_size;
 	u32 cq_moderation_ctx_id;
 	u32 cq_parent_qid;
+
+	/* V2 */
+	u8 allow_rqwqe_chain;
+
+	/* V3 */
+	u8 req_cq_moderation;
+	u16 cq_moderation_comp;
+	u16 cq_moderation_usec;
+	u8 reserved2[2];
 }; /* HW DATA */
 
 struct mana_create_wqobj_resp {
@@ -779,6 +859,12 @@ struct mana_create_wqobj_resp {
 	u32 wq_id;
 	u32 cq_id;
 	mana_handle_t wq_obj;
+
+	/* V2 */
+	u16 cq_moderation_comp;
+	u16 cq_moderation_usec;
+	u8 cq_moderation_enabled;
+	u8 reserved1[3];
 }; /* HW DATA */
 
 /* Destroy WQ Object */
@@ -929,7 +1015,10 @@ struct mana_cfg_rx_steer_req_v2 {
 	mana_handle_t default_rxobj;
 	u8 hashkey[MANA_HASH_KEY_SIZE];
 	u8 cqe_coalescing_enable;
-	u8 reserved2[7];
+	u8 reserved2[3];
+	u16 rss_hash_types;
+	u8 cqe8_coalescing_enable; /* v5 message */
+	u8 reserved3;
 	mana_handle_t indir_tab[] __counted_by(num_indir_entries);
 }; /* HW DATA */
 

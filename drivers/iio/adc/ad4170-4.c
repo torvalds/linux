@@ -2979,9 +2979,9 @@ static int ad4170_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4170_id_table[] = {
-	{ "ad4170-4", (kernel_ulong_t)&ad4170_chip_info },
-	{ "ad4190-4", (kernel_ulong_t)&ad4190_chip_info },
-	{ "ad4195-4", (kernel_ulong_t)&ad4195_chip_info },
+	{ .name = "ad4170-4", .driver_data = (kernel_ulong_t)&ad4170_chip_info },
+	{ .name = "ad4190-4", .driver_data = (kernel_ulong_t)&ad4190_chip_info },
+	{ .name = "ad4195-4", .driver_data = (kernel_ulong_t)&ad4195_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4170_id_table);

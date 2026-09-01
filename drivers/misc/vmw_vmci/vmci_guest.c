@@ -960,8 +960,8 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id vmci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_VMCI), },
-	{ 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_VMCI) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, vmci_ids);
 

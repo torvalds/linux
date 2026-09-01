@@ -577,8 +577,8 @@ static void dt3155_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, DT3155_DEVICE_ID) },
-	{ 0, /* zero marks the end */ },
+	{ PCI_VDEVICE(INTEL, DT3155_DEVICE_ID) },
+	{ /* zero marks the end */ },
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 

@@ -225,11 +225,10 @@ static const struct sg2042_chip_data sg2044_chip_data = {
 static const struct of_device_id sg2042_pwm_ids[] = {
 	{
 		.compatible = "sophgo,sg2042-pwm",
-		.data = &sg2042_chip_data
-	},
-	{
+		.data = &sg2042_chip_data,
+	}, {
 		.compatible = "sophgo,sg2044-pwm",
-		.data = &sg2044_chip_data
+		.data = &sg2044_chip_data,
 	},
 	{ }
 };

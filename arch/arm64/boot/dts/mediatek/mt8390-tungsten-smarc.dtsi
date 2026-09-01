@@ -31,6 +31,8 @@
 		rtc0 = &rv3028;
 		rtc1 = &mt6359rtc;
 		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
 	};
 
 	backlight_lcd0: backlight-lcd0 {
@@ -265,8 +267,6 @@
 };
 
 &disp_dsi0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	status = "okay";
 
 	ports {
@@ -1049,8 +1049,6 @@
 	ethernet@1 {
 		compatible = "usb424,7850";
 		reg = <1>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		mdio {
 			#address-cells = <1>;

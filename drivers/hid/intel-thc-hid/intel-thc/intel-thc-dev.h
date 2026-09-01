@@ -50,6 +50,26 @@ enum thc_int_type {
 };
 
 /**
+ * struct thc_i2c_config - THC I2C bus configuration
+ * @target_addr: Slave address of touch device (TIC)
+ * @addr_mode: Slave address mode of touch device (TIC), 7bit or 10bit
+ * @speed: I2C bus frequency speed mode
+ * @scl_hcnt: I2C clock SCL high count
+ * @scl_lcnt: I2C clock SCL low count
+ * @sda_tx_hold: I2C Data SDA transmit hold period
+ * @sda_rx_hold: I2C Data SDA receive hold period
+ */
+struct thc_i2c_config {
+	u16 target_addr;
+	u8  addr_mode;
+	u32 speed;
+	u32 scl_hcnt;
+	u32 scl_lcnt;
+	u32 sda_tx_hold;
+	u32 sda_rx_hold;
+};
+
+/**
  * struct thc_device - THC private device struct
  * @thc_regmap: MMIO regmap structure for accessing THC registers
  * @mmio_addr: MMIO registers address
@@ -121,8 +141,7 @@ int thc_spi_write_config(struct thc_device *dev, u32 spi_freq_val,
 			 u32 io_mode, u32 opcode, u32 spi_wr_mps, u32 perf_limit);
 void thc_spi_input_output_address_config(struct thc_device *dev, u32 input_hdr_addr,
 					 u32 input_bdy_addr, u32 output_addr);
-int thc_i2c_subip_init(struct thc_device *dev, const u32 target_address,
-		       const u32 speed, const u32 hcnt, const u32 lcnt);
+int thc_i2c_subip_init(struct thc_device *dev, const struct thc_i2c_config *i2c_config);
 int thc_i2c_subip_regs_save(struct thc_device *dev);
 int thc_i2c_subip_regs_restore(struct thc_device *dev);
 int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size);

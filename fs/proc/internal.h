@@ -351,7 +351,7 @@ extern void proc_thread_self_init(void);
 /*
  * proc_sysctl.c
  */
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 extern int proc_sys_init(void);
 extern void proc_sys_evict_inode(struct inode *inode,
 				 struct ctl_table_header *head);

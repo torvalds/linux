@@ -14,27 +14,27 @@ import collections
 # Global command line arguments.
 _args = None
 # List of regular event tables.
-_event_tables = []
+_event_tables: list[str] = []
 # List of event tables generated from "/sys" directories.
-_sys_event_tables = []
+_sys_event_tables: list[str] = []
 # List of regular metric tables.
-_metric_tables = []
+_metric_tables: list[str] = []
 # List of metric tables generated from "/sys" directories.
-_sys_metric_tables = []
+_sys_metric_tables: list[str] = []
 # Mapping between sys event table names and sys metric table names.
 _sys_event_table_to_metric_table_mapping = {}
 # Map from an event name to an architecture standard
 # JsonEvent. Architecture standard events are in json files in the top
 # f'{_args.starting_dir}/{_args.arch}' directory.
-_arch_std_events = {}
+_arch_std_events: Dict[str, "JsonEvent"] = {}
 # Events to write out when the table is closed
-_pending_events = []
+_pending_events: list["JsonEvent"] = []
 # Name of events table to be written out
-_pending_events_tblname = None
+_pending_events_tblname: Optional[str] = None
 # Metrics to write out when the table is closed
-_pending_metrics = []
+_pending_metrics: list["JsonEvent"] = []
 # Name of metrics table to be written out
-_pending_metrics_tblname = None
+_pending_metrics_tblname: Optional[str] = None
 # Global BigCString shared by all structures.
 _bcs = None
 # Map from the name of a metric group to a description of the group.
@@ -210,7 +210,7 @@ class JsonEvent:
       """Convert an int to a string similar to a printf modifier of %#llx."""
       return str(x) if x >= 0 and x < 10 else hex(x)
 
-    def fixdesc(s: str) -> str:
+    def fixdesc(s: Optional[str]) -> Optional[str]:
       """Fix formatting issue for the desc string."""
       if s is None:
         return None
@@ -218,7 +218,7 @@ class JsonEvent:
                                        '. '), '.').replace('\n', '\\n').replace(
                                            '\"', '\\"').replace('\r', '\\r')
 
-    def convert_aggr_mode(aggr_mode: str) -> Optional[str]:
+    def convert_aggr_mode(aggr_mode: Optional[str]) -> Optional[str]:
       """Returns the aggr_mode_class enum value associated with the JSON string."""
       if not aggr_mode:
         return None
@@ -228,7 +228,7 @@ class JsonEvent:
       }
       return aggr_mode_to_enum[aggr_mode]
 
-    def convert_metric_constraint(metric_constraint: str) -> Optional[str]:
+    def convert_metric_constraint(metric_constraint: Optional[str]) -> Optional[str]:
       """Returns the metric_event_groups enum value associated with the JSON string."""
       if not metric_constraint:
         return None
@@ -241,7 +241,7 @@ class JsonEvent:
       }
       return metric_constraint_to_enum[metric_constraint]
 
-    def lookup_msr(num: str) -> Optional[str]:
+    def lookup_msr(num: Optional[str]) -> Optional[str]:
       """Converts the msr number, or first in a list to the appropriate event field."""
       if not num:
         return None
@@ -249,11 +249,15 @@ class JsonEvent:
           0x3F6: 'ldlat=',
           0x1A6: 'offcore_rsp=',
           0x1A7: 'offcore_rsp=',
+          0x3E0: 'offcore_rsp=',
+          0x3E1: 'offcore_rsp=',
+          0x3E2: 'offcore_rsp=',
+          0x3E3: 'offcore_rsp=',
           0x3F7: 'frontend=',
       }
       return msrmap[int(num.split(',', 1)[0], 0)]
 
-    def real_event(name: str, event: str) -> Optional[str]:
+    def real_event(name: Optional[str], event: Optional[str]) -> Optional[str]:
       """Convert well known event names to an event string otherwise use the event argument."""
       fixed = {
           'inst_retired.any': 'event=0xc0,period=2000003',
@@ -269,7 +273,7 @@ class JsonEvent:
         return fixed[name.lower()]
       return event
 
-    def unit_to_pmu(unit: str) -> Optional[str]:
+    def unit_to_pmu(unit: Optional[str]) -> Optional[str]:
       """Convert a JSON Unit to Linux PMU name."""
       if not unit:
         return 'default_core'
@@ -304,21 +308,21 @@ class JsonEvent:
       return table[unit] if unit in table else f'uncore_{unit.lower()}'
 
     def is_zero(val: str) -> bool:
-        try:
-            if val.startswith('0x'):
-                return int(val, 16) == 0
-            else:
-                return int(val) == 0
-        except e:
-            return False
+      try:
+        if val.startswith('0x'):
+          return int(val, 16) == 0
+        else:
+          return int(val) == 0
+      except:
+        return False
 
     def canonicalize_value(val: str) -> str:
-        try:
-            if val.startswith('0x'):
-                return llx(int(val, 16))
-            return str(int(val))
-        except e:
-            return val
+      try:
+        if val.startswith('0x'):
+          return llx(int(val, 16))
+        return str(int(val))
+      except:
+        return val
 
     eventcode = 0
     if 'EventCode' in jd:
@@ -370,7 +374,8 @@ class JsonEvent:
     if precise and self.desc and '(Precise Event)' not in self.desc:
       extra_desc += ' (Must be precise)' if precise == '2' else (' (Precise '
                                                                  'event)')
-    event = None
+    self.event: Optional[str] = None
+    event: Optional[str] = None
     if configcode is not None:
       event = f'config={llx(configcode)}'
     elif eventidcode is not None:
@@ -455,11 +460,12 @@ class JsonEvent:
         return f'\t/* {s} */\n' if len(s) < 80 else f'\t/* {s[0:80]}... */\n'
 
     s = self.build_c_string(metric)
+    assert _bcs is not None
     return f'{make_comment(s)}\t{{ { _bcs.offsets[s] } }},\n'
 
 
-@lru_cache(maxsize=None)
-def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
+_json_cache = {}
+def _read_json_events_impl(path: str, topic: str) -> Sequence[JsonEvent]:
   """Read json events from the specified file."""
   try:
     events = json.load(open(path), object_hook=JsonEvent)
@@ -475,11 +481,15 @@ def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
   if updates:
     for event in events:
       if event.metric_name in updates:
-        # print(f'Updated {event.metric_name} from\n"{event.metric_expr}"\n'
-        #       f'to\n"{updates[event.metric_name]}"')
         event.metric_expr = updates[event.metric_name]
 
   return events
+
+def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
+  key = (path, topic)
+  if key not in _json_cache:
+    _json_cache[key] = _read_json_events_impl(path, topic)
+  return _json_cache[key]
 
 def preprocess_arch_std_files(archpath: str) -> None:
   """Read in all architecture standard events."""
@@ -524,6 +534,7 @@ def print_pending_events() -> None:
     return
 
   global _pending_events_tblname
+  assert _pending_events_tblname is not None
   if _pending_events_tblname.endswith('_sys'):
     global _sys_event_tables
     _sys_event_tables.append(_pending_events_tblname)
@@ -534,7 +545,8 @@ def print_pending_events() -> None:
   first = True
   last_pmu = None
   last_name = None
-  pmus = set()
+  pmus: Set[Tuple[str, str]] = set()
+  assert _args is not None
   for event in sorted(_pending_events, key=event_cmp_key):
     if last_pmu and last_pmu == event.pmu:
       assert event.name != last_name, f"Duplicate event: {last_pmu}/{last_name}/ in {_pending_events_tblname}"
@@ -570,19 +582,22 @@ static const struct pmu_table_entry {_pending_events_tblname}[] = {{
 def print_pending_metrics() -> None:
   """Optionally close metrics table."""
 
-  def metric_cmp_key(j: JsonEvent) -> Tuple[bool, str, str]:
+  def metric_cmp_key(j: JsonEvent) -> Tuple[str, str, str, str]:
     def fix_none(s: Optional[str]) -> str:
       if s is None:
         return ''
       return s
 
-    return (j.desc is not None, fix_none(j.pmu), fix_none(j.metric_name))
+    assert j.metric_expr is not None
+    return (fix_none(j.pmu), fix_none(j.metric_name), j.metric_expr.ToPerfJson(),
+            fix_none(j.desc))
 
   global _pending_metrics
   if not _pending_metrics:
     return
 
   global _pending_metrics_tblname
+  assert _pending_metrics_tblname is not None
   if _pending_metrics_tblname.endswith('_sys'):
     global _sys_metric_tables
     _sys_metric_tables.append(_pending_metrics_tblname)
@@ -592,7 +607,8 @@ def print_pending_metrics() -> None:
 
   first = True
   last_pmu = None
-  pmus = set()
+  pmus: Set[Tuple[str, str]] = set()
+  assert _args is not None
   for metric in sorted(_pending_metrics, key=metric_cmp_key):
     if metric.pmu != last_pmu:
       if not first:
@@ -628,7 +644,6 @@ def get_topic(topic: str) -> str:
   return removesuffix(topic, '.json').replace('-', ' ')
 
 def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
-
   if item.is_dir():
     return
 
@@ -642,6 +657,7 @@ def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   if not item.is_file() or not item.name.endswith('.json'):
     return
 
+  assert _bcs is not None
   if item.name.endswith('metricgroups.json'):
     metricgroup_descriptions = json.load(open(item.path))
     for mgroup in metricgroup_descriptions:
@@ -703,6 +719,7 @@ def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
 
 def print_mapping_table(archs: Sequence[str]) -> None:
   """Read the mapfile and generate the struct from cpuid string to event table."""
+  assert _args is not None
   _args.output_file.write("""
 /* Struct used to make the PMU event table implementation opaque to callers. */
 struct pmu_events_table {
@@ -820,6 +837,7 @@ static const struct pmu_events_map pmu_events_map[] = {
 
 
 def print_metric_table_functions() -> None:
+  assert _args is not None
   _args.output_file.write("""
 const char *pmu_metrics_table__name(const struct pmu_metrics_table *table)
 {
@@ -863,6 +881,7 @@ int pmu_metrics_table__iterate_tables(pmu_metrics_table_iter_t fn, void *data)
 
 
 def print_system_mapping_table() -> None:
+  assert _args is not None
   """C struct mapping table array for tables from /sys directories."""
   _args.output_file.write("""
 struct pmu_sys_events {
@@ -1399,6 +1418,7 @@ int pmu_for_each_sys_metric(pmu_metric_iter_fn fn, void *data)
 """)
 
 def print_metricgroups() -> None:
+  assert _args is not None
   _args.output_file.write("""
 static const int metricgroups[][2] = {
 """)
@@ -1430,6 +1450,14 @@ const char *describe_metricgroup(const char *group)
 }
 """)
 
+def _parallel_read_json_events(task: Tuple[str, str]) -> Tuple[str, str, Sequence[JsonEvent]]:
+  path, topic = task
+  return path, topic, _read_json_events_impl(path, topic)
+
+def _init_worker(std_events: dict) -> None:
+  global _arch_std_events
+  _arch_std_events = std_events
+
 def main() -> None:
   global _args
 
@@ -1442,6 +1470,7 @@ def main() -> None:
   def ftw(path: str, parents: Sequence[str],
           action: Callable[[Sequence[str], os.DirEntry], None]) -> None:
     """Replicate the directory/file walking behavior of C's file tree walk."""
+    assert _args is not None
     for item in sorted(os.scandir(path), key=lambda e: e.name):
       if _args.model != 'all' and item.is_dir():
         # Check if the model matches one in _args.model.
@@ -1507,11 +1536,28 @@ struct pmu_table_entry {
     raise IOError(f'Missing architecture directory \'{_args.arch}\'')
 
   archs.sort()
+  import concurrent.futures
+  tasks = []
+  def collect_json(parents: Sequence[str], item: os.DirEntry) -> None:
+    if len(parents) == 0:
+      return
+    if item.is_file() and item.name.endswith('.json') and not item.name.endswith('metricgroups.json'):
+      tasks.append((item.path, get_topic(item.name)))
+
   for arch in archs:
     arch_path = f'{_args.starting_dir}/{arch}'
     preprocess_arch_std_files(arch_path)
+    ftw(arch_path, [], collect_json)
+
+  with concurrent.futures.ProcessPoolExecutor(initializer=_init_worker, initargs=(_arch_std_events,)) as executor:
+    for path, topic, events in executor.map(_parallel_read_json_events, tasks):
+      _json_cache[(path, topic)] = events
+
+  for arch in archs:
+    arch_path = f'{_args.starting_dir}/{arch}'
     ftw(arch_path, [], preprocess_one_file)
 
+  assert _bcs is not None
   _bcs.compute()
   _args.output_file.write('/* clang-format off */\n')
   if not _args.output_string_file:

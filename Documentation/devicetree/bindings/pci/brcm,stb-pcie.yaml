@@ -214,7 +214,7 @@ examples:
             dma-ranges = <0x42000000 0x1 0x00000000 0x0 0x40000000 0x0 0x80000000>,
                          <0x42000000 0x1 0x80000000 0x3 0x00000000 0x0 0x80000000>;
             brcm,enable-ssc;
-            brcm,scb-sizes =  <0x0000000080000000 0x0000000080000000>;
+            brcm,scb-sizes = <0x0000000080000000 0x0000000080000000>;
 
             /* PCIe bridge, Root Port */
             pci@0,0 {

@@ -25,6 +25,7 @@
 #include "include/crypto.h"
 #include "include/file.h"
 #include "include/match.h"
+#include "include/net.h"
 #include "include/path.h"
 #include "include/policy.h"
 #include "include/policy_unpack.h"
@@ -730,7 +731,7 @@ static bool verify_tags(struct aa_tags_struct *tags, const char **info)
 		/* count followed by count indexes into hdrs */
 		u32 cnt = tags->sets.table[i];
 
-		if (i+cnt >= tags->sets.size) {
+		if ((u64)i + cnt >= tags->sets.size) {
 			AA_DEBUG(DEBUG_UNPACK,
 				 "tagset too large %d+%d > sets.table[%d]",
 				 i, cnt, tags->sets.size);
@@ -1482,7 +1483,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
  * @dfa: the dfa to check accept indexes are in range
  * @table_size: the permission table size the indexes should be within
  */
-static bool verify_dfa_accept_index(struct aa_dfa *dfa, int table_size)
+static bool verify_dfa_accept_index(const struct aa_dfa *dfa, int table_size)
 {
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
@@ -1492,7 +1493,7 @@ static bool verify_dfa_accept_index(struct aa_dfa *dfa, int table_size)
 	return true;
 }
 
-static bool verify_perm(struct aa_perms *perm)
+static bool verify_perm(const struct aa_perms *perm)
 {
 	/* TODO: allow option to just force the perms into a valid state */
 	if (perm->allow & perm->deny)
@@ -1717,6 +1718,8 @@ static int compress_loaddata(struct aa_loaddata *data)
  * @udata: user data copied to kmem  (NOT NULL)
  * @lh: list to place unpacked profiles in a aa_repl_ws
  * @ns: Returns namespace profile is in if specified else NULL (NOT NULL)
+ * @compressed_data: The userspace-provided compressed data. May be NULL
+ * @compressed_size: If compressed_data is not NULL, the compressed data size
  *
  * Unpack user data and return refcounted allocated profile(s) stored in
  * @lh in order of discovery, with the list chain stored in base.list
@@ -1725,12 +1728,12 @@ static int compress_loaddata(struct aa_loaddata *data)
  * Returns: profile(s) on @lh else error pointer if fails to unpack
  */
 int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
-	      const char **ns)
+	      const char **ns, char *compressed_data, size_t compressed_size)
 {
 	struct aa_load_ent *tmp, *ent;
 	struct aa_profile *profile = NULL;
 	char *ns_name = NULL;
-	int error;
+	int error = 0;
 	struct aa_ext e = {
 		.start = udata->data,
 		.end = udata->data + udata->size,
@@ -1783,10 +1786,23 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 	}
 
 	if (aa_g_export_binary) {
-		error = compress_loaddata(udata);
+		/* Do we have userspace-compressed data? */
+		if (compressed_data) {
+			kvfree(udata->data);
+			udata->data = compressed_data;
+			udata->compressed_size = compressed_size;
+			compressed_data = NULL; /* consumed */
+
+		} else
+			error = compress_loaddata(udata);
+
 		if (error)
 			goto fail;
+	} else if (compressed_data) {
+		kvfree(compressed_data);
+		compressed_data = NULL;
 	}
+
 	return 0;
 
 fail_profile:
@@ -1794,6 +1810,8 @@ fail_profile:
 	aa_put_profile(profile);
 
 fail:
+	if (compressed_data)
+		kvfree(compressed_data);
 	list_for_each_entry_safe(ent, tmp, lh, list) {
 		list_del_init(&ent->list);
 		aa_load_ent_free(ent);

@@ -157,10 +157,10 @@ static int mcp4922_probe(struct spi_device *spi)
 
 
 static const struct spi_device_id mcp4922_id[] = {
-	{"mcp4902", ID_MCP4902},
-	{"mcp4912", ID_MCP4912},
-	{"mcp4921", ID_MCP4921},
-	{"mcp4922", ID_MCP4922},
+	{ .name = "mcp4902", .driver_data = ID_MCP4902 },
+	{ .name = "mcp4912", .driver_data = ID_MCP4912 },
+	{ .name = "mcp4921", .driver_data = ID_MCP4921 },
+	{ .name = "mcp4922", .driver_data = ID_MCP4922 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp4922_id);

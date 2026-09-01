@@ -528,12 +528,16 @@ source "drivers/crypto/intel/Kconfig"
 
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
-	depends on ARCH_QCOM || COMPILE_TEST
+	depends on (BROKEN && ARCH_QCOM) || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This driver supports Qualcomm crypto engine accelerator
 	  hardware. To compile this driver as a module, choose M here. The
 	  module will be called qcrypto.
+
+	  This driver does not have exclusive access to the
+	  hardware, causing races with the secure world.  It
+	  is also slower than the CPU.
 
 config CRYPTO_DEV_QCE_SKCIPHER
 	bool
@@ -636,18 +640,6 @@ config CRYPTO_DEV_QCE_SW_MAX_LEN
 	  Note that 192-bit keys are not supported by the hardware and are
 	  always processed by the software fallback, and all DES requests
 	  are done by the hardware.
-
-config CRYPTO_DEV_QCOM_RNG
-	tristate "Qualcomm Random Number Generator Driver"
-	depends on ARCH_QCOM || COMPILE_TEST
-	depends on HW_RANDOM
-	select CRYPTO_RNG
-	help
-	  This driver provides support for the Random Number
-	  Generator hardware found on Qualcomm SoCs.
-
-	  To compile this driver as a module, choose M here. The
-	  module will be called qcom-rng. If unsure, say N.
 
 config CRYPTO_DEV_IMGTEC_HASH
 	tristate "Imagination Technologies hardware hash accelerator"

@@ -364,19 +364,25 @@ extern void bpf_iter_dmabuf_destroy(struct bpf_iter_dmabuf *it) __weak __ksym;
 extern int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
 				 struct bpf_dynptr *value_p) __weak __ksym;
 
+extern int bpf_sock_read_xattr(struct socket *sock, const char *name__str,
+			       struct bpf_dynptr *value_p) __weak __ksym;
+
 #define PREEMPT_BITS	8
 #define SOFTIRQ_BITS	8
+#define HARDIRQ_DISABLE_BITS	8
 #define HARDIRQ_BITS	4
-#define NMI_BITS	4
+#define NMI_BITS	1
 
 #define PREEMPT_SHIFT	0
 #define SOFTIRQ_SHIFT	(PREEMPT_SHIFT + PREEMPT_BITS)
-#define HARDIRQ_SHIFT	(SOFTIRQ_SHIFT + SOFTIRQ_BITS)
+#define HARDIRQ_DISABLE_SHIFT	(SOFTIRQ_SHIFT + SOFTIRQ_BITS)
+#define HARDIRQ_SHIFT	(HARDIRQ_DISABLE_SHIFT + HARDIRQ_DISABLE_BITS)
 #define NMI_SHIFT	(HARDIRQ_SHIFT + HARDIRQ_BITS)
 
 #define __IRQ_MASK(x)	((1UL << (x))-1)
 
 #define SOFTIRQ_MASK	(__IRQ_MASK(SOFTIRQ_BITS) << SOFTIRQ_SHIFT)
+#define HARDIRQ_DISABLE_MASK	(__IRQ_MASK(HARDIRQ_DISABLE_BITS) << HARDIRQ_DISABLE_SHIFT)
 #define HARDIRQ_MASK	(__IRQ_MASK(HARDIRQ_BITS) << HARDIRQ_SHIFT)
 #define NMI_MASK	(__IRQ_MASK(NMI_BITS)     << NMI_SHIFT)
 
@@ -425,6 +431,8 @@ static inline int get_preempt_count(void)
 	return bpf_get_lowcore()->preempt_count;
 #elif defined(bpf_target_loongarch)
 	return bpf_get_current_task_btf()->thread_info.preempt_count;
+#elif defined(bpf_target_riscv)
+	return bpf_get_current_task_btf()->thread_info.preempt_count;
 #endif
 	return 0;
 }
@@ -436,6 +444,7 @@ static inline int get_preempt_count(void)
  *	* powerpc64
  *	* s390x
  *	* loongarch
+ *	* riscv
  */
 static inline int bpf_in_interrupt(void)
 {
@@ -458,6 +467,7 @@ static inline int bpf_in_interrupt(void)
  *	* powerpc64
  *	* s390x
  *	* loongarch
+ *	* riscv
  */
 static inline int bpf_in_nmi(void)
 {
@@ -471,6 +481,7 @@ static inline int bpf_in_nmi(void)
  *	* powerpc64
  *	* s390x
  *	* loongarch
+ *	* riscv
  */
 static inline int bpf_in_hardirq(void)
 {
@@ -484,6 +495,7 @@ static inline int bpf_in_hardirq(void)
  *	* powerpc64
  *	* s390x
  *	* loongarch
+ *	* riscv
  */
 static inline int bpf_in_serving_softirq(void)
 {
@@ -505,6 +517,7 @@ static inline int bpf_in_serving_softirq(void)
  *	* powerpc64
  *	* s390x
  *	* loongarch
+ *	* riscv
  */
 static inline int bpf_in_task(void)
 {

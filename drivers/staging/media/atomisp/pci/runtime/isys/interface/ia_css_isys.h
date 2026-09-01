@@ -15,7 +15,7 @@
 #include <system_global.h>
 #include "ia_css_isys_comm.h"
 
-/**
+/*
  * Virtual Input System. (Input System 2401)
  */
 typedef isp2401_input_system_cfg_t	ia_css_isys_descr_t;
@@ -28,7 +28,7 @@ enum mipi_port_id ia_css_isys_port_to_mipi_port(
     enum mipi_port_id api_port);
 
 
-/**
+/*
  * @brief Register one (virtual) stream. This is used to track when all
  * virtual streams are configured inside the input system. The CSI RX is
  * only started when all registered streams are configured.
@@ -43,7 +43,7 @@ int ia_css_isys_csi_rx_register_stream(
     enum mipi_port_id port,
     uint32_t isys_stream_id);
 
-/**
+/*
  * @brief Unregister one (virtual) stream. This is used to track when all
  * virtual streams are configured inside the input system. The CSI RX is
  * only started when all registered streams are configured.
@@ -97,7 +97,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
     mipi_predictor_t compression,
     unsigned int *fmt_type);
 
-/**
+/*
  * Virtual Input System. (Input System 2401)
  */
 ia_css_isys_error_t ia_css_isys_stream_create(

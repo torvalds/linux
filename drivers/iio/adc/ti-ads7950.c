@@ -619,18 +619,18 @@ static int ti_ads7950_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ti_ads7950_id[] = {
-	{ "ads7950", (kernel_ulong_t)&ti_ads7950_chip_info },
-	{ "ads7951", (kernel_ulong_t)&ti_ads7951_chip_info },
-	{ "ads7952", (kernel_ulong_t)&ti_ads7952_chip_info },
-	{ "ads7953", (kernel_ulong_t)&ti_ads7953_chip_info },
-	{ "ads7954", (kernel_ulong_t)&ti_ads7954_chip_info },
-	{ "ads7955", (kernel_ulong_t)&ti_ads7955_chip_info },
-	{ "ads7956", (kernel_ulong_t)&ti_ads7956_chip_info },
-	{ "ads7957", (kernel_ulong_t)&ti_ads7957_chip_info },
-	{ "ads7958", (kernel_ulong_t)&ti_ads7958_chip_info },
-	{ "ads7959", (kernel_ulong_t)&ti_ads7959_chip_info },
-	{ "ads7960", (kernel_ulong_t)&ti_ads7960_chip_info },
-	{ "ads7961", (kernel_ulong_t)&ti_ads7961_chip_info },
+	{ .name = "ads7950", .driver_data = (kernel_ulong_t)&ti_ads7950_chip_info },
+	{ .name = "ads7951", .driver_data = (kernel_ulong_t)&ti_ads7951_chip_info },
+	{ .name = "ads7952", .driver_data = (kernel_ulong_t)&ti_ads7952_chip_info },
+	{ .name = "ads7953", .driver_data = (kernel_ulong_t)&ti_ads7953_chip_info },
+	{ .name = "ads7954", .driver_data = (kernel_ulong_t)&ti_ads7954_chip_info },
+	{ .name = "ads7955", .driver_data = (kernel_ulong_t)&ti_ads7955_chip_info },
+	{ .name = "ads7956", .driver_data = (kernel_ulong_t)&ti_ads7956_chip_info },
+	{ .name = "ads7957", .driver_data = (kernel_ulong_t)&ti_ads7957_chip_info },
+	{ .name = "ads7958", .driver_data = (kernel_ulong_t)&ti_ads7958_chip_info },
+	{ .name = "ads7959", .driver_data = (kernel_ulong_t)&ti_ads7959_chip_info },
+	{ .name = "ads7960", .driver_data = (kernel_ulong_t)&ti_ads7960_chip_info },
+	{ .name = "ads7961", .driver_data = (kernel_ulong_t)&ti_ads7961_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ti_ads7950_id);

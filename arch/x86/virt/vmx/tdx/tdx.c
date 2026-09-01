@@ -1430,6 +1430,7 @@ static __init int record_keyid_partitioning(u32 *tdx_keyid_start,
 					    u32 *nr_tdx_keyids)
 {
 	u32 _nr_mktme_keyids, _tdx_keyid_start, _nr_tdx_keyids;
+	struct msr val;
 	int ret;
 
 	/*
@@ -1437,8 +1438,9 @@ static __init int record_keyid_partitioning(u32 *tdx_keyid_start,
 	 *   Bit [31:0]:	Number of MKTME KeyIDs.
 	 *   Bit [63:32]:	Number of TDX private KeyIDs.
 	 */
-	ret = rdmsr_safe(MSR_IA32_MKTME_KEYID_PARTITIONING, &_nr_mktme_keyids,
-			&_nr_tdx_keyids);
+	ret = rdmsrq_safe(MSR_IA32_MKTME_KEYID_PARTITIONING, &val.q);
+	_nr_mktme_keyids = val.l;
+	_nr_tdx_keyids = val.h;
 	if (ret || !_nr_tdx_keyids)
 		return -EINVAL;
 

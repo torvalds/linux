@@ -25,6 +25,8 @@ struct snd_soc_dai_driver;
 struct snd_soc_dai_ops;
 struct snd_soc_dapm_route;
 struct snd_soc_dapm_widget;
+struct snd_soc_pcm_stream;
+struct sdca_entity;
 
 /* convenient macro to handle the mono volume in 7.8 fixed format representation */
 #define SDCA_SINGLE_Q78_TLV(xname, xreg, xmin, xmax, xstep, tlv_array) \
@@ -82,6 +84,11 @@ int sdca_asoc_populate_component(struct device *dev,
 				 struct snd_soc_dai_driver **dai_drv, int *num_dai_drv,
 				 const struct snd_soc_dai_ops *ops);
 
+int sdca_asoc_populate_rate_format(struct device *dev,
+				struct sdca_function_data *function,
+				struct sdca_entity *entity,
+				struct snd_soc_pcm_stream *stream);
+
 int sdca_asoc_set_constraints(struct device *dev, struct regmap *regmap,
 			      struct sdca_function_data *function,
 			      struct snd_pcm_substream *substream,
@@ -100,9 +107,9 @@ int sdca_asoc_q78_put_volsw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol);
 int sdca_asoc_q78_get_volsw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol);
-int sdca_asoc_pde_poll_actual_ps(struct device *dev, struct regmap *regmap,
+int sdca_asoc_pde_poll_actual_ps(struct regmap *regmap,
 				 int function_id, int entity_id,
-			    int from_ps, int to_ps,
-			    const struct sdca_pde_delay *pde_delays,
-			    int num_delays);
+				 int from_ps, int to_ps,
+				 const struct sdca_pde_delay *pde_delays,
+				 int num_delays);
 #endif // __SDCA_ASOC_H__

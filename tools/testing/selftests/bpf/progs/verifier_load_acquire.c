@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 
@@ -148,6 +149,22 @@ __naked void load_acquire_from_ctx_pointer(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("load-acquire from ctx pointer, same dst and src register")
+__failure __failure_unpriv __msg("BPF_ATOMIC loads from R6 ctx is not allowed")
+__naked void load_acquire_ctx_same_dst_src(void)
+{
+	asm volatile (
+	"r6 = r1;"
+	".8byte %[load_acquire_insn];"	// w6 = load_acquire((u32 *)(r6 + 0));
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(load_acquire_insn,
+		     BPF_ATOMIC_OP(BPF_W, BPF_LOAD_ACQ, BPF_REG_6, BPF_REG_6, 0))
+	: __clobber_all);
+}
+
 SEC("xdp")
 __description("load-acquire from pkt pointer")
 __failure __msg("BPF_ATOMIC loads from R2 pkt is not allowed")
@@ -203,6 +220,33 @@ __naked void load_acquire_from_sock_pointer(void)
 		     BPF_ATOMIC_OP(BPF_B, BPF_LOAD_ACQ, BPF_REG_0, BPF_REG_2,
 				   offsetof(struct bpf_sock, family)))
 	: __clobber_all);
+}
+
+SEC("socket")
+__description("load-acquire from rdonly_untrusted_mem pointer")
+__failure __msg("BPF_ATOMIC loads from R{{[0-9]+}} rdonly_untrusted_mem is not allowed")
+int load_acquire_from_rdonly_untrusted_mem(void *ctx)
+{
+	__u64 val = 0;
+	void *p;
+
+	/*
+	 * bpf_rdonly_cast(x, 0) yields PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED.
+	 * A regular BPF_LDX from it is rewritten to BPF_PROBE_MEM, but a
+	 * load-acquire is not, so it must be rejected, otherwise the JIT emits
+	 * a plain load with no exception table entry and a fault would crash
+	 * the kernel.
+	 */
+	p = bpf_rdonly_cast(&val, 0);
+	asm volatile (
+	"r1 = %[p];"
+	".8byte %[load_acquire_insn];" // r0 = load_acquire((u64 *)(r1 + 0));
+	:
+	: [p] "r" (p),
+	  __imm_insn(load_acquire_insn,
+		     BPF_ATOMIC_OP(BPF_DW, BPF_LOAD_ACQ, BPF_REG_0, BPF_REG_1, 0))
+	: "r0", "r1");
+	return 0;
 }
 
 SEC("socket")

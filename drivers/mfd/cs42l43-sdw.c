@@ -99,17 +99,10 @@ static int cs42l43_sdw_update_status(struct sdw_slave *sdw, enum sdw_slave_statu
 
 		sdw_write_no_pm(sdw, CS42L43_GEN_INT_MASK_1,
 				CS42L43_INT_STAT_GEN1_MASK);
-
-		cs42l43->attached = true;
-
-		complete(&cs42l43->device_attach);
 		break;
 	case SDW_SLAVE_UNATTACHED:
 		dev_dbg(cs42l43->dev, "Device detach\n");
 
-		cs42l43->attached = false;
-
-		reinit_completion(&cs42l43->device_attach);
 		complete(&cs42l43->device_detach);
 		break;
 	default:
@@ -188,9 +181,9 @@ static int cs42l43_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *
 }
 
 static const struct sdw_device_id cs42l43_sdw_id[] = {
-	SDW_SLAVE_ENTRY(0x01FA, 0x4243, (void *) CS42L43_DEVID_VAL),
-	SDW_SLAVE_ENTRY(0x01FA, 0x2A3B, (void *) CS42L43B_DEVID_VAL),
-	{}
+	SDW_SLAVE_ENTRY(0x01FA, 0x4243, (void *)CS42L43_DEVID_VAL),
+	SDW_SLAVE_ENTRY(0x01FA, 0x2A3B, (void *)CS42L43B_DEVID_VAL),
+	{ }
 };
 MODULE_DEVICE_TABLE(sdw, cs42l43_sdw_id);
 

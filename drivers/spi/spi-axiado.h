@@ -98,9 +98,10 @@
  * @regs:					Virtual address of the SPI controller registers
  * @ref_clk:					Pointer to the peripheral clock
  * @pclk:					Pointer to the APB clock
+ * @clk_rate:					Reference clock rate in Hz
  * @speed_hz:					Current SPI bus clock speed in Hz
- * @txbuf:					Pointer	to the TX buffer
- * @rxbuf:					Pointer to the RX buffer
+ * @tx_buf:					Pointer	to the TX buffer
+ * @rx_buf:					Pointer to the RX buffer
  * @tx_bytes:					Number of bytes left to transfer
  * @rx_bytes:					Number of bytes requested
  * @tx_fifo_depth:				Depth of the TX FIFO

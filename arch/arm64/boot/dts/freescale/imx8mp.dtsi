@@ -1599,6 +1599,7 @@
 					      <0x30cc0e00 0x080>;
 					reg-names = "ram", "regs", "rxfifo",
 						    "txfifo";
+					#sound-dai-cells = <0>;
 					interrupts = /* XCVR IRQ 0 */
 						     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
 						     /* XCVR IRQ 1 */

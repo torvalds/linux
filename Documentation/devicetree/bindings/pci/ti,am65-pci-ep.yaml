@@ -63,10 +63,10 @@ examples:
 
     pcie0_ep: pcie-ep@5500000 {
         compatible = "ti,am654-pcie-ep";
-        reg =  <0x5500000 0x1000>,
-               <0x5501000 0x1000>,
-               <0x10000000 0x8000000>,
-               <0x5506000 0x1000>;
+        reg = <0x5500000 0x1000>,
+              <0x5501000 0x1000>,
+              <0x10000000 0x8000000>,
+              <0x5506000 0x1000>;
         reg-names = "app", "dbics", "addr_space", "atu";
         power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
         ti,syscon-pcie-mode = <&scm_conf 0x4060>;

@@ -1023,7 +1023,7 @@ void psi_account_irqtime(struct rq *rq, struct task_struct *curr, struct task_st
 
 	irq = irq_time_read(cpu);
 	delta = (s64)(irq - rq->psi_irq_time);
-	if (delta < 0)
+	if (delta <= 0)
 		return;
 	rq->psi_irq_time = irq;
 

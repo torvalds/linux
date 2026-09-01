@@ -78,9 +78,6 @@ void l2_guest_code(void)
 void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 		gpa_t hv_hcall_page_gpa)
 {
-#define L2_GUEST_STACK_SIZE 64
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
 	wrmsr(HV_X64_MSR_HYPERCALL, hv_hcall_page_gpa);
 
@@ -100,8 +97,7 @@ void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 	GUEST_SYNC(4);
 	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
-	prepare_vmcs(vmx_pages, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code);
 
 	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
@@ -129,7 +125,7 @@ void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 	/*
 	 * NMI forces L2->L1 exit, resuming L2 and hope that EVMCS is
 	 * up-to-date (RIP points where it should and not at the beginning
-	 * of l2_guest_code(). GUEST_SYNC(9) checkes that.
+	 * of l2_guest_code(). GUEST_SYNC(9) checks that.
 	 */
 	GUEST_ASSERT(!vmresume());
 

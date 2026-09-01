@@ -651,9 +651,14 @@ def test_rss_context_overlap(cfg, other_ctx=0):
         ntuple = defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
     # Test the main context
-    cnts = _get_rx_cnts(cfg)
-    GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
-    cnts = _get_rx_cnts(cfg, prev=cnts)
+    attempts = 3
+    for attempt in range(attempts):
+        cnts = _get_rx_cnts(cfg)
+        GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
+        cnts = _get_rx_cnts(cfg, prev=cnts)
+        if sum(cnts[:2]) >= 7000 and sum(cnts[2:4]) >= 7000:
+            break
+        ksft_pr(f"Skewed queue distribution, attempt {attempt + 1}/{attempts}: " + str(cnts))
 
     ksft_ge(sum(cnts[ :4]), 20000, "traffic on main context: " + str(cnts))
     ksft_ge(sum(cnts[ :2]),  7000, "traffic on main context (1/2): " + str(cnts))

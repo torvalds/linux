@@ -38,6 +38,7 @@ static int lp5860_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct lp5860 *lp5860;
 	unsigned int multi_leds;
+	int ret;
 
 	multi_leds = device_get_child_node_count(dev);
 	if (!multi_leds) {
@@ -61,7 +62,10 @@ static int lp5860_probe(struct spi_device *spi)
 				     "Failed to initialise Regmap.\n");
 
 	lp5860->dev = dev;
-	mutex_init(&lp5860->lock);
+
+	ret = devm_mutex_init(dev, &lp5860->lock);
+	if (ret)
+		return ret;
 
 	spi_set_drvdata(spi, lp5860);
 
@@ -70,10 +74,6 @@ static int lp5860_probe(struct spi_device *spi)
 
 static void lp5860_remove(struct spi_device *spi)
 {
-	struct lp5860 *lp5860 = spi_get_drvdata(spi);
-
-	mutex_destroy(&lp5860->lock);
-
 	lp5860_device_remove(&spi->dev);
 }
 

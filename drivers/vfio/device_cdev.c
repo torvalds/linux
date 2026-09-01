@@ -11,6 +11,10 @@ static dev_t device_devt;
 
 void vfio_init_device_cdev(struct vfio_device *device)
 {
+	if (vfio_device_is_noiommu(device) &&
+	    !IS_ENABLED(CONFIG_IOMMUFD_NOIOMMU))
+		return;
+
 	device->device.devt = MKDEV(MAJOR(device_devt), device->index);
 	cdev_init(&device->cdev, &vfio_device_fops);
 	device->cdev.owner = THIS_MODULE;
@@ -30,6 +34,11 @@ int vfio_device_fops_cdev_open(struct inode *inode, struct file *filep)
 	/* Paired with the put in vfio_device_fops_release() */
 	if (!vfio_device_try_get_registration(device))
 		return -ENODEV;
+
+	if (vfio_device_is_noiommu(device) && !capable(CAP_SYS_RAWIO)) {
+		ret = -EPERM;
+		goto err_put_registration;
+	}
 
 	df = vfio_allocate_device_file(device);
 	if (IS_ERR(df)) {

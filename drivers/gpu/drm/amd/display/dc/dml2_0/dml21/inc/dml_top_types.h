@@ -20,6 +20,12 @@ enum dml2_project_id {
 	dml2_project_dcn4x_stage2,
 	dml2_project_dcn4x_stage2_auto_drr_svp,
 	dml2_project_dcn42,
+	dml2_project_dcn4x_utm,
+	dml2_project_dcn5x,
+	dml2_project_dcn5x_utm,
+	dml2_project_dcn6x_soc_var_a,
+	dml2_project_dcn6x_soc_var_b,
+	dml2_project_dcn6x = dml2_project_dcn6x_soc_var_b,
 };
 
 enum dml2_pstate_change_support {
@@ -72,6 +78,10 @@ struct dml2_pmo_options {
 	bool disable_dyn_odm_for_multi_stream;
 	bool disable_dyn_odm_for_stream_with_svp;
 	bool force_mandatory_uclk_pstate_support;
+	bool disable_alternate_memory_training;
+	bool force_optional_uclk_pstate_support;
+	bool force_optional_mcache_support;
+	bool force_optional_ppt_temp_read_admissibility;
 	struct dml2_pmo_pstate_strategy *override_strategy_lists[DML2_MAX_PLANES];
 	unsigned int num_override_strategies_per_list[DML2_MAX_PLANES];
 };
@@ -81,6 +91,7 @@ struct dml2_options {
 	struct dml2_pmo_options pmo_options;
 };
 
+struct utm_qos_mode;
 
 struct dml2_initialize_instance_in_out {
 	struct dml2_instance *dml2_instance;
@@ -91,6 +102,7 @@ struct dml2_initialize_instance_in_out {
 	struct {
 		void *explicit_ip_bb;
 		unsigned int explicit_ip_bb_size;
+		const struct utm_qos_model *explicit_qos_model;
 	} overrides;
 };
 
@@ -214,6 +226,7 @@ enum dml2_pstate_method {
 	dml2_pstate_method_reserved_fw_drr_clamped = 20,
 	dml2_pstate_method_fw_drr = 21,
 	dml2_pstate_method_reserved_fw_drr_var = 22,
+	dml2_pstate_method_alternate,
 	dml2_pstate_method_count
 };
 
@@ -278,6 +291,8 @@ struct dml2_per_stream_programming {
 	unsigned int num_odms_required;
 
 	enum dml2_pstate_method uclk_pstate_method;
+
+	struct dml2_mcif_per_pipe_register_set *mcif_regs[DML2_MAX_WRITEBACK];
 
 	struct {
 		bool enabled;
@@ -367,6 +382,36 @@ struct dml2_mode_support_info {
 	bool dcfclk_support;
 }; // dml2_mode_support_info
 
+struct dml2_memory_path_latency {
+	union {
+		struct {
+			double urgent_ramp;
+			double t_trip;
+			double meta_trip_to_mem;
+			double max_req_latency_urg;
+			double avg_req_latency_urg;
+			double max_req_latency_non_urg;
+			double avg_req_latency_non_urg;
+			double df_response_time_us;
+		} dcn5;
+	};
+};
+
+struct dml2_memory_path_bandwidth {
+	union {
+		struct {
+			double urgent_bandwidth_kbps; // kbytes per sec
+			double non_urgent_bandwidth_kbps; // kbytes per sec
+		} dcn5;
+	};
+};
+
+struct dml2_qos_bound {
+	struct dml2_memory_path_latency latency_ub;
+	struct dml2_memory_path_bandwidth bandwidth_lb;
+	double lsdma_bandwidth_lb_kbps;
+};
+
 struct dml2_display_cfg_programming {
 	struct dml2_display_cfg display_config;
 
@@ -416,6 +461,8 @@ struct dml2_display_cfg_programming {
 		} dcn4x;
 	} min_clocks;
 
+	struct dml2_qos_bound qos_bound;
+	unsigned int min_sop_index;
 	bool uclk_pstate_supported;
 	bool fclk_pstate_supported;
 
@@ -436,12 +483,14 @@ struct dml2_display_cfg_programming {
 	} z8_stutter;
 
 	struct dml2_dchub_global_register_set global_regs;
+	struct dml2_mcif_global_register_set mcif_global_regs;
 
 	struct dml2_per_plane_programming plane_programming[DML2_MAX_PLANES];
 	struct dml2_per_stream_programming stream_programming[DML2_MAX_PLANES];
 
 	// Don't access this structure directly, access it through plane_programming.pipe_regs
 	struct dml2_dchub_per_pipe_register_set pipe_regs[DML2_MAX_PLANES];
+	struct dml2_mcif_per_pipe_register_set mcif_regs[DML2_MAX_WRITEBACK];
 
 	struct {
 		struct {
@@ -457,6 +506,7 @@ struct dml2_display_cfg_programming {
 			double fclk_pstate_change_us;
 			double usr_retraining_us;
 			double temp_read_or_ppt_watermark_us;
+			double writeback_temp_read_or_ppt_watermark_us;
 		} watermarks;
 
 		struct {

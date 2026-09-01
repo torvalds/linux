@@ -476,11 +476,11 @@ static void tps62360_shutdown(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps62360_id[] = {
-	{.name = "tps62360", .driver_data = TPS62360},
-	{.name = "tps62361", .driver_data = TPS62361},
-	{.name = "tps62362", .driver_data = TPS62362},
-	{.name = "tps62363", .driver_data = TPS62363},
-	{},
+	{ .name = "tps62360", .driver_data = TPS62360 },
+	{ .name = "tps62361", .driver_data = TPS62361 },
+	{ .name = "tps62362", .driver_data = TPS62362 },
+	{ .name = "tps62363", .driver_data = TPS62363 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, tps62360_id);

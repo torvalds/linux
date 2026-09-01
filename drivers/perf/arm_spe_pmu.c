@@ -343,7 +343,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct arm_spe_pmu *spe_pmu = dev_get_drvdata(dev);
 
-	return cpumap_print_to_pagebuf(true, buf, &spe_pmu->supported_cpus);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&spe_pmu->supported_cpus));
 }
 static DEVICE_ATTR_RO(cpumask);
 
@@ -577,7 +577,7 @@ static u64 __arm_spe_pmu_next_off(struct perf_output_handle *handle)
 	 * the page boundary following it. Keep the tail boundary if
 	 * that's lower.
 	 */
-	if (handle->wakeup < (handle->head + handle->size) && head <= wakeup)
+	if ((handle->wakeup - handle->head) < handle->size && head <= wakeup)
 		limit = min(limit, round_up(wakeup, PAGE_SIZE));
 
 	if (limit > head)

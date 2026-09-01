@@ -23,9 +23,13 @@
 
         Stop trace if the *IRQ* latency is higher than the argument in us.
 
+        This option cannot be unset.
+
 **-T**, **--thread** *us*
 
         Stop trace if the *Thread* latency is higher than the argument in us.
+
+        This option cannot be unset.
 
 **-s**, **--stack** *us*
 

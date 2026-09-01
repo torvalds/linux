@@ -26,6 +26,7 @@
 #include <linux/bitfield.h>
 #include <net/dsa.h>
 #include <net/dst_metadata.h>
+#include <net/netdev_lock.h>
 #include <net/page_pool/helpers.h>
 #include <linux/genalloc.h>
 
@@ -5030,9 +5031,13 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev)
 			continue;
 
 		list_add_tail(&dev->close_list, &dev_list);
+		netdev_lock_ops(dev);
 	}
 
 	netif_close_many(&dev_list, false);
+
+	list_for_each_entry(dev, &dev_list, close_list)
+		netdev_unlock_ops(dev);
 
 	eth->dma_dev = dma_dev;
 

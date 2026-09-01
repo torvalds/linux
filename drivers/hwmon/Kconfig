@@ -224,6 +224,7 @@ config SENSORS_ADT7462
 config SENSORS_ADT7470
 	tristate "Analog Devices ADT7470"
 	depends on I2C
+	depends on PWM || PWM=n
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the Analog Devices
@@ -292,11 +293,11 @@ config SENSORS_ASC7621
 	  will be called asc7621.
 
 config SENSORS_ASUS_ROG_RYUJIN
-	tristate "ASUS ROG RYUJIN II 360 hardware monitoring driver"
+	tristate "ASUS ROG RYUJIN hardware monitoring driver"
 	depends on HID
 	help
 	  If you say yes here you get support for the fans and sensors of
-	  the ASUS ROG RYUJIN II 360 AIO CPU liquid cooler.
+	  supported ASUS ROG RYUJIN II and III AIO CPU liquid coolers.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_rog_ryujin.
@@ -334,6 +335,17 @@ config SENSORS_K10TEMP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called k10temp.
+
+config SENSORS_KB9002
+	tristate "Kandou KB9002 PCIe retimer"
+	depends on I2C
+	help
+	  If you say yes here you get support for the integrated
+	  temperature sensor and firmware version readout on Kandou
+	  KB9002 PCIe 5.0 retimers, accessed over SMBus.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kb9002.
 
 config SENSORS_KBATT
 	tristate "KEBA battery controller support"
@@ -403,7 +415,6 @@ config SENSORS_ARCTIC_FAN_CONTROLLER
 config SENSORS_ARM_SCMI
 	tristate "ARM SCMI Sensors"
 	depends on ARM_SCMI_PROTOCOL
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver provides support for temperature, voltage, current
 	  and power sensors available on SCMI based platforms. The actual
@@ -415,7 +426,6 @@ config SENSORS_ARM_SCMI
 config SENSORS_ARM_SCPI
 	tristate "ARM SCPI Sensors"
 	depends on ARM_SCPI_PROTOCOL
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver provides support for temperature, voltage, current
 	  and power sensors available on ARM Ltd's SCP based platforms. The
@@ -435,7 +445,6 @@ config SENSORS_ASB100
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
 	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	select REGMAP
 	help
 	  This driver provides support for ASPEED AST2400/AST2500 PWM
@@ -506,8 +515,8 @@ config SENSORS_CORSAIR_PSU
 	  If you say yes here you get support for Corsair PSUs with a HID
 	  interface.
 	  Currently this driver supports the (RM/HX)550i, (RM/HX)650i,
-	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i and HX1200i power supplies
-	  by Corsair.
+	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i, HX1200i and HX1500i power
+	  supplies by Corsair.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called corsair-psu.
@@ -788,7 +797,6 @@ config SENSORS_G762
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
 	depends on GPIOLIB || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to GPIO lines.
 
@@ -802,7 +810,7 @@ config SENSORS_GXP_FAN_CTRL
 	  If you say yes here you get support for GXP fan control functionality.
 
 	  The GXP controls fan function via the CPLD through the use of PWM
-	  registers. This driver reports status and pwm setting of the fans.
+	  registers. This driver enables pwm setting of the fans.
 
 config SENSORS_HIH6130
 	tristate "Honeywell Humidicon HIH-6130 humidity/temperature sensor"
@@ -941,6 +949,19 @@ config SENSORS_JC42
 
 	  This driver can also be built as a module. If so, the module
 	  will be called jc42.
+
+config SENSORS_POLARFIRE_SOC_TVS
+	tristate "PolarFire SoC (MPFS) temperature and voltage sensor"
+	depends on POLARFIRE_SOC_SYSCONS || COMPILE_TEST
+	depends on MFD_SYSCON
+	help
+	  This driver adds support for the PolarFire SoC (MPFS) Temperature and
+	  Voltage Sensor.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called tvs-mpfs.
+
+	  If unsure, say N.
 
 config SENSORS_POWERZ
 	tristate "ChargerLAB POWER-Z USB-C tester"
@@ -1357,7 +1378,6 @@ config SENSORS_MAX6639
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
 	depends on I2C
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for the MAX6650 / MAX6651
 	  sensor chips.
@@ -1732,7 +1752,6 @@ config SENSORS_PC87427
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support"
 	depends on IIO
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver supports NTC thermistors sensor reading and its
 	  interpretation. The driver can also monitor the temperature and
@@ -1933,7 +1952,6 @@ config SENSORS_PT5161L
 config SENSORS_PWM_FAN
 	tristate "PWM fan"
 	depends on PWM || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to PWM lines.
 	  The driver uses the generic PWM interface, thus it will work on a
@@ -1945,7 +1963,6 @@ config SENSORS_PWM_FAN
 config SENSORS_QNAP_MCU_HWMON
 	tristate "QNAP MCU hardware monitoring"
 	depends on MFD_QNAP_MCU
-	depends on THERMAL || THERMAL=n
 	help
 	  Say yes here to enable support for fan and temperature sensor
 	  connected to a QNAP MCU, as found in a number of QNAP network
@@ -1976,7 +1993,7 @@ config SENSORS_SL28CPLD
 
 config SENSORS_SBTSI
 	tristate "Emulated SB-TSI temperature sensor"
-	depends on I2C
+	depends on AMD_SBTSI
 	help
 	  If you say yes here you get support for emulated temperature
 	  sensors on AMD SoCs with SB-TSI interface connected to a BMC device.
@@ -2010,8 +2027,9 @@ config SENSORS_SHT3x
 	depends on I2C
 	select CRC8
 	help
-	  If you say yes here you get support for the Sensiron SHT30, SHT31 and
-	  SHT85 humidity and temperature sensors.
+	  If you say yes here you get support for the Sensiron SHT30, SHT31,
+	  SHT85 and the compatible GXCAS GXHT30 humidity and temperature
+	  sensors.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sht3x.
@@ -2069,6 +2087,17 @@ config SENSORS_DME1737
 
 	  This driver can also be built as a module. If so, the module
 	  will be called dme1737.
+
+config SENSORS_EIC7700_PVT
+	tristate "Eswin EIC7700 Voltage, Temperature sensor driver"
+	depends on ARCH_ESWIN || COMPILE_TEST
+	select POLYNOMIAL
+	help
+	  If you say yes here you get support for Eswin EIC7700 PVT sensor
+	  embedded into the SoC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called eic7700-pvt.
 
 config SENSORS_EMC1403
 	tristate "SMSC EMC1403/23 thermal sensor"
@@ -2159,6 +2188,16 @@ config SENSORS_SMSC47M192
 
 	  This driver can also be built as a module. If so, the module
 	  will be called smsc47m192.
+
+config SENSORS_ALTERA_SOCFPGA_HWMON
+	tristate "Altera SoC FPGA hardware monitoring features"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  If you say yes here you get support for the temperature and
+	  voltage sensors of Altera SoC FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called socfpga-hwmon.
 
 config SENSORS_SMSC47B397
 	tristate "SMSC LPC47B397-NC"
@@ -2357,12 +2396,15 @@ config SENSORS_INA3221
 
 config SENSORS_SPD5118
 	tristate "SPD5118 Compliant Temperature Sensors"
-	depends on I2C
+	depends on I3C_OR_I2C
 	select REGMAP_I2C
+	select REGMAP_I3C if I3C
 	help
 	  If you say yes here you get support for SPD5118 (JEDEC JESD300)
-	  compliant temperature sensors. Such sensors are found on DDR5 memory
-	  modules.
+	  compliant temperature sensors using I2C or I3C bus interface.
+	  Such sensors are found on DDR5 memory modules.
+
+	  This driver supports both I2C and I3C interfaces.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called spd5118.

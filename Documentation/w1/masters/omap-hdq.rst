@@ -50,5 +50,5 @@ The driver also supports 1-wire mode. In this mode, there is no need to
 pass slave ID as parameter. The driver will auto-detect slaves connected
 to the bus using SEARCH_ROM procedure. 1-wire mode can be selected by
 setting "ti,mode" property to "1w" in DT (see
-Documentation/devicetree/bindings/w1/omap-hdq.txt for more details).
+Documentation/devicetree/bindings/w1/ti,hdq.yaml for more details).
 By default driver is in HDQ mode.

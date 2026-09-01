@@ -173,11 +173,11 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 
 	memset(conn_param, 0, sizeof(struct rdma_conn_param));
 
-	conn_param->responder_resources =
-		min_t(u32, rds_ibdev->max_responder_resources, max_responder_resources);
-	conn_param->initiator_depth =
-		min_t(u32, rds_ibdev->max_initiator_depth, max_initiator_depth);
-	conn_param->retry_count = min_t(unsigned int, rds_ib_retry_count, 7);
+	conn_param->responder_resources = min3(rds_ibdev->max_responder_resources,
+					       max_responder_resources, U8_MAX);
+	conn_param->initiator_depth = min3(rds_ibdev->max_initiator_depth,
+					   max_initiator_depth, U8_MAX);
+	conn_param->retry_count = min(rds_ib_retry_count, 7U);
 	conn_param->rnr_retry_count = 7;
 
 	if (dp) {

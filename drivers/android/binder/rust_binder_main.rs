@@ -6,17 +6,12 @@
 
 #![crate_name = "rust_binder"]
 #![recursion_limit = "256"]
-#![allow(
-    clippy::as_underscore,
-    clippy::ref_as_ptr,
-    clippy::ptr_as_ptr,
-    clippy::cast_lossless
-)]
 
 use kernel::{
     bindings::{self, seq_file},
     fs::File,
     list::{ListArc, ListArcSafe, ListLinksSelfPtr, TryNewListArc},
+    module::this_module,
     prelude::*,
     seq_file::SeqFile,
     seq_print,
@@ -37,7 +32,10 @@ mod allocation;
 mod context;
 mod deferred_close;
 mod defs;
+#[macro_use]
+mod debug;
 mod error;
+mod netlink;
 mod node;
 mod page_range;
 mod process;
@@ -225,6 +223,7 @@ impl<T: ListArcSafe> DTRWrap<T> {
 struct DeliverCode {
     code: u32,
     skip: Atomic<bool>,
+    pid: i32,
 }
 
 kernel::list::impl_list_arc_safe! {
@@ -232,10 +231,11 @@ kernel::list::impl_list_arc_safe! {
 }
 
 impl DeliverCode {
-    fn new(code: u32) -> Self {
+    fn new(code: u32, pid: i32) -> Self {
         Self {
             code,
             skip: Atomic::new(false),
+            pid,
         }
     }
 
@@ -260,7 +260,15 @@ impl DeliverToRead for DeliverCode {
         Ok(true)
     }
 
-    fn cancel(self: DArc<Self>) {}
+    fn cancel(self: DArc<Self>) {
+        if !self.skip.load(Relaxed) {
+            binder_debug!(
+                pid = self.pid,
+                DeadTransaction,
+                "undelivered TRANSACTION_COMPLETE"
+            );
+        }
+    }
 
     fn should_sync_wakeup(&self) -> bool {
         false
@@ -288,19 +296,22 @@ fn ptr_align(value: usize) -> Option<usize> {
 // SAFETY: We call register in `init`.
 static BINDER_SHRINKER: Shrinker = unsafe { Shrinker::new() };
 
-struct BinderModule {}
+struct BinderModule {
+    _netlink: kernel::net::netlink::Registration,
+}
 
 impl kernel::Module for BinderModule {
     fn init(_module: &'static kernel::ThisModule) -> Result<Self> {
         // SAFETY: The module initializer never runs twice, so we only call this once.
         unsafe { crate::context::CONTEXTS.init() };
 
+        let netlink = crate::netlink::BINDER_NL_FAMILY.register()?;
         BINDER_SHRINKER.register(c"android-binder")?;
 
         // SAFETY: The module is being loaded, so we can initialize binderfs.
         unsafe { kernel::error::to_result(binderfs::init_rust_binderfs())? };
 
-        Ok(Self {})
+        Ok(Self { _netlink: netlink })
     }
 }
 
@@ -314,11 +325,8 @@ unsafe impl<T> Sync for AssertSync<T> {}
 #[no_mangle]
 #[used]
 pub static rust_binder_fops: AssertSync<kernel::bindings::file_operations> = {
-    // SAFETY: All zeroes is safe for the `file_operations` type.
-    let zeroed_ops = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
-
     let ops = kernel::bindings::file_operations {
-        owner: THIS_MODULE.as_ptr(),
+        owner: this_module::<LocalModule>().as_ptr(),
         poll: Some(rust_binder_poll),
         unlocked_ioctl: Some(rust_binder_ioctl),
         compat_ioctl: bindings::compat_ptr_ioctl,
@@ -326,7 +334,7 @@ pub static rust_binder_fops: AssertSync<kernel::bindings::file_operations> = {
         open: Some(rust_binder_open),
         release: Some(rust_binder_release),
         flush: Some(rust_binder_flush),
-        ..zeroed_ops
+        ..pin_init::zeroed()
     };
     AssertSync(ops)
 };
@@ -417,7 +425,7 @@ unsafe extern "C" fn rust_binder_ioctl(
     // SAFETY: We previously set `private_data` in `rust_binder_open`.
     let f = unsafe { Arc::<Process>::borrow((*file).private_data) };
     // SAFETY: The caller ensures that the file is valid.
-    match Process::ioctl(f, unsafe { File::from_raw_file(file) }, cmd as _, arg as _) {
+    match Process::ioctl(f, unsafe { File::from_raw_file(file) }, cmd, arg) {
         Ok(()) => 0,
         Err(err) => err.to_errno() as isize,
     }
@@ -511,7 +519,7 @@ unsafe extern "C" fn rust_binder_proc_show(
     _: *mut kernel::ffi::c_void,
 ) -> kernel::ffi::c_int {
     // SAFETY: Accessing the private field of `seq_file` is okay.
-    let pid = (unsafe { (*ptr).private }) as usize as Pid;
+    let pid = unsafe { (*ptr).private }.addr() as Pid;
     // SAFETY: The caller ensures that the pointer is valid and exclusive for the duration in which
     // this method is called.
     let m = unsafe { SeqFile::from_raw(ptr) };

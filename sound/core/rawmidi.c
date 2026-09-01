@@ -408,9 +408,10 @@ static int rawmidi_open_priv(struct snd_rawmidi *rmidi, int subdevice, int mode,
 	return 0;
 }
 
-/* called from sound/core/seq/seq_midi.c */
-int snd_rawmidi_kernel_open(struct snd_rawmidi *rmidi, int subdevice,
-			    int mode, struct snd_rawmidi_file *rfile)
+/* called from sound/core/seq/seq_midi.c and sound/core/ump.c */
+int snd_rawmidi_kernel_open_nested(struct snd_rawmidi *rmidi, int subdevice,
+				   int mode, struct snd_rawmidi_file *rfile,
+				   int depth)
 {
 	int err;
 
@@ -419,13 +420,14 @@ int snd_rawmidi_kernel_open(struct snd_rawmidi *rmidi, int subdevice,
 	if (!try_module_get(rmidi->card->module))
 		return -ENXIO;
 
-	guard(mutex)(&rmidi->open_mutex);
+	mutex_lock_nested(&rmidi->open_mutex, depth);
 	err = rawmidi_open_priv(rmidi, subdevice, mode, rfile);
 	if (err < 0)
 		module_put(rmidi->card->module);
+	mutex_unlock(&rmidi->open_mutex);
 	return err;
 }
-EXPORT_SYMBOL(snd_rawmidi_kernel_open);
+EXPORT_SYMBOL(snd_rawmidi_kernel_open_nested);
 
 static int snd_rawmidi_open(struct inode *inode, struct file *file)
 {
@@ -441,9 +443,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK))
 		return -EINVAL;		/* invalid combination */
 
-	err = stream_open(inode, file);
-	if (err < 0)
-		return err;
+	stream_open(inode, file);
 
 	if (maj == snd_major) {
 		rmidi = snd_lookup_minor_data(iminor(inode),
@@ -571,7 +571,6 @@ static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
 	struct snd_rawmidi *rmidi;
 
 	rmidi = rfile->rmidi;
-	guard(mutex)(&rmidi->open_mutex);
 	if (rfile->input) {
 		close_substream(rmidi, rfile->input, 1);
 		rfile->input = NULL;
@@ -585,7 +584,8 @@ static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
 }
 
 /* called from sound/core/seq/seq_midi.c */
-int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
+int snd_rawmidi_kernel_release_nested(struct snd_rawmidi_file *rfile,
+				      int depth)
 {
 	struct snd_rawmidi *rmidi;
 
@@ -593,11 +593,13 @@ int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
 		return -ENXIO;
 
 	rmidi = rfile->rmidi;
+	mutex_lock_nested(&rmidi->open_mutex, depth);
 	rawmidi_release_priv(rfile);
+	mutex_unlock(&rmidi->open_mutex);
 	module_put(rmidi->card->module);
 	return 0;
 }
-EXPORT_SYMBOL(snd_rawmidi_kernel_release);
+EXPORT_SYMBOL(snd_rawmidi_kernel_release_nested);
 
 static int snd_rawmidi_release(struct inode *inode, struct file *file)
 {
@@ -607,7 +609,8 @@ static int snd_rawmidi_release(struct inode *inode, struct file *file)
 
 	rfile = file->private_data;
 	rmidi = rfile->rmidi;
-	rawmidi_release_priv(rfile);
+	scoped_guard(mutex, &rmidi->open_mutex)
+		rawmidi_release_priv(rfile);
 	kfree(rfile);
 	module = rmidi->card->module;
 	snd_card_file_remove(rmidi->card, file);
@@ -1784,14 +1787,14 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
  */
 
 static const struct file_operations snd_rawmidi_f_ops = {
-	.owner =	THIS_MODULE,
-	.read =		snd_rawmidi_read,
-	.write =	snd_rawmidi_write,
-	.open =		snd_rawmidi_open,
-	.release =	snd_rawmidi_release,
-	.poll =		snd_rawmidi_poll,
-	.unlocked_ioctl =	snd_rawmidi_ioctl,
-	.compat_ioctl =	snd_rawmidi_ioctl_compat,
+	.owner		=	THIS_MODULE,
+	.read		=	snd_rawmidi_read,
+	.write		=	snd_rawmidi_write,
+	.open		=	snd_rawmidi_open,
+	.release	=	snd_rawmidi_release,
+	.poll		=	snd_rawmidi_poll,
+	.unlocked_ioctl	=	snd_rawmidi_ioctl,
+	.compat_ioctl	=	snd_rawmidi_ioctl_compat,
 };
 
 static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,

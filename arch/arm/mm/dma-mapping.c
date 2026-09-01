@@ -773,7 +773,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 		start = bitmap_find_next_zero_area(mapping->bitmaps[i],
 				mapping->bits, 0, count, align);
 
-		if (start > mapping->bits)
+		if (start >= mapping->bits)
 			continue;
 
 		bitmap_set(mapping->bitmaps[i], start, count);
@@ -794,7 +794,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 		start = bitmap_find_next_zero_area(mapping->bitmaps[i],
 				mapping->bits, 0, count, align);
 
-		if (start > mapping->bits) {
+		if (start >= mapping->bits) {
 			spin_unlock_irqrestore(&mapping->lock, flags);
 			return DMA_MAPPING_ERROR;
 		}

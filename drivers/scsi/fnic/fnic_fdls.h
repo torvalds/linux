@@ -78,14 +78,17 @@
 #define FNIC_FDLS_FPMA_LEARNT             0x2
 
 /* tport flags */
-#define FNIC_FDLS_TPORT_IN_GPN_FT_LIST 0x1
-#define FNIC_FDLS_TGT_ABORT_ISSUED     0x2
-#define FNIC_FDLS_TPORT_SEND_ADISC     0x4
-#define FNIC_FDLS_RETRY_FRAME          0x8
-#define FNIC_FDLS_TPORT_BUSY	       0x10
-#define FNIC_FDLS_TPORT_TERMINATING      0x20
-#define FNIC_FDLS_TPORT_DELETED        0x40
-#define FNIC_FDLS_SCSI_REGISTERED      0x200
+#define FNIC_FDLS_TPORT_IN_GPN_FT_LIST        0x1
+#define FNIC_FDLS_TGT_ABORT_ISSUED            0x2
+#define FNIC_FDLS_TPORT_SEND_ADISC            0x4
+#define FNIC_FDLS_RETRY_FRAME                 0x8
+#define FNIC_FDLS_TPORT_BUSY                  0x10
+#define FNIC_FDLS_TPORT_TERMINATING           0x20
+#define FNIC_FDLS_TPORT_DELETED               0x40
+#define FNIC_FDLS_NVME_REGISTERED             0x80
+#define FNIC_FDLS_NVME_TPORT_CLEANUP_PENDING  0x100
+#define FNIC_FDLS_SCSI_REGISTERED             0x200
+#define FNIC_TPORT_CAN_BE_FREED               0x400
 
 /* Retry supported by rport(returned by prli service parameters) */
 #define FDLS_FC_RP_FLAGS_RETRY 0x1
@@ -94,6 +97,7 @@
 #define fdls_get_state(_fdls_fabric)          ((_fdls_fabric)->state)
 
 #define FNIC_FDMI_ACTIVE    0x8
+#define FNIC_LPORT_NVME_REGISTERED 0x4
 #define FNIC_FIRST_LINK_UP    0x2
 
 #define fdls_set_tport_state(_tport, _state)    (_tport->state = _state)
@@ -119,6 +123,13 @@
 #define FNIC_FRAME_TYPE_TGT_PRLI	0x2800
 #define FNIC_FRAME_TYPE_TGT_ADISC	0x2A00
 #define FNIC_FRAME_TYPE_TGT_LOGO	0x2C00
+#define FNIC_FRAME_TYPE_NVME_LS		0x3000
+
+#define NVFNIC_FCPIO_TAG_POOL_SZ	(2048)
+#define NVFNIC_LS_REQ_OXID_POOL_SZ	(64)
+#define NVFNIC_LS_REQ_OXID_BASE		(0x2500)
+#define FNIC_LPORT_NVME_REGISTERED	0x4
+
 
 struct fnic_fip_fcf_s {
 	uint16_t vlan_id;
@@ -220,6 +231,8 @@ struct fnic_tport_s {
 	struct fc_rport *rport;
 	char str_wwpn[20];
 	char str_wwnn[20];
+	struct list_head ls_req_list;
+	struct nvme_fc_remote_port *nv_rport;
 };
 
 /* OXID pool related structures */
@@ -288,7 +301,6 @@ struct fnic_iport_s {
 	struct fnic_fdls_fip_s fip;
 	struct fnic_fdls_fabric_s fabric;
 	struct list_head tport_list;
-	struct list_head tport_list_pending_del;
 	/* list of tports for which we are yet to send PLOGO */
 	struct list_head inprocess_tport_list;
 	struct list_head deleted_tport_list;
@@ -308,6 +320,13 @@ struct fnic_iport_s {
 	struct fnic_iport_stats iport_stats;
 	char str_wwpn[20];
 	char str_wwnn[20];
+
+	 /* nvme */;
+	void *nvfnic_fcpio_tag[NVFNIC_FCPIO_TAG_POOL_SZ];
+	struct nvme_fc_local_port *nv_lport;
+	struct nvme_fc_port_template *nv_tmpl;
+	struct fnic_oxid_pool_s ls_req_oxid_pool;
+	struct list_head fcpio_list;
 };
 
 struct rport_dd_data_s {
@@ -336,6 +355,7 @@ enum fnic_recv_frame_type_e {
 	FNIC_TPORT_ADISC_RSP,
 	FNIC_TPORT_BLS_ABTS_RSP,
 	FNIC_TPORT_LOGO_RSP,
+	FNIC_LS_REQ_ABTS_RSP,
 
 	/* unsolicited requests */
 	FNIC_BLS_ABTS_REQ,
@@ -368,6 +388,12 @@ enum fnic_port_speeds {
 	DCEM_PORTSPEED_128G = 128000,
 };
 
+static inline bool fdls_tport_is_offline(struct fnic_tport_s *tport)
+{
+	return (tport->state == FDLS_TGT_STATE_OFFLINING ||
+		tport->state == FDLS_TGT_STATE_OFFLINE);
+}
+
 /* Function Declarations */
 /* fdls_disc.c */
 void fnic_fdls_disc_init(struct fnic_iport_s *iport);
@@ -381,6 +407,8 @@ uint16_t fdls_alloc_oxid(struct fnic_iport_s *iport, int oxid_frame_type,
 	uint16_t *active_oxid);
 void fdls_free_oxid(struct fnic_iport_s *iport,
 	uint16_t oxid, uint16_t *active_oxid);
+int fdls_send_ls_req_abts(struct fnic_iport_s *iport,
+		struct fnic_tport_s *tport, unsigned int oxid);
 void fdls_tgt_logout(struct fnic_iport_s *iport,
 		     struct fnic_tport_s *tport);
 void fnic_del_fabric_timer_sync(struct fnic *fnic);
@@ -398,7 +426,7 @@ void fdls_fdmi_retry_plogi(struct fnic_iport_s *iport);
 
 /* fnic_fcs.c */
 void fnic_fdls_init(struct fnic *fnic, int usefip);
-void fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
+int fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
 	int frame_size);
 void fnic_fcoe_send_vlan_req(struct fnic *fnic);
 int fnic_send_fip_frame(struct fnic_iport_s *iport,

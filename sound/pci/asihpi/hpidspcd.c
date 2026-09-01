@@ -23,7 +23,7 @@ struct dsp_code_private {
 short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	u32 *os_error_code)
 {
-	const struct firmware *firmware;
+	const struct firmware *firmware __free(firmware) = NULL;
 	struct pci_dev *dev = os_data;
 	struct code_header header;
 	char fw_name[20];
@@ -37,11 +37,11 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	if (err || !firmware) {
 		dev_err(&dev->dev, "%d, request_firmware failed for %s\n",
 			err, fw_name);
-		goto error1;
+		goto error;
 	}
 	if (firmware->size < sizeof(header)) {
 		dev_err(&dev->dev, "Header size too small %s\n", fw_name);
-		goto error2;
+		goto error;
 	}
 	memcpy(&header, firmware->data, sizeof(header));
 
@@ -51,7 +51,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 		dev_err(&dev->dev,
 			"Invalid firmware header size %d != file %zd\n",
 			header.size, firmware->size);
-		goto error2;
+		goto error;
 	}
 
 	if (HPI_VER_MAJOR(header.version) != HPI_VER_MAJOR(HPI_VER)) {
@@ -59,7 +59,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 		dev_err(&dev->dev,
 			"Incompatible firmware version DSP image %X != Driver %X\n",
 			header.version, HPI_VER);
-		goto error2;
+		goto error;
 	}
 
 	if (header.version != HPI_VER) {
@@ -72,19 +72,17 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	dsp_code->pvt = kmalloc_obj(*dsp_code->pvt);
 	if (!dsp_code->pvt) {
 		err_ret = HPI_ERROR_MEMORY_ALLOC;
-		goto error2;
+		goto error;
 	}
 
 	dsp_code->pvt->dev = dev;
-	dsp_code->pvt->firmware = firmware;
+	dsp_code->pvt->firmware = no_free_ptr(firmware);
 	dsp_code->header = header;
 	dsp_code->block_length = header.size / sizeof(u32);
 	dsp_code->word_count = sizeof(header) / sizeof(u32);
 	return 0;
 
-error2:
-	release_firmware(firmware);
-error1:
+error:
 	dsp_code->block_length = 0;
 	return err_ret;
 }

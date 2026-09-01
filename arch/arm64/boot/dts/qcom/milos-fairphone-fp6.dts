@@ -449,16 +449,16 @@
 	regulators-2 {
 		compatible = "qcom,pmr735b-rpmh-regulators";
 
-		vdd-l1-l2-supply= <&vreg_s3b>;
-		vdd-l3-supply= <&vreg_s3b>;
-		vdd-l4-supply= <&vreg_s1b>;
-		vdd-l5-supply= <&vreg_s2b>;
-		vdd-l6-supply= <&vreg_s2b>;
-		vdd-l7-l8-supply= <&vreg_s2b>;
-		vdd-l9-supply= <&vreg_s3b>;
-		vdd-l10-supply= <&vreg_s1b>;
-		vdd-l11-supply= <&vreg_s3b>;
-		vdd-l12-supply= <&vreg_s3b>;
+		vdd-l1-l2-supply = <&vreg_s3b>;
+		vdd-l3-supply = <&vreg_s3b>;
+		vdd-l4-supply = <&vreg_s1b>;
+		vdd-l5-supply = <&vreg_s2b>;
+		vdd-l6-supply = <&vreg_s2b>;
+		vdd-l7-l8-supply = <&vreg_s2b>;
+		vdd-l9-supply = <&vreg_s3b>;
+		vdd-l10-supply = <&vreg_s1b>;
+		vdd-l11-supply = <&vreg_s3b>;
+		vdd-l12-supply = <&vreg_s3b>;
 
 		qcom,pmic-id = "f";
 
@@ -698,6 +698,15 @@
 		pinctrl-0 = <&aw86938_int_default>, <&aw86938_reset_default>;
 		pinctrl-names = "default";
 	};
+};
+
+&ipa {
+	firmware-name = "qcom/milos/fairphone/fp6/ipa_fws.mbn";
+	memory-region = <&ipa_fw_mem>;
+
+	qcom,gsi-loader = "self";
+
+	status = "okay";
 };
 
 &pm8550vs_c {

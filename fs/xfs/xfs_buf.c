@@ -55,6 +55,29 @@ static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
 	return bp->b_rhash_key == XFS_BUF_DADDR_NULL;
 }
 
+static inline void
+xfs_buf_set_flags(
+	struct xfs_buf	*bp,
+	unsigned int	flags)
+{
+	WRITE_ONCE(bp->b_flags, bp->b_flags | flags);
+}
+
+static inline void
+xfs_buf_clear_flags(
+	struct xfs_buf	*bp,
+	unsigned int	flags)
+{
+	WRITE_ONCE(bp->b_flags, bp->b_flags & ~flags);
+}
+
+void
+xfs_buf_set_uptodate(
+	struct xfs_buf	*bp)
+{
+	xfs_buf_set_flags(bp, XBF_DONE);
+}
+
 /*
  * When we mark a buffer stale, we remove the buffer from the LRU and clear the
  * b_lru_ref count so that the buffer is freed immediately when the buffer
@@ -69,20 +92,28 @@ xfs_buf_stale(
 {
 	ASSERT(xfs_buf_islocked(bp));
 
-	bp->b_flags |= XBF_STALE;
+	xfs_buf_set_flags(bp, XBF_STALE);
 
 	/*
 	 * Clear the delwri status so that a delwri queue walker will not
 	 * flush this buffer to disk now that it is stale. The delwri queue has
 	 * a reference to the buffer, so this is safe to do.
 	 */
-	bp->b_flags &= ~_XBF_DELWRI_Q;
+	xfs_buf_clear_flags(bp, _XBF_DELWRI_Q);
 
 	spin_lock(&bp->b_lockref.lock);
 	atomic_set(&bp->b_lru_ref, 0);
-	if (!__lockref_is_dead(&bp->b_lockref))
+	if (!lockref_is_dead(&bp->b_lockref))
 		list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru);
 	spin_unlock(&bp->b_lockref.lock);
+}
+
+void
+xfs_buf_clear_stale(
+	struct xfs_buf	*bp)
+{
+	ASSERT(bp->b_flags & XBF_STALE);
+	xfs_buf_clear_flags(bp, XBF_STALE);
 }
 
 static void
@@ -159,7 +190,7 @@ xfs_buf_alloc_kmem(
 		bp->b_addr = NULL;
 		return -ENOMEM;
 	}
-	bp->b_flags |= _XBF_KMEM;
+	xfs_buf_set_flags(bp, _XBF_KMEM);
 	trace_xfs_buf_backing_kmem(bp, _RET_IP_);
 	return 0;
 }
@@ -282,15 +313,8 @@ xfs_buf_alloc(
 	 * specifically set by later operations on the buffer.
 	 */
 	flags &= ~(XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
-
-	/*
-	 * A new buffer is held and locked by the owner.  This ensures that the
-	 * buffer is owned by the caller and racing RCU lookups right after
-	 * inserting into the hash table are safe (and will have to wait for
-	 * the unlock to do anything non-trivial).
-	 */
 	lockref_init(&bp->b_lockref);
-	sema_init(&bp->b_sema, 0); /* held, no waiters */
+	sema_init(&bp->b_sema, 1); /* unlocked */
 	atomic_set(&bp->b_lru_ref, 1);
 	init_completion(&bp->b_iowait);
 	INIT_LIST_HEAD(&bp->b_lru);
@@ -298,7 +322,7 @@ xfs_buf_alloc(
 	INIT_LIST_HEAD(&bp->b_li_list);
 	bp->b_target = target;
 	bp->b_mount = target->bt_mount;
-	bp->b_flags = flags;
+	WRITE_ONCE(bp->b_flags, flags);
 	bp->b_rhash_key = map[0].bm_bn;
 	bp->b_length = 0;
 	bp->b_map_count = nmaps;
@@ -427,39 +451,31 @@ xfs_buf_find_lock(
 			return -ENOENT;
 		}
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
-		bp->b_flags &= _XBF_KMEM;
+		xfs_buf_clear_flags(bp, ~_XBF_KMEM);
 		bp->b_ops = NULL;
 	}
 	return 0;
 }
 
-static inline int
+static inline struct xfs_buf *
 xfs_buf_lookup(
 	struct xfs_buftarg	*btp,
-	struct xfs_buf_map	*map,
-	xfs_buf_flags_t		flags,
-	struct xfs_buf		**bpp)
+	struct xfs_buf_map	*map)
 {
 	struct xfs_buf          *bp;
-	int			error;
 
 	rcu_read_lock();
 	bp = rhashtable_lookup(&btp->bt_hash, map, xfs_buf_hash_params);
 	if (!bp || !lockref_get_not_dead(&bp->b_lockref)) {
 		rcu_read_unlock();
-		return -ENOENT;
+		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
+		return NULL;
 	}
 	rcu_read_unlock();
 
-	error = xfs_buf_find_lock(bp, flags);
-	if (error) {
-		xfs_buf_rele(bp);
-		return error;
-	}
-
-	trace_xfs_buf_find(bp, flags, _RET_IP_);
-	*bpp = bp;
-	return 0;
+	trace_xfs_buf_find(bp, _RET_IP_);
+	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
+	return bp;
 }
 
 /*
@@ -469,7 +485,6 @@ xfs_buf_lookup(
 static int
 xfs_buf_find_insert(
 	struct xfs_buftarg	*btp,
-	struct xfs_perag	*pag,
 	struct xfs_buf_map	*cmap,
 	struct xfs_buf_map	*map,
 	int			nmaps,
@@ -482,10 +497,13 @@ xfs_buf_find_insert(
 
 	error = xfs_buf_alloc(btp, map, nmaps, flags, &new_bp);
 	if (error)
-		goto out_drop_pag;
+		return error;
 
 	/* The new buffer keeps the perag reference until it is freed. */
-	new_bp->b_pag = pag;
+	if (!xfs_buftarg_is_mem(btp)) {
+		new_bp->b_pag = xfs_perag_get(btp->bt_mount,
+			xfs_daddr_to_agno(btp->bt_mount, cmap->bm_bn));
+	}
 
 retry:
 	rcu_read_lock();
@@ -507,11 +525,7 @@ retry:
 			goto retry;
 		}
 		rcu_read_unlock();
-		error = xfs_buf_find_lock(bp, flags);
-		if (error)
-			xfs_buf_rele(bp);
-		else
-			*bpp = bp;
+		*bpp = bp;
 		goto out_free_buf;
 	}
 	rcu_read_unlock();
@@ -520,23 +534,10 @@ retry:
 	return 0;
 
 out_free_buf:
+	if (new_bp->b_pag)
+		xfs_perag_put(new_bp->b_pag);
 	xfs_buf_free(new_bp);
-out_drop_pag:
-	if (pag)
-		xfs_perag_put(pag);
 	return error;
-}
-
-static inline struct xfs_perag *
-xfs_buftarg_get_pag(
-	struct xfs_buftarg		*btp,
-	const struct xfs_buf_map	*map)
-{
-	struct xfs_mount		*mp = btp->bt_mount;
-
-	if (xfs_buftarg_is_mem(btp))
-		return NULL;
-	return xfs_perag_get(mp, xfs_daddr_to_agno(mp, map->bm_bn));
 }
 
 /*
@@ -544,15 +545,14 @@ xfs_buftarg_get_pag(
  * cache hits, as metadata intensive workloads will see 3 orders of magnitude
  * more hits than misses.
  */
-int
-xfs_buf_get_map(
+static int
+xfs_find_get_buf(
 	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map,
 	int			nmaps,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_perag	*pag;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
 	int			error;
@@ -567,46 +567,50 @@ xfs_buf_get_map(
 	if (error)
 		return error;
 
-	pag = xfs_buftarg_get_pag(btp, &cmap);
-
-	error = xfs_buf_lookup(btp, &cmap, flags, &bp);
-	if (error && error != -ENOENT)
-		goto out_put_perag;
-
 	/* cache hits always outnumber misses by at least 10:1 */
+	bp = xfs_buf_lookup(btp, &cmap);
 	if (unlikely(!bp)) {
-		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
-
 		if (flags & XBF_INCORE)
-			goto out_put_perag;
-
-		/* xfs_buf_find_insert() consumes the perag reference. */
-		error = xfs_buf_find_insert(btp, pag, &cmap, map, nmaps,
-				flags, &bp);
+			return -ENOENT;
+		error = xfs_buf_find_insert(btp, &cmap, map, nmaps, flags, &bp);
 		if (error)
 			return error;
-	} else {
-		XFS_STATS_INC(btp->bt_mount, xb_get_locked);
-		if (pag)
-			xfs_perag_put(pag);
 	}
 
-	/*
-	 * Clear b_error if this is a lookup from a caller that doesn't expect
-	 * valid data to be found in the buffer.
-	 */
-	if (!(flags & XBF_READ))
-		xfs_buf_ioerror(bp, 0);
-
-	XFS_STATS_INC(btp->bt_mount, xb_get);
-	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	*bpp = bp;
 	return 0;
+}
 
-out_put_perag:
-	if (pag)
-		xfs_perag_put(pag);
-	return error;
+int
+xfs_buf_get_map(
+	struct xfs_buftarg	*btp,
+	struct xfs_buf_map	*map,
+	int			nmaps,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	int			error;
+
+	ASSERT(!(flags & ~(XBF_TRYLOCK | XBF_INCORE | XBF_LIVESCAN)));
+	ASSERT(!(flags & XBF_LIVESCAN) || (flags & XBF_INCORE));
+
+	/*
+	 * Zero the buffer and clear b_error as xfs_buf_get_map callers don't
+	 * expect valid data to be found in the buffer.
+	 */
+	error = xfs_find_get_buf(btp, map, nmaps, flags, bpp);
+	if (error)
+		return error;
+
+	error = xfs_buf_find_lock(*bpp, flags);
+	if (error) {
+		xfs_buf_rele(*bpp);
+		return error;
+	}
+	XFS_STATS_INC(btp->bt_mount, xb_get);
+	trace_xfs_buf_get(*bpp, flags, _RET_IP_);
+	xfs_buf_ioerror(*bpp, 0);
+	return 0;
 }
 
 int
@@ -615,45 +619,11 @@ _xfs_buf_read(
 {
 	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
-	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
-	bp->b_flags |= XBF_READ;
+	xfs_buf_clear_flags(bp, XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD |
+			XBF_DONE);
+	xfs_buf_set_flags(bp, XBF_READ);
 	xfs_buf_submit(bp);
 	return xfs_buf_iowait(bp);
-}
-
-/*
- * Reverify a buffer found in cache without an attached ->b_ops.
- *
- * If the caller passed an ops structure and the buffer doesn't have ops
- * assigned, set the ops and use it to verify the contents. If verification
- * fails, clear XBF_DONE. We assume the buffer has no recorded errors and is
- * already in XBF_DONE state on entry.
- *
- * Under normal operations, every in-core buffer is verified on read I/O
- * completion. There are two scenarios that can lead to in-core buffers without
- * an assigned ->b_ops. The first is during log recovery of buffers on a V4
- * filesystem, though these buffers are purged at the end of recovery. The
- * other is online repair, which intentionally reads with a NULL buffer ops to
- * run several verifiers across an in-core buffer in order to establish buffer
- * type.  If repair can't establish that, the buffer will be left in memory
- * with NULL buffer ops.
- */
-static int
-xfs_buf_reverify(
-	struct xfs_buf		*bp,
-	const struct xfs_buf_ops *ops)
-{
-	ASSERT(bp->b_flags & XBF_DONE);
-	ASSERT(bp->b_error == 0);
-
-	if (!ops || bp->b_ops)
-		return 0;
-
-	bp->b_ops = ops;
-	bp->b_ops->verify_read(bp);
-	if (bp->b_error)
-		bp->b_flags &= ~XBF_DONE;
-	return bp->b_error;
 }
 
 int
@@ -669,30 +639,80 @@ xfs_buf_read_map(
 	struct xfs_buf		*bp;
 	int			error;
 
-	ASSERT(!(flags & (XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD)));
+	ASSERT(!(flags & ~XBF_TRYLOCK));
 
 	flags |= XBF_READ;
 	*bpp = NULL;
 
-	error = xfs_buf_get_map(target, map, nmaps, flags, &bp);
+	error = xfs_find_get_buf(target, map, nmaps, flags, &bp);
 	if (error)
 		return error;
+	error = xfs_buf_find_lock(bp, flags);
+	if (error) {
+		xfs_buf_rele(bp);
+		return error;
+	}
 
 	trace_xfs_buf_read(bp, flags, _RET_IP_);
 
-	if (!(bp->b_flags & XBF_DONE)) {
+	if (bp->b_flags & XBF_DONE) {
+		ASSERT(bp->b_error == 0);
+
+		/*
+		 * If the caller passed an ops structure and the buffer doesn't
+		 * have ops assigned yet, set the ops and use them to verify the
+		 * buffer contents.
+		 *
+		 * Under normal operations, every in-core buffer is verified on
+		 * read I/O completion, but there are two scenarios that can
+		 * lead to in-core buffers without an assigned ->b_ops:
+		 *
+		 *   1) During log recovery of buffers on a V4 filesystem.
+		 *	These buffers are purged at the end of recovery, though.
+		 *   2) Oonline repair intentionally reads with a NULL buffer
+		 *	ops to run several verifiers across an in-core buffer in
+		 *	order to establish buffer type.  If repair can't
+		 *	establish that, the buffer will be left in memory with
+		 *	NULL buffer ops.
+		 */
+		if (ops && !bp->b_ops) {
+			bp->b_ops = ops;
+			bp->b_ops->verify_read(bp);
+			/*
+			 * If verification failed, clear XBF_DONE as we assume
+			 * that buffers have no recorded errors when in XBF_DONE
+			 * state.
+			 */
+			error = bp->b_error;
+			if (error)
+				xfs_buf_clear_flags(bp, XBF_DONE);
+		}
+
+		/* We do not want read in the flags */
+		xfs_buf_clear_flags(bp, XBF_READ);
+	} else {
 		/* Initiate the buffer read and wait. */
 		XFS_STATS_INC(target->bt_mount, xb_get_read);
 		bp->b_ops = ops;
 		error = _xfs_buf_read(bp);
-	} else {
-		/* Buffer already read; all we need to do is check it. */
-		error = xfs_buf_reverify(bp, ops);
-
-		/* We do not want read in the flags */
-		bp->b_flags &= ~XBF_READ;
-		ASSERT(bp->b_ops != NULL || ops == NULL);
 	}
+
+	if (error)
+		goto out_ioerror;
+
+	*bpp = bp;
+	return 0;
+
+out_ioerror:
+	/*
+	 * Check against log shutdown for error reporting because metadata
+	 * writeback may require a read first and we need to report errors in
+	 * metadata writeback until the log is shut down.  High level
+	 * transaction read functions already check against mount shutdown, so
+	 * we only need to be concerned about low level/ IO interactions here.
+	 */
+	if (!xlog_is_shutdown(target->bt_mount->m_log))
+		xfs_buf_ioerror_alert(bp, fa);
 
 	/*
 	 * If we've had a read error, then the contents of the buffer are
@@ -703,30 +723,14 @@ xfs_buf_read_map(
 	 * future cache lookups will also treat it as an empty, uninitialised
 	 * buffer.
 	 */
-	if (error) {
-		/*
-		 * Check against log shutdown for error reporting because
-		 * metadata writeback may require a read first and we need to
-		 * report errors in metadata writeback until the log is shut
-		 * down. High level transaction read functions already check
-		 * against mount shutdown, anyway, so we only need to be
-		 * concerned about low level IO interactions here.
-		 */
-		if (!xlog_is_shutdown(target->bt_mount->m_log))
-			xfs_buf_ioerror_alert(bp, fa);
+	xfs_buf_clear_flags(bp, XBF_DONE);
+	xfs_buf_stale(bp);
+	xfs_buf_relse(bp);
 
-		bp->b_flags &= ~XBF_DONE;
-		xfs_buf_stale(bp);
-		xfs_buf_relse(bp);
-
-		/* bad CRC means corrupted metadata */
-		if (error == -EFSBADCRC)
-			error = -EFSCORRUPTED;
-		return error;
-	}
-
-	*bpp = bp;
-	return 0;
+	/* bad CRC means corrupted metadata */
+	if (error == -EFSBADCRC)
+		return -EFSCORRUPTED;
+	return error;
 }
 
 /*
@@ -750,21 +754,36 @@ xfs_buf_readahead_map(
 	if (xfs_buftarg_is_mem(target))
 		return;
 
-	if (xfs_buf_get_map(target, map, nmaps, flags | XBF_TRYLOCK, &bp))
+	if (xfs_find_get_buf(target, map, nmaps, flags, &bp))
 		return;
-	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
 
-	if (bp->b_flags & XBF_DONE) {
-		xfs_buf_reverify(bp, ops);
-		xfs_buf_relse(bp);
-		return;
-	}
+	/*
+	 * Do a lockless fast path check for a valid uptodate buffer and avoid
+	 * locking entirely in this case.
+	 */
+	if ((READ_ONCE(bp->b_flags) & (XBF_DONE | XBF_STALE)) == XBF_DONE)
+		goto out_rele;
+
+	/* Otherwise lock the buffer to stabilize the state */
+	if (!xfs_buf_trylock(bp))
+		goto out_rele;
+
+	/* Let the actual reader deal with stale buffers. */
+	if (bp->b_flags & (XBF_STALE | XBF_DONE))
+		goto out_unlock;
+
+	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
 	XFS_STATS_INC(target->bt_mount, xb_get_read);
 	bp->b_ops = ops;
-	bp->b_flags &= ~(XBF_WRITE | XBF_DONE);
-	bp->b_flags |= flags;
+	xfs_buf_clear_flags(bp, XBF_WRITE | XBF_DONE);
+	xfs_buf_set_flags(bp, flags);
 	percpu_counter_inc(&target->bt_readahead_count);
 	xfs_buf_submit(bp);
+	return;
+out_unlock:
+	xfs_buf_unlock(bp);
+out_rele:
+	xfs_buf_rele(bp);
 }
 
 /*
@@ -794,7 +813,7 @@ xfs_buf_read_uncached(
 	ASSERT(bp->b_map_count == 1);
 	bp->b_rhash_key = XFS_BUF_DADDR_NULL;
 	bp->b_maps[0].bm_bn = daddr;
-	bp->b_flags |= XBF_READ;
+	xfs_buf_set_flags(bp, XBF_READ);
 	bp->b_ops = ops;
 
 	xfs_buf_submit(bp);
@@ -818,9 +837,11 @@ xfs_buf_get_uncached(
 	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
 
 	error = xfs_buf_alloc(target, &map, 1, 0, bpp);
-	if (!error)
-		trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
-	return error;
+	if (error)
+		return error;
+	xfs_buf_lock(*bpp);
+	trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
+	return 0;
 }
 
 /*
@@ -841,7 +862,7 @@ static void
 xfs_buf_destroy(
 	struct xfs_buf		*bp)
 {
-	ASSERT(__lockref_is_dead(&bp->b_lockref));
+	ASSERT(lockref_is_dead(&bp->b_lockref));
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
 	if (bp->b_pag)
@@ -1042,7 +1063,7 @@ xfs_buf_ioend_handle_error(
 	 * We're not going to bother about retrying this during recovery.
 	 * One strike!
 	 */
-	if (bp->b_flags & _XBF_LOGRECOVERY) {
+	if (mp->m_log && xlog_in_recovery(mp->m_log)) {
 		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 		return false;
 	}
@@ -1086,14 +1107,14 @@ xfs_buf_ioend_handle_error(
 
 resubmit:
 	xfs_buf_ioerror(bp, 0);
-	bp->b_flags |= (XBF_DONE | XBF_WRITE_FAIL);
+	xfs_buf_set_flags(bp, XBF_DONE | XBF_WRITE_FAIL);
 	reinit_completion(&bp->b_iowait);
 	xfs_buf_submit(bp);
 	return true;
 out_stale:
 	xfs_buf_stale(bp);
-	bp->b_flags |= XBF_DONE;
-	bp->b_flags &= ~XBF_WRITE;
+	xfs_buf_set_flags(bp, XBF_DONE);
+	xfs_buf_clear_flags(bp, XBF_WRITE);
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 	return false;
 }
@@ -1118,7 +1139,7 @@ xfs_buf_ioend(
 		if (!bp->b_error && bp->b_ops)
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
-			bp->b_flags |= XBF_DONE;
+			xfs_buf_set_flags(bp, XBF_DONE);
 		if (bp->b_flags & XBF_READ_AHEAD)
 			percpu_counter_dec(&bp->b_target->bt_readahead_count);
 	} else {
@@ -1128,8 +1149,8 @@ xfs_buf_ioend(
 				return;
 			}
 		} else {
-			bp->b_flags &= ~XBF_WRITE_FAIL;
-			bp->b_flags |= XBF_DONE;
+			xfs_buf_clear_flags(bp, XBF_WRITE_FAIL);
+			xfs_buf_set_flags(bp, XBF_DONE);
 		}
 
 		/* clear the retry state */
@@ -1149,8 +1170,7 @@ xfs_buf_ioend(
 			bp->b_iodone(bp);
 	}
 
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD |
-			 _XBF_LOGRECOVERY);
+	xfs_buf_clear_flags(bp, XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 	if (async)
 		xfs_buf_relse(bp);
 }
@@ -1196,8 +1216,8 @@ xfs_buf_fail(
 {
 	ASSERT(xfs_buf_islocked(bp));
 
-	bp->b_flags |= XBF_ASYNC;
-	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_set_flags(bp, XBF_ASYNC);
+	xfs_buf_clear_flags(bp, XBF_DONE);
 	xfs_buf_stale(bp);
 	xfs_buf_ioerror(bp, -EIO);
 	xfs_buf_ioend(bp);
@@ -1211,9 +1231,9 @@ xfs_bwrite(
 
 	ASSERT(xfs_buf_islocked(bp));
 
-	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
-			 XBF_DONE);
+	xfs_buf_set_flags(bp, XBF_WRITE);
+	xfs_buf_clear_flags(bp, XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
+				XBF_DONE);
 
 	xfs_buf_submit(bp);
 	error = xfs_buf_iowait(bp);
@@ -1404,7 +1424,7 @@ xfs_buf_submit(
 	return;
 
 ioerror:
-	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_clear_flags(bp, XBF_DONE);
 	xfs_buf_stale(bp);
 end_io:
 	if (bp->b_flags & XBF_ASYNC)
@@ -1631,7 +1651,7 @@ xfs_free_buftarg(
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (btp->bt_bdev != btp->bt_mount->m_super->s_bdev)
-		bdev_fput(btp->bt_file);
+		fs_bdev_file_release(btp->bt_file, btp->bt_mount->m_super);
 	kfree(btp);
 }
 
@@ -1815,7 +1835,7 @@ xfs_buf_delwri_cancel(
 		bp = list_first_entry(list, struct xfs_buf, b_list);
 
 		xfs_buf_lock(bp);
-		bp->b_flags &= ~_XBF_DELWRI_Q;
+		xfs_buf_clear_flags(bp, _XBF_DELWRI_Q);
 		xfs_buf_list_del(bp);
 		xfs_buf_relse(bp);
 	}
@@ -1860,7 +1880,7 @@ xfs_buf_delwri_queue(
 	 * might get readded to a delwri list after the synchronous writeout, in
 	 * which case we need just need to re-add the flag here.
 	 */
-	bp->b_flags |= _XBF_DELWRI_Q;
+	xfs_buf_set_flags(bp, _XBF_DELWRI_Q);
 	if (list_empty(&bp->b_list)) {
 		xfs_buf_hold(bp);
 		list_add_tail(&bp->b_list, list);
@@ -1937,8 +1957,8 @@ xfs_buf_delwri_submit_prep(
 	}
 
 	trace_xfs_buf_delwri_split(bp, _RET_IP_);
-	bp->b_flags &= ~_XBF_DELWRI_Q;
-	bp->b_flags |= XBF_WRITE;
+	xfs_buf_clear_flags(bp, _XBF_DELWRI_Q);
+	xfs_buf_set_flags(bp, XBF_WRITE);
 	return true;
 }
 
@@ -1979,7 +1999,7 @@ xfs_buf_delwri_submit_nowait(
 		}
 		if (!xfs_buf_delwri_submit_prep(bp))
 			continue;
-		bp->b_flags |= XBF_ASYNC;
+		xfs_buf_set_flags(bp, XBF_ASYNC);
 		xfs_buf_list_del(bp);
 		xfs_buf_submit(bp);
 	}
@@ -2012,7 +2032,7 @@ xfs_buf_delwri_submit(
 		xfs_buf_lock(bp);
 		if (!xfs_buf_delwri_submit_prep(bp))
 			continue;
-		bp->b_flags &= ~XBF_ASYNC;
+		xfs_buf_clear_flags(bp, XBF_ASYNC);
 		list_move_tail(&bp->b_list, &wait_list);
 		xfs_buf_submit(bp);
 	}

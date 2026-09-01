@@ -33,6 +33,9 @@
 #include "smu_v15_0_0_pmfw.h"
 #include "smu_cmn.h"
 
+#include <linux/overflow.h>
+#include <linux/math64.h>
+
 /*
  * DO NOT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
@@ -119,6 +122,9 @@ static struct cmn2asic_msg_mapping smu_v15_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(DisableLSdma,                   PPSMC_MSG_DisableLSdma,				1),
 	MSG_MAP(SetSoftMaxVpe,                  PPSMC_MSG_SetSoftMaxVpe,			1),
 	MSG_MAP(SetSoftMinVpe,                  PPSMC_MSG_SetSoftMinVpe,			1),
+	MSG_MAP(GetMetricsTableVersion,         PPSMC_MSG_GetMetricsTableVersion,		1),
+	MSG_MAP(GetMetricsTableLogSample,       PPSMC_MSG_GetMetricsTableLogSample,		1),
+	MSG_MAP(GetMetricsTableLogDramAddr,     PPSMC_MSG_GetMetricsTableLogDramAddr,	1),
 };
 
 static struct cmn2asic_mapping smu_v15_0_0_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -160,10 +166,37 @@ static struct cmn2asic_mapping smu_v15_0_0_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(DPMCLOCKS),
 };
 
+static int smu_v15_0_0_get_metrics_table_dram_addr(struct smu_context *smu,
+					SMU_15_0_0_MetricsInfo_t *metrics_info)
+{
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {
+		.msg = SMU_MSG_GetMetricsTableLogDramAddr,
+		.num_args = 0,
+		.num_out_args = 3,
+	};
+	int ret;
+
+	ret = ctl->ops->send_msg(ctl, &args);
+	if (ret)
+		return ret;
+
+	metrics_info->addr = ((uint64_t)args.out_args[1] << 32) | args.out_args[0];
+	metrics_info->table_size = args.out_args[2];
+
+	metrics_info->cpu_addr = ioremap_wc(metrics_info->addr,
+					    metrics_info->table_size);
+	if (!metrics_info->cpu_addr)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int smu_v15_0_0_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	SMU_15_0_0_MetricsInfo_t *metrics_info;
 	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
@@ -173,7 +206,7 @@ static int smu_v15_0_0_init_smc_tables(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
+	smu_table->metrics_table = kzalloc_obj(SMU_15_0_0_MetricsInfo_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -192,8 +225,16 @@ static int smu_v15_0_0_init_smc_tables(struct smu_context *smu)
 	if (ret)
 		goto err3_out;
 
+	metrics_info = (SMU_15_0_0_MetricsInfo_t *)smu_table->metrics_table;
+
+	ret = smu_v15_0_0_get_metrics_table_dram_addr(smu, metrics_info);
+	if (ret)
+		goto err4_out;
+
 	return 0;
 
+err4_out:
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
@@ -207,6 +248,14 @@ err0_out:
 static int smu_v15_0_0_fini_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	SMU_15_0_0_MetricsInfo_t *metrics_info = smu_table->metrics_table;
+
+	if (metrics_info) {
+		if (metrics_info->cpu_addr) {
+			iounmap(metrics_info->cpu_addr);
+			metrics_info->cpu_addr = NULL;
+		}
+	}
 
 	kfree(smu_table->clocks_table);
 	smu_table->clocks_table = NULL;
@@ -299,7 +348,7 @@ static int smu_v15_0_0_set_default_dpm_tables(struct smu_context *smu)
 				    smu_table->clocks_table, false);
 }
 
-static int smu_v15_0_0_get_metrics_table(struct smu_context *smu,
+static int smu_v15_0_0_get_gpu_metrics_table(struct smu_context *smu,
 							void *metrics_table,
 							bool bypass_cache)
 {
@@ -329,114 +378,161 @@ static int smu_v15_0_0_get_metrics_table(struct smu_context *smu,
 	return 0;
 }
 
+/*
+ * Fetch a fresh metrics sample into the inactive buffer.
+ * Returns 0 if a new sample was copied, 1 if the cached sample is still
+ * fresh (nothing copied), or a negative errno on failure.
+ */
+static int smu_v15_0_0_get_metrics_table(struct smu_context *smu,
+					SMU_15_0_0_MetricsInfo_t *metrics_info)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	void __iomem *cpu_addr = metrics_info->cpu_addr;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {0};
+	size_t table_size = metrics_info->table_size;
+	int ret;
+
+	if (smu_table->metrics_time &&
+	    !time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1)))
+		return 1;
+
+	if (!cpu_addr)
+		return -ENOMEM;
+
+	args.msg = SMU_MSG_GetMetricsTableLogSample;
+	args.num_args = 0;
+	args.num_out_args = 0;
+
+	ret = ctl->ops->send_msg(ctl, &args);
+	if (ret)
+		return ret;
+
+	/* best to flush before copy */
+	amdgpu_hdp_invalidate(smu->adev, NULL);
+	if (table_size <= sizeof(MetricsTable_t))
+		memcpy_fromio(&metrics_info->metrics[!metrics_info->active_idx],
+			      cpu_addr, table_size);
+	else
+		memcpy_fromio(&metrics_info->metrics[!metrics_info->active_idx],
+			      cpu_addr, sizeof(MetricsTable_t));
+
+	metrics_info->active_idx = !metrics_info->active_idx;
+	smu_table->metrics_time = jiffies;
+
+	return 0;
+}
+
+/*
+ * Accumulators monotonically increase and roll over at their type width.
+ * Use the kernel wrapping_sub() API to compute the delta so the subtraction
+ * wraps modulo 2^n (correct across a single rollover) without tripping any
+ * wrap-around sanitizers.
+ */
+static void smu_v15_0_0_compute_all_metrics(
+		uint32_t *avg_metric,
+		MetricsTable_t *prev,
+		MetricsTable_t *curr)
+{
+	uint64_t counter, val;
+	uint32_t mw;
+	MetricsTable_IOD_t *p = &prev->IOD;
+	MetricsTable_IOD_t *c = &curr->IOD;
+
+	counter = wrapping_sub(u32, c->AccumulationCounter, p->AccumulationCounter);
+	if (!counter)
+		return;
+
+	/* Accumulator-based clock frequencies (fixed-point /1024) */
+	val = wrapping_sub(u64, c->GfxclkFreqEffAcc, p->GfxclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_GFXCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->SocclkFreqEffAcc, p->SocclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_SOCCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->VclkFreqEffAcc, p->VclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_VCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->MemclkFreqEffAcc, p->MemclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_UCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->FclkFreqEffAcc, p->FclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_FCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->NpuhclkFreqEffAcc, p->NpuhclkFreqEffAcc);
+	avg_metric[METRICS_AVERAGE_NPUCLK] = div_u64(div64_u64(val, counter), 1024);
+
+	/* Activity (fixed-point /1024) */
+	val = wrapping_sub(u64, c->GfxBusyAcc, p->GfxBusyAcc);
+	avg_metric[METRICS_AVERAGE_GFXACTIVITY] = div_u64(div64_u64(val, counter), 1024);
+
+	val = wrapping_sub(u64, c->VcnBusyAcc, p->VcnBusyAcc);
+	avg_metric[METRICS_AVERAGE_VCNACTIVITY] = div_u64(div64_u64(val, counter), 1024);
+
+	/*
+	 * Power: accumulator holds a 1024x fixed-point value in Watts.
+	 * Average it into milliwatts, which is the unit expected by
+	 * power sensor consumers (hwmon/debugfs).
+	 */
+	val = wrapping_sub(u64, c->ApuPowerAcc, p->ApuPowerAcc);
+	mw = div_u64(div64_u64(val, counter) * 1000, 1024);
+	avg_metric[METRICS_AVERAGE_SOCKETPOWER] = mw;
+
+	val = wrapping_sub(u64, c->SystemPowerAcc, p->SystemPowerAcc);
+	mw = div_u64(div64_u64(val, counter) * 1000, 1024);
+	avg_metric[METRICS_CURR_SOCKETPOWER] = mw;
+
+	/*
+	 * Temperature: accumulator holds a 1024x fixed-point value in
+	 * Celsius. Descale by 1024 and convert to millidegrees C as the
+	 * hwmon/sysfs consumers expect (temp*_input is in millidegrees).
+	 */
+	val = wrapping_sub(u64, c->GFX_TempAcc, p->GFX_TempAcc);
+	avg_metric[METRICS_TEMPERATURE_VRGFX] =
+		div_u64(div64_u64(val, counter) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES, 1024);
+
+	val = wrapping_sub(u64, c->STT_APU_HotSpotTempAcc, p->STT_APU_HotSpotTempAcc);
+	avg_metric[METRICS_TEMPERATURE_HOTSPOT] =
+		div_u64(div64_u64(val, counter) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES, 1024);
+
+	/* Voltage: accumulator holds a 1024x fixed-point value in Volts;
+	 * convert to millivolts for the hwmon/sysfs consumers.
+	 */
+	val = wrapping_sub(u64, c->VDDCR_GFX_TelemetryVoltage, p->VDDCR_GFX_TelemetryVoltage);
+	avg_metric[METRICS_VOLTAGE_VDDGFX] = div_u64(div64_u64(val, counter) * 1000, 1024);
+
+	val = wrapping_sub(u64, c->VDDCR_SOC_TelemetryVoltage, p->VDDCR_SOC_TelemetryVoltage);
+	avg_metric[METRICS_VOLTAGE_VDDSOC] = div_u64(div64_u64(val, counter) * 1000, 1024);
+}
+
 static int smu_v15_0_0_get_smu_metrics_data(struct smu_context *smu,
 					    MetricsMember_t member,
 					    uint32_t *value)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	SMU_15_0_0_MetricsInfo_t *metrics_info =
+		(SMU_15_0_0_MetricsInfo_t *)smu_table->metrics_table;
+	int ret;
 
-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
-	int ret = 0;
+	if (member >= ARRAY_SIZE(metrics_info->avg_metric))
+		return -EINVAL;
 
-	ret = smu_v15_0_0_get_metrics_table(smu, NULL, false);
-	if (ret)
+	ret = smu_v15_0_0_get_metrics_table(smu, metrics_info);
+	if (ret < 0)
 		return ret;
 
-	switch (member) {
-	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->GfxclkFrequency;
-		break;
-	case METRICS_AVERAGE_SOCCLK:
-		*value = metrics->SocclkFrequency;
-		break;
-	case METRICS_AVERAGE_VCLK:
-		*value = metrics->VclkFrequency;
-		break;
-	case METRICS_AVERAGE_DCLK:
-		*value = 0;
-		break;
-	case METRICS_AVERAGE_UCLK:
-		*value = metrics->MemclkFrequency;
-		break;
-	case METRICS_AVERAGE_FCLK:
-		*value = metrics->FclkFrequency;
-		break;
-	case METRICS_AVERAGE_VPECLK:
-		*value = metrics->VpeclkFrequency;
-		break;
-	case METRICS_AVERAGE_NPUCLK:
-		*value = metrics->NpuclkFrequency;
-		break;
-	case METRICS_AVERAGE_GFXACTIVITY:
-		if ((smu->smc_fw_version > 0x5d4600))
-			*value = metrics->GfxActivity;
-		else
-			*value = metrics->GfxActivity / 100;
-		break;
-	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->VcnActivity / 100;
-		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
-	case METRICS_CURR_SOCKETPOWER:
-		*value = metrics->SocketPower;
-		break;
-	case METRICS_TEMPERATURE_EDGE:
-		*value = metrics->GfxTemperature / 100 *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = metrics->SocTemperature / 100 *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_THROTTLER_RESIDENCY_PROCHOT:
-		*value = metrics->ThrottleResidency_PROCHOT;
-		break;
-	case METRICS_THROTTLER_RESIDENCY_SPL:
-		*value = metrics->ThrottleResidency_SPL;
-		break;
-	case METRICS_THROTTLER_RESIDENCY_FPPT:
-		*value = metrics->ThrottleResidency_FPPT;
-		break;
-	case METRICS_THROTTLER_RESIDENCY_SPPT:
-		*value = metrics->ThrottleResidency_SPPT;
-		break;
-	case METRICS_THROTTLER_RESIDENCY_THM_SOC:
-		*value = metrics->ThrottleResidency_THM_SOC;
-		break;
-	case METRICS_VOLTAGE_VDDGFX:
-		*value = 0;
-		break;
-	case METRICS_VOLTAGE_VDDSOC:
-		*value = 0;
-		break;
-	case METRICS_SS_APU_SHARE:
-		/* return the percentage of APU power with respect to APU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if (metrics->StapmOpnLimit > 0)
-			*value = (metrics->ApuPower * 100) / metrics->StapmOpnLimit;
-		else
-			*value = 0;
-		break;
-	case METRICS_SS_DGPU_SHARE:
-		/* return the percentage of dGPU power with respect to dGPU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if ((metrics->dGpuPower > 0) &&
-		    (metrics->StapmCurrentLimit > metrics->StapmOpnLimit))
-			*value = (metrics->dGpuPower * 100) /
-				 (metrics->StapmCurrentLimit - metrics->StapmOpnLimit);
-		else
-			*value = 0;
-		break;
-	default:
-		*value = UINT_MAX;
-		break;
-	}
+        if (ret == 0 &&
+            metrics_info->metrics[metrics_info->active_idx].IOD.AccumulationCounter !=
+            metrics_info->metrics[!metrics_info->active_idx].IOD.AccumulationCounter) {
+                /* New sample: active_idx already points to the latest sample. */
+                smu_v15_0_0_compute_all_metrics(metrics_info->avg_metric,
+                                                &metrics_info->metrics[!metrics_info->active_idx],
+                                                &metrics_info->metrics[metrics_info->active_idx]);
+        }
 
-	return ret;
+	*value = metrics_info->avg_metric[member];
+
+	return 0;
 }
 
 static int smu_v15_0_0_read_sensor(struct smu_context *smu,
@@ -473,9 +569,9 @@ static int smu_v15_0_0_read_sensor(struct smu_context *smu,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		ret = smu_v15_0_0_get_smu_metrics_data(smu,
-						       METRICS_TEMPERATURE_EDGE,
+						       METRICS_TEMPERATURE_VRGFX,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
@@ -508,18 +604,6 @@ static int smu_v15_0_0_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_VDDNB:
 		ret = smu_v15_0_0_get_smu_metrics_data(smu,
 						       METRICS_VOLTAGE_VDDSOC,
-						       (uint32_t *)data);
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
-		ret = smu_v15_0_0_get_smu_metrics_data(smu,
-						       METRICS_SS_APU_SHARE,
-						       (uint32_t *)data);
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
-		ret = smu_v15_0_0_get_smu_metrics_data(smu,
-						       METRICS_SS_DGPU_SHARE,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
@@ -633,7 +717,7 @@ static ssize_t smu_v15_0_0_get_gpu_metrics(struct smu_context *smu,
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	ret = smu_v15_0_0_get_metrics_table(smu, &metrics, false);
+	ret = smu_v15_0_0_get_gpu_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
 

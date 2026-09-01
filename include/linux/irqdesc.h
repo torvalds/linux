@@ -146,7 +146,7 @@ extern struct irq_desc irq_desc[NR_IRQS];
 static inline unsigned int irq_desc_kstat_cpu(struct irq_desc *desc,
 					      unsigned int cpu)
 {
-	return desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, cpu) : 0;
+	return per_cpu(desc->kstat_irqs->cnt, cpu);
 }
 
 static inline struct irq_desc *irq_data_to_desc(struct irq_data *data)

@@ -17,6 +17,8 @@ extern unsigned long loops_per_jiffy;
 
 #include <asm/delay.h>
 
+bool delay_read_timer(unsigned long *t);
+
 /*
  * Using udelay() for intervals greater than a few milliseconds can
  * risk overflow for high loops_per_jiffy (high bogomips) machines. The

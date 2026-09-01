@@ -177,13 +177,8 @@ static int smb_block_read(struct rmi_transport_dev *xport,
 	struct rmi_smb_xport *rmi_smb =
 		container_of(xport, struct rmi_smb_xport, xport);
 	struct i2c_client *client = rmi_smb->client;
-	int retval;
 
-	retval = i2c_smbus_read_block_data(client, commandcode, buf);
-	if (retval < 0)
-		return retval;
-
-	return retval;
+	return i2c_smbus_read_block_data(client, commandcode, buf);
 }
 
 static int rmi_smb_read_block(struct rmi_transport_dev *xport, u16 rmiaddr,

@@ -716,11 +716,8 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 						pm860x_irq_descs[i].handler,
 						IRQF_ONESHOT,
 						pm860x_irq_descs[i].name, info);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to request IRQ: #%d: %d\n",
-				info->irq[i], ret);
+		if (ret < 0)
 			return ret;
-		}
 	}
 	return 0;
 }

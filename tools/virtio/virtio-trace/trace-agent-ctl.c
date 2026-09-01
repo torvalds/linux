@@ -84,7 +84,7 @@ error:
 }
 
 /*
- * contol read/write threads by handling global_run_operation
+ * control read/write threads by handling global_run_operation
  */
 void *rw_ctl_loop(int ctl_fd)
 {

@@ -56,6 +56,7 @@ use syn::parse_macro_input;
 /// - [`u64`]
 /// - [`isize`]
 /// - [`usize`]
+/// - [`bool`]
 ///
 /// C header: [`include/linux/moduleparam.h`](srctree/include/linux/moduleparam.h)
 ///
@@ -177,12 +178,29 @@ pub fn module(input: TokenStream) -> TokenStream {
 ///
 /// This macro should not be used when all functions are required.
 ///
+/// Additionally, this macro automatically handles the `OwnerModule`
+/// associated type: on the trait side, `type OwnerModule: ModuleMetadata;`
+/// is added as a required associated type if not already defined; on the
+/// impl side, `type OwnerModule = LocalModule;` is automatically inserted
+/// if not explicitly defined.
+///
 /// # Examples
 ///
 /// ```
 /// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
+/// # struct LocalModule;
+/// # impl kernel::ModuleMetadata for LocalModule {
+/// #     const NAME: &'static kernel::str::CStr = c"vtable_doctest";
+/// #
+/// #     // SAFETY: This doctest runs on the host: there is no `THIS_MODULE`.
+/// #     const THIS_MODULE: kernel::ThisModule = unsafe {
+/// #         kernel::ThisModule::from_ptr(core::ptr::null_mut())
+/// #     };
+/// # }
+/// #
+/// # fn main() {
 /// // Declares a `#[vtable]` trait
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
@@ -208,6 +226,7 @@ pub fn module(input: TokenStream) -> TokenStream {
 ///
 /// assert_eq!(<Foo as Operations>::HAS_FOO, true);
 /// assert_eq!(<Foo as Operations>::HAS_BAR, false);
+/// # }
 /// ```
 ///
 /// [`kernel::error::VTABLE_DEFAULT_ERROR`]: ../kernel/error/constant.VTABLE_DEFAULT_ERROR.html
@@ -497,8 +516,24 @@ pub fn kunit_tests(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// [`ForLt`]: trait.ForLt.html
 #[proc_macro]
-// The macro shares the name with the trait.
 #[allow(non_snake_case)]
 pub fn ForLt(input: TokenStream) -> TokenStream {
     for_lt::for_lt(parse_macro_input!(input)).into()
+}
+
+/// Obtain a type that implements [`CovariantForLt`] (and [`ForLt`]) for the given higher-ranked
+/// type.
+///
+/// Unlike [`ForLt!`], this macro additionally proves that the type is covariant over the lifetime,
+/// providing a safe [`CovariantForLt::cast_ref`] method.
+///
+/// Please refer to the documentation of the [`CovariantForLt`] trait.
+///
+/// [`CovariantForLt`]: trait.CovariantForLt.html
+/// [`CovariantForLt::cast_ref`]: trait.CovariantForLt.html#method.cast_ref
+/// [`ForLt`]: trait.ForLt.html
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn CovariantForLt(input: TokenStream) -> TokenStream {
+    for_lt::covariant_for_lt(parse_macro_input!(input)).into()
 }

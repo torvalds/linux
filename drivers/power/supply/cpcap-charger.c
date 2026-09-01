@@ -761,12 +761,8 @@ static int cpcap_usb_init_irq(struct platform_device *pdev,
 					  cpcap_charger_irq_thread,
 					  IRQF_SHARED | IRQF_ONESHOT,
 					  name, ddata);
-	if (error) {
-		dev_err(ddata->dev, "could not get irq %s: %i\n",
-			name, error);
-
+	if (error)
 		return error;
-	}
 
 	d = devm_kzalloc(ddata->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
@@ -977,3 +973,4 @@ MODULE_AUTHOR("Tony Lindgren <tony@atomide.com>");
 MODULE_DESCRIPTION("CPCAP Battery Charger Interface driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:cpcap-charger");
+MODULE_IMPORT_NS("IIO_CONSUMER");

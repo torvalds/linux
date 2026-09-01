@@ -503,7 +503,13 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
 
 struct task_struct *pick_task_idle(struct rq *rq, struct rq_flags *rf)
 {
-	scx_update_idle(rq, true, false);
+	/*
+	 * Notify scx only on an idle-to-idle re-pick (the cpu was already idle).
+	 * A real task->idle transition is delivered by set_next_task_idle(), so
+	 * calling here too would duplicate it.
+	 */
+	if (scx_enabled() && is_idle_task(rq->curr))
+		scx_update_idle(rq, true, false);
 	return rq->idle;
 }
 

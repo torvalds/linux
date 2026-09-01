@@ -1016,7 +1016,7 @@ static void sprd_spi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused sprd_spi_runtime_suspend(struct device *dev)
+static int sprd_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *sctlr = dev_get_drvdata(dev);
 	struct sprd_spi *ss = spi_controller_get_devdata(sctlr);
@@ -1029,7 +1029,7 @@ static int __maybe_unused sprd_spi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused sprd_spi_runtime_resume(struct device *dev)
+static int sprd_spi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *sctlr = dev_get_drvdata(dev);
 	struct sprd_spi *ss = spi_controller_get_devdata(sctlr);
@@ -1050,8 +1050,7 @@ static int __maybe_unused sprd_spi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sprd_spi_pm_ops = {
-	SET_RUNTIME_PM_OPS(sprd_spi_runtime_suspend,
-			   sprd_spi_runtime_resume, NULL)
+	RUNTIME_PM_OPS(sprd_spi_runtime_suspend, sprd_spi_runtime_resume, NULL)
 };
 
 static const struct of_device_id sprd_spi_of_match[] = {
@@ -1064,7 +1063,7 @@ static struct platform_driver sprd_spi_driver = {
 	.driver = {
 		.name = "sprd-spi",
 		.of_match_table = sprd_spi_of_match,
-		.pm = &sprd_spi_pm_ops,
+		.pm = pm_ptr(&sprd_spi_pm_ops),
 	},
 	.probe = sprd_spi_probe,
 	.remove = sprd_spi_remove,

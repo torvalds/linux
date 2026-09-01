@@ -163,38 +163,38 @@ static const struct ad5446_chip_info ad5662_chip_info = {
 };
 
 static const struct spi_device_id ad5446_spi_ids[] = {
-	{"ad5300", (kernel_ulong_t)&ad5300_chip_info},
-	{"ad5310", (kernel_ulong_t)&ad5310_chip_info},
-	{"ad5320", (kernel_ulong_t)&ad5320_chip_info},
-	{"ad5444", (kernel_ulong_t)&ad5444_chip_info},
-	{"ad5446", (kernel_ulong_t)&ad5446_chip_info},
-	{"ad5450", (kernel_ulong_t)&ad5450_chip_info},
-	{"ad5451", (kernel_ulong_t)&ad5451_chip_info},
-	{"ad5452", (kernel_ulong_t)&ad5444_chip_info}, /* ad5452 is compatible to the ad5444 */
-	{"ad5453", (kernel_ulong_t)&ad5446_chip_info}, /* ad5453 is compatible to the ad5446 */
-	{"ad5512a", (kernel_ulong_t)&ad5512a_chip_info},
-	{"ad5541a", (kernel_ulong_t)&ad5541a_chip_info},
-	{"ad5542", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5542 are compatible */
-	{"ad5542a", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5542a are compatible */
-	{"ad5543", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5543 are compatible */
-	{"ad5553", (kernel_ulong_t)&ad5553_chip_info},
-	{"ad5600", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5600 are compatible */
-	{"ad5601", (kernel_ulong_t)&ad5601_chip_info},
-	{"ad5611", (kernel_ulong_t)&ad5611_chip_info},
-	{"ad5621", (kernel_ulong_t)&ad5621_chip_info},
-	{"ad5641", (kernel_ulong_t)&ad5641_chip_info},
-	{"ad5620-2500", (kernel_ulong_t)&ad5620_2500_chip_info}, /* AD5620/40/60: */
+	{ .name = "ad5300", .driver_data = (kernel_ulong_t)&ad5300_chip_info },
+	{ .name = "ad5310", .driver_data = (kernel_ulong_t)&ad5310_chip_info },
+	{ .name = "ad5320", .driver_data = (kernel_ulong_t)&ad5320_chip_info },
+	{ .name = "ad5444", .driver_data = (kernel_ulong_t)&ad5444_chip_info },
+	{ .name = "ad5446", .driver_data = (kernel_ulong_t)&ad5446_chip_info },
+	{ .name = "ad5450", .driver_data = (kernel_ulong_t)&ad5450_chip_info },
+	{ .name = "ad5451", .driver_data = (kernel_ulong_t)&ad5451_chip_info },
+	{ .name = "ad5452", .driver_data = (kernel_ulong_t)&ad5444_chip_info }, /* ad5452 is compatible to the ad5444 */
+	{ .name = "ad5453", .driver_data = (kernel_ulong_t)&ad5446_chip_info }, /* ad5453 is compatible to the ad5446 */
+	{ .name = "ad5512a", .driver_data = (kernel_ulong_t)&ad5512a_chip_info },
+	{ .name = "ad5541a", .driver_data = (kernel_ulong_t)&ad5541a_chip_info },
+	{ .name = "ad5542", .driver_data = (kernel_ulong_t)&ad5541a_chip_info }, /* ad5541a and ad5542 are compatible */
+	{ .name = "ad5542a", .driver_data = (kernel_ulong_t)&ad5541a_chip_info }, /* ad5541a and ad5542a are compatible */
+	{ .name = "ad5543", .driver_data = (kernel_ulong_t)&ad5541a_chip_info }, /* ad5541a and ad5543 are compatible */
+	{ .name = "ad5553", .driver_data = (kernel_ulong_t)&ad5553_chip_info },
+	{ .name = "ad5600", .driver_data = (kernel_ulong_t)&ad5541a_chip_info }, /* ad5541a and ad5600 are compatible */
+	{ .name = "ad5601", .driver_data = (kernel_ulong_t)&ad5601_chip_info },
+	{ .name = "ad5611", .driver_data = (kernel_ulong_t)&ad5611_chip_info },
+	{ .name = "ad5621", .driver_data = (kernel_ulong_t)&ad5621_chip_info },
+	{ .name = "ad5641", .driver_data = (kernel_ulong_t)&ad5641_chip_info },
+	{ .name = "ad5620-2500", .driver_data = (kernel_ulong_t)&ad5620_2500_chip_info }, /* AD5620/40/60: */
 	/* part numbers may look differently */
-	{"ad5620-1250", (kernel_ulong_t)&ad5620_1250_chip_info},
-	{"ad5640-2500", (kernel_ulong_t)&ad5640_2500_chip_info},
-	{"ad5640-1250", (kernel_ulong_t)&ad5640_1250_chip_info},
-	{"ad5660-2500", (kernel_ulong_t)&ad5660_2500_chip_info},
-	{"ad5660-1250", (kernel_ulong_t)&ad5660_1250_chip_info},
-	{"ad5662", (kernel_ulong_t)&ad5662_chip_info},
-	{"dac081s101", (kernel_ulong_t)&ad5300_chip_info}, /* compatible Texas Instruments chips */
-	{"dac101s101", (kernel_ulong_t)&ad5310_chip_info},
-	{"dac121s101", (kernel_ulong_t)&ad5320_chip_info},
-	{"dac7512", (kernel_ulong_t)&ad5320_chip_info},
+	{ .name = "ad5620-1250", .driver_data = (kernel_ulong_t)&ad5620_1250_chip_info },
+	{ .name = "ad5640-2500", .driver_data = (kernel_ulong_t)&ad5640_2500_chip_info },
+	{ .name = "ad5640-1250", .driver_data = (kernel_ulong_t)&ad5640_1250_chip_info },
+	{ .name = "ad5660-2500", .driver_data = (kernel_ulong_t)&ad5660_2500_chip_info },
+	{ .name = "ad5660-1250", .driver_data = (kernel_ulong_t)&ad5660_1250_chip_info },
+	{ .name = "ad5662", .driver_data = (kernel_ulong_t)&ad5662_chip_info },
+	{ .name = "dac081s101", .driver_data = (kernel_ulong_t)&ad5300_chip_info }, /* compatible Texas Instruments chips */
+	{ .name = "dac101s101", .driver_data = (kernel_ulong_t)&ad5310_chip_info },
+	{ .name = "dac121s101", .driver_data = (kernel_ulong_t)&ad5320_chip_info },
+	{ .name = "dac7512", .driver_data = (kernel_ulong_t)&ad5320_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);

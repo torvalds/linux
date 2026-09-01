@@ -445,9 +445,9 @@ static const struct ltc3589_info ltc3589_12_info = {
 };
 
 static const struct i2c_device_id ltc3589_i2c_id[] = {
-	{ "ltc3589",   (kernel_ulong_t)&ltc3589_info },
-	{ "ltc3589-1", (kernel_ulong_t)&ltc3589_12_info },
-	{ "ltc3589-2", (kernel_ulong_t)&ltc3589_12_info },
+	{ .name = "ltc3589", .driver_data = (kernel_ulong_t)&ltc3589_info },
+	{ .name = "ltc3589-1", .driver_data = (kernel_ulong_t)&ltc3589_12_info },
+	{ .name = "ltc3589-2", .driver_data = (kernel_ulong_t)&ltc3589_12_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3589_i2c_id);

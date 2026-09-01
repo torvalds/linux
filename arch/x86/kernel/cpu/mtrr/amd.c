@@ -10,20 +10,23 @@ static void
 amd_get_mtrr(unsigned int reg, unsigned long *base,
 	     unsigned long *size, mtrr_type *type)
 {
-	unsigned long low, high;
+	unsigned long val;
+	struct msr msr;
 
-	rdmsr(MSR_K6_UWCCR, low, high);
+	rdmsrq(MSR_K6_UWCCR, msr.q);
 	/* Upper dword is region 1, lower is region 0 */
 	if (reg == 1)
-		low = high;
+		val = msr.h;
+	else
+		val = msr.l;
 	/* The base masks off on the right alignment */
-	*base = (low & 0xFFFE0000) >> PAGE_SHIFT;
+	*base = (val & 0xFFFE0000) >> PAGE_SHIFT;
 	*type = 0;
-	if (low & 1)
+	if (val & 1)
 		*type = MTRR_TYPE_UNCACHABLE;
-	if (low & 2)
+	if (val & 2)
 		*type = MTRR_TYPE_WRCOMB;
-	if (!(low & 3)) {
+	if (!(val & 3)) {
 		*size = 0;
 		return;
 	}
@@ -42,8 +45,8 @@ amd_get_mtrr(unsigned int reg, unsigned long *base,
 	 * +1              000 0000 0000 0100
 	 * *128K   ...
 	 */
-	low = (~low) & 0x1FFFC;
-	*size = (low + 4) << (15 - PAGE_SHIFT);
+	val = (~val) & 0x1FFFC;
+	*size = (val + 4) << (15 - PAGE_SHIFT);
 }
 
 /**
@@ -59,12 +62,16 @@ amd_get_mtrr(unsigned int reg, unsigned long *base,
 static void
 amd_set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type type)
 {
+	struct msr msr;
 	u32 regs[2];
 
 	/*
 	 * Low is MTRR0, High MTRR 1
 	 */
-	rdmsr(MSR_K6_UWCCR, regs[0], regs[1]);
+	rdmsrq(MSR_K6_UWCCR, msr.q);
+	regs[0] = msr.l;
+	regs[1] = msr.h;
+
 	/*
 	 * Blank to disable
 	 */
@@ -89,7 +96,9 @@ amd_set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type
 	 * disable local interrupts, write back the cache, set the mtrr
 	 */
 	wbinvd();
-	wrmsr(MSR_K6_UWCCR, regs[0], regs[1]);
+	msr.l = regs[0];
+	msr.h = regs[1];
+	wrmsrq(MSR_K6_UWCCR, msr.q);
 }
 
 static int

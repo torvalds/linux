@@ -302,7 +302,7 @@ static const char *format_timespec(struct __kernel_timespec *ts)
 				average_ms((double)(t)->cpu_delay_total, (t)->cpu_count)); \
 		} \
 	} while (0)
-#define PRINT_FILED_DELAY(name, version, t, count, total, max, min) \
+#define PRINT_FIELD_DELAY(name, version, t, count, total, max, min) \
 	do { \
 		if (version >= 16) { \
 			printf("%-10s%15s%15s%15s%15s%15s\n", \
@@ -324,7 +324,7 @@ static const char *format_timespec(struct __kernel_timespec *ts)
 		} \
 	} while (0)
 
-#define PRINT_FILED_DELAY_WITH_TS(name, version, t, count, total, max, min, max_ts) \
+#define PRINT_FIELD_DELAY_WITH_TS(name, version, t, count, total, max, min, max_ts) \
 	do { \
 		if (version >= 17) { \
 			printf("%-10s%15s%15s%15s%15s%15s%25s\n", \
@@ -365,71 +365,71 @@ static void print_delayacct(struct taskstats *t)
 
 	/* Use new macro with timestamp support for version >= 17 */
 	if (t->version >= 17) {
-		PRINT_FILED_DELAY_WITH_TS("IO", t->version, t,
+		PRINT_FIELD_DELAY_WITH_TS("IO", t->version, t,
 			blkio_count, blkio_delay_total,
 			blkio_delay_max, blkio_delay_min, blkio_delay_max_ts);
 
-		PRINT_FILED_DELAY_WITH_TS("SWAP", t->version, t,
+		PRINT_FIELD_DELAY_WITH_TS("SWAP", t->version, t,
 			swapin_count, swapin_delay_total,
 			swapin_delay_max, swapin_delay_min, swapin_delay_max_ts);
 
-		PRINT_FILED_DELAY_WITH_TS("RECLAIM", t->version, t,
+		PRINT_FIELD_DELAY_WITH_TS("RECLAIM", t->version, t,
 			freepages_count, freepages_delay_total,
 			freepages_delay_max, freepages_delay_min, freepages_delay_max_ts);
 
-		PRINT_FILED_DELAY_WITH_TS("THRASHING", t->version, t,
+		PRINT_FIELD_DELAY_WITH_TS("THRASHING", t->version, t,
 			thrashing_count, thrashing_delay_total,
 			thrashing_delay_max, thrashing_delay_min, thrashing_delay_max_ts);
 
 		if (t->version >= 11) {
-			PRINT_FILED_DELAY_WITH_TS("COMPACT", t->version, t,
+			PRINT_FIELD_DELAY_WITH_TS("COMPACT", t->version, t,
 				compact_count, compact_delay_total,
 				compact_delay_max, compact_delay_min, compact_delay_max_ts);
 		}
 
 		if (t->version >= 13) {
-			PRINT_FILED_DELAY_WITH_TS("WPCOPY", t->version, t,
+			PRINT_FIELD_DELAY_WITH_TS("WPCOPY", t->version, t,
 				wpcopy_count, wpcopy_delay_total,
 				wpcopy_delay_max, wpcopy_delay_min, wpcopy_delay_max_ts);
 		}
 
 		if (t->version >= 14) {
-			PRINT_FILED_DELAY_WITH_TS("IRQ", t->version, t,
+			PRINT_FIELD_DELAY_WITH_TS("IRQ", t->version, t,
 				irq_count, irq_delay_total,
 				irq_delay_max, irq_delay_min, irq_delay_max_ts);
 		}
 	} else {
 		/* Use original macro for older versions */
-		PRINT_FILED_DELAY("IO", t->version, t,
+		PRINT_FIELD_DELAY("IO", t->version, t,
 			blkio_count, blkio_delay_total,
 			blkio_delay_max, blkio_delay_min);
 
-		PRINT_FILED_DELAY("SWAP", t->version, t,
+		PRINT_FIELD_DELAY("SWAP", t->version, t,
 			swapin_count, swapin_delay_total,
 			swapin_delay_max, swapin_delay_min);
 
-		PRINT_FILED_DELAY("RECLAIM", t->version, t,
+		PRINT_FIELD_DELAY("RECLAIM", t->version, t,
 			freepages_count, freepages_delay_total,
 			freepages_delay_max, freepages_delay_min);
 
-		PRINT_FILED_DELAY("THRASHING", t->version, t,
+		PRINT_FIELD_DELAY("THRASHING", t->version, t,
 			thrashing_count, thrashing_delay_total,
 			thrashing_delay_max, thrashing_delay_min);
 
 		if (t->version >= 11) {
-			PRINT_FILED_DELAY("COMPACT", t->version, t,
+			PRINT_FIELD_DELAY("COMPACT", t->version, t,
 				compact_count, compact_delay_total,
 				compact_delay_max, compact_delay_min);
 		}
 
 		if (t->version >= 13) {
-			PRINT_FILED_DELAY("WPCOPY", t->version, t,
+			PRINT_FIELD_DELAY("WPCOPY", t->version, t,
 				wpcopy_count, wpcopy_delay_total,
 				wpcopy_delay_max, wpcopy_delay_min);
 		}
 
 		if (t->version >= 14) {
-			PRINT_FILED_DELAY("IRQ", t->version, t,
+			PRINT_FIELD_DELAY("IRQ", t->version, t,
 				irq_count, irq_delay_total,
 				irq_delay_max, irq_delay_min);
 		}

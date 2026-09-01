@@ -411,12 +411,12 @@ static int adis16260_probe(struct spi_device *spi)
  * support for the on chip filtering.
  */
 static const struct spi_device_id adis16260_id[] = {
-	{"adis16260", ADIS16260},
-	{"adis16265", ADIS16260},
-	{"adis16266", ADIS16266},
-	{"adis16250", ADIS16260},
-	{"adis16255", ADIS16260},
-	{"adis16251", ADIS16251},
+	{ .name = "adis16260", .driver_data = ADIS16260 },
+	{ .name = "adis16265", .driver_data = ADIS16260 },
+	{ .name = "adis16266", .driver_data = ADIS16266 },
+	{ .name = "adis16250", .driver_data = ADIS16260 },
+	{ .name = "adis16255", .driver_data = ADIS16260 },
+	{ .name = "adis16251", .driver_data = ADIS16251 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adis16260_id);

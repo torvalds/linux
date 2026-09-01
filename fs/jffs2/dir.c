@@ -26,7 +26,7 @@
 static int jffs2_readdir (struct file *, struct dir_context *);
 
 static int jffs2_create (struct mnt_idmap *, struct inode *,
-		         struct dentry *, umode_t, bool);
+		         struct dentry *, umode_t);
 static struct dentry *jffs2_lookup (struct inode *,struct dentry *,
 				    unsigned int);
 static int jffs2_link (struct dentry *,struct inode *,struct dentry *);
@@ -163,7 +163,7 @@ static int jffs2_readdir(struct file *file, struct dir_context *ctx)
 
 
 static int jffs2_create(struct mnt_idmap *idmap, struct inode *dir_i,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	struct jffs2_raw_inode *ri;
 	struct jffs2_inode_info *f, *dir_f;
@@ -461,8 +461,6 @@ static struct dentry *jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 	int namelen;
 	uint32_t alloclen;
 	int ret;
-
-	mode |= S_IFDIR;
 
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)

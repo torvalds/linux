@@ -274,7 +274,7 @@ struct tcp_sock {
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
-	u32	mdev_us;	/* medium deviation			*/
+	u32	mdev_us;	/* mean deviation of RTT, scaled by 4 (<< 2) in usecs */
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
 	u32	max_packets_out;  /* max packets_out in last window */
 	u32	cwnd_usage_seq;  /* right edge of cwnd usage tracking flight */

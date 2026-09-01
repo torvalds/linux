@@ -49,6 +49,8 @@ static inline unsigned int font_glyph_pitch(unsigned int width)
  * scanlines, which is usually the glyph's height in scanlines. Fonts
  * coming from user space can sometimes have a different vertical pitch
  * with empty scanlines between two adjacent glyphs.
+ *
+ * Returns: the number of bytes per glyph
  */
 static inline unsigned int font_glyph_size(unsigned int width, unsigned int vpitch)
 {
@@ -60,7 +62,7 @@ static inline unsigned int font_glyph_size(unsigned int width, unsigned int vpit
  */
 
 /**
- * font_data_t - Raw font data
+ * typedef font_data_t - Raw font data
  *
  * Values of type font_data_t store a pointer to raw font data. The format
  * is monochrome. Each bit sets a pixel of a stored glyph. Font data does
@@ -101,6 +103,9 @@ font_data_t *font_data_import(const struct console_font *font, unsigned int vpit
 void font_data_get(font_data_t *fd);
 bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);
+const unsigned char *font_data_glyph_buf(font_data_t *fd,
+					 unsigned int width, unsigned int vpitch,
+					 unsigned int c);
 bool font_data_is_equal(font_data_t *lhs, font_data_t *rhs);
 int font_data_export(font_data_t *fd, struct console_font *font, unsigned int vpitch);
 

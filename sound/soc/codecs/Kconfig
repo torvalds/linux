@@ -238,6 +238,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT721_SDCA_SDW
 	imply SND_SOC_RT722_SDCA_SDW
+	imply SND_SOC_RT766_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_RT1318
@@ -367,6 +368,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WSA881X
 	imply SND_SOC_WSA883X
 	imply SND_SOC_WSA884X
+	imply SND_SOC_WSA885X
 	imply SND_SOC_ZL38060
 	help
 	  Normally ASoC codec drivers are only built if a machine driver which
@@ -615,8 +617,8 @@ config SND_SOC_AK4613
 	depends on I2C
 
 config SND_SOC_AK4619
-        tristate "AKM AK4619 CODEC"
-        depends on I2C
+	tristate "AKM AK4619 CODEC"
+	depends on I2C
 
 config SND_SOC_AK4642
 	tristate "AKM AK4642 CODEC"
@@ -726,6 +728,10 @@ config SND_SOC_AW87390
 	  sound quality, which is a new high efficiency, low
 	  noise, constant large volume, 6th Smart K audio amplifier.
 
+config SND_SOC_AW88399_LIB
+	tristate
+	select SND_SOC_AW88395_LIB
+
 config SND_SOC_AW88399
 	tristate "Soc Audio for awinic aw88399"
 	depends on I2C
@@ -733,6 +739,7 @@ config SND_SOC_AW88399
 	select REGMAP_I2C
 	select GPIOLIB
 	select SND_SOC_AW88395_LIB
+	select SND_SOC_AW88399_LIB
 	help
 	  This option enables support for aw88399 Smart PA.
 	  The awinic AW88399 is an I2S/TDM input, high efficiency
@@ -889,6 +896,7 @@ config SND_SOC_CS35L56_SDW
 	tristate "Cirrus Logic CS35L56 CODEC (SDW)"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
+	select IRQ_DOMAIN
 	select SND_SOC_CS35L56
 	select SND_SOC_CS35L56_SHARED
 	help
@@ -1201,16 +1209,16 @@ config SND_SOC_JZ4725B_CODEC
 	  will be called snd-soc-jz4725b-codec.
 
 config SND_SOC_JZ4760_CODEC
-        depends on MACH_INGENIC || COMPILE_TEST
-        depends on OF
-        select REGMAP
-        tristate "Ingenic JZ4760 internal CODEC"
-        help
-          Enable support for the internal CODEC found in the JZ4760 SoC
-          from Ingenic.
+	depends on MACH_INGENIC || COMPILE_TEST
+	depends on OF
+	select REGMAP
+	tristate "Ingenic JZ4760 internal CODEC"
+	help
+	  Enable support for the internal CODEC found in the JZ4760 SoC
+	  from Ingenic.
 
-          This driver can also be built as a module. If so, the module
-          will be called snd-soc-jz4760-codec.
+	  This driver can also be built as a module. If so, the module
+	  will be called snd-soc-jz4760-codec.
 
 config SND_SOC_JZ4770_CODEC
 	depends on MACH_INGENIC || COMPILE_TEST
@@ -1888,7 +1896,7 @@ config SND_SOC_RT5670
 	depends on I2C
 
 config SND_SOC_RT5677
-	tristate
+	tristate "Realtek RT5677 Codec"
 	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -1975,6 +1983,15 @@ config SND_SOC_RT715_SDW
 config SND_SOC_RT715_SDCA_SDW
 	tristate "Realtek RT715 SDCA Codec - SDW"
 	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+
+config SND_SOC_RT766_SDCA_SDW
+	tristate "Realtek RT766 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA
+	select SND_SOC_SDCA_HID
+	select SND_SOC_SDCA_IRQ
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
 
@@ -2297,8 +2314,8 @@ config SND_SOC_TLV320ADC3XXX
 	depends on I2C
 	depends on GPIOLIB
 	help
-	 Enable support for Texas Instruments TLV320ADC3001 and TLV320ADC3101
-	 ADCs.
+	  Enable support for Texas Instruments TLV320ADC3001 and TLV320ADC3101
+	  ADCs.
 
 config SND_SOC_TLV320AIC23
 	tristate
@@ -2771,6 +2788,16 @@ config SND_SOC_WSA884X
 	  This enables support for Qualcomm WSA8840/WSA8845/WSA8845H Class-D
 	  Smart Speaker Amplifier.
 
+config SND_SOC_WSA885X
+	tristate "WSA885X Codec"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This enables support for Qualcomm WSA885X Stereo Smart Speaker
+	  Amplifier. The codec driver programs the amplifier register
+	  map and exposes the DAI and mixer controls used by Qualcomm
+	  audio machine drivers.
+
 config SND_SOC_ZL38060
 	tristate "Microsemi ZL38060 Connected Home Audio Processor"
 	depends on SPI_MASTER
@@ -2894,28 +2921,32 @@ config SND_SOC_TPA6130A2
 	depends on I2C
 
 config SND_SOC_LPASS_MACRO_COMMON
-        tristate
+	tristate
 
 config SND_SOC_LPASS_WSA_MACRO
 	depends on COMMON_CLK
+	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_VA_MACRO
 	depends on COMMON_CLK
+	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm VA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_RX_MACRO
 	depends on COMMON_CLK
+	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm RX Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_TX_MACRO
 	depends on COMMON_CLK
+	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"

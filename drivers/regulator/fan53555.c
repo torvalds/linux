@@ -21,6 +21,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
+#include <dt-bindings/regulator/fcs,fan53555-regulator.h>
 
 /* Voltage setting */
 #define FAN53555_VSEL0		0x00
@@ -113,6 +114,7 @@ enum {
 enum {
 	FAN53555_CHIP_REV_00 = 0x3,
 	FAN53555_CHIP_REV_13 = 0xf,
+	FAN53555_CHIP_REV_23 = 0xc,
 };
 
 enum {
@@ -305,6 +307,11 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 			di->vsel_step = 10000;
 			di->enable_time = 400;
 			break;
+		case FAN53555_CHIP_REV_23:
+			di->vsel_min = 600000;
+			di->vsel_step = 12500;
+			di->enable_time = 400;
+			break;
 		default:
 			dev_err(di->dev,
 				"Chip ID %d with rev %d not supported!\n",
@@ -387,6 +394,18 @@ static int rk8602_voltages_setup_rockchip(struct fan53555_device_info *di)
 	di->vsel_count = RK8602_NVOLTAGES;
 
 	return 0;
+}
+
+static inline unsigned int fan53555_map_mode(unsigned int mode)
+{
+	switch (mode) {
+	case FAN53555_REGULATOR_MODE_FORCE_PWM:
+		return REGULATOR_MODE_FAST;
+	case FAN53555_REGULATOR_MODE_AUTO:
+		return REGULATOR_MODE_NORMAL;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
 }
 
 static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
@@ -586,6 +605,17 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 	return ret;
 }
 
+static void fan53555_device_mode_map_setup(struct fan53555_device_info *di)
+{
+	switch (di->vendor) {
+	case FAN53555_VENDOR_SILERGY:
+		di->desc.of_map_mode = fan53555_map_mode;
+		break;
+	default:
+		break;
+	}
+}
+
 static int fan53555_regulator_register(struct fan53555_device_info *di,
 			struct regulator_config *config)
 {
@@ -686,6 +716,10 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	if (!di)
 		return -ENOMEM;
 
+	di->vendor = (uintptr_t)i2c_get_match_data(client);
+
+	fan53555_device_mode_map_setup(di);
+
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
 		pdata = fan53555_parse_dt(&client->dev, np, &di->desc);
@@ -695,7 +729,6 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 				     "Platform data not found!\n");
 
 	di->regulator = pdata->regulator;
-	di->vendor = (uintptr_t)i2c_get_match_data(client);
 	if (!dev_fwnode(&client->dev)) {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {

@@ -93,7 +93,7 @@ static int mux_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	function = pinmux_generic_get_function(pctldev, func_selector);
 	func = function->data;
 
-	ret = mux_state_select(func->mux_state);
+	ret = mux_state_try_select(func->mux_state);
 	if (ret)
 		return ret;
 

@@ -96,8 +96,8 @@ struct aa_perms {
 #define AA_INDEX_NONE			0
 
 #define ALL_PERMS_MASK 0xffffffff
-extern struct aa_perms nullperms;
-extern struct aa_perms allperms;
+extern const struct aa_perms nullperms;
+extern const struct aa_perms allperms;
 
 /**
  * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms
@@ -105,7 +105,7 @@ extern struct aa_perms allperms;
  * @addend: perms struct to add to @accum
  */
 static inline void aa_perms_accum_raw(struct aa_perms *accum,
-				      struct aa_perms *addend)
+				      const struct aa_perms *addend)
 {
 	accum->deny |= addend->deny;
 	accum->allow &= addend->allow & ~addend->deny;
@@ -132,7 +132,7 @@ static inline void aa_perms_accum_raw(struct aa_perms *accum,
  * @addend: perms struct to add to @accum
  */
 static inline void aa_perms_accum(struct aa_perms *accum,
-				  struct aa_perms *addend)
+				  const struct aa_perms *addend)
 {
 	accum->deny |= addend->deny;
 	accum->allow &= addend->allow & ~accum->deny;
@@ -206,14 +206,15 @@ void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
 			 u32 mask);
 void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 			u32 chrsmask, const char * const *names, u32 namesmask);
-void aa_apply_modes_to_perms(struct aa_profile *profile,
+void aa_apply_modes_to_perms(const struct aa_profile *profile,
 			     struct aa_perms *perms);
-void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend);
-void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend);
-void aa_profile_match_label(struct aa_profile *profile,
+void aa_perms_accum(struct aa_perms *accum, const struct aa_perms *addend);
+void aa_perms_accum_raw(struct aa_perms *accum, const struct aa_perms *addend);
+void aa_profile_match_label(const struct aa_profile *profile,
 			    struct aa_ruleset *rules, struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms);
-int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
+int aa_check_perms(struct aa_profile *profile, const struct aa_perms *perms,
 		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *));
 #endif /* __AA_PERM_H */
+

@@ -2316,6 +2316,9 @@ quirk_flags
     applies the ``mixer_playback_min_mute`` flag and clears the
     ``ignore_ctl_error`` flag for the device 1234:abcd, and applies the
     ``skip_sample_rate`` flag for all devices.
+    New quirk flags may replace old ones by reusing the latter's bits, so the
+    new usage is preferred. Despite that, depending on the order of probing is
+    fragile, so it'd better migrate to the new usage anyway.
 
         * bit 0: ``get_sample_rate``
           Skip reading sample rate for devices
@@ -2389,18 +2392,21 @@ quirk_flags
           from snd_usb_handle_sync_urb. Instead fall through and enqueue a
           packet_info containing only size-0 packets, so the OUT ring keeps
           moving (emits silence). Needed by Behringer Flow 8 (1397:050c).
-        * bit 30: ``mixer_get_cur_broken``
-          Some mixers are sticky, which means that setting their current volume
-          is a no-op, and reading the current volume returns a constant value.
-          The sticky check disables these mixers to prevent confusing userspace.
-          However, some devices do have a tunable volume despite the reported
-          current volume being constant. As the sticky check can't distinguish
-          between the two categories, setting this flag tells that the device
-          should fall into the second category when GET_CUR returns a constant
-          value, resulting in the sticky check being non-fatal and only
-          disabling GET_CUR instead of the whole mixer. The current volume will
-          then be provided by the internal cache that stores the last set
-          volume
+        * bit 30: ``mixer_get_cur_ok``
+          On some devices, whether their GET_CUR being sticky depends on whether
+          hotpluggable components are present. When the hotpluggable components
+          are missing on probe, their GET_CUR behavior is classified as broken.
+          Set the flag to prevent the heuristics from gating GET_CUR.
+        * bit 31: ``playback_urb_fixup``
+          Some devices show the stuttering at playback, and this quirk
+          works around it by enforcing the fixed max URBs (12) instead of
+          the dynamic calculation from the buffer size, and passing the
+          `URB_ISO_ASAP` URB flag.
+        * bit 32: ``always_set_rate``
+          Issue SET_CUR for the sample rate even when the clock already reports
+          the requested rate.  A device advertising a single rate is otherwise
+          never sent the request at all, and some require it before streaming
+          will start.
 
 This module supports multiple devices, autoprobe and hotplugging.
 

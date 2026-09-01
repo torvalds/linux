@@ -86,3 +86,18 @@ config RENESAS_I3C
 
 	  This driver can also be built as a module. If so, the module will be
 	  called renesas-i3c.
+
+config AMD_AXI_I3C_MASTER
+	tristate "AMD AXI I3C Master driver"
+	depends on HAS_IOMEM
+	help
+	  Support for the AMD AXI I3C master controller, a soft IP used on
+	  AMD (Xilinx) FPGAs and adaptive SoCs with ARM or MicroBlaze
+	  processors.
+
+	  The controller currently supports Standard Data Rate (SDR) mode.
+	  Features include Dynamic Address Assignment, private transfers,
+	  and CCC transfers in both broadcast and direct modes.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called amd-i3c-master.

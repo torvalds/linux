@@ -526,7 +526,7 @@ static const struct of_device_id hi8435_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, hi8435_dt_ids);
 
 static const struct spi_device_id hi8435_id[] = {
-	{ "hi8435", 0 },
+	{ .name = "hi8435" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, hi8435_id);

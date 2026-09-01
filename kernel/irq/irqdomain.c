@@ -1658,7 +1658,7 @@ static int irq_domain_alloc_irqs_locked(struct irq_domain *domain, int irq_base,
 	for (i = 0; i < nr_irqs; i++) {
 		ret = irq_domain_trim_hierarchy(virq + i);
 		if (ret)
-			goto out_free_irq_data;
+			goto out_free_irqs;
 	}
 
 	for (i = 0; i < nr_irqs; i++)
@@ -1666,6 +1666,8 @@ static int irq_domain_alloc_irqs_locked(struct irq_domain *domain, int irq_base,
 
 	return virq;
 
+out_free_irqs:
+	irq_domain_free_irqs_hierarchy(domain, virq, nr_irqs);
 out_free_irq_data:
 	irq_domain_free_irq_data(virq, nr_irqs);
 out_free_desc:
@@ -1963,7 +1965,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_irqs_parent);
 
 static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 {
-	if (irq_data && irq_data->domain) {
+	if (irq_data->domain) {
 		struct irq_domain *domain = irq_data->domain;
 
 		if (domain->ops->deactivate)
@@ -1977,7 +1979,7 @@ static int __irq_domain_activate_irq(struct irq_data *irqd, bool reserve)
 {
 	int ret = 0;
 
-	if (irqd && irqd->domain) {
+	if (irqd->domain) {
 		struct irq_domain *domain = irqd->domain;
 
 		if (irqd->parent_data)

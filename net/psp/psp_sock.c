@@ -96,7 +96,7 @@ static void psp_assoc_free(struct work_struct *work)
 	struct psp_dev *psd = pas->psd;
 
 	mutex_lock(&psd->lock);
-	if (psd->ops)
+	if (psp_dev_is_registered(psd))
 		psp_dev_tx_key_del(psd, pas);
 	mutex_unlock(&psd->lock);
 	psp_dev_put(psd);

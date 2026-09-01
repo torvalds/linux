@@ -43,7 +43,7 @@ static struct pci_driver loongson_spi_pci_driver = {
 	.probe      = loongson_spi_pci_register,
 	.driver	= {
 		.bus = &pci_bus_type,
-		.pm = &loongson_spi_dev_pm_ops,
+		.pm = pm_sleep_ptr(&loongson_spi_dev_pm_ops),
 	},
 };
 module_pci_driver(loongson_spi_pci_driver);

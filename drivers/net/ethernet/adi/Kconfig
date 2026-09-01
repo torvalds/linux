@@ -26,4 +26,16 @@ config ADIN1110
 	  Say yes here to build support for Analog Devices ADIN1110
 	  Low Power 10BASE-T1L Ethernet MAC-PHY.
 
+config ADIN1140
+	tristate "Analog Devices ADIN1140 MAC-PHY"
+	depends on SPI
+	select ADIN1140_PHY
+	select OA_TC6
+	help
+	  Say yes here to build support for Analog Devices, Inc. ADIN1140
+	  10BASE-T1S Ethernet MAC-PHY.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called adin1140.
+
 endif # NET_VENDOR_ADI

@@ -5,6 +5,7 @@ menu "USB Type-C Alternate Mode drivers"
 config TYPEC_DP_ALTMODE
 	tristate "DisplayPort Alternate Mode driver"
 	depends on DRM
+	select DRM_AUX_HPD_BRIDGE if DRM_BRIDGE && OF
 	help
 	  DisplayPort USB Type-C Alternate Mode allows DisplayPort
 	  displays and adapters to be attached to the USB Type-C

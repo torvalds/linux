@@ -15,7 +15,7 @@ static void __rdmsr_on_cpu(void *info)
 	else
 		reg = &rv->reg;
 
-	rdmsr(rv->msr_no, reg->l, reg->h);
+	rdmsrq(rv->msr_no, reg->q);
 }
 
 static void __wrmsr_on_cpu(void *info)
@@ -28,7 +28,7 @@ static void __wrmsr_on_cpu(void *info)
 	else
 		reg = &rv->reg;
 
-	wrmsr(rv->msr_no, reg->l, reg->h);
+	wrmsrq(rv->msr_no, reg->q);
 }
 
 int rdmsrq_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
@@ -121,7 +121,7 @@ static void __rdmsr_safe_on_cpu(void *info)
 {
 	struct msr_info_completion *rv = info;
 
-	rv->msr.err = rdmsr_safe(rv->msr.msr_no, &rv->msr.reg.l, &rv->msr.reg.h);
+	rv->msr.err = rdmsrq_safe(rv->msr.msr_no, &rv->msr.reg.q);
 	complete(&rv->done);
 }
 
@@ -129,7 +129,7 @@ static void __wrmsr_safe_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	rv->err = wrmsr_safe(rv->msr_no, rv->reg.l, rv->reg.h);
+	rv->err = wrmsrq_safe(rv->msr_no, rv->reg.q);
 }
 
 int wrmsrq_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)

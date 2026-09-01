@@ -794,6 +794,7 @@ DEBUGFS_READONLY_FILE(tx_janitor_last_run, 64, "last run:%d ms ago",
 DEBUGFS_READONLY_FILE(tx_dropped, 20, "%d", ar->tx_dropped);
 
 DEBUGFS_READONLY_FILE(rx_dropped, 20, "%d", ar->rx_dropped);
+DEBUGFS_READONLY_FILE(rx_phy_errors, 20, "%d", ar->rx_phy_errors);
 
 DEBUGFS_READONLY_FILE(sniffer_enabled, 20, "%d", ar->sniffer_enabled);
 DEBUGFS_READONLY_FILE(rx_software_decryption, 20, "%d",
@@ -830,6 +831,7 @@ void carl9170_debugfs_register(struct ar9170 *ar)
 	DEBUGFS_ADD(tx_ampdu_list_len);
 
 	DEBUGFS_ADD(rx_dropped);
+	DEBUGFS_ADD(rx_phy_errors);
 	DEBUGFS_ADD(sniffer_enabled);
 	DEBUGFS_ADD(rx_software_decryption);
 

@@ -236,11 +236,7 @@ void xen_pin_vcpu(int cpu);
 
 void xen_emergency_restart(void);
 
-#ifdef CONFIG_XEN_PVHVM
 void xen_hvm_post_suspend(int suspend_cancelled);
-#else
-static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
-#endif
 
 /*
  * The maximum amount of extra memory compared to the base size.  The

@@ -15,12 +15,14 @@ menuconfig ARCH_AT91
 
 if ARCH_AT91
 config SOC_SAMV7
-	bool "SAM Cortex-M7 family" if ARM_SINGLE_ARMV7M
+	bool "SAM Cortex-M7 family (DEPRECATED)" if ARM_SINGLE_ARMV7M
 	select COMMON_CLK_AT91
 	select PINCTRL_AT91
 	help
 	  Select this if you are using an SoC from Microchip's SAME7, SAMS7 or SAMV7
 	  families.
+
+	  This platform is scheduled for removal in early 2027
 
 config SOC_SAMA5D2
 	bool "SAMA5D2 family"

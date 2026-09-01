@@ -642,9 +642,7 @@ static void snd_mtpav_free(struct snd_card *card)
 {
 	struct mtpav *crd = card->private_data;
 
-	guard(spinlock_irqsave)(&crd->spinlock);
-	if (crd->istimer > 0)
-		snd_mtpav_remove_output_timer(crd);
+	timer_shutdown_sync(&crd->timer);
 }
 
 /*

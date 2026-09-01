@@ -272,7 +272,7 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 	adev->umsch_mm.engine_mask = (1 << UMSCH_SWIP_ENGINE_TYPE_VPE);
 	adev->umsch_mm.vpe_hqd_mask = 0xfe;
 
-	r = amdgpu_device_wb_get(adev, &adev->umsch_mm.wb_index);
+	r = amdgpu_wb_get(adev, &adev->umsch_mm.wb_index);
 	if (r) {
 		dev_err(adev->dev, "failed to alloc wb for umsch: %d\n", r);
 		return r;
@@ -288,7 +288,7 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 				    (void **)&adev->umsch_mm.cmd_buf_ptr);
 	if (r) {
 		dev_err(adev->dev, "failed to allocate cmdbuf bo %d\n", r);
-		amdgpu_device_wb_free(adev, adev->umsch_mm.wb_index);
+		amdgpu_wb_free(adev, adev->umsch_mm.wb_index);
 		return r;
 	}
 
@@ -380,7 +380,7 @@ static int umsch_mm_sw_fini(struct amdgpu_ip_block *ip_block)
 				    &adev->umsch_mm.log_gpu_addr,
 				    (void **)&adev->umsch_mm.log_cpu_addr);
 
-	amdgpu_device_wb_free(adev, adev->umsch_mm.wb_index);
+	amdgpu_wb_free(adev, adev->umsch_mm.wb_index);
 
 	return 0;
 }

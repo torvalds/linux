@@ -17,17 +17,18 @@
  *
  *****************************************************************************/
 
+#include <errno.h>
+#include <libgen.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <linux/futex.h>
 #include <sys/mman.h>
 #include <syscall.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <linux/futex.h>
-#include <libgen.h>
 
 #include "futextest.h"
 #include "kselftest_harness.h"
@@ -40,6 +41,7 @@ void *buf;
 
 void *wait_thread(void *arg)
 {
+	struct __test_metadata *_metadata = (struct __test_metadata *)arg;
 	int res;
 
 	child_ret = true;
@@ -47,7 +49,8 @@ void *wait_thread(void *arg)
 	child_blocked = 0;
 
 	if (res != 0 && errno != EWOULDBLOCK) {
-		ksft_exit_fail_msg("futex failure\n");
+		EXPECT_EQ(res, 0)
+			TH_LOG("futex failure: %s", strerror(errno));
 		child_ret = false;
 	}
 	pthread_exit(NULL);
@@ -63,21 +66,23 @@ TEST(futex_wait_uninitialized_heap)
 
 	buf = mmap(NULL, page_size, PROT_READ|PROT_WRITE,
 		   MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	if (buf == (void *)-1)
-		ksft_exit_fail_msg("mmap\n");
+	ASSERT_NE(buf, MAP_FAILED)
+		TH_LOG("mmap failed: %s", strerror(errno));
 
-	ret = pthread_create(&thr, NULL, wait_thread, NULL);
-	if (ret)
-		ksft_exit_fail_msg("pthread_create\n");
+	ret = pthread_create(&thr, NULL, wait_thread, _metadata);
+	ASSERT_EQ(ret, 0)
+		TH_LOG("pthread_create failed");
 
-	ksft_print_dbg_msg("waiting %dus for child to return\n", WAIT_US);
+	TH_LOG("waiting %dus for child to return", WAIT_US);
 	usleep(WAIT_US);
 
-	if (child_blocked)
-		ksft_test_result_fail("child blocked in kernel\n");
+	EXPECT_EQ(child_blocked, 0)
+		TH_LOG("child blocked in kernel");
+	EXPECT_TRUE(child_ret)
+		TH_LOG("child error");
 
-	if (!child_ret)
-		ksft_test_result_fail("child error\n");
+	pthread_join(thr, NULL);
+	munmap(buf, page_size);
 }
 
 TEST_HARNESS_MAIN

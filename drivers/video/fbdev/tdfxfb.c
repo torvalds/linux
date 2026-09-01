@@ -67,10 +67,12 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -336,6 +338,144 @@ static u32 do_calc_pll(int freq, int *freq_out)
 	return (n << 8) | (m << 2) | k;
 }
 
+/*
+ * Convert a pllctrl register value back to a frequency in kHz.
+ * Formula from 3dfx documentation.
+ */
+static u32 tdfx_pll_to_khz(u32 pll)
+{
+	return (14318 * (((pll >> 8) & 0xff) + 2) /
+		(((pll >> 2) & 0x3f) + 2)) >> (pll & 3);
+}
+
+/* Layout of the "OEM config" table in voodoo 3 BIOS */
+struct tdfx_bios_cfg {
+	__le32 pciinit0;	/* 0x00 */
+	__le32 miscinit0;	/* 0x04 */
+	__le32 miscinit1;	/* 0x08 */
+	__le32 draminit0;	/* 0x0c */
+	__le32 draminit1;	/* 0x10 */
+	__le32 agpinit0;	/* 0x14 */
+	__le32 pllctrl1;	/* 0x18 - memory PLL */
+	__le32 pllctrl2;	/* 0x1c - graphics PLL */
+	__le32 sgrammode;	/* 0x20 - SGRAM/SDRAM mode register data */
+} __packed;
+
+#define TDFX_ROM_CFG_PTR	0x50
+
+static bool tdfxfb_get_bios_cfg(struct pci_dev *pdev,
+				struct tdfx_bios_cfg *cfg)
+{
+	u16 romcfg, oemcfg;
+	void __iomem *rom;
+	size_t romsize;
+	u8 *image;
+	u32 khz;
+
+	/* This only works for the Voodoo 3 for now */
+	if (pdev->device != PCI_DEVICE_ID_3DFX_VOODOO3)
+		return false;
+
+	rom = pci_map_rom(pdev, &romsize);
+	if (!rom || !romsize)
+		return false;
+
+	image = vmalloc(romsize);
+	if (!image) {
+		pci_unmap_rom(pdev, rom);
+		return false;
+	}
+	memcpy_fromio(image, rom, romsize);
+	pci_unmap_rom(pdev, rom);
+
+	/* ROM[0x50] -> ROM config table -> OEM config table */
+	if (TDFX_ROM_CFG_PTR + 2 > romsize)
+		goto out;
+	romcfg = image[TDFX_ROM_CFG_PTR] | image[TDFX_ROM_CFG_PTR + 1] << 8;
+	if (romcfg == 0xffff || romcfg + 2 > romsize)
+		goto out;
+	oemcfg = image[romcfg] | image[romcfg + 1] << 8;
+	if (oemcfg == 0xffff || oemcfg + sizeof(*cfg) > romsize)
+		goto out;
+	memcpy(cfg, image + oemcfg, sizeof(*cfg));
+	vfree(image);
+
+	/*
+	 * Make sure we didn't read garbage from the BIOS and will
+	 * end up setting a frequency that explodes someone's expensive
+	 * card.
+	 */
+	khz = tdfx_pll_to_khz(le32_to_cpu(cfg->pllctrl1));
+	if (khz < 40000 || khz > 250000 || !le32_to_cpu(cfg->draminit0))
+		return false;
+	return true;
+
+out:
+	vfree(image);
+	return false;
+}
+
+/*
+ * Try to work out if the card was booted or not, just checks if
+ * one of the dram config registers matches what is in the config
+ * table if there is one.
+ *
+ * If we have a BIOS config table attempt to manually boot the
+ * card if needed.
+ */
+static int tdfxfb_hw_init(struct fb_info *info, struct pci_dev *pdev)
+{
+	u32 mempll, gfxpll, draminit0, draminit1, miscinit1, dram_mode;
+	struct tdfx_par *par = info->par;
+	struct tdfx_bios_cfg cfg;
+	bool have_cfg = tdfxfb_get_bios_cfg(pdev, &cfg);
+
+	/*
+	 * Can't tell if the card is booted or not,
+	 * also cannot boot it. Card might not function.
+	 */
+	if (!have_cfg)
+		return 0;
+
+	/* Card is, probably, already configured. */
+	if (tdfx_inl(par, DRAMINIT0) == le32_to_cpu(cfg.draminit0))
+		return 0;
+
+	dev_info(&pdev->dev,
+		 "Manually booting card using config table\n");
+
+	mempll = le32_to_cpu(cfg.pllctrl1);
+	gfxpll = le32_to_cpu(cfg.pllctrl2);
+	draminit0 = le32_to_cpu(cfg.draminit0);
+	draminit1 = le32_to_cpu(cfg.draminit1);
+	miscinit1 = le32_to_cpu(cfg.miscinit1);
+	dram_mode = le32_to_cpu(cfg.sgrammode);
+	tdfx_outl(par, PCIINIT0, le32_to_cpu(cfg.pciinit0));
+	tdfx_outl(par, AGPINIT, le32_to_cpu(cfg.agpinit0));
+
+	/* memory clock, and the graphics clock if the card wants one */
+	tdfx_outl(par, PLLCTRL1, mempll);
+	if (gfxpll)
+		tdfx_outl(par, PLLCTRL2, gfxpll);
+	/* flush posted writes */
+	tdfx_inl(par, PLLCTRL1);
+	/* PLL lock */
+	udelay(100);
+
+	tdfx_outl(par, MISCINIT1, miscinit1);
+	tdfx_outl(par, DRAMINIT0, draminit0);
+	tdfx_outl(par, DRAMINIT1, draminit1);
+
+	/* SDRAM/SGRAM wake up: load the mode register */
+	tdfx_outl(par, DRAMDATA, dram_mode);
+	tdfx_outl(par, DRAMCOMMAND, 0x10d);
+
+	tdfx_outl(par, LFBMEMORYCONFIG, 0x00001fff);
+	tdfx_outl(par, MISCINIT0, le32_to_cpu(cfg.miscinit0));
+
+	return 0;
+}
+
 static void do_write_regs(struct fb_info *info, struct banshee_reg *reg)
 {
 	struct tdfx_par *par = info->par;
@@ -344,6 +484,10 @@ static void do_write_regs(struct fb_info *info, struct banshee_reg *reg)
 	banshee_wait_idle(info);
 
 	tdfx_outl(par, MISCINIT1, tdfx_inl(par, MISCINIT1) | 0x01);
+
+	/* Wake the VGA core if it hasn't already been woken up */
+	tdfx_outl(par, VGAINIT0, reg->vgainit0);
+	vga_outb(par, 0x3c3, 0x01);
 
 	crt_outb(par, 0x11, crt_inb(par, 0x11) & 0x7f); /* CRT unprotect */
 
@@ -1385,7 +1529,7 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err) {
 		printk(KERN_ERR "tdfxfb: Can't enable pdev: %d\n", err);
 		return err;
@@ -1430,6 +1574,9 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				info->fix.id);
 		goto out_err_regbase;
 	}
+
+	if (tdfxfb_hw_init(info, pdev))
+		goto out_err_regbase;
 
 	info->fix.smem_start = pci_resource_start(pdev, 1);
 	info->fix.smem_len = do_lfb_size(default_par, pdev->device);
@@ -1538,6 +1685,14 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_ERR "tdfxfb: Can't allocate color map\n");
 		goto out_err_iobase;
 	}
+
+	/*
+	 * Program a video mode and clear the framebuffer now, this
+	 * ensures the display comes up even if fbcon doesn't bind
+	 * when the framebuffer is registered.
+	 */
+	tdfxfb_set_par(info);
+	memset_io(info->screen_base, 0, info->fix.smem_len);
 
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "tdfxfb: can't register framebuffer\n");

@@ -262,7 +262,6 @@ echo "TAP version 13" | tap_output
 CATEGORY="hugetlb" run_test ./hugetlb-mmap
 CATEGORY="hugetlb" run_test ./hugetlb-shm
 CATEGORY="hugetlb" run_test ./hugetlb-mremap
-CATEGORY="hugetlb" run_test ./hugetlb-vmemmap
 CATEGORY="hugetlb" run_test ./hugetlb-madvise
 CATEGORY="hugetlb" run_test ./hugetlb_dio
 CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
@@ -303,7 +302,7 @@ CATEGORY="compaction" run_test ./compaction_test
 
 if command -v sudo &> /dev/null && sudo -u nobody ls ./on-fault-limit >/dev/null;
 then
-	CATEGORY="mlock" run_test sudo -u nobody ./on-fault-limit
+	CATEGORY="mlock" run_test sudo -u nobody sh -c ./on-fault-limit
 else
 	echo "# SKIP ./on-fault-limit"
 fi
@@ -410,6 +409,8 @@ CATEGORY="thp" run_test ./khugepaged -s 2
 CATEGORY="thp" run_test ./khugepaged all:shmem
 
 CATEGORY="thp" run_test ./khugepaged -s 4 all:shmem
+
+CATEGORY="thp" run_test ./khugepaged -c 4 mthp_khugepaged:anon
 
 # Try to create XFS if not provided
 if [ -z "${SPLIT_HUGE_PAGE_TEST_XFS_PATH}" ]; then

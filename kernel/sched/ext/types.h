@@ -19,6 +19,18 @@ enum scx_consts {
 	SCX_DSP_MAX_LOOPS		= 32,
 	SCX_WATCHDOG_MAX_TIMEOUT	= 30 * HZ,
 
+	/* rescue knob defaults and limits, see scx_rescue_timerfn() */
+	SCX_RESCUE_DFL_BW_PPT		= 20,		/* parts per thousand, 2% */
+	SCX_RESCUE_MAX_BW_PPT		= 250,		/* 25% */
+	SCX_RESCUE_DISABLE		= U32_MAX,	/* disables rescue */
+	SCX_RESCUE_DFL_QUANTUM_US	= 5000,
+	SCX_RESCUE_MIN_QUANTUM_US	= 1000,
+	SCX_RESCUE_MAX_QUANTUM_US	= 100000,
+	SCX_RESCUE_MIN_SLICE_US		= 1000,		/* floor of the divided slice */
+	SCX_RESCUE_OVERLOAD_MULT	= 16,		/* overload threshold in funding periods */
+	SCX_RESCUE_MIN_OVERLOAD_MS	= 1000,
+	SCX_RESCUE_MAX_OVERLOAD_MS	= 15000,
+
 	/* per-CPU chunk size for p->scx.tid allocation, see scx_alloc_tid() */
 	SCX_TID_CHUNK			= 1024,
 
@@ -41,17 +53,22 @@ enum scx_consts {
 	SCX_BYPASS_LB_MIN_DELTA_DIV	= 4,
 	SCX_BYPASS_LB_BATCH		= 256,
 
-	SCX_REENQ_LOCAL_MAX_REPEAT	= 256,
+	SCX_REENQ_MAX_REPEAT		= 256,
 
 	SCX_SUB_MAX_DEPTH		= 4,
 };
 
 /*
- * Per-cid topology info. For each topology level (core, LLC, node), records
- * the first cid in the unit and its global index. Global indices are
- * consecutive integers assigned in cid-walk order, so e.g. core_idx ranges
- * over [0, nr_cores_at_init) with no gaps. No-topo cids have all fields set
- * to -1.
+ * Per-cid topology info. For each topology level (core, LLC, node) and shard,
+ * records the first cid in the unit and its global index. Global indices are
+ * consecutive integers assigned in cid-walk order, so e.g. core_idx ranges over
+ * [0, nr_cores_at_init) with no gaps. No-topo cids have core/LLC/node fields
+ * set to -1 but always have valid shard assignments.
+ *
+ * Shards are contiguous CID ranges used as scalable locking/work domains for
+ * sub-scheduler operations. By default each LLC becomes one shard, split into
+ * smaller shards if the LLC exceeds the target size. No-topo cids are packed
+ * into their own max-sized shards.
  *
  * @core_cid: first cid of this cid's core (smt-sibling group)
  * @core_idx: global index of that core, in [0, nr_cores_at_init)
@@ -59,6 +76,8 @@ enum scx_consts {
  * @llc_idx: global index of that LLC, in [0, nr_llcs_at_init)
  * @node_cid: first cid of this cid's NUMA node
  * @node_idx: global index of that node, in [0, nr_nodes_at_init)
+ * @shard_cid: first cid of this cid's shard
+ * @shard_idx: global index of that shard, in [0, scx_nr_cid_shards)
  */
 struct scx_cid_topo {
 	s32 core_cid;
@@ -67,6 +86,24 @@ struct scx_cid_topo {
 	s32 llc_idx;
 	s32 node_cid;
 	s32 node_idx;
+	s32 shard_cid;
+	s32 shard_idx;
+};
+
+enum scx_cid_consts {
+	SCX_CID_SHARD_SIZE_DFL		= 24,
+	SCX_CID_SHARD_MAX_CPUS		= 512,
+};
+
+/*
+ * Per-shard metadata for O(1) shard->cid-range lookup.
+ *
+ * @base_cid: first cid of the shard
+ * @nr_cids: number of cids in the shard
+ */
+struct scx_cid_shard {
+	s32			base_cid;
+	s32			nr_cids;
 };
 
 /*
@@ -91,7 +128,7 @@ struct scx_cmask {
 	u32 base;
 	u32 nr_cids;
 	u32 alloc_words;
-	u64 bits[] __counted_by(alloc_words);
+	u64 bits[];
 };
 
 /*
@@ -146,5 +183,42 @@ struct scx_cmask {
  */
 #define SCX_CMASK_DEFINE_SHARD(NAME, BASE, NR_CIDS)				\
 	__SCX_CMASK_DEFINE(NAME, BASE, NR_CIDS, SCX_CID_SHARD_MAX_CPUS)
+
+/*
+ * scx_cmask_ref: validated reference to a BPF-arena cmask.
+ *
+ * scx_cmask_ref_init() snapshots @base/@nr_cids. The snapshot is what
+ * downstream code uses for sizing - the live header can be mutated concurrently
+ * by BPF.
+ *
+ * scx_cmask_ref_shard() reads one shard into a cmask. scx_cmask_ref_or() and
+ * scx_cmask_ref_copy() write back into the referenced arena cmask, bounded by
+ * the snapshot.
+ *
+ * Typical input use:
+ *
+ *	struct scx_cmask_ref ref;
+ *	SCX_CMASK_DEFINE(shard, 0, SCX_CID_SHARD_MAX_CPUS);
+ *	s32 idx, ret;
+ *
+ *	ret = scx_cmask_ref_init(sch, src, &ref);
+ *	if (ret < 0)
+ *		return ret;
+ *
+ *	for (idx = ref.shard_first; idx < ref.shard_end; idx++) {
+ *		scx_cmask_ref_shard(&ref, idx, shard);
+ *		if (!shard->nr_cids)
+ *			continue;
+ *		... use idx and shard ...
+ *	}
+ */
+struct scx_cmask_ref {
+	struct scx_sched	*sch;
+	struct scx_cmask	*src;
+	u32			base;
+	u32			nr_cids;
+	s32			shard_first;
+	s32			shard_end;
+};
 
 #endif /* _KERNEL_SCHED_EXT_TYPES_H */

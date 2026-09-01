@@ -8,8 +8,9 @@ config OMAP_HWMOD
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_MULTI_V6
+	depends on !SMP
 	select ARCH_OMAP2PLUS
-	select CPU_V6
+	select CPU_ARM1136R0
 	select OMAP_HWMOD
 	select SOC_HAS_OMAP2_SDRC
 
@@ -206,18 +207,24 @@ comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
 config SOC_OMAP2420
-	bool "OMAP2420 support"
+	bool "OMAP2420 support (DEPRECATED)"
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_SYSTIMER
 	select OMAP_DM_TIMER
 	select SOC_HAS_OMAP2_SDRC
+	help
+	  This SoC is scheduled for removal in early 2027,
+	  since it uses the ARM1136r0 CPU revision.
 
 config SOC_OMAP2430
-	bool "OMAP2430 support"
+	bool "OMAP2430 support (DEPRECATED)"
 	depends on ARCH_OMAP2
 	default y
 	select SOC_HAS_OMAP2_SDRC
+	help
+	  This SoC is scheduled for removal in early 2027,
+	  since it uses the ARM1136r0 CPU revision.
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
@@ -248,11 +255,14 @@ config MACH_NOKIA_N810_WIMAX
 	bool
 
 config MACH_NOKIA_N8X0
-	bool "Nokia N800/N810"
+	bool "Nokia N800/N810 (DEPRECATED)"
 	depends on SOC_OMAP2420
 	default y
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
+	help
+	  This machine is scheduled for removal in early 2027,
+	  since it uses the ARM1136r0 CPU revision.
 
 endmenu
 

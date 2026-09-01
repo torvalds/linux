@@ -39,11 +39,18 @@ enum amdgpu_ptl_disable_source {
 	AMDGPU_PTL_DISABLE_PROFILER,
 	AMDGPU_PTL_DISABLE_MAX,
 };
+
+enum amdgpu_ptl_hw_supported_state {
+	AMDGPU_PTL_HW_UNINIT = 0,       /* Not yet initialized */
+	AMDGPU_PTL_HW_SUPPORTED,        /* Initialized and supported */
+	AMDGPU_PTL_HW_NOT_SUPPORTED,    /* Initialized and not supported */
+};
+
 struct amdgpu_ptl {
 	enum amdgpu_ptl_fmt		fmt1;
 	enum amdgpu_ptl_fmt		fmt2;
 	bool				enabled;
-	bool				hw_supported;
+	enum amdgpu_ptl_hw_supported_state hw_supported_state;
 	bool				permanently_disabled;
 	/* PTL disable reference counting */
 	atomic_t			disable_ref;

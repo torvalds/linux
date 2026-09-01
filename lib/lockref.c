@@ -131,7 +131,7 @@ EXPORT_SYMBOL(lockref_put_or_lock);
 void lockref_mark_dead(struct lockref *lockref)
 {
 	assert_spin_locked(&lockref->lock);
-	lockref->count = -128;
+	lockref->count = __LOCKREF_DEAD_VAL;
 }
 EXPORT_SYMBOL(lockref_mark_dead);
 

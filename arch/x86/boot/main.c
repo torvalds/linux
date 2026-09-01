@@ -164,14 +164,12 @@ void main(void)
 	query_ist();
 
 	/* Query APM information */
-#if defined(CONFIG_APM) || defined(CONFIG_APM_MODULE)
-	query_apm_bios();
-#endif
+	if (IS_ENABLED(CONFIG_APM))
+		query_apm_bios();
 
 	/* Query EDD information */
-#if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
-	query_edd();
-#endif
+	if (IS_ENABLED(CONFIG_EDD))
+		query_edd();
 
 	/* Set the video mode */
 	set_video();

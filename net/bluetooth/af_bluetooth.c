@@ -209,6 +209,7 @@ bool bt_sock_linked(struct bt_sock_list *l, struct sock *s)
 EXPORT_SYMBOL(bt_sock_linked);
 
 void bt_accept_enqueue(struct sock *parent, struct sock *sk, bool bh)
+	__context_unsafe(/* conditional locking */)
 {
 	const struct cred *old_cred;
 	struct pid *old_pid;
@@ -815,7 +816,8 @@ EXPORT_SYMBOL(bt_sock_wait_ready);
 
 #ifdef CONFIG_PROC_FS
 static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(seq->private->l->lock)
+	__acquires_shared(&((struct bt_sock_list *)
+			    pde_data(file_inode(seq->file)))->lock)
 {
 	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 
@@ -831,7 +833,8 @@ static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void bt_seq_stop(struct seq_file *seq, void *v)
-	__releases(seq->private->l->lock)
+	__releases_shared(&((struct bt_sock_list *)
+			    pde_data(file_inode(seq->file)))->lock)
 {
 	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 

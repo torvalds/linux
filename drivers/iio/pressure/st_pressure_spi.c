@@ -93,18 +93,18 @@ static int st_press_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id st_press_id_table[] = {
-	{ LPS001WP_PRESS_DEV_NAME },
-	{ LPS25H_PRESS_DEV_NAME },
-	{ LPS331AP_PRESS_DEV_NAME },
-	{ LPS22HB_PRESS_DEV_NAME },
-	{ LPS33HW_PRESS_DEV_NAME },
-	{ LPS35HW_PRESS_DEV_NAME },
-	{ LPS22HH_PRESS_DEV_NAME },
-	{ LPS22DF_PRESS_DEV_NAME },
-	{ "lps001wp-press" },
-	{ "lps25h-press", },
-	{ "lps331ap-press" },
-	{ "lps22hb-press" },
+	{ .name = LPS001WP_PRESS_DEV_NAME },
+	{ .name = LPS25H_PRESS_DEV_NAME },
+	{ .name = LPS331AP_PRESS_DEV_NAME },
+	{ .name = LPS22HB_PRESS_DEV_NAME },
+	{ .name = LPS33HW_PRESS_DEV_NAME },
+	{ .name = LPS35HW_PRESS_DEV_NAME },
+	{ .name = LPS22HH_PRESS_DEV_NAME },
+	{ .name = LPS22DF_PRESS_DEV_NAME },
+	{ .name = "lps001wp-press" },
+	{ .name = "lps25h-press" },
+	{ .name = "lps331ap-press" },
+	{ .name = "lps22hb-press" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, st_press_id_table);

@@ -209,9 +209,7 @@ ieee80211_parse_extension_element(u32 *crc,
 		if (params->mode < IEEE80211_CONN_MODE_UHR)
 			break;
 		calc_crc = true;
-		if (ieee80211_uhr_oper_size_ok(data, len,
-					       params->type == (IEEE80211_FTYPE_MGMT |
-								IEEE80211_STYPE_BEACON))) {
+		if (ieee80211_uhr_oper_size_ok(data, len)) {
 			elems->uhr_operation = data;
 			elems->uhr_operation_len = len;
 		}

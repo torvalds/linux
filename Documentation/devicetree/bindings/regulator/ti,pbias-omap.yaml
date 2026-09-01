@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/ti,pbias-omap.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments PBIAS internal regulator
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,pbias-dra7
+          - ti,pbias-omap2
+          - ti,pbias-omap3
+          - ti,pbias-omap4
+          - ti,pbias-omap5
+      - const: ti,pbias-omap
+
+  reg:
+    maxItems: 1
+
+  syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle of the system control module
+
+  pbias_mmc_omap2430:
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+
+    required:
+      - regulator-name
+
+  pbias_sim_omap3:
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+
+    required:
+      - regulator-name
+
+  pbias_mmc_omap4:
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+
+    required:
+      - regulator-name
+
+  pbias_mmc_omap5:
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+
+    required:
+      - regulator-name
+
+required:
+  - compatible
+  - reg
+  - syscon
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,pbias-omap2
+    then:
+      required:
+        - pbias_mmc_omap2430
+      properties:
+        pbias_sim_omap3: false
+        pbias_mmc_omap4: false
+        pbias_mmc_omap5: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,pbias-omap3
+    then:
+      anyOf:
+        - required:
+            - pbias_mmc_omap2430
+        - required:
+            - pbias_sim_omap3
+      properties:
+        pbias_mmc_omap4: false
+        pbias_mmc_omap5: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,pbias-omap4
+    then:
+      required:
+        - pbias_mmc_omap4
+      properties:
+        pbias_mmc_omap2430: false
+        pbias_sim_omap3: false
+        pbias_mmc_omap5: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,pbias-omap5
+              - ti,pbias-dra7
+    then:
+      required:
+        - pbias_mmc_omap5
+      properties:
+        pbias_mmc_omap2430: false
+        pbias_sim_omap3: false
+        pbias_mmc_omap4: false
+
+additionalProperties: false
+
+examples:
+  - |
+    pbias_regulator@0 {
+        compatible = "ti,pbias-omap5", "ti,pbias-omap";
+        reg = <0 0x4>;
+        syscon = <&omap5_padconf_global>;
+        pbias_mmc_omap5 {
+            regulator-name = "pbias_mmc_omap5";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <3000000>;
+        };
+    };

@@ -92,8 +92,8 @@ static const struct of_device_id __maybe_unused pg86x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pg86x_dt_ids);
 
 static const struct i2c_device_id pg86x_i2c_id[] = {
-	{ "88pg867", },
-	{ "88pg868", },
+	{ .name = "88pg867" },
+	{ .name = "88pg868" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pg86x_i2c_id);

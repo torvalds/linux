@@ -76,6 +76,8 @@ static int smb_direct_max_receive_size = 1364;
 
 static int smb_direct_max_read_write_size = SMBD_DEFAULT_IOSIZE;
 
+static bool smb_direct_enabled;
+
 static struct smb_direct_listener {
 	int			port;
 
@@ -239,17 +241,18 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 }
 
 static int smb_direct_writev(struct ksmbd_transport *t,
-			     struct kvec *iov, int niovs, int buflen,
-			     bool need_invalidate, unsigned int remote_key)
+			     const struct ksmbd_transport_write *tx)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = st->socket;
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, ITER_SOURCE, iov, niovs, buflen);
+	iov_iter_kvec(&iter, ITER_SOURCE, tx->iov, tx->iov_cnt,
+		      tx->size);
 
 	return smbdirect_connection_send_iter(sc, &iter, 0,
-					      need_invalidate, remote_key);
+					      tx->need_invalidate_rkey,
+					      tx->remote_key);
 }
 
 static int smb_direct_rdma_write(struct ksmbd_transport *t,
@@ -511,16 +514,24 @@ int ksmbd_rdma_init(void)
 	ksmbd_debug(RDMA, "iWarp RDMA listener. socket=%p\n",
 		    smb_direct_iw_listener.socket);
 
+	WRITE_ONCE(smb_direct_enabled, true);
 	return 0;
 err:
+	WRITE_ONCE(smb_direct_enabled, false);
 	ksmbd_rdma_stop_listening();
 	return ret;
 }
 
 void ksmbd_rdma_stop_listening(void)
 {
+	WRITE_ONCE(smb_direct_enabled, false);
 	smb_direct_listener_destroy(&smb_direct_ib_listener);
 	smb_direct_listener_destroy(&smb_direct_iw_listener);
+}
+
+bool ksmbd_rdma_enabled(void)
+{
+	return READ_ONCE(smb_direct_enabled);
 }
 
 bool ksmbd_rdma_capable_netdev(struct net_device *netdev)

@@ -370,7 +370,7 @@ static const struct of_device_id sram_dt_ids[] = {
 	{ .compatible = "nvidia,tegra186-sysram", .data = &tegra_sysram_config },
 	{ .compatible = "nvidia,tegra194-sysram", .data = &tegra_sysram_config },
 	{ .compatible = "nvidia,tegra234-sysram", .data = &tegra_sysram_config },
-	{}
+	{ }
 };
 
 static int sram_probe(struct platform_device *pdev)

@@ -1491,6 +1491,7 @@ void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 		i->__iov -= state->nr_segs - i->nr_segs;
 	i->nr_segs = state->nr_segs;
 }
+EXPORT_SYMBOL_FOR_MODULES(iov_iter_restore, "vmw_vsock_virtio_transport_common");
 
 /*
  * Extract a list of contiguous pages from an ITER_FOLIOQ iterator.  This does
@@ -1634,7 +1635,7 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 	}
 	bi.bi_idx = 0;
 	bi.bi_size = maxsize;
-	bi.bi_bvec_done = skip;
+	bi.bi_offset = skip;
 
 	maxpages = want_pages_array(pages, maxsize, skip, maxpages);
 	if (!maxpages)
@@ -1904,6 +1905,8 @@ static unsigned int get_contig_folio_len(struct page **pages,
  * @max_size:	maximum size to extract from @iter
  * @nr_vecs:	number of vectors in @bv (on in and output)
  * @max_vecs:	maximum vectors in @bv, including those filled before calling
+ * @mem_align_mask:	reject with -EINVAL if the source address or
+ *		length is not aligned to this mask
  * @extraction_flags: flags to qualify request
  *
  * Like iov_iter_extract_pages(), but returns physically contiguous ranges
@@ -1915,13 +1918,18 @@ static unsigned int get_contig_folio_len(struct page **pages,
  */
 ssize_t iov_iter_extract_bvecs(struct iov_iter *iter, struct bio_vec *bv,
 		size_t max_size, unsigned short *nr_vecs,
-		unsigned short max_vecs, iov_iter_extraction_t extraction_flags)
+		unsigned short max_vecs, unsigned mem_align_mask,
+		iov_iter_extraction_t extraction_flags)
 {
+	unsigned long start = (unsigned long)iter_iov_addr(iter);
 	unsigned short entries_left = max_vecs - *nr_vecs;
 	unsigned short nr_pages, i = 0;
 	size_t left, offset, len;
 	struct page **pages;
 	ssize_t size;
+
+	if ((start | iter_iov_len(iter)) & mem_align_mask)
+		return -EINVAL;
 
 	/*
 	 * Move page array up in the allocated memory for the bio vecs as far as

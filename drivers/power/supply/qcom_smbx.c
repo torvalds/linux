@@ -922,8 +922,7 @@ static int smb_init_irq(struct smb_chip *chip, int *irq, const char *name,
 	rc = devm_request_threaded_irq(chip->dev, irqnum, NULL, handler,
 				       IRQF_ONESHOT, name, chip);
 	if (rc < 0)
-		return dev_err_probe(chip->dev, rc, "Couldn't request irq %s\n",
-				     name);
+		return rc;
 
 	if (irq)
 		*irq = irqnum;
@@ -1057,3 +1056,4 @@ module_platform_driver(qcom_spmi_smb);
 MODULE_AUTHOR("Casey Connolly <casey.connolly@linaro.org>");
 MODULE_DESCRIPTION("Qualcomm SMB2 Charger Driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

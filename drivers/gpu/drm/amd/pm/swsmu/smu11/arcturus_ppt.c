@@ -67,6 +67,8 @@
 
 #define SMU11_DRIVER_IF_VERSION_ARCT 0x17
 
+static int arcturus_init_ppt_limits(struct smu_context *smu);
+
 static const struct smu_feature_bits arcturus_dpm_features = {
 	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
 		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
@@ -544,7 +546,7 @@ static int arcturus_setup_pptable(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	return ret;
+	return arcturus_init_ppt_limits(smu);
 }
 
 static int arcturus_run_btc(struct smu_context *smu)
@@ -1259,37 +1261,42 @@ static int arcturus_get_fan_parameters(struct smu_context *smu)
 	return 0;
 }
 
-static int arcturus_get_power_limit(struct smu_context *smu,
-					uint32_t *current_power_limit,
-					uint32_t *default_power_limit,
-					uint32_t *max_power_limit,
-					uint32_t *min_power_limit)
+static int arcturus_get_ppt_limit(struct smu_context *smu,
+				 enum smu_ppt_limit_type limit_type,
+				 uint32_t *ppt_limit)
+{
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
+		return -EOPNOTSUPP;
+
+	return smu_v11_0_get_ppt_limit(smu, limit_type, ppt_limit);
+}
+
+static int arcturus_init_ppt_limits(struct smu_context *smu)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t power_limit;
+	uint32_t default_limit;
+	int i;
 
-	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
-		/* the last hope to figure out the ppt limit */
-		if (!pptable) {
-			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
-			return -EINVAL;
-		}
-		power_limit =
-			pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+	if (!pptable) {
+		dev_err(smu->adev->dev,
+			"Cannot get PPT limit due to pptable missing!");
+		return -EINVAL;
 	}
 
-	if (current_power_limit)
-		*current_power_limit = power_limit;
-	if (default_power_limit)
-		*default_power_limit = power_limit;
-	if (max_power_limit)
-		*max_power_limit = power_limit;
-	/*
-	 * No lower bound is imposed on the limit. Any unreasonable limit set
-	 * will result in frequent throttling.
-	 */
-	if (min_power_limit)
-		*min_power_limit = 0;
+	default_limit = pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+
+	for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+			default_limit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max =
+			default_limit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min = 0;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+			default_limit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min = 0;
+	}
+
+	smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
 
 	return 0;
 }
@@ -1466,9 +1473,10 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 				return -ENOMEM;
 		}
 		if (custom_params && custom_params_max_idx) {
-			if (custom_params_max_idx != ARCTURUS_CUSTOM_PARAMS_COUNT)
-				return -EINVAL;
-			if (custom_params[0] >= ARCTURUS_CUSTOM_PARAMS_CLOCK_COUNT)
+			if (!smu_cmn_custom_params_count_valid(custom_params_max_idx,
+							       ARCTURUS_CUSTOM_PARAMS_COUNT) ||
+			    !smu_cmn_custom_params_clock_valid(custom_params[0],
+							       ARCTURUS_CUSTOM_PARAMS_CLOCK_COUNT))
 				return -EINVAL;
 			idx = custom_params[0] * ARCTURUS_CUSTOM_PARAMS_COUNT;
 			smu->custom_profile_params[idx] = 1;
@@ -1890,7 +1898,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_power_profile_mode = arcturus_get_power_profile_mode,
 	.set_power_profile_mode = arcturus_set_power_profile_mode,
 	.set_performance_level = arcturus_set_performance_level,
-	.get_power_limit = arcturus_get_power_limit,
+	.get_ppt_limit = arcturus_get_ppt_limit,
 	.is_dpm_running = arcturus_is_dpm_running,
 	.dpm_set_vcn_enable = arcturus_dpm_set_vcn_enable,
 	.i2c_init = arcturus_i2c_control_init,
@@ -1919,7 +1927,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
 	.notify_display_change = NULL,
-	.set_power_limit = smu_v11_0_set_power_limit,
+	.set_ppt_limit = smu_v11_0_set_ppt_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v11_0_disable_thermal_alert,
@@ -1932,7 +1940,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
-	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
 	.get_bamaco_support = smu_v11_0_get_bamaco_support,
 	.baco_enter = smu_v11_0_baco_enter,

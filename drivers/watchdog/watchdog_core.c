@@ -240,7 +240,9 @@ EXPORT_SYMBOL_GPL(watchdog_set_restart_priority);
 
 static int ___watchdog_register_device(struct watchdog_device *wdd)
 {
-	int ret, id = -1;
+	int ret, min_id, id = -1;
+	struct device_node *np;
+	char alias[16];
 
 	if (wdd == NULL || wdd->info == NULL || wdd->ops == NULL)
 		return -EINVAL;
@@ -265,8 +267,26 @@ static int ___watchdog_register_device(struct watchdog_device *wdd)
 					     GFP_KERNEL);
 	}
 
-	if (id < 0)
-		id = ida_alloc_max(&watchdog_ida, MAX_DOGS - 1, GFP_KERNEL);
+	/*
+	 * Find an id which is not pre-assigned via a DT alias to some
+	 * other, possibly not yet probed, watchdog device.
+	 */
+	if (id < 0) {
+		np = of_find_node_by_path("/aliases");
+
+		for (min_id = 0; ; min_id = id + 1) {
+			id = ida_alloc_range(&watchdog_ida, min_id, MAX_DOGS - 1,
+					     GFP_KERNEL);
+			if (!np || id < 0)
+				break;
+
+			scnprintf(alias, sizeof(alias), "watchdog%d", id);
+			if (!of_get_property(np, alias, NULL))
+				break;
+			ida_free(&watchdog_ida, id);
+		}
+		of_node_put(np);
+	}
 
 	if (id < 0)
 		return id;

@@ -44,6 +44,18 @@
 
 struct asoc_sdw_codec_info;
 
+struct asoc_sdw_mc_private {
+	struct snd_soc_card card;
+	struct snd_soc_jack sdw_headset;
+	struct device *headset_codec_dev; /* only one headset per card */
+	struct device *amp_dev1, *amp_dev2;
+	bool append_dai_type;
+	bool ignore_internal_dmic;
+	void *private;
+	unsigned long mc_quirk;
+	int codec_info_list_count;
+};
+
 struct asoc_sdw_dai_info {
 	const bool direction[2]; /* playback & capture support */
 	const char *codec_name;
@@ -88,23 +100,11 @@ struct asoc_sdw_codec_info {
 
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 
-	int  (*count_sidecar)(struct snd_soc_card *card,
+	int  (*count_sidecar)(struct asoc_sdw_mc_private *ctx,
 			      int *num_dais, int *num_devs);
 	int  (*add_sidecar)(struct snd_soc_card *card,
 			    struct snd_soc_dai_link **dai_links,
 			    struct snd_soc_codec_conf **codec_conf);
-};
-
-struct asoc_sdw_mc_private {
-	struct snd_soc_card card;
-	struct snd_soc_jack sdw_headset;
-	struct device *headset_codec_dev; /* only one headset per card */
-	struct device *amp_dev1, *amp_dev2;
-	bool append_dai_type;
-	bool ignore_internal_dmic;
-	void *private;
-	unsigned long mc_quirk;
-	int codec_info_list_count;
 };
 
 struct asoc_sdw_endpoint {
@@ -182,7 +182,8 @@ struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks
 					       const struct snd_soc_acpi_endpoint *new);
 int asoc_sdw_get_dai_type(u32 type);
 
-int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+int asoc_sdw_parse_sdw_endpoints(struct device *dev,
+				 struct asoc_sdw_mc_private *ctx,
 				 struct snd_soc_aux_dev *soc_aux,
 				 struct asoc_sdw_dailink *soc_dais,
 				 struct asoc_sdw_endpoint *soc_ends,
@@ -235,7 +236,7 @@ int asoc_sdw_es9356_amp_init(struct snd_soc_card *card,
 int asoc_sdw_es9356_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* CS AMP support */
-int asoc_sdw_bridge_cs35l56_count_sidecar(struct snd_soc_card *card,
+int asoc_sdw_bridge_cs35l56_count_sidecar(struct asoc_sdw_mc_private *ctx,
 					  int *num_dais, int *num_devs);
 int asoc_sdw_bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 					struct snd_soc_dai_link **dai_links,

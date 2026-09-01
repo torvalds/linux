@@ -77,10 +77,8 @@ static int altera_spi_probe(struct platform_device *pdev)
 		struct resource *regoff;
 
 		hw->regmap = dev_get_regmap(pdev->dev.parent, NULL);
-		if (!hw->regmap) {
-			dev_err(&pdev->dev, "get regmap failed\n");
-			return -ENODEV;
-		}
+		if (!hw->regmap)
+			return dev_err_probe(&pdev->dev, -ENODEV, "get regmap failed\n");
 
 		regoff = platform_get_resource(pdev, IORESOURCE_REG, 0);
 		if (regoff)
@@ -94,10 +92,9 @@ static int altera_spi_probe(struct platform_device *pdev)
 
 		hw->regmap = devm_regmap_init_mmio(&pdev->dev, res,
 						   &spi_altera_config);
-		if (IS_ERR(hw->regmap)) {
-			dev_err(&pdev->dev, "regmap mmio init failed\n");
-			return PTR_ERR(hw->regmap);
-		}
+		if (IS_ERR(hw->regmap))
+			return dev_err_probe(&pdev->dev, PTR_ERR(hw->regmap),
+					     "regmap mmio init failed\n");
 	}
 
 	altera_spi_init_host(host);

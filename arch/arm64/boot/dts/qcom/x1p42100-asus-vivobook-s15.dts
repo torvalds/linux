@@ -11,6 +11,7 @@
 
 /delete-node/ &pmc8380_6;
 /delete-node/ &pmc8380_6_thermal;
+/delete-node/ &pmc8380_6_die_temp;
 
 / {
 	model = "ASUS Vivobook S 15 X1P-42-100";

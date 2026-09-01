@@ -139,15 +139,17 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 				      struct sk_buff *skb,
 				      struct hlist_head *chain_out)
 {
-	struct batadv_frag_table_entry *chain;
-	struct batadv_frag_list_entry *frag_entry_new = NULL, *frag_entry_curr;
 	struct batadv_frag_list_entry *frag_entry_last = NULL;
+	struct batadv_frag_list_entry *frag_entry_new = NULL;
+	u16 hdr_size = sizeof(struct batadv_frag_packet);
+	struct batadv_frag_list_entry *frag_entry_curr;
 	struct batadv_frag_packet *frag_packet;
-	u8 bucket;
-	u16 seqno, hdr_size = sizeof(struct batadv_frag_packet);
+	struct batadv_frag_table_entry *chain;
 	bool overflow = false;
 	bool ret = false;
 	size_t data_len;
+	u8 bucket;
+	u16 seqno;
 
 	/* Linearize packet to avoid linearizing 16 packets in a row when doing
 	 * the later merge. Non-linear merge should be added to remove this
@@ -258,11 +260,12 @@ err:
 static struct sk_buff *
 batadv_frag_merge_packets(struct hlist_head *chain)
 {
-	struct batadv_frag_packet *packet;
+	int hdr_size = sizeof(struct batadv_frag_packet);
 	struct batadv_frag_list_entry *entry;
+	struct batadv_frag_packet *packet;
 	struct sk_buff *skb_out;
-	int size, hdr_size = sizeof(struct batadv_frag_packet);
 	bool dropped = false;
+	int size;
 
 	/* Remove first entry, as this is the destination for the rest of the
 	 * fragments.
@@ -348,8 +351,8 @@ static bool batadv_skb_is_frag(struct sk_buff *skb)
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
 			    struct batadv_orig_node *orig_node_src)
 {
-	struct sk_buff *skb_out = NULL;
 	struct hlist_head head = HLIST_HEAD_INIT;
+	struct sk_buff *skb_out = NULL;
 	bool ret = false;
 
 	/* Add packet to buffer and table entry if merge is possible. */
@@ -403,8 +406,8 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->mesh_iface);
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_frag_packet *packet;
-	u16 total_size;
 	bool ret = false;
+	u16 total_size;
 
 	packet = (struct batadv_frag_packet *)skb->data;
 
@@ -468,10 +471,11 @@ static struct sk_buff *batadv_frag_create(struct net_device *net_dev,
 {
 	unsigned int ll_reserved = LL_RESERVED_SPACE(net_dev);
 	unsigned int tailroom = net_dev->needed_tailroom;
-	struct sk_buff *skb_fragment;
 	unsigned int header_size = sizeof(*frag_head);
-	unsigned int mtu = fragment_size + header_size;
+	struct sk_buff *skb_fragment;
+	unsigned int mtu;
 
+	mtu = fragment_size + header_size;
 	skb_fragment = dev_alloc_skb(ll_reserved + mtu + tailroom);
 	if (!skb_fragment)
 		goto err;
@@ -503,14 +507,17 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 			    struct batadv_neigh_node *neigh_node)
 {
 	struct net_device *net_dev = neigh_node->if_incoming->net_dev;
-	struct batadv_priv *bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_frag_packet frag_header;
-	struct sk_buff *skb_fragment;
 	unsigned int mtu = net_dev->mtu;
-	unsigned int header_size = sizeof(frag_header);
-	unsigned int max_fragment_size, num_fragments;
+	unsigned int max_fragment_size;
+	struct batadv_priv *bat_priv;
+	struct sk_buff *skb_fragment;
+	unsigned int num_fragments;
+	unsigned int header_size;
 	int ret;
+
+	header_size = sizeof(frag_header);
 
 	/* To avoid merge and refragmentation at next-hops we never send
 	 * fragments larger than BATADV_FRAG_MAX_FRAG_SIZE

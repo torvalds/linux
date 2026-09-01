@@ -52,9 +52,18 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void synchronize_rcu(void);
 
-struct rcu_gp_oldstate;
+/*
+ * Grace-period sequence snapshot for the polled RCU APIs: ->norm for the
+ * normal grace period and ->exp for the expedited one.  ->exp is unused by
+ * Tiny RCU, but is present unconditionally so that a single definition
+ * serves both Tiny RCU and Tree RCU.
+ */
+struct rcu_gp_seq {
+	unsigned long norm;
+	unsigned long exp;
+};
 unsigned long get_completed_synchronize_rcu(void);
-void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
+void get_completed_synchronize_rcu_full(struct rcu_gp_seq *gsp);
 
 // Maximum number of unsigned long values corresponding to
 // not-yet-completed RCU grace periods.
@@ -208,15 +217,15 @@ static inline void exit_tasks_rcu_finish(void) { }
 /**
  * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
- * This macro resembles cond_resched(), except that it is defined to
+ * This function resembles cond_resched(), except that it is defined to
  * report potential quiescent states to RCU-tasks even if the cond_resched()
  * machinery were to be shut off, as some advocate for PREEMPTION kernels.
  */
-#define cond_resched_tasks_rcu_qs() \
-do { \
-	rcu_tasks_qs(current, false); \
-	cond_resched(); \
-} while (0)
+static inline void cond_resched_tasks_rcu_qs(void)
+{
+	rcu_tasks_qs(current, false);
+	cond_resched();
+}
 
 /**
  * rcu_softirq_qs_periodic - Report RCU and RCU-Tasks quiescent states
@@ -490,12 +499,12 @@ context_unsafe(								\
  */
 #define unrcu_pointer(p) __unrcu_pointer(p, __UNIQUE_ID(rcu))
 
-#define __rcu_access_pointer(p, local, space) \
+#define __rcu_access_pointer(p, local, space) context_unsafe( \
 ({ \
 	typeof(*p) *local = (typeof(*p) *__force)READ_ONCE(p); \
 	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(local)); \
-})
+}) )
 #define __rcu_dereference_check(p, local, c, space) \
 ({ \
 	/* Dependency order vs. p above. */ \
@@ -1098,19 +1107,22 @@ static inline void rcu_read_unlock_migrate(void)
 /*
  * In mm/slab_common.c, no suitable header to include here.
  */
-void kvfree_call_rcu(struct rcu_head *head, void *ptr);
+void kvfree_call_rcu(struct kvfree_rcu_head *head, void *ptr);
+void kfree_call_rcu_nolock(struct kvfree_rcu_head *head, void *ptr);
 
 /*
  * The BUILD_BUG_ON() makes sure the rcu_head offset can be handled. See the
  * comment of kfree_rcu() for details.
  */
-#define kvfree_rcu_arg_2(ptr, rhf)					\
+#define kvfree_rcu_arg_2(ptr, kvrhf)					\
 do {									\
 	typeof (ptr) ___p = (ptr);					\
+	struct kvfree_rcu_head *___head;				\
 									\
 	if (___p) {							\
-		BUILD_BUG_ON(offsetof(typeof(*(ptr)), rhf) >= 4096);	\
-		kvfree_call_rcu(&((___p)->rhf), (void *) (___p));	\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), kvrhf) >= 4096);	\
+		___head = (struct kvfree_rcu_head *) &(___p)->kvrhf;	\
+		kvfree_call_rcu(___head, (void *) (___p));		\
 	}								\
 } while (0)
 
@@ -1120,6 +1132,27 @@ do {								\
 								\
 	if (___p)						\
 		kvfree_call_rcu(NULL, (void *) (___p));		\
+} while (0)
+
+/**
+ * kfree_rcu_nolock() - a version of kfree_rcu() that can be called in any context.
+ * @ptr: pointer to kfree for double-argument invocations.
+ * @kvrhf: the name of the struct kvfree_rcu_head within the type of @ptr.
+ *
+ * With KVFREE_RCU_BATCHED, kfree_rcu_nolock() tries hard to free objects
+ * without any deferred processing, but may still defer freeing.
+ * Large kmalloc and vmalloc objects are always deferred.
+ *
+ * kfree_rcu_nolock() supports 2-arg variant only.
+ */
+#define kfree_rcu_nolock(ptr, kvrhf)						\
+do {										\
+	typeof (ptr) ___p = (ptr);						\
+										\
+	if (___p) {								\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), kvrhf) >= 4096);		\
+		kfree_call_rcu_nolock(&((___p)->kvrhf), (void *) (___p));	\
+	}									\
 } while (0)
 
 /*

@@ -38,7 +38,9 @@ patternProperties:
     type: object
     description:
       Properties for single LDO/BUCK regulator.
-    $ref: regulator.yaml#
+    allOf:
+      - $ref: regulator.yaml#
+      - $ref: rohm,pmic-states.yaml#
 
     properties:
       regulator-name:
@@ -51,15 +53,6 @@ patternProperties:
         description:
           GPIO used to control ldo4 state (when ldo4 is controlled by GPIO).
 
-      rohm,dvs-run-voltage:
-        description:
-          PMIC "RUN" state voltage in uV when PMIC HW states are used. See
-          comments below for bucks/LDOs which support this. 0 means
-          regulator should be disabled at RUN state.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 3300000
-
       rohm,dvs-snvs-voltage:
         description:
           Whether to keep regulator enabled at "SNVS" state or not.
@@ -71,21 +64,15 @@ patternProperties:
         minimum: 0
         maximum: 3300000
 
+      rohm,dvs-run-voltage:
+        minimum: 0
+        maximum: 3300000
+
       rohm,dvs-suspend-voltage:
-        description:
-          PMIC "SUSPEND" state voltage in uV when PMIC HW states are used. See
-          comments below for bucks/LDOs which support this. 0 means
-          regulator should be disabled at SUSPEND state.
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 
       rohm,dvs-lpsr-voltage:
-        description:
-          PMIC "LPSR" state voltage in uV when PMIC HW states are used. See
-          comments below for bucks/LDOs which support this. 0 means
-          regulator should be disabled at LPSR state.
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 

@@ -434,6 +434,18 @@ done:
 	return rc;
 }
 
+static int pn533_send_cmd_frame(struct pn533 *dev, struct pn533_cmd *cmd)
+{
+	struct sk_buff *req = cmd->req;
+	int rc;
+
+	skb_get(req);
+	dev->cmd = cmd;
+	rc = dev->phy_ops->send_frame(dev, req);
+	dev_kfree_skb(req);
+	return rc;
+}
+
 static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 			      struct sk_buff *req,
 			      pn533_send_async_complete_t complete_cb,
@@ -458,8 +470,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 	mutex_lock(&dev->cmd_lock);
 
 	if (!dev->cmd_pending) {
-		dev->cmd = cmd;
-		rc = dev->phy_ops->send_frame(dev, req);
+		rc = pn533_send_cmd_frame(dev, cmd);
 		if (rc) {
 			dev->cmd = NULL;
 			goto error;
@@ -529,8 +540,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 
 	pn533_build_cmd_frame(dev, cmd_code, req);
 
-	dev->cmd = cmd;
-	rc = dev->phy_ops->send_frame(dev, req);
+	rc = pn533_send_cmd_frame(dev, cmd);
 	if (rc < 0) {
 		dev->cmd = NULL;
 		kfree(cmd);
@@ -569,8 +579,7 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	mutex_unlock(&dev->cmd_lock);
 
-	dev->cmd = cmd;
-	rc = dev->phy_ops->send_frame(dev, cmd->req);
+	rc = pn533_send_cmd_frame(dev, cmd);
 	if (rc < 0) {
 		dev->cmd = NULL;
 		dev_kfree_skb(cmd->req);
@@ -740,8 +749,10 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 struct pn533_target_felica {
 	u8 pol_res;
-	u8 opcode;
-	u8 nfcid2[NFC_NFCID2_MAXSIZE];
+	struct_group(sensf_res,
+		u8 opcode;
+		u8 nfcid2[NFC_NFCID2_MAXSIZE];
+	);
 	u8 pad[8];
 	/* optional */
 	u8 syst_code[];
@@ -778,8 +789,8 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	else
 		nfc_tgt->supported_protocols = NFC_PROTO_FELICA_MASK;
 
-	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
-	nfc_tgt->sensf_res_len = 9;
+	memcpy(nfc_tgt->sensf_res, &tgt_felica->sensf_res, sizeof(tgt_felica->sensf_res));
+	nfc_tgt->sensf_res_len = sizeof(tgt_felica->sensf_res);
 
 	memcpy(nfc_tgt->nfcid2, tgt_felica->nfcid2, NFC_NFCID2_MAXSIZE);
 	nfc_tgt->nfcid2_len = NFC_NFCID2_MAXSIZE;
@@ -2799,6 +2810,7 @@ void pn53x_common_clean(struct pn533 *priv)
 	destroy_workqueue(priv->wq);
 
 	skb_queue_purge(&priv->resp_q);
+	skb_queue_purge(&priv->fragment_skb);
 
 	list_for_each_entry_safe(cmd, n, &priv->cmd_queue, queue) {
 		list_del(&cmd->queue);

@@ -372,13 +372,13 @@ where
             // - `ptr` is a valid pointer to uninitialized memory.
             // - `ptr` is not used if an error is returned.
             // - `ptr` won't be moved until it is dropped, i.e. it is pinned.
-            unsafe { init(i).__pinned_init(ptr)? };
+            unsafe { pin_init::raw_try_init(ptr, init(i))? };
 
             // SAFETY:
             // - `i + 1 <= len`, hence we don't exceed the capacity, due to the call to
             //   `with_capacity()` above.
             // - The new value at index buffer.len() + 1 is the only element being added here, and
-            //   it has been initialized above by `init(i).__pinned_init(ptr)`.
+            //   it has been initialized above by `raw_try_init(ptr, i)`.
             unsafe { buffer.inc_len(1) };
         }
 
@@ -463,7 +463,7 @@ where
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid.
-        unsafe { init.__init(slot)? };
+        unsafe { pin_init::raw_try_init(slot, init)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { Box::assume_init(self) })
     }
@@ -473,7 +473,7 @@ where
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
-        unsafe { init.__pinned_init(slot)? };
+        unsafe { pin_init::raw_try_init(slot, init)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { Box::assume_init(self) }.into())
     }

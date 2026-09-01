@@ -61,11 +61,11 @@ static int ntfs_check_bad_windows_name(struct ntfs_volume *vol,
 				       const __le16 *wc,
 				       unsigned int wc_len)
 {
-	if (ntfs_check_bad_char(wc, wc_len))
-		return -EINVAL;
-
 	if (!NVolCheckWindowsNames(vol))
 		return 0;
+
+	if (ntfs_check_bad_char(wc, wc_len))
+		return -EINVAL;
 
 	/* Check for trailing space or dot. */
 	if (wc_len > 0 &&
@@ -424,8 +424,6 @@ static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *d
 	 * directories, also setup the index values to the defaults.
 	 */
 	if (S_ISDIR(mode)) {
-		mode &= ~vol->dmask;
-
 		NInoSetMstProtected(ni);
 		ni->itype.index.block_size = 4096;
 		ni->itype.index.block_size_bits = ntfs_ffs(4096) - 1;
@@ -439,8 +437,6 @@ static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *d
 			ni->itype.index.vcn_size_bits =
 				vol->sector_size_bits;
 		}
-	} else {
-		mode &= ~vol->fmask;
 	}
 
 	if (IS_RDONLY(vi))
@@ -737,7 +733,7 @@ err_out:
 }
 
 static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
-		struct dentry *dentry, umode_t mode, bool excl)
+		struct dentry *dentry, umode_t mode)
 {
 	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
 	struct ntfs_inode *ni;
@@ -1083,7 +1079,7 @@ static struct dentry *ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
 		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
-	ni = __ntfs_create(idmap, dir, uname, uname_len, S_IFDIR | mode, 0, NULL, 0);
+	ni = __ntfs_create(idmap, dir, uname, uname_len, mode, 0, NULL, 0);
 	kmem_cache_free(ntfs_name_cache, uname);
 	if (IS_ERR(ni)) {
 		err = PTR_ERR(ni);

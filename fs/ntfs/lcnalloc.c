@@ -298,7 +298,12 @@ struct runlist_element *ntfs_cluster_alloc(struct ntfs_volume *vol, const s64 st
 	clusters = count;
 	rlpos = rlsize = 0;
 	mapping = lcnbmp_vi->i_mapping;
-	i_size = i_size_read(lcnbmp_vi);
+	/*
+	 * lcn_empty_bits_per_page is sized from nr_clusters, but $Bitmap can
+	 * cover more clusters than that; bound the scan by the array.
+	 */
+	i_size = min_t(s64, i_size_read(lcnbmp_vi),
+		       ((s64)vol->nr_clusters + 7) >> 3);
 	while (1) {
 		ntfs_debug("Start of outer while loop: done_zones 0x%x, search_zone %i, pass %i, zone_start 0x%llx, zone_end 0x%llx, bmp_initial_pos 0x%llx, bmp_pos 0x%llx, rlpos %i, rlsize %i.",
 				done_zones, search_zone, pass,

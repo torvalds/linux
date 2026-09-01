@@ -104,8 +104,6 @@ static const struct snd_kcontrol_new mt8196_nau8825_controls[] = {
 
 #define EXT_SPK_AMP_W_NAME "Ext_Speaker_Amp"
 
-static struct snd_soc_card mt8196_nau8825_soc_card;
-
 static const struct snd_soc_dapm_widget mt8196_nau8825_card_widgets[] = {
 	/* SOF Uplink */
 	SND_SOC_DAPM_MIXER("SOF_DMA_UL0", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -180,7 +178,7 @@ static int mt8196_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	/* fix BE i2s format to 32bit, clean param mask first */
 	snd_mask_reset_range(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
-			     0, (__force unsigned int)SNDRV_PCM_FORMAT_LAST);
+			     0, SNDRV_PCM_FORMAT_LAST);
 
 	params_set_format(params, SNDRV_PCM_FORMAT_S32_LE);
 	return 0;

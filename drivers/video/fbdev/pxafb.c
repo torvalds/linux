@@ -2312,7 +2312,6 @@ static int pxafb_probe(struct platform_device *dev)
 
 	ret = devm_request_irq(&dev->dev, irq, pxafb_handle_irq, 0, "LCD", fbi);
 	if (ret) {
-		dev_err(&dev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;
 		goto failed_free_mem;
 	}

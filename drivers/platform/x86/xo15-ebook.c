@@ -19,13 +19,10 @@
 
 #define MODULE_NAME "xo15-ebook"
 
-#define XO15_EBOOK_CLASS		MODULE_NAME
 #define XO15_EBOOK_TYPE_UNKNOWN	0x00
 #define XO15_EBOOK_NOTIFY_STATUS	0x80
 
-#define XO15_EBOOK_SUBCLASS		"ebook"
 #define XO15_EBOOK_HID			"XO15EBK"
-#define XO15_EBOOK_DEVICE_NAME		"EBook Switch"
 
 MODULE_DESCRIPTION("OLPC XO-1.5 ebook switch driver");
 MODULE_LICENSE("GPL");
@@ -105,12 +102,9 @@ static int ebook_switch_probe(struct platform_device *pdev)
 	if (!id)
 		return dev_err_probe(dev, -ENODEV, "Unsupported hid\n");
 
-	strscpy(acpi_device_name(device), XO15_EBOOK_DEVICE_NAME);
-	strscpy(acpi_device_class(device), XO15_EBOOK_CLASS "/" XO15_EBOOK_SUBCLASS);
-
 	snprintf(button->phys, sizeof(button->phys), "%s/button/input0", id->id);
 
-	input->name = acpi_device_name(device);
+	input->name = "EBook Switch";
 	input->phys = button->phys;
 	input->id.bustype = BUS_HOST;
 

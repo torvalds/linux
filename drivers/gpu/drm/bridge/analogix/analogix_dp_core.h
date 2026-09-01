@@ -169,6 +169,8 @@ struct analogix_dp_device {
 	bool			fast_train_enable;
 	bool			psr_supported;
 
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+
 	struct analogix_dp_plat_data *plat_data;
 };
 
@@ -211,7 +213,7 @@ void analogix_dp_reset_macro(struct analogix_dp_device *dp);
 void analogix_dp_init_video(struct analogix_dp_device *dp);
 
 void analogix_dp_set_video_color_format(struct analogix_dp_device *dp);
-int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp);
+bool analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp);
 void analogix_dp_set_video_cr_mn(struct analogix_dp_device *dp,
 				 enum clock_recovery_m_value_type type,
 				 u32 m_value,
@@ -220,7 +222,7 @@ void analogix_dp_set_video_timing_mode(struct analogix_dp_device *dp, u32 type);
 void analogix_dp_enable_video_master(struct analogix_dp_device *dp,
 				     bool enable);
 void analogix_dp_start_video(struct analogix_dp_device *dp);
-int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
+bool analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp);
 void analogix_dp_enable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_disable_scrambling(struct analogix_dp_device *dp);

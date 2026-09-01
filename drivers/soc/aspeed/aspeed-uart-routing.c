@@ -582,6 +582,7 @@ static const struct of_device_id aspeed_uart_routing_table[] = {
 	  .data = &ast2600_uart_routing_attr_group },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, aspeed_uart_routing_table);
 
 static struct platform_driver aspeed_uart_routing_driver = {
 	.driver = {

@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/microchip,lan7800.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip LAN7800/LAN7801/LAN7850 Gigabit Ethernet controller
+
+maintainers:
+  - Thangaraj Samynathan <Thangaraj.S@microchip.com>
+  - Rengarajan Sundararajan <Rengarajan.S@microchip.com>
+
+description:
+  The LAN7800/LAN7801/LAN7850 devices are usually configured by
+  programming their OTP or with an external EEPROM, but some
+  platforms (e.g. Raspberry Pi 3 B+) have neither. The Device Tree
+  properties, if present, override the OTP and EEPROM.
+
+allOf:
+  - $ref: /schemas/usb/usb-device.yaml#
+  - $ref: /schemas/net/ethernet-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb424,7800
+      - usb424,7801
+      - usb424,7850
+
+  reg:
+    maxItems: 1
+    description: USB port number
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+
+    patternProperties:
+      "^ethernet-phy(@[0-9a-f]+)?$":
+        $ref: /schemas/net/ethernet-phy.yaml#
+        unevaluatedProperties: false
+        type: object
+
+        properties:
+          microchip,led-modes:
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            minItems: 1
+            maxItems: 4
+            description:
+              Array of LED mode values for each of up to 4 LEDs.
+              Omitted LEDs are turned off. Allowed values are defined
+              in include/dt-bindings/net/microchip-lan78xx.h.
+
+        required:
+          - reg
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/net/microchip-lan78xx.h>
+
+    usb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet@1 {
+            compatible = "usb424,7800";
+            reg = <1>;
+            local-mac-address = [00 11 22 33 44 55];
+
+            mdio {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                ethernet-phy@1 {
+                    reg = <1>;
+                    microchip,led-modes = <
+                        LAN78XX_LINK_1000_ACTIVITY
+                        LAN78XX_LINK_10_100_ACTIVITY
+                    >;
+                };
+            };
+        };
+    };
+...

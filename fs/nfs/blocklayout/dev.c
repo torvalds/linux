@@ -4,6 +4,7 @@
  */
 #include <linux/sunrpc/svc.h>
 #include <linux/blkdev.h>
+#include <linux/fs_struct.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_xdr.h>
@@ -85,15 +86,17 @@ bl_free_device(struct pnfs_block_dev *dev)
 {
 	bl_unregister_dev(dev);
 
-	if (dev->nr_children) {
+	if (dev->children) {
 		int i;
 
 		for (i = 0; i < dev->nr_children; i++)
 			bl_free_device(&dev->children[i]);
 		kfree(dev->children);
-	} else {
-		if (dev->bdev_file)
-			fput(dev->bdev_file);
+		dev->children = NULL;
+		dev->nr_children = 0;
+	} else if (dev->bdev_file) {
+		fput(dev->bdev_file);
+		dev->bdev_file = NULL;
 	}
 }
 
@@ -363,15 +366,22 @@ static struct file *
 bl_open_path(struct pnfs_block_volume *v, const char *prefix)
 {
 	struct file *bdev_file;
-	const char *devname;
+	const char *devname __free(kfree) = NULL;
 
 	devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/%s%*phN",
 			prefix, v->scsi.designator_len, v->scsi.designator);
 	if (!devname)
 		return ERR_PTR(-ENOMEM);
 
-	bdev_file = bdev_file_open_by_path(devname,
-			BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
+	if (tsk_is_kthread(current)) {
+		scoped_with_init_fs()
+			bdev_file = bdev_file_open_by_path(devname,
+					BLK_OPEN_READ | BLK_OPEN_WRITE,
+					NULL, NULL);
+	} else {
+		bdev_file = bdev_file_open_by_path(devname,
+				BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
+	}
 	if (IS_ERR(bdev_file)) {
 		dprintk("failed to open device %s (%ld)\n",
 			devname, PTR_ERR(bdev_file));
@@ -380,7 +390,6 @@ bl_open_path(struct pnfs_block_volume *v, const char *prefix)
 			file_bdev(bdev_file)->bd_disk->disk_name);
 	}
 
-	kfree(devname);
 	return bdev_file;
 }
 
@@ -437,6 +446,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 
 out_blkdev_put:
 	fput(d->bdev_file);
+	d->bdev_file = NULL;
 	return error;
 }
 
@@ -472,8 +482,11 @@ bl_parse_concat(struct nfs_server *server, struct pnfs_block_dev *d,
 	for (i = 0; i < v->concat.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
 				volumes, v->concat.volumes[i], gfp_mask);
-		if (ret)
+		if (ret) {
+			bl_free_device(&d->children[i]);
+			bl_free_device(d);
 			return ret;
+		}
 
 		d->nr_children++;
 		d->children[i].start += len;
@@ -501,8 +514,11 @@ bl_parse_stripe(struct nfs_server *server, struct pnfs_block_dev *d,
 	for (i = 0; i < v->stripe.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
 				volumes, v->stripe.volumes[i], gfp_mask);
-		if (ret)
+		if (ret) {
+			bl_free_device(&d->children[i]);
+			bl_free_device(d);
 			return ret;
+		}
 
 		d->nr_children++;
 		len += d->children[i].len;

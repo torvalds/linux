@@ -22,6 +22,7 @@ struct_mutex                    ra_mutex
 struct_fib_rules_ops*           rules_ops
 struct_fib_table                fib_main
 struct_fib_table                fib_default
+spinlock_t                      fib_table_hash_lock
 unsigned_int                    fib_rules_require_fldissect
 bool                            fib_has_custom_rules
 bool                            fib_has_custom_local_routes

@@ -9,6 +9,7 @@
 #include "dcn42/dcn42_init.h"
 
 #include "resource.h"
+#include "basics/conversion.h"
 #include "include/irq_service_interface.h"
 
 #include "dcn42_resource.h"
@@ -400,16 +401,18 @@ static const struct dcn30_dwbc_shift dwbc401_shift = {
 static const struct dcn30_dwbc_mask dwbc401_mask = {
 	DWBC_COMMON_MASK_SH_LIST_DCN30(_MASK)};
 
-#define mcif_wb_regs_dcn3_init(id) \
-	MCIF_WB_COMMON_REG_LIST_DCN3_5_RI(id)
+#define mcif_wb_regs_dcn401_init(id) \
+	MCIF_WB_COMMON_REG_LIST_DCN4_01_RI(id)
 
-static struct dcn35_mmhubbub_registers mcif_wb35_regs[1];
+static struct dcn35_mmhubbub_registers mcif_wb401_regs[1];
 
-static const struct dcn35_mmhubbub_shift mcif_wb35_shift = {
-	MCIF_WB_COMMON_MASK_SH_LIST_DCN3_5(__SHIFT)};
+static const struct dcn401_mmhubbub_shift mcif_wb401_shift = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN4_01(__SHIFT)
+};
 
-static const struct dcn35_mmhubbub_mask mcif_wb35_mask = {
-	MCIF_WB_COMMON_MASK_SH_LIST_DCN3_5(_MASK)};
+static const struct dcn401_mmhubbub_mask mcif_wb401_mask = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN4_01(_MASK)
+};
 
 #define dsc_regs_init(id) \
 	DSC_REG_LIST_DCN401_RI(id)
@@ -701,6 +704,7 @@ static const struct resource_caps res_cap_dcn42 = {
 	.num_vmid = 16,
 	.num_mpc_3dlut = 2,
 	.num_dsc = 4,
+	.num_rmcm = 2,
 };
 
 static const struct dc_plane_cap plane_cap = {
@@ -724,13 +728,14 @@ static const struct dc_plane_cap plane_cap = {
 	.min_height = 64};
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.ignore_pg = false,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
+	.disable_dpp_power_gate = false,
+	.disable_hubp_power_gate = false,
 	.disable_optc_power_gate = true,
 	.disable_dsc_power_gate = false,
 	.disable_dio_power_gate = true,
@@ -762,7 +767,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.dpp = true,
 			.dsc = true,/*dscclk and dsc pg*/
-			.hdmistream = false,
+			.hdmistream = true,
 			.hdmichar = true,
 			.dpstream = true,
 			.symclk32_se = true,
@@ -801,6 +806,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.replay_skip_crtc_disabled = true,
 	.psr_skip_crtc_disable = true,
 	.force_odm2to1_for_edp_pixclk_mhz = 0, // disable the policy for now
+	.iommu_mismatch_temp_wka = 0x7,
 };
 
 static const struct dc_check_config config_defaults = {
@@ -1767,13 +1773,13 @@ static bool dcn42_mmhubbub_create(struct dc_context *ctx, struct resource_pool *
 		}
 
 #undef REG_STRUCT
-#define REG_STRUCT mcif_wb35_regs
-		mcif_wb_regs_dcn3_init(0);
+#define REG_STRUCT mcif_wb401_regs
+		mcif_wb_regs_dcn401_init(0);
 
-		dcn35_mmhubbub_construct(mcif_wb30, ctx,
-					&mcif_wb35_regs[i],
-					&mcif_wb35_shift,
-					&mcif_wb35_mask,
+		dcn401_mmhubbub_construct(mcif_wb30, ctx,
+					&mcif_wb401_regs[i],
+					&mcif_wb401_shift,
+					&mcif_wb401_mask,
 					i);
 
 		dcn42_mmhubbub_init(mcif_wb30, ctx);
@@ -1881,7 +1887,7 @@ static struct link_encoder *dcn42_link_enc_create_minimal(
 {
 	struct dcn20_link_encoder *enc20;
 
-	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) > ctx->dc->res_pool->res_cap->num_dig_link_enc)
+	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) >= ctx->dc->res_pool->res_cap->num_dig_link_enc)
 		return NULL;
 
 	enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
@@ -1893,6 +1899,8 @@ static struct link_encoder *dcn42_link_enc_create_minimal(
 			ctx,
 			&link_enc_feature,
 			&link_enc_regs[eng_id - ENGINE_ID_DIGA],
+			&le_shift,
+			&le_mask,
 			eng_id);
 
 	return &enc20->enc10.base;
@@ -2060,6 +2068,7 @@ static bool dcn42_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 0;
 	dc->caps.color.dpp.ogam_ram = 0;
@@ -2105,6 +2114,7 @@ static bool dcn42_resource_construct(
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_format_support.float_fp1_5_10 = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_rgba = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_bgra = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.num_of_host_routers = 3;
 	dc->caps.num_of_dpias_per_host_router = 2;

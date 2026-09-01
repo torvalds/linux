@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
@@ -527,11 +528,104 @@ static void huawei_wmi_battery_exit(struct device *dev)
 
 /* Fn lock */
 
+/* GFRS byte[1] / SFRS byte[2] (FRSR) fn-lock state values */
+#define FN_LOCK_ACPI_OFF	1
+#define FN_LOCK_ACPI_ON		2
+#define FN_LOCK_ACPI_STAT_OK	0
+
+/*
+ * Newer Huawei models (e.g. HUAWEI FLMH-XX / MateBook 14 2024) use direct
+ * ACPI methods \GFRS / \SFRS (Get/Set Fn key Reversal Status) to control
+ * Fn-lock via EC registers 0x6B (read) and 0x6C (write).
+ *
+ * GFRS response buffer layout:
+ *   byte[0] = STAT (FN_LOCK_ACPI_STAT_OK = success)
+ *   byte[1] = FN_LOCK_ACPI_OFF (fn-lock off) or FN_LOCK_ACPI_ON (fn-lock on)
+ *
+ * SFRS argument layout (CreateByteField(Arg0, 0x02, FRSR)):
+ *   Value is read from byte[2] of the integer argument, so it must be
+ *   passed as (value << 16):
+ *   (FN_LOCK_ACPI_OFF << 16) = fn-lock off (writes 0x55 to EC 0x6C)
+ *   (FN_LOCK_ACPI_ON  << 16) = fn-lock on  (writes 0x5A to EC 0x6C)
+ */
+
+static int huawei_acpi_fn_lock_get(int *on)
+{
+	union acpi_object acpi_arg;
+	struct acpi_object_list arg_list = { .count = 1, .pointer = &acpi_arg };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	acpi_status status;
+
+	acpi_arg.type = ACPI_TYPE_INTEGER;
+	acpi_arg.integer.value = 0;
+
+	status = acpi_evaluate_object(NULL, "\\GFRS", &arg_list, &output);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	union acpi_object *obj __free(kfree) = output.pointer;
+	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length < 2)
+		return -ENODATA;
+
+	/* byte[0] = STAT, byte[1] = fn-lock state */
+	if (obj->buffer.pointer[0] != FN_LOCK_ACPI_STAT_OK)
+		return -EIO;
+
+	switch (obj->buffer.pointer[1]) {
+	case FN_LOCK_ACPI_OFF:
+		if (on)
+			*on = 0;
+		break;
+	case FN_LOCK_ACPI_ON:
+		if (on)
+			*on = 1;
+		break;
+	default:
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
+static int huawei_acpi_fn_lock_set(int on)
+{
+	union acpi_object acpi_arg;
+	struct acpi_object_list arg_list = { .count = 1, .pointer = &acpi_arg };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	acpi_status status;
+
+	/*
+	 * SFRS reads byte[2] of its argument via CreateByteField(Arg0, 0x02).
+	 * on=0 → FRSR=FN_LOCK_ACPI_OFF → EC gets 0x55 (fn-lock off)
+	 * on=1 → FRSR=FN_LOCK_ACPI_ON  → EC gets 0x5A (fn-lock on)
+	 */
+	acpi_arg.type = ACPI_TYPE_INTEGER;
+	acpi_arg.integer.value = (on ? FN_LOCK_ACPI_ON : FN_LOCK_ACPI_OFF) << 16;
+
+	status = acpi_evaluate_object(NULL, "\\SFRS", &arg_list, &output);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	union acpi_object *obj __free(kfree) = output.pointer;
+	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length < 1)
+		return -ENODATA;
+
+	if (obj->buffer.pointer[0] != FN_LOCK_ACPI_STAT_OK)
+		return -EIO;
+
+	return 0;
+}
+
 static int huawei_wmi_fn_lock_get(int *on)
 {
 	u8 ret[0x100] = { 0 };
 	int err, i;
 
+	/* Newer models: use direct ACPI \GFRS method */
+	if (acpi_has_method(NULL, "\\GFRS"))
+		return huawei_acpi_fn_lock_get(on);
+
+	/* WMI fallback */
 	err = huawei_wmi_cmd(FN_LOCK_GET, ret, 0x100);
 	if (err)
 		return err;
@@ -550,6 +644,11 @@ static int huawei_wmi_fn_lock_set(int on)
 {
 	union hwmi_arg arg;
 
+	/* Newer models: use direct ACPI \SFRS method */
+	if (acpi_has_method(NULL, "\\SFRS"))
+		return huawei_acpi_fn_lock_set(on);
+
+	/* WMI fallback */
 	arg.cmd = FN_LOCK_SET;
 	arg.args[2] = on + 1; // 0 undefined, 1 off, 2 on.
 

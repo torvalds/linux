@@ -354,7 +354,7 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 
 	if (ret > 0) {
 		pr_debug("elf: symbol address match for '%s' in '%s': 0x%lx\n", name, binary_path,
-			 ret);
+			 (unsigned long)ret);
 	} else {
 		if (ret == 0) {
 			pr_warn("elf: '%s' is 0 in symtab for '%s': %s\n", name, binary_path,

@@ -963,15 +963,14 @@ fail:
  * @dir: The directory in which to create the file
  * @dentry: The dentry of the new file
  * @mode: The mode of the new file
- * @excl: Force fail if inode exists
  *
  * Returns: errno
  */
 
 static int gfs2_create(struct mnt_idmap *idmap, struct inode *dir,
-		       struct dentry *dentry, umode_t mode, bool excl)
+		       struct dentry *dentry, umode_t mode)
 {
-	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, excl);
+	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, 1);
 }
 
 /**
@@ -1351,7 +1350,7 @@ static struct dentry *gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 {
 	unsigned dsize = gfs2_max_stuffed_size(GFS2_I(dir));
 
-	return ERR_PTR(gfs2_create_inode(dir, dentry, NULL, S_IFDIR | mode, 0, NULL, dsize, 0));
+	return ERR_PTR(gfs2_create_inode(dir, dentry, NULL, mode, 0, NULL, dsize, 0));
 }
 
 /**

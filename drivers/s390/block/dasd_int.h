@@ -159,6 +159,11 @@ struct dasd_ccw_req {
 	void *callback_data;
 	unsigned int proc_bytes;	/* bytes for partial completion */
 	unsigned int trkcount;		/* count formatted tracks */
+	void *filldata;			/* address of filler data */
+	struct dasd_format_entry *format;
+	sector_t start_trk;
+	sector_t end_trk;
+	bool collision;
 };
 
 /*
@@ -170,6 +175,7 @@ struct dasd_ccw_req {
 #define DASD_CQR_IN_ERP 	0x03	/* request is in recovery */
 #define DASD_CQR_FAILED 	0x04	/* request is finally failed */
 #define DASD_CQR_TERMINATED	0x05	/* request was stopped by driver */
+#define DASD_CQR_ABORTED	0x06	/* request was replaced and will be deleted */
 
 #define DASD_CQR_QUEUED 	0x80	/* request is queued to be processed */
 #define DASD_CQR_IN_IO		0x81	/* request is currently in IO */
@@ -177,6 +183,7 @@ struct dasd_ccw_req {
 #define DASD_CQR_CLEAR_PENDING	0x83	/* request is clear pending */
 #define DASD_CQR_CLEARED	0x84	/* request was cleared */
 #define DASD_CQR_SUCCESS	0x85	/* request was successful */
+#define DASD_CQR_ABORT		0x86	/* request was replaced and will not be handled */
 
 /* default expiration time*/
 #define DASD_EXPIRES	  300
@@ -394,6 +401,11 @@ struct dasd_discipline {
 	 * Extent Space Efficient (ESE) relevant functions
 	 */
 	int (*is_ese)(struct dasd_device *);
+	int (*ese_capable)(struct dasd_device *);
+	/* Whether the volume is formatted on demand (thin), from the label */
+	int (*on_demand_format)(struct dasd_device *);
+	/* Fill discard queue limits */
+	void (*disc_limits)(struct dasd_block *, struct queue_limits *);
 	/* Capacity */
 	int (*space_allocated)(struct dasd_device *);
 	int (*space_configured)(struct dasd_device *);
@@ -406,8 +418,7 @@ struct dasd_discipline {
 	int (*ext_pool_warn_thrshld)(struct dasd_device *);
 	int (*ext_pool_oos)(struct dasd_device *);
 	int (*ext_pool_exhaust)(struct dasd_device *, struct dasd_ccw_req *);
-	struct dasd_ccw_req *(*ese_format)(struct dasd_device *,
-					   struct dasd_ccw_req *, struct irb *);
+	void (*ese_format)(struct dasd_device *, struct dasd_ccw_req *, struct irb *);
 	int (*ese_read)(struct dasd_ccw_req *, struct irb *);
 	int (*pprc_status)(struct dasd_device *, struct	dasd_pprc_data_sc4 *);
 	bool (*pprc_enabled)(struct dasd_device *);
@@ -538,9 +549,17 @@ struct dasd_profile {
 	spinlock_t lock;
 };
 
+/*
+ * concurrent ESE format ranges in flight; also caps a WRITE_FULL_TRACK's
+ * track count, which the LRE track bitmask limits to 16
+ */
+#define DASD_NR_FORMAT_ENTRIES	16
+
 struct dasd_format_entry {
 	struct list_head list;
-	sector_t track;
+	struct dasd_ccw_req *cqr;
+	sector_t start_trk;
+	sector_t end_trk;
 };
 
 struct dasd_device {
@@ -573,9 +592,12 @@ struct dasd_device {
 	struct list_head ccw_queue;
 	spinlock_t mem_lock;
 	void *ccw_mem;
+	void *fill_mem;
 	void *erp_mem;
 	void *ese_mem;
+	void *nulldata;
 	struct list_head ccw_chunks;
+	struct list_head fill_chunks;
 	struct list_head erp_chunks;
 	struct list_head ese_chunks;
 
@@ -607,11 +629,24 @@ struct dasd_device {
 	struct dentry *debugfs_dentry;
 	struct dentry *hosts_dentry;
 	struct dasd_profile profile;
-	struct dasd_format_entry format_entry;
+	struct dasd_format_entry format_entry[DASD_NR_FORMAT_ENTRIES];
 	struct kset *paths_info;
 	struct dasd_copy_relation *copy;
 	unsigned long aq_mask;
 	unsigned int aq_timeouts;
+
+	/* ESE fulltrack write control (see full_track_bias sysfs attribute) */
+	unsigned int ft_bias;	/* aggressiveness 0..100: 0=off, 100=always */
+	unsigned int fulltrack;	/* internal: use WRITE_FULL_TRACK for aligned writes */
+	/* adaptive heuristic (active for ft_bias 1..99), derived from ft_bias */
+	unsigned int ese_probe_state;        /* heuristic FSM state */
+	unsigned int ese_probe_interval;     /* IOs between evaluations */
+	atomic_t ese_io_cnt;                 /* IO counter for current window */
+	atomic_t ese_nrf_window;             /* NRF/INV_TRACK_FORMAT events in window */
+	unsigned int ese_heu_start_interval; /* IOs before first probe */
+	unsigned int ese_heu_probe_window;   /* IOs in probe window */
+	unsigned int ese_heu_max_interval;   /* max IOs between probes (backoff cap) */
+	unsigned int ese_heu_nrf_high;       /* NRF per-mille threshold → activate ft1 */
 };
 
 struct dasd_block {
@@ -640,6 +675,15 @@ struct dasd_block {
 	struct list_head format_list;
 	spinlock_t format_lock;
 	atomic_t trkcount;
+
+	/*
+	 * ESE format CQRs staged from hardirq, spliced into
+	 * ccw_queue in dasd_block_tasklet under queue_lock. Direct enqueue from
+	 * the IRQ handler would invert the queue_lock / ccwdev_lock order.
+	 */
+	struct list_head ese_staging;
+	/* lock for ese_staging */
+	spinlock_t ese_lock;
 };
 
 struct dasd_attention_data {
@@ -659,6 +703,39 @@ struct dasd_queue {
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
 #define DASD_STOPPED_PPRC    32        /* PPRC swap */
 #define DASD_STOPPED_NOSPC   128       /* no space left */
+
+/*
+ * ESE fulltrack write aggressiveness (full_track_bias sysfs attribute), 0..100:
+ *   0   - never use proactively WRITE_FULL_TRACK
+ *   100 - always use proactively WRITE_FULL_TRACK, no probing
+ *   1..99 - adaptive; higher means switch to ft more eagerly
+ * WRITE_FULL_TRACK has an advantage on sparse formatted ESE devices
+ * but it has an overall penalty for maximum throughput for fully
+ * formatted devices.
+ * The default of 50 tries to balance both and do some probing in between
+ * to choose the best mode for default IO.
+ */
+#define DASD_FT_BIAS_MAX	100
+#define DASD_FT_BIAS_DEFAULT	50
+
+/* ESE fulltrack heuristic FSM states (adaptive range, ft_bias 1..99) */
+#define DASD_ESE_HEU_FT1_ACTIVE   0   /* fulltrack write active */
+#define DASD_ESE_HEU_PROBING      1   /* ft0 probe window, measuring NRF rate */
+#define DASD_ESE_HEU_FT0_STABLE   2   /* device formatted, ft0 active */
+
+/*
+ * Heuristic parameters are derived from ft_bias by linear interpolation,
+ * anchored so that ft_bias == 50 reproduces the previously shipped defaults
+ * and ft_bias == 100 is the most aggressive end of the range.
+ * probe_window is constant.
+ */
+#define DASD_ESE_HEU_PROBE_WINDOW	   100
+#define DASD_ESE_HEU_NRF_HIGH_A50	    10	/* NRF per-mille threshold */
+#define DASD_ESE_HEU_NRF_HIGH_A100	     1
+#define DASD_ESE_HEU_START_A50		  2000	/* IOs before first probe */
+#define DASD_ESE_HEU_START_A100		   500
+#define DASD_ESE_HEU_MAX_A50		500000	/* backoff cap */
+#define DASD_ESE_HEU_MAX_A100		 20000
 
 /* per device flags */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
@@ -813,6 +890,70 @@ static inline void *dasd_get_callback_data(struct dasd_ccw_req *cqr)
 		cqr = cqr->refers;
 
 	return cqr->callback_data;
+}
+
+static inline bool dasd_req_conflict(struct dasd_ccw_req *cqr1,
+				     struct dasd_ccw_req *cqr2)
+{
+	return !(cqr1->format->end_trk < cqr2->start_trk ||
+		 cqr2->end_trk < cqr1->format->start_trk);
+}
+
+/*
+ * true when device is ese device and ft_bias selects the adaptive
+ * heuristic (neither hard endpoint)
+ */
+static inline bool dasd_ese_adaptive(struct dasd_device *device)
+{
+	return device->discipline &&
+		device->discipline->is_ese &&
+		device->discipline->is_ese(device) &&
+		device->ft_bias > 0 &&
+		device->ft_bias < DASD_FT_BIAS_MAX;
+}
+
+/*
+ * Linear interpolation of a heuristic parameter between its value at aggr==50
+ * (v50) and its value at aggr==100 (v100).
+ */
+static inline unsigned int dasd_ese_lerp(unsigned int v50, unsigned int v100,
+					 unsigned int aggr)
+{
+	return (unsigned int)((int)v50 +
+		((int)v100 - (int)v50) * ((int)aggr - 50) / 50);
+}
+
+/*
+ * Apply the ft_bias knob. For the hard endpoints just pin the mode; for the
+ * adaptive range derive the heuristic parameters from ft_bias and (re)start
+ * the FSM in ft1 so a freshly sparse device avoids the NRF penalty right away.
+ */
+static inline void dasd_ft_bias_apply(struct dasd_device *device)
+{
+	unsigned int a = device->ft_bias;
+
+	if (!dasd_ese_adaptive(device)) {
+		device->fulltrack = (a >= DASD_FT_BIAS_MAX) ? 1 : 0;
+		device->ese_probe_state = DASD_ESE_HEU_FT1_ACTIVE;
+		return;
+	}
+
+	device->ese_heu_nrf_high =
+		dasd_ese_lerp(DASD_ESE_HEU_NRF_HIGH_A50,
+			      DASD_ESE_HEU_NRF_HIGH_A100, a);
+	device->ese_heu_start_interval =
+		dasd_ese_lerp(DASD_ESE_HEU_START_A50,
+			      DASD_ESE_HEU_START_A100, a);
+	device->ese_heu_max_interval =
+		dasd_ese_lerp(DASD_ESE_HEU_MAX_A50,
+			      DASD_ESE_HEU_MAX_A100, a);
+	device->ese_heu_probe_window = DASD_ESE_HEU_PROBE_WINDOW;
+
+	device->ese_probe_state    = DASD_ESE_HEU_FT1_ACTIVE;
+	device->ese_probe_interval = device->ese_heu_start_interval;
+	device->fulltrack          = 1;
+	atomic_set(&device->ese_io_cnt, 0);
+	atomic_set(&device->ese_nrf_window, 0);
 }
 
 /* externals in dasd.c */

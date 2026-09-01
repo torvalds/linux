@@ -159,8 +159,6 @@ static inline void local_tick_enable(unsigned long comp)
 	set_clock_comparator(get_lowcore()->clock_comparator);
 }
 
-#define CLOCK_TICK_RATE		1193180 /* Underlying HZ */
-
 typedef unsigned long cycles_t;
 
 static __always_inline unsigned long get_tod_clock(void)

@@ -25,19 +25,18 @@ context_lock_struct(srcu_struct, __reentrant_ctx_lock);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-int __init_srcu_struct(struct srcu_struct *ssp, const char *name, struct lock_class_key *key);
+int init_srcu_struct_lockdep(struct srcu_struct *ssp, const char *name,
+				     struct lock_class_key *key);
+static inline int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
+				     struct lock_class_key *key)
+{
+	return init_srcu_struct_lockdep(ssp, name, key);
+}
 #ifndef CONFIG_TINY_SRCU
 int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key);
 int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 				   struct lock_class_key *key);
 #endif // #ifndef CONFIG_TINY_SRCU
-
-#define init_srcu_struct(ssp) \
-({ \
-	static struct lock_class_key __srcu_key; \
-	\
-	__init_srcu_struct((ssp), #ssp, &__srcu_key); \
-})
 
 #define init_srcu_struct_fast(ssp) \
 ({ \
@@ -56,7 +55,12 @@ int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 #define __SRCU_DEP_MAP_INIT(srcu_name)	.dep_map = { .name = #srcu_name },
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-int init_srcu_struct(struct srcu_struct *ssp);
+int init_srcu_struct_generic(struct srcu_struct *ssp);
+static inline int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
+				     struct lock_class_key *key)
+{
+	return init_srcu_struct_generic(ssp);
+}
 #ifndef CONFIG_TINY_SRCU
 int init_srcu_struct_fast(struct srcu_struct *ssp);
 int init_srcu_struct_fast_updown(struct srcu_struct *ssp);
@@ -64,6 +68,13 @@ int init_srcu_struct_fast_updown(struct srcu_struct *ssp);
 
 #define __SRCU_DEP_MAP_INIT(srcu_name)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+#define init_srcu_struct(ssp) \
+({ \
+	static struct lock_class_key __srcu_key; \
+	\
+	__init_srcu_struct((ssp), #ssp, &__srcu_key); \
+})
 
 /* Values for SRCU Tree srcu_data ->srcu_reader_flavor, but also used by rcutorture. */
 #define SRCU_READ_FLAVOR_NORMAL		0x1		// srcu_read_lock().
@@ -637,5 +648,12 @@ DEFINE_LOCK_GUARD_1(srcu_fast_notrace, struct srcu_struct,
 		    struct srcu_ctr __percpu *scp)
 DECLARE_LOCK_GUARD_1_ATTRS(srcu_fast_notrace, __acquires_shared(_T), __releases_shared(*(struct srcu_struct **)_T))
 #define class_srcu_fast_notrace_constructor(_T) WITH_LOCK_GUARD_1_ATTRS(srcu_fast_notrace, _T)
+
+DEFINE_LOCK_GUARD_1(srcu_fast_updown, struct srcu_struct,
+		    _T->scp = srcu_read_lock_fast_updown(_T->lock),
+		    srcu_read_unlock_fast_updown(_T->lock, _T->scp),
+		    struct srcu_ctr __percpu *scp)
+DECLARE_LOCK_GUARD_1_ATTRS(srcu_fast_updown, __acquires_shared(_T), __releases_shared(*(struct srcu_struct **)_T))
+#define class_srcu_fast_updown_constructor(_T) WITH_LOCK_GUARD_1_ATTRS(srcu_fast_updown, _T)
 
 #endif

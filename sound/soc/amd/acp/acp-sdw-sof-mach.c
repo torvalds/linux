@@ -303,7 +303,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	if (!sof_aux)
 		return -ENOMEM;
 
-	ret = asoc_sdw_parse_sdw_endpoints(card, sof_aux, sof_dais, sof_ends, &num_devs);
+	ret = asoc_sdw_parse_sdw_endpoints(dev, ctx, sof_aux, sof_dais, sof_ends, &num_devs);
 	if (ret < 0)
 		return ret;
 
@@ -388,12 +388,12 @@ static int mc_probe(struct platform_device *pdev)
 	dmi_check_system(sof_sdw_quirk_table);
 
 	if (quirk_override != -1) {
-		dev_info(card->dev, "Overriding quirk 0x%lx => 0x%x\n",
+		dev_info(&pdev->dev, "Overriding quirk 0x%lx => 0x%x\n",
 			 sof_sdw_quirk, quirk_override);
 		sof_sdw_quirk = quirk_override;
 	}
 
-	log_quirks(card->dev);
+	log_quirks(&pdev->dev);
 
 	ctx->mc_quirk = sof_sdw_quirk;
 	/* reset amp_num to ensure amp_num++ starts from 0 in each probe */
@@ -412,15 +412,15 @@ static int mc_probe(struct platform_device *pdev)
 	for (i = 0; i < ctx->codec_info_list_count; i++)
 		amp_num += codec_info_list[i].amp_num;
 
-	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+	card->components = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					  " cfg-amp:%d", amp_num);
 	if (!card->components)
 		return -ENOMEM;
 
 	/* Register the card */
-	ret = devm_snd_soc_register_card(card->dev, card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		dev_err_probe(card->dev, ret, "snd_soc_register_card failed %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card failed %d\n", ret);
 		asoc_sdw_mc_dailink_exit_loop(card);
 		return ret;
 	}
@@ -438,8 +438,8 @@ static void mc_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id mc_id_table[] = {
-	{ "amd_sof_sdw", },
-	{}
+	{ .name = "amd_sof_sdw" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, mc_id_table);
 

@@ -517,16 +517,16 @@ static int run_complete_job(struct kcopyd_job *job)
 	return 0;
 }
 
-static void complete_io(unsigned long error, void *context)
+static void complete_io(unsigned long error, unsigned long unsup, void *context)
 {
 	struct kcopyd_job *job = context;
 	struct dm_kcopyd_client *kc = job->kc;
 
 	io_job_finish(kc->throttle);
 
-	if (error) {
+	if (unlikely((error | unsup) != 0)) {
 		if (op_is_write(job->op))
-			job->write_err |= error;
+			job->write_err |= error | unsup;
 		else
 			job->read_err = 1;
 
@@ -578,9 +578,9 @@ static int run_io_job(struct kcopyd_job *job)
 	io_job_start(job->kc->throttle);
 
 	if (job->op == REQ_OP_READ)
-		r = dm_io(&io_req, 1, &job->source, NULL, IOPRIO_DEFAULT);
+		r = dm_io(&io_req, 1, &job->source, NULL, NULL, IOPRIO_DEFAULT);
 	else
-		r = dm_io(&io_req, job->num_dests, job->dests, NULL, IOPRIO_DEFAULT);
+		r = dm_io(&io_req, job->num_dests, job->dests, NULL, NULL, IOPRIO_DEFAULT);
 
 	return r;
 }

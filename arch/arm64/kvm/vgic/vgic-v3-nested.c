@@ -152,7 +152,7 @@ static void vgic_compute_mi_state(struct kvm_vcpu *vcpu, struct mi_state *mi_sta
 			eisr |= BIT(i);
 		if (!(lr & ICH_LR_STATE))
 			elrsr |= BIT(i);
-		pend |= (lr & ICH_LR_PENDING_BIT);
+		pend |= (lr & ICH_LR_STATE) == ICH_LR_PENDING_BIT;
 	}
 
 	mi_state->eisr	= eisr;

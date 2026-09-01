@@ -178,8 +178,8 @@ static SIMPLE_DEV_PM_OPS(ahci_pm_ops, ahci_platform_suspend,
 			 ahci_platform_resume);
 
 static const struct acpi_device_id ahci_acpi_match[] = {
-	{ "AMDI0600", 0 },
-	{}
+	{ .id = "AMDI0600" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ahci_acpi_match);
 

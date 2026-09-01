@@ -99,7 +99,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 	bool use_comm_exec;
 	bool sample_id = opts->sample_id;
 
-	if (perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0).cpu < 0)
+	if (perf_cpu_map__cpu(evlist__core(evlist)->user_requested_cpus, 0).cpu < 0)
 		opts->no_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
@@ -122,7 +122,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 		 */
 		use_sample_identifier = perf_can_sample_identifier();
 		sample_id = true;
-	} else if (evlist->core.nr_entries > 1) {
+	} else if (evlist__nr_entries(evlist) > 1) {
 		struct evsel *first = evlist__first(evlist);
 
 		evlist__for_each_entry(evlist, evsel) {
@@ -237,7 +237,8 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 
 	evsel = evlist__last(temp_evlist);
 
-	if (!evlist || perf_cpu_map__is_any_cpu_or_is_empty(evlist->core.user_requested_cpus)) {
+	if (!evlist ||
+	    perf_cpu_map__is_any_cpu_or_is_empty(evlist__core(evlist)->user_requested_cpus)) {
 		struct perf_cpu_map *cpus = perf_cpu_map__new_online_cpus();
 
 		if (cpus)
@@ -245,7 +246,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 
 		perf_cpu_map__put(cpus);
 	} else {
-		cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0);
+		cpu = perf_cpu_map__cpu(evlist__core(evlist)->user_requested_cpus, 0);
 	}
 
 	while (1) {
@@ -264,7 +265,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 	ret = true;
 
 out_delete:
-	evlist__delete(temp_evlist);
+	evlist__put(temp_evlist);
 	return ret;
 }
 

@@ -38,8 +38,6 @@
 
 #define	EEPROM_RF_BOARD_OPTION_8723B		0xC1
 #define	EEPROM_RF_BT_SETTING_8723B		0xC3
-#define	EEPROM_VERSION_8723B			0xC4
-#define	EEPROM_CustomID_8723B			0xC5
 #define EEPROM_DEFAULT_DIFF			0XFE
 
 /* RTL8723BS */
@@ -60,10 +58,6 @@ struct TxPowerInfo24G {
 enum {
 	Ant_x2	= 0,
 	Ant_x1	= 1
-};
-
-enum {
-	BT_RTL8723B = 8,
 };
 
 #endif

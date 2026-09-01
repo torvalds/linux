@@ -374,9 +374,9 @@ static struct atmel_tcb_config tcb_sama5d2_config = {
 };
 
 static const struct of_device_id atmel_tcb_of_match[] = {
-	{ .compatible = "atmel,at91rm9200-tcb", .data = &tcb_rm9200_config, },
-	{ .compatible = "atmel,at91sam9x5-tcb", .data = &tcb_sam9x5_config, },
-	{ .compatible = "atmel,sama5d2-tcb", .data = &tcb_sama5d2_config, },
+	{ .compatible = "atmel,at91rm9200-tcb", .data = &tcb_rm9200_config },
+	{ .compatible = "atmel,at91sam9x5-tcb", .data = &tcb_sam9x5_config },
+	{ .compatible = "atmel,sama5d2-tcb", .data = &tcb_sama5d2_config },
 	{ /* sentinel */ }
 };
 

@@ -19,6 +19,11 @@
 
 #define BCMA_GPIO_MAX_PINS	32
 
+const struct software_node bcma_gpio_swnode = {
+	.name = "bcma-gpio",
+};
+EXPORT_SYMBOL_GPL(bcma_gpio_swnode);
+
 static int bcma_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
 	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
@@ -190,7 +195,20 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->parent		= bus->dev;
-	chip->fwnode		= dev_fwnode(&cc->core->dev);
+
+	/*
+	 * Register software node only for the host SoC bus, unless there is
+	 * already a firmware node assigned. There is only one SoC instance
+	 * in the system, so there are no concerns with registration conflicts.
+	 */
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC && !dev_fwnode(&cc->core->dev)) {
+		err = software_node_register(&bcma_gpio_swnode);
+		if (err)
+			return err;
+		chip->fwnode = software_node_fwnode(&bcma_gpio_swnode);
+	} else {
+		chip->fwnode = dev_fwnode(&cc->core->dev);
+	}
 
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:
@@ -219,20 +237,33 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 
 	err = bcma_gpio_irq_init(cc);
 	if (err)
-		return err;
+		goto err_unregister_swnode;
 
 	err = gpiochip_add_data(chip, cc);
-	if (err) {
-		bcma_gpio_irq_exit(cc);
-		return err;
-	}
+	if (err)
+		goto err_irq_exit;
 
 	return 0;
+
+err_irq_exit:
+	bcma_gpio_irq_exit(cc);
+err_unregister_swnode:
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC &&
+	    chip->fwnode && is_software_node(chip->fwnode)) {
+		software_node_unregister(&bcma_gpio_swnode);
+		chip->fwnode = NULL;
+	}
+	return err;
 }
 
 int bcma_gpio_unregister(struct bcma_drv_cc *cc)
 {
 	bcma_gpio_irq_exit(cc);
 	gpiochip_remove(&cc->gpio);
+	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC &&
+	    cc->gpio.fwnode && is_software_node(cc->gpio.fwnode)) {
+		software_node_unregister(&bcma_gpio_swnode);
+		cc->gpio.fwnode = NULL;
+	}
 	return 0;
 }

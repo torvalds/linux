@@ -208,9 +208,6 @@ static int send_tlb_inval_asid_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 
 	lockdep_assert_held(&tlb_inval->seqno_lock);
 
-	if (guc_to_xe(guc)->info.force_execlist)
-		return -ECANCELED;
-
 	return send_tlb_inval_ppgtt(guc, seqno, start, end, asid,
 				    XE_GUC_TLB_INVAL_PAGE_SELECTIVE, prl_sa);
 }
@@ -227,9 +224,6 @@ static int send_tlb_inval_ctx_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 	int err = 0, id = guc_to_gt(guc)->info.id;
 
 	lockdep_assert_held(&tlb_inval->seqno_lock);
-
-	if (xe->info.force_execlist)
-		return -ECANCELED;
 
 	vm = xe_device_asid_to_vm(xe, asid);
 	if (IS_ERR(vm))

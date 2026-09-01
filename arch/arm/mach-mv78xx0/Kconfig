@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MV78XX0
-	bool "Marvell MV78xx0"
+	bool "Marvell MV78xx0 (DEPRECATED)"
 	depends on ARCH_MULTI_V5
 	depends on CPU_LITTLE_ENDIAN
 	depends on ATAGS
@@ -13,6 +13,8 @@ menuconfig ARCH_MV78XX0
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
 	  MV781x0, MV782x0.
+
+	  This platform is scheduled for removal in early 2027.
 
 if ARCH_MV78XX0
 

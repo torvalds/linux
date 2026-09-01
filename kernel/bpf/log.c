@@ -615,17 +615,6 @@ static void print_scalar_ranges(struct bpf_verifier_env *env,
 	}
 }
 
-static bool type_is_map_ptr(enum bpf_reg_type t) {
-	switch (base_type(t)) {
-	case CONST_PTR_TO_MAP:
-	case PTR_TO_MAP_KEY:
-	case PTR_TO_MAP_VALUE:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /*
  * _a stands for append, was shortened to avoid multiline statements below.
  * This macro is used to output a comma separated list of attributes.

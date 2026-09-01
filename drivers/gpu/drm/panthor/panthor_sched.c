@@ -3446,7 +3446,6 @@ queue_timedout_job(struct drm_sched_job *sched_job)
 
 static void queue_free_job(struct drm_sched_job *sched_job)
 {
-	drm_sched_job_cleanup(sched_job);
 	panthor_job_put(sched_job);
 }
 

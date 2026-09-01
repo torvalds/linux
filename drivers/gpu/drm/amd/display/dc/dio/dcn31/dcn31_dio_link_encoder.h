@@ -246,6 +246,8 @@ void dcn31_link_encoder_construct_minimal(
 	struct dc_context *ctx,
 	const struct encoder_feature_support *enc_features,
 	const struct dcn10_link_enc_registers *link_regs,
+	const struct dcn10_link_enc_shift *link_shift,
+	const struct dcn10_link_enc_mask *link_mask,
 	enum engine_id eng_id);
 
 void dcn31_link_encoder_set_dio_phy_mux(

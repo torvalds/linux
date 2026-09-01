@@ -269,7 +269,7 @@ static const struct of_device_id pwm_loongson_of_ids[] = {
 MODULE_DEVICE_TABLE(of, pwm_loongson_of_ids);
 
 static const struct acpi_device_id pwm_loongson_acpi_ids[] = {
-	{ "LOON0006" },
+	{ .id = "LOON0006" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pwm_loongson_acpi_ids);

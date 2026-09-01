@@ -13,13 +13,6 @@
  *
  * c. provides the software interface between caller and the hardware interface
  *
- *
- * Compiler Flag Option:
- *
- * 1. CONFIG_SDIO_HCI:
- *  a. USE_SYNC_IRP:  Only sync operations are provided.
- *  b. USE_ASYNC_IRP:Both sync/async operations are provided.
- *
  *  jackson@realtek.com.tw
  */
 

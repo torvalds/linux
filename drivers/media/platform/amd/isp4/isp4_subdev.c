@@ -391,7 +391,7 @@ static void isp4sd_fw_resp_cmd_done(struct isp4_subdev *isp_subdev,
 
 	if (ele) {
 		complete(&ele->cmd_done);
-		if (atomic_dec_and_test(&ele->refcnt))
+		if (refcount_dec_and_test(&ele->refcnt))
 			kfree(ele);
 	}
 }
@@ -687,7 +687,7 @@ int isp4sd_pwron_and_init(struct v4l2_subdev *sd)
 		if (ret) {
 			dev_err(dev, "fail to power on isp_subdev ret %d\n",
 				ret);
-			goto err_deinit;
+			goto err_module_disable;
 		}
 
 		/* ISPPG ISP Power Status */
@@ -697,7 +697,7 @@ int isp4sd_pwron_and_init(struct v4l2_subdev *sd)
 			dev_err(dev,
 				"fail to set performance state %u, ret %d\n",
 				perf_state, ret);
-			goto err_deinit;
+			goto err_power_off;
 		}
 
 		ispif->status = ISP4IF_STATUS_PWR_ON;
@@ -709,12 +709,12 @@ int isp4sd_pwron_and_init(struct v4l2_subdev *sd)
 	ret = isp4if_start(ispif);
 	if (ret) {
 		dev_err(dev, "fail to start isp_subdev interface\n");
-		goto err_deinit;
+		goto err_perf_restore;
 	}
 
 	if (isp4sd_start_resp_proc_threads(isp_subdev)) {
 		dev_err(dev, "isp_start_resp_proc_threads fail\n");
-		goto err_deinit;
+		goto err_stop_interface;
 	}
 
 	dev_dbg(dev, "create resp threads ok\n");
@@ -724,8 +724,24 @@ int isp4sd_pwron_and_init(struct v4l2_subdev *sd)
 	isp_subdev->irq_enabled = true;
 
 	return 0;
-err_deinit:
-	isp4sd_pwroff_and_deinit(sd);
+
+err_stop_interface:
+	isp4if_stop(ispif);
+err_perf_restore:
+	ret = dev_pm_genpd_set_performance_state(dev, ISP4SD_PERFORMANCE_STATE_LOW);
+	if (ret)
+		dev_err(dev, "fail to set performance state %u, ret %d\n",
+			ISP4SD_PERFORMANCE_STATE_LOW, ret);
+err_power_off:
+	isp4hw_wreg(isp_subdev->mmio, ISP_SOFT_RESET, 0);
+	isp4hw_wreg(isp_subdev->mmio, ISP_POWER_STATUS, 0);
+	ret = pm_runtime_put_sync(dev);
+	if (ret)
+		dev_err(dev, "power off isp_subdev fail %d\n", ret);
+	ispif->status = ISP4IF_STATUS_PWR_OFF;
+err_module_disable:
+	isp4sd_module_enable(isp_subdev, false);
+	msleep(20);
 	return -EINVAL;
 }
 

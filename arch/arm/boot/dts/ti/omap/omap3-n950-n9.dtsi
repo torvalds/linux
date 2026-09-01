@@ -287,7 +287,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&accelerator_pins>;
 
-                interrupts-extended = <&gpio6 20 IRQ_TYPE_EDGE_FALLING>, <&gpio6 21 IRQ_TYPE_EDGE_FALLING>; /* 180, 181 */
+		interrupts-extended = <&gpio6 20 IRQ_TYPE_EDGE_FALLING>, <&gpio6 21 IRQ_TYPE_EDGE_FALLING>; /* 180, 181 */
 
 		/* click flags */
 		st,click-single-x;

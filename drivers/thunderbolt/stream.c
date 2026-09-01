@@ -9,10 +9,12 @@
 
 #define pr_fmt(fmt) "tbstream: " fmt
 
+#include <linux/delay.h>
 #include <linux/configfs.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
+#include <linux/ktime.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -128,6 +130,7 @@ struct tbstream_ring {
  * @out_hopid: Out HopID
  * @ring_size: Size of the rings
  * @throttling: Interrupt throttling rate in ns
+ * @busy_poll: Instead of interrupts, busy poll the rings
  * @users: Number of times @cdev has been opened
  * @closed: CLOSE packet was received
  * @removed: Userspace removed the ConfigFS group underneath.
@@ -147,6 +150,7 @@ struct tbstream_dev {
 	int out_hopid;
 	unsigned int ring_size;
 	unsigned int throttling;
+	bool busy_poll;
 	int users;
 	bool closed;
 	bool removed;
@@ -512,8 +516,10 @@ tbstream_dev_alloc_tx(struct tbstream_dev *sdev, enum tbstream_frame_pdf pdf,
 	dma_sync_single_for_cpu(dma_dev, sf->frame.buffer_phy, size,
 				DMA_TO_DEVICE);
 	if (pdf == TBSTREAM_DATA) {
-		if (copy_page_from_iter(sf->page, 0, size, from) != size)
+		if (copy_page_from_iter(sf->page, 0, size, from) != size) {
+			sdev->tx_ring.cons--;
 			return ERR_PTR(-EFAULT);
+		}
 	} else {
 		memset(page_address(sf->page), 0, size);
 	}
@@ -534,9 +540,38 @@ tbstream_dev_send_data(struct tbstream_dev *sdev, struct iov_iter *from,
 	return tb_ring_tx(sdev->tx_ring.ring, &sf->frame);
 }
 
+static void
+tbstream_dev_poll_ring(struct tbstream_dev *sdev, struct tbstream_ring *ring)
+{
+	struct ring_frame *frame;
+
+	if (!sdev->busy_poll)
+		return;
+
+	while ((frame = tb_ring_poll(ring->ring)))
+		frame->callback(ring->ring, frame, false);
+}
+
 static int tbstream_dev_send_close(struct tbstream_dev *sdev)
 {
 	struct tbstream_frame *sf;
+
+	if (sdev->busy_poll) {
+		/*
+		 * When busy polling it's the write(2) path that
+		 * advances the completions so it is possible that the
+		 * ring is full at this point. Advance the ring here so
+		 * that there is room for the CLOSE packet to be sent.
+		 */
+		ktime_t timeout = ktime_add_ms(ktime_get(), 500);
+
+		do {
+			if (tbstream_ring_available(&sdev->tx_ring))
+				break;
+			tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
+			fsleep(15);
+		} while (ktime_before(ktime_get(), timeout));
+	}
 
 	sf = tbstream_dev_alloc_tx(sdev, TBSTREAM_CLOSE, NULL, SZ_256);
 	if (IS_ERR(sf))
@@ -547,12 +582,15 @@ static int tbstream_dev_send_close(struct tbstream_dev *sdev)
 static int tbstream_dev_start(struct tbstream_dev *sdev)
 {
 	struct tb_xdomain *xd = tbstream_dev_xdomain(sdev);
+	unsigned int flags = RING_FLAG_FRAME | RING_FLAG_E2E;
 	u16 sof_mask, eof_mask;
 	struct tb_ring *ring;
 	int ret, e2e_tx_hop;
 
-	ring = tb_ring_alloc_tx(xd->tb->nhi, -1, sdev->ring_size,
-				RING_FLAG_FRAME | RING_FLAG_E2E);
+	if (sdev->busy_poll)
+		flags |= RING_FLAG_NO_INTERRUPT;
+
+	ring = tb_ring_alloc_tx(xd->tb->nhi, -1, sdev->ring_size, flags);
 	if (!ring)
 		return -ENOMEM;
 	sdev->tx_ring.ring = ring;
@@ -565,9 +603,8 @@ static int tbstream_dev_start(struct tbstream_dev *sdev)
 	sof_mask = BIT(TBSTREAM_FRAME_START);
 	eof_mask = BIT(TBSTREAM_DATA) | BIT(TBSTREAM_CLOSE);
 
-	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, sdev->ring_size,
-				RING_FLAG_FRAME | RING_FLAG_E2E, e2e_tx_hop,
-				sof_mask, eof_mask, NULL, NULL);
+	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, sdev->ring_size, flags,
+				e2e_tx_hop, sof_mask, eof_mask, NULL, NULL);
 	if (!ring) {
 		ret = -ENOMEM;
 		goto err_free_tx_buffers;
@@ -605,15 +642,43 @@ err_free_tx:
 	return ret;
 }
 
+static bool tbstream_dev_tx_drained(const struct tbstream_dev *sdev)
+{
+	const struct tbstream_ring *ring = &sdev->tx_ring;
+
+	/*
+	 * Everything is completed when number of free TX slots is back
+	 * to the maximum.
+	 */
+	return ring->prod - ring->cons == tb_ring_size(ring->ring) - 1;
+}
+
 static void tbstream_dev_stop(struct tbstream_dev *sdev)
 {
 	struct tb_xdomain *xd;
 
-	/* Wait for the ring to complete any outstanding frames */
-	tb_ring_flush(sdev->tx_ring.ring, 500);
-	tb_ring_stop(sdev->tx_ring.ring);
-	tb_ring_flush(sdev->rx_ring.ring, 500);
-	tb_ring_stop(sdev->rx_ring.ring);
+	if (sdev->busy_poll) {
+		/*
+		 * When busy polling we must advance the ring ourselves
+		 * to push all outstanding frames on the wire.
+		 */
+		ktime_t timeout = ktime_add_ms(ktime_get(), 500);
+
+		do {
+			if (tbstream_dev_tx_drained(sdev))
+				break;
+			tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
+			fsleep(15);
+		} while (ktime_before(ktime_get(), timeout));
+
+		tb_ring_stop(sdev->tx_ring.ring);
+		tb_ring_stop(sdev->rx_ring.ring);
+	} else {
+		tb_ring_flush(sdev->tx_ring.ring, 500);
+		tb_ring_stop(sdev->tx_ring.ring);
+		tb_ring_flush(sdev->rx_ring.ring, 500);
+		tb_ring_stop(sdev->rx_ring.ring);
+	}
 
 	xd = tbstream_dev_xdomain(sdev);
 	if (xd) {
@@ -631,10 +696,24 @@ static void tbstream_dev_stop(struct tbstream_dev *sdev)
 	sdev->tx_ring.ring = NULL;
 }
 
+/* Use only with read_iter/write_iter() to handle nowait */
+static int tbstream_dev_lock(struct tbstream_dev *sdev, bool nowait)
+{
+	if (nowait) {
+		if (!mutex_trylock(&sdev->lock))
+			return -EAGAIN;
+	} else {
+		if (mutex_lock_interruptible(&sdev->lock))
+			return -ERESTARTSYS;
+	}
+	return 0;
+}
+
 static ssize_t
 tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
 	struct file *file = kiocb->ki_filp;
+	bool nowait = file->f_flags & O_NONBLOCK || kiocb->ki_flags & IOCB_NOWAIT;
 	struct tbstream_dev *sdev = to_tbstream_dev(file->private_data);
 	size_t nbytes;
 	int ret;
@@ -643,35 +722,54 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	if (ret)
 		return ret;
 
-	if (mutex_lock_interruptible(&sdev->lock))
-		return -ERESTARTSYS;
+	ret = tbstream_dev_lock(sdev, nowait);
+	if (ret)
+		return ret;
 
-	while (!tbstream_ring_available(&sdev->rx_ring)) {
-		mutex_unlock(&sdev->lock);
-
-		if (file->f_flags & O_NONBLOCK)
-			return -EAGAIN;
-		ret = wait_event_interruptible(sdev->wait,
-				tbstream_ring_available(&sdev->rx_ring) ||
-				tbstream_dev_valid(sdev) != 0 ||
-				tbstream_dev_closed(sdev) ||
-				tbstream_dev_removed(sdev));
-		if (ret)
-			return ret;
+	for (;;) {
+		/* When busy polling, advance any completions manually */
+		tbstream_dev_poll_ring(sdev, &sdev->rx_ring);
 
 		ret = tbstream_dev_valid(sdev);
+		if (ret) {
+			mutex_unlock(&sdev->lock);
+			return ret;
+		}
+
+		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev)) {
+			mutex_unlock(&sdev->lock);
+			return 0;
+		}
+
+		if (tbstream_ring_available(&sdev->rx_ring))
+			break;
+
+		mutex_unlock(&sdev->lock);
+
+		if (nowait)
+			return -EAGAIN;
+
+		if (sdev->busy_poll) {
+			if (signal_pending(current))
+				return -ERESTARTSYS;
+			cond_resched();
+		} else {
+			ret = wait_event_interruptible(sdev->wait,
+					tbstream_ring_available(&sdev->rx_ring) ||
+					tbstream_dev_valid(sdev) != 0 ||
+					tbstream_dev_closed(sdev) ||
+					tbstream_dev_removed(sdev));
+			if (ret)
+				return ret;
+		}
+
+		ret = tbstream_dev_lock(sdev, nowait);
 		if (ret)
 			return ret;
-
-		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev))
-			return 0;
-
-		if (mutex_lock_interruptible(&sdev->lock))
-			return -ERESTARTSYS;
 	}
 
 	nbytes = 0;
-	while (nbytes < iov_iter_count(to)) {
+	while (iov_iter_count(to)) {
 		struct tbstream_frame *sf;
 		size_t size, sf_size;
 
@@ -693,7 +791,7 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		}
 
 		sf_size = tb_ring_frame_size(&sf->frame);
-		size = min(iov_iter_count(to) - nbytes, sf_size);
+		size = min(iov_iter_count(to), sf_size);
 
 		if (copy_page_to_iter(sf->page, sf->offset, size, to) != size) {
 			ret = -EFAULT;
@@ -727,6 +825,7 @@ static ssize_t
 tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
 	struct file *file = kiocb->ki_filp;
+	bool nowait = file->f_flags & O_NONBLOCK || kiocb->ki_flags & IOCB_NOWAIT;
 	struct tbstream_dev *sdev = to_tbstream_dev(file->private_data);
 	size_t nbytes;
 	int ret;
@@ -735,38 +834,56 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	if (ret)
 		return ret;
 
-	if (mutex_lock_interruptible(&sdev->lock))
-		return -ERESTARTSYS;
+	ret = tbstream_dev_lock(sdev, nowait);
+	if (ret)
+		return ret;
 
-	while (!tbstream_ring_available(&sdev->tx_ring)) {
-		mutex_unlock(&sdev->lock);
-
-		if (file->f_flags & O_NONBLOCK)
-			return -EAGAIN;
-		ret = wait_event_interruptible(sdev->wait,
-				tbstream_ring_available(&sdev->tx_ring) ||
-				tbstream_dev_valid(sdev) != 0 ||
-				tbstream_dev_closed(sdev) ||
-				tbstream_dev_removed(sdev));
-		if (ret)
-			return ret;
+	for (;;) {
+		tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
 
 		ret = tbstream_dev_valid(sdev);
+		if (ret) {
+			mutex_unlock(&sdev->lock);
+			return ret;
+		}
+
+		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev)) {
+			mutex_unlock(&sdev->lock);
+			return -ENXIO;
+		}
+
+		if (tbstream_ring_available(&sdev->tx_ring))
+			break;
+
+		mutex_unlock(&sdev->lock);
+
+		if (nowait)
+			return -EAGAIN;
+
+		if (sdev->busy_poll) {
+			if (signal_pending(current))
+				return -ERESTARTSYS;
+			cond_resched();
+		} else {
+			ret = wait_event_interruptible(sdev->wait,
+					tbstream_ring_available(&sdev->tx_ring) ||
+					tbstream_dev_valid(sdev) != 0 ||
+					tbstream_dev_closed(sdev) ||
+					tbstream_dev_removed(sdev));
+			if (ret)
+				return ret;
+		}
+
+		ret = tbstream_dev_lock(sdev, nowait);
 		if (ret)
 			return ret;
-
-		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev))
-			return -ENXIO;
-
-		if (mutex_lock_interruptible(&sdev->lock))
-			return -ERESTARTSYS;
 	}
 
 	nbytes = 0;
-	while (nbytes < iov_iter_count(from)) {
+	while (iov_iter_count(from)) {
 		size_t size;
 
-		size = min(iov_iter_count(from) - nbytes, TB_MAX_FRAME_SIZE);
+		size = min(iov_iter_count(from), TB_MAX_FRAME_SIZE);
 		ret = tbstream_dev_send_data(sdev, from, size);
 		if (ret) {
 			/*
@@ -792,6 +909,13 @@ tbstream_dev_fops_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct tbstream_dev *sdev = to_tbstream_dev(file->private_data);
 	__poll_t mask = 0;
+
+	/*
+	 * Without interrupts there is nothing that can wake us up so
+	 * return failure instead.
+	 */
+	if (sdev->busy_poll)
+		return EPOLLERR;
 
 	poll_wait(file, &sdev->wait, wait);
 	guard(mutex)(&sdev->lock);
@@ -901,6 +1025,35 @@ tbstream_dev_from_group(struct config_group *group)
 {
 	return container_of(group, struct tbstream_dev, group);
 }
+
+static ssize_t tbstream_dev_busy_poll_show(struct config_item *item, char *buf)
+{
+	struct config_group *group = to_config_group(item);
+	struct tbstream_dev *sdev = tbstream_dev_from_group(group);
+
+	return sysfs_emit(buf, "%u\n", sdev->busy_poll);
+}
+
+static ssize_t
+tbstream_dev_busy_poll_store(struct config_item *item, const char *buf,
+			     size_t count)
+{
+	struct config_group *group = to_config_group(item);
+	struct tbstream_dev *sdev = tbstream_dev_from_group(group);
+	bool busy_poll;
+	int ret;
+
+	ret = kstrtobool(buf, &busy_poll);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&sdev->lock);
+	if (sdev->users)
+		return -EBUSY;
+	sdev->busy_poll = busy_poll;
+	return count;
+}
+CONFIGFS_ATTR(tbstream_dev_, busy_poll);
 
 static ssize_t tbstream_dev_index_show(struct config_item *item, char *buf)
 {
@@ -1208,6 +1361,7 @@ tbstream_dev_throttling_store(struct config_item *item, const char *buf,
 CONFIGFS_ATTR(tbstream_dev_, throttling);
 
 static struct configfs_attribute *tbstream_dev_attrs[] = {
+	&tbstream_dev_attr_busy_poll,
 	&tbstream_dev_attr_index,
 	&tbstream_dev_attr_in_hopid,
 	&tbstream_dev_attr_out_hopid,
@@ -1540,7 +1694,7 @@ static void tbstream_group_detach_stream(struct tbstream *stream)
 	config_group_put(&sg->group);
 }
 
-static int tbstream_probe(struct tb_service *svc, const struct tb_service_id *id)
+static int tbstream_probe(struct tb_service *svc)
 {
 	struct tbstream *stream;
 
@@ -1630,7 +1784,7 @@ static const struct dev_pm_ops tbstream_pm_ops = {
 
 static const struct tb_service_id tbstream_ids[] = {
 	{ TB_SERVICE("stream", 1) },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(tbsvc, tbstream_ids);
 

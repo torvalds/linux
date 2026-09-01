@@ -11,6 +11,9 @@
 #ifndef __AA_PATH_H
 #define __AA_PATH_H
 
+#include <linux/path.h>
+#include <linux/types.h>
+
 enum path_flags {
 	PATH_IS_DIR = 0x1,		/* path is a directory */
 	PATH_SOCK_COND = 0x2,

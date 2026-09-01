@@ -8,7 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 
 #include <video/sa1100fb.h>
 

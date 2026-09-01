@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_WAKEUP
+	depends on RV
+	depends on RV_MON_RTAPP
+	depends on HAVE_SYSCALL_TRACEPOINTS
+	default y
+	select LTL_MON_EVENTS_ID
+	bool "wakeup monitor"
+	help
+	  This monitor detects a lower-priority task waking up a
+	  higher-priority task. The RV_MON_SLEEP monitor already
+	  detects this case, but this monitor detects in the context
+	  of the waker task instead. This and RV_MON_SLEEP can be
+	  enabled together to get the stacktrace of both the waker
+	  task and the wakee task.

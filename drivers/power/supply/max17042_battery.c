@@ -62,18 +62,32 @@
 #define MAX17042_RESISTANCE_LSB		1 / 4096 /* Ω */
 #define MAX17042_TEMPERATURE_LSB	1 / 256 /* °C */
 
+#define MAX17055_DQACC_DIV		32
+#define MAX17055_DPACC_FACTOR		44138
+#define MAX17055_DPACC_VCHG_FACTOR	51200
+#define MAX17055_FSTAT_DNR_BIT		BIT(0)
+#define MAX17055_VCHG_THRESHOLD_UV	4275000
+#define MAX17055_DNR_POLL_US		10000
+#define MAX17055_DNR_TIMEOUT_US		2000000
+#define MAX17055_INIT_RETRY_DELAY_MS	10000
+#define MAX17055_REFRESH_POLL_US		10000
+#define MAX17055_REFRESH_TIMEOUT_US	1000000
+
 struct max17042_chip {
 	struct device *dev;
 	struct regmap *regmap;
 	struct power_supply *battery;
 	enum max170xx_chip_type chip_type;
 	struct max17042_config_data *config_data;
-	struct work_struct work;
-	int    init_complete;
+	struct delayed_work work;
 	int    irq;
 	int    task_period;
 	bool   enable_current_sense;
 	bool   enable_por_init;
+	bool   enable_vchg_override;
+	bool   init_complete;
+	bool   hib_restore_pending;
+	u16    hib_cfg;
 	unsigned int r_sns;
 	int    vmin;	/* in millivolts */
 	int    vmax;	/* in millivolts */
@@ -256,7 +270,7 @@ static int max17042_get_property(struct power_supply *psy,
 	u32 data;
 	u64 data64;
 
-	if (!chip->init_complete)
+	if (!READ_ONCE(chip->init_complete))
 		return -EAGAIN;
 
 	switch (psp) {
@@ -566,6 +580,24 @@ static int max17042_write_verify_reg(struct regmap *map, u8 reg, u32 value)
 	return ret;
 }
 
+static int max17055_write_verify_reg(struct regmap *map, u8 reg, u32 value)
+{
+	u32 read_value;
+	int ret;
+
+	ret = regmap_write(map, reg, value);
+	if (ret)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	ret = regmap_read(map, reg, &read_value);
+	if (ret)
+		return ret;
+
+	return read_value == value ? 0 : -EIO;
+}
+
 static inline void max17042_override_por(struct regmap *map,
 					 u8 reg, u16 value)
 {
@@ -801,8 +833,12 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 	max17042_override_por(map, MAX17042_CONFIG, config->config);
 	max17042_override_por(map, MAX17042_SHDNTIMER, config->shdntimer);
 
-	max17042_override_por(map, MAX17042_DesignCap, config->design_cap);
-	max17042_override_por(map, MAX17042_ICHGTerm, config->ichgt_term);
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
+		max17042_override_por(map, MAX17042_DesignCap,
+				      config->design_cap);
+		max17042_override_por(map, MAX17042_ICHGTerm,
+				      config->ichgt_term);
+	}
 
 	max17042_override_por(map, MAX17042_AtRate, config->at_rate);
 	max17042_override_por(map, MAX17042_LearnCFG, config->learn_cfg);
@@ -812,8 +848,10 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 
 	max17042_override_por(map, MAX17042_FullCAP, config->fullcap);
 	max17042_override_por(map, MAX17042_FullCAPNom, config->fullcapnom);
-	max17042_override_por(map, MAX17042_dQacc, config->dqacc);
-	max17042_override_por(map, MAX17042_dPacc, config->dpacc);
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
+		max17042_override_por(map, MAX17042_dQacc, config->dqacc);
+		max17042_override_por(map, MAX17042_dPacc, config->dpacc);
+	}
 
 	max17042_override_por(map, MAX17042_RCOMP0, config->rcomp0);
 	max17042_override_por(map, MAX17042_TempCo, config->tcompc0);
@@ -843,8 +881,166 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 		max17042_override_por(map, MAX17047_V_empty, config->vempty);
 	}
 
-	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055 &&
+	    !chip->enable_vchg_override)
 		max17042_override_por(map, MAX17055_ModelCfg, config->model_cfg);
+}
+
+static int max17055_override_battery_values(struct max17042_chip *chip)
+{
+	struct max17042_config_data *config = chip->config_data;
+	struct regmap *map = chip->regmap;
+	unsigned int design_cap;
+	unsigned int model_cfg;
+	unsigned int dqacc;
+	u64 dpacc;
+	int ret;
+
+	if (config->design_cap) {
+		ret = max17055_write_verify_reg(map, MAX17042_DesignCap,
+						config->design_cap);
+		if (ret)
+			return ret;
+	}
+
+	if (config->dqacc) {
+		ret = max17055_write_verify_reg(map, MAX17042_dQacc,
+						config->dqacc);
+		if (ret)
+			return ret;
+	}
+
+	if (config->ichgt_term) {
+		ret = max17055_write_verify_reg(map, MAX17042_ICHGTerm,
+						config->ichgt_term);
+		if (ret)
+			return ret;
+	}
+
+	if (chip->enable_vchg_override) {
+		ret = regmap_update_bits(map, MAX17055_ModelCfg,
+					 MAX17055_MODELCFG_VCHG_BIT,
+					 config->model_cfg &
+					 MAX17055_MODELCFG_VCHG_BIT);
+		if (ret)
+			return ret;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!config->design_cap && !config->dqacc &&
+	    !chip->enable_vchg_override)
+		return 0;
+
+	ret = regmap_read(map, MAX17042_DesignCap, &design_cap);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17042_dQacc, &dqacc);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17055_ModelCfg, &model_cfg);
+	if (ret)
+		return ret;
+	if (chip->enable_vchg_override &&
+	    (model_cfg & MAX17055_MODELCFG_VCHG_BIT) !=
+	    (config->model_cfg & MAX17055_MODELCFG_VCHG_BIT))
+		return -EIO;
+
+	if (!design_cap || !dqacc)
+		return -ERANGE;
+
+	dpacc = (u64)dqacc *
+		(model_cfg & MAX17055_MODELCFG_VCHG_BIT ?
+		 MAX17055_DPACC_VCHG_FACTOR : MAX17055_DPACC_FACTOR);
+	do_div(dpacc, design_cap);
+	if (dpacc > U16_MAX)
+		return -ERANGE;
+
+	return max17055_write_verify_reg(map, MAX17042_dPacc, (u16)dpacc);
+}
+
+static int max17055_restore_hibernate(struct max17042_chip *chip)
+{
+	int restore_hib_ret;
+	int soft_wakeup_ret;
+
+	soft_wakeup_ret = regmap_write(chip->regmap, MAX17055_SoftWakeup, 0);
+	restore_hib_ret = max17055_write_verify_reg(chip->regmap,
+						    MAX17055_HibCfg,
+						    chip->hib_cfg);
+	if (!soft_wakeup_ret && !restore_hib_ret)
+		chip->hib_restore_pending = false;
+
+	return soft_wakeup_ret ?: restore_hib_ret;
+}
+
+static int max17055_init_chip(struct max17042_chip *chip)
+{
+	struct regmap *map = chip->regmap;
+	unsigned int hib_cfg;
+	unsigned int model_cfg;
+	unsigned int fstat;
+	int restore_ret;
+	int ret;
+
+	if (chip->hib_restore_pending) {
+		ret = max17055_restore_hibernate(chip);
+		if (ret)
+			return ret;
+	}
+
+	ret = regmap_read_poll_timeout(map, MAX17042_FSTAT, fstat,
+				       !(fstat & MAX17055_FSTAT_DNR_BIT),
+				       MAX17055_DNR_POLL_US,
+				       MAX17055_DNR_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17055_HibCfg, &hib_cfg);
+	if (ret)
+		return ret;
+
+	chip->hib_cfg = hib_cfg;
+	chip->hib_restore_pending = true;
+
+	ret = regmap_write(map, MAX17055_SoftWakeup, 0x0090);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = max17055_write_verify_reg(map, MAX17055_HibCfg, 0);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = regmap_write(map, MAX17055_SoftWakeup, 0);
+	if (ret)
+		goto restore_hibernate;
+
+	max17042_override_por_values(chip);
+
+	ret = max17055_override_battery_values(chip);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = regmap_write_bits(map, MAX17055_ModelCfg,
+				MAX17055_MODELCFG_REFRESH_BIT,
+				MAX17055_MODELCFG_REFRESH_BIT);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = regmap_read_poll_timeout(map, MAX17055_ModelCfg, model_cfg,
+				       !(model_cfg &
+					 MAX17055_MODELCFG_REFRESH_BIT),
+				       MAX17055_REFRESH_POLL_US,
+				       MAX17055_REFRESH_TIMEOUT_US);
+
+restore_hibernate:
+	restore_ret = max17055_restore_hibernate(chip);
+	if (restore_ret)
+		return restore_ret;
+
+	return ret;
 }
 
 static int max17042_init_chip(struct max17042_chip *chip)
@@ -852,21 +1048,16 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	struct regmap *map = chip->regmap;
 	int ret;
 
-	max17042_override_por_values(chip);
-
 	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055) {
-		regmap_write_bits(map, MAX17055_ModelCfg,
-				  MAX17055_MODELCFG_REFRESH_BIT,
-				  MAX17055_MODELCFG_REFRESH_BIT);
-	}
+		ret = max17055_init_chip(chip);
+		if (ret)
+			return ret;
+	} else {
+		max17042_override_por_values(chip);
 
-	/* After Power up, the MAX17042 requires 500mS in order
-	 * to perform signal debouncing and initial SOC reporting
-	 */
-	msleep(500);
+		/* Allow signal debouncing and initial SOC reporting. */
+		msleep(500);
 
-	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
-		/* Initialize configuration */
 		max17042_write_config_regs(chip);
 
 		/* write cell characterization data */
@@ -902,8 +1093,7 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	}
 
 	/* Init complete, Clear the POR bit */
-	regmap_update_bits(map, MAX17042_STATUS, STATUS_POR_BIT, 0x0);
-	return 0;
+	return regmap_clear_bits(map, MAX17042_STATUS, STATUS_POR_BIT);
 }
 
 static void max17042_set_soc_threshold(struct max17042_chip *chip, u16 off)
@@ -989,18 +1179,28 @@ static irqreturn_t max17042_thread_handler(int id, void *dev)
 
 static void max17042_init_worker(struct work_struct *work)
 {
-	struct max17042_chip *chip = container_of(work,
+	struct max17042_chip *chip = container_of(to_delayed_work(work),
 				struct max17042_chip, work);
-	int ret;
+	int ret = 0;
 
 	/* Initialize registers according to values from config_data */
-	if (chip->enable_por_init && chip->config_data) {
+	if (chip->enable_por_init && chip->config_data)
 		ret = max17042_init_chip(chip);
-		if (ret)
-			return;
+
+	if (ret) {
+		if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055) {
+			dev_warn_ratelimited(chip->dev,
+				"initialization failed: %d, retrying\n", ret);
+			schedule_delayed_work(&chip->work,
+				msecs_to_jiffies(MAX17055_INIT_RETRY_DELAY_MS));
+		} else {
+			dev_err(chip->dev, "initialization failed: %d\n", ret);
+		}
+		return;
 	}
 
-	chip->init_complete = 1;
+	WRITE_ONCE(chip->init_complete, true);
+	power_supply_changed(chip->battery);
 }
 
 #ifdef CONFIG_OF
@@ -1026,10 +1226,14 @@ static int max17042_parse_dt(struct max17042_chip *chip)
 		chip->temp_min = INT_MIN;
 	if (of_property_read_s32(np, "maxim,over-heat-temp", &chip->temp_max))
 		chip->temp_max = INT_MAX;
-	if (of_property_read_s32(np, "maxim,dead-volt", &chip->vmin))
+	if (of_property_read_u32(np, "maxim,dead-volt", &prop))
 		chip->vmin = INT_MIN;
-	if (of_property_read_s32(np, "maxim,over-volt", &chip->vmax))
+	else
+		chip->vmin = prop;
+	if (of_property_read_u32(np, "maxim,over-volt", &prop))
 		chip->vmax = INT_MAX;
+	else
+		chip->vmin = prop;
 
 	return 0;
 }
@@ -1058,6 +1262,102 @@ static int max17042_init_defaults(struct max17042_chip *chip)
 	chip->temp_max = MAX17042_DEFAULT_TEMP_MAX;
 
 	return 0;
+}
+
+static int max17042_apply_battery_properties(struct max17042_chip *chip,
+					     struct power_supply_battery_info *info)
+{
+	struct max17042_config_data *config;
+	struct device *dev = chip->dev;
+	bool have_design_cap;
+	bool have_ichgt_term;
+	bool have_vchg;
+	u16 design_cap = 0;
+	u16 ichgt_term = 0;
+	u16 dqacc = 0;
+	u16 model_cfg = 0;
+	u64 data64;
+
+	if (!info || chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055)
+		return 0;
+
+	have_design_cap = chip->enable_current_sense &&
+		info->charge_full_design_uah > 0;
+	have_ichgt_term = chip->enable_current_sense &&
+		info->charge_term_current_ua > 0;
+	have_vchg = info->voltage_max_design_uv >= 0;
+	if (!have_design_cap && !have_ichgt_term && !have_vchg)
+		return 0;
+
+	if (have_design_cap) {
+		data64 = (u64)info->charge_full_design_uah * chip->r_sns;
+		do_div(data64, MAX17042_CAPACITY_LSB);
+		if (!data64)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity is too small for sense resistor\n");
+		if (data64 > U16_MAX)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity exceeds register range\n");
+
+		design_cap = (u16)data64;
+		dqacc = design_cap / MAX17055_DQACC_DIV;
+		if (!dqacc)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity is too small for EZ config\n");
+	}
+
+	if (have_ichgt_term) {
+		data64 = (u64)info->charge_term_current_ua * chip->r_sns;
+		do_div(data64, MAX17042_CURRENT_LSB);
+		if (!data64)
+			return dev_err_probe(dev, -ERANGE,
+					     "charge termination current is too small for sense resistor\n");
+		if (data64 > S16_MAX)
+			return dev_err_probe(dev, -ERANGE,
+					     "charge termination current exceeds positive register range\n");
+
+		ichgt_term = (u16)data64;
+	}
+
+	if (have_vchg) {
+		if (!info->voltage_max_design_uv)
+			return dev_err_probe(dev, -EINVAL,
+					     "battery design voltage must be positive\n");
+
+		if (info->voltage_max_design_uv > MAX17055_VCHG_THRESHOLD_UV)
+			model_cfg = MAX17055_MODELCFG_VCHG_BIT;
+	}
+
+	config = chip->config_data;
+	if (!config) {
+		config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
+		if (!config)
+			return -ENOMEM;
+	}
+
+	if (have_design_cap) {
+		config->design_cap = design_cap;
+		config->dqacc = dqacc;
+	}
+	if (have_ichgt_term)
+		config->ichgt_term = ichgt_term;
+	if (have_vchg) {
+		config->model_cfg &= ~MAX17055_MODELCFG_VCHG_BIT;
+		config->model_cfg |= model_cfg;
+		chip->enable_vchg_override = true;
+	}
+
+	chip->config_data = config;
+	chip->enable_por_init = true;
+
+	return 0;
+}
+
+static int max17042_init_battery(struct power_supply *psy)
+{
+	struct max17042_chip *chip = power_supply_get_drvdata(psy);
+
+	return max17042_apply_battery_properties(chip, psy->battery_info);
 }
 
 static const struct regmap_config max17042_regmap_config = {
@@ -1113,6 +1413,7 @@ static const struct power_supply_desc max17042_psy_desc = {
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
 	.external_power_changed	= power_supply_changed,
+	.init		= max17042_init_battery,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props),
 };
@@ -1123,6 +1424,7 @@ static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
 	.get_property	= max17042_get_property,
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
+	.init		= max17042_init_battery,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props) - 2,
 };
@@ -1242,15 +1544,18 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 
 	chip->irq = irq;
 
-	regmap_read(chip->regmap, MAX17042_STATUS, &val);
+	ret = regmap_read(chip->regmap, MAX17042_STATUS, &val);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to read status\n");
+
 	if (val & STATUS_POR_BIT) {
-		ret = devm_work_autocancel(dev, &chip->work,
-					   max17042_init_worker);
+		ret = devm_delayed_work_autocancel(dev, &chip->work,
+						   max17042_init_worker);
 		if (ret)
 			return ret;
-		schedule_work(&chip->work);
+		schedule_delayed_work(&chip->work, 0);
 	} else {
-		chip->init_complete = 1;
+		WRITE_ONCE(chip->init_complete, true);
 	}
 
 	return 0;

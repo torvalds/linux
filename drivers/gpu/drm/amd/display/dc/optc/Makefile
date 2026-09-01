@@ -118,5 +118,14 @@ AMD_DAL_OPTC_DCN42 = $(addprefix $(AMDDALPATH)/dc/optc/dcn42/,$(OPTC_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_OPTC_DCN42)
 
+###############################################################################
+
+OPTC_DCN60 = dcn60_optc.o
+
+AMD_DAL_OPTC_DCN60 = $(addprefix $(AMDDALPATH)/dc/optc/dcn60/,$(OPTC_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_OPTC_DCN60)
+
+###############################################################################
 endif
 

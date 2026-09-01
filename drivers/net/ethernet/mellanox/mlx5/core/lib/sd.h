@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 
+#define MLX5_SD_MIN_GROUP_SZ 2
 #define MLX5_SD_MAX_GROUP_SZ 2
 
 struct mlx5_sd;

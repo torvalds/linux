@@ -1178,7 +1178,13 @@ static int wsa881x_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(regmap, false);
-	regcache_sync(regmap);
+	ret = regcache_sync(regmap);
+	if (ret) {
+		regcache_cache_only(regmap, true);
+		regcache_mark_dirty(regmap);
+		gpiod_direction_output(wsa881x->sd_n, 1);
+		return ret;
+	}
 
 	return 0;
 }

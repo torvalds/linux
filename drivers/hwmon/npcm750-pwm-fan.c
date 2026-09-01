@@ -996,10 +996,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		sprintf(name, "NPCM7XX-FAN-MD%d", i);
 		ret = devm_request_irq(dev, data->fan_irq[i], npcm7xx_fan_isr,
 				       0, name, (void *)data);
-		if (ret) {
-			dev_err(dev, "register IRQ fan%d failed\n", i);
+		if (ret)
 			return ret;
-		}
 	}
 
 	for_each_child_of_node_scoped(np, child) {

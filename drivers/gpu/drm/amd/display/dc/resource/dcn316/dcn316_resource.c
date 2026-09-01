@@ -31,6 +31,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn316_resource.h"
 
 #include "dcn20/dcn20_resource.h"
@@ -653,11 +654,11 @@ static const struct dcn_optc_registers optc_regs[] = {
 };
 
 static const struct dcn_optc_shift optc_shift = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_1(__SHIFT)
+	OPTC_COMMON_MASK_SH_LIST_DCN31X(__SHIFT)
 };
 
 static const struct dcn_optc_mask optc_mask = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_1(_MASK)
+	OPTC_COMMON_MASK_SH_LIST_DCN31X(_MASK)
 };
 
 #define hubp_regs(id)\
@@ -908,6 +909,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_z10 = true, /*hw not support it*/
 	.disable_dmcu = true,
 	.force_abm_enable = false,
@@ -1181,7 +1183,7 @@ static struct link_encoder *dcn31_link_enc_create_minimal(
 {
 	struct dcn20_link_encoder *enc20;
 
-	if (((unsigned int)eng_id - ENGINE_ID_DIGA) > ctx->dc->res_pool->res_cap->num_dig_link_enc)
+	if (((unsigned int)eng_id - ENGINE_ID_DIGA) >= ctx->dc->res_pool->res_cap->num_dig_link_enc)
 		return NULL;
 
 	enc20 = kzalloc_obj(struct dcn20_link_encoder);
@@ -1193,6 +1195,8 @@ static struct link_encoder *dcn31_link_enc_create_minimal(
 			ctx,
 			&link_enc_feature,
 			&link_enc_regs[eng_id - ENGINE_ID_DIGA],
+			&le_shift,
+			&le_mask,
 			eng_id);
 
 	return &enc20->enc10.base;
@@ -1927,7 +1931,6 @@ static bool dcn316_resource_construct(
 	if (dc->config.forceHBR2CP2520)
 		dc->caps.force_dp_tps4_for_cp2520 = false;
 	dc->caps.hdmi_hpo = true;
-	dc->config.skip_frl_pretraining = true;
 	dc->caps.dp_hpo = true;
 	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.edp_dsc_support = true;
@@ -1968,6 +1971,7 @@ static bool dcn316_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	/* read VBIOS LTTPR caps */
 	{

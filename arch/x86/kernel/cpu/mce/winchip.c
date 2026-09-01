@@ -28,12 +28,12 @@ noinstr void winchip_machine_check(struct pt_regs *regs)
 /* Set up machine check reporting on the Winchip C6 series */
 void winchip_mcheck_init(struct cpuinfo_x86 *c)
 {
-	u32 lo, hi;
+	struct msr val;
 
-	rdmsr(MSR_IDT_FCR1, lo, hi);
-	lo |= (1<<2);	/* Enable EIERRINT (int 18 MCE) */
-	lo &= ~(1<<4);	/* Enable MCE */
-	wrmsr(MSR_IDT_FCR1, lo, hi);
+	rdmsrq(MSR_IDT_FCR1, val.q);
+	val.l |= (1<<2);	/* Enable EIERRINT (int 18 MCE) */
+	val.l &= ~(1<<4);	/* Enable MCE */
+	wrmsrq(MSR_IDT_FCR1, val.q);
 
 	cr4_set_bits(X86_CR4_MCE);
 

@@ -35,12 +35,6 @@ MODULE_DESCRIPTION("SIP connection tracking helper");
 MODULE_ALIAS("ip_conntrack_sip");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
-#define MAX_PORTS	8
-static unsigned short ports[MAX_PORTS];
-static unsigned int ports_c;
-module_param_array(ports, ushort, &ports_c, 0400);
-MODULE_PARM_DESC(ports, "port numbers of SIP servers");
-
 static unsigned int sip_timeout __read_mostly = SIP_TIMEOUT;
 module_param(sip_timeout, uint, 0600);
 MODULE_PARM_DESC(sip_timeout, "timeout for the master SIP session");
@@ -1767,8 +1761,8 @@ static int sip_help_udp(struct sk_buff *skb, unsigned int protoff,
 	return process_sip_msg(skb, ct, protoff, dataoff, &dptr, &datalen);
 }
 
-static struct nf_conntrack_helper sip[MAX_PORTS * 4] __read_mostly;
-static struct nf_conntrack_helper *sip_ptr[MAX_PORTS * 4] __read_mostly;
+static struct nf_conntrack_helper sip[2] __read_mostly;
+static struct nf_conntrack_helper *sip_ptr[2] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1] = {
 	[SIP_EXPECT_SIGNALLING] = {
@@ -1795,38 +1789,25 @@ static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1
 
 static void __exit nf_conntrack_sip_fini(void)
 {
-	nf_conntrack_helpers_unregister(sip_ptr, ports_c * 4);
+	nf_conntrack_helpers_unregister(sip_ptr, 2);
 }
 
 static int __init nf_conntrack_sip_init(void)
 {
-	int i, ret;
+	int ret;
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sip_master));
 
-	if (ports_c == 0)
-		ports[ports_c++] = SIP_PORT;
+	nf_ct_helper_init(&sip[0], NFPROTO_UNSPEC, IPPROTO_UDP,
+			  HELPER_NAME,
+			  sip_exp_policy, SIP_EXPECT_MAX, sip_help_udp,
+			  NULL, THIS_MODULE);
+	nf_ct_helper_init(&sip[1], NFPROTO_UNSPEC, IPPROTO_TCP,
+			  HELPER_NAME,
+			  sip_exp_policy, SIP_EXPECT_MAX, sip_help_tcp,
+			  NULL, THIS_MODULE);
 
-	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP,
-				  HELPER_NAME, SIP_PORT, ports[i], i,
-				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_udp,
-				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 1], AF_INET, IPPROTO_TCP,
-				  HELPER_NAME, SIP_PORT, ports[i], i,
-				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_tcp,
-				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 2], AF_INET6, IPPROTO_UDP,
-				  HELPER_NAME, SIP_PORT, ports[i], i,
-				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_udp,
-				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 3], AF_INET6, IPPROTO_TCP,
-				  HELPER_NAME, SIP_PORT, ports[i], i,
-				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_tcp,
-				  NULL, THIS_MODULE);
-	}
-
-	ret = nf_conntrack_helpers_register(sip, ports_c * 4, sip_ptr);
+	ret = nf_conntrack_helpers_register(sip, 2, sip_ptr);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
 		return ret;

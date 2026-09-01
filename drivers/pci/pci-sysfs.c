@@ -112,7 +112,8 @@ static ssize_t pci_dev_show_local_cpu(struct device *dev, bool list,
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
-	return cpumap_print_to_pagebuf(list, buf, mask);
+	return sysfs_emit(buf, list ? "%*pbl\n" : "%*pb\n",
+			  cpumask_pr_args(mask));
 }
 
 static ssize_t local_cpus_show(struct device *dev,
@@ -137,7 +138,7 @@ static ssize_t cpuaffinity_show(struct device *dev,
 {
 	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
 
-	return cpumap_print_to_pagebuf(false, buf, cpumask);
+	return sysfs_emit(buf, "%*pb\n", cpumask_pr_args(cpumask));
 }
 static DEVICE_ATTR_RO(cpuaffinity);
 
@@ -146,7 +147,7 @@ static ssize_t cpulistaffinity_show(struct device *dev,
 {
 	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask));
 }
 static DEVICE_ATTR_RO(cpulistaffinity);
 
@@ -718,7 +719,7 @@ static ssize_t pci_read_config(struct file *filp, struct kobject *kobj,
 	else if (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
 		size = 128;
 
-	if (off > size)
+	if (off >= size)
 		return 0;
 	if (off + count > size) {
 		size -= off;
@@ -799,7 +800,7 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 	}
 
-	if (off > dev->cfg_size)
+	if (off >= dev->cfg_size)
 		return 0;
 	if (off + count > dev->cfg_size) {
 		size = dev->cfg_size - off;
@@ -871,6 +872,27 @@ static const struct attribute_group pci_dev_config_attr_group = {
 };
 
 #ifdef HAVE_PCI_LEGACY
+
+#define pci_legacy_resource_io_attr(_suffix, _size)			     \
+static const struct bin_attribute pci_legacy_io##_suffix##_attr = {	     \
+	.attr = { .name = "legacy_io" __stringify(_suffix), .mode = 0600 },  \
+	.size = (_size),						     \
+	.read = pci_read_legacy_io,					     \
+	.write = pci_write_legacy_io,					     \
+	.f_mapping = iomem_get_mapping,					     \
+	.llseek = pci_llseek_resource_legacy,				     \
+	.mmap = pci_mmap_legacy_io,					     \
+}
+
+#define pci_legacy_resource_mem_attr(_suffix, _size)			     \
+static const struct bin_attribute pci_legacy_mem##_suffix##_attr = {	     \
+	.attr = { .name = "legacy_mem" __stringify(_suffix), .mode = 0600 }, \
+	.size = (_size),						     \
+	.f_mapping = iomem_get_mapping,					     \
+	.llseek = pci_llseek_resource_legacy,				     \
+	.mmap = pci_mmap_legacy_mem,					     \
+}
+
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
  * @filp: open sysfs file
@@ -888,12 +910,30 @@ static ssize_t pci_read_legacy_io(struct file *filp, struct kobject *kobj,
 				  char *buf, loff_t off, size_t count)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
+	u32 val = 0;
+	int ret;
 
 	/* Only support 1, 2 or 4 byte accesses */
 	if (count != 1 && count != 2 && count != 4)
 		return -EINVAL;
 
-	return pci_legacy_read(bus, off, (u32 *)buf, count);
+	ret = pci_legacy_read(bus, off, &val, count);
+	if (ret < 0)
+		return ret;
+
+	switch (count) {
+	case 1:
+		buf[0] = *(u8 *)&val;
+		break;
+	case 2:
+		put_unaligned_le16(*(u16 *)&val, buf);
+		break;
+	case 4:
+		put_unaligned_le32(val, buf);
+		break;
+	}
+
+	return ret;
 }
 
 /**
@@ -913,12 +953,24 @@ static ssize_t pci_write_legacy_io(struct file *filp, struct kobject *kobj,
 				   char *buf, loff_t off, size_t count)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
+	u32 val;
 
-	/* Only support 1, 2 or 4 byte accesses */
-	if (count != 1 && count != 2 && count != 4)
+	/* Only support 1, 2 or 4 byte accesses. */
+	switch (count) {
+	case 1:
+		val = *(u8 *)buf;
+		break;
+	case 2:
+		val = get_unaligned_le16(buf);
+		break;
+	case 4:
+		val = get_unaligned_le32(buf);
+		break;
+	default:
 		return -EINVAL;
+	}
 
-	return pci_legacy_write(bus, off, *(u32 *)buf, count);
+	return pci_legacy_write(bus, off, val, count);
 }
 
 /**
@@ -937,6 +989,11 @@ static int pci_mmap_legacy_mem(struct file *filp, struct kobject *kobj,
 			       struct vm_area_struct *vma)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
+	if (ret)
+		return ret;
 
 	return pci_mmap_legacy_page_range(bus, vma, pci_mmap_mem);
 }
@@ -957,6 +1014,11 @@ static int pci_mmap_legacy_io(struct file *filp, struct kobject *kobj,
 			      struct vm_area_struct *vma)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
+	if (ret)
+		return ret;
 
 	return pci_mmap_legacy_page_range(bus, vma, pci_mmap_io);
 }
@@ -973,6 +1035,11 @@ static inline umode_t __pci_legacy_is_visible(struct kobject *kobj,
 					      bool sparse)
 {
 	struct pci_bus *bus = to_pci_bus(kobj_to_dev(kobj));
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
+	if (ret)
+		return ret;
 
 	if (pci_legacy_has_sparse(bus, type) != sparse)
 		return 0;
@@ -1014,41 +1081,11 @@ static loff_t pci_llseek_resource_legacy(struct file *filep,
 	return fixed_size_llseek(filep, offset, whence, attr->size);
 }
 
-static const struct bin_attribute pci_legacy_io_attr = {
-	.attr = { .name = "legacy_io", .mode = 0600 },
-	.size = PCI_LEGACY_IO_SIZE,
-	.read = pci_read_legacy_io,
-	.write = pci_write_legacy_io,
-	.mmap = pci_mmap_legacy_io,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
+pci_legacy_resource_io_attr(, PCI_LEGACY_IO_SIZE);
+pci_legacy_resource_io_attr(_sparse, PCI_LEGACY_IO_SIZE << 5);
 
-static const struct bin_attribute pci_legacy_io_sparse_attr = {
-	.attr = { .name = "legacy_io_sparse", .mode = 0600 },
-	.size = PCI_LEGACY_IO_SIZE << 5,
-	.read = pci_read_legacy_io,
-	.write = pci_write_legacy_io,
-	.mmap = pci_mmap_legacy_io,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
-
-static const struct bin_attribute pci_legacy_mem_attr = {
-	.attr = { .name = "legacy_mem", .mode = 0600 },
-	.size = PCI_LEGACY_MEM_SIZE,
-	.mmap = pci_mmap_legacy_mem,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
-
-static const struct bin_attribute pci_legacy_mem_sparse_attr = {
-	.attr = { .name = "legacy_mem_sparse", .mode = 0600 },
-	.size = PCI_LEGACY_MEM_SIZE << 5,
-	.mmap = pci_mmap_legacy_mem,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
+pci_legacy_resource_mem_attr(, PCI_LEGACY_MEM_SIZE);
+pci_legacy_resource_mem_attr(_sparse, PCI_LEGACY_MEM_SIZE << 5);
 
 static const struct bin_attribute *const pci_legacy_io_attrs[] = {
 	&pci_legacy_io_attr,
@@ -1239,16 +1276,25 @@ static loff_t pci_llseek_resource(struct file *filep,
  * attribute, it's not going to work, so override it as well.
  */
 #if arch_can_pci_mmap_io()
-# define __PCI_RESOURCE_IO_MMAP_ATTRS		\
-	.f_mapping = iomem_get_mapping,		\
-	.llseek = pci_llseek_resource,		\
+# define __PCI_RESOURCE_IO_MMAP_ATTRS	\
+	.f_mapping = iomem_get_mapping,	\
+	.llseek = pci_llseek_resource,	\
 	.mmap = pci_mmap_resource_uc,
 #else
-# define __PCI_RESOURCE_IO_MMAP_ATTRS
+static int pci_mmap_resource_io_unsupported(struct file *filp,
+					    struct kobject *kobj,
+					    const struct bin_attribute *attr,
+					    struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
+# define __PCI_RESOURCE_IO_MMAP_ATTRS	\
+	.mmap = pci_mmap_resource_io_unsupported,
 #endif
 
 #define pci_dev_resource_io_attr(_bar)					\
-static const struct bin_attribute dev_resource##_bar##_io_attr = {	\
+static const struct bin_attribute pci_dev_resource##_bar##_io_attr = {	\
 	.attr = { .name = "resource" __stringify(_bar), .mode = 0600 },	\
 	.private = (void *)(unsigned long)(_bar),			\
 	.read = pci_read_resource,					\
@@ -1257,7 +1303,7 @@ static const struct bin_attribute dev_resource##_bar##_io_attr = {	\
 }
 
 #define pci_dev_resource_uc_attr(_bar)					\
-static const struct bin_attribute dev_resource##_bar##_uc_attr = {	\
+static const struct bin_attribute pci_dev_resource##_bar##_uc_attr = {	\
 	.attr = { .name = "resource" __stringify(_bar), .mode = 0600 },	\
 	.private = (void *)(unsigned long)(_bar),			\
 	.f_mapping = iomem_get_mapping,					\
@@ -1265,8 +1311,8 @@ static const struct bin_attribute dev_resource##_bar##_uc_attr = {	\
 	.mmap = pci_mmap_resource_uc,					\
 }
 
-#define pci_dev_resource_wc_attr(_bar)					      \
-static const struct bin_attribute dev_resource##_bar##_wc_attr = {	      \
+#define pci_dev_resource_wc_attr(_bar)						\
+static const struct bin_attribute pci_dev_resource##_bar##_wc_attr = {	      \
 	.attr = { .name = "resource" __stringify(_bar) "_wc", .mode = 0600 }, \
 	.private = (void *)(unsigned long)(_bar),			      \
 	.f_mapping = iomem_get_mapping,					      \
@@ -1352,32 +1398,32 @@ pci_dev_resource_wc_attr(4);
 pci_dev_resource_wc_attr(5);
 
 static const struct bin_attribute *const pci_dev_resource_io_attrs[] = {
-	&dev_resource0_io_attr,
-	&dev_resource1_io_attr,
-	&dev_resource2_io_attr,
-	&dev_resource3_io_attr,
-	&dev_resource4_io_attr,
-	&dev_resource5_io_attr,
+	&pci_dev_resource0_io_attr,
+	&pci_dev_resource1_io_attr,
+	&pci_dev_resource2_io_attr,
+	&pci_dev_resource3_io_attr,
+	&pci_dev_resource4_io_attr,
+	&pci_dev_resource5_io_attr,
 	NULL,
 };
 
 static const struct bin_attribute *const pci_dev_resource_uc_attrs[] = {
-	&dev_resource0_uc_attr,
-	&dev_resource1_uc_attr,
-	&dev_resource2_uc_attr,
-	&dev_resource3_uc_attr,
-	&dev_resource4_uc_attr,
-	&dev_resource5_uc_attr,
+	&pci_dev_resource0_uc_attr,
+	&pci_dev_resource1_uc_attr,
+	&pci_dev_resource2_uc_attr,
+	&pci_dev_resource3_uc_attr,
+	&pci_dev_resource4_uc_attr,
+	&pci_dev_resource5_uc_attr,
 	NULL,
 };
 
 static const struct bin_attribute *const pci_dev_resource_wc_attrs[] = {
-	&dev_resource0_wc_attr,
-	&dev_resource1_wc_attr,
-	&dev_resource2_wc_attr,
-	&dev_resource3_wc_attr,
-	&dev_resource4_wc_attr,
-	&dev_resource5_wc_attr,
+	&pci_dev_resource0_wc_attr,
+	&pci_dev_resource1_wc_attr,
+	&pci_dev_resource2_wc_attr,
+	&pci_dev_resource3_wc_attr,
+	&pci_dev_resource4_wc_attr,
+	&pci_dev_resource5_wc_attr,
 	NULL,
 };
 

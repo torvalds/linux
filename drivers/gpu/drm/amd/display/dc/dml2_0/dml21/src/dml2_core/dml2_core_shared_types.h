@@ -14,6 +14,7 @@
 #define __DML2_CALCS_MAX_VRATIO_PRE_OTO__ 4.0 //<brief max vratio for one-to-one prefetch bw scheduling
 #define __DML2_CALCS_MAX_VRATIO_PRE_EQU__ 6.0 //<brief max vratio for equalized prefetch bw scheduling
 #define __DML2_CALCS_MAX_VRATIO_PRE__ 8.0 //<brief max prefetch vratio register limit
+#define __DML2_CALCS_MAX_VSTARTUP__ 1023.0 // <brief max vstartup lines supported by hardware
 
 #define __DML2_CALCS_DPP_INVALID__ 0
 #define __DML2_CALCS_DCFCLK_FACTOR__ 1.15 //<brief fudge factor for min dcfclk calclation
@@ -51,6 +52,7 @@ struct dml2_core_ip_params {
 	unsigned int max_vscl_taps;
 	unsigned int odm_combine_support_mask;
 	unsigned int num_dsc;
+	unsigned int maximum_dsc_slices_per_pipe;
 	unsigned int maximum_dsc_bits_per_component;
 	unsigned int maximum_pixels_per_line_per_dsc_unit;
 	bool dsc422_native_support;
@@ -86,6 +88,7 @@ struct dml2_core_ip_params {
 	unsigned int subvp_swath_height_margin_lines;
 	unsigned int subvp_fw_processing_delay_us;
 	unsigned int subvp_pstate_allow_width_us;
+	unsigned int alt_chan_fw_delay_us; // FW delay value required in mode support calculation
 	// MRQ
 	bool dcn_mrq_present;
 	unsigned int zero_size_buffer_entries;
@@ -96,6 +99,11 @@ struct dml2_core_ip_params {
 
 	unsigned int dchub_arb_to_ret_delay; // num of dcfclk
 	unsigned int hostvm_mode;
+	unsigned int fams2_max_allow_delay_us;
+	unsigned int fams2_min_allow_width_us;
+	unsigned int ppt_max_allow_delay_us;
+	unsigned int temp_read_max_allow_delay_us;
+	bool use_legacy_dsc_delay_formula;
 };
 
 struct dml2_core_internal_DmlPipe {
@@ -212,6 +220,7 @@ struct dml2_core_internal_watermarks {
 	double Z8StutterEnterPlusExitWatermark;
 	double USRRetrainingWatermark;
 	double temp_read_or_ppt_watermark_us;
+	double writeback_temp_read_or_ppt_watermark_us;
 };
 
 struct dml2_core_internal_mode_support_info {
@@ -334,6 +343,7 @@ struct dml2_core_internal_mode_support_info {
 	double non_urg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // same as urg_bandwidth, except not scaled by urg burst factor
 	double non_urg_bandwidth_required_flip[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
 	bool avg_bandwidth_support_ok[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
+	struct dml2_memory_path_bandwidth bandwidth_upper_bound;
 	double max_urgent_latency_us;
 	double max_non_urgent_latency_us;
 	double avg_non_urgent_latency_us;
@@ -347,6 +357,7 @@ struct dml2_core_internal_mode_support_info {
 	struct dml2_core_internal_watermarks watermarks;
 	bool dcfclk_support;
 	bool qos_bandwidth_support;
+	bool alternate_channel_size_support;
 };
 
 struct dml2_core_internal_mode_support {
@@ -534,6 +545,7 @@ struct dml2_core_internal_mode_support {
 	double DesiredOutputBpp[DML2_MAX_PLANES];
 	double PixelClockBackEnd[DML2_MAX_PLANES];
 	unsigned int DSCDelay[DML2_MAX_PLANES];
+	bool use_legacy_dsc_delay_formula;
 	enum dml2_core_internal_output_type OutputType[DML2_MAX_PLANES];
 	enum dml2_core_internal_output_type_rate OutputRate[DML2_MAX_PLANES];
 	bool TotalAvailablePipesSupportNoDSC;
@@ -653,6 +665,42 @@ struct dml2_core_internal_mode_support {
 	unsigned int DSTXAfterScaler[DML2_MAX_PLANES];
 
 	enum dml2_pstate_method uclk_pstate_switch_modes[DML2_MAX_PLANES];
+	unsigned int svp0_max_bytes;
+	unsigned int svp1_max_bytes;
+	unsigned int svp0_max_bytes_per_dpp[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp0_max_bytes_per_dpp_c[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp1_max_bytes_per_dpp[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp1_max_bytes_per_dpp_c[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp0_dst_lines[DML2_MAX_PLANES]; // per stream
+	unsigned int svp1_dst_lines[DML2_MAX_PLANES]; // per stream
+	unsigned int svp_req_limit[DML2_MAX_PLANES]; // per stream, should be the same value in time between all streams max(2 swaths, dst_y_pre) over all planes
+	unsigned int nom_req_limit_alt[DML2_MAX_PLANES];
+	unsigned int min_lead_dst_lines[DML2_MAX_PLANES];
+	unsigned int total_swaths[DML2_MAX_PLANES];
+	unsigned int total_swaths_c[DML2_MAX_PLANES];
+	unsigned int prefetch_swaths[DML2_MAX_PLANES];
+	unsigned int prefetch_swaths_c[DML2_MAX_PLANES];
+	double prefetch_hdl_delta[DML2_MAX_PLANES]; // in dst
+	double recout_hdl_delta[DML2_MAX_PLANES]; // in dst
+	double prefetch_hdl_delta_c[DML2_MAX_PLANES]; // in dst
+	double recout_hdl_delta_c[DML2_MAX_PLANES]; // in dst
+	unsigned int max_prefetch_in_lines[DML2_MAX_PLANES]; // max prefetch time over all planes converted to lines for the given stream
+	double lsdma_bw_req_for_alt_kbps;
+
+	// Synchronized timing group assignement
+	unsigned int timing_group_id[DML2_MAX_PLANES]; // timing group id for the given plane
+	unsigned int timing_group_count;
+
+	bool fclk_pstate_required;
+	bool ppt_pstate_required;
+	bool temp_read_pstate_required;
+	// P-state schedule windows
+	double fclk_pstate_allow_start_us[DML2_MAX_PLANES];
+	double fclk_pstate_allow_end_us[DML2_MAX_PLANES];
+	double ppt_pstate_allow_start_us[DML2_MAX_PLANES];
+	double ppt_pstate_allow_end_us[DML2_MAX_PLANES];
+	double temp_read_pstate_allow_start_us[DML2_MAX_PLANES];
+	double temp_read_pstate_allow_end_us[DML2_MAX_PLANES];
 };
 
 /// @brief A mega structure that houses various info for model programming step.
@@ -704,6 +752,7 @@ struct dml2_core_internal_mode_program {
 	double PSCL_THROUGHPUT[DML2_MAX_PLANES];
 	double PSCL_THROUGHPUT_CHROMA[DML2_MAX_PLANES];
 	unsigned int DSCDelay[DML2_MAX_PLANES];
+	bool use_legacy_dsc_delay_formula;
 	double DPPCLKUsingSingleDPP[DML2_MAX_PLANES];
 
 	unsigned int Read256BlockHeightY[DML2_MAX_PLANES];
@@ -844,6 +893,26 @@ struct dml2_core_internal_mode_program {
 	double df_response_time_us;
 
 	enum dml2_pstate_method uclk_pstate_switch_modes[DML2_MAX_PLANES];
+	unsigned int svp0_max_bytes;
+	unsigned int svp1_max_bytes;
+	unsigned int svp0_max_bytes_per_dpp[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp0_max_bytes_per_dpp_c[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp1_max_bytes_per_dpp[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp1_max_bytes_per_dpp_c[DML2_MAX_PLANES]; // max bytes for any DPP under a given plane
+	unsigned int svp0_dst_lines[DML2_MAX_PLANES]; // per stream
+	unsigned int svp1_dst_lines[DML2_MAX_PLANES]; // per stream
+	unsigned int min_lead_dst_lines[DML2_MAX_PLANES]; // per stream, should be max(nominal_req_limit, vstartup_to_vactive). Does not have to be maxed over all planes
+	unsigned int svp_req_limit[DML2_MAX_PLANES]; // per stream, should be the same value in time between all streams max(2 swaths, dst_y_pre) over all planes
+	unsigned int nom_req_limit_alt[DML2_MAX_PLANES]; // per stream
+	unsigned int total_swaths[DML2_MAX_PLANES];
+	unsigned int total_swaths_c[DML2_MAX_PLANES];
+	unsigned int prefetch_swaths[DML2_MAX_PLANES];
+	unsigned int prefetch_swaths_c[DML2_MAX_PLANES];
+	double prefetch_hdl_delta[DML2_MAX_PLANES]; // in dst
+	double recout_hdl_delta[DML2_MAX_PLANES]; // in dst
+	double prefetch_hdl_delta_c[DML2_MAX_PLANES]; // in dst
+	double recout_hdl_delta_c[DML2_MAX_PLANES]; // in dst
+	unsigned int max_prefetch_in_lines[DML2_MAX_PLANES]; // max prefetch time over all planes converted to lines for the given stream
 	// -------------------
 	// Output
 	// -------------------
@@ -1269,6 +1338,7 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_local
 	double FullDETBufferingTimeC;
 	double WritebackDRAMClockChangeLatencyMargin;
 	double WritebackFCLKChangeLatencyMargin;
+	double WritebackTempReadOrPptLatencyMargin;
 	double WritebackLatencyHiding;
 
 	unsigned int TotalActiveWriteback;
@@ -1279,6 +1349,7 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_local
 	double ActiveClockChangeLatencyHidingY;
 	double ActiveClockChangeLatencyHidingC;
 	double ActiveClockChangeLatencyHiding;
+	double peak_vactive_p_vblank_latency_hiding_us;
 	unsigned int dst_y_pstate;
 	unsigned int src_y_pstate_l;
 	unsigned int src_y_pstate_c;
@@ -2178,6 +2249,90 @@ struct dml2_core_calcs_calculate_mcache_setting_params {
 	bool *lc_comb_mcache;
 };
 
+
+struct dml2_core_calcs_calculate_alternate_lead_lines {
+	/* input params */
+	const struct dml2_display_cfg *display_cfg;
+	unsigned int *VStartup;
+	double *VActiveLatencyHidingUs;
+
+	/* output params */
+	unsigned int *min_lead_dst_lines;
+};
+
+struct dml2_core_calcs_calculate_alternate_svp_lines {
+	/* input params */
+	const struct dml2_display_cfg *display_cfg;
+	unsigned int *SwathHeightY;
+	unsigned int *SwathHeightC;
+	unsigned int *DETBufferSizeY;
+	double *BytePerPixelInDETC;
+	double dram_blackout_us;
+
+	/* output params */
+	unsigned int *svp0_dst_lines;
+	unsigned int *svp1_dst_lines;
+	unsigned int *svp_req_limit;
+};
+
+struct dml2_core_calcs_calculate_alternate_params {
+	/* input params */
+	const struct dml2_display_cfg *display_cfg;
+	double *dst_y_prefetch;
+	unsigned int *SwathHeightY;
+	unsigned int *SwathHeightC;
+	unsigned int *SwathWidthY;
+	unsigned int *SwathWidthC;
+	unsigned int *DETBufferSizeY;
+	unsigned int *DETBufferSizeC;
+	unsigned int *BytePerPixelY;
+	unsigned int *BytePerPixelC;
+	double *BytePerPixelInDETY;
+	double *BytePerPixelInDETC;
+	unsigned int *Read256BlockWidthY;
+	unsigned int *Read256BlockHeightY;
+	unsigned int *Read256BlockWidthC;
+	unsigned int *Read256BlockHeightC;
+	unsigned int *MacroTileWidthY;
+	unsigned int *MacroTileWidthC;
+	unsigned int *VInitPrefillY;
+	unsigned int *VInitPrefillC;
+	double *VRatioPrefetchY;
+	double *VRatioPrefetchC;
+	unsigned int *NoOfDPP;
+	unsigned int max_num_dpp;
+	double dram_blackout_us;
+	double *VActiveLatencyHidingUs;
+	unsigned int *svp0_dst_lines;
+	unsigned int *svp1_dst_lines;
+	unsigned int *svp_req_limit;
+	double dcn_non_urgent_bandwidth_kbps;
+	unsigned int alt_chan_fw_delay_us;
+	double *dst_y_per_vm_vblank;
+	double *dst_y_per_row_vblank;
+	unsigned int *DSTYAfterScaler;
+	enum dml2_odm_mode *ODMMode;
+
+	/* output params */
+	unsigned int *svp0_max_bytes;
+	unsigned int *svp1_max_bytes;
+	unsigned int *svp0_max_bytes_per_dpp;
+	unsigned int *svp0_max_bytes_per_dpp_c;
+	unsigned int *svp1_max_bytes_per_dpp;
+	unsigned int *svp1_max_bytes_per_dpp_c;
+	unsigned int *nom_req_limit_alt;
+	unsigned int *min_lead_dst_lines;
+	unsigned int *total_swaths;
+	unsigned int *total_swaths_c;
+	unsigned int *prefetch_swaths;
+	unsigned int *prefetch_swaths_c;
+	double *prefetch_hdl_delta;
+	double *recout_hdl_delta;
+	double *prefetch_hdl_delta_c;
+	double *recout_hdl_delta_c;
+	unsigned int *max_prefetch_in_lines;
+	double *lsdma_bw_req_for_alt_kbps;
+};
 struct dml2_core_calcs_calculate_tdlut_setting_params {
 	// input params
 	double dispclk_mhz;
@@ -2305,6 +2460,9 @@ struct dml2_core_internal_scratch {
 	struct dml2_core_shared_CalculateMetaAndPTETimes_params CalculateMetaAndPTETimes_params;
 	struct dml2_core_calcs_calculate_peak_bandwidth_required_params calculate_peak_bandwidth_params;
 	struct dml2_core_calcs_calculate_bytes_to_fetch_required_to_hide_latency_params calculate_bytes_to_fetch_required_to_hide_latency_params;
+	struct dml2_core_calcs_calculate_alternate_params calculate_alternate_params;
+	struct dml2_core_calcs_calculate_alternate_svp_lines calculate_alternate_svp_lines;
+	struct dml2_core_calcs_calculate_alternate_lead_lines calculate_alternate_lead_lines;
 };
 
 //struct dml2_svp_mode_override;
@@ -2329,9 +2487,10 @@ struct dml2_core_calcs_mode_support_ex {
 	const struct dml2_display_cfg *in_display_cfg;
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	int min_clk_index;
-	enum dml2_project_id project_id;
+	const struct dml2_utm_soc_bb *utm_soc_bb;
 	//unsigned int in_state_index;
 	struct dml2_core_internal_mode_support_info *out_evaluation_info;
+	const enum dml2_pstate_method *uclk_pstate_switch_modes;
 };
 
 struct core_display_cfg_support_info;
@@ -2342,7 +2501,9 @@ struct dml2_core_calcs_mode_programming_ex {
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	const struct core_display_cfg_support_info *cfg_support_info;
 	int min_clk_index;
-	enum dml2_project_id project_id;
+	const struct dml2_uclk_pstate_params *uclk_params;
+	const struct dml2_display_solution *solution;
+	const struct dml2_utm_soc_bb *utm_soc_bb;
 	struct dml2_display_cfg_programming *programming;
 };
 

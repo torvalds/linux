@@ -375,12 +375,29 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 		if (((d_blkg) = blkg_lookup(css_to_blkcg(pos_css),	\
 					    (p_blkg)->q)))
 
+/*
+ * blkcg_nr_congested gates the hierarchy walk in blk_cgroup_congested().
+ * These two helpers keep it in step with each blkcg's congestion_count in
+ * normal operation; blkcg_css_free() drops a residual count as a backstop.
+ */
+static inline void blkcg_inc_congestion_count(struct blkcg *blkcg)
+{
+	if (atomic_inc_return(&blkcg->congestion_count) == 1)
+		atomic_inc(&blkcg_nr_congested);
+}
+
+static inline void blkcg_dec_congestion_count(struct blkcg *blkcg)
+{
+	if (atomic_dec_and_test(&blkcg->congestion_count))
+		atomic_dec(&blkcg_nr_congested);
+}
+
 static inline void blkcg_use_delay(struct blkcg_gq *blkg)
 {
 	if (WARN_ON_ONCE(atomic_read(&blkg->use_delay) < 0))
 		return;
 	if (atomic_add_return(1, &blkg->use_delay) == 1)
-		atomic_inc(&blkg->blkcg->congestion_count);
+		blkcg_inc_congestion_count(blkg->blkcg);
 }
 
 static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
@@ -405,7 +422,7 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 	if (old == 0)
 		return 0;
 	if (old == 1)
-		atomic_dec(&blkg->blkcg->congestion_count);
+		blkcg_dec_congestion_count(blkg->blkcg);
 	return 1;
 }
 
@@ -424,7 +441,7 @@ static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
 
 	/* We only want 1 person setting the congestion count for this blkg. */
 	if (!old && atomic_try_cmpxchg(&blkg->use_delay, &old, -1))
-		atomic_inc(&blkg->blkcg->congestion_count);
+		blkcg_inc_congestion_count(blkg->blkcg);
 
 	atomic64_set(&blkg->delay_nsec, delay);
 }
@@ -441,7 +458,7 @@ static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 
 	/* We only want 1 person clearing the congestion count for this blkg. */
 	if (old && atomic_try_cmpxchg(&blkg->use_delay, &old, 0))
-		atomic_dec(&blkg->blkcg->congestion_count);
+		blkcg_dec_congestion_count(blkg->blkcg);
 }
 
 /**

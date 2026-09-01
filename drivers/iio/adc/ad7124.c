@@ -1683,8 +1683,8 @@ static const struct of_device_id ad7124_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
 
 static const struct spi_device_id ad71124_ids[] = {
-	{ "ad7124-4", (kernel_ulong_t)&ad7124_4_chip_info },
-	{ "ad7124-8", (kernel_ulong_t)&ad7124_8_chip_info },
+	{ .name = "ad7124-4", .driver_data = (kernel_ulong_t)&ad7124_4_chip_info },
+	{ .name = "ad7124-8", .driver_data = (kernel_ulong_t)&ad7124_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad71124_ids);

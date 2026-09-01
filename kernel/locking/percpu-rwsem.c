@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(percpu_is_read_locked);
  */
 static bool readers_active_check(struct percpu_rw_semaphore *sem)
 {
-	if (per_cpu_sum(*sem->read_count) != 0)
+	if (data_race(per_cpu_sum(*sem->read_count)) != 0)
 		return false;
 
 	/*

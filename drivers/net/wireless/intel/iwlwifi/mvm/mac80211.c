@@ -152,7 +152,7 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 				      resp->channels,
 				      __le16_to_cpu(resp->mcc),
 				      __le16_to_cpu(resp->geo_info),
-				      le32_to_cpu(resp->cap), resp_ver);
+				      le32_to_cpu(resp->cap), resp_ver, NULL);
 	/* Store the return source id */
 	src_id = resp->source_id;
 	if (IS_ERR_OR_NULL(regd)) {
@@ -1127,7 +1127,7 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
 }
 
-static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
+void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
 	iwl_mvm_stop_device(mvm);
 
@@ -2350,10 +2350,9 @@ int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm,
 		int bw;
 
 		for (bw = 0;
-		     bw < ARRAY_SIZE(*pkt_ext->pkt_ext_qam_th[i]);
+		     bw < ARRAY_SIZE(pkt_ext->pkt_ext_qam_th[i]);
 		     bw++) {
-			u8 *qam_th =
-				&pkt_ext->pkt_ext_qam_th[i][bw][0];
+			u8 *qam_th = pkt_ext->pkt_ext_qam_th[i][bw];
 
 			IWL_DEBUG_HT(mvm,
 				     "PPE table: nss[%d] bw[%d] PPET8 = %d, PPET16 = %d\n",

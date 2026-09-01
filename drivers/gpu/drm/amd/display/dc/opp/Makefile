@@ -48,4 +48,12 @@ OPP_DCN35 = dcn35_opp.o
 AMD_DAL_OPP_DCN35 = $(addprefix $(AMDDALPATH)/dc/opp/dcn35/,$(OPP_DCN35))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_OPP_DCN35)
+###############################################################################
+# DCN60
+###############################################################################
+OPP_DCN60 = dcn60_opp.o
+
+AMD_DAL_OPP_DCN60 = $(addprefix $(AMDDALPATH)/dc/opp/dcn60/,$(OPP_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_OPP_DCN60)
 endif

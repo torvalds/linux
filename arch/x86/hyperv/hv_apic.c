@@ -60,17 +60,15 @@ void hv_enable_coco_interrupt(unsigned int cpu, unsigned int vector, bool set)
 
 static u32 hv_apic_read(u32 reg)
 {
-	u32 reg_val, hi;
+	struct msr reg_val;
 
 	switch (reg) {
 	case APIC_EOI:
-		rdmsr(HV_X64_MSR_EOI, reg_val, hi);
-		(void)hi;
-		return reg_val;
+		rdmsrq(HV_X64_MSR_EOI, reg_val.q);
+		return reg_val.l;
 	case APIC_TASKPRI:
-		rdmsr(HV_X64_MSR_TPR, reg_val, hi);
-		(void)hi;
-		return reg_val;
+		rdmsrq(HV_X64_MSR_TPR, reg_val.q);
+		return reg_val.l;
 
 	default:
 		return native_apic_mem_read(reg);

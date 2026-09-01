@@ -82,16 +82,24 @@ int hid_haptic_input_configured(struct hid_device *hdev,
 				struct hid_haptic_device *haptic,
 				struct hid_input *hi)
 {
+	int error;
 
-	if (hi->application == HID_DG_TOUCHPAD) {
-		if (haptic->auto_trigger_report &&
-		    haptic->manual_trigger_report) {
-			__set_bit(INPUT_PROP_PRESSUREPAD, hi->input->propbit);
-			return 1;
-		}
+	if (hi->application != HID_DG_TOUCHPAD)
+		return -1;
+
+	if (!haptic->auto_trigger_report || !haptic->manual_trigger_report)
+		return 0;
+
+	__set_bit(INPUT_PROP_PRESSUREPAD, hi->input->propbit);
+
+	error = hid_haptic_init(hdev, haptic, hi->input);
+	if (error) {
+		dev_warn(&hdev->dev, "Cannot allocate haptic for %s\n",
+			 hdev->name);
 		return 0;
 	}
-	return -1;
+
+	return 1;
 }
 EXPORT_SYMBOL_GPL(hid_haptic_input_configured);
 
@@ -187,7 +195,7 @@ static void fill_effect_buf(struct hid_haptic_device *haptic,
 				value = waveform_ordinal;
 				break;
 			default:
-				break;
+				continue;
 			}
 
 			field->value[j] = value;
@@ -401,11 +409,9 @@ static void hid_haptic_destroy(struct ff_device *ff)
 }
 
 int hid_haptic_init(struct hid_device *hdev,
-		    struct hid_haptic_device **haptic_ptr)
+		    struct hid_haptic_device *haptic,
+		    struct input_dev *dev)
 {
-	struct hid_haptic_device *haptic = *haptic_ptr;
-	struct input_dev *dev = NULL;
-	struct hid_input *hidinput;
 	struct ff_device *ff;
 	int ret = 0, r;
 	struct ff_haptic_effect stop_effect = {
@@ -446,19 +452,6 @@ int hid_haptic_init(struct hid_device *hdev,
 	mutex_init(&haptic->auto_trigger_mutex);
 	for (r = 0; r < haptic->auto_trigger_report->maxfield; r++)
 		parse_auto_trigger_field(haptic, haptic->auto_trigger_report->field[r]);
-
-	list_for_each_entry(hidinput, &hdev->inputs, list) {
-		if (hidinput->application == HID_DG_TOUCHPAD) {
-			dev = hidinput->input;
-			break;
-		}
-	}
-
-	if (!dev) {
-		dev_err(&hdev->dev, "Failed to find the input device\n");
-		ret = -ENODEV;
-		goto duration_map;
-	}
 
 	haptic->input_dev = dev;
 	haptic->manual_trigger_report_len =
@@ -535,10 +528,6 @@ int hid_haptic_init(struct hid_device *hdev,
 
 input_free:
 	input_ff_destroy(dev);
-	/* Do not let double free happen, input_ff_destroy will call
-	 * hid_haptic_destroy.
-	 */
-	*haptic_ptr = NULL;
 	/* Restore dev flush and event */
 	dev->flush = flush;
 	dev->event = event;

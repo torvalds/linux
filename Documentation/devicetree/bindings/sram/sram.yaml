@@ -35,10 +35,13 @@ properties:
         - nvidia,tegra194-sysram
         - nvidia,tegra234-sysram
         - qcom,eliza-imem
+        - qcom,glymur-imem
         - qcom,hawi-imem
         - qcom,kaanapali-imem
+        - qcom,maili-imem
         - qcom,milos-imem
         - qcom,rpm-msg-ram
+        - qcom,shikra-imem
         - rockchip,rk3288-pmu-sram
 
   reg:

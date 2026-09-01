@@ -5,7 +5,7 @@
 //
 // GPIO configuration for S3C64XX KeyPad device
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include "gpio-cfg.h"
 #include "keypad.h"
 #include "gpio-samsung.h"

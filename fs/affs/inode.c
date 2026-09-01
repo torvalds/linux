@@ -206,7 +206,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		}
 	}
 	affs_fix_checksum(sb, bh);
-	mmb_mark_buffer_dirty(bh, &AFFS_I(inode)->i_metadata_bhs);
+	mark_buffer_dirty(bh);
 	affs_brelse(bh);
 	affs_free_prealloc(inode);
 	return 0;
@@ -266,11 +266,8 @@ affs_evict_inode(struct inode *inode)
 	if (!inode->i_nlink) {
 		inode->i_size = 0;
 		affs_truncate(inode);
-	} else {
-		mmb_sync(&AFFS_I(inode)->i_metadata_bhs);
 	}
 
-	mmb_invalidate(&AFFS_I(inode)->i_metadata_bhs);
 	clear_inode(inode);
 	affs_free_prealloc(inode);
 	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
@@ -305,7 +302,7 @@ affs_new_inode(struct inode *dir)
 	bh = affs_getzeroblk(sb, block);
 	if (!bh)
 		goto err_bh;
-	mmb_mark_buffer_dirty(bh, &AFFS_I(inode)->i_metadata_bhs);
+	mark_buffer_dirty(bh);
 	affs_brelse(bh);
 
 	inode->i_uid     = current_fsuid();
@@ -393,17 +390,17 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 		AFFS_TAIL(sb, bh)->link_chain = chain;
 		AFFS_TAIL(sb, inode_bh)->link_chain = cpu_to_be32(block);
 		affs_adjust_checksum(inode_bh, block - be32_to_cpu(chain));
-		mmb_mark_buffer_dirty(inode_bh, &AFFS_I(inode)->i_metadata_bhs);
+		mark_buffer_dirty(inode_bh);
 		set_nlink(inode, 2);
 		ihold(inode);
 	}
 	affs_fix_checksum(sb, bh);
-	mmb_mark_buffer_dirty(bh, &AFFS_I(inode)->i_metadata_bhs);
+	mark_buffer_dirty(bh);
 	dentry->d_fsdata = (void *)(long)bh->b_blocknr;
 
 	affs_lock_dir(dir);
 	retval = affs_insert_hash(dir, bh);
-	mmb_mark_buffer_dirty(bh, &AFFS_I(inode)->i_metadata_bhs);
+	mark_buffer_dirty(bh);
 	affs_unlock_dir(dir);
 	affs_unlock_link(inode);
 

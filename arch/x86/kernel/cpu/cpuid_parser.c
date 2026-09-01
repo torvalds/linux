@@ -11,14 +11,14 @@
 #include "cpuid_parser.h"
 
 /* Clear a single CPUID table entry */
-static void cpuid_clear(const struct cpuid_parse_entry *e, const struct cpuid_read_output *output)
+static void cpuid_clear(const struct cpuid_parse_entry *e, const struct cpuid_output *out)
 {
-	struct cpuid_regs *regs = output->regs;
+	struct cpuid_regs *regs = out->regs;
 
 	for (int i = 0; i < e->maxcnt; i++, regs++)
 		memset(regs, 0, sizeof(*regs));
 
-	memset(output->info, 0, sizeof(*output->info));
+	memset(out->info, 0, sizeof(*out->info));
 }
 
 /*
@@ -29,12 +29,11 @@ static void cpuid_clear(const struct cpuid_parse_entry *e, const struct cpuid_re
  * Default CPUID read function
  * Satisfies the requirements stated at 'struct cpuid_parse_entry'->read().
  */
-static void
-cpuid_read_generic(const struct cpuid_parse_entry *e, const struct cpuid_read_output *output)
+static void cpuid_read_generic(const struct cpuid_parse_entry *e, const struct cpuid_output *out)
 {
-	struct cpuid_regs *regs = output->regs;
+	struct cpuid_regs *regs = out->regs;
 
-	for (int i = 0; i < e->maxcnt; i++, regs++, output->info->nr_entries++)
+	for (int i = 0; i < e->maxcnt; i++, regs++, out->info->nr_entries++)
 		cpuid_read_subleaf(e->leaf, e->subleaf + i, regs);
 }
 
@@ -60,15 +59,14 @@ static unsigned int cpuid_range_max_leaf(const struct cpuid_table *t, unsigned i
 	}
 }
 
-static void
-__cpuid_reset_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
-		    unsigned int nr_entries, unsigned int start, unsigned int end, bool fill)
+static void __cpuid_reset_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
+				unsigned int nr_entries, unsigned int start, unsigned int end, bool fill)
 {
 	const struct cpuid_parse_entry *entry = entries;
 	unsigned int range = CPUID_RANGE(start);
 
 	for (unsigned int i = 0; i < nr_entries; i++, entry++) {
-		struct cpuid_read_output output = {
+		struct cpuid_output out = {
 			.regs = cpuid_table_regs_p(t, entry->regs_offs),
 			.info = cpuid_table_info_p(t, entry->info_offs),
 		};
@@ -76,14 +74,14 @@ __cpuid_reset_table(struct cpuid_table *t, const struct cpuid_parse_entry entrie
 		if (entry->leaf < start || entry->leaf > end)
 			continue;
 
-		cpuid_clear(entry, &output);
+		cpuid_clear(entry, &out);
 
 		/*
 		 * Read the range's anchor leaf unconditionally so that the cached
 		 * maximum valid leaf value is available for the remaining entries.
 		 */
 		if (fill && (entry->leaf == range || entry->leaf <= cpuid_range_max_leaf(t, range)))
-			entry->read(entry, &output);
+			entry->read(entry, &out);
 	}
 }
 
@@ -91,22 +89,20 @@ __cpuid_reset_table(struct cpuid_table *t, const struct cpuid_parse_entry entrie
  * Zero all cached CPUID entries within [@start-@end] range.  This is needed when
  * certain operations like MSR writes induce changes to the CPU's CPUID layout.
  */
-static void
-__cpuid_zero_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
-		   unsigned int nr_entries, unsigned int start, unsigned int end)
+static void __cpuid_zero_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
+			       unsigned int nr_entries, unsigned int start, unsigned int end)
 {
 	__cpuid_reset_table(t, entries, nr_entries, start, end, false);
 }
 
-static void
-__cpuid_fill_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
-		   unsigned int nr_entries, unsigned int start, unsigned int end)
+static void __cpuid_fill_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
+			       unsigned int nr_entries, unsigned int start, unsigned int end)
 {
 	__cpuid_reset_table(t, entries, nr_entries, start, end, true);
 }
 
-static void
-cpuid_fill_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[], unsigned int nr_entries)
+static void cpuid_fill_table(struct cpuid_table *t, const struct cpuid_parse_entry entries[],
+			     unsigned int nr_entries)
 {
 	static const struct {
 		unsigned int start;
@@ -127,8 +123,8 @@ static void __cpuid_scan_cpu_full(struct cpuinfo_x86 *c)
 	cpuid_fill_table(table, cpuid_parse_entries, nr_entries);
 }
 
-static void
-__cpuid_scan_cpu_partial(struct cpuinfo_x86 *c, unsigned int start_leaf, unsigned int end_leaf)
+static void __cpuid_scan_cpu_partial(struct cpuinfo_x86 *c, unsigned int start_leaf,
+				     unsigned int end_leaf)
 {
 	unsigned int nr_entries = ARRAY_SIZE(cpuid_parse_entries);
 	struct cpuid_table *table = &c->cpuid;

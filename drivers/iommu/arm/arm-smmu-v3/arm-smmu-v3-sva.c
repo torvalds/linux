@@ -92,16 +92,6 @@ void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 
 		target->data[1] = cpu_to_le64(virt_to_phys(mm->pgd) &
 					      CTXDESC_CD_1_TTB0_MASK);
-
-		/*
-		 * Enable Hardware Access and Dirty updates (DBM) if supported.
-		 * This is safe to enable by default, as PTE_WRITE and PTE_DBM
-		 * share the same bit.
-		 */
-		if (master->smmu->features & ARM_SMMU_FEAT_HA)
-			target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HA);
-		if (master->smmu->features & ARM_SMMU_FEAT_HD)
-			target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HD);
 	} else {
 		target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_EPD0);
 
@@ -114,6 +104,17 @@ void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 			target->data[0] &=
 				cpu_to_le64(~(CTXDESC_CD_0_S | CTXDESC_CD_0_R));
 	}
+	/*
+	 * Enable Hardware Access and Dirty updates (DBM) if supported. This is
+	 * safe to enable by default, as PTE_WRITE and PTE_DBM share the same bit,
+	 * while the EPD0 config can't get as far as fetching any PTEs anyway.
+	 */
+	if (master->smmu->features & ARM_SMMU_FEAT_HA)
+		target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HA);
+	if (master->smmu->features & ARM_SMMU_FEAT_HD)
+		target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HD);
+	if (master->smmu->features & ARM_SMMU_FEAT_HAFT && system_supports_haft())
+		target->data[1] |= cpu_to_le64(CTXDESC_CD_1_HAFT);
 
 	/*
 	 * MAIR value is pretty much constant and global, so we can just get it
@@ -208,8 +209,11 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 		feat_mask |= ARM_SMMU_FEAT_VAX;
 	}
 
-	if (system_supports_bbml2_noabort())
+	if (system_supports_bbml3())
 		feat_mask |= ARM_SMMU_FEAT_BBML2;
+
+	if (system_supports_haft())
+		feat_mask |= ARM_SMMU_FEAT_HAFT;
 
 	if ((smmu->features & feat_mask) != feat_mask)
 		return false;

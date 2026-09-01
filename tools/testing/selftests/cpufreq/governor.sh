@@ -16,6 +16,12 @@ source cpufreq.sh
 CUR_GOV=
 CUR_FREQ=
 
+# Per-policy backup, keyed by policy so multiple policies can be saved at once
+# (backup_governor/restore_governor also keep CUR_GOV/CUR_FREQ for callers that
+# read them directly).
+declare -A SAVED_GOVERNORS
+declare -A SAVED_FREQS
+
 # Find governor's directory path
 # $1: policy, $2: governor
 find_gov_directory()
@@ -39,11 +45,13 @@ find_current_governor()
 backup_governor()
 {
 	CUR_GOV=$(find_current_governor $1)
+	SAVED_GOVERNORS[$1]=$CUR_GOV
 
 	printf "Governor backup done for $1: $CUR_GOV\n"
 
 	if [ $CUR_GOV == "userspace" ]; then
 		CUR_FREQ=$(find_current_freq $1)
+		SAVED_FREQS[$1]=$CUR_FREQ
 		printf "Governor frequency backup done for $1: $CUR_FREQ\n"
 	fi
 
@@ -53,16 +61,29 @@ backup_governor()
 # $1: policy
 restore_governor()
 {
+	CUR_GOV=${SAVED_GOVERNORS[$1]}
 	__switch_governor $1 $CUR_GOV
 
 	printf "Governor restored for $1 to $CUR_GOV\n"
 
 	if [ $CUR_GOV == "userspace" ]; then
+		CUR_FREQ=${SAVED_FREQS[$1]}
 		set_cpu_frequency $1 $CUR_FREQ
 		printf "Governor frequency restored for $1: $CUR_FREQ\n"
 	fi
 
 	printf "\n"
+}
+
+# Save/restore governors for every policy at once
+save_all_governors()
+{
+	for_each_policy backup_governor
+}
+
+restore_all_governors()
+{
+	for_each_policy restore_governor
 }
 
 # param:
@@ -100,11 +121,6 @@ switch_governor()
 # $1: policy, $2: governor
 switch_show_governor()
 {
-	cur_gov=find_current_governor
-	if [ $cur_gov == "userspace" ]; then
-		cur_freq=find_current_freq
-	fi
-
 	# switch governor
 	__switch_governor $1 $2
 

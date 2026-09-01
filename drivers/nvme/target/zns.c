@@ -116,7 +116,7 @@ void nvmet_execute_identify_ns_zns(struct nvmet_req *req)
 		mutex_unlock(&req->ns->subsys->lock);
 	}
 
-	if (!bdev_is_zoned(req->ns->bdev)) {
+	if (!req->ns->bdev || !bdev_is_zoned(req->ns->bdev)) {
 		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		req->error_loc = offsetof(struct nvme_identify, nsid);
 		goto out;
@@ -295,11 +295,18 @@ static void nvmet_bdev_zone_zmgmt_recv_work(struct work_struct *w)
 	}
 
 	/*
-	 * When partial bit is set nr_zones must indicate the number of zone
-	 * descriptors actually transferred.
+	 * Partial report (PR bit set): the host accepts an incomplete listing,
+	 * so cap Number of Zones to the descriptors that fit in the buffer.
+	 * Full report (PR bit clear): Number of Zones is the match count; fail
+	 * if the buffer cannot hold every matching zone descriptor.
 	 */
-	if (req->cmd->zmr.pr)
+	if (req->cmd->zmr.pr) {
 		rz_data.nr_zones = min(rz_data.nr_zones, rz_data.out_nr_zones);
+	} else if (rz_data.nr_zones > rz_data.out_nr_zones) {
+		req->error_loc = offsetof(struct nvme_zone_mgmt_recv_cmd, numd);
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+		goto out;
+	}
 
 	nr_zones = cpu_to_le64(rz_data.nr_zones);
 	status = nvmet_copy_to_sgl(req, 0, &nr_zones, sizeof(nr_zones));

@@ -547,10 +547,11 @@ TRACE_EVENT_RCU(rcu_segcb_stats,
 		),
 
 		TP_fast_assign(
+			int i;
 			__entry->ctx = ctx;
 			memcpy(__entry->seglen, rs->seglen, RCU_CBLIST_NSEGS * sizeof(long));
-			memcpy(__entry->gp_seq, rs->gp_seq, RCU_CBLIST_NSEGS * sizeof(unsigned long));
-
+			for (i = 0; i < RCU_CBLIST_NSEGS; i++)
+				__entry->gp_seq[i] = rs->gp_seq[i].norm;
 		),
 
 		TP_printk("%s seglen: (DONE=%ld, WAIT=%ld, NEXT_READY=%ld, NEXT=%ld) "
@@ -625,7 +626,7 @@ TRACE_EVENT_RCU(rcu_invoke_callback,
  */
 TRACE_EVENT_RCU(rcu_invoke_kvfree_callback,
 
-	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset),
+	TP_PROTO(const char *rcuname, struct kvfree_rcu_head *rhp, unsigned long offset),
 
 	TP_ARGS(rcuname, rhp, offset),
 

@@ -736,8 +736,8 @@ long int video_usercopy(struct file *file, unsigned int cmd,
  * @cmd: Ioctl name.
  * @arg: Ioctl argument.
  *
- * Method used to hancle an ioctl. Should be used to fill the
- * &v4l2_ioctl_ops.unlocked_ioctl on all V4L2 drivers.
+ * Method used to handle an ioctl. Should be used to fill the
+ * &v4l2_file_operations.unlocked_ioctl on all V4L2 drivers.
  */
 long int video_ioctl2(struct file *file,
 		      unsigned int cmd, unsigned long int arg);

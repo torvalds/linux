@@ -121,14 +121,14 @@ out:
 static struct dentry *ramfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
-	int retval = ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFDIR, 0);
+	int retval = ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return ERR_PTR(retval);
 }
 
 static int ramfs_create(struct mnt_idmap *idmap, struct inode *dir,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	return ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }

@@ -806,7 +806,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	struct mce *m = (struct mce *)data;
 	struct mce_hw_err *err = to_mce_hw_err(m);
 	unsigned int fam = x86_family(m->cpuid);
-	u32 mca_config_lo = 0, dummy;
+	u64 mca_config = 0;
 	int ecc;
 
 	if (m->kflags & MCE_HANDLED_CEC)
@@ -826,9 +826,9 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"));
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
-		rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(m->bank), &mca_config_lo, &dummy);
+		rdmsrq_safe(MSR_AMD64_SMCA_MCx_CONFIG(m->bank), &mca_config);
 
-		if (mca_config_lo & MCI_CONFIG_MCAX)
+		if (mca_config & MCI_CONFIG_MCAX)
 			pr_cont("|%s", ((m->status & MCI_STATUS_TCC) ? "TCC" : "-"));
 
 		pr_cont("|%s", ((m->status & MCI_STATUS_SYNDV) ? "SyndV" : "-"));
@@ -863,7 +863,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 		if (m->status & MCI_STATUS_SYNDV) {
 			pr_cont(", Syndrome: 0x%016llx\n", m->synd);
-			if (mca_config_lo & MCI_CONFIG_FRUTEXT) {
+			if (mca_config & MCI_CONFIG_FRUTEXT) {
 				char frutext[17];
 
 				frutext[16] = '\0';

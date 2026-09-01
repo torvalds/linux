@@ -35,58 +35,58 @@ static void rt_set_cs(struct spi_device *spi, bool active)
 	u32 value;
 
 	/* CS0 bit is active low */
-	value = readl(REG(RTL_SPI_SFCSR));
+	value = __raw_readl(REG(RTL_SPI_SFCSR));
 	if (active)
 		value |= RTL_SPI_SFCSR_CSB0;
 	else
 		value &= ~RTL_SPI_SFCSR_CSB0;
-	writel(value, REG(RTL_SPI_SFCSR));
+	__raw_writel(value, REG(RTL_SPI_SFCSR));
 }
 
 static void set_size(struct rtspi *rtspi, int size)
 {
 	u32 value;
 
-	value = readl(REG(RTL_SPI_SFCSR));
+	value = __raw_readl(REG(RTL_SPI_SFCSR));
 	value &= RTL_SPI_SFCSR_LEN_MASK;
 	if (size == 4)
 		value |= RTL_SPI_SFCSR_LEN4;
 	else if (size == 1)
 		value |= RTL_SPI_SFCSR_LEN1;
-	writel(value, REG(RTL_SPI_SFCSR));
+	__raw_writel(value, REG(RTL_SPI_SFCSR));
 }
 
 static inline void wait_ready(struct rtspi *rtspi)
 {
-	while (!(readl(REG(RTL_SPI_SFCSR)) & RTL_SPI_SFCSR_RDY))
+	while (!(__raw_readl(REG(RTL_SPI_SFCSR)) & RTL_SPI_SFCSR_RDY))
 		cpu_relax();
 }
 static void send4(struct rtspi *rtspi, const u32 *buf)
 {
 	wait_ready(rtspi);
 	set_size(rtspi, 4);
-	writel(*buf, REG(RTL_SPI_SFDR));
+	__raw_writel(*buf, REG(RTL_SPI_SFDR));
 }
 
 static void send1(struct rtspi *rtspi, const u8 *buf)
 {
 	wait_ready(rtspi);
 	set_size(rtspi, 1);
-	writel(buf[0] << 24, REG(RTL_SPI_SFDR));
+	__raw_writel(buf[0] << 24, REG(RTL_SPI_SFDR));
 }
 
 static void rcv4(struct rtspi *rtspi, u32 *buf)
 {
 	wait_ready(rtspi);
 	set_size(rtspi, 4);
-	*buf = readl(REG(RTL_SPI_SFDR));
+	*buf = __raw_readl(REG(RTL_SPI_SFDR));
 }
 
 static void rcv1(struct rtspi *rtspi, u8 *buf)
 {
 	wait_ready(rtspi);
 	set_size(rtspi, 1);
-	*buf = readl(REG(RTL_SPI_SFDR)) >> 24;
+	*buf = __raw_readl(REG(RTL_SPI_SFDR)) >> 24;
 }
 
 static int transfer_one(struct spi_controller *ctrl, struct spi_device *spi,
@@ -134,16 +134,16 @@ static void init_hw(struct rtspi *rtspi)
 	u32 value;
 
 	/* Turn on big-endian byte ordering */
-	value = readl(REG(RTL_SPI_SFCR));
+	value = __raw_readl(REG(RTL_SPI_SFCR));
 	value |= RTL_SPI_SFCR_RBO | RTL_SPI_SFCR_WBO;
-	writel(value, REG(RTL_SPI_SFCR));
+	__raw_writel(value, REG(RTL_SPI_SFCR));
 
-	value = readl(REG(RTL_SPI_SFCSR));
+	value = __raw_readl(REG(RTL_SPI_SFCSR));
 	/* Permanently disable CS1, since it's never used */
 	value |= RTL_SPI_SFCSR_CSB1;
 	/* Select CS0 for use */
 	value &= RTL_SPI_SFCSR_CS;
-	writel(value, REG(RTL_SPI_SFCSR));
+	__raw_writel(value, REG(RTL_SPI_SFCSR));
 }
 
 static int realtek_rtl_spi_probe(struct platform_device *pdev)

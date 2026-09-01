@@ -82,7 +82,7 @@
 			reg = <0xa8000000 0x1000>;
 			#pwm-cells = <2>;
 			status = "disabled";
-                };
+		};
 
 		apb {
 			#address-cells = <1>;

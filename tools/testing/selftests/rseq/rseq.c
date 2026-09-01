@@ -73,7 +73,7 @@ static int rseq_ownership;
 #define ORIG_RSEQ_ALLOC_SIZE		32
 
 /*
- * Use a union to ensure we allocate a TLS area of 1024 bytes to accomodate an
+ * Use a union to ensure we allocate a TLS area of 1024 bytes to accommodate an
  * rseq registration that is larger than the current rseq ABI.
  */
 union rseq_tls {

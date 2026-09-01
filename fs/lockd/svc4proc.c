@@ -128,7 +128,7 @@ nlm4svc_lookup_host(struct svc_rqst *rqstp, string caller, bool monitored)
 {
 	struct nlm_host *host;
 
-	if (!nlmsvc_ops)
+	if (!rcu_access_pointer(nlmsvc_ops))
 		return NULL;
 	host = nlmsvc_lookup_host(rqstp, caller.data, caller.len);
 	if (!host)
@@ -872,7 +872,8 @@ static __be32 nlm4svc_proc_granted_msg(struct svc_rqst *rqstp)
 	struct nlm4_testargs_wrapper *argp = rqstp->rq_argp;
 	struct nlm_host *host;
 
-	host = nlm4svc_lookup_host(rqstp, argp->xdrgen.alock.caller_name, false);
+	host = nlmsvc_lookup_host(rqstp, argp->xdrgen.alock.caller_name.data,
+				  argp->xdrgen.alock.caller_name.len);
 	if (!host)
 		return rpc_system_err;
 
@@ -894,7 +895,7 @@ static __be32 nlm4svc_proc_granted_res(struct svc_rqst *rqstp)
 {
 	struct nlm4_res_wrapper *argp = rqstp->rq_argp;
 
-	if (!nlmsvc_ops)
+	if (!rcu_access_pointer(nlmsvc_ops))
 		return rpc_success;
 
 	if (nlm4_netobj_to_cookie(&argp->cookie, &argp->xdrgen.cookie))
@@ -1078,7 +1079,9 @@ static __be32 nlm4svc_proc_unshare(struct svc_rqst *rqstp)
 	if (resp->xdrgen.stat)
 		goto out;
 
-	resp->xdrgen.stat = nlmsvc_unshare_file(host, file, &lock->oh);
+	resp->xdrgen.stat = nlmsvc_unshare_file(host, file, &lock->oh,
+						argp->xdrgen.share.access,
+						argp->xdrgen.share.mode);
 
 	nlmsvc_release_lockowner(lock);
 
@@ -1164,8 +1167,8 @@ out:
 static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_NULL] = {
 		.pc_func	= nlm4svc_proc_null,
-		.pc_decode	= nlm4_svc_decode_void,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= XDR_void,
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1225,7 +1228,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_TEST_MSG] = {
 		.pc_func	= nlm4svc_proc_test_msg,
 		.pc_decode	= nlm4_svc_decode_nlm4_testargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_testargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1235,7 +1238,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_LOCK_MSG] = {
 		.pc_func	= nlm4svc_proc_lock_msg,
 		.pc_decode	= nlm4_svc_decode_nlm4_lockargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_lockargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1245,7 +1248,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_CANCEL_MSG] = {
 		.pc_func	= nlm4svc_proc_cancel_msg,
 		.pc_decode	= nlm4_svc_decode_nlm4_cancargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_cancargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1255,7 +1258,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_UNLOCK_MSG] = {
 		.pc_func	= nlm4svc_proc_unlock_msg,
 		.pc_decode	= nlm4_svc_decode_nlm4_unlockargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_unlockargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1265,7 +1268,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_GRANTED_MSG] = {
 		.pc_func	= nlm4svc_proc_granted_msg,
 		.pc_decode	= nlm4_svc_decode_nlm4_testargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_testargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1275,7 +1278,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_TEST_RES] = {
 		.pc_func	= nlm4svc_proc_null,
 		.pc_decode	= nlm4_svc_decode_nlm4_testres,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_testres),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1285,7 +1288,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_LOCK_RES] = {
 		.pc_func	= nlm4svc_proc_null,
 		.pc_decode	= nlm4_svc_decode_nlm4_res,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_res),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1295,7 +1298,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_CANCEL_RES] = {
 		.pc_func	= nlm4svc_proc_null,
 		.pc_decode	= nlm4_svc_decode_nlm4_res,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_res),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1305,7 +1308,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_UNLOCK_RES] = {
 		.pc_func	= nlm4svc_proc_null,
 		.pc_decode	= nlm4_svc_decode_nlm4_res,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_res),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1315,7 +1318,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_GRANTED_RES] = {
 		.pc_func	= nlm4svc_proc_granted_res,
 		.pc_decode	= nlm4_svc_decode_nlm4_res,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_res_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1325,7 +1328,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_SM_NOTIFY] = {
 		.pc_func	= nlm4svc_proc_sm_notify,
 		.pc_decode	= nlm4_svc_decode_nlm4_notifyargs,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_notifyargs_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1334,8 +1337,8 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	},
 	[17] = {
 		.pc_func	= nlm4svc_proc_unused,
-		.pc_decode	= nlm4_svc_decode_void,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= 0,
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1344,8 +1347,8 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	},
 	[18] = {
 		.pc_func	= nlm4svc_proc_unused,
-		.pc_decode	= nlm4_svc_decode_void,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= 0,
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1354,8 +1357,8 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	},
 	[19] = {
 		.pc_func	= nlm4svc_proc_unused,
-		.pc_decode	= nlm4_svc_decode_void,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= 0,
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1395,7 +1398,7 @@ static const struct svc_procedure nlm4svc_procedures[24] = {
 	[NLMPROC4_FREE_ALL] = {
 		.pc_func	= nlm4svc_proc_free_all,
 		.pc_decode	= nlm4_svc_decode_nlm4_notify,
-		.pc_encode	= nlm4_svc_encode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
 		.pc_argsize	= sizeof(struct nlm4_notify_wrapper),
 		.pc_argzero	= 0,
 		.pc_ressize	= 0,
@@ -1420,14 +1423,10 @@ union nlm4svc_xdrstore {
 	struct nlm4_shareres_wrapper	shareres;
 };
 
-static DEFINE_PER_CPU_ALIGNED(unsigned long,
-			      nlm4svc_call_counters[ARRAY_SIZE(nlm4svc_procedures)]);
-
 const struct svc_version nlmsvc_version4 = {
 	.vs_vers	= 4,
 	.vs_nproc	= ARRAY_SIZE(nlm4svc_procedures),
 	.vs_proc	= nlm4svc_procedures,
-	.vs_count	= nlm4svc_call_counters,
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= sizeof(union nlm4svc_xdrstore),
 };

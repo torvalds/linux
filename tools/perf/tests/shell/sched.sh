@@ -76,6 +76,32 @@ test_sched_latency() {
   fi
 }
 
+test_sched_latency_histogram() {
+  echo "Sched latency histogram"
+
+  if ! perf sched latency -H -i "${perfdata}" | grep -q "Latency Distribution Histogram"
+  then
+    echo "Sched latency histogram [Failed missing log histogram]"
+    err=1
+  fi
+
+  if ! perf sched latency --histogram --hist-mode linear -i "${perfdata}" | grep -q "Latency Distribution Histogram"
+  then
+    echo "Sched latency histogram [Failed missing linear histogram]"
+    err=1
+  fi
+}
+
+test_sched_latency_time() {
+  echo "Sched latency time filter"
+
+  if ! perf sched latency --time 0, -i "${perfdata}" | grep -q perf-noploop
+  then
+    echo "Sched latency time filter [Failed missing output]"
+    err=1
+  fi
+}
+
 test_sched_script() {
   echo "Sched script"
 
@@ -108,9 +134,12 @@ test_sched_timehist() {
 
 test_sched_record
 test_sched_latency
+test_sched_latency_histogram
+test_sched_latency_time
 test_sched_script
 test_sched_map
 test_sched_timehist
 
 cleanup
 exit $err
+

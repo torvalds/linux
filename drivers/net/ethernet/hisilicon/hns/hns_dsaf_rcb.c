@@ -563,7 +563,7 @@ u32 hns_rcb_get_rx_coalesced_frames(
 u32 hns_rcb_get_tx_coalesced_frames(
 	struct rcb_common_cb *rcb_common, u32 port_idx)
 {
-	u64 reg;
+	u32 reg;
 
 	reg = RCB_CFG_PKTLINE_REG + (port_idx + HNS_RCB_TX_PKTLINE_OFFSET) * 4;
 	return dsaf_read_dev(rcb_common, reg);
@@ -634,7 +634,7 @@ int hns_rcb_set_tx_coalesced_frames(
 {
 	u32 old_waterline =
 		hns_rcb_get_tx_coalesced_frames(rcb_common, port_idx);
-	u64 reg;
+	u32 reg;
 
 	if (coalesced_frames == old_waterline)
 		return 0;

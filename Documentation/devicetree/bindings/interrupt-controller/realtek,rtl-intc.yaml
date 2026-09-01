@@ -32,8 +32,9 @@ properties:
 
   "#interrupt-cells":
     description:
-      SoC interrupt line index.
-    const: 1
+      First cell is the SoC interrupt line index. Optional second cell
+      specifies the parent interrupt index to route to.
+    enum: [1, 2]
 
   reg:
     minItems: 1

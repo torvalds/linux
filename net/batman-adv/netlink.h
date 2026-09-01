@@ -12,7 +12,7 @@
 #include <linux/netlink.h>
 #include <linux/types.h>
 
-void batadv_netlink_register(void);
+int batadv_netlink_register(void);
 void batadv_netlink_unregister(void);
 struct net_device *batadv_netlink_get_meshif(struct netlink_callback *cb);
 struct batadv_hard_iface *

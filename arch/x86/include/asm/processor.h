@@ -68,9 +68,14 @@ extern u16 __read_mostly tlb_lld_2m;
 extern u16 __read_mostly tlb_lld_4m;
 extern u16 __read_mostly tlb_lld_1g;
 
-/*
- * CPU type and hardware bug flags. Kept separately for each CPU.
- */
+enum x86_topology_cpu_type {
+	/* X86_CPU_TYPE_ANY */
+	TOPO_CPU_TYPE_ANY = 0,
+	TOPO_CPU_TYPE_PERFORMANCE,
+	TOPO_CPU_TYPE_EFFICIENCY,
+	TOPO_CPU_TYPE_LOW_POWER,
+	TOPO_CPU_TYPE_UNKNOWN,
+};
 
 struct cpuinfo_topology {
 	// Real APIC ID read from the local APIC
@@ -104,7 +109,7 @@ struct cpuinfo_topology {
 
 	// Hardware defined CPU-type
 	union {
-		u32		cpu_type;
+		u32		hw_cpu_type;
 		struct {
 			// CPUID.1A.EAX[23-0]
 			u32	intel_native_model_id	:24;
@@ -119,8 +124,14 @@ struct cpuinfo_topology {
 				amd_type		:4;
 		};
 	};
+
+	// Linux vendor-agnostic CPU type
+	enum x86_topology_cpu_type cpu_type;
 };
 
+/*
+ * CPU type and hardware bug flags. Kept separately for each CPU.
+ */
 struct cpuinfo_x86 {
 	union {
 		/*
@@ -238,6 +249,7 @@ extern void early_cpu_init(void);
 extern void identify_secondary_cpu(unsigned int cpu);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
+extern u32 intel_get_platform_id(void);
 
 /*
  * Friendlier CR3 helpers.

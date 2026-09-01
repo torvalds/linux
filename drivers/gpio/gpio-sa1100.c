@@ -13,6 +13,11 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/generic.h>
+#include <linux/property.h>
+
+const struct software_node sa1100_gpiochip_node = {
+	.name = "sa1100-gpio",
+};
 
 struct sa1100_gpio_chip {
 	struct gpio_chip chip;
@@ -134,7 +139,7 @@ static int sa1100_gpio_type(struct irq_data *d, unsigned int type)
 	if (type == IRQ_TYPE_PROBE) {
 		if ((sgc->irqrising | sgc->irqfalling) & mask)
 			return 0;
-		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+		type = IRQ_TYPE_EDGE_BOTH;
 	}
 
 	if (type & IRQ_TYPE_EDGE_RISING)
@@ -317,6 +322,7 @@ static const int sa1100_gpio_irqs[] __initconst = {
 void __init sa1100_init_gpio(void)
 {
 	struct sa1100_gpio_chip *sgc = &sa1100_gpio_chip;
+	struct gpio_chip *gc = &sgc->chip;
 	int i;
 
 	/* clear all GPIO edge detects */
@@ -324,7 +330,9 @@ void __init sa1100_init_gpio(void)
 	writel_relaxed(0, sgc->membase + R_GRER);
 	writel_relaxed(-1, sgc->membase + R_GEDR);
 
-	gpiochip_add_data(&sa1100_gpio_chip.chip, NULL);
+	software_node_register(&sa1100_gpiochip_node);
+	gc->fwnode = software_node_fwnode(&sa1100_gpiochip_node);
+	gpiochip_add_data(gc, NULL);
 
 	sa1100_gpio_irqdomain = irq_domain_create_simple(NULL,
 			28, IRQ_GPIO0,

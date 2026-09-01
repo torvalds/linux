@@ -75,12 +75,14 @@ struct dcn10_link_enc_aux_registers {
 	uint32_t AUX_DPHY_RX_CONTROL0;
 	uint32_t AUX_DPHY_TX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL1;
+	uint32_t DC_GPIO_DDC;
 };
 
 struct dcn10_link_enc_hpd_registers {
 	uint32_t DC_HPD_CONTROL;
 	uint32_t DC_HPD_INT_STATUS;
 	uint32_t DC_HPD_TOGGLE_FILT_CNTL;
+	uint32_t HPD_CTRL;
 };
 
 struct dcn10_link_enc_registers {
@@ -171,6 +173,8 @@ struct dcn10_link_enc_registers {
 	uint32_t DIO_LINKF_CNTL;
 	uint32_t DIO_CLK_CNTL;
 	uint32_t DIG_BE_CLK_CNTL;
+	uint32_t HDCP_I2C_CONTROL_0;
+	uint32_t HDCP_INT_CONTROL;
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -508,12 +512,23 @@ struct dcn10_link_enc_registers {
 	type SYMCLKF_G_HDCP_GATE_DIS;\
 	type SYMCLKG_G_HDCP_GATE_DIS
 
+#define DCN60_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type HDCP_I2C_DISABLE;\
+	type HDCP_I2C_DDC_SELECT;\
+	type HDCP_I2C_XFER_REQ_MASK;\
+	type AUX_PAD1_MODE;\
+	type HPD1_Y_POL_INVERT;\
+	type HPD2_Y_POL_INVERT;\
+	type HPD3_Y_POL_INVERT;\
+	type HPD4_Y_POL_INVERT
+
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN60_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_link_enc_mask {
@@ -522,6 +537,7 @@ struct dcn10_link_enc_mask {
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN60_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_link_encoder {

@@ -887,7 +887,7 @@ static int cp500_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	else
 		return -ENODEV;
 
-	ret = pci_enable_device(pci_dev);
+	ret = pcim_enable_device(pci_dev);
 	if (ret)
 		return ret;
 	pci_set_master(pci_dev);
@@ -896,18 +896,15 @@ static int cp500_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	startup.end = startup.start + cp500->devs->startup.size - 1;
 	cp500->system_startup_addr = devm_ioremap_resource(&pci_dev->dev,
 							   &startup);
-	if (IS_ERR(cp500->system_startup_addr)) {
-		ret = PTR_ERR(cp500->system_startup_addr);
-		goto out_disable;
-	}
+	if (IS_ERR(cp500->system_startup_addr))
+		return PTR_ERR(cp500->system_startup_addr);
 
 	cp500->msix_num = pci_alloc_irq_vectors(pci_dev, CP500_NUM_MSIX_NO_MMI,
 						CP500_NUM_MSIX, PCI_IRQ_MSIX);
 	if (cp500->msix_num < CP500_NUM_MSIX_NO_MMI) {
 		dev_err(&pci_dev->dev,
 			"Hardware does not support enough MSI-X interrupts\n");
-		ret = -ENODEV;
-		goto out_disable;
+		return -ENODEV;
 	}
 
 	cp500_vers = ioread32(cp500->system_startup_addr + CP500_VERSION_REG);
@@ -937,9 +934,6 @@ out_unregister_nvmem:
 	nvmem_unregister_notifier(&cp500->nvmem_notifier);
 out_free_irq:
 	pci_free_irq_vectors(pci_dev);
-out_disable:
-	pci_clear_master(pci_dev);
-	pci_disable_device(pci_dev);
 
 	return ret;
 }
@@ -962,9 +956,6 @@ static void cp500_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, 0);
 
 	pci_free_irq_vectors(pci_dev);
-
-	pci_clear_master(pci_dev);
-	pci_disable_device(pci_dev);
 }
 
 static struct pci_device_id cp500_ids[] = {

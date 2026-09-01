@@ -270,7 +270,7 @@ static const struct of_device_id ad7303_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad7303_spi_of_match);
 
 static const struct spi_device_id ad7303_spi_ids[] = {
-	{ "ad7303", 0 },
+	{ .name = "ad7303" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7303_spi_ids);

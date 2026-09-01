@@ -826,12 +826,9 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	mxs_saif[saif->id] = saif;
 
 	saif->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(saif->clk)) {
-		ret = PTR_ERR(saif->clk);
-		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(saif->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(saif->clk),
+				     "Cannot get the clock\n");
 
 	saif->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(saif->base))
@@ -844,10 +841,8 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	saif->dev = &pdev->dev;
 	ret = devm_request_irq(&pdev->dev, irq, mxs_saif_irq, 0,
 			       dev_name(&pdev->dev), saif);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request irq\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, saif);
 
@@ -860,16 +855,12 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &mxs_saif_component,
 					      &mxs_saif_dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "register DAI failed\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = mxs_pcm_platform_register(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

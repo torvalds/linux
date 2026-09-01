@@ -30,20 +30,6 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset, bool need_kmap)
 {
 	pgoff_t index = (buf->off + offset) >> PAGE_SHIFT;
 	struct folio *folio = NULL;
-	loff_t fpos;
-	int err;
-
-	/*
-	 * Metadata access for file-backed mounts reuses page cache of backing
-	 * fs inodes (only folio data will be needed) to prevent double caching.
-	 * However, the data access range must be verified here in advance.
-	 */
-	if (buf->file) {
-		fpos = (loff_t)index << PAGE_SHIFT;
-		err = rw_verify_area(READ, buf->file, &fpos, PAGE_SIZE);
-		if (err < 0)
-			return ERR_PTR(err);
-	}
 
 	if (buf->page) {
 		folio = page_folio(buf->page);
@@ -52,7 +38,8 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset, bool need_kmap)
 	}
 	if (!folio || !folio_contains(folio, index)) {
 		erofs_put_metabuf(buf);
-		folio = read_mapping_folio(buf->mapping, index, buf->file);
+		folio = read_cache_folio(buf->mapping, index,
+				buf->mc ? erofs_read_meta_folio : NULL, NULL);
 		if (IS_ERR(folio))
 			return folio;
 	}
@@ -69,19 +56,20 @@ int erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb,
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
-	buf->file = NULL;
+	buf->mc = false;
 	if (in_metabox) {
 		if (unlikely(!sbi->metabox_inode))
 			return -EFSCORRUPTED;
 		buf->mapping = sbi->metabox_inode->i_mapping;
 		return 0;
 	}
-	buf->off = sbi->dif0.fsoff;
 	if (erofs_is_fileio_mode(sbi)) {
-		buf->file = sbi->dif0.file;	/* some fs like FUSE needs it */
-		buf->mapping = buf->file->f_mapping;
-	} else
+		buf->mapping = sbi->managed_cache->i_mapping;
+		buf->mc = true;
+	} else {
+		buf->off = sbi->dif0.fsoff;
 		buf->mapping = sb->s_bdev->bd_mapping;
+	}
 	return 0;
 }
 
@@ -380,9 +368,11 @@ static int erofs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	return written;
 }
 
+static DEFINE_IOMAP_ITER_NEXT_END(erofs_iomap_next, erofs_iomap_begin,
+				  erofs_iomap_end);
+
 static const struct iomap_ops erofs_iomap_ops = {
-	.iomap_begin = erofs_iomap_begin,
-	.iomap_end = erofs_iomap_end,
+	.iomap_next = erofs_iomap_next,
 };
 
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
@@ -507,7 +497,7 @@ static int erofs_file_mmap_prepare(struct vm_area_desc *desc)
 #define erofs_file_mmap_prepare	generic_file_readonly_mmap_prepare
 #endif
 
-static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
+loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	const struct iomap_ops *ops = &erofs_iomap_ops;

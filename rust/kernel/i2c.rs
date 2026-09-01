@@ -65,10 +65,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::i2c_device_id, driver_data);
-
-    fn index(&self) -> usize {
-        self.0.driver_data
-    }
 }
 
 /// IdTable type for I2C
@@ -77,14 +73,8 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 /// Create a I2C `IdTable` with its alias for modpost.
 #[macro_export]
 macro_rules! i2c_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::i2c::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("i2c", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("i2c", $crate::i2c::DeviceId, $($tt)*);
     };
 }
 
@@ -142,7 +132,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
         }
 
         // SAFETY: `idrv` is guaranteed to be a valid `DriverType`.
-        to_result(unsafe { bindings::i2c_register_driver(module.0, idrv.get()) })
+        to_result(unsafe { bindings::i2c_register_driver(module.as_ptr(), idrv.get()) })
     }
 
     unsafe fn unregister(idrv: &Opaque<Self::DriverType>) {
@@ -159,8 +149,10 @@ impl<T: Driver> Adapter<T> {
         // INVARIANT: `idev` is valid for the duration of `probe_callback()`.
         let idev = unsafe { &*idev.cast::<I2cClient<device::CoreInternal<'_>>>() };
 
-        let info =
-            Self::i2c_id_info(idev).or_else(|| <Self as driver::Adapter>::id_info(idev.as_ref()));
+        let info = Self::i2c_id_info(idev).or_else(|| {
+            // SAFETY: `idev` matched data is of type `Self::IdInfo`.
+            unsafe { <Self as driver::Adapter>::id_info(idev.as_ref()) }
+        });
 
         from_result(|| {
             let data = T::probe(idev, info);
@@ -218,7 +210,8 @@ impl<T: Driver> Adapter<T> {
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*raw_id.cast::<DeviceId>() };
 
-        Some(table.info(<DeviceId as RawDeviceIdIndex>::index(id)))
+        // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+        Some(unsafe { id.info_unchecked::<T::IdInfo>() })
     }
 }
 
@@ -267,7 +260,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::acpi_device_table!(
 ///     ACPI_TABLE,
-///     MODULE_ACPI_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///         (acpi::DeviceId::new(c"LNUXBEEF"), ())
@@ -276,7 +268,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::i2c_device_table!(
 ///     I2C_TABLE,
-///     MODULE_I2C_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///          (i2c::DeviceId::new(c"rust_driver_i2c"), ())
@@ -285,7 +276,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::of_device_table!(
 ///     OF_TABLE,
-///     MODULE_OF_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///         (of::DeviceId::new(c"test,device"), ())
@@ -404,6 +394,7 @@ impl I2cAdapter {
     }
 
     /// Gets pointer to an `i2c_adapter` by index.
+    #[inline]
     pub fn get(index: i32) -> Result<ARef<Self>> {
         // SAFETY: `index` must refer to a valid I2C adapter; the kernel
         // guarantees that `i2c_get_adapter(index)` returns either a valid
@@ -425,11 +416,13 @@ kernel::impl_device_context_into_aref!(I2cAdapter);
 
 // SAFETY: Instances of `I2cAdapter` are always reference-counted.
 unsafe impl AlwaysRefCounted for I2cAdapter {
+    #[inline]
     fn inc_ref(&self) {
         // SAFETY: The existence of a shared reference guarantees that the refcount is non-zero.
         unsafe { bindings::i2c_get_adapter(self.index()) };
     }
 
+    #[inline]
     unsafe fn dec_ref(obj: NonNull<Self>) {
         // SAFETY: The safety requirements guarantee that the refcount is non-zero.
         unsafe { bindings::i2c_put_adapter(obj.as_ref().as_raw()) }

@@ -224,10 +224,10 @@ static void kfd_smi_event_add(struct task_struct *task, struct kfd_node *dev,
 
 	pid = kfd_smi_task_to_pid(task);
 
-	len = snprintf(fifo_in, sizeof(fifo_in), "%x ", event);
+	len = scnprintf(fifo_in, sizeof(fifo_in), "%x ", event);
 
 	va_start(args, fmt);
-	len += vsnprintf(fifo_in + len, sizeof(fifo_in) - len, fmt, args);
+	len += vscnprintf(fifo_in + len, sizeof(fifo_in) - len, fmt, args);
 	va_end(args);
 
 	add_event_to_kfifo(pid, dev, event, fifo_in, len);

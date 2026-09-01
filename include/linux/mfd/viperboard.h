@@ -47,7 +47,7 @@
 
 struct vprbrd_i2c_write_hdr {
 	u8 cmd;
-	u16 addr;
+	__le16 addr;
 	u8 len1;
 	u8 len2;
 	u8 last;
@@ -57,15 +57,15 @@ struct vprbrd_i2c_write_hdr {
 
 struct vprbrd_i2c_read_hdr {
 	u8 cmd;
-	u16 addr;
+	__le16 addr;
 	u8 len0;
 	u8 len1;
 	u8 len2;
 	u8 len3;
 	u8 len4;
 	u8 len5;
-	u16 tf1;                        /* transfer 1 length */
-	u16 tf2;                        /* transfer 2 length */
+	__le16 tf1;                        /* transfer 1 length */
+	__le16 tf2;                        /* transfer 2 length */
 } __packed;
 
 struct vprbrd_i2c_status {
@@ -89,7 +89,7 @@ struct vprbrd_i2c_addr_msg {
 	u8 cmd;
 	u8 addr;
 	u8 unknown1;
-	u16 len;
+	__le16 len;
 	u8 unknown2;
 	u8 unknown3;
 } __packed;

@@ -96,6 +96,24 @@ __naked void pseudo_btf_id_log_masks_address(void)
 	: __clobber_all);
 }
 
+static int pseudo_func_callback(__u32 index, void *ctx)
+{
+	return 0;
+}
+
+SEC("socket")
+__description("unpriv: pseudo function policy diagnostic")
+__success __failure_unpriv
+__msg_unpriv("loading/calling other bpf or kernel functions")
+__not_msg_unpriv("BPF-to-BPF function call")
+__msg_unpriv("policy check failed for BPF function reference")
+__msg_unpriv("avoid BPF function references in unprivileged")
+int unpriv_pseudo_func_policy(void *ctx)
+{
+	bpf_loop(1, pseudo_func_callback, NULL, 0);
+	return 0;
+}
+
 SEC("socket")
 __description("unpriv: return pointer")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")

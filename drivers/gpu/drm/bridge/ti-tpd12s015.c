@@ -19,6 +19,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 
 struct tpd12s015_device {
@@ -96,6 +97,9 @@ static void tpd12s015_hpd_disable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs tpd12s015_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach			= tpd12s015_attach,
 	.detach			= tpd12s015_detach,
 	.detect			= tpd12s015_bridge_detect,

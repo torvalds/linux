@@ -849,11 +849,11 @@ static int ad5755_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5755_id[] = {
-	{ "ad5755", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
-	{ "ad5755-1", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
-	{ "ad5757", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5757] },
-	{ "ad5735", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5735] },
-	{ "ad5737", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5737] },
+	{ .name = "ad5755", .driver_data = (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
+	{ .name = "ad5755-1", .driver_data = (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
+	{ .name = "ad5757", .driver_data = (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5757] },
+	{ .name = "ad5735", .driver_data = (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5735] },
+	{ .name = "ad5737", .driver_data = (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5737] },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5755_id);

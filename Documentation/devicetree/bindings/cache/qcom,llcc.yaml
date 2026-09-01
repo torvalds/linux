@@ -19,35 +19,40 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,eliza-llcc
-      - qcom,glymur-llcc
-      - qcom,hawi-llcc
-      - qcom,ipq5424-llcc
-      - qcom,kaanapali-llcc
-      - qcom,qcs615-llcc
-      - qcom,qcs8300-llcc
-      - qcom,qdu1000-llcc
-      - qcom,sa8775p-llcc
-      - qcom,sar1130p-llcc
-      - qcom,sar2130p-llcc
-      - qcom,sc7180-llcc
-      - qcom,sc7280-llcc
-      - qcom,sc8180x-llcc
-      - qcom,sc8280xp-llcc
-      - qcom,sdm670-llcc
-      - qcom,sdm845-llcc
-      - qcom,shikra-llcc
-      - qcom,sm6350-llcc
-      - qcom,sm7150-llcc
-      - qcom,sm8150-llcc
-      - qcom,sm8250-llcc
-      - qcom,sm8350-llcc
-      - qcom,sm8450-llcc
-      - qcom,sm8550-llcc
-      - qcom,sm8650-llcc
-      - qcom,sm8750-llcc
-      - qcom,x1e80100-llcc
+    oneOf:
+      - enum:
+          - qcom,eliza-llcc
+          - qcom,glymur-llcc
+          - qcom,hawi-llcc
+          - qcom,ipq5424-llcc
+          - qcom,kaanapali-llcc
+          - qcom,qcs615-llcc
+          - qcom,qcs8300-llcc
+          - qcom,qdu1000-llcc
+          - qcom,sa8775p-llcc
+          - qcom,sar1130p-llcc
+          - qcom,sar2130p-llcc
+          - qcom,sc7180-llcc
+          - qcom,sc7280-llcc
+          - qcom,sc8180x-llcc
+          - qcom,sc8280xp-llcc
+          - qcom,sdm670-llcc
+          - qcom,sdm845-llcc
+          - qcom,shikra-llcc
+          - qcom,sm6350-llcc
+          - qcom,sm7150-llcc
+          - qcom,sm8150-llcc
+          - qcom,sm8250-llcc
+          - qcom,sm8350-llcc
+          - qcom,sm8450-llcc
+          - qcom,sm8550-llcc
+          - qcom,sm8650-llcc
+          - qcom,sm8750-llcc
+          - qcom,x1e80100-llcc
+      - items:
+          - enum:
+              - qcom,maili-llcc
+          - const: qcom,hawi-llcc
 
   reg:
     minItems: 1

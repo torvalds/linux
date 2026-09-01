@@ -22,7 +22,7 @@
 #include <linux/smc91x.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/gpio/machine.h>
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>

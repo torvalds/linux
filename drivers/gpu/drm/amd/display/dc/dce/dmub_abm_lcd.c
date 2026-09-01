@@ -166,7 +166,7 @@ void dmub_abm_init_config(struct abm *abm,
 	uint8_t panel_mask = 0x01 << inst;
 
 	// TODO: Optimize by only reading back final 4 bytes
-	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);
+	dmub_srv_flush_buffer_mem(dc->dmub_srv->dmub, &dc->dmub_srv->dmub->scratch_mem_fb);
 
 	// Copy iramtable into cw7
 	memcpy(dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, (void *)src, bytes);
@@ -227,7 +227,7 @@ bool dmub_abm_save_restore(
 	unsigned int bytes = sizeof(struct abm_save_restore);
 
 	// TODO: Optimize by only reading back final 4 bytes
-	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);
+	dmub_srv_flush_buffer_mem(dc->dmub_srv->dmub, &dc->dmub_srv->dmub->scratch_mem_fb);
 
 	// Copy iramtable into cw7
 	memcpy(dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, (void *)pData, bytes);

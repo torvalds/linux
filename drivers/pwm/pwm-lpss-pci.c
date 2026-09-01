@@ -57,7 +57,7 @@ static const struct pci_device_id pwm_lpss_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x2289), .driver_data = (unsigned long)&pwm_lpss_bsw_info },
 	{ PCI_VDEVICE(INTEL, 0x31c8), .driver_data = (unsigned long)&pwm_lpss_bxt_info },
 	{ PCI_VDEVICE(INTEL, 0x5ac8), .driver_data = (unsigned long)&pwm_lpss_bxt_info },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pwm_lpss_pci_ids);
 

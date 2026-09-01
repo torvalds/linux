@@ -15,8 +15,6 @@
 #include "greybus_authentication.h"
 #include "firmware.h"
 
-#define CAP_TIMEOUT_MS		1000
-
 /*
  * Number of minor devices this driver supports.
  * There will be exactly one required per Interface.

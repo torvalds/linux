@@ -14,7 +14,7 @@ description: |
   hooked up to a pull-up GPIO line and - optionally - the HPD line is hooked up
   to another GPIO line.
 
-  Please note:: the maximum voltage for the CEC line is 3.63V, for the HPD and
+  Please note: the maximum voltage for the CEC line is 3.63V, for the HPD and
   5V lines it is 5.3V. So you may need some sort of level conversion
   circuitry when connecting them to a GPIO line.
 

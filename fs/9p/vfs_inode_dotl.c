@@ -213,12 +213,11 @@ int v9fs_open_to_dotl_flags(int flags)
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
  * @omode: create permissions
- * @excl: True if the file must not yet exist
  *
  */
 static int
 v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
-		     struct dentry *dentry, umode_t omode, bool excl)
+		     struct dentry *dentry, umode_t omode)
 {
 	return v9fs_vfs_mknod_dotl(idmap, dir, dentry, omode, 0);
 }
@@ -362,7 +361,6 @@ static struct dentry *v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
 	v9ses = v9fs_inode2v9ses(dir);
 
-	omode |= S_IFDIR;
 	if (dir->i_mode & S_ISGID)
 		omode |= S_ISGID;
 

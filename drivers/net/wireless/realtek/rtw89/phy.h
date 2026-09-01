@@ -353,25 +353,6 @@ struct rtw89_txpwr_byrate_cfg {
 	u32 data;
 };
 
-struct rtw89_txpwr_track_cfg {
-	const s8 (*delta_swingidx_6gb_n)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_6gb_p)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_6ga_n)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_6ga_p)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_5gb_n)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_5gb_p)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_5ga_n)[DELTA_SWINGIDX_SIZE];
-	const s8 (*delta_swingidx_5ga_p)[DELTA_SWINGIDX_SIZE];
-	const s8 *delta_swingidx_2gb_n;
-	const s8 *delta_swingidx_2gb_p;
-	const s8 *delta_swingidx_2ga_n;
-	const s8 *delta_swingidx_2ga_p;
-	const s8 *delta_swingidx_2g_cck_b_n;
-	const s8 *delta_swingidx_2g_cck_b_p;
-	const s8 *delta_swingidx_2g_cck_a_n;
-	const s8 *delta_swingidx_2g_cck_a_p;
-};
-
 struct rtw89_phy_dig_gain_cfg {
 	const struct rtw89_reg_def *table;
 	u8 size;
@@ -500,6 +481,11 @@ struct rtw89_cfo_regs {
 struct rtw89_bb_wrap_regs {
 	u32 pwr_macid_lmt;
 	u32 pwr_macid_path;
+};
+
+struct rtw89_nctl_regs {
+	u32 cfg;
+	u32 rw;
 };
 
 enum rtw89_bandwidth_section_num_ax {
@@ -679,6 +665,7 @@ struct rtw89_phy_gen_def {
 	const struct rtw89_physts_regs *physts;
 	const struct rtw89_cfo_regs *cfo;
 	const struct rtw89_bb_wrap_regs *bb_wrap;
+	const struct rtw89_nctl_regs *nctl;
 	u32 (*phy0_phy1_offset)(struct rtw89_dev *rtwdev, u32 addr);
 	void (*config_bb_gain)(struct rtw89_dev *rtwdev,
 			       const struct rtw89_reg2_def *reg,
@@ -1163,6 +1150,9 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func);
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func);
+
+extern const char * const rtw89_rfk_report_names[];
+
 int rtw89_phy_rfk_pre_ntfy_and_wait(struct rtw89_dev *rtwdev,
 				    enum rtw89_phy_idx phy_idx,
 				    unsigned int ms);

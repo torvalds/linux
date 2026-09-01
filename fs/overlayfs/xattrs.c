@@ -84,6 +84,7 @@ static int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char 
 	struct path realpath;
 
 	ovl_i_path_real(inode, &realpath);
+	/* Use vfs_getxattr(), not __vfs_getxattr(): it idmaps the security.capability rootid. */
 	with_ovl_creds(dentry->d_sb)
 		return vfs_getxattr(mnt_idmap(realpath.mnt), realpath.dentry, name, value, size);
 }

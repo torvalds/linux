@@ -337,15 +337,13 @@ const指针上操作，因此不需要进行类型转换，但需要临时放弃
    ``__task_cred()`` 的结果不应直接传递给 ``get_cred()`` ，
    因为这可能与 ``commit_cred()`` 发生竞争条件。
 
-还有一些方便的函数可以访问另一个任务凭据的特定部分，将RCU操作对调用方隐藏起来::
+有一个方便的函数可用于访问另一个任务凭据的特定部分，从而对调用方隐藏RCU机制::
 
 	uid_t task_uid(task)		Task's real UID
-	uid_t task_euid(task)		Task's effective UID
 
 如果调用方在此时已经持有RCU读锁，则应使用::
 
 	__task_cred(task)->uid
-	__task_cred(task)->euid
 
 类似地，如果需要访问任务凭据的多个方面，应使用RCU读锁，调用 ``__task_cred()``
 函数，将结果存储在临时指针中，然后从临时指针中调用凭据的各个方面，最后释放锁。

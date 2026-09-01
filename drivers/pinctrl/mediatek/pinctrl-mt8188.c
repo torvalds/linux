@@ -1653,6 +1653,7 @@ static const struct of_device_id mt8188_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt8188-pinctrl", .data = &mt8188_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt8188_pinctrl_of_match);
 
 static struct platform_driver mt8188_pinctrl_driver = {
 	.driver = {
@@ -1671,3 +1672,4 @@ static int __init mt8188_pinctrl_init(void)
 arch_initcall(mt8188_pinctrl_init);
 
 MODULE_DESCRIPTION("MediaTek MT8188 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

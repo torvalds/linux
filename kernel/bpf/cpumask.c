@@ -449,12 +449,12 @@ __bpf_kfunc u32 bpf_cpumask_weight(const struct cpumask *cpumask)
  * @src__sz: Length of the BPF memory region in bytes.
  *
  * Return:
- * * 0 if the struct cpumask * instance was populated successfully.
+ * * 0 if the struct bpf_cpumask * instance was populated successfully.
  * * -EACCES if the memory region is too small to populate the cpumask.
  * * -EINVAL if the memory region is not aligned to the size of a long
  *   and the architecture does not support efficient unaligned accesses.
  */
-__bpf_kfunc int bpf_cpumask_populate(struct cpumask *cpumask, void *src, size_t src__sz)
+__bpf_kfunc int bpf_cpumask_populate(struct bpf_cpumask *cpumask, void *src, size_t src__sz)
 {
 	unsigned long source = (unsigned long)src;
 
@@ -467,7 +467,7 @@ __bpf_kfunc int bpf_cpumask_populate(struct cpumask *cpumask, void *src, size_t 
 		!IS_ALIGNED(source, sizeof(long)))
 		return -EINVAL;
 
-	bitmap_copy(cpumask_bits(cpumask), src, nr_cpu_ids);
+	bitmap_copy(cpumask_bits(&cpumask->cpumask), src, nr_cpu_ids);
 
 	return 0;
 }

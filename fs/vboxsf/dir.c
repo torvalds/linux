@@ -298,9 +298,9 @@ out:
 
 static int vboxsf_dir_mkfile(struct mnt_idmap *idmap,
 			     struct inode *parent, struct dentry *dentry,
-			     umode_t mode, bool excl)
+			     umode_t mode)
 {
-	return vboxsf_dir_create(parent, dentry, mode, false, excl, NULL);
+	return vboxsf_dir_create(parent, dentry, mode, false, true, NULL);
 }
 
 static struct dentry *vboxsf_dir_mkdir(struct mnt_idmap *idmap,

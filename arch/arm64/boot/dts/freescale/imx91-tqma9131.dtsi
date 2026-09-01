@@ -33,9 +33,9 @@
 		};
 
 		/* EdgeLock secure enclave  */
-		ele_reserved: ele-reserved@a4120000 {
+		ele_reserved: ele-reserved@94120000 {
 			compatible = "shared-dma-pool";
-			reg = <0 0xa4120000 0 0x100000>;
+			reg = <0 0x94120000 0 0x100000>;
 			no-map;
 		};
 	};

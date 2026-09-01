@@ -52,7 +52,6 @@ static void gfs2_init_glock_once(void *foo)
 	struct gfs2_glock *gl = foo;
 
 	INIT_LIST_HEAD(&gl->gl_holders);
-	INIT_LIST_HEAD(&gl->gl_lru);
 	INIT_LIST_HEAD(&gl->gl_ail_list);
 	atomic_set(&gl->gl_ail_count, 0);
 	atomic_set(&gl->gl_revokes, 0);

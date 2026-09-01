@@ -134,7 +134,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 
 /* creation routines: create, mknod, mkdir, link, symlink */
 static int coda_create(struct mnt_idmap *idmap, struct inode *dir,
-		       struct dentry *de, umode_t mode, bool excl)
+		       struct dentry *de, umode_t mode)
 {
 	int error;
 	const char *name=de->d_name.name;
@@ -179,7 +179,12 @@ static struct dentry *coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (is_root_inode(dir) && coda_iscontrol(name, len))
 		return ERR_PTR(-EPERM);
 
-	attrs.va_mode = mode;
+	/*
+	 * vfs_mkdir() now passes S_IFDIR in @mode, but @mode is forwarded
+	 * verbatim to userspace, which has only ever been given the permission
+	 * bits. Strip the type bit until venus is known to cope with it.
+	 */
+	attrs.va_mode = mode & ~S_IFDIR;
 	error = venus_mkdir(dir->i_sb, coda_i2f(dir),
 			       name, len, &newfid, &attrs);
 	if (error)

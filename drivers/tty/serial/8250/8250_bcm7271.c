@@ -1099,10 +1099,8 @@ static int brcmuart_probe(struct platform_device *pdev)
 		}
 		ret = devm_request_irq(dev, dma_irq, brcmuart_isr,
 				IRQF_SHARED, "uart DMA irq", &new_port->port);
-		if (ret) {
-			dev_err_probe(dev, ret, "unable to register IRQ handler\n");
+		if (ret)
 			goto err1;
-		}
 	}
 	platform_set_drvdata(pdev, priv);
 	brcmuart_init_debugfs(priv, dev_name(&pdev->dev));

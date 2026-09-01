@@ -291,8 +291,8 @@ static inline int imr_address_overlap(phys_addr_t addr, struct imr_regs *imr)
  *
  * @base:	physical base address of region aligned to 1KiB.
  * @size:	physical size of region in bytes must be aligned to 1KiB.
- * @read_mask:	read access mask.
- * @write_mask:	write access mask.
+ * @rmask:	read access mask.
+ * @wmask:	write access mask.
  * @return:	zero on success or negative value indicating error.
  */
 int imr_add_range(phys_addr_t base, size_t size,

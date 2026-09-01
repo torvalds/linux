@@ -99,7 +99,6 @@
 			groups = "gpio0_34_grp";
 			io-standard = <3>;
 			slew-rate = <0>;
-			bias-high-impedance;
 			bias-pull-up;
 		};
 	};

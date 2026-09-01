@@ -189,7 +189,7 @@ struct regcache_ops {
 	const char *name;
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
-	int (*exit)(struct regmap *map);
+	void (*exit)(struct regmap *map);
 	int (*populate)(struct regmap *map);
 #ifdef CONFIG_DEBUG_FS
 	void (*debugfs_init)(struct regmap *map);

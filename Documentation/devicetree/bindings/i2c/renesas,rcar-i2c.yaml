@@ -56,6 +56,11 @@ properties:
               - renesas,i2c-r8a779h0     # R-Car V4M
           - const: renesas,rcar-gen4-i2c # R-Car Gen4
 
+      - items:
+          - enum:
+              - renesas,i2c-r8a78000     # R-Car X5H
+          - const: renesas,rcar-gen5-i2c # R-Car Gen5
+
   reg:
     maxItems: 1
 
@@ -140,6 +145,7 @@ allOf:
               - renesas,rcar-gen2-i2c
               - renesas,rcar-gen3-i2c
               - renesas,rcar-gen4-i2c
+              - renesas,rcar-gen5-i2c
     then:
       required:
         - resets

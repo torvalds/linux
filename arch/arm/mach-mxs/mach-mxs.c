@@ -9,7 +9,7 @@
 #include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/micrel_phy.h>

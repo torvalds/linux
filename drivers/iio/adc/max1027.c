@@ -72,12 +72,12 @@ enum max1027_id {
 };
 
 static const struct spi_device_id max1027_id[] = {
-	{ "max1027", max1027 },
-	{ "max1029", max1029 },
-	{ "max1031", max1031 },
-	{ "max1227", max1227 },
-	{ "max1229", max1229 },
-	{ "max1231", max1231 },
+	{ .name = "max1027", .driver_data = max1027 },
+	{ .name = "max1029", .driver_data = max1029 },
+	{ .name = "max1031", .driver_data = max1031 },
+	{ .name = "max1227", .driver_data = max1227 },
+	{ .name = "max1229", .driver_data = max1229 },
+	{ .name = "max1231", .driver_data = max1231 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max1027_id);

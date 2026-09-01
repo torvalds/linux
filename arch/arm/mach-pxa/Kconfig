@@ -55,11 +55,14 @@ if ATAGS
 comment "Legacy board files"
 
 config ARCH_GUMSTIX
-	bool "Gumstix XScale 255 boards"
+	bool "Gumstix XScale 255 boards (DEPRECATED)"
 	select PXA25x
 	help
 	  Say Y here if you intend to run this kernel on
 	  Basix, Connex, ws-200ax, ws-400ax systems
+
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
 
 choice
 	prompt "Gumstix Carrier/Expansion Board"
@@ -74,7 +77,7 @@ config GUMSTIX_AM300EPD
 endchoice
 
 config PXA_SHARPSL
-	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
+	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models (DEPRECATED)"
 	select SHARP_PARAM
 	select SHARP_SCOOP
 	help
@@ -83,6 +86,9 @@ config PXA_SHARPSL
 	  SL-C750 (Shepherd), SL-C760 (Husky), SL-C1000 (Akita),
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
+
+	  Support for these machines will go away in early 2027,
+	  unless they get converted to device tree.
 
 config PXA_SHARPSL_DETECT_MACH_ID
 	bool "Detect machine ID at run-time in the decompressor"

@@ -1290,4 +1290,5 @@ module_init(swim3_init)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul Mackerras");
+MODULE_DESCRIPTION("SWIM3 floppy driver for PowerMacs");
 MODULE_ALIAS_BLOCKDEV_MAJOR(FLOPPY_MAJOR);

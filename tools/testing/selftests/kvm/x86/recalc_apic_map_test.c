@@ -57,7 +57,7 @@ int main(void)
 	for (i = 0; i < KVM_MAX_VCPUS; i++)
 		vcpu_set_msr(vcpus[i], MSR_IA32_APICBASE, LAPIC_X2APIC);
 
-	TEST_ASSERT_EQ(pthread_create(&thread, NULL, race, vcpus[0]), 0);
+	kvm_pthread_create(&thread, NULL, race, vcpus[0]);
 
 	vcpuN = vcpus[KVM_MAX_VCPUS - 1];
 	for (t = time(NULL) + TIMEOUT; time(NULL) < t;) {
@@ -65,8 +65,7 @@ int main(void)
 		vcpu_set_msr(vcpuN, MSR_IA32_APICBASE, LAPIC_DISABLED);
 	}
 
-	TEST_ASSERT_EQ(pthread_cancel(thread), 0);
-	TEST_ASSERT_EQ(pthread_join(thread, NULL), 0);
+	kvm_pthread_cancel_join(thread);
 
 	kvm_vm_free(vm);
 

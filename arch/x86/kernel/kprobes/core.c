@@ -762,9 +762,6 @@ int arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret;
 
-	if (alternatives_text_reserved(p->addr, p->addr))
-		return -EINVAL;
-
 	if (!can_probe((unsigned long)p->addr))
 		return -EILSEQ;
 

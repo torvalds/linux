@@ -23,10 +23,17 @@ menuconfig ARCH_S3C64XX
 	help
 	  Samsung S3C64XX series based systems
 
-	  The platform is deprecated and scheduled for removal. Please reach to
-	  the maintainers of the platform and linux-samsung-soc@vger.kernel.org if
-	  you still use it.
-	  Without such feedback, the platform will be removed after 2024.
+	  The use of ATAGS based board files is on its way out, and
+	  the only remaining S3C64xx machine in the kernel (Wolfson
+	  Cragganmore 6410) relies on this, without any realistic way
+	  to migrate it to devicetree.
+
+	  Support for S3C64XX will be kept until the 2027 LTS kernel
+	  release and may be removed in early 2028.
+
+	  Please reach out to the maintainers of the platform and
+	  linux-samsung-soc@vger.kernel.org if you use any additional
+	  s3c64xx machines based on devicetree.
 
 if ARCH_S3C64XX
 

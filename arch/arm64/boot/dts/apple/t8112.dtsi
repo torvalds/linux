@@ -921,6 +921,10 @@
 					"boot_error_count", "panic_count";
 			};
 
+			smc_hwmon: hwmon {
+				compatible = "apple,smc-hwmon";
+			};
+
 			rtc {
 				compatible = "apple,smc-rtc";
 				nvmem-cells = <&rtc_offset>;
@@ -1285,3 +1289,4 @@
 };
 
 #include "t8112-pmgr.dtsi"
+#include "hwmon-common.dtsi"

@@ -348,9 +348,9 @@ static const struct of_device_id mp886x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mp886x_dt_ids);
 
 static const struct i2c_device_id mp886x_id[] = {
-	{ "mp8867", (kernel_ulong_t)&mp8867_ci },
-	{ "mp8869", (kernel_ulong_t)&mp8869_ci },
-	{ },
+	{ .name = "mp8867", .driver_data = (kernel_ulong_t)&mp8867_ci },
+	{ .name = "mp8869", .driver_data = (kernel_ulong_t)&mp8869_ci },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp886x_id);
 

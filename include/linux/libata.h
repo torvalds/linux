@@ -121,6 +121,55 @@ enum {
 	ATA_QUIRK_NO_FUA		= BIT_ULL(__ATA_QUIRK_NO_FUA),
 };
 
+/*
+ * struct ata_device flags
+ */
+enum {
+	ATA_DFLAG_LBA		= (1UL << 0), /* device supports LBA */
+	ATA_DFLAG_LBA48		= (1UL << 1), /* device supports LBA48 */
+	ATA_DFLAG_CDB_INTR	= (1UL << 2), /* device asserts INTRQ when ready for CDB */
+	ATA_DFLAG_NCQ		= (1UL << 3), /* device supports NCQ */
+	ATA_DFLAG_FLUSH_EXT	= (1UL << 4), /* do FLUSH_EXT instead of FLUSH */
+	ATA_DFLAG_ACPI_PENDING	= (1UL << 5), /* ACPI resume action pending */
+	ATA_DFLAG_ACPI_FAILED	= (1UL << 6), /* ACPI on devcfg has failed */
+	ATA_DFLAG_AN		= (1UL << 7), /* AN configured */
+	ATA_DFLAG_TRUSTED	= (1UL << 8), /* device supports trusted send/recv */
+	ATA_DFLAG_FUA		= (1UL << 9), /* device supports FUA */
+	ATA_DFLAG_DMADIR	= (1UL << 10), /* device requires DMADIR */
+	ATA_DFLAG_NCQ_SEND_RECV = (1UL << 11), /* device supports NCQ SEND and RECV */
+	ATA_DFLAG_NCQ_PRIO	= (1UL << 12), /* device supports NCQ priority */
+	ATA_DFLAG_CDL		= (1UL << 13), /* supports cmd duration limits */
+	ATA_DFLAG_DEPOP		= (1UL << 14), /* supports depopulation capability */
+	ATA_DFLAG_DEPOP_RESTORE	= (1UL << 15), /* supports depopulation restoration */
+	ATA_DFLAG_DEPOP_MODIFY	= (1UL << 16), /* supports zoned depopulation */
+	ATA_DFLAG_CFG_MASK	= (1UL << 17) - 1,
+
+	ATA_DFLAG_PIO		= (1UL << 17), /* device limited to PIO mode */
+	ATA_DFLAG_NCQ_OFF	= (1UL << 18), /* device limited to non-NCQ mode */
+	ATA_DFLAG_SLEEPING	= (1UL << 19), /* device is sleeping */
+	ATA_DFLAG_DUBIOUS_XFER	= (1UL << 20), /* data transfer not verified */
+	ATA_DFLAG_NO_UNLOAD	= (1UL << 21), /* device doesn't support unload */
+	ATA_DFLAG_UNLOCK_HPA	= (1UL << 22), /* unlock HPA */
+	ATA_DFLAG_INIT_MASK	= (1UL << 23) - 1,
+
+	ATA_DFLAG_NCQ_PRIO_ENABLED = (1UL << 23), /* Priority cmds sent to dev */
+	ATA_DFLAG_CDL_ENABLED	= (1UL << 24), /* cmd duration limits is enabled */
+	ATA_DFLAG_RESUMING	= (1UL << 25),  /* Device is resuming */
+	ATA_DFLAG_DETACH	= (1UL << 26),
+	ATA_DFLAG_DETACHED	= (1UL << 27),
+	ATA_DFLAG_DA		= (1UL << 28), /* device supports Device Attention */
+	ATA_DFLAG_DEVSLP	= (1UL << 29), /* device supports Device Sleep */
+	ATA_DFLAG_ACPI_DISABLED = (1UL << 30), /* ACPI for the device is disabled */
+	ATA_DFLAG_D_SENSE	= (1UL << 31), /* Descriptor sense requested */
+
+	ATA_DFLAG_FEATURES_MASK	= (ATA_DFLAG_TRUSTED | ATA_DFLAG_DA |	\
+				   ATA_DFLAG_DEVSLP | ATA_DFLAG_NCQ_SEND_RECV | \
+				   ATA_DFLAG_NCQ_PRIO | ATA_DFLAG_FUA | \
+				   ATA_DFLAG_CDL | ATA_DFLAG_DEPOP | \
+				   ATA_DFLAG_DEPOP_RESTORE |
+				   ATA_DFLAG_DEPOP_MODIFY)
+};
+
 enum {
 	/* various global constants */
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
@@ -146,46 +195,7 @@ enum {
 	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
 	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
 
-	/* struct ata_device stuff */
-	ATA_DFLAG_LBA		= (1 << 0), /* device supports LBA */
-	ATA_DFLAG_LBA48		= (1 << 1), /* device supports LBA48 */
-	ATA_DFLAG_CDB_INTR	= (1 << 2), /* device asserts INTRQ when ready for CDB */
-	ATA_DFLAG_NCQ		= (1 << 3), /* device supports NCQ */
-	ATA_DFLAG_FLUSH_EXT	= (1 << 4), /* do FLUSH_EXT instead of FLUSH */
-	ATA_DFLAG_ACPI_PENDING	= (1 << 5), /* ACPI resume action pending */
-	ATA_DFLAG_ACPI_FAILED	= (1 << 6), /* ACPI on devcfg has failed */
-	ATA_DFLAG_AN		= (1 << 7), /* AN configured */
-	ATA_DFLAG_TRUSTED	= (1 << 8), /* device supports trusted send/recv */
-	ATA_DFLAG_FUA		= (1 << 9), /* device supports FUA */
-	ATA_DFLAG_DMADIR	= (1 << 10), /* device requires DMADIR */
-	ATA_DFLAG_NCQ_SEND_RECV = (1 << 11), /* device supports NCQ SEND and RECV */
-	ATA_DFLAG_NCQ_PRIO	= (1 << 12), /* device supports NCQ priority */
-	ATA_DFLAG_CDL		= (1 << 13), /* supports cmd duration limits */
-	ATA_DFLAG_CFG_MASK	= (1 << 14) - 1,
-
-	ATA_DFLAG_PIO		= (1 << 14), /* device limited to PIO mode */
-	ATA_DFLAG_NCQ_OFF	= (1 << 15), /* device limited to non-NCQ mode */
-	ATA_DFLAG_SLEEPING	= (1 << 16), /* device is sleeping */
-	ATA_DFLAG_DUBIOUS_XFER	= (1 << 17), /* data transfer not verified */
-	ATA_DFLAG_NO_UNLOAD	= (1 << 18), /* device doesn't support unload */
-	ATA_DFLAG_UNLOCK_HPA	= (1 << 19), /* unlock HPA */
-	ATA_DFLAG_INIT_MASK	= (1 << 20) - 1,
-
-	ATA_DFLAG_NCQ_PRIO_ENABLED = (1 << 20), /* Priority cmds sent to dev */
-	ATA_DFLAG_CDL_ENABLED	= (1 << 21), /* cmd duration limits is enabled */
-	ATA_DFLAG_RESUMING	= (1 << 22),  /* Device is resuming */
-	ATA_DFLAG_DETACH	= (1 << 24),
-	ATA_DFLAG_DETACHED	= (1 << 25),
-	ATA_DFLAG_DA		= (1 << 26), /* device supports Device Attention */
-	ATA_DFLAG_DEVSLP	= (1 << 27), /* device supports Device Sleep */
-	ATA_DFLAG_ACPI_DISABLED = (1 << 28), /* ACPI for the device is disabled */
-	ATA_DFLAG_D_SENSE	= (1 << 29), /* Descriptor sense requested */
-
-	ATA_DFLAG_FEATURES_MASK	= (ATA_DFLAG_TRUSTED | ATA_DFLAG_DA |	\
-				   ATA_DFLAG_DEVSLP | ATA_DFLAG_NCQ_SEND_RECV | \
-				   ATA_DFLAG_NCQ_PRIO | ATA_DFLAG_FUA | \
-				   ATA_DFLAG_CDL),
-
+	/* sturct ata_device class. */
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
 	ATA_DEV_ATA_UNSUP	= 2,	/* ATA device (unsupported) */
@@ -1420,9 +1430,6 @@ extern int ata_port_freeze(struct ata_port *ap);
 
 extern void ata_eh_freeze_port(struct ata_port *ap);
 extern void ata_eh_thaw_port(struct ata_port *ap);
-
-extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
-extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
 extern void ata_std_error_handler(struct ata_port *ap)
 	__must_hold(&ap->host->eh_mutex);

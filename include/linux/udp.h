@@ -23,6 +23,33 @@ static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 	return (struct udphdr *)skb_transport_header(skb);
 }
 
+static inline unsigned int udp_get_len(const struct sk_buff *skb,
+				       const struct udphdr *uh,
+				       unsigned int dataoff)
+{
+	if (uh->len)
+		return ntohs(uh->len);
+	if (skb_is_gso(skb)) /* BIG TCP */
+		return skb->len - dataoff;
+	return 0;
+}
+
+static inline unsigned int udp_get_len_short(const struct udphdr *uh)
+{
+	return ntohs(uh->len);
+}
+
+static inline void udp_set_len(struct udphdr *uh, unsigned int len)
+{
+	uh->len = len < GRO_LEGACY_MAX_SIZE ? htons(len) : 0;
+}
+
+static inline void udp_set_len_short(struct udphdr *uh, unsigned int len)
+{
+	DEBUG_NET_WARN_ON_ONCE(len >= GRO_LEGACY_MAX_SIZE);
+	uh->len = htons(len);
+}
+
 #define UDP_HTABLE_SIZE_MIN_PERNET	128
 #define UDP_HTABLE_SIZE_MIN		(IS_ENABLED(CONFIG_BASE_SMALL) ? 128 : 256)
 #define UDP_HTABLE_SIZE_MAX		65536

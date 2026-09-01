@@ -28,8 +28,8 @@ static void mma7455_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id mma7455_spi_ids[] = {
-	{ "mma7455", 0 },
-	{ "mma7456", 0 },
+	{ .name = "mma7455" },
+	{ .name = "mma7456" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mma7455_spi_ids);

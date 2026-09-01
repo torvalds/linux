@@ -26,7 +26,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led-0	{
+		led-0 {
 			color = <LED_COLOR_ID_BLUE>;
 			default-state = "on";
 			function = LED_FUNCTION_STATUS;

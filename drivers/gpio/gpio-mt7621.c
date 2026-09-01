@@ -68,7 +68,7 @@ mt7621_gpio_gc_to_priv(struct gpio_chip *gc)
 }
 
 static inline struct mtk_gc *
-to_mediatek_gpio(struct gpio_chip *chip)
+to_mt7621_gpio(struct gpio_chip *chip)
 {
 	struct gpio_generic_chip *gen_gc = to_gpio_generic_chip(chip);
 
@@ -137,7 +137,7 @@ mt7621_gpio_hwirq_to_offset(irq_hw_number_t hwirq, struct mtk_gc *bank)
 }
 
 static void
-mediatek_gpio_irq_unmask(struct irq_data *d)
+mt7621_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct mtk_gc *rg = gpiochip_get_data(gc);
@@ -159,7 +159,7 @@ mediatek_gpio_irq_unmask(struct irq_data *d)
 }
 
 static void
-mediatek_gpio_irq_mask(struct irq_data *d)
+mt7621_gpio_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct mtk_gc *rg = gpiochip_get_data(gc);
@@ -181,7 +181,7 @@ mediatek_gpio_irq_mask(struct irq_data *d)
 }
 
 static int
-mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
+mt7621_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct mtk_gc *rg = gpiochip_get_data(gc);
@@ -194,7 +194,7 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 		     rg->hlevel | rg->llevel) & mask)
 			return 0;
 
-		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+		type = IRQ_TYPE_EDGE_BOTH;
 	}
 
 	rg->rising &= ~mask;
@@ -245,11 +245,11 @@ mt7621_gpio_irq_relres(struct irq_data *d)
 }
 
 static int
-mediatek_gpio_xlate(struct gpio_chip *chip,
+mt7621_gpio_xlate(struct gpio_chip *chip,
 		    const struct of_phandle_args *spec, u32 *flags)
 {
 	int gpio = spec->args[0];
-	struct mtk_gc *rg = to_mediatek_gpio(chip);
+	struct mtk_gc *rg = to_mt7621_gpio(chip);
 
 	if (rg->bank != gpio / MTK_BANK_WIDTH)
 		return -EINVAL;
@@ -264,10 +264,10 @@ static const struct irq_chip mt7621_irq_chip = {
 	.name		= "mt7621-gpio",
 	.irq_request_resources = mt7621_gpio_irq_reqres,
 	.irq_release_resources = mt7621_gpio_irq_relres,
-	.irq_mask_ack	= mediatek_gpio_irq_mask,
-	.irq_mask	= mediatek_gpio_irq_mask,
-	.irq_unmask	= mediatek_gpio_irq_unmask,
-	.irq_set_type	= mediatek_gpio_irq_type,
+	.irq_mask_ack	= mt7621_gpio_irq_mask,
+	.irq_mask	= mt7621_gpio_irq_mask,
+	.irq_unmask	= mt7621_gpio_irq_unmask,
+	.irq_set_type	= mt7621_gpio_irq_type,
 	.flags		= IRQCHIP_IMMUTABLE,
 };
 
@@ -380,7 +380,7 @@ mt7621_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 }
 
 static int
-mediatek_gpio_bank_probe(struct device *dev, int bank)
+mt7621_gpio_bank_probe(struct device *dev, int bank)
 {
 	struct gpio_generic_chip_config config;
 	struct mtk *mtk = dev_get_drvdata(dev);
@@ -416,7 +416,7 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 	}
 
 	rg->chip.gc.of_gpio_n_cells = 2;
-	rg->chip.gc.of_xlate = mediatek_gpio_xlate;
+	rg->chip.gc.of_xlate = mt7621_gpio_xlate;
 	rg->chip.gc.ngpio = MTK_BANK_WIDTH;
 	rg->chip.gc.label = devm_kasprintf(dev, GFP_KERNEL, "%s-bank%d",
 					dev_name(dev), bank);
@@ -443,7 +443,7 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 }
 
 static int
-mediatek_gpio_probe(struct platform_device *pdev)
+mt7621_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk *mtk;
@@ -477,7 +477,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	for (i = 0; i < MTK_BANK_CNT; i++) {
-		ret = mediatek_gpio_bank_probe(dev, i);
+		ret = mt7621_gpio_bank_probe(dev, i);
 		if (ret)
 			return ret;
 	}
@@ -485,18 +485,18 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mediatek_gpio_match[] = {
+static const struct of_device_id mt7621_gpio_match[] = {
 	{ .compatible = "mediatek,mt7621-gpio" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mediatek_gpio_match);
+MODULE_DEVICE_TABLE(of, mt7621_gpio_match);
 
-static struct platform_driver mediatek_gpio_driver = {
-	.probe = mediatek_gpio_probe,
+static struct platform_driver mt7621_gpio_driver = {
+	.probe = mt7621_gpio_probe,
 	.driver = {
 		.name = "mt7621_gpio",
-		.of_match_table = mediatek_gpio_match,
+		.of_match_table = mt7621_gpio_match,
 	},
 };
 
-builtin_platform_driver(mediatek_gpio_driver);
+builtin_platform_driver(mt7621_gpio_driver);

@@ -1173,7 +1173,7 @@ these conditions don't require explicit checks:
  - if LOOKUP_CREATE is NOT given, then the dentry won't be negative,
    ERR_PTR(-ENOENT) is returned instead
  - if LOOKUP_EXCL IS given, then the dentry won't be positive,
-   ERR_PTR(-EEXIST) is rreturned instread
+   ERR_PTR(-EEXIST) is returned instead
 
 LOOKUP_EXCL now means "target must not exist".  It can be combined with
 LOOK_CREATE or LOOKUP_RENAME_TARGET.
@@ -1401,3 +1401,11 @@ as with d_dispose_if_unused() these are not trivial; with this variant
 of API it's more explicit, since grabbing ->d_lock is caller-side, but
 d_dispose_if_unused() had all the same issues.  It's a low-level primitive;
 use only if you have no alternative.
+
+---
+
+**mandatory**
+
+The .create inode_operation no longer receives the 'excl' arg.  It must
+always assume the file does not already exist.  If the filesystem needs
+to be involved in non-exclusive create, it should provide atomic_open.

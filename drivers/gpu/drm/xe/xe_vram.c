@@ -89,12 +89,25 @@ static int get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size, u64 *poffset)
 		offset = offset_hi << 32; /* HW view bits 39:32 */
 		offset |= offset_lo << 6; /* HW view bits 31:6 */
 		offset *= num_enabled; /* convert to SW view */
-		offset = round_up(offset, SZ_128K); /* SW must round up to nearest 128K */
 
-		/* We don't expect any holes */
-		xe_assert_msg(xe, offset == (xe_mmio_read64_2x32(&gt_to_tile(gt)->mmio, GSMBASE) -
-					     ccs_size),
-			      "Hole between CCS and GSM.\n");
+		/*
+		 * Everything below this offset is handed to the VRAM
+		 * allocator, so it has to be the *first* address the
+		 * compression hardware owns, rounded down.  Rounding it up
+		 * publishes CCS storage as free memory.
+		 */
+		offset = round_down(offset, SZ_4K);
+
+		/*
+		 * CCS storage must not run into GSM.  The old check compared
+		 * the offset against GSMBASE - ccs_size for equality, which
+		 * could not fail: that value is 128K aligned, so it agreed
+		 * with the rounded-up offset even when the base was not 128K
+		 * aligned - exactly the case this fixes.
+		 */
+		xe_assert_msg(xe, offset + ccs_size <=
+			      xe_mmio_read64_2x32(&gt_to_tile(gt)->mmio, GSMBASE),
+			      "CCS overlaps GSM.\n");
 	} else {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
 		offset = (u64)REG_FIELD_GET(XEHP_FLAT_CCS_PTR, reg) * SZ_64K;

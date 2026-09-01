@@ -128,6 +128,9 @@ struct nvmet_ns {
 	u8			csi;
 	struct nvmet_pr		pr;
 	struct xarray		pr_per_ctrl_refs;
+#ifdef CONFIG_NVME_TARGET_DEBUGFS
+	struct dentry		*debugfs_dir;
+#endif
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
@@ -265,6 +268,7 @@ struct nvmet_ctrl {
 
 	uuid_t			hostid;
 	u16			cntlid;
+	u16			max_qid;
 	u32			kato;
 
 	struct nvmet_port	*port;
@@ -751,6 +755,11 @@ static inline u32 nvmet_dsm_len(struct nvmet_req *req)
 static inline struct nvmet_subsys *nvmet_req_subsys(struct nvmet_req *req)
 {
 	return req->sq->ctrl->subsys;
+}
+
+static inline struct nvmet_ctrl *nvmet_req_ctrl(struct nvmet_req *req)
+{
+	return req->sq->ctrl;
 }
 
 static inline bool nvmet_is_disc_subsys(struct nvmet_subsys *subsys)

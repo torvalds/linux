@@ -26,7 +26,8 @@ Here is what the fields mean:
    name below ``/proc/sys/fs/binfmt_misc``; cannot contain slashes ``/`` for
    obvious reasons.
 - ``type``
-   is the type of recognition. Give ``M`` for magic and ``E`` for extension.
+   is the type of recognition. Give ``M`` for magic, ``E`` for extension and
+   ``B`` for a bpf-backed handler (see below).
 - ``offset``
    is the offset of the magic/mask in the file, counted in bytes. This
    defaults to 0 if you omit it (i.e. you write ``:name:type::magic...``).
@@ -48,7 +49,8 @@ Here is what the fields mean:
    filename extension matching.
 - ``interpreter``
    is the program that should be invoked with the binary as first
-   argument (specify the full path)
+   argument (specify the full path). For ``B`` entries this field
+   carries the name of the bpf handler instead (see below).
 - ``flags``
    is an optional field that controls several aspects of the invocation
    of the interpreter. It is a string of capital letters, each controls a
@@ -88,6 +90,32 @@ Here is what the fields mean:
 	    emulation is installed and uses the opened image to spawn the
 	    emulator, meaning it is always available once installed,
 	    regardless of how the environment changes.
+      ``T`` - transparent
+            Run the interpreter transparently. The binary is handed to
+            the interpreter through ``AT_EXECFD`` (``T`` implies ``O``),
+            the argument vector is left exactly as the caller built it
+            and the kernel labels ``/proc/pid/exe`` with the binary
+            instead of the interpreter. The interpreter has to load the
+            binary from ``AT_EXECFD`` and follow the
+            ``AT_FLAGS_TRANSPARENT_INTERP`` contract. Combining ``T``
+            with ``P`` is rejected: transparency preserves the whole
+            argument vector, argv[0] included.
+      ``L`` - loader substitution
+            Do not run the interpreter on the binary at all: load the
+            binary itself as a fully native exec and substitute the
+            interpreter for the loader named in the binary's
+            ``PT_INTERP``. See the "Loader substitution" section
+            below. ``L`` rejects ``T``, ``P``, ``O`` and ``C``;
+            ``F`` composes.
+      ``D`` - registered disabled
+            The entry is created disabled instead of being matchable at
+            once, and has to be enabled by writing ``1`` to its file
+            before it dispatches anything. This splits a registration
+            into creating the entry and activating it, leaving room to
+            configure it in between - which is what a ``B`` entry that
+            binds interpreters needs; see the bpf section below. The flag
+            is spent on the registration and is not read back: what an
+            entry file reports afterwards is whether it is enabled.
 
 
 There are some restrictions:
@@ -96,6 +124,16 @@ There are some restrictions:
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
  - the interpreter string may not exceed 127 characters
+ - an interpreter used with ``C`` or ``L`` but without ``F`` has to be
+   named by an absolute path. It is opened when the binary is executed, so
+   a relative one would be resolved against the working directory of
+   whoever runs the binary
+ - the amount of pre-opened interpreters by ``F``, or bound to a ``B`` entry
+   is limited by the ``/proc/sys/user/max_binfmt_misc_interpreters`` sysctl. A
+   registration past the limit is refused with ``-ENOSPC``. This limits an
+   unprivileged namespace pinning files. A nested namespace can raise only its
+   own limit and every ancestor is charged too
+
 
 To use binfmt_misc you have to mount it first. You can mount it with
 ``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add
@@ -133,7 +171,209 @@ or 1 (to enable) to ``/proc/sys/fs/binfmt_misc/status`` or
 Catting the file tells you the current status of ``binfmt_misc/the_entry``.
 
 You can remove one entry or all entries by echoing -1 to ``/proc/.../the_name``
-or ``/proc/sys/fs/binfmt_misc/status``.
+or ``/proc/sys/fs/binfmt_misc/status``. A single entry can also be removed
+by simply unlinking (``rm``) ``/proc/.../the_name``.
+
+
+bpf-backed handlers
+-------------------
+
+With ``CONFIG_BINFMT_MISC_BPF`` both the matching and the interpreter
+selection can be delegated to bpf programs. A handler is an instance of the
+``binfmt_misc_ops`` struct_ops with a ``match`` and a ``load`` program and a
+``name``. Once the struct_ops map is registered the handler can be activated
+with a ``B`` entry that references it by name in the ``interpreter`` field
+and carries neither offset, magic, nor mask::
+
+    echo ':qemu:B::::my_handler:' > register
+
+Both programs receive the ``linux_binprm`` of the binary and both can
+sleep. The ``match`` program decides whether the handler applies: it is
+consulted during the entry walk exactly like magic and extension matching,
+in the same registration order with the same first-match-wins semantics.
+Unlike static matching it is not limited to the prefetched first bytes of
+the file in ``bprm->buf``: it can read the file, e.g. to parse ELF program
+headers whose data sits at arbitrary offsets. It only decides, though: the
+selection kfuncs below are rejected in it. The ``load`` program of the
+matched handler then selects the interpreter: it can equally read the file
+and derive the interpreter from the binary's location. It selects the
+interpreter by calling the ``bpf_binprm_set_interp()`` kfunc with an
+absolute path and returning ``0``. A match is committed: a failing
+``load`` fails the exec with its error instead of falling through to later
+entries; ``-ENOEXEC`` lets the remaining binary formats have a go. A path
+selected this way is opened with the credentials of the task doing the
+exec, exactly as a statically registered interpreter without ``F`` would
+be.
+
+An entry can instead bind the interpreters its handler may use, so that no
+path is resolved at exec time at all. An entry registered with ``D`` is not
+matchable yet, which is what leaves it open to being given them, one
+``+name path`` write at a time::
+
+    echo ':qemu:B::::my_handler:D' > register
+    echo '+aarch64 /usr/bin/qemu-aarch64' > qemu
+    echo '+arm /usr/bin/qemu-arm' > qemu
+    echo 1 > qemu
+
+Each path is opened during its write, in the writing process's context and
+with the credentials the entry file was opened with, exactly the way ``F``
+pre-opens a static entry's interpreter; the paths must be absolute. The
+path is everything past the first space, so there is nothing it cannot
+express, and no interpreter has to fit in a register string. An entry
+binds at most 100 interpreters, and each one is charged against
+``max_binfmt_misc_interpreters`` like any other binding. A write past either
+limit is refused with ``-ENOSPC``.
+
+The ``load`` program then selects one per exec by name with the
+``bpf_binprm_select_interp()`` kfunc, and every exec runs a clone of the
+file that was opened. The path decides which file is bound and nothing
+else: it is not resolved again, in any namespace, so what it holds later -
+or what it holds in the namespace of whoever runs the binary - no longer
+decides anything.
+
+Enabling the entry ends this. Its interpreters are read at exec time with
+nothing but a reference held on the entry, so an entry that has ever been
+matchable can never have its set changed again: the first ``1`` seals it,
+from then on ``+`` is refused with ``-EBUSY``, and an entry registered
+without ``D`` is sealed from the start. Binding a name twice is refused
+with ``-EEXIST``.
+
+Selection is by name so that the configuration and the program need not
+agree on an order, and so that a handler is not tied to where a distribution
+puts its interpreters. A name is a single word of printable ASCII, at most
+32 characters; a name the entry did not bind gives the program ``-ENOENT``,
+which it can act on or return. The interpreter runs under the path it was
+registered under, and the entry reports what it bound::
+
+    $ cat /proc/sys/fs/binfmt_misc/qemu
+    enabled
+    bpf my_handler
+    bpf-interpreter aarch64 /usr/bin/qemu-aarch64
+    bpf-interpreter arm /usr/bin/qemu-arm
+    flags:
+
+The path reported is the one the interpreter was bound under, which named
+the file at that moment; it is not re-resolved, so it is a record of what
+was bound rather than a promise about what that path holds now.
+
+The ``load`` program can also pass a single argument to the interpreter with
+the ``bpf_binprm_set_interp_arg()`` kfunc. It is inserted between the
+interpreter and the binary, exactly like the optional argument of a ``#!``
+interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
+``#!`` path and needs to preserve the argument that followed it.
+
+The invocation flags a static entry fixes at registration - ``P``, ``C``,
+``O``, ``T`` and ``L`` - are per-exec choices for a bpf handler, made by the
+``load`` program with the ``bpf_binprm_set_flags()`` kfunc, so a single
+handler can decide them differently for each binary it handles:
+
+- ``BPF_BINPRM_PRESERVE_ARGV0`` keeps the caller's ``argv[0]`` (the ``P``
+  flag).
+- ``BPF_BINPRM_CREDENTIALS`` computes credentials from the binary (the ``C``
+  flag), bounded to user namespaces that map the binary's owner just like
+  any other setuid exec.
+- ``BPF_BINPRM_EXECFD`` opens the binary on the interpreter's behalf and
+  passes it through the ``AT_EXECFD`` aux vector entry (the ``O`` flag), so
+  the interpreter can run binaries it could not open by path.
+- ``BPF_BINPRM_TRANSPARENT`` runs the interpreter transparently (the ``T``
+  flag): the binary is handed over through ``AT_EXECFD`` as
+  with ``BPF_BINPRM_EXECFD``, but the argument vector is also left as the
+  caller passed it. An interpreter that loads the binary from ``AT_EXECFD``
+  then appears in ``argv[0]`` and ``/proc/pid/cmdline`` as a direct
+  execution of the binary. ``BPF_BINPRM_PRESERVE_ARGV0`` and a staged
+  interpreter argument are rejected in combination with it, just as ``P``
+  is with ``T``. It also lets a handler
+  run a binary passed as an inaccessible ``O_CLOEXEC`` file descriptor to
+  ``execveat()``, which a path-splicing dispatch cannot: the interpreter
+  has no path by which to open it.
+- ``BPF_BINPRM_LOADER`` substitutes the interpreter for the binary's
+  ``PT_INTERP`` and runs the binary as a fully native exec (the ``L``
+  flag). It excludes the other flags and a staged interpreter argument.
+
+Because these are program choices, a ``B`` entry carries no invocation
+flags in the register string; ``F`` has none to spell for it either, since
+the interpreters it binds already pre-open what ``F`` would. The
+registration directive ``D`` is the exception: it decides how the entry
+starts out, not how the interpreter is invoked.
+
+A handler is looked up only in the user namespace the struct_ops map was
+registered in. Handlers are not inherited, so an entry can only reference a
+handler registered in the same user namespace as its binfmt_misc instance.
+The entry keeps the handler alive; deleting the struct_ops map only prevents
+new activations.
+
+
+Transparent interpreters
+------------------------
+
+With the ``T`` flag or ``BPF_BINPRM_TRANSPARENT`` the dispatch is invisible
+to the resulting process. The argument vector is left exactly as the caller
+built it. The binary is passed through ``AT_EXECFD``. The kernel also labels
+``/proc/pid/exe`` correctly. The binary's file is write-denied while the
+process runs and the interpreter's is not, exactly as if the binary had been
+executed directly. A transparent entry does not change how credentials are
+derived. As
+with any other entry, set*id bits of the binary are only honored with ``C`` (or
+``BPF_BINPRM_CREDENTIALS``).
+
+The interpreter has to be built for this contract. The kernel announces it
+with ``AT_FLAGS_TRANSPARENT_INTERP`` in the ``AT_FLAGS`` aux vector entry
+next to ``AT_EXECFD``. The argument vector belongs entirely to the program,
+nothing was spliced in, so the interpreter doesn't consume arguments and
+simply loads the program from the descriptor. The bit is also the loader's
+license to finish the identity. After mapping the program it may retarget the
+``AT_PHDR``/``AT_ENTRY``/``AT_BASE`` entries of ``/proc/pid/auxv`` and the
+code/data statistics markers via one ``PR_SET_MM_MAP`` which completes
+what attaching debuggers observe.  What remains visibly different from a
+direct execution is the address space layout. The interpreter occupies
+the main-image position and the program lives in the mmap region.
+
+
+Loader substitution
+-------------------
+
+The ``L`` flag turns the execution model around. Instead of running the
+registered interpreter with the binary as its payload the kernel loads
+the matched binary itself as the main image and substitutes the registered
+interpreter for the loader named in the binary's ``PT_INTERP``.
+
+Because the exec is native, there is no dispatch identity to
+reconstruct and no contract the substitute has to implement. A stock
+dynamic loader works unchanged. The argument vector is untouched,
+credentials and ``AT_SECURE`` derive from the binary, there is no
+``AT_EXECFD`` and no marker in the aux vector, the binary sits in the
+main-image slot with the native brk placement so ``/proc/pid/maps``,
+core dumps and perf mmap records have the native shape, and the
+identity is already complete when ``PTRACE_EVENT_EXEC`` stops the
+tracee. So launching under a debugger works, not just attaching. ``L``
+entries are for ELF binaries of a native architecture. Foreign-arch
+emulation and non-ELF payloads remain the domain of the classic and
+transparent modes.
+
+The override applies when the format that finally claims the file is
+ELF with a ``PT_INTERP``. A matched binary without one or an
+interpreter-less ``ET_DYN`` drops the override and runs natively. A file
+claimed by another format - a ``#!`` script, say - is handled by that
+format as if the entry had not matched. ``L`` is therefore not an
+enforcement mechanism: it decides how a binary that asks for a loader is
+run, it does not guarantee that everything matching the entry runs under
+the substitute. A format that cannot consume the override at all instead
+refuses the exec with ``ENOEXEC`` before the point of no return.
+
+A wrong-architecture ELF fails the whole exec with ``ENOEXEC`` exactly
+as if no entry had matched. A substitute that is not ELF of the right
+architecture fails with ``ELIBBAD``. The usual ``PT_INTERP`` sanity
+checks on the binary still apply. But the segment's content is otherwise
+irrelevant.
+
+``L`` rejects the classic-dispatch flags ``T``, ``P``, ``O`` and ``C``
+at registration. ``F`` composes and is valuable: with it the substitute
+is opened at registration time, so later mount namespace or path changes
+cannot redirect it. Without it the substitute is opened when the binary
+is executed, and the path is resolved in the mount namespace and root of
+whoever runs the binary, which is why it has to be absolute. As with
+``C``, register only trusted interpreters. The substituted loader runs
+with credentials derived from the binary.
 
 
 Hints

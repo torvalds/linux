@@ -352,7 +352,7 @@ static int cls_bpf_prog_from_ops(struct nlattr **tb, struct cls_bpf_prog *prog)
 	if (bpf_size != nla_len(tb[TCA_BPF_OPS]))
 		return -EINVAL;
 
-	bpf_ops = kmemdup(nla_data(tb[TCA_BPF_OPS]), bpf_size, GFP_KERNEL);
+	bpf_ops = kmemdup(nla_data(tb[TCA_BPF_OPS]), bpf_size, GFP_KERNEL_ACCOUNT);
 	if (bpf_ops == NULL)
 		return -ENOMEM;
 
@@ -403,7 +403,7 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 	}
 
 	if (tb[TCA_BPF_NAME]) {
-		name = nla_memdup(tb[TCA_BPF_NAME], GFP_KERNEL);
+		name = nla_memdup(tb[TCA_BPF_NAME], GFP_KERNEL_ACCOUNT);
 		if (!name) {
 			bpf_prog_put(fp);
 			return -ENOMEM;
@@ -443,7 +443,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	if (ret < 0)
 		return ret;
 
-	prog = kzalloc_obj(*prog);
+	prog = kzalloc_obj(*prog, GFP_KERNEL_ACCOUNT);
 	if (!prog)
 		return -ENOBUFS;
 

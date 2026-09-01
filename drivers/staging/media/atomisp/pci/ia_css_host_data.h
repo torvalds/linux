@@ -10,7 +10,7 @@
 
 #include <ia_css_types.h>	/* ia_css_pipe */
 
-/**
+/*
  * @brief Allocate structure ia_css_host_data.
  *
  * @param[in]	size		Size of the requested host data
@@ -22,7 +22,7 @@
 struct ia_css_host_data *
 ia_css_host_data_allocate(size_t size);
 
-/**
+/*
  * @brief Free structure ia_css_host_data.
  *
  * @param[in]	me	Pointer to structure, if a NULL is passed functions

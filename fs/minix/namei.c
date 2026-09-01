@@ -64,7 +64,7 @@ static int minix_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	return minix_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
@@ -110,7 +110,7 @@ static struct dentry *minix_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode * inode;
 	int err;
 
-	inode = minix_new_inode(dir, S_IFDIR | mode);
+	inode = minix_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

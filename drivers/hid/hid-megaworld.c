@@ -35,21 +35,16 @@ static int mwctrl_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int mwctrl_init(struct hid_device *hid)
+static int mwctrl_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct mwctrl_device *mwctrl;
 	struct hid_report *report;
-	struct hid_input *hidinput;
-	struct input_dev *dev;
+	struct input_dev *dev = hidinput->input;
 	int error;
 	int i;
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
-	}
-	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
-	dev = hidinput->input;
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
 
 	for (i = 0; i < 4; i++) {
 		report = hid_validate_values(hid, HID_OUTPUT_REPORT, 0, i, 1);
@@ -61,16 +56,7 @@ static int mwctrl_init(struct hid_device *hid)
 	if (!mwctrl)
 		return -ENOMEM;
 
-	set_bit(FF_RUMBLE, dev->ffbit);
-
-	error = input_ff_create_memless(dev, mwctrl, mwctrl_play);
-	if (error) {
-		kfree(mwctrl);
-		return error;
-	}
-
 	mwctrl->report = report;
-
 	/* Field 0 is always 2, and field 1 is always 0. The original
 	 * windows driver has a 5 bytes command, where the 5th byte is
 	 * a repeat of the 3rd byte, however the device has only 4
@@ -82,30 +68,15 @@ static int mwctrl_init(struct hid_device *hid)
 	mwctrl->strong = &report->field[2]->value[0];
 	mwctrl->weak = &report->field[3]->value[0];
 
+	set_bit(FF_RUMBLE, dev->ffbit);
+
+	error = input_ff_create_memless(dev, mwctrl, mwctrl_play);
+	if (error) {
+		kfree(mwctrl);
+		return error;
+	}
+
 	return 0;
-}
-
-static int mwctrl_probe(struct hid_device *hdev, const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		return ret;
-	}
-
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		return ret;
-	}
-
-	ret = mwctrl_init(hdev);
-	if (ret)
-		hid_hw_stop(hdev);
-
-	return ret;
 }
 
 static const struct hid_device_id mwctrl_devices[] = {
@@ -118,7 +89,7 @@ MODULE_DEVICE_TABLE(hid, mwctrl_devices);
 static struct hid_driver mwctrl_driver = {
 	.name = "megaworld",
 	.id_table = mwctrl_devices,
-	.probe = mwctrl_probe,
+	.input_configured = mwctrl_input_configured,
 };
 module_hid_driver(mwctrl_driver);
 

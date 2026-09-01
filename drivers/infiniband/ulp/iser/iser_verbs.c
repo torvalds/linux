@@ -244,8 +244,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 		max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
 	else
 		max_send_wr = ISER_QP_MAX_REQ_DTOS + 1;
-	max_send_wr = min_t(unsigned int, max_send_wr,
-			    (unsigned int)ib_dev->attrs.max_qp_wr);
+	max_send_wr = min(max_send_wr, ib_dev->attrs.max_qp_wr);
 
 	cq_size = max_send_wr + ISER_QP_MAX_RECV_DTOS;
 	ib_conn->cq = ib_cq_pool_get(ib_dev, cq_size, -1, IB_POLL_SOFTIRQ);
@@ -589,7 +588,7 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 		goto failure;
 
 	memset(&conn_param, 0, sizeof conn_param);
-	conn_param.responder_resources = ib_dev->attrs.max_qp_rd_atom;
+	conn_param.responder_resources = min(ib_dev->attrs.max_qp_rd_atom, U8_MAX);
 	conn_param.initiator_depth = 1;
 	conn_param.retry_count = 7;
 	conn_param.rnr_retry_count = 6;

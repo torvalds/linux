@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * hwmon driver for NZXT Kraken X53/X63/X73, Z53/Z63/Z73 and 2023/2023 Elite all in one coolers.
+ * hwmon driver for NZXT Kraken X53/X63/X73, Z53/Z63/Z73, 2023/2023 Elite, and
+ * 2024 Elite all in one coolers.
  * X53 and Z53 in code refer to all models in their respective series (shortened for brevity).
  * 2023 models use the Z53 code paths.
  *
@@ -25,6 +26,7 @@
 #define USB_PRODUCT_ID_Z53		0x3008
 #define USB_PRODUCT_ID_KRAKEN2023	0x300E
 #define USB_PRODUCT_ID_KRAKEN2023_ELITE	0x300C
+#define USB_PRODUCT_ID_KRAKEN2024_ELITE	0x3012
 
 enum kinds { X53, Z53, KRAKEN2023 } __packed;
 enum pwm_enable { off, manual, curve } __packed;
@@ -927,6 +929,10 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 		priv->kind = KRAKEN2023;
 		device_name = "kraken2023elite";
 		break;
+	case USB_PRODUCT_ID_KRAKEN2024_ELITE:
+		priv->kind = KRAKEN2023;
+		device_name = "kraken2024elite";
+		break;
 	default:
 		ret = -ENODEV;
 		goto fail_and_close;
@@ -994,6 +1000,7 @@ static const struct hid_device_id kraken3_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_Z53) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_KRAKEN2023) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_KRAKEN2023_ELITE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_KRAKEN2024_ELITE) },
 	{ }
 };
 

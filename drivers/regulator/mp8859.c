@@ -386,8 +386,8 @@ static const struct of_device_id mp8859_dt_id[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, mp8859_dt_id);
 
 static const struct i2c_device_id mp8859_i2c_id[] = {
-	{ "mp8859", },
-	{  },
+	{ .name = "mp8859" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp8859_i2c_id);
 

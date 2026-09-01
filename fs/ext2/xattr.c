@@ -777,20 +777,16 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 	/* Update the inode. */
 	EXT2_I(inode)->i_file_acl = new_bh ? new_bh->b_blocknr : 0;
 	inode_set_ctime_current(inode);
+	mark_inode_dirty(inode);
 	if (IS_SYNC(inode)) {
 		error = sync_inode_metadata(inode, 1);
-		/* In case sync failed due to ENOSPC the inode was actually
-		 * written (only some dirty data were not) so we just proceed
-		 * as if nothing happened and cleanup the unused block */
-		if (error && error != -ENOSPC) {
-			if (new_bh && new_bh != old_bh) {
-				dquot_free_block_nodirty(inode, 1);
-				mark_inode_dirty(inode);
-			}
+		/*
+		 * Inode writeout failed. Backing everything out is complex so
+		 * let's just leave it for e2fsck to cleanup the mess.
+		 */
+		if (error)
 			goto cleanup;
-		}
-	} else
-		mark_inode_dirty(inode);
+	}
 
 	error = 0;
 	if (old_bh && old_bh != new_bh) {

@@ -14,7 +14,7 @@
 #include <linux/smc91x.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/sh_intc.h>

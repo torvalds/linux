@@ -3,7 +3,7 @@
  * Xilinx Zynq MPSoC Firmware layer
  *
  *  Copyright (C) 2014-2022 Xilinx, Inc.
- *  Copyright (C) 2022 - 2025 Advanced Micro Devices, Inc.
+ *  Copyright (C) 2022 - 2026 Advanced Micro Devices, Inc.
  *
  *  Michal Simek <michal.simek@amd.com>
  *  Davorin Mista <davorin.mista@aggios.com>
@@ -13,6 +13,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/compiler.h>
+#include <linux/crash_dump.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mfd/core.h>
@@ -223,34 +224,37 @@ static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
 	module_id = FIELD_GET(MODULE_ID_MASK, api_id);
 
 	/*
-	 * Feature check of APIs belonging to PM, XSEM, and TF-A are handled by calling
+	 * Feature check of APIs belonging to PM and XSEM are handled by calling
 	 * PM_FEATURE_CHECK API. For other modules, call PM_API_FEATURES API.
 	 */
-	if (module_id == PM_MODULE_ID || module_id == XSEM_MODULE_ID || module_id == TF_A_MODULE_ID)
+	if (module_id == PM_MODULE_ID || module_id == XSEM_MODULE_ID)
 		feature_check_api_id = PM_FEATURE_CHECK;
 	else
 		feature_check_api_id = PM_API_FEATURES;
 
-	/*
-	 * Feature check of TF-A APIs is done in the TF-A layer and it expects for
-	 * MODULE_ID_MASK bits of SMC's arg[0] to be the same as PM_MODULE_ID.
-	 */
-	if (module_id == TF_A_MODULE_ID) {
-		module_id = PM_MODULE_ID;
+	if (module_id == TF_A_MODULE_ID)
 		smc_arg[1] = api_id;
-	} else {
+	else
 		smc_arg[1] = (api_id & API_ID_MASK);
-	}
 
 	smc_arg[0] = PM_SIP_SVC | FIELD_PREP(MODULE_ID_MASK, module_id) | feature_check_api_id;
 
 	ret = do_fw_call(ret_payload, 2, smc_arg[0], smc_arg[1]);
-	if (ret)
-		ret = -EOPNOTSUPP;
-	else
-		ret = ret_payload[1];
 
-	return ret;
+	/*
+	 * For TF-A APIs, if the feature check with PM_API_FEATURES fails,
+	 * retry with the legacy PM_FEATURE_CHECK for backward compatibility.
+	 */
+	if (module_id == TF_A_MODULE_ID && ret) {
+		smc_arg[0] = PM_SIP_SVC | FIELD_PREP(MODULE_ID_MASK, PM_MODULE_ID) |
+			     PM_FEATURE_CHECK;
+		ret = do_fw_call(ret_payload, 2, smc_arg[0], smc_arg[1]);
+	}
+
+	if (ret)
+		return ret;
+
+	return ret_payload[1];
 }
 
 static int do_feature_check_call(const u32 api_id)
@@ -1514,6 +1518,99 @@ int zynqmp_pm_request_wake(const u32 node,
 EXPORT_SYMBOL_GPL(zynqmp_pm_request_wake);
 
 /**
+ * zynqmp_pm_start_rpu - Boot Real-time Processing Unit (Cortex-R) on SoC
+ *
+ * @node: power-domains id of the core
+ * @bootaddr: Boot address of elf
+ *
+ * Return: status, either success or error+reason
+ */
+int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
+{
+	enum rpu_boot_mem bootmem;
+	int ret;
+
+	/*
+	 * The exception vector pointers (EVP) refer to the base-address of
+	 * exception vectors (for reset, IRQ, FIQ, etc). The reset-vector
+	 * starts at the base-address and subsequent vectors are on 4-byte
+	 * boundaries.
+	 *
+	 * Exception vectors can start either from 0x0000_0000 (LOVEC) or
+	 * from 0xFFFF_0000 (HIVEC) which is mapped in the OCM (On-Chip Memory)
+	 *
+	 * Usually firmware will put Exception vectors at LOVEC.
+	 *
+	 * It is not recommend that you change the exception vector.
+	 * Changing the EVP to HIVEC will result in increased interrupt latency
+	 * and jitter. Also, if the OCM is secured and the Cortex-R5F processor
+	 * is non-secured, then the Cortex-R5F processor cannot access the
+	 * HIVEC exception vectors in the OCM.
+	 */
+	bootmem = (bootaddr >= 0xFFFC0000) ?
+		   PM_RPU_BOOTMEM_HIVEC : PM_RPU_BOOTMEM_LOVEC;
+
+	pr_debug("RPU boot addr 0x%llx from %s.", bootaddr,
+		 bootmem == PM_RPU_BOOTMEM_HIVEC ? "OCM" : "TCM");
+
+	/* Request node before starting RPU core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_REQUEST_NODE) > PM_API_VERSION_1) {
+		ret = zynqmp_pm_request_node(node,
+					     ZYNQMP_PM_CAPABILITY_ACCESS, 0,
+					     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+		if (ret < 0) {
+			pr_err("failed to request 0x%x", node);
+			return ret;
+		}
+	}
+
+	ret = zynqmp_pm_request_wake(node, true,
+				     bootmem, ZYNQMP_PM_REQUEST_ACK_NO);
+	if (ret)
+		pr_err("failed to start RPU = 0x%x\n", node);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_start_rpu);
+
+/**
+ * zynqmp_pm_stop_rpu - Stop Real-time Processing Unit (Cortex-R) on SoC
+ *
+ * @node: power-domains id of the core
+ *
+ * Return: status, either success or error+reason
+ */
+int zynqmp_pm_stop_rpu(const u32 node)
+{
+	int ret;
+
+	/* Use release node API to stop core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_RELEASE_NODE) > PM_API_VERSION_1) {
+		ret = zynqmp_pm_release_node(node);
+		if (ret)
+			pr_err("failed to stop remoteproc RPU %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * Check expected version of EEMI call before calling it. This avoids
+	 * any error or warning prints from firmware as it is expected that fw
+	 * doesn't support it.
+	 */
+	if (zynqmp_pm_feature(PM_FORCE_POWERDOWN) != PM_API_VERSION_1) {
+		pr_debug("EEMI interface %d ver 1 not supported\n",
+			 PM_FORCE_POWERDOWN);
+		return -EOPNOTSUPP;
+	}
+
+	/* maintain force pwr down for backward compatibility */
+	ret = zynqmp_pm_force_pwrdwn(node, ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+	if (ret)
+		pr_err("core force power down failed\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_stop_rpu);
+
+/**
  * zynqmp_pm_set_requirement() - PM call to set requirement for PM slaves
  * @node:		Node ID of the slave
  * @capabilities:	Requested capabilities of the slave
@@ -2065,6 +2162,71 @@ static struct attribute *zynqmp_firmware_attrs[] = {
 
 ATTRIBUTE_GROUPS(zynqmp_firmware);
 
+/**
+ * zynqmp_clear_pm_state() - Clear subsystem state
+ * @dev: Device pointer used for logging
+ *
+ * Clears PM specific data in EL3 and platform firmware.
+ *
+ * Return: Returns status, either success or error
+ */
+static int zynqmp_clear_pm_state(struct device *dev)
+{
+	u32 pm_family_code;
+	int ret;
+
+	/* Get the Family code of platform */
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
+	if (ret < 0)
+		return ret;
+
+	/* Supporting on Versal and Versal Net platforms only */
+	if (pm_family_code == PM_VERSAL_FAMILY_CODE ||
+	    pm_family_code == PM_VERSAL_NET_FAMILY_CODE) {
+		/* Check if EL3 firmware supports TF_A_CLEAR_PM_STATE */
+		ret = do_feature_check_call(TF_A_CLEAR_PM_STATE);
+		if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_1)) {
+			/* Clear PM specific data in EL3 firmware */
+			ret = zynqmp_pm_invoke_fn(TF_A_CLEAR_PM_STATE, NULL, 0);
+			if (ret)
+				dev_err(dev,
+					"Failed to clear EL3 PM subsystem state: %d\n", ret);
+		} else {
+			dev_warn(dev, "TF_A_CLEAR_PM_STATE is not supported by EL3 firmware: %d\n", ret);
+			ret = 0;
+		}
+
+		/* Check if the firmware supports the PM_DEV_ALL_PERIPH node ID */
+		ret = do_feature_check_call(PM_RELEASE_NODE);
+		if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_3)) {
+			/* Attempt to release all peripheral devices via firmware */
+			ret = zynqmp_pm_release_node(PM_DEV_ALL_PERIPH);
+			if (ret)
+				dev_err(dev, "Failed to release all peripheral devices: %d\n", ret);
+		} else {
+			dev_warn(dev,
+				 "Bulk device release is not supported by firmware: %d\n", ret);
+			ret = 0;
+		}
+
+		/* Check if the firmware supports the PM_ALL_NOTIFIERS node ID */
+		ret = do_feature_check_call(PM_REGISTER_NOTIFIER);
+		if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_3)) {
+			/* Attempt to unregister all notifier callbacks via firmware */
+			ret = zynqmp_pm_register_notifier(PM_ALL_NOTIFIERS, 0, 0, 0);
+			if (ret)
+				dev_err(dev, "Failed to unregister all notifiers: %d\n", ret);
+		} else {
+			dev_warn(dev,
+				 "Firmware doesn't support unregister all notifiers at once: %d\n",
+				 ret);
+			ret = 0;
+		}
+	}
+
+	return ret;
+}
+
 static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2118,6 +2280,9 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	if (is_kdump_kernel())
+		zynqmp_clear_pm_state(dev);
+
 	/* Check trustzone version number */
 	ret = zynqmp_pm_get_trustzone_version(&pm_tz_version);
 	if (ret)
@@ -2149,6 +2314,11 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	}
 
 	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+}
+
+static void zynqmp_firmware_shutdown(struct platform_device *pdev)
+{
+	zynqmp_clear_pm_state(&pdev->dev);
 }
 
 static void zynqmp_firmware_remove(struct platform_device *pdev)
@@ -2210,5 +2380,6 @@ static struct platform_driver zynqmp_firmware_driver = {
 	},
 	.probe = zynqmp_firmware_probe,
 	.remove = zynqmp_firmware_remove,
+	.shutdown = zynqmp_firmware_shutdown,
 };
 module_platform_driver(zynqmp_firmware_driver);

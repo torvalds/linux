@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree Include file for Layerscape-LX2160A Rev1 SoC.
+//
+// Copyright 2026 NXP
+
+#include "fsl-lx216x.dtsi"
+#include "fsl-lx2160a-pcie-mbvl.dtsi"
+#include "fsl-lx2160a-serdes.dtsi"

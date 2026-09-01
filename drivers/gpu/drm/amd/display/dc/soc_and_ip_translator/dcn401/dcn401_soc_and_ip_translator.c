@@ -269,6 +269,22 @@ void dcn401_update_soc_bb_with_values_from_software_policy(struct dml2_soc_bb *s
 	if (dc->bb_overrides.sr_enter_plus_exit_z8_time_ns)
 		soc_bb->power_management_parameters.z8_stutter_enter_plus_exit_latency_us =
 				dc->bb_overrides.sr_enter_plus_exit_z8_time_ns / 1000.0;
+
+	/* Override per-dpm derates based on a custom derate table.
+	 * Global derate value will be used for derates that aren't populated
+	 * 3 derates for a single DPM level:
+	 *  bits 0-7: dram_derate_percent_pixel
+	 *  bits 8-15: fclk_derate_percent
+	 *  bits 16-23: dcfclk_derate_percent
+	 */
+	for (unsigned int i = 0; i < dc->debug.dml21_custom_derate_num_dpms; i++) {
+		soc_bb->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dram_derate_percent_pixel[i]
+			= dc->debug.dml21_custom_derate_at_dpm[i] & 0xFF;
+		soc_bb->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.fclk_derate_percent[i]
+			= (dc->debug.dml21_custom_derate_at_dpm[i] >> 8) & 0xFF;
+		soc_bb->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dcfclk_derate_percent[i]
+			= (dc->debug.dml21_custom_derate_at_dpm[i] >> 16) & 0xFF;
+	}
 }
 
 static void apply_soc_bb_updates(struct dml2_soc_bb *soc_bb, const struct dc *dc, const struct dml2_configuration_options *config)

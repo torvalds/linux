@@ -1048,6 +1048,23 @@ static int __init acpi_backlight(char *str)
 __setup("acpi_backlight=", acpi_backlight);
 
 /**
+ * acpi_dev_is_video_device - test if device matches against ACPI video device IDs
+ * @adev: ACPI device to test
+ *
+ * Return: true when matches, otherwise false.
+ */
+bool acpi_dev_is_video_device(struct acpi_device *adev)
+{
+	static const struct acpi_device_id video_device_ids[] = {
+		{ .id = ACPI_VIDEO_HID },
+		{ }
+	};
+
+	return adev && !acpi_match_device_ids(adev, video_device_ids);
+}
+EXPORT_SYMBOL(acpi_dev_is_video_device);
+
+/**
  * acpi_match_platform_list - Check if the system matches with a given list
  * @plat: pointer to acpi_platform_list table terminated by a NULL entry
  *

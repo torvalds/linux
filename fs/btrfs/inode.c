@@ -250,8 +250,8 @@ static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off
 
 	ret = extent_from_logical(fs_info, logical, &path, &found_key, &flags);
 	if (ret < 0) {
-		btrfs_err_rl(fs_info, "failed to lookup extent item for logical %llu: %d",
-			     logical, ret);
+		btrfs_err_rl(fs_info, "failed to lookup extent item for logical %llu: %pe",
+			     logical, ERR_PTR(ret));
 		return;
 	}
 	eb = path.nodes[0];
@@ -775,19 +775,28 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 
 static int extent_range_clear_dirty_for_io(struct btrfs_inode *inode, u64 start, u64 end)
 {
+	pgoff_t index = start >> PAGE_SHIFT;
 	const pgoff_t end_index = end >> PAGE_SHIFT;
 	struct folio *folio;
 	int ret = 0;
 
-	for (pgoff_t index = start >> PAGE_SHIFT; index <= end_index; index++) {
+	while (index <= end_index) {
 		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
 		if (IS_ERR(folio)) {
 			if (!ret)
 				ret = PTR_ERR(folio);
+			index++;
 			continue;
 		}
+		/*
+		 * We are about to compress the folio, so it must not be mmap
+		 * writeable or we could corrupt the data as we attempt to
+		 * compress it.
+		 */
+		btrfs_check_folio_write_protected(folio);
 		btrfs_folio_clamp_clear_dirty(inode->root->fs_info, folio, start,
 					      end + 1 - start);
+		index = folio_next_index(folio);
 		folio_put(folio);
 	}
 	return ret;
@@ -860,7 +869,7 @@ static void compress_file_range(struct btrfs_work *work)
 	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct compressed_bio *cb = NULL;
-	u64 blocksize = fs_info->sectorsize;
+	const u32 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
 	u64 actual_end;
@@ -877,11 +886,6 @@ static void compress_file_range(struct btrfs_work *work)
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
 
-	/*
-	 * We need to call clear_page_dirty_for_io on each page in the range.
-	 * Otherwise applications with the file mmap'd can wander in and change
-	 * the page contents while we are compressing them.
-	 */
 	ret = extent_range_clear_dirty_for_io(inode, start, end);
 
 	/*
@@ -1015,9 +1019,10 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 			btrfs_folio_end_lock(inode->root->fs_info, locked_folio,
 					     start, async_extent->ram_size);
 		btrfs_err_rl(inode->root->fs_info,
-			"%s failed, root=%llu inode=%llu start=%llu len=%llu: %d",
+			"%s failed, root=%llu inode=%llu start=%llu len=%llu: %pe",
 			     __func__, btrfs_root_id(inode->root),
-			     btrfs_ino(inode), start, async_extent->ram_size, ret);
+			     btrfs_ino(inode), start, async_extent->ram_size,
+			     ERR_PTR(ret));
 	}
 }
 
@@ -1504,10 +1509,10 @@ out_unlock:
 				       end - start - cur_alloc_size + 1, NULL);
 	}
 	btrfs_err(fs_info,
-"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%u: %d",
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%u: %pe",
 		  __func__, btrfs_root_id(inode->root),
 		  btrfs_ino(inode), orig_start, end + 1 - orig_start,
-		  start, cur_alloc_size, ret);
+		  start, cur_alloc_size, ERR_PTR(ret));
 	return ret;
 }
 
@@ -1958,9 +1963,9 @@ error:
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
 	btrfs_err(inode->root->fs_info,
-		  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %d",
+		  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %pe",
 		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
-		  file_pos, len, ret);
+		  file_pos, len, ERR_PTR(ret));
 	return ret;
 }
 
@@ -2281,10 +2286,10 @@ error:
 	}
 	btrfs_free_path(path);
 	btrfs_err(fs_info,
-"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu oe_cleanup=%llu oe_cleanup_len=%llu untouched_start=%llu untouched_len=%llu: %d",
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu oe_cleanup=%llu oe_cleanup_len=%llu untouched_start=%llu untouched_len=%llu: %pe",
 		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
 		  start, end + 1 - start, cur_offset, oe_cleanup_start, oe_cleanup_len,
-		  untouched_start, untouched_len, ret);
+		  untouched_start, untouched_len, ERR_PTR(ret));
 	return ret;
 }
 
@@ -2317,6 +2322,13 @@ static int run_delalloc_inline(struct btrfs_inode *inode, struct folio *locked_f
 	int ret;
 
 	ASSERT(folio_pos(locked_folio) == 0);
+	/*
+	 * If an mmap writer could modify the folio while we copy it into an
+	 * inline extent we might see only part of their modification then
+	 * wrongly mark it clean again after copying, losing that write. So the
+	 * folio must be write protected here.
+	 */
+	btrfs_check_folio_write_protected(locked_folio);
 
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, 0, blocksize, true)) {
@@ -3039,7 +3051,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 				       u64 qgroup_reserved)
 {
 	struct btrfs_root *root = inode->root;
-	const u64 sectorsize = root->fs_info->sectorsize;
+	const u32 sectorsize = root->fs_info->sectorsize;
 	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
@@ -3896,7 +3908,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 out:
 	if (ret)
-		btrfs_err(fs_info, "could not do orphan cleanup %d", ret);
+		btrfs_err(fs_info, "could not do orphan cleanup %pe", ERR_PTR(ret));
 	return ret;
 }
 
@@ -4199,8 +4211,8 @@ cache_acl:
 		ret = btrfs_load_inode_props(inode, path);
 		if (ret)
 			btrfs_err(fs_info,
-				  "error loading props for ino %llu (root %llu): %d",
-				  btrfs_ino(inode), btrfs_root_id(root), ret);
+				  "error loading props for ino %llu (root %llu): %pe",
+				  btrfs_ino(inode), btrfs_root_id(root), ERR_PTR(ret));
 	}
 
 	/*
@@ -6814,8 +6826,8 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	}
 	if (ret) {
 		btrfs_err(fs_info,
-			  "error inheriting props for ino %llu (root %llu): %d",
-			  btrfs_ino(BTRFS_I(inode)), btrfs_root_id(root), ret);
+			  "error inheriting props for ino %llu (root %llu): %pe",
+			  btrfs_ino(BTRFS_I(inode)), btrfs_root_id(root), ERR_PTR(ret));
 	}
 
 	/*
@@ -7007,7 +7019,7 @@ static int btrfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 static int btrfs_create(struct mnt_idmap *idmap, struct inode *dir,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 
@@ -7111,7 +7123,7 @@ static struct dentry *btrfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	inode_init_owner(idmap, inode, dir, S_IFDIR | mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
 	return ERR_PTR(btrfs_create_common(dir, dentry, inode));
@@ -10194,6 +10206,8 @@ static void btrfs_free_swapfile_pins(struct inode *inode)
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct btrfs_swapfile_pin *sp;
 	struct rb_node *node, *next;
+	u64 bg_bytes_released = 0;
+	u32 bg_nr_released = 0;
 
 	spin_lock(&fs_info->swapfile_pins_lock);
 	node = rb_first(&fs_info->swapfile_pins);
@@ -10203,15 +10217,24 @@ static void btrfs_free_swapfile_pins(struct inode *inode)
 		if (sp->inode == inode) {
 			rb_erase(&sp->node, &fs_info->swapfile_pins);
 			if (sp->is_block_group) {
-				btrfs_dec_block_group_swap_extents(sp->ptr,
+				struct btrfs_block_group *bg = sp->ptr;
+
+				bg_bytes_released += bg->length;
+				bg_nr_released++;
+				btrfs_dec_block_group_swap_extents(bg,
 							   sp->bg_extent_count);
-				btrfs_put_block_group(sp->ptr);
+				btrfs_put_block_group(bg);
 			}
 			kfree(sp);
 		}
 		node = next;
 	}
 	spin_unlock(&fs_info->swapfile_pins_lock);
+	btrfs_info(fs_info,
+"swapfile deactivated on root %llu ino %llu, released %llu bytes from %u block group(s)",
+		   btrfs_root_id(BTRFS_I(inode)->root),
+		   btrfs_ino(BTRFS_I(inode)), bg_bytes_released,
+		   bg_nr_released);
 }
 
 struct btrfs_swap_info {
@@ -10289,8 +10312,10 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	struct btrfs_backref_share_check_ctx *backref_ctx = NULL;
 	struct btrfs_path *path = NULL;
 	int ret = 0;
+	u32 pinned_bg_nr = 0;
 	u64 isize;
 	u64 prev_extent_end = 0;
+	u64 pinned_bg_size = 0;
 
 	/*
 	 * Acquire the inode's mmap lock to prevent races with memory mapped
@@ -10540,6 +10565,9 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 				ret = 0;
 			else
 				goto out;
+		} else {
+			pinned_bg_size += bg->length;
+			pinned_bg_nr++;
 		}
 
 		if (bsi.block_len &&
@@ -10586,6 +10614,14 @@ out_unlock_mmap:
 	btrfs_free_path(path);
 	if (ret)
 		return ret;
+
+	btrfs_info(fs_info,
+"swapfile activated on root %llu ino %llu, pinned down %llu bytes from %u block group(s)",
+		   btrfs_root_id(BTRFS_I(inode)->root),
+		   btrfs_ino(BTRFS_I(inode)),
+		   pinned_bg_size, pinned_bg_nr);
+	btrfs_warn(fs_info,
+"block groups with swapfile extents will not be scrubbed or balanced");
 
 	if (device)
 		sis->bdev = device->bdev;

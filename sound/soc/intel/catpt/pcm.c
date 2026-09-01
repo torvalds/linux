@@ -75,8 +75,8 @@ static struct catpt_stream_template *catpt_topology[] = {
 static struct catpt_stream_template *
 catpt_get_stream_template(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtm, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	enum catpt_stream_type type;
 
 	type = cpu_dai->driver->id;
@@ -159,11 +159,11 @@ static void catpt_stream_read_position(struct catpt_dev *cdev,
 static void catpt_arrange_page_table(struct snd_pcm_substream *substream,
 				     struct snd_dma_buffer *pgtbl)
 {
-	struct snd_pcm_runtime *rtm = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dma_buffer *databuf = snd_pcm_get_dma_buf(substream);
 	int i, pages;
 
-	pages = snd_sgbuf_aligned_pages(rtm->dma_bytes);
+	pages = snd_sgbuf_aligned_pages(runtime->dma_bytes);
 
 	for (i = 0; i < pages; i++) {
 		u32 pfn, offset;
@@ -386,7 +386,7 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
 {
-	struct snd_pcm_runtime *rtm = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dma_buffer *dmab;
 	struct catpt_stream_runtime *stream;
 	struct catpt_audio_format afmt;
@@ -412,8 +412,8 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 
 	memset(&rinfo, 0, sizeof(rinfo));
 	rinfo.page_table_addr = stream->pgtbl.addr;
-	rinfo.num_pages = DIV_ROUND_UP(rtm->dma_bytes, PAGE_SIZE);
-	rinfo.size = rtm->dma_bytes;
+	rinfo.num_pages = DIV_ROUND_UP(runtime->dma_bytes, PAGE_SIZE);
+	rinfo.size = runtime->dma_bytes;
 	rinfo.offset = 0;
 	rinfo.ring_first_page_pfn = PFN_DOWN(snd_sgbuf_get_addr(dmab, 0));
 
@@ -544,11 +544,11 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 				  struct catpt_notify_position *pos)
 {
 	struct snd_pcm_substream *substream = stream->substream;
-	struct snd_pcm_runtime *r = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t dsppos, newpos;
 	int ret;
 
-	dsppos = bytes_to_frames(r, pos->stream_position);
+	dsppos = bytes_to_frames(runtime, pos->stream_position);
 
 	if (!stream->prepared)
 		goto exit;
@@ -556,8 +556,8 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 	if (stream->template->type != CATPT_STRM_TYPE_RENDER)
 		goto exit;
 
-	if (dsppos >= r->buffer_size / 2)
-		newpos = r->buffer_size / 2;
+	if (dsppos >= runtime->buffer_size / 2)
+		newpos = runtime->buffer_size / 2;
 	else
 		newpos = 0;
 	/*
@@ -565,7 +565,7 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 	 * (buffer half consumed) update wp to allow stream progression.
 	 */
 	ret = catpt_ipc_set_write_pos(cdev, stream->info.stream_hw_id,
-				      frames_to_bytes(r, newpos),
+				      frames_to_bytes(runtime, newpos),
 				      false, false);
 	if (ret) {
 		dev_err(cdev->dev, "update position for stream %d failed: %d\n",
@@ -600,11 +600,11 @@ static const struct snd_pcm_hardware catpt_pcm_hardware = {
 };
 
 static int catpt_component_pcm_new(struct snd_soc_component *component,
-				   struct snd_soc_pcm_runtime *rtm)
+				   struct snd_soc_pcm_runtime *rtd)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 
-	snd_pcm_set_managed_buffer_all(rtm->pcm, SNDRV_DMA_TYPE_DEV_SG,
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV_SG,
 				       cdev->dev,
 				       catpt_pcm_hardware.buffer_bytes_max,
 				       catpt_pcm_hardware.buffer_bytes_max);
@@ -615,9 +615,9 @@ static int catpt_component_pcm_new(struct snd_soc_component *component,
 static int catpt_component_open(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	if (!rtm->dai_link->no_pcm)
+	if (!rtd->dai_link->no_pcm)
 		snd_soc_set_runtime_hwparams(substream, &catpt_pcm_hardware);
 	return 0;
 }
@@ -626,13 +626,13 @@ static snd_pcm_uframes_t
 catpt_component_pointer(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtm, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct catpt_stream_runtime *stream;
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	u32 pos;
 
-	if (rtm->dai_link->no_pcm)
+	if (rtd->dai_link->no_pcm)
 		return 0;
 
 	stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
@@ -650,10 +650,10 @@ static const struct snd_soc_dai_ops catpt_fe_dai_ops = {
 	.trigger = catpt_dai_trigger,
 };
 
-static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtm,
+static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtd,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtm, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct catpt_ssp_device_format devfmt;
 	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
 	int ret;
@@ -871,8 +871,7 @@ static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol)
 	return CATPT_IPC_RET(ret);
 }
 
-static int catpt_volume_info(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_info *uinfo)
+static int catpt_volume_info(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = CATPT_CHANNELS_MAX;
@@ -1073,18 +1072,14 @@ int catpt_arm_stream_templates(struct catpt_dev *cdev)
 int catpt_register_plat_component(struct catpt_dev *cdev)
 {
 	struct snd_soc_component *component;
-	int ret;
 
-	component = devm_kzalloc(cdev->dev, sizeof(*component), GFP_KERNEL);
+	component = snd_soc_component_alloc(cdev->dev);
 	if (!component)
 		return -ENOMEM;
 
-	ret = snd_soc_component_initialize(component, &catpt_comp_driver,
-					   cdev->dev);
-	if (ret)
-		return ret;
+	snd_soc_component_set_name(component, catpt_comp_driver.name);
 
-	component->name = catpt_comp_driver.name;
-	return snd_soc_add_component(component, dai_drivers,
-				     ARRAY_SIZE(dai_drivers));
+	return snd_soc_register_component(component,
+					  &catpt_comp_driver,
+					  dai_drivers, ARRAY_SIZE(dai_drivers));
 }

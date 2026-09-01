@@ -59,7 +59,7 @@ int btrfs_attach_folio_state(const struct btrfs_fs_info *fs_info,
 	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio))
 		return 0;
 
-	bfs = btrfs_alloc_folio_state(fs_info, folio_size(folio), type);
+	bfs = btrfs_alloc_folio_state(fs_info, folio_size(folio), type, GFP_NOFS);
 	if (IS_ERR(bfs))
 		return PTR_ERR(bfs);
 
@@ -86,7 +86,8 @@ void btrfs_detach_folio_state(const struct btrfs_fs_info *fs_info, struct folio 
 }
 
 struct btrfs_folio_state *btrfs_alloc_folio_state(const struct btrfs_fs_info *fs_info,
-						  size_t fsize, enum btrfs_folio_type type)
+						  size_t fsize, enum btrfs_folio_type type,
+						  gfp_t gfp)
 {
 	struct btrfs_folio_state *ret;
 	unsigned int real_size;
@@ -96,7 +97,7 @@ struct btrfs_folio_state *btrfs_alloc_folio_state(const struct btrfs_fs_info *fs
 	real_size = struct_size(ret, bitmaps,
 			BITS_TO_LONGS(btrfs_bitmap_nr_max *
 				      (fsize >> fs_info->sectorsize_bits)));
-	ret = kzalloc(real_size, GFP_NOFS);
+	ret = kzalloc(real_size, gfp);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 

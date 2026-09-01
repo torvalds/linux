@@ -5,14 +5,21 @@
  */
 
 #include <crypto/aes-cbc-macs.h>
+#include <crypto/aes-cbc.h>
+#include <crypto/aes-ccm.h>
+#include <crypto/aes-ctr.h>
+#include <crypto/aes-ecb.h>
+#include <crypto/aes-gcm.h>
+#include <crypto/aes-xts.h>
 #include <crypto/aes.h>
+#include <crypto/gf128mul.h>
 #include <crypto/utils.h>
 #include <linux/cache.h>
 #include <linux/crypto.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
-#include "fips.h"
+#include "fips-aes.h"
 
 static const u8 ____cacheline_aligned aes_sbox[] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
@@ -515,6 +522,26 @@ void aes_decrypt(const struct aes_key *key, u8 out[AES_BLOCK_SIZE],
 }
 EXPORT_SYMBOL(aes_decrypt);
 
+/* FIPS cryptographic algorithm self-test for "bare" AES */
+static void __init aes_fips_test(void)
+{
+	struct aes_key key;
+	u8 data[AES_BLOCK_SIZE];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: FIPS self-test failed (preparekey)\n");
+
+	aes_encrypt(&key, data, fips_test_data);
+	if (memcmp(fips_test_aes_ecb_ctext, data, sizeof(data)) != 0)
+		panic("aes: FIPS self-test failed (wrong ciphertext)\n");
+
+	aes_decrypt(&key, data, data);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC_MACS)
 
 #ifndef aes_cbcmac_blocks_arch
@@ -710,17 +737,10 @@ void aes_cbcmac_final(struct aes_cbcmac_ctx *ctx, u8 out[AES_BLOCK_SIZE])
 }
 EXPORT_SYMBOL_NS_GPL(aes_cbcmac_final, "CRYPTO_INTERNAL");
 
-/*
- * FIPS cryptographic algorithm self-test for AES-CMAC.  As per the FIPS 140-3
- * Implementation Guidance, a cryptographic algorithm self-test for at least one
- * of AES-GCM, AES-CCM, AES-CMAC, or AES-GMAC is required if any of those modes
- * is implemented.  This fulfills that requirement via AES-CMAC.
- *
- * This is just for FIPS.  The full tests are in the KUnit test suite.
- */
+/* FIPS cryptographic algorithm self-test for AES-CMAC */
 static void __init aes_cmac_fips_test(void)
 {
-	struct aes_cmac_key key;
+	struct aes_cmac_key key __cleanup(aes_cmac_zeroize_key);
 	u8 mac[AES_BLOCK_SIZE];
 
 	if (aes_cmac_preparekey(&key, fips_test_key, sizeof(fips_test_key)) !=
@@ -729,7 +749,6 @@ static void __init aes_cmac_fips_test(void)
 	aes_cmac(&key, fips_test_data, sizeof(fips_test_data), mac);
 	if (memcmp(fips_test_aes_cmac_value, mac, sizeof(mac)) != 0)
 		panic("aes: CMAC FIPS self-test failed (wrong MAC)\n");
-	memzero_explicit(&key, sizeof(key));
 }
 #else /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */
 static inline void aes_cmac_fips_test(void)
@@ -737,13 +756,1383 @@ static inline void aes_cmac_fips_test(void)
 }
 #endif /* !CONFIG_CRYPTO_LIB_AES_CBC_MACS */
 
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_ECB)
+/*
+ * Hooks for optimized AES-ECB implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  Returning false
+ * causes the fallback implementation to be used instead.
+ */
+#ifndef aes_ecb_encrypt_arch
+static bool aes_ecb_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_ecb_decrypt_arch
+static bool aes_ecb_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_ecb_encrypt(u8 *dst, const u8 *src, size_t len, aes_encrypt_arg key)
+{
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_ecb_encrypt_arch(dst, src, len, key.enc_key)))
+		return;
+
+	for (size_t i = 0; i < len; i += AES_BLOCK_SIZE)
+		aes_encrypt(key, &dst[i], &src[i]);
+}
+EXPORT_SYMBOL_GPL(aes_ecb_encrypt);
+
+void aes_ecb_decrypt(u8 *dst, const u8 *src, size_t len,
+		     const struct aes_key *key)
+{
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_ecb_decrypt_arch(dst, src, len, key)))
+		return;
+
+	for (size_t i = 0; i < len; i += AES_BLOCK_SIZE)
+		aes_decrypt(key, &dst[i], &src[i]);
+}
+EXPORT_SYMBOL_GPL(aes_ecb_decrypt);
+
+/* FIPS cryptographic algorithm self-test for AES-ECB */
+static void __init aes_ecb_fips_test(void)
+{
+	struct aes_key key;
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: ECB FIPS self-test failed (preparekey)\n");
+
+	aes_ecb_encrypt(data, fips_test_data, sizeof(data), &key);
+	if (memcmp(fips_test_aes_ecb_ctext, data, sizeof(data)) != 0)
+		panic("aes: ECB FIPS self-test failed (wrong ciphertext)\n");
+
+	aes_ecb_decrypt(data, data, sizeof(data), &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: ECB FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_ECB */
+static inline void aes_ecb_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_ECB */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC)
+/*
+ * Hooks for optimized AES-CBC implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  Returning false
+ * causes the fallback implementation to be used instead.
+ */
+#ifndef aes_cbc_encrypt_arch
+static bool aes_cbc_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 iv[AES_BLOCK_SIZE],
+				 const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_cbc_decrypt_arch
+static bool aes_cbc_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 iv[AES_BLOCK_SIZE],
+				 const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_cbc_encrypt(u8 *dst, const u8 *src, size_t len, u8 iv[AES_BLOCK_SIZE],
+		     aes_encrypt_arg key)
+{
+	const u8 *prev = iv;
+
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_cbc_encrypt_arch(dst, src, len, iv, key.enc_key)))
+		return;
+
+	do {
+		crypto_xor_cpy(dst, src, prev, AES_BLOCK_SIZE);
+		aes_encrypt(key, dst, dst);
+		prev = dst;
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	} while (len);
+	memcpy(iv, prev, AES_BLOCK_SIZE);
+}
+EXPORT_SYMBOL_GPL(aes_cbc_encrypt);
+
+void aes_cbc_decrypt(u8 *dst, const u8 *src, size_t len, u8 iv[AES_BLOCK_SIZE],
+		     const struct aes_key *key)
+{
+	u8 next_iv[AES_BLOCK_SIZE];
+
+	if (WARN_ON_ONCE(len % AES_BLOCK_SIZE))
+		len = round_down(len, AES_BLOCK_SIZE);
+
+	if (unlikely(len == 0))
+		return;
+
+	if (likely(aes_cbc_decrypt_arch(dst, src, len, iv, key)))
+		return;
+
+	len -= AES_BLOCK_SIZE;
+	dst += len;
+	src += len;
+	memcpy(next_iv, src, AES_BLOCK_SIZE);
+	for (;;) {
+		aes_decrypt(key, dst, src);
+		if (len == 0)
+			break;
+		src -= AES_BLOCK_SIZE;
+		crypto_xor(dst, src, AES_BLOCK_SIZE);
+		dst -= AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	}
+	crypto_xor(dst, iv, AES_BLOCK_SIZE);
+	memcpy(iv, next_iv, AES_BLOCK_SIZE);
+}
+EXPORT_SYMBOL_GPL(aes_cbc_decrypt);
+
+/*
+ * Hooks for optimized AES-CBC-CTS implementations, overridable by the
+ * architecture.  They are called with len > AES_BLOCK_SIZE.  Returning false
+ * causes the fallback implementation to be used instead.  The fallback
+ * implementation still uses the arch-optimized AES-CBC code if available, but
+ * direct implementation of AES-CBC-CTS is helpful on short messages.
+ */
+#ifndef aes_cbc_cts_encrypt_arch
+static bool aes_cbc_cts_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				     u8 iv[AES_BLOCK_SIZE],
+				     const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_cbc_cts_decrypt_arch
+static bool aes_cbc_cts_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				     u8 iv[AES_BLOCK_SIZE],
+				     const struct aes_key *key)
+{
+	return false;
+}
+#endif
+
+void aes_cbc_cts_encrypt(u8 *dst, const u8 *src, size_t len,
+			 u8 iv[AES_BLOCK_SIZE], aes_encrypt_arg key)
+{
+	/* Offset to P[n] and C[n] (last plaintext and ciphertext block) */
+	size_t pn_offset = round_down(len - 1, AES_BLOCK_SIZE);
+	/* Length of P[n] and C[n], 1 <= pn_len <= AES_BLOCK_SIZE */
+	size_t pn_len = len - pn_offset;
+	u8 tmp[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+	u8 *pad;
+
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (len == AES_BLOCK_SIZE) {
+		aes_cbc_encrypt(dst, src, len, iv, key);
+		return;
+	}
+	if (likely(aes_cbc_cts_encrypt_arch(dst, src, len, iv, key.enc_key)))
+		return;
+
+	/* CBC-encrypt all blocks except the last. */
+	aes_cbc_encrypt(dst, src, pn_offset, iv, key);
+
+	/*
+	 * Compute C[n] and C[n - 1].
+	 *
+	 * Careful: src may equal dst (i.e., the encryption can be in-place), so
+	 * src[pn_offset..] can't be read after dst[pn_offset..] is written.
+	 */
+	pad = &dst[pn_offset - AES_BLOCK_SIZE];
+	memcpy(tmp, pad, AES_BLOCK_SIZE);
+	crypto_xor(tmp, &src[pn_offset], pn_len);
+	memcpy(&dst[pn_offset], pad, pn_len); /* C[n] */
+	aes_encrypt(key, pad, tmp); /* C[n - 1] */
+
+	memzero_explicit(tmp, sizeof(tmp));
+}
+EXPORT_SYMBOL_GPL(aes_cbc_cts_encrypt);
+
+void aes_cbc_cts_decrypt(u8 *dst, const u8 *src, size_t len,
+			 u8 iv[AES_BLOCK_SIZE], const struct aes_key *key)
+{
+	/* Offset to P[n] and C[n] (last plaintext and ciphertext block) */
+	size_t pn_offset = round_down(len - 1, AES_BLOCK_SIZE);
+	/* Length of P[n] and C[n], 1 <= pn_len <= AES_BLOCK_SIZE */
+	size_t pn_len = len - pn_offset;
+	u8 *pad;
+
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (len == AES_BLOCK_SIZE) {
+		aes_cbc_decrypt(dst, src, len, iv, key);
+		return;
+	}
+	if (likely(aes_cbc_cts_decrypt_arch(dst, src, len, iv, key)))
+		return;
+
+	/* Compute P[0]..P[n - 2]. */
+	aes_cbc_decrypt(dst, src, pn_offset - AES_BLOCK_SIZE, iv, key);
+
+	/*
+	 * Compute P[n] and P[n - 1].
+	 *
+	 * Careful: src may equal dst (i.e., the decryption can be in-place), so
+	 * src[pn_offset..] can't be read after dst[pn_offset..] is written.
+	 *
+	 * To avoid needing a temporary buffer, do a "redundant" XOR to recover
+	 * src[pn_offset..] from dst[pn_offset..] after the latter is written.
+	 */
+	pad = &dst[pn_offset - AES_BLOCK_SIZE];
+	aes_decrypt(key, pad, &src[pn_offset - AES_BLOCK_SIZE]);
+	crypto_xor_cpy(&dst[pn_offset], &src[pn_offset], pad,
+		       pn_len); /* P[n] */
+	crypto_xor(pad, &dst[pn_offset], pn_len);
+	aes_decrypt(key, pad, pad);
+	crypto_xor(pad, iv, AES_BLOCK_SIZE); /* P[n - 1] */
+}
+EXPORT_SYMBOL_GPL(aes_cbc_cts_decrypt);
+
+/* FIPS cryptographic algorithm self-test for AES-CBC */
+static void __init aes_cbc_fips_test(void)
+{
+	struct aes_key key;
+	u8 iv[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CBC FIPS self-test failed (preparekey)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_encrypt(data, fips_test_data, sizeof(data), iv, &key);
+	if (memcmp(fips_test_aes_cbc_ctext, data, sizeof(data)) != 0)
+		panic("aes: CBC FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_decrypt(data, data, sizeof(data), iv, &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: CBC FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+
+/* FIPS cryptographic algorithm self-test for AES-CBC-CTS */
+static void __init aes_cbc_cts_fips_test(void)
+{
+	struct aes_key key;
+	u8 iv[AES_BLOCK_SIZE];
+	const size_t data_len = 2 * AES_BLOCK_SIZE;
+	u8 ptext[2 * AES_BLOCK_SIZE];
+	u8 data[2 * AES_BLOCK_SIZE];
+
+	/* ptext = fips_test_data || fips_test_data */
+	memcpy(ptext, fips_test_data, AES_BLOCK_SIZE);
+	memcpy(&ptext[AES_BLOCK_SIZE], ptext, AES_BLOCK_SIZE);
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (preparekey)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_cts_encrypt(data, ptext, data_len, iv, &key);
+	if (memcmp(fips_test_aes_cbc_cts_ctext, data, data_len) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_cts_decrypt(data, data, data_len, iv, &key);
+	if (memcmp(ptext, data, data_len) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CBC */
+static inline void aes_cbc_fips_test(void)
+{
+}
+static inline void aes_cbc_cts_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CBC */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CTR)
+/*
+ * Hooks for optimized AES-CTR and AES-XCTR implementations, overridable by the
+ * architecture.  They are called with any len >= 0.  Returning false causes the
+ * fallback implementation to be used instead.
+ */
+#ifndef aes_ctr_arch
+static bool aes_ctr_arch(u8 *dst, const u8 *src, size_t len,
+			 u8 ctr[AES_BLOCK_SIZE], const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+#ifndef aes_xctr_arch
+static bool aes_xctr_arch(u8 *dst, const u8 *src, size_t len, u64 *ctr,
+			  const u8 iv[AES_BLOCK_SIZE],
+			  const struct aes_enckey *key)
+{
+	return false;
+}
+#endif
+
+static __always_inline void inc_be128_ctr(u8 ctr[AES_BLOCK_SIZE])
+{
+	/*
+	 * 255 times out of 256 the first iteration is enough, so unroll the
+	 * first iteration as a micro-optimization.
+	 */
+	if ((++ctr[AES_BLOCK_SIZE - 1]) != 0)
+		return;
+	for (int i = AES_BLOCK_SIZE - 2; i >= 0; i--) {
+		if (++ctr[i] != 0)
+			break;
+	}
+}
+
+void aes_ctr(u8 *dst, const u8 *src, size_t len, u8 ctr[AES_BLOCK_SIZE],
+	     aes_encrypt_arg key)
+{
+	u8 keystream[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	if (likely(aes_ctr_arch(dst, src, len, ctr, key.enc_key)))
+		return;
+
+	/* Handle the full blocks. */
+	for (; len >= AES_BLOCK_SIZE; len -= AES_BLOCK_SIZE) {
+		aes_encrypt(key, keystream, ctr);
+		crypto_xor_cpy(dst, src, keystream, AES_BLOCK_SIZE);
+		inc_be128_ctr(ctr);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+	}
+	/* Handle any partial block at the end. */
+	if (len) {
+		aes_encrypt(key, keystream, ctr);
+		crypto_xor_cpy(dst, src, keystream, len);
+		/* Counter is incremented even with just a partial block. */
+		inc_be128_ctr(ctr);
+	}
+	memzero_explicit(keystream, sizeof(keystream));
+}
+EXPORT_SYMBOL_GPL(aes_ctr);
+
+void aes_xctr(u8 *dst, const u8 *src, size_t len, u64 *ctr,
+	      const u8 iv[AES_BLOCK_SIZE], aes_encrypt_arg key)
+{
+	const __le64 iv0 = get_unaligned((const __le64 *)&iv[0]);
+	__le64 aes_input[2];
+	u8 keystream[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	if (likely(aes_xctr_arch(dst, src, len, ctr, iv, key.enc_key)))
+		return;
+
+	aes_input[1] = get_unaligned((const __le64 *)&iv[8]);
+	/* Handle the full blocks. */
+	for (; len >= AES_BLOCK_SIZE; len -= AES_BLOCK_SIZE) {
+		aes_input[0] = iv0 ^ cpu_to_le64((*ctr)++);
+		aes_encrypt(key, keystream, (const u8 *)aes_input);
+		crypto_xor_cpy(dst, src, keystream, AES_BLOCK_SIZE);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+	}
+	/* Handle any partial block at the end. */
+	if (len) {
+		/* Counter is incremented even with just a partial block. */
+		aes_input[0] = iv0 ^ cpu_to_le64((*ctr)++);
+		aes_encrypt(key, keystream, (const u8 *)aes_input);
+		crypto_xor_cpy(dst, src, keystream, len);
+	}
+	memzero_explicit(keystream, sizeof(keystream));
+	memzero_explicit(aes_input, sizeof(aes_input));
+}
+EXPORT_SYMBOL_GPL(aes_xctr);
+
+/* FIPS cryptographic algorithm self-test for AES-CTR */
+static void __init aes_ctr_fips_test(void)
+{
+	struct aes_enckey key;
+	u8 ctr[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_prepareenckey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CTR FIPS self-test failed (preparekey)\n");
+
+	memcpy(ctr, fips_test_iv, sizeof(ctr));
+	aes_ctr(data, fips_test_data, sizeof(data), ctr, &key);
+	if (memcmp(fips_test_aes_ctr_ctext, data, sizeof(data)) != 0)
+		panic("aes: CTR FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(ctr, fips_test_iv, sizeof(ctr));
+	aes_ctr(data, data, sizeof(data), ctr, &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: CTR FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CTR */
+static inline void aes_ctr_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CTR */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_XTS)
+int aes_xts_preparekey(struct aes_xts_key *key, const u8 *in_key,
+		       size_t key_len, int flags)
+{
+	int err;
+
+	err = __xts_verify_key(in_key, key_len, flags);
+	if (unlikely(err))
+		goto out_zeroize;
+	/* First half of XTS key is the main key */
+	err = aes_preparekey(&key->main_key, in_key, key_len / 2);
+	if (unlikely(err))
+		goto out_zeroize;
+	/* Second half of XTS key is the tweak key */
+	err = aes_prepareenckey(&key->tweak_key, &in_key[key_len / 2],
+				key_len / 2);
+	if (unlikely(err))
+		goto out_zeroize;
+	return 0;
+
+out_zeroize:
+	memzero_explicit(key, sizeof(*key));
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_xts_preparekey);
+
+/*
+ * Hooks for optimized AES-XTS implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  In other words,
+ * they aren't expected to handle ciphertext stealing or empty inputs.
+ * Returning false causes the fallback implementation to be used instead.
+ *
+ * (Currently, all users of AES-XTS in the kernel seem to en/decrypt whole
+ * numbers of blocks anyway, with len >= 512.  So there's no need to heavily
+ * optimize ciphertext stealing for short messages.)
+ */
+#ifndef aes_xts_encrypt_arch
+static bool aes_xts_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return false;
+}
+#endif
+#ifndef aes_xts_decrypt_arch
+static bool aes_xts_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return false;
+}
+#endif
+
+static noinline void aes_xts_crypt_nocts_blockbyblock(
+	u8 *dst, const u8 *src, size_t len, u8 tweak[AES_BLOCK_SIZE],
+	const struct aes_xts_key *key, bool cont, bool enc)
+{
+	le128 t;
+
+	if (cont)
+		memcpy(&t, tweak, sizeof(t));
+	else
+		aes_encrypt(&key->tweak_key, (u8 *)&t, tweak);
+	do {
+		crypto_xor_cpy(dst, src, (const u8 *)&t, AES_BLOCK_SIZE);
+		if (enc)
+			aes_encrypt(&key->main_key, dst, dst);
+		else
+			aes_decrypt(&key->main_key, dst, dst);
+		crypto_xor(dst, (const u8 *)&t, AES_BLOCK_SIZE);
+		gf128mul_x_ble(&t, &t);
+		dst += AES_BLOCK_SIZE;
+		src += AES_BLOCK_SIZE;
+		len -= AES_BLOCK_SIZE;
+	} while (len);
+	memcpy(tweak, &t, sizeof(t));
+	memzero_explicit(&t, sizeof(t));
+}
+
+/* Requires len > 0 && len % AES_BLOCK_SIZE == 0 */
+static __always_inline void aes_xts_encrypt_nocts(u8 *dst, const u8 *src,
+						  size_t len,
+						  u8 tweak[AES_BLOCK_SIZE],
+						  const struct aes_xts_key *key,
+						  bool cont)
+{
+	if (likely(aes_xts_encrypt_arch(dst, src, len, tweak, key, cont)))
+		return;
+
+	/*
+	 * For the fallback, just go block-by-block.  It could be implemented on
+	 * top of AES-ECB, which could be significantly faster than this if the
+	 * arch has optimized AES-ECB code but not AES-XTS.  However, AES-XTS
+	 * performance is important enough that it needs to be (and has been)
+	 * implemented directly by every non-obsolete arch anyway.
+	 */
+	aes_xts_crypt_nocts_blockbyblock(dst, src, len, tweak, key, cont,
+					 /* enc= */ true);
+}
+
+/* Requires len > 0 && len % AES_BLOCK_SIZE == 0 */
+static __always_inline void aes_xts_decrypt_nocts(u8 *dst, const u8 *src,
+						  size_t len,
+						  u8 tweak[AES_BLOCK_SIZE],
+						  const struct aes_xts_key *key,
+						  bool cont)
+{
+	if (likely(aes_xts_decrypt_arch(dst, src, len, tweak, key, cont)))
+		return;
+
+	/* Just go block-by-block.  See comment in aes_xts_encrypt_nocts(). */
+	aes_xts_crypt_nocts_blockbyblock(dst, src, len, tweak, key, cont,
+					 /* enc= */ false);
+}
+
+static noinline void aes_xts_encrypt_cts(u8 *dst, const u8 *src, size_t len,
+					 u8 tweak[AES_BLOCK_SIZE],
+					 const struct aes_xts_key *key,
+					 bool cont)
+{
+	size_t partial_len = len % AES_BLOCK_SIZE; /* Length of partial block */
+	size_t nocts_len = round_down(len, AES_BLOCK_SIZE);
+	u8 tmp_block[AES_BLOCK_SIZE] __aligned(__alignof__(long));
+
+	/* Encrypt all full blocks. */
+	aes_xts_encrypt_nocts(dst, src, nocts_len, tweak, key, cont);
+	dst += nocts_len - AES_BLOCK_SIZE;
+	src += nocts_len - AES_BLOCK_SIZE;
+
+	/*
+	 * Swap the partial block with the first 'partial_len' bytes of the
+	 * encrypted last full block.  Note that a temporary buffer is needed to
+	 * support in-place encryption.
+	 */
+	memcpy(tmp_block, src + AES_BLOCK_SIZE, partial_len);
+	memcpy(dst + AES_BLOCK_SIZE, dst, partial_len);
+	memcpy(dst, tmp_block, partial_len);
+
+	/* Encrypt the last full block again. */
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	aes_encrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	memzero_explicit(tmp_block, sizeof(tmp_block));
+}
+
+static noinline void aes_xts_decrypt_cts(u8 *dst, const u8 *src, size_t len,
+					 u8 tweak[AES_BLOCK_SIZE],
+					 const struct aes_xts_key *key,
+					 bool cont)
+{
+	size_t partial_len = len % AES_BLOCK_SIZE; /* Length of partial block */
+	size_t nocts_len = round_down(len, AES_BLOCK_SIZE) - AES_BLOCK_SIZE;
+	union {
+		u8 block[AES_BLOCK_SIZE];
+		le128 tweak;
+	} tmp __aligned(__alignof__(long));
+
+	/*
+	 * Decrypt all blocks except the last full block and the partial block.
+	 * The last full block has to be handled specially because decryption
+	 * ciphertext stealing uses the last two tweaks in reverse order.
+	 *
+	 * nocts_len == 0 is possible here, which aes_xts_decrypt_nocts()
+	 * doesn't handle (so that the length doesn't get checked redundantly in
+	 * the fast path).  So handle that case specially as well.
+	 */
+	if (nocts_len)
+		aes_xts_decrypt_nocts(dst, src, nocts_len, tweak, key, cont);
+	else if (!cont)
+		aes_encrypt(&key->tweak_key, tweak, tweak);
+	dst += nocts_len;
+	src += nocts_len;
+
+	/* Copy the tweak, advance it again, then decrypt last full block. */
+	memcpy(&tmp.tweak, tweak, AES_BLOCK_SIZE);
+	gf128mul_x_ble(&tmp.tweak, &tmp.tweak);
+	crypto_xor_cpy(dst, src, tmp.block, AES_BLOCK_SIZE);
+	aes_decrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tmp.block, AES_BLOCK_SIZE);
+
+	/*
+	 * Swap the partial block with the first 'partial_len' bytes of the
+	 * decrypted last full block.  Note that a temporary buffer is needed to
+	 * support in-place decryption.
+	 */
+	memcpy(tmp.block, src + AES_BLOCK_SIZE, partial_len);
+	memcpy(dst + AES_BLOCK_SIZE, dst, partial_len);
+	memcpy(dst, tmp.block, partial_len);
+
+	/* Decrypt the last full block again. */
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	aes_decrypt(&key->main_key, dst, dst);
+	crypto_xor(dst, tweak, AES_BLOCK_SIZE);
+	memzero_explicit(&tmp, sizeof(tmp));
+}
+
+void aes_xts_encrypt(u8 *dst, const u8 *src, size_t len,
+		     u8 tweak[AES_BLOCK_SIZE], const struct aes_xts_key *key,
+		     bool cont)
+{
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (unlikely(len % AES_BLOCK_SIZE)) {
+		aes_xts_encrypt_cts(dst, src, len, tweak, key, cont);
+		return;
+	}
+
+	aes_xts_encrypt_nocts(dst, src, len, tweak, key, cont);
+}
+EXPORT_SYMBOL_GPL(aes_xts_encrypt);
+
+void aes_xts_decrypt(u8 *dst, const u8 *src, size_t len,
+		     u8 tweak[AES_BLOCK_SIZE], const struct aes_xts_key *key,
+		     bool cont)
+{
+	if (WARN_ON_ONCE(len < AES_BLOCK_SIZE))
+		return;
+
+	if (unlikely(len % AES_BLOCK_SIZE)) {
+		aes_xts_decrypt_cts(dst, src, len, tweak, key, cont);
+		return;
+	}
+
+	aes_xts_decrypt_nocts(dst, src, len, tweak, key, cont);
+}
+EXPORT_SYMBOL_GPL(aes_xts_decrypt);
+
+/* FIPS cryptographic algorithm self-test for AES-XTS */
+static void __init aes_xts_fips_test(void)
+{
+	struct aes_xts_key *key __free(kfree_sensitive) = kmalloc_obj(*key);
+	u8 tweak[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (key == NULL)
+		panic("aes: XTS FIPS self-test failed (kmalloc)\n");
+
+	if (aes_xts_preparekey(key, fips_test_xts_key,
+			       sizeof(fips_test_xts_key), 0) != 0)
+		panic("aes: XTS FIPS self-test failed (preparekey)\n");
+
+	memcpy(tweak, fips_test_iv, sizeof(tweak));
+	aes_xts_encrypt(data, fips_test_data, sizeof(data), tweak, key, false);
+	if (memcmp(fips_test_aes_xts_ctext, data, sizeof(data)) != 0)
+		panic("aes: XTS FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(tweak, fips_test_iv, sizeof(tweak));
+	aes_xts_decrypt(data, data, sizeof(data), tweak, key, false);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: XTS FIPS self-test failed (wrong plaintext)\n");
+}
+#else /* CONFIG_CRYPTO_LIB_AES_XTS */
+static inline void aes_xts_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_XTS */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_GCM)
+/*
+ * Hooks for optimized AES-GCM implementations, overridable by the architecture.
+ * They are called with len > 0 && len % AES_BLOCK_SIZE == 0.  I.e. they aren't
+ * expected to handle empty inputs or partial blocks, as those cases are handled
+ * by non-arch-specific code instead.
+ *
+ * The GHASH accumulator is provided in POLYVAL format.  The counter is provided
+ * in big endian format, and it's read-only, as the caller handles updating it.
+ *
+ * Returning false causes the fallback implementation to be used instead.
+ *
+ * These hooks are used only for en/decrypted data.  For the associated data the
+ * GHASH functions are called instead, so those should be implemented too.
+ */
+#ifndef aes_gcm_encrypt_update_arch
+static bool aes_gcm_encrypt_update_arch(u8 *dst, const u8 *src, size_t len,
+					struct polyval_elem *ghash_acc,
+					const __be32 ctr32[4],
+					const struct aes_enckey *aes_key,
+					const struct ghash_key *ghash_key)
+{
+	return false;
+}
+#endif
+#ifndef aes_gcm_decrypt_update_arch
+static bool aes_gcm_decrypt_update_arch(u8 *dst, const u8 *src, size_t len,
+					struct polyval_elem *ghash_acc,
+					const __be32 ctr32[4],
+					const struct aes_enckey *aes_key,
+					const struct ghash_key *ghash_key)
+{
+	return false;
+}
+#endif
+
+int aes_gcm_preparekey(struct aes_gcm_key *key, const u8 *in_key,
+		       size_t key_len, size_t authtag_len)
+{
+	u8 h[AES_BLOCK_SIZE] = { 0 };
+	int err;
+
+	err = crypto_gcm_check_authsize(authtag_len);
+	if (unlikely(err))
+		return err;
+
+	err = aes_prepareenckey(&key->aes, in_key, key_len);
+	if (unlikely(err))
+		return err;
+
+	aes_encrypt(&key->aes, h, h);
+	ghash_preparekey(&key->ghash, h);
+
+	key->authtag_len = authtag_len;
+
+	memzero_explicit(h, sizeof(h));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_preparekey);
+
+void aes_gcm_init(struct aes_gcm_ctx *ctx, const u8 nonce[12],
+		  const struct aes_gcm_key *key)
+{
+	ctx->key = key;
+	ctx->ad_len = 0;
+	ctx->data_len = 0;
+	ghash_init(&ctx->ghash, &key->ghash);
+	memset(ctx->keystream, 0, sizeof(ctx->keystream));
+
+	memcpy(ctx->ctr32, nonce, 12);
+	ctx->ctr32[3] = cpu_to_be32(1);
+
+	aes_encrypt(&key->aes, ctx->j0_enc, ctx->ctr);
+	ctx->ctr32[3] = cpu_to_be32(2);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_init);
+
+void aes_gcm_auth_update(struct aes_gcm_ctx *ctx, const u8 *ad, size_t len)
+{
+	WARN_ON_ONCE(ctx->data_len != 0);
+	if (len) {
+		ghash_update(&ctx->ghash, ad, len);
+		ctx->ad_len += len;
+	}
+}
+EXPORT_SYMBOL_GPL(aes_gcm_auth_update);
+
+static const u8 gcm_zeroes[AES_BLOCK_SIZE];
+
+static __always_inline void ghash_pad(struct ghash_ctx *ghash, u64 len)
+{
+	if (len % AES_BLOCK_SIZE)
+		ghash_update(ghash, gcm_zeroes, -len % AES_BLOCK_SIZE);
+}
+
+static __always_inline void aes_gcm_crypt_update(struct aes_gcm_ctx *ctx,
+						 u8 *dst, const u8 *src,
+						 size_t len, bool enc)
+{
+	size_t partial_len, n;
+
+	if (unlikely(len == 0))
+		return;
+
+	partial_len = ctx->data_len % AES_BLOCK_SIZE;
+	if (ctx->data_len == 0)
+		ghash_pad(&ctx->ghash, ctx->ad_len);
+	ctx->data_len += len;
+
+	if (unlikely(partial_len != 0)) {
+		/*
+		 * The previous call ended on a non-block-aligned data_len, so
+		 * continue using a previously-generated keystream block.
+		 */
+		n = min(len, AES_BLOCK_SIZE - partial_len);
+		if (enc) {
+			crypto_xor_cpy(dst, src, &ctx->keystream[partial_len],
+				       n);
+			ghash_update(&ctx->ghash, dst, n);
+		} else {
+			ghash_update(&ctx->ghash, src, n);
+			crypto_xor_cpy(dst, src, &ctx->keystream[partial_len],
+				       n);
+		}
+		dst += n;
+		src += n;
+		len -= n;
+	}
+
+	if (len >= AES_BLOCK_SIZE) {
+		n = round_down(len, AES_BLOCK_SIZE);
+		if (enc) {
+			if (likely(aes_gcm_encrypt_update_arch(
+				    dst, src, n, &ctx->ghash.acc, ctx->ctr32,
+				    &ctx->key->aes, &ctx->key->ghash))) {
+				be32_add_cpu(&ctx->ctr32[3],
+					     n / AES_BLOCK_SIZE);
+			} else {
+				aes_ctr(dst, src, n, ctx->ctr, &ctx->key->aes);
+				ghash_update(&ctx->ghash, dst, n);
+			}
+		} else {
+			if (likely(aes_gcm_decrypt_update_arch(
+				    dst, src, n, &ctx->ghash.acc, ctx->ctr32,
+				    &ctx->key->aes, &ctx->key->ghash))) {
+				be32_add_cpu(&ctx->ctr32[3],
+					     n / AES_BLOCK_SIZE);
+			} else {
+				ghash_update(&ctx->ghash, src, n);
+				aes_ctr(dst, src, n, ctx->ctr, &ctx->key->aes);
+			}
+		}
+		dst += n;
+		src += n;
+		len -= n;
+	}
+
+	if (len != 0) {
+		/*
+		 * Ending on a non-block aligned data_len.  Generate the next
+		 * keystream block, use the needed portion of it, and leave it
+		 * cached in ctx->keystream in case this isn't the final call.
+		 */
+		aes_encrypt(&ctx->key->aes, ctx->keystream, ctx->ctr);
+		be32_add_cpu(&ctx->ctr32[3], 1);
+		if (enc) {
+			crypto_xor_cpy(dst, src, ctx->keystream, len);
+			ghash_update(&ctx->ghash, dst, len);
+		} else {
+			ghash_update(&ctx->ghash, src, len);
+			crypto_xor_cpy(dst, src, ctx->keystream, len);
+		}
+	}
+}
+
+void aes_gcm_encrypt_update(struct aes_gcm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_gcm_crypt_update(ctx, dst, src, len, /* enc= */ true);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt_update);
+
+void aes_gcm_decrypt_update(struct aes_gcm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_gcm_crypt_update(ctx, dst, src, len, /* enc= */ false);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt_update);
+
+/* Maximum AES-GCM associated data length in bytes */
+#define AES_GCM_MAX_AD_LEN ((1ULL << 61) - 1)
+/* Maximum AES-GCM en/decrypted data length in bytes */
+#define AES_GCM_MAX_DATA_LEN ((1ULL << 36) - 32)
+
+void aes_gcm_encrypt_final(struct aes_gcm_ctx *ctx, u8 *authtag)
+{
+	__be64 tail[2];
+
+	WARN_ON_ONCE(ctx->ad_len > AES_GCM_MAX_AD_LEN);
+	WARN_ON_ONCE(ctx->data_len > AES_GCM_MAX_DATA_LEN);
+
+	ghash_pad(&ctx->ghash,
+		  ctx->data_len == 0 ? ctx->ad_len : ctx->data_len);
+
+	tail[0] = cpu_to_be64(ctx->ad_len * 8);
+	tail[1] = cpu_to_be64(ctx->data_len * 8);
+	ghash_update(&ctx->ghash, (const u8 *)tail, 16);
+	ghash_final(&ctx->ghash, ctx->ctr); /* Use ctr as temp buffer */
+
+	crypto_xor_cpy(authtag, ctx->ctr, ctx->j0_enc, ctx->key->authtag_len);
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt_final);
+
+int aes_gcm_decrypt_final(struct aes_gcm_ctx *ctx, const u8 *authtag)
+{
+	__be64 tail[2];
+	int err;
+
+	if (WARN_ON_ONCE(ctx->ad_len > AES_GCM_MAX_AD_LEN) ||
+	    WARN_ON_ONCE(ctx->data_len > AES_GCM_MAX_DATA_LEN)) {
+		err = -EBADMSG;
+		goto out;
+	}
+
+	ghash_pad(&ctx->ghash,
+		  ctx->data_len == 0 ? ctx->ad_len : ctx->data_len);
+
+	tail[0] = cpu_to_be64(ctx->ad_len * 8);
+	tail[1] = cpu_to_be64(ctx->data_len * 8);
+	ghash_update(&ctx->ghash, (const u8 *)tail, 16);
+	ghash_final(&ctx->ghash, ctx->ctr); /* Use ctr as temp buffer */
+	crypto_xor(ctx->ctr, ctx->j0_enc, ctx->key->authtag_len);
+	err = crypto_memneq(ctx->ctr, authtag, ctx->key->authtag_len) ?
+		      -EBADMSG :
+		      0;
+out:
+	memzero_explicit(ctx, sizeof(*ctx));
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt_final);
+
+void aes_gcm_encrypt(u8 *dst, const u8 *src, size_t data_len, u8 *authtag,
+		     const u8 *ad, size_t ad_len, const u8 nonce[12],
+		     const struct aes_gcm_key *key)
+{
+	struct aes_gcm_ctx ctx;
+
+	aes_gcm_init(&ctx, nonce, key);
+	aes_gcm_auth_update(&ctx, ad, ad_len);
+	aes_gcm_encrypt_update(&ctx, dst, src, data_len);
+	aes_gcm_encrypt_final(&ctx, authtag);
+}
+EXPORT_SYMBOL_GPL(aes_gcm_encrypt);
+
+int aes_gcm_decrypt(u8 *dst, const u8 *src, size_t data_len, const u8 *authtag,
+		    const u8 *ad, size_t ad_len, const u8 nonce[12],
+		    const struct aes_gcm_key *key)
+{
+	struct aes_gcm_ctx ctx;
+	int err;
+
+	aes_gcm_init(&ctx, nonce, key);
+	aes_gcm_auth_update(&ctx, ad, ad_len);
+	aes_gcm_decrypt_update(&ctx, dst, src, data_len);
+	err = aes_gcm_decrypt_final(&ctx, authtag);
+	if (unlikely(err) && data_len) {
+		/*
+		 * Clear the inauthentic decrypted data so that callers won't
+		 * receive it even if they fail to correctly handle errors.
+		 */
+		memset(dst, 0, data_len);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_gcm_decrypt);
+
+/* FIPS cryptographic algorithm self-test for AES-GCM */
+static void __init aes_gcm_fips_test(void)
+{
+	const size_t data_len = sizeof(fips_test_data);
+	u8 buf[sizeof(fips_test_data) + AES_BLOCK_SIZE];
+	struct aes_gcm_key key;
+	int err;
+
+	if (aes_gcm_preparekey(&key, fips_test_key, sizeof(fips_test_key),
+			       AES_BLOCK_SIZE) != 0)
+		panic("aes: GCM FIPS self-test failed (preparekey)\n");
+
+	aes_gcm_encrypt(buf, fips_test_data, data_len, &buf[data_len],
+			fips_test_ad, sizeof(fips_test_ad), fips_test_iv, &key);
+	if (memcmp(fips_test_aes_gcm_ctext_and_tag, buf, sizeof(buf)) != 0)
+		panic("aes: GCM FIPS self-test failed (wrong ciphertext and/or tag)\n");
+
+	err = aes_gcm_decrypt(buf, buf, data_len, &buf[data_len], fips_test_ad,
+			      sizeof(fips_test_ad), fips_test_iv, &key);
+	if (err != 0)
+		panic("aes: GCM FIPS self-test failed (decryption failed)\n");
+	if (memcmp(fips_test_data, buf, data_len) != 0)
+		panic("aes: GCM FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_GCM */
+static inline void aes_gcm_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_GCM */
+
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CCM)
+int aes_ccm_preparekey(struct aes_ccm_key *key, const u8 *in_key,
+		       size_t key_len, size_t authtag_len)
+{
+	int err;
+
+	if (unlikely(authtag_len < 4 || authtag_len > 16 || authtag_len % 2))
+		return -EINVAL;
+
+	err = aes_prepareenckey(&key->aes, in_key, key_len);
+	if (unlikely(err))
+		return err;
+
+	key->authtag_len = authtag_len;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_preparekey);
+
+int aes_ccm_init(struct aes_ccm_ctx *ctx, u64 data_len, u64 ad_len,
+		 const u8 *nonce, size_t nonce_len,
+		 const struct aes_ccm_key *key)
+{
+	/*
+	 * This is the value L defined in the CCM specification.  It determines
+	 * the maximum allowed message length, and it is itself determined by
+	 * the nonce length.  They are inversely related, i.e. the longer the
+	 * nonce the smaller the maximum message length is.
+	 */
+	unsigned int l = 15 - nonce_len;
+
+	if (unlikely(nonce_len < 7 || nonce_len > 13))
+		return -EINVAL;
+	/* Thus 2 <= l <= 8. */
+
+	/* Check whether data_len can be represented in 'l' bytes. */
+	if (unlikely(data_len > U64_MAX >> (64 - 8 * l)))
+		return -EOVERFLOW;
+
+	ctx->key = key;
+	ctx->ad_remaining = ad_len;
+	ctx->data_remaining = data_len;
+	ctx->ad_padded = false;
+
+	/*
+	 * Initialize the zero-th counter block to:
+	 *
+	 *	L - 1 || nonce || 0
+	 *
+	 * ... and the zero-th CBC-MAC block to:
+	 *
+	 *	Flags || nonce || data_len
+	 */
+	*(__be64 *)&ctx->ctr[8] = 0;
+	*(__be64 *)&ctx->mac[8] = cpu_to_be64(data_len);
+	ctx->ctr[0] = l - 1;
+	ctx->mac[0] = (ad_len ? 0x40 : 0) |
+		      (((key->authtag_len - 2) / 2) << 3) | (l - 1);
+	memcpy(&ctx->ctr[1], nonce, nonce_len); /* Overlapping store */
+	memcpy(&ctx->mac[1], nonce, nonce_len); /* Overlapping store */
+
+	/*
+	 * Generate S_0 by encrypting the counter (this is used to encrypt the
+	 * auth tag later), and encrypt the zero-th CBC-MAC block.
+	 */
+	aes_encrypt(&key->aes, ctx->s0, ctx->ctr);
+	aes_encrypt(&key->aes, ctx->mac, ctx->mac);
+
+	/* Increment the counter from 0 to 1. */
+	ctx->ctr[15] = 1;
+
+	if (ad_len) {
+		/*
+		 * Update CBC-MAC with the associated data length, represented
+		 * using either 2, 6, or 10 bytes depending on the length.
+		 */
+		if (likely(ad_len < 0xff00)) {
+			*(__be16 *)&ctx->mac[0] ^= cpu_to_be16(ad_len);
+			ctx->partial_len = 2;
+		} else if (ad_len <= U32_MAX) {
+			__be32 *p = (__be32 *)&ctx->mac[2];
+
+			*(__be16 *)&ctx->mac[0] ^= cpu_to_be16(0xfffe);
+			put_unaligned(get_unaligned(p) ^ cpu_to_be32(ad_len),
+				      p);
+			ctx->partial_len = 6;
+		} else {
+			__be64 *p = (__be64 *)&ctx->mac[2];
+
+			*(__be16 *)&ctx->mac[0] ^= cpu_to_be16(0xffff);
+			put_unaligned(get_unaligned(p) ^ cpu_to_be64(ad_len),
+				      p);
+			ctx->partial_len = 10;
+		}
+	} else {
+		ctx->partial_len = 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_init);
+
+void aes_ccm_auth_update(struct aes_ccm_ctx *ctx, const u8 *ad, size_t len)
+{
+	size_t partial_len = ctx->partial_len;
+	bool enc_before = false;
+	size_t nblocks;
+
+	WARN_ON_ONCE(ctx->ad_padded);
+
+	/*
+	 * We could warn on len > ad_remaining here, but underflow will be
+	 * caught by the != 0 check at the end anyway.  (It's a u64, so it isn't
+	 * going to underflow all the way back to 0.)
+	 */
+	ctx->ad_remaining -= len;
+
+	if (partial_len) {
+		size_t n = min(len, AES_BLOCK_SIZE - partial_len);
+
+		crypto_xor(&ctx->mac[partial_len], ad, n);
+		ad += n;
+		len -= n;
+		partial_len += n;
+		if (partial_len < AES_BLOCK_SIZE) {
+			ctx->partial_len = partial_len;
+			return;
+		}
+		enc_before = true;
+	}
+
+	nblocks = len / AES_BLOCK_SIZE;
+	len %= AES_BLOCK_SIZE;
+	if (nblocks == 0) {
+		if (enc_before)
+			aes_encrypt(&ctx->key->aes, ctx->mac, ctx->mac);
+	} else {
+		aes_cbcmac_blocks(ctx->mac, &ctx->key->aes, ad, nblocks,
+				  enc_before, /* enc_after= */ true);
+		ad += nblocks * AES_BLOCK_SIZE;
+	}
+	crypto_xor(ctx->mac, ad, len);
+	ctx->partial_len = len;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_auth_update);
+
+static __always_inline void aes_ccm_crypt_update(struct aes_ccm_ctx *ctx,
+						 u8 *dst, const u8 *src,
+						 size_t len, bool enc)
+{
+	size_t partial_len = ctx->partial_len;
+	size_t n, nblocks;
+
+	if (unlikely(len == 0))
+		return;
+
+	WARN_ON_ONCE(ctx->ad_remaining != 0);
+
+	/*
+	 * We could warn on len > data_remaining here, but underflow will be
+	 * caught by the != 0 check at the end anyway.  (It's a u64, so it isn't
+	 * going to underflow all the way back to 0.)
+	 */
+	ctx->data_remaining -= len;
+
+	if (!ctx->ad_padded) {
+		ctx->ad_padded = true;
+		if (partial_len)
+			aes_encrypt(&ctx->key->aes, ctx->mac, ctx->mac);
+	} else if (partial_len) {
+		/*
+		 * The previous call ended on a non-block-aligned data_len, so
+		 * continue using a previously-generated keystream block.
+		 */
+		n = min(len, AES_BLOCK_SIZE - partial_len);
+		if (enc)
+			crypto_xor(&ctx->mac[partial_len], src, n);
+		crypto_xor_cpy(dst, src, &ctx->keystream[partial_len], n);
+		if (!enc)
+			crypto_xor(&ctx->mac[partial_len], dst, n);
+		dst += n;
+		src += n;
+		len -= n;
+		partial_len += n;
+		if (partial_len < AES_BLOCK_SIZE) {
+			ctx->partial_len = partial_len;
+			return;
+		}
+		aes_encrypt(&ctx->key->aes, ctx->mac, ctx->mac);
+	}
+
+	if (len >= AES_BLOCK_SIZE) {
+		n = round_down(len, AES_BLOCK_SIZE);
+		nblocks = len / AES_BLOCK_SIZE;
+		if (enc)
+			aes_cbcmac_blocks(ctx->mac, &ctx->key->aes, src,
+					  nblocks, /* enc_before= */ false,
+					  /* enc_after= */ true);
+		aes_ctr(dst, src, n, ctx->ctr, &ctx->key->aes);
+		if (!enc)
+			aes_cbcmac_blocks(ctx->mac, &ctx->key->aes, dst,
+					  nblocks, /* enc_before= */ false,
+					  /* enc_after= */ true);
+		dst += n;
+		src += n;
+		len -= n;
+	}
+
+	if (len) {
+		/*
+		 * Ending on a non-block aligned data_len.  Generate the next
+		 * keystream block, use the needed portion of it, and leave it
+		 * cached in ctx->keystream in case this isn't the final call.
+		 */
+		aes_encrypt(&ctx->key->aes, ctx->keystream, ctx->ctr);
+		inc_be128_ctr(ctx->ctr);
+		if (enc)
+			crypto_xor(ctx->mac, src, len);
+		crypto_xor_cpy(dst, src, ctx->keystream, len);
+		if (!enc)
+			crypto_xor(ctx->mac, dst, len);
+	}
+	ctx->partial_len = len;
+}
+
+void aes_ccm_encrypt_update(struct aes_ccm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_ccm_crypt_update(ctx, dst, src, len, /* enc= */ true);
+}
+EXPORT_SYMBOL_GPL(aes_ccm_encrypt_update);
+
+void aes_ccm_decrypt_update(struct aes_ccm_ctx *ctx, u8 *dst, const u8 *src,
+			    size_t len)
+{
+	aes_ccm_crypt_update(ctx, dst, src, len, /* enc= */ false);
+}
+EXPORT_SYMBOL_GPL(aes_ccm_decrypt_update);
+
+void aes_ccm_encrypt_final(struct aes_ccm_ctx *ctx, u8 *authtag)
+{
+	WARN_ON_ONCE(ctx->ad_remaining != 0);
+	WARN_ON_ONCE(ctx->data_remaining != 0);
+	if (ctx->partial_len)
+		aes_encrypt(&ctx->key->aes, ctx->mac, ctx->mac);
+	crypto_xor_cpy(authtag, ctx->mac, ctx->s0, ctx->key->authtag_len);
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(aes_ccm_encrypt_final);
+
+int aes_ccm_decrypt_final(struct aes_ccm_ctx *ctx, const u8 *authtag)
+{
+	int err;
+
+	if (WARN_ON_ONCE(ctx->ad_remaining != 0) ||
+	    WARN_ON_ONCE(ctx->data_remaining != 0)) {
+		err = -EBADMSG;
+		goto out;
+	}
+
+	if (ctx->partial_len)
+		aes_encrypt(&ctx->key->aes, ctx->mac, ctx->mac);
+	crypto_xor(ctx->mac, ctx->s0, ctx->key->authtag_len);
+	err = crypto_memneq(ctx->mac, authtag, ctx->key->authtag_len) ?
+		      -EBADMSG :
+		      0;
+out:
+	memzero_explicit(ctx, sizeof(*ctx));
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_decrypt_final);
+
+int aes_ccm_encrypt(u8 *dst, const u8 *src, size_t data_len, u8 *authtag,
+		    const u8 *ad, size_t ad_len, const u8 *nonce,
+		    size_t nonce_len, const struct aes_ccm_key *key)
+{
+	struct aes_ccm_ctx ctx;
+	int err;
+
+	err = aes_ccm_init(&ctx, data_len, ad_len, nonce, nonce_len, key);
+	if (unlikely(err))
+		return err;
+	aes_ccm_auth_update(&ctx, ad, ad_len);
+	aes_ccm_encrypt_update(&ctx, dst, src, data_len);
+	aes_ccm_encrypt_final(&ctx, authtag);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_encrypt);
+
+int aes_ccm_decrypt(u8 *dst, const u8 *src, size_t data_len, const u8 *authtag,
+		    const u8 *ad, size_t ad_len, const u8 *nonce,
+		    size_t nonce_len, const struct aes_ccm_key *key)
+{
+	struct aes_ccm_ctx ctx;
+	int err;
+
+	err = aes_ccm_init(&ctx, data_len, ad_len, nonce, nonce_len, key);
+	if (unlikely(err))
+		return err;
+	aes_ccm_auth_update(&ctx, ad, ad_len);
+	aes_ccm_decrypt_update(&ctx, dst, src, data_len);
+	err = aes_ccm_decrypt_final(&ctx, authtag);
+	if (unlikely(err) && data_len) {
+		/*
+		 * Clear the inauthentic decrypted data so that callers won't
+		 * receive it even if they fail to correctly handle errors.
+		 */
+		memset(dst, 0, data_len);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(aes_ccm_decrypt);
+
+/* FIPS cryptographic algorithm self-test for AES-CCM */
+static void __init aes_ccm_fips_test(void)
+{
+	const size_t data_len = sizeof(fips_test_data);
+	const size_t nonce_len = 13;
+	u8 buf[sizeof(fips_test_data) + AES_BLOCK_SIZE];
+	struct aes_ccm_key key;
+	int err;
+
+	if (aes_ccm_preparekey(&key, fips_test_key, sizeof(fips_test_key),
+			       AES_BLOCK_SIZE) != 0)
+		panic("aes: CCM FIPS self-test failed (preparekey)\n");
+
+	err = aes_ccm_encrypt(buf, fips_test_data, data_len, &buf[data_len],
+			      fips_test_ad, sizeof(fips_test_ad), fips_test_iv,
+			      nonce_len, &key);
+	if (err != 0)
+		panic("aes: CCM FIPS self-test failed (encryption failed)\n");
+	if (memcmp(fips_test_aes_ccm_ctext_and_tag, buf, sizeof(buf)) != 0)
+		panic("aes: CCM FIPS self-test failed (wrong ciphertext and/or tag)\n");
+
+	err = aes_ccm_decrypt(buf, buf, data_len, &buf[data_len], fips_test_ad,
+			      sizeof(fips_test_ad), fips_test_iv, nonce_len,
+			      &key);
+	if (err != 0)
+		panic("aes: CCM FIPS self-test failed (decryption failed)\n");
+	if (memcmp(fips_test_data, buf, data_len) != 0)
+		panic("aes: CCM FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CCM */
+static inline void aes_ccm_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CCM */
+
 static int __init aes_mod_init(void)
 {
 #ifdef aes_mod_init_arch
 	aes_mod_init_arch();
 #endif
-	if (fips_enabled)
+	if (fips_enabled) {
+		aes_fips_test();
 		aes_cmac_fips_test();
+		aes_ecb_fips_test();
+		aes_cbc_fips_test();
+		aes_cbc_cts_fips_test();
+		aes_ctr_fips_test();
+		aes_xts_fips_test();
+		aes_gcm_fips_test();
+		aes_ccm_fips_test();
+	}
 	return 0;
 }
 subsys_initcall(aes_mod_init);

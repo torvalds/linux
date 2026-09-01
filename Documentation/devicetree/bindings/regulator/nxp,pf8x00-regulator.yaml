@@ -134,42 +134,42 @@ examples:
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck2: buck2 {
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck3: buck3 {
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck4: buck4 {
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck5: buck5 {
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck6: buck6 {
                     regulator-always-on;
                     regulator-boot-on;
                     regulator-max-microvolt = <1800000>;
-                    regulator-min-microvolt =  <400000>;
+                    regulator-min-microvolt = <400000>;
                 };
 
                 reg_buck7: buck7 {

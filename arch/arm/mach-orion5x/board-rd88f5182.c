@@ -6,7 +6,7 @@
  *
  * Maintainer: Ronen Shitrit <rshitrit@marvell.com>
  */
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of.h>

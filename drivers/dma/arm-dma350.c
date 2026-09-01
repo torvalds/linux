@@ -13,6 +13,11 @@
 #include "dmaengine.h"
 #include "virt-dma.h"
 
+#define DMANSECCTRL		0x200
+
+#define NSEC_CTRL		0x0c
+#define INTREN_ANYCHINTR_EN	BIT(0)
+
 #define DMAINFO			0x0f00
 
 #define DMA_BUILDCFG0		0xb0
@@ -581,6 +586,10 @@ static int d350_probe(struct platform_device *pdev)
 	dmac->dma.device_tx_status = d350_tx_status;
 	dmac->dma.device_issue_pending = d350_issue_pending;
 	INIT_LIST_HEAD(&dmac->dma.channels);
+
+	reg = readl_relaxed(base + DMANSECCTRL + NSEC_CTRL);
+	writel_relaxed(reg | INTREN_ANYCHINTR_EN,
+		       base + DMANSECCTRL + NSEC_CTRL);
 
 	/* Would be nice to have per-channel caps for this... */
 	memset = true;

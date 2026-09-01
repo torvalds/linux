@@ -133,6 +133,36 @@
 		enable-active-high;
 	};
 
+	remoteproc-cm70 {
+		compatible = "fsl,imx94-cm70";
+		mbox-names = "tx", "rx", "rxdb";
+		mboxes = <&mu11 0 1
+			  &mu11 1 1
+			  &mu11 3 1>;
+		memory-region = <&cm70_vdev0buffer>, <&cm70_vdev0vring0>, <&cm70_vdev0vring1>,
+				<&cm70_vdev1vring0>, <&cm70_vdev1vring1>, <&cm70_rsc_table>;
+	};
+
+	remoteproc-cm71 {
+		compatible = "fsl,imx94-cm71";
+		mbox-names = "tx", "rx", "rxdb";
+		mboxes = <&mu13 0 1
+			  &mu13 1 1
+			  &mu13 3 1>;
+		memory-region = <&cm71_vdev0buffer>, <&cm71_vdev0vring0>, <&cm71_vdev0vring1>,
+				<&cm71_vdev1vring0>, <&cm71_vdev1vring1>, <&cm71_rsc_table>;
+	};
+
+	remoteproc-cm33s {
+		compatible = "fsl,imx94-cm33s";
+		mbox-names = "tx", "rx", "rxdb";
+		mboxes = <&mu15 0 1
+			  &mu15 1 1
+			  &mu15 3 1>;
+		memory-region = <&cm33s_vdev0buffer>, <&cm33s_vdev0vring0>, <&cm33s_vdev0vring1>,
+				<&cm33s_vdev1vring0>, <&cm33s_vdev1vring1>, <&cm33s_rsc_table>;
+	};
+
 	reserved-memory {
 		ranges;
 		#address-cells = <2>;
@@ -144,6 +174,99 @@
 			reusable;
 			size = <0 0x10000000>;
 			linux,cma-default;
+		};
+
+		cm33s_vdev0vring0: vdev0vring0@20800000 {
+			reg = <0 0x20800000 0 0x8000>;
+			no-map;
+		};
+
+		cm33s_vdev0vring1: vdev0vring1@20808000 {
+			reg = <0 0x20808000 0 0x8000>;
+			no-map;
+		};
+
+		cm33s_vdev1vring0: vdev1vring0@20810000 {
+			reg = <0 0x20810000 0 0x8000>;
+			no-map;
+		};
+
+		cm33s_vdev1vring1: vdev1vring1@20818000 {
+			reg = <0 0x20818000 0 0x8000>;
+			no-map;
+		};
+
+		cm33s_rsc_table: rsc-table@208a0000 {
+			reg = <0 0x208a0000 0 0x1000>;
+			no-map;
+		};
+
+		cm33s_vdev0buffer: vdev0buffer@20820000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x20820000 0 0x80000>;
+			no-map;
+		};
+
+		cm70_vdev0vring0: vdev0vring0@82000000 {
+			reg = <0 0x82000000 0 0x8000>;
+			no-map;
+		};
+
+		cm70_vdev0vring1: vdev0vring1@82008000 {
+			reg = <0 0x82008000 0 0x8000>;
+			no-map;
+		};
+
+		cm70_vdev1vring0: vdev1vring0@82010000 {
+			reg = <0 0x82010000 0 0x8000>;
+			no-map;
+		};
+
+		cm70_vdev1vring1: vdev1vring1@82018000 {
+			reg = <0 0x82018000 0 0x8000>;
+			no-map;
+		};
+
+		cm70_rsc_table: rsc-table@82220000 {
+			reg = <0 0x82220000 0 0x1000>;
+			no-map;
+		};
+
+		cm70_vdev0buffer: vdev0buffer@82020000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x82020000 0 0x100000>;
+			no-map;
+		};
+
+		cm71_vdev0vring0: vdev0vring0@84000000 {
+			reg = <0 0x84000000 0 0x8000>;
+			no-map;
+		};
+
+		cm71_vdev0vring1: vdev0vring1@84008000 {
+			reg = <0 0x84008000 0 0x8000>;
+			no-map;
+		};
+
+		cm71_vdev1vring0: vdev1vring0@84010000 {
+			reg = <0 0x84010000 0 0x8000>;
+			no-map;
+		};
+
+		cm71_vdev1vring1: vdev1vring1@84018000 {
+			reg = <0 0x84018000 0 0x8000>;
+			no-map;
+		};
+
+		cm71_rsc_table: rsc-table@84220000 {
+			reg = <0 0x84220000 0 0x1000>;
+			no-map;
+		};
+
+		cm71_vdev0buffer: vdev0buffer@84020000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x84020000 0 0x100000>;
+			no-map;
 		};
 	};
 
@@ -592,6 +715,18 @@
 	status = "okay";
 };
 
+&mu11 {
+	status = "okay";
+};
+
+&mu13 {
+	status = "okay";
+};
+
+&mu15 {
+	status = "okay";
+};
+
 &netc_blk_ctrl {
 	assigned-clocks = <&scmi_clk IMX94_CLK_MAC4>,
 			  <&scmi_clk IMX94_CLK_MAC5>;
@@ -1034,10 +1169,13 @@
 		 <&pcie_ref_clk>;
 	clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux",
 		      "ref", "extref";
-	reset-gpio = <&pcal6416_i2c3_u46 3 GPIO_ACTIVE_LOW>;
-	vpcie3v3aux-supply = <&reg_m2_wlan>;
 	supports-clkreq;
 	status = "okay";
+};
+
+&pcie0_port0 {
+	reset-gpios = <&pcal6416_i2c3_u46 3 GPIO_ACTIVE_LOW>;
+	vpcie3v3aux-supply = <&reg_m2_wlan>;
 };
 
 &pcie0_ep {
@@ -1058,10 +1196,12 @@
 		 <&pcie_ref_clk>;
 	clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux",
 		      "ref", "extref";
-	reset-gpio = <&pcal6416_i2c3_u46 1 GPIO_ACTIVE_LOW>;
-	vpcie3v3aux-supply = <&reg_slot_pwr>;
-	supports-clkreq;
 	status = "okay";
+};
+
+&pcie1_port0 {
+	reset-gpios = <&pcal6416_i2c3_u46 1 GPIO_ACTIVE_LOW>;
+	vpcie3v3aux-supply = <&reg_slot_pwr>;
 };
 
 &pcie1_ep {

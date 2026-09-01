@@ -5,14 +5,13 @@
 #include <crypto/nh.h>
 #include <kunit/test.h>
 #include "nh-testvecs.h"
+#include "test-utils.h"
 
 static void test_nh(struct kunit *test)
 {
-	u32 *key = kunit_kmalloc(test, NH_KEY_BYTES, GFP_KERNEL);
+	u32 *key = memdup_buf(test, nh_test_key, NH_KEY_BYTES);
 	__le64 hash[NH_NUM_PASSES];
 
-	KUNIT_ASSERT_NOT_NULL(test, key);
-	memcpy(key, nh_test_key, NH_KEY_BYTES);
 	le32_to_cpu_array(key, NH_KEY_WORDS);
 
 	nh(key, nh_test_msg, 16, hash);

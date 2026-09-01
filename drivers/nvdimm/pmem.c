@@ -208,29 +208,44 @@ static void pmem_submit_bio(struct bio *bio)
 	struct pmem_device *pmem = bio->bi_bdev->bd_disk->private_data;
 	struct nd_region *nd_region = to_region(pmem);
 
-	if (bio->bi_opf & REQ_PREFLUSH)
-		ret = nvdimm_flush(nd_region, bio);
-
-	do_acct = blk_queue_io_stat(bio->bi_bdev->bd_disk->queue);
-	if (do_acct)
-		start = bio_start_io_acct(bio);
-	bio_for_each_segment(bvec, bio, iter) {
-		if (op_is_write(bio_op(bio)))
-			rc = pmem_do_write(pmem, bvec.bv_page, bvec.bv_offset,
-				iter.bi_sector, bvec.bv_len);
-		else
-			rc = pmem_do_read(pmem, bvec.bv_page, bvec.bv_offset,
-				iter.bi_sector, bvec.bv_len);
-		if (rc) {
-			bio->bi_status = rc;
-			break;
+	if (bio->bi_opf & REQ_PREFLUSH) {
+		ret = nvdimm_flush(nd_region, NULL);
+		if (ret) {
+			bio->bi_status = errno_to_blk_status(ret);
+			bio_endio(bio);
+			return;
 		}
 	}
-	if (do_acct)
-		bio_end_io_acct(bio, start);
 
-	if (bio->bi_opf & REQ_FUA)
+	if (bio_has_data(bio)) {
+		do_acct = blk_queue_io_stat(bio->bi_bdev->bd_disk->queue);
+		if (do_acct)
+			start = bio_start_io_acct(bio);
+		bio_for_each_segment(bvec, bio, iter) {
+			if (op_is_write(bio_op(bio)))
+				rc = pmem_do_write(pmem, bvec.bv_page,
+						   bvec.bv_offset,
+						   iter.bi_sector,
+						   bvec.bv_len);
+			else
+				rc = pmem_do_read(pmem, bvec.bv_page,
+						  bvec.bv_offset,
+						  iter.bi_sector,
+						  bvec.bv_len);
+			if (rc) {
+				bio->bi_status = rc;
+				break;
+			}
+		}
+		if (do_acct)
+			bio_end_io_acct(bio, start);
+	}
+
+	if ((bio->bi_opf & REQ_FUA) && !bio->bi_status) {
 		ret = nvdimm_flush(nd_region, bio);
+		if (ret == NVDIMM_FLUSH_ASYNC)
+			return;
+	}
 
 	if (ret)
 		bio->bi_status = errno_to_blk_status(ret);

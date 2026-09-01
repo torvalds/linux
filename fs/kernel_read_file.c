@@ -150,18 +150,13 @@ ssize_t kernel_read_file_from_path_initns(const char *path, loff_t offset,
 					  enum kernel_read_file_id id)
 {
 	struct file *file;
-	struct path root;
 	ssize_t ret;
 
 	if (!path || !*path)
 		return -EINVAL;
 
-	task_lock(&init_task);
-	get_fs_root(init_task.fs, &root);
-	task_unlock(&init_task);
-
-	file = file_open_root(&root, path, O_RDONLY, 0);
-	path_put(&root);
+	scoped_with_init_fs()
+		file = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 

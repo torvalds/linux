@@ -5870,6 +5870,8 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->pcie_sgl_dma_pool) {
 		for (i = 0; i < ioc->scsiio_depth; i++) {
+			if (!ioc->pcie_sg_lookup[i].pcie_sgl)
+				continue;
 			dma_pool_free(ioc->pcie_sgl_dma_pool,
 					ioc->pcie_sg_lookup[i].pcie_sgl,
 					ioc->pcie_sg_lookup[i].pcie_sgl_dma);
@@ -8369,11 +8371,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		return r; /* scan_start and scan_finished support */
 	}
 
-	r = _base_send_port_enable(ioc);
-	if (r)
-		return r;
-
-	return r;
+	return _base_send_port_enable(ioc);
 }
 
 /**

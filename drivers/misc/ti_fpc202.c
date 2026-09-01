@@ -718,7 +718,7 @@ static void fpc202_remove(struct i2c_client *client)
 
 static const struct of_device_id fpc202_of_match[] = {
 	{ .compatible = "ti,fpc202" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, fpc202_of_match);
 

@@ -349,9 +349,9 @@ static const struct iio_chan_spec stx104_channels_diff[] = {
 	STX104_IN_CHAN(6, 1), STX104_IN_CHAN(7, 1)
 };
 
-static int stx104_reg_mask_xlate(struct gpio_regmap *const gpio, const unsigned int base,
-				 unsigned int offset, unsigned int *const reg,
-				 unsigned int *const mask)
+static int stx104_reg_mask_xlate(struct gpio_regmap *const gpio, enum gpio_regmap_operation op,
+				 const unsigned int base, unsigned int offset,
+				 unsigned int *const reg, unsigned int *const mask)
 {
 	/* Output lines are located at same register bit offsets as input lines */
 	if (offset >= 4)

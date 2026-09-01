@@ -33,14 +33,22 @@ int ext4_inode_journal_mode(struct inode *inode)
 static handle_t *ext4_get_nojournal(void)
 {
 	handle_t *handle = current->journal_info;
-	unsigned long ref_cnt = (unsigned long)handle;
 
-	BUG_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
+	BUG_ON(handle && !handle->h_invalid);
 
-	ref_cnt++;
-	handle = (handle_t *)ref_cnt;
-
-	current->journal_info = handle;
+	if (!handle) {
+		handle = jbd2_alloc_handle(GFP_NOFS);
+		if (!handle)
+			return ERR_PTR(-ENOMEM);
+		handle->h_invalid = 1;
+		/*
+		 * This is done by start_this_handle() if journalling
+		 * is enabled.
+		 */
+		handle->saved_alloc_context = memalloc_nofs_save();
+		current->journal_info = handle;
+	}
+	handle->h_ref++;
 	return handle;
 }
 
@@ -48,14 +56,14 @@ static handle_t *ext4_get_nojournal(void)
 /* Decrement the non-pointer handle value */
 static void ext4_put_nojournal(handle_t *handle)
 {
-	unsigned long ref_cnt = (unsigned long)handle;
+	BUG_ON(handle->h_ref == 0);
 
-	BUG_ON(ref_cnt == 0);
-
-	ref_cnt--;
-	handle = (handle_t *)ref_cnt;
-
-	current->journal_info = handle;
+	handle->h_ref--;
+	if (handle->h_ref == 0) {
+		memalloc_nofs_restore(handle->saved_alloc_context);
+		jbd2_free_handle(handle);
+		current->journal_info = NULL;
+	}
 }
 
 /*
@@ -350,6 +358,21 @@ int __ext4_journal_get_create_access(const char *where, unsigned int line,
 	return 0;
 }
 
+static void ext4_inode_attach_mmb(struct inode *inode)
+{
+	struct mapping_metadata_bhs *mmb;
+
+	/*
+	 * It's difficult to handle failure when marking buffer dirty without
+	 * leaving filesystem corrupted
+	 */
+	mmb = kmalloc_obj(*mmb, GFP_NOFS | __GFP_NOFAIL | __GFP_ACCOUNT);
+	mmb_init(mmb, &inode->i_data);
+	/* Someone swapped another mmb before us? */
+	if (cmpxchg(&EXT4_I(inode)->i_metadata_bhs, NULL, mmb))
+		kfree(mmb);
+}
+
 int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 				 handle_t *handle, struct inode *inode,
 				 struct buffer_head *bh)
@@ -389,11 +412,13 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 					 err);
 		}
 	} else {
-		if (inode)
-			mmb_mark_buffer_dirty(bh,
-					      &EXT4_I(inode)->i_metadata_bhs);
-		else
+		if (inode) {
+			if (!ext4_i_metadata_bhs(inode))
+				ext4_inode_attach_mmb(inode);
+			mmb_mark_buffer_dirty(bh, ext4_i_metadata_bhs(inode));
+		} else {
 			mark_buffer_dirty(bh);
+		}
 		if (inode && inode_needs_sync(inode)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {

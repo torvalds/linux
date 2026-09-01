@@ -35,7 +35,7 @@ static struct platform_driver loongson_spi_plat_driver = {
 	.driver	= {
 		.name	= "loongson-spi",
 		.bus = &platform_bus_type,
-		.pm = &loongson_spi_dev_pm_ops,
+		.pm = pm_sleep_ptr(&loongson_spi_dev_pm_ops),
 		.of_match_table = loongson_spi_id_table,
 	},
 };

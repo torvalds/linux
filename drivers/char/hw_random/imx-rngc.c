@@ -296,7 +296,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 			irq, imx_rngc_irq, 0, pdev->name, (void *)rngc);
 	if (ret) {
 		clk_disable_unprepare(rngc->clk);
-		return dev_err_probe(&pdev->dev, ret, "Can't get interrupt working.\n");
+		return ret;
 	}
 
 	if (self_test) {
@@ -313,8 +313,10 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 	devm_pm_runtime_enable(&pdev->dev);
 
 	ret = devm_hwrng_register(&pdev->dev, &rngc->rng);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(rngc->clk);
 		return dev_err_probe(&pdev->dev, ret, "hwrng registration failed\n");
+	}
 
 	dev_info(&pdev->dev,
 		"Freescale RNG%c registered (HW revision %d.%02d)\n",

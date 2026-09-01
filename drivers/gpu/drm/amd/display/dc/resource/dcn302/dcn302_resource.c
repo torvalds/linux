@@ -27,6 +27,7 @@
 #include "dcn302_resource.h"
 #include "dcn302/dcn302_dccg.h"
 #include "irq/dcn302/irq_service_dcn302.h"
+#include "basics/conversion.h"
 
 #include "dcn30/dcn30_dio_link_encoder.h"
 #include "dcn30/dcn30_dio_stream_encoder.h"
@@ -83,6 +84,7 @@
 #define DC_LOGGER_INIT(logger)
 
 static const struct dc_debug_options debug_defaults_drv = {
+		.limit_ffe = 3,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
 		.clock_trace = true,
@@ -1378,7 +1380,6 @@ static bool dcn302_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.hdmi_hpo = true;
-	dc->config.skip_frl_pretraining = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
@@ -1397,6 +1398,7 @@ static bool dcn302_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -1417,6 +1419,7 @@ static bool dcn302_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 

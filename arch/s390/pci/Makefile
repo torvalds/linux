@@ -3,6 +3,8 @@
 # Makefile for the s390 PCI subsystem.
 #
 
+CONTEXT_ANALYSIS := y
+
 obj-$(CONFIG_PCI)	+= pci.o pci_irq.o pci_clp.o \
 			   pci_event.o pci_debug.o pci_insn.o pci_mmio.o \
 			   pci_bus.o pci_kvm_hook.o pci_report.o pci_fixup.o

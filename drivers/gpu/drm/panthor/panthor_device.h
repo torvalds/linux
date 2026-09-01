@@ -161,6 +161,9 @@ struct panthor_device {
 	/** @csif_info: Command stream interface information. */
 	struct drm_panthor_csif_info csif_info;
 
+	/** @mmu_info: MMU info */
+	struct drm_panthor_mmu_info mmu_info;
+
 	/** @hw: GPU-specific data. */
 	struct panthor_hw *hw;
 

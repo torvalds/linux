@@ -8,7 +8,7 @@ title:
   Xilinx CAN and CANFD controller
 
 maintainers:
-  - Appana Durga Kedareswara rao <appana.durga.rao@xilinx.com>
+  - Harini T <harini.t@amd.com>
 
 properties:
   compatible:
@@ -52,6 +52,9 @@ properties:
   xlnx,has-ecc:
     $ref: /schemas/types.yaml#/definitions/flag
     description: CAN TX_OL, TX_TL and RX FIFOs have ECC support(AXI CAN)
+
+  phys:
+    maxItems: 1
 
 required:
   - compatible

@@ -75,6 +75,16 @@ module_param(lapic_timer_advance, bool, 0444);
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 
+/* apic attention bits */
+#define KVM_APIC_CHECK_VAPIC	0
+/*
+ * The following bit is set with PV-EOI, unset on EOI.
+ * We detect PV-EOI changes by guest by comparing
+ * this bit with PV-EOI in guest memory.
+ * See the implementation in apic_update_pv_eoi.
+ */
+#define KVM_APIC_PV_EOI_PENDING	1
+
 static bool __read_mostly vector_hashing_enabled = true;
 module_param_named(vector_hashing, vector_hashing_enabled, bool, 0444);
 
@@ -1487,8 +1497,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	default:
-		printk(KERN_ERR "TODO: unsupported delivery mode %x\n",
-		       delivery_mode);
+		WARN_ON_ONCE(1);
 		break;
 	}
 	return result;

@@ -218,7 +218,7 @@ static ssize_t show_cpus_attr(struct device *dev,
 {
 	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
 
-	return cpumap_print_to_pagebuf(true, buf, ca->map);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(ca->map));
 }
 
 #define _CPU_ATTR(name, map) \

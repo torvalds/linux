@@ -317,7 +317,9 @@ These profiles represent different hints that are provided
 to the low-level firmware about the user's desired energy vs efficiency
 tradeoff.  ``default`` represents the epp value is set by platform
 firmware. ``custom`` designates that integer values 0-255 may be written
-as well.  This attribute is read-only.
+as well. ``dynamic`` designates that the EPP is modified dynamically
+on kernel events. See ``Dynamic energy performance profile`` section below to
+know more about the ``dynamic`` mode. This attribute is read-only.
 
 ``energy_performance_preference``
 
@@ -326,13 +328,11 @@ and user can change current preference according to energy or performance needs
 Coarse named profiles are available in the attribute
 ``energy_performance_available_preferences``.
 Users can also write individual integer values between 0 to 255.
-When dynamic EPP is enabled, writes to energy_performance_preference are blocked
-even when EPP feature is enabled by platform firmware. Lower epp values shift the bias
-towards improved performance while a higher epp value shifts the bias towards
-power-savings. The exact impact can change from one platform to the other.
-If a valid integer was last written, then a number will be returned on future reads.
-If a valid string was last written then a string will be returned on future reads.
-This attribute is read-write.
+Lower epp values shift the bias towards improved performance while a higher epp
+value shifts the bias towards power-savings. The exact impact can change from
+one platform to the other. If a valid integer was last written, then a number
+will be returned on future reads. If a valid string was last written then a
+string will be returned on future reads. This attribute is read-write.
 
 ``boost``
 The `boost` sysfs attribute provides control over the CPU core
@@ -356,21 +356,20 @@ Other performance and frequency values can be read back from
 Dynamic energy performance profile
 ==================================
 The amd-pstate driver supports dynamically selecting the energy performance
-profile based on whether the machine is running on AC or DC power.
+profile based on the system profile and the current power source in active mode.
 
-Whether this behavior is enabled by default depends on the kernel command line option
-``amd_dynamic_epp`` is set. This behavior can also be overridden
-at runtime by the sysfs file ``/sys/devices/system/cpu/amd_pstate/dynamic_epp``.
+The ``dynamic`` mode is listed in
+``/sys/devices/system/cpu/cpuX/cpufreq/energy_performance_available_preferences``
+when available while running under the ``powersave`` governor. The ``dynamic``
+mode can be toggled on by writing the same to the sysfs file
+``/sys/devices/system/cpu/cpuX/cpufreq/energy_performance_preference`` when
+available.
 
-When set to enabled, the driver will select a different energy performance
-profile when the machine is running on battery or AC power. The driver will
-also register with the platform profile handler to receive notifications of
-user desired power state and react to those.
-When set to disabled, the driver will not change the energy performance profile
-based on the power source and will not react to user desired power state.
-
-Attempting to manually write to the ``energy_performance_preference`` sysfs
-file will fail when ``dynamic_epp`` is enabled.
+When ``energy_performance_preference`` is set to ``dynamic``, the driver will
+select a different energy performance profile when the machine is running on
+battery or AC power. The driver will also register with the platform profile
+handler to receive notifications of user desired power state and react to
+those.
 
 ``amd-pstate`` vs ``acpi-cpufreq``
 ======================================
@@ -472,7 +471,7 @@ update the core ranking and set the cpu's priority.
 Kernel Parameters
 -----------------
 
-``amd-pstate`` peferred core`` has two states: enable and disable.
+``amd-pstate`` preferred core has two states: enable and disable.
 Enable/disable states can be chosen by different kernel parameters.
 Default enable ``amd-pstate`` preferred core.
 

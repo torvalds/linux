@@ -736,14 +736,14 @@ static inline int
 rdev_remain_on_channel(struct cfg80211_registered_device *rdev,
 		       struct wireless_dev *wdev,
 		       struct ieee80211_channel *chan,
-		       unsigned int duration, u64 *cookie, const u8 *rx_addr)
+		       unsigned int duration, u64 cookie, const u8 *rx_addr)
 {
 	int ret;
 	trace_rdev_remain_on_channel(&rdev->wiphy, wdev, chan, duration,
 				     rx_addr);
 	ret = rdev->ops->remain_on_channel(&rdev->wiphy, wdev, chan,
 					   duration, cookie, rx_addr);
-	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
+	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	return ret;
 }
 
@@ -761,12 +761,12 @@ rdev_cancel_remain_on_channel(struct cfg80211_registered_device *rdev,
 static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 			       struct wireless_dev *wdev,
 			       struct cfg80211_mgmt_tx_params *params,
-			       u64 *cookie)
+			       u64 cookie)
 {
 	int ret;
 	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, params);
 	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, params, cookie);
-	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
+	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	return ret;
 }
 
@@ -775,7 +775,7 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       const void *buf, size_t len,
 				       const u8 *dest, __be16 proto,
 				       const bool noencrypt, int link,
-				       u64 *cookie)
+				       u64 cookie)
 {
 	int ret;
 	trace_rdev_tx_control_port(&rdev->wiphy, dev, buf, len,
@@ -783,7 +783,7 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 	ret = rdev->ops->tx_control_port(&rdev->wiphy, dev, buf, len,
 					 dest, proto, noencrypt, link, cookie);
 	if (cookie)
-		trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
+		trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	else
 		trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
@@ -948,14 +948,14 @@ static inline int rdev_tdls_oper(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
-static inline int rdev_probe_client(struct cfg80211_registered_device *rdev,
-				    struct net_device *dev, const u8 *peer,
-				    u64 *cookie)
+static inline int rdev_probe_peer(struct cfg80211_registered_device *rdev,
+				  struct net_device *dev, const u8 *peer,
+				  u64 cookie)
 {
 	int ret;
-	trace_rdev_probe_client(&rdev->wiphy, dev, peer);
-	ret = rdev->ops->probe_client(&rdev->wiphy, dev, peer, cookie);
-	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
+	trace_rdev_probe_peer(&rdev->wiphy, dev, peer);
+	ret = rdev->ops->probe_peer(&rdev->wiphy, dev, peer, cookie);
+	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	return ret;
 }
 

@@ -209,11 +209,11 @@
 		clock-names = "apb_pclk";
 	};
 
-        scc@7fff0000 {
+	scc@7fff0000 {
 		compatible = "arm,vexpress-scc,v2p-ca15_a7", "arm,vexpress-scc";
 		reg = <0 0x7fff0000 0 0x1000>;
 		interrupts = <0 95 4>;
-        };
+	};
 
 	timer {
 		compatible = "arm,armv7-timer";

@@ -76,11 +76,14 @@ static int mtk_socinfo_create_socinfo_node(struct mtk_socinfo *mtk_socinfop)
 	if (!attrs)
 		return -ENOMEM;
 
-	if (data->marketing_name != NULL && data->marketing_name[0] != '\0')
+	if (data->marketing_name != NULL && data->marketing_name[0] != '\0') {
 		attrs->family = devm_kasprintf(mtk_socinfop->dev, GFP_KERNEL, "MediaTek %s",
 					       data->marketing_name);
-	else
+		if (!attrs->family)
+			return -ENOMEM;
+	} else {
 		attrs->family = soc_manufacturer;
+	}
 
 	attrs->soc_id = data->soc_name;
 	/*

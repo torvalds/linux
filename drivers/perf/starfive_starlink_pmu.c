@@ -130,7 +130,7 @@ cpumask_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct starlink_pmu *starlink_pmu = to_starlink_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, &starlink_pmu->cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&starlink_pmu->cpumask));
 }
 
 static DEVICE_ATTR_RO(cpumask);
@@ -435,7 +435,7 @@ static int starlink_setup_irqs(struct starlink_pmu *starlink_pmu,
 	ret = devm_request_irq(&pdev->dev, irq, starlink_pmu_handle_irq,
 			       0, STARLINK_PMU_PDEV_NAME, starlink_pmu);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to request IRQ\n");
+		return ret;
 
 	starlink_pmu->irq = irq;
 

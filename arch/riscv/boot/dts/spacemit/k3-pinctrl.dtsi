@@ -79,6 +79,29 @@
 	};
 
 	/omit-if-no-ref/
+	i2c1_1_cfg: i2c1-1-cfg {
+		i2c1-1-pins {
+			pinmux = <K3_PADCONF(54, 5)>,	/* i2c1 scl */
+				 <K3_PADCONF(55, 5)>;	/* i2c1 sda */
+
+			bias-pull-up = <1>;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	/omit-if-no-ref/
+	i2c2_1_cfg: i2c2-1-cfg {
+		i2c2-1-pins {
+			pinmux = <K3_PADCONF(46, 5)>,	/* i2c2 scl */
+				 <K3_PADCONF(47, 5)>;	/* i2c2 sda */
+
+			bias-pull-up = <0>;
+			drive-strength = <25>;
+		};
+	};
+
+	/omit-if-no-ref/
 	i2c8_cfg: i2c8-cfg {
 		i2c8-pins {
 			pinmux = <K3_PADCONF(128, 0)>,	/* i2c8 scl */
@@ -680,6 +703,27 @@
 	};
 
 	/omit-if-no-ref/
+	qspi_cfg: qspi-cfg {
+		qspi-pins {
+			pinmux = <K3_PADCONF(138, 0)>,	/* qspi dat0 */
+				 <K3_PADCONF(139, 0)>,	/* qspi dat1 */
+				 <K3_PADCONF(140, 0)>,	/* qspi dat2 */
+				 <K3_PADCONF(141, 0)>,	/* qspi dat3 */
+				 <K3_PADCONF(144, 0)>;	/* qspi clk */
+
+			bias-disable;
+			drive-strength = <25>;
+		};
+
+		qspi-cs0-pins {
+			pinmux = <K3_PADCONF(142, 0)>;	/* qspi cs0 */
+
+			bias-disable;
+			drive-strength = <25>;
+		};
+	};
+
+	/omit-if-no-ref/
 	uart0_0_cfg: uart0-0-cfg {
 		uart0-0-pins {
 			pinmux = <K3_PADCONF(149, 2)>,	/* uart0 tx */
@@ -687,6 +731,50 @@
 
 			bias-pull-up = <0>;
 			drive-strength = <25>;
+		};
+	};
+
+	mmc1_cfg: mmc1-cfg {
+		mmc1-data-cmd-pins {
+			pinmux = <K3_PADCONF(132, 0)>,	/* mmc1 dat3 */
+				 <K3_PADCONF(133, 0)>,	/* mmc1 dat2 */
+				 <K3_PADCONF(134, 0)>,	/* mmc1 dat1 */
+				 <K3_PADCONF(135, 0)>,	/* mmc1 dat0 */
+				 <K3_PADCONF(136, 0)>;	/* mmc1 cmd */
+
+			bias-pull-up = <0>;
+			drive-strength = <25>;
+			power-source = <3300>;
+		};
+
+		mmc1-clk-pins {
+			pinmux = <K3_PADCONF(137, 0)>;	/* mmc1 clk */
+
+			bias-pull-down;
+			drive-strength = <25>;
+			power-source = <3300>;
+		};
+	};
+
+	mmc1_uhs_cfg: mmc1-uhs-cfg {
+		mmc1-uhs-data-cmd-pins {
+			pinmux = <K3_PADCONF(132, 0)>,	/* mmc1 dat3 */
+				 <K3_PADCONF(133, 0)>,	/* mmc1 dat2 */
+				 <K3_PADCONF(134, 0)>,	/* mmc1 dat1 */
+				 <K3_PADCONF(135, 0)>,	/* mmc1 dat0 */
+				 <K3_PADCONF(136, 0)>;	/* mmc1 cmd */
+
+			bias-pull-up = <0>;
+			drive-strength = <21>;
+			power-source = <1800>;
+		};
+
+		mmc1-uhs-clk-pins {
+			pinmux = <K3_PADCONF(137, 0)>;	/* mmc1 clk */
+
+			bias-pull-down;
+			drive-strength = <21>;
+			power-source = <1800>;
 		};
 	};
 };

@@ -1717,8 +1717,7 @@ config FB_MB862XX_PCI_GDC
 config FB_MB862XX_LIME
 	bool "Lime GDC"
 	depends on OF && PPC
-	select FB_FOREIGN_ENDIAN
-	select FB_LITTLE_ENDIAN
+	depends on FB_LITTLE_ENDIAN || FB_BOTH_ENDIAN
 	help
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
 

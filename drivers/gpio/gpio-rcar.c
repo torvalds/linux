@@ -59,7 +59,6 @@ struct gpio_rcar_priv {
 #define MSKCLR		0x1c	/* Interrupt Mask Clear Register */
 #define POSNEG		0x20	/* Positive/Negative Logic Select Register */
 #define EDGLEVEL	0x24	/* Edge/level Select Register */
-#define FILONOFF	0x28	/* Chattering Prevention On/Off Register */
 #define OUTDTSEL	0x40	/* Output Data Select Register */
 #define BOTHEDGE	0x4c	/* One Edge/Both Edge Select Register */
 #define INEN		0x50	/* General Input Enable Register */

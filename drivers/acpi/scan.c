@@ -273,13 +273,9 @@ static int acpi_scan_check_and_detach(struct acpi_device *adev, void *p)
 		}
 	}
 
-	adev->flags.match_driver = false;
-	if (handler) {
-		if (handler->detach)
-			handler->detach(adev);
-	} else {
-		device_release_driver(&adev->dev);
-	}
+	if (handler && handler->detach)
+		handler->detach(adev);
+
 	/*
 	 * Most likely, the device is going away, so put it into D3cold before
 	 * that.
@@ -524,11 +520,9 @@ static void acpi_device_release(struct device *dev)
 	kfree(acpi_dev);
 }
 
-static void acpi_device_del(struct acpi_device *device)
+static void acpi_device_cleanup(struct acpi_device *device)
 {
 	struct acpi_device_bus_id *acpi_device_bus_id;
-
-	mutex_lock(&acpi_device_lock);
 
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
 		if (!strcmp(acpi_device_bus_id->bus_id,
@@ -544,6 +538,13 @@ static void acpi_device_del(struct acpi_device *device)
 		}
 
 	list_del(&device->wakeup_list);
+}
+
+static void acpi_device_del(struct acpi_device *device)
+{
+	mutex_lock(&acpi_device_lock);
+
+	acpi_device_cleanup(device);
 
 	mutex_unlock(&acpi_device_lock);
 
@@ -803,7 +804,7 @@ int acpi_device_add(struct acpi_device *device)
 err:
 	mutex_lock(&acpi_device_lock);
 
-	list_del(&device->wakeup_list);
+	acpi_device_cleanup(device);
 
 err_unlock:
 	mutex_unlock(&acpi_device_lock);
@@ -854,6 +855,7 @@ static const char * const acpi_ignore_dep_ids[] = {
 
 /* List of HIDs for which we honor deps of matching ACPI devs, when checking _DEP lists. */
 static const char * const acpi_honor_dep_ids[] = {
+	"ARMH0003", /* ARM GICv5 IWB */
 	"INT3472", /* Camera sensor PMIC / clk and regulator info */
 	"INTC1059", /* IVSC (TGL) driver must be loaded to allow i2c access to camera sensors */
 	"INTC1095", /* IVSC (ADL) driver must be loaded to allow i2c access to camera sensors */
@@ -862,6 +864,7 @@ static const char * const acpi_honor_dep_ids[] = {
 	"INTC10DE", /* CVS (LNL) driver must be loaded to allow camera streaming */
 	"INTC10E0", /* CVS (ARL) driver must be loaded to allow camera streaming */
 	"INTC10E1", /* CVS (PTL) driver must be loaded to allow camera streaming */
+	"INTC10FA", /* CVS (NVL) driver must be loaded to allow camera streaming */
 	"RSCV0001", /* RISC-V PLIC */
 	"RSCV0002", /* RISC-V APLIC */
 	"RSCV0005", /* RISC-V SBI MPXY MBOX */
@@ -1752,6 +1755,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 * by the drivers/platform/x86/serial-multi-instantiate.c driver, which
 	 * knows which client device id to use for each resource.
 	 */
+		{"AWDZ8399", },
 		{"BSG1160", },
 		{"BSG2150", },
 		{"CSC3551", },
@@ -1768,7 +1772,6 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 * Some ACPI devs contain SerialBus resources even though they are not
 	 * attached to a serial bus at all.
 	 */
-		{ACPI_VIDEO_HID, },
 		{"MSHW0028", },
 	/*
 	 * HIDs of device with an UartSerialBusV2 resource for which userspace
@@ -1790,6 +1793,9 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	     fwnode_property_present(&device->fwnode, "i2cAddress") ||
 	     fwnode_property_present(&device->fwnode, "baud")))
 		return true;
+
+	if (acpi_dev_is_video_device(device))
+		return false;
 
 	if (!acpi_match_device_ids(device, ignore_serial_bus_ids))
 		return false;
@@ -1815,13 +1821,13 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->dev.release = release;
 	device->dev.bus = &acpi_bus_type;
 	device->dev.groups = acpi_groups;
+	device_set_pm_not_required(&device->dev);
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
 	acpi_set_device_status(device, ACPI_STA_DEFAULT);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
 	acpi_init_properties(device);
 	acpi_bus_get_flags(device);
-	device->flags.match_driver = false;
 	device->flags.initialized = true;
 	device->flags.enumeration_by_parent =
 		acpi_device_enumeration_by_parent(device);
@@ -2208,29 +2214,27 @@ static void acpi_create_video_bus_device(struct acpi_device *adev,
 	struct auxiliary_device *aux_dev;
 	static unsigned int aux_dev_id;
 
+	struct device *phys_parent __free(put_device) = acpi_bus_get_primary_device(parent);
+	if (!phys_parent)
+		return;
+
 	aux_dev = kzalloc_obj(*aux_dev);
 	if (!aux_dev)
 		return;
 
 	aux_dev->id = aux_dev_id++;
 	aux_dev->name = "video_bus";
-	aux_dev->dev.parent = acpi_get_first_physical_node(parent);
-	if (!aux_dev->dev.parent)
-		goto err;
-
+	aux_dev->dev.parent = phys_parent;
 	aux_dev->dev.release = acpi_video_bus_device_release;
 
-	if (auxiliary_device_init(aux_dev))
-		goto err;
+	if (auxiliary_device_init(aux_dev)) {
+		kfree(aux_dev);
+		return;
+	}
 
 	ACPI_COMPANION_SET(&aux_dev->dev, adev);
 	if (__auxiliary_device_add(aux_dev, "acpi"))
 		auxiliary_device_uninit(aux_dev);
-
-	return;
-
-err:
-	kfree(aux_dev);
 }
 
 struct acpi_scan_system_dev {
@@ -2375,15 +2379,10 @@ static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 	if (ret < 0)
 		return 0;
 
-	device->flags.match_driver = true;
 	if (ret > 0 && !device->flags.enumeration_by_parent) {
 		acpi_device_set_enumerated(device);
 		goto ok;
 	}
-
-	ret = device_attach(&device->dev);
-	if (ret < 0)
-		return 0;
 
 	if (device->pnp.type.platform_id || device->pnp.type.backlight ||
 	    device->flags.enumeration_by_parent)

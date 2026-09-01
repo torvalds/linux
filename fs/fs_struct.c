@@ -8,6 +8,7 @@
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
 #include "internal.h"
+#include "mount.h"
 
 /*
  * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.
@@ -60,8 +61,11 @@ void chroot_fs_refs(const struct path *old_root, const struct path *new_root)
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, p) {
+		if (p->flags & (PF_KTHREAD | PF_EXITING | PF_DUMPCORE))
+			continue;
+
 		task_lock(p);
-		fs = p->fs;
+		fs = p->real_fs;
 		if (fs) {
 			int hits = 0;
 			write_seqlock(&fs->seq);
@@ -89,12 +93,13 @@ void free_fs_struct(struct fs_struct *fs)
 
 void exit_fs(struct task_struct *tsk)
 {
-	struct fs_struct *fs = tsk->fs;
+	struct fs_struct *fs = tsk->real_fs;
 
 	if (fs) {
 		int kill;
 		task_lock(tsk);
 		read_seqlock_excl(&fs->seq);
+		tsk->real_fs = NULL;
 		tsk->fs = NULL;
 		kill = !--fs->users;
 		read_sequnlock_excl(&fs->seq);
@@ -126,7 +131,7 @@ struct fs_struct *copy_fs_struct(struct fs_struct *old)
 
 int unshare_fs_struct(void)
 {
-	struct fs_struct *fs = current->fs;
+	struct fs_struct *fs = current->real_fs;
 	struct fs_struct *new_fs = copy_fs_struct(fs);
 	int kill;
 
@@ -135,8 +140,10 @@ int unshare_fs_struct(void)
 
 	task_lock(current);
 	read_seqlock_excl(&fs->seq);
+	VFS_WARN_ON_ONCE(fs != current->fs);
 	kill = !--fs->users;
 	current->fs = new_fs;
+	current->real_fs = new_fs;
 	read_sequnlock_excl(&fs->seq);
 	task_unlock(current);
 
@@ -147,9 +154,99 @@ int unshare_fs_struct(void)
 }
 EXPORT_SYMBOL_GPL(unshare_fs_struct);
 
+/*
+ * PID 1 may choose to stop sharing fs_struct state with us.
+ * Either via unshare(CLONE_FS) or unshare(CLONE_NEWNS). Of
+ * course, PID 1 could have chosen to create arbitrary process
+ * trees that all share fs_struct state via CLONE_FS. This is a
+ * strong statement: We only care about PID 1 aka the thread-group
+ * leader so subthread's fs_struct state doesn't matter.
+ *
+ * PID 1 unsharing fs_struct state is a bug. PID 1 relies on
+ * various kthreads to be able to perform work based on its
+ * fs_struct state. Breaking that contract sucks for both sides.
+ * So just don't bother with extra work for this. No sane init
+ * system should ever do this.
+ *
+ * On older kernels if PID 1 unshared its filesystem state with us the
+ * kernel simply used the stale fs_struct state implicitly pinning
+ * anything that PID 1 had last used. Even if PID 1 might've moved on to
+ * some completely different fs_struct state and might've even unmounted
+ * the old root.
+ *
+ * This has hilarious consequences: Think continuing to dump coredump
+ * state into an implicitly pinned directory somewhere. Calling random
+ * binaries in the old rootfs via usermodehelpers.
+ *
+ * Be aggressive about this: We simply reject operating on stale
+ * fs_struct state by reverting to nullfs. Every kworker that does
+ * lookups after this point will fail. Every usermodehelper call will
+ * fail. Tough luck but let's be kind and emit a warning to userspace.
+ */
+static inline void validate_fs_switch(struct fs_struct *old_fs)
+{
+	might_sleep();
+
+	if (likely(current->pid != 1))
+		return;
+	/* @old_fs may be dangling but for comparison it's fine */
+	if (old_fs != userspace_init_fs)
+		return;
+	pr_warn("VFS: Pid 1 stopped sharing filesystem state\n");
+	set_fs_root(userspace_init_fs, &init_fs.root);
+	set_fs_pwd(userspace_init_fs, &init_fs.root);
+}
+
+struct fs_struct *switch_fs_struct(struct fs_struct *new_fs)
+{
+	struct fs_struct *fs;
+
+	scoped_guard(task_lock, current) {
+		fs = current->fs;
+		VFS_WARN_ON_ONCE(fs != current->real_fs);
+		read_seqlock_excl(&fs->seq);
+		current->fs = new_fs;
+		current->real_fs = new_fs;
+		if (--fs->users)
+			new_fs = NULL;
+		else
+			new_fs = fs;
+		read_sequnlock_excl(&fs->seq);
+	}
+
+	validate_fs_switch(fs);
+	return new_fs;
+}
+
 /* to be mentioned only in INIT_TASK */
 struct fs_struct init_fs = {
 	.users		= 1,
 	.seq		= __SEQLOCK_UNLOCKED(init_fs.seq),
 	.umask		= 0022,
 };
+
+struct fs_struct *userspace_init_fs __ro_after_init;
+EXPORT_SYMBOL_GPL(userspace_init_fs);
+
+void __init init_userspace_fs(void)
+{
+	struct mount *m;
+	struct path root;
+
+	/* Move PID 1 from nullfs into the initramfs. */
+	m = topmost_overmount(current->nsproxy->mnt_ns->root);
+	root.mnt = &m->mnt;
+	root.dentry = root.mnt->mnt_root;
+
+	VFS_WARN_ON_ONCE(current->pid != 1);
+
+	set_fs_root(current->fs, &root);
+	set_fs_pwd(current->fs, &root);
+
+	/* Hold a reference for the global pointer. */
+	read_seqlock_excl(&current->fs->seq);
+	current->fs->users++;
+	read_sequnlock_excl(&current->fs->seq);
+
+	userspace_init_fs = current->fs;
+}

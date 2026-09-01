@@ -16,7 +16,7 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 	while (pHalData->SdioTxOQTFreeSpace < agg_num) {
 		if (
 			(padapter->bSurpriseRemoved) ||
-			(padapter->bDriverStopped)
+			(padapter->driver_stopped)
 		)
 			return false;
 
@@ -89,7 +89,7 @@ query_free_page:
 
 	if (
 		(padapter->bSurpriseRemoved) ||
-		(padapter->bDriverStopped)
+		(padapter->driver_stopped)
 	)
 		goto free_xmitbuf;
 
@@ -130,7 +130,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 		return _FAIL;
 	}
 
-	ret = (padapter->bDriverStopped) || (padapter->bSurpriseRemoved);
+	ret = (padapter->driver_stopped) || (padapter->bSurpriseRemoved);
 	if (ret)
 		return _FAIL;
 
@@ -285,7 +285,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				pxmitframe->buf_addr = pxmitbuf->ptail;
 
 				ret = rtw_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
-				if (ret != _SUCCESS) {
+				if (ret) {
 					netdev_err(padapter->pnetdev,
 						   "%s: coalesce failed with error %d\n",
 						   __func__, ret);
@@ -362,7 +362,7 @@ static s32 rtl8723bs_xmit_handler(struct adapter *padapter)
 
 next:
 	if (
-		(padapter->bDriverStopped) ||
+		(padapter->driver_stopped) ||
 		(padapter->bSurpriseRemoved)
 	)
 		return _FAIL;
@@ -529,7 +529,6 @@ s32 rtl8723bs_init_xmit_priv(struct adapter *padapter)
 
 	phal = GET_HAL_DATA(padapter);
 
-	spin_lock_init(&phal->SdioTxFIFOFreePageLock);
 	init_completion(&xmitpriv->SdioXmitStart);
 	init_completion(&xmitpriv->SdioXmitTerminate);
 

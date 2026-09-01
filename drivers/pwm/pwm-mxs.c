@@ -163,7 +163,7 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id mxs_pwm_dt_ids[] = {
-	{ .compatible = "fsl,imx23-pwm", },
+	{ .compatible = "fsl,imx23-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_pwm_dt_ids);

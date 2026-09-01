@@ -373,6 +373,6 @@ struct fsl_otg_config {
 
 #define FSL_OTG_NAME		"fsl-usb2-otg"
 
-void fsl_otg_add_timer(struct otg_fsm *fsm, void *timer);
-void fsl_otg_del_timer(struct otg_fsm *fsm, void *timer);
-void fsl_otg_pulse_vbus(void);
+static void fsl_otg_add_timer(struct otg_fsm *fsm, void *timer);
+static void fsl_otg_del_timer(struct otg_fsm *fsm, void *timer);
+static void fsl_otg_pulse_vbus(void);

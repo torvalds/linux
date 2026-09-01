@@ -81,7 +81,7 @@ bool ia_css_util_res_leq(
     struct ia_css_resolution b);
 
 /* ISP2401 */
-/**
+/*
  * @brief Check if resolution is zero
  *
  * @param[in] resolution The resolution to check

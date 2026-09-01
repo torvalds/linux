@@ -713,14 +713,18 @@ p_end: .8byte _end - copy_to_here
 _GLOBAL(copy_and_flush)
 	addi	r5,r5,-8
 	addi	r6,r6,-8
-4:	li	r0,8			/* Use the smallest common	*/
-					/* denominator cache line	*/
-					/* size.  This results in	*/
-					/* extra cache line flushes	*/
-					/* but operation is correct.	*/
-					/* Can't get cache line size	*/
-					/* from NACA as it is being	*/
-					/* moved too.			*/
+4:	li	r0,8			/* r0 is the number of 8-byte words	*/
+					/* to copy per cache sync iteration.	*/
+					/* 8 words * 8 bytes = 64 bytes. 64B is	*/
+					/* the current default cache line size.	*/
+					/* This is a loop count, not a byte	*/
+					/* count. Increasing it may skip	*/
+					/* dcbst/icbi for lines in between and	*/
+					/* leave stale instructions in icache.	*/
+					/* This results in extra cache line	*/
+					/* flushes but operation is correct.	*/
+					/* Can't get cache line size from NACA	*/
+					/* as it is being moved too.		*/
 
 	mtctr	r0			/* put # words/line in ctr	*/
 3:	addi	r6,r6,8			/* copy a cache line		*/

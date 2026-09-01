@@ -54,7 +54,7 @@ void delayacct_init(void)
 	set_delayacct(delayacct_on);
 }
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static int sysctl_delayacct(const struct ctl_table *table, int write, void *buffer,
 		     size_t *lenp, loff_t *ppos)
 {

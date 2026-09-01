@@ -491,11 +491,11 @@ static int parse_reply_info_readdir(void **p, void *end,
 		struct inode *inode = d_inode(req->r_dentry);
 		struct ceph_inode_info *ci = ceph_inode(inode);
 		struct ceph_mds_reply_dir_entry *rde = info->dir_entries + i;
-		struct fscrypt_str tname = FSTR_INIT(NULL, 0);
 		struct fscrypt_str oname = FSTR_INIT(NULL, 0);
 		struct ceph_fname fname;
 		u32 altname_len, _name_len;
 		u8 *altname, *_name;
+		u8 *tname = NULL;
 
 		/* dentry */
 		ceph_decode_32_safe(p, end, _name_len, bad);
@@ -541,9 +541,13 @@ static int parse_reply_info_readdir(void **p, void *end,
 			 * to do the base64_decode in-place. It's
 			 * safe because the decoded string should
 			 * always be shorter, which is 3/4 of origin
-			 * string.
+			 * string. If this message was allocated with
+			 * vmalloc() (happens, but rarely), leave it
+			 * NULL and let ceph_fname_to_usr() allocate
+			 * suitable temporary working space instead.
 			 */
-			tname.name = _name;
+			if (likely(!is_vmalloc_addr(_name)))
+				tname = _name;
 
 			/*
 			 * Set oname to _name too, and this will be
@@ -560,7 +564,7 @@ static int parse_reply_info_readdir(void **p, void *end,
 			oname.len = altname_len;
 		}
 		rde->is_nokey = false;
-		err = ceph_fname_to_usr(&fname, &tname, &oname, &rde->is_nokey);
+		err = ceph_fname_to_usr(&fname, tname, &oname, &rde->is_nokey);
 		if (err) {
 			pr_err_client(cl, "unable to decode %.*s, got %d\n",
 				      _name_len, _name, err);
@@ -615,10 +619,36 @@ bad:
 
 #define DELEGATED_INO_AVAILABLE		xa_mk_value(1)
 
+static int ceph_insert_deleg_ino(struct ceph_mds_session *s, u64 ino)
+{
+	struct ceph_client *cl = s->s_mdsc->fsc->client;
+	int err;
+
+	/*
+	 * Cap how many delegated inodes a single session may hold. This is
+	 * the only place that grows the count, so atomic_add_unless() bounds
+	 * it at exactly CEPH_MAX_DELEG_INOS; s_num_deleg_inos can never exceed
+	 * that.
+	 */
+	if (!atomic_add_unless(&s->s_num_deleg_inos, 1, CEPH_MAX_DELEG_INOS)) {
+		pr_warn_ratelimited_client(cl,
+			"MDS session already holds %d delegated inodes\n",
+			CEPH_MAX_DELEG_INOS);
+		return -EOVERFLOW;
+	}
+
+	err = xa_insert(&s->s_delegated_inos, ino, DELEGATED_INO_AVAILABLE,
+			GFP_KERNEL);
+	if (err)
+		atomic_dec(&s->s_num_deleg_inos);
+	return err;
+}
+
 static int ceph_parse_deleg_inos(void **p, void *end,
 				 struct ceph_mds_session *s)
 {
 	struct ceph_client *cl = s->s_mdsc->fsc->client;
+	u64 msg_deleg_inos = 0;
 	u32 sets;
 
 	ceph_decode_32_safe(p, end, sets, bad);
@@ -636,16 +666,34 @@ static int ceph_parse_deleg_inos(void **p, void *end,
 				start, len);
 			continue;
 		}
+
+		/*
+		 * Bound the number of inodes one reply may delegate.
+		 * ceph_insert_deleg_ino() separately caps the per-session
+		 * population, so this only has to stop one reply from spinning
+		 * the insert loop under an attacker-controlled len.
+		 */
+		if (len > (u64)CEPH_MAX_DELEG_INOS ||
+		    msg_deleg_inos > (u64)CEPH_MAX_DELEG_INOS - len) {
+			pr_warn_ratelimited_client(cl,
+				"MDS reply delegates too many inodes (have %llu, +%llu, max %d)\n",
+				msg_deleg_inos, len, CEPH_MAX_DELEG_INOS);
+			return -EIO;
+		}
+		msg_deleg_inos += len;
+
 		while (len--) {
-			int err = xa_insert(&s->s_delegated_inos, start++,
-					    DELEGATED_INO_AVAILABLE,
-					    GFP_KERNEL);
+			int err = ceph_insert_deleg_ino(s, start++);
+
 			if (!err) {
 				doutc(cl, "added delegated inode 0x%llx\n", start - 1);
 			} else if (err == -EBUSY) {
 				pr_warn_client(cl,
 					"MDS delegated inode 0x%llx more than once.\n",
 					start - 1);
+			} else if (err == -EOVERFLOW) {
+				/* ceph_insert_deleg_ino() already warned. */
+				return -EIO;
 			} else {
 				return err;
 			}
@@ -663,16 +711,17 @@ u64 ceph_get_deleg_ino(struct ceph_mds_session *s)
 
 	xa_for_each(&s->s_delegated_inos, ino, val) {
 		val = xa_erase(&s->s_delegated_inos, ino);
-		if (val == DELEGATED_INO_AVAILABLE)
+		if (val == DELEGATED_INO_AVAILABLE) {
+			atomic_dec(&s->s_num_deleg_inos);
 			return ino;
+		}
 	}
 	return 0;
 }
 
 int ceph_restore_deleg_ino(struct ceph_mds_session *s, u64 ino)
 {
-	return xa_insert(&s->s_delegated_inos, ino, DELEGATED_INO_AVAILABLE,
-			 GFP_KERNEL);
+	return ceph_insert_deleg_ino(s, ino);
 }
 #else /* BITS_PER_LONG == 64 */
 /*
@@ -1059,6 +1108,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	INIT_LIST_HEAD(&s->s_waiting);
 	INIT_LIST_HEAD(&s->s_unsafe);
 	xa_init(&s->s_delegated_inos);
+	atomic_set(&s->s_num_deleg_inos, 0);
 	INIT_LIST_HEAD(&s->s_cap_releases);
 	INIT_WORK(&s->s_cap_release_work, ceph_cap_release_work);
 
@@ -1800,16 +1850,19 @@ static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
  * session caps
  */
 
-static void detach_cap_releases(struct ceph_mds_session *session,
-				struct list_head *target)
+static int detach_cap_releases(struct ceph_mds_session *session,
+			       struct list_head *target)
 {
 	struct ceph_client *cl = session->s_mdsc->fsc->client;
+	const int num_cap_releases = session->s_num_cap_releases;
 
 	lockdep_assert_held(&session->s_cap_lock);
 
 	list_splice_init(&session->s_cap_releases, target);
 	session->s_num_cap_releases = 0;
 	doutc(cl, "mds%d\n", session->s_mds);
+
+	return num_cap_releases;
 }
 
 static void dispose_cap_releases(struct ceph_mds_client *mdsc,
@@ -1903,7 +1956,7 @@ int ceph_iterate_session_caps(struct ceph_mds_session *session,
 
 		spin_lock(&session->s_cap_lock);
 		p = p->next;
-		if (!cap->ci) {
+		if (ceph_cap_is_removed(cap)) {
 			doutc(cl, "finishing cap %p removal\n", cap);
 			BUG_ON(cap->session != session);
 			cap->session = NULL;
@@ -2259,7 +2312,7 @@ static int trim_caps_cb(struct inode *inode, int mds, void *arg)
 
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
-		ceph_remove_cap(mdsc, cap, true);
+		ceph_remove_cap(mdsc, cap, ci, true);
 		(*remaining)--;
 	} else {
 		struct dentry *dentry;
@@ -2465,9 +2518,7 @@ static void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
 
 	spin_lock(&session->s_cap_lock);
 again:
-	list_splice_init(&session->s_cap_releases, &tmp_list);
-	num_cap_releases = session->s_num_cap_releases;
-	session->s_num_cap_releases = 0;
+	num_cap_releases = detach_cap_releases(session, &tmp_list);
 	spin_unlock(&session->s_cap_lock);
 
 	while (!list_empty(&tmp_list)) {
@@ -4091,13 +4142,19 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		list_add_tail(&req->r_unsafe_item, &req->r_session->s_unsafe);
 	}
 
+	/*
+	 * Now that all mutex-protected state has been updated above
+	 * (the request has been unregistered or added to the
+	 * session's unsafe list), we can unlock it.
+	 */
+	mutex_unlock(&mdsc->mutex);
+
 	doutc(cl, "tid %lld result %d\n", tid, result);
 	if (test_bit(CEPHFS_FEATURE_REPLY_ENCODING, &session->s_features))
 		err = parse_reply_info(session, msg, req, (u64)-1);
 	else
 		err = parse_reply_info(session, msg, req,
 				       session->s_con.peer_features);
-	mutex_unlock(&mdsc->mutex);
 
 	/* Must find target inode outside of mutexes to avoid deadlocks */
 	rinfo = &req->r_reply_info;
@@ -4441,7 +4498,9 @@ static void handle_session(struct ceph_mds_session *session,
 					pr_err_client(cl, "No memory for path\n");
 					goto fail;
 				}
-				ceph_decode_copy(&p, cap_auths[i].match.path, _len);
+				ceph_decode_copy_safe(&p, end,
+						      cap_auths[i].match.path,
+						      _len, bad);
 
 				/* Remove the tailing '/' */
 				while (_len && cap_auths[i].match.path[_len - 1] == '/') {
@@ -4458,7 +4517,9 @@ static void handle_session(struct ceph_mds_session *session,
 					pr_err_client(cl, "No memory for fs_name\n");
 					goto fail;
 				}
-				ceph_decode_copy(&p, cap_auths[i].match.fs_name, _len);
+				ceph_decode_copy_safe(&p, end,
+						      cap_auths[i].match.fs_name,
+						      _len, bad);
 			}
 
 			ceph_decode_8_safe(&p, end, cap_auths[i].match.root_squash, bad);
@@ -5106,6 +5167,7 @@ static int send_mds_reconnect(struct ceph_mds_client *mdsc,
 
 	/* Serialized by s_mutex against concurrent ceph_get_deleg_ino(). */
 	xa_destroy(&session->s_delegated_inos);
+	atomic_set(&session->s_num_deleg_inos, 0);
 	if (session->s_state == CEPH_MDS_SESSION_CLOSED ||
 	    session->s_state == CEPH_MDS_SESSION_REJECTED) {
 		pr_info_client(cl, "mds%d skipping reconnect, session %s\n",
@@ -5753,7 +5815,7 @@ int ceph_mdsc_schedule_reset(struct ceph_mds_client *mdsc,
 	strscpy(st->last_reason, msg, sizeof(st->last_reason));
 	spin_unlock(&st->lock);
 
-	if (WARN_ON_ONCE(!queue_work(system_unbound_wq, &mdsc->reset_work))) {
+	if (WARN_ON_ONCE(!queue_work(system_dfl_wq, &mdsc->reset_work))) {
 		spin_lock(&st->lock);
 		st->phase = CEPH_CLIENT_RESET_IDLE;
 		st->last_errno = -EALREADY;
@@ -5834,9 +5896,11 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			   ceph_mdsmap_get_addr(newmap, i),
 			   sizeof(struct ceph_entity_addr))) {
 			/* just close it */
+			ceph_get_mds_session(s);
 			mutex_unlock(&mdsc->mutex);
 			mutex_lock(&s->s_mutex);
 			mutex_lock(&mdsc->mutex);
+			ceph_put_mds_session(s);
 			ceph_con_close(&s->s_con);
 			mutex_unlock(&s->s_mutex);
 			s->s_state = CEPH_MDS_SESSION_RESTARTING;
@@ -5851,6 +5915,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 		    newstate >= CEPH_MDS_STATE_RECONNECT) {
 			int rc;
 
+			ceph_get_mds_session(s);
 			mutex_unlock(&mdsc->mutex);
 			clear_bit(i, targets);
 			rc = send_mds_reconnect(mdsc, s);
@@ -5859,6 +5924,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 					       "mds%d reconnect failed: %d\n",
 					       i, rc);
 			mutex_lock(&mdsc->mutex);
+			ceph_put_mds_session(s);
 		}
 
 		/*
@@ -5871,9 +5937,11 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 				pr_info_client(cl, "mds%d recovery completed\n",
 					       s->s_mds);
 			kick_requests(mdsc, i);
+			ceph_get_mds_session(s);
 			mutex_unlock(&mdsc->mutex);
 			mutex_lock(&s->s_mutex);
 			mutex_lock(&mdsc->mutex);
+			ceph_put_mds_session(s);
 			ceph_kick_flushing_caps(mdsc, s);
 			mutex_unlock(&s->s_mutex);
 			wake_up_session_caps(s, RECONNECT);

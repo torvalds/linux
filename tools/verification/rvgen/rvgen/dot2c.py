@@ -29,10 +29,10 @@ class Dot2c(Automata):
 
     def __get_enum_states_content(self) -> list[str]:
         buff = []
-        buff.append(f"\t{self.initial_state}{self.enum_suffix},")
+        buff.append(f"\t{self.initial_state.name}{self.enum_suffix},")
         for state in self.states:
             if state != self.initial_state:
-                buff.append(f"\t{state}{self.enum_suffix},")
+                buff.append(f"\t{state.name}{self.enum_suffix},")
         buff.append(f"\tstate_max{self.enum_suffix},")
 
         return buff
@@ -142,7 +142,7 @@ class Dot2c(Automata):
     def format_aut_init_states_string(self) -> list[str]:
         buff = []
         buff.append("\t.state_names = {")
-        buff.append(self.__get_string_vector_per_line_content(self.states))
+        buff.append(self.__get_string_vector_per_line_content([s.name for s in self.states]))
         buff.append("\t},")
 
         return buff
@@ -159,7 +159,7 @@ class Dot2c(Automata):
         return buff
 
     def __get_max_strlen_of_states(self) -> int:
-        max_state_name = len(max(self.states, key=len))
+        max_state_name = max((len(s.name) for s in self.states))
         return max(max_state_name, len(self.invalid_state_str))
 
     def get_aut_init_function(self) -> str:
@@ -199,7 +199,7 @@ class Dot2c(Automata):
         return buff
 
     def get_aut_init_initial_state(self) -> str:
-        return self.initial_state
+        return self.initial_state.name
 
     def format_aut_init_initial_state(self) -> list[str]:
         buff = []

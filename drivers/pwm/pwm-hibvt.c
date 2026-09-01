@@ -266,7 +266,7 @@ static const struct of_device_id hibvt_pwm_of_match[] = {
 	  .data = &hi3559v100_shub_soc_info },
 	{ .compatible = "hisilicon,hi3559v100-pwm",
 	  .data = &hi3559v100_soc_info },
-	{  }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hibvt_pwm_of_match);
 

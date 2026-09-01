@@ -25,6 +25,7 @@ use crate::{
 use core::{
     marker::PhantomData,
     mem::offset_of,
+    num::NonZero,
     ptr::{
         addr_of_mut,
         NonNull, //
@@ -43,15 +44,16 @@ pub use self::id::{
 pub use self::io::{
     Bar,
     ConfigSpace,
-    ConfigSpaceKind,
     ConfigSpaceSize,
+    DevresBar,
     Extended,
     Normal, //
 };
 pub use self::irq::{
     IrqType,
     IrqTypes,
-    IrqVector, //
+    IrqVector,
+    IrqVectorRegistration, //
 };
 
 /// An adapter for the registration of PCI drivers.
@@ -86,7 +88,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
 
         // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
-            bindings::__pci_register_driver(pdrv.get(), module.0, name.as_char_ptr())
+            bindings::__pci_register_driver(pdrv.get(), module.as_ptr(), name.as_char_ptr())
         })
     }
 
@@ -110,7 +112,11 @@ impl<T: Driver> Adapter<T> {
         // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct pci_device_id` and
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*id.cast::<DeviceId>() };
-        let info = T::ID_TABLE.info(id.index());
+
+        // SAFETY: `id` comes from `T::ID_TABLE` which is of type `IdArray<_, T::IdInfo>` or
+        // `pci_device_id_any` which has 0 as driver_data. It can also come from dynamic IDs, which
+        // will ensure that `driver_data` exists in `T::ID_TABLE`.
+        let info = unsafe { id.info_unchecked_opt::<T::IdInfo>() };
 
         from_result(|| {
             let data = T::probe(pdev, info);
@@ -233,10 +239,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::pci_device_id, driver_data);
-
-    fn index(&self) -> usize {
-        self.0.driver_data
-    }
 }
 
 /// `IdTable` type for PCI.
@@ -245,14 +247,8 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 /// Create a PCI `IdTable` with its alias for modpost.
 #[macro_export]
 macro_rules! pci_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::pci::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("pci", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("pci", $crate::pci::DeviceId, $($tt)*);
     };
 }
 
@@ -267,7 +263,6 @@ macro_rules! pci_device_table {
 ///
 /// kernel::pci_device_table!(
 ///     PCI_TABLE,
-///     MODULE_PCI_TABLE,
 ///     <MyDriver as pci::Driver>::IdInfo,
 ///     [
 ///         (
@@ -284,7 +279,7 @@ macro_rules! pci_device_table {
 ///
 ///     fn probe<'bound>(
 ///         _pdev: &'bound pci::Device<Core<'_>>,
-///         _id_info: &'bound Self::IdInfo,
+///         _id_info: Option<&'bound Self::IdInfo>,
 ///     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
 ///         Err(ENODEV)
 ///     }
@@ -313,7 +308,7 @@ pub trait Driver {
     /// attempt to initialize the device here.
     fn probe<'bound>(
         dev: &'bound Device<device::Core<'_>>,
-        id_info: &'bound Self::IdInfo,
+        id_info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 
     /// PCI driver unbind.
@@ -453,6 +448,18 @@ impl Device {
 }
 
 impl<'a> Device<device::Core<'a>> {
+    /// Returns the total number of VFs, or [`None`] if SR-IOV is not available.
+    #[inline]
+    pub fn sriov_get_totalvfs(&self) -> Option<NonZero<u16>> {
+        // SAFETY: `self.as_raw()` is a valid pointer to a `struct pci_dev`.
+        let total_vfs = unsafe { bindings::pci_sriov_get_totalvfs(self.as_raw()) };
+
+        // CAST: The C function returns `unsigned int`, but the value originates
+        // from TotalVFs/driver_max_VFs (which are defined as `u16`), so this cast
+        // cannot truncate.
+        NonZero::new(total_vfs as u16)
+    }
+
     /// Enable memory resources for this device.
     pub fn enable_device_mem(&self) -> Result {
         // SAFETY: `self.as_raw` is guaranteed to be a pointer to a valid `struct pci_dev`.
@@ -482,11 +489,13 @@ impl<'a> crate::dma::Device<'a> for Device<device::Core<'a>> {}
 
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::sync::aref::AlwaysRefCounted for Device {
+    #[inline]
     fn inc_ref(&self) {
         // SAFETY: The existence of a shared reference guarantees that the refcount is non-zero.
         unsafe { bindings::pci_dev_get(self.as_raw()) };
     }
 
+    #[inline]
     unsafe fn dec_ref(obj: NonNull<Self>) {
         // SAFETY: The safety requirements guarantee that the refcount is non-zero.
         unsafe { bindings::pci_dev_put(obj.cast().as_ptr()) }

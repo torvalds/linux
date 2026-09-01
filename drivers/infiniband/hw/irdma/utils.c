@@ -1168,6 +1168,12 @@ void irdma_free_qp_rsrc(struct irdma_qp *iwqp)
 	iwqp->kqp.dma_mem.va = NULL;
 	kfree(iwqp->kqp.sq_wrid_mem);
 	kfree(iwqp->kqp.rq_wrid_mem);
+
+	if (iwqp->user_mode && iwqp->iwpbl) {
+		struct irdma_mr *iwmr = iwqp->iwpbl->iwmr;
+
+		refcount_dec(&iwmr->user_ring_refs);
+	}
 }
 
 /**

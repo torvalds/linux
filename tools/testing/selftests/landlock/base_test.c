@@ -76,7 +76,7 @@ TEST(abi_version)
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(10, landlock_create_ruleset(NULL, 0,
+	ASSERT_EQ(11, landlock_create_ruleset(NULL, 0,
 					      LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
@@ -255,12 +255,24 @@ TEST(restrict_self_checks_ordering)
 
 	/* Checks unprivileged enforcement without no_new_privs. */
 	drop_caps(_metadata);
+	/*
+	 * The flags validity is checked before the no_new_privs /
+	 * CAP_SYS_ADMIN requirement.
+	 */
 	ASSERT_EQ(-1, landlock_restrict_self(-1, -1));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EINVAL, errno);
 	ASSERT_EQ(-1, landlock_restrict_self(-1, 0));
 	ASSERT_EQ(EPERM, errno);
 	ASSERT_EQ(-1, landlock_restrict_self(ruleset_fd, 0));
 	ASSERT_EQ(EPERM, errno);
+	/*
+	 * LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS fulfills the no_new_privs /
+	 * CAP_SYS_ADMIN requirement but requires a ruleset, so the FD is
+	 * checked next.
+	 */
+	ASSERT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	ASSERT_EQ(EBADF, errno);
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
 
@@ -277,6 +289,41 @@ TEST(restrict_self_checks_ordering)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
+TEST(restrict_self_max_layers)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath_attr = {
+		.allowed_access = LANDLOCK_ACCESS_FS_EXECUTE,
+		.parent_fd = -1,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	path_beneath_attr.parent_fd =
+		open("/tmp", O_PATH | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath_attr.parent_fd);
+	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				       &path_beneath_attr, 0));
+	ASSERT_EQ(0, close(path_beneath_attr.parent_fd));
+
+	/* Enforces the maximum number of allowed layers. */
+	for (int i = 0; i < LANDLOCK_MAX_NUM_LAYERS; i++)
+		ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
+
+	/* Enforces one too many rulesets. */
+	drop_caps(_metadata);
+	ASSERT_EQ(-1, landlock_restrict_self(
+			      ruleset_fd, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	ASSERT_EQ(E2BIG, errno);
+
+	/* Checks that the failed call did not set no_new_privs. */
+	ASSERT_EQ(0, prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
+	ASSERT_EQ(0, close(ruleset_fd));
+}
+
 TEST(restrict_self_fd)
 {
 	int fd;
@@ -288,7 +335,7 @@ TEST(restrict_self_fd)
 	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_fd_logging_flags)
+TEST(restrict_self_fd_flags)
 {
 	int fd;
 
@@ -302,11 +349,16 @@ TEST(restrict_self_fd_logging_flags)
 	EXPECT_EQ(-1, landlock_restrict_self(
 			      fd, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
 	EXPECT_EQ(EBADFD, errno);
+
+	/* LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS requires a ruleset FD. */
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      fd, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_logging_flags)
+TEST(restrict_self_flags)
 {
-	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_TSYNC;
+	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
 
 	/* Tests invalid flag combinations. */
 
@@ -349,6 +401,17 @@ TEST(restrict_self_logging_flags)
 				      LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON));
 	EXPECT_EQ(EBADF, errno);
 
+	/* LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS requires a ruleset FD. */
+
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+					  LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	EXPECT_EQ(EBADF, errno);
+
 	/* Tests with an invalid ruleset_fd. */
 
 	EXPECT_EQ(-1, landlock_restrict_self(
@@ -357,6 +420,37 @@ TEST(restrict_self_logging_flags)
 
 	EXPECT_EQ(0, landlock_restrict_self(
 			     -1, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
+}
+
+TEST(restrict_self_no_new_privs)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+
+	ASSERT_LE(0, ruleset_fd);
+
+	/*
+	 * The calling thread does not need CAP_SYS_ADMIN nor an explicit
+	 * prctl(2) PR_SET_NO_NEW_PRIVS call.
+	 */
+	drop_caps(_metadata);
+	ASSERT_EQ(0, prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
+
+	/* Checks that a failed call does not set no_new_privs. */
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	EXPECT_EQ(EBADF, errno);
+	EXPECT_EQ(0, prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
+
+	/* Checks that a successful call sets no_new_privs. */
+	ASSERT_EQ(0, landlock_restrict_self(
+			     ruleset_fd, LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS));
+	EXPECT_EQ(1, prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
+
+	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 TEST(ruleset_fd_io)

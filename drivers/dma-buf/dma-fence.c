@@ -534,7 +534,7 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 
 	__dma_fence_might_wait();
 
-	dma_fence_enable_sw_signaling(fence);
+	dma_fence_enable_signaling(fence);
 
 	rcu_read_lock();
 	ops = rcu_dereference(fence->ops);
@@ -656,14 +656,14 @@ static bool __dma_fence_enable_signaling(struct dma_fence *fence)
 }
 
 /**
- * dma_fence_enable_sw_signaling - enable signaling on fence
+ * dma_fence_enable_signaling - enable signaling on fence
  * @fence: the fence to enable
  *
  * This will request for sw signaling to be enabled, to make the fence
  * complete as soon as possible. This calls &dma_fence_ops.enable_signaling
  * internally.
  */
-void dma_fence_enable_sw_signaling(struct dma_fence *fence)
+void dma_fence_enable_signaling(struct dma_fence *fence)
 {
 	unsigned long flags;
 
@@ -671,7 +671,7 @@ void dma_fence_enable_sw_signaling(struct dma_fence *fence)
 	__dma_fence_enable_signaling(fence);
 	dma_fence_unlock_irqrestore(fence, flags);
 }
-EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
+EXPORT_SYMBOL(dma_fence_enable_signaling);
 
 /**
  * dma_fence_add_callback - add a callback to be called when the fence
@@ -1102,9 +1102,12 @@ __dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
  * context and seqno are used for easy comparison between fences, allowing
  * to check which fence is later by simply using dma_fence_later().
  *
- * It is strongly discouraged to provide an external lock because this couples
- * lock and fence life time. This is only allowed for legacy use cases when
- * multiple fences need to be prevented from signaling out of order.
+ * External locks are a relic of legacy use cases that needed a shared lock
+ * to serialize signaling when no out-of-order signaling was possible through
+ * &dma_fence_ops.signaled. Drivers have abandoned this concept since the
+ * introduction of the callback, but the external lock is still around. New
+ * users MUST NOT use external locks, as they force the issuer to outlive all
+ * fences that reference the lock.
  */
 void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
@@ -1129,9 +1132,8 @@ EXPORT_SYMBOL(dma_fence_init);
  * Context and seqno are used for easy comparison between fences, allowing
  * to check which fence is later by simply using dma_fence_later().
  *
- * It is strongly discouraged to provide an external lock because this couples
- * lock and fence life time. This is only allowed for legacy use cases when
- * multiple fences need to be prevented from signaling out of order.
+ * New users MUST NOT use external locks. Check the documentation in
+ * dma_fence_init() to understand the motives behind the legacy use cases.
  */
 void
 dma_fence_init64(struct dma_fence *fence, const struct dma_fence_ops *ops,

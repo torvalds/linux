@@ -348,7 +348,7 @@ field##_show(struct device *dev,					\
 {									\
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);		\
 									\
-	return sprintf(buf, format_string, rpdev->path);		\
+	return sysfs_emit(buf, format_string, rpdev->path);		\
 }									\
 static DEVICE_ATTR_RO(field);
 
@@ -368,7 +368,7 @@ static ssize_t modalias_show(struct device *dev,
 	if (len != -ENODEV)
 		return len;
 
-	return sprintf(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
+	return sysfs_emit(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -598,8 +598,6 @@ EXPORT_SYMBOL(__register_rpmsg_driver);
 /**
  * unregister_rpmsg_driver() - unregister an rpmsg driver from the rpmsg bus
  * @rpdrv: pointer to a struct rpmsg_driver
- *
- * Return: 0 on success, and an appropriate error value on failure.
  */
 void unregister_rpmsg_driver(struct rpmsg_driver *rpdrv)
 {

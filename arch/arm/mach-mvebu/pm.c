@@ -9,7 +9,7 @@
 
 #include <linux/cpu_pm.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mbus.h>

@@ -645,6 +645,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <52000000>;
+		vcc-supply = <&pp1800_ldo_z1>;
 	};
 };
 

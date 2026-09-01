@@ -61,12 +61,12 @@ manpages_url = 'https://man7.org/linux/man-pages/man{section}/{page}.{section}.h
 
 def config_init(app, config):
     """
-    Initialize path-dependent variabled
+    Initialize path-dependent variables
 
     On Sphinx, all directories are relative to what it is passed as
     SOURCEDIR parameter for sphinx-build. Due to that, all patterns
     that have directory names on it need to be dynamically set, after
-    converting them to a relative patch.
+    converting them to a relative path.
 
     As Sphinx doesn't include any patterns outside SOURCEDIR, we should
     exclude relative patterns that start with "../".
@@ -287,7 +287,7 @@ author = "The kernel development community"
 try:
     makefile_version = None
     makefile_patchlevel = None
-    with open("../Makefile", encoding="utf=8") as fp:
+    with open("../Makefile", encoding="utf-8") as fp:
         for line in fp:
             key, val = [x.strip() for x in line.split("=", 2)]
             if key == "VERSION":

@@ -1239,8 +1239,8 @@ static int qca_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	 * received we store dump into a file before closing hci. This
 	 * dump will help in triaging the issues.
 	 */
-	if ((skb->data[0] == HCI_VENDOR_PKT) &&
-	    (get_unaligned_be16(skb->data + 2) == QCA_SSR_DUMP_HANDLE))
+	if (skb->data[0] == HCI_EV_VENDOR &&
+	    get_unaligned_be16(skb->data + 2) == QCA_SSR_DUMP_HANDLE)
 		return qca_controller_memdump_event(hdev, skb);
 
 	return hci_recv_frame(hdev, skb);
@@ -2259,7 +2259,7 @@ static void qca_power_off(struct hci_uart *hu)
 	}
 
 	if (power && power->pwrseq) {
-		pwrseq_power_off(power->pwrseq);
+		pwrseq_disable(power->pwrseq);
 		set_bit(QCA_BT_OFF, &qca->flags);
 		return;
         }
@@ -2319,7 +2319,7 @@ static int qca_regulator_enable(struct qca_serdev *qcadev)
 	int ret;
 
 	if (power->pwrseq)
-		return pwrseq_power_on(power->pwrseq);
+		return pwrseq_enable(power->pwrseq);
 
 	/* Already enabled */
 	if (power->vregs_on)
@@ -2792,12 +2792,12 @@ MODULE_DEVICE_TABLE(of, qca_bluetooth_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id qca_bluetooth_acpi_match[] = {
-	{ "QCOM2066", (kernel_ulong_t)&qca_soc_data_qca2066 },
-	{ "QCOM6390", (kernel_ulong_t)&qca_soc_data_qca6390 },
-	{ "DLA16390", (kernel_ulong_t)&qca_soc_data_qca6390 },
-	{ "DLB16390", (kernel_ulong_t)&qca_soc_data_qca6390 },
-	{ "DLB26390", (kernel_ulong_t)&qca_soc_data_qca6390 },
-	{ },
+	{ .id = "QCOM2066", .driver_data = (kernel_ulong_t)&qca_soc_data_qca2066 },
+	{ .id = "QCOM6390", .driver_data = (kernel_ulong_t)&qca_soc_data_qca6390 },
+	{ .id = "DLA16390", .driver_data = (kernel_ulong_t)&qca_soc_data_qca6390 },
+	{ .id = "DLB16390", .driver_data = (kernel_ulong_t)&qca_soc_data_qca6390 },
+	{ .id = "DLB26390", .driver_data = (kernel_ulong_t)&qca_soc_data_qca6390 },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, qca_bluetooth_acpi_match);
 #endif

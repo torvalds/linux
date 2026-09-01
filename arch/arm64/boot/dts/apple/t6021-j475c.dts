@@ -35,3 +35,5 @@
 &pcie0_dart_1 {
 	status = "okay";
 };
+
+#include "hwmon-fan-dual.dtsi"

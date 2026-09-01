@@ -664,8 +664,8 @@ static const struct of_device_id sca3300_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sca3300_dt_ids);
 
 static const struct spi_device_id sca3300_ids[] = {
-	{ "sca3300" },
-	{ "scl3300" },
+	{ .name = "sca3300" },
+	{ .name = "scl3300" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, sca3300_ids);

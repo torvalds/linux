@@ -64,6 +64,7 @@ const char *hw_ip_names[MAX_HWIP] = {
 	[VCN1_HWIP]		= "VCN1",
 	[VCE_HWIP]		= "VCE",
 	[VPE_HWIP]		= "VPE",
+	[UMSCH_HWIP]		= "UMSCH",
 	[DF_HWIP]		= "DF",
 	[DCE_HWIP]		= "DCE",
 	[OSSSYS_HWIP]		= "OSSSYS",

@@ -19,11 +19,13 @@
  * @MT_HPD: Message ID to know the Human presence info from MP2 FW
  * @MT_ALS: Message ID to know the Ambient light info from MP2 FW
  * @MT_SRA: Message ID to know the SRA data from MP2 FW
+ * @MT_OP_MODE: Message ID to know the operating-mode (tablet/laptop) info
  */
 enum sfh_message_type {
 	MT_HPD,
 	MT_ALS,
 	MT_SRA,
+	MT_OP_MODE,
 };
 
 /**
@@ -44,21 +46,24 @@ enum sfh_hpd_info {
  * @user_present: Populates the user presence information
  * @platform_type: Operating modes (clamshell, flat, tent, etc.)
  * @laptop_placement: Device states (ontable, onlap, outbag)
+ * @op_mode: Operating-mode field (see enum sfh_dev_mode); used for tablet detection
  */
 struct amd_sfh_info {
 	u32 ambient_light;
 	u8 user_present;
 	u32 platform_type;
 	u32 laptop_placement;
+	u32 op_mode;
 };
 
-enum laptop_placement {
-	LP_UNKNOWN = 0,
-	ON_TABLE,
-	ON_LAP_MOTION,
-	IN_BAG,
-	OUT_OF_BAG,
-	LP_UNDEFINED,
+/**
+ * enum sfh_dev_mode - SFH operating-mode field (sfh_op_mode.mode, bits 0-2)
+ * @SFH_MODE_LAPTOP: Device is in laptop/clamshell posture
+ * @SFH_MODE_TABLET: Device is in tablet posture
+ */
+enum sfh_dev_mode {
+	SFH_MODE_LAPTOP	= 1,
+	SFH_MODE_TABLET	= 3,
 };
 
 /**
@@ -69,6 +74,7 @@ enum laptop_placement {
  * @mpnpuclk_freq: MPNPU [MHz]
  * @npu_reads: NPU read bandwidth [MB/sec]
  * @npu_writes: NPU write bandwidth [MB/sec]
+ * @npu_temp: NPU temperature [C]
  */
 struct amd_pmf_npu_metrics {
 	u16 npuclk_freq;
@@ -77,6 +83,7 @@ struct amd_pmf_npu_metrics {
 	u16 mpnpuclk_freq;
 	u16 npu_reads;
 	u16 npu_writes;
+	u16 npu_temp;
 };
 
 int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op);

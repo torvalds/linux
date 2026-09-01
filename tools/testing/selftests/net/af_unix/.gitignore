@@ -3,6 +3,8 @@ msg_oob
 scm_inq
 scm_pidfd
 scm_rights
+scm_rights_denial_lsm
+scm_rights_denial_lsm.bpf.o
 so_peek_off
 unix_connect
 unix_connreset

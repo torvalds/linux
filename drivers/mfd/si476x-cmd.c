@@ -15,7 +15,6 @@
 #include <linux/atomic.h>
 #include <linux/i2c.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/videodev2.h>
 
 #include <linux/mfd/si476x-core.h>

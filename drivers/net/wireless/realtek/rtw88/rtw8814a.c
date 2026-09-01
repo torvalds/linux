@@ -400,7 +400,8 @@ static int rtw8814a_mac_init(struct rtw_dev *rtwdev)
 	rtw_write16(rtwdev, REG_RETRY_LIMIT, 0x3030);
 
 	rtw_write16(rtwdev, REG_RXFLTMAP0, 0xffff);
-	rtw_write16(rtwdev, REG_RXFLTMAP1, 0x0400);
+	rtwdev->hal.rxfltmap1 = 0x0400;
+	rtw_write16(rtwdev, REG_RXFLTMAP1, rtwdev->hal.rxfltmap1);
 	rtw_write16(rtwdev, REG_RXFLTMAP2, 0xffff);
 
 	rtw_write8(rtwdev, REG_MAX_AGGR_NUM, 0x36);

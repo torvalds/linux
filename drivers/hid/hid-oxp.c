@@ -398,7 +398,7 @@ static int oxp_hid_raw_event_gen_2(struct hid_device *hdev,
 	 * Re-apply our settings after this has been received.
 	 */
 	if (data[3] == OXP_EFFECT_MONO_TRUE) {
-		mod_delayed_work(system_wq, &drvdata.oxp_mcu_init, msecs_to_jiffies(50));
+		mod_delayed_work(system_dfl_wq, &drvdata.oxp_mcu_init, msecs_to_jiffies(50));
 		return 0;
 	}
 
@@ -788,7 +788,7 @@ static ssize_t map_button_store(struct device *dev,
 	default:
 		return -EINVAL;
 	}
-	mod_delayed_work(system_wq, &drvdata.oxp_btn_queue, msecs_to_jiffies(50));
+	mod_delayed_work(system_dfl_wq, &drvdata.oxp_btn_queue, msecs_to_jiffies(50));
 	return count;
 }
 
@@ -1349,7 +1349,7 @@ static void oxp_rgb_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
 	led_cdev->brightness = brightness;
-	mod_delayed_work(system_wq, &drvdata.oxp_rgb_queue, msecs_to_jiffies(50));
+	mod_delayed_work(system_dfl_wq, &drvdata.oxp_rgb_queue, msecs_to_jiffies(50));
 }
 
 static struct attribute *oxp_rgb_attrs[] = {
@@ -1502,7 +1502,7 @@ skip_rgb:
 	drvdata.rumble_intensity = 5;
 
 	INIT_DELAYED_WORK(&drvdata.oxp_mcu_init, oxp_mcu_init_fn);
-	mod_delayed_work(system_wq, &drvdata.oxp_mcu_init, msecs_to_jiffies(50));
+	mod_delayed_work(system_dfl_wq, &drvdata.oxp_mcu_init, msecs_to_jiffies(50));
 
 	ret = devm_device_add_group(&hdev->dev, &oxp_cfg_attrs_group);
 	if (ret)

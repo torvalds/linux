@@ -42,8 +42,9 @@ enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c)
 	}
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		switch (c->topo.amd_type) {
-		case 0:	return TOPO_CPU_TYPE_PERFORMANCE;
-		case 1:	return TOPO_CPU_TYPE_EFFICIENCY;
+		case AMD_CPU_TYPE_PERFORMANCE:	return TOPO_CPU_TYPE_PERFORMANCE;
+		case AMD_CPU_TYPE_EFFICIENCY:	return TOPO_CPU_TYPE_EFFICIENCY;
+		case AMD_CPU_TYPE_LOW_POWER:	return TOPO_CPU_TYPE_LOW_POWER;
 		}
 	}
 
@@ -57,12 +58,14 @@ const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c)
 		return "performance";
 	case TOPO_CPU_TYPE_EFFICIENCY:
 		return "efficiency";
+	case TOPO_CPU_TYPE_LOW_POWER:
+		return "low_power";
 	default:
 		return "unknown";
 	}
 }
 
-static unsigned int __maybe_unused parse_num_cores_legacy(struct cpuinfo_x86 *c)
+static unsigned int parse_num_cores_legacy(struct cpuinfo_x86 *c)
 {
 	struct {
 		u32	cache_type	:  5,
@@ -168,8 +171,12 @@ static void parse_topology(struct topo_scan *tscan, bool early)
 	case X86_VENDOR_INTEL:
 		if (!IS_ENABLED(CONFIG_CPU_SUP_INTEL) || !cpu_parse_topology_ext(tscan))
 			parse_legacy(tscan);
-		if (c->cpuid_level >= 0x1a)
-			c->topo.cpu_type = cpuid_eax(0x1a);
+
+		if (c->cpuid_level >= 0x1a) {
+			c->topo.hw_cpu_type = cpuid_eax(0x1a);
+			c->topo.cpu_type    = get_topology_cpu_type(c);
+		}
+
 		break;
 	}
 }

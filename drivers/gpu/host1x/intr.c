@@ -7,6 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/overflow.h>
 #include "dev.h"
 #include "fence.h"
 #include "intr.h"
@@ -17,7 +18,7 @@ static void host1x_intr_add_fence_to_list(struct host1x_fence_list *list,
 	struct host1x_syncpt_fence *fence_in_list;
 
 	list_for_each_entry_reverse(fence_in_list, &list->list, list) {
-		if ((s32)(fence_in_list->threshold - fence->threshold) <= 0) {
+		if ((s32)wrapping_sub(u32, fence_in_list->threshold, fence->threshold) <= 0) {
 			/* Fence in list is before us, we can insert here */
 			list_add(&fence->list, &fence_in_list->list);
 			return;
@@ -83,7 +84,7 @@ void host1x_intr_handle_interrupt(struct host1x *host, unsigned int id)
 	spin_lock(&sp->fences.lock);
 
 	list_for_each_entry_safe(fence, tmp, &sp->fences.list, list) {
-		if (((value - fence->threshold) & 0x80000000U) != 0U) {
+		if ((wrapping_sub(u32, value, fence->threshold) & 0x80000000U) != 0U) {
 			/* Fence is not yet expired, we are done */
 			break;
 		}

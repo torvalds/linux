@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Nodes present on both dies of T6032 (M3 Ultra) and present on T6031 / T6034
+ * (M3 Max).
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+	DIE_NODE(pmgr): power-management@292280000 {
+		compatible = "apple,t6031-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reg = <0x2 0x92280000 0 0xc000>;
+	};
+
+	DIE_NODE(pmgr1): power-management@292800000 {
+		compatible = "apple,t6031-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reg = <0x2 0x92800000 0 0x4000>;
+	};
+
+	DIE_NODE(pinctrl_nub): pinctrl@2a01f0000 {
+		compatible = "apple,t6031-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0xa01f0000 0x0 0x4000>;
+		power-domains = <&DIE_NODE(ps_nub_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_nub) 0 0 59>;
+		apple,npins = <59>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 710 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 711 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 712 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 713 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 714 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 715 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 716 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pmgr_mini): power-management@2a0280000 {
+		compatible = "apple,t6031-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reg = <0x2 0xa0280000 0 0x4000>;
+	};
+
+	DIE_NODE(pinctrl_aop): pinctrl@2a8824000 {
+		compatible = "apple,t6031-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0xa8824000 0x0 0x4000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_aop) 0 0 102>;
+		apple,npins = <102>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 595 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 596 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 597 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 598 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 599 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 600 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 601 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pinctrl_ap): pinctrl@2b3000000 {
+		compatible = "apple,t6031-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0xb3000000 0x0 0x4000>;
+
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 458 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 459 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 460 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 461 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 462 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 463 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 464 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&clkref>;
+		power-domains = <&DIE_NODE(ps_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_ap) 0 0 200>;
+		apple,npins = <200>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	DIE_NODE(pmgr_gfx): power-management@408e80000 {
+		compatible = "apple,t6031-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reg = <0x4 0x8e80000 0 0x4000>;
+	};

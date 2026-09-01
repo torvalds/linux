@@ -53,7 +53,7 @@ CPUID function 0x8000001f reports information related to SME::
 			   system physical addresses, not guest physical
 			   addresses)
 
-If support for SME is present, MSR 0xc00100010 (MSR_AMD64_SYSCFG) can be used to
+If support for SME is present, MSR 0xc0010010 (MSR_AMD64_SYSCFG) can be used to
 determine if SME is enabled and/or to enable memory encryption::
 
 	0xc0010010:

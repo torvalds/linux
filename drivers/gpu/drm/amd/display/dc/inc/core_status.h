@@ -62,6 +62,16 @@ enum dc_status {
 	DC_FAIL_DP_LINK_BANDWIDTH = 28,
 	DC_FAIL_HW_CURSOR_SUPPORT = 29,
 	DC_FAIL_DP_TUNNEL_BW_VALIDATE = 30,
+
+	/// Link protocol handshake and DPMS hardware programming successful.
+	DC_DPMS_SUCCESS = DC_OK,
+	/// Handshake skipped by optimized path, programming successfully completed.
+	DC_DPMS_SKIPPED_HANDSHAKE = 31,
+	/// Handshake failed, programming successful, DCN in consistent state.
+	DC_DPMS_FAILED_HANDSHAKE = 32,
+	/// Handshake failed, programming aborted, DCN may be in inconsistent state.
+	DC_DPMS_FAILED_INCOMPLETE = 33,
+
 	DC_ERROR_UNEXPECTED = -1
 };
 

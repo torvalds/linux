@@ -2,7 +2,7 @@
 #ifndef __VDSO_HELPERS_H
 #define __VDSO_HELPERS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/barrier.h>
 #include <vdso/datapage.h>
@@ -111,6 +111,6 @@ static __always_inline void vdso_write_end(struct vdso_time_data *vd)
 	vdso_write_seq_end(&vc[CS_RAW]);
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __VDSO_HELPERS_H */

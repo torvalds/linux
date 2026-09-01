@@ -805,6 +805,10 @@
 	status = "disabled";
 };
 
+&serdes_1 {
+	status = "okay";
+};
+
 &serdes_2 {
 	status = "okay";
 };

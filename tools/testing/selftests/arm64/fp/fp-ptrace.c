@@ -65,6 +65,9 @@
 /* VL 128..2048 in powers of 2 */
 #define MAX_NUM_VLS 5
 
+/* Sentinel for detecting buffer bytes the kernel did not write */
+#define REGSET_SENTINEL 0xa5
+
 /*
  * FPMR bits we can set without doing feature checks to see if values
  * are valid.
@@ -179,6 +182,20 @@ static bool compare_buffer(const char *name, void *out,
 	free(tmp);
 
 	return false;
+}
+
+static bool buffer_is_filled(const void *buffer, size_t size,
+			     unsigned char value)
+{
+	const unsigned char *bytes = buffer;
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		if (bytes[i] != value)
+			return false;
+	}
+
+	return true;
 }
 
 struct test_config {
@@ -401,6 +418,7 @@ static bool check_ptrace_values_sve(pid_t child, struct test_config *config)
 	struct user_sve_header *sve;
 	struct user_fpsimd_state *fpsimd;
 	struct iovec iov;
+	size_t buf_size;
 	int ret, vq;
 	bool pass = true;
 
@@ -409,14 +427,16 @@ static bool check_ptrace_values_sve(pid_t child, struct test_config *config)
 
 	vq = __sve_vq_from_vl(config->sve_vl_in);
 
-	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
-	iov.iov_base = malloc(iov.iov_len);
+	buf_size = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
+	iov.iov_len = buf_size;
+	iov.iov_base = malloc(buf_size);
 	if (!iov.iov_base) {
 		ksft_print_msg("OOM allocating %lu byte SVE buffer\n",
 			       iov.iov_len);
 		return false;
 	}
 
+	memset(iov.iov_base, REGSET_SENTINEL, buf_size);
 	ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_SVE, &iov);
 	if (ret != 0) {
 		ksft_print_msg("Failed to read initial SVE: %s (%d)\n",
@@ -440,10 +460,16 @@ static bool check_ptrace_values_sve(pid_t child, struct test_config *config)
 	}
 
 	if (svcr_in & SVCR_SM) {
-		if (sve->size != sizeof(sve)) {
+		if (sve->size != sizeof(*sve)) {
 			ksft_print_msg("NT_ARM_SVE reports data with PSTATE.SM\n");
 			pass = false;
 		}
+		if (!buffer_is_filled(iov.iov_base + sizeof(*sve),
+				      buf_size - sizeof(*sve), REGSET_SENTINEL)) {
+			ksft_print_msg("NT_ARM_SVE wrote beyond its header with PSTATE.SM\n");
+			pass = false;
+		}
+		goto out;
 	} else {
 		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
 			ksft_print_msg("Mismatch in SVE header size: %d != %lu\n",
@@ -485,6 +511,7 @@ static bool check_ptrace_values_ssve(pid_t child, struct test_config *config)
 	struct user_sve_header *sve;
 	struct user_fpsimd_state *fpsimd;
 	struct iovec iov;
+	size_t buf_size;
 	int ret, vq;
 	bool pass = true;
 
@@ -493,14 +520,16 @@ static bool check_ptrace_values_ssve(pid_t child, struct test_config *config)
 
 	vq = __sve_vq_from_vl(config->sme_vl_in);
 
-	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
-	iov.iov_base = malloc(iov.iov_len);
+	buf_size = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
+	iov.iov_len = buf_size;
+	iov.iov_base = malloc(buf_size);
 	if (!iov.iov_base) {
 		ksft_print_msg("OOM allocating %lu byte SSVE buffer\n",
 			       iov.iov_len);
 		return false;
 	}
 
+	memset(iov.iov_base, REGSET_SENTINEL, buf_size);
 	ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_SSVE, &iov);
 	if (ret != 0) {
 		ksft_print_msg("Failed to read initial SSVE: %s (%d)\n",
@@ -523,10 +552,16 @@ static bool check_ptrace_values_ssve(pid_t child, struct test_config *config)
 	}
 
 	if (!(svcr_in & SVCR_SM)) {
-		if (sve->size != sizeof(sve)) {
+		if (sve->size != sizeof(*sve)) {
 			ksft_print_msg("NT_ARM_SSVE reports data without PSTATE.SM\n");
 			pass = false;
 		}
+		if (!buffer_is_filled(iov.iov_base + sizeof(*sve),
+				      buf_size - sizeof(*sve), REGSET_SENTINEL)) {
+			ksft_print_msg("NT_ARM_SSVE wrote beyond its header without PSTATE.SM\n");
+			pass = false;
+		}
+		goto out;
 	} else {
 		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
 			ksft_print_msg("Mismatch in SSVE header size: %d != %lu\n",

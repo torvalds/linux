@@ -990,7 +990,7 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 		    i < icode->gpr_list_control_count) {
 			memset(gctl, 0, sizeof(*gctl));
 			id = &ctl->kcontrol->id;
-			gctl->id.iface = (__force int)id->iface;
+			gctl->id.iface = id->iface;
 			strscpy(gctl->id.name, id->name, sizeof(gctl->id.name));
 			gctl->id.index = id->index;
 			gctl->id.device = id->device;
@@ -1156,7 +1156,7 @@ static void
 snd_emu10k1_init_mono_control2(struct snd_emu10k1_fx8010_control_gpr *ctl,
 			       const char *name, int gpr, int defval, int defval_hr)
 {
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, name);
 	ctl->vcount = ctl->count = 1;
 	if (high_res_gpr_volume) {
@@ -1180,7 +1180,7 @@ static void
 snd_emu10k1_init_stereo_control2(struct snd_emu10k1_fx8010_control_gpr *ctl,
 				 const char *name, int gpr, int defval, int defval_hr)
 {
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, name);
 	ctl->vcount = ctl->count = 2;
 	if (high_res_gpr_volume) {
@@ -1205,7 +1205,7 @@ static void
 snd_emu10k1_init_mono_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 				    const char *name, int gpr, int defval)
 {
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, name);
 	ctl->vcount = ctl->count = 1;
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
@@ -1218,7 +1218,7 @@ static void
 snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 				      const char *name, int gpr, int defval)
 {
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, name);
 	ctl->vcount = ctl->count = 2;
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
@@ -1542,7 +1542,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	 *  Process tone control
 	 */
 	ctl = &controls[nctl + 0];
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, "Tone Control - Bass");
 	ctl->vcount = 2;
 	ctl->count = 10;
@@ -1551,7 +1551,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	ctl->value[0] = ctl->value[1] = 20;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_BASS;
 	ctl = &controls[nctl + 1];
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, "Tone Control - Treble");
 	ctl->vcount = 2;
 	ctl->count = 10;
@@ -2137,7 +2137,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	 *  Process tone control
 	 */
 	ctl = &controls[i + 0];
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, "Tone Control - Bass");
 	ctl->vcount = 2;
 	ctl->count = 10;
@@ -2147,7 +2147,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	ctl->tlv = snd_emu10k1_bass_treble_db_scale;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_BASS;
 	ctl = &controls[i + 1];
-	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
+	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strscpy(ctl->id.name, "Tone Control - Treble");
 	ctl->vcount = 2;
 	ctl->count = 10;

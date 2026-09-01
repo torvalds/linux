@@ -1740,21 +1740,16 @@ static int create_con(struct rtrs_srv_path *srv_path,
 		 * All receive and all send (each requiring invalidate)
 		 * + 2 for drain and heartbeat
 		 */
-		max_send_wr = min_t(int, wr_limit,
-				    SERVICE_CON_QUEUE_DEPTH * 2 + 2);
+		max_send_wr = min(wr_limit, SERVICE_CON_QUEUE_DEPTH * 2 + 2);
 		max_recv_wr = max_send_wr;
 		s->signal_interval = min_not_zero(srv->queue_depth,
 						  (size_t)SERVICE_CON_QUEUE_DEPTH);
 	} else {
 		/* when always_invlaidate enalbed, we need linv+rinv+mr+imm */
 		if (always_invalidate)
-			max_send_wr =
-				min_t(int, wr_limit,
-				      srv->queue_depth * (1 + 4) + 1);
+			max_send_wr = min(wr_limit, srv->queue_depth * (1 + 4) + 1);
 		else
-			max_send_wr =
-				min_t(int, wr_limit,
-				      srv->queue_depth * (1 + 2) + 1);
+			max_send_wr = min(wr_limit, srv->queue_depth * (1 + 2) + 1);
 
 		max_recv_wr = srv->queue_depth + 1;
 	}

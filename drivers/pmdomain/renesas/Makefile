@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # SoC
+obj-$(CONFIG_MDLC_R8A78000)	+= r8a78000-mdlc.o
 obj-$(CONFIG_SYSC_R8A7742)	+= r8a7742-sysc.o
 obj-$(CONFIG_SYSC_R8A7743)	+= r8a7743-sysc.o
 obj-$(CONFIG_SYSC_R8A7745)	+= r8a7745-sysc.o

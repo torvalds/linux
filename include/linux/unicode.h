@@ -66,9 +66,6 @@ int utf8_strncasecmp_folded(const struct unicode_map *um,
 			    const struct qstr *cf,
 			    const struct qstr *s1);
 
-int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
-		   unsigned char *dest, size_t dlen);
-
 int utf8_casefold(const struct unicode_map *um, const struct qstr *str,
 		  unsigned char *dest, size_t dlen);
 

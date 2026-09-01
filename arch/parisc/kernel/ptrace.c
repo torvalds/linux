@@ -326,7 +326,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		int rc = ptrace_report_syscall_entry(regs);
+		bool permit = ptrace_report_syscall_permit_entry(regs);
 
 		/*
 		 * As tracesys_next does not set %r28 to -ENOSYS
@@ -334,12 +334,10 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		regs->gr[28] = -ENOSYS;
 
-		if (rc) {
+		if (!permit) {
 			/*
-			 * A nonzero return code from
-			 * ptrace_report_syscall_entry() tells us
-			 * to prevent the syscall execution.  Skip
-			 * the syscall call and the syscall restart handling.
+			 * Skip the syscall call and the syscall restart
+			 * handling.
 			 *
 			 * Note that the tracer may also just change
 			 * regs->gr[20] to an invalid syscall number,
@@ -351,7 +349,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 	}
 
 	/* Do the secure computing check after ptrace. */
-	if (secure_computing() == -1)
+	if (!seccomp_permit_syscall())
 		return -1;
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS

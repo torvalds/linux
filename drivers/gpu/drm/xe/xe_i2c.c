@@ -8,12 +8,11 @@
 #include <drm/drm_print.h>
 #include <linux/array_size.h>
 #include <linux/container_of.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/ioport.h>
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -24,9 +23,12 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include <linux/designware_i2c.h>
+
 #include "regs/xe_i2c_regs.h"
 #include "regs/xe_irq_regs.h"
 
+#include "xe_amc.h"
 #include "xe_device.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"
@@ -61,16 +63,32 @@ static inline void xe_i2c_read_endpoint(struct xe_mmio *mmio, void *ep)
 	val[1] = xe_mmio_read32(mmio, REG_SG_REMAP_ADDR_POSTFIX);
 }
 
+static void xe_i2c_handle_smbus_alert(struct xe_i2c *i2c)
+{
+	u32 stat;
+
+	stat = xe_mmio_read32(i2c->mmio, I2C_REG(DW_IC_SMBUS_INTR_STAT));
+	if (!stat)
+		return;
+
+	xe_mmio_write32(i2c->mmio, I2C_REG(DW_IC_CLR_SMBUS_INTR), stat);
+
+	if (stat & DW_IC_SMBUS_INTR_ALERT && i2c->amc)
+		xe_amc_handle_alert(i2c);
+	else
+		xe_mmio_rmw32(i2c->mmio, I2C_CONFIG_CMD, PCI_COMMAND_INTX_DISABLE, 0);
+}
+
 static void xe_i2c_client_work(struct work_struct *work)
 {
 	struct xe_i2c *i2c = container_of(work, struct xe_i2c, work);
 	struct i2c_board_info info = {
 		.type	= "amc",
 		.flags	= I2C_CLIENT_HOST_NOTIFY,
-		.addr	= i2c->ep.addr[1],
+		.addr	= i2c->ep.addr[XE_I2C_CLIENT_AMC],
 	};
 
-	i2c->client[0] = i2c_new_client_device(i2c->adapter, &info);
+	i2c->client[XE_I2C_CLIENT_AMC] = i2c_new_client_device(i2c->adapter, &info);
 }
 
 static int xe_i2c_notifier(struct notifier_block *nb, unsigned long action, void *data)
@@ -93,13 +111,8 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 {
 	struct pci_dev *pci = to_pci_dev(i2c->drm_dev);
 	struct platform_device *pdev;
-	struct fwnode_handle *fwnode;
 	int ret;
 	u32 id;
-
-	fwnode = fwnode_create_software_node(xe_i2c_adapter_properties, NULL);
-	if (IS_ERR(fwnode))
-		return PTR_ERR(fwnode);
 
 	id = (pci_domain_nr(pci->bus) << 16) | pci_dev_id(pci);
 
@@ -110,24 +123,16 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 	 * platform_device_register_full() is done.
 	 */
 	pdev = platform_device_alloc(adapter_name, id);
-	if (!pdev) {
-		ret = -ENOMEM;
-		goto err_fwnode_remove;
-	}
+	if (!pdev)
+		return -ENOMEM;
 
-	if (i2c->adapter_irq) {
-		struct resource res;
-
-		res = DEFINE_RES_IRQ_NAMED(i2c->adapter_irq, "xe_i2c");
-
-		ret = platform_device_add_resources(pdev, &res, 1);
-		if (ret)
-			goto err_pdev_put;
-	}
+	ret = device_create_managed_software_node(&pdev->dev,
+						  xe_i2c_adapter_properties,
+						  NULL);
+	if (ret)
+		goto err_pdev_put;
 
 	pdev->dev.parent = i2c->drm_dev;
-	pdev->dev.fwnode = fwnode;
-	i2c->adapter_node = fwnode;
 	i2c->pdev = pdev;
 
 	ret = platform_device_add(pdev);
@@ -138,8 +143,6 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 
 err_pdev_put:
 	platform_device_put(pdev);
-err_fwnode_remove:
-	fwnode_remove_software_node(fwnode);
 
 	return ret;
 }
@@ -147,7 +150,6 @@ err_fwnode_remove:
 static void xe_i2c_unregister_adapter(struct xe_i2c *i2c)
 {
 	platform_device_unregister(i2c->pdev);
-	fwnode_remove_software_node(i2c->adapter_node);
 }
 
 /**
@@ -166,7 +168,8 @@ bool xe_i2c_present(struct xe_device *xe)
 
 static bool xe_i2c_irq_present(struct xe_device *xe)
 {
-	return xe->i2c && xe->i2c->adapter_irq;
+	return xe->i2c && xe->i2c->ep.capabilities & XE_I2C_EP_CAP_IRQ &&
+		!xe_survivability_mode_is_boot_enabled(xe);
 }
 
 /**
@@ -179,18 +182,10 @@ static bool xe_i2c_irq_present(struct xe_device *xe)
  */
 void xe_i2c_irq_handler(struct xe_device *xe, u32 master_ctl)
 {
-	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
-
 	if (!(master_ctl & I2C_IRQ) || !xe_i2c_irq_present(xe))
 		return;
 
-	/* Forward interrupt to I2C adapter */
-	generic_handle_irq_safe(xe->i2c->adapter_irq);
-
-	/* Deassert after I2C adapter clears the interrupt */
-	xe_mmio_rmw32(mmio, I2C_CONFIG_CMD, 0, PCI_COMMAND_INTX_DISABLE);
-	/* Reassert to allow subsequent interrupt generation */
-	xe_mmio_rmw32(mmio, I2C_CONFIG_CMD, PCI_COMMAND_INTX_DISABLE, 0);
+	xe_i2c_handle_smbus_alert(xe->i2c);
 }
 
 void xe_i2c_irq_reset(struct xe_device *xe)
@@ -215,50 +210,40 @@ void xe_i2c_irq_postinstall(struct xe_device *xe)
 	xe_mmio_rmw32(mmio, I2C_CONFIG_CMD, PCI_COMMAND_INTX_DISABLE, 0);
 }
 
-static int xe_i2c_irq_map(struct irq_domain *h, unsigned int virq,
-			  irq_hw_number_t hw_irq_num)
+/* See "Disabling DW_apb_i2c" in the DesignWare DW_abp_i2c databook. */
+static void xe_i2c_disable(struct xe_i2c *i2c)
 {
-	irq_set_chip_and_handler(virq, &dummy_irq_chip, handle_simple_irq);
-	return 0;
-}
+	int timeout = 100;
+	u32 status;
 
-static const struct irq_domain_ops xe_i2c_irq_ops = {
-	.map = xe_i2c_irq_map,
-};
+	xe_mmio_rmw32(i2c->mmio, I2C_REG(DW_IC_ENABLE), DW_IC_ENABLE_ENABLE, 0);
 
-static int xe_i2c_create_irq(struct xe_device *xe)
-{
-	struct xe_i2c *i2c = xe->i2c;
-	struct irq_domain *domain;
+	do {
+		status = xe_mmio_read32(i2c->mmio, I2C_REG(DW_IC_ENABLE_STATUS));
+		if (!(status & DW_IC_ENABLE_ENABLE))
+			return;
+		/* Can't sleep here. */
+		udelay(25);
+	} while (timeout--);
 
-	if (!(i2c->ep.capabilities & XE_I2C_EP_CAP_IRQ) ||
-	    xe_survivability_mode_is_boot_enabled(xe))
-		return 0;
-
-	domain = irq_domain_create_linear(dev_fwnode(i2c->drm_dev), 1, &xe_i2c_irq_ops, NULL);
-	if (!domain)
-		return -ENOMEM;
-
-	i2c->adapter_irq = irq_create_mapping(domain, 0);
-	i2c->irqdomain = domain;
-
-	return 0;
-}
-
-static void xe_i2c_remove_irq(struct xe_i2c *i2c)
-{
-	if (!i2c->irqdomain)
-		return;
-
-	irq_dispose_mapping(i2c->adapter_irq);
-	irq_domain_remove(i2c->irqdomain);
+	dev_warn(i2c->drm_dev, "timeout in disabling i2c adapter\n");
 }
 
 static int xe_i2c_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct xe_i2c *i2c = context;
 
-	*val = xe_mmio_read32(i2c->mmio, XE_REG(reg + I2C_MEM_SPACE_OFFSET));
+	*val = xe_mmio_read32(i2c->mmio, I2C_REG(reg));
+
+	switch (reg) {
+	case DW_IC_ENABLE:
+	case DW_IC_ENABLE_STATUS:
+		FIELD_MODIFY(DW_IC_ENABLE_ENABLE, val,
+			     i2c->ic_enable & DW_IC_ENABLE_ENABLE);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -267,8 +252,33 @@ static int xe_i2c_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct xe_i2c *i2c = context;
 
-	xe_mmio_write32(i2c->mmio, XE_REG(reg + I2C_MEM_SPACE_OFFSET), val);
+	switch (reg) {
+	case DW_IC_CON:
+	case DW_IC_TAR:
+	case DW_IC_SAR:
+		/* Disable the controller. */
+		xe_i2c_disable(i2c);
 
+		/* Write the register. */
+		xe_mmio_write32(i2c->mmio, I2C_REG(reg), val);
+
+		/* Enable the controller. */
+		xe_mmio_rmw32(i2c->mmio, I2C_REG(DW_IC_ENABLE), 0, DW_IC_ENABLE_ENABLE);
+		return 0;
+	case DW_IC_ENABLE:
+		i2c->ic_enable = val;
+		/* Other fields can be updated except the enable bit. */
+		val |= DW_IC_ENABLE_ENABLE;
+		break;
+	case DW_IC_SMBUS_INTR_MASK:
+		/* Make sure the Alert is never masked. */
+		val |= DW_IC_SMBUS_INTR_ALERT;
+		break;
+	default:
+		break;
+	}
+
+	xe_mmio_write32(i2c->mmio, I2C_REG(reg), val);
 	return 0;
 }
 
@@ -310,12 +320,15 @@ static void xe_i2c_remove(void *data)
 	struct xe_i2c *i2c = data;
 	unsigned int i;
 
-	for (i = 0; i < XE_I2C_MAX_CLIENTS; i++)
+	xe_amc_exit(i2c);
+
+	for (i = 0; i < XE_I2C_MAX_CLIENTS; i++) {
 		i2c_unregister_device(i2c->client[i]);
+		i2c->client[i] = NULL;
+	}
 
 	bus_unregister_notifier(&i2c_bus_type, &i2c->bus_notifier);
 	xe_i2c_unregister_adapter(i2c);
-	xe_i2c_remove_irq(i2c);
 }
 
 /**
@@ -335,9 +348,6 @@ int xe_i2c_probe(struct xe_device *xe)
 	int ret;
 
 	if (!xe->info.has_i2c)
-		return 0;
-
-	if (IS_SRIOV_VF(xe))
 		return 0;
 
 	xe_i2c_read_endpoint(xe_root_tile_mmio(xe), &ep);
@@ -366,22 +376,18 @@ int xe_i2c_probe(struct xe_device *xe)
 	if (ret)
 		return ret;
 
-	ret = xe_i2c_create_irq(xe);
-	if (ret)
-		goto err_unregister_notifier;
-
 	ret = xe_i2c_register_adapter(i2c);
-	if (ret)
-		goto err_remove_irq;
+	if (ret) {
+		bus_unregister_notifier(&i2c_bus_type, &i2c->bus_notifier);
+		return ret;
+	}
+
+	ret = xe_amc_init(i2c);
+	if (ret) {
+		xe_i2c_remove(i2c);
+		return ret;
+	}
 
 	xe_i2c_irq_postinstall(xe);
 	return devm_add_action_or_reset(drm_dev, xe_i2c_remove, i2c);
-
-err_remove_irq:
-	xe_i2c_remove_irq(i2c);
-
-err_unregister_notifier:
-	bus_unregister_notifier(&i2c_bus_type, &i2c->bus_notifier);
-
-	return ret;
 }

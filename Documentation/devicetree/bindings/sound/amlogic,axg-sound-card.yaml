@@ -30,7 +30,7 @@ properties:
     minItems: 1
     maxItems: 3
     description:
-      Base PLL clocks of audio susbsytem, used to configure base clock
+      Base PLL clocks of audio subsystem, used to configure base clock
       frequencies for different audio use-cases.
 
 patternProperties:

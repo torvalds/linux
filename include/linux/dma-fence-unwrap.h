@@ -8,6 +8,8 @@
 #ifndef __LINUX_DMA_FENCE_UNWRAP_H
 #define __LINUX_DMA_FENCE_UNWRAP_H
 
+#include <linux/types.h>
+
 struct dma_fence;
 
 /**
@@ -48,11 +50,11 @@ struct dma_fence *dma_fence_unwrap_next(struct dma_fence_unwrap *cursor);
 	for (fence = dma_fence_unwrap_first(head, cursor); fence;	\
 	     fence = dma_fence_unwrap_next(cursor))
 
-struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
+struct dma_fence *__dma_fence_unwrap_merge(size_t num_fences,
 					   struct dma_fence **fences,
 					   struct dma_fence_unwrap *cursors);
 
-int dma_fence_dedup_array(struct dma_fence **array, int num_fences);
+size_t dma_fence_dedup_array(struct dma_fence **array, size_t num_fences);
 
 /**
  * dma_fence_unwrap_merge - unwrap and merge fences

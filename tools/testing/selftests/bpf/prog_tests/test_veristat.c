@@ -37,6 +37,14 @@ static struct fixture *init_fixture(void)
 	return fix;
 }
 
+static void read_output(struct fixture *fix)
+{
+	ssize_t len = pread(fix->fd, fix->output, fix->sz - 1, 0);
+
+	fix->output[len < 0 ? 0 : len] = 0;
+	ASSERT_GE(len, 0, "pread");
+}
+
 static void teardown_fixture(struct fixture *fix)
 {
 	free(fix->output);
@@ -74,7 +82,7 @@ static void test_set_global_vars_succeeds(void)
 	    " -G \"struct11 [ 7 ] [ 5 ] .struct2[0][1].u.mat[3][0] = 175\" " \
 	    " -vl2 > %s", fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("=0xf000000000000001 ", "var_s64 = 0xf000000000000001");
 	__CHECK_STR("=0xfedcba9876543210 ", "var_u64 = 0xfedcba9876543210");
 	__CHECK_STR("=0x80000000 ", "var_s32 = -0x80000000");
@@ -116,7 +124,7 @@ static void test_set_global_vars_from_file_succeeds(void)
 	syncfs(fd);
 	SYS(out, "%s set_global_vars.bpf.o -G \"@%s\" -vl2 > %s",
 	    fix->veristat, input_file, fix->tmpfile);
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("=0x8000 ", "var_s16 = -32768");
 	__CHECK_STR("=0xecec ", "var_u16 = 60652");
 
@@ -134,7 +142,7 @@ static void test_set_global_vars_out_of_range(void)
 		 "%s set_global_vars.bpf.o -G \"var_s32 = 2147483648\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("is out of range [-2147483648; 2147483647]", "out of range");
 
 out:
@@ -149,7 +157,7 @@ static void test_unsupported_ptr_array_type(void)
 		 "%s set_global_vars.bpf.o -G \"ptr_arr[0] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Can't set ptr_arr[0]. Only ints and enums are supported", "ptr_arr");
 
 out:
@@ -164,7 +172,7 @@ static void test_array_out_of_bounds(void)
 		 "%s set_global_vars.bpf.o -G \"arr[99] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Array index 99 is out of bounds", "arr[99]");
 
 out:
@@ -179,7 +187,7 @@ static void test_array_index_not_found(void)
 		 "%s set_global_vars.bpf.o -G \"arr[EG2] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Can't resolve enum value EG2", "arr[EG2]");
 
 out:
@@ -230,6 +238,97 @@ out:
 	teardown_fixture(fix);
 }
 
+/*
+ * Name filter tests below run veristat on veristat_foo.bpf.o and
+ * veristat_bar.bpf.o, both defining programs 'foo', 'bar' and 'buz'.
+ * Every entry describes a single (filters, file, prog) combination and
+ * tells whether that program is expected in the veristat output:
+ * 'true' if it is, 'false' if it is not and -1 if veristat is expected
+ * to reject the filter.
+ */
+#define FILTER_OBJS "veristat_foo.bpf.o veristat_bar.bpf.o"
+
+static const struct name_filter_case {
+	const char *filters;
+	const char *file;
+	const char *prog;
+	int included;
+} name_filter_cases[] = {
+	/* no filters, every program is processed */
+	{ "",			"foo", "foo", true  },
+	{ "",			"foo", "bar", true  },
+	{ "",			"foo", "buz", true  },
+	{ "",			"bar", "foo", true  },
+	{ "",			"bar", "bar", true  },
+	{ "",			"bar", "buz", true  },
+	/* deny filters */
+	{ "-f '!*foo*'",	"foo", "bar", false },
+	{ "-f '!*foo*'",	"bar", "foo", false },
+	{ "-f '!*foo*'",	"bar", "bar", true  },
+	{ "-f '!*foo*/bar'",	"foo", "bar", false },
+	{ "-f '!*foo*/bar'",	"foo", "buz", true  },
+	{ "-f '!*foo*/bar'",	"bar", "bar", true  },
+	{ "-f '!*foo*/'",	"foo", "bar", false },
+	{ "-f '!*foo*/'",	"bar", "bar", true  },
+	{ "-f '!/bar'",		"foo", "bar", false },
+	{ "-f '!/bar'",		"foo", "foo", true  },
+	{ "-f '!/'",		"foo", "bar", -1    },
+	{ "-f '!'",		"foo", "bar", -1    },
+	/* allow filters */
+	{ "-f '*foo*'",		"foo", "bar", true  },
+	{ "-f '*foo*'",		"bar", "foo", true  },
+	{ "-f '*foo*'",		"bar", "bar", false },
+	{ "-f '*foo*/bar'",	"foo", "bar", true  },
+	{ "-f '*foo*/bar'",	"foo", "buz", false },
+	{ "-f '*foo*/bar'",	"bar", "bar", false },
+	{ "-f '*foo*/'",	"foo", "bar", true  },
+	{ "-f '*foo*/'",	"bar", "bar", false },
+	{ "-f '/bar'",		"foo", "bar", true  },
+	{ "-f '/bar'",		"foo", "foo", false },
+	{ "-f '/'",		"foo", "bar", -1    },
+	{ "-f ''",		"foo", "bar", -1    },
+	/* allow and deny filters combined */
+	{ "-f '*foo*/' -f '!/bar'", "foo", "foo", true  },
+	{ "-f '*foo*/' -f '!/bar'", "foo", "bar", false },
+	{ "-f '*foo*/' -f '!/bar'", "bar", "foo", false },
+};
+
+static void test_name_filters(void)
+{
+	struct fixture *fix = init_fixture();
+	const struct name_filter_case *t;
+	char cmd[512], row[64], name[128];
+	int i, err;
+
+	for (i = 0; i < ARRAY_SIZE(name_filter_cases); i++) {
+		t = &name_filter_cases[i];
+		/* stderr is merged with stdout in order to catch error messages */
+		snprintf(cmd, sizeof(cmd), "%s " FILTER_OBJS " -q -o csv -e file,prog %s > %s 2>&1",
+			 fix->veristat, t->filters, fix->tmpfile);
+		err = system(cmd);
+		read_output(fix);
+
+		snprintf(row, sizeof(row), "veristat_%s.bpf.o,%s", t->file, t->prog);
+		snprintf(name, sizeof(name), "veristat %s: %s", t->filters, row);
+		switch (t->included) {
+		case true:
+			ASSERT_OK(err, name);
+			ASSERT_HAS_SUBSTR(fix->output, row, name);
+			break;
+		case false:
+			ASSERT_OK(err, name);
+			ASSERT_FALSE(!!strstr(fix->output, row), name);
+			break;
+		case -1:
+			ASSERT_NEQ(err, 0, name);
+			ASSERT_HAS_SUBSTR(fix->output, "Invalid filter", name);
+			break;
+		}
+	}
+
+	teardown_fixture(fix);
+}
+
 void test_veristat(void)
 {
 	if (test__start_subtest("set_global_vars_succeeds"))
@@ -256,6 +355,8 @@ void test_veristat(void)
 	if (test__start_subtest("test_no_array_index_for_array"))
 		test_no_array_index_for_array();
 
+	if (test__start_subtest("name_filters"))
+		test_name_filters();
 }
 
 #undef __CHECK_STR

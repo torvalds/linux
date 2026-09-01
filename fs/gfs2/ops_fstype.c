@@ -123,6 +123,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
+	spin_lock_init(&sdp->sd_dead_lock);
+
 	init_rwsem(&sdp->sd_log_flush_lock);
 	atomic_set(&sdp->sd_log_in_flight, 0);
 	init_waitqueue_head(&sdp->sd_log_flush_wait);
@@ -1300,7 +1302,6 @@ fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
 	complete_all(&sdp->sd_journal_ready);
-	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 fail_debug:
 	gfs2_delete_debugfs_file(sdp);
@@ -1783,6 +1784,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
 
+	set_bit(SDF_KILL, &sdp->sd_flags);
 	gfs2_evict_inodes(sb);
 
 	/*
@@ -1790,7 +1792,6 @@ static void gfs2_kill_sb(struct super_block *sb)
 	 * destroy_workqueue()) to ensure that any delete work that
 	 * may be running will also see the SDF_KILL flag.
 	 */
-	set_bit(SDF_KILL, &sdp->sd_flags);
 	gfs2_flush_delete_work(sdp);
 	destroy_workqueue(sdp->sd_delete_wq);
 

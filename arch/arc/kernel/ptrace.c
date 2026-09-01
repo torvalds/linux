@@ -342,7 +342,7 @@ long arch_ptrace(struct task_struct *child, long request,
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		if (ptrace_report_syscall_entry(regs))
+		if (!ptrace_report_syscall_permit_entry(regs))
 			return ULONG_MAX;
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS

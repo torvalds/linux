@@ -547,7 +547,7 @@ void __init mtrr_bp_init(void)
 {
 	bool generic_mtrrs = cpu_feature_enabled(X86_FEATURE_MTRR);
 	const char *why = "(not available)";
-	unsigned long config, dummy;
+	unsigned long config;
 
 	phys_hi_rsvd = GENMASK(31, boot_cpu_data.x86_phys_bits - 32);
 
@@ -571,7 +571,7 @@ void __init mtrr_bp_init(void)
 	if (mtrr_enabled()) {
 		/* Get the number of variable MTRR ranges. */
 		if (mtrr_if == &generic_mtrr_ops)
-			rdmsr(MSR_MTRRcap, config, dummy);
+			rdmsrq(MSR_MTRRcap, config);
 		else
 			config = mtrr_if->var_regs;
 		num_var_ranges = config & MTRR_CAP_VCNT;

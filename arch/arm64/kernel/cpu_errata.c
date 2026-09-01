@@ -272,7 +272,7 @@ has_neoverse_n1_erratum_1542419(const struct arm64_cpu_capabilities *entry,
 	return is_midr_in_range(&range) && has_dic;
 }
 
-static const struct midr_range impdef_pmuv3_cpus[] = {
+static const struct midr_range apple_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_PRO),
@@ -301,7 +301,14 @@ static bool has_impdef_pmuv3(const struct arm64_cpu_capabilities *entry, int sco
 	if (pmuver != ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
 		return false;
 
-	return is_midr_in_range_list(impdef_pmuv3_cpus);
+	return is_midr_in_range_list(apple_cpus);
+}
+
+static bool has_broken_gic_v3_seis(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return (is_kernel_in_hyp_mode() &&
+		is_midr_in_range_list(apple_cpus) &&
+		(read_sysreg_s(SYS_ICH_VTR_EL2) & ICH_VTR_EL2_SEIS));
 }
 
 static void cpu_enable_impdef_pmuv3_traps(const struct arm64_cpu_capabilities *__unused)
@@ -309,7 +316,7 @@ static void cpu_enable_impdef_pmuv3_traps(const struct arm64_cpu_capabilities *_
 	sysreg_clear_set_s(SYS_HACR_EL2, 0, BIT(56));
 }
 
-#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 static const struct arm64_cpu_capabilities arm64_repeat_tlbi_list[] = {
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1009
 	{
@@ -733,10 +740,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.match_list = qcom_erratum_1003_list,
 	},
 #endif
-#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	{
 		.desc = "Broken broadcast TLBI completion",
-		.capability = ARM64_WORKAROUND_REPEAT_TLBI,
+		.capability = ARM64_WORKAROUND_REPEAT_TLBI_SYNC,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = cpucap_multi_entry_cap_matches,
 		.match_list = arm64_repeat_tlbi_list,
@@ -848,6 +855,14 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "NVIDIA Carmel CNP erratum, or Hisilicon erratum 162100125",
 		.capability = ARM64_WORKAROUND_DISABLE_CNP,
 		ERRATA_MIDR_RANGE_LIST(cnp_erratum_cpus),
+	},
+#endif
+#ifdef CONFIG_NVIDIA_OLYMPUS_1027_ERRATUM
+	{
+		/* NVIDIA Olympus core */
+		.desc = "NVIDIA Olympus device store/load ordering erratum",
+		.capability = ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027,
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_NVIDIA_OLYMPUS),
 	},
 #endif
 #ifdef CONFIG_ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
@@ -1008,6 +1023,12 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = has_impdef_pmuv3,
 		.cpu_enable = cpu_enable_impdef_pmuv3_traps,
+	},
+	{
+		.desc = "Known broken GICv3 SEIS implementation",
+		.capability = ARM64_WORKAROUND_GICv3_BROKEN_SEIS,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_broken_gic_v3_seis,
 	},
 	{
 	}

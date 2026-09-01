@@ -5,6 +5,9 @@ __NR_acct,
 __NR_swapon,
 #endif
 __NR_quotactl,
+#ifdef __NR_quotactl_fd
+__NR_quotactl_fd,
+#endif
 #ifdef __NR_truncate
 __NR_truncate,
 #endif

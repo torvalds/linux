@@ -35,9 +35,9 @@ will be exposed to the kernel page allocator in the user-selected memory
 zone.
 
 The :code:`memmap_on_memory` setting (both global and DAX device local)
-dictates where the kernell will allocate the :code:`struct folio` descriptors
+dictates where the kernel will allocate the :code:`struct folio` descriptors
 for this memory will come from.  If :code:`memmap_on_memory` is set, memory
 hotplug will set aside a portion of the memory block capacity to allocate
 folios. If unset, the memory is allocated via a normal :code:`GFP_KERNEL`
-allocation - and as a result will most likely land on the local NUM node of the
+allocation - and as a result will most likely land on the local NUMA node of the
 CPU executing the hotplug operation.

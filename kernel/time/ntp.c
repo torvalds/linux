@@ -26,11 +26,13 @@
 /**
  * struct ntp_data - Structure holding all NTP related state
  * @tick_usec:		USER_HZ period in microseconds
- * @tick_length:	Adjusted tick length
- * @tick_length_base:	Base value for @tick_length
+ * @tick_length:	Tick length in ns << NTP_SCALE_SHIFT
  * @time_state:		State of the clock synchronization
  * @time_status:	Clock status bits
  * @time_offset:	Time adjustment in nanoseconds
+ * @skew_delta:		Per-tick phase slew rate for the coming second, in
+ *			@time_offset units (shifted-ns / HZ). Set by
+ *			second_overflow().
  * @time_constant:	PLL time constant
  * @time_maxerror:	Maximum error in microseconds holding the NTP sync distance
  *			(NTP dispersion + delay / 2)
@@ -38,7 +40,13 @@
  * @time_freq:		Frequency offset scaled nsecs/secs
  * @time_reftime:	Time at last adjustment in seconds
  * @time_adjust:	Adjustment value
+ * @time_adjust_frac:	Sub-microsecond remainder of @time_adjust being
+ *			delivered, in ns << NTP_SCALE_SHIFT (not divided by HZ).
  * @ntp_tick_adj:	Constant boot-param configurable NTP tick adjustment (upscaled)
+ * @cs_tick_adj:	Fixed per-second adjustment compensating for the difference
+ *			between the nominal NTP interval and the real time taken
+ *			by the clocksource's integer @cycle_interval (upscaled).
+ *			Set by the timekeeping core via ntp_clear().
  * @ntp_next_leap_sec:	Second value of the next pending leapsecond, or TIME64_MAX if no leap
  *
  * @pps_valid:		PPS signal watchdog counter
@@ -59,17 +67,19 @@
 struct ntp_data {
 	unsigned long		tick_usec;
 	u64			tick_length;
-	u64			tick_length_base;
 	int			time_state;
 	int			time_status;
 	s64			time_offset;
+	s64			skew_delta;
 	long			time_constant;
 	long			time_maxerror;
 	long			time_esterror;
 	s64			time_freq;
 	time64_t		time_reftime;
 	long			time_adjust;
+	s64			time_adjust_frac;
 	s64			ntp_tick_adj;
+	s64			cs_tick_adj;
 	time64_t		ntp_next_leap_sec;
 #ifdef CONFIG_NTP_PPS
 	int			pps_valid;
@@ -101,6 +111,9 @@ static struct ntp_data tk_ntp_data[TIMEKEEPERS_MAX] = {
 
 #define SECS_PER_DAY		86400
 #define MAX_TICKADJ		500LL		/* usecs */
+/* One microsecond of phase, in plain shifted-ns (ns << NTP_SCALE_SHIFT) */
+#define ONE_US_NS		((s64)NSEC_PER_USEC << NTP_SCALE_SHIFT)
+/* Per-tick MAX_TICKADJ slew, in plain shifted-ns */
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
@@ -245,8 +258,7 @@ static inline void pps_fill_timex(struct ntp_data *ntpdata, struct __kernel_time
 #endif /* CONFIG_NTP_PPS */
 
 /*
- * Update tick_length and tick_length_base, based on tick_usec, ntp_tick_adj and
- * time_freq:
+ * Update tick_length based on tick_usec, ntp_tick_adj and time_freq:
  */
 static void ntp_update_frequency(struct ntp_data *ntpdata)
 {
@@ -255,6 +267,7 @@ static void ntp_update_frequency(struct ntp_data *ntpdata)
 	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << NTP_SCALE_SHIFT;
 
 	second_length		+= ntpdata->ntp_tick_adj;
+	second_length		+= ntpdata->cs_tick_adj;
 	second_length		+= ntpdata->time_freq;
 
 	new_base		 = div_u64(second_length, NTP_INTERVAL_FREQ);
@@ -263,8 +276,7 @@ static void ntp_update_frequency(struct ntp_data *ntpdata)
 	 * Don't wait for the next second_overflow, apply the change to the
 	 * tick length immediately:
 	 */
-	ntpdata->tick_length		+= new_base - ntpdata->tick_length_base;
-	ntpdata->tick_length_base	 = new_base;
+	ntpdata->tick_length	 = new_base;
 }
 
 static inline s64 ntp_update_offset_fll(struct ntp_data *ntpdata, s64 offset64, long secs)
@@ -335,14 +347,15 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 {
 	/* Stop active adjtime() */
 	ntpdata->time_adjust	= 0;
+	ntpdata->time_adjust_frac = 0;
 	ntpdata->time_status	|= STA_UNSYNC;
 	ntpdata->time_maxerror	= NTP_PHASE_LIMIT;
 	ntpdata->time_esterror	= NTP_PHASE_LIMIT;
 
 	ntp_update_frequency(ntpdata);
 
-	ntpdata->tick_length	= ntpdata->tick_length_base;
 	ntpdata->time_offset	= 0;
+	ntpdata->skew_delta	= 0;
 
 	ntpdata->ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
@@ -350,11 +363,26 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 }
 
 /**
- * ntp_clear - Clears the NTP state variables
- * @tkid:	Timekeeper ID to be able to select proper ntp data array member
+ * ntp_clear - Clear NTP state and set the clocksource quantisation adjustment
+ * @tkid:		Timekeeper ID
+ * @cs_tick_adj:	Per-second adjustment in ns << NTP_SCALE_SHIFT
+ *
+ * The timekeeping core uses an integer number of cycles (@cycle_interval)
+ * per NTP interval, so the real time that interval represents differs from
+ * the nominal NTP_INTERVAL_LENGTH by up to half a counter period. Folding
+ * this fixed offset into @cs_tick_adj makes it an explicit part of the NTP
+ * tick_length computation in ntp.c, instead of being applied during
+ * timekeeping accumulation where the NTP code never saw it. Like
+ * @ntp_tick_adj it stays internal to the kernel; userspace still sees the
+ * nominal tick via adjtimex. NTP retains its full symmetric ±MAXFREQ range
+ * around the corrected base rate.
+ *
+ * Called whenever the clocksource is (re)configured, which is also when the
+ * rest of the NTP state must be cleared, so the two are done together.
  */
-void ntp_clear(unsigned int tkid)
+void ntp_clear(unsigned int tkid, s64 cs_tick_adj)
 {
+	tk_ntp_data[tkid].cs_tick_adj = cs_tick_adj;
 	__ntp_clear(&tk_ntp_data[tkid]);
 }
 
@@ -362,6 +390,186 @@ void ntp_clear(unsigned int tkid)
 u64 ntp_tick_length(unsigned int tkid)
 {
 	return tk_ntp_data[tkid].tick_length;
+}
+
+s64 ntp_get_skew_delta(unsigned int tkid)
+{
+	return tk_ntp_data[tkid].skew_delta;
+}
+
+/* Sign of @x as +1 or -1 (zero counts as positive; callers pass nonzero). */
+static inline int signof(s64 x)
+{
+	return x < 0 ? -1 : 1;
+}
+
+static s64 ntp_drain_time_offset(unsigned int tkid, s64 amount)
+{
+	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
+
+	/* Only drain if amount and time_offset have the same sign */
+	if (!amount || signof(amount) != signof(ntpdata->time_offset))
+		return amount;
+
+	/* Clamp: don't overshoot zero */
+	if (abs(amount) > abs(ntpdata->time_offset)) {
+		s64 undrained = amount - ntpdata->time_offset;
+
+		ntpdata->time_offset = 0;
+		return undrained;
+	}
+
+	ntpdata->time_offset -= amount;
+	return 0;
+}
+
+/*
+ * Drain the legacy adjtime() correction (time_adjust) as it is delivered.
+ *
+ * @amount is the total intentional per-tick skew for this accumulation
+ * (skew_delta << shift), in time_offset units (shifted_ns / HZ); it covers
+ * both the exponential time_offset slew and the linear adjtime slew. This
+ * function claims only the adjtime share — capped at the MAX_TICKADJ rate —
+ * and returns the remainder for ntp_drain_time_offset().
+ *
+ * time_adjust is in whole µs. The sub-µs remainder being delivered lives in
+ * time_adjust_frac (plain shifted-ns, i.e. ns << NTP_SCALE_SHIFT -- unlike
+ * time_offset these are NOT pre-divided by HZ); we top it up by borrowing
+ * whole microseconds from time_adjust as the drain consumes it.
+ */
+static s64 ntp_drain_time_adjust(unsigned int tkid, s64 amount, unsigned int shift)
+{
+	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
+	/* Sign reference: time_adjust if any whole us remain, else the drawer */
+	s64 ref = ntpdata->time_adjust ? (s64)ntpdata->time_adjust
+				       : ntpdata->time_adjust_frac;
+	s64 deliver, deficit, claimed;
+
+	if (!amount || !ref || signof(amount) != signof(ref))
+		return amount;
+
+	/*
+	 * Phase to deliver this accumulation, in plain shifted-ns. The drain
+	 * @amount is in ÷HZ units, so multiply by HZ first, then clamp to the
+	 * MAX_TICKADJ rate (MAX_TICKADJ_SCALED is the per-tick slew in
+	 * shifted-ns). Multiply-then-clamp avoids an s64 divide for the cap.
+	 */
+	deliver = min(abs(amount) * NTP_INTERVAL_FREQ,
+		      (s64)MAX_TICKADJ_SCALED << shift);
+
+	/* Top up the sub-µs drawer from whole-µs time_adjust as needed */
+	deficit = deliver - abs(ntpdata->time_adjust_frac);
+	if (deficit > 0 && ntpdata->time_adjust) {
+		long borrow = div64_u64(deficit + ONE_US_NS - 1, ONE_US_NS);
+
+		if (ntpdata->time_adjust > 0) {
+			borrow = min(borrow, ntpdata->time_adjust);
+			ntpdata->time_adjust	  -= borrow;
+			ntpdata->time_adjust_frac += (s64)borrow * ONE_US_NS;
+		} else {
+			/* Clamp without negating time_adjust (UB for LONG_MIN) */
+			if (ntpdata->time_adjust > -borrow)
+				borrow = -ntpdata->time_adjust;
+			ntpdata->time_adjust	  += borrow;
+			ntpdata->time_adjust_frac -= (s64)borrow * ONE_US_NS;
+		}
+	}
+
+	/* Never deliver more than the drawer holds */
+	deliver = min(deliver, abs(ntpdata->time_adjust_frac));
+	if (ntpdata->time_adjust_frac > 0)
+		ntpdata->time_adjust_frac -= deliver;
+	else
+		ntpdata->time_adjust_frac += deliver;
+
+	/* Return the unclaimed remainder in ÷HZ drain units for time_offset */
+	claimed = div_s64(deliver, NTP_INTERVAL_FREQ);
+	return amount - signof(amount) * claimed;
+}
+
+/*
+ * Drain one accumulation's worth of intentional skew as it is delivered.
+ *
+ * @amount is the total intentional per-tick skew for this accumulation
+ * (skew_delta << shift), in time_offset units (shifted_ns / HZ). The
+ * adjtime() linear share is taken from time_adjust first (capped at the
+ * MAX_TICKADJ rate, hence @shift), then the exponential remainder from
+ * time_offset. Returns the amount actually claimed (same ÷HZ units).
+ */
+s64 ntp_drain_skew(unsigned int tkid, s64 amount, unsigned int shift)
+{
+	s64 unclaimed = ntp_drain_time_adjust(tkid, amount, shift);
+
+	unclaimed = ntp_drain_time_offset(tkid, unclaimed);
+
+	/*
+	 * Return the amount actually drained from the intentional
+	 * phase offset in time_offset and/or time_adjust.
+	 */
+	return amount - unclaimed;
+}
+
+/*
+ * time_offset (drained exponentially) and time_adjust (drained linearly at the
+ * MAX_TICKADJ rate) can be asked to slew the clock in opposite directions.
+ * second_overflow() only folds their *net* into skew_delta, so the cancelling
+ * part would never be drained from either tracker via the per-tick code -- and
+ * if they cancel exactly, skew_delta is zero and neither converges at all.
+ *
+ * Settle that cancelling phase directly between the two here. No clock motion
+ * results (the opposing slews annihilate), but both move toward zero so neither
+ * stalls. @amount is the phase to take off time_offset, in its (÷HZ) units and
+ * with its sign; the same real magnitude comes off time_adjust in the opposite
+ * direction. Clamped so neither tracker is driven past zero.
+ */
+static void ntp_transfer_offset_adjust(struct ntp_data *ntpdata, s64 amount)
+{
+	s64 frac_delta, carry;
+
+	/*
+	 * Don't drain time_offset past zero. @amount shares its sign and is
+	 * normally bounded below it by ntp_offset_chunk(), but the ±1 skew_delta
+	 * floor for a tiny time_offset can exceed it, so clamp.
+	 */
+	if (abs(amount) > abs(ntpdata->time_offset))
+		amount = ntpdata->time_offset;
+	if (!amount)
+		return;
+
+	/*
+	 * Remove the matching phase from time_adjust, in plain shifted-ns. No
+	 * clamp against time_adjust's zero is needed: @amount is bounded by the
+	 * adjtime chunk, which second_overflow() never lets exceed time_adjust's
+	 * own pending phase, so this cannot overshoot.
+	 */
+	frac_delta = amount * NTP_INTERVAL_FREQ;
+
+	ntpdata->time_offset -= amount;
+
+	/* Add the matching phase to time_adjust, carrying whole µs (O(1)). */
+	ntpdata->time_adjust_frac += frac_delta;
+	if (ntpdata->time_adjust_frac >= ONE_US_NS ||
+	    ntpdata->time_adjust_frac <= -ONE_US_NS) {
+		carry = div64_s64(ntpdata->time_adjust_frac, ONE_US_NS);
+		ntpdata->time_adjust	  += carry;
+		ntpdata->time_adjust_frac -= carry * ONE_US_NS;
+	}
+
+	/*
+	 * Keep time_adjust and its sub-µs remainder the same sign. The
+	 * truncating carry above can leave them opposed (e.g. +4 µs paired
+	 * with -250 ns), and ntp_drain_time_adjust() treats abs(time_adjust_frac)
+	 * as same-direction drawer capacity -- an opposing remainder there makes
+	 * it over-deliver phase that was never removed from the pile. Borrow or
+	 * repay a single whole µs to realign; the total phase is unchanged.
+	 */
+	if (ntpdata->time_adjust > 0 && ntpdata->time_adjust_frac < 0) {
+		ntpdata->time_adjust--;
+		ntpdata->time_adjust_frac += ONE_US_NS;
+	} else if (ntpdata->time_adjust < 0 && ntpdata->time_adjust_frac > 0) {
+		ntpdata->time_adjust++;
+		ntpdata->time_adjust_frac -= ONE_US_NS;
+	}
 }
 
 /**
@@ -398,7 +606,6 @@ ktime_t ntp_get_next_leap(unsigned int tkid)
 int second_overflow(unsigned int tkid, time64_t secs)
 {
 	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
-	s64 delta;
 	int leap = 0;
 	s32 rem;
 
@@ -458,35 +665,70 @@ int second_overflow(unsigned int tkid, time64_t secs)
 	}
 
 	/* Compute the phase adjustment for the next second */
-	ntpdata->tick_length	 = ntpdata->tick_length_base;
-
-	delta			 = ntp_offset_chunk(ntpdata, ntpdata->time_offset);
-	ntpdata->time_offset	-= delta;
-	ntpdata->tick_length	+= delta;
 
 	/* Check PPS signal */
 	pps_dec_valid(ntpdata);
 
-	if (!ntpdata->time_adjust)
-		goto out;
+	/*
+	 * Set the per-tick skew rate for the next second. This is in
+	 * the same units as time_offset: (ns << NTP_SCALE_SHIFT) / HZ.
+	 * If the result is so low that the skew imparted would round
+	 * to zero, pass the bare minimum ±1 to ensure that it *does*
+	 * actually drain completely to zero. It won't overshoot because
+	 * logarithmic_accumulation() only drains what it can from
+	 * time_offset or time_adjust, and the rest ends up in ntp_error
+	 * which drives the selection of 'mult' immediately each tick.
+	 */
+	if (ntpdata->time_offset || ntpdata->time_adjust ||
+	    ntpdata->time_adjust_frac) {
+		s64 off_chunk = ntp_offset_chunk(ntpdata, ntpdata->time_offset);
+		s64 adj_chunk = 0, net;
 
-	if (ntpdata->time_adjust > MAX_TICKADJ) {
-		ntpdata->time_adjust -= MAX_TICKADJ;
-		ntpdata->tick_length += MAX_TICKADJ_SCALED;
-		goto out;
+		/*
+		 * Once the exponential chunk rounds to zero, deliver the last
+		 * remaining offset this second so it converges to zero instead
+		 * of stalling just above it.
+		 */
+		if (!off_chunk)
+			off_chunk = ntpdata->time_offset;
+
+		if (ntpdata->time_adjust || ntpdata->time_adjust_frac) {
+			s64 adj;
+
+			if (ntpdata->time_adjust >= MAX_TICKADJ)
+				adj = MAX_TICKADJ * ONE_US_NS;
+			else if (ntpdata->time_adjust <= -MAX_TICKADJ)
+				adj = -MAX_TICKADJ * ONE_US_NS;
+			else
+				adj = ntpdata->time_adjust * ONE_US_NS +
+					ntpdata->time_adjust_frac;
+
+			adj_chunk = div_s64(adj, NTP_INTERVAL_FREQ);
+			if (!adj_chunk)
+				adj_chunk = signof(ntpdata->time_adjust_frac);
+		}
+
+		/*
+		 * If the two slews oppose, only their net would drive the
+		 * per-tick drain, so the cancelling part would never drain from
+		 * either tracker and an exact cancellation would stall both.
+		 * Settle that overlap directly between them (no clock motion).
+		 */
+		if (off_chunk && adj_chunk && signof(off_chunk) != signof(adj_chunk)) {
+			s64 conflict = min(abs(off_chunk), abs(adj_chunk));
+
+			ntp_transfer_offset_adjust(ntpdata, signof(off_chunk) * conflict);
+		}
+
+		/* Net is what the clock delivers; reduce to per-tick, then floor. */
+		net = off_chunk + adj_chunk;
+		ntpdata->skew_delta = div_s64(net, NTP_INTERVAL_FREQ);
+		if (!ntpdata->skew_delta && net)
+			ntpdata->skew_delta = signof(net);
+	} else {
+		ntpdata->skew_delta = 0;
 	}
 
-	if (ntpdata->time_adjust < -MAX_TICKADJ) {
-		ntpdata->time_adjust += MAX_TICKADJ;
-		ntpdata->tick_length -= MAX_TICKADJ_SCALED;
-		goto out;
-	}
-
-	ntpdata->tick_length += (s64)(ntpdata->time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
-				<< NTP_SCALE_SHIFT;
-	ntpdata->time_adjust = 0;
-
-out:
 	return leap;
 }
 
@@ -779,6 +1021,7 @@ int ntp_adjtimex(unsigned int tkid, struct __kernel_timex *txc, const struct tim
 		if (!(txc->modes & ADJ_OFFSET_READONLY)) {
 			/* adjtime() is independent from ntp_adjtime() */
 			ntpdata->time_adjust = txc->offset;
+			ntpdata->time_adjust_frac = 0;
 			ntp_update_frequency(ntpdata);
 
 			audit_ntp_set_old(ad, AUDIT_NTP_ADJUST,	save_adjust);
@@ -1020,6 +1263,7 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 					       NTP_INTERVAL_FREQ);
 		/* Cancel running adjtime() */
 		ntpdata->time_adjust = 0;
+		ntpdata->time_adjust_frac = 0;
 	}
 	/* Update jitter */
 	ntpdata->pps_jitter += (jitter - ntpdata->pps_jitter) >> PPS_INTMIN;

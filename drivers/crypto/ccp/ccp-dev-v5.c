@@ -47,7 +47,7 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 							MAX_LSB_CNT * LSB_SIZE,
 							0,
 							count, 0);
-		if (start <= MAX_LSB_CNT * LSB_SIZE) {
+		if (start < MAX_LSB_CNT * LSB_SIZE) {
 			bitmap_set(ccp->lsbmap, start, count);
 
 			mutex_unlock(&ccp->sb_mutex);

@@ -67,6 +67,10 @@
 #define IFF_TAP		0x0002
 #define IFF_NAPI	0x0010
 #define IFF_NAPI_FRAGS	0x0020
+/* Stop the queue instead of dropping when the internal ring is full, so an
+ * attached qdisc applies backpressure instead of being bypassed.
+ */
+#define IFF_BACKPRESSURE	0x0080
 #define IFF_NO_PI	0x1000
 /* This flag has no real effect */
 #define IFF_ONE_QUEUE	0x2000

@@ -33,7 +33,7 @@ int ntfs_bdev_read(struct block_device *bdev, char *data, loff_t start, size_t s
 	unsigned int done = 0, added;
 	int error;
 	struct bio *bio;
-	enum req_op op;
+	blk_opf_t op;
 	sector_t sector = start >> SECTOR_SHIFT;
 
 	if (start & (SECTOR_SIZE - 1))
@@ -66,7 +66,7 @@ int ntfs_bdev_read(struct block_device *bdev, char *data, loff_t start, size_t s
 	error = submit_bio_wait(bio);
 	bio_put(bio);
 
-	if (op == REQ_OP_READ)
+	if ((op & REQ_OP_MASK) == REQ_OP_READ)
 		invalidate_kernel_vmap_range(data, size);
 	return error;
 }

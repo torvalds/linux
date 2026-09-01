@@ -252,8 +252,8 @@ xfs_dquot_buf_read_verify(
 /*
  * readahead errors are silent and simply leave the buffer as !done so a real
  * read will then be run with the xfs_dquot_buf_ops verifier. See
- * xfs_inode_buf_verify() for why we use EIO and ~XBF_DONE here rather than
- * reporting the failure.
+ * xfs_inode_buf_verify() for why we use EIO here rather than reporting the
+ * failure.
  */
 static void
 xfs_dquot_buf_readahead_verify(
@@ -262,10 +262,8 @@ xfs_dquot_buf_readahead_verify(
 	struct xfs_mount	*mp = bp->b_mount;
 
 	if (!xfs_dquot_buf_verify_crc(mp, bp, true) ||
-	    xfs_dquot_buf_verify(mp, bp, true) != NULL) {
+	    xfs_dquot_buf_verify(mp, bp, true) != NULL)
 		xfs_buf_ioerror(bp, -EIO);
-		bp->b_flags &= ~XBF_DONE;
-	}
 }
 
 /*
@@ -416,6 +414,15 @@ xfs_dqinode_load(
 	return 0;
 }
 
+static int
+xfs_dqinode_init(
+	struct xfs_metadir_update	*upd,
+	void				*priv)
+{
+	xfs_trans_log_inode(upd->tp, upd->ip, XFS_ILOG_CORE);
+	return 0;
+}
+
 /* Create a metadata directory quota inode. */
 int
 xfs_dqinode_metadir_create(
@@ -428,35 +435,9 @@ xfs_dqinode_metadir_create(
 		.metafile_type		= xfs_dqinode_metafile_type(type),
 		.path			= xfs_dqinode_path(type),
 	};
-	int				error;
 
-	error = xfs_metadir_start_create(&upd);
-	if (error)
-		return error;
-
-	error = xfs_metadir_create(&upd, S_IFREG);
-	if (error)
-		goto out_cancel;
-
-	xfs_trans_log_inode(upd.tp, upd.ip, XFS_ILOG_CORE);
-
-	error = xfs_metadir_commit(&upd);
-	if (error)
-		goto out_irele;
-
-	xfs_finish_inode_setup(upd.ip);
-	*ipp = upd.ip;
-	return 0;
-
-out_cancel:
-	xfs_metadir_cancel(&upd, error);
-out_irele:
-	/* Have to finish setting up the inode to ensure it's deleted. */
-	if (upd.ip) {
-		xfs_finish_inode_setup(upd.ip);
-		xfs_irele(upd.ip);
-	}
-	return error;
+	return xfs_metadir_create_file(&upd, S_IFREG, xfs_dqinode_init, NULL,
+			ipp);
 }
 
 #ifndef __KERNEL__

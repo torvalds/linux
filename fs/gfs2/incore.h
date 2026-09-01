@@ -321,7 +321,6 @@ enum {
 	GLF_INITIAL			= 10,
 	GLF_HAVE_FROZEN_REPLY		= 11,
 	GLF_INSTANTIATE_IN_PROG		= 12, /* instantiate happening now */
-	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
 	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
@@ -355,7 +354,7 @@ struct gfs2_glock {
 	unsigned long gl_tchange;
 	void *gl_object;
 
-	struct list_head gl_lru;
+	struct list_head gl_dead;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	atomic_t gl_revokes;
@@ -601,7 +600,6 @@ enum {
 	SDF_DEMOTE		= 5,
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
-	SDF_SKIP_DLM_UNLOCK	= 8,
 	SDF_FORCE_AIL_FLUSH     = 9,
 	SDF_FREEZE_INITIATOR	= 10,
 	SDF_KILL		= 15,
@@ -833,6 +831,9 @@ struct gfs2_sbd {
 	spinlock_t sd_ail_lock;
 	struct list_head sd_ail1_list;
 	struct list_head sd_ail2_list;
+
+	/* glocks */
+	spinlock_t sd_dead_lock;
 
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;

@@ -164,7 +164,7 @@ static inline void swap_buf(const u8 *src, u8 *dst, size_t len)
 static int smp_aes_cmac(const u8 k[16], const u8 *m, size_t len, u8 mac[16])
 {
 	uint8_t tmp[16], mac_msb[16], msg_msb[CMAC_MSG_MAX];
-	struct aes_cmac_key key;
+	struct aes_cmac_key key __cleanup(aes_cmac_zeroize_key);
 	int err;
 
 	if (len > CMAC_MSG_MAX)
@@ -178,6 +178,7 @@ static int smp_aes_cmac(const u8 k[16], const u8 *m, size_t len, u8 mac[16])
 	SMP_DBG("key %16phN", k);
 
 	err = aes_cmac_preparekey(&key, tmp, 16);
+	memzero_explicit(tmp, sizeof(tmp));
 	if (WARN_ON_ONCE(err)) /* Should never happen, as 16 is valid keylen */
 		return err;
 	aes_cmac(&key, msg_msb, len, mac_msb);
@@ -2327,11 +2328,14 @@ static void smp_send_security_req(struct smp_chan *smp, __u8 auth)
 
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
-	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct l2cap_conn *conn;
 	struct l2cap_chan *chan;
 	struct smp_chan *smp;
 	__u8 authreq;
 	int ret;
+
+	/* Caller shall ensure there can be no race with l2cap_conn_del() */
+	conn = context_unsafe(hcon->l2cap_data);
 
 	bt_dev_dbg(hcon->hdev, "conn %p hcon %p level 0x%2.2x", conn, hcon,
 		   sec_level);
@@ -2420,6 +2424,8 @@ int smp_cancel_and_remove_pairing(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	hcon = hci_conn_hash_lookup_le(hdev, bdaddr, addr_type);
 	if (!hcon)
 		goto done;
+
+	lockdep_assert_held(&hcon->hdev->lock);
 
 	conn = hcon->l2cap_data;
 	if (!conn)

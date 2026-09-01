@@ -173,6 +173,21 @@ struct gpu_buddy {
 	 * that fits in the remaining space.
 	 */
 	struct gpu_buddy_block **roots;
+	/*
+	 * Per-order free block scoreboard: free_scoreboard[order] holds the
+	 * number of blocks of that order currently in the free state.
+	 * Incremented in mark_free(), decremented wherever rbtree_remove() is
+	 * called on a free block.
+	 */
+	u64 *free_scoreboard;
+	/*
+	 * Per-order used block scoreboard: used_scoreboard[order] holds the
+	 * number of blocks of that order currently in the allocated state.
+	 * Incremented in mark_allocated(), decremented in mark_free() (guarded
+	 * by gpu_buddy_block_is_allocated()) and in __gpu_buddy_free() when an
+	 * allocated block is consumed directly during buddy coalescing.
+	 */
+	u64 *used_scoreboard;
 /* public: */
 	unsigned int n_roots;
 	unsigned int max_order;
@@ -271,6 +286,8 @@ int gpu_buddy_block_trim(struct gpu_buddy *mm,
 void gpu_buddy_reset_clear(struct gpu_buddy *mm, bool is_clear);
 
 void gpu_buddy_free_block(struct gpu_buddy *mm, struct gpu_buddy_block *block);
+
+struct gpu_buddy_block *gpu_buddy_allocated_addr_to_block(struct gpu_buddy *mm, u64 addr);
 
 void gpu_buddy_free_list(struct gpu_buddy *mm,
 			 struct list_head *objects,

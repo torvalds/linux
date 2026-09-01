@@ -75,8 +75,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(ZORAN_VERSION);
 
 #define ZR_DEVICE(subven, subdev, data)	{ \
-	.vendor = PCI_VENDOR_ID_ZORAN, .device = PCI_DEVICE_ID_ZORAN_36057, \
-	.subvendor = (subven), .subdevice = (subdev), .driver_data = (data) }
+	PCI_DEVICE_SUB(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, \
+		       (subven), (subdev)), \
+	.driver_data = (data) }
 
 static const struct pci_device_id zr36067_pci_tbl[] = {
 	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC10PLUS, DC10_PLUS),
@@ -84,7 +85,7 @@ static const struct pci_device_id zr36067_pci_tbl[] = {
 	ZR_DEVICE(PCI_VENDOR_ID_ELECTRONICDESIGNGMBH, PCI_DEVICE_ID_LML_33R10, LML33R10),
 	ZR_DEVICE(PCI_VENDOR_ID_IOMEGA, PCI_DEVICE_ID_IOMEGA_BUZ, BUZ),
 	ZR_DEVICE(PCI_ANY_ID, PCI_ANY_ID, NUM_CARDS),
-	{0}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
@@ -885,7 +886,7 @@ static int zoran_init_video_device(struct zoran *zr, struct video_device *video_
 static void zoran_exit_video_devices(struct zoran *zr)
 {
 	video_unregister_device(zr->video_dev);
-	kfree(zr->video_dev);
+	zr->video_dev = NULL;
 }
 
 static int zoran_init_video_devices(struct zoran *zr)

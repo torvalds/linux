@@ -663,6 +663,7 @@ static const struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x1af4, "QEMU" },
 	{ 0x1fa8, "Senarytech" },
 	{ 0x434d, "C-Media" },
+	{ 0x4c54, "Lisuan" },
 	{ 0x8086, "Intel" },
 	{ 0x8384, "SigmaTel" },
 	{} /* terminator */
@@ -765,7 +766,7 @@ unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subfor
 
 	params_set_format(&params, snd_hdac_format_normalize(format));
 	snd_mask_set(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_SUBFORMAT),
-		     (__force unsigned int)subformat);
+		     subformat);
 
 	bits = snd_pcm_hw_params_bits(&params);
 	if (maxbits)

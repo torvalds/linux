@@ -117,6 +117,27 @@ static void xe_migrate_fini(void *arg)
 	xe_exec_queue_put(m->q);
 }
 
+static inline u16 xe_migrate_pat_index(struct xe_device *xe,
+				       enum ttm_caching caching,
+				       bool is_comp_pte)
+{
+	enum xe_cache_level cache_level;
+
+	/*
+	 * Select the appropriate PAT index for buffer object PTEs programmed
+	 * by emit_pte(). We choose not to mess with xe_migrate_prepare_vm()
+	 * yet, for simplicity.
+	 */
+	if (is_comp_pte && GRAPHICS_VERx100(xe) >= 2000)
+		cache_level = XE_CACHE_NONE_COMPRESSION;
+	else if (caching == ttm_cached)
+		cache_level = XE_CACHE_WB;
+	else
+		cache_level = XE_CACHE_NONE;
+
+	return xe_cache_pat_idx(xe, cache_level);
+}
+
 static u64 xe_migrate_vm_addr(u64 slot, u32 level)
 {
 	XE_WARN_ON(slot >= NUM_PT_SLOTS);
@@ -383,27 +404,6 @@ static void xe_migrate_suballoc_manager_init(struct xe_migrate *m, u32 map_ofs)
 				  NUM_VMUSA_UNIT_PER_PAGE, 0);
 }
 
-/*
- * Including the reserved copy engine is required to avoid deadlocks due to
- * migrate jobs servicing the faults gets stuck behind the job that faulted.
- */
-static u32 xe_migrate_usm_logical_mask(struct xe_gt *gt)
-{
-	u32 logical_mask = 0;
-	struct xe_hw_engine *hwe;
-	enum xe_hw_engine_id id;
-
-	for_each_hw_engine(hwe, gt, id) {
-		if (hwe->class != XE_ENGINE_CLASS_COPY)
-			continue;
-
-		if (xe_gt_is_usm_hwe(gt, hwe))
-			logical_mask |= BIT(hwe->logical_instance);
-	}
-
-	return logical_mask;
-}
-
 static bool xe_migrate_needs_ccs_emit(struct xe_device *xe)
 {
 	return xe_device_has_flat_ccs(xe) && !(GRAPHICS_VER(xe) >= 20 && IS_DGFX(xe));
@@ -479,13 +479,10 @@ int xe_migrate_init(struct xe_migrate *m)
 		goto err_out;
 
 	if (xe->info.has_usm) {
-		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
-							   XE_ENGINE_CLASS_COPY,
-							   primary_gt->usm.reserved_bcs_instance,
-							   false);
-		u32 logical_mask = xe_migrate_usm_logical_mask(primary_gt);
+		struct xe_hw_engine *hwe0 = primary_gt->usm.paging_hwe0;
+		u32 logical_mask = primary_gt->usm.paging_logical_mask;
 
-		if (!hwe || !logical_mask) {
+		if (!hwe0 || !logical_mask) {
 			err = -EINVAL;
 			goto err_out;
 		}
@@ -494,7 +491,7 @@ int xe_migrate_init(struct xe_migrate *m)
 		 * XXX: Currently only reserving 1 (likely slow) BCS instance on
 		 * PVC, may want to revisit if performance is needed.
 		 */
-		m->q = xe_exec_queue_create(xe, vm, logical_mask, 1, hwe,
+		m->q = xe_exec_queue_create(xe, vm, logical_mask, 1, hwe0,
 					    EXEC_QUEUE_FLAG_KERNEL |
 					    EXEC_QUEUE_FLAG_PERMANENT |
 					    EXEC_QUEUE_FLAG_HIGH_PRIORITY |
@@ -631,17 +628,17 @@ static void emit_pte(struct xe_migrate *m,
 {
 	struct xe_device *xe = tile_to_xe(m->tile);
 	struct xe_vm *vm = m->q->vm;
+	struct xe_bo *bo = ttm_to_xe_bo(res->bo);
+	enum ttm_caching caching = ttm_cached;
 	u16 pat_index;
 	u32 ptes;
 	u64 ofs = (u64)at_pt * XE_PAGE_SIZE;
 	u64 cur_ofs;
 
-	/* Indirect access needs compression enabled uncached PAT index */
-	if (GRAPHICS_VERx100(xe) >= 2000)
-		pat_index = is_comp_pte ? xe_cache_pat_idx(xe, XE_CACHE_NONE_COMPRESSION) :
-					  xe_cache_pat_idx(xe, XE_CACHE_WB);
-	else
-		pat_index = xe_cache_pat_idx(xe, XE_CACHE_WB);
+	if (!is_vram && bo->ttm.ttm)
+		caching = bo->ttm.ttm->caching;
+
+	pat_index = xe_migrate_pat_index(xe, caching, is_comp_pte);
 
 	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 

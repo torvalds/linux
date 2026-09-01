@@ -464,14 +464,21 @@ static void airspy_disconnect(struct usb_interface *intf)
 
 	dev_dbg(s->dev, "\n");
 
-	mutex_lock(&s->vb_queue_lock);
-	mutex_lock(&s->v4l2_lock);
-	/* No need to keep the urbs around after disconnection */
-	s->udev = NULL;
+	/*
+	 * vb2_video_unregister_device() releases the vb2 queue, which
+	 * triggers airspy_stop_streaming() if streaming is active.
+	 * stop_streaming() dereferences s->udev via airspy_ctrl_msg() and
+	 * airspy_free_stream_bufs(), so it must run before s->udev is
+	 * cleared. vb2_video_unregister_device() locks vb_queue_lock
+	 * internally and stop_streaming() locks v4l2_lock, so neither may
+	 * be held by the caller.
+	 */
 	v4l2_device_disconnect(&s->v4l2_dev);
-	video_unregister_device(&s->vdev);
+	vb2_video_unregister_device(&s->vdev);
+
+	mutex_lock(&s->v4l2_lock);
+	s->udev = NULL;
 	mutex_unlock(&s->v4l2_lock);
-	mutex_unlock(&s->vb_queue_lock);
 
 	v4l2_device_put(&s->v4l2_dev);
 }

@@ -1122,6 +1122,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 					  struct kvm_page_fault *fault,
 					  struct tdp_iter *iter)
 {
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	struct kvm_mmu_page *sp = sptep_to_sp(rcu_dereference(iter->sptep));
 	u64 new_spte;
 	int ret = RET_PF_FIXED;
@@ -1131,7 +1132,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 		return RET_PF_RETRY;
 
 	if (is_shadow_present_pte(iter->old_spte) &&
-	    (fault->prefetch || is_access_allowed(fault, iter->old_spte)) &&
+	    (fault->prefetch || !spte_permission_fault(mmu, iter->old_spte, fault)) &&
 	    is_last_spte(iter->old_spte, iter->level)) {
 		WARN_ON_ONCE(fault->pfn != spte_to_pfn(iter->old_spte));
 		return RET_PF_SPURIOUS;
@@ -1334,19 +1335,17 @@ static void kvm_tdp_mmu_age_spte(struct kvm *kvm, struct tdp_iter *iter)
 	if (WARN_ON_ONCE(is_mirror_sptep(iter->sptep)))
 		return;
 
-	if (spte_ad_enabled(iter->old_spte)) {
-		iter->old_spte = tdp_mmu_clear_spte_bits_atomic(iter->sptep,
-								shadow_accessed_mask);
+	if (spte_ad_enabled(iter->old_spte))
 		new_spte = iter->old_spte & ~shadow_accessed_mask;
-	} else {
+	else
 		new_spte = mark_spte_for_access_track(iter->old_spte);
-		/*
-		 * It is safe for the following cmpxchg to fail. Leave the
-		 * Accessed bit set, as the spte is most likely young anyway.
-		 */
-		if (__tdp_mmu_set_spte_atomic(kvm, iter, new_spte))
-			return;
-	}
+
+	/*
+	 * Don't bother retrying if another CPU modified the SPTE, the SPTE is
+	 * either being zapped or is likely still in-use, i.e. is still young.
+	 */
+	if (__tdp_mmu_set_spte_atomic(kvm, iter, new_spte))
+		return;
 
 	trace_kvm_tdp_mmu_spte_changed(iter->as_id, iter->gfn, iter->level,
 				       iter->old_spte, new_spte);

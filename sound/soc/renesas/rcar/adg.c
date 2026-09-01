@@ -565,7 +565,7 @@ static struct clk *rsnd_adg_create_null_clk(struct rsnd_priv *priv,
 	struct clk *clk;
 
 	clk = clk_register_fixed_rate(dev, name, parent, 0, 0);
-	if (IS_ERR_OR_NULL(clk)) {
+	if (IS_ERR(clk)) {
 		dev_err(dev, "create null clk error\n");
 		return ERR_CAST(clk);
 	}
@@ -618,7 +618,7 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 	 * No "adg" is not error
 	 */
 	clk = devm_clk_get(dev, "adg");
-	if (IS_ERR_OR_NULL(clk))
+	if (IS_ERR(clk))
 		clk = rsnd_adg_null_clk_get(priv);
 	adg->adg = clk;
 
@@ -626,9 +626,9 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 	for (i = 0; i < clkin_size; i++) {
 		clk = devm_clk_get(dev, clkin_name[i]);
 
-		if (IS_ERR_OR_NULL(clk))
+		if (IS_ERR(clk))
 			clk = rsnd_adg_null_clk_get(priv);
-		if (IS_ERR_OR_NULL(clk))
+		if (IS_ERR(clk))
 			goto err;
 
 		adg->clkin[i] = clk;

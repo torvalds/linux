@@ -42,6 +42,21 @@ int amdgpu_dm_crtc_set_vupdate_irq(struct drm_crtc *crtc, bool enable);
 
 bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc);
 
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
+				      const struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted_mode);
+void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
+				  struct drm_crtc_state *state);
+struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc);
+void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc);
+int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state);
+void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
+					      struct drm_crtc_state *new_crtc_state);
+void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work);
+void amdgpu_dm_idle_worker(struct work_struct *work);
+#endif
+
 bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state);
 
 int amdgpu_dm_crtc_enable_vblank(struct drm_crtc *crtc);

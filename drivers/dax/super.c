@@ -116,11 +116,47 @@ EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 
 #if IS_ENABLED(CONFIG_FS_DAX)
 
+/**
+ * fs_put_dax() - release holder ownership of a dax_device
+ * @dax_dev: dax device to release (may be NULL)
+ * @holder: the holder pointer previously passed to fs_dax_get() or
+ *          fs_dax_get_by_bdev(); must match exactly, as it is used
+ *          in a cmpxchg to atomically release ownership
+ *
+ * Must only be called by the current holder. Clears holder_ops before
+ * holder_data to avoid a race where a concurrent fs_dax_get() could have
+ * its newly installed holder_ops overwritten.
+ */
 void fs_put_dax(struct dax_device *dax_dev, void *holder)
 {
-	if (dax_dev && holder &&
-	    cmpxchg(&dax_dev->holder_data, holder, NULL) == holder)
-		dax_dev->holder_ops = NULL;
+	if (dax_dev && holder) {
+		void *prev;
+
+		/*
+		 * Clear holder_ops before releasing holder_data. A concurrent
+		 * dax_holder_notify_failure() that sees NULL ops returns
+		 * -EOPNOTSUPP cleanly. A concurrent fs_dax_get() that acquires
+		 * holder_data after the cmpxchg below is guaranteed to observe
+		 * holder_ops=NULL first (cmpxchg provides release ordering), so
+		 * its subsequent store of new ops will not be overwritten.
+		 */
+		WRITE_ONCE(dax_dev->holder_ops, NULL);
+		prev = cmpxchg(&dax_dev->holder_data, holder, NULL);
+
+		/*
+		 * prev == holder: normal release.
+		 * prev == NULL:   already released by kill_dax() when the
+		 *                 device was removed under a live holder;
+		 *                 not a bug.
+		 * prev != holder (non-NULL): fs_put_dax() called by something
+		 *                 that is not the current holder; an API
+		 *                 contract violation. A lock would be needed
+		 *                 to guard against this, but we WARN_ON()
+		 *                 instead since violating the contract is
+		 *                 a bug.
+		 */
+		WARN_ON(prev && prev != holder);
+	}
 	put_dax(dax_dev);
 }
 EXPORT_SYMBOL_GPL(fs_put_dax);
@@ -303,6 +339,7 @@ EXPORT_SYMBOL_GPL(dax_recovery_write);
 int dax_holder_notify_failure(struct dax_device *dax_dev, u64 off,
 			      u64 len, int mf_flags)
 {
+	const struct dax_holder_operations *ops;
 	int rc, id;
 
 	id = dax_read_lock();
@@ -311,12 +348,19 @@ int dax_holder_notify_failure(struct dax_device *dax_dev, u64 off,
 		goto out;
 	}
 
-	if (!dax_dev->holder_ops) {
+	/*
+	 * Read holder_ops once: a concurrent fs_put_dax() can clear it without
+	 * synchronizing against readers. Without the single fetch the compiler
+	 * could reload between the NULL check and the call and dereference a
+	 * NULL ops.
+	 */
+	ops = READ_ONCE(dax_dev->holder_ops);
+	if (!ops) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
 
-	rc = dax_dev->holder_ops->notify_failure(dax_dev, off, len, mf_flags);
+	rc = ops->notify_failure(dax_dev, off, len, mf_flags);
 out:
 	dax_read_unlock(id);
 	return rc;

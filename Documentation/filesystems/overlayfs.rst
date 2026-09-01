@@ -123,8 +123,7 @@ At mount time, the two directories given as mount options "lowerdir" and
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
   workdir=/work /merged
 
-The "workdir" needs to be an empty directory on the same filesystem
-as upperdir.
+The "workdir" needs to be a directory on the same filesystem as upperdir.
 
 Then whenever a lookup is requested in such a merged directory, the
 lookup is performed in each actual directory and the combined result
@@ -345,6 +344,22 @@ and::
 
 The resulting access permissions should be the same.  The difference is in
 the time of copy (on-demand vs. up-front).
+
+
+Idmapped mounts
+---------------
+
+The overlay mount itself can be turned into an idmapped mount by applying an
+idmapping to it with mount_setattr(2) and MOUNT_ATTR_IDMAP, just like for
+other filesystems that support idmapped mounts.
+
+The mount idmapping only changes how ownership and permissions of the overlay
+inodes are presented to and interpreted for the caller.  It does not change
+how overlayfs accesses the underlying layers: those are still accessed with
+the stashed mounter's credentials through their own mounts, which may
+themselves be idmapped.  The overlay mount idmapping and any layer idmapping
+compose, an underlying id is first mapped according to the relevant layer
+idmapping and then according to the overlay mount idmapping.
 
 
 Multiple lower layers

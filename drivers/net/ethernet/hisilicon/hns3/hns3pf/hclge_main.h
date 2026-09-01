@@ -346,6 +346,11 @@ enum hclge_link_fail_code {
 #define HCLGE_LINK_STATUS_DOWN 0
 #define HCLGE_LINK_STATUS_UP   1
 
+#define HCLGE_DIR_RX 0
+#define HCLGE_DIR_TX 1
+#define HCLGE_MAX_PFC_PREVENTION_TOUT		2000
+#define HCLGE_DEFAULT_PFC_PREVENTION_TOUT	1000
+
 #define HCLGE_PG_NUM		4
 #define HCLGE_SCH_MODE_SP	0
 #define HCLGE_SCH_MODE_DWRR	1
@@ -898,6 +903,8 @@ struct hclge_dev {
 	u16 vf_rss_size_max;		/* HW defined VF max RSS task queue */
 	u16 pf_rss_size_max;		/* HW defined PF max RSS task queue */
 	u32 tx_spare_buf_size;		/* HW defined TX spare buffer size */
+	u16 pfc_prevention_tout;	/* User config, restored after reset */
+	u16 pfc_prevention_tout_default; /* HW default, to avoid stale state */
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */

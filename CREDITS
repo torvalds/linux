@@ -640,6 +640,10 @@ S: 25-29 St Giles
 S: Oxford
 S: United Kingdom
 
+N: Bingbu Cao
+E: bingbu.cao@amd.com
+D: Ipu6, ipu7 and camera sensor drivers
+
 N: Luiz Fernando N. Capitulino
 E: lcapitulino@mandriva.com.br
 E: lcapitulino@gmail.com
@@ -1320,6 +1324,11 @@ D: Initial GPL'd Frame Relay driver
 D: Dynamic PPP devices
 D: Sundry modularizations (PPP, IPX, ...) and fixes
 
+N: Steve French
+E: sfrench@samba.org
+E: smfrench@gmail.com
+D: Author and maintainer of the cifs filesystem for many years.
+
 N: Bob Frey
 E: bobf@advansys.com
 D: AdvanSys SCSI driver
@@ -1816,6 +1825,10 @@ D: md boot support
 S: Am Strand 5
 S: D-19063 Schwerin
 S: Germany
+
+N: Haowen Hu
+E: srcres258@furdevs.cn
+D: Traditional Chinese (zh_TW) documentation translation and maintenance
 
 N: Jan Hubicka
 E: hubicka@freesoft.cz
@@ -2906,6 +2919,10 @@ N: Thomas Molina
 E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
+N: Bob Moore
+E: robert.moore@intel.com
+D: ACPI Component Architecture (ACPICA)
+
 N: Paul Moore
 E: paul@paul-moore.com
 W: https://www.paul-moore.com
@@ -3095,6 +3112,10 @@ S: Germany
 N: Jens Osterkamp
 E: jens@de.ibm.com
 D: Maintainer of Spidernet network driver for Cell
+
+N: Kent Overstreet
+E: kent.overstreet@linux.dev
+D: Co-authored and contributed to Memory Allocation Profiling
 
 N: Gadi Oxman
 E: gadio@netvision.net.il
@@ -3333,6 +3354,9 @@ N: Richard Purdie
 E: rpurdie@rpsys.net
 D: Backlight subsystem maintainer
 S: United Kingdom
+
+N: Tian Shu Qiu
+D: Ipu6, ipu7 and camera sensor drivers
 
 N: Daniel Quinlan
 E: quinlan@pathname.com
@@ -4092,6 +4116,10 @@ S: 4226 Landgreen Street
 S: Rockville, Maryland 20853
 S: USA
 
+N: Michael Turquette
+E: mturquette@baylibre.com
+D: common clk maintenance
+
 N: Stephen Tweedie
 E: sct@redhat.com
 P: 1024/E7A417AD E2 FE A4 20 34 EC ED FC 7D 7E 67 8D E0 31 D1 69
@@ -4440,6 +4468,13 @@ S: The Netherlands
 
 N: Thomas Woller
 D: CS461x Cirrus Logic sound driver
+
+N: Darrick J. Wong
+E: djwong@kernel.org
+D: ext4 filesystem
+D: XFS filesystem and online fsck
+D: Various hwmon drivers
+S: USA
 
 N: David Woodhouse
 E: dwmw2@infradead.org

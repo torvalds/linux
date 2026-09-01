@@ -8,8 +8,20 @@
 #include "imx8ulp-evk.dts"
 
 / {
-	model = "NXP i.MX8ULP EVK9";
+	model = "NXP i.MX8ULP 9x9 EVK";
 	compatible = "fsl,imx8ulp-9x9-evk", "fsl,imx8ulp";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		button-power-on {
+			label = "PowerOn";
+			gpios = <&gpiof 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
+	};
 };
 
 &btcpu {
@@ -43,6 +55,12 @@
 	>;
 };
 
+&pinctrl_gpio_keys {
+	fsl,pins = <
+		MX8ULP_PAD_PTF11__PTF11		0x3
+	>;
+};
+
 &pinctrl_usb1 {
 	fsl,pins = <
 		MX8ULP_PAD_PTE16__USB0_ID		0x10003
@@ -55,6 +73,23 @@
 		MX8ULP_PAD_PTD23__USB1_ID		0x10003
 		MX8ULP_PAD_PTE20__USB1_OC		0x10003
 	>;
+};
+
+&pinctrl_lpuart6 {
+	fsl,pins = <
+		MX8ULP_PAD_PTF18__LPUART6_TX    0x3
+		MX8ULP_PAD_PTF19__LPUART6_RX    0x3
+		MX8ULP_PAD_PTF16__LPUART6_CTS_B 0x3
+		MX8ULP_PAD_PTF17__LPUART6_RTS_B 0x3
+	>;
+};
+
+&lpspi5 { /* conflict with lpuart6 PAD_PTF16-19 */
+	status = "disabled";
+};
+
+&sai5 {
+	status = "disabled";
 };
 
 &sai6 {

@@ -40,10 +40,7 @@ u8 debug_monitors_arch(void)
  */
 static void mdscr_write(u64 mdscr)
 {
-	unsigned long flags;
-	flags = local_daif_save();
 	write_sysreg(mdscr, mdscr_el1);
-	local_daif_restore(flags);
 }
 NOKPROBE_SYMBOL(mdscr_write);
 

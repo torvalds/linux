@@ -129,7 +129,7 @@ static __always_inline unsigned long local_db_save(void)
 {
 	unsigned long dr7;
 
-	if (static_cpu_has(X86_FEATURE_HYPERVISOR) && !hw_breakpoint_active())
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR) && !hw_breakpoint_active())
 		return 0;
 
 	get_debugreg(dr7, 7);

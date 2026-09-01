@@ -10,6 +10,17 @@ config NTFS_FS
 	  To compile this as a module, choose M here: the module will be called
 	  ntfs.
 
+config NTFS_FS_WOF_COMPRESSION
+	bool "NTFS Windows system compression support"
+	depends on NTFS_FS
+	help
+	  Enable read support for Windows system-compressed files.
+	  Windows more aggressively compresses system files such as binaries
+	  and DLLs using system compression. It is optimized for files that
+	  are rarely modified.
+	  Enabling this option builds the decompression support into the NTFS
+	  module.
+
 config NTFS_DEBUG
 	bool "NTFS debugging support"
 	depends on NTFS_FS

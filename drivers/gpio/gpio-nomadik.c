@@ -519,22 +519,23 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 
 	gpio_dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
 	if (!gpio_dev) {
-		dev_err(dev, "populate \"%pfwP\": device not found\n", fwnode);
-		return ERR_PTR(-ENODEV);
+		ret = -ENODEV;
+		dev_err_probe(dev, ret, "populate \"%pfwP\": device not found\n", fwnode);
+		return ERR_PTR(ret);
 	}
 	gpio_pdev = to_platform_device(gpio_dev);
 
 	if (device_property_read_u32(gpio_dev, "gpio-bank", &id)) {
-		dev_err(dev, "populate: gpio-bank property not found\n");
-		platform_device_put(gpio_pdev);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		dev_err_probe(dev, ret, "populate: gpio-bank property not found\n");
+		goto err_put_pdev;
 	}
 
 #ifdef CONFIG_PINCTRL_NOMADIK
 	if (id >= ARRAY_SIZE(nmk_gpio_chips)) {
-		dev_err(dev, "populate: invalid id: %u\n", id);
-		platform_device_put(gpio_pdev);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		dev_err_probe(dev, ret, "populate: invalid id: %u\n", id);
+		goto err_put_pdev;
 	}
 	/* Already populated? */
 	nmk_chip = nmk_gpio_chips[id];
@@ -546,8 +547,8 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 
 	nmk_chip = devm_kzalloc(dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
-		platform_device_put(gpio_pdev);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err_put_pdev;
 	}
 
 	if (device_property_read_u32(gpio_dev, "ngpios", &ngpio)) {
@@ -568,16 +569,17 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base)) {
-		platform_device_put(gpio_pdev);
-		return ERR_CAST(base);
+		ret = PTR_ERR(base);
+		goto err_put_pdev;
 	}
 	nmk_chip->addr = base;
 
 	/* NOTE: do not use devm_ here! */
 	clk = clk_get_optional(gpio_dev, NULL);
 	if (IS_ERR(clk)) {
-		platform_device_put(gpio_pdev);
-		return ERR_CAST(clk);
+		ret = PTR_ERR(clk);
+		dev_err_probe(dev, ret, "failed getting clock\n");
+		goto err_put_pdev;
 	}
 	clk_prepare(clk);
 	nmk_chip->clk = clk;
@@ -585,12 +587,9 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	/* NOTE: do not use devm_ here! */
 	reset = reset_control_get_optional_shared(gpio_dev, NULL);
 	if (IS_ERR(reset)) {
-		clk_unprepare(clk);
-		clk_put(clk);
-		platform_device_put(gpio_pdev);
-		dev_err(dev, "failed getting reset control: %pe\n",
-			reset);
-		return ERR_CAST(reset);
+		ret = PTR_ERR(reset);
+		dev_err_probe(dev, ret, "failed getting reset control\n");
+		goto err_unprepare_clk;
 	}
 
 	/*
@@ -600,18 +599,23 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	 */
 	ret = reset_control_deassert(reset);
 	if (ret) {
-		reset_control_put(reset);
-		clk_unprepare(clk);
-		clk_put(clk);
-		platform_device_put(gpio_pdev);
-		dev_err(dev, "failed reset deassert: %d\n", ret);
-		return ERR_PTR(ret);
+		dev_err_probe(dev, ret, "failed reset deassert\n");
+		goto err_put_reset;
 	}
 
 #ifdef CONFIG_PINCTRL_NOMADIK
 	nmk_gpio_chips[id] = nmk_chip;
 #endif
 	return nmk_chip;
+
+err_put_reset:
+	reset_control_put(reset);
+err_unprepare_clk:
+	clk_unprepare(clk);
+	clk_put(clk);
+err_put_pdev:
+	platform_device_put(gpio_pdev);
+	return ERR_PTR(ret);
 }
 
 static void nmk_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
@@ -647,10 +651,8 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	nmk_chip = nmk_gpio_populate_chip(dev_fwnode(dev), pdev);
-	if (IS_ERR(nmk_chip)) {
-		dev_err(dev, "could not populate nmk chip struct\n");
+	if (IS_ERR(nmk_chip))
 		return PTR_ERR(nmk_chip);
-	}
 
 	supports_sleepmode =
 		device_property_read_bool(dev, "st,supports-sleepmode");
@@ -693,7 +695,7 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, nmk_gpio_irq_handler, IRQF_SHARED,
 			       dev_name(dev), nmk_chip);
 	if (ret) {
-		dev_err(dev, "failed requesting IRQ\n");
+		dev_err_probe(dev, ret, "failed requesting IRQ\n");
 		return ret;
 	}
 
@@ -708,8 +710,6 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	platform_set_drvdata(pdev, nmk_chip);
-
-	dev_info(dev, "chip registered\n");
 
 	return 0;
 }

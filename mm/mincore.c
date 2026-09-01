@@ -12,6 +12,7 @@
 #include <linux/gfp.h>
 #include <linux/pagewalk.h>
 #include <linux/mman.h>
+#include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/swap.h>
 #include <linux/leafops.h>
@@ -27,30 +28,16 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 			unsigned long end, struct mm_walk *walk)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	unsigned char present;
-	unsigned char *vec = walk->private;
+	const unsigned long nr = (end - addr) >> PAGE_SHIFT;
+	unsigned char resident;
 	spinlock_t *ptl;
+	pte_t ptep;
 
 	ptl = huge_pte_lock(hstate_vma(walk->vma), walk->mm, pte);
-
-	/*
-	 * Hugepages under user process are always in RAM and never
-	 * swapped out, but theoretically it needs to be checked.
-	 */
-	if (!pte) {
-		present = 0;
-	} else {
-		const pte_t ptep = huge_ptep_get(walk->mm, addr, pte);
-
-		if (huge_pte_none(ptep) || pte_is_marker(ptep))
-			present = 0;
-		else
-			present = 1;
-	}
-
-	for (; addr != end; vec++, addr += PAGE_SIZE)
-		*vec = present;
-	walk->private = vec;
+	ptep = huge_ptep_get(walk->mm, addr, pte);
+	resident = !huge_pte_none(ptep) && !pte_is_marker(ptep);
+	memset(walk->private, resident, nr);
+	walk->private += nr;
 	spin_unlock(ptl);
 #else
 	BUG();
@@ -90,8 +77,7 @@ static unsigned char mincore_swap(swp_entry_t entry, bool shmem)
 	folio = swap_cache_get_folio(entry);
 	if (shmem)
 		put_swap_device(si);
-	/* The swap cache space contains either folio, shadow or NULL */
-	if (folio && !xa_is_value(folio)) {
+	if (folio) {
 		present = folio_test_uptodate(folio);
 		folio_put(folio);
 	}
@@ -107,7 +93,7 @@ static unsigned char mincore_swap(swp_entry_t entry, bool shmem)
  */
 static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 {
-	unsigned char present = 0;
+	unsigned char present;
 	struct folio *folio;
 
 	/*
@@ -117,17 +103,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
 	 */
 	folio = filemap_get_entry(mapping, index);
-	if (folio) {
-		if (xa_is_value(folio)) {
-			if (shmem_mapping(mapping))
-				return mincore_swap(radix_to_swp_entry(folio),
-						    true);
-			else
-				return 0;
-		}
-		present = folio_test_uptodate(folio);
-		folio_put(folio);
+	if (!folio)
+		return 0;
+
+	if (xa_is_value(folio)) {
+		if (!shmem_mapping(mapping))
+			return 0;
+		return mincore_swap(radix_to_swp_entry(folio), true);
 	}
+	present = folio_test_uptodate(folio);
+	folio_put(folio);
 
 	return present;
 }
@@ -157,6 +142,20 @@ static int mincore_unmapped_range(unsigned long addr, unsigned long end,
 {
 	walk->private += __mincore_unmapped_range(addr, end,
 						  walk->vma, walk->private);
+	return 0;
+}
+
+static int mincore_pud_entry(pud_t *pudp, unsigned long addr, unsigned long end,
+		struct mm_walk *walk)
+{
+	if (pud_is_huge(pudp_get(pudp))) {
+		const unsigned long nr = (end - addr) >> PAGE_SHIFT;
+
+		memset(walk->private, 1, nr);
+		walk->private += nr;
+		walk->action = ACTION_CONTINUE;
+	}
+
 	return 0;
 }
 
@@ -232,6 +231,7 @@ static inline bool can_do_mincore(struct vm_area_struct *vma)
 }
 
 static const struct mm_walk_ops mincore_walk_ops = {
+	.pud_entry		= mincore_pud_entry,
 	.pmd_entry		= mincore_pte_range,
 	.pte_hole		= mincore_unmapped_range,
 	.hugetlb_entry		= mincore_hugetlb,
@@ -258,7 +258,8 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 		memset(vec, 1, pages);
 		return pages;
 	}
-	err = walk_page_range(vma->vm_mm, addr, end, &mincore_walk_ops, vec);
+
+	err = walk_page_range_vma(vma, addr, end, &mincore_walk_ops, vec);
 	if (err < 0)
 		return err;
 	return (end - addr) >> PAGE_SHIFT;
@@ -312,7 +313,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 	if (!access_ok(vec, pages))
 		return -EFAULT;
 
-	tmp = (void *) __get_free_page(GFP_USER);
+	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tmp)
 		return -EAGAIN;
 
@@ -337,6 +338,6 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 		start += retval << PAGE_SHIFT;
 		retval = 0;
 	}
-	free_page((unsigned long) tmp);
+	kfree(tmp);
 	return retval;
 }

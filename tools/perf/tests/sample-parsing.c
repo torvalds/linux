@@ -86,10 +86,27 @@ static bool samples_same(struct perf_sample *s1,
 			COMP(read.time_running);
 		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
 		if (read_format & PERF_FORMAT_GROUP) {
+			struct sample_read_value *v1 = s1->read.group.values;
+			struct sample_read_value *v2 = s2->read.group.values;
+
 			for (i = 0; i < s1->read.group.nr; i++) {
-				/* FIXME: check values without LOST */
-				if (read_format & PERF_FORMAT_LOST)
-					MCOMP(read.group.values[i]);
+				if (v1->value != v2->value) {
+					pr_debug("Samples differ at 'read.group.values[].value'\n");
+					return false;
+				}
+
+				if (v1->id != v2->id) {
+					pr_debug("Samples differ at 'read.group.values[].id'\n");
+					return false;
+				}
+
+				if (read_format & PERF_FORMAT_LOST &&
+				    v1->lost != v2->lost) {
+					pr_debug("Samples differ at 'read.group.values[].lost'\n");
+					return false;
+				}
+				v1 = next_sample_read_value(v1, read_format);
+				v2 = next_sample_read_value(v2, read_format);
 			}
 		} else {
 			COMP(read.one.id);
@@ -205,15 +222,11 @@ static bool samples_same(struct perf_sample *s1,
 
 static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 {
-	struct evsel evsel = {
-		.needs_swap = false,
-		.core = {
-			. attr = {
-				.sample_type = sample_type,
-				.read_format = read_format,
-			},
-		},
+	struct perf_event_attr attr = {
+		.sample_type = sample_type,
+		.read_format = read_format,
 	};
+	struct evsel *evsel;
 	union perf_event *event;
 	union {
 		struct ip_callchain callchain;
@@ -283,27 +296,44 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		},
 	};
 	struct sample_read_value values[] = {{1, 5, 0}, {9, 3, 0}, {2, 7, 0}, {6, 4, 1},};
+	struct sample_read_value packed_values[ARRAY_SIZE(values)];
 	struct perf_sample sample_out, sample_out_endian;
 	size_t i, sz, bufsz;
 	int err, ret = -1;
 
+	evsel = evsel__new(&attr);
+	if (!evsel) {
+		pr_debug("evsel__new failed\n");
+		return -1;
+	}
 	perf_sample__init(&sample_out, /*all=*/false);
 	perf_sample__init(&sample_out_endian, /*all=*/false);
 	if (sample_type & PERF_SAMPLE_REGS_USER)
-		evsel.core.attr.sample_regs_user = sample_regs;
+		evsel->core.attr.sample_regs_user = sample_regs;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR)
-		evsel.core.attr.sample_regs_intr = sample_regs;
+		evsel->core.attr.sample_regs_intr = sample_regs;
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
-		evsel.core.attr.branch_sample_type |= PERF_SAMPLE_BRANCH_HW_INDEX;
+		evsel->core.attr.branch_sample_type |= PERF_SAMPLE_BRANCH_HW_INDEX;
 
 	for (i = 0; i < sizeof(regs); i++)
 		*(i + (u8 *)regs) = i & 0xfe;
 
 	if (read_format & PERF_FORMAT_GROUP) {
-		sample.read.group.nr     = 4;
-		sample.read.group.values = values;
+		size_t vsz = sample_read_value_size(read_format);
+
+		/*
+		 * evsel__parse_sample() points read.group.values at the event
+		 * data, where the entries are packed according to read_format,
+		 * so build the input the same way.  Otherwise the fields
+		 * compared afterwards are just overlapping bytes.
+		 */
+		for (i = 0; i < ARRAY_SIZE(values); i++)
+			memcpy((void *)packed_values + i * vsz, &values[i], vsz);
+
+		sample.read.group.nr     = ARRAY_SIZE(values);
+		sample.read.group.values = packed_values;
 	} else {
 		sample.read.one.value = 0x08789faeb786aa87ULL;
 		sample.read.one.id    = 99;
@@ -311,12 +341,12 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	}
 
 	sz = perf_event__sample_event_size(&sample, sample_type, read_format,
-					   evsel.core.attr.branch_sample_type);
+					   evsel->core.attr.branch_sample_type);
 	bufsz = sz + 4096; /* Add a bit for overrun checking */
 	event = malloc(bufsz);
 	if (!event) {
 		pr_debug("malloc failed\n");
-		return -1;
+		goto out_free;
 	}
 
 	memset(event, 0xff, bufsz);
@@ -325,7 +355,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	event->header.size = sz;
 
 	err = perf_event__synthesize_sample(event, sample_type, read_format,
-					    evsel.core.attr.branch_sample_type, &sample);
+					    evsel->core.attr.branch_sample_type, &sample);
 	if (err) {
 		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
 			 "perf_event__synthesize_sample", sample_type, err);
@@ -343,32 +373,33 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	evsel.sample_size = __evsel__sample_size(sample_type);
+	evsel->sample_size = __evsel__sample_size(sample_type);
 
-	err = evsel__parse_sample(&evsel, event, &sample_out);
+	err = evsel__parse_sample(evsel, event, &sample_out);
 	if (err) {
 		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
 			 "evsel__parse_sample", sample_type, err);
 		goto out_free;
 	}
 
-	if (!samples_same(&sample, &sample_out, sample_type, read_format, evsel.needs_swap)) {
+	if (!samples_same(&sample, &sample_out, sample_type, read_format, evsel->needs_swap)) {
 		pr_debug("parsing failed for sample_type %#"PRIx64"\n",
 			 sample_type);
 		goto out_free;
 	}
 
 	if (sample_type == PERF_SAMPLE_BRANCH_STACK) {
-		evsel.needs_swap = true;
-		evsel.sample_size = __evsel__sample_size(sample_type);
-		err = evsel__parse_sample(&evsel, event, &sample_out_endian);
+		evsel->needs_swap = true;
+		evsel->sample_size = __evsel__sample_size(sample_type);
+		err = evsel__parse_sample(evsel, event, &sample_out_endian);
 		if (err) {
 			pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
 				 "evsel__parse_sample", sample_type, err);
 			goto out_free;
 		}
 
-		if (!samples_same(&sample, &sample_out_endian, sample_type, read_format, evsel.needs_swap)) {
+		if (!samples_same(&sample, &sample_out_endian, sample_type,
+				  read_format, evsel->needs_swap)) {
 			pr_debug("parsing failed for sample_type %#"PRIx64"\n",
 				 sample_type);
 			goto out_free;
@@ -380,6 +411,7 @@ out_free:
 	free(event);
 	perf_sample__exit(&sample_out_endian);
 	perf_sample__exit(&sample_out);
+	evsel__put(evsel);
 	if (ret && read_format)
 		pr_debug("read_format %#"PRIx64"\n", read_format);
 	return ret;

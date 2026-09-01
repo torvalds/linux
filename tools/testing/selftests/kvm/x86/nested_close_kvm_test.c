@@ -21,8 +21,6 @@ enum {
 	PORT_L0_EXIT = 0x2000,
 };
 
-#define L2_GUEST_STACK_SIZE 64
-
 static void l2_guest_code(void)
 {
 	/* Exit to L0 */
@@ -32,14 +30,11 @@ static void l2_guest_code(void)
 
 static void l1_vmx_code(struct vmx_pages *vmx_pages)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 	GUEST_ASSERT(load_vmcs(vmx_pages));
 
 	/* Prepare the VMCS for L2 execution. */
-	prepare_vmcs(vmx_pages, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code);
 
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(0);
@@ -47,11 +42,8 @@ static void l1_vmx_code(struct vmx_pages *vmx_pages)
 
 static void l1_svm_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	/* Prepare the VMCB for L2 execution. */
-	generic_svm_setup(svm, l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_guest_code);
 
 	run_guest(svm->vmcb, svm->vmcb_gpa);
 	GUEST_ASSERT(0);

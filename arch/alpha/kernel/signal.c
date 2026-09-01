@@ -41,6 +41,14 @@ asmlinkage void ret_from_sys_call(void);
  * The OSF/1 sigprocmask calling sequence is different from the
  * C sigprocmask() sequence..
  */
+
+asmlinkage void alpha_schedule_user_work(void)
+{
+	local_irq_enable();
+	schedule();
+	local_irq_disable();
+}
+
 SYSCALL_DEFINE2(osf_sigprocmask, int, how, unsigned long, newmask)
 {
 	sigset_t oldmask;
@@ -525,6 +533,7 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 {
 	do {
 		if (thread_flags & _TIF_NEED_RESCHED) {
+			local_irq_enable();
 			schedule();
 		} else {
 			local_irq_enable();

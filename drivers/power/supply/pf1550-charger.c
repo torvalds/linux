@@ -514,7 +514,7 @@ static int pf1550_reg_init(struct pf1550_charger *chg)
 	 * a battery. The other supported mode is mode 2, the charger is turned
 	 * on to charge a battery when present.
 	 */
-	if (power_supply_get_battery_info(chg->charger, &info)) {
+	if (!power_supply_get_battery_info(chg->charger, &info)) {
 		ret = regmap_write(chg->pf1550->regmap,
 				   PF1550_CHARG_REG_CHG_OPER,
 				   PF1550_CHG_BAT_ON);
@@ -612,8 +612,7 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 						IRQF_NO_SUSPEND,
 						"pf1550-charger", chg);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
-					     "failed irq request\n");
+			return ret;
 	}
 
 	pf1550_dt_parse_dev_info(chg);

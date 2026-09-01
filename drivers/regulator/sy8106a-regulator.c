@@ -130,7 +130,7 @@ static const struct of_device_id sy8106a_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, sy8106a_i2c_of_match);
 
 static const struct i2c_device_id sy8106a_i2c_id[] = {
-	{ "sy8106a" },
+	{ .name = "sy8106a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sy8106a_i2c_id);

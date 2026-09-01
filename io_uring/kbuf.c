@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
+#include <linux/uio.h>
 #include <linux/vmalloc.h>
 #include <linux/io_uring.h>
 

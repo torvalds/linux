@@ -44,7 +44,8 @@ signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *pada
 
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
 
-	precvpriv->pallocated_frame_buf = vzalloc(NR_RECVFRAME * sizeof(union recv_frame) + RXFRAME_ALIGN_SZ);
+	precvpriv->pallocated_frame_buf = vzalloc(NR_RECVFRAME * sizeof(union recv_frame)
+						 + RXFRAME_ALIGN_SZ);
 
 	if (!precvpriv->pallocated_frame_buf) {
 		res = _FAIL;
@@ -55,7 +56,7 @@ signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *pada
 	/* precvpriv->precv_frame_buf = precvpriv->pallocated_frame_buf + RXFRAME_ALIGN_SZ - */
 	/* ((SIZE_PTR) (precvpriv->pallocated_frame_buf) &(RXFRAME_ALIGN_SZ-1)); */
 
-	precvframe = (union recv_frame *) precvpriv->precv_frame_buf;
+	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++) {
 		INIT_LIST_HEAD(&(precvframe->u.list));
@@ -494,7 +495,7 @@ static union recv_frame *portctrl(struct adapter *adapter, union recv_frame *pre
 
 	pstapriv = &adapter->stapriv;
 
-	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
+	auth_alg = adapter->securitypriv.dot11_auth_algrthm;
 
 	ptr = precv_frame->u.hdr.rx_data;
 	pfhdr = &precv_frame->u.hdr;
@@ -815,7 +816,7 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		}
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* No data, will not indicate to upper layer, temporarily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -895,7 +896,7 @@ static signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *p
 			process_wmmps_data(adapter, precv_frame);
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* No data, will not indicate to upper layer, temporarily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -1009,7 +1010,7 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 
 					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, WLAN_EID_TIM, NULL, true);
+					update_beacon(padapter, WLAN_EID_TIM, true);
 				}
 
 				/* spin_unlock_bh(&psta->sleep_q.lock); */
@@ -1031,7 +1032,7 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 
 					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, WLAN_EID_TIM, NULL, true);
+					update_beacon(padapter, WLAN_EID_TIM, true);
 				}
 			}
 		}
@@ -1447,7 +1448,6 @@ static signed int validate_recv_frame(struct adapter *adapter, union recv_frame 
 	u8 type;
 	u8 subtype;
 	signed int retval = _SUCCESS;
-	u8 bDumpRxPkt;
 
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 
@@ -1473,7 +1473,6 @@ static signed int validate_recv_frame(struct adapter *adapter, union recv_frame 
 	pattrib->mdata = GetMData(ptr);
 	pattrib->privacy = GetPrivacy(ptr);
 	pattrib->order = GetOrder(ptr);
-	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
 
 	switch (type) {
 	case WIFI_MGT_TYPE: /* mgnt */
@@ -1576,7 +1575,7 @@ static signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	return _SUCCESS;
 }
 
-static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
+static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 subframe_len, u8 *pdata)
 {
 	u16 eth_type;
 	struct sk_buff *sub_skb;
@@ -1584,12 +1583,12 @@ static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubfra
 
 	pattrib = &prframe->u.hdr.attrib;
 
-	sub_skb = __dev_alloc_skb(nSubframe_Length + 12, GFP_ATOMIC);
+	sub_skb = __dev_alloc_skb(subframe_len + 12, GFP_ATOMIC);
 	if (!sub_skb)
 		return NULL;
 
 	skb_reserve(sub_skb, 12);
-	skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
+	skb_put_data(sub_skb, (pdata + ETH_HLEN), subframe_len);
 
 	eth_type = get_unaligned_be16(&sub_skb->data[6]);
 
@@ -1666,7 +1665,7 @@ static void rtw_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt,
 static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 {
 	int	a_len, padding_len;
-	u16 nSubframe_Length;
+	u16 subframe_len;
 	u8 nr_subframes, i;
 	u8 *pdata;
 	struct sk_buff *sub_pkt, *subframes[MAX_SUBFRAME_COUNT];
@@ -1686,12 +1685,12 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 
 	while (a_len > ETH_HLEN) {
 		/* Offset 12 denote 2 mac address */
-		nSubframe_Length = get_unaligned_be16(pdata + 12);
+		subframe_len = get_unaligned_be16(pdata + 12);
 
-		if (a_len < ETH_HLEN + nSubframe_Length)
+		if (a_len < ETH_HLEN + subframe_len)
 			break;
 
-		sub_pkt = rtw_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
+		sub_pkt = rtw_alloc_msdu_pkt(prframe, subframe_len, pdata);
 		if (!sub_pkt)
 			break;
 
@@ -1704,10 +1703,10 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 		if (nr_subframes >= MAX_SUBFRAME_COUNT)
 			break;
 
-		pdata += nSubframe_Length;
-		a_len -= nSubframe_Length;
+		pdata += subframe_len;
+		a_len -= subframe_len;
 		if (a_len != 0) {
-			padding_len = 4 - ((nSubframe_Length + ETH_HLEN) & (4 - 1));
+			padding_len = 4 - ((subframe_len + ETH_HLEN) & (4 - 1));
 			if (padding_len == 4)
 				padding_len = 0;
 
@@ -1893,7 +1892,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 
 			/* indicate this recv_frame */
 			if (!pattrib->amsdu) {
-				if (!padapter->bDriverStopped &&
+				if (!padapter->driver_stopped &&
 				    !padapter->bSurpriseRemoved)
 					rtw_recv_indicatepkt(padapter, prframe);/* indicate this recv_frame */
 
@@ -1932,7 +1931,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 		wlanhdr_to_ethhdr(prframe);
 
 		if (pattrib->qos != 1) {
-			if (!padapter->bDriverStopped &&
+			if (!padapter->driver_stopped &&
 			    !padapter->bSurpriseRemoved) {
 				rtw_recv_indicatepkt(padapter, prframe);
 				return _SUCCESS;
@@ -2010,7 +2009,7 @@ void rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
 	struct adapter *padapter = preorder_ctrl->padapter;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
+	if (padapter->driver_stopped || padapter->bSurpriseRemoved)
 		return;
 
 	spin_lock_bh(&ppending_recvframe_queue->lock);
@@ -2034,7 +2033,7 @@ static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame 
 
 		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) { /*  including perform A-MPDU Rx Ordering Buffer Control */
 
-			if (!padapter->bDriverStopped &&
+			if (!padapter->driver_stopped &&
 			    !padapter->bSurpriseRemoved) {
 				retval = _FAIL;
 				return retval;
@@ -2045,7 +2044,7 @@ static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame 
 		if (retval != _SUCCESS)
 			return retval;
 
-		if (!padapter->bDriverStopped && !padapter->bSurpriseRemoved) {
+		if (!padapter->driver_stopped && !padapter->bSurpriseRemoved) {
 			/* indicate this recv_frame */
 			rtw_recv_indicatepkt(padapter, prframe);
 		} else {

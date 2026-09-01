@@ -68,7 +68,6 @@ static void test_ratelimit_smoke(struct kunit *test)
 static struct ratelimit_state stressrl = RATELIMIT_STATE_INIT_FLAGS("stressrl", HZ / 10, 3,
 								    RATELIMIT_MSG_ON_RELEASE);
 
-static int doneflag;
 static const int stress_duration = 2 * HZ;
 
 struct stress_kthread {
@@ -84,9 +83,8 @@ static int test_ratelimit_stress_child(void *arg)
 	struct stress_kthread *sktp = arg;
 
 	set_user_nice(current, MAX_NICE);
-	WARN_ON_ONCE(!sktp->tp);
 
-	while (!READ_ONCE(doneflag)) {
+	while (!kthread_should_stop()) {
 		sktp->nattempts++;
 		if (___ratelimit(&stressrl, __func__))
 			sktp->nunlimited++;
@@ -105,26 +103,37 @@ static void test_ratelimit_stress(struct kunit *test)
 	const int n_stress_kthread = cpumask_weight(cpu_online_mask);
 	struct stress_kthread skt = { 0 };
 	struct stress_kthread *sktp = kzalloc_objs(*sktp, n_stress_kthread);
+	int n_started = 0;
 
-	KUNIT_EXPECT_NOT_NULL_MSG(test, sktp, "Memory allocation failure");
+	KUNIT_ASSERT_NOT_NULL_MSG(test, sktp, "Memory allocation failure");
 	for (i = 0; i < n_stress_kthread; i++) {
 		sktp[i].tp = kthread_run(test_ratelimit_stress_child, &sktp[i], "%s/%i",
 					 "test_ratelimit_stress_child", i);
-		KUNIT_EXPECT_NOT_NULL_MSG(test, sktp, "kthread creation failure");
+		if (IS_ERR(sktp[i].tp)) {
+			KUNIT_FAIL(test, "kthread_run failed: %ld", PTR_ERR(sktp[i].tp));
+			goto out_stop;
+		}
+		n_started++;
 		pr_alert("Spawned test_ratelimit_stress_child %d\n", i);
 	}
 	schedule_timeout_idle(stress_duration);
-	WRITE_ONCE(doneflag, 1);
-	for (i = 0; i < n_stress_kthread; i++) {
+
+out_stop:
+	for (i = 0; i < n_started; i++) {
 		kthread_stop(sktp[i].tp);
 		skt.nattempts += sktp[i].nattempts;
 		skt.nunlimited += sktp[i].nunlimited;
 		skt.nlimited += sktp[i].nlimited;
 		skt.nmissed += sktp[i].nmissed;
 	}
-	KUNIT_ASSERT_EQ_MSG(test, skt.nunlimited + skt.nlimited, skt.nattempts,
-			    "Outcomes not equal to attempts");
-	KUNIT_ASSERT_EQ_MSG(test, skt.nlimited, skt.nmissed, "Misses not equal to limits");
+	if (n_started == n_stress_kthread) {
+		KUNIT_ASSERT_EQ_MSG(test, skt.nunlimited + skt.nlimited, skt.nattempts,
+				    "Outcomes not equal to attempts");
+		KUNIT_ASSERT_EQ_MSG(test, skt.nlimited, skt.nmissed,
+				    "Misses not equal to limits");
+	}
+
+	kfree(sktp);
 }
 
 static struct kunit_case ratelimit_test_cases[] = {

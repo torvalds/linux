@@ -624,8 +624,8 @@ static int adf4371_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adf4371_id_table[] = {
-	{ "adf4371", (kernel_ulong_t)&adf4371_chip_info },
-	{ "adf4372", (kernel_ulong_t)&adf4372_chip_info },
+	{ .name = "adf4371", .driver_data = (kernel_ulong_t)&adf4371_chip_info },
+	{ .name = "adf4372", .driver_data = (kernel_ulong_t)&adf4372_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adf4371_id_table);

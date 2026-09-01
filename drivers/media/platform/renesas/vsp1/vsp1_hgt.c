@@ -42,8 +42,6 @@ void vsp1_hgt_frame_end(struct vsp1_entity *entity)
 {
 	struct vsp1_hgt *hgt = to_hgt(&entity->subdev);
 	struct vsp1_histogram_buffer *buf;
-	unsigned int m;
-	unsigned int n;
 	u32 *data;
 
 	buf = vsp1_histogram_buffer_get(&hgt->histo);
@@ -55,9 +53,10 @@ void vsp1_hgt_frame_end(struct vsp1_entity *entity)
 	*data++ = vsp1_hgt_read(hgt, VI6_HGT_MAXMIN);
 	*data++ = vsp1_hgt_read(hgt, VI6_HGT_SUM);
 
-	for (m = 0; m < 6; ++m)
-		for (n = 0; n < 32; ++n)
+	for (unsigned int m = 0; m < 6; ++m) {
+		for (unsigned int n = 0; n < 32; ++n)
 			*data++ = vsp1_hgt_read(hgt, VI6_HGT_HISTO(m, n));
+	}
 
 	vsp1_histogram_buffer_complete(&hgt->histo, buf, HGT_DATA_SIZE);
 }
@@ -71,7 +70,6 @@ void vsp1_hgt_frame_end(struct vsp1_entity *entity)
 static int hgt_hue_areas_try_ctrl(struct v4l2_ctrl *ctrl)
 {
 	const u8 *values = ctrl->p_new.p_u8;
-	unsigned int i;
 
 	/*
 	 * The hardware has constraints on the hue area boundaries beyond the
@@ -83,7 +81,7 @@ static int hgt_hue_areas_try_ctrl(struct v4l2_ctrl *ctrl)
 	 *
 	 * Start by verifying the common part...
 	 */
-	for (i = 1; i < (HGT_NUM_HUE_AREAS * 2) - 1; ++i) {
+	for (unsigned int i = 1; i < (HGT_NUM_HUE_AREAS * 2) - 1; ++i) {
 		if (values[i] > values[i+1])
 			return -EINVAL;
 	}
@@ -138,7 +136,6 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 	unsigned int vratio;
 	u8 lower;
 	u8 upper;
-	unsigned int i;
 
 	crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
 	compose = v4l2_subdev_state_get_compose(state, HISTO_PAD_SINK);
@@ -153,7 +150,7 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 		       (crop->height << VI6_HGT_SIZE_VSIZE_SHIFT));
 
 	scoped_guard(mutex, hgt->ctrls.lock) {
-		for (i = 0; i < HGT_NUM_HUE_AREAS; ++i) {
+		for (unsigned int i = 0; i < HGT_NUM_HUE_AREAS; ++i) {
 			lower = hgt->hue_areas[i*2 + 0];
 			upper = hgt->hue_areas[i*2 + 1];
 			vsp1_hgt_write(hgt, dlb, VI6_HGT_HUE_AREA(i),

@@ -37,6 +37,7 @@ properties:
           - qcom,scm-ipq9574
           - qcom,scm-ipq9650
           - qcom,scm-kaanapali
+          - qcom,scm-maili
           - qcom,scm-mdm9607
           - qcom,scm-milos
           - qcom,scm-msm8226
@@ -67,6 +68,7 @@ properties:
           - qcom,scm-sdx55
           - qcom,scm-sdx65
           - qcom,scm-sdx75
+          - qcom,scm-shikra
           - qcom,scm-sm6115
           - qcom,scm-sm6125
           - qcom,scm-sm6350
@@ -129,6 +131,13 @@ properties:
           - description: offset of the download mode control register
     description: TCSR hardware block
 
+  sram:
+    description:
+      Phandle to a region in always-on SRAM used to store the download
+      mode value for boot firmware to read before DDR is initialised on
+      the next warm reset.
+    maxItems: 1
+
 allOf:
   # Clocks
   - if:
@@ -148,6 +157,7 @@ allOf:
               - qcom,scm-msm8974
               - qcom,scm-msm8976
               - qcom,scm-qcm2290
+              - qcom,scm-shikra
               - qcom,scm-sm6375
     then:
       required:
@@ -167,6 +177,7 @@ allOf:
               - qcom,scm-msm8660
               - qcom,scm-msm8960
               - qcom,scm-qcm2290
+              - qcom,scm-shikra
               - qcom,scm-sm6375
     then:
       properties:
@@ -212,6 +223,7 @@ allOf:
                 - qcom,scm-eliza
                 - qcom,scm-hawi
                 - qcom,scm-kaanapali
+                - qcom,scm-maili
                 - qcom,scm-milos
                 - qcom,scm-sm8450
                 - qcom,scm-sm8550

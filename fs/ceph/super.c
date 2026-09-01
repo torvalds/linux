@@ -177,6 +177,7 @@ enum {
 	Opt_wsync,
 	Opt_pagecache,
 	Opt_sparseread,
+	Opt_nearfull_sync,
 };
 
 enum ceph_recover_session_mode {
@@ -205,6 +206,7 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_flag_no ("ino32",			Opt_ino32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
 	fsparam_string	("mon_addr",			Opt_mon_addr),
+	fsparam_flag_no	("nearfull_sync",		Opt_nearfull_sync),
 	fsparam_flag_no ("poolperm",			Opt_poolperm),
 	fsparam_flag_no ("quotadf",			Opt_quotadf),
 	fsparam_u32	("rasize",			Opt_rasize),
@@ -593,6 +595,12 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		else
 			fsopt->flags |= CEPH_MOUNT_OPT_SPARSEREAD;
 		break;
+	case Opt_nearfull_sync:
+		if (result.negated)
+			fsopt->flags &= ~CEPH_MOUNT_OPT_NEARFULL_SYNC;
+		else
+			fsopt->flags |= CEPH_MOUNT_OPT_NEARFULL_SYNC;
+		break;
 	case Opt_test_dummy_encryption:
 #ifdef CONFIG_FS_ENCRYPTION
 		fscrypt_free_dummy_policy(&fsopt->dummy_enc_policy);
@@ -749,6 +757,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",nopagecache");
 	if (fsopt->flags & CEPH_MOUNT_OPT_SPARSEREAD)
 		seq_puts(m, ",sparseread");
+	if (fsopt->flags & CEPH_MOUNT_OPT_NEARFULL_SYNC)
+		seq_puts(m, ",nearfull_sync");
 
 	fscrypt_show_test_dummy_encryption(m, ',', root->d_sb);
 

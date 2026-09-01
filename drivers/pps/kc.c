@@ -38,6 +38,14 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
 	/* Check if another consumer is already bound */
 	spin_lock_irq(&pps_kc_hardpps_lock);
 
+	/*
+	 * Don't allow PPS_KC_BIND on a removed device.
+	 */
+	if (pps->kc_removed) {
+		spin_unlock_irq(&pps_kc_hardpps_lock);
+		return -ENODEV;
+	}
+
 	if (bind_args->edge == 0)
 		if (pps_kc_hardpps_dev == pps) {
 			pps_kc_hardpps_mode = 0;
@@ -79,6 +87,8 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
 void pps_kc_remove(struct pps_device *pps)
 {
 	spin_lock_irq(&pps_kc_hardpps_lock);
+
+	pps->kc_removed = true;
 	if (pps == pps_kc_hardpps_dev) {
 		pps_kc_hardpps_mode = 0;
 		pps_kc_hardpps_dev = NULL;

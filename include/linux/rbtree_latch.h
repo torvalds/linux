@@ -47,7 +47,7 @@ struct latch_tree_root {
 };
 
 /**
- * latch_tree_ops - operators to define the tree order
+ * struct latch_tree_ops - operators to define the tree order
  * @less: used for insertion; provides the (partial) order between two elements.
  * @comp: used for lookups; provides the order between the search key and an element.
  *

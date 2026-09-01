@@ -37,6 +37,10 @@ properties:
           - const: sophgo,sg2000
       - items:
           - enum:
+              - milkv,duo256m
+          - const: sophgo,sg2002
+      - items:
+          - enum:
               - sipeed,licheerv-nano-b
           - const: sipeed,licheerv-nano
           - const: sophgo,sg2002

@@ -372,6 +372,75 @@ static int smb2_validate_credit_charge(struct ksmbd_work *work,
 	return ret;
 }
 
+/*
+ * Verify that the sequence number(s) consumed by an incoming request fall
+ * within the connection's command sequence window and are not a replay, then
+ * remove them from the window. Returns 0 if the request
+ * may proceed, or 1 if it is invalid and the connection must be torn down.
+ */
+static int smb2_check_sequence_number(struct ksmbd_work *work,
+				      struct smb2_hdr *hdr)
+{
+	struct ksmbd_conn *conn = work->conn;
+	u64 mid = le64_to_cpu(hdr->MessageId);
+	unsigned short charge;
+	u64 i;
+	int ret = 0;
+
+	/* An SMB2 CANCEL consumes no sequence number. */
+	if (hdr->Command == SMB2_CANCEL)
+		return 0;
+
+	/*
+	 * A multi-credit request consumes CreditCharge consecutive sequence
+	 * numbers; every other request consumes exactly one.
+	 */
+	charge = le16_to_cpu(hdr->CreditCharge);
+	if (!(conn->vals->req_capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) ||
+	    charge == 0)
+		charge = 1;
+
+	/* The 64-bit sequence number space must not wrap. */
+	if (mid + charge < mid) {
+		pr_err("SMB2 sequence number wrapped (mid %llu charge %u)\n",
+		       mid, charge);
+		return 1;
+	}
+
+	spin_lock(&conn->credits_lock);
+
+	/* The whole range must lie within the granted window... */
+	if (mid < conn->seq_low || mid + charge > conn->seq_high) {
+		ksmbd_debug(SMB,
+			    "MessageId %llu (charge %u) outside command window [%llu, %llu)\n",
+			    mid, charge, conn->seq_low, conn->seq_high);
+		ret = 1;
+		goto out;
+	}
+
+	/* ...and none of it may have been consumed already (replay). */
+	for (i = mid; i < mid + charge; i++) {
+		if (!test_bit(i & (KSMBD_CMD_SEQ_WINDOW - 1), conn->seq_bitmap)) {
+			ksmbd_debug(SMB,
+				    "replayed sequence number %llu (mid %llu charge %u)\n",
+				    i, mid, charge);
+			ret = 1;
+			goto out;
+		}
+	}
+
+	/* Consume the sequence numbers and slide the low edge forward. */
+	for (i = mid; i < mid + charge; i++)
+		__clear_bit(i & (KSMBD_CMD_SEQ_WINDOW - 1), conn->seq_bitmap);
+	while (conn->seq_low < conn->seq_high &&
+	       !test_bit(conn->seq_low & (KSMBD_CMD_SEQ_WINDOW - 1),
+			 conn->seq_bitmap))
+		conn->seq_low++;
+out:
+	spin_unlock(&conn->credits_lock);
+	return ret;
+}
+
 int ksmbd_smb2_check_message(struct ksmbd_work *work)
 {
 	struct smb2_pdu *pdu = ksmbd_req_buf_next(work);
@@ -475,6 +544,16 @@ validate_credit:
 	if ((work->conn->vals->req_capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) &&
 	    smb2_validate_credit_charge(work, hdr))
 		return 1;
+
+	/*
+	 * A sequence number violation (out of window or a replay) is a
+	 * protocol error. tear the connection down rather than
+	 * keep accepting requests on it.
+	 */
+	if (smb2_check_sequence_number(work, hdr)) {
+		ksmbd_conn_set_exiting(work->conn);
+		return 1;
+	}
 
 	return 0;
 }

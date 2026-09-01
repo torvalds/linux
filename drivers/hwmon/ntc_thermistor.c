@@ -748,3 +748,4 @@ MODULE_DESCRIPTION("NTC Thermistor Driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:ntc-thermistor");
+MODULE_IMPORT_NS("IIO_CONSUMER");

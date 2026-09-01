@@ -149,10 +149,10 @@ MODULE_PARM_DESC(use_srq, "Use shared receive queue.");
 static int srq_size_set(const char *val, const struct kernel_param *kp);
 static const struct kernel_param_ops srq_size_ops = {
 	.set = srq_size_set,
-	.get = param_get_int,
+	.get = param_get_uint,
 };
 
-static int nvmet_rdma_srq_size = 1024;
+static unsigned int nvmet_rdma_srq_size = 1024;
 module_param_cb(srq_size, &srq_size_ops, &nvmet_rdma_srq_size, 0644);
 MODULE_PARM_DESC(srq_size, "set Shared Receive Queue (SRQ) size, should >= 256 (default: 1024)");
 
@@ -180,13 +180,14 @@ static const struct nvmet_fabrics_ops nvmet_rdma_ops;
 
 static int srq_size_set(const char *val, const struct kernel_param *kp)
 {
-	int n = 0, ret;
+	unsigned int n;
+	int ret;
 
-	ret = kstrtoint(val, 10, &n);
+	ret = kstrtouint(val, 10, &n);
 	if (ret != 0 || n < 256)
 		return -EINVAL;
 
-	return param_set_int(val, kp);
+	return param_set_uint(val, kp);
 }
 
 static int num_pages(int len)
@@ -657,11 +658,9 @@ static void nvmet_rdma_rw_ctx_destroy(struct nvmet_rdma_rsp *rsp)
 				    req->sg, req->sg_cnt, nvmet_data_dir(req));
 }
 
-static void nvmet_rdma_release_rsp(struct nvmet_rdma_rsp *rsp)
+static void nvmet_rdma_free_rsp_resources(struct nvmet_rdma_rsp *rsp)
 {
 	struct nvmet_rdma_queue *queue = rsp->queue;
-
-	atomic_add(1 + rsp->n_rdma, &queue->sq_wr_avail);
 
 	if (rsp->n_rdma)
 		nvmet_rdma_rw_ctx_destroy(rsp);
@@ -669,6 +668,15 @@ static void nvmet_rdma_release_rsp(struct nvmet_rdma_rsp *rsp)
 	if (rsp->req.sg < rsp->cmd->inline_sg ||
 	    rsp->req.sg >= rsp->cmd->inline_sg + queue->dev->inline_page_count)
 		nvmet_req_free_sgls(&rsp->req);
+}
+
+static void nvmet_rdma_release_rsp(struct nvmet_rdma_rsp *rsp)
+{
+	struct nvmet_rdma_queue *queue = rsp->queue;
+
+	atomic_add(1 + rsp->n_rdma, &queue->sq_wr_avail);
+
+	nvmet_rdma_free_rsp_resources(rsp);
 
 	if (unlikely(!list_empty_careful(&queue->rsp_wr_wait_list)))
 		nvmet_rdma_process_wr_wait_list(queue);
@@ -1153,8 +1161,8 @@ static int nvmet_rdma_init_srqs(struct nvmet_rdma_device *ndev)
 
 	ndev->srq_size = min(ndev->device->attrs.max_srq_wr,
 			     nvmet_rdma_srq_size);
-	ndev->srq_count = min(ndev->device->num_comp_vectors,
-			      ndev->device->attrs.max_srq);
+	ndev->srq_count = min_t(u32, ndev->device->num_comp_vectors,
+				ndev->device->attrs.max_srq);
 
 	ndev->srqs = kzalloc_objs(*ndev->srqs, ndev->srq_count);
 	if (!ndev->srqs)
@@ -1199,7 +1207,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	struct nvmet_port *nport = port->nport;
 	struct nvmet_rdma_device *ndev;
 	int inline_page_count;
-	int inline_sge_count;
+	u32 inline_sge_count;
 	int ret;
 
 	mutex_lock(&device_list_mutex);
@@ -1215,7 +1223,9 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	inline_page_count = num_pages(nport->inline_data_size);
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
-				cm_id->device->attrs.max_recv_sge) - 1;
+				cm_id->device->attrs.max_recv_sge);
+	if (inline_sge_count)
+		inline_sge_count--;
 	if (inline_page_count > inline_sge_count) {
 		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
 			nport->inline_data_size, cm_id->device->name,
@@ -1338,9 +1348,27 @@ err_destroy_cq:
 	goto out;
 }
 
+static bool nvmet_rdma_reclaim_rsp(struct sbitmap *sb, unsigned int bitnr,
+				   void *data)
+{
+	struct nvmet_rdma_queue *queue = data;
+
+	nvmet_rdma_free_rsp_resources(&queue->rsps[bitnr]);
+
+	return true;
+}
+
 static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 {
 	ib_drain_qp(queue->qp);
+
+	/*
+	 * Reclaim resources of a response that is still in-flight when the
+	 * queue is being torn down. This happens when the connection was
+	 * forcefully disconnected while an I/O is in flight.
+	 */
+	sbitmap_for_each_set(&queue->rsp_tags, nvmet_rdma_reclaim_rsp, queue);
+
 	if (queue->cm_id)
 		rdma_destroy_id(queue->cm_id);
 	ib_destroy_qp(queue->qp);
@@ -1555,8 +1583,9 @@ static int nvmet_rdma_cm_accept(struct rdma_cm_id *cm_id,
 
 	param.rnr_retry_count = 7;
 	param.flow_control = 1;
-	param.initiator_depth = min_t(u8, p->initiator_depth,
-		queue->dev->device->attrs.max_qp_init_rd_atom);
+	param.initiator_depth = min3(p->initiator_depth,
+				     queue->dev->device->attrs.max_qp_init_rd_atom,
+				     U8_MAX);
 	param.private_data = &priv;
 	param.private_data_len = sizeof(priv);
 	priv.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);

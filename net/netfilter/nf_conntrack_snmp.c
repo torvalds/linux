@@ -14,8 +14,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_snmp.h>
 
-#define SNMP_PORT	161
-
 MODULE_AUTHOR("Jiri Olsa <jolsa@redhat.com>");
 MODULE_DESCRIPTION("SNMP service broadcast connection tracking helper");
 MODULE_LICENSE("GPL");
@@ -55,7 +53,7 @@ static int __init nf_conntrack_snmp_init(void)
 	exp_policy.timeout = timeout;
 
 	nf_ct_helper_init(&helper, AF_INET, IPPROTO_UDP,
-			  "snmp", SNMP_PORT, SNMP_PORT, SNMP_PORT,
+			  "snmp",
 			  &exp_policy, 0, snmp_conntrack_help, NULL,
 			  THIS_MODULE);
 

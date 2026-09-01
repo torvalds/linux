@@ -752,7 +752,7 @@ static int rv3032_clkout_register_clk(struct rv3032_data *rv3032,
 {
 	int ret;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct device_node *node = client->dev.of_node;
 
 	ret = regmap_update_bits(rv3032->regmap, RV3032_TLSB, RV3032_TLSB_CLKF, 0);

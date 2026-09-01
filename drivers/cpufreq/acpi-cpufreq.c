@@ -246,32 +246,32 @@ static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
 
 static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy __always_unused;
+	u64 val;
 
-	rdmsr(MSR_IA32_PERF_CTL, val, dummy);
-	return val;
+	rdmsrq(MSR_IA32_PERF_CTL, val);
+	return (u32)val;
 }
 
 static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 {
-	u32 lo, hi;
+	u64 msrval;
 
-	rdmsr(MSR_IA32_PERF_CTL, lo, hi);
-	lo = (lo & ~INTEL_MSR_RANGE) | (val & INTEL_MSR_RANGE);
-	wrmsr(MSR_IA32_PERF_CTL, lo, hi);
+	rdmsrq(MSR_IA32_PERF_CTL, msrval);
+	msrval = (msrval & ~(u64)INTEL_MSR_RANGE) | (val & INTEL_MSR_RANGE);
+	wrmsrq(MSR_IA32_PERF_CTL, msrval);
 }
 
 static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy __always_unused;
+	u64 val;
 
-	rdmsr(MSR_AMD_PERF_CTL, val, dummy);
-	return val;
+	rdmsrq(MSR_AMD_PERF_CTL, val);
+	return (u32)val;
 }
 
 static void cpu_freq_write_amd(struct acpi_pct_register *not_used, u32 val)
 {
-	wrmsr(MSR_AMD_PERF_CTL, val, 0);
+	wrmsrq(MSR_AMD_PERF_CTL, val);
 }
 
 static u32 cpu_freq_read_io(struct acpi_pct_register *reg)

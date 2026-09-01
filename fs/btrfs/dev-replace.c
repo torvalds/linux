@@ -247,8 +247,8 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		return -EINVAL;
 	}
 
-	bdev_file = bdev_file_open_by_path(device_path, BLK_OPEN_WRITE,
-					   fs_info->sb, &fs_holder_ops);
+	/* Unfreezable for the whole replace; see btrfs_dev_replace_start(). */
+	bdev_file = btrfs_open_device_deny_freeze(device_path, fs_info->sb);
 	if (IS_ERR(bdev_file)) {
 		btrfs_err(fs_info, "target device %s is invalid!", device_path);
 		return PTR_ERR(bdev_file);
@@ -327,7 +327,8 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	return 0;
 
 error:
-	bdev_fput(bdev_file);
+	/* Undo the open-time freeze deny. */
+	btrfs_release_device_allow_freeze(bdev_file);
 	return ret;
 }
 
@@ -624,6 +625,15 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return ret;
 
+	/* Deny the source before mark, so every 'leave' unwinds both denied. */
+	if (src_device->bdev) {
+		ret = bdev_deny_freeze(src_device->bdev);
+		if (ret) {
+			btrfs_destroy_dev_replace_tgtdev(tgt_device, true);
+			return ret;
+		}
+	}
+
 	ret = mark_block_group_to_copy(fs_info, src_device);
 	if (ret)
 		return ret;
@@ -708,7 +718,9 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	return ret;
 
 leave:
-	btrfs_destroy_dev_replace_tgtdev(tgt_device);
+	if (src_device->bdev)
+		bdev_allow_freeze(src_device->bdev);
+	btrfs_destroy_dev_replace_tgtdev(tgt_device, true);
 	return ret;
 }
 
@@ -889,6 +901,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	 */
 	ret = btrfs_start_delalloc_roots(fs_info, LONG_MAX, false);
 	if (ret) {
+		/* Stays started/resumable; keep both denied. */
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 		return ret;
 	}
@@ -902,6 +915,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
+			/* Stays started/resumable; keep both denied. */
 			mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 			return PTR_ERR(trans);
 		}
@@ -954,7 +968,10 @@ error:
 		mutex_unlock(&fs_devices->device_list_mutex);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
-			btrfs_destroy_dev_replace_tgtdev(tgt_device);
+			btrfs_destroy_dev_replace_tgtdev(tgt_device, true);
+		/* The source stays a member; re-allow freezing it. */
+		if (src_device->bdev)
+			bdev_allow_freeze(src_device->bdev);
 		btrfs_rm_dev_replace_unblocked(fs_info);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
@@ -1027,6 +1044,8 @@ error:
 
 	mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
+	/* The target is now a member; the source is freed (allow + release). */
+	bdev_allow_freeze(tgt_device->bdev);
 	btrfs_rm_dev_replace_free_srcdev(src_device);
 
 	return 0;
@@ -1155,8 +1174,9 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 			btrfs_dev_name(src_device), src_device->devid,
 			btrfs_dev_name(tgt_device));
 
+		/* A suspended replace never re-denied freezing; do not allow. */
 		if (tgt_device)
-			btrfs_destroy_dev_replace_tgtdev(tgt_device);
+			btrfs_destroy_dev_replace_tgtdev(tgt_device, false);
 		break;
 	default:
 		up_write(&dev_replace->rwsem);
@@ -1186,6 +1206,11 @@ void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info)
 		dev_replace->time_stopped = ktime_get_real_seconds();
 		dev_replace->item_needs_writeback = 1;
 		btrfs_info(fs_info, "suspending dev_replace for unmount");
+		/* Reopened freezable next mount; resume re-denies. */
+		if (dev_replace->srcdev && dev_replace->srcdev->bdev)
+			bdev_allow_freeze(dev_replace->srcdev->bdev);
+		if (dev_replace->tgtdev && dev_replace->tgtdev->bdev)
+			bdev_allow_freeze(dev_replace->tgtdev->bdev);
 		break;
 	}
 
@@ -1198,6 +1223,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 {
 	struct task_struct *task;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	int ret = 0;
 
 	down_write(&dev_replace->rwsem);
 
@@ -1241,8 +1267,33 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 		return 0;
 	}
 
+	/* Re-deny for the resumed replace; stay suspended if frozen now. */
+	if (dev_replace->srcdev->bdev &&
+	    bdev_deny_freeze(dev_replace->srcdev->bdev))
+		goto suspend;
+	if (bdev_deny_freeze(dev_replace->tgtdev->bdev)) {
+		if (dev_replace->srcdev->bdev)
+			bdev_allow_freeze(dev_replace->srcdev->bdev);
+		goto suspend;
+	}
+
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
-	return PTR_ERR_OR_ZERO(task);
+	if (IS_ERR(task)) {
+		bdev_allow_freeze(dev_replace->tgtdev->bdev);
+		if (dev_replace->srcdev->bdev)
+			bdev_allow_freeze(dev_replace->srcdev->bdev);
+		/* Undo the deny and suspend, but still fail the mount. */
+		ret = PTR_ERR(task);
+		goto suspend;
+	}
+	return 0;
+
+suspend:
+	btrfs_exclop_finish(fs_info);
+	down_write(&dev_replace->rwsem);
+	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
+	up_write(&dev_replace->rwsem);
+	return ret;
 }
 
 static int btrfs_dev_replace_kthread(void *data)

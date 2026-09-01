@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <string.h>
 
+#include <arch/special.h>
 #include <objtool/special.h>
 #include <objtool/builtin.h>
 #include <objtool/warn.h>
@@ -8,6 +9,32 @@
 
 /* cpu feature name array generated from cpufeatures.h */
 #include "cpu-feature-names.c"
+
+/*
+ * An alternative with an empty replacement, e.g. the second entry of
+ *
+ *   ALTERNATIVE_2("orig", "repl", ft1, "", ft2)
+ *
+ * still gets a relocation for its replacement offset.  But the label it points
+ * at is the end of the previous entry's replacement, which is also the
+ * beginning of the *next* entry's replacement.  The value is meaningless: it's
+ * only ever used with a length of zero.
+ */
+bool arch_alt_ignore_new_reloc(struct section *sec, unsigned long offset)
+{
+	unsigned long entry_off;
+
+	if (strcmp(sec->name, ".altinstructions"))
+		return false;
+
+	entry_off = offset - (offset % ALT_ENTRY_SIZE);
+
+	if (offset - entry_off != ALT_NEW_OFFSET)
+		return false;
+
+	return !*(unsigned char *)(sec->data->d_buf + entry_off +
+				   ALT_NEW_LEN_OFFSET);
+}
 
 void arch_handle_alternative(struct special_alt *alt)
 {

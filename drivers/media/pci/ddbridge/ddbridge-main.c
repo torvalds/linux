@@ -269,7 +269,7 @@ static const struct pci_device_id ddb_id_table[] = {
 	DDB_DEVICE_ANY(0x0323),
 	DDB_DEVICE_ANY(0x0328),
 	DDB_DEVICE_ANY(0x0329),
-	{0}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, ddb_id_table);

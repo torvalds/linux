@@ -93,7 +93,7 @@ struct user_pt_regs {
 };
 
 struct user_fpsimd_state {
-	__uint128_t	vregs[32];
+	__u128		vregs[32];
 	__u32		fpsr;
 	__u32		fpcr;
 	__u32		__reserved[2];
@@ -258,14 +258,14 @@ struct user_pac_mask {
 /* pointer authentication keys (NT_ARM_PACA_KEYS, NT_ARM_PACG_KEYS) */
 
 struct user_pac_address_keys {
-	__uint128_t	apiakey;
-	__uint128_t	apibkey;
-	__uint128_t	apdakey;
-	__uint128_t	apdbkey;
+	__u128	apiakey;
+	__u128	apibkey;
+	__u128	apdakey;
+	__u128	apdbkey;
 };
 
 struct user_pac_generic_keys {
-	__uint128_t	apgakey;
+	__u128	apgakey;
 };
 
 /* ZA state (NT_ARM_ZA) */

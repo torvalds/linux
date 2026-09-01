@@ -790,8 +790,8 @@ static int really_probe_debug(struct device *dev, const struct device_driver *dr
 	 * CONFIG_DYNAMIC_DEBUG and we want a simple 'initcall_debug' on the
 	 * kernel commandline to print this all the time at the debug level.
 	 */
-	printk(KERN_DEBUG "probe of %s returned %d after %lld usecs\n",
-		 dev_name(dev), ret, ktime_us_delta(rettime, calltime));
+	printk(KERN_DEBUG "probe of %s with driver %s returned %d after %lld usecs\n",
+	       dev_name(dev), drv->name, ret, ktime_us_delta(rettime, calltime));
 	return ret;
 }
 

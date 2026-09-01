@@ -93,11 +93,13 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  * Returns: %0 or error on failure
  */
 int aa_audit_file(const struct cred *subj_cred,
-		  struct aa_profile *profile, struct aa_perms *perms,
+		  struct aa_profile *profile, const struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, struct aa_label *tlabel,
 		  kuid_t ouid, const char *info, int error)
 {
+	u32 quiet = perms->quiet;
+	u32 complain = perms->complain;
 	int type = AUDIT_APPARMOR_AUTO;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_TASK, AA_CLASS_FILE, op);
 
@@ -112,6 +114,8 @@ int aa_audit_file(const struct cred *subj_cred,
 	ad.error = error;
 	ad.common.u.tsk = NULL;
 
+	if (COMPLAIN_MODE(profile))
+		complain |= ~(perms->allow | perms->deny);
 	if (likely(!ad.error)) {
 		u32 mask = perms->audit;
 
@@ -132,11 +136,14 @@ int aa_audit_file(const struct cred *subj_cred,
 		if (ad.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
+		if (AUDIT_MODE(profile) == AUDIT_QUIET_ALLOWED)
+			quiet |= complain | perms->allow;
+
 		/* quiet known rejects, assumes quiet and kill do not overlap */
-		if ((ad.request & perms->quiet) &&
+		if ((ad.request & quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
-			ad.request &= ~perms->quiet;
+			ad.request &= ~quiet;
 
 		if (!ad.request)
 			return ad.error;
@@ -232,7 +239,7 @@ int __aa_path_perm(const char *op, const struct cred *subj_cred,
 	int e = 0;
 
 	if (profile_unconfined(profile) ||
-	    ((flags & PATH_SOCK_COND) && !RULE_MEDIATES_v9NET(rules)))
+	    ((flags & PATH_SOCK_COND) && !RULE_MEDIATES_UNIX(rules)))
 		return 0;
 	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     name, cond, perms);

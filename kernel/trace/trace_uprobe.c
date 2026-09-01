@@ -281,7 +281,7 @@ static bool trace_uprobe_is_busy(struct dyn_event *ev)
 static bool trace_uprobe_match_command_head(struct trace_uprobe *tu,
 					    int argc, const char **argv)
 {
-	char buf[MAX_ARGSTR_LEN + 1];
+	char buf[64];
 	int len;
 
 	if (!argc)
@@ -765,6 +765,9 @@ static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev)
 		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
 
 	seq_putc(m, '\n');
+
+	trace_probe_dump_args(m, &tu->tp);
+
 	return 0;
 }
 

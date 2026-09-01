@@ -816,7 +816,7 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 		ret = devm_request_irq(dev, virq, rzv2h_icu_swint_irq, 0, dev_name(dev),
 				       (void *)(uintptr_t)i);
 		if (ret)
-			return dev_err_probe(dev, ret, "Failed to request int-ca55-%u IRQ\n", i);
+			return ret;
 	}
 
 	/* Unmask and clear all IP/CA55 error interrupts */
@@ -844,7 +844,7 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 
 	ret = devm_request_irq(dev, virq, rzv2h_icu_error_irq, 0, dev_name(dev), rzv2h_icu_data);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request icu-error-ca55 IRQ\n");
+		return ret;
 
 	return 0;
 }

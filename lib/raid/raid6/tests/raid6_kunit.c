@@ -18,6 +18,7 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 #define RAID6_KUNIT_MAX_BUFFERS		64 /* Including P and Q */
 #define RAID6_KUNIT_MAX_FAILURES	2
 #define RAID6_KUNIT_MAX_BYTES		PAGE_SIZE
+#define RAID6_KUNIT_ALLOC_BYTES		SZ_16K
 
 static struct rnd_state rng;
 static void *test_buffers[RAID6_KUNIT_MAX_BUFFERS];
@@ -229,6 +230,68 @@ static void raid6_test(struct kunit *test)
 		raid6_test_one(test);
 }
 
+static void raid6_benchmark(struct kunit *test)
+{
+	static const unsigned int nr_to_test[] = {
+		4, 5, 6, 7, 8, 10, 12, 15, 16, 32,
+	};
+	static const unsigned int len_to_test[] = {
+		SZ_4K, SZ_16K,
+	};
+	unsigned int i, j, l;
+	u64 t;
+
+	if (!IS_ENABLED(CONFIG_RAID6_PQ_KUNIT_BENCHMARK))
+		kunit_skip(test, "not enabled");
+
+	/* warm-up */
+	for (i = 0; i < ARRAY_SIZE(nr_to_test); i++) {
+		for (j = 0; j < ARRAY_SIZE(len_to_test); j++) {
+			for (l = 0; l < 10; l++) {
+				raid6_gen_syndrome(nr_to_test[i],
+						len_to_test[j], test_buffers);
+			}
+		}
+	}
+
+	/*
+	 * Preferably this would be a loop over len_to_test, but the kunit
+	 * logging always adds a newline to each logged format string.
+	 */
+	static_assert(ARRAY_SIZE(len_to_test) == 2);
+	kunit_info(test, "          \t%5u bytes\t%5u bytes\n",
+			len_to_test[0], len_to_test[1]);
+
+	for (i = 0; i < ARRAY_SIZE(nr_to_test); i++) {
+		unsigned int nr = nr_to_test[i];
+		u64 speed[ARRAY_SIZE(len_to_test)];
+
+		KUNIT_ASSERT_LE(test, nr, RAID6_KUNIT_MAX_BUFFERS);
+
+		for (j = 0; j < ARRAY_SIZE(len_to_test); j++) {
+			unsigned int len = len_to_test[j];
+			const unsigned long num_iters = 1000;
+
+			KUNIT_ASSERT_GT(test, len, 0);
+			KUNIT_ASSERT_LE(test, len, RAID6_KUNIT_ALLOC_BYTES);
+
+			preempt_disable();
+			t = ktime_get_ns();
+			for (l = 0; l < num_iters; l++)
+				raid6_gen_syndrome(nr_to_test[i],
+						len_to_test[j], test_buffers);
+			t = max(ktime_get_ns() - t, 1);
+			preempt_enable();
+
+			speed[j] = div64_u64((u64)len * num_iters * nr, t);
+		}
+
+		static_assert(ARRAY_SIZE(len_to_test) == 2);
+		kunit_info(test, "%3u disks:\t%5llu  GB/s\t%5llu  GB/s\n",
+				nr, speed[0], speed[1]);
+	}
+}
+
 static const void *raid6_gen_params(struct kunit *test, const void *prev,
 		char *desc)
 {
@@ -256,6 +319,7 @@ next_algo:
 
 static struct kunit_case raid6_test_cases[] = {
 	KUNIT_CASE_PARAM(raid6_test, raid6_gen_params),
+	KUNIT_CASE(raid6_benchmark),
 	{},
 };
 
@@ -270,7 +334,7 @@ static int raid6_suite_init(struct kunit_suite *suite)
 	 * so that it is immediately followed by a guard page.  This allows
 	 * buffer overreads to be detected, even in assembly code.
 	 */
-	test_buflen = round_up(RAID6_KUNIT_MAX_BYTES, PAGE_SIZE);
+	test_buflen = round_up(RAID6_KUNIT_ALLOC_BYTES, PAGE_SIZE);
 	for (i = 0; i < RAID6_KUNIT_MAX_FAILURES; i++) {
 		test_recov_buffers[i] = vmalloc(test_buflen);
 		if (!test_recov_buffers[i])

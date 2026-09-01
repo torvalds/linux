@@ -18,7 +18,9 @@ allOf:
 properties:
   compatible:
     items:
-      - const: fsl,imx8qxp-sc-key
+      - enum:
+          - fsl,imx8qm-sc-key
+          - fsl,imx8qxp-sc-key
       - const: fsl,imx-sc-key
 
   linux,keycodes:

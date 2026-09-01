@@ -250,7 +250,7 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 					  unsigned long offset,
 					  size_t size, int fd,
 					  int access,
-					  struct dma_buf_attach_ops *ops)
+					  const struct dma_buf_attach_ops *ops)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

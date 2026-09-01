@@ -522,10 +522,10 @@ static const struct of_device_id pv88080_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pv88080_dt_ids);
 
 static const struct i2c_device_id pv88080_i2c_id[] = {
-	{ "pv88080",    (kernel_ulong_t)&pv88080_aa_regs },
-	{ "pv88080-aa", (kernel_ulong_t)&pv88080_aa_regs },
-	{ "pv88080-ba", (kernel_ulong_t)&pv88080_ba_regs },
-	{}
+	{ .name = "pv88080", .driver_data = (kernel_ulong_t)&pv88080_aa_regs },
+	{ .name = "pv88080-aa", .driver_data = (kernel_ulong_t)&pv88080_aa_regs },
+	{ .name = "pv88080-ba", .driver_data = (kernel_ulong_t)&pv88080_ba_regs },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pv88080_i2c_id);
 

@@ -19,6 +19,13 @@ static inline u64 kvm_tdp_mmu_read_spte(tdp_ptep_t sptep)
 	return READ_ONCE(*rcu_dereference(sptep));
 }
 
+/*
+ * WARNING!  mmu_lock must be held for write when using the "write atomic" or
+ * "clear bits atomic" APIs, otherwise KVM could overwrite the "wrong" old SPTE
+ * value, i.e. clobber an update from a different CPU.  The only exception is
+ * when KVM is freezing a leaf SPTE for removal, in which case KVM doesn't care
+ * about the exact old SPTE value (KVM will react to the actual old value).
+ */
 static inline u64 kvm_tdp_mmu_write_spte_atomic(tdp_ptep_t sptep, u64 new_spte)
 {
 	KVM_MMU_WARN_ON(is_ept_ve_possible(new_spte));

@@ -20,3 +20,16 @@ config AMD_SBRMI_HWMON
 	  This provides support for RMI device hardware monitoring. If enabled,
 	  a hardware monitoring device will be created for each socket in
 	  the system.
+
+config AMD_SBTSI
+	tristate "AMD side band TSI support"
+	depends on I3C_OR_I2C
+	depends on ARM || ARM64 || COMPILE_TEST
+	select AUXILIARY_BUS
+	help
+	  Enables support for the AMD SB-TSI (Side Band Temperature Sensor
+	  Interface) driver, which provides access to emulated CPU temperature
+	  sensors on AMD SoCs via an I2C/I3C connected BMC device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called sbtsi.

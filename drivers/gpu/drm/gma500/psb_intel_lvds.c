@@ -12,9 +12,9 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "intel_bios.h"
 #include "power.h"
@@ -593,6 +593,10 @@ set_prop_error:
 	return -1;
 }
 
+static const struct drm_encoder_funcs psb_intel_lvds_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs psb_intel_lvds_helper_funcs = {
 	.dpms = psb_intel_lvds_encoder_dpms,
 	.mode_fixup = psb_intel_lvds_mode_fixup,
@@ -679,7 +683,8 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	if (ret)
 		goto err_ddc_destroy;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_LVDS);
+	ret = drm_encoder_init(dev, encoder, &psb_intel_lvds_funcs,
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret)
 		goto err_connector_cleanup;
 

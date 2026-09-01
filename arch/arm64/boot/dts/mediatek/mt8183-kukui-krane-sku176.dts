@@ -19,6 +19,6 @@
 };
 
 &panel {
-        status = "okay";
-        compatible = "boe,tv101wum-nl6";
+	status = "okay";
+	compatible = "boe,tv101wum-nl6";
 };

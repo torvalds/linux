@@ -1,0 +1,5 @@
+RULE = always (((RT and USER_THREAD) imply
+		(not (WOKEN_BY_LOWER_PRIO or WOKEN_BY_SOFTIRQ)) or ALLOWLIST))
+
+ALLOWLIST = BLOCK_ON_RT_MUTEX
+         or FUTEX_LOCK_PI

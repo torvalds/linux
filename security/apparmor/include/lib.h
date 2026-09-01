@@ -136,7 +136,7 @@ static inline bool aa_strneq(const char *str, const char *sub, int len)
  * character which is not used in standard matching and is only
  * used to separate pairs.
  */
-static inline aa_state_t aa_dfa_null_transition(struct aa_dfa *dfa,
+static inline aa_state_t aa_dfa_null_transition(const struct aa_dfa *dfa,
 						aa_state_t start)
 {
 	/* the null transition only needs the string's null terminator byte */
@@ -338,8 +338,8 @@ __do_cleanup:								\
 		__new_ = (FN);						\
 	}								\
 __done:									\
-	if (PTR_ERR(__new_))						\
-		AA_DEBUG(DEBUG_LABEL, "label build failed\n");		\
+	if (IS_ERR(__new_))						\
+		AA_DEBUG(DEBUG_LABEL, "label build failed %ld\n", PTR_ERR(__new_)); \
 	(__new_);							\
 })
 

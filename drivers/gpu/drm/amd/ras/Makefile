@@ -23,10 +23,10 @@ ifeq ($(AMD_GPU_RAS_MGR),)
 	AMD_GPU_RAS_MGR := ras_mgr
 endif
 
-subdir-ccflags-y += -I$(AMD_GPU_RAS_FULL_PATH)/rascore
+subdir-ccflags-y += -I$(AMD_GPU_RAS_FULL_PATH)/core
 subdir-ccflags-y += -I$(AMD_GPU_RAS_FULL_PATH)/$(AMD_GPU_RAS_MGR)
 
-RAS_LIBS = $(AMD_GPU_RAS_MGR) rascore
+RAS_LIBS = $(AMD_GPU_RAS_MGR) core
 
 AMD_RAS = $(addsuffix /Makefile, $(addprefix $(AMD_GPU_RAS_FULL_PATH)/,$(RAS_LIBS)))
 

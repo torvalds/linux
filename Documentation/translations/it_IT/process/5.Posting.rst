@@ -48,7 +48,14 @@ l'invio delle patch alla comunità di sviluppo.  Queste cose includono:
  - Verificare il codice fino al massimo che vi è consentito. Usate gli
    strumenti di debug del kernel, assicuratevi che il kernel compili con
    tutte le più ragionevoli combinazioni d'opzioni, usate cross-compilatori
-   per compilare il codice per differenti architetture, eccetera.
+   per compilare il codice per differenti architetture, eccetera. Aggiungete
+   dei test, preferibilmente usando un framework di test già esistente come
+   KUnit, e includeteli come un elemento separato della vostra serie (per
+   maggiori informazioni sulle serie di patch, vedere la sezione successiva).
+   Da notare che questo può essere obbligatorio quando si toccano alcuni
+   sottosistemi. Per esempio, le funzioni di libreria (che risiedono in
+   lib/) sono usate estensivamente quasi ovunque, e ci si aspetta che siano
+   testate adeguatamente.
 
  - Assicuratevi che il vostro codice sia conforme alla linee guida del
    kernel sullo stile del codice.
@@ -224,10 +231,9 @@ implementate dalla patch::
 
        Link: https://example.com/somewhere.html  optional-other-stuff
 
-Alcuni manutentori aggiungono quest'etichetta alla patch per fare riferimento
-alla più recente discussione pubblica. A volte questo è fatto automaticamente da
-alcuni strumenti come b4 or un *hook* git come quello descritto qui
-'Documentation/translations/it_IT/maintainer/configure-git.rst'
+Come indicato dal "Chief Penguin" (soprannome di Linus Torvalds), un'etichetta
+Link: dovrebbe essere aggiunta ad un commit solo se conduce a informazioni
+utili che non si trovano già nel commit stesso.
 
 
 Se il collegamento indirizza verso un rapporto su un baco risolto dalla patch,
@@ -284,13 +290,23 @@ Le etichette in uso più comuni sono:
    Se esiste un rapporto disponibile sul web, allora
    L'etichetta dovrebbe essere seguita da un collegamento al suddetto rapporto.
 
+ - Suggested-by: indica che l'idea della patch è stata suggerita dalla persona
+   menzionata, ed assicura che le venga dato credito per l'idea.  Questo, si
+   spera, la inviterà ad aiutarci ancora in futuro.
+
  - Cc: la persona menzionata ha ricevuto una copia della patch ed ha avuto
    l'opportunità di commentarla.
 
-State attenti ad aggiungere queste etichette alla vostra patch: solo "Cc:" può
-essere aggiunta senza il permesso esplicito della persona menzionata. Il più
-delle volte anche Reported-by: va bene, ma è sempre meglio chiedere specialmente
-se il baco è stato riportato in una comunicazione privata.
+State attenti ad aggiungere le suddette etichette alla vostra patch: tutte,
+tranne Cc:, Reported-by: e Suggested-by:, richiedono il permesso esplicito
+della persona menzionata.  Per queste tre è sufficiente un permesso implicito,
+se la persona ha contribuito al kernel Linux usando quel nome e quell'indirizzo
+email secondo gli archivi di lore o la cronologia dei commit -- e, nel caso di
+Reported-by: e Suggested-by:, se la segnalazione o il suggerimento sono
+avvenuti pubblicamente.  Da notare che bugzilla.kernel.org è, in questo senso,
+un luogo pubblico, ma gli indirizzi email usati lì sono privati; quindi non
+esponeteli nelle etichette, a meno che la persona non li abbia già usati in
+contributi precedenti.
 
 Inviare la modifica
 -------------------

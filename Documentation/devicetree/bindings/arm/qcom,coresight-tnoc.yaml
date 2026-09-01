@@ -82,7 +82,7 @@ additionalProperties: false
 
 examples:
   - |
-    tn@109ab000  {
+    tn@109ab000 {
       compatible = "qcom,coresight-tnoc", "arm,primecell";
       reg = <0x109ab000 0x4200>;
 

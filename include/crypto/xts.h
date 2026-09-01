@@ -7,9 +7,9 @@
 #include <linux/fips.h>
 
 #define XTS_BLOCK_SIZE 16
+#define XTS_FORBID_WEAK_KEYS (1 << 0)
 
-static inline int xts_verify_key(struct crypto_skcipher *tfm,
-				 const u8 *key, unsigned int keylen)
+static inline int __xts_verify_key(const u8 *key, size_t keylen, int flags)
 {
 	/*
 	 * key consists of keys of equal size concatenated, therefore
@@ -29,12 +29,22 @@ static inline int xts_verify_key(struct crypto_skcipher *tfm,
 	 * Ensure that the AES and tweak key are not identical when
 	 * in FIPS mode or the FORBID_WEAK_KEYS flag is set.
 	 */
-	if ((fips_enabled || (crypto_skcipher_get_flags(tfm) &
-			      CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) &&
+	if ((fips_enabled || (flags & XTS_FORBID_WEAK_KEYS)) &&
 	    !crypto_memneq(key, key + (keylen / 2), keylen / 2))
 		return -EINVAL;
 
 	return 0;
+}
+
+static inline int xts_verify_key(struct crypto_skcipher *tfm, const u8 *key,
+				 unsigned int keylen)
+{
+	int flags = (crypto_skcipher_get_flags(tfm) &
+		     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) ?
+			    XTS_FORBID_WEAK_KEYS :
+			    0;
+
+	return __xts_verify_key(key, keylen, flags);
 }
 
 #endif  /* _CRYPTO_XTS_H */

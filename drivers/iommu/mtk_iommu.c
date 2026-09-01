@@ -220,7 +220,7 @@ struct mtk_iommu_plat_data {
 		unsigned int	iova_region_nr;
 		const struct mtk_iommu_iova_region	*iova_region;
 		/*
-		 * Indicate the correspondance between larbs, ports and regions.
+		 * Indicate the correspondence between larbs, ports and regions.
 		 *
 		 * The index is the same as iova_region and larb port numbers are
 		 * described as bit positions.

@@ -112,6 +112,11 @@ int st_lsm6dsx_fusion_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable)
 		return err;
 	}
 
+	if (enable)
+		hw->enable_mask |= BIT(ST_LSM6DSX_ID_FUSION);
+	else
+		hw->enable_mask &= ~BIT(ST_LSM6DSX_ID_FUSION);
+
 	return st_lsm6dsx_fusion_page_disable(hw);
 }
 

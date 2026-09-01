@@ -334,9 +334,8 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_wakeup_from_lpm_l1 - Exit the device from LPM L1 state
- *
  * @hsotg: Programming view of DWC_otg controller
- *
+ * @remotewakeup: Whether this is a remote wakeup
  */
 void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg, bool remotewakeup)
 {

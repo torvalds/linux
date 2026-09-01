@@ -23,7 +23,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 #include <asm/mpc5121.h>
@@ -618,14 +617,14 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	struct clk *clk;
 	struct device *dev = &op->dev;
 	struct mpc5121_nfc_prv *prv;
-	struct resource res;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
-	unsigned long regs_paddr, regs_size;
 	const __be32 *chips_no;
+	void __iomem *regs;
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
+	int irq;
 
 	/*
 	 * Check SoC revision. This driver supports only NFC
@@ -636,6 +635,14 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 		dev_err(dev, "SoC revision %u is not supported!\n", rev);
 		return -ENXIO;
 	}
+
+	regs = devm_platform_ioremap_resource(op, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	irq = platform_get_irq(op, 0);
+	if (irq < 0)
+		return irq;
 
 	prv = devm_kzalloc(dev, sizeof(*prv), GFP_KERNEL);
 	if (!prv)
@@ -660,17 +667,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 		return retval;
 	}
 
-	prv->irq = irq_of_parse_and_map(dn, 0);
-	if (!prv->irq) {
-		dev_err(dev, "Error mapping IRQ!\n");
-		return -EINVAL;
-	}
-
-	retval = of_address_to_resource(dn, 0, &res);
-	if (retval) {
-		dev_err(dev, "Error parsing memory region!\n");
-		return retval;
-	}
+	prv->irq = irq;
 
 	chips_no = of_get_property(dn, "chips", &len);
 	if (!chips_no || len != sizeof(*chips_no)) {
@@ -678,19 +675,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 		return -EINVAL;
 	}
 
-	regs_paddr = res.start;
-	regs_size = resource_size(&res);
-
-	if (!devm_request_mem_region(dev, regs_paddr, regs_size, DRV_NAME)) {
-		dev_err(dev, "Error requesting memory region!\n");
-		return -EBUSY;
-	}
-
-	prv->regs = devm_ioremap(dev, regs_paddr, regs_size);
-	if (!prv->regs) {
-		dev_err(dev, "Error mapping memory region!\n");
-		return -ENOMEM;
-	}
+	prv->regs = regs;
 
 	mtd->name = "MPC5121 NAND";
 	chip->legacy.dev_ready = mpc5121_nfc_dev_ready;

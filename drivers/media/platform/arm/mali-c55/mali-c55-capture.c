@@ -857,10 +857,8 @@ static int mali_c55_register_cap_dev(struct mali_c55 *mali_c55,
 
 	cap_dev->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&cap_dev->vdev.entity, 1, &cap_dev->pad);
-	if (ret) {
-		mutex_destroy(&cap_dev->lock);
+	if (ret)
 		goto err_destroy_mutex;
-	}
 
 	vb2q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	vb2q->io_modes = VB2_MMAP | VB2_DMABUF;

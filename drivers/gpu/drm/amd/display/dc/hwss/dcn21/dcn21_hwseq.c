@@ -136,6 +136,26 @@ void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dpms_off = true;
 }
 
+bool dcn21_dmub_cacp_set_pipe(struct abm *abm, uint32_t otg_inst,
+		uint32_t option, uint32_t panel_inst, uint32_t pwrseq_inst)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = abm->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cacp_set_pipe.header.type = DMUB_CMD__CACP;
+	cmd.cacp_set_pipe.header.sub_type = DMUB_CMD__CACP_SET_PIPE;
+	cmd.cacp_set_pipe.cacp_set_pipe_data.otg_inst = (uint8_t)otg_inst;
+	cmd.cacp_set_pipe.cacp_set_pipe_data.pwrseq_inst = (uint8_t)pwrseq_inst;
+	cmd.cacp_set_pipe.cacp_set_pipe_data.set_pipe_option = (uint8_t)option;
+	cmd.cacp_set_pipe.cacp_set_pipe_data.panel_inst = (uint8_t)panel_inst;
+	cmd.cacp_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_cacp_set_pipe_data);
+
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return true;
+}
+
 bool dcn21_dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst,
 		uint32_t option, uint32_t panel_inst, uint32_t pwrseq_inst)
 {
@@ -181,10 +201,12 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst;
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
+	struct dc_link *link = pipe_ctx->stream->link;
 
 	// make a short term w/a for an issue that backlight ramping unexpectedly paused in the middle,
 	// will decouple backlight from ABM and redefine DMUB interface, then this w/a could be removed
-	if (pipe_ctx->stream->abm_level == 0 || pipe_ctx->stream->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
+	if ((pipe_ctx->stream->abm_level == 0 || pipe_ctx->stream->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE)
+		&& (link && !link->panel_config.cacp.cacp_supported)) {
 		return;
 	}
 
@@ -197,6 +219,9 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 		if (abm->funcs && abm->funcs->set_pipe_ex) {
 			abm->funcs->set_pipe_ex(abm, otg_inst, SET_ABM_PIPE_IMMEDIATELY_DISABLE,
 					panel_cntl->inst, panel_cntl->pwrseq_inst);
+		} else if (link && link->panel_config.cacp.cacp_supported) {
+			dcn21_dmub_cacp_set_pipe(abm, otg_inst, SET_CACP_PIPE_IMMEDIATELY_DISABLE,
+						panel_cntl->inst, panel_cntl->pwrseq_inst);
 		} else {
 			dcn21_dmub_abm_set_pipe(abm,
 						otg_inst,
@@ -214,6 +239,7 @@ void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
+	struct dc_link *link = pipe_ctx->stream->link;
 	uint32_t otg_inst;
 
 	if (!abm || !tg || !panel_cntl)
@@ -233,6 +259,11 @@ void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
 					panel_cntl->inst,
 					panel_cntl->pwrseq_inst);
 	} else {
+
+		if (link && link->panel_config.cacp.cacp_supported)
+			dcn21_dmub_cacp_set_pipe(abm, otg_inst, SET_CACP_PIPE_NORMAL,
+					panel_cntl->inst, panel_cntl->pwrseq_inst);
+		else
 			dcn21_dmub_abm_set_pipe(abm, otg_inst,
 				  SET_ABM_PIPE_NORMAL,
 				  panel_cntl->inst,
@@ -250,6 +281,7 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	uint32_t otg_inst;
 	uint32_t backlight_pwm_u16_16 = backlight_level_params->backlight_pwm_u16_16;
 	uint32_t frame_ramp = backlight_level_params->frame_ramp;
+	struct dc_link *link = pipe_ctx->stream->link;
 
 	if (!abm || !tg || !panel_cntl)
 		return false;
@@ -268,6 +300,12 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 					panel_cntl->inst,
 					panel_cntl->pwrseq_inst);
 	} else {
+		if (link && link->panel_config.cacp.cacp_supported)
+			dcn21_dmub_cacp_set_pipe(abm, otg_inst,
+					SET_CACP_PIPE_NORMAL,
+					panel_cntl->inst,
+					panel_cntl->pwrseq_inst);
+		else
 			dcn21_dmub_abm_set_pipe(abm,
 				  otg_inst,
 				  SET_ABM_PIPE_NORMAL,

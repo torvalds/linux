@@ -133,10 +133,6 @@ static int xgene_hwmon_pcc_rd(struct xgene_hwmon_dev *ctx, u32 *msg)
 	init_completion(&ctx->rd_complete);
 	ctx->resp_pending = true;
 
-	/* Write signature for subspace */
-	WRITE_ONCE(generic_comm_base->signature,
-		   cpu_to_le32(PCC_SIGNATURE | ctx->mbox_idx));
-
 	/* Write to the shared command region */
 	WRITE_ONCE(generic_comm_base->command,
 		   cpu_to_le16(MSG_TYPE(msg[0]) | PCC_CMD_GENERATE_DB_INTR));

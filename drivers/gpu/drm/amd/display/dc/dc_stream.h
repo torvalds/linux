@@ -128,6 +128,35 @@ union stream_update_flags {
 	uint32_t raw;
 };
 
+static inline void stream_update_flags_clear(union stream_update_flags *flags)
+{
+	flags->raw = 0;
+}
+
+static inline void stream_update_flags_set_full(union stream_update_flags *flags)
+{
+	stream_update_flags_clear(flags);
+	flags->bits.scaling = 1;
+	flags->bits.out_tf = 1;
+	flags->bits.out_csc = 1;
+	flags->bits.abm_level = 1;
+	flags->bits.dpms_off = 1;
+	flags->bits.gamut_remap = 1;
+	flags->bits.wb_update = 1;
+	flags->bits.dsc_changed = 1;
+	flags->bits.mst_bw = 1;
+	flags->bits.crtc_timing_adjust = 1;
+	flags->bits.fams_changed = 1;
+	flags->bits.scaler_sharpener = 1;
+	flags->bits.sharpening_required = 1;
+	flags->bits.cursor_attr = 1;
+	flags->bits.cursor_pos = 1;
+	flags->bits.periodic_interrupt = 1;
+	flags->bits.info_frame = 1;
+	flags->bits.dmdata = 1;
+	flags->bits.dither = 1;
+}
+
 struct test_pattern {
 	enum dp_test_pattern type;
 	enum dp_test_pattern_color_space color_space;
@@ -300,6 +329,8 @@ struct dc_stream_state {
 
 	enum dc_drr_trigger_mode drr_trigger_mode;
 
+
+	enum dc_blending_linearity blending_linearity;
 	struct dc_update_scratch_space *update_scratch;
 	bool firmware_controlled_hdr_info_packet;
 };
@@ -352,6 +383,8 @@ struct dc_stream_update {
 	bool *scaler_sharpener_update;
 	bool *sharpening_required;
 
+	enum dc_blending_linearity *blending_linearity;
+
 	enum dc_drr_trigger_mode *drr_trigger_mode;
 };
 
@@ -379,32 +412,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_stream_state *dc_stream,
 		struct dc_stream_update *stream_update);
 
-struct dc_update_scratch_space;
+struct dc_state_update;
 
-size_t dc_update_scratch_space_size(void);
-
-struct dc_update_scratch_space *dc_update_planes_and_stream_init(
-		struct dc *dc,
-		struct dc_surface_update *surface_updates,
-		int surface_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_stream_update *stream_update
-);
-
-// Locked, false is failed
-bool dc_update_planes_and_stream_prepare(
-		struct dc_update_scratch_space *scratch
-);
-
-// Unlocked
-void dc_update_planes_and_stream_execute(
-		const struct dc_update_scratch_space *scratch
-);
-
-// Locked, true if call again
-bool dc_update_planes_and_stream_cleanup(
-		struct dc_update_scratch_space *scratch
-);
 
 /*
  * Set up surface attributes and associate to a stream
@@ -489,7 +498,8 @@ void dc_enable_stereo(
 /* Triggers multi-stream synchronization. */
 void dc_trigger_sync(struct dc *dc, struct dc_state *context);
 
-struct surface_update_descriptor dc_check_update_surfaces_for_stream(
+/* Shim: packs args into dc_state_update and calls dc_check_state_update(). */
+struct dc_update_descriptor dc_check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,

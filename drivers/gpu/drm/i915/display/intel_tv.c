@@ -1187,13 +1187,12 @@ static bool intel_tv_vert_scaling(const struct drm_display_mode *tv_mode,
 }
 
 static int
-intel_tv_compute_config(struct intel_encoder *encoder,
+intel_tv_compute_config(struct intel_atomic_state *state,
+			struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(pipe_config->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);

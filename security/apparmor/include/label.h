@@ -23,7 +23,7 @@ struct aa_ruleset;
 
 #define LOCAL_VEC_ENTRIES 8
 #define DEFINE_VEC(T, V)						\
-	struct aa_ ## T *(_ ## V ## _localtmp)[LOCAL_VEC_ENTRIES];	\
+	struct aa_ ## T *(_ ## V ## _localtmp)[LOCAL_VEC_ENTRIES + 1];	\
 	struct aa_ ## T **(V)
 
 #define vec_setup(T, V, N, GFP)						\
@@ -31,10 +31,10 @@ struct aa_ruleset;
 	if ((N) <= LOCAL_VEC_ENTRIES) {					\
 		typeof(N) i;						\
 		(V) = (_ ## V ## _localtmp);				\
-		for (i = 0; i < (N); i++)				\
+		for (i = 0; i <= (N); i++)				\
 			(V)[i] = NULL;					\
 	} else								\
-		(V) = kzalloc(sizeof(struct aa_ ## T *) * (N), (GFP));	\
+		(V) = kzalloc_objs(struct aa_ ## T *, (N) + 1, (GFP));	\
 	(V) ? 0 : -ENOMEM;						\
 })
 
@@ -165,7 +165,7 @@ do {							\
 #define labels_profile(X) ((X)->vec[(X)->size - 1])
 
 
-int aa_label_next_confined(struct aa_label *l, int i);
+int aa_label_next_confined(const struct aa_label *l, int i);
 
 /* for each profile in a label */
 #define label_for_each(I, L, P)						\
@@ -246,12 +246,12 @@ int aa_label_next_confined(struct aa_label *l, int i);
 #define fn_for_each_not_in_set(L1, L2, P, FN)				\
 	fn_for_each2_XXX((L1), (L2), P, FN, _not_in_set)
 
-static inline bool label_mediates(struct aa_label *L, unsigned char C)
+static inline bool label_mediates(const struct aa_label *L, unsigned char C)
 {
 	return (L)->mediates & (((u64) 1) << (C));
 }
 
-static inline bool label_mediates_safe(struct aa_label *L, unsigned char C)
+static inline bool label_mediates_safe(const struct aa_label *L, unsigned char C)
 {
 	if (C > AA_CLASS_LAST)
 		return false;
@@ -268,11 +268,12 @@ void aa_label_kref(struct kref *kref);
 bool aa_label_init(struct aa_label *label, int size, gfp_t gfp);
 struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp);
 
-bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub);
-bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub);
+bool aa_label_is_subset(const struct aa_label *set, const struct aa_label *sub);
+bool aa_label_is_unconfined_subset(const struct aa_label *set,
+				   const struct aa_label *sub);
 struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
-					     struct aa_label *set,
-					     struct aa_label *sub);
+					     const struct aa_label *set,
+					     const struct aa_label *sub);
 bool aa_label_remove(struct aa_label *label);
 struct aa_label *aa_label_insert(struct aa_labelset *ls, struct aa_label *l);
 bool aa_label_replace(struct aa_label *old, struct aa_label *new);
@@ -280,8 +281,8 @@ bool aa_label_make_newest(struct aa_labelset *ls, struct aa_label *old,
 			  struct aa_label *new);
 
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
-					  struct aa_label *a,
-					  struct aa_label *b);
+					  const struct aa_label *a,
+					  const struct aa_label *b);
 struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b);
 struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 				gfp_t gfp);
@@ -342,7 +343,7 @@ static inline const char *aa_label_str_split(const char *str)
 
 struct aa_perms;
 struct aa_ruleset;
-int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
+int aa_label_match(const struct aa_profile *profile, struct aa_ruleset *rules,
 		   struct aa_label *label, aa_state_t state, bool subns,
 		   u32 request, struct aa_perms *perms);
 
@@ -462,8 +463,8 @@ static inline void aa_put_label(struct aa_label *l)
 }
 
 /* wrapper fn to indicate semantics of the check */
-static inline bool __aa_subj_label_is_cached(struct aa_label *subj_label,
-					  struct aa_label *obj_label)
+static inline bool __aa_subj_label_is_cached(const struct aa_label *subj_label,
+					  const struct aa_label *obj_label)
 {
 	return aa_label_is_subset(obj_label, subj_label);
 }

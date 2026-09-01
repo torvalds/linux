@@ -77,4 +77,12 @@ MPC_DCN42 = dcn42_mpc.o
 AMD_DAL_MPC_DCN42 = $(addprefix $(AMDDALPATH)/dc/mpc/dcn42/,$(MPC_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_MPC_DCN42)
+###############################################################################
+# DCN60
+###############################################################################
+MPC_DCN60 = dcn60_mpc.o
+
+AMD_DAL_MPC_DCN60 = $(addprefix $(AMDDALPATH)/dc/mpc/dcn60/,$(MPC_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_MPC_DCN60)
 endif

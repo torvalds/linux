@@ -33,10 +33,7 @@
  *     with r7 before calling svc, and r6 is marked as clobbered.
  *     We're just using any regular register which we assign to r7 after saving
  *     it.
- *
- * Also, ARM supports the old_select syscall if newselect is not available
  */
-#define __ARCH_WANT_SYS_OLD_SELECT
 
 #if (defined(__THUMBEB__) || defined(__THUMBEL__)) && \
     !defined(NOLIBC_OMIT_FRAME_POINTER)

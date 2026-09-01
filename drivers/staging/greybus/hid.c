@@ -256,7 +256,7 @@ static int __gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 	if (report_id && ret >= 0)
 		ret++; /* add report_id to the number of transferred bytes */
 
-	return 0;
+	return ret;
 }
 
 static int gb_hid_raw_request(struct hid_device *hid, unsigned char reportnum,

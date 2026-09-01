@@ -190,7 +190,7 @@ static const struct pwm_ops berlin_pwm_ops = {
 
 static const struct of_device_id berlin_pwm_match[] = {
 	{ .compatible = "marvell,berlin-pwm" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, berlin_pwm_match);
 

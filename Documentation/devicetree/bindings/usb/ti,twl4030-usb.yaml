@@ -67,7 +67,7 @@ examples:
 
         usb1v5-supply = <&reg_vusb1v5>;
         usb1v8-supply = <&reg_vusb1v8>;
-        usb3v1-supply  = <&reg_vusb3v1>;
+        usb3v1-supply = <&reg_vusb3v1>;
         usb_mode = <1>;
 
         #phy-cells = <0>;

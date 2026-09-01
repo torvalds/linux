@@ -16,6 +16,9 @@
 // Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
 // the unstable features in use.
 //
+// Stable since Rust 1.87.0.
+#![feature(unsigned_is_multiple_of)]
+//
 // Stable since Rust 1.89.0.
 #![feature(generic_arg_infer)]
 //
@@ -73,6 +76,8 @@ pub mod faux;
 pub mod firmware;
 pub mod fmt;
 pub mod fs;
+#[cfg(CONFIG_RUST_FWCTL_ABSTRACTIONS)]
+pub mod fwctl;
 #[cfg(CONFIG_GPU_BUDDY = "y")]
 pub mod gpu;
 #[cfg(CONFIG_I2C = "y")]
@@ -82,6 +87,7 @@ pub mod id_pool;
 pub mod impl_flags;
 pub mod init;
 pub mod interop;
+pub mod interrupt;
 pub mod io;
 pub mod ioctl;
 pub mod iommu;
@@ -94,6 +100,7 @@ pub mod list;
 pub mod maple_tree;
 pub mod miscdevice;
 pub mod mm;
+pub mod module;
 pub mod module_param;
 #[cfg(CONFIG_NET)]
 pub mod net;
@@ -119,6 +126,8 @@ pub mod safety;
 pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
+#[cfg(CONFIG_RUST_SERIAL_DEV_BUS_ABSTRACTIONS)]
+pub mod serdev;
 pub mod sizes;
 #[cfg(CONFIG_SOC_BUS)]
 pub mod soc;
@@ -140,77 +149,29 @@ pub mod xarray;
 #[doc(hidden)]
 pub use bindings;
 pub use macros;
+pub use module::{
+    InPlaceModule,
+    Module,
+    ModuleMetadata,
+    ThisModule, //
+};
 pub use uapi;
 
 /// Prefix to appear before log messages printed from within the `kernel` crate.
 const __LOG_PREFIX: &[u8] = b"rust_kernel\0";
 
-/// The top level entrypoint to implementing a kernel module.
-///
-/// For any teardown or cleanup operations, your type may implement [`Drop`].
-pub trait Module: Sized + Sync + Send {
-    /// Called at module initialization time.
-    ///
-    /// Use this method to perform whatever setup or registration your module
-    /// should do.
-    ///
-    /// Equivalent to the `module_init` macro in the C API.
-    fn init(module: &'static ThisModule) -> error::Result<Self>;
-}
+/// Dummy module type for `#[vtable]` `impl` blocks within the `kernel` crate (e.g. KUnit tests).
+// The `allow` is needed since it may be unused (e.g. KUnit tests may be disabled).
+#[allow(dead_code)]
+struct LocalModule;
 
-/// A module that is pinned and initialised in-place.
-pub trait InPlaceModule: Sync + Send {
-    /// Creates an initialiser for the module.
-    ///
-    /// It is called when the module is loaded.
-    fn init(module: &'static ThisModule) -> impl pin_init::PinInit<Self, error::Error>;
-}
+impl ModuleMetadata for LocalModule {
+    const NAME: &'static str::CStr = c"rust_kernel";
 
-impl<T: Module> InPlaceModule for T {
-    fn init(module: &'static ThisModule) -> impl pin_init::PinInit<Self, error::Error> {
-        let initer = move |slot: *mut Self| {
-            let m = <Self as Module>::init(module)?;
-
-            // SAFETY: `slot` is valid for write per the contract with `pin_init_from_closure`.
-            unsafe { slot.write(m) };
-            Ok(())
-        };
-
-        // SAFETY: On success, `initer` always fully initialises an instance of `Self`.
-        unsafe { pin_init::pin_init_from_closure(initer) }
-    }
-}
-
-/// Metadata attached to a [`Module`] or [`InPlaceModule`].
-pub trait ModuleMetadata {
-    /// The name of the module as specified in the `module!` macro.
-    const NAME: &'static crate::str::CStr;
-}
-
-/// Equivalent to `THIS_MODULE` in the C API.
-///
-/// C header: [`include/linux/init.h`](srctree/include/linux/init.h)
-pub struct ThisModule(*mut bindings::module);
-
-// SAFETY: `THIS_MODULE` may be used from all threads within a module.
-unsafe impl Sync for ThisModule {}
-
-impl ThisModule {
-    /// Creates a [`ThisModule`] given the `THIS_MODULE` pointer.
-    ///
-    /// # Safety
-    ///
-    /// The pointer must be equal to the right `THIS_MODULE`.
-    pub const unsafe fn from_ptr(ptr: *mut bindings::module) -> ThisModule {
-        ThisModule(ptr)
-    }
-
-    /// Access the raw pointer for this module.
-    ///
-    /// It is up to the user to use it correctly.
-    pub const fn as_ptr(&self) -> *mut bindings::module {
-        self.0
-    }
+    const THIS_MODULE: ThisModule = {
+        // SAFETY: `try_module_get`/`module_put` handle null module pointers gracefully.
+        unsafe { ThisModule::from_ptr(core::ptr::null_mut()) }
+    };
 }
 
 #[cfg(not(testlib))]

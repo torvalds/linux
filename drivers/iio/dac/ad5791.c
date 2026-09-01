@@ -586,11 +586,11 @@ static const struct of_device_id ad5791_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad5791_of_match);
 
 static const struct spi_device_id ad5791_id[] = {
-	{ "ad5760", (kernel_ulong_t)&ad5760_chip_info },
-	{ "ad5780", (kernel_ulong_t)&ad5780_chip_info },
-	{ "ad5781", (kernel_ulong_t)&ad5781_chip_info },
-	{ "ad5790", (kernel_ulong_t)&ad5790_chip_info },
-	{ "ad5791", (kernel_ulong_t)&ad5791_chip_info },
+	{ .name = "ad5760", .driver_data = (kernel_ulong_t)&ad5760_chip_info },
+	{ .name = "ad5780", .driver_data = (kernel_ulong_t)&ad5780_chip_info },
+	{ .name = "ad5781", .driver_data = (kernel_ulong_t)&ad5781_chip_info },
+	{ .name = "ad5790", .driver_data = (kernel_ulong_t)&ad5790_chip_info },
+	{ .name = "ad5791", .driver_data = (kernel_ulong_t)&ad5791_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5791_id);

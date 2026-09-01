@@ -991,9 +991,6 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
-	/* Just in case we booted with a single CPU. */
-	alternatives_enable_smp();
-
 	per_cpu(current_task, cpu) = idle;
 	cpu_init_stack_canary(cpu, idle);
 

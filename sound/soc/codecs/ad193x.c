@@ -394,6 +394,14 @@ static int ad193x_startup(struct snd_pcm_substream *substream,
 				   &constr);
 }
 
+static const u64 ad193x_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops ad193x_dai_ops = {
 	.startup = ad193x_startup,
 	.hw_params = ad193x_hw_params,
@@ -401,6 +409,8 @@ static const struct snd_soc_dai_ops ad193x_dai_ops = {
 	.set_tdm_slot = ad193x_set_tdm_slot,
 	.set_sysclk	= ad193x_set_dai_sysclk,
 	.set_fmt = ad193x_set_dai_fmt,
+	.auto_selectable_formats = &ad193x_selectable_formats,
+	.num_auto_selectable_formats = 1,
 	.no_capture_mute = 1,
 };
 

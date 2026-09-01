@@ -385,6 +385,7 @@
 	firmware {
 		scm: scm {
 			compatible = "qcom,scm-sc7180", "qcom,scm";
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -3514,7 +3515,7 @@
 
 		pdc: interrupt-controller@b220000 {
 			compatible = "qcom,sc7180-pdc", "qcom,pdc";
-			reg = <0 0x0b220000 0 0x30000>;
+			reg = <0 0x0b220000 0 0x10000>;
 			qcom,pdc-ranges = <0 480 94>, <94 609 31>, <125 63 1>;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&intc>;
@@ -3595,6 +3596,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x2e000>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			ipa_modem_tables: modem-tables@28000 {
 				reg = <0x28000 0x2000>;

@@ -371,7 +371,6 @@
 
 		conf-cd {
 			groups = "sdio1_cd_0_grp";
-			bias-high-impedance;
 			bias-pull-up;
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;

@@ -636,7 +636,7 @@ static void dma_test_debugfs_init(struct tb_service *svc)
 	debugfs_create_file("test", 0200, debugfs_dir, svc, &test_fops);
 }
 
-static int dma_test_probe(struct tb_service *svc, const struct tb_service_id *id)
+static int dma_test_probe(struct tb_service *svc)
 {
 	struct tb_xdomain *xd = tb_service_parent(svc);
 	struct dma_test *dt;
@@ -689,7 +689,7 @@ static const struct dev_pm_ops dma_test_pm_ops = {
 
 static const struct tb_service_id dma_test_ids[] = {
 	{ TB_SERVICE("dma_test", 1) },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(tbsvc, dma_test_ids);
 

@@ -1,0 +1,86 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Landlock - Log helpers
+ *
+ * Copyright © 2023-2025 Microsoft Corporation
+ * Copyright © 2026 Cloudflare, Inc.
+ */
+
+#ifndef _SECURITY_LANDLOCK_LOG_H
+#define _SECURITY_LANDLOCK_LOG_H
+
+#include <linux/lsm_audit.h>
+
+#include "access.h"
+
+struct landlock_cred_security;
+struct landlock_hierarchy;
+
+enum landlock_request_type {
+	LANDLOCK_REQUEST_PTRACE = 1,
+	LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY,
+	LANDLOCK_REQUEST_FS_ACCESS,
+	LANDLOCK_REQUEST_NET_ACCESS,
+	LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
+	LANDLOCK_REQUEST_SCOPE_SIGNAL,
+};
+
+/*
+ * We should be careful to only use a variable of this type for
+ * landlock_log_denial().  This way, the compiler can remove it entirely if
+ * CONFIG_SECURITY_LANDLOCK_LOG is not set.
+ */
+struct landlock_request {
+	/* Mandatory fields. */
+	enum landlock_request_type type;
+	struct common_audit_data audit;
+
+	/**
+	 * layer_plus_one: First layer level that denies the request + 1.  The
+	 * extra one is useful to detect uninitialized field.
+	 */
+	size_t layer_plus_one;
+
+	/* Required field for configurable access control. */
+	access_mask_t access;
+
+	/* Required fields for requests with layer masks. */
+	const struct layer_masks *layer_masks;
+
+	/* Required fields for requests with deny masks. */
+	const access_mask_t all_existing_optional_access;
+	deny_masks_t deny_masks;
+	optional_access_t quiet_optional_accesses;
+
+	/*
+	 * Other-party domain ID for a relational (scope/ptrace) denial, or 0 if
+	 * that party is unsandboxed.  An ID, not a pointer: the other task can
+	 * replace its credential and free the domain it referenced.  Trace path
+	 * only; audit ignores it.
+	 */
+	u64 other_domain_id;
+};
+
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+
+void landlock_log_free_domain(const struct landlock_hierarchy *const hierarchy);
+
+void landlock_log_denial(const struct landlock_cred_security *const subject,
+			 const struct landlock_request *const request);
+
+#else /* CONFIG_SECURITY_LANDLOCK_LOG */
+
+static inline void
+landlock_log_free_domain(const struct landlock_hierarchy *const hierarchy)
+{
+}
+
+static inline void
+landlock_log_denial(const struct landlock_cred_security *const subject,
+		    const struct landlock_request *const request)
+{
+}
+
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
+
+#endif /* _SECURITY_LANDLOCK_LOG_H */

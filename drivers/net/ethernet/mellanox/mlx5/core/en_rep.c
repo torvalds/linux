@@ -689,11 +689,13 @@ static int mlx5e_rep_open(struct net_device *dev)
 	if (err)
 		goto unlock;
 
+	mutex_lock(&rep->esw->state_lock);
 	if (!mlx5_modify_vport_admin_state(priv->mdev,
 					   MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 					   rep->vport, 1,
 					   MLX5_VPORT_ADMIN_STATE_UP))
 		netif_carrier_on(dev);
+	mutex_unlock(&rep->esw->state_lock);
 
 unlock:
 	mutex_unlock(&priv->state_lock);
@@ -708,10 +710,12 @@ static int mlx5e_rep_close(struct net_device *dev)
 	int ret;
 
 	mutex_lock(&priv->state_lock);
+	mutex_lock(&rep->esw->state_lock);
 	mlx5_modify_vport_admin_state(priv->mdev,
 				      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 				      rep->vport, 1,
 				      MLX5_VPORT_ADMIN_STATE_DOWN);
+	mutex_unlock(&rep->esw->state_lock);
 	ret = mlx5e_close_locked(dev);
 	mutex_unlock(&priv->state_lock);
 	return ret;
@@ -783,22 +787,25 @@ static int mlx5e_rep_change_carrier(struct net_device *dev, bool new_carrier)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	int err;
+	int err = 0;
 
+	mutex_lock(&rep->esw->state_lock);
 	if (new_carrier) {
 		err = mlx5_modify_vport_admin_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 						    rep->vport, 1, MLX5_VPORT_ADMIN_STATE_UP);
 		if (err)
-			return err;
+			goto unlock;
 		netif_carrier_on(dev);
 	} else {
 		err = mlx5_modify_vport_admin_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 						    rep->vport, 1, MLX5_VPORT_ADMIN_STATE_DOWN);
 		if (err)
-			return err;
+			goto unlock;
 		netif_carrier_off(dev);
 	}
-	return 0;
+unlock:
+	mutex_unlock(&rep->esw->state_lock);
+	return err;
 }
 
 static const struct net_device_ops mlx5e_netdev_ops_rep = {
@@ -1262,9 +1269,11 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 	mlx5e_rep_neigh_cleanup(rpriv);
 }
 
-static void mlx5e_rep_enable(struct mlx5e_priv *priv)
+static int mlx5e_rep_enable(struct mlx5e_priv *priv)
 {
 	mlx5e_set_netdev_mtu_boundaries(priv);
+
+	return 0;
 }
 
 static void mlx5e_rep_disable(struct mlx5e_priv *priv)
@@ -1322,7 +1331,7 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 	return NOTIFY_DONE;
 }
 
-static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
+static int mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1337,9 +1346,12 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 
 	mlx5e_rep_tc_enable(priv);
 
-	if (MLX5_CAP_GEN(mdev, uplink_follow))
+	if (MLX5_CAP_GEN(mdev, uplink_follow)) {
+		mutex_lock(&mdev->priv.eswitch->state_lock);
 		mlx5_modify_vport_admin_state(mdev, MLX5_VPORT_STATE_OP_MOD_UPLINK,
 					      0, 0, MLX5_VPORT_ADMIN_STATE_AUTO);
+		mutex_unlock(&mdev->priv.eswitch->state_lock);
+	}
 	mlx5_lag_add_netdev(mdev, netdev);
 	priv->events_nb.notifier_call = uplink_rep_async_event;
 	mlx5_notifier_register(mdev, &priv->events_nb);
@@ -1357,6 +1369,8 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 	netdev_unlock(netdev);
 	netif_device_attach(netdev);
 	rtnl_unlock();
+
+	return 0;
 }
 
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)

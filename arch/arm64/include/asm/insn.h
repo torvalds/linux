@@ -205,6 +205,18 @@ enum aarch64_insn_adsb_type {
 	AARCH64_INSN_ADSB_SUB_SETFLAGS
 };
 
+/* option field of add/sub (extended register) */
+enum aarch64_insn_extend_type {
+	AARCH64_INSN_EXTEND_UXTB,
+	AARCH64_INSN_EXTEND_UXTH,
+	AARCH64_INSN_EXTEND_UXTW,
+	AARCH64_INSN_EXTEND_UXTX,
+	AARCH64_INSN_EXTEND_SXTB,
+	AARCH64_INSN_EXTEND_SXTH,
+	AARCH64_INSN_EXTEND_SXTW,
+	AARCH64_INSN_EXTEND_SXTX,
+};
+
 enum aarch64_insn_movewide_type {
 	AARCH64_INSN_MOVEWIDE_ZERO,
 	AARCH64_INSN_MOVEWIDE_KEEP,
@@ -378,6 +390,10 @@ __AARCH64_INSN_FUNCS(add,	0x7F200000, 0x0B000000)
 __AARCH64_INSN_FUNCS(adds,	0x7F200000, 0x2B000000)
 __AARCH64_INSN_FUNCS(sub,	0x7F200000, 0x4B000000)
 __AARCH64_INSN_FUNCS(subs,	0x7F200000, 0x6B000000)
+__AARCH64_INSN_FUNCS(add_ext,	0x7FE00000, 0x0B200000)
+__AARCH64_INSN_FUNCS(adds_ext,	0x7FE00000, 0x2B200000)
+__AARCH64_INSN_FUNCS(sub_ext,	0x7FE00000, 0x4B200000)
+__AARCH64_INSN_FUNCS(subs_ext,	0x7FE00000, 0x6B200000)
 __AARCH64_INSN_FUNCS(madd,	0x7FE08000, 0x1B000000)
 __AARCH64_INSN_FUNCS(msub,	0x7FE08000, 0x1B008000)
 __AARCH64_INSN_FUNCS(udiv,	0x7FE0FC00, 0x1AC00800)
@@ -637,6 +653,13 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 					 int shift,
 					 enum aarch64_insn_variant variant,
 					 enum aarch64_insn_adsb_type type);
+u32 aarch64_insn_gen_add_sub_extended_reg(enum aarch64_insn_register dst,
+					  enum aarch64_insn_register src,
+					  enum aarch64_insn_register reg,
+					  enum aarch64_insn_extend_type extend,
+					  int shift,
+					  enum aarch64_insn_variant variant,
+					  enum aarch64_insn_adsb_type type);
 u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 			   enum aarch64_insn_register src,
 			   enum aarch64_insn_variant variant,

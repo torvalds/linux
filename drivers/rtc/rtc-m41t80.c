@@ -574,8 +574,8 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 	struct i2c_client *client = m41t80->client;
 	struct device_node *node = client->dev.of_node;
 	struct device_node *fixed_clock;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 	int ret;
 
 	fixed_clock = of_get_child_by_name(node, "clock");

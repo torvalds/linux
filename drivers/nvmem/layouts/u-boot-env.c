@@ -38,9 +38,6 @@ static int u_boot_env_read_post_process_ethaddr(void *context, const char *id, i
 {
 	u8 mac[ETH_ALEN];
 
-	if (bytes != MAC_ADDR_STR_LEN)
-		return -EINVAL;
-
 	if (!mac_pton(buf, mac))
 		return -EINVAL;
 
@@ -75,7 +72,7 @@ static int u_boot_env_parse_cells(struct device *dev, struct nvmem_device *nvmem
 		info.offset = data_offset + value - data;
 		info.bytes = strlen(value);
 		info.np = of_get_child_by_name(dev->of_node, info.name);
-		if (!strcmp(var, "ethaddr")) {
+		if (!strcmp(var, "ethaddr") && info.bytes == MAC_ADDR_STR_LEN) {
 			info.raw_len = strlen(value);
 			info.bytes = ETH_ALEN;
 			info.read_post_process = u_boot_env_read_post_process_ethaddr;

@@ -509,6 +509,7 @@ struct amdgpu_crtc {
 	struct drm_pending_vblank_event *event;
 
 	bool wb_pending;
+	bool wb_frame_done;
 	bool wb_enabled;
 	struct drm_writeback_connector *wb_conn;
 };

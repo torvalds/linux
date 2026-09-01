@@ -357,7 +357,7 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	unsafe_put_user(ptr_to_compat(&frame->uc), &frame->puc, Efault);
 
 	/* Create the ucontext.  */
-	if (static_cpu_has(X86_FEATURE_XSAVE))
+	if (cpu_feature_enabled(X86_FEATURE_XSAVE))
 		unsafe_put_user(UC_FP_XSTATE, &frame->uc.uc_flags, Efault);
 	else
 		unsafe_put_user(0, &frame->uc.uc_flags, Efault);

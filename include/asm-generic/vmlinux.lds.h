@@ -839,12 +839,20 @@
 		.stab.index 0 : { *(.stab.index) }			\
 		.stab.indexstr 0 : { *(.stab.indexstr) }
 
+#ifdef CONFIG_KLP_BUILD
+#define KLP_SYMID							\
+		.klp.symid 0 : { *(.klp.symid) }
+#else
+#define KLP_SYMID
+#endif
+
 /* Required sections not related to debugging. */
 #define ELF_DETAILS							\
 		.comment 0 : { *(.comment) }				\
 		.symtab 0 : { *(.symtab) }				\
 		.strtab 0 : { *(.strtab) }				\
-		.shstrtab 0 : { *(.shstrtab) }
+		.shstrtab 0 : { *(.shstrtab) }				\
+		KLP_SYMID
 
 #define MODINFO								\
 		.modinfo : { *(.modinfo) . = ALIGN(8); }
@@ -970,7 +978,10 @@
 		RUNTIME_CONST(ptr, __dentry_cache)			\
 		RUNTIME_CONST(ptr, __names_cache)			\
 		RUNTIME_CONST(ptr, __filp_cache)			\
-		RUNTIME_CONST(ptr, __bfilp_cache)
+		RUNTIME_CONST(ptr, __bfilp_cache)			\
+		RUNTIME_CONST(shift, __futex_shift)			\
+		RUNTIME_CONST(mask,  __futex_mask)			\
+		RUNTIME_CONST(ptr,   __futex_queues)
 
 /* Alignment must be consistent with (kunit_suite *) in include/kunit/test.h */
 #define KUNIT_TABLE()							\

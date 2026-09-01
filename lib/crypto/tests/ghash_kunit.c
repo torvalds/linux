@@ -39,17 +39,18 @@ static void ghash_withtestkey(const u8 *data, size_t len,
  */
 static void test_ghash_allones_key_and_message(struct kunit *test)
 {
+	const size_t max_len = 4096;
+	u8 *data = alloc_buf(test, max_len);
 	struct ghash_key key;
 	struct ghash_ctx hashofhashes_ctx;
 	u8 hash[GHASH_BLOCK_SIZE];
 
-	static_assert(TEST_BUF_LEN >= 4096);
-	memset(test_buf, 0xff, 4096);
+	memset(data, 0xff, max_len);
 
-	ghash_preparekey(&key, test_buf);
+	ghash_preparekey(&key, data);
 	ghash_init(&hashofhashes_ctx, &key);
-	for (size_t len = 0; len <= 4096; len += 16) {
-		ghash(&key, test_buf, len, hash);
+	for (size_t len = 0; len <= max_len; len += 16) {
+		ghash(&key, data, len, hash);
 		ghash_update(&hashofhashes_ctx, hash, sizeof(hash));
 	}
 	ghash_final(&hashofhashes_ctx, hash);
@@ -68,7 +69,7 @@ static void check_key_consistency(struct kunit *test,
 				  const struct ghash_key *key1,
 				  const struct ghash_key *key2)
 {
-	u8 *data = test_buf;
+	u8 *data = alloc_buf(test, MAX_LEN_FOR_KEY_CHECK);
 	u8 hash1[GHASH_BLOCK_SIZE];
 	u8 hash2[GHASH_BLOCK_SIZE];
 
@@ -88,10 +89,10 @@ static void check_key_consistency(struct kunit *test,
 static void test_ghash_with_guarded_key(struct kunit *test)
 {
 	u8 raw_key[GHASH_BLOCK_SIZE];
-	u8 *guarded_raw_key = &test_buf[TEST_BUF_LEN - sizeof(raw_key)];
+	u8 *guarded_raw_key = alloc_guarded_buf(test, sizeof(raw_key));
 	struct ghash_key key1, key2;
 	struct ghash_key *guarded_key =
-		(struct ghash_key *)&test_buf[TEST_BUF_LEN - sizeof(key1)];
+		alloc_guarded_buf(test, sizeof(*guarded_key));
 
 	/* Prepare with regular buffers. */
 	rand_bytes(raw_key, sizeof(raw_key));
@@ -116,14 +117,14 @@ static void test_ghash_with_minimally_aligned_key(struct kunit *test)
 {
 	u8 raw_key[GHASH_BLOCK_SIZE];
 	struct ghash_key key;
+	const size_t align = __alignof__(struct ghash_key);
+	u8 *key_buf = alloc_buf(test, sizeof(struct ghash_key) + 3 * align);
 	struct ghash_key *minaligned_key =
-		(struct ghash_key *)&test_buf[MAX_LEN_FOR_KEY_CHECK +
-					      __alignof__(struct ghash_key)];
+		(struct ghash_key *)(PTR_ALIGN(key_buf, 2 * align) + align);
 
-	KUNIT_ASSERT_TRUE(test, IS_ALIGNED((uintptr_t)minaligned_key,
-					   __alignof__(struct ghash_key)));
-	KUNIT_ASSERT_TRUE(test, !IS_ALIGNED((uintptr_t)minaligned_key,
-					    2 * __alignof__(struct ghash_key)));
+	KUNIT_ASSERT_TRUE(test, IS_ALIGNED((uintptr_t)minaligned_key, align));
+	KUNIT_ASSERT_TRUE(test,
+			  !IS_ALIGNED((uintptr_t)minaligned_key, 2 * align));
 
 	rand_bytes(raw_key, sizeof(raw_key));
 	ghash_preparekey(&key, raw_key);
@@ -164,12 +165,7 @@ static int ghash_suite_init(struct kunit_suite *suite)
 
 	rand_bytes_seeded_from_len(raw_key, sizeof(raw_key));
 	ghash_preparekey(&test_key, raw_key);
-	return hash_suite_init(suite);
-}
-
-static void ghash_suite_exit(struct kunit_suite *suite)
-{
-	hash_suite_exit(suite);
+	return 0;
 }
 
 static struct kunit_case ghash_test_cases[] = {
@@ -186,7 +182,6 @@ static struct kunit_suite ghash_test_suite = {
 	.name = "ghash",
 	.test_cases = ghash_test_cases,
 	.suite_init = ghash_suite_init,
-	.suite_exit = ghash_suite_exit,
 };
 kunit_test_suite(ghash_test_suite);
 

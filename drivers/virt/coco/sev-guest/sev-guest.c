@@ -17,7 +17,6 @@
 #include <linux/set_memory.h>
 #include <linux/fs.h>
 #include <linux/tsm.h>
-#include <crypto/gcm.h>
 #include <linux/psp-sev.h>
 #include <linux/sockptr.h>
 #include <linux/cleanup.h>
@@ -87,7 +86,7 @@ static int get_report(struct snp_guest_dev *snp_dev, struct snp_guest_request_io
 	 * response payload. Make sure that it has enough space to cover the
 	 * authtag.
 	 */
-	resp_len = sizeof(report_resp->data) + mdesc->ctx->authsize;
+	resp_len = sizeof(report_resp->data) + AUTHTAG_LEN;
 	report_resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
 	if (!report_resp)
 		return -ENOMEM;
@@ -130,7 +129,7 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	 * response payload. Make sure that it has enough space to cover the
 	 * authtag.
 	 */
-	resp_len = sizeof(derived_key_resp->data) + mdesc->ctx->authsize;
+	resp_len = sizeof(derived_key_resp->data) + AUTHTAG_LEN;
 	derived_key_resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
 	if (!derived_key_resp)
 		return -ENOMEM;
@@ -230,7 +229,7 @@ cmd:
 	 * response payload. Make sure that it has enough space to cover the
 	 * authtag.
 	 */
-	resp_len = sizeof(report_resp->data) + mdesc->ctx->authsize;
+	resp_len = sizeof(report_resp->data) + AUTHTAG_LEN;
 	report_resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
 	if (!report_resp) {
 		ret = -ENOMEM;

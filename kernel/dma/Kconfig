@@ -86,6 +86,28 @@ config SWIOTLB
 	bool
 	select NEED_DMA_MAP_STATE
 
+config SWIOTLB_DEFAULT_SIZE_MB
+	int "Default SWIOTLB bounce buffer size in MB"
+	depends on SWIOTLB
+	range 1 64
+	default 64
+	help
+	  Sets the default size of the software IO TLB (SWIOTLB) bounce buffer
+	  pool allocated at boot time. The default is 64 MB.
+
+	  On memory-constrained embedded or mobile platforms (e.g., those with
+	  a hardware IOMMU such as ARM SMMU covering most DMA-capable devices),
+	  a smaller value such as 4 or 8 MB may be sufficient. The SWIOTLB is
+	  then only needed for devices that bypass the IOMMU or have restricted
+	  DMA address ranges.
+
+	  The minimum allowed value is 1 MB. This compile-time default can be
+	  overridden at runtime using the "swiotlb=<nslabs>" kernel command line
+	  parameter. Refer to Documentation/admin-guide/kernel-parameters.txt
+	  for details.
+
+	  If unsure, leave at the default value of 64.
+
 config SWIOTLB_DYNAMIC
 	bool "Dynamic allocation of DMA bounce buffers"
 	default n

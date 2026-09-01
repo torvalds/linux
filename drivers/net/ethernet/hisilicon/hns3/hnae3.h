@@ -602,6 +602,10 @@ typedef int (*read_func)(struct seq_file *s, void *data);
  *   Config wake on lan
  * dbg_get_read_func
  *   Return the read func for debugfs seq file
+ * set_pfc_prevention_tout
+ *   Set PFC storm prevention timeout
+ * get_pfc_prevention_tout
+ *   Get PFC storm prevention timeout
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -810,6 +814,8 @@ struct hnae3_ae_ops {
 	int (*hwtstamp_set)(struct hnae3_handle *handle,
 			    struct kernel_hwtstamp_config *config,
 			    struct netlink_ext_ack *extack);
+	int (*set_pfc_prevention_tout)(struct hnae3_handle *handle, u16 times);
+	int (*get_pfc_prevention_tout)(struct hnae3_handle *handle, u16 *times);
 };
 
 struct hnae3_dcb_ops {
@@ -889,6 +895,14 @@ struct hnae3_roce_private_info {
 	unsigned long reset_state;
 	unsigned long instance_state;
 	unsigned long state;
+};
+
+struct hnae3_pfc_storm_para {
+	u32 dir;
+	u32 enable;
+	u32 period_ms;
+	u32 times;
+	u32 recovery_period_ms;
 };
 
 #define HNAE3_SUPPORT_APP_LOOPBACK    BIT(0)

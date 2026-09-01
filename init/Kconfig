@@ -565,6 +565,7 @@ config VIRT_CPU_ACCOUNTING
 
 choice
 	prompt "Cputime accounting"
+	default VIRT_CPU_ACCOUNTING_GEN if NO_HZ_FULL
 	default TICK_CPU_ACCOUNTING
 
 # Kind of a stub config for the pure tick based cputime accounting
@@ -948,6 +949,13 @@ config SCHED_PROXY_EXEC
 endmenu
 
 #
+# For architectures that support present-but-inaccessible (PROT_NONE) page
+# table entries detectable via pte_protnone() / pmd_protnone():
+#
+config ARCH_HAS_PTE_PROTNONE
+	bool
+
+#
 # For architectures that want to enable the support for NUMA-affine scheduler
 # balancing logic:
 #
@@ -1013,6 +1021,7 @@ config ARCH_WANT_NUMA_VARIABLE_LOCALITY
 config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
+	depends on ARCH_HAS_PTE_PROTNONE
 	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	depends on SMP && NUMA_MIGRATION && !PREEMPT_RT
 	help
@@ -1569,6 +1578,42 @@ config BOOT_CONFIG_EMBED_FILE
 	  This bootconfig will be used if there is no initrd or no other
 	  bootconfig in the initrd.
 
+config ARCH_SUPPORTS_CMDLINE_FROM_BOOTCONFIG
+	bool
+	help
+	  Silent symbol; no C code reads it directly. Architectures
+	  select it once their setup_arch() calls
+	  xbc_prepend_embedded_cmdline() before parse_early_param().
+	  Its only role is to gate the user-visible
+	  CMDLINE_FROM_BOOTCONFIG option per-arch, the same
+	  ARCH_SUPPORTS_* idiom used by ARCH_SUPPORTS_CFI, etc.
+
+config CMDLINE_FROM_BOOTCONFIG
+	bool "Render embedded bootconfig as kernel cmdline at build time"
+	depends on BOOT_CONFIG_EMBED_FILE != ""
+	depends on ARCH_SUPPORTS_CMDLINE_FROM_BOOTCONFIG
+	depends on CMDLINE = ""
+	default n
+	help
+	  Render the "kernel" subtree of the embedded bootconfig file into a
+	  flat cmdline string at kernel build time and prepend it to
+	  boot_command_line during early architecture setup. This makes
+	  early_param() handlers (e.g. mem=, earlycon=, loglevel=) see the
+	  values supplied via the embedded bootconfig.
+
+	  The runtime bootconfig parser is unaffected, so tree-structured
+	  consumers such as ftrace boot-time tracing keep working.
+
+	  Note: when an initrd also carries a bootconfig, its "kernel"
+	  subtree is still parsed at runtime, but the embedded "kernel"
+	  keys remain in boot_command_line for parse_early_param() and
+	  end up later than the initrd keys in saved_command_line, so
+	  parse_args() last-wins favors the embedded values. If you need
+	  initrd to override embedded kernel.* keys, leave this option
+	  off.
+
+	  If unsure, say N.
+
 config CMDLINE_LOG_WRAP_IDEAL_LEN
 	int "Length to try to wrap the cmdline when logged at boot"
 	default 1021
@@ -1663,9 +1708,6 @@ config LD_ORPHAN_WARN_LEVEL
 	depends on LD_ORPHAN_WARN
 	default "error" if WERROR
 	default "warn"
-
-config SYSCTL
-	bool
 
 config HAVE_UID16
 	bool
@@ -1860,7 +1902,7 @@ config HAVE_FUTEX_ROBUST_UNLOCK
 	bool
 
 config FUTEX_ROBUST_UNLOCK
-	def_bool FUTEX && HAVE_GENERIC_VDSO && GENERIC_IRQ_ENTRY && RSEQ && HAVE_FUTEX_ROBUST_UNLOCK
+	def_bool FUTEX && GENERIC_IRQ_ENTRY && RSEQ && HAVE_FUTEX_ROBUST_UNLOCK
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
@@ -2115,7 +2157,7 @@ config ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
 	  from a kernel perspective.
 
 	  After the architecture enables this, a distribution can set
-	  CONFIG_MSEAL_SYSTEM_MAPPING to manage access to the feature.
+	  CONFIG_MSEAL_SYSTEM_MAPPINGS to manage access to the feature.
 
 	  For complete descriptions of memory sealing, please see
 	  Documentation/userspace-api/mseal.rst

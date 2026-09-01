@@ -115,11 +115,7 @@ char *__build_path_from_dentry_optional_prefix(struct dentry *direntry, void *pa
 	}
 	if (dirsep != '/') {
 		/* BB test paths to Windows with '/' in the midst of prepath */
-		char *p;
-
-		for (p = s; *p; p++)
-			if (*p == '/')
-				*p = dirsep;
+		strreplace(s, '/', dirsep);
 	}
 	if (dfsplen) {
 		s -= dfsplen;
@@ -645,7 +641,7 @@ out_free_xid:
  * hashed-positive by calling d_instantiate().
  */
 int cifs_create(struct mnt_idmap *idmap, struct inode *dir,
-		struct dentry *direntry, umode_t mode, bool excl)
+		struct dentry *direntry, umode_t mode)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dir);
 	int rc;
@@ -1138,6 +1134,8 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	} while (unlikely(rc == -EEXIST) && ++retries < max_retries);
 
 	if (rc) {
+		if (rc == -ENOENT)
+			rc = -EOPNOTSUPP;
 		cifs_del_pending_open(&open);
 		goto out;
 	}

@@ -22,8 +22,6 @@
 #define TSC_OFFSET_L2 ((u64)-33125236320908)
 #define TSC_MULTIPLIER_L2 (L2_SCALE_FACTOR << 48)
 
-#define L2_GUEST_STACK_SIZE 64
-
 enum { USLEEP, UCHECK_L1, UCHECK_L2 };
 #define GUEST_SLEEP(sec)         ucall(UCALL_SYNC, 2, USLEEP, sec)
 #define GUEST_CHECK(level, freq) ucall(UCALL_SYNC, 2, level, freq)
@@ -82,13 +80,10 @@ static void l2_guest_code(void)
 
 static void l1_svm_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	/* check that L1's frequency looks alright before launching L2 */
 	check_tsc_freq(UCHECK_L1);
 
-	generic_svm_setup(svm, l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_guest_code);
 
 	/* enable TSC scaling for L2 */
 	wrmsr(MSR_AMD64_TSC_RATIO, L2_SCALE_FACTOR << 32);
@@ -105,7 +100,6 @@ static void l1_svm_code(struct svm_test_data *svm)
 
 static void l1_vmx_code(struct vmx_pages *vmx_pages)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	u32 control;
 
 	/* check that L1's frequency looks alright before launching L2 */
@@ -115,7 +109,7 @@ static void l1_vmx_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(load_vmcs(vmx_pages));
 
 	/* prepare the VMCS for L2 execution */
-	prepare_vmcs(vmx_pages, l2_guest_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code);
 
 	/* enable TSC offsetting and TSC scaling for L2 */
 	control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);

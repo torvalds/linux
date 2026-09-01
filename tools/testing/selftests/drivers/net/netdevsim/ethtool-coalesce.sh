@@ -116,12 +116,14 @@ done
 
 # bool settings which ethtool displays on the same line
 ethtool -C $NSIM_NETDEV adaptive-rx on
-s=$(ethtool -c $NSIM_NETDEV | grep -q "Adaptive RX: on  TX: off")
-check $? "$s" ""
+s=$(ethtool -c $NSIM_NETDEV)
+echo "$s" | grep -q "Adaptive RX: on  TX: off"
+check $? "" ""
 
 ethtool -C $NSIM_NETDEV adaptive-tx on
-s=$(ethtool -c $NSIM_NETDEV | grep -q "Adaptive RX: on  TX: on")
-check $? "$s" ""
+s=$(ethtool -c $NSIM_NETDEV)
+echo "$s" | grep -q "Adaptive RX: on  TX: on"
+check $? "" ""
 
 if [ $num_errors -eq 0 ]; then
     echo "PASSED all $((num_passes)) checks"

@@ -437,7 +437,6 @@ static void mcfqspi_remove(struct platform_device *pdev)
 	mcfqspi_cs_teardown(mcfqspi);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mcfqspi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -462,9 +461,7 @@ static int mcfqspi_resume(struct device *dev)
 
 	return spi_controller_resume(host);
 }
-#endif
 
-#ifdef CONFIG_PM
 static int mcfqspi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -484,17 +481,16 @@ static int mcfqspi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops mcfqspi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(mcfqspi_suspend, mcfqspi_resume)
-	SET_RUNTIME_PM_OPS(mcfqspi_runtime_suspend, mcfqspi_runtime_resume,
-			NULL)
+	SYSTEM_SLEEP_PM_OPS(mcfqspi_suspend, mcfqspi_resume)
+	RUNTIME_PM_OPS(mcfqspi_runtime_suspend, mcfqspi_runtime_resume,
+		       NULL)
 };
 
 static struct platform_driver mcfqspi_driver = {
 	.driver.name	= DRIVER_NAME,
-	.driver.pm	= &mcfqspi_pm,
+	.driver.pm	= pm_ptr(&mcfqspi_pm),
 	.probe		= mcfqspi_probe,
 	.remove		= mcfqspi_remove,
 };

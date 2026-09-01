@@ -13,7 +13,10 @@ use core::{
 };
 
 use kernel::{
-    num::Integer,
+    num::{
+        Integer,
+        Unsigned, //
+    },
     prelude::*, //
 };
 
@@ -174,13 +177,16 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// // `u8` (regardless of the passed value).
 /// // let _ = Bounded::<u32, 6>::from(10u8);
 ///
-/// // Booleans can be converted into single-bit `Bounded`s.
+/// // Booleans can be converted into unsigned `Bounded`s.
 ///
 /// let v = Bounded::<u64, 1>::from(false);
 /// assert_eq!(v.get(), 0);
 ///
 /// let v = Bounded::<u64, 1>::from(true);
 /// assert_eq!(v.get(), 1);
+///
+/// // This does not build because `i8` is signed.
+/// // let _ = Bounded::<i8, 2>::from(true);
 /// ```
 ///
 /// Infallible conversions from a [`Bounded`] to a primitive integer are also supported, and
@@ -203,12 +209,16 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// let _v = Bounded::<u32, 10>::new::<10>();
 /// // assert_eq!(u8::from(_v), 10);
 ///
-/// // Single-bit `Bounded`s can be converted into a boolean.
+/// // Unsigned single-bit `Bounded`s can be converted into a boolean.
 /// let v = Bounded::<u8, 1>::new::<1>();
 /// assert_eq!(bool::from(v), true);
 ///
 /// let v = Bounded::<u8, 1>::new::<0>();
 /// assert_eq!(bool::from(v), false);
+///
+/// // This does not build because `i8` is signed.
+/// // let v = Bounded::<i8, 1>::new::<-1>();
+/// // let _ = bool::from(v);
 /// ```
 ///
 /// Fallible conversions from any primitive integer to any [`Bounded`] are also supported using the
@@ -485,11 +495,43 @@ where
     /// assert_eq!(v_shifted.get(), 0xff);
     /// ```
     pub fn shr<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES + SHIFT >= N) }
+        const_assert!(SHIFT < T::BITS);
+        const_assert!(RES + SHIFT >= N);
 
         // SAFETY: We shift the value right by `SHIFT`, reducing the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N - SHIFT`.
         unsafe { Bounded::__new(self.0 >> SHIFT) }
+    }
+
+    /// Right-shifts `self` by `SHIFT` if that loses no set bits, and returns the result as a
+    /// `Bounded<_, RES>`, where `RES >= N - SHIFT`.
+    ///
+    /// Returns [`None`] if any of the `SHIFT` least significant bits of `self` is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::num::Bounded;
+    ///
+    /// let v = Bounded::<u32, 16>::new::<0xff00>();
+    /// let v_shifted: Option<Bounded<u32, 8>> = v.shr_exact::<8, _>();
+    ///
+    /// assert_eq!(v_shifted.map(|v| v.get()), Some(0xff));
+    ///
+    /// // A set bit would be shifted out.
+    /// let v = Bounded::<u32, 16>::new::<0xff01>();
+    /// let v_shifted: Option<Bounded<u32, 8>> = v.shr_exact::<8, _>();
+    ///
+    /// assert!(v_shifted.is_none());
+    /// ```
+    #[inline]
+    pub fn shr_exact<const SHIFT: u32, const RES: u32>(self) -> Option<Bounded<T, RES>> {
+        let shifted = self.shr::<SHIFT, RES>();
+        if shifted.get() << SHIFT == self.0 {
+            Some(shifted)
+        } else {
+            None
+        }
     }
 
     /// Left-shifts `self` by `SHIFT` and returns the result as a `Bounded<_, RES>`, where `RES >=
@@ -506,7 +548,7 @@ where
     /// assert_eq!(v_shifted.get(), 0xff00);
     /// ```
     pub fn shl<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES >= N + SHIFT) }
+        const_assert!(RES >= N + SHIFT);
 
         // SAFETY: We shift the value left by `SHIFT`, augmenting the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N + SHIFT`.
@@ -1077,31 +1119,33 @@ impl_into_primitive!(
     i8 i16 i32 i64 isize
 );
 
-// Single-bit `Bounded`s can be converted from/to a boolean.
+// Unsigned single-bit `Bounded`s can be converted to a boolean.
 
 impl<T> From<Bounded<T, 1>> for bool
 where
-    T: Integer + Zeroable,
+    T: Integer<Signedness = Unsigned> + Zeroable,
 {
     fn from(value: Bounded<T, 1>) -> Self {
         value.get() != Zeroable::zeroed()
     }
 }
 
+// Booleans can be converted to unsigned `Bounded`s.
+
 impl<T, const N: u32> From<bool> for Bounded<T, N>
 where
-    T: Integer + From<bool>,
+    T: Integer<Signedness = Unsigned> + From<bool>,
 {
     fn from(value: bool) -> Self {
-        // SAFETY: A boolean can be represented using a single bit, and thus fits within any
-        // integer type for any `N` > 0.
+        // SAFETY: A boolean is represented by `0` or `1`, so it fits within any valid unsigned
+        // `Bounded` width.
         unsafe { Self::__new(T::from(value)) }
     }
 }
 
 impl<T> Bounded<T, 1>
 where
-    T: Integer + Zeroable,
+    T: Integer<Signedness = Unsigned> + Zeroable,
 {
     /// Converts this [`Bounded`] into a [`bool`].
     ///

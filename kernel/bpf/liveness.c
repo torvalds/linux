@@ -269,7 +269,6 @@ bpf_insn_successors(struct bpf_verifier_env *env, u32 idx)
 
 __diag_pop();
 
-
 static inline bool update_insn(struct bpf_verifier_env *env,
 			       struct func_instance *instance, u32 frame, u32 insn_idx)
 {
@@ -497,7 +496,6 @@ static void print_instance(struct bpf_verifier_env *env, struct func_instance *i
 		pos = env->log.end_pos;
 		verbose(env, "%3d: ", insn_idx);
 		bpf_verbose_insn(env, &insns[insn_idx]);
-		bpf_vlog_reset(&env->log, env->log.end_pos - 1); /* remove \n */
 		insn_pos = env->log.end_pos;
 		verbose(env, "%*c;", bpf_vlog_alignment(insn_pos - pos), ' ');
 		pos = env->log.end_pos;
@@ -1043,7 +1041,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tr%d: ", i); verbose_arg_track(env, &at_in[i]);
@@ -1058,7 +1055,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tsa%d: ", i); verbose_arg_track(env, &at_in[ai]);
@@ -1070,7 +1066,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tfp%+d: ", -(i + 1) * 8); verbose_arg_track(env, &at_stack_in[i]);
@@ -1213,12 +1208,9 @@ static void arg_track_xfer(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				clear_stack_for_all_offs(insn, at_out, insn->dst_reg,
 							 at_stack_out, sz);
 
-			if (insn->imm == BPF_CMPXCHG)
-				at_out[BPF_REG_0] = none;
-			else if (insn->imm == BPF_LOAD_ACQ)
-				*dst = none;
-			else if (insn->imm & BPF_FETCH)
-				*src = none;
+			r = bpf_atomic_load_reg(insn);
+			if (r >= 0)
+				at_out[r] = none;
 		}
 	} else if (class == BPF_ST && BPF_MODE(insn->code) == BPF_MEM) {
 		u32 sz = bpf_size_to_bytes(BPF_SIZE(insn->code));
@@ -1545,6 +1537,7 @@ static void print_subprog_arg_access(struct bpf_verifier_env *env,
 
 		verbose(env, "%3d: ", idx);
 		bpf_verbose_insn(env, &insns[idx]);
+		verbose(env, "\n");
 
 		/* Collect what needs printing */
 		if (is_ldx_stx_call &&
@@ -1868,7 +1861,6 @@ static int analyze_subprog(struct bpf_verifier_env *env,
 	if (need_resched())
 		cond_resched();
 
-
 	/*
 	 * When an instance is reused (must_write_initialized == true),
 	 * record into a fresh instance and merge afterward.  This avoids
@@ -2050,14 +2042,20 @@ out:
 
 /* Each field is a register bitmask */
 struct insn_live_regs {
-	u16 use;	/* registers read by instruction */
-	u16 def;	/* registers written by instruction */
-	u16 in;		/* registers that may be alive before instruction */
-	u16 out;	/* registers that may be alive after instruction */
+	u32 use;	/* registers read by instruction */
+	u32 def;	/* registers written by instruction */
+	u32 in;		/* registers that may be alive before instruction */
+	u32 out;	/* registers that may be alive after instruction */
 };
 
 /* Bitmask with 1s for all caller saved registers */
 #define ALL_CALLER_SAVED_REGS ((1u << CALLER_SAVED_REGS) - 1)
+
+static inline u32 reg32_mask(u32 n) { return BIT(n); }
+static inline u32 reg64_mask(u32 n) { return BIT(n) | BIT(n + 16); }
+static inline u32 mask_widen(u32 m) { return m | (m << 16); }
+static inline u16 mask_lo(u32 m) { return (u16)m; }
+static inline u16 mask_hi(u32 m) { return (u16)(m >> 16); }
 
 /* Compute info->{use,def} fields for the instruction */
 static void compute_insn_live_regs(struct bpf_verifier_env *env,
@@ -2065,14 +2063,17 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 				   struct insn_live_regs *info)
 {
 	struct bpf_call_summary cs;
-	u8 class = BPF_CLASS(insn->code);
-	u8 code = BPF_OP(insn->code);
-	u8 mode = BPF_MODE(insn->code);
-	u16 src = BIT(insn->src_reg);
-	u16 dst = BIT(insn->dst_reg);
-	u16 r0  = BIT(0);
-	u16 def = 0;
-	u16 use = 0xffff;
+	const u8 class = BPF_CLASS(insn->code);
+	const u8 code = BPF_OP(insn->code);
+	const u8 mode = BPF_MODE(insn->code);
+	const u8 size = BPF_SIZE(insn->code);
+	const u32 src = reg64_mask(insn->src_reg);
+	const u32 dst = reg64_mask(insn->dst_reg);
+	const u32 src32 = mask_lo(src);
+	const u32 dst32 = mask_lo(dst);
+	const u32 r0  = reg64_mask(0);
+	u32 def = 0;
+	u32 use = U32_MAX;
 
 	switch (class) {
 	case BPF_LD:
@@ -2083,8 +2084,8 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 				use = 0;
 			}
 			break;
-		case BPF_LD | BPF_ABS:
-		case BPF_LD | BPF_IND:
+		case BPF_ABS:
+		case BPF_IND:
 			/* stick with defaults */
 			break;
 		}
@@ -2092,7 +2093,15 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 	case BPF_LDX:
 		switch (mode) {
 		case BPF_MEM:
+			/* a narrow load still redefines the whole register */
+			def = dst;
+			use = src;
+			break;
 		case BPF_MEMSX:
+			/*
+			 * sign extension defines the whole register;
+			 * src holds a pointer, hence is used as 64-bit.
+			 */
 			def = dst;
 			use = src;
 			break;
@@ -2110,12 +2119,19 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 		switch (mode) {
 		case BPF_MEM:
 			def = 0;
-			use = dst | src;
+			use = dst | (size == BPF_DW ? src : src32);
 			break;
-		case BPF_ATOMIC:
+		case BPF_ATOMIC: {
+			/*
+			 * dst holds a pointer and is always used as 64-bit;
+			 * the value operand and r0 are read as 32-bit for BPF_W atomics.
+			 */
+			u32 srcv = size == BPF_DW ? src : src32;
+			u32 r0v  = size == BPF_DW ? r0 : mask_lo(r0);
+
 			switch (insn->imm) {
 			case BPF_CMPXCHG:
-				use = r0 | dst | src;
+				use = r0v | dst | srcv;
 				def = r0;
 				break;
 			case BPF_LOAD_ACQ:
@@ -2124,16 +2140,17 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 				break;
 			case BPF_STORE_REL:
 				def = 0;
-				use = dst | src;
+				use = dst | srcv;
 				break;
 			default:
-				use = dst | src;
+				use = dst | srcv;
 				if (insn->imm & BPF_FETCH)
 					def = src;
 				else
 					def = 0;
 			}
 			break;
+		}
 		}
 		break;
 	case BPF_ALU:
@@ -2148,14 +2165,14 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 			if (BPF_SRC(insn->code) == BPF_K)
 				use = 0;
 			else
-				use = src;
+				use = class == BPF_ALU64 ? src : src32;
 			break;
 		default:
 			def = dst;
 			if (BPF_SRC(insn->code) == BPF_K)
-				use = dst;
+				use = class == BPF_ALU64 ? dst : dst32;
 			else
-				use = dst | src;
+				use = class == BPF_ALU64 ? (dst | src) : (dst32 | src32);
 		}
 		break;
 	case BPF_JMP:
@@ -2181,13 +2198,14 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 			use = def & ~BIT(BPF_REG_0);
 			if (bpf_get_call_summary(env, insn, &cs))
 				use = GENMASK(min_t(u8, cs.num_params, MAX_BPF_FUNC_REG_ARGS), 1);
+			def = mask_widen(def);
+			use = mask_widen(use);
 			break;
 		default:
 			def = 0;
-			if (BPF_SRC(insn->code) == BPF_K)
-				use = dst;
-			else
-				use = dst | src;
+			use = class == BPF_JMP ? dst : dst32;
+			if (BPF_SRC(insn->code) == BPF_X)
+				use |= class == BPF_JMP ? src : src32;
 		}
 		break;
 	}
@@ -2209,6 +2227,7 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 	struct bpf_insn *insns = env->prog->insnsi;
 	struct insn_live_regs *state;
 	int insn_cnt = env->prog->len;
+	u64 pos, insn_pos;
 	int err = 0, i, j;
 	bool changed;
 
@@ -2252,8 +2271,8 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 			int insn_idx = env->cfg.insn_postorder[i];
 			struct insn_live_regs *live = &state[insn_idx];
 			struct bpf_iarray *succ;
-			u16 new_out = 0;
-			u16 new_in = 0;
+			u32 new_out = 0;
+			u32 new_in = 0;
 
 			succ = bpf_insn_successors(env, insn_idx);
 			for (int s = 0; s < succ->cnt; ++s)
@@ -2267,8 +2286,20 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 		}
 	}
 
-	for (i = 0; i < insn_cnt; ++i)
-		insn_aux[i].live_regs_before = state[i].in;
+	for (i = 0; i < insn_cnt; ++i) {
+		int def32 = bpf_insn_def32(env->prog, &insns[i]);
+		u32 out = state[i].out;
+		u32 in = state[i].in;
+
+		insn_aux[i].live_regs_before = mask_lo(in) | mask_hi(in);
+		/*
+		 * On architectures where 32-bit operations do not reset upper halves
+		 * of the registers, the verifier needs to zero extend a destination
+		 * register if an instruction defines a 32-bit subregister and the
+		 * upper half of that register is alive after the instruction.
+		 */
+		insn_aux[i].zext_dst = def32 >= 0 && (mask_hi(out) & BIT(def32));
+	}
 
 	if (env->log.level & BPF_LOG_LEVEL2) {
 		verbose(env, "Live regs before insn:\n");
@@ -2284,7 +2315,12 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 				else
 					verbose(env, ".");
 			verbose(env, " ");
+			pos = env->log.end_pos;
 			bpf_verbose_insn(env, &insns[i]);
+			insn_pos = env->log.end_pos;
+			if (insn_aux[i].zext_dst)
+				verbose(env, "%*c; zext", bpf_vlog_alignment(insn_pos - pos), ' ');
+			verbose(env, "\n");
 			if (bpf_is_ldimm64(&insns[i]))
 				i++;
 		}

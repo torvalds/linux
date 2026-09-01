@@ -10,7 +10,9 @@
 #include <fcntl.h>
 #include <linux/landlock.h>
 #include <pthread.h>
+#include <sched.h>
 #include <signal.h>
+#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -18,6 +20,9 @@
 
 #include "common.h"
 #include "scoped_common.h"
+#include "trace.h"
+
+#define TRACE_TASK "scoped_signal_t"
 
 /* This variable is used for handling several signals. */
 static volatile sig_atomic_t is_signaled;
@@ -760,6 +765,405 @@ TEST(sigio_to_pgid_self)
 
 	EXPECT_EQ(0, close(trigger[0]));
 	EXPECT_EQ(0, close(trigger[1]));
+}
+
+/* Trace tests */
+
+/* clang-format off */
+FIXTURE(trace_signal) {
+	/* clang-format on */
+	int tracefs_ok;
+};
+
+FIXTURE_SETUP(trace_signal)
+{
+	int ret;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+
+	ret = tracefs_fixture_setup();
+	if (ret) {
+		clear_cap(_metadata, CAP_SYS_ADMIN);
+		self->tracefs_ok = 0;
+		SKIP(return, "tracefs not available");
+	}
+	self->tracefs_ok = 1;
+
+	ASSERT_EQ(0,
+		  tracefs_enable_event(TRACEFS_DENY_SCOPE_SIGNAL_ENABLE, true));
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+FIXTURE_TEARDOWN(trace_signal)
+{
+	if (!self->tracefs_ok)
+		return;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	tracefs_enable_event(TRACEFS_DENY_SCOPE_SIGNAL_ENABLE, false);
+	tracefs_fixture_teardown();
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+/* clang-format off */
+FIXTURE_VARIANT(trace_signal)
+{
+	/* clang-format on */
+	bool sandbox;
+	bool sandbox_target;
+	int expect_denied;
+};
+
+/* Denied: sandboxed child signals unsandboxed parent (target_domain=0). */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_signal, denied) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = false,
+	.expect_denied = 1,
+};
+
+/*
+ * Denied: sandboxed child signals a sandboxed parent, so the target is in a
+ * domain and target_domain= is non-zero.
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_signal, denied_scoped_target) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = true,
+	.expect_denied = 1,
+};
+
+/* Allowed: unsandboxed child signals unsandboxed parent. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_signal, allowed) {
+	/* clang-format on */
+	.sandbox = false,
+	.sandbox_target = false,
+	.expect_denied = 0,
+};
+
+TEST_F(trace_signal, deny_scope_signal)
+{
+	char *buf, field[64], expected_pid[16];
+	int count, status;
+	pid_t child;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	/*
+	 * For the non-zero target_domain case, sandbox the parent (the signal
+	 * target) before forking.  The child inherits that domain and adds its
+	 * own scoped layer, so the signal is still denied and target_domain=
+	 * names the parent's domain.
+	 */
+	if (variant->sandbox_target)
+		create_scoped_domain(_metadata, LANDLOCK_SCOPE_SIGNAL);
+
+	child = fork();
+	ASSERT_LE(0, child);
+
+	if (child == 0) {
+		if (variant->sandbox) {
+			struct landlock_ruleset_attr ruleset_attr = {
+				.scoped = LANDLOCK_SCOPE_SIGNAL,
+			};
+			int ruleset_fd;
+
+			ruleset_fd = landlock_create_ruleset(
+				&ruleset_attr, sizeof(ruleset_attr), 0);
+			if (ruleset_fd < 0)
+				_exit(1);
+
+			prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+			if (landlock_restrict_self(ruleset_fd, 0)) {
+				close(ruleset_fd);
+				_exit(1);
+			}
+			close(ruleset_fd);
+		}
+
+		if (variant->sandbox) {
+			/* Signal to unsandboxed parent should be denied. */
+			if (kill(getppid(), 0) == 0)
+				_exit(2);
+			if (errno != EPERM)
+				_exit(3);
+		} else {
+			/* No sandbox: kill should succeed. */
+			if (kill(getppid(), 0) != 0)
+				_exit(1);
+		}
+
+		_exit(0);
+	}
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_DENY_SCOPE_SIGNAL(TRACE_TASK));
+	if (variant->expect_denied) {
+		EXPECT_EQ(variant->expect_denied, count)
+		{
+			TH_LOG("Expected deny_scope_signal event, got %d\n%s",
+			       count, buf);
+		}
+
+		/* Verify target_pid is the parent's PID. */
+		snprintf(expected_pid, sizeof(expected_pid), "%d", getpid());
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_SCOPE_SIGNAL(TRACE_TASK),
+				     "target_pid", field, sizeof(field)));
+		EXPECT_STREQ(expected_pid, field);
+
+		/*
+		 * Verify target_domain: 0 when the target is unsandboxed,
+		 * non-zero when the target is in a domain.
+		 */
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_SCOPE_SIGNAL(TRACE_TASK),
+				     "target_domain", field, sizeof(field)));
+		EXPECT_EQ(variant->sandbox_target, strcmp("0", field) != 0)
+		{
+			TH_LOG("Unexpected target_domain=%s", field);
+		}
+	} else {
+		EXPECT_EQ(0, count)
+		{
+			TH_LOG("Expected 0 deny_scope_signal events, "
+			       "got %d\n%s",
+			       count, buf);
+		}
+	}
+
+	free(buf);
+}
+
+/*
+ * Trace test for the asynchronous SIGIO/SIGURG delivery path
+ * (hook_file_send_sigiotask), which reaches the same landlock_deny_scope_signal
+ * tracepoint as a synchronous kill(2) but through fcntl(F_SETOWN).
+ */
+
+/* clang-format off */
+FIXTURE(trace_fown) {
+	/* clang-format on */
+	int tracefs_ok;
+};
+
+FIXTURE_SETUP(trace_fown)
+{
+	int ret;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+
+	ret = tracefs_fixture_setup();
+	if (ret) {
+		clear_cap(_metadata, CAP_SYS_ADMIN);
+		self->tracefs_ok = 0;
+		SKIP(return, "tracefs not available");
+	}
+	self->tracefs_ok = 1;
+
+	ASSERT_EQ(0,
+		  tracefs_enable_event(TRACEFS_DENY_SCOPE_SIGNAL_ENABLE, true));
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+FIXTURE_TEARDOWN(trace_fown)
+{
+	if (!self->tracefs_ok)
+		return;
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	tracefs_enable_event(TRACEFS_DENY_SCOPE_SIGNAL_ENABLE, false);
+	tracefs_fixture_teardown();
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+/* clang-format off */
+FIXTURE_VARIANT(trace_fown)
+{
+	/* clang-format on */
+	bool sandbox;
+	bool sandbox_target;
+	int expect_denied;
+};
+
+/*
+ * Denied: a sandboxed file owner's SIGURG is delivered to an unsandboxed target
+ * process (target_domain=0).
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_fown, denied) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = false,
+	.expect_denied = 1,
+};
+
+/*
+ * Denied: the SIGURG target sandboxes itself in its own domain, so the target
+ * is in a domain and target_domain= is non-zero.
+ */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_fown, denied_scoped_target) {
+	/* clang-format on */
+	.sandbox = true,
+	.sandbox_target = true,
+	.expect_denied = 1,
+};
+
+/* Allowed: an unsandboxed file owner delivers SIGURG. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_fown, allowed) {
+	/* clang-format on */
+	.sandbox = false,
+	.sandbox_target = false,
+	.expect_denied = 0,
+};
+
+TEST_F(trace_fown, deny_scope_fown)
+{
+	int server_socket, recv_socket;
+	struct service_fixture server_address;
+	char buffer_parent, field[64], *buf;
+	int status, count;
+	int pipe_parent[2], pipe_child[2];
+	pid_t child;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	memset(&server_address, 0, sizeof(server_address));
+	set_unix_address(&server_address, 0);
+
+	ASSERT_EQ(0, pipe2(pipe_parent, O_CLOEXEC));
+	ASSERT_EQ(0, pipe2(pipe_child, O_CLOEXEC));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		int client_socket;
+		char buffer_child;
+
+		EXPECT_EQ(0, close(pipe_parent[1]));
+		EXPECT_EQ(0, close(pipe_child[0]));
+
+		ASSERT_EQ(0, setup_signal_handler(SIGURG));
+		client_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+		ASSERT_LE(0, client_socket);
+
+		/*
+		 * The SIGURG target is this child; for the non-zero
+		 * target_domain case it sandboxes itself in its own domain,
+		 * unrelated to the file owner's domain.
+		 */
+		if (variant->sandbox_target)
+			create_scoped_domain(_metadata, LANDLOCK_SCOPE_SIGNAL);
+
+		/* Waits for the parent to listen. */
+		ASSERT_EQ(1, read(pipe_parent[0], &buffer_child, 1));
+		ASSERT_EQ(0, connect(client_socket, &server_address.unix_addr,
+				     server_address.unix_addr_len));
+
+		/*
+		 * Waits for the parent to accept the connection, sandbox
+		 * itself, and call fcntl(F_SETOWN).
+		 */
+		ASSERT_EQ(1, read(pipe_parent[0], &buffer_child, 1));
+		/* Triggers the asynchronous SIGURG to this file owner. */
+		ASSERT_EQ(1, send(client_socket, ".", 1, MSG_OOB));
+		EXPECT_EQ(0, close(client_socket));
+		ASSERT_EQ(1, write(pipe_child[1], ".", 1));
+		EXPECT_EQ(0, close(pipe_child[1]));
+
+		_exit(0);
+		return;
+	}
+	EXPECT_EQ(0, close(pipe_parent[0]));
+	EXPECT_EQ(0, close(pipe_child[1]));
+
+	server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, server_socket);
+	ASSERT_EQ(0, bind(server_socket, &server_address.unix_addr,
+			  server_address.unix_addr_len));
+	ASSERT_EQ(0, listen(server_socket, backlog));
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	recv_socket = accept(server_socket, NULL, NULL);
+	ASSERT_LE(0, recv_socket);
+
+	/*
+	 * The file owner is the denying subject; its domain is captured at
+	 * fcntl(F_SETOWN) time, so sandbox it before setting the owner.
+	 */
+	if (variant->sandbox)
+		create_scoped_domain(_metadata, LANDLOCK_SCOPE_SIGNAL);
+
+	/*
+	 * Sets the child to receive SIGURG for MSG_OOB.  This uncommon use is a
+	 * valid attack scenario which also simplifies this test.
+	 */
+	ASSERT_EQ(0, fcntl(recv_socket, F_SETOWN, child));
+
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	/* Waits for the child to send MSG_OOB. */
+	ASSERT_EQ(1, read(pipe_child[0], &buffer_parent, 1));
+	EXPECT_EQ(0, close(pipe_child[0]));
+	ASSERT_EQ(1, recv(recv_socket, &buffer_parent, 1, MSG_OOB));
+	EXPECT_EQ(0, close(recv_socket));
+	EXPECT_EQ(0, close(server_socket));
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_DENY_SCOPE_SIGNAL(TRACE_TASK));
+	if (variant->expect_denied) {
+		EXPECT_EQ(variant->expect_denied, count)
+		{
+			TH_LOG("Expected deny_scope_signal event, got %d\n%s",
+			       count, buf);
+		}
+
+		/*
+		 * Verify target_domain: 0 when the target is unsandboxed,
+		 * non-zero when the target is in a domain.
+		 */
+		ASSERT_EQ(0, tracefs_extract_field(
+				     buf, REGEX_DENY_SCOPE_SIGNAL(TRACE_TASK),
+				     "target_domain", field, sizeof(field)));
+		EXPECT_EQ(variant->sandbox_target, strcmp("0", field) != 0)
+		{
+			TH_LOG("Unexpected target_domain=%s", field);
+		}
+	} else {
+		EXPECT_EQ(0, count)
+		{
+			TH_LOG("Expected 0 deny_scope_signal events, "
+			       "got %d\n%s",
+			       count, buf);
+		}
+	}
+
+	free(buf);
 }
 
 TEST_HARNESS_MAIN

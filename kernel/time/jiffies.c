@@ -98,7 +98,7 @@ void __init register_refined_jiffies(long cycles_per_second)
 	__clocksource_register(&refined_jiffies);
 }
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static ulong mult_hz(const ulong val)
 {
 	return val * HZ;
@@ -185,7 +185,24 @@ static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
 			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
 }
 
-#else // CONFIG_PROC_SYSCTL
+static int sysctl_u2k_ulong_conv_ms(const ulong *u_ptr, ulong *k_ptr)
+{
+	return proc_ulong_u2k_conv_uop(u_ptr, k_ptr, sysctl_msecs_to_jiffies);
+}
+
+static int sysctl_k2u_ulong_conv_ms(ulong *u_ptr, const ulong *k_ptr)
+{
+	return proc_ulong_k2u_conv_kop(u_ptr, k_ptr, sysctl_jiffies_to_msecs);
+}
+
+static int do_proc_ulong_conv_ms_jiffies(bool *negp, ulong *u_ptr, ulong *k_ptr,
+					 int dir, const struct ctl_table *tbl)
+{
+	return proc_ulong_conv(u_ptr, k_ptr, dir, tbl, false,
+			       sysctl_u2k_ulong_conv_ms, sysctl_k2u_ulong_conv_ms);
+}
+
+#else // CONFIG_SYSCTL
 static int do_proc_int_conv_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
 				    int dir, const struct ctl_table *tbl)
 {
@@ -208,6 +225,12 @@ static int do_proc_int_conv_ms_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
 static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
 					      int *k_ptr, int dir,
 					      const struct ctl_table *tbl)
+{
+	return -ENOSYS;
+}
+
+static int do_proc_ulong_conv_ms_jiffies(bool *negp, ulong *u_ptr, ulong *k_ptr,
+					 int dir, const struct ctl_table *tbl)
 {
 	return -ENOSYS;
 }
@@ -309,8 +332,8 @@ int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_doulongvec_minmax_conv(table, dir, buffer, lenp, ppos,
-					   HZ, 1000l);
+	return proc_doulongvec_conv(table, dir, buffer, lenp, ppos,
+				    do_proc_ulong_conv_ms_jiffies);
 }
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 

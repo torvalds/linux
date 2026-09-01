@@ -199,6 +199,41 @@ void intel_unlock_cpuid_leafs(struct cpuinfo_x86 *c)
 		c->cpuid_level = cpuid_eax(0);
 }
 
+/*
+ * Use CPUID to generate a "vfm" value. Useful before cpuinfo_x86
+ * structures are populated.
+ */
+static u32 intel_cpuid_vfm(void)
+{
+	u32 eax   = cpuid_eax(1);
+	u32 fam   = x86_family(eax);
+	u32 model = x86_model(eax);
+
+	return IFM(fam, model);
+}
+
+u32 intel_get_platform_id(void)
+{
+	unsigned int val[2];
+
+	if (x86_hypervisor_present)
+		return 0;
+
+	/*
+	 * This can be called early. Use CPUID directly instead of
+	 * relying on cpuinfo_x86 which may not be fully initialized.
+	 * The PII does not have MSR_IA32_PLATFORM_ID. Everything
+	 * before _it_ has no microcode (for Linux at least).
+	 */
+	if (intel_cpuid_vfm() <= INTEL_PENTIUM_II_KLAMATH)
+		return 0;
+
+	/* get processor flags from MSR 0x17 */
+	native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
+
+	return (val[1] >> 18) & 7;
+}
+
 static void early_init_intel(struct cpuinfo_x86 *c)
 {
 	u64 misc_enable;
@@ -542,12 +577,12 @@ static void init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 
 	if (boot_cpu_has(X86_FEATURE_DS)) {
-		unsigned int l1, l2;
+		u64 l;
 
-		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
-		if (!(l1 & MSR_IA32_MISC_ENABLE_BTS_UNAVAIL))
+		rdmsrq(MSR_IA32_MISC_ENABLE, l);
+		if (!(l & MSR_IA32_MISC_ENABLE_BTS_UNAVAIL))
 			set_cpu_cap(c, X86_FEATURE_BTS);
-		if (!(l1 & MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL))
+		if (!(l & MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL))
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 	}
 

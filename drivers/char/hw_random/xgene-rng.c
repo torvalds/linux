@@ -296,7 +296,7 @@ static int xgene_rng_init(struct hwrng *rng)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_rng_acpi_match[] = {
-	{ "APMC0D18", },
+	{ .id = "APMC0D18" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_rng_acpi_match);
@@ -336,7 +336,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, ctx->irq, xgene_rng_irq_handler, 0,
 				dev_name(&pdev->dev), ctx);
 	if (rc)
-		return dev_err_probe(&pdev->dev, rc, "Could not request RNG alarm IRQ\n");
+		return rc;
 
 	/* Enable IP clock */
 	clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);

@@ -127,10 +127,6 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub);
 void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv);
 
-void reg_sequence_start_gather(const struct dc_context *ctx);
-void reg_sequence_start_execute(const struct dc_context *ctx);
-void reg_sequence_wait_done(const struct dc_context *ctx);
-
 #define FD(reg_field)	reg_field ## __SHIFT, \
 						reg_field ## _MASK
 

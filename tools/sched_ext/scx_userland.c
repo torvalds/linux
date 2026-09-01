@@ -52,6 +52,7 @@ static __u32 batch_size = 8;
 
 static bool verbose;
 static volatile int exit_req;
+static volatile int stats_stop;
 static int enqueued_fd, dispatched_fd;
 
 static pthread_t stats_printer;
@@ -286,7 +287,7 @@ static void dispatch_batch(void)
 
 static void *run_stats_printer(void *arg)
 {
-	while (!exit_req) {
+	while (!stats_stop) {
 		__u64 nr_failed_enqueues, nr_kernel_enqueues, nr_user_enqueues, total;
 
 		nr_failed_enqueues = skel->bss->nr_failed_enqueues;
@@ -326,7 +327,7 @@ static int spawn_stats_thread(void)
 static void pre_bootstrap(int argc, char **argv)
 {
 	int err;
-	__u32 opt;
+	__s32 opt;
 	struct sched_param sched_param = {
 		.sched_priority = sched_get_priority_max(SCHED_EXT),
 	};
@@ -374,7 +375,7 @@ static void pre_bootstrap(int argc, char **argv)
 
 static void bootstrap(char *comm)
 {
-	exit_req = 0;
+	stats_stop = 0;
 	min_vruntime = 0.0;
 	__atomic_store_n(&nr_vruntime_enqueues, 0, __ATOMIC_RELAXED);
 	__atomic_store_n(&nr_vruntime_dispatches, 0, __ATOMIC_RELAXED);
@@ -404,7 +405,7 @@ static void bootstrap(char *comm)
 
 static void sched_main_loop(void)
 {
-	while (!exit_req) {
+	while (!exit_req && !UEI_EXITED(skel, uei)) {
 		/*
 		 * Perform the following work in the main user space scheduler
 		 * loop:
@@ -434,13 +435,13 @@ restart:
 	bootstrap(argv[0]);
 	sched_main_loop();
 
-	exit_req = 1;
+	stats_stop = 1;
 	bpf_link__destroy(ops_link);
 	pthread_join(stats_printer, NULL);
 	ecode = UEI_REPORT(skel, uei);
 	scx_userland__destroy(skel);
 
-	if (UEI_ECODE_RESTART(ecode))
+	if (!exit_req && UEI_ECODE_RESTART(ecode))
 		goto restart;
 	return 0;
 }

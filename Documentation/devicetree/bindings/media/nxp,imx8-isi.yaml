@@ -117,7 +117,9 @@ allOf:
         compatible:
           not:
             contains:
-              const: fsl,imx91-isi
+              enum:
+                - fsl,imx8ulp-isi
+                - fsl,imx91-isi
     then:
       required:
         - fsl,blk-ctrl

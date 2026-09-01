@@ -268,7 +268,6 @@ static int base_segment_walk(unsigned long *origin, unsigned long addr,
 			return rc;
 		if (!alloc)
 			base_pgt_free(table);
-		cond_resched();
 	} while (ste++, addr = next, addr < end);
 	return 0;
 }

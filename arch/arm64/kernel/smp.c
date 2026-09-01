@@ -33,6 +33,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/kexec.h>
 #include <linux/kgdb.h>
+#include <linux/kprobes.h>
 #include <linux/kvm_host.h>
 #include <linux/nmi.h>
 
@@ -45,6 +46,7 @@
 #include <asm/daifflags.h>
 #include <asm/kvm_mmu.h>
 #include <asm/mmu_context.h>
+#include <asm/nmi.h>
 #include <asm/numa.h>
 #include <asm/processor.h>
 #include <asm/smp_plat.h>
@@ -866,14 +868,62 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-static void __noreturn local_cpu_stop(unsigned int cpu)
+/**
+ * arm64_nmi_cpu_stop() - stop the local CPU after it is told to stop.
+ * @regs: register state to record in the vmcore on a crash stop, or NULL for
+ *        panic_smp_self_stop(), which has no interrupted context to save.
+ * @die_on_crash: on the kdump crash path, power the CPU off via PSCI CPU_OFF
+ *                (so a capture kernel can reclaim it) rather than parking it.
+ *
+ * The single point every arm64 stop path funnels through, keeping the
+ * bookkeeping (mask interrupts, save the crash context, mark offline, mask
+ * SDEI, optionally power off) in one place:
+ *
+ *   - the regular IPI_CPU_STOP and pseudo-NMI IPI_CPU_STOP_NMI handlers;
+ *   - panic_smp_self_stop(), a CPU parking itself on a parallel panic();
+ *   - the SDEI cross-CPU NMI handler (drivers/firmware/arm_sdei_nmi.c),
+ *     which reaches CPUs the stop IPIs could not.
+ *
+ * The IPI stop handlers pass @die_on_crash true. The SDEI handler and
+ * panic_smp_self_stop() pass false and only park. For SDEI that is required,
+ * not just conservative: it runs inside an SDEI event that is deliberately
+ * never completed (completing it has firmware resume the wedged context), and
+ * a CPU_OFF from that not-yet-completed context wedges EL3 on some firmware --
+ * a documented follow-up. Parking also matches this path's own fallback when
+ * CPU_OFF is unavailable.
+ */
+void __noreturn arm64_nmi_cpu_stop(struct pt_regs *regs, bool die_on_crash)
 {
+	unsigned int cpu = smp_processor_id();
+	bool crash = IS_ENABLED(CONFIG_KEXEC_CORE) && crash_stop;
+
+	/*
+	 * Use local_daif_mask() instead of local_irq_disable() to make sure
+	 * that pseudo-NMIs are disabled. The "stop" code starts with an IRQ
+	 * and falls back to NMI (which might be pseudo). If the IRQ finally
+	 * goes through right as we're timing out then the NMI could interrupt
+	 * us. It's better to prevent the NMI and let the IRQ finish since the
+	 * pt_regs will be better.
+	 */
+	local_daif_mask();
+
+#ifdef CONFIG_KEXEC_CORE
+	if (crash && regs)
+		crash_save_cpu(regs, cpu);
+#endif
+
+	/* the ack a stop requester (e.g. smp_send_stop()) polls for */
 	set_cpu_online(cpu, false);
 
-	local_daif_mask();
 	sdei_mask_local_cpu();
+
+	if (crash && die_on_crash)
+		__cpu_try_die(cpu);
+
+	/* just in case */
 	cpu_park_loop();
 }
+NOKPROBE_SYMBOL(arm64_nmi_cpu_stop);
 
 /*
  * We need to implement panic_smp_self_stop() for parallel panic() calls, so
@@ -882,36 +932,7 @@ static void __noreturn local_cpu_stop(unsigned int cpu)
  */
 void __noreturn panic_smp_self_stop(void)
 {
-	local_cpu_stop(smp_processor_id());
-}
-
-static void __noreturn ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
-{
-#ifdef CONFIG_KEXEC_CORE
-	/*
-	 * Use local_daif_mask() instead of local_irq_disable() to make sure
-	 * that pseudo-NMIs are disabled. The "crash stop" code starts with
-	 * an IRQ and falls back to NMI (which might be pseudo). If the IRQ
-	 * finally goes through right as we're timing out then the NMI could
-	 * interrupt us. It's better to prevent the NMI and let the IRQ
-	 * finish since the pt_regs will be better.
-	 */
-	local_daif_mask();
-
-	crash_save_cpu(regs, cpu);
-
-	set_cpu_online(cpu, false);
-
-	sdei_mask_local_cpu();
-
-	if (IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		__cpu_try_die(cpu);
-
-	/* just in case */
-	cpu_park_loop();
-#else
-	BUG();
-#endif
+	arm64_nmi_cpu_stop(NULL, false);
 }
 
 static void arm64_send_ipi(const cpumask_t *mask, unsigned int nr)
@@ -932,6 +953,16 @@ static void arm64_backtrace_ipi(cpumask_t *mask)
 
 void arch_trigger_cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
 {
+	/*
+	 * Prefer the SDEI cross-CPU NMI provider when active: firmware
+	 * dispatches the event out of EL3 and reaches CPUs that have
+	 * interrupts locally masked, without the per-IRQ-mask cost that
+	 * pseudo-NMI pays for the same reach. The plain IPI path below
+	 * can't reach such a CPU unless pseudo-NMI is enabled.
+	 */
+	if (sdei_nmi_trigger_cpumask_backtrace(mask, exclude_cpu))
+		return;
+
 	/*
 	 * NOTE: though nmi_trigger_cpumask_backtrace() has "nmi_" in the name,
 	 * nothing about it truly needs to be implemented using an NMI, it's
@@ -978,12 +1009,7 @@ static void do_handle_IPI(int ipinr)
 
 	case IPI_CPU_STOP:
 	case IPI_CPU_STOP_NMI:
-		if (IS_ENABLED(CONFIG_KEXEC_CORE) && crash_stop) {
-			ipi_cpu_crash_stop(cpu, get_irq_regs());
-			unreachable();
-		} else {
-			local_cpu_stop(cpu);
-		}
+		arm64_nmi_cpu_stop(get_irq_regs(), true);
 		break;
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
@@ -1086,7 +1112,7 @@ static void ipi_teardown(int cpu)
 				disable_percpu_irq(ipi_irq_base + i);
 			}
 		} else {
-			disable_irq(irq_desc_get_irq(get_ipi_desc(cpu, i)));
+			disable_irq_nosync(irq_desc_get_irq(get_ipi_desc(cpu, i)));
 		}
 	}
 }
@@ -1253,6 +1279,28 @@ void smp_send_stop(void)
 
 		smp_cross_call(&mask, IPI_CPU_STOP_NMI);
 		timeout = USEC_PER_MSEC * 10;
+		while (num_other_online_cpus() && timeout--)
+			udelay(1);
+	}
+
+	/*
+	 * If CPUs are *still* online, try the SDEI cross-CPU NMI. Firmware
+	 * delivers it regardless of the target's DAIF state, so it reaches
+	 * a CPU spinning with interrupts masked, which neither rung above
+	 * could (without pseudo-NMI there is no NMI rung at all). Allow
+	 * 100ms: a firmware round-trip per CPU, with headroom.
+	 */
+	if (num_other_online_cpus() && sdei_nmi_active()) {
+		/* re-snapshot after the rungs above took CPUs offline */
+		smp_rmb();
+		cpumask_copy(&mask, cpu_online_mask);
+		cpumask_clear_cpu(smp_processor_id(), &mask);
+
+		pr_info("SMP: retry stop with SDEI NMI for CPUs %*pbl\n",
+			cpumask_pr_args(&mask));
+
+		sdei_nmi_stop_cpus(&mask);
+		timeout = USEC_PER_MSEC * 100;
 		while (num_other_online_cpus() && timeout--)
 			udelay(1);
 	}

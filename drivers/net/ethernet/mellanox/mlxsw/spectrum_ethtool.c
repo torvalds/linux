@@ -1262,6 +1262,8 @@ mlxsw_sp_set_module_power_mode(struct net_device *dev,
 
 const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.cap_link_lanes_supported	= true,
+	.op_needs_rtnl			= ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM |
+					  ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo			= mlxsw_sp_port_get_drvinfo,
 	.get_link			= ethtool_op_get_link,
 	.get_link_ext_state		= mlxsw_sp_port_get_link_ext_state,

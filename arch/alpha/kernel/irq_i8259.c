@@ -22,7 +22,7 @@
 
 /* Note mask bit is true for DISABLED irqs.  */
 static unsigned int cached_irq_mask = 0xffff;
-static DEFINE_SPINLOCK(i8259_irq_lock);
+static DEFINE_RAW_SPINLOCK(i8259_irq_lock);
 
 static inline void
 i8259_update_irq_hw(unsigned int irq, unsigned long mask)
@@ -36,9 +36,11 @@ i8259_update_irq_hw(unsigned int irq, unsigned long mask)
 inline void
 i8259a_enable_irq(struct irq_data *d)
 {
-	spin_lock(&i8259_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&i8259_irq_lock, flags);
 	i8259_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << d->irq));
-	spin_unlock(&i8259_irq_lock);
+	raw_spin_unlock_irqrestore(&i8259_irq_lock, flags);
 }
 
 static inline void
@@ -50,17 +52,20 @@ __i8259a_disable_irq(unsigned int irq)
 void
 i8259a_disable_irq(struct irq_data *d)
 {
-	spin_lock(&i8259_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&i8259_irq_lock, flags);
 	__i8259a_disable_irq(d->irq);
-	spin_unlock(&i8259_irq_lock);
+	raw_spin_unlock_irqrestore(&i8259_irq_lock, flags);
 }
 
 void
 i8259a_mask_and_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = d->irq;
+	unsigned long flags;
 
-	spin_lock(&i8259_irq_lock);
+	raw_spin_lock_irqsave(&i8259_irq_lock, flags);
 	__i8259a_disable_irq(irq);
 
 	/* Ack the interrupt making it the lowest priority.  */
@@ -69,7 +74,7 @@ i8259a_mask_and_ack_irq(struct irq_data *d)
 		irq = 2;
 	}
 	outb(0xE0 | irq, 0x20);			/* ack the master */
-	spin_unlock(&i8259_irq_lock);
+	raw_spin_unlock_irqrestore(&i8259_irq_lock, flags);
 }
 
 struct irq_chip i8259a_irq_type = {

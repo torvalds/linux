@@ -751,7 +751,6 @@ static void rockchip_sfc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sfc->hclk);
 }
 
-#ifdef CONFIG_PM
 static int rockchip_sfc_runtime_suspend(struct device *dev)
 {
 	struct rockchip_sfc *sfc = dev_get_drvdata(dev);
@@ -777,9 +776,7 @@ static int rockchip_sfc_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
 static int rockchip_sfc_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
@@ -810,12 +807,11 @@ static int rockchip_sfc_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops rockchip_sfc_pm_ops = {
-	SET_RUNTIME_PM_OPS(rockchip_sfc_runtime_suspend,
-			   rockchip_sfc_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_sfc_suspend, rockchip_sfc_resume)
+	RUNTIME_PM_OPS(rockchip_sfc_runtime_suspend,
+		       rockchip_sfc_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rockchip_sfc_suspend, rockchip_sfc_resume)
 };
 
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
@@ -828,7 +824,7 @@ static struct platform_driver rockchip_sfc_driver = {
 	.driver = {
 		.name	= "rockchip-sfc",
 		.of_match_table = rockchip_sfc_dt_ids,
-		.pm = &rockchip_sfc_pm_ops,
+		.pm = pm_ptr(&rockchip_sfc_pm_ops),
 	},
 	.probe	= rockchip_sfc_probe,
 	.remove = rockchip_sfc_remove,

@@ -68,9 +68,10 @@
 };
 
 &rtc {
-	status = "okay";
 	clocks = <&clock_ccore PCLK_RTC>, <&s2mps15_osc S2MPS11_CLK_AP>;
 	clock-names = "rtc", "rtc_src";
+
+	status = "okay";
 };
 
 &watchdog {
@@ -79,6 +80,7 @@
 
 &adc {
 	vdd-supply = <&ldo3_reg>;
+
 	status = "okay";
 };
 
@@ -97,8 +99,7 @@
 		s2mps15_osc: clocks {
 			compatible = "samsung,s2mps13-clk";
 			#clock-cells = <1>;
-			clock-output-names = "s2mps13_ap", "s2mps13_cp",
-				"s2mps13_bt";
+			clock-output-names = "s2mps13_ap", "s2mps13_cp", "s2mps13_bt";
 		};
 
 		regulators {
@@ -360,7 +361,6 @@
 };
 
 &mmc_0 {
-	status = "okay";
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
@@ -373,10 +373,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_qrdy &sd0_bus1 &sd0_bus4 &sd0_bus8>;
 	bus-width = <8>;
+
+	status = "okay";
 };
 
 &mmc_2 {
-	status = "okay";
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	clock-frequency = <400000000>;
@@ -389,6 +390,8 @@
 	vmmc-supply = <&ldo17_reg>;
 	vqmmc-supply = <&ldo2_reg>;
 	disable-wp;
+
+	status = "okay";
 };
 
 &pinctrl_bus1 {

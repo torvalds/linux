@@ -181,7 +181,7 @@ struct ap_card {
 	bool chkstop;			/* checkstop state */
 };
 
-#define TAPQ_CARD_HWINFO_MASK 0xFFFF0000FFFF0F0FUL
+#define TAPQ_CARD_HWINFO_MASK 0xFFFF0000FFFF0F1FUL
 #define ASSOC_IDX_INVALID 0x10000
 
 #define to_ap_card(x) container_of((x), struct ap_card, ap_dev.device)

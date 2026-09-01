@@ -12,6 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
 
@@ -393,7 +394,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
 		}
 	}
 
-	dev_info(root->dev, "EISA: Detected %d card%s\n", c, c == 1 ? "" : "s");
+	dev_info(root->dev, "EISA: Detected %d card%s\n", c, str_plural(c));
 	return 0;
 }
 

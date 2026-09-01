@@ -268,7 +268,7 @@ out:
 static int
 ecryptfs_create(struct mnt_idmap *idmap,
 		struct inode *directory_inode, struct dentry *ecryptfs_dentry,
-		umode_t mode, bool excl)
+		umode_t mode)
 {
 	struct inode *ecryptfs_inode;
 	int rc;

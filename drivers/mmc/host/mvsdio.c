@@ -764,10 +764,8 @@ static int mvsd_probe(struct platform_device *pdev)
 	mvsd_power_down(host);
 
 	ret = devm_request_irq(&pdev->dev, irq, mvsd_irq, 0, DRIVER_NAME, host);
-	if (ret) {
-		dev_err(&pdev->dev, "cannot assign irq %d\n", irq);
+	if (ret)
 		goto out;
-	}
 
 	timer_setup(&host->timer, mvsd_timeout_timer, 0);
 	platform_set_drvdata(pdev, mmc);

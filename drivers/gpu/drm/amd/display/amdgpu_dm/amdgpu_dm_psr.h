@@ -43,7 +43,12 @@ bool amdgpu_dm_psr_set_event(struct amdgpu_display_manager *dm,
 		bool wait_for_disable);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+bool link_supports_psrsu(struct dc_link *link);
 void amdgpu_dm_psr_fill_caps(struct dc_link *link, struct psr_caps *caps);
+unsigned int amdgpu_dm_psr_get_dc_feature_mask(void);
+void amdgpu_dm_psr_set_dc_feature_mask(unsigned int feature_mask);
+unsigned int amdgpu_dm_psr_get_dc_debug_mask(void);
+void amdgpu_dm_psr_set_dc_debug_mask(unsigned int debug_mask);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_PSR_H_ */

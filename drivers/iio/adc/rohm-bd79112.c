@@ -529,7 +529,7 @@ static const struct of_device_id bd79112_of_match[] = {
 MODULE_DEVICE_TABLE(of, bd79112_of_match);
 
 static const struct spi_device_id bd79112_id[] = {
-	{ "bd79112" },
+	{ .name = "bd79112" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, bd79112_id);

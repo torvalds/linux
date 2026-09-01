@@ -36,7 +36,7 @@ static inline void open_input(const char *dir_name, const char *name)
 	else
 		snprintf(filename, sizeof(filename), "%s", name);
 	infile = fopen(filename, "r");
-	if (infile == 0) {
+	if (!infile) {
 		fprintf(stderr, "can't open %s\n", filename);
 		exit(1);
 	}

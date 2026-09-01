@@ -29,7 +29,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <mqueue.h>
-#include <include/vdso/time64.h>
+#include "clock-helpers.h"
 #include "kselftest.h"
 
 

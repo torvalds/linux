@@ -38,6 +38,8 @@ struct fuse_iqueue;
  * @FR_PRIVATE:		request is on private list
  * @FR_ASYNC:		request is asynchronous
  * @FR_URING:		request is handled through fuse-io-uring
+ * @FR_SYNC_WAKEUP:	use synchronous wakeup when queueing this request to
+ *			give the scheduler a hint about the waker task
  */
 enum fuse_req_flag {
 	FR_ISREPLY,
@@ -53,6 +55,7 @@ enum fuse_req_flag {
 	FR_PRIVATE,
 	FR_ASYNC,
 	FR_URING,
+	FR_SYNC_WAKEUP,
 };
 
 /**
@@ -325,6 +328,8 @@ struct fuse_copy_state {
 	bool write:1;
 	bool move_folios:1;
 	bool is_uring:1;
+	/* set when the payload is zero-copied. folios are filled in place */
+	bool skip_folio_copy:1;
 	struct {
 		unsigned int copied_sz; /* copied size into the user buffer */
 	} ring;

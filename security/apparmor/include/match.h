@@ -125,16 +125,18 @@ static inline size_t table_size(size_t len, size_t el_size)
 
 #define aa_state_t unsigned int
 
-struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags);
-aa_state_t aa_dfa_match_len(struct aa_dfa *dfa, aa_state_t start,
+struct aa_dfa *aa_dfa_unpack(const void *blob, size_t size, int flags);
+aa_state_t aa_dfa_match_len(const struct aa_dfa *dfa, aa_state_t start,
 			    const char *str, int len);
-aa_state_t aa_dfa_match(struct aa_dfa *dfa, aa_state_t start,
+aa_state_t aa_dfa_match(const struct aa_dfa *dfa, aa_state_t start,
 			const char *str);
-aa_state_t aa_dfa_next(struct aa_dfa *dfa, aa_state_t state, const char c);
-aa_state_t aa_dfa_outofband_transition(struct aa_dfa *dfa, aa_state_t state);
-aa_state_t aa_dfa_match_until(struct aa_dfa *dfa, aa_state_t start,
+aa_state_t aa_dfa_next(const struct aa_dfa *dfa, aa_state_t state,
+		       const char c);
+aa_state_t aa_dfa_outofband_transition(const struct aa_dfa *dfa,
+				       aa_state_t state);
+aa_state_t aa_dfa_match_until(const struct aa_dfa *dfa, aa_state_t start,
 			      const char *str, const char **retpos);
-aa_state_t aa_dfa_matchn_until(struct aa_dfa *dfa, aa_state_t start,
+aa_state_t aa_dfa_matchn_until(const struct aa_dfa *dfa, aa_state_t start,
 			       const char *str, int n, const char **retpos);
 
 void aa_dfa_free_kref(struct kref *kref);
@@ -152,7 +154,7 @@ struct match_workbuf N = {		\
 	.len = 0,			\
 }
 
-aa_state_t aa_dfa_leftmatch(struct aa_dfa *dfa, aa_state_t start,
+aa_state_t aa_dfa_leftmatch(const struct aa_dfa *dfa, aa_state_t start,
 			    const char *str, unsigned int *count);
 
 /**

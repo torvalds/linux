@@ -11,6 +11,7 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#include <linux/cleanup.h>
 #include <linux/kobject.h>
 #include <linux/pci.h>
 #include <linux/fs.h>
@@ -64,9 +65,8 @@ u64 sst_shim_read64(void __iomem *addr, int offset)
 void sst_set_fw_state_locked(
 		struct intel_sst_drv *sst_drv_ctx, int sst_state)
 {
-	mutex_lock(&sst_drv_ctx->sst_lock);
+	guard(mutex)(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = sst_state;
-	mutex_unlock(&sst_drv_ctx->sst_lock);
 }
 
 /*
@@ -302,18 +302,17 @@ int sst_assign_pvt_id(struct intel_sst_drv *drv)
 {
 	int local;
 
-	spin_lock(&drv->block_lock);
+	guard(spinlock)(&drv->block_lock);
 	/* find first zero index from lsb */
 	local = ffz(drv->pvt_id);
 	dev_dbg(drv->dev, "pvt_id assigned --> %d\n", local);
 	if (local >= SST_MAX_BLOCKS){
-		spin_unlock(&drv->block_lock);
 		dev_err(drv->dev, "PVT _ID error: no free id blocks ");
 		return -EINVAL;
 	}
 	/* toggle the index */
 	change_bit(local, &drv->pvt_id);
-	spin_unlock(&drv->block_lock);
+
 	return local;
 }
 

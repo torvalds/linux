@@ -48,12 +48,15 @@
 				core0 {
 					cpu = <&cpu0>;
 				};
+
 				core1 {
 					cpu = <&cpu1>;
 				};
+
 				core2 {
 					cpu = <&cpu2>;
 				};
+
 				core3 {
 					cpu = <&cpu3>;
 				};
@@ -63,12 +66,15 @@
 				core0 {
 					cpu = <&cpu4>;
 				};
+
 				core1 {
 					cpu = <&cpu5>;
 				};
+
 				core2 {
 					cpu = <&cpu6>;
 				};
+
 				core3 {
 					cpu = <&cpu7>;
 				};
@@ -78,6 +84,7 @@
 				core0 {
 					cpu = <&cpu8>;
 				};
+
 				core1 {
 					cpu = <&cpu9>;
 				};
@@ -440,6 +447,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI00_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_0: serial@10880000 {
@@ -453,6 +461,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI00_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <256>;
+
 				status = "disabled";
 			};
 
@@ -473,6 +482,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <256>;
+
 				status = "disabled";
 			};
 		};
@@ -489,6 +499,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI01_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_1: serial@108a0000 {
@@ -502,6 +513,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI01_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <256>;
+
 				status = "disabled";
 			};
 
@@ -522,6 +534,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <256>;
+
 				status = "disabled";
 			};
 		};
@@ -538,6 +551,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI02_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_2: serial@108c0000 {
@@ -551,6 +565,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI02_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -571,6 +586,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -587,6 +603,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI03_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_3: serial@108e0000 {
@@ -600,6 +617,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI03_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -620,6 +638,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -636,6 +655,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI04_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_4: serial@10900000 {
@@ -649,6 +669,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI04_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -669,6 +690,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -685,6 +707,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI05_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_5: serial@10920000 {
@@ -698,6 +721,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI05_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -718,6 +742,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -734,6 +759,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI06_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_6: serial@10940000 {
@@ -747,6 +773,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI06_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -767,6 +794,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -783,6 +811,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI07_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_7: serial@10960000 {
@@ -796,6 +825,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI07_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -816,6 +846,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -832,6 +863,7 @@
 			clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
 				 <&cmu_peric0 CLK_DOUT_PERIC0_USI08_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_8: serial@10980000 {
@@ -845,6 +877,7 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI08_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -865,6 +898,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 
@@ -878,6 +912,7 @@
 			#pwm-cells = <3>;
 			clocks = <&xtcxo>;
 			clock-names = "timers";
+
 			status = "disabled";
 		};
 
@@ -918,6 +953,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI09_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_9: serial@10c8000 {
@@ -931,6 +967,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI09_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <256>;
+
 				status = "disabled";
 			};
 
@@ -951,6 +988,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <256>;
+
 				status = "disabled";
 			};
 		};
@@ -967,6 +1005,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI10_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_10: serial@10ca0000 {
@@ -980,6 +1019,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI10_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1000,6 +1040,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1016,6 +1057,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI11_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_11: serial@10cc0000 {
@@ -1029,6 +1071,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI11_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1049,6 +1092,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1065,6 +1109,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI12_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_12: serial@10ce0000 {
@@ -1078,6 +1123,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI12_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1098,6 +1144,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1114,6 +1161,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI13_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_13: serial@10d00000 {
@@ -1127,6 +1175,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI13_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1147,6 +1196,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1163,6 +1213,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI14_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_14: serial@10d20000 {
@@ -1176,6 +1227,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI14_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1196,6 +1248,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1212,6 +1265,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI15_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_15: serial@10d40000 {
@@ -1225,6 +1279,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI15_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1245,6 +1300,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1261,6 +1317,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI16_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_16: serial@10d60000 {
@@ -1274,6 +1331,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI16_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1294,6 +1352,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1310,6 +1369,7 @@
 			clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
 				 <&cmu_peric1 CLK_DOUT_PERIC1_USI17_USI>;
 			clock-names = "pclk", "ipclk";
+
 			status = "disabled";
 
 			serial_17: serial@10d80000 {
@@ -1323,6 +1383,7 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI17_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+
 				status = "disabled";
 			};
 
@@ -1343,6 +1404,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				fifo-depth = <64>;
+
 				status = "disabled";
 			};
 		};
@@ -1380,6 +1442,12 @@
 				 <&cmu_top DOUT_CLKCMU_HSI0_NOC>;
 			clock-names = "oscclk",
 				      "noc";
+		};
+
+		syscon_hsi0: syscon@16030000 {
+			compatible = "samsung,exynosautov920-hsi0-sysreg",
+				     "syscon";
+			reg = <0x16030000 0x1000>;
 		};
 
 		pinctrl_hsi0: pinctrl@16040000 {
@@ -1462,6 +1530,7 @@
 			phy-names = "ufs-phy";
 			samsung,sysreg = <&syscon_hsi2 0x710>;
 			dma-coherent;
+
 			status = "disabled";
 		};
 
@@ -1473,6 +1542,7 @@
 			clock-names = "ref_clk";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <0>;
+
 			status = "disabled";
 		};
 

@@ -281,7 +281,7 @@ struct iio_channel *fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode,
 
 	return ERR_PTR(-ENODEV);
 }
-EXPORT_SYMBOL_GPL(fwnode_iio_channel_get_by_name);
+EXPORT_SYMBOL_NS_GPL(fwnode_iio_channel_get_by_name, "IIO_CONSUMER");
 
 static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
 {
@@ -386,7 +386,7 @@ struct iio_channel *iio_channel_get(struct device *dev,
 
 	return iio_channel_get_sys(name, channel_name);
 }
-EXPORT_SYMBOL_GPL(iio_channel_get);
+EXPORT_SYMBOL_NS_GPL(iio_channel_get, "IIO_CONSUMER");
 
 void iio_channel_release(struct iio_channel *channel)
 {
@@ -395,7 +395,7 @@ void iio_channel_release(struct iio_channel *channel)
 	iio_device_put(channel->indio_dev);
 	kfree(channel);
 }
-EXPORT_SYMBOL_GPL(iio_channel_release);
+EXPORT_SYMBOL_NS_GPL(iio_channel_release, "IIO_CONSUMER");
 
 static void devm_iio_channel_free(void *iio_channel)
 {
@@ -418,7 +418,7 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 
 	return channel;
 }
-EXPORT_SYMBOL_GPL(devm_iio_channel_get);
+EXPORT_SYMBOL_NS_GPL(devm_iio_channel_get, "IIO_CONSUMER");
 
 struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
 							struct fwnode_handle *fwnode,
@@ -437,7 +437,7 @@ struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
 
 	return channel;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_iio_channel_get_by_name);
+EXPORT_SYMBOL_NS_GPL(devm_fwnode_iio_channel_get_by_name, "IIO_CONSUMER");
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
@@ -506,7 +506,7 @@ error_free_chans:
 		iio_device_put(chans[i].indio_dev);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(iio_channel_get_all);
+EXPORT_SYMBOL_NS_GPL(iio_channel_get_all, "IIO_CONSUMER");
 
 void iio_channel_release_all(struct iio_channel *channels)
 {
@@ -518,7 +518,7 @@ void iio_channel_release_all(struct iio_channel *channels)
 	}
 	kfree(channels);
 }
-EXPORT_SYMBOL_GPL(iio_channel_release_all);
+EXPORT_SYMBOL_NS_GPL(iio_channel_release_all, "IIO_CONSUMER");
 
 static void devm_iio_channel_free_all(void *iio_channels)
 {
@@ -541,7 +541,7 @@ struct iio_channel *devm_iio_channel_get_all(struct device *dev)
 
 	return channels;
 }
-EXPORT_SYMBOL_GPL(devm_iio_channel_get_all);
+EXPORT_SYMBOL_NS_GPL(devm_iio_channel_get_all, "IIO_CONSUMER");
 
 static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 			    enum iio_chan_info_enum info)
@@ -585,7 +585,7 @@ int iio_read_channel_raw(struct iio_channel *chan, int *val)
 
 	return iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_RAW);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_raw);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_raw, "IIO_CONSUMER");
 
 int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 {
@@ -597,7 +597,7 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 
 	return iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_AVERAGE_RAW);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_average_raw);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_average_raw, "IIO_CONSUMER");
 
 int iio_multiply_value(int *result, s64 multiplier,
 		       unsigned int type, int val, int val2)
@@ -701,7 +701,7 @@ int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
 	return iio_convert_raw_to_processed_unlocked(chan, raw, processed,
 						     scale);
 }
-EXPORT_SYMBOL_GPL(iio_convert_raw_to_processed);
+EXPORT_SYMBOL_NS_GPL(iio_convert_raw_to_processed, "IIO_CONSUMER");
 
 int iio_read_channel_attribute(struct iio_channel *chan, int *val, int *val2,
 			       enum iio_chan_info_enum attribute)
@@ -714,13 +714,13 @@ int iio_read_channel_attribute(struct iio_channel *chan, int *val, int *val2,
 
 	return iio_channel_read(chan, val, val2, attribute);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_attribute);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_attribute, "IIO_CONSUMER");
 
 int iio_read_channel_offset(struct iio_channel *chan, int *val, int *val2)
 {
 	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_OFFSET);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_offset);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_offset, "IIO_CONSUMER");
 
 int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 				     unsigned int scale)
@@ -752,20 +752,20 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 							     scale);
 	}
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_processed_scale);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_processed_scale, "IIO_CONSUMER");
 
 int iio_read_channel_processed(struct iio_channel *chan, int *val)
 {
 	/* This is just a special case with scale factor 1 */
 	return iio_read_channel_processed_scale(chan, val, 1);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_processed);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_processed, "IIO_CONSUMER");
 
 int iio_read_channel_scale(struct iio_channel *chan, int *val, int *val2)
 {
 	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_SCALE);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_scale);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_scale, "IIO_CONSUMER");
 
 static int iio_channel_read_avail(struct iio_channel *chan,
 				  const int **vals, int *type, int *length,
@@ -794,7 +794,7 @@ int iio_read_avail_channel_attribute(struct iio_channel *chan,
 
 	return iio_channel_read_avail(chan, vals, type, length, attribute);
 }
-EXPORT_SYMBOL_GPL(iio_read_avail_channel_attribute);
+EXPORT_SYMBOL_NS_GPL(iio_read_avail_channel_attribute, "IIO_CONSUMER");
 
 int iio_read_avail_channel_raw(struct iio_channel *chan,
 			       const int **vals, int *length)
@@ -811,7 +811,7 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iio_read_avail_channel_raw);
+EXPORT_SYMBOL_NS_GPL(iio_read_avail_channel_raw, "IIO_CONSUMER");
 
 static int iio_channel_read_max(struct iio_channel *chan,
 				int *val, int *val2, int *type,
@@ -867,7 +867,7 @@ int iio_read_max_channel_raw(struct iio_channel *chan, int *val)
 
 	return iio_channel_read_max(chan, val, NULL, &type, IIO_CHAN_INFO_RAW);
 }
-EXPORT_SYMBOL_GPL(iio_read_max_channel_raw);
+EXPORT_SYMBOL_NS_GPL(iio_read_max_channel_raw, "IIO_CONSUMER");
 
 static int iio_channel_read_min(struct iio_channel *chan,
 				int *val, int *val2, int *type,
@@ -923,7 +923,7 @@ int iio_read_min_channel_raw(struct iio_channel *chan, int *val)
 
 	return iio_channel_read_min(chan, val, NULL, &type, IIO_CHAN_INFO_RAW);
 }
-EXPORT_SYMBOL_GPL(iio_read_min_channel_raw);
+EXPORT_SYMBOL_NS_GPL(iio_read_min_channel_raw, "IIO_CONSUMER");
 
 int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 {
@@ -937,7 +937,7 @@ int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iio_get_channel_type);
+EXPORT_SYMBOL_NS_GPL(iio_get_channel_type, "IIO_CONSUMER");
 
 static int iio_channel_write(struct iio_channel *chan, int val, int val2,
 			     enum iio_chan_info_enum info)
@@ -961,13 +961,13 @@ int iio_write_channel_attribute(struct iio_channel *chan, int val, int val2,
 
 	return iio_channel_write(chan, val, val2, attribute);
 }
-EXPORT_SYMBOL_GPL(iio_write_channel_attribute);
+EXPORT_SYMBOL_NS_GPL(iio_write_channel_attribute, "IIO_CONSUMER");
 
 int iio_write_channel_raw(struct iio_channel *chan, int val)
 {
 	return iio_write_channel_attribute(chan, val, 0, IIO_CHAN_INFO_RAW);
 }
-EXPORT_SYMBOL_GPL(iio_write_channel_raw);
+EXPORT_SYMBOL_NS_GPL(iio_write_channel_raw, "IIO_CONSUMER");
 
 unsigned int iio_get_channel_ext_info_count(struct iio_channel *chan)
 {
@@ -982,7 +982,7 @@ unsigned int iio_get_channel_ext_info_count(struct iio_channel *chan)
 
 	return i;
 }
-EXPORT_SYMBOL_GPL(iio_get_channel_ext_info_count);
+EXPORT_SYMBOL_NS_GPL(iio_get_channel_ext_info_count, "IIO_CONSUMER");
 
 static const struct iio_chan_spec_ext_info *
 iio_lookup_ext_info(const struct iio_channel *chan, const char *attr)
@@ -1017,7 +1017,7 @@ ssize_t iio_read_channel_ext_info(struct iio_channel *chan,
 	return ext_info->read(chan->indio_dev, ext_info->private,
 			      chan->channel, buf);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_ext_info);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_ext_info, "IIO_CONSUMER");
 
 ssize_t iio_write_channel_ext_info(struct iio_channel *chan, const char *attr,
 				   const char *buf, size_t len)
@@ -1031,7 +1031,7 @@ ssize_t iio_write_channel_ext_info(struct iio_channel *chan, const char *attr,
 	return ext_info->write(chan->indio_dev, ext_info->private,
 			       chan->channel, buf, len);
 }
-EXPORT_SYMBOL_GPL(iio_write_channel_ext_info);
+EXPORT_SYMBOL_NS_GPL(iio_write_channel_ext_info, "IIO_CONSUMER");
 
 ssize_t iio_read_channel_label(struct iio_channel *chan, char *buf)
 {
@@ -1042,4 +1042,4 @@ ssize_t iio_read_channel_label(struct iio_channel *chan, char *buf)
 
 	return do_iio_read_channel_label(chan->indio_dev, chan->channel, buf);
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_label);
+EXPORT_SYMBOL_NS_GPL(iio_read_channel_label, "IIO_CONSUMER");

@@ -479,7 +479,7 @@ static int mana_hwc_alloc_dma_buf(struct hw_channel_context *hwc, u16 q_depth,
 	buf_size = MANA_PAGE_ALIGN(q_depth * max_msg_size);
 
 	gmi = &dma_buf->mem_info;
-	err = mana_gd_alloc_memory(gc, buf_size, gmi);
+	err = mana_gd_alloc_memory(gc, buf_size, gmi, false);
 	if (err) {
 		dev_err(hwc->dev, "Failed to allocate DMA buffer size: %u, err %d\n",
 			buf_size, err);

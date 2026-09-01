@@ -37,12 +37,12 @@ initialization vector for each sector, and can be tested for correctness.
 Objective
 =========
 
-We want to support inline encryption in the kernel.  To make testing easier, we
-also want support for falling back to the kernel crypto API when actual inline
-encryption hardware is absent.  We also want inline encryption to work with
-layered devices like device-mapper and loopback (i.e. we want to be able to use
-the inline encryption hardware of the underlying devices if present, or else
-fall back to crypto API en/decryption).
+We want to support inline encryption hardware in the kernel.  The API for using
+such hardware should also support a fallback to the CPU, so that users only need
+to use a single API and more of the code can be tested without actual hardware.
+We also want inline encryption to work with layered devices like device-mapper
+and loopback (i.e. we want to be able to use the inline encryption hardware of
+the underlying devices if present, or else fall back to the CPU).
 
 Constraints and notes
 =====================
@@ -185,20 +185,12 @@ blk-crypto-fallback is optional and is controlled by the
 API presented to users of the block layer
 =========================================
 
-``blk_crypto_config_supported()`` allows users to check ahead of time whether
-inline encryption with particular crypto settings will work on a particular
-block_device -- either via hardware or via blk-crypto-fallback.  This function
-takes in a ``struct blk_crypto_config`` which is like blk_crypto_key, but omits
-the actual bytes of the key and instead just contains the algorithm, data unit
-size, etc.  This function can be useful if blk-crypto-fallback is disabled.
-
 ``blk_crypto_init_key()`` allows users to initialize a blk_crypto_key.
 
 Users must call ``blk_crypto_start_using_key()`` before actually starting to use
-a blk_crypto_key on a block_device (even if ``blk_crypto_config_supported()``
-was called earlier).  This is needed to initialize blk-crypto-fallback if it
-will be needed.  This must not be called from the data path, as this may have to
-allocate resources, which may deadlock in that case.
+a blk_crypto_key on a block_device.  This is needed to initialize
+blk-crypto-fallback if it will be needed.  This must not be called from the data
+path, as this may have to allocate resources, which may deadlock in that case.
 
 Next, to attach an encryption context to a bio, users should call
 ``bio_crypt_set_ctx()``.  This function allocates a bio_crypt_ctx and attaches
@@ -220,16 +212,15 @@ any kernel data structures it may be linked into.
 In summary, for users of the block layer, the lifecycle of a blk_crypto_key is
 as follows:
 
-1. ``blk_crypto_config_supported()`` (optional)
-2. ``blk_crypto_init_key()``
-3. ``blk_crypto_start_using_key()``
-4. ``bio_crypt_set_ctx()`` (potentially many times)
-5. ``blk_crypto_evict_key()`` (after all I/O has completed)
-6. Zeroize the blk_crypto_key (this has no dedicated function)
+1. ``blk_crypto_init_key()``
+2. ``blk_crypto_start_using_key()``
+3. ``bio_crypt_set_ctx()`` (potentially many times)
+4. ``blk_crypto_evict_key()`` (after all I/O has completed)
+5. Zeroize the blk_crypto_key (this has no dedicated function)
 
 If a blk_crypto_key is being used on multiple block_devices, then
-``blk_crypto_config_supported()`` (if used), ``blk_crypto_start_using_key()``,
-and ``blk_crypto_evict_key()`` must be called on each block_device.
+``blk_crypto_start_using_key()`` and ``blk_crypto_evict_key()`` must be called
+on each block_device.
 
 API presented to device drivers
 ===============================
@@ -304,7 +295,7 @@ hardware implementations might not implement both features together correctly,
 and disallow the combination for now. Whenever a device supports integrity, the
 kernel will pretend that the device does not support hardware inline encryption
 (by setting the blk_crypto_profile in the request_queue of the device to NULL).
-When the crypto API fallback is enabled, this means that all bios with and
+When the crypto API fallback is enabled, this means that all bios with an
 encryption context will use the fallback, and IO will complete as usual.  When
 the fallback is disabled, a bio with an encryption context will be failed.
 

@@ -2861,8 +2861,6 @@ ext4_group_t ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
 
 	blk_start_plug(&plug);
 	while (nr-- > 0) {
-		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group,
-								  NULL);
 		struct ext4_group_info *grp = ext4_get_group_info(sb, group);
 
 		/*
@@ -2872,14 +2870,17 @@ ext4_group_t ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
 		 * prefetch once, so we avoid getblk() call, which can
 		 * be expensive.
 		 */
-		if (gdp && grp && !EXT4_MB_GRP_TEST_AND_SET_READ(grp) &&
-		    EXT4_MB_GRP_NEED_INIT(grp) &&
-		    ext4_free_group_clusters(sb, gdp) > 0 ) {
-			bh = ext4_read_block_bitmap_nowait(sb, group, true);
-			if (!IS_ERR_OR_NULL(bh)) {
-				if (!buffer_uptodate(bh) && cnt)
-					(*cnt)++;
-				brelse(bh);
+		if (grp && !EXT4_MB_GRP_TEST_AND_SET_READ(grp) &&
+		    EXT4_MB_GRP_NEED_INIT(grp)) {
+			struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group, NULL);
+
+			if (gdp && ext4_free_group_clusters(sb, gdp) > 0) {
+				bh = ext4_read_block_bitmap_nowait(sb, group, true);
+				if (!IS_ERR_OR_NULL(bh)) {
+					if (!buffer_uptodate(bh) && cnt)
+						(*cnt)++;
+					brelse(bh);
+				}
 			}
 		}
 		if (++group >= ngroups)

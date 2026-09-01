@@ -1118,7 +1118,7 @@ u8 mlxsw_sp_acl_erp_delta_value(const struct mlxsw_sp_acl_erp_delta *delta,
 }
 
 void mlxsw_sp_acl_erp_delta_clear(const struct mlxsw_sp_acl_erp_delta *delta,
-				  const char *enc_key)
+				  char *enc_key)
 {
 	u16 start = delta->start;
 	u8 mask = delta->mask;

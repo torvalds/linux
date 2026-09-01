@@ -1753,7 +1753,7 @@ xfs_ifree_cluster(
 		 * attachment may occur in xfs_inode_item_precommit() after we
 		 * have marked this buffer stale.  If this buffer was not in
 		 * memory before xfs_ifree_cluster() started, it will not be
-		 * marked XBF_DONE and this will cause problems later in
+		 * marked uptodate and this will cause problems later in
 		 * xfs_inode_item_precommit() when we trip over a (stale, !done)
 		 * buffer to attached to the transaction.
 		 *
@@ -1766,7 +1766,7 @@ xfs_ifree_cluster(
 		 * fail. We can acheive this by adding a write verifier to the
 		 * buffer.
 		 */
-		bp->b_flags |= XBF_DONE;
+		xfs_buf_set_uptodate(bp);
 		bp->b_ops = &xfs_inode_buf_ops;
 
 		/*

@@ -34,7 +34,7 @@ static bool afs_lookup_filldir(struct dir_context *ctx, const char *name, int nl
 			       u64 ino, u32 uniquifier);
 #define AFS_LOOKUP ((filldir_t)0x137UL)
 static int afs_create(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode, bool excl);
+		      struct dentry *dentry, umode_t mode);
 static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode);
 static int afs_rmdir(struct inode *dir, struct dentry *dentry);
@@ -1333,7 +1333,7 @@ static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 	op->dentry	= dentry;
-	op->create.mode	= S_IFDIR | mode;
+	op->create.mode	= mode;
 	op->create.reason = afs_edit_dir_for_mkdir;
 	op->mtime	= current_time(dir);
 	op->ops		= &afs_mkdir_operation;
@@ -1633,7 +1633,7 @@ static const struct afs_operation_ops afs_create_operation = {
  * create a regular file on an AFS filesystem
  */
 static int afs_create(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode, bool excl)
+		      struct dentry *dentry, umode_t mode)
 {
 	struct afs_operation *op;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);

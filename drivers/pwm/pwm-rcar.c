@@ -248,8 +248,8 @@ static void rcar_pwm_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rcar_pwm_of_table[] = {
-	{ .compatible = "renesas,pwm-rcar", },
-	{ },
+	{ .compatible = "renesas,pwm-rcar" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_pwm_of_table);
 

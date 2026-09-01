@@ -1285,15 +1285,15 @@ static const struct of_device_id ad4851_of_match[] = {
 };
 
 static const struct spi_device_id ad4851_spi_id[] = {
-	{ "ad4851", (kernel_ulong_t)&ad4851_info },
-	{ "ad4852", (kernel_ulong_t)&ad4852_info },
-	{ "ad4853", (kernel_ulong_t)&ad4853_info },
-	{ "ad4854", (kernel_ulong_t)&ad4854_info },
-	{ "ad4855", (kernel_ulong_t)&ad4855_info },
-	{ "ad4856", (kernel_ulong_t)&ad4856_info },
-	{ "ad4857", (kernel_ulong_t)&ad4857_info },
-	{ "ad4858", (kernel_ulong_t)&ad4858_info },
-	{ "ad4858i", (kernel_ulong_t)&ad4858i_info },
+	{ .name = "ad4851", .driver_data = (kernel_ulong_t)&ad4851_info },
+	{ .name = "ad4852", .driver_data = (kernel_ulong_t)&ad4852_info },
+	{ .name = "ad4853", .driver_data = (kernel_ulong_t)&ad4853_info },
+	{ .name = "ad4854", .driver_data = (kernel_ulong_t)&ad4854_info },
+	{ .name = "ad4855", .driver_data = (kernel_ulong_t)&ad4855_info },
+	{ .name = "ad4856", .driver_data = (kernel_ulong_t)&ad4856_info },
+	{ .name = "ad4857", .driver_data = (kernel_ulong_t)&ad4857_info },
+	{ .name = "ad4858", .driver_data = (kernel_ulong_t)&ad4858_info },
+	{ .name = "ad4858i", .driver_data = (kernel_ulong_t)&ad4858i_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4851_spi_id);

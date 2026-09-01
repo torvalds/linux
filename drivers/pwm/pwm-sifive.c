@@ -355,7 +355,7 @@ static void pwm_sifive_remove(struct platform_device *dev)
 
 static const struct of_device_id pwm_sifive_of_match[] = {
 	{ .compatible = "sifive,pwm0" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pwm_sifive_of_match);
 

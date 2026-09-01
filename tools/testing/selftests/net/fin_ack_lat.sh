@@ -9,7 +9,7 @@ set -e
 tmpfile=$(mktemp /tmp/fin_ack_latency.XXXX.log)
 
 cleanup() {
-	kill $(pidof fin_ack_lat)
+	kill $(pidof fin_ack_lat) 2>/dev/null || true
 	rm -f $tmpfile
 }
 

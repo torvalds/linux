@@ -392,6 +392,18 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	void __iomem *regs;
 	u8 ctrl1;
 	int rc, i = 0;
+	int irq0;
+	int irq1;
+
+	irq0 = platform_get_irq_optional(op, 0);
+	if (irq0 == -EPROBE_DEFER)
+		return irq0;
+	irq0 = max(irq0, 0);
+
+	irq1 = platform_get_irq_optional(op, 1);
+	if (irq1 == -EPROBE_DEFER)
+		return irq1;
+	irq1 = max(irq1, 0);
 
 	/* MMIO registers */
 	dev_dbg(&op->dev, "probing mpc5200 SPI device\n");
@@ -436,8 +448,8 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	ms = spi_controller_get_devdata(host);
 	ms->host = host;
 	ms->regs = regs;
-	ms->irq0 = irq_of_parse_and_map(op->dev.of_node, 0);
-	ms->irq1 = irq_of_parse_and_map(op->dev.of_node, 1);
+	ms->irq0 = irq0;
+	ms->irq1 = irq1;
 	ms->state = mpc52xx_spi_fsmstate_idle;
 	ms->ipb_freq = mpc5xxx_get_bus_frequency(&op->dev);
 	ms->gpio_cs_count = gpiod_count(&op->dev, NULL);

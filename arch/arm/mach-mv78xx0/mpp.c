@@ -4,7 +4,7 @@
  *
  * MPP functions for Marvell MV78x00 SoCs
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>

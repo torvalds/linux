@@ -16,7 +16,7 @@
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Refer to "pixelgen_public.h" for details.
  */
@@ -30,7 +30,7 @@ STORAGE_CLASS_PIXELGEN_C hrt_data pixelgen_ctrl_reg_load(
 					     hrt_data));
 }
 
-/**
+/*
  * @brief Store a value to the register.
  * Refer to "pixelgen_ctrl_public.h" for details.
  */
@@ -53,7 +53,7 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_reg_store(
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the pixelgen state.
  * Refer to "pixelgen_public.h" for details.
  */
@@ -117,7 +117,7 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_get_state(
 	    pixelgen_ctrl_reg_load(ID, _PXG_TPG_B2_REG_IDX);
 }
 
-/**
+/*
  * @brief Dump the pixelgen state.
  * Refer to "pixelgen_public.h" for details.
  */

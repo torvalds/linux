@@ -5,16 +5,33 @@
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/cdev.h>
+#include <linux/container_of.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/kmod.h>
-#include <linux/mm.h>
+#include <linux/kobject.h>
+#include <linux/kthread.h>
+#include <linux/list.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/printk.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/sprintf.h>
 #include <linux/string.h>
+#include <linux/time.h>
 #include <linux/types.h>
+#include <linux/wait.h>
+
+#include <asm/page.h>
 
 #include "cec-priv.h"
 
@@ -93,7 +110,7 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	minor = find_first_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES);
 	if (minor == CEC_NUM_DEVICES) {
 		mutex_unlock(&cec_devnode_lock);
-		pr_err("could not get a free minor\n");
+		pr_err("Could not get a free minor\n");
 		return -ENFILE;
 	}
 
@@ -104,19 +121,19 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	devnode->dev.bus = &cec_bus_type;
 	devnode->dev.devt = MKDEV(MAJOR(cec_dev_t), minor);
 	devnode->dev.release = cec_devnode_release;
-	dev_set_name(&devnode->dev, "cec%d", devnode->minor);
+	dev_set_name(&devnode->dev, "%s%d", CEC_NAME, devnode->minor);
 	device_initialize(&devnode->dev);
 
 	/* Part 2: Initialize and register the character device */
 	cdev_init(&devnode->cdev, &cec_devnode_fops);
 	devnode->cdev.owner = owner;
-	kobject_set_name(&devnode->cdev.kobj, "cec%d", devnode->minor);
+	kobject_set_name(&devnode->cdev.kobj, "%s%d", CEC_NAME, devnode->minor);
 
 	devnode->registered = true;
 	ret = cdev_device_add(&devnode->cdev, &devnode->dev);
 	if (ret) {
 		devnode->registered = false;
-		pr_err("%s: cdev_device_add failed\n", __func__);
+		pr_err("cdev_device_add() failed\n");
 		goto clr_bit;
 	}
 
@@ -205,19 +222,35 @@ static int cec_error_inj_show(struct seq_file *sf, void *unused)
 
 	return call_op(adap, error_inj_show, sf);
 }
+DEFINE_SHOW_STORE_ATTRIBUTE(cec_error_inj);
 
-static int cec_error_inj_open(struct inode *inode, struct file *file)
+static ssize_t cec_error_inj_tx_timeouts_write(struct file *file,
+			const char __user *ubuf, size_t count, loff_t *ppos)
 {
-	return single_open(file, cec_error_inj_show, inode->i_private);
+	struct seq_file *sf = file->private_data;
+	struct cec_adapter *adap = sf->private;
+	int ret;
+
+	if (count > 5)
+		return -EINVAL;
+
+	mutex_lock(&adap->lock);
+	ret = kstrtou32_from_user(ubuf, count, 0, &adap->error_inj_tx_timeouts);
+	if (ret)
+		adap->error_inj_tx_timeouts = 0;
+	mutex_unlock(&adap->lock);
+	return ret ? : count;
 }
 
-static const struct file_operations cec_error_inj_fops = {
-	.open = cec_error_inj_open,
-	.write = cec_error_inj_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+static int cec_error_inj_tx_timeouts_show(struct seq_file *sf, void *unused)
+{
+	struct cec_adapter *adap = sf->private;
+
+	seq_printf(sf, "%u", adap->error_inj_tx_timeouts);
+	return 0;
+}
+
+DEFINE_SHOW_STORE_ATTRIBUTE(cec_error_inj_tx_timeouts);
 #endif
 
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
@@ -263,12 +296,11 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	mutex_init(&adap->devnode.lock_fhs);
 	mutex_init(&adap->devnode.lock);
 
-	adap->kthread = kthread_run(cec_thread_func, adap, "cec-%s", name);
+	adap->kthread = kthread_run(cec_thread_func, adap, "%s-%s", CEC_NAME, name);
 	if (IS_ERR(adap->kthread)) {
-		pr_err("cec-%s: kernel_thread() failed\n", name);
+		pr_err("%s: kthread_run() failed\n", name);
 		res = PTR_ERR(adap->kthread);
-		kfree(adap);
-		return ERR_PTR(res);
+		goto err_free_adap;
 	}
 
 #ifdef CONFIG_MEDIA_CEC_RC
@@ -278,11 +310,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	/* Prepare the RC input device */
 	adap->rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!adap->rc) {
-		pr_err("cec-%s: failed to allocate memory for rc_dev\n",
-		       name);
+		pr_err("%s: failed to allocate memory for rc_dev\n", name);
 		kthread_stop(adap->kthread);
-		kfree(adap);
-		return ERR_PTR(-ENOMEM);
+		res = -ENOMEM;
+		goto err_free_adap;
 	}
 
 	snprintf(adap->input_phys, sizeof(adap->input_phys),
@@ -298,9 +329,18 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->allowed_protocols = RC_PROTO_BIT_CEC;
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
-	adap->rc->timeout = MS_TO_US(550);
+	adap->rc->timeout = 550 * USEC_PER_MSEC;
 #endif
 	return adap;
+
+err_free_adap:
+	mutex_destroy(&adap->devnode.lock);
+	mutex_destroy(&adap->devnode.lock_fhs);
+
+	mutex_destroy(&adap->lock);
+
+	kfree(adap);
+	return ERR_PTR(res);
 }
 EXPORT_SYMBOL_GPL(cec_allocate_adapter);
 
@@ -326,8 +366,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 		res = rc_register_device(adap->rc);
 
 		if (res) {
-			pr_err("cec-%s: failed to prepare input device\n",
-			       adap->name);
+			pr_err("%s: failed to prepare input device\n", adap->name);
 			rc_free_device(adap->rc);
 			adap->rc = NULL;
 			return res;
@@ -356,6 +395,9 @@ int cec_register_adapter(struct cec_adapter *adap,
 	debugfs_create_devm_seqfile(&adap->devnode.dev, "status", adap->cec_dir,
 				    cec_adap_status);
 
+	debugfs_create_file("error-inj-tx-timeouts", 0644, adap->cec_dir, adap,
+			    &cec_error_inj_tx_timeouts_fops);
+
 	if (!adap->ops->error_inj_show || !adap->ops->error_inj_parse_line)
 		return 0;
 	debugfs_create_file("error-inj", 0644, adap->cec_dir, adap,
@@ -371,9 +413,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 		return;
 
 #ifdef CONFIG_MEDIA_CEC_RC
-	/* Note: rc_unregister also calls rc_free */
 	rc_unregister_device(adap->rc);
-	adap->rc = NULL;
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
 #ifdef CONFIG_CEC_NOTIFIER
@@ -387,14 +427,23 @@ void cec_delete_adapter(struct cec_adapter *adap)
 {
 	if (IS_ERR_OR_NULL(adap))
 		return;
+
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
 	kthread_stop(adap->kthread);
+
 	if (adap->ops->adap_free)
 		adap->ops->adap_free(adap);
+
 #ifdef CONFIG_MEDIA_CEC_RC
 	rc_free_device(adap->rc);
 #endif
+
+	mutex_destroy(&adap->devnode.lock);
+	mutex_destroy(&adap->devnode.lock_fhs);
+
+	mutex_destroy(&adap->lock);
+
 	kfree(adap);
 }
 EXPORT_SYMBOL_GPL(cec_delete_adapter);
@@ -407,14 +456,14 @@ static int __init cec_devnode_init(void)
 	int ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES, CEC_NAME);
 
 	if (ret < 0) {
-		pr_warn("cec: unable to allocate major\n");
+		pr_warn("Unable to allocate major\n");
 		return ret;
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	top_cec_dir = debugfs_create_dir("cec", NULL);
+	top_cec_dir = debugfs_create_dir(CEC_NAME, NULL);
 	if (IS_ERR_OR_NULL(top_cec_dir)) {
-		pr_warn("cec: Failed to create debugfs cec dir\n");
+		pr_warn("Failed to create debugfs " CEC_NAME " dir\n");
 		top_cec_dir = NULL;
 	}
 #endif
@@ -423,7 +472,7 @@ static int __init cec_devnode_init(void)
 	if (ret < 0) {
 		debugfs_remove_recursive(top_cec_dir);
 		unregister_chrdev_region(cec_dev_t, CEC_NUM_DEVICES);
-		pr_warn("cec: bus_register failed\n");
+		pr_warn("bus_register() failed\n");
 		return -EIO;
 	}
 

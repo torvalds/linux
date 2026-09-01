@@ -67,7 +67,8 @@ int mt76_connac_mcu_init_download(struct mt76_dev *dev, u32 addr, u32 len,
 
 	if ((!is_connac_v1(dev) && addr == MCU_PATCH_ADDRESS) ||
 	    (is_connac2(dev) && addr == 0x900000) ||
-	    (is_connac3(dev) && (addr == 0x900000 || addr == 0xe0002800)) ||
+	    ((is_mt7925(dev) || is_mt7927(dev)) && (addr == 0x900000 || addr == 0xe0002800)) ||
+	    (is_mt7928(dev) && (addr == 0x900000 || addr == 0xe0002000)) ||
 	    (is_mt799x(dev) && addr == 0x900000))
 		cmd = MCU_CMD(PATCH_START_REQ);
 	else
@@ -76,6 +77,48 @@ int mt76_connac_mcu_init_download(struct mt76_dev *dev, u32 addr, u32 len,
 	return mt76_mcu_send_msg(dev, cmd, &req, sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_init_download);
+
+int mt76_connac_cb_mcu_patch_sem_ctrl(struct mt76_dev *dev, bool get)
+{
+	u8 op = get ? PATCH_SEM_GET : PATCH_SEM_RELEASE;
+	struct {
+		u8 op;
+		u8 reserved[3];
+	} req = {
+		.op = op,
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_CMD(CB_PATCH_SEM_CONTROL),
+				 &req, sizeof(req), true);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_cb_mcu_patch_sem_ctrl);
+
+int mt76_connac_cb_mcu_start_patch(struct mt76_dev *dev)
+{
+	struct {
+		__le32 reserved;
+	} req = {
+		.reserved = 0,
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_CMD(CB_PATCH_FINISH_REQ),
+				 &req, sizeof(req), true);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_cb_mcu_start_patch);
+
+int mt76_connac_cb_mcu_init_download(struct mt76_dev *dev, u32 len)
+{
+	struct {
+		__le32 addr;
+		__le32 len;
+	} req = {
+		.addr = 0, /* addr is meaningless for cbmcu fwdl */
+		.len = cpu_to_le32(len),
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_CMD(CB_PATCH_START_REQ), &req, sizeof(req), true);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_cb_mcu_init_download);
 
 int mt76_connac_mcu_set_channel_domain(struct mt76_phy *phy)
 {
@@ -422,6 +465,10 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 		basic->conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
 		basic->aid = cpu_to_le16(link_sta->sta->aid);
 		break;
+	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
+		basic->conn_type = cpu_to_le32(CONNECTION_NAN);
+		break;
 	default:
 		WARN_ON(1);
 		break;
@@ -753,7 +800,7 @@ mt76_connac_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 		HE_PHY(CAP3_DCM_MAX_CONST_RX_MASK, elem->phy_cap_info[3]);
 	he->dcm_rx_max_nss =
 		HE_PHY(CAP3_DCM_MAX_RX_NSS_2, elem->phy_cap_info[3]);
-	he->dcm_rx_max_nss =
+	he->dcm_max_ru =
 		HE_PHY(CAP8_DCM_MAX_RU_MASK, elem->phy_cap_info[8]);
 
 	he->pkt_ext = 2;
@@ -1217,6 +1264,11 @@ int mt76_connac_mcu_uni_add_dev(struct mt76_phy *phy,
 	case NL80211_IFTYPE_ADHOC:
 		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
 		break;
+	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_NAN);
+		basic_req.basic.conn_state = !enable;
+		break;
 	default:
 		WARN_ON(1);
 		break;
@@ -1626,6 +1678,11 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
+		break;
+	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_NAN);
+		basic_req.basic.active = enable;
 		break;
 	default:
 		WARN_ON(1);
@@ -3044,6 +3101,57 @@ next:
 	return mt76_connac_mcu_start_firmware(dev, override, option);
 }
 
+static int
+mt76_connac_mcu_send_phy_ram_firmware(struct mt76_dev *dev,
+				      const struct mt76_connac2_fw_trailer *hdr,
+				      const u8 *data)
+{
+	int i, offset = 0, max_len = mt76_is_sdio(dev) ? 2048 : 4096;
+	u32 override = 0, option = 0;
+
+	for (i = 0; i < hdr->n_region; i++) {
+		const struct mt76_connac2_fw_region *region;
+		u32 len, addr, mode;
+		int err;
+
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
+		mode = mt76_connac_mcu_gen_dl_mode(dev, region->feature_set,
+						   true);
+		len = le32_to_cpu(region->len);
+		addr = le32_to_cpu(region->addr);
+
+		if (region->feature_set & FW_FEATURE_NON_DL)
+			goto next;
+
+		if (region->feature_set & FW_FEATURE_OVERRIDE_ADDR)
+			override = addr;
+
+		err = mt76_connac_mcu_init_download(dev, addr, len, mode);
+		if (err) {
+			dev_err(dev->dev,
+				"The request to dowload PHY firmware failed.\n");
+			return err;
+		}
+
+		err = __mt76_mcu_send_firmware(dev, MCU_CMD(FW_SCATTER),
+					       data + offset, len, max_len);
+		if (err) {
+			dev_err(dev->dev, "Failed to send PHY firmware.\n");
+			return err;
+		}
+
+next:
+		offset += len;
+	}
+
+	if (override)
+		option |= FW_START_OVERRIDE;
+	option |= FW_START_WORKING_PDA_DSP;
+
+	return mt76_connac_mcu_start_firmware(dev, override, option);
+}
+
 int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 			  const char *fw_wa)
 {
@@ -3110,6 +3218,39 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_load_ram);
+
+int mt76_connac3_load_phy_ram(struct mt76_dev *dev, const char *fw_name)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, fw_name, dev->dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev->dev, "Invalid PHY firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+	dev_info(dev->dev, "PHY Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+
+	ret = mt76_connac_mcu_send_phy_ram_firmware(dev, hdr, fw->data);
+	if (ret) {
+		dev_err(dev->dev, "Failed to start PHY firmware\n");
+		goto out;
+	}
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_connac3_load_phy_ram);
 
 static u32 mt76_connac2_get_data_mode(struct mt76_dev *dev, u32 info)
 {
@@ -3223,6 +3364,128 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_load_patch);
+
+int mt76_connac3_load_cb_patch(struct mt76_dev *dev, const char *fw_name)
+{
+	const struct mt76_connac3_multi_header_v2_sec_raw_format *sect = NULL;
+	const struct mt76_connac3_multi_header_v2_raw_format *hdr = NULL;
+	int i, ret, sem, max_len = mt76_is_sdio(dev) ? 2048 : 4096;
+	const struct firmware *fw = NULL;
+	const u8 *dl;
+	u32 len;
+
+	sem = mt76_connac_cb_mcu_patch_sem_ctrl(dev, true);
+	switch (sem) {
+	case CB_PATCH_IS_DL:
+		return 0;
+	case CB_PATCH_GET_SEM_NEED_PATCH:
+		break;
+	default:
+		dev_err(dev->dev, "Failed to get cb patch semaphore %u\n", sem);
+		return -EAGAIN;
+	}
+
+	ret = request_firmware(&fw, fw_name, dev->dev);
+	if (ret)
+		goto out;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev->dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)fw->data;
+	dev_info(dev->dev, "HW/SW Version: 0x%x, Pack Time: %.21s\n",
+		 le32_to_cpu(hdr->patch_ver), hdr->pack_time);
+
+	if (le32_to_cpu(hdr->sec_num) < 2) {
+		dev_err(dev->dev, "Invalid section numbers %u\n",
+			le32_to_cpu(hdr->sec_num));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sect = &hdr->sects[0];
+	/* check the fw bin basic info */
+	if (((le32_to_cpu(sect->type) & SEC_TYPE_SUBSYS_MASK)
+	    != SEC_TYPE_SUBSYS_CBMCU) ||
+	    ((le32_to_cpu(sect->type) & SEC_TYPE_SUBSYS_SEC_MASK)
+	    != SEC_TYPE_SUBSYS_SEC_IMG_SIGN)) {
+		dev_err(dev->dev, "Invalid CBMCU firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* download global desc + sect map + cert section */
+	len = sizeof(struct mt76_connac3_multi_header_v2_raw_format) -
+	      offsetof(struct mt76_connac3_multi_header_v2_raw_format,
+		       global_desc_head) +
+	      sizeof(struct mt76_connac3_multi_header_v2_sec_raw_format) *
+	      le32_to_cpu(hdr->sec_num) +
+	      le32_to_cpu(hdr->sects[0].size);
+	dl = &hdr->global_desc_head[0];
+
+	ret = mt76_connac_cb_mcu_init_download(dev, len);
+	if (ret) {
+		dev_err(dev->dev, "Download cb cert section request failed\n");
+		goto out;
+	}
+
+	ret = __mt76_mcu_send_firmware(dev, MCU_CMD(FW_SCATTER),
+				       dl, len, max_len);
+	if (ret) {
+		dev_err(dev->dev, "Failed to send cb patch cert section\n");
+		goto out;
+	}
+
+	ret = mt76_connac_cb_mcu_start_patch(dev);
+	if (ret) {
+		dev_err(dev->dev, "CBMCU cert check fail\n");
+		goto out;
+	}
+
+	/* download cbmcu idlm */
+	for (i = 1; i < le32_to_cpu(hdr->sec_num); i++) {
+		dl = (uint8_t *)hdr + le32_to_cpu(hdr->sects[i].offset);
+		len = le32_to_cpu(hdr->sects[i].size);
+
+		ret = mt76_connac_cb_mcu_init_download(dev, len);
+		if (ret) {
+			dev_err(dev->dev,
+				"Download cb section %u request failed\n", i);
+			goto out;
+		}
+
+		ret = __mt76_mcu_send_firmware(dev, MCU_CMD(FW_SCATTER),
+					       dl, len, max_len);
+		if (ret) {
+			dev_err(dev->dev,
+				"Failed to send cb patch section %u\n", i);
+			goto out;
+		}
+	}
+
+	ret = mt76_connac_cb_mcu_start_patch(dev);
+	if (ret)
+		dev_err(dev->dev, "Failed to start cb patch\n");
+
+out:
+	sem = mt76_connac_cb_mcu_patch_sem_ctrl(dev, false);
+	switch (sem) {
+	case CB_PATCH_REL_SEM_SUCCESS:
+		break;
+	default:
+		ret = -EAGAIN;
+		dev_err(dev->dev, "Failed to release cb patch semaphore\n");
+		break;
+	}
+
+	release_firmware(fw);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_connac3_load_cb_patch);
 
 int mt76_connac2_mcu_fill_message(struct mt76_dev *dev, struct sk_buff *skb,
 				  int cmd, int *wait_seq)

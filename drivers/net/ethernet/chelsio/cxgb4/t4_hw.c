@@ -33,6 +33,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/string_choices.h>
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4_values.h"
@@ -4867,7 +4868,7 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 		if (printk_ratelimit())
 			dev_warn(adapter->pdev_dev,
 				 "%u %s correctable ECC data error%s\n",
-				 cnt, name[idx], cnt > 1 ? "s" : "");
+				 cnt, name[idx], str_plural(cnt));
 	}
 	if (v & ECC_UE_INT_CAUSE_F)
 		dev_alert(adapter->pdev_dev,

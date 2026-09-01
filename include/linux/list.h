@@ -34,6 +34,14 @@
 	struct list_head name = LIST_HEAD_INIT(name)
 
 /**
+ * LIST_HEAD_GUARDED - define a &struct list_head annotated with __guarded_by()
+ * @name: name of the list_head
+ * @lock: lock protecting the list
+ */
+#define LIST_HEAD_GUARDED(name, lock) \
+	__guarded_by(&(lock)) LIST_HEAD(name)
+
+/**
  * INIT_LIST_HEAD - Initialize a list_head structure
  * @list: list_head structure to be initialized.
  *
@@ -150,10 +158,13 @@ static inline bool __list_del_entry_valid(struct list_head *entry)
  *
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
+ *
+ * Must be inlined to ensure it can be safely called
+ * with initdata arguments.
  */
-static inline void __list_add(struct list_head *new,
-			      struct list_head *prev,
-			      struct list_head *next)
+static __always_inline void __list_add(struct list_head *new,
+				       struct list_head *prev,
+				       struct list_head *next)
 {
 	if (!__list_add_valid(new, prev, next))
 		return;
@@ -171,8 +182,12 @@ static inline void __list_add(struct list_head *new,
  *
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
+ *
+ * Must be inlined to ensure it can be safely called
+ * with initdata arguments.
  */
-static inline void list_add(struct list_head *new, struct list_head *head)
+static __always_inline void list_add(struct list_head *new,
+				     struct list_head *head)
 {
 	__list_add(new, head, head->next);
 }
@@ -436,6 +451,7 @@ static inline void list_del_init_careful(struct list_head *entry)
  * if another CPU could re-list_add() it.
  */
 static inline int list_empty_careful(const struct list_head *head)
+	__context_unsafe(/* intentional lockless access to @head */)
 {
 	struct list_head *next = smp_load_acquire(&head->next);
 	return list_is_head(next, head) && (next == READ_ONCE(head->prev));

@@ -67,7 +67,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x001D, 0x0000);	/* Regulator current setting */
 	write_reg(par, 0x001E, 0x0009);	/* VCOM output setting */
 	write_reg(par, 0x001F, 0x0035);	/* VCOM amplitude setting */
-	write_reg(par, 0x0020, 0x0015);	/* VCOMM cencter setting */
+	write_reg(par, 0x0020, 0x0015);	/* VCOMM center setting */
 	write_reg(par, 0x0018, 0x1E7B);	/* DC/DC operation setting */
 
 	/* windows setting */

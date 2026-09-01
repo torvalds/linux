@@ -1082,23 +1082,27 @@ static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
  *
  * Bit layout of `fixup` (32-bit):
  *
- * +-----------+--------+-----------+-----------+----------+
- * |   31-27   | 26-22  |     21    |   20-16   |   15-0   |
- * |           |        |           |           |          |
- * | FIXUP_REG | Unused | ARENA_ACC | ARENA_REG |  OFFSET  |
- * +-----------+--------+-----------+-----------+----------+
+ * +-----------+--------+-------------+-----------+-----------+----------+
+ * |   31-27   | 26-23  |      22     |     21    |   20-16   |   15-0   |
+ * |           |        |             |           |           |          |
+ * | FIXUP_REG | Unused | ARENA_WRITE | ARENA_ACC | ARENA_REG |  OFFSET  |
+ * +-----------+--------+-------------+-----------+-----------+----------+
  *
  * - OFFSET (16 bits): Offset used to compute address for Load/Store instruction.
  * - ARENA_REG (5 bits): Register that is used to calculate the address for load/store when
  *                       accessing the arena region.
  * - ARENA_ACCESS (1 bit): This bit is set when the faulting instruction accessed the arena region.
+ * - ARENA_WRITE (1 bit): This bit is set when the faulting instruction wrote to the arena region.
+ *                        It is independent of FIXUP_REG, since a read-modify-write both writes to
+ *                        memory and reads the old value into a register.
  * - FIXUP_REG (5 bits): Destination register for the load instruction (cleared on fault) or set to
- *                       DONT_CLEAR if it is a store instruction.
+ *                       DONT_CLEAR if the instruction does not read into a register.
  */
 
 #define BPF_FIXUP_OFFSET_MASK      GENMASK(15, 0)
 #define BPF_FIXUP_ARENA_REG_MASK   GENMASK(20, 16)
 #define BPF_ARENA_ACCESS           BIT(21)
+#define BPF_ARENA_WRITE            BIT(22)
 #define BPF_FIXUP_REG_MASK	GENMASK(31, 27)
 #define DONT_CLEAR 5 /* Unused ARM64 register from BPF's POV */
 
@@ -1109,7 +1113,7 @@ bool ex_handler_bpf(const struct exception_table_entry *ex,
 	s16 off = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
 	int arena_reg = FIELD_GET(BPF_FIXUP_ARENA_REG_MASK, ex->fixup);
 	bool is_arena = !!(ex->fixup & BPF_ARENA_ACCESS);
-	bool is_write = (dst_reg == DONT_CLEAR);
+	bool is_write = !!(ex->fixup & BPF_ARENA_WRITE);
 	unsigned long addr;
 
 	if (is_arena) {
@@ -1132,7 +1136,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 {
 	off_t ins_offset;
 	s16 off = insn->off;
-	bool is_arena;
+	bool is_arena, is_write;
 	int arena_reg;
 	unsigned long pc;
 	struct exception_table_entry *ex;
@@ -1178,13 +1182,21 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	ex->insn = ins_offset;
 
-	if (BPF_CLASS(insn->code) != BPF_LDX)
-		dst_reg = DONT_CLEAR;
+	/*
+	 * A load-acquire is of BPF_STX class, but reads from src_reg into
+	 * dst_reg like a BPF_LDX does, hence it must not be treated as a store
+	 * here. A read-modify-write carrying BPF_FETCH is reported as a write
+	 * even though it does have a register to clear, see the callers.
+	 */
+	is_write = BPF_CLASS(insn->code) != BPF_LDX &&
+		   !bpf_atomic_is_load_acq(insn);
 
 	ex->fixup = FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
 
 	if (is_arena) {
 		ex->fixup |= BPF_ARENA_ACCESS;
+		if (is_write)
+			ex->fixup |= BPF_ARENA_WRITE;
 		/*
 		 * insn->src_reg/dst_reg holds the address in the arena region with upper 32-bits
 		 * being zero because of a preceding addr_space_cast(r<n>, 0x0, 0x1) instruction.
@@ -1193,7 +1205,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		 * memory access. Pass the reg holding the unmodified 32-bit address to
 		 * ex_handler_bpf.
 		 */
-		if (BPF_CLASS(insn->code) == BPF_LDX)
+		if (BPF_CLASS(insn->code) == BPF_LDX || bpf_atomic_is_load_acq(insn))
 			arena_reg = bpf2a64[insn->src_reg];
 		else
 			arena_reg = bpf2a64[insn->dst_reg];
@@ -1244,6 +1256,43 @@ static void emit_stack_arg_store_imm(s32 imm, s16 bpf_off, const u8 tmp, struct 
 	}
 }
 
+/*
+ * Rebase the __arena args of a kfunc call to arena kernel addresses,
+ * xN = kern_vm_start + (u32)xN, with the arena base register holding
+ * kern_vm_start. A nullable arg preserves NULL by skipping the add, tested
+ * on the truncated value as arena NULL is offset 0.
+ */
+static int emit_kfunc_arena_args(struct jit_ctx *ctx, const struct bpf_insn *insn)
+{
+	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
+	const struct btf_func_model *fm;
+	int i;
+
+	fm = bpf_jit_find_kfunc_model(ctx->prog, insn);
+	if (!fm)
+		return -EINVAL;
+
+	for (i = 0; i < min_t(int, fm->nr_args, MAX_BPF_FUNC_REG_ARGS); i++) {
+		const u8 reg = bpf2a64[BPF_REG_1 + i];
+		u8 flags = fm->arg_flags[i];
+
+		if (!(flags & BTF_FMODEL_ARENA_ARG))
+			continue;
+		if (WARN_ON_ONCE(!ctx->arena_vm_start))
+			return -EINVAL;
+
+		if (flags & BTF_FMODEL_NULLABLE_ARG) {
+			/* 32-bit mov clears the upper 32 bits */
+			emit(A64_MOV(0, reg, reg), ctx);
+			/* skip the add so that NULL stays NULL */
+			emit(A64_CBZ(0, reg, 2), ctx);
+		}
+		emit(A64_ADD_UXTW(reg, arena_vm_base, reg), ctx);
+	}
+
+	return 0;
+}
+
 /* JITs an eBPF instruction.
  * Returns:
  * 0  - successfully JITed an 8-byte eBPF instruction.
@@ -1284,12 +1333,25 @@ static int build_insn(const struct bpf_verifier_env *env, const struct bpf_insn 
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
 		if (insn_is_cast_user(insn)) {
-			emit(A64_MOV(0, tmp, src), ctx); // 32-bit mov clears the upper 32 bits
-			emit_a64_mov_i(0, dst, ctx->user_vm_start >> 32, ctx);
-			emit(A64_LSL(1, dst, dst, 32), ctx);
-			emit(A64_CBZ(1, tmp, 2), ctx);
-			emit(A64_ORR(1, tmp, dst, tmp), ctx);
-			emit(A64_MOV(1, dst, tmp), ctx);
+			u32 upper = ctx->user_vm_start >> 32;
+			u16 upper_low = upper & 0xffff;
+			u16 upper_high = upper >> 16;
+			int nr_movk = !!upper_low + !!upper_high;
+
+			/*
+			 * Build the user address: the low 32 bits are the arena
+			 * offset, the upper 32 bits come from user_vm_start. A
+			 * zero offset must stay NULL, so branch over the MOVKs
+			 * when it is zero.
+			 */
+			emit(A64_MOV(0, dst, src), ctx); /* 32-bit mov clears the upper 32 bits */
+			if (nr_movk) {
+				emit(A64_CBZ(0, dst, nr_movk + 1), ctx);
+				if (upper_low)
+					emit(A64_MOVK(1, dst, upper_low, 32), ctx);
+				if (upper_high)
+					emit(A64_MOVK(1, dst, upper_high, 48), ctx);
+			}
 			break;
 		} else if (insn_is_mov_percpu_addr(insn)) {
 			if (dst != src)
@@ -1653,6 +1715,11 @@ emit_cond_jmp:
 					    &func_addr, &func_addr_fixed);
 		if (ret < 0)
 			return ret;
+		if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
+			ret = emit_kfunc_arena_args(ctx, insn);
+			if (ret < 0)
+				return ret;
+		}
 		emit_call(func_addr, ctx);
 		/*
 		 * Call to arch_bpf_timed_may_goto() is emitted by the
@@ -1871,7 +1938,7 @@ emit_cond_jmp:
 			break;
 		}
 
-		ret = add_exception_handler(insn, ctx, dst);
+		ret = add_exception_handler(insn, ctx, DONT_CLEAR);
 		if (ret)
 			return ret;
 		break;
@@ -1938,7 +2005,7 @@ emit_cond_jmp:
 			break;
 		}
 
-		ret = add_exception_handler(insn, ctx, dst);
+		ret = add_exception_handler(insn, ctx, DONT_CLEAR);
 		if (ret)
 			return ret;
 		break;
@@ -1961,7 +2028,16 @@ emit_cond_jmp:
 			return ret;
 
 		if (BPF_MODE(insn->code) == BPF_PROBE_ATOMIC) {
-			ret = add_exception_handler(insn, ctx, dst);
+			/*
+			 * A load-acquire reads into dst_reg, and a read-modify-write
+			 * carrying BPF_FETCH reads the old value into src_reg, or into
+			 * r0 for a BPF_CMPXCHG. Clear that register on fault, the
+			 * remaining atomics have no destination register.
+			 */
+			int load_reg = bpf_atomic_load_reg(insn);
+
+			ret = add_exception_handler(insn, ctx, load_reg < 0 ?
+						    DONT_CLEAR : bpf2a64[load_reg]);
 			if (ret)
 				return ret;
 		}
@@ -2317,6 +2393,11 @@ bool bpf_jit_supports_stack_args(void)
 	return true;
 }
 
+bool bpf_jit_supports_arena_args(void)
+{
+	return true;
+}
+
 void *bpf_arch_text_copy(void *dst, void *src, size_t len)
 {
 	if (!aarch64_insn_copy(dst, src, len))
@@ -2490,34 +2571,76 @@ static void clear_garbage(struct jit_ctx *ctx, int reg, int effective_bytes)
 	}
 }
 
-static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
-		      const struct btf_func_model *m,
-		      const struct arg_aux *a,
-		      bool for_call_origin)
+/*
+ * Convert an arena kernel address into the arena pointer form on its way into
+ * the BPF ctx, dst = (u32)(src - kern_vm_start), with @base_lo holding the low
+ * 32 bits of kern_vm_start. A nullable arg preserves NULL, tested on the full
+ * 64-bit kernel pointer. The 32-bit subtraction both truncates and clears the
+ * upper half, so the stored value satisfies the JIT invariant for arena
+ * pointer registers.
+ */
+static void emit_arena_arg_conv(struct jit_ctx *ctx, u8 dst, u8 src, bool nullable, u8 base_lo)
 {
-	int i;
-	int reg;
-	int doff;
-	int soff;
-	int slots;
+	if (nullable) {
+		if (dst != src)
+			emit(A64_MOV(1, dst, src), ctx);
+		/* skip the subtraction so that NULL stays NULL */
+		emit(A64_CBZ(1, dst, 2), ctx);
+		src = dst;
+	}
+	emit(A64_SUB(0, dst, src, base_lo), ctx);
+}
+
+static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
+		      const struct btf_func_model *m, const struct arg_aux *a,
+		      bool for_call_origin, bool is_struct_ops, u64 arena_base)
+{
 	u8 tmp = bpf2a64[TMP_REG_1];
+	u8 base_lo = bpf2a64[TMP_REG_2];
+	int i, reg, doff, soff, slots;
+
+	/* only the low 32 bits of the base take part in the subtraction */
+	if (arena_base)
+		emit_a64_mov_i(0, base_lo, (s32)(u32)arena_base, ctx);
 
 	/* store arguments to the stack for the bpf program, or restore
 	 * arguments from stack for the original function
 	 */
-	for (reg = 0; reg < a->regs_for_args; reg++) {
-		emit(for_call_origin ?
-		     A64_LDR64I(reg, A64_SP, bargs_off) :
-		     A64_STR64I(reg, A64_SP, bargs_off),
-		     ctx);
-		bargs_off += 8;
+	for (i = 0, reg = 0; i < a->args_in_regs; i++) {
+		bool arena_arg = arena_base && (m->arg_flags[i] & BTF_FMODEL_ARENA_ARG);
+		bool nullable = m->arg_flags[i] & BTF_FMODEL_NULLABLE_ARG;
+
+		slots = (m->arg_size[i] + 7) / 8;
+		while (slots-- > 0) {
+			if (for_call_origin) {
+				emit(A64_LDR64I(reg, A64_SP, bargs_off), ctx);
+			} else if (arena_arg) {
+				emit_arena_arg_conv(ctx, tmp, reg, nullable, base_lo);
+				emit(A64_STR64I(tmp, A64_SP, bargs_off), ctx);
+			} else {
+				emit(A64_STR64I(reg, A64_SP, bargs_off), ctx);
+			}
+			reg++;
+			bargs_off += 8;
+		}
 	}
 
-	soff = 32; /* on stack arguments start from FP + 32 */
+	/*
+	 * On-stack arguments start above the frame(s) pushed by the trampoline
+	 * prologue. Entered through the fentry call from a traced function, the
+	 * prologue saves both the parent (FP/x9) and the traced function
+	 * (FP/LR) frames, so the arguments start at FP + 32. A struct_ops
+	 * callback is called indirectly and only the FP/LR frame is saved, so
+	 * they start at FP + 16.
+	 */
+	soff = is_struct_ops ? 16 : 32;
 	doff = (for_call_origin ? oargs_off : bargs_off);
 
 	/* save on stack arguments */
 	for (i = a->args_in_regs; i < m->nr_args; i++) {
+		bool arena_arg = arena_base && (m->arg_flags[i] & BTF_FMODEL_ARENA_ARG);
+		bool nullable = m->arg_flags[i] & BTF_FMODEL_NULLABLE_ARG;
+
 		slots = (m->arg_size[i] + 7) / 8;
 		/* verifier ensures arg_size <= 16, so slots equals 1 or 2 */
 		while (slots-- > 0) {
@@ -2527,6 +2650,15 @@ static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
 			 */
 			if (slots == 0 && !for_call_origin)
 				clear_garbage(ctx, tmp, m->arg_size[i] % 8);
+			/*
+			 * No guard on for_call_origin here: only the indirect
+			 * trampoline is given a base, and it never calls the
+			 * original function, so arguments are never converted
+			 * on their way back out to it. See the WARN_ON_ONCE()
+			 * in prepare_trampoline().
+			 */
+			if (arena_arg)
+				emit_arena_arg_conv(ctx, tmp, tmp, nullable, base_lo);
 			emit(A64_STR64I(tmp, A64_SP, doff), ctx);
 			soff += 8;
 			doff += 8;
@@ -2542,12 +2674,6 @@ static void restore_args(struct jit_ctx *ctx, int bargs_off, int nregs)
 		emit(A64_LDR64I(reg, A64_SP, bargs_off), ctx);
 		bargs_off += 8;
 	}
-}
-
-static bool is_struct_ops_tramp(const struct bpf_tramp_nodes *fentry_nodes)
-{
-	return fentry_nodes->nr_nodes == 1 &&
-		fentry_nodes->nodes[0]->link->type == BPF_LINK_TYPE_STRUCT_OPS;
 }
 
 static void store_func_meta(struct jit_ctx *ctx, u64 func_meta, int func_meta_off)
@@ -2592,7 +2718,20 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	bool is_struct_ops = is_struct_ops_tramp(fentry);
 	int cookie_off, cookie_cnt, cookie_bargs_off;
 	int fsession_cnt = bpf_fsession_cnt(tnodes);
+	u64 arena_base;
 	u64 func_meta;
+
+	/*
+	 * F_INDIRECT is only compatible with F_RET_FENTRY_RET, it is explicitly
+	 * incompatible with F_CALL_ORIG | F_SKIP_FRAME | F_IP_ARG because
+	 * @func_addr. Arena conversion relies on this: bpf_tramp_arena_base()
+	 * only returns a base for the indirect trampoline, which therefore
+	 * never calls the original function with converted arguments.
+	 */
+	WARN_ON_ONCE((flags & BPF_TRAMP_F_INDIRECT) &&
+		     (flags & ~(BPF_TRAMP_F_INDIRECT | BPF_TRAMP_F_RET_FENTRY_RET)));
+
+	arena_base = bpf_tramp_arena_base(m, tnodes, flags);
 
 	/* trampoline stack layout:
 	 *                    [ parent ip         ]
@@ -2709,7 +2848,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	store_func_meta(ctx, func_meta, func_meta_off);
 
 	/* save args for bpf */
-	save_args(ctx, bargs_off, oargs_off, m, a, false);
+	save_args(ctx, bargs_off, oargs_off, m, a, false, is_struct_ops, arena_base);
 
 	/* save callee saved registers */
 	emit(A64_STR64I(A64_R(19), A64_SP, regs_off), ctx);
@@ -2757,8 +2896,8 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		/* save args for original func */
-		save_args(ctx, bargs_off, oargs_off, m, a, true);
+		/* the original func takes kernel addresses, never converted ones */
+		save_args(ctx, bargs_off, oargs_off, m, a, true, is_struct_ops, 0);
 		/* call original func */
 		emit(A64_LDR64I(A64_R(10), A64_SP, retaddr_off), ctx);
 		emit(A64_ADR(A64_LR, AARCH64_INSN_SIZE * 2), ctx);

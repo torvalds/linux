@@ -28,7 +28,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <include/vdso/time64.h>
+#include "clock-helpers.h"
 #include "kselftest.h"
 
 /* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
@@ -42,36 +42,6 @@ int clock_id;
 struct timespec start_time;
 long long max_latency_ns;
 int timer_fired_early;
-
-char *clockstring(int clockid)
-{
-	switch (clockid) {
-	case CLOCK_REALTIME:
-		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
-	case CLOCK_PROCESS_CPUTIME_ID:
-		return "CLOCK_PROCESS_CPUTIME_ID";
-	case CLOCK_THREAD_CPUTIME_ID:
-		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
-	case CLOCK_REALTIME_COARSE:
-		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
-	case CLOCK_BOOTTIME:
-		return "CLOCK_BOOTTIME";
-	case CLOCK_REALTIME_ALARM:
-		return "CLOCK_REALTIME_ALARM";
-	case CLOCK_BOOTTIME_ALARM:
-		return "CLOCK_BOOTTIME_ALARM";
-	case CLOCK_TAI:
-		return "CLOCK_TAI";
-	}
-	return "UNKNOWN_CLOCKID";
-}
-
 
 long long timespec_sub(struct timespec a, struct timespec b)
 {
@@ -103,7 +73,7 @@ void sigalarm(int signo)
 void describe_timer(int flags, int interval)
 {
 	printf("%-22s %s %s ",
-			clockstring(clock_id),
+			clock_name(clock_id),
 			flags ? "ABSTIME":"RELTIME",
 			interval ? "PERIODIC":"ONE-SHOT");
 }
@@ -129,12 +99,12 @@ int setup_timer(int clock_id, int flags, int interval, timer_t *tm1)
 		if ((clock_id == CLOCK_REALTIME_ALARM) ||
 		    (clock_id == CLOCK_BOOTTIME_ALARM)) {
 			printf("%-22s %s missing CAP_WAKE_ALARM?    : [UNSUPPORTED]\n",
-					clockstring(clock_id),
+					clock_name(clock_id),
 					flags ? "ABSTIME":"RELTIME");
 			/* Indicate timer isn't set, so caller doesn't wait */
 			return 1;
 		}
-		printf("%s - timer_create() failed\n", clockstring(clock_id));
+		printf("%s - timer_create() failed\n", clock_name(clock_id));
 		return -1;
 	}
 
@@ -151,7 +121,7 @@ int setup_timer(int clock_id, int flags, int interval, timer_t *tm1)
 
 	err = timer_settime(*tm1, flags, &its1, &its2);
 	if (err) {
-		printf("%s - timer_settime() failed\n", clockstring(clock_id));
+		printf("%s - timer_settime() failed\n", clock_name(clock_id));
 		return -1;
 	}
 

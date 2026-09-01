@@ -83,7 +83,7 @@ static const struct of_device_id ad5446_i2c_of_ids[] = {
 	{ .compatible = "adi,ad5622", .data = &ad5622_chip_info },
 	{ }
 };
-MODULE_DEVICE_TABLE(OF, ad5446_i2c_of_ids);
+MODULE_DEVICE_TABLE(of, ad5446_i2c_of_ids);
 
 static struct i2c_driver ad5446_i2c_driver = {
 	.driver = {

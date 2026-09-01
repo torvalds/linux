@@ -56,7 +56,7 @@ static ssize_t hisi_associated_cpus_sysfs_show(struct device *dev,
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, &hisi_pmu->associated_cpus);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&hisi_pmu->associated_cpus));
 }
 static DEVICE_ATTR(associated_cpus, 0444, hisi_associated_cpus_sysfs_show, NULL);
 
@@ -192,11 +192,8 @@ int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 	ret = devm_request_irq(&pdev->dev, irq, hisi_uncore_pmu_isr,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
 			       dev_name(&pdev->dev), hisi_pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ: %d ret: %d.\n", irq, ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	hisi_pmu->irq = irq;
 

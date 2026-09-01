@@ -156,6 +156,12 @@ enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source);
 bool dm_is_crc_source_crtc(enum amdgpu_dm_pipe_crc_source src);
 bool dm_is_crc_source_dprx(enum amdgpu_dm_pipe_crc_source src);
 bool dm_need_crc_dither(enum amdgpu_dm_pipe_crc_source src);
+bool dm_need_dp_aux(enum amdgpu_dm_pipe_crc_source source,
+		    enum amdgpu_dm_pipe_crc_source cur_crc_src);
+bool dm_crc_source_should_start_dprx(enum amdgpu_dm_pipe_crc_source source,
+				      enum amdgpu_dm_pipe_crc_source cur_crc_src);
+bool dm_crc_source_should_stop_dprx(enum amdgpu_dm_pipe_crc_source source,
+				     enum amdgpu_dm_pipe_crc_source cur_crc_src);
 #endif
 
 #endif /* AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_ */

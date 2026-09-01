@@ -83,15 +83,15 @@ static const struct {
 static int powernow_k6_get_cpu_multiplier(void)
 {
 	unsigned long invalue = 0;
-	u32 msrval;
+	u64 msrval;
 
 	local_irq_disable();
 
 	msrval = POWERNOW_IOPORT + 0x1;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
+	wrmsrq(MSR_K6_EPMR, msrval); /* enable the PowerNow port */
 	invalue = inl(POWERNOW_IOPORT + 0x8);
 	msrval = POWERNOW_IOPORT + 0x0;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
+	wrmsrq(MSR_K6_EPMR, msrval); /* disable it again */
 
 	local_irq_enable();
 
@@ -101,8 +101,8 @@ static int powernow_k6_get_cpu_multiplier(void)
 static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
 {
 	unsigned long outvalue, invalue;
-	unsigned long msrval;
 	unsigned long cr0;
+	u64 msrval;
 
 	/* we now need to transform best_i to the BVC format, see AMD#23446 */
 
@@ -118,13 +118,13 @@ static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
 	outvalue = (1<<12) | (1<<10) | (1<<9) | (index_to_register[best_i]<<5);
 
 	msrval = POWERNOW_IOPORT + 0x1;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
+	wrmsrq(MSR_K6_EPMR, msrval); /* enable the PowerNow port */
 	invalue = inl(POWERNOW_IOPORT + 0x8);
 	invalue = invalue & 0x1f;
 	outvalue = outvalue | invalue;
 	outl(outvalue, (POWERNOW_IOPORT + 0x8));
 	msrval = POWERNOW_IOPORT + 0x0;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
+	wrmsrq(MSR_K6_EPMR, msrval); /* disable it again */
 
 	write_cr0(cr0);
 	local_irq_enable();

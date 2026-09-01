@@ -347,4 +347,14 @@ config IMA_STAGING
 	  On kexec, staging is aborted and any staged measurement records are
 	  copied to the secondary kernel.
 
+config IMA_INIT_LATE_SYNC
+	bool "Initialise IMA at late_initcall_sync"
+	default n
+	help
+	  This option initialises IMA at late_initcall_sync for platforms
+	  where TPM device probing is deferred.
+	  When this option is enabled, modules that access files in the
+	  initramfs through usermode helper calls such as request_module()
+	  during initcall must not be built-in. Otherwise, IMA may miss
+	  file measurements for them.
 endif

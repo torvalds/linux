@@ -177,7 +177,7 @@ static int raspberrypi_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id raspberrypi_pwm_of_match[] = {
-	{ .compatible = "raspberrypi,firmware-poe-pwm", },
+	{ .compatible = "raspberrypi,firmware-poe-pwm" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, raspberrypi_pwm_of_match);

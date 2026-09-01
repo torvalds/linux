@@ -1155,3 +1155,4 @@ module_platform_driver(axp20x_batt_driver);
 MODULE_DESCRIPTION("Battery power supply driver for AXP20X and AXP22X PMICs");
 MODULE_AUTHOR("Quentin Schulz <quentin.schulz@free-electrons.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

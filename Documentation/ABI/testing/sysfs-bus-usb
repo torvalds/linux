@@ -293,7 +293,7 @@ Description:
 
 		Supported values are 0 - 15.
 		More information on how besl values map to microseconds can be found in
-		USB 2.0 ECN Errata for Link Power Management, section 4.10)
+		USB 2.0 ECN Errata for Link Power Management, section 4.10
 
 What:		/sys/bus/usb/devices/.../rx_lanes
 Date:		March 2018

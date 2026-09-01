@@ -52,7 +52,6 @@ struct nfs_local_fsync_ctx {
 	struct nfsd_file	*localio;
 	struct nfs_commit_data	*data;
 	struct work_struct	work;
-	struct completion	*done;
 };
 
 static bool localio_enabled __read_mostly = true;
@@ -699,6 +698,29 @@ static void nfs_local_call_read(struct work_struct *work)
 	}
 }
 
+/*
+ * Decide whether LOCALIO must defer submission to the dedicated
+ * !WQ_MEM_RECLAIM nfslocaliod_workqueue rather than issue the IO inline.
+ *
+ * LOCALIO issues IO directly into a stacked local filesystem (e.g. XFS),
+ * which may in turn flush its own !WQ_MEM_RECLAIM workqueue.  Doing so from a
+ * memory-reclaim context -- either a WQ_MEM_RECLAIM worker (most importantly
+ * writeback's wb_workfn running on bdi_wq) or an explicit reclaim task
+ * (PF_MEMALLOC) -- would trip check_flush_dependency() and risks a
+ * forward-progress deadlock; see commit b9f5dd57f4a5 ("nfs/localio: use
+ * dedicated workqueues for filesystem read and write").  In that case defer
+ * to nfslocaliod_workqueue.
+ *
+ * Otherwise (ordinary application/task context, e.g. O_DIRECT or fsync-driven
+ * submission) issue the IO inline: this preserves the NFS client's inherent
+ * application-context parallelism and avoids the per-IO workqueue hop.
+ */
+static inline bool nfs_local_defer_io(void)
+{
+	return (current->flags & PF_MEMALLOC) ||
+		current_is_workqueue_mem_reclaim();
+}
+
 static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
 			      const struct rpc_call_ops *call_ops)
 {
@@ -711,7 +733,10 @@ static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
 	hdr->res.eof = false;
 
 	INIT_WORK(&iocb->work, nfs_local_call_read);
-	queue_work(nfslocaliod_workqueue, &iocb->work);
+	if (nfs_local_defer_io())
+		queue_work(nfslocaliod_workqueue, &iocb->work);
+	else
+		nfs_local_call_read(&iocb->work);
 }
 
 static void
@@ -929,7 +954,10 @@ static void nfs_local_do_write(struct nfs_local_kiocb *iocb,
 	nfs_set_local_verifier(hdr->inode, hdr->res.verf, hdr->args.stable);
 
 	INIT_WORK(&iocb->work, nfs_local_call_write);
-	queue_work(nfslocaliod_workqueue, &iocb->work);
+	if (nfs_local_defer_io())
+		queue_work(nfslocaliod_workqueue, &iocb->work);
+	else
+		nfs_local_call_write(&iocb->work);
 }
 
 static struct nfs_local_kiocb *
@@ -1071,8 +1099,6 @@ nfs_local_fsync_work(struct work_struct *work)
 	status = nfs_local_run_commit(nfs_to->nfsd_file_file(ctx->localio),
 				      ctx->data);
 	nfs_local_commit_done(ctx->data, status);
-	if (ctx->done != NULL)
-		complete(ctx->done);
 	nfs_local_fsync_ctx_free(ctx);
 
 	current->flags = old_flags;
@@ -1088,14 +1114,13 @@ nfs_local_fsync_ctx_alloc(struct nfs_commit_data *data,
 		ctx->localio = localio;
 		ctx->data = data;
 		INIT_WORK(&ctx->work, nfs_local_fsync_work);
-		ctx->done = NULL;
 	}
 	return ctx;
 }
 
 int nfs_local_commit(struct nfsd_file *localio,
 		     struct nfs_commit_data *data,
-		     const struct rpc_call_ops *call_ops, int how)
+		     const struct rpc_call_ops *call_ops)
 {
 	struct nfs_local_fsync_ctx *ctx;
 
@@ -1108,13 +1133,18 @@ int nfs_local_commit(struct nfsd_file *localio,
 
 	nfs_local_init_commit(data, call_ops);
 
-	if (how & FLUSH_SYNC) {
-		DECLARE_COMPLETION_ONSTACK(done);
-		ctx->done = &done;
+	/*
+	 * Run the commit (fsync) inline when not in a memory-reclaim context,
+	 * rather than bouncing through nfslocaliod_workqueue; see
+	 * nfs_local_defer_io().  Completion (nfs_commit_release_pages ->
+	 * nfs_commit_end) then runs synchronously, which higher layers cope
+	 * with: __nfs_commit_inode() dispatches async and waits via
+	 * wait_on_commit().
+	 */
+	if (nfs_local_defer_io())
 		queue_work(nfslocaliod_workqueue, &ctx->work);
-		wait_for_completion(&done);
-	} else
-		queue_work(nfslocaliod_workqueue, &ctx->work);
+	else
+		nfs_local_fsync_work(&ctx->work);
 
 	return 0;
 }

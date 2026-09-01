@@ -104,6 +104,14 @@ impl<T: DriverGpuVm> GpuVa<T> {
 /// The memory is zeroed.
 pub struct GpuVaAlloc<T: DriverGpuVm>(KBox<MaybeUninit<GpuVa<T>>>);
 
+// SAFETY: A `GpuVaAlloc` is an owned, uninitialised allocation with no live `T::VaData` and no
+// thread-bound state.
+unsafe impl<T: DriverGpuVm> Send for GpuVaAlloc<T> {}
+
+// SAFETY: A `GpuVaAlloc` has no `&self` method that reaches its contents, so a shared
+// `&GpuVaAlloc` cannot access the allocation.
+unsafe impl<T: DriverGpuVm> Sync for GpuVaAlloc<T> {}
+
 impl<T: DriverGpuVm> GpuVaAlloc<T> {
     /// Pre-allocate a [`GpuVa`] object.
     pub fn new(flags: AllocFlags) -> Result<GpuVaAlloc<T>, AllocError> {
@@ -116,7 +124,7 @@ impl<T: DriverGpuVm> GpuVaAlloc<T> {
     pub(super) fn prepare(mut self, va_data: impl PinInit<T::VaData>) -> *mut bindings::drm_gpuva {
         let va_ptr = MaybeUninit::as_mut_ptr(&mut self.0);
         // SAFETY: The `data` field is pinned.
-        let Ok(()) = unsafe { va_data.__pinned_init(&raw mut (*va_ptr).data) };
+        unsafe { pin_init::raw_init(&raw mut (*va_ptr).data, va_data) };
         KBox::into_raw(self.0).cast()
     }
 }

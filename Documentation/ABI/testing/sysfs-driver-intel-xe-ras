@@ -1,0 +1,30 @@
+What:		/sys/bus/pci/drivers/xe/.../gpu_health
+Date:		July 2026
+KernelVersion:	7.3
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		This file exposes the current gpu health state and allows the gpu
+		health state to be updated.
+
+		This sysfs file is present only on Intel Xe platforms that support
+		the gpu health indicator interface for RAS. Reading the current
+		health state is available to all users, while updating the health
+		state is restricted to administrative users only.
+
+		Read returns a single line containing one of the valid values for
+		the current gpu health state. Writing one of the valid values
+		updates the current gpu health state.
+
+		The valid values for the gpu health state are:
+
+			ok
+				The gpu is healthy and operating within normal
+				parameters.
+
+			warning
+				The gpu is experiencing minor issues but remains
+				operational.
+
+			critical
+				The gpu is in a critical state and may not be
+				operational.

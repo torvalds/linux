@@ -220,7 +220,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_opt_value newval;
 	int miimon = 0;
-	int err;
+	int err = 0;
 
 	if (!data)
 		return 0;
@@ -372,7 +372,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_INTERVAL],
+			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_VALIDATE],
 					    "ARP validating cannot be used with MII monitoring");
 			return -EINVAL;
 		}
@@ -686,53 +686,58 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		0;
 }
 
-static int bond_option_active_slave_get_ifindex(struct bonding *bond)
+static int bond_option_active_slave_get_ifindex_rcu(const struct bonding *bond)
 {
-	const struct net_device *slave;
-	int ifindex;
+	const struct net_device *dev = NULL;
+	const struct slave *slave;
 
-	rcu_read_lock();
-	slave = bond_option_active_slave_get_rcu(bond);
-	ifindex = slave ? slave->ifindex : 0;
-	rcu_read_unlock();
-	return ifindex;
+	slave = rcu_dereference(bond->curr_active_slave);
+	if (slave)
+		dev = slave->dev;
+	return dev ? dev->ifindex : 0;
 }
 
 static int bond_fill_info(struct sk_buff *skb,
 			  const struct net_device *bond_dev)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	unsigned int packets_per_slave;
-	int ifindex, i, targets_added;
+	const struct bonding *bond = netdev_priv(bond_dev);
+	int i, targets_added, miimon, mode;
+	const struct slave *primary;
 	struct nlattr *targets;
-	struct slave *primary;
 
-	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
+	rcu_read_lock();
+	mode = READ_ONCE(bond->params.mode);
+	if (nla_put_u8(skb, IFLA_BOND_MODE, mode))
 		goto nla_put_failure;
 
-	ifindex = bond_option_active_slave_get_ifindex(bond);
-	if (ifindex && nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, ifindex))
-		goto nla_put_failure;
+	if (bond_mode_uses_primary(mode)) {
+		int ifindex = bond_option_active_slave_get_ifindex_rcu(bond);
 
-	if (nla_put_u32(skb, IFLA_BOND_MIIMON, bond->params.miimon))
+		if (ifindex && nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, ifindex))
+			goto nla_put_failure;
+	}
+
+	miimon = READ_ONCE(bond->params.miimon);
+	if (nla_put_u32(skb, IFLA_BOND_MIIMON, miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_UPDELAY,
-			bond->params.updelay * bond->params.miimon))
+			READ_ONCE(bond->params.updelay) * miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_DOWNDELAY,
-			bond->params.downdelay * bond->params.miimon))
+			READ_ONCE(bond->params.downdelay) * miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_PEER_NOTIF_DELAY,
-			bond->params.peer_notif_delay * bond->params.miimon))
+			READ_ONCE(bond->params.peer_notif_delay) * miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, 1))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
+	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL,
+			READ_ONCE(bond->params.arp_interval)))
 		goto nla_put_failure;
 
 	targets = nla_nest_start_noflag(skb, IFLA_BOND_ARP_IP_TARGET);
@@ -741,8 +746,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	targets_added = 0;
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
-		if (bond->params.arp_targets[i]) {
-			if (nla_put_be32(skb, i, bond->params.arp_targets[i]))
+		__be32 t = READ_ONCE(bond->params.arp_targets[i]);
+
+		if (t) {
+			if (nla_put_be32(skb, i, t))
 				goto nla_put_failure;
 			targets_added = 1;
 		}
@@ -753,11 +760,12 @@ static int bond_fill_info(struct sk_buff *skb,
 	else
 		nla_nest_cancel(skb, targets);
 
-	if (nla_put_u32(skb, IFLA_BOND_ARP_VALIDATE, bond->params.arp_validate))
+	if (nla_put_u32(skb, IFLA_BOND_ARP_VALIDATE,
+			READ_ONCE(bond->params.arp_validate)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_ALL_TARGETS,
-			bond->params.arp_all_targets))
+			READ_ONCE(bond->params.arp_all_targets)))
 		goto nla_put_failure;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -767,6 +775,9 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	targets_added = 0;
 	for (i = 0; i < BOND_MAX_NS_TARGETS; i++) {
+		/* Note: IPv6 addresses can not be read in an atomic READ_ONCE() yet.
+		 * We accept this minor race for the moment.
+		 */
 		if (!ipv6_addr_any(&bond->params.ns_targets[i])) {
 			if (nla_put_in6_addr(skb, i, &bond->params.ns_targets[i]))
 				goto nla_put_failure;
@@ -780,97 +791,97 @@ static int bond_fill_info(struct sk_buff *skb,
 		nla_nest_cancel(skb, targets);
 #endif
 
-	primary = rtnl_dereference(bond->primary_slave);
+	primary = rcu_dereference(bond->primary_slave);
 	if (primary &&
 	    nla_put_u32(skb, IFLA_BOND_PRIMARY, primary->dev->ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_PRIMARY_RESELECT,
-		       bond->params.primary_reselect))
+		       READ_ONCE(bond->params.primary_reselect)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_FAIL_OVER_MAC,
-		       bond->params.fail_over_mac))
+		       READ_ONCE(bond->params.fail_over_mac)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_XMIT_HASH_POLICY,
-		       bond->params.xmit_policy))
+		       READ_ONCE(bond->params.xmit_policy)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_RESEND_IGMP,
-			bond->params.resend_igmp))
+			READ_ONCE(bond->params.resend_igmp)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_NOTIF,
-		       bond->params.num_peer_notif))
+		       READ_ONCE(bond->params.num_peer_notif)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_ALL_SLAVES_ACTIVE,
-		       bond->params.all_slaves_active))
+		       READ_ONCE(bond->params.all_slaves_active)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_MIN_LINKS,
-			bond->params.min_links))
+			READ_ONCE(bond->params.min_links)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_LP_INTERVAL,
-			bond->params.lp_interval))
+			READ_ONCE(bond->params.lp_interval)))
 		goto nla_put_failure;
 
-	packets_per_slave = bond->params.packets_per_slave;
 	if (nla_put_u32(skb, IFLA_BOND_PACKETS_PER_SLAVE,
-			packets_per_slave))
+			READ_ONCE(bond->params.packets_per_slave)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_AD_LACP_ACTIVE,
-		       bond->params.lacp_active))
+		       READ_ONCE(bond->params.lacp_active)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_AD_LACP_RATE,
-		       bond->params.lacp_fast))
+		       READ_ONCE(bond->params.lacp_fast)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_AD_SELECT,
-		       bond->params.ad_select))
+		       READ_ONCE(bond->params.ad_select)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_TLB_DYNAMIC_LB,
-		       bond->params.tlb_dynamic_lb))
+		       READ_ONCE(bond->params.tlb_dynamic_lb)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_MISSED_MAX,
-		       bond->params.missed_max))
+		       READ_ONCE(bond->params.missed_max)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_COUPLED_CONTROL,
-		       bond->params.coupled_control))
+		       READ_ONCE(bond->params.coupled_control)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_BROADCAST_NEIGH,
-		       bond->params.broadcast_neighbor))
+		       READ_ONCE(bond->params.broadcast_neighbor)))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_LACP_STRICT,
-		       bond->params.lacp_strict))
+		       READ_ONCE(bond->params.lacp_strict)))
 		goto nla_put_failure;
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (mode == BOND_MODE_8023AD) {
 		struct ad_info info;
 
 		if (capable(CAP_NET_ADMIN)) {
 			if (nla_put_u16(skb, IFLA_BOND_AD_ACTOR_SYS_PRIO,
-					bond->params.ad_actor_sys_prio))
+					READ_ONCE(bond->params.ad_actor_sys_prio)))
 				goto nla_put_failure;
 
 			if (nla_put_u16(skb, IFLA_BOND_AD_USER_PORT_KEY,
-					bond->params.ad_user_port_key))
+					READ_ONCE(bond->params.ad_user_port_key)))
 				goto nla_put_failure;
 
+			/* Small race here, this is a minor trade off. */
 			if (nla_put(skb, IFLA_BOND_AD_ACTOR_SYSTEM,
 				    ETH_ALEN, &bond->params.ad_actor_system))
 				goto nla_put_failure;
 		}
-		if (!bond_3ad_get_active_agg_info(bond, &info)) {
+		if (!__bond_3ad_get_active_agg_info(bond, &info)) {
 			struct nlattr *nest;
 
 			nest = nla_nest_start_noflag(skb, IFLA_BOND_AD_INFO);
@@ -898,9 +909,11 @@ static int bond_fill_info(struct sk_buff *skb,
 		}
 	}
 
+	rcu_read_unlock();
 	return 0;
 
 nla_put_failure:
+	rcu_read_unlock();
 	return -EMSGSIZE;
 }
 

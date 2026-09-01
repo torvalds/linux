@@ -761,6 +761,7 @@ static int isys_notifier_init(struct ipu6_isys *isys)
 
 err_parse:
 		fwnode_handle_put(ep);
+		v4l2_async_nf_cleanup(&isys->notifier);
 		return ret;
 	}
 

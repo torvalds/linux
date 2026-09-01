@@ -416,6 +416,7 @@ struct hci_dev {
 	__u16		le_conn_max_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u16		le_min_rate_interval;
 	__u16		le_def_tx_len;
 	__u16		le_def_tx_time;
 	__u16		le_max_tx_len;
@@ -645,6 +646,8 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*shutdown)(struct hci_dev *hdev);
 	int (*send)(struct hci_dev *hdev, struct sk_buff *skb);
+	/* Handle HCI_EV_VENDOR; return true if handled, false otherwise */
+	bool (*handle_ev_vendor)(struct hci_dev *hdev, struct sk_buff *skb);
 	void (*notify)(struct hci_dev *hdev, unsigned int evt);
 	void (*hw_error)(struct hci_dev *hdev, u8 code);
 	int (*post_init)(struct hci_dev *hdev);
@@ -720,6 +723,11 @@ struct hci_conn {
 	__u16		le_conn_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u16		le_rate_interval;
+	__u16		le_subrate;
+	__u16		le_rate_latency;
+	__u16		le_cont_num;
+	__u16		le_rate_supv_timeout;
 	__u8		le_adv_data[HCI_MAX_EXT_AD_LENGTH];
 	__u8		le_adv_data_len;
 	__u8		le_per_adv_data[HCI_MAX_PER_AD_TOT_LEN];
@@ -769,7 +777,7 @@ struct hci_conn {
 	struct hci_dev	*hdev;
 
 	spinlock_t	proto_lock; /* lock guarding protocol data */
-	void		*l2cap_data;
+	void		*l2cap_data __guarded_by(&proto_lock, &hdev->lock);
 	void		*sco_data;
 	void		*iso_data __guarded_by(&proto_lock);
 
@@ -811,6 +819,14 @@ struct hci_conn_params {
 	u16 conn_max_interval;
 	u16 conn_latency;
 	u16 supervision_timeout;
+
+	u16 rate_min_interval;
+	u16 rate_max_interval;
+	u16 subrate_min;
+	u16 subrate_max;
+	u16 max_latency;
+	u16 cont_num;
+	u16 rate_supv_timeout;
 
 	enum {
 		HCI_AUTO_CONN_DISABLED,
@@ -919,9 +935,9 @@ static inline void hci_discovery_filter_clear(struct hci_dev *hdev)
 	hdev->discovery.result_filtering = false;
 	hdev->discovery.report_invalid_rssi = true;
 	hdev->discovery.rssi = HCI_RSSI_INVALID;
-	hdev->discovery.uuid_count = 0;
 
 	spin_lock(&hdev->discovery.lock);
+	hdev->discovery.uuid_count = 0;
 	kfree(hdev->discovery.uuids);
 	hdev->discovery.uuids = NULL;
 	spin_unlock(&hdev->discovery.lock);
@@ -1771,7 +1787,13 @@ int hci_register_suspend_notifier(struct hci_dev *hdev);
 int hci_unregister_suspend_notifier(struct hci_dev *hdev);
 int hci_suspend_dev(struct hci_dev *hdev);
 int hci_resume_dev(struct hci_dev *hdev);
-int hci_reset_dev(struct hci_dev *hdev);
+int __hci_reset_dev(struct hci_dev *hdev, u8 hw_err_code);
+
+static inline int hci_reset_dev(struct hci_dev *hdev)
+{
+	return __hci_reset_dev(hdev, 0);
+}
+
 int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb);
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb);
 __printf(2, 3) void hci_set_hw_info(struct hci_dev *hdev, const char *fmt, ...);
@@ -2078,6 +2100,11 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 	((dev)->le_features[5] & HCI_LE_CS)
 #define le_cs_host_capable(dev) \
 	((dev)->le_features[5] & HCI_LE_CS_HOST)
+
+#define le_sci_capable(dev) \
+	((dev)->le_features[9] & HCI_LE_SCI)
+#define le_sci_enabled(dev) \
+	(le_enabled(dev) && le_sci_capable(dev))
 
 #define mws_transport_config_capable(dev) (((dev)->commands[30] & 0x08) && \
 	(!hci_test_quirk((dev), HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG)))
@@ -2494,6 +2521,8 @@ void mgmt_advertising_removed(struct sock *sk, struct hci_dev *hdev,
 int mgmt_phy_configuration_changed(struct hci_dev *hdev, struct sock *skip);
 void mgmt_adv_monitor_device_lost(struct hci_dev *hdev, u16 handle,
 				  bdaddr_t *bdaddr, u8 addr_type);
+void mgmt_conn_subrate_notify(struct hci_dev *hdev, struct hci_conn *conn,
+			      u8 status);
 
 int hci_abort_conn(struct hci_conn *conn, u8 reason);
 void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,

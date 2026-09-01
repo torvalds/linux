@@ -175,12 +175,12 @@ static const struct of_device_id mcp41010_match[] = {
 MODULE_DEVICE_TABLE(of, mcp41010_match);
 
 static const struct spi_device_id mcp41010_id[] = {
-	{ "mcp41010", MCP41010 },
-	{ "mcp41050", MCP41050 },
-	{ "mcp41100", MCP41100 },
-	{ "mcp42010", MCP42010 },
-	{ "mcp42050", MCP42050 },
-	{ "mcp42100", MCP42100 },
+	{ .name = "mcp41010", .driver_data = MCP41010 },
+	{ .name = "mcp41050", .driver_data = MCP41050 },
+	{ .name = "mcp41100", .driver_data = MCP41100 },
+	{ .name = "mcp42010", .driver_data = MCP42010 },
+	{ .name = "mcp42050", .driver_data = MCP42050 },
+	{ .name = "mcp42100", .driver_data = MCP42100 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp41010_id);

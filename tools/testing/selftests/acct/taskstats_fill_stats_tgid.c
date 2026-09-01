@@ -16,13 +16,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "netlink_helper.h"
 #include "kselftest.h"
-
-#ifndef NLA_ALIGN
-#define NLA_ALIGNTO 4
-#define NLA_ALIGN(len) (((len) + NLA_ALIGNTO - 1) & ~(NLA_ALIGNTO - 1))
-#define NLA_HDRLEN ((int)NLA_ALIGN(sizeof(struct nlattr)))
-#endif
 
 #define BUSY_NS (200ULL * 1000 * 1000)
 
@@ -34,26 +29,6 @@ struct worker_ctx {
 };
 
 static unsigned long busy_sink;
-
-static void *taskstats_nla_data(const struct nlattr *na)
-{
-	return (void *)((char *)na + NLA_HDRLEN);
-}
-
-static bool taskstats_nla_ok(const struct nlattr *na, int remaining)
-{
-	return remaining >= (int)sizeof(*na) &&
-	       na->nla_len >= sizeof(*na) &&
-	       na->nla_len <= remaining;
-}
-
-static struct nlattr *taskstats_nla_next(const struct nlattr *na, int *remaining)
-{
-	int aligned_len = NLA_ALIGN(na->nla_len);
-
-	*remaining -= aligned_len;
-	return (struct nlattr *)((char *)na + aligned_len);
-}
 
 static uint64_t timespec_diff_ns(const struct timespec *start,
 				 const struct timespec *end)
@@ -82,99 +57,6 @@ static void burn_cpu_for_ns(uint64_t runtime_ns)
 	} while (timespec_diff_ns(&start, &now) < runtime_ns);
 
 	busy_sink = acc;
-}
-
-static int netlink_open(void)
-{
-	struct sockaddr_nl addr = {
-		.nl_family = AF_NETLINK,
-		.nl_pid = getpid(),
-	};
-	int fd;
-
-	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
-	if (fd < 0)
-		return -errno;
-
-	if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		int err = -errno;
-
-		close(fd);
-		return err;
-	}
-
-	return fd;
-}
-
-static int send_request(int fd, void *buf, size_t len)
-{
-	struct sockaddr_nl addr = {
-		.nl_family = AF_NETLINK,
-	};
-
-	if (sendto(fd, buf, len, 0, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-		return -errno;
-
-	return 0;
-}
-
-static int get_family_id(int fd, const char *name)
-{
-	struct {
-		struct nlmsghdr nlh;
-		struct genlmsghdr genl;
-		char buf[256];
-	} req = { 0 };
-	char resp[8192];
-	struct nlmsghdr *nlh;
-	struct genlmsghdr *genl;
-	struct nlattr *na;
-	int len;
-	int rem;
-	int ret;
-
-	req.nlh.nlmsg_len = NLMSG_LENGTH(GENL_HDRLEN);
-	req.nlh.nlmsg_type = GENL_ID_CTRL;
-	req.nlh.nlmsg_flags = NLM_F_REQUEST;
-	req.nlh.nlmsg_seq = 1;
-	req.nlh.nlmsg_pid = getpid();
-
-	req.genl.cmd = CTRL_CMD_GETFAMILY;
-	req.genl.version = 1;
-
-	na = (struct nlattr *)((char *)&req + NLMSG_ALIGN(req.nlh.nlmsg_len));
-	na->nla_type = CTRL_ATTR_FAMILY_NAME;
-	na->nla_len = NLA_HDRLEN + strlen(name) + 1;
-	memcpy(taskstats_nla_data(na), name, strlen(name) + 1);
-	req.nlh.nlmsg_len = NLMSG_ALIGN(req.nlh.nlmsg_len) + NLA_ALIGN(na->nla_len);
-
-	ret = send_request(fd, &req, req.nlh.nlmsg_len);
-	if (ret)
-		return ret;
-
-	len = recv(fd, resp, sizeof(resp), 0);
-	if (len < 0)
-		return -errno;
-
-	for (nlh = (struct nlmsghdr *)resp; NLMSG_OK(nlh, len);
-	     nlh = NLMSG_NEXT(nlh, len)) {
-		if (nlh->nlmsg_type == NLMSG_ERROR) {
-			struct nlmsgerr *err = NLMSG_DATA(nlh);
-
-			return err->error ? err->error : -ENOENT;
-		}
-
-		genl = (struct genlmsghdr *)NLMSG_DATA(nlh);
-		rem = nlh->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN;
-		na = (struct nlattr *)((char *)genl + GENL_HDRLEN);
-		while (taskstats_nla_ok(na, rem)) {
-			if (na->nla_type == CTRL_ATTR_FAMILY_ID)
-				return *(uint16_t *)taskstats_nla_data(na);
-			na = taskstats_nla_next(na, &rem);
-		}
-	}
-
-	return -ENOENT;
 }
 
 static int get_taskstats(int fd, int family_id, uint16_t attr_type, uint32_t id,
@@ -209,7 +91,7 @@ static int get_taskstats(int fd, int family_id, uint16_t attr_type, uint32_t id,
 	na = (struct nlattr *)((char *)&req + NLMSG_ALIGN(req.nlh.nlmsg_len));
 	na->nla_type = attr_type;
 	na->nla_len = NLA_HDRLEN + sizeof(id);
-	memcpy(taskstats_nla_data(na), &id, sizeof(id));
+	memcpy(nla_data(na), &id, sizeof(id));
 	req.nlh.nlmsg_len = NLMSG_ALIGN(req.nlh.nlmsg_len) + NLA_ALIGN(na->nla_len);
 
 	ret = send_request(fd, &req, req.nlh.nlmsg_len);
@@ -231,21 +113,21 @@ static int get_taskstats(int fd, int family_id, uint16_t attr_type, uint32_t id,
 		genl = (struct genlmsghdr *)NLMSG_DATA(nlh);
 		rem = nlh->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN;
 		na = (struct nlattr *)((char *)genl + GENL_HDRLEN);
-		while (taskstats_nla_ok(na, rem)) {
+		while (nla_ok(na, rem)) {
 			if (na->nla_type == TASKSTATS_TYPE_AGGR_PID ||
 			    na->nla_type == TASKSTATS_TYPE_AGGR_TGID) {
-				nested = (struct nlattr *)taskstats_nla_data(na);
+				nested = (struct nlattr *)nla_data(na);
 				nrem = na->nla_len - NLA_HDRLEN;
-				while (taskstats_nla_ok(nested, nrem)) {
+				while (nla_ok(nested, nrem)) {
 					if (nested->nla_type == TASKSTATS_TYPE_STATS) {
-						memcpy(stats, taskstats_nla_data(nested),
+						memcpy(stats, nla_data(nested),
 						       sizeof(*stats));
 						return 0;
 					}
-					nested = taskstats_nla_next(nested, &nrem);
+					nested = nla_next(nested, &nrem);
 				}
 			}
-			na = taskstats_nla_next(na, &rem);
+			na = nla_next(na, &rem);
 		}
 	}
 

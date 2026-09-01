@@ -450,10 +450,14 @@ static void *rga3_adjust_and_map_format(struct rga_ctx *ctx,
 	other_format = is_output ? &ctx->out.pix : &ctx->in.pix;
 	other_format_info = v4l2_format_info(other_format->pixelformat);
 
-	if ((v4l2_is_format_rgb(format_info) &&
-	     v4l2_is_format_yuv(other_format_info)) ||
-	    (v4l2_is_format_yuv(format_info) &&
-	     v4l2_is_format_rgb(other_format_info))) {
+	/*
+	 * Only apply the quantization restrictions when we need to
+	 * convert between RGB and YUV. Otherwise there is no point
+	 * to limit the quantization for operations like scaling or
+	 * rotations.
+	 */
+	if (v4l2_is_format_yuv(format_info) &&
+	    v4l2_is_format_rgb(other_format_info)) {
 		/*
 		 * The RGA3 only supports BT601, BT709 and BT2020 RGB<->YUV conversions
 		 * Additionally BT709 and BT2020 only support limited range YUV.

@@ -13,3 +13,4 @@ Example:
 		};
 		backlight-2 {
 		};
+	};

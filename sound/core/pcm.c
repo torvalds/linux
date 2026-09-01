@@ -211,11 +211,9 @@ static const char * const snd_pcm_format_names[] = {
  */
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
-	unsigned int format_num = (__force unsigned int)format;
-
-	if (format_num >= ARRAY_SIZE(snd_pcm_format_names) || !snd_pcm_format_names[format_num])
+	if (format >= ARRAY_SIZE(snd_pcm_format_names) || !snd_pcm_format_names[format])
 		return "Unknown";
-	return snd_pcm_format_names[format_num];
+	return snd_pcm_format_names[format];
 }
 EXPORT_SYMBOL_GPL(snd_pcm_format_name);
 
@@ -275,12 +273,12 @@ static const char *snd_pcm_stream_name(int stream)
 
 static const char *snd_pcm_access_name(snd_pcm_access_t access)
 {
-	return snd_pcm_access_names[(__force int)access];
+	return snd_pcm_access_names[access];
 }
 
 static const char *snd_pcm_subformat_name(snd_pcm_subformat_t subformat)
 {
-	return snd_pcm_subformat_names[(__force int)subformat];
+	return snd_pcm_subformat_names[subformat];
 }
 
 static const char *snd_pcm_tstamp_mode_name(int mode)
@@ -290,7 +288,7 @@ static const char *snd_pcm_tstamp_mode_name(int mode)
 
 static const char *snd_pcm_state_name(snd_pcm_state_t state)
 {
-	return snd_pcm_state_names[(__force int)state];
+	return snd_pcm_state_names[state];
 }
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)

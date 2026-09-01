@@ -741,7 +741,7 @@ static struct dentry *autofs_dir_mkdir(struct mnt_idmap *idmap,
 
 	autofs_del_active(dentry);
 
-	inode = autofs_get_inode(dir->i_sb, S_IFDIR | mode);
+	inode = autofs_get_inode(dir->i_sb, mode);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 

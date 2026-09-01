@@ -26,7 +26,7 @@
  */
 
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
-	"memory", "cr0", "r12", "r11", "r10", "r9"
+	"memory", "cr0", "ctr", "xer", "r12", "r11", "r10", "r9"
 
 #define __nolibc_syscall0(num)                                               \
 ({                                                                           \

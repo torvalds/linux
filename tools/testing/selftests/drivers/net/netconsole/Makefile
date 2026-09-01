@@ -13,6 +13,7 @@ TEST_PROGS := \
 	netcons_resume.sh \
 	netcons_sysdata.sh \
 	netcons_torture.sh \
+	netcons_userdata.sh \
 # end of TEST_PROGS
 
 include ../../../lib.mk

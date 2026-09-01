@@ -6,7 +6,7 @@
  *
  * Code common to all SA11x0 machines.
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

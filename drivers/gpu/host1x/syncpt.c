@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/dma-fence.h>
+#include <linux/overflow.h>
 #include <linux/slab.h>
 
 #include <trace/events/host1x.h>
@@ -126,6 +127,10 @@ EXPORT_SYMBOL(host1x_syncpt_id);
  */
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
+	/*
+	 * Syncpoint values are intended to be modulo 2^32, so overflow
+	 * here is intended.
+	 */
 	return (u32)atomic_add_return(incrs, &sp->max_val);
 }
 EXPORT_SYMBOL(host1x_syncpt_incr_max);
@@ -279,7 +284,7 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 
 	current_val = (u32)atomic_read(&sp->min_val);
 
-	return ((current_val - thresh) & 0x80000000U) == 0U;
+	return (wrapping_sub(u32, current_val, thresh) & 0x80000000U) == 0U;
 }
 
 int host1x_syncpt_init(struct host1x *host)

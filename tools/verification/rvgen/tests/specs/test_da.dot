@@ -1,0 +1,16 @@
+digraph state_automaton {
+	{node [shape = circle] "state_b"};
+	{node [shape = plaintext, style=invis, label=""] "__init_state_a"};
+	{node [shape = doublecircle] "state_a"};
+	{node [shape = circle] "state_a"};
+	"__init_state_a" -> "state_a";
+	"state_a" [label = "state_a"];
+	"state_a" -> "state_a" [ label = "event_2" ];
+	"state_a" -> "state_b" [ label = "event_1" ];
+	"state_b" [label = "state_b"];
+	"state_b" -> "state_a" [ label = "event_2" ];
+	{ rank = min ;
+		"__init_state_a";
+		"state_a";
+	}
+}

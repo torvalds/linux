@@ -82,13 +82,13 @@
 	display = <&display>;
 	status = "okay";
 
-	display: display@0 {
+	display: display0 {
 		bits-per-pixel = <24>;
 
 		display-timings {
 			native-mode = <&timing0>;
 
-			timing0: mode0 {
+			timing0: timing0 {
 				clock-frequency = <25000000>;
 				hactive = <640>;
 				vactive = <480>;

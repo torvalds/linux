@@ -9,7 +9,7 @@
 
 #include <type_support.h>
 
-/**
+/*
  * Pixel-generator. ("pixelgen_global.h")
  */
 /*

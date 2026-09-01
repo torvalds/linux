@@ -535,7 +535,7 @@ void ublk_batch_complete_io(struct ublk_thread *t, struct ublk_queue *q,
 
 	elem = (struct ublk_batch_elem *)(cb->elem + cb->done * t->commit_buf_elem_size);
 	elem->tag = tag;
-	elem->buf_index = ublk_batch_io_buf_idx(t, q, tag);
+	elem->buf_index = ublk_batch_io_buf_idx_next(t, q, tag);
 	elem->result = res;
 
 	if (!ublk_queue_no_buf(q))

@@ -413,7 +413,7 @@ static noinline int __init devtmpfs_setup(void *p)
 {
 	int err;
 
-	err = ksys_unshare(CLONE_NEWNS);
+	err = ksys_unshare(UNSHARE_EMPTY_MNTNS);
 	if (err)
 		goto out;
 	err = init_mount("devtmpfs", "/", "devtmpfs", DEVTMPFS_MFLAGS, NULL);

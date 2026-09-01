@@ -210,9 +210,7 @@ struct nvmet_pci_epf {
 
 	bool				dma_enabled;
 	struct dma_chan			*dma_tx_chan;
-	struct mutex			dma_tx_lock;
 	struct dma_chan			*dma_rx_chan;
-	struct mutex			dma_rx_lock;
 
 	struct mutex			mmio_lock;
 
@@ -295,9 +293,6 @@ static void nvmet_pci_epf_init_dma(struct nvmet_pci_epf *nvme_epf)
 	struct dma_chan *chan;
 	dma_cap_mask_t mask;
 
-	mutex_init(&nvme_epf->dma_rx_lock);
-	mutex_init(&nvme_epf->dma_tx_lock);
-
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
@@ -336,8 +331,6 @@ out_dma_no_tx:
 	nvme_epf->dma_rx_chan = NULL;
 
 out_dma_no_rx:
-	mutex_destroy(&nvme_epf->dma_rx_lock);
-	mutex_destroy(&nvme_epf->dma_tx_lock);
 	nvme_epf->dma_enabled = false;
 
 	dev_info(&epf->dev, "DMA not supported, falling back to MMIO\n");
@@ -352,8 +345,6 @@ static void nvmet_pci_epf_deinit_dma(struct nvmet_pci_epf *nvme_epf)
 	nvme_epf->dma_tx_chan = NULL;
 	dma_release_channel(nvme_epf->dma_rx_chan);
 	nvme_epf->dma_rx_chan = NULL;
-	mutex_destroy(&nvme_epf->dma_rx_lock);
-	mutex_destroy(&nvme_epf->dma_tx_lock);
 	nvme_epf->dma_enabled = false;
 }
 
@@ -368,18 +359,15 @@ static int nvmet_pci_epf_dma_transfer(struct nvmet_pci_epf *nvme_epf,
 	struct dma_chan *chan;
 	dma_cookie_t cookie;
 	dma_addr_t dma_addr;
-	struct mutex *lock;
 	int ret;
 
 	switch (dir) {
 	case DMA_FROM_DEVICE:
-		lock = &nvme_epf->dma_rx_lock;
 		chan = nvme_epf->dma_rx_chan;
 		sconf.direction = DMA_DEV_TO_MEM;
 		sconf.src_addr = seg->pci_addr;
 		break;
 	case DMA_TO_DEVICE:
-		lock = &nvme_epf->dma_tx_lock;
 		chan = nvme_epf->dma_tx_chan;
 		sconf.direction = DMA_MEM_TO_DEV;
 		sconf.dst_addr = seg->pci_addr;
@@ -388,22 +376,15 @@ static int nvmet_pci_epf_dma_transfer(struct nvmet_pci_epf *nvme_epf,
 		return -EINVAL;
 	}
 
-	mutex_lock(lock);
-
 	dma_dev = dmaengine_get_dma_device(chan);
 	dma_addr = dma_map_single(dma_dev, seg->buf, seg->length, dir);
 	ret = dma_mapping_error(dma_dev, dma_addr);
 	if (ret)
-		goto unlock;
+		return ret;
 
-	ret = dmaengine_slave_config(chan, &sconf);
-	if (ret) {
-		dev_err(dev, "Failed to configure DMA channel\n");
-		goto unmap;
-	}
-
-	desc = dmaengine_prep_slave_single(chan, dma_addr, seg->length,
-					   sconf.direction, DMA_CTRL_ACK);
+	desc = dmaengine_prep_config_single_safe(chan, dma_addr, seg->length,
+						 sconf.direction,
+						 DMA_CTRL_ACK, &sconf);
 	if (!desc) {
 		dev_err(dev, "Failed to prepare DMA\n");
 		ret = -EIO;
@@ -420,15 +401,11 @@ static int nvmet_pci_epf_dma_transfer(struct nvmet_pci_epf *nvme_epf,
 	if (dma_sync_wait(chan, cookie) != DMA_COMPLETE) {
 		dev_err(dev, "DMA transfer failed\n");
 		ret = -EIO;
+		dmaengine_terminate_sync(chan);
 	}
-
-	dmaengine_terminate_sync(chan);
 
 unmap:
 	dma_unmap_single(dma_dev, dma_addr, seg->length, dir);
-
-unlock:
-	mutex_unlock(lock);
 
 	return ret;
 }
@@ -1339,6 +1316,7 @@ err_unmap_queue:
 	nvmet_pci_epf_mem_unmap(ctrl->nvme_epf, &cq->pci_map);
 err_internal:
 	status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
+	nvmet_cq_put(&cq->nvme_cq);
 err:
 	if (test_and_clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags))
 		nvmet_pci_epf_remove_irq_vector(ctrl, cq->vector);
@@ -1594,6 +1572,7 @@ static void nvmet_pci_epf_exec_iod_work(struct work_struct *work)
 	struct nvmet_pci_epf_iod *iod =
 		container_of(work, struct nvmet_pci_epf_iod, work);
 	struct nvmet_req *req = &iod->req;
+	bool no_wait;
 	int ret;
 
 	if (!iod->ctrl->link_up) {
@@ -1638,14 +1617,16 @@ static void nvmet_pci_epf_exec_iod_work(struct work_struct *work)
 		}
 	}
 
-	req->execute(req);
-
 	/*
 	 * If we do not have data to transfer after the command execution
 	 * finishes, nvmet_pci_epf_queue_response() will complete the command
 	 * directly. No need to wait for the completion in this case.
 	 */
-	if (!iod->data_len || iod->dma_dir != DMA_TO_DEVICE)
+	no_wait = !iod->data_len || iod->dma_dir != DMA_TO_DEVICE;
+
+	req->execute(req);
+
+	if (no_wait)
 		return;
 
 	wait_for_completion(&iod->done);
@@ -2077,7 +2058,7 @@ static int nvmet_pci_epf_create_ctrl(struct nvmet_pci_epf *nvme_epf,
 	}
 
 	/* Allocate our queues, up to the maximum number. */
-	ctrl->nr_queues = min(ctrl->tctrl->subsys->max_qid + 1, max_nr_queues);
+	ctrl->nr_queues = min(ctrl->tctrl->max_qid + 1, max_nr_queues);
 	ret = nvmet_pci_epf_alloc_queues(ctrl);
 	if (ret)
 		goto out_put_ctrl;

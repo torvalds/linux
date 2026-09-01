@@ -55,6 +55,13 @@
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
 #define SMUQ10_FRAC(x) ((x) & 0x3ff)
 #define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+/* Convert Q10 watts to milliwatts, preserving the fractional part */
+#define SMUQ10_TO_MILLIWATT(x) (SMUQ10_TO_UINT(x) * MILLIWATT_PER_WATT + \
+				((SMUQ10_FRAC(x) * MILLIWATT_PER_WATT) >> 10))
+/* Convert Q10 degrees Celsius to millidegrees, preserving the fractional part */
+#define SMUQ10_TO_MILLICELSIUS(x) \
+	(SMUQ10_TO_UINT(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES + \
+	 ((SMUQ10_FRAC(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES) >> 10))
 #define SMU_V13_SOFT_FREQ_ROUND(x)	((x) + 1)
 
 extern const int pmfw_decoded_link_speed[5];
@@ -145,12 +152,13 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v13_0_notify_display_change(struct smu_context *smu);
 
-int smu_v13_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit);
+int smu_v13_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit);
 
-int smu_v13_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit);
+int smu_v13_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit);
 
 int smu_v13_0_init_max_sustainable_clocks(struct smu_context *smu);
 
@@ -179,8 +187,6 @@ int smu_v13_0_set_xgmi_pstate(struct smu_context *smu,
 int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable);
 
 int smu_v13_0_register_irq_handler(struct smu_context *smu);
-
-int smu_v13_0_set_azalia_d3_pme(struct smu_context *smu);
 
 int smu_v13_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 					       struct pp_smu_nv_clock_table *max_clocks);
@@ -255,10 +261,6 @@ void smu_v13_0_init_msg_ctl(struct smu_context *smu,
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
 
-int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu,
-					void **table,
-					uint32_t *size,
-					uint32_t pptable_id);
 
 int smu_v13_0_update_pcie_parameters(struct smu_context *smu,
 				     uint8_t pcie_gen_cap,

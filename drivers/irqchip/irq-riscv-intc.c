@@ -384,7 +384,8 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 	if (rc)
 		irq_domain_free_fwnode(fn);
 	else
-		acpi_set_irq_model(ACPI_IRQ_MODEL_RINTC, riscv_acpi_get_gsi_domain_id);
+		acpi_set_irq_model(ACPI_IRQ_MODEL_RINTC, riscv_acpi_get_gsi_domain_id,
+				   acpi_get_riscv_gsi_handle);
 
 	return rc;
 }

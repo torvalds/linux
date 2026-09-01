@@ -11929,26 +11929,27 @@ u8 encode_rcv_header_entry_size(u8 size)
 
 /**
  * hfi1_validate_rcvhdrcnt - validate hdrcnt
- * @dd: the device data
+ * @pdev: the PCI device
  * @thecnt: the header count
  */
-int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt)
+int hfi1_validate_rcvhdrcnt(struct pci_dev *pdev, uint thecnt)
 {
 	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
-		dd_dev_err(dd, "Receive header queue count too small\n");
+		dev_err(&pdev->dev, "Receive header queue count too small\n");
 		return -EINVAL;
 	}
 
 	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
-		dd_dev_err(dd,
-			   "Receive header queue count cannot be greater than %u\n",
-			   HFI1_MAX_HDRQ_EGRBUF_CNT);
+		dev_err(&pdev->dev,
+			"Receive header queue count cannot be greater than %u\n",
+			HFI1_MAX_HDRQ_EGRBUF_CNT);
 		return -EINVAL;
 	}
 
 	if (thecnt % HDRQ_INCREMENT) {
-		dd_dev_err(dd, "Receive header queue count %d must be divisible by %lu\n",
-			   thecnt, HDRQ_INCREMENT);
+		dev_err(&pdev->dev,
+			"Receive header queue count %u must be divisible by %lu\n",
+			thecnt, HDRQ_INCREMENT);
 		return -EINVAL;
 	}
 
@@ -15007,7 +15008,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	 */
 	ret = hfi1_pcie_ddinit(dd, pdev);
 	if (ret < 0)
-		goto bail_free;
+		goto bail;
 
 	/* Save PCI space registers to rewrite after device reset */
 	ret = save_pci_variables(dd);
@@ -15262,8 +15263,6 @@ bail_clear_intr:
 bail_cleanup:
 	hfi1_free_rx(dd);
 	hfi1_pcie_ddcleanup(dd);
-bail_free:
-	hfi1_free_devdata(dd);
 bail:
 	return ret;
 }

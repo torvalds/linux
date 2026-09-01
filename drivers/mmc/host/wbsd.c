@@ -52,9 +52,9 @@
 #ifdef CONFIG_PNP
 
 static const struct pnp_device_id pnp_dev_table[] = {
-	{ "WEC0517", 0 },
-	{ "WEC0518", 0 },
-	{ "", 0 },
+	{ .id = "WEC0517" },
+	{ .id = "WEC0518" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pnp, pnp_dev_table);

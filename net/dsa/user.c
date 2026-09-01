@@ -13,6 +13,7 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/mdio.h>
+#include <net/netdev_lock.h>
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/selftests.h>
@@ -2546,14 +2547,13 @@ static int dsa_user_fill_forward_path(struct net_device_path_ctx *ctx,
 				      struct net_device_path *path)
 {
 	struct dsa_port *dp = dsa_user_to_port(ctx->dev);
-	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_port *cpu_dp = dp->cpu_dp;
 
 	path->dev = ctx->dev;
 	path->type = DEV_PATH_DSA;
 	path->dsa.proto = cpu_dp->tag_ops->proto;
 	path->dsa.port = dp->index;
-	ctx->dev = conduit;
+	ctx->dev = NULL;
 
 	return 0;
 }
@@ -2779,7 +2779,7 @@ int dsa_user_create(struct dsa_port *port)
 	user_dev = alloc_netdev_mqs(sizeof(struct dsa_user_priv), name,
 				    assign_type, ether_setup,
 				    ds->num_tx_queues, 1);
-	if (user_dev == NULL)
+	if (!user_dev)
 		return -ENOMEM;
 
 	user_dev->rtnl_link_ops = &dsa_link_ops;
@@ -3599,10 +3599,24 @@ static int dsa_user_netdevice_event(struct notifier_block *nb,
 			if (dp->cpu_dp != cpu_dp)
 				continue;
 
-			list_add(&dp->user->close_list, &close_list);
+			if (!(dp->user->flags & IFF_UP))
+				continue;
+
+			list_add_tail(&dp->user->close_list, &close_list);
+			netdev_lock_ops(dp->user);
 		}
 
-		netif_close_many(&close_list, true);
+		netif_close_many(&close_list, false);
+
+		while (!list_empty(&close_list)) {
+			struct net_device *user_dev;
+
+			user_dev = list_first_entry(&close_list,
+						    struct net_device,
+						    close_list);
+			netdev_unlock_ops(user_dev);
+			list_del_init(&user_dev->close_list);
+		}
 
 		return NOTIFY_OK;
 	}

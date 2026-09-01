@@ -3105,7 +3105,7 @@ static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd,
 	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, level);
 
 	if (hse == NULL)
-		return -1;
+		return -ENOMEM;
 
 	perf_hpp_list__register_sort_field(list, &hse->hpp);
 	return 0;
@@ -3118,7 +3118,7 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, level);
 
 	if (hse == NULL)
-		return -1;
+		return -ENOMEM;
 
 	perf_hpp_list__column_register(list, &hse->hpp);
 	return 0;
@@ -3487,7 +3487,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 	if (event_name[0] == '%') {
 		int nr = strtol(event_name+1, NULL, 0);
 
-		if (nr > evlist->core.nr_entries)
+		if (nr > evlist__nr_entries(evlist))
 			return NULL;
 
 		evsel = evlist__first(evlist);
@@ -3742,14 +3742,18 @@ static int __sort_dimension__add(struct sort_dimension *sd,
 				 struct perf_hpp_list *list,
 				 int level)
 {
+	int ret;
+
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_sort(sd, list, level) < 0)
-		return -1;
+	ret = __sort_dimension__add_hpp_sort(sd, list, level);
+	if (ret < 0)
+		return ret;
 
-	if (__sort_dimension__update(sd, list) < 0)
-		return -1;
+	ret = __sort_dimension__update(sd, list);
+	if (ret < 0)
+		return ret;
 
 	sd->taken = 1;
 
@@ -3767,7 +3771,7 @@ static int __hpp_dimension__add(struct hpp_dimension *hd,
 
 	fmt = __hpp_dimension__alloc_hpp(hd, level);
 	if (!fmt)
-		return -1;
+		return -ENOMEM;
 
 	hd->taken = 1;
 	hd->was_taken = 1;
@@ -3779,14 +3783,18 @@ static int __sort_dimension__add_output(struct perf_hpp_list *list,
 					struct sort_dimension *sd,
 					int level)
 {
+	int ret;
+
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_output(sd, list, level) < 0)
-		return -1;
+	ret = __sort_dimension__add_hpp_output(sd, list, level);
+	if (ret < 0)
+		return ret;
 
-	if (__sort_dimension__update(sd, list) < 0)
-		return -1;
+	ret = __sort_dimension__update(sd, list);
+	if (ret < 0)
+		return ret;
 
 	sd->taken = 1;
 	return 0;
@@ -3803,7 +3811,7 @@ static int __hpp_dimension__add_output(struct perf_hpp_list *list,
 
 	fmt = __hpp_dimension__alloc_hpp(hd, level);
 	if (!fmt)
-		return -1;
+		return -ENOMEM;
 
 	hd->taken = 1;
 	perf_hpp_list__column_register(list, fmt);
@@ -3869,8 +3877,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				    strlen(tok)))
 			return -EINVAL;
 
-		__sort_dimension__add(sd, list, level);
-		return 0;
+		return __sort_dimension__add(sd, list, level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
@@ -3882,8 +3889,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
-		__sort_dimension__add(sd, list, level);
-		return 0;
+		return __sort_dimension__add(sd, list, level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
@@ -3973,15 +3979,25 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 			}
 
 			ret = sort_dimension__add(list, tok, evlist, env, level);
-			if (ret == -EINVAL) {
+			switch (ret) {
+			case 0:
+				break;
+			case -EINVAL:
 				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
 					ui__error("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
 				else
 					ui__error("Invalid --sort key: `%s'", tok);
-				break;
-			} else if (ret == -ESRCH) {
+				goto out;
+			case -ESRCH:
 				ui__error("Unknown --sort key: `%s'", tok);
-				break;
+				goto out;
+			default: {
+				char buf[STRERR_BUFSIZE];
+
+				ui__error("%s for --sort key: `%s'",
+					  str_error_r(-ret, buf, sizeof(buf)), tok);
+				goto out;
+			}
 			}
 			prev_level = level;
 		}
@@ -3989,6 +4005,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		level = next_level;
 	} while (tmp);
 
+out:
 	return ret;
 }
 
@@ -4315,15 +4332,26 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		ret = output_field_add(list, tok, &level);
-		if (ret == -EINVAL) {
+		switch (ret) {
+		case 0:
+			break;
+		case -EINVAL:
 			ui__error("Invalid --fields key: `%s'", tok);
-			break;
-		} else if (ret == -ESRCH) {
+			goto out;
+		case -ESRCH:
 			ui__error("Unknown --fields key: `%s'", tok);
-			break;
+			goto out;
+		default: {
+			char buf[STRERR_BUFSIZE];
+
+			ui__error("%s for --fields key: `%s'",
+				  str_error_r(-ret, buf, sizeof(buf)), tok);
+			goto out;
+		}
 		}
 	}
 
+out:
 	return ret;
 }
 

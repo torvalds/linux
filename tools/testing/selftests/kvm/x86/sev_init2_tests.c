@@ -77,10 +77,6 @@ void test_vm_types(void)
 {
 	test_init2(KVM_X86_SEV_VM, &(struct kvm_sev_init){});
 
-	/*
-	 * TODO: check that unsupported types cannot be created.  Probably
-	 * a separate selftest.
-	 */
 	if (have_sev_es)
 		test_init2(KVM_X86_SEV_ES_VM, &(struct kvm_sev_init){});
 

@@ -126,6 +126,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
 	pmd = pmd_offset(pud, addr);
 	do {
 again:
+		walk->action = ACTION_SUBTREE;
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd)) {
 			if (has_install)
@@ -137,8 +138,6 @@ again:
 			if (!has_install)
 				continue;
 		}
-
-		walk->action = ACTION_SUBTREE;
 
 		/*
 		 * This implies that each ->pmd_entry() handler
@@ -196,6 +195,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
 	pud = pud_offset(p4d, addr);
 	do {
  again:
+		walk->action = ACTION_SUBTREE;
 		next = pud_addr_end(addr, end);
 		if (pud_none(*pud)) {
 			if (has_install)
@@ -207,8 +207,6 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (!has_install)
 				continue;
 		}
-
-		walk->action = ACTION_SUBTREE;
 
 		if (ops->pud_entry)
 			err = ops->pud_entry(pud, addr, next, walk);
@@ -816,10 +814,10 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 		return -EINVAL;
 
 	lockdep_assert_held(&mapping->i_mmap_rwsem);
-	vma_interval_tree_foreach(vma, &mapping->i_mmap, first_index,
+	mapping_rmap_tree_foreach(vma, mapping, first_index,
 				  first_index + nr - 1) {
 		/* Clip to the vma */
-		vba = vma->vm_pgoff;
+		vba = vma_start_pgoff(vma);
 		vea = vba + vma_pages(vma);
 		cba = first_index;
 		cba = max(cba, vba);

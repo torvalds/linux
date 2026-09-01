@@ -212,8 +212,8 @@ static int aw37503_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id aw37503_id[] = {
-	{.name = "aw37503",},
-	{},
+	{ .name = "aw37503" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw37503_id);
 

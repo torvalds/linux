@@ -126,6 +126,16 @@
 		compatible = "atmel,24c64";
 		reg = <0x50>;
 		pagesize = <32>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			module_info: module-info@20 {
+				reg = <0x20 0x60>;
+			};
+		};
 	};
 
 	m24c02_52: eeprom@52 {

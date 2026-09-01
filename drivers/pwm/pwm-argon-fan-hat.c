@@ -89,7 +89,7 @@ static int argon_fan_hat_i2c_probe(struct i2c_client *i2c)
 
 static const struct of_device_id argon_fan_hat_dt_ids[] = {
 	{ .compatible = "argon40,fan-hat" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, argon_fan_hat_dt_ids);
 

@@ -164,9 +164,10 @@ This Kconfig entry must:
 * be visible only if ``CONFIG_KUNIT_ALL_TESTS`` is not enabled.
 * have a default value of ``CONFIG_KUNIT_ALL_TESTS``.
 * have a brief description of KUnit in the help text.
-
-If we are not able to meet above conditions (for example, the test is unable to
-be built as a module), Kconfig entries for tests should be tristate.
+* depend on the feature being tested, rather than selecting it (so that
+  enabling ``CONFIG_KUNIT_ALL_TESTS`` does not enable unrelated functionality).
+* be ``tristate``, unless there is a specific reason that the test cannot be
+  built as a module.
 
 For example, a Kconfig entry might look like:
 

@@ -114,11 +114,9 @@ int qedr_query_device(struct ib_device *ibdev,
 		return -EINVAL;
 	}
 
-	rc = ib_is_udata_in_empty(udata);
+	rc = ib_no_udata_io(udata);
 	if (rc)
 		return rc;
-
-	memset(attr, 0, sizeof(*attr));
 
 	attr->fw_ver = qattr->fw_ver;
 	attr->sys_image_guid = qattr->sys_image_guid;
@@ -148,7 +146,7 @@ int qedr_query_device(struct ib_device *ibdev,
 	attr->max_qp_init_rd_atom =
 	    1 << (fls(qattr->max_qp_req_rd_atomic_resc) - 1);
 	attr->max_qp_rd_atom =
-	    min(1 << (fls(qattr->max_qp_resp_rd_atomic_resc) - 1),
+	    min(1U << (fls(qattr->max_qp_resp_rd_atomic_resc) - 1),
 		attr->max_qp_init_rd_atom);
 
 	attr->max_srq = qattr->max_srq;
@@ -160,7 +158,7 @@ int qedr_query_device(struct ib_device *ibdev,
 	attr->max_pkeys = qattr->max_pkey;
 	attr->max_ah = qattr->max_ah;
 
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 static inline void get_link_speed_and_width(int speed, u16 *ib_speed,

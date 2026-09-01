@@ -12,7 +12,7 @@
 static nokprobe_inline int
 fetch_store_strlen_user(unsigned long addr)
 {
-	const void __user *uaddr =  (__force const void __user *)addr;
+	const void __user *uaddr = (__force const void __user *)addr;
 
 	return strnlen_user_nofault(uaddr, MAX_STRING_SIZE);
 }

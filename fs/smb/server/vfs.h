@@ -70,6 +70,7 @@ struct ksmbd_kstat {
 	struct kstat		*kstat;
 	unsigned long long	create_time;
 	__le32			file_attributes;
+	bool			has_ads_stream; /* AAPL READDIR_ATTR V2 xattr-presence flag */
 };
 
 int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child);
@@ -87,8 +88,10 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, const struct path *path);
 int ksmbd_vfs_link(struct ksmbd_work *work,
 		   const char *oldname, const char *newname);
 int ksmbd_vfs_getattr(const struct path *path, struct kstat *stat);
-int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
-		     char *newname, int flags);
+int ksmbd_vfs_rename(struct ksmbd_work *work, struct ksmbd_file *old_fp,
+			 char *newname, int flags);
+int ksmbd_vfs_check_rename_share(struct ksmbd_work *work,
+				 const struct path *old_path);
 int ksmbd_vfs_truncate(struct ksmbd_work *work,
 		       struct ksmbd_file *fp, loff_t size);
 struct srv_copychunk;
@@ -132,10 +135,15 @@ int ksmbd_vfs_empty_dir(struct ksmbd_file *fp);
 void ksmbd_vfs_set_fadvise(struct file *filp, __le32 option);
 int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len);
+int ksmbd_vfs_zero_holes(struct ksmbd_file *fp);
+int ksmbd_vfs_trim_data(struct ksmbd_work *work, struct ksmbd_file *fp,
+			loff_t off, loff_t len);
 struct file_allocated_range_buffer;
-int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
-			 struct file_allocated_range_buffer *ranges,
-			 unsigned int in_count, unsigned int *out_count);
+int ksmbd_vfs_query_allocated_ranges(struct ksmbd_file *fp, loff_t start,
+				     loff_t length,
+				     struct file_allocated_range_buffer *ranges,
+				     unsigned int in_count,
+				     unsigned int *out_count);
 int ksmbd_vfs_unlink(struct file *filp);
 void *ksmbd_vfs_init_kstat(char **p, struct ksmbd_kstat *ksmbd_kstat);
 int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
@@ -171,4 +179,6 @@ int ksmbd_vfs_inherit_posix_acl(struct mnt_idmap *idmap,
 void ksmbd_vfs_update_compressed_fattr(struct dentry *dentry, __le32 *fattr);
 int ksmbd_vfs_get_compression(struct ksmbd_file *fp, u16 *fmt);
 int ksmbd_vfs_set_compression(struct ksmbd_work *work, struct ksmbd_file *fp, u16 fmt);
+int ksmbd_vfs_set_compression_create(struct ksmbd_work *work,
+				     struct ksmbd_file *fp, u16 fmt);
 #endif /* __KSMBD_VFS_H__ */

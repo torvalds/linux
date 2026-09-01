@@ -792,6 +792,7 @@ DEFINE_BUF_EVENT(xfs_buf_backing_folio);
 DEFINE_BUF_EVENT(xfs_buf_backing_kmem);
 DEFINE_BUF_EVENT(xfs_buf_backing_vmalloc);
 DEFINE_BUF_EVENT(xfs_buf_backing_fallback);
+DEFINE_BUF_EVENT(xfs_buf_find);
 
 /* not really buffer traces, but the buf provides useful information */
 DEFINE_BUF_EVENT(xfs_btree_corrupt);
@@ -837,7 +838,6 @@ DECLARE_EVENT_CLASS(xfs_buf_flags_class,
 DEFINE_EVENT(xfs_buf_flags_class, name, \
 	TP_PROTO(struct xfs_buf *bp, unsigned flags, unsigned long caller_ip), \
 	TP_ARGS(bp, flags, caller_ip))
-DEFINE_BUF_FLAGS_EVENT(xfs_buf_find);
 DEFINE_BUF_FLAGS_EVENT(xfs_buf_get);
 DEFINE_BUF_FLAGS_EVENT(xfs_buf_read);
 DEFINE_BUF_FLAGS_EVENT(xfs_buf_readahead);

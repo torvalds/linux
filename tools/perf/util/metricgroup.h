@@ -71,6 +71,7 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 bool create);
 int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      const char *pmu,
+			      bool cputype_filter,
 			      const char *str,
 			      bool metric_no_group,
 			      bool metric_no_merge,
@@ -80,7 +81,8 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      bool hardware_aware_grouping);
 int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const struct pmu_metrics_table *table,
-				   const char *str);
+				   const char *str,
+				   bool cputype_filter);
 
 int metricgroup__for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
 				 void *data);

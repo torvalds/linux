@@ -756,6 +756,10 @@ int run_startup(int min, int max)
 	/* checking NULL for argv/argv0, environ and _auxv is not enough, let's compare with sbrk(0) or &end */
 	extern char end;
 	char *brk = sbrk(0) != (void *)-1 ? sbrk(0) : &end;
+#if defined(__alpha__)
+	/* the ordering above does not work on an alpha kernel due to STACK_TOP != TASK_SIZE */
+	brk = NULL;
+#endif
 	/* differ from nolibc, both glibc and musl have no global _auxv */
 	const unsigned long *test_auxv = (void *)-1;
 #ifdef NOLIBC
@@ -850,6 +854,58 @@ static int test_dirent(void)
 
 	if (comm != 1 || cmdline != 1)
 		return 1;
+
+	return 0;
+}
+
+int test_getcwd(void)
+{
+	char cwd_syscall[PATH_MAX];
+	char cwd_proc[PATH_MAX];
+	ssize_t len;
+
+	/* Read where the link /proc/self/cwd points */
+	len = readlink("/proc/self/cwd", cwd_proc, sizeof(cwd_proc) - 1);
+	if (len <= 0)
+		return __LINE__;
+
+	/* Terminate the string from readlink() */
+	cwd_proc[len] = '\0';
+
+	/* Get the cwd via syscall */
+	if (getcwd(cwd_syscall, sizeof(cwd_syscall)) == NULL)
+		return __LINE__;
+
+	/* Fail if they aren't the same */
+	if (strcmp(cwd_proc, cwd_syscall) != 0)
+		return __LINE__;
+
+	/* Try getcwd() with NULL for the buffer,
+	 * should return NULL and an error in errno.
+	 * Other libc's allow this by allocating a buffer
+	 * internally.
+	 */
+	if (is_nolibc) {
+		errno = 0;
+		if (getcwd(NULL, 0) != NULL || !errno)
+			return __LINE__;
+	}
+
+	/* Try getcwd() with a buffer but make the size 0,
+	 * should return NULL and an error in errno.
+	 */
+	errno = 0;
+	if (getcwd(cwd_syscall, 0) != NULL || !errno)
+		return __LINE__;
+
+	/* Try getcwd() with a buffer but make the size 1,
+	 * should return NULL and an error in errno because
+	 * the string written to the buffer is terminated
+	 * so you need at least 2 bytes even for "/".
+	 */
+	errno = 0;
+	if (getcwd(cwd_syscall, 1) != NULL || !errno)
+		return __LINE__;
 
 	return 0;
 }
@@ -1555,6 +1611,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(clock_getres);      EXPECT_SYSZR(1, clock_getres(CLOCK_MONOTONIC, &ts)); break;
 		CASE_TEST(clock_gettime);     EXPECT_SYSZR(1, clock_gettime(CLOCK_MONOTONIC, &ts)); break;
 		CASE_TEST(clock_settime);     EXPECT_SYSER(1, clock_settime(CLOCK_MONOTONIC, &ts), -1, EINVAL); break;
+		CASE_TEST(getcwd);            EXPECT_SYSZR(proc, test_getcwd()); break;
 		CASE_TEST(getpid);            EXPECT_SYSNE(1, getpid(), -1); break;
 		CASE_TEST(getppid);           EXPECT_SYSNE(1, getppid(), -1); break;
 		CASE_TEST(gettid);            EXPECT_SYSNE(has_gettid, gettid(), -1); break;

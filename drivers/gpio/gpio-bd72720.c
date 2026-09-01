@@ -85,9 +85,11 @@ static int bd72720gpi_get(struct bd72720_gpio *bdgpio, unsigned int reg_offset)
 static int bd72720gpo_get(struct bd72720_gpio *bdgpio,
 			  unsigned int offset)
 {
-	const int regs[] = { BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
-			     BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
-			     BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL };
+	static const int regs[] = {
+		BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
+		BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
+		BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL
+	};
 	int ret, val;
 
 	ret = regmap_read(bdgpio->regmap, regs[offset], &val);
@@ -111,9 +113,11 @@ static int bd72720gpo_set(struct gpio_chip *chip, unsigned int offset,
 			  int value)
 {
 	struct bd72720_gpio *bdgpio = gpiochip_get_data(chip);
-	const int regs[] = { BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
-			     BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
-			     BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL };
+	static const int regs[] = {
+		BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
+		BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
+		BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL
+	};
 
 	if (BIT(offset) & bdgpio->gpio_is_input) {
 		dev_dbg(bdgpio->dev, "pin %d not output.\n", offset);
@@ -132,9 +136,11 @@ static int bd72720_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 				   unsigned long config)
 {
 	struct bd72720_gpio *bdgpio = gpiochip_get_data(chip);
-	const int regs[] = { BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
-			     BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
-			     BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL };
+	static const int regs[] = {
+		BD72720_REG_GPIO1_CTRL, BD72720_REG_GPIO2_CTRL,
+		BD72720_REG_GPIO3_CTRL, BD72720_REG_GPIO4_CTRL,
+		BD72720_REG_GPIO5_CTRL, BD72720_REG_EPDEN_CTRL
+	};
 
 	/*
 	 * We can only set the output mode, which makes sense only when output

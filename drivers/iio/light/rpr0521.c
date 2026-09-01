@@ -987,11 +987,8 @@ static int rpr0521_probe(struct i2c_client *client)
 			rpr0521_drdy_irq_handler, rpr0521_drdy_irq_thread,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"rpr0521_event", indio_dev);
-		if (ret < 0) {
-			dev_err(&client->dev, "request irq %d for trigger0 failed\n",
-				client->irq);
+		if (ret)
 			goto err_pm_disable;
-			}
 
 		ret = devm_iio_trigger_register(indio_dev->dev.parent,
 						data->drdy_trigger0);
@@ -1071,7 +1068,10 @@ static int rpr0521_runtime_resume(struct device *dev)
 	struct rpr0521_data *data = iio_priv(indio_dev);
 	int ret;
 
-	regcache_sync(data->regmap);
+	ret = regcache_sync(data->regmap);
+	if (ret < 0)
+		return ret;
+
 	if (data->als_ps_need_en) {
 		ret = rpr0521_als_enable(data, RPR0521_MODE_ALS_ENABLE);
 		if (ret < 0)

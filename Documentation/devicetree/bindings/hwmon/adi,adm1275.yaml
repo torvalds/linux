@@ -25,19 +25,38 @@ description: |
     https://www.silergy.com/
     download/downloadFile?id=5669&type=product&ftype=note
 
+  The BD12780 and BD12780A are hot-swap controllers from ROHM. They are
+  functionally compatible with the ADM1278. The main difference between
+  the BD12780A and the BD12780 is amount of configurable I2C addresses.
+
+  Datasheets:
+    https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780muv-lb-e.pdf
+    https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780amuv-lb-e.pdf
+
+  The BD12790 is a ROHM hot-swap controller, functionally similar to the
+  ADM1272.
+
 properties:
   compatible:
-    enum:
-      - adi,adm1075
-      - adi,adm1272
-      - adi,adm1273
-      - adi,adm1275
-      - adi,adm1276
-      - adi,adm1278
-      - adi,adm1281
-      - adi,adm1293
-      - adi,adm1294
-      - silergy,mc09c
+    oneOf:
+      - enum:
+          - adi,adm1075
+          - adi,adm1272
+          - adi,adm1273
+          - adi,adm1275
+          - adi,adm1276
+          - adi,adm1278
+          - adi,adm1281
+          - adi,adm1293
+          - adi,adm1294
+          - rohm,bd12780
+          - rohm,bd12790
+          - silergy,mc09c
+
+      # Require BD12780 as a fall-back for BD12780A.
+      - items:
+          - const: rohm,bd12780a
+          - const: rohm,bd12780
 
   reg:
     maxItems: 1
@@ -88,6 +107,7 @@ allOf:
             enum:
               - adi,adm1272
               - adi,adm1273
+              - rohm,bd12790
     then:
       properties:
         adi,volt-curr-sample-average:
@@ -104,6 +124,7 @@ allOf:
               - adi,adm1281
               - adi,adm1293
               - adi,adm1294
+              - rohm,bd12780
               - silergy,mc09c
     then:
       properties:

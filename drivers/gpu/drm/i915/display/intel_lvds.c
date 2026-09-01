@@ -413,7 +413,8 @@ intel_lvds_mode_valid(struct drm_connector *_connector,
 	return MODE_OK;
 }
 
-static int intel_lvds_compute_config(struct intel_encoder *encoder,
+static int intel_lvds_compute_config(struct intel_atomic_state *state,
+				     struct intel_encoder *encoder,
 				     struct intel_crtc_state *crtc_state,
 				     struct drm_connector_state *conn_state)
 {
@@ -459,7 +460,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	ret = intel_panel_compute_config(connector, adjusted_mode);
+	ret = intel_panel_compute_config(state, crtc_state, connector);
 	if (ret)
 		return ret;
 

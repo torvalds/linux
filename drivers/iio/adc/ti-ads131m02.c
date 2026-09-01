@@ -943,11 +943,11 @@ static const struct of_device_id ads131m_of_match[] = {
 MODULE_DEVICE_TABLE(of, ads131m_of_match);
 
 static const struct spi_device_id ads131m_id[] = {
-	{ "ads131m02", (kernel_ulong_t)&ads131m02_config },
-	{ "ads131m03", (kernel_ulong_t)&ads131m03_config },
-	{ "ads131m04", (kernel_ulong_t)&ads131m04_config },
-	{ "ads131m06", (kernel_ulong_t)&ads131m06_config },
-	{ "ads131m08", (kernel_ulong_t)&ads131m08_config },
+	{ .name = "ads131m02", .driver_data = (kernel_ulong_t)&ads131m02_config },
+	{ .name = "ads131m03", .driver_data = (kernel_ulong_t)&ads131m03_config },
+	{ .name = "ads131m04", .driver_data = (kernel_ulong_t)&ads131m04_config },
+	{ .name = "ads131m06", .driver_data = (kernel_ulong_t)&ads131m06_config },
+	{ .name = "ads131m08", .driver_data = (kernel_ulong_t)&ads131m08_config },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ads131m_id);

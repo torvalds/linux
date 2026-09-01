@@ -1155,8 +1155,7 @@ static const struct ngene_info ngene_info_terratec = {
 /****************************************************************************/
 
 #define NGENE_ID(_subvend, _subdev, _driverdata) { \
-	.vendor = NGENE_VID, .device = NGENE_PID, \
-	.subvendor = _subvend, .subdevice = _subdev, \
+	PCI_DEVICE_SUB(NGENE_VID, NGENE_PID, (_subvend), (_subdev)), \
 	.driver_data = (unsigned long) &_driverdata }
 
 /****************************************************************************/
@@ -1173,7 +1172,7 @@ static const struct pci_device_id ngene_id_tbl[] = {
 	NGENE_ID(0x18c3, 0xdd20, ngene_info_duoFlex),
 	NGENE_ID(0x1461, 0x062e, ngene_info_m780),
 	NGENE_ID(0x153b, 0x1167, ngene_info_terratec),
-	{0}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 

@@ -77,13 +77,10 @@ struct saa7146_pci_extension_data {
 	void *ext_priv;			/* most likely a name string */
 };
 
-#define MAKE_EXTENSION_PCI(x_var, x_vendor, x_device)		\
-	{							\
-		.vendor    = PCI_VENDOR_ID_PHILIPS,		\
-		.device	   = PCI_DEVICE_ID_PHILIPS_SAA7146,	\
-		.subvendor = x_vendor,				\
-		.subdevice = x_device,				\
-		.driver_data = (unsigned long)& x_var,		\
+#define MAKE_EXTENSION_PCI(x_var, x_vendor, x_device)						\
+	{											\
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146, (x_vendor), (x_device)),\
+		.driver_data = (unsigned long)&(x_var),						\
 	}
 
 struct saa7146_extension

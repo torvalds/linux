@@ -290,9 +290,8 @@ static inline bool raid1_should_read_first(struct mddev *mddev,
 }
 
 /*
- * bio with REQ_RAHEAD or REQ_NOWAIT can fail at anytime, before such IO is
- * submitted to the underlying disks, hence don't record badblocks or retry
- * in this case.
+ * bio with REQ_RAHEAD can fail at anytime, before such IO is submitted to the
+ * underlying disks, hence don't record badblocks or retry in this case.
  *
  * BLK_STS_INVAL means the bio was not valid for the underlying device. This
  * is a user error, not a device failure, so retrying or recording bad blocks
@@ -300,6 +299,5 @@ static inline bool raid1_should_read_first(struct mddev *mddev,
  */
 static inline bool raid1_should_handle_error(struct bio *bio)
 {
-	return !(bio->bi_opf & (REQ_RAHEAD | REQ_NOWAIT)) &&
-		bio->bi_status != BLK_STS_INVAL;
+	return !(bio->bi_opf & REQ_RAHEAD) && bio->bi_status != BLK_STS_INVAL;
 }

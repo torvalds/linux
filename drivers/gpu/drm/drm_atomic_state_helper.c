@@ -63,7 +63,7 @@
  */
 
 /**
- * __drm_atomic_helper_crtc_state_reset - reset the CRTC state
+ * __drm_atomic_helper_crtc_state_init - Initialize the CRTC state
  * @crtc_state: atomic CRTC state, must not be NULL
  * @crtc: CRTC object, must not be NULL
  *
@@ -71,13 +71,13 @@
  * values. This is useful for drivers that subclass the CRTC state.
  */
 void
-__drm_atomic_helper_crtc_state_reset(struct drm_crtc_state *crtc_state,
-				     struct drm_crtc *crtc)
+__drm_atomic_helper_crtc_state_init(struct drm_crtc_state *crtc_state,
+				    struct drm_crtc *crtc)
 {
 	crtc_state->crtc = crtc;
 	crtc_state->background_color = DRM_ARGB64_PREP(0xffff, 0, 0, 0);
 }
-EXPORT_SYMBOL(__drm_atomic_helper_crtc_state_reset);
+EXPORT_SYMBOL(__drm_atomic_helper_crtc_state_init);
 
 /**
  * __drm_atomic_helper_crtc_reset - reset state on CRTC
@@ -96,7 +96,7 @@ __drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
 			       struct drm_crtc_state *crtc_state)
 {
 	if (crtc_state)
-		__drm_atomic_helper_crtc_state_reset(crtc_state, crtc);
+		__drm_atomic_helper_crtc_state_init(crtc_state, crtc);
 
 	if (drm_dev_has_vblank(crtc->dev))
 		drm_crtc_vblank_reset(crtc);
@@ -123,6 +123,31 @@ void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_reset(crtc, crtc_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
+
+/**
+ * drm_atomic_helper_crtc_create_state - default &drm_crtc_funcs.atomic_create_state hook for crtcs
+ * @crtc: crtc object
+ *
+ * Allocates and  initializes pristine @drm_crtc_state.
+ *
+ * This is useful for drivers that don't subclass @drm_crtc_state.
+ *
+ * RETURNS:
+ * Pointer to new crtc state, or ERR_PTR on failure.
+ */
+struct drm_crtc_state *drm_atomic_helper_crtc_create_state(struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *state;
+
+	state = kzalloc_obj(*state);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_crtc_state_init(state, crtc);
+
+	return state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_crtc_create_state);
 
 /**
  * __drm_atomic_helper_crtc_duplicate_state - copy atomic CRTC state
@@ -237,15 +262,15 @@ void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
 
 /**
- * __drm_atomic_helper_plane_state_reset - resets plane state to default values
+ * __drm_atomic_helper_plane_state_init - Initialize the plane state
  * @plane_state: atomic plane state, must not be NULL
  * @plane: plane object, must not be NULL
  *
  * Initializes the newly allocated @plane_state with default
- * values. This is useful for drivers that subclass the CRTC state.
+ * values. This is useful for drivers that subclass the plane state.
  */
-void __drm_atomic_helper_plane_state_reset(struct drm_plane_state *plane_state,
-					   struct drm_plane *plane)
+void __drm_atomic_helper_plane_state_init(struct drm_plane_state *plane_state,
+					  struct drm_plane *plane)
 {
 	u64 val;
 
@@ -297,7 +322,7 @@ void __drm_atomic_helper_plane_state_reset(struct drm_plane_state *plane_state,
 			plane_state->hotspot_y = val;
 	}
 }
-EXPORT_SYMBOL(__drm_atomic_helper_plane_state_reset);
+EXPORT_SYMBOL(__drm_atomic_helper_plane_state_init);
 
 /**
  * __drm_atomic_helper_plane_reset - reset state on plane
@@ -305,7 +330,7 @@ EXPORT_SYMBOL(__drm_atomic_helper_plane_state_reset);
  * @plane_state: plane state to assign
  *
  * Initializes the newly allocated @plane_state and assigns it to
- * the &drm_crtc->state pointer of @plane, usually required when
+ * the &drm_plane->state pointer of @plane, usually required when
  * initializing the drivers or when called from the &drm_plane_funcs.reset
  * hook.
  *
@@ -315,7 +340,7 @@ void __drm_atomic_helper_plane_reset(struct drm_plane *plane,
 				     struct drm_plane_state *plane_state)
 {
 	if (plane_state)
-		__drm_atomic_helper_plane_state_reset(plane_state, plane);
+		__drm_atomic_helper_plane_state_init(plane_state, plane);
 
 	plane->state = plane_state;
 }
@@ -339,6 +364,31 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, plane->state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
+
+/**
+ * drm_atomic_helper_plane_create_state - default &drm_plane_funcs.atomic_create_state hook for planes
+ * @plane: plane object
+ *
+ * Allocates and initializes pristine @drm_plane_state.
+ *
+ * This is useful for drivers that don't subclass @drm_plane_state.
+ *
+ * RETURNS:
+ * Pointer to new plane state, or ERR_PTR on failure.
+ */
+struct drm_plane_state *drm_atomic_helper_plane_create_state(struct drm_plane *plane)
+{
+	struct drm_plane_state *state;
+
+	state = kzalloc_obj(*state);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_plane_state_init(state, plane);
+
+	return state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_plane_create_state);
 
 /**
  * __drm_atomic_helper_plane_duplicate_state - copy atomic plane state
@@ -426,20 +476,20 @@ void drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
 EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
 
 /**
- * __drm_atomic_helper_connector_state_reset - reset the connector state
+ * __drm_atomic_helper_connector_state_init - Initialize the connector state
  * @conn_state: atomic connector state, must not be NULL
- * @connector: connectotr object, must not be NULL
+ * @connector: connector object, must not be NULL
  *
  * Initializes the newly allocated @conn_state with default
  * values. This is useful for drivers that subclass the connector state.
  */
 void
-__drm_atomic_helper_connector_state_reset(struct drm_connector_state *conn_state,
-					  struct drm_connector *connector)
+__drm_atomic_helper_connector_state_init(struct drm_connector_state *conn_state,
+					 struct drm_connector *connector)
 {
 	conn_state->connector = connector;
 }
-EXPORT_SYMBOL(__drm_atomic_helper_connector_state_reset);
+EXPORT_SYMBOL(__drm_atomic_helper_connector_state_init);
 
 /**
  * __drm_atomic_helper_connector_reset - reset state on connector
@@ -458,7 +508,7 @@ __drm_atomic_helper_connector_reset(struct drm_connector *connector,
 				    struct drm_connector_state *conn_state)
 {
 	if (conn_state)
-		__drm_atomic_helper_connector_state_reset(conn_state, connector);
+		__drm_atomic_helper_connector_state_init(conn_state, connector);
 
 	connector->state = conn_state;
 }
@@ -483,6 +533,32 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 	__drm_atomic_helper_connector_reset(connector, conn_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
+
+/**
+ * drm_atomic_helper_connector_create_state - default &drm_connector_funcs.atomic_create_state hook for connectors
+ * @connector: connector object
+ *
+ * Allocates and  initializes pristine @drm_connector_state.
+ *
+ * This is useful for drivers that don't subclass @drm_connector_state.
+ *
+ * RETURNS:
+ * Pointer to new connector state, or ERR_PTR on failure.
+ */
+struct drm_connector_state *
+drm_atomic_helper_connector_create_state(struct drm_connector *connector)
+{
+	struct drm_connector_state *state;
+
+	state = kzalloc_obj(*state);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_connector_state_init(state, connector);
+
+	return state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_create_state);
 
 /**
  * drm_atomic_helper_connector_tv_margins_reset - Resets TV connector properties
@@ -731,8 +807,6 @@ void __drm_atomic_helper_private_obj_create_state(struct drm_private_obj *obj,
 {
 	if (state)
 		state->obj = obj;
-
-	obj->state = state;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_private_obj_create_state);
 
@@ -799,7 +873,7 @@ EXPORT_SYMBOL(drm_atomic_helper_bridge_duplicate_state);
  * @state: bridge state to destroy
  *
  * Destroys a bridge state previously created by
- * &drm_atomic_helper_bridge_reset() or
+ * &drm_atomic_helper_bridge_create_state() or
  * &drm_atomic_helper_bridge_duplicate_state(). This helper is meant to be
  * used as a bridge &drm_bridge_funcs.atomic_destroy_state hook for bridges
  * that don't subclass the bridge state.
@@ -812,35 +886,39 @@ void drm_atomic_helper_bridge_destroy_state(struct drm_bridge *bridge,
 EXPORT_SYMBOL(drm_atomic_helper_bridge_destroy_state);
 
 /**
- * __drm_atomic_helper_bridge_reset() - Initialize a bridge state to its
+ * __drm_atomic_helper_bridge_state_init() - Initialize a bridge state to its
  *					default
- * @bridge: the bridge this state refers to
  * @state: bridge state to initialize
+ * @bridge: the bridge this state refers to
+ *
+ * @state is assumed to be zeroed.
  *
  * Initializes the bridge state to default values. This is meant to be called
- * by the bridge &drm_bridge_funcs.atomic_reset hook for bridges that subclass
- * the bridge state.
+ * by the bridge &drm_bridge_funcs.atomic_create_state hook for bridges that
+ * subclass the bridge state.
  */
-void __drm_atomic_helper_bridge_reset(struct drm_bridge *bridge,
-				      struct drm_bridge_state *state)
+void __drm_atomic_helper_bridge_state_init(struct drm_bridge_state *state,
+					   struct drm_bridge *bridge)
 {
-	memset(state, 0, sizeof(*state));
 	__drm_atomic_helper_private_obj_create_state(&bridge->base, &state->base);
 	state->bridge = bridge;
 }
-EXPORT_SYMBOL(__drm_atomic_helper_bridge_reset);
+EXPORT_SYMBOL(__drm_atomic_helper_bridge_state_init);
 
 /**
- * drm_atomic_helper_bridge_reset() - Allocate and initialize a bridge state
- *				      to its default
- * @bridge: the bridge this state refers to
+ * drm_atomic_helper_bridge_create_state - default
+ *              &drm_bridge_funcs.atomic_create_state hook for bridges
+ * @bridge: bridge object
  *
- * Allocates the bridge state and initializes it to default values. This helper
- * is meant to be used as a bridge &drm_bridge_funcs.atomic_reset hook for
- * bridges that don't subclass the bridge state.
+ * Allocates and initializes pristine @drm_bridge_state.
+ *
+ * This is useful for drivers that don't subclass @drm_bridge_state.
+ *
+ * RETURNS:
+ * Pointer to new bridge state, or ERR_PTR on failure.
  */
 struct drm_bridge_state *
-drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
+drm_atomic_helper_bridge_create_state(struct drm_bridge *bridge)
 {
 	struct drm_bridge_state *bridge_state;
 
@@ -848,7 +926,7 @@ drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
 	if (!bridge_state)
 		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_bridge_reset(bridge, bridge_state);
+	__drm_atomic_helper_bridge_state_init(bridge_state, bridge);
 	return bridge_state;
 }
-EXPORT_SYMBOL(drm_atomic_helper_bridge_reset);
+EXPORT_SYMBOL(drm_atomic_helper_bridge_create_state);

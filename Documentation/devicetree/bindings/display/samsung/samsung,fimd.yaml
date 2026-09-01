@@ -41,7 +41,7 @@ properties:
     additionalProperties: false
     description: |
       Timing configuration for lcd i80 interface support.
-      The parameters are defined as::
+      The parameters are defined as:
       VCLK(internal)  __|??????|_____|??????|_____|??????|_____|??????|_____|??
                         :            :            :            :            :
       Address Output  --:<XXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XX
@@ -132,7 +132,7 @@ patternProperties:
   "^port@[0-4]+$":
     $ref: /schemas/graph.yaml#/properties/port
     description: |
-      Contains ports with port with index::
+      Contains ports with port with index:
        0 - for CAMIF0 input,
        1 - for CAMIF1 input,
        2 - for CAMIF2 input,

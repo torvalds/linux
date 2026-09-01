@@ -1023,6 +1023,11 @@ static int __init parse_spectre_bhb_param(char *str)
 }
 early_param("nospectre_bhb", parse_spectre_bhb_param);
 
+static bool spectre_bhb_mitigations_off(void)
+{
+	return __nospectre_bhb || cpu_mitigations_off();
+}
+
 void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 {
 	bp_hardening_cb_t cpu_cb;
@@ -1036,6 +1041,8 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 		/* No point mitigating Spectre-BHB alone. */
 	} else if (!IS_ENABLED(CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY)) {
 		/* Do nothing */
+	} else if (spectre_bhb_mitigations_off()) {
+		/* Mitigation disabled on the command line */
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
 		state = SPECTRE_MITIGATED;
 		set_bit(BHB_HW, &system_bhb_mitigations);
@@ -1201,6 +1208,6 @@ void spectre_print_disabled_mitigations(void)
 	if (spectre_v4_mitigations_off())
 		pr_info("spectre-v4 %s", spectre_disabled_suffix);
 
-	if (__nospectre_bhb || cpu_mitigations_off())
+	if (spectre_bhb_mitigations_off())
 		pr_info("spectre-bhb %s", spectre_disabled_suffix);
 }

@@ -228,3 +228,4 @@ module_platform_driver(gadc_thermal_driver);
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_DESCRIPTION("Generic ADC thermal driver using IIO framework with DT");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

@@ -74,11 +74,8 @@ struct page *find_timens_vvar_page(struct vm_area_struct *vma)
 		return current->nsproxy->time_ns->vvar_page;
 
 	/*
-	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
-	 * through interfaces like /proc/$pid/mem or
-	 * process_vm_{readv,writev}() as long as there's no .access()
-	 * in special_mapping_vmops().
-	 * For more details check_vma_flags() and __access_remote_vm()
+	 * vvar_fault() protects this from being called through remote interfaces like
+	 * /proc/$pid/mem or process_vm_{readv,writev}().
 	 */
 
 	WARN(1, "vvar_page accessed remotely");

@@ -267,7 +267,7 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 static const struct of_device_id cros_ec_pwm_of_match[] = {
 	{ .compatible = "google,cros-ec-pwm" },
 	{ .compatible = "google,cros-ec-pwm-type" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, cros_ec_pwm_of_match);
 #endif

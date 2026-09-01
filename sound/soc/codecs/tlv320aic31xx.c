@@ -1720,18 +1720,14 @@ static int tlv320dac3100_fw_load(struct aic31xx_priv *aic31xx,
 static int tlv320dac3100_load_coeffs(struct aic31xx_priv *aic31xx,
 				     const char *fw_name)
 {
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int ret;
 
 	ret = request_firmware(&fw, fw_name, aic31xx->dev);
 	if (ret)
 		return ret;
 
-	ret = tlv320dac3100_fw_load(aic31xx, fw->data, fw->size);
-
-	release_firmware(fw);
-
-	return ret;
+	return tlv320dac3100_fw_load(aic31xx, fw->data, fw->size);
 }
 
 static int aic31xx_i2c_probe(struct i2c_client *i2c)

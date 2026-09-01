@@ -5172,7 +5172,7 @@ static enum scsi_qc_status mpi3mr_qcmd(struct Scsi_Host *shost,
 
 	/* Avoid error handling escalation when device is removed or blocked */
 
-	if (scmd->device->host->shost_state == SHOST_RECOVERY &&
+	if (scsi_get_host_state(scmd->device->host) == SHOST_RECOVERY &&
 		scmd->cmnd[0] == TEST_UNIT_READY &&
 		(stgt_priv_data->dev_removed || (dev_handle == MPI3MR_INVALID_DEV_HANDLE))) {
 		scsi_build_sense(scmd, 0, UNIT_ATTENTION, 0x29, 0x07);

@@ -562,7 +562,7 @@ out:
 }
 
 static int hfsplus_create(struct mnt_idmap *idmap, struct inode *dir,
-			  struct dentry *dentry, umode_t mode, bool excl)
+			  struct dentry *dentry, umode_t mode)
 {
 	return hfsplus_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
@@ -570,7 +570,7 @@ static int hfsplus_create(struct mnt_idmap *idmap, struct inode *dir,
 static struct dentry *hfsplus_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 				    struct dentry *dentry, umode_t mode)
 {
-	return ERR_PTR(hfsplus_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFDIR, 0));
+	return ERR_PTR(hfsplus_mknod(&nop_mnt_idmap, dir, dentry, mode, 0));
 }
 
 static int hfsplus_rename(struct mnt_idmap *idmap,

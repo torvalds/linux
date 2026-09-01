@@ -37,6 +37,22 @@ START_TEST(test_period_long)
 }
 END_TEST
 
+START_TEST(test_period_unset_short)
+{
+	PARSE_ARGS("osnoise", "top", "-p", "100000", "--no-period");
+
+	ck_assert_int_eq(osn_params->period, 0);
+}
+END_TEST
+
+START_TEST(test_period_unset_long)
+{
+	PARSE_ARGS("osnoise", "top", "--period", "100000", "--no-period");
+
+	ck_assert_int_eq(osn_params->period, 0);
+}
+END_TEST
+
 START_TEST(test_runtime_short)
 {
 	PARSE_ARGS("osnoise", "top", "-r", "95000");
@@ -433,6 +449,8 @@ Suite *osnoise_top_cli_suite(void)
 	tc = tcase_create("tracing_options");
 	tcase_add_test(tc, test_period_short);
 	tcase_add_test(tc, test_period_long);
+	tcase_add_test(tc, test_period_unset_short);
+	tcase_add_test(tc, test_period_unset_long);
 	tcase_add_test(tc, test_runtime_short);
 	tcase_add_test(tc, test_runtime_long);
 	tcase_add_test(tc, test_stop_short);

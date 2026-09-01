@@ -527,8 +527,8 @@ static const struct v4l2_ctrl_ops cadet_ctrl_ops = {
 
 static const struct pnp_device_id cadet_pnp_devices[] = {
 	/* ADS Cadet AM/FM Radio Card */
-	{.id = "MSM0c24", .driver_data = 0},
-	{.id = ""}
+	{ .id = "MSM0c24" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pnp, cadet_pnp_devices);

@@ -29,7 +29,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
-#include <include/vdso/time64.h>
+#include "clock-helpers.h"
 #include "kselftest.h"
 
 #define ADJ_SETOFFSET 0x0100

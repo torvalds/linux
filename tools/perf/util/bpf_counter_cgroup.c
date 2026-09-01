@@ -104,7 +104,7 @@ static int bperf_load_program(struct evlist *evlist)
 
 	set_max_rlimit();
 
-	if (nr_cgroups == 0 || evlist->core.nr_entries % nr_cgroups != 0) {
+	if (nr_cgroups == 0 || evlist__nr_entries(evlist) % nr_cgroups != 0) {
 		pr_err("Invalid cgroup or event count\n");
 		return -EINVAL;
 	}
@@ -116,7 +116,7 @@ static int bperf_load_program(struct evlist *evlist)
 		pr_err("Failed to open cgroup skeleton\n");
 		return -1;
 	}
-	setup_rodata(skel, evlist->core.nr_entries);
+	setup_rodata(skel, evlist__nr_entries(evlist));
 
 	err = bperf_cgroup_bpf__load(skel);
 	if (err) {
@@ -127,12 +127,12 @@ static int bperf_load_program(struct evlist *evlist)
 	err = -1;
 
 	cgrp_switch = evsel__new(&cgrp_switch_attr);
-	if (evsel__open_per_cpu(cgrp_switch, evlist->core.all_cpus, -1) < 0) {
+	if (evsel__open_per_cpu(cgrp_switch, evlist__core(evlist)->all_cpus, -1) < 0) {
 		pr_err("Failed to open cgroup switches event\n");
 		goto out;
 	}
 
-	perf_cpu_map__for_each_cpu(cpu, i, evlist->core.all_cpus) {
+	perf_cpu_map__for_each_cpu(cpu, i, evlist__core(evlist)->all_cpus) {
 		link = bpf_program__attach_perf_event(skel->progs.on_cgrp_switch,
 						      FD(cgrp_switch, i));
 		if (IS_ERR(link)) {
@@ -197,7 +197,7 @@ static int bperf_load_program(struct evlist *evlist)
 	 */
 	{
 		struct evsel *leader;
-		int num_events = evlist->core.nr_entries / nr_cgroups;
+		int num_events = evlist__nr_entries(evlist) / nr_cgroups;
 
 		evlist__for_each_entry(evlist, evsel) {
 			leader = evlist__find_evsel(evlist, evsel->core.idx % num_events);
@@ -258,7 +258,7 @@ static int bperf_cgrp__sync_counters(struct evlist *evlist)
 	unsigned int idx;
 	int prog_fd = bpf_program__fd(skel->progs.trigger_read);
 
-	perf_cpu_map__for_each_cpu(cpu, idx, evlist->core.all_cpus)
+	perf_cpu_map__for_each_cpu(cpu, idx, evlist__core(evlist)->all_cpus)
 		bperf_trigger_reading(prog_fd, cpu.cpu);
 
 	return 0;
@@ -336,7 +336,7 @@ static int bperf_cgrp__destroy(struct evsel *evsel)
 		return 0;
 
 	bperf_cgroup_bpf__destroy(skel);
-	evsel__delete(cgrp_switch);  // it'll destroy on_switch progs too
+	evsel__put(cgrp_switch);  // it'll destroy on_switch progs too
 
 	return 0;
 }

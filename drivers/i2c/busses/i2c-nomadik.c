@@ -1050,9 +1050,9 @@ static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
 	if (id >= ARRAY_SIZE(nmk_i2c_eyeq5_masks))
 		return -ENOENT;
 
-	if (priv->clk_freq <= 400000)
+	if (priv->clk_freq <= I2C_MAX_FAST_MODE_FREQ)
 		speed_mode = I2C_EYEQ5_SPEED_FAST;
-	else if (priv->clk_freq <= 1000000)
+	else if (priv->clk_freq <= I2C_MAX_FAST_MODE_PLUS_FREQ)
 		speed_mode = I2C_EYEQ5_SPEED_FAST_PLUS;
 	else
 		speed_mode = I2C_EYEQ5_SPEED_HIGH_SPEED;
@@ -1137,8 +1137,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = devm_request_irq(dev, priv->irq, i2c_irq_handler, 0,
 			       DRIVER_NAME, priv);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "cannot claim the irq %d\n", priv->irq);
+		return ret;
 
 	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk))

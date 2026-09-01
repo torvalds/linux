@@ -297,6 +297,7 @@ r535_fbsr = {
 static void *
 r535_instmem_dtor(struct nvkm_instmem *imem)
 {
+	nv50_instmem_dtor(imem);
 	kfree(imem->func);
 	return imem;
 }

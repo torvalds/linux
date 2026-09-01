@@ -31,7 +31,7 @@ static u32 numachip1_get_apic_id(u32 x)
 	unsigned long value;
 	unsigned int id = (x >> 24) & 0xff;
 
-	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
+	if (cpu_feature_enabled(X86_FEATURE_NODEID_MSR)) {
 		rdmsrq(MSR_FAM10H_NODE_ID, value);
 		id |= (value << 2) & 0xff00;
 	}

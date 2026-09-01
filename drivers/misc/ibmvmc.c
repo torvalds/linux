@@ -1040,7 +1040,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 			    size_t count, loff_t *ppos)
 {
 	struct inode *inode;
-	struct ibmvmc_buffer *vmc_buffer;
+	struct ibmvmc_buffer *vmc_buffer = NULL;
 	struct ibmvmc_file_session *session;
 	struct crq_server_adapter *adapter;
 	struct ibmvmc_hmc *hmc;
@@ -1130,9 +1130,15 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 	dev_dbg(adapter->dev, "write: file = 0x%lx, count = 0x%lx\n",
 		(unsigned long)file, (unsigned long)count);
 
-	ibmvmc_send_msg(adapter, vmc_buffer, hmc, count);
+	if (ibmvmc_send_msg(adapter, vmc_buffer, hmc, count)) {
+		ret = -EIO;
+		goto out;
+	}
+	vmc_buffer = NULL;
 	ret = p - buffer;
  out:
+	if (vmc_buffer)
+		vmc_buffer->free = 1;
 	spin_unlock_irqrestore(&hmc->lock, flags);
 	return (ssize_t)(ret);
 }
@@ -1649,6 +1655,13 @@ static int ibmvmc_recv_msg(struct crq_server_adapter *adapter,
 	if (buffer->valid == 0 || buffer->owner == VMC_BUF_OWNER_ALPHA) {
 		dev_err(adapter->dev, "Recv_msg: not valid, or not HV.  0x%x 0x%x\n",
 			buffer->valid, buffer->owner);
+		spin_unlock_irqrestore(&hmc->lock, flags);
+		return -1;
+	}
+
+	if (msg_len > buffer->size) {
+		dev_err(adapter->dev, "Recv_msg: msg_len 0x%lx exceeds buffer size 0x%x\n",
+			msg_len, buffer->size);
 		spin_unlock_irqrestore(&hmc->lock, flags);
 		return -1;
 	}
@@ -2298,8 +2311,8 @@ static void ibmvmc_remove(struct vio_dev *vdev)
 }
 
 static struct vio_device_id ibmvmc_device_table[] = {
-	{ "ibm,vmc", "IBM,vmc" },
-	{ "", "" }
+	{ .type = "ibm,vmc", .compat = "IBM,vmc" },
+	{ }
 };
 MODULE_DEVICE_TABLE(vio, ibmvmc_device_table);
 

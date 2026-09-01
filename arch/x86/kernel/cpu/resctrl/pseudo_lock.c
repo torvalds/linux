@@ -241,16 +241,16 @@ int resctrl_arch_pseudo_lock_fn(void *_plr)
 int resctrl_arch_measure_cycles_lat_fn(void *_plr)
 {
 	struct pseudo_lock_region *plr = _plr;
-	u32 saved_low, saved_high;
 	unsigned long i;
 	u64 start, end;
 	void *mem_r;
+	u64 saved;
 
 	local_irq_disable();
 	/*
 	 * Disable hardware prefetchers.
 	 */
-	rdmsr(MSR_MISC_FEATURE_CONTROL, saved_low, saved_high);
+	rdmsrq(MSR_MISC_FEATURE_CONTROL, saved);
 	wrmsrq(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits);
 	mem_r = READ_ONCE(plr->kmem);
 	/*
@@ -267,7 +267,7 @@ int resctrl_arch_measure_cycles_lat_fn(void *_plr)
 		end = rdtsc_ordered();
 		trace_pseudo_lock_mem_latency((u32)(end - start));
 	}
-	wrmsr(MSR_MISC_FEATURE_CONTROL, saved_low, saved_high);
+	wrmsrq(MSR_MISC_FEATURE_CONTROL, saved);
 	local_irq_enable();
 	plr->thread_done = 1;
 	wake_up_interruptible(&plr->lock_thread_wq);
@@ -312,11 +312,11 @@ static int measure_residency_fn(struct perf_event_attr *miss_attr,
 	u64 hits_before = 0, hits_after = 0, miss_before = 0, miss_after = 0;
 	struct perf_event *miss_event, *hit_event;
 	int hit_pmcnum, miss_pmcnum;
-	u32 saved_low, saved_high;
 	unsigned int line_size;
 	unsigned int size;
 	unsigned long i;
 	void *mem_r;
+	u64 saved;
 	u64 tmp;
 
 	miss_event = perf_event_create_kernel_counter(miss_attr, plr->cpu,
@@ -346,7 +346,7 @@ static int measure_residency_fn(struct perf_event_attr *miss_attr,
 	/*
 	 * Disable hardware prefetchers.
 	 */
-	rdmsr(MSR_MISC_FEATURE_CONTROL, saved_low, saved_high);
+	rdmsrq(MSR_MISC_FEATURE_CONTROL, saved);
 	wrmsrq(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits);
 
 	/* Initialize rest of local variables */
@@ -405,7 +405,7 @@ static int measure_residency_fn(struct perf_event_attr *miss_attr,
 	 */
 	rmb();
 	/* Re-enable hardware prefetchers */
-	wrmsr(MSR_MISC_FEATURE_CONTROL, saved_low, saved_high);
+	wrmsrq(MSR_MISC_FEATURE_CONTROL, saved);
 	local_irq_enable();
 out_hit:
 	perf_event_release_kernel(hit_event);

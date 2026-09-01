@@ -4,11 +4,29 @@
 # requires: available_reactors wwnr:monitor printk:reactor stress-ng:program
 
 load() { # returns true if there was a reaction
-	local lines_before num
+	local lines_before num load_pid ret
 	num=$((($(nproc) + 1) / 2))
 	lines_before=$(dmesg | wc -l)
-	stress-ng --cpu-sched "$num" --timer "$num" -t 5 -q
-	dmesg | tail -n $((lines_before + 1)) | grep -q "rv: monitor wwnr does not allow event"
+	stress-ng --cpu-sched "$num" --timer "$num" -t 5 -q &
+	load_pid=$!
+	timeout 5 dmesg -w | tail -n +$((lines_before + 1)) | \
+		grep -m 1 -q "rv: monitor wwnr does not allow event"
+	ret=$?
+	kill "$load_pid" || true
+	wait "$load_pid" || true
+	return $ret
+}
+
+# loads may flood the ringbuffer, wait for all pending printks (timeout at 2 minutes)
+wait_dmesg_flush() {
+	local last_before last_after
+	for _ in $(seq 400); do
+		last_before=$last_after
+		last_after=$(dmesg | grep "rv:" | tail -n 1 || true)
+		[ "$last_before" = "$last_after" ] && return 0
+		sleep .3
+	done
+	return 1
 }
 
 echo 1 > monitors/wwnr/enable
@@ -17,13 +35,17 @@ echo printk > monitors/wwnr/reactors
 load
 
 echo 0 > monitoring_on
-! load
+wait_dmesg_flush
+
+! load || false
 echo 1 > monitoring_on
 
 load
 
 echo 0 > reacting_on
-! load
+wait_dmesg_flush
+
+! load || false
 echo 1 > reacting_on
 
 echo nop > monitors/wwnr/reactors

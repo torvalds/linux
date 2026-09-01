@@ -529,9 +529,9 @@ enum {
 	RTW_WLAN_CATEGORY_FT = 6,
 	RTW_WLAN_CATEGORY_HT = 7,
 	RTW_WLAN_CATEGORY_SA_QUERY = 8,
-	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11,
 	RTW_WLAN_CATEGORY_TDLS = 12,
-	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15,
 	RTW_WLAN_CATEGORY_WMM = 17,
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
@@ -622,32 +622,6 @@ struct rtw_ieee80211_channel {
 	/* int orig_mag; */
 	/* int orig_mpwr; */
 };
-
-#define CHAN_FMT \
-	/*"band:%d, "*/ \
-	/*"center_freq:%u, "*/ \
-	"hw_value:%u, " \
-	"flags:0x%08x" \
-	/*"max_antenna_gain:%d\n"*/ \
-	/*"max_power:%d\n"*/ \
-	/*"max_reg_power:%d\n"*/ \
-	/*"beacon_found:%u\n"*/ \
-	/*"orig_flags:0x%08x\n"*/ \
-	/*"orig_mag:%d\n"*/ \
-	/*"orig_mpwr:%d\n"*/
-
-#define CHAN_ARG(channel) \
-	/*(channel)->band*/ \
-	/*, (channel)->center_freq*/ \
-	(channel)->hw_value \
-	, (channel)->flags \
-	/*, (channel)->max_antenna_gain*/ \
-	/*, (channel)->max_power*/ \
-	/*, (channel)->max_reg_power*/ \
-	/*, (channel)->beacon_found*/ \
-	/*, (channel)->orig_flags*/ \
-	/*, (channel)->orig_mag*/ \
-	/*, (channel)->orig_mpwr*/ \
 
 /* Parsed Information Elements */
 struct rtw_ieee802_11_elems {

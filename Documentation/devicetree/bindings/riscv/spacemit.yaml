@@ -21,6 +21,11 @@ properties:
     oneOf:
       - items:
           - enum:
+              - bananapi,bpi-cm6-io
+          - const: bananapi,bpi-cm6
+          - const: spacemit,k1
+      - items:
+          - enum:
               - bananapi,bpi-f3
               - milkv,jupiter
               - spacemit,musepi-pro

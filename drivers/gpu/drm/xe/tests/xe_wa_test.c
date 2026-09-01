@@ -43,9 +43,6 @@ static int xe_wa_test_init(struct kunit *test)
 		xe_gt_mmio_init(gt);
 	}
 
-	if (!param->graphics_verx100)
-		xe->info.step = param->step;
-
 	/* TODO: init hw engines for engine/LRC WAs */
 	xe->drm.dev = dev;
 	test->priv = xe;

@@ -2,6 +2,7 @@
 #ifndef _LINUX_STOP_MACHINE
 #define _LINUX_STOP_MACHINE
 
+#include <linux/bug.h>
 #include <linux/cpu.h>
 #include <linux/cpumask_types.h>
 #include <linux/smp.h>
@@ -31,7 +32,7 @@ struct cpu_stop_work {
 
 int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
 int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
-bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
+void stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
 void stop_machine_park(int cpu);
 void stop_machine_unpark(int cpu);
@@ -68,19 +69,17 @@ static void stop_one_cpu_nowait_workfn(struct work_struct *work)
 	preempt_enable();
 }
 
-static inline bool stop_one_cpu_nowait(unsigned int cpu,
+static inline void stop_one_cpu_nowait(unsigned int cpu,
 				       cpu_stop_fn_t fn, void *arg,
 				       struct cpu_stop_work *work_buf)
 {
-	if (cpu == smp_processor_id()) {
-		INIT_WORK(&work_buf->work, stop_one_cpu_nowait_workfn);
-		work_buf->fn = fn;
-		work_buf->arg = arg;
-		schedule_work(&work_buf->work);
-		return true;
-	}
+	if (WARN_ON_ONCE(cpu != smp_processor_id()))
+		return;
 
-	return false;
+	INIT_WORK(&work_buf->work, stop_one_cpu_nowait_workfn);
+	work_buf->fn = fn;
+	work_buf->arg = arg;
+	schedule_work(&work_buf->work);
 }
 
 static inline void print_stop_info(const char *log_lvl, struct task_struct *task) { }

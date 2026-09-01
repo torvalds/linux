@@ -331,8 +331,8 @@ static int tps51632_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps51632_id[] = {
-	{.name = "tps51632",},
-	{},
+	{ .name = "tps51632" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, tps51632_id);

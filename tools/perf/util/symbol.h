@@ -8,7 +8,9 @@
 #include <stdint.h>
 #include <stdatomic.h>
 #include <linux/list.h>
+#include <linux/livepatch_external.h>
 #include <linux/rbtree.h>
+#include <linux/string.h>
 #include <stdio.h>
 #include <errno.h>
 #include "addr_location.h"
@@ -43,6 +45,16 @@ static inline bool is_ignored_kernel_symbol(const char *str)
 	if (str[0] == 'L' && str[1] == '0')
 		return true;
 	return str[0] == '$';
+}
+
+/*
+ * Livepatch symbols (.klp.sym.*) are relocation placeholders whose resolved
+ * addresses alias existing kernel symbols.  They carry a [module] tag which
+ * confuses module boundary tracking and symbol table lookups.
+ */
+static inline bool is_livepatch_symbol(const char *str)
+{
+	return strstarts(str, KLP_SYM_PREFIX);
 }
 
 /*

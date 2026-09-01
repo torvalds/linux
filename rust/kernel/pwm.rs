@@ -494,9 +494,7 @@ impl PwmOpsVTable {
 /// This is used to bridge Rust trait implementations to the C `struct pwm_ops`
 /// expected by the kernel.
 pub const fn create_pwm_ops<T: PwmOps>() -> PwmOpsVTable {
-    // SAFETY: `core::mem::zeroed()` is unsafe. For `pwm_ops`, all fields are
-    // `Option<extern "C" fn(...)>` or data, so a zeroed pattern (None/0) is valid initially.
-    let mut ops: bindings::pwm_ops = unsafe { core::mem::zeroed() };
+    let mut ops: bindings::pwm_ops = pin_init::zeroed();
 
     ops.request = Some(Adapter::<T>::request_callback);
     ops.capture = Some(Adapter::<T>::capture_callback);
@@ -600,7 +598,7 @@ impl<T: PwmOps> Chip<T> {
         let drvdata_ptr = unsafe { bindings::pwmchip_get_drvdata(c_chip_ptr) };
 
         // SAFETY: We construct the `T` object in-place in the allocated private memory.
-        unsafe { data.__pinned_init(drvdata_ptr.cast()) }.inspect_err(|_| {
+        unsafe { pin_init::raw_try_init(drvdata_ptr.cast(), data) }.inspect_err(|_| {
             // SAFETY: It is safe to call `pwmchip_put()` with a valid pointer obtained
             // from `pwmchip_alloc()`. We will not use pointer after this.
             unsafe { bindings::pwmchip_put(c_chip_ptr) }

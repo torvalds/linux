@@ -4,7 +4,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2023
+ * Copyright IBM Corp. 2002, 2026
  */
 
 #define pr_fmt(fmt) "zfcp: " fmt
@@ -35,12 +35,17 @@ static inline unsigned int zfcp_dbf_plen(unsigned int offset)
 	return sizeof(struct zfcp_dbf_pay) + offset - ZFCP_DBF_PAY_MAX_REC;
 }
 
+#define ZFCP_DBF_PAY_LEVEL 1
+
 static inline
 void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
-		       u64 req_id)
+		       u64 req_id, int level)
 {
 	struct zfcp_dbf_pay *pl = &dbf->pay_buf;
 	u16 offset = 0, rec_length;
+
+	if (unlikely(!debug_level_enabled(dbf->pay, level)))
+		return;
 
 	spin_lock(&dbf->pay_lock);
 	memset(pl, 0, sizeof(*pl));
@@ -51,7 +56,7 @@ void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
 		rec_length = min((u16) ZFCP_DBF_PAY_MAX_REC,
 				 (u16) (length - offset));
 		memcpy(pl->data, data + offset, rec_length);
-		debug_event(dbf->pay, 1, pl, zfcp_dbf_plen(rec_length));
+		debug_event(dbf->pay, level, pl, zfcp_dbf_plen(rec_length));
 
 		offset += rec_length;
 		pl->counter++;
@@ -96,7 +101,27 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 
 	rec->pl_len = q_head->log_length;
 	zfcp_dbf_pl_write(dbf, (char *)q_pref + q_head->log_start,
-			  rec->pl_len, "fsf_res", req->req_id);
+			  rec->pl_len, "fsf_res", req->req_id,
+			  ZFCP_DBF_PAY_LEVEL);
+
+	if (q_head->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) {
+		struct fsf_qtcb_bottom_support *q_bott =
+			&req->qtcb->bottom.support;
+		u32 plogi_len = 0, prli_len = 0;
+
+		if (q_bott->els1_length) {
+			rec->u.res.plogi_len = q_bott->els1_length;
+			plogi_len = min_t(u32, q_bott->els1_length,
+					  sizeof(q_bott->els));
+		}
+		if (q_bott->els2_length) {
+			rec->u.res.prli_len = q_bott->els2_length;
+			prli_len = min_t(u32, q_bott->els2_length,
+					 sizeof(q_bott->els) - plogi_len);
+		}
+		zfcp_dbf_pl_write(dbf, q_bott->els, plogi_len + prli_len,
+				  "fsf_els", req->req_id, 4);
+	}
 
 	debug_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
@@ -220,6 +245,13 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 	rec->u.uss.lun = srb->fcp_lun;
 	memcpy(&rec->u.uss.queue_designator, &srb->queue_designator,
 	       sizeof(rec->u.uss.queue_designator));
+	rec->u.uss.length = srb->length;
+	rec->u.uss.res1 = srb->res1;
+	rec->u.uss.res2 = srb->res2;
+	rec->u.uss.class = srb->class;
+	rec->u.uss.res3 = srb->res3;
+	rec->u.uss.s_id = ntoh24(srb->s_id);
+	memcpy(&rec->u.uss.res4, &srb->res4, sizeof(rec->u.uss.res4));
 
 	/* status read buffer payload length */
 	rec->pl_len = (!srb->length) ? 0 : srb->length -
@@ -227,8 +259,44 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 
 	if (rec->pl_len)
 		zfcp_dbf_pl_write(dbf, srb->payload.data, rec->pl_len,
-				  "fsf_uss", req->req_id);
+				  "fsf_uss", req->req_id, ZFCP_DBF_PAY_LEVEL);
 log:
+	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_uas - trace event for sysfs unit add store
+ * @tag: tag indicating which kind of unit add store condition occurred
+ * @level: debug trace level
+ * @adapter: pointer to struct zfcp_adapter
+ * @wwpn: remote port wwn
+ * @fcp_lun: FCP LUN
+ * @ret: return value
+ */
+void zfcp_dbf_hba_uas(char *tag, int level, struct zfcp_adapter *adapter,
+		      u64 wwpn, u64 fcp_lun, int ret)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
+	unsigned long flags;
+
+	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_HBA_UAS;
+	rec->fsf_req_id = ~0u;
+	rec->fsf_req_status = ~0u;
+	rec->fsf_cmd = ~0u;
+	rec->fsf_seq_no = ~0u;
+	rec->u.uas.wwpn = wwpn;
+	rec->u.uas.fcp_lun = fcp_lun;
+	rec->u.uas.ret = ret;
+
 	debug_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
@@ -732,7 +800,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
 				min_t(u16, max_t(u16, rec->pl_len,
 						 ZFCP_DBF_PAY_MAX_REC),
 				      FSF_FCP_RSP_SIZE),
-				"fcp_riu", fsf->req_id);
+				"fcp_riu", fsf->req_id, ZFCP_DBF_PAY_LEVEL);
 	}
 
 	debug_event(dbf->scsi, level, rec, sizeof(*rec));

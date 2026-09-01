@@ -1065,6 +1065,11 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 	xe_gt_assert(gt, g2h_len || !num_g2h);
 	lockdep_assert_held(&ct->lock);
 
+	if (xe_device_wedged(ct_to_xe(ct))) {
+		ret = -ENOTRECOVERABLE;
+		goto out;
+	}
+
 	if (unlikely(ct->ctbs.h2g.info.broken)) {
 		ret = -EPIPE;
 		goto out;
@@ -1236,6 +1241,36 @@ static int guc_ct_send(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	return ret;
 }
 
+/**
+ * xe_guc_ct_send - Send an HXG message to the GuC over CT
+ * @ct: the &xe_guc_ct
+ * @action: dword array with the HXG message (can't be NULL)
+ * @len: length of the HXG message in dwords (can't be 0)
+ * @g2h_len: G2H response space to reserve in dwords, or 0
+ * @num_g2h: number of G2H messages expected, or 0
+ *
+ * Return codes from the non-blocking send helpers are:
+ *
+ * * -ENOTRECOVERABLE: the xe device is wedged. Stop submitting new GuC work; the
+ *   request cannot make progress until the device is recovered.
+ * * -EPIPE: the H2G CTB is marked broken. The channel stays unusable until the
+ *   CT is restarted, which clears the broken flag.
+ * * -ENODEV: the CT channel is disabled, messages not expected in this state.
+ *   Don't retry until it is enabled again.
+ * * -ECANCELED: the CT channel is stopped or a GT recovery is pending; the
+ *   message was dropped. Often benign. Cancel-tolerant callers (e.g. TLB
+ *   invalidations, GuC submission) rely on the stop/start flow to recover;
+ *   others should retry once the CT is re-enabled or the reset/recovery
+ *   completes.
+ * * -EDEADLK: no CTB room and the wait for space timed out. The send helpers
+ *   have already requested an async GT reset before returning this error.
+ *
+ * -ENOMEM may also be returned if an internal allocation fails; the blocking
+ * xe_guc_ct_send_recv() path retries that allocation. -EBUSY and
+ * -EAGAIN are internal flow-control results handled by the send helpers.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
 int xe_guc_ct_send(struct xe_guc_ct *ct, const u32 *action, u32 len,
 		   u32 g2h_len, u32 num_g2h)
 {
@@ -1388,7 +1423,7 @@ wait_again:
 	if (g2h_fence.fail) {
 		if (g2h_fence.cancel) {
 			xe_gt_dbg(gt, "H2G request %#x canceled!\n", action[0]);
-			ret = -ECANCELED;
+			ret = xe_device_wedged(ct_to_xe(ct)) ? -ENOTRECOVERABLE : -ECANCELED;
 			goto unlock;
 		}
 		xe_gt_err(gt, "H2G request %#x failed: error %#x hint %#x\n",
@@ -1661,6 +1696,9 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_exec_queue_memory_cat_error_handler(guc, payload,
 								 adj_len);
 		break;
+	case XE_GUC_ACTION_NOTIFY_UNCORRECTABLE_LOCAL_ERROR:
+		ret = xe_guc_uncorrectable_error_handler(guc, payload, adj_len);
+		break;
 	case XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC:
 		ret = xe_guc_pagefault_handler(guc, payload, adj_len);
 		break;
@@ -1723,6 +1761,9 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 
 	xe_gt_assert(gt, xe_guc_ct_initialized(ct));
 	lockdep_assert_held(&ct->fast_lock);
+
+	if (xe_device_wedged(xe))
+		return -ENOTRECOVERABLE;
 
 	if (ct->state == XE_GUC_CT_STATE_DISABLED)
 		return -ENODEV;

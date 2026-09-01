@@ -234,6 +234,87 @@ Kconfig option selected.
 Note that even if you set this option, you can override the embedded
 bootconfig by another bootconfig which attached to the initrd.
 
+Rendering Embedded kernel.* Keys at Build Time
+----------------------------------------------
+
+By default, the embedded bootconfig (``CONFIG_BOOT_CONFIG_EMBED=y``) is
+parsed at runtime, after ``parse_early_param()`` has already run. Early
+parameter handlers (``mem=``, ``earlycon=``, ``loglevel=``, ...) therefore
+cannot see values supplied via the embedded ``kernel`` subtree.
+
+``CONFIG_CMDLINE_FROM_BOOTCONFIG`` resolves this by rendering the
+``kernel`` subtree of ``CONFIG_BOOT_CONFIG_EMBED_FILE`` into a flat cmdline
+string at kernel build time (via ``tools/bootconfig -C``) and prepending
+it to ``boot_command_line`` during early architecture setup, so the keys
+are visible to ``parse_early_param()``.
+
+The option requires ``CONFIG_BOOT_CONFIG_EMBED=y``, a non-empty
+``CONFIG_BOOT_CONFIG_EMBED_FILE``, ``CONFIG_CMDLINE`` to be empty, and
+an architecture that selects ``CONFIG_ARCH_SUPPORTS_CMDLINE_FROM_BOOTCONFIG``.
+Currently only x86 selects it; on other architectures the embedded
+bootconfig still works, but only through the late runtime parser.
+
+The same ``bootconfig`` opt-in applies as elsewhere: the rendered keys
+are prepended only when ``bootconfig`` (in any form) appears on the
+kernel command line, or when ``CONFIG_BOOT_CONFIG_FORCE`` is set, which
+defaults to ``y`` when ``CONFIG_BOOT_CONFIG_EMBED`` is set.
+
+For example, given::
+
+ kernel {
+   loglevel = 7
+   mem = 4G
+ }
+
+the kernel boots as if ``loglevel=7 mem=4G`` had been prepended to the
+bootloader command line, with the values visible to early-parsed
+handlers. Comma-separated values are still expanded into multiple
+cmdline entries per the bootconfig array convention -- the embedded
+``kernel.earlycon = "uart8250,io,0x3f8"`` must be quoted to land as a
+single ``earlycon=`` entry, exactly as for the runtime parser.
+
+If the rendered string would not fit in ``COMMAND_LINE_SIZE`` together
+with the existing command line, the prepend is skipped and an error is
+logged, so an oversized embedded bootconfig cannot brick a boot.
+
+Interaction with other command line and bootconfig sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With ``CONFIG_CMDLINE_FROM_BOOTCONFIG=y`` the rendered ``kernel``
+subtree behaves like a build-time command line (similar to
+``CONFIG_CMDLINE``), not like a bootconfig source. It is prepended to
+``boot_command_line`` in ``setup_arch()``, before ``parse_early_param()``
+and long before the runtime parser looks at an initrd. Options can reach
+the kernel from up to four places:
+
+- Bootloader command line: the arguments the boot loader passes. The
+  embedded cmdline is prepended in front of them, so for last-one-wins
+  parameters a bootloader option still overrides the embedded value.
+  Visible in /proc/cmdline.
+- Embedded cmdline (this option): the rendered ``kernel`` subtree,
+  prepended early so it is seen by ``parse_early_param()``. Visible in
+  /proc/cmdline.
+- Initrd bootconfig: parsed late in ``setup_boot_config()``; its
+  ``kernel`` keys are placed ahead of ``boot_command_line``, i.e. before
+  the embedded cmdline, so last-wins favors the embedded values. As a
+  bootconfig source, an initrd bootconfig still replaces the embedded
+  bootconfig. Visible in /proc/cmdline and /proc/bootconfig.
+- Embedded bootconfig (runtime): parsed late, only when no initrd
+  bootconfig is present. Visible in /proc/cmdline and /proc/bootconfig.
+
+So with this option the embedded ``kernel.*`` values take precedence
+over an initrd bootconfig's ``kernel.*`` values: for early parameters
+the initrd is not parsed yet, and for ordinary parameters the embedded
+keys land later in the command line. If you need an initrd bootconfig to
+override the embedded ``kernel.*`` keys, leave this option off and rely
+on the runtime parser.
+
+The rendered string is part of the command line, so it appears in
+/proc/cmdline. It is deliberately not shown in /proc/bootconfig: that
+file keeps reporting the parsed bootconfig tree -- the initrd bootconfig
+if present, otherwise the embedded bootconfig -- independent of whether
+build-time cmdline rendering is enabled.
+
 Kernel parameters via Boot Config
 =================================
 

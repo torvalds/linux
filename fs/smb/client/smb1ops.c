@@ -542,6 +542,7 @@ static int cifs_query_path_info(const unsigned int xid,
 
 	data->reparse_point = false;
 	data->adjust_tz = false;
+	data->unknown_nlink = false;
 
 	/*
 	 * First try CIFSSMBQPathInfo() function which returns more info
@@ -608,6 +609,7 @@ static int cifs_query_path_info(const unsigned int xid,
 				fi.EASize = di->EaSize;
 			}
 			fi.NumberOfLinks = cpu_to_le32(1);
+			data->unknown_nlink = true;
 			fi.DeletePending = 0;
 			fi.Directory = !!(le32_to_cpu(fi.Attributes) & ATTR_DIRECTORY);
 			cifs_buf_release(search_info.ntwrk_buf_start);
@@ -630,6 +632,8 @@ static int cifs_query_path_info(const unsigned int xid,
 		rc = SMBQueryInformation(xid, tcon, full_path, &fi, cifs_sb->local_nls,
 					 cifs_remap(cifs_sb));
 		data->adjust_tz = true;
+		if (!rc)
+			data->unknown_nlink = true;
 	} else if ((rc == -EOPNOTSUPP || rc == -EINVAL) && non_unicode_wildcard) {
 		/* Path with non-UNICODE wildcard character cannot exist. */
 		rc = -ENOENT;
@@ -717,7 +721,7 @@ static int cifs_query_path_info(const unsigned int xid,
 			ea->ea_value_length = cpu_to_le16(SMB2_WSL_XATTR_DEV_SIZE);
 			memcpy(&ea->ea_data[0], SMB2_WSL_XATTR_DEV, SMB2_WSL_XATTR_NAME_LEN + 1);
 			data->wsl.eas_len += ALIGN(sizeof(*ea) + SMB2_WSL_XATTR_NAME_LEN + 1 +
-						   SMB2_WSL_XATTR_MODE_SIZE, 4);
+						   SMB2_WSL_XATTR_DEV_SIZE, 4);
 			rc = 0;
 		} else if (rc >= 0) {
 			/* It is an error if EA $LXDEV has wrong size. */
@@ -893,8 +897,10 @@ static int cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms
 	else
 		rc = CIFS_open(xid, oparms, oplock, &fi);
 
-	if (!rc && data)
+	if (!rc && data) {
 		move_cifs_info_to_smb2(&data->fi, &fi);
+		data->unknown_nlink = true;
+	}
 
 	return rc;
 }

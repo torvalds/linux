@@ -897,10 +897,14 @@ void submit_bio_noacct(struct bio *bio)
 		if (!q->limits.max_write_zeroes_sectors)
 			goto not_supported;
 		break;
-	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
+	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_FINISH:
+		/* Zone management operations require sequential zones. */
+		if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector))
+			goto end_io;
+		break;
 	case REQ_OP_ZONE_RESET_ALL:
 		if (!bdev_is_zoned(bio->bi_bdev))
 			goto not_supported;

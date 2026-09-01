@@ -5,6 +5,7 @@
 #define _IDPF_TXRX_H_
 
 #include <linux/dim.h>
+#include <linux/net/intel/virtchnl2_lan_desc.h>
 
 #include <net/libeth/cache.h>
 #include <net/libeth/types.h>
@@ -13,7 +14,6 @@
 #include <net/xdp.h>
 
 #include "idpf_lan_txrx.h"
-#include "virtchnl2_lan_desc.h"
 
 #define IDPF_LARGE_MAX_Q			256
 #define IDPF_MAX_Q				16
@@ -236,7 +236,7 @@ enum idpf_tx_ctx_desc_eipt_offload {
 				 (sizeof(u16) * IDPF_RX_MAX_PTYPE_PROTO_IDS))
 #define IDPF_RX_PTYPE_HDR_SZ	sizeof(struct virtchnl2_get_ptype_info)
 #define IDPF_RX_MAX_PTYPES_PER_BUF	\
-	DIV_ROUND_DOWN_ULL((IDPF_CTLQ_MAX_BUF_LEN - IDPF_RX_PTYPE_HDR_SZ), \
+	DIV_ROUND_DOWN_ULL(LIBIE_CTLQ_MAX_BUF_LEN - IDPF_RX_PTYPE_HDR_SZ, \
 			   IDPF_RX_MAX_PTYPE_SZ)
 
 #define IDPF_GET_PTYPE_SIZE(p) struct_size((p), proto_id, (p)->proto_id_count)

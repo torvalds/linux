@@ -595,7 +595,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, &pmu_dev->parent->cpu);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&pmu_dev->parent->cpu));
 }
 
 static DEVICE_ATTR_RO(cpumask);
@@ -1876,10 +1876,8 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, irq, xgene_pmu_isr,
 				IRQF_NOBALANCING | IRQF_NO_THREAD,
 				dev_name(&pdev->dev), xgene_pmu);
-	if (rc) {
-		dev_err(&pdev->dev, "Could not request IRQ %d\n", irq);
+	if (rc)
 		return rc;
-	}
 
 	xgene_pmu->irq = irq;
 

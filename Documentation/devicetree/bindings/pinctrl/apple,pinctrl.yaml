@@ -20,6 +20,8 @@ properties:
       - items:
           - enum:
               - apple,t6020-pinctrl
+              - apple,t6030-pinctrl
+              - apple,t6031-pinctrl
               - apple,t8122-pinctrl
           - const: apple,t8103-pinctrl
       - items:

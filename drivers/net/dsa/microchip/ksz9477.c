@@ -15,6 +15,7 @@
 #include <linux/if_hsr.h>
 #include <linux/if_vlan.h>
 #include <net/dsa.h>
+#include <net/ieee8021q.h>
 #include <net/switchdev.h>
 
 #include "ksz9477_reg.h"
@@ -58,6 +59,11 @@ static int ksz9477_change_mtu(struct dsa_switch *ds, int port, int mtu)
 
 	return regmap_update_bits(ksz_regmap_16(dev), REG_SW_MTU__2,
 				  REG_SW_MTU_MASK, frame_size);
+}
+
+int ksz9477_max_mtu(struct dsa_switch *ds, int port)
+{
+	return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
 }
 
 static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
@@ -478,8 +484,8 @@ static int ksz9477_half_duplex_monitor(struct ksz_device *dev, int port,
 	return ret;
 }
 
-int ksz9477_errata_monitor(struct ksz_device *dev, int port,
-			   u64 tx_late_col)
+static int ksz9477_errata_monitor(struct ksz_device *dev, int port,
+				  u64 tx_late_col)
 {
 	u8 status;
 	int ret;
@@ -496,6 +502,24 @@ int ksz9477_errata_monitor(struct ksz_device *dev, int port,
 
 	return ret;
 }
+
+static void ksz9477_r_mib_stats64(struct ksz_device *dev, int port)
+{
+	struct ksz_stats_raw *raw;
+	struct ksz_port_mib *mib;
+	int ret;
+
+	ksz_r_mib_stats64(dev, port);
+
+	if (dev->info->phy_errata_9477 && !ksz_is_sgmii_port(dev, port)) {
+		mib = &dev->ports[port].mib;
+		raw = (struct ksz_stats_raw *)mib->counters;
+
+		ret = ksz9477_errata_monitor(dev, port, raw->tx_late_col);
+		if (ret)
+			dev_err(dev->dev, "Failed to monitor transmission halt\n");
+	}
+};
 
 void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 {
@@ -1176,6 +1200,58 @@ void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
+static bool ksz9477_get_gbit(struct ksz_device *dev, int port)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	bool gbit = false;
+	u8 data8;
+	bool val;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	val = FIELD_GET(P_GMII_1GBIT_M, data8);
+
+	if (val == bitval[P_GMII_1GBIT])
+		gbit = true;
+
+	return gbit;
+}
+
+static phy_interface_t ksz9477_get_xmii(struct ksz_device *dev, int port,
+					bool gbit)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	phy_interface_t interface;
+	u8 data8;
+	u8 val;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	val = FIELD_GET(P_MII_SEL_M, data8);
+
+	if (val == bitval[P_MII_SEL]) {
+		if (gbit)
+			interface = PHY_INTERFACE_MODE_GMII;
+		else
+			interface = PHY_INTERFACE_MODE_MII;
+	} else if (val == bitval[P_RMII_SEL]) {
+		interface = PHY_INTERFACE_MODE_RMII;
+	} else {
+		interface = PHY_INTERFACE_MODE_RGMII;
+		if (data8 & P_RGMII_ID_EG_ENABLE)
+			interface = PHY_INTERFACE_MODE_RGMII_TXID;
+		if (data8 & P_RGMII_ID_IG_ENABLE) {
+			interface = PHY_INTERFACE_MODE_RGMII_RXID;
+			if (data8 & P_RGMII_ID_EG_ENABLE)
+				interface = PHY_INTERFACE_MODE_RGMII_ID;
+		}
+	}
+
+	return interface;
+}
+
 static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 {
 	phy_interface_t interface;
@@ -1184,9 +1260,9 @@ static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 	if (dev->info->internal_phy[port])
 		return PHY_INTERFACE_MODE_NA;
 
-	gbit = ksz_get_gbit(dev, port);
+	gbit = ksz9477_get_gbit(dev, port);
 
-	interface = ksz_get_xmii(dev, port, gbit);
+	interface = ksz9477_get_xmii(dev, port, gbit);
 
 	return interface;
 }
@@ -1333,6 +1409,28 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	 * ksz_switch_macaddr_get/put logic will not work properly.
 	 */
 	ksz_pwrite8(dev, port, regs[REG_PORT_PME_CTRL], 0);
+}
+
+int ksz9477_set_default_prio_queue_mapping(struct ksz_device *dev, int port)
+{
+	u32 queue_map = 0;
+	int ipm;
+
+	for (ipm = 0; ipm < dev->info->num_ipms; ipm++) {
+		int queue;
+
+		/* Traffic Type (TT) is corresponding to the Internal Priority
+		 * Map (IPM) in the switch. Traffic Class (TC) is
+		 * corresponding to the queue in the switch.
+		 */
+		queue = ieee8021q_tt_to_tc(ipm, dev->info->num_tx_queues);
+		if (queue < 0)
+			return queue;
+
+		queue_map |= queue << (ipm * KSZ9477_PORT_TC_MAP_S);
+	}
+
+	return ksz_pwrite32(dev, port, KSZ9477_PORT_MRI_TC_MAP__4, queue_map);
 }
 
 static int ksz9477_dsa_port_setup(struct dsa_switch *ds, int port)
@@ -1517,6 +1615,58 @@ int ksz9477_enable_stp_addr(struct ksz_device *dev)
 	return 0;
 }
 
+/**
+ * ksz9477_parse_drive_strength() - Extract and apply drive strength
+ *				    configurations from device tree properties.
+ * @dev:	ksz device
+ *
+ * This function reads the specified drive strength properties from the
+ * device tree, validates against the supported chip variants, and sets
+ * them accordingly. An error should be critical here, as the drive strength
+ * settings are crucial for EMI compliance.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int ksz9477_parse_drive_strength(struct ksz_device *dev)
+{
+	struct ksz_driver_strength_prop of_props[] = {
+		[KSZ_DRIVER_STRENGTH_HI] = {
+			.name = "microchip,hi-drive-strength-microamp",
+			.offset = SW_HI_SPEED_DRIVE_STRENGTH_S,
+			.value = -1,
+		},
+		[KSZ_DRIVER_STRENGTH_LO] = {
+			.name = "microchip,lo-drive-strength-microamp",
+			.offset = SW_LO_SPEED_DRIVE_STRENGTH_S,
+			.value = -1,
+		},
+		[KSZ_DRIVER_STRENGTH_IO] = {
+			.name = "microchip,io-drive-strength-microamp",
+			.offset = 0, /* don't care */
+			.value = -1,
+		},
+	};
+	struct device_node *np = dev->dev->of_node;
+	bool have_any_prop = false;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(of_props); i++) {
+		ret = of_property_read_u32(np, of_props[i].name,
+					   &of_props[i].value);
+		if (ret && ret != -EINVAL)
+			dev_warn(dev->dev, "Failed to read %s\n",
+				 of_props[i].name);
+		if (ret)
+			continue;
+
+		have_any_prop = true;
+	}
+
+	if (!have_any_prop)
+		return 0;
+
+	return ksz_drive_strength_write(dev, of_props, ARRAY_SIZE(of_props));
+}
 static int ksz9477_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -1539,7 +1689,7 @@ static int ksz9477_setup(struct dsa_switch *ds)
 		return ret;
 	}
 
-	ret = ksz_parse_drive_strength(dev);
+	ret = ksz9477_parse_drive_strength(dev);
 	if (ret)
 		return ret;
 
@@ -2052,7 +2202,7 @@ const struct ksz_dev_ops ksz9477_dev_ops = {
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.r_mib_cnt = ksz9477_r_mib_cnt,
 	.r_mib_pkt = ksz9477_r_mib_pkt,
-	.r_mib_stat64 = ksz_r_mib_stats64,
+	.r_mib_stat64 = ksz9477_r_mib_stats64,
 	.freeze_mib = ksz9477_freeze_mib,
 	.port_init_cnt = ksz9477_port_init_cnt,
 	.pme_write8 = ksz_write8,
@@ -2098,7 +2248,7 @@ const struct dsa_switch_ops ksz9477_switch_ops = {
 	.get_stats64		= ksz_get_stats64,
 	.get_pause_stats	= ksz_get_pause_stats,
 	.port_change_mtu	= ksz9477_change_mtu,
-	.port_max_mtu		= ksz_max_mtu,
+	.port_max_mtu		= ksz9477_max_mtu,
 	.get_wol		= ksz_get_wol,
 	.set_wol		= ksz_set_wol,
 	.suspend		= ksz_suspend,

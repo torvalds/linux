@@ -144,6 +144,7 @@ struct zloop_device {
 	unsigned int		nr_conv_zones;
 	unsigned int		max_open_zones;
 	unsigned int		block_size;
+	unsigned int		dio_mem_align;
 
 	spinlock_t		open_zones_lock;
 	struct list_head	open_zones_lru_list;
@@ -478,7 +479,8 @@ static int zloop_finish_zone(struct zloop_device *zlo, unsigned int zone_no)
 	    zone->cond == BLK_ZONE_COND_FULL)
 		goto unlock;
 
-	if (vfs_truncate(&zone->file->f_path, zlo->zone_size << SECTOR_SHIFT)) {
+	if (vfs_truncate(&zone->file->f_path,
+			 zlo->zone_capacity << SECTOR_SHIFT)) {
 		set_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
 		ret = -EIO;
 		goto unlock;
@@ -553,7 +555,7 @@ static int zloop_do_rw(struct zloop_cmd *cmd)
 		iov_iter_bvec(&iter, rw,
 			__bvec_iter_bvec(rq->bio->bi_io_vec, rq->bio->bi_iter),
 					nr_bvec, blk_rq_bytes(rq));
-		iter.iov_offset = rq->bio->bi_iter.bi_bvec_done;
+		iter.iov_offset = rq->bio->bi_iter.bi_offset;
 	}
 
 	cmd->iocb.ki_pos = (cmd->sector - zone->start) << SECTOR_SHIFT;
@@ -1037,20 +1039,30 @@ static int zloop_get_block_size(struct zloop_device *zlo,
 	struct kstat st;
 
 	/*
-	 * If the FS block size is lower than or equal to 4K, use that as the
-	 * device block size. Otherwise, fallback to the FS direct IO alignment
-	 * constraint if that is provided, and to the FS underlying device
-	 * physical block size if the direct IO alignment is unknown.
+	 * Use the dio alignment of the file system if provided.  The incoming
+	 * request's bio_vec is forwarded to the backing file unchanged, so its
+	 * required memory alignment becomes the device's dma_alignment when
+	 * used for direct-io.
+	 */
+	if (!vfs_getattr(&zone->file->f_path, &st, STATX_DIOALIGN, 0) &&
+	    (st.result_mask & STATX_DIOALIGN)) {
+		zlo->block_size = st.dio_offset_align;
+		zlo->dio_mem_align = st.dio_mem_align - 1;
+	} else if (sb_bdev) {
+		zlo->block_size = bdev_physical_block_size(sb_bdev);
+		zlo->dio_mem_align = bdev_dma_alignment(sb_bdev);
+	} else {
+		zlo->block_size = SECTOR_SIZE;
+		zlo->dio_mem_align = SECTOR_SIZE - 1;
+	}
+
+	/*
+	 * Prefer the FS block size for the device block size when it is no
+	 * larger than 4K; otherwise keep the direct I/O / physical block size
+	 * selected above.
 	 */
 	if (file_inode(zone->file)->i_sb->s_blocksize <= SZ_4K)
 		zlo->block_size = file_inode(zone->file)->i_sb->s_blocksize;
-	else if (!vfs_getattr(&zone->file->f_path, &st, STATX_DIOALIGN, 0) &&
-		 (st.result_mask & STATX_DIOALIGN))
-		zlo->block_size = st.dio_offset_align;
-	else if (sb_bdev)
-		zlo->block_size = bdev_physical_block_size(sb_bdev);
-	else
-		zlo->block_size = SECTOR_SIZE;
 
 	if (zlo->zone_capacity & ((zlo->block_size >> SECTOR_SHIFT) - 1)) {
 		pr_err("Zone capacity is not aligned to block size %u\n",
@@ -1279,6 +1291,10 @@ static int zloop_ctl_add(struct zloop_options *opts)
 
 	lim.physical_block_size = zlo->block_size;
 	lim.logical_block_size = zlo->block_size;
+	/* Direct I/O forwards the request pages to the backing files as-is. */
+	if (!opts->buffered_io)
+		lim.dma_alignment = max_t(unsigned int, zlo->dio_mem_align,
+					  SECTOR_SIZE - 1);
 	if (zlo->zone_append)
 		lim.max_hw_zone_append_sectors = lim.max_hw_sectors;
 	lim.max_open_zones = zlo->max_open_zones;

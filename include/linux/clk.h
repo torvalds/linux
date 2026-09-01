@@ -503,6 +503,22 @@ int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
 int __must_check devm_clk_bulk_get_optional(struct device *dev, int num_clks,
 					    struct clk_bulk_data *clks);
 /**
+ * devm_clk_bulk_get_enable - Get and enable bulk clocks (managed)
+ * @dev: device for clock "consumer"
+ * @num_clks: the number of clk_bulk_data
+ * @clks: pointer to the clk_bulk_data table of consumer
+ *
+ * Behaves the same as devm_clk_bulk_get() but also prepares and enables the
+ * clocks in one operation with management. The clks will automatically be
+ * disabled, unprepared and freed when the device is unbound.
+ *
+ * Return: 0 if all clocks specified in clk_bulk_data table are obtained and
+ * enabled successfully. Otherwise returns valid IS_ERR() condition containing
+ * errno.
+ */
+int __must_check devm_clk_bulk_get_enable(struct device *dev, int num_clks,
+					  struct clk_bulk_data *clks);
+/**
  * devm_clk_bulk_get_optional_enable - Get and enable optional bulk clocks (managed)
  * @dev: device for clock "consumer"
  * @num_clks: the number of clk_bulk_data
@@ -951,8 +967,8 @@ int clk_set_parent(struct clk *clk, struct clk *parent);
  * clk_get_parent - get the parent clock source for this clock
  * @clk: clock source
  *
- * Returns struct clk corresponding to parent clock source, or
- * valid IS_ERR() condition containing errno.
+ * Returns struct clk corresponding to parent clock source, or NULL
+ * if clk is NULL.
  */
 struct clk *clk_get_parent(struct clk *clk);
 
@@ -1048,6 +1064,13 @@ static inline int __must_check devm_clk_bulk_get(struct device *dev, int num_clk
 
 static inline int __must_check devm_clk_bulk_get_optional(struct device *dev,
 				int num_clks, struct clk_bulk_data *clks)
+{
+	return 0;
+}
+
+static inline int __must_check devm_clk_bulk_get_enable(struct device *dev,
+							int num_clks,
+							struct clk_bulk_data *clks)
 {
 	return 0;
 }

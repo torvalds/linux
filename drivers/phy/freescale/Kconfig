@@ -7,6 +7,7 @@ config PHY_FSL_IMX8MQ_USB
 	depends on OF && HAS_IOMEM
 	depends on TYPEC || TYPEC=n
 	select GENERIC_PHY
+	select REGMAP_MMIO
 	default ARCH_MXC && ARM64
 
 config PHY_MIXEL_LVDS_PHY
@@ -58,6 +59,7 @@ config PHY_FSL_LYNX_10G
 	tristate "Freescale Layerscape Lynx 10G SerDes PHY support"
 	depends on OF
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	select FSL_GUTS
 	select GENERIC_PHY
 	select PHY_FSL_LYNX_CORE
 	help

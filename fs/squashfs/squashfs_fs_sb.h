@@ -12,6 +12,15 @@
 
 #include "squashfs_fs.h"
 
+/*
+ * Waiters for a cache entry sleep on wait_queue as exclusive waiters, so
+ * freeing one entry wakes one task.  See squashfs_cache_get().
+ *
+ * num_waiters is only a hint used to skip pointless wakeups: it is
+ * incremented before a task queues itself and decremented after it is woken,
+ * so it can transiently exceed the number of queued tasks.  It never
+ * undercounts them, which is what the wakeup paths rely on.
+ */
 struct squashfs_cache {
 	char			*name;
 	int			entries;

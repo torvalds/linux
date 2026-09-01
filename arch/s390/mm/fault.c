@@ -406,12 +406,13 @@ NOKPROBE_SYMBOL(do_dat_exception);
 #if IS_ENABLED(CONFIG_KVM)
 
 void do_secure_storage_access(struct pt_regs *regs)
+__context_unsafe(/* folio_walk_end() not instrumented */)
 {
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long addr = get_fault_address(regs);
+	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	struct folio_walk fw;
-	struct mm_struct *mm;
 	struct folio *folio;
 	int rc;
 
@@ -427,10 +428,8 @@ void do_secure_storage_access(struct pt_regs *regs)
 		 * was not supposed to do, e.g. branching into secure
 		 * memory. Trigger a segmentation fault.
 		 */
-		if (user_mode(regs)) {
-			send_sig(SIGSEGV, current, 0);
-			return;
-		}
+		if (user_mode(regs))
+			return handle_fault_error_nolock(regs, SEGV_ACCERR);
 		/*
 		 * The kernel should never run into this case and
 		 * there is no way out of this situation.
@@ -438,13 +437,9 @@ void do_secure_storage_access(struct pt_regs *regs)
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
 	if (is_kernel_fault(regs)) {
-		folio = virt_to_folio((void *)addr);
-		if (unlikely(!folio_try_get(folio)))
-			return;
-		rc = uv_convert_from_secure(folio_to_phys(folio));
-		if (!rc)
-			clear_bit(PG_arch_1, &folio->flags.f);
-		folio_put(folio);
+		if (is_vmalloc_addr((void *)addr))
+			return handle_fault_error_nolock(regs, 0);
+		rc = uv_convert_from_secure(__pa(addr));
 		/*
 		 * There are some valid fixup types for kernel
 		 * accesses to donated secure memory. zeropad is one
@@ -453,25 +448,22 @@ void do_secure_storage_access(struct pt_regs *regs)
 		if (rc)
 			return handle_fault_error_nolock(regs, 0);
 	} else {
-		if (faulthandler_disabled())
+		if (faulthandler_disabled() || !mm)
 			return handle_fault_error_nolock(regs, 0);
-		mm = current->mm;
-		mmap_read_lock(mm);
-		vma = find_vma(mm, addr);
+		vma = lock_mm_and_find_vma(mm, addr, regs);
 		if (!vma)
-			return handle_fault_error(regs, SEGV_MAPERR);
+			return handle_fault_error_nolock(regs, SEGV_MAPERR);
 		folio = folio_walk_start(&fw, vma, addr, 0);
-		if (!folio) {
-			mmap_read_unlock(mm);
-			return;
-		}
+		if (!folio)
+			goto out;
 		/* arch_make_folio_accessible() needs a raised refcount. */
 		folio_get(folio);
 		rc = arch_make_folio_accessible(folio);
 		folio_put(folio);
 		folio_walk_end(&fw, vma);
 		if (rc)
-			send_sig(SIGSEGV, current, 0);
+			return handle_fault_error(regs, SEGV_ACCERR);
+out:
 		mmap_read_unlock(mm);
 	}
 }

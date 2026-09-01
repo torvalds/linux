@@ -39,6 +39,7 @@ struct device_node *of_chosen;
 EXPORT_SYMBOL(of_chosen);
 struct device_node *of_aliases;
 struct device_node *of_stdout;
+EXPORT_SYMBOL_GPL(of_stdout);
 static const char *of_stdout_options;
 
 struct kset *of_kset;
@@ -1505,15 +1506,15 @@ EXPORT_SYMBOL(__of_parse_phandle_with_args);
  * @list_name:	property name that contains a list
  * @stem_name:	stem of property names that specify phandles' arguments count
  * @index:	index of a phandle to parse out
- * @out_args:	optional pointer to output arguments structure (will be filled)
+ * @_out_args:	optional pointer to output arguments structure (will be filled)
  *
  * This function is useful to parse lists of phandles and their arguments.
- * Returns 0 on success and fills out_args, on error returns appropriate errno
+ * Returns 0 on success and fills @_out_args, on error returns appropriate errno
  * value. The difference between this function and of_parse_phandle_with_args()
  * is that this API remaps a phandle if the node the phandle points to has
  * a <@stem_name>-map property.
  *
- * Caller is responsible to call of_node_put() on the returned out_args->np
+ * Caller is responsible to call of_node_put() on the returned @_out_args->np
  * pointer.
  *
  * Example::
@@ -1544,7 +1545,7 @@ EXPORT_SYMBOL(__of_parse_phandle_with_args);
 int of_parse_phandle_with_args_map(const struct device_node *np,
 				   const char *list_name,
 				   const char *stem_name,
-				   int index, struct of_phandle_args *out_args)
+				   int index, struct of_phandle_args *_out_args)
 {
 	char *cells_name __free(kfree) = kasprintf(GFP_KERNEL, "#%s-cells", stem_name);
 	char *map_name __free(kfree) = kasprintf(GFP_KERNEL, "%s-map", stem_name);
@@ -1554,6 +1555,8 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 	const __be32 *map, *mask, *pass;
 	static const __be32 dummy_mask[] = { [0 ... (MAX_PHANDLE_ARGS - 1)] = cpu_to_be32(~0) };
 	static const __be32 dummy_pass[] = { [0 ... (MAX_PHANDLE_ARGS - 1)] = cpu_to_be32(0) };
+	struct of_phandle_args _oa = {};
+	struct of_phandle_args *out_args = _out_args ? _out_args : &_oa;
 	__be32 initial_match_array[MAX_PHANDLE_ARGS];
 	const __be32 *match_array = initial_match_array;
 	int i, ret, map_len, match;
@@ -1585,6 +1588,8 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 		/* Get the <list>-map property */
 		map = of_get_property(cur, map_name, &map_len);
 		if (!map) {
+			if (!_out_args)
+				of_node_put(out_args->np);
 			return 0;
 		}
 		map_len /= sizeof(u32);
@@ -1967,7 +1972,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 
 		/* walk the alias backwards to extract the id and work out
 		 * the 'stem' string */
-		while (isdigit(*(end-1)) && end > start)
+		while (end > start && isdigit(*(end - 1)))
 			end--;
 		len = end - start;
 

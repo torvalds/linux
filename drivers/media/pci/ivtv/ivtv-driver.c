@@ -60,11 +60,9 @@ EXPORT_SYMBOL(ivtv_ext_init);
 
 /* add your revision and whatnot here */
 static const struct pci_device_id ivtv_pci_tbl[] = {
-	{PCI_VENDOR_ID_ICOMP, PCI_DEVICE_ID_IVTV15,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ICOMP, PCI_DEVICE_ID_IVTV16,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0,}
+	{ PCI_VDEVICE(ICOMP, PCI_DEVICE_ID_IVTV15) },
+	{ PCI_VDEVICE(ICOMP, PCI_DEVICE_ID_IVTV16) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci,ivtv_pci_tbl);

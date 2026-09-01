@@ -52,6 +52,8 @@
 #define PPC_FEATURE2_HTM_NO_SUSPEND	0x00080000 /* TM w/out suspended state */
 #define PPC_FEATURE2_ARCH_3_1		0x00040000 /* ISA 3.1 */
 #define PPC_FEATURE2_MMA		0x00020000 /* Matrix Multiply Assist */
+#define PPC_FEATURE2_ARCH_3_2		0x00010000 /* ISA 3.2 */
+#define PPC_FEATURE2_DMF		0x00008000 /* Dense Math Facility */
 
 /*
  * IMPORTANT!

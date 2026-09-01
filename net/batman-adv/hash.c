@@ -11,7 +11,10 @@
 #include <linux/lockdep.h>
 #include <linux/slab.h>
 
-/* clears the hash */
+/**
+ * batadv_hash_init() - clear all buckets of a hashtable
+ * @hash: hashtable to clear
+ */
 static void batadv_hash_init(struct batadv_hashtable *hash)
 {
 	u32 i;

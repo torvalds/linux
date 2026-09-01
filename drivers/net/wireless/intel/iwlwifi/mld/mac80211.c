@@ -543,8 +543,7 @@ iwl_mld_mac80211_tx(struct ieee80211_hw *hw,
 	iwl_mld_tx_skb(mld, skb, NULL);
 }
 
-static void
-iwl_mld_restart_cleanup(struct iwl_mld *mld)
+void iwl_mld_restart_cleanup(struct iwl_mld *mld)
 {
 	iwl_cleanup_mld(mld);
 
@@ -1281,11 +1280,13 @@ void iwl_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	iwl_mld_tlc_update_phy(mld, vif, link);
 
 	/* in the non-MLO case, remove/re-add the link to clean up FW state.
-	 * In MLO, it'll be done in drv_change_vif_link
+	 * In MLO, it'll be done in drv_change_vif_link.
+	 * Do not do so during restart or in case the device is dead.
 	 */
 	if (!ieee80211_vif_is_mld(vif) && !mld_vif->ap_sta &&
 	    !WARN_ON_ONCE(vif->cfg.assoc) &&
-	    vif->type != NL80211_IFTYPE_AP && !mld->fw_status.in_hw_restart) {
+	    vif->type != NL80211_IFTYPE_AP && !mld->fw_status.in_hw_restart &&
+	    !iwl_trans_is_dead(mld->trans)) {
 		iwl_mld_remove_link(mld, link);
 		iwl_mld_add_link(mld, link);
 	}
@@ -2853,6 +2854,15 @@ static int iwl_mld_start_pmsr(struct ieee80211_hw *hw,
 	return iwl_mld_ftm_start(mld, vif, request);
 }
 
+static void iwl_mld_abort_pmsr(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_pmsr_request *request)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	iwl_mld_ftm_abort(mld, request);
+}
+
 static enum ieee80211_neg_ttlm_res
 iwl_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     struct ieee80211_neg_ttlm *neg_ttlm)
@@ -2974,6 +2984,7 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.prep_add_interface = iwl_mld_prep_add_interface,
 	.set_hw_timestamp = iwl_mld_set_hw_timestamp,
 	.start_pmsr = iwl_mld_start_pmsr,
+	.abort_pmsr = iwl_mld_abort_pmsr,
 	.can_neg_ttlm = iwl_mld_can_neg_ttlm,
 	.start_nan = iwl_mld_start_nan,
 	.stop_nan = iwl_mld_stop_nan,

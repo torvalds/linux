@@ -168,8 +168,8 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	cred = get_task_cred(p);
 
 	task_lock(p);
-	if (p->fs)
-		umask = p->fs->umask;
+	if (p->real_fs)
+		umask = p->real_fs->umask;
 	if (p->files)
 		max_fds = files_fdtable(p->files)->max_fds;
 	task_unlock(p);

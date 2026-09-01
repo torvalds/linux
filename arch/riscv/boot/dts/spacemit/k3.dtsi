@@ -5,8 +5,11 @@
  */
 
 #include <dt-bindings/clock/spacemit,k3-clocks.h>
-#include <dt-bindings/reset/spacemit,k3-resets.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/reset/spacemit,k3-resets.h>
+#include <dt-bindings/phy/phy.h>
+
+#include "k3-pdma.h"
 
 /dts-v1/;
 
@@ -437,6 +440,47 @@
 		#size-cells = <2>;
 		dma-noncoherent;
 		ranges;
+
+		usb3d: usb@81a00000 {
+			compatible = "spacemit,k3-dwc3";
+			reg = <0x0 0x81a00000 0x0 0x10000>;
+			interrupts = <149 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&saplic>;
+			clocks = <&syscon_apmu CLK_APMU_USB3_PORTD_BUS>;
+			clock-names = "usbdrd30";
+			resets = <&syscon_apmu RESET_APMU_USB3_D_AHB>,
+				 <&syscon_apmu RESET_APMU_USB3_D_VCC>,
+				 <&syscon_apmu RESET_APMU_USB3_D_PHY>;
+			reset-names = "ahb", "vcc", "phy";
+			phys = <&usb3d_u2phy>,
+			       <&combophy 4 PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
+			phy_type = "utmi";
+			snps,dis_enblslpm_quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis_u3_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-ss-quirk;
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb3d_u2phy: phy@81b00000 {
+			compatible = "spacemit,k3-usb2-phy";
+			reg = <0x0 0x81b00000 0x0 0x200>;
+			clocks = <&syscon_apmu CLK_APMU_USB3_PORTD_BUS>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		combophy: phy@81d00000 {
+			compatible = "spacemit,k3-combo-phy";
+			reg = <0x0 0x81d00000 0x0 0x600000>;
+			#phy-cells = <2>;
+			spacemit,apb-spare = <&pll>;
+			status = "disabled";
+		};
 
 		usb2_host: usb@c0a00000 {
 			compatible = "spacemit,k3-dwc3";
@@ -927,6 +971,21 @@
 			status = "disabled";
 		};
 
+		spi3: spi@d401c000 {
+			compatible = "spacemit,k3-spi", "spacemit,k1-spi";
+			reg = <0x0 0xd401c000 0x0 0x30>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&syscon_apbc CLK_APBC_SPI3>,
+				 <&syscon_apbc CLK_APBC_SPI3_BUS>;
+			clock-names = "core", "bus";
+			resets = <&syscon_apbc RESET_APBC_SPI3>;
+			interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&pdma K3_PDMA_SSP3_RX>, <&pdma K3_PDMA_SSP3_TX>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
 		pwm8: pwm@d4020000 {
 			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
 			reg = <0x0 0xd4020000 0x0 0x10>;
@@ -1081,6 +1140,36 @@
 			status = "disabled";
 		};
 
+		spi0: spi@d4040000 {
+			compatible = "spacemit,k3-spi", "spacemit,k1-spi";
+			reg = <0x0 0xd4040000 0x0 0x30>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&syscon_apbc CLK_APBC_SPI0>,
+				 <&syscon_apbc CLK_APBC_SPI0_BUS>;
+			clock-names = "core", "bus";
+			resets = <&syscon_apbc RESET_APBC_SPI0>;
+			interrupts = <283 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&pdma K3_PDMA_SSP0_RX>, <&pdma K3_PDMA_SSP0_TX>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		spi1: spi@d4040800 {
+			compatible = "spacemit,k3-spi", "spacemit,k1-spi";
+			reg = <0x0 0xd4040800 0x0 0x30>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&syscon_apbc CLK_APBC_SPI1>,
+				 <&syscon_apbc CLK_APBC_SPI1_BUS>;
+			clock-names = "core", "bus";
+			resets = <&syscon_apbc RESET_APBC_SPI1>;
+			interrupts = <282 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&pdma K3_PDMA_SSP1_RX>, <&pdma K3_PDMA_SSP1_TX>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
 		syscon_mpmu: system-controller@d4050000 {
 			compatible = "spacemit,k3-syscon-mpmu";
 			reg = <0x0 0xd4050000 0x0 0x10000>;
@@ -1097,6 +1186,36 @@
 			clocks = <&vctcxo_24m>;
 			spacemit,mpmu = <&syscon_mpmu>;
 			#clock-cells = <1>;
+		};
+
+		qspi: spi@d420c000 {
+			compatible = "spacemit,k3-qspi",
+				     "spacemit,k1-qspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0xd420c000 0x0 0x1000>,
+			      <0x0 0xb8000000 0x0 0xc00000>;
+			reg-names = "QuadSPI", "QuadSPI-memory";
+			clocks = <&syscon_apmu CLK_APMU_QSPI_BUS>,
+				 <&syscon_apmu CLK_APMU_QSPI>;
+			clock-names = "qspi_en", "qspi";
+			resets = <&syscon_apmu RESET_APMU_QSPI>,
+				 <&syscon_apmu RESET_APMU_QSPI_BUS>;
+			interrupts = <117 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		sdhci0: mmc@d4280000 {
+			compatible = "spacemit,k3-sdhci";
+			reg = <0x0 0xd4280000 0x0 0x200>;
+			clocks = <&syscon_apmu CLK_APMU_SDH_AXI>,
+				 <&syscon_apmu CLK_APMU_SDH0>;
+			clock-names = "core", "io";
+			resets = <&syscon_apmu RESET_APMU_SDH_AXI>,
+				 <&syscon_apmu RESET_APMU_SDH0>;
+			reset-names = "axi", "sdh";
+			interrupts = <99 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
 		};
 
 		syscon_apmu: system-controller@d4282800 {

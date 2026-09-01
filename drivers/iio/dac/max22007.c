@@ -464,7 +464,7 @@ static int max22007_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id max22007_id[] = {
-	{ "max22007" },
+	{ .name = "max22007" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max22007_id);

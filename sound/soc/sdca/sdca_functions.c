@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
@@ -18,7 +19,6 @@
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
-#include <sound/sdca_hid.h>
 
 /*
  * Should be long enough to encompass all the MIPI DisCo properties.
@@ -1365,90 +1365,76 @@ bad_list:
 	return -EINVAL;
 }
 
-static int
-find_sdca_entity_hide(struct device *dev, struct sdw_slave *sdw,
-		      struct fwnode_handle *function_node,
-		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
+static int find_sdca_entity_hide(struct device *dev,
+				 struct fwnode_handle *entity_node,
+				 struct sdca_entity *entity)
 {
 	struct sdca_entity_hide *hide = &entity->hide;
-	unsigned int delay, *af_list = hide->af_number_list;
-	int nval, ret;
-	unsigned char *report_desc = NULL;
+	int num_reports, ret;
+	unsigned int delay;
 
 	ret = fwnode_property_read_u32(entity_node,
-				       "mipi-sdca-RxUMP-ownership-transition-max-delay", &delay);
+				       "mipi-sdca-RxUMP-ownership-transition-max-delay",
+				       &delay);
 	if (!ret)
 		hide->max_delay = delay;
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDTx-supported-report-ids");
-	if (nval > 0) {
-		hide->num_hidtx_ids = nval;
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-HIDTx-supported-report-ids");
+	if (num_reports < 0 && num_reports != -EINVAL) {
+		dev_err(dev, "%pfwP: failed to read hid tx ids: %d\n",
+			entity_node, num_reports);
+		return num_reports;
+	} else if (num_reports > 0) {
+		hide->num_hidtx_ids = num_reports;
 		hide->hidtx_ids = devm_kcalloc(dev, hide->num_hidtx_ids,
 					       sizeof(*hide->hidtx_ids), GFP_KERNEL);
 		if (!hide->hidtx_ids)
 			return -ENOMEM;
 
-		ret = fwnode_property_read_u32_array(entity_node,
-						     "mipi-sdca-HIDTx-supported-report-ids",
-						     hide->hidtx_ids,
-						     hide->num_hidtx_ids);
-		if (ret < 0)
-			return ret;
+		fwnode_property_read_u32_array(entity_node,
+					       "mipi-sdca-HIDTx-supported-report-ids",
+					       hide->hidtx_ids, hide->num_hidtx_ids);
 	}
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDRx-supported-report-ids");
-	if (nval > 0) {
-		hide->num_hidrx_ids = nval;
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-HIDRx-supported-report-ids");
+	if (num_reports < 0 && num_reports != -EINVAL) {
+		dev_err(dev, "%pfwP: failed to read hid rx ids: %d\n",
+			entity_node, num_reports);
+		return num_reports;
+	} else if (num_reports > 0) {
+		hide->num_hidrx_ids = num_reports;
 		hide->hidrx_ids = devm_kcalloc(dev, hide->num_hidrx_ids,
 					       sizeof(*hide->hidrx_ids), GFP_KERNEL);
 		if (!hide->hidrx_ids)
 			return -ENOMEM;
 
-		ret = fwnode_property_read_u32_array(entity_node,
-						     "mipi-sdca-HIDRx-supported-report-ids",
-						     hide->hidrx_ids,
-						     hide->num_hidrx_ids);
-		if (ret < 0)
-			return ret;
+		fwnode_property_read_u32_array(entity_node,
+					       "mipi-sdca-HIDRx-supported-report-ids",
+					       hide->hidrx_ids, hide->num_hidrx_ids);
 	}
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-hide-related-audio-function-list");
-	if (nval <= 0) {
+	/*
+	 * FIXME: This should probably link to the actual sdca_function_data pointer,
+	 * but updating to do so should probably wait until we have a user.
+	 */
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-hide-related-audio-function-list");
+	if (num_reports <= 0) {
 		dev_err(dev, "%pfwP: audio function numbers list missing: %d\n",
-			entity_node, nval);
+			entity_node, num_reports);
 		return -EINVAL;
-	} else if (nval > SDCA_MAX_FUNCTION_COUNT) {
-		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n", entity_node);
+	} else if (num_reports > ARRAY_SIZE(hide->af_number_list)) {
+		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n",
+			entity_node);
 		return -EINVAL;
 	}
 
-	hide->hide_reside_function_num = nval;
+	hide->hide_reside_function_num = num_reports;
 	fwnode_property_read_u32_array(entity_node,
-				       "mipi-sdca-hide-related-audio-function-list", af_list, nval);
-
-	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
-	if (nval)
-		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
-					      (u8 *)&hide->hid_desc, nval);
-
-	if (hide->hid_desc.bNumDescriptors) {
-		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
-		if (nval) {
-			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
-			if (!report_desc)
-				return -ENOMEM;
-			hide->hid_report_desc = report_desc;
-			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
-						      report_desc, nval);
-
-			/* add HID device */
-			ret = sdca_add_hid_device(dev, sdw, entity);
-			if (ret) {
-				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
-				return ret;
-			}
-		}
-	}
+				       "mipi-sdca-hide-related-audio-function-list",
+				       hide->af_number_list, num_reports);
 
 	return 0;
 }
@@ -1475,8 +1461,7 @@ static int find_sdca_entity_xu(struct device *dev,
 	return 0;
 }
 
-static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
-			    struct sdca_function_data *function,
+static int find_sdca_entity(struct device *dev, struct sdca_function_data *function,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
 			    struct sdca_entity *entity)
@@ -1528,8 +1513,7 @@ static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
 		break;
 	case SDCA_ENTITY_TYPE_HIDE:
-		ret = find_sdca_entity_hide(dev, sdw, function_node,
-					    entity_node, entity);
+		ret = find_sdca_entity_hide(dev, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1544,8 +1528,7 @@ static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
-static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
-			      struct fwnode_handle *function_node,
+static int find_sdca_entities(struct device *dev, struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
 	struct sdca_entity *entities;
@@ -1596,7 +1579,7 @@ static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
 			return -EINVAL;
 		}
 
-		ret = find_sdca_entity(dev, sdw, function, function_node,
+		ret = find_sdca_entity(dev, function, function_node,
 				       entity_node, &entities[i]);
 		fwnode_handle_put(entity_node);
 		if (ret)
@@ -1619,7 +1602,7 @@ static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
-static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *function,
+struct sdca_entity *sdca_find_entity_by_label(struct sdca_function_data *function,
 						     const char *entity_label)
 {
 	struct sdca_entity *entity = NULL;
@@ -1648,6 +1631,7 @@ static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *
 
 	return NULL;
 }
+EXPORT_SYMBOL_NS(sdca_find_entity_by_label, "SND_SOC_SDCA");
 
 static struct sdca_entity *find_sdca_entity_by_id(struct sdca_function_data *function,
 						  const int id)
@@ -1688,7 +1672,7 @@ static int find_sdca_entity_connection_iot(struct device *dev,
 		return ret;
 	}
 
-	clock_entity = find_sdca_entity_by_label(function, clock_label);
+	clock_entity = sdca_find_entity_by_label(function, clock_label);
 	if (!clock_entity) {
 		dev_err(dev, "%s: failed to find clock with label %s\n",
 			entity->label, clock_label);
@@ -1873,7 +1857,7 @@ static int find_sdca_entity_connection(struct device *dev,
 			return ret;
 		}
 
-		connected_entity = find_sdca_entity_by_label(function, connected_label);
+		connected_entity = sdca_find_entity_by_label(function, connected_label);
 		if (!connected_entity) {
 			dev_err(dev, "%s: failed to find entity with label %s\n",
 				entity->label, connected_label);
@@ -2088,8 +2072,7 @@ static int find_sdca_clusters(struct device *dev,
 	return 0;
 }
 
-static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
-			      struct fwnode_handle *function_node,
+static int find_sdca_filesets(struct device *dev, struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
 	static const int mult_fileset = 3;
@@ -2171,9 +2154,53 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 		set->files = files;
 	}
 
-	function->fdl_data.swft = sdw->sdca_data.swft;
 	function->fdl_data.num_sets = num_sets;
 	function->fdl_data.sets = sets;
+
+	return 0;
+}
+
+static int find_sdca_hid(struct device *dev, struct fwnode_handle *function_node,
+			 struct sdca_function_data *function)
+{
+	int num_desc;
+
+	num_desc = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
+	if (!num_desc) {
+		return 0;
+	} else if (num_desc < 0) {
+		dev_err(dev, "%pfwP: failed to read hid descriptor: %d\n",
+			function_node, num_desc);
+		return num_desc;
+	} else if (num_desc > sizeof(function->hid.desc)) {
+		dev_err(dev, "%pfwP: hid descriptor too large: %d\n",
+			function_node, num_desc);
+		return -EINVAL;
+	}
+
+	fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
+				      (u8 *)&function->hid.desc, num_desc);
+
+	if (!function->hid.desc.bNumDescriptors)
+		return 0;
+
+	num_desc = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
+	if (num_desc <= 0) {
+		dev_err(dev, "%pfwP: failed to read report descriptor: %d\n",
+			function_node, num_desc);
+
+		if (!num_desc)
+			return -EINVAL;
+
+		return num_desc;
+	}
+
+	function->hid.report_desc = devm_kzalloc(dev, num_desc, GFP_KERNEL);
+	if (!function->hid.report_desc)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
+				      function->hid.report_desc, num_desc);
 
 	return 0;
 }
@@ -2181,13 +2208,11 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 /**
  * sdca_parse_function - parse ACPI DisCo for a Function
  * @dev: Pointer to device against which function data will be allocated.
- * @sdw: SoundWire slave device to be processed.
  * @function: Pointer to the Function information, to be populated.
  *
  * Return: Returns 0 for success.
  */
-int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_function_data *function)
+int sdca_parse_function(struct device *dev, struct sdca_function_data *function)
 {
 	struct fwnode_handle *node = function->desc->node;
 	u32 tmp;
@@ -2213,7 +2238,7 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	if (ret)
 		return ret;
 
-	ret = find_sdca_entities(dev, sdw, node, function);
+	ret = find_sdca_entities(dev, node, function);
 	if (ret)
 		return ret;
 
@@ -2225,9 +2250,19 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	if (ret < 0)
 		return ret;
 
-	ret = find_sdca_filesets(dev, sdw, node, function);
+	ret = find_sdca_filesets(dev, node, function);
 	if (ret)
 		return ret;
+
+	switch (function->desc->type) {
+	case SDCA_FUNCTION_TYPE_HID:
+		ret = find_sdca_hid(dev, node, function);
+		if (ret)
+			return ret;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

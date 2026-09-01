@@ -1471,6 +1471,7 @@ static void mlx5_lag_modify_device_vports_speed(struct mlx5_core_dev *mdev,
 	if (!MLX5_CAP_ESW(mdev, esw_vport_state_max_tx_speed))
 		return;
 
+	mutex_lock(&esw->state_lock);
 	mlx5_esw_for_each_vport(esw, i, vport) {
 		if (!vport)
 			continue;
@@ -1490,6 +1491,7 @@ static void mlx5_lag_modify_device_vports_speed(struct mlx5_core_dev *mdev,
 				      "Failed to set vport %d speed %d, err=%d\n",
 				      vport->vport, speed, ret);
 	}
+	mutex_unlock(&esw->state_lock);
 }
 
 void mlx5_lag_set_vports_agg_speed(struct mlx5_lag *ldev)

@@ -143,6 +143,7 @@
 	/* TODO: Replace these once PMIC is implemented  */
 	vdd10-supply = <&reg_dummy>;
 	vdd33-supply = <&reg_dummy>;
+
 	status = "okay";
 };
 
@@ -161,6 +162,7 @@
 	/* TODO: Replace these once PMIC is implemented  */
 	vdda12-supply = <&reg_dummy>;
 	vdd-supply = <&reg_dummy>;
+
 	status = "okay";
 };
 

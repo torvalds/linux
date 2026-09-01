@@ -115,6 +115,9 @@ struct inode;		/* To make gcc happy */
 extern int parse_rock_ridge_inode(struct iso_directory_record *, struct inode *, int relocated);
 extern int get_rock_ridge_filename(struct iso_directory_record *, char *, struct inode *);
 extern int isofs_name_translate(struct iso_directory_record *, char *, struct inode *);
+bool isofs_dir_record_valid(struct iso_directory_record *de,
+			    unsigned long offset,
+			    unsigned long bufsize);
 
 int get_joliet_filename(struct iso_directory_record *, unsigned char *, struct inode *);
 int get_acorn_filename(struct iso_directory_record *, char *, struct inode *);

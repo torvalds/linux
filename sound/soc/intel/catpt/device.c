@@ -28,44 +28,17 @@
 static int catpt_do_suspend(struct device *dev)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
-	struct dma_chan *chan;
 	int ret;
-
-	chan = catpt_dma_request_config_chan(cdev);
-	if (IS_ERR(chan))
-		return PTR_ERR(chan);
 
 	memset(&cdev->dx_ctx, 0, sizeof(cdev->dx_ctx));
 	ret = catpt_ipc_enter_dxstate(cdev, CATPT_DX_STATE_D3, &cdev->dx_ctx);
-	if (ret) {
-		ret = CATPT_IPC_RET(ret);
-		goto release_dma_chan;
-	}
-
-	ret = catpt_dsp_stall(cdev, true);
 	if (ret)
-		goto release_dma_chan;
+		return CATPT_IPC_RET(ret);
 
-	ret = catpt_store_memdumps(cdev, chan);
-	if (ret) {
-		dev_err(cdev->dev, "store memdumps failed: %d\n", ret);
-		goto release_dma_chan;
-	}
-
-	ret = catpt_store_module_states(cdev, chan);
-	if (ret) {
-		dev_err(cdev->dev, "store module states failed: %d\n", ret);
-		goto release_dma_chan;
-	}
-
-	ret = catpt_store_streams_context(cdev, chan);
-	if (ret)
-		dev_err(cdev->dev, "store streams ctx failed: %d\n", ret);
-
-release_dma_chan:
-	dma_release_channel(chan);
+	ret = catpt_store_firmware_context(cdev);
 	if (ret)
 		return ret;
+
 	return catpt_dsp_power_down(cdev);
 }
 

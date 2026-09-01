@@ -441,7 +441,7 @@ static int nxp_stm_timer_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, nxp_stm_module_interrupt,
 			       IRQF_TIMER | IRQF_NOBALANCING, name, stm_timer);
 	if (ret)
-		return dev_err_probe(dev, ret, "Unable to allocate interrupt line\n");
+		return ret;
 
 	ret = nxp_stm_clocksource_init(dev, stm_timer, name, base, clk);
 	if (ret)

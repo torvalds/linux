@@ -249,9 +249,9 @@ static const struct of_device_id ad7091r8_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad7091r8_of_match);
 
 static const struct spi_device_id ad7091r8_spi_id[] = {
-	{ "ad7091r2", (kernel_ulong_t)&ad7091r2_init_info },
-	{ "ad7091r4", (kernel_ulong_t)&ad7091r4_init_info },
-	{ "ad7091r8", (kernel_ulong_t)&ad7091r8_init_info },
+	{ .name = "ad7091r2", .driver_data = (kernel_ulong_t)&ad7091r2_init_info },
+	{ .name = "ad7091r4", .driver_data = (kernel_ulong_t)&ad7091r4_init_info },
+	{ .name = "ad7091r8", .driver_data = (kernel_ulong_t)&ad7091r8_init_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7091r8_spi_id);

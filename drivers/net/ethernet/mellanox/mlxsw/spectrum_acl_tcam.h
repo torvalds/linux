@@ -245,7 +245,7 @@ u8 mlxsw_sp_acl_erp_delta_mask(const struct mlxsw_sp_acl_erp_delta *delta);
 u8 mlxsw_sp_acl_erp_delta_value(const struct mlxsw_sp_acl_erp_delta *delta,
 				const char *enc_key);
 void mlxsw_sp_acl_erp_delta_clear(const struct mlxsw_sp_acl_erp_delta *delta,
-				  const char *enc_key);
+				  char *enc_key);
 
 struct mlxsw_sp_acl_erp_mask;
 

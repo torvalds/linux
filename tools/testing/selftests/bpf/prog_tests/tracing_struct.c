@@ -4,6 +4,7 @@
 #include <test_progs.h>
 #include "tracing_struct.skel.h"
 #include "tracing_struct_many_args.skel.h"
+#include "tracing_struct_int128.skel.h"
 
 static void test_struct_args(void)
 {
@@ -112,6 +113,39 @@ destroy_skel:
 	tracing_struct_many_args__destroy(skel);
 }
 
+static void test_int128_args(void)
+{
+	/*
+	 * __int128 arguments are passed in a register pair on x86_64 and
+	 * arm64, which the trampoline packs into two context slots. Other
+	 * architectures pass a __int128 differently (e.g. s390x passes larger
+	 * arguments by reference), so only exercise this on x86_64 and arm64.
+	 */
+#if defined(__x86_64__) || defined(__aarch64__)
+	struct tracing_struct_int128 *skel;
+	int err;
+
+	skel = tracing_struct_int128__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tracing_struct_int128__open_and_load"))
+		return;
+
+	err = tracing_struct_int128__attach(skel);
+	if (!ASSERT_OK(err, "tracing_struct_int128__attach"))
+		goto destroy_skel;
+
+	ASSERT_OK(trigger_module_test_read(256), "trigger_read");
+
+	ASSERT_EQ(skel->bss->t_b, 2, "t:b");
+	ASSERT_EQ(skel->bss->t_c, 3, "t:c");
+	ASSERT_EQ(skel->bss->t_ret, 6, "t ret");
+
+destroy_skel:
+	tracing_struct_int128__destroy(skel);
+#else
+	test__skip();
+#endif
+}
+
 static void test_union_args(void)
 {
 	struct tracing_struct *skel;
@@ -145,6 +179,8 @@ void test_tracing_struct(void)
 		test_struct_args();
 	if (test__start_subtest("struct_many_args"))
 		test_struct_many_args();
+	if (test__start_subtest("int128_args"))
+		test_int128_args();
 	if (test__start_subtest("union_args"))
 		test_union_args();
 }

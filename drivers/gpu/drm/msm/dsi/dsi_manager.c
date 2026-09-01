@@ -275,7 +275,8 @@ static void dsi_mgr_bridge_power_off(struct drm_bridge *bridge)
 	dsi_mgr_phy_disable(id);
 }
 
-static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
+static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge,
+				      struct drm_atomic_commit *commit)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -331,7 +332,8 @@ void msm_dsi_manager_tpg_enable(void)
 	}
 }
 
-static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
+static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge,
+					struct drm_atomic_commit *commit)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -445,9 +447,12 @@ static int dsi_mgr_bridge_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = dsi_mgr_bridge_attach,
-	.pre_enable = dsi_mgr_bridge_pre_enable,
-	.post_disable = dsi_mgr_bridge_post_disable,
+	.atomic_pre_enable = dsi_mgr_bridge_pre_enable,
+	.atomic_post_disable = dsi_mgr_bridge_post_disable,
 	.mode_set = dsi_mgr_bridge_mode_set,
 	.mode_valid = dsi_mgr_bridge_mode_valid,
 };

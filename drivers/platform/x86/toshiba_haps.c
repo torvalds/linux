@@ -136,9 +136,7 @@ static void toshiba_haps_notify(acpi_handle handle, u32 event, void *data)
 
 	pr_debug("Received event: 0x%x\n", event);
 
-	acpi_bus_generate_netlink_event(device->pnp.device_class,
-					dev_name(&device->dev),
-					event, 0);
+	acpi_bus_generate_netlink_event("", dev_name(&device->dev), event, 0);
 }
 
 static void toshiba_haps_remove(struct platform_device *pdev)

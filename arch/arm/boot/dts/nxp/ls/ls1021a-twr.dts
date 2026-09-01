@@ -61,6 +61,7 @@
 
 	panel: panel {
 		compatible = "nec,nl4827hc19-05b";
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in: endpoint {
@@ -190,7 +191,7 @@
 };
 
 &esdhc {
-        status = "okay";
+	status = "okay";
 };
 
 &qspi {

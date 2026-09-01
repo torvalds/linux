@@ -48,7 +48,7 @@
 	};
 };
 
-&spi0  {
+&spi0 {
 	status = "okay";
 
 	flash@0 {

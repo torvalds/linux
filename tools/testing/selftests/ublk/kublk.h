@@ -63,6 +63,22 @@ struct fault_inject_ctx {
 	bool die_during_fetch;
 };
 
+struct params_ctx {
+	__u32 types;
+
+	__u32 logical_bs_shift;
+	__u32 physical_bs_shift;
+	__u32 io_min_shift;
+	__u32 io_opt_shift;
+	__u32 max_sectors;
+	__u32 chunk_sectors;
+	__u64 dev_sectors;
+
+	__u32 max_open_zones;
+	__u32 max_active_zones;
+	__u32 max_zone_append_sectors;
+};
+
 struct dev_ctx {
 	char tgt_type[16];
 	unsigned long flags;
@@ -82,11 +98,13 @@ struct dev_ctx {
 	unsigned int	safe_stop:1;
 	unsigned int	no_auto_part_scan:1;
 	unsigned int	rdonly_shmem_buf:1;
+	unsigned int	rotate_auto_buf:1;
 	__u32 integrity_flags;
 	__u8 metadata_size;
 	__u8 pi_offset;
 	__u8 csum_type;
 	__u8 tag_size;
+	__u16 io_desc_size;
 
 	int _evtfd;
 	int _shmid;
@@ -96,6 +114,8 @@ struct dev_ctx {
 
 	/* for 'update_size' command */
 	unsigned long long size;
+
+	struct params_ctx params;
 
 	char *htlb_path;
 
@@ -134,6 +154,7 @@ struct ublk_io {
 
 	unsigned short buf_index;
 	unsigned short tgt_ios;
+	unsigned char auto_buf_phase;
 	void *private_data;
 };
 
@@ -184,9 +205,11 @@ struct ublk_queue {
 #define UBLKS_Q_AUTO_BUF_REG_FALLBACK	(1ULL << 63)
 #define UBLKS_Q_NO_UBLK_FIXED_FD	(1ULL << 62)
 #define UBLKS_Q_PREPARED	(1ULL << 61)
+#define UBLKS_Q_ROTATE_AUTO_BUF	(1ULL << 60)
 	__u64 flags;
 	int ublk_fd;	/* cached ublk char device fd */
 	__u8 metadata_size;
+	__u16 io_desc_size;
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
 
 	/* used for prep io commands */
@@ -232,6 +255,7 @@ struct ublk_thread {
 	unsigned int io_inflight;
 
 	unsigned short nr_bufs;
+	unsigned short auto_buf_stride;
 
        /* followings are for BATCH_IO */
 	unsigned short commit_buf_start;
@@ -461,9 +485,9 @@ static inline void ublk_mark_io_done(struct ublk_io *io, int res)
 	io->result = res;
 }
 
-static inline const struct ublksrv_io_desc *ublk_get_iod(const struct ublk_queue *q, int tag)
+static inline const struct ublksrv_io_desc *ublk_get_iod(const struct ublk_queue *q, __u16 tag)
 {
-	return &q->io_cmd_buf[tag];
+	return (void *)q->io_cmd_buf + tag * (size_t)q->io_desc_size;
 }
 
 static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)
@@ -550,7 +574,20 @@ static inline unsigned short ublk_batch_io_buf_idx(
 		const struct ublk_thread *t, const struct ublk_queue *q,
 		unsigned tag)
 {
-	return ublk_queue_idx_in_thread(t, q) * q->q_depth + tag;
+	unsigned short base = ublk_queue_idx_in_thread(t, q) * q->q_depth + tag;
+
+	if (q->flags & UBLKS_Q_ROTATE_AUTO_BUF)
+		return base + q->ios[tag].auto_buf_phase * t->auto_buf_stride;
+	return base;
+}
+
+static inline unsigned short ublk_batch_io_buf_idx_next(
+		const struct ublk_thread *t, struct ublk_queue *q,
+		unsigned tag)
+{
+	if (q->flags & UBLKS_Q_ROTATE_AUTO_BUF)
+		q->ios[tag].auto_buf_phase ^= 1;
+	return ublk_batch_io_buf_idx(t, q, tag);
 }
 
 /* Queue UBLK_U_IO_PREP_IO_CMDS for a specific queue with batch elements */

@@ -164,6 +164,7 @@ struct scaler_data {
 	struct line_buffer_params lb_params;
 	// Below struct holds the scaler values to program hw registers
 	struct dscl_prog_data dscl_prog_data;
+	enum upsp_mode upsp;
 };
 
 struct transform_funcs {

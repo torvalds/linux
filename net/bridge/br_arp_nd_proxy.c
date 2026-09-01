@@ -19,6 +19,7 @@
 #include <net/addrconf.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
+#include <net/ndisc.h>
 #endif
 
 #include "br_private.h"
@@ -195,13 +196,15 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	n = neigh_lookup(&arp_tbl, &tip, vlandev);
 	if (n) {
 		struct net_bridge_fdb_entry *f;
+		u8 ha[ETH_ALEN] __aligned(2);
 
 		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_release(n);
 			return;
 		}
 
-		f = br_fdb_find_rcu(br, n->ha, vid);
+		neigh_ha_snapshot(ha, n, n->dev);
+		f = br_fdb_find_rcu(br, ha, vid);
 		if (f) {
 			const struct net_bridge_port *dst = READ_ONCE(f->dst);
 			bool replied = false;
@@ -211,10 +214,10 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 			    br_is_neigh_suppress_enabled(dst, vid)) {
 				if (!vid)
 					br_arp_send(br, p, skb->dev, sip, tip,
-						    sha, n->ha, sha, 0, 0);
+						    sha, ha, sha, 0, 0);
 				else
 					br_arp_send(br, p, skb->dev, sip, tip,
-						    sha, n->ha, sha,
+						    sha, ha, sha,
 						    skb->vlan_proto,
 						    skb_vlan_tag_get(skb));
 				replied = true;
@@ -234,40 +237,38 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-struct nd_msg *br_is_nd_neigh_msg(const struct sk_buff *skb, struct nd_msg *msg)
+/* Validate skb as an NS/NA and linearize it for br_nd_send()'s ND
+ * option parsing; returns the nd_msg, or NULL on failure.
+ */
+struct nd_msg *br_is_nd_neigh_msg(struct sk_buff *skb)
 {
-	struct nd_msg *m;
-
-	m = skb_header_pointer(skb, skb_network_offset(skb) +
-			       sizeof(struct ipv6hdr), sizeof(*msg), msg);
-	if (!m)
+	if (ndisc_check_ns_na(skb))
 		return NULL;
 
-	if (m->icmph.icmp6_code != 0 ||
-	    (m->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION &&
-	     m->icmph.icmp6_type != NDISC_NEIGHBOUR_ADVERTISEMENT))
+	if (skb_linearize(skb))
 		return NULL;
 
-	return m;
+	return (struct nd_msg *)skb_transport_header(skb);
 }
 
 static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
-		       struct sk_buff *request, struct neighbour *n,
+		       struct sk_buff *request, struct neighbour *n, u8 *ha,
 		       __be16 vlan_proto, u16 vlan_tci)
 {
 	struct net_device *dev = request->dev;
 	struct net_bridge_vlan_group *vg;
+	struct ndisc_options ndopts;
 	struct nd_msg *na, *ns;
 	struct sk_buff *reply;
 	struct ipv6hdr *pip6;
 	int na_olen = 8; /* opt hdr + ETH_ALEN for target */
 	int ns_olen;
-	int i, len;
 	u8 *daddr;
 	bool dad;
 	u16 pvid;
+	int len;
 
-	if (!dev || skb_linearize(request))
+	if (!dev)
 		return;
 
 	len = LL_RESERVED_SPACE(dev) + sizeof(struct ipv6hdr) +
@@ -284,23 +285,23 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	skb_set_mac_header(reply, 0);
 
 	daddr = eth_hdr(request)->h_source;
-	ns = (struct nd_msg *)(skb_network_header(request) +
-			       sizeof(struct ipv6hdr));
+	ns = (struct nd_msg *)skb_transport_header(request);
 
-	/* Do we need option processing ? */
-	ns_olen = request->len - (skb_network_offset(request) +
-				  sizeof(struct ipv6hdr)) - sizeof(*ns);
-	for (i = 0; i < ns_olen - 1; i += (ns->opt[i + 1] << 3)) {
-		if (!ns->opt[i + 1] || i + (ns->opt[i + 1] << 3) > ns_olen) {
-			kfree_skb(reply);
-			return;
-		}
-		if (ns->opt[i] == ND_OPT_SOURCE_LL_ADDR) {
-			if ((ns->opt[i + 1] << 3) >=
-			    sizeof(struct nd_opt_hdr) + ETH_ALEN)
-				daddr = ns->opt + i + sizeof(struct nd_opt_hdr);
-			break;
-		}
+	/* Derive the option length from the IPv6 payload length so that any
+	 * trailing L2 padding in the skb is not parsed as ND options.
+	 */
+	ns_olen = ntohs(ipv6_hdr(request)->payload_len) - sizeof(*ns);
+	if (!ndisc_parse_options(dev, ns->opt, ns_olen, &ndopts)) {
+		kfree_skb(reply);
+		return;
+	}
+
+	if (ndopts.nd_opts_src_lladdr) {
+		u8 *lladdr;
+
+		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_src_lladdr, dev);
+		if (lladdr)
+			daddr = lladdr;
 	}
 
 	dad = ipv6_addr_any(&ipv6_hdr(request)->saddr);
@@ -310,7 +311,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 		ipv6_eth_mc_map(&in6addr_linklocal_allnodes, eth_hdr(reply)->h_dest);
 	else
 		ether_addr_copy(eth_hdr(reply)->h_dest, daddr);
-	ether_addr_copy(eth_hdr(reply)->h_source, n->ha);
+	ether_addr_copy(eth_hdr(reply)->h_source, ha);
 	eth_hdr(reply)->h_proto = htons(ETH_P_IPV6);
 	reply->protocol = htons(ETH_P_IPV6);
 
@@ -340,7 +341,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	na->icmph.icmp6_override = 1;
 	na->icmph.icmp6_solicited = dad ? 0 : 1;
 	na->target = ns->target;
-	ether_addr_copy(&na->opt[2], n->ha);
+	ether_addr_copy(&na->opt[2], ha);
 	na->opt[0] = ND_OPT_TARGET_LL_ADDR;
 	na->opt[1] = na_olen >> 3;
 
@@ -369,7 +370,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 		__vlan_hwaccel_put_tag(reply, vlan_proto, vlan_tci);
 
 	netdev_dbg(dev, "nd send dev %s dst %pI6 dst_hw %pM src %pI6 src_hw %pM\n",
-		   dev->name, &pip6->daddr, daddr, &pip6->saddr, n->ha);
+		   dev->name, &pip6->daddr, daddr, &pip6->saddr, ha);
 
 	if (p) {
 		dev_queue_xmit(reply);
@@ -472,24 +473,26 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	n = neigh_lookup(&nd_tbl, &msg->target, vlandev);
 	if (n) {
 		struct net_bridge_fdb_entry *f;
+		u8 ha[ETH_ALEN] __aligned(2);
 
 		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_release(n);
 			return;
 		}
 
-		f = br_fdb_find_rcu(br, n->ha, vid);
+		neigh_ha_snapshot(ha, n, n->dev);
+		f = br_fdb_find_rcu(br, ha, vid);
 		if (f) {
 			const struct net_bridge_port *dst = READ_ONCE(f->dst);
 			bool replied = false;
 
 			if (br_is_neigh_suppress_enabled(dst, vid)) {
 				if (vid != 0)
-					br_nd_send(br, p, skb, n,
+					br_nd_send(br, p, skb, n, ha,
 						   skb->vlan_proto,
 						   skb_vlan_tag_get(skb));
 				else
-					br_nd_send(br, p, skb, n, 0, 0);
+					br_nd_send(br, p, skb, n, ha, 0, 0);
 				replied = true;
 			}
 

@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 
 #include "gumstix.h"
 #include "mfp-pxa25x.h"

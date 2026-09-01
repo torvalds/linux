@@ -11,6 +11,9 @@
 #ifndef __AA_APPARMORFS_H
 #define __AA_APPARMORFS_H
 
+#include <linux/init.h>
+#include <linux/types.h>
+
 extern struct path aa_null;
 
 enum aa_sfs_type {

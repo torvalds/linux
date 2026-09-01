@@ -9,6 +9,7 @@
 #include <linux/f2fs_fs.h>
 #include <linux/writeback.h>
 #include <linux/sched/mm.h>
+#include <linux/swap.h>
 #include <linux/lz4.h>
 #include <linux/zstd.h>
 #include <linux/fserror.h>
@@ -23,6 +24,18 @@
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 extern const struct address_space_operations f2fs_compress_aops;
 #endif
+
+#define NUM_PREALLOC_EVICT_INODE_WORK 8
+
+static struct kmem_cache *evict_inode_work_cache;
+static mempool_t *evict_inode_work_pool;
+
+struct evict_inode_work {
+	struct work_struct work;
+	struct f2fs_sb_info *sbi;
+	nid_t ino;
+	unsigned int add_ino_entry_bits;
+};
 
 void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync)
 {
@@ -637,6 +650,9 @@ make_now:
 		inode->i_fop = &f2fs_dir_operations;
 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
 		mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+
+		/* Let's prepare APPEND/UPDATE_INO before future access. */
+		flush_workqueue(sbi->evict_wq);
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (file_is_encrypt(inode))
 			inode->i_op = &f2fs_encrypted_symlink_inode_operations;
@@ -854,16 +870,32 @@ void f2fs_remove_donate_inode(struct inode *inode)
 	spin_unlock(&sbi->inode_lock[DONATE_INODE]);
 }
 
+static void f2fs_record_inode_state(struct f2fs_sb_info *sbi, nid_t ino,
+				    unsigned int bits)
+{
+	if (bits & BIT(APPEND_INO))
+		f2fs_add_ino_entry(sbi, ino, APPEND_INO);
+	if (bits & BIT(UPDATE_INO))
+		f2fs_add_ino_entry(sbi, ino, UPDATE_INO);
+}
+
+static void f2fs_evict_inode_work(struct work_struct *work)
+{
+	struct evict_inode_work *ew =
+		container_of(work, struct evict_inode_work, work);
+
+	f2fs_record_inode_state(ew->sbi, ew->ino, ew->add_ino_entry_bits);
+
+	mempool_free(ew, evict_inode_work_pool);
+}
+
 /*
- * Called at the last iput() if i_nlink is zero
+ * Return true, if we shouldn't go through post_evict_inode.
  */
-void f2fs_evict_inode(struct inode *inode)
+static bool f2fs_pre_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	nid_t xnid = fi->i_xattr_nid;
-	int err = 0;
-	bool freeze_protected = false;
 
 	f2fs_abort_atomic_write(inode, true);
 
@@ -883,13 +915,13 @@ void f2fs_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	if ((inode->i_nlink || is_bad_inode(inode)) &&
-		test_opt(sbi, COMPRESS_CACHE) && f2fs_compressed_file(inode))
+	    test_opt(sbi, COMPRESS_CACHE) && f2fs_compressed_file(inode))
 		f2fs_invalidate_compress_pages(sbi, inode->i_ino);
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
-			inode->i_ino == F2FS_META_INO(sbi) ||
-			inode->i_ino == F2FS_COMPRESS_INO(sbi))
-		goto out_clear;
+	    inode->i_ino == F2FS_META_INO(sbi) ||
+	    inode->i_ino == F2FS_COMPRESS_INO(sbi))
+		return true;
 
 	f2fs_bug_on(sbi, get_dirty_pages(inode));
 	f2fs_remove_dirty_inode(inode);
@@ -898,14 +930,18 @@ void f2fs_evict_inode(struct inode *inode)
 	if (!IS_DEVICE_ALIASING(inode))
 		f2fs_destroy_extent_tree(inode);
 
-	if (inode->i_nlink || is_bad_inode(inode))
-		goto no_delete;
+	return false;
+}
 
-	err = f2fs_dquot_initialize(inode);
-	if (err) {
-		err = 0;
+static void f2fs_delete_inode(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	bool freeze_protected = false;
+	struct f2fs_lock_context lc;
+	int err = 0;
+
+	if (f2fs_dquot_initialize(inode))
 		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
-	}
 
 	f2fs_remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	f2fs_remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
@@ -924,30 +960,30 @@ retry:
 	if (time_to_inject(sbi, FAULT_EVICT_INODE))
 		err = -EIO;
 
-	if (!err) {
-		struct f2fs_lock_context lc;
+	if (err)
+		goto error_check;
 
-		f2fs_lock_op(sbi, &lc);
-		err = f2fs_remove_inode_page(inode);
-		f2fs_unlock_op(sbi, &lc);
-		if (err == -ENOENT) {
-			err = 0;
+	f2fs_lock_op(sbi, &lc);
+	err = f2fs_remove_inode_page(inode);
+	f2fs_unlock_op(sbi, &lc);
 
-			/*
-			 * in fuzzed image, another node may has the same
-			 * block address as inode's, if it was truncated
-			 * previously, truncation of inode node will fail.
-			 */
-			if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
-				f2fs_warn(F2FS_I_SB(inode),
-					"f2fs_evict_inode: inconsistent node id, ino:%llu",
-					inode->i_ino);
-				f2fs_inode_synced(inode);
-				set_sbi_flag(sbi, SBI_NEED_FSCK);
-			}
+	if (err == -ENOENT) {
+		err = 0;
+
+		/*
+		 * in fuzzed image, another node may has the same
+		 * block address as inode's, if it was truncated
+		 * previously, truncation of inode node will fail.
+		 */
+		if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+			f2fs_warn(F2FS_I_SB(inode),
+				"f2fs_evict_inode: inconsistent node id, ino:%llu",
+				inode->i_ino);
+			f2fs_inode_synced(inode);
+			set_sbi_flag(sbi, SBI_NEED_FSCK);
 		}
 	}
-
+error_check:
 	/* give more chances, if ENOMEM case */
 	if (err == -ENOMEM) {
 		err = 0;
@@ -957,27 +993,38 @@ retry:
 	if (IS_DEVICE_ALIASING(inode))
 		f2fs_destroy_extent_tree(inode);
 
-	if (err) {
-		f2fs_update_inode_page(inode);
-		if (dquot_initialize_needed(inode))
-			set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+	if (!err)
+		goto unfreeze_out;
 
-		/*
-		 * If both f2fs_truncate() and f2fs_update_inode_page() failed
-		 * due to fuzzed corrupted inode, call f2fs_inode_synced() to
-		 * avoid triggering later f2fs_bug_on().
-		 */
-		if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
-			f2fs_warn(sbi,
-				"f2fs_evict_inode: inode is dirty, ino:%llu",
-				inode->i_ino);
-			f2fs_inode_synced(inode);
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
-		}
+	f2fs_update_inode_page(inode);
+
+	if (dquot_initialize_needed(inode))
+		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+
+	/*
+	 * If both f2fs_truncate() and f2fs_update_inode_page() failed
+	 * due to fuzzed corrupted inode, call f2fs_inode_synced() to
+	 * avoid triggering later f2fs_bug_on().
+	 */
+	if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+		f2fs_warn(sbi,
+			"f2fs_evict_inode: inode is dirty, ino:%llu",
+			inode->i_ino);
+		f2fs_inode_synced(inode);
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 	}
+unfreeze_out:
 	if (freeze_protected)
 		sb_end_intwrite(inode->i_sb);
-no_delete:
+}
+
+static void f2fs_post_evict_inode(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	nid_t xnid = fi->i_xattr_nid;
+	unsigned int record_bits = 0;
+
 	dquot_drop(inode);
 
 	stat_dec_inline_xattr(inode);
@@ -1003,12 +1050,32 @@ no_delete:
 							inode->i_ino);
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
-	if (inode->i_nlink) {
-		if (is_inode_flag_set(inode, FI_APPEND_WRITE))
-			f2fs_add_ino_entry(sbi, inode->i_ino, APPEND_INO);
-		if (is_inode_flag_set(inode, FI_UPDATE_WRITE))
-			f2fs_add_ino_entry(sbi, inode->i_ino, UPDATE_INO);
+
+	if (!inode->i_nlink)
+		goto skip_record;
+
+	if (is_inode_flag_set(inode, FI_APPEND_WRITE))
+		record_bits = BIT(APPEND_INO);
+	if (is_inode_flag_set(inode, FI_UPDATE_WRITE))
+		record_bits = BIT(UPDATE_INO);
+
+	if (!record_bits)
+		goto skip_record;
+
+	/* Let's do this in workqueue out of the direct reclaim path. */
+	if (current_is_kswapd()) {
+		f2fs_record_inode_state(sbi, inode->i_ino, record_bits);
+	} else {
+		struct evict_inode_work *ew =
+			mempool_alloc(evict_inode_work_pool, GFP_NOFS);
+
+		ew->sbi = sbi;
+		ew->ino = inode->i_ino;
+		ew->add_ino_entry_bits = record_bits;
+		INIT_WORK(&ew->work, f2fs_evict_inode_work);
+		queue_work(sbi->evict_wq, &ew->work);
 	}
+skip_record:
 	if (is_inode_flag_set(inode, FI_FREE_NID)) {
 		f2fs_alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(inode, FI_FREE_NID);
@@ -1019,13 +1086,29 @@ no_delete:
 		 * In that case, f2fs_check_nid_range() is enough to give a clue.
 		 */
 	}
-out_clear:
+}
+
+/*
+ * Called at the last iput() if i_nlink is zero
+ */
+void f2fs_evict_inode(struct inode *inode)
+{
+	if (f2fs_pre_evict_inode(inode))
+		goto clear_out;
+
+	if (!inode->i_nlink && !is_bad_inode(inode))
+		f2fs_delete_inode(inode);
+
+	f2fs_post_evict_inode(inode);
+
+clear_out:
 	fscrypt_put_encryption_info(inode);
 	clear_inode(inode);
 }
 
 /* caller should call f2fs_lock_op() */
-void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc)
+void f2fs_handle_failed_inode(struct inode *inode,
+		struct f2fs_lock_context *lc, bool orphan_free)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct node_info ni;
@@ -1046,6 +1129,9 @@ void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc)
 
 	/* don't make bad inode, since it becomes a regular file. */
 	unlock_new_inode(inode);
+
+	if (!orphan_free)
+		goto out;
 
 	/*
 	 * Note: we should add inode to orphan list before f2fs_unlock_op()
@@ -1078,4 +1164,30 @@ out:
 
 	/* iput will drop the inode object */
 	iput(inode);
+}
+
+int __init f2fs_init_evict_inode_work(void)
+{
+	evict_inode_work_cache =
+		kmem_cache_create("f2fs_evict_inode_work",
+				  sizeof(struct evict_inode_work), 0, 0, NULL);
+	if (!evict_inode_work_cache)
+		goto fail;
+	evict_inode_work_pool =
+		mempool_create_slab_pool(NUM_PREALLOC_EVICT_INODE_WORK,
+					 evict_inode_work_cache);
+	if (!evict_inode_work_pool)
+		goto fail_free_cache;
+	return 0;
+
+fail_free_cache:
+	kmem_cache_destroy(evict_inode_work_cache);
+fail:
+	return -ENOMEM;
+}
+
+void f2fs_destroy_evict_inode_work(void)
+{
+	mempool_destroy(evict_inode_work_pool);
+	kmem_cache_destroy(evict_inode_work_cache);
 }

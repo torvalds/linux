@@ -259,6 +259,7 @@ config VIDEO_IMX335
 
 config VIDEO_IMX355
 	tristate "Sony IMX355 sensor support"
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX355 camera.
@@ -269,6 +270,7 @@ config VIDEO_IMX355
 config VIDEO_IMX412
 	tristate "Sony IMX412 sensor support"
 	depends on OF
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX412 camera.
@@ -286,6 +288,27 @@ config VIDEO_IMX415
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx415.
+
+config VIDEO_IMX471
+	tristate "Sony IMX471 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX471 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx471.
+
+config VIDEO_IMX678
+	tristate "Sony IMX678 sensor support"
+	depends on GPIOLIB
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX678 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx678.
 
 config VIDEO_MAX9271_LIB
 	tristate

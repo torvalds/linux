@@ -1023,8 +1023,10 @@ static void h5_btrtl_open(struct h5 *h5)
 
 static void h5_btrtl_close(struct h5 *h5)
 {
-	if (!test_bit(H5_WAKEUP_DISABLE, &h5->flags))
+	if (!test_bit(H5_WAKEUP_DISABLE, &h5->flags)) {
+		pm_runtime_dont_use_autosuspend(&h5->hu->serdev->dev);
 		pm_runtime_disable(&h5->hu->serdev->dev);
+	}
 
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
@@ -1124,10 +1126,10 @@ static const struct h5_device_data h5_data_rtl8723bs = {
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id h5_acpi_match[] = {
 #ifdef CONFIG_BT_HCIUART_RTL
-	{ "OBDA0623", (kernel_ulong_t)&h5_data_rtl8723bs },
-	{ "OBDA8723", (kernel_ulong_t)&h5_data_rtl8723bs },
+	{ .id = "OBDA0623", .driver_data = (kernel_ulong_t)&h5_data_rtl8723bs },
+	{ .id = "OBDA8723", .driver_data = (kernel_ulong_t)&h5_data_rtl8723bs },
 #endif
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, h5_acpi_match);
 #endif

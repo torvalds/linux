@@ -188,8 +188,8 @@ attacks:
 - Non-root users cannot securely remove encryption keys.
 
 All the above problems are fixed with v2 encryption policies.  For
-this reason among others, it is recommended to use v2 encryption
-policies on all new encrypted directories.
+this reason among others, v1 encryption policies are deprecated.  Use
+v2 encryption policies on all new encrypted directories.
 
 Key hierarchy
 =============
@@ -305,7 +305,8 @@ included in the IV.  Moreover:
 
 - For v2 encryption policies, the encryption is done with a per-mode
   key derived using the KDF.  Users may use the same master key for
-  other v2 encryption policies.
+  other v2 encryption policies.  However, using a distinct master key
+  for each policy is still the best practice and normal usage.
 
 IV_INO_LBLK_64 policies
 -----------------------
@@ -335,6 +336,9 @@ compliant with the eMMC v5.2 standard, which supports only 32 IV bits
 per I/O request and may have only a small number of keyslots.  This
 format results in some level of IV reuse, so it should only be used
 when necessary due to hardware limitations.
+
+IV_INO_LBLK_32 is supported only when the filesystem block size is
+equal to the page size.
 
 Key identifiers
 ---------------
@@ -601,7 +605,9 @@ This structure must be initialized as follows:
   struct fscrypt_policy_v1 is used or FSCRYPT_POLICY_V2 (2) if
   struct fscrypt_policy_v2 is used. (Note: we refer to the original
   policy version as "v1", though its version code is really 0.)
-  For new encrypted directories, use v2 policies.
+  For new encrypted directories, use v2 policies, which are supported
+  since Linux v5.4.  v1 policies are deprecated and have several
+  usability and security problems.
 
 - ``contents_encryption_mode`` and ``filenames_encryption_mode`` must
   be set to constants from ``<linux/fscrypt.h>`` which identify the
@@ -736,17 +742,6 @@ FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 Getting an encryption policy
 ----------------------------
 
-Two ioctls are available to get a file's encryption policy:
-
-- `FS_IOC_GET_ENCRYPTION_POLICY_EX`_
-- `FS_IOC_GET_ENCRYPTION_POLICY`_
-
-The extended (_EX) version of the ioctl is more general and is
-recommended to use when possible.  However, on older kernels only the
-original ioctl is available.  Applications should try the extended
-version, and if it fails with ENOTTY fall back to the original
-version.
-
 FS_IOC_GET_ENCRYPTION_POLICY_EX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -780,7 +775,6 @@ FS_IOC_GET_ENCRYPTION_POLICY_EX can fail with the following errors:
 - ``ENODATA``: the file is not encrypted
 - ``ENOTTY``: this type of filesystem does not implement encryption,
   or this kernel is too old to support FS_IOC_GET_ENCRYPTION_POLICY_EX
-  (try FS_IOC_GET_ENCRYPTION_POLICY instead)
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
   support for this filesystem, or the filesystem superblock has not
   had encryption enabled on it
@@ -796,12 +790,13 @@ check for STATX_ATTR_ENCRYPTED in stx_attributes.
 FS_IOC_GET_ENCRYPTION_POLICY
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The FS_IOC_GET_ENCRYPTION_POLICY ioctl can also retrieve the
-encryption policy, if any, for a directory or regular file.  However,
-unlike `FS_IOC_GET_ENCRYPTION_POLICY_EX`_,
-FS_IOC_GET_ENCRYPTION_POLICY only supports the original policy
-version.  It takes in a pointer directly to struct fscrypt_policy_v1
-rather than struct fscrypt_get_policy_ex_arg.
+The FS_IOC_GET_ENCRYPTION_POLICY ioctl is deprecated.  It supports
+only v1 encryption policies, which themselves are deprecated.  Use
+`FS_IOC_GET_ENCRYPTION_POLICY_EX`_ instead.
+
+FS_IOC_GET_ENCRYPTION_POLICY retrieves the encryption policy for a
+directory or regular file, but only if it uses a v1 policy.  It takes
+in a pointer directly to struct fscrypt_policy_v1.
 
 The error codes for FS_IOC_GET_ENCRYPTION_POLICY are the same as those
 for FS_IOC_GET_ENCRYPTION_POLICY_EX, except that
@@ -883,6 +878,10 @@ as follows:
   ``master_key_descriptor`` field of struct fscrypt_policy_v1.
   To add this type of key, the calling process must have the
   CAP_SYS_ADMIN capability in the initial user namespace.
+
+  (Note that v1 encryption policies are deprecated.  The ability to
+  add a key for v1 encryption policies remains only for compatibility
+  with existing encrypted directories.)
 
   Alternatively, if the key is being added for use by v2 encryption
   policies, then ``key_spec.type`` must contain
@@ -1238,6 +1237,10 @@ astute users may notice some differences in behavior:
 
 - DAX (Direct Access) is not supported on encrypted files.
 
+- Encrypted files cannot be used directly as swap files.  To swap to
+  an encrypted file, set up a loopback device on top of it.
+  Alternatively, encrypted swap can use a dm-crypt device.
+
 - The maximum length of an encrypted symlink is 2 bytes shorter than
   the maximum length of an unencrypted symlink.  For example, on an
   EXT4 filesystem with a 4K block size, unencrypted symlinks can be up
@@ -1315,32 +1318,20 @@ Inline encryption support
 
 Many newer systems (especially mobile SoCs) have *inline encryption
 hardware* that can encrypt/decrypt data while it is on its way to/from
-the storage device.  Linux supports inline encryption through a set of
-extensions to the block layer called *blk-crypto*.  blk-crypto allows
-filesystems to attach encryption contexts to bios (I/O requests) to
-specify how the data will be encrypted or decrypted in-line.  For more
-information about blk-crypto, see
-:ref:`Documentation/block/inline-encryption.rst <inline_encryption>`.
+the storage device.
 
 On supported filesystems (currently ext4 and f2fs), fscrypt can use
-blk-crypto instead of the kernel crypto API to encrypt/decrypt file
-contents.  To enable this, set CONFIG_FS_ENCRYPTION_INLINE_CRYPT=y in
-the kernel configuration, and specify the "inlinecrypt" mount option
-when mounting the filesystem.
+inline encryption hardware instead of the CPU to encrypt/decrypt file
+contents.  To enable this, specify the "inlinecrypt" mount option when
+mounting the filesystem.
 
-Note that the "inlinecrypt" mount option just specifies to use inline
-encryption when possible; it doesn't force its use.  fscrypt will
-still fall back to using the kernel crypto API on files where the
-inline encryption hardware doesn't have the needed crypto capabilities
-(e.g. support for the needed encryption algorithm and data unit size)
-and where blk-crypto-fallback is unusable.  (For blk-crypto-fallback
-to be usable, it must be enabled in the kernel configuration with
-CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK=y, and the file must be
-protected by a raw key rather than a hardware-wrapped key.)
+This causes the filesystem to use inline encryption hardware whenever
+possible, falling back to the CPU only if such hardware is absent or
+doesn't provide the needed crypto capabilities.
 
-Currently fscrypt always uses the filesystem block size (which is
-usually 4096 bytes) as the data unit size.  Therefore, it can only use
-inline encryption hardware that supports that data unit size.
+For more information about the kernel's support for inline encryption
+hardware, see :ref:`Documentation/block/inline-encryption.rst
+<inline_encryption>`.
 
 Inline encryption doesn't affect the ciphertext or other aspects of
 the on-disk format, so users may freely switch back and forth between
@@ -1422,10 +1413,8 @@ For direct I/O on an encrypted file to work, the following conditions
 must be met (in addition to the conditions for direct I/O on an
 unencrypted file):
 
-* The file must be using inline encryption.  Usually this means that
-  the filesystem must be mounted with ``-o inlinecrypt`` and inline
-  encryption hardware must be present.  However, a software fallback
-  is also available.  For details, see `Inline encryption support`_.
+* The filesystem must be block-based.  (Before Linux v7.3, the
+  filesystem also needed to be mounted with ``-o inlinecrypt``.)
 
 * The I/O request must be fully aligned to the filesystem block size.
   This means that the file position the I/O is targeting, the lengths
@@ -1486,25 +1475,43 @@ keys`_ and `DIRECT_KEY policies`_.
 Data path changes
 -----------------
 
-When inline encryption is used, filesystems just need to associate
-encryption contexts with bios to specify how the block layer or the
-inline encryption hardware will encrypt/decrypt the file contents.
+The block-based filesystems that support fscrypt, such as ext4 and
+f2fs, use blk-crypto (:ref:`inline_encryption`) to implement file
+contents encryption and decryption.  With blk-crypto, the filesystem
+assigns an encryption context to each I/O request it issues to the
+contents of an encrypted file.  The encryption (for writes) or
+decryption (for reads) is handled by the block layer transparently to
+the filesystem, using either the CPU or inline encryption hardware.
 
-When inline encryption isn't used, filesystems must encrypt/decrypt
-the file contents themselves, as described below:
+Non-block-based filesystems can't use blk-crypto, so they make the
+calls to the cryptographic algorithms at the filesystem layer instead.
 
-For the read path (->read_folio()) of regular files, filesystems can
-read the ciphertext into the page cache and decrypt it in-place.  The
-folio lock must be held until decryption has finished, to prevent the
-folio from becoming visible to userspace prematurely.
+Regardless of the layer in which they occur (blk-crypto-fallback or the
+filesystem), for CPU-based encryption and decryption of file contents:
 
-For the write path (->writepages()) of regular files, filesystems
-cannot encrypt data in-place in the page cache, since the cached
-plaintext must be preserved.  Instead, filesystems must encrypt into a
-temporary buffer or "bounce page", then write out the temporary
-buffer.  Some filesystems, such as UBIFS, already use temporary
-buffers regardless of encryption.  Other filesystems, such as ext4 and
-F2FS, have to allocate bounce pages specially for encryption.
+- For reads, the ciphertext data is read from the storage backend
+  (block device, network, UBI device, etc.) into the destination
+  buffers, then decrypted in-place.  The destination buffers are
+  pagecache folios for buffered reads, or application-provided buffers
+  for direct reads.  In either case, the filesystem reports success
+  only after decryption has successfully completed.
+
+- For writes, the plaintext data is encrypted from the source buffers
+  (which cannot be modified) into bounce buffers.  Then, the
+  ciphertext in the bounce buffers is written to the storage backend.
+
+  The source buffers are usually pagecache folios for buffered writes,
+  or application-provided buffers for direct writes.  There are also
+  some cases (all files on UBIFS, and compressed files on f2fs) where
+  the filesystem already uses bounce buffers for writes for other
+  reasons; in these cases the source plaintext data is already in
+  bounce buffers.  UBIFS optimizes this case by encrypting the data
+  in-place in its existing bounce buffers.
+
+When inline encryption hardware is used instead of the CPU, reads from
+the storage backend logically return plaintext data, and writes accept
+plaintext data.  In that case the flow is simplified: there's no
+scheduling of decryption work, and no bounce buffers are used.
 
 Filename hashing and encoding
 -----------------------------
@@ -1552,14 +1559,11 @@ Tests
 
 To test fscrypt, use xfstests, which is Linux's de facto standard
 filesystem test suite.  First, run all the tests in the "encrypt"
-group on the relevant filesystem(s).  One can also run the tests
-with the 'inlinecrypt' mount option to test the implementation for
-inline encryption support.  For example, to test ext4 and
+group on the relevant filesystem(s).  For example, to test ext4 and
 f2fs encryption using `kvm-xfstests
 <https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md>`_::
 
     kvm-xfstests -c ext4,f2fs -g encrypt
-    kvm-xfstests -c ext4,f2fs -g encrypt -m inlinecrypt
 
 UBIFS encryption can also be tested this way, but it should be done in
 a separate command, and it takes some time for kvm-xfstests to set up
@@ -1581,7 +1585,6 @@ This tests the encrypted I/O paths more thoroughly.  To do this with
 kvm-xfstests, use the "encrypt" filesystem configuration::
 
     kvm-xfstests -c ext4/encrypt,f2fs/encrypt -g auto
-    kvm-xfstests -c ext4/encrypt,f2fs/encrypt -g auto -m inlinecrypt
 
 Because this runs many more tests than "-g encrypt" does, it takes
 much longer to run; so also consider using `gce-xfstests
@@ -1589,4 +1592,9 @@ much longer to run; so also consider using `gce-xfstests
 instead of kvm-xfstests::
 
     gce-xfstests -c ext4/encrypt,f2fs/encrypt -g auto
-    gce-xfstests -c ext4/encrypt,f2fs/encrypt -g auto -m inlinecrypt
+
+To test inline encryption hardware on a platform that supports such
+hardware, run xfstests directly with the ``inlinecrypt`` mount option
+enabled.  For example::
+
+    EXT_MOUNT_OPTIONS="-o inlinecrypt" ./check -g encrypt

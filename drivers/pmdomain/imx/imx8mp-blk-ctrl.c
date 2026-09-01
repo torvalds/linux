@@ -890,4 +890,5 @@ static struct platform_driver imx8mp_blk_ctrl_driver = {
 	},
 };
 module_platform_driver(imx8mp_blk_ctrl_driver);
+MODULE_DESCRIPTION("NXP i.MX8MP power domain driver");
 MODULE_LICENSE("GPL");

@@ -651,9 +651,9 @@ struct heuristic_ws {
 	u8 *sample;
 	u32 sample_size;
 	/* Buckets store counters for each byte value */
-	struct bucket_item *bucket;
+	struct bucket_item bucket[BUCKET_SIZE];
 	/* Sorting buffer */
-	struct bucket_item *bucket_b;
+	struct bucket_item bucket_b[BUCKET_SIZE];
 	struct list_head list;
 };
 
@@ -664,8 +664,6 @@ static void free_heuristic_ws(struct list_head *ws)
 	workspace = list_entry(ws, struct heuristic_ws, list);
 
 	kvfree(workspace->sample);
-	kfree(workspace->bucket);
-	kfree(workspace->bucket_b);
 	kfree(workspace);
 }
 
@@ -679,14 +677,6 @@ static struct list_head *alloc_heuristic_ws(struct btrfs_fs_info *fs_info)
 
 	ws->sample = kvmalloc(MAX_SAMPLE_SIZE, GFP_KERNEL);
 	if (!ws->sample)
-		goto fail;
-
-	ws->bucket = kzalloc_objs(*ws->bucket, BUCKET_SIZE);
-	if (!ws->bucket)
-		goto fail;
-
-	ws->bucket_b = kzalloc_objs(*ws->bucket_b, BUCKET_SIZE);
-	if (!ws->bucket_b)
 		goto fail;
 
 	INIT_LIST_HEAD(&ws->list);

@@ -191,7 +191,7 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct evlist *evlist,
 				   struct evsel *evsel, int idx)
 {
-	bool per_cpu = !perf_cpu_map__has_any_cpu(evlist->core.user_requested_cpus);
+	bool per_cpu = !perf_cpu_map__has_any_cpu(evlist__core(evlist)->user_requested_cpus);
 
 	mp->mmap_needed = evsel->needs_auxtrace_mmap;
 
@@ -201,11 +201,11 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 	mp->idx = idx;
 
 	if (per_cpu) {
-		mp->cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
-		mp->tid = perf_thread_map__pid(evlist->core.threads, 0);
+		mp->cpu = perf_cpu_map__cpu(evlist__core(evlist)->all_cpus, idx);
+		mp->tid = perf_thread_map__pid(evlist__core(evlist)->threads, 0);
 	} else {
 		mp->cpu.cpu = -1;
-		mp->tid = perf_thread_map__pid(evlist->core.threads, idx);
+		mp->tid = perf_thread_map__pid(evlist__core(evlist)->threads, idx);
 	}
 }
 
@@ -251,7 +251,11 @@ static int auxtrace_queues__grow(struct auxtrace_queues *queues,
 {
 	unsigned int nr_queues = queues->nr_queues;
 	struct auxtrace_queue *queue_array;
+	struct auxtrace_queue *old_array = queues->queue_array;
 	unsigned int i;
+
+	if (!new_nr_queues)
+		return -EINVAL;
 
 	if (!nr_queues)
 		nr_queues = AUXTRACE_INIT_NR_QUEUES;
@@ -267,16 +271,17 @@ static int auxtrace_queues__grow(struct auxtrace_queues *queues,
 		return -ENOMEM;
 
 	for (i = 0; i < queues->nr_queues; i++) {
-		list_splice_tail(&queues->queue_array[i].head,
+		list_splice_tail(&old_array[i].head,
 				 &queue_array[i].head);
-		queue_array[i].tid = queues->queue_array[i].tid;
-		queue_array[i].cpu = queues->queue_array[i].cpu;
-		queue_array[i].set = queues->queue_array[i].set;
-		queue_array[i].priv = queues->queue_array[i].priv;
+		queue_array[i].tid = old_array[i].tid;
+		queue_array[i].cpu = old_array[i].cpu;
+		queue_array[i].set = old_array[i].set;
+		queue_array[i].priv = old_array[i].priv;
 	}
 
 	queues->nr_queues = nr_queues;
 	queues->queue_array = queue_array;
+	free(old_array);
 
 	return 0;
 }
@@ -668,10 +673,10 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 
 static int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
 {
-	bool per_cpu_mmaps = !perf_cpu_map__has_any_cpu(evlist->core.user_requested_cpus);
+	bool per_cpu_mmaps = !perf_cpu_map__has_any_cpu(evlist__core(evlist)->user_requested_cpus);
 
 	if (per_cpu_mmaps) {
-		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
+		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist__core(evlist)->all_cpus, idx);
 		int cpu_map_idx = perf_cpu_map__idx(evsel->core.cpus, evlist_cpu);
 
 		if (cpu_map_idx == -1)
@@ -1838,7 +1843,7 @@ void perf_session__auxtrace_error_inc(struct perf_session *session,
 	struct perf_record_auxtrace_error *e = &event->auxtrace_error;
 
 	if (e->type < PERF_AUXTRACE_ERROR_MAX)
-		session->evlist->stats.nr_auxtrace_errors[e->type] += 1;
+		evlist__stats(session->evlist)->nr_auxtrace_errors[e->type] += 1;
 }
 
 void events_stats__auxtrace_error_warn(const struct events_stats *stats)

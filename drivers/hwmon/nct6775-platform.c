@@ -34,7 +34,7 @@ static const char * const nct6775_sio_names[] __initconst = {
 	[nct6795] = "NCT6795D",
 	[nct6796] = "NCT6796D",
 	[nct6797] = "NCT6797D",
-	[nct6798] = "NCT6798D",
+	[nct6798] = "NCT6798D/NCT5585D",
 	[nct6799] = "NCT6796D-S/NCT6799D-R",
 };
 

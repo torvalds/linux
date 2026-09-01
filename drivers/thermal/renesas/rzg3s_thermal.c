@@ -270,3 +270,4 @@ module_platform_driver(rzg3s_thermal_driver);
 MODULE_DESCRIPTION("Renesas RZ/G3S Thermal Sensor Unit Driver");
 MODULE_AUTHOR("Claudiu Beznea <claudiu.beznea.uj@bp.renesas.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

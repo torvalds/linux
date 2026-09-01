@@ -133,7 +133,7 @@ static int luo_flb_file_preserve_one(struct liveupdate_flb *flb)
 	return 0;
 }
 
-static void luo_flb_file_unpreserve_one(struct liveupdate_flb *flb)
+void liveupdate_flb_put_outgoing(struct liveupdate_flb *flb)
 {
 	struct luo_flb_private *private = luo_flb_get_private(flb);
 
@@ -168,7 +168,10 @@ static int luo_flb_retrieve_one(struct liveupdate_flb *flb)
 	if (private->incoming.finished)
 		return -ENODATA;
 
-	if (private->incoming.retrieved)
+	if (private->incoming.retrieve_status < 0)
+		return private->incoming.retrieve_status;
+
+	if (private->incoming.retrieve_status > 0)
 		return 0;
 
 	if (!fh->active)
@@ -194,12 +197,13 @@ static int luo_flb_retrieve_one(struct liveupdate_flb *flb)
 
 	err = flb->ops->retrieve(&args);
 	if (err) {
+		private->incoming.retrieve_status = err;
 		module_put(flb->ops->owner);
 		return err;
 	}
 
 	private->incoming.obj = args.obj;
-	private->incoming.retrieved = true;
+	private->incoming.retrieve_status = 1;
 
 	return 0;
 }
@@ -213,7 +217,7 @@ void liveupdate_flb_put_incoming(struct liveupdate_flb *flb)
 		if (!refcount_dec_and_test(&private->incoming.count))
 			return;
 
-		if (!private->incoming.retrieved) {
+		if (private->incoming.retrieve_status <= 0) {
 			int err = luo_flb_retrieve_one(flb);
 
 			if (WARN_ON(err))
@@ -264,7 +268,7 @@ int luo_flb_file_preserve(struct liveupdate_file_handler *fh)
 
 exit_err:
 	list_for_each_entry_continue_reverse(iter, flb_list, list)
-		luo_flb_file_unpreserve_one(iter->flb);
+		liveupdate_flb_put_outgoing(iter->flb);
 	up_read(&luo_register_rwlock);
 
 	return err;
@@ -289,7 +293,7 @@ void luo_flb_file_unpreserve(struct liveupdate_file_handler *fh)
 
 	guard(rwsem_read)(&luo_register_rwlock);
 	list_for_each_entry_reverse(iter, flb_list, list)
-		luo_flb_file_unpreserve_one(iter->flb);
+		liveupdate_flb_put_outgoing(iter->flb);
 }
 
 /**
@@ -544,6 +548,10 @@ int liveupdate_flb_get_outgoing(struct liveupdate_flb *flb, void **objp)
 		return -EOPNOTSUPP;
 
 	guard(mutex)(&private->outgoing.lock);
+	if (!private->outgoing.obj)
+		return -ENOENT;
+
+	refcount_inc(&private->outgoing.count);
 	*objp = private->outgoing.obj;
 
 	return 0;

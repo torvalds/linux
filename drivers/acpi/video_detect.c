@@ -67,13 +67,8 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	long *cap = context;
 	struct pci_dev *dev;
 
-	static const struct acpi_device_id video_ids[] = {
-		{ACPI_VIDEO_HID, 0},
-		{"", 0},
-	};
-
-	if (acpi_dev && !acpi_match_device_ids(acpi_dev, video_ids)) {
-		dev = acpi_get_pci_dev(handle);
+	if (acpi_dev_is_video_device(acpi_dev)) {
+		dev = acpi_dev_get_pci_dev(acpi_dev);
 		if (!dev)
 			return AE_OK;
 		pci_dev_put(dev);
@@ -137,8 +132,10 @@ static int video_detect_portege_r100(const struct dmi_system_id *d)
 	struct pci_dev *dev;
 	/* Search for Trident CyberBlade XP4m32 to confirm Portégé R100 */
 	dev = pci_get_device(PCI_VENDOR_ID_TRIDENT, 0x2100, NULL);
-	if (dev)
+	if (dev) {
 		acpi_backlight_dmi = acpi_backlight_vendor;
+		pci_dev_put(dev);
+	}
 	return 0;
 }
 
@@ -922,6 +919,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "OMEN by HP Gaming Laptop 16-n0xxx"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* Acer Nitro AN515-46 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN515-46"),
 		},
 	},
 

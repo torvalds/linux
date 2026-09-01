@@ -1363,9 +1363,9 @@ static int bh1770_runtime_resume(struct device *dev)
 #endif
 
 static const struct i2c_device_id bh1770_id[] = {
-	{ "bh1770glc" },
-	{ "sfh7770" },
-	{}
+	{ .name = "bh1770glc" },
+	{ .name = "sfh7770" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, bh1770_id);

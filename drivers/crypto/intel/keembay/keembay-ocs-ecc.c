@@ -900,10 +900,8 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 
 	rc = devm_request_threaded_irq(dev, ecc_dev->irq, ocs_ecc_irq_handler,
 				       NULL, 0, "keembay-ocs-ecc", ecc_dev);
-	if (rc < 0) {
-		dev_err(dev, "Could not request IRQ\n");
+	if (rc < 0)
 		goto list_del;
-	}
 
 	/* Add device to the list of OCS ECC devices. */
 	spin_lock(&ocs_ecc.lock);
@@ -978,6 +976,7 @@ static const struct of_device_id kmb_ocs_ecc_of_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, kmb_ocs_ecc_of_match);
 
 /* The OCS driver is a platform device. */
 static struct platform_driver kmb_ocs_ecc_driver = {

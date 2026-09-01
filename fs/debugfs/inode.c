@@ -368,8 +368,11 @@ static struct dentry *debugfs_start_creating(const char *name,
 	if (!debugfs_enabled)
 		return ERR_PTR(-EPERM);
 
-	if (!debugfs_initialized())
+	if (!debugfs_initialized()) {
+		pr_err("Unable to create file '%s', debugfs is not initialized yet\n",
+		       name);
 		return ERR_PTR(-ENOENT);
+	}
 
 	pr_debug("creating file '%s'\n", name);
 

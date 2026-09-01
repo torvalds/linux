@@ -780,7 +780,7 @@ static const struct i2c_device_id act8865_ids[] = {
 	{ .name = "act8600", .driver_data = ACT8600 },
 	{ .name = "act8846", .driver_data = ACT8846 },
 	{ .name = "act8865", .driver_data = ACT8865 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, act8865_ids);
 

@@ -171,6 +171,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-qdu1000", "qcom,scm";
+			sram = <&minidump_config>;
 		};
 	};
 
@@ -1054,7 +1055,7 @@
 
 		pdc: interrupt-controller@b220000 {
 			compatible = "qcom,qdu1000-pdc", "qcom,pdc";
-			reg = <0x0 0xb220000 0x0 0x30000>, <0x0 0x174000f0 0x0 0x64>;
+			reg = <0x0 0xb220000 0x0 0x10000>, <0x0 0x174000f0 0x0 0x64>;
 			qcom,pdc-ranges = <0 480 12>, <14 494 24>, <40 520 54>,
 					  <94 609 31>, <125 63 1>;
 			#interrupt-cells = <2>;
@@ -1368,6 +1369,10 @@
 			ranges = <0 0 0x14680000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			minidump_config: minidump-sram@1c {
+				reg = <0x1c 0x4>;
+			};
 
 			pil-reloc@94c {
 				compatible = "qcom,pil-reloc-info";

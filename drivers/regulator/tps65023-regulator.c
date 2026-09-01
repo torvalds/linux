@@ -319,13 +319,13 @@ MODULE_DEVICE_TABLE(of, tps65023_of_match);
 static const struct i2c_device_id tps_65023_id[] = {
 	{
 		.name = "tps65023",
-		.driver_data = (kernel_ulong_t)&tps65023_drv_data
+		.driver_data = (kernel_ulong_t)&tps65023_drv_data,
 	}, {
 		.name = "tps65021",
-		.driver_data = (kernel_ulong_t)&tps65021_drv_data
+		.driver_data = (kernel_ulong_t)&tps65021_drv_data,
 	}, {
 		.name = "tps65020",
-		.driver_data = (kernel_ulong_t)&tps65020_drv_data
+		.driver_data = (kernel_ulong_t)&tps65020_drv_data,
 	},
 	{ },
 };

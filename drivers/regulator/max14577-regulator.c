@@ -123,15 +123,88 @@ static const struct regulator_desc max14577_supported_regulators[] = {
 	[MAX14577_CHARGER] = MAX14577_CHARGER_REG,
 };
 
+struct max77836_ldo {
+	struct max14577	*max14577;
+	unsigned int	mode;
+};
+
+static int max77836_ldo_enable(struct regulator_dev *rdev)
+{
+	struct max77836_ldo *ldo = rdev_get_drvdata(rdev);
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+			MAX77836_CNFG1_LDO_PWRMD_MASK, ldo->mode);
+}
+
+static int max77836_ldo_disable(struct regulator_dev *rdev)
+{
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+			MAX77836_CNFG1_LDO_PWRMD_MASK,
+			MAX77836_CNFG1_LDO_PWRMD_OFF);
+}
+
+static unsigned int max77836_ldo_get_mode(struct regulator_dev *rdev)
+{
+	struct max77836_ldo *ldo = rdev_get_drvdata(rdev);
+
+	switch (ldo->mode) {
+	case MAX77836_CNFG1_LDO_PWRMD_LPM:
+		return REGULATOR_MODE_IDLE;
+	case MAX77836_CNFG1_LDO_PWRMD_NORMAL:
+		return REGULATOR_MODE_NORMAL;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
+}
+
+static int max77836_ldo_set_mode(struct regulator_dev *rdev,
+				 unsigned int mode)
+{
+	struct max77836_ldo *ldo = rdev_get_drvdata(rdev);
+	unsigned int val;
+
+	switch (mode) {
+	case REGULATOR_MODE_NORMAL:
+		val = MAX77836_CNFG1_LDO_PWRMD_NORMAL;
+		break;
+	case REGULATOR_MODE_IDLE:
+		val = MAX77836_CNFG1_LDO_PWRMD_LPM;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ldo->mode = val;
+
+	/* Only touch hardware if the regulator is already on */
+	if (regulator_is_enabled_regmap(rdev))
+		return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				MAX77836_CNFG1_LDO_PWRMD_MASK, val);
+
+	return 0;
+}
+
+static unsigned int max77836_ldo_of_map_mode(unsigned int mode)
+{
+	switch (mode) {
+	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_IDLE:
+		return mode;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
+}
+
 static const struct regulator_ops max77836_ldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= max77836_ldo_enable,
+	.disable		= max77836_ldo_disable,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	/* TODO: add .set_suspend_mode */
+	.get_mode		= max77836_ldo_get_mode,
+	.set_mode		= max77836_ldo_set_mode,
 };
 
 #define MAX77836_LDO_REG(num)	{ \
@@ -147,6 +220,7 @@ static const struct regulator_ops max77836_ldo_ops = {
 	.uV_step	= MAX77836_REGULATOR_LDO_VOLTAGE_STEP, \
 	.enable_reg	= MAX77836_LDO_REG_CNFG1_LDO ## num, \
 	.enable_mask	= MAX77836_CNFG1_LDO_PWRMD_MASK, \
+	.of_map_mode	= max77836_ldo_of_map_mode, \
 	.vsel_reg	= MAX77836_LDO_REG_CNFG1_LDO ## num, \
 	.vsel_mask	= MAX77836_CNFG1_LDO_TV_MASK, \
 }
@@ -205,7 +279,6 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = max14577->dev;
-	config.driver_data = max14577;
 
 	for (i = 0; i < supported_regulators_size; i++) {
 		struct regulator_dev *regulator;
@@ -217,6 +290,28 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 			config.init_data = pdata->regulators[i].initdata;
 			config.of_node = pdata->regulators[i].of_node;
 		}
+
+		/*
+		 * LDOs need per-regulator driver data to store their mode.
+		 * The charger and safeout share the core MFD struct.
+		 */
+		if (dev_type == MAXIM_DEVICE_TYPE_MAX77836 &&
+		    (supported_regulators[i].id == MAX77836_LDO1 ||
+		     supported_regulators[i].id == MAX77836_LDO2)) {
+			struct max77836_ldo *ldo;
+
+			ldo = devm_kzalloc(&pdev->dev, sizeof(*ldo),
+					   GFP_KERNEL);
+			if (!ldo)
+				return -ENOMEM;
+
+			ldo->max14577 = max14577;
+			ldo->mode = MAX77836_CNFG1_LDO_PWRMD_NORMAL;
+			config.driver_data = ldo;
+		} else {
+			config.driver_data = max14577;
+		}
+
 		config.regmap = max14577_get_regmap(max14577,
 				supported_regulators[i].id);
 

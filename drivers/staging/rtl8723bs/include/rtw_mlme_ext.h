@@ -322,8 +322,8 @@ struct mlme_ext_info {
 
 /*  The channel information about this channel including joining, scanning, and power constraints. */
 struct rt_channel_info {
-	u8 		ChannelNum;		/*  The channel number. */
-	enum rt_scan_type	ScanType;		/*  Scan type such as passive or active scan. */
+	u8 channel_num;		/*  The channel number. */
+	enum rt_scan_type scan_type;		/*  Scan type such as passive or active scan. */
 };
 
 int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch);
@@ -433,9 +433,9 @@ void set_mcs_rate_by_mask(u8 *mcs_set, u32 mask);
 void update_basic_rate_table(struct adapter *padapter, u8 *mBratesOS);
 void update_basic_rate_table_soft_ap(u8 *bssrateset, u32 bssratelen);
 
-void Save_DM_Func_Flag(struct adapter *padapter);
-void Restore_DM_Func_Flag(struct adapter *padapter);
-void Switch_DM_Func(struct adapter *padapter, u32 mode, u8 enable);
+void save_dm_func_flag(struct adapter *padapter);
+void restore_dm_func_flag(struct adapter *padapter);
+void switch_dm_func(struct adapter *padapter, u32 mode, u8 enable);
 
 void set_msr(struct adapter *padapter, u8 type);
 
@@ -503,7 +503,7 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 
 /* for sta/adhoc mode */
 void update_sta_info(struct adapter *padapter, struct sta_info *psta);
-void Update_RA_Entry(struct adapter *padapter, struct sta_info *psta);
+void update_ra_entry(struct adapter *padapter, struct sta_info *psta);
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta);
 
 unsigned int receive_disconnect(struct adapter *padapter, unsigned char *MacAddr, unsigned short reason);
@@ -675,33 +675,33 @@ void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
 enum {
-	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
-	GEN_EVT_CODE(_Read_BBREG),
-	GEN_EVT_CODE(_Read_RFREG),
-	GEN_EVT_CODE(_Read_EEPROM),
-	GEN_EVT_CODE(_Read_EFUSE),
-	GEN_EVT_CODE(_Read_CAM),			/*5*/
-	GEN_EVT_CODE(_Get_BasicRate),
-	GEN_EVT_CODE(_Get_DataRate),
-	GEN_EVT_CODE(_Survey),	 /*8*/
-	GEN_EVT_CODE(_SurveyDone),	 /*9*/
+	READ_MACREG_EVENT = 0,		/*0*/
+	READ_BBREG_EVENT,
+	READ_RFREG_EVENT,
+	READ_EEPROM_EVENT,
+	READ_EFUSE_EVENT,
+	READ_CAM_EVENT,			/*5*/
+	GET_BASICRATE_EVENT,
+	GET_DATARATE_EVENT,
+	SURVEY_EVENT,			/*8*/
+	SURVEY_DONE_EVENT,		/*9*/
 
-	GEN_EVT_CODE(_JoinBss), /*10*/
-	GEN_EVT_CODE(_AddSTA),
-	GEN_EVT_CODE(_DelSTA),
-	GEN_EVT_CODE(_AtimDone),
-	GEN_EVT_CODE(_TX_Report),
-	GEN_EVT_CODE(_CCX_Report),			/*15*/
-	GEN_EVT_CODE(_DTM_Report),
-	GEN_EVT_CODE(_TX_Rate_Statistics),
-	GEN_EVT_CODE(_C2HLBK),
-	GEN_EVT_CODE(_FWDBG),
-	GEN_EVT_CODE(_C2HFEEDBACK),               /*20*/
-	GEN_EVT_CODE(_ADDBA),
-	GEN_EVT_CODE(_C2HBCN),
-	GEN_EVT_CODE(_ReportPwrState),		/* filen: only for PCIE, USB */
-	GEN_EVT_CODE(_CloseRF),				/* filen: only for PCIE, work around ASPM */
-	GEN_EVT_CODE(_WMM),					/*25*/
+	JOIN_BSS_EVENT,			/*10*/
+	ADD_STA_EVENT,
+	DEL_STA_EVENT,
+	ATIM_DONE_EVENT,
+	TX_REPORT_EVENT,
+	CCX_REPORT_EVENT,		/*15*/
+	DTM_REPORT_EVENT,
+	TX_RATE_STATISTICS_EVENT,
+	C2HLBK_EVENT,
+	FWDBG_EVENT,
+	C2HFEEDBACK_EVENT,		/*20*/
+	ADDBA_EVENT,
+	C2HBCN_EVENT,
+	REPORT_PWR_STATE_EVENT,		/* filen: only for PCIE, USB */
+	CLOSE_RF_EVENT,			/* filen: only for PCIE, work around ASPM */
+	WMM_EVENT,			/*25*/
 	MAX_C2HEVT
 };
 

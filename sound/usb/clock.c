@@ -600,7 +600,7 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 				const struct audioformat *fmt, int rate)
 {
-	int cur_rate, prev_rate;
+	int cur_rate, prev_rate = 0;
 	int clock;
 
 	/* First, try to find a valid clock. This may trigger
@@ -625,9 +625,12 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 			return clock;
 	}
 
-	prev_rate = get_sample_rate_v2v3(chip, fmt->iface, fmt->altsetting, clock);
-	if (prev_rate == rate)
-		goto validation;
+	if (!(chip->quirk_flags & QUIRK_FLAG_ALWAYS_SET_RATE)) {
+		prev_rate = get_sample_rate_v2v3(chip, fmt->iface,
+						 fmt->altsetting, clock);
+		if (prev_rate == rate)
+			goto validation;
+	}
 
 	cur_rate = snd_usb_set_sample_rate_v2v3(chip, fmt, clock, rate);
 	if (cur_rate < 0) {

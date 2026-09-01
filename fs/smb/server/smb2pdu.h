@@ -66,6 +66,80 @@ struct preauth_integrity_info {
 /* Apple Defined Contexts */
 #define SMB2_CREATE_AAPL		"AAPL"
 
+/*
+ * AAPL SMB2 extension -- kAAPL_SERVER_QUERY create context.
+ *
+ * Command code and bitmap values are the existing
+ * SMB2_CRTCTX_AAPL_* constants in fs/smb/common/smb2pdu.h.
+ *
+ * Omitting the model string when reply_bitmap includes
+ * SMB2_CRTCTX_AAPL_MODEL_INFO causes smbfs.kext to enter a broken
+ * disconnect path requiring a reboot.
+ *
+ * Layout: ccontext(16) + Name[4] + Pad[4] + cmd(4) + reserved(4) +
+ *         reply_bitmap(8) + server_caps(8) + vol_caps(8)
+ * When MODEL_INFO requested, appended: pad2(4) + model_bytes(4) + UTF-16LE
+ */
+#define SMB2_CREATE_AAPL_LEN	4
+
+/*
+ * Server capability flags (server_caps field) -- SMB2_CRTCTX_AAPL_UNIX_BASED:
+ * prevents macOS Windows-compat mode (question-mark icons).
+ * SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE: enables server-side file copy via
+ * FSCTL_SRV_COPYCHUNK. SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR: inline
+ * FinderInfo per FIND entry, set when client also advertises the bit;
+ * format: EaSize=max_access, ShortName[0..7]=rfork_size,
+ * ShortName[8..23]=FinderInfo(16B), Reserved2=unix_mode.
+ */
+#define AAPL_SERVER_CAPS_KSMBD	(SMB2_CRTCTX_AAPL_UNIX_BASED | \
+				 SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE | \
+				 SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR)
+
+/*
+ * READDIR_ATTR_V2 (SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR_V2, see
+ * fs/smb/common/smb2pdu.h) extends the same inline-FinderInfo mechanism
+ * above with a flags field, confirmed byte-identical to V1 otherwise
+ * against AAPL's actual public client behavior. When a client's own
+ * client_caps requests V2, the server advertises V2 instead of V1 in
+ * its own server_caps reply; V1 and V2 are mutually exclusive on the
+ * wire, not both set together. The wire format's ShortNameLength+Reserved
+ * (ignored in V1) become a single flags field in V2 --
+ * AAPL_READDIR_ATTR_V2_NO_XATTR is the only flag bit currently defined,
+ * signaling the item has no xattrs/streams so the client can skip a
+ * separate query.
+ */
+#define AAPL_READDIR_ATTR_V2_NO_XATTR	0x01
+
+/* Model string: up to 31 ASCII chars */
+#define AAPL_MODEL_MAX_CHARS	31
+#define AAPL_MODEL_UTF16_BYTES	(AAPL_MODEL_MAX_CHARS * 2)
+
+/*
+ * Max AAPL response: header(24) + base data(32) + pad2(4) + model_bytes(4)
+ * + model(62), 8-byte aligned: ALIGN(126, 8) = 128 bytes.
+ */
+#define AAPL_RSP_MAX_SIZE	128
+
+/* AAPL server query request (client->server) */
+struct aapl_server_query_req {
+	__le32 cmd;
+	__le32 reserved;
+	__le64 req_bitmap;
+	__le64 client_caps;
+} __packed;
+
+struct create_aapl_rsp {
+	struct create_context_hdr ccontext;
+	__u8   Name[4];
+	__u8   Pad[4];
+	__le32 cmd;
+	__le32 reserved;
+	__le64 reply_bitmap;
+	__le64 server_caps;
+	__le64 vol_caps;
+	/* when MODEL_INFO requested: __le32 pad2; __le32 model_bytes; __le16 model[] */
+} __packed;
+
 #define DURABLE_HANDLE_MAX_TIMEOUT	300000
 
 struct create_alloc_size_req {
@@ -197,6 +271,13 @@ struct smb2_file_stream_info {
 	__le64 StreamSize;
 	__le64 StreamAllocationSize;
 	char   StreamName[];
+} __packed;
+
+struct srv_snapshot_array {
+	__le32 NumberOfSnapShots;
+	__le32 NumberOfSnapShotsReturned;
+	__le32 SnapShotArraySize;
+	__le32 Reserved;
 } __packed;
 
 struct smb2_file_standard_info {
@@ -347,6 +428,7 @@ bool smb3_encryption_negotiated(struct ksmbd_conn *conn);
 
 /* smb2 misc functions */
 int ksmbd_smb2_check_message(struct ksmbd_work *work);
+void smb2_complete_request_open(struct ksmbd_work *work);
 
 /* smb2 command handlers */
 int smb2_handle_negotiate(struct ksmbd_work *work);

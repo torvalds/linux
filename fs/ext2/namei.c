@@ -99,7 +99,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
  */
 static int ext2_create (struct mnt_idmap * idmap,
 			struct inode * dir, struct dentry * dentry,
-			umode_t mode, bool excl)
+			umode_t mode)
 {
 	struct inode *inode;
 	int err;
@@ -236,7 +236,7 @@ static struct dentry *ext2_mkdir(struct mnt_idmap * idmap,
 
 	inode_inc_link_count(dir);
 
-	inode = ext2_new_inode(dir, S_IFDIR | mode, &dentry->d_name);
+	inode = ext2_new_inode(dir, mode, &dentry->d_name);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_dir;

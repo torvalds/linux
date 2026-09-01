@@ -66,6 +66,8 @@ struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 struct hubp;
 struct dpp;
+struct transform;
+struct mpc;
 struct dce_hwseq;
 struct timing_generator;
 struct tg_color;
@@ -91,9 +93,7 @@ struct hwseq_private_funcs {
 	bool (*set_input_transfer_func)(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
-	bool (*set_output_transfer_func)(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream);
+	bool (*set_output_transfer_func)(struct set_output_transfer_func_params *params);
 	void (*power_down)(struct dc *dc);
 	void (*enable_display_pipe_clock_gating)(struct dc_context *ctx,
 					bool clock_gating);
@@ -217,10 +217,6 @@ struct hwseq_private_funcs {
 	void (*reset_back_end_for_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);
-	void (*populate_mcm_luts)(struct dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			struct dc_cm2_func_luts mcm_luts,
-			bool lut_bank_a);
 	void (*perform_3dlut_wa_unlock)(struct pipe_ctx *pipe_ctx);
 	void (*wait_for_pipe_update_if_needed)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool is_surface_update_only);
 	void (*set_wait_for_update_needed_for_pipe)(struct dc *dc, struct pipe_ctx *pipe_ctx);

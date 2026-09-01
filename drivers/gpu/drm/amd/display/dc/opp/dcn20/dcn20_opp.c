@@ -89,6 +89,24 @@ void opp2_set_disp_pattern_generator(
 	break;
 	}
 
+	if (opp->ctx->dc->debug.disable_dynamic_expansion_for_test_pattern) {
+		switch (test_pattern) {
+		case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES:
+		case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA:
+		case CONTROLLER_DP_TEST_PATTERN_VERTICALBARS:
+		case CONTROLLER_DP_TEST_PATTERN_HORIZONTALBARS:
+		case CONTROLLER_DP_TEST_PATTERN_COLORRAMP:
+			if (color_depth == COLOR_DEPTH_121212)
+				REG_UPDATE(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, 0);
+		break;
+		case CONTROLLER_DP_TEST_PATTERN_VIDEOMODE:
+			REG_UPDATE(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, 1);
+		break;
+		default:
+		break;
+		}
+	}
+
 	/* set DPG dimentions */
 	REG_SET_2(DPG_DIMENSIONS, 0,
 		DPG_ACTIVE_WIDTH, width,
@@ -149,6 +167,9 @@ void opp2_set_disp_pattern_generator(
 		case TEST_PATTERN_COLOR_FORMAT_BPC_10:
 			dst_bpc = 10;
 		break;
+		case TEST_PATTERN_COLOR_FORMAT_BPC_12:
+			dst_bpc = 12;
+		break;
 		default:
 			dst_bpc = 8;
 		break;
@@ -192,22 +213,25 @@ void opp2_set_disp_pattern_generator(
 
 	case CONTROLLER_DP_TEST_PATTERN_COLORRAMP:
 	{
-		mode = (bit_depth ==
-			TEST_PATTERN_COLOR_FORMAT_BPC_10 ?
-			TEST_PATTERN_MODE_DUALRAMP_RGB :
-			TEST_PATTERN_MODE_SINGLERAMP_RGB);
-
 		switch (bit_depth) {
 		case TEST_PATTERN_COLOR_FORMAT_BPC_6:
+			mode = TEST_PATTERN_MODE_SINGLERAMP_RGB;
 			dst_bpc = 6;
 		break;
 		case TEST_PATTERN_COLOR_FORMAT_BPC_8:
+			mode = TEST_PATTERN_MODE_SINGLERAMP_RGB;
 			dst_bpc = 8;
 		break;
 		case TEST_PATTERN_COLOR_FORMAT_BPC_10:
+			mode = TEST_PATTERN_MODE_DUALRAMP_RGB;
 			dst_bpc = 10;
 		break;
+		case TEST_PATTERN_COLOR_FORMAT_BPC_12:
+			mode = TEST_PATTERN_MODE_DUALRAMP_RGB;
+			dst_bpc = 12;
+		break;
 		default:
+			mode = TEST_PATTERN_MODE_SINGLERAMP_RGB;
 			dst_bpc = 8;
 		break;
 		}
@@ -244,9 +268,20 @@ void opp2_set_disp_pattern_generator(
 		case TEST_PATTERN_COLOR_FORMAT_BPC_10:
 		{
 			REG_SET_3(DPG_RAMP_CONTROL, 0,
-				DPG_RAMP0_OFFSET, 384 << 6,
-				DPG_INC0, inc_base,
-				DPG_INC1, inc_base + 2);
+				DPG_RAMP0_OFFSET, 384 << inc_base, // 384 start point
+				DPG_INC0, inc_base, // step size of 1
+				DPG_INC1, inc_base + 2); // step size of 4 (1 << 2)
+			REG_UPDATE_2(DPG_CONTROL,
+				DPG_VRES, 5,
+				DPG_HRES, 8);
+		}
+		break;
+		case TEST_PATTERN_COLOR_FORMAT_BPC_12:
+		{
+			REG_SET_3(DPG_RAMP_CONTROL, 0,
+				DPG_RAMP0_OFFSET, 1920 << inc_base, // 1920 start point
+				DPG_INC0, inc_base, // step size of 1
+				DPG_INC1, inc_base + 4); // step size of 16 (1 << 4)
 			REG_UPDATE_2(DPG_CONTROL,
 				DPG_VRES, 5,
 				DPG_HRES, 8);

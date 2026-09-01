@@ -51,7 +51,11 @@ void dc_fpu_end(const char *function_name, const int line);
 #else
 #define DC_FP_START()	BUILD_BUG()
 #define DC_FP_END()	BUILD_BUG()
-#define DC_RUN_WITH_PREEMPTION_ENABLED(code) code
+#define DC_RUN_WITH_PREEMPTION_ENABLED(code) \
+	do { \
+		BUILD_BUG(); \
+		code; \
+	} while (0)
 #endif // !_LINUX_FPU_COMPILATION_UNIT
 
 #endif /* __DC_FPU_H__ */

@@ -9,7 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/mfd/mcp.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/mutex.h>
 
@@ -102,6 +102,9 @@
 #define UCB_MODE	0x0d
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
 #define UCB_MODE_AUD_OFF_CAN	(1 << 13)
+
+struct software_node;
+extern const struct software_node ucb1x00_gpiochip_node;
 
 enum ucb1x00_reset {
 	UCB_RST_PROBE,

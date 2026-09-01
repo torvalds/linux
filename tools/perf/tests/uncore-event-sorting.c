@@ -147,8 +147,8 @@ static int test__uncore_event_sorting(struct test_suite *test __maybe_unused,
 		goto out_err;
 	}
 
-	CHECK_COND(evlist->core.nr_entries >= 4, "Number of events is >= 4");
-	CHECK_EQUAL(evlist->core.nr_entries % 2, 0, "Number of events is a multiple of 2");
+	CHECK_COND(evlist__nr_entries(evlist) >= 4, "Number of events is >= 4");
+	CHECK_EQUAL(evlist__nr_entries(evlist) % 2, 0, "Number of events is a multiple of 2");
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct evsel *next;
@@ -165,7 +165,7 @@ static int test__uncore_event_sorting(struct test_suite *test __maybe_unused,
 	ret = TEST_OK;
 
 out_err:
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	parse_events_error__exit(&err);
 	zfree(&pmu_prefix);
 	zfree(&m.event1);

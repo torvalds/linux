@@ -387,7 +387,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 	unsigned int nums, fwlen, fwsize;
 	const __le32 *fwdat;
 	struct dsp_module_desc *module = NULL;
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	char fw_path[32];
 
 	sprintf(fw_path, "cs46xx/%s", fw_name);
@@ -395,10 +395,8 @@ static int load_firmware(struct snd_cs46xx *chip,
 	if (err < 0)
 		return err;
 	fwsize = fw->size / 4;
-	if (fwsize < 2) {
-		err = -EINVAL;
-		goto error;
-	}
+	if (fwsize < 2)
+		return -EINVAL;
 
 	err = -ENOMEM;
 	module = kzalloc_obj(*module);
@@ -454,14 +452,12 @@ static int load_firmware(struct snd_cs46xx *chip,
 	}
 
 	*module_ret = module;
-	release_firmware(fw);
 	return 0;
 
  error_inval:
 	err = -EINVAL;
  error:
 	free_module_desc(module);
-	release_firmware(fw);
 	return err;
 }
 
@@ -500,22 +496,18 @@ MODULE_FIRMWARE("cs46xx/ba1");
 
 static int load_firmware(struct snd_cs46xx *chip)
 {
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int i, size, err;
 
 	err = request_firmware(&fw, "cs46xx/ba1", &chip->pci->dev);
 	if (err < 0)
 		return err;
-	if (fw->size != sizeof(*chip->ba1)) {
-		err = -EINVAL;
-		goto error;
-	}
+	if (fw->size != sizeof(*chip->ba1))
+		return -EINVAL;
 
 	chip->ba1 = vmalloc(sizeof(*chip->ba1));
-	if (!chip->ba1) {
-		err = -ENOMEM;
-		goto error;
-	}
+	if (!chip->ba1)
+		return -ENOMEM;
 
 	memcpy_le32(chip->ba1, fw->data, sizeof(*chip->ba1));
 
@@ -524,11 +516,9 @@ static int load_firmware(struct snd_cs46xx *chip)
 	for (i = 0; i < BA1_MEMORY_COUNT; i++)
 		size += chip->ba1->memory[i].size;
 	if (size > BA1_DWORD_SIZE * 4)
-		err = -EINVAL;
+		return -EINVAL;
 
- error:
-	release_firmware(fw);
-	return err;
+	return 0;
 }
 
 static __maybe_unused int snd_cs46xx_download_image(struct snd_cs46xx *chip)

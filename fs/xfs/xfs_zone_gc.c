@@ -812,7 +812,7 @@ xfs_zone_gc_split_write(
 
 	split_sectors = bio_split_rw_at(&chunk->bio, lim, &nsegs,
 			lim->max_zone_append_sectors << SECTOR_SHIFT);
-	if (!split_sectors)
+	if (split_sectors <= 0)
 		return NULL;
 
 	/* ensure the split chunk is still block size aligned */

@@ -3538,4 +3538,27 @@ TEST(epoll65)
 	close(ctx.efd[1]);
 }
 
+TEST(epoll66)
+{
+	struct epoll_event event;
+	int pfd[2], efd;
+
+	ASSERT_EQ(pipe(pfd), 0);
+
+	efd = epoll_create1(0);
+	ASSERT_GE(efd, 0);
+
+	event.events = EPOLLIN | EPOLLET;
+	ASSERT_EQ(epoll_ctl(efd, EPOLL_CTL_ADD, pfd[0], &event), 0);
+
+	for (int i = 0; i < 2; ++i) {
+		ASSERT_EQ(write(pfd[1], "", 1), 1);
+		EXPECT_EQ(epoll_wait(efd, &event, 1, 0), 1);
+	}
+
+	close(pfd[0]);
+	close(pfd[1]);
+	close(efd);
+}
+
 TEST_HARNESS_MAIN

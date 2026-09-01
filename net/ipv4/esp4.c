@@ -323,7 +323,7 @@ static struct ip_esp_hdr *esp_output_udp_encap(struct sk_buff *skb,
 	uh = (struct udphdr *)esp->esph;
 	uh->source = sport;
 	uh->dest = dport;
-	uh->len = htons(len);
+	udp_set_len_short(uh, len);
 	uh->check = 0;
 
 	/* For IPv4 ESP with UDP encapsulation, if xo is not null, the skb is in the crypto offload

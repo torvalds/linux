@@ -48,4 +48,9 @@ void dml21_build_fams2_programming(const struct dc *dc,
 		struct dc_state *context,
 		struct dml2_context *dml_ctx);
 bool dml21_is_plane1_enabled(enum dml2_source_format_class source_format);
+void dml21_program_dc_mcif_arb_params(struct dml2_context *dml_ctx,
+		struct dc_state *context,
+		struct dml2_per_stream_programming *stream_prog,
+		unsigned int wb_index,
+		unsigned int dwb_inst);
 #endif

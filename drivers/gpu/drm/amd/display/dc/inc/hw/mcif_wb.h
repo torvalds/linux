@@ -27,6 +27,7 @@
 
 #include "dc_hw_types.h"
 
+#include "dml2_0/dml21/inc/dml_top_dchub_registers.h"
 
 enum mmhubbub_wbif_mode {
 	PACKED_444 = 0,
@@ -36,14 +37,21 @@ enum mmhubbub_wbif_mode {
 };
 
 struct mcif_arb_params {
-
-	unsigned int		time_per_pixel;
-	unsigned int		cli_watermark[4];
-	unsigned int		pstate_watermark[4];
-	unsigned int		arbitration_slice;
-	unsigned int		slice_lines;
-	unsigned int		max_scaled_time;
-	unsigned int		dram_speed_change_duration;
+	union {
+		struct {
+			unsigned int		time_per_pixel;
+			unsigned int		cli_watermark[4];
+			unsigned int		pstate_watermark[4];
+			unsigned int		arbitration_slice;
+			unsigned int		slice_lines;
+			unsigned int		max_scaled_time;
+			unsigned int		dram_speed_change_duration;
+		};
+		struct {
+			struct dml2_mcif_global_register_set global_regs;
+			struct dml2_mcif_per_pipe_register_set inst_regs;
+		} dcn4x; //dcn4+
+	};
 };
 
 struct mcif_irq_params {

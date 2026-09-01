@@ -82,12 +82,38 @@ enum cgroup_lifetime_events {
 	CGROUP_LIFETIME_OFFLINE,
 };
 
+/*
+ * Events on cgroup_task_notifier, data is struct cgroup_task_migrate_ctx.
+ * MIGRATING fires per task before the migration commits and an error return
+ * from the chain fails the migration, in which case tasks that were already
+ * notified receive MIGRATE_CANCELED. MIGRATED fires per task after the
+ * migration is committed and can't fail. Only migrations that change a task's
+ * dfl cgroup are reported.
+ */
+enum cgroup_task_events {
+	CGROUP_TASK_MIGRATING,
+	CGROUP_TASK_MIGRATED,
+	CGROUP_TASK_MIGRATE_CANCELED,
+};
+
+/*
+ * @src_dcgrp and @dst_dcgrp are @task's dfl cgroups before and after the
+ * migration. @src_dcgrp is NULL for CGROUP_TASK_MIGRATED as per-task sources
+ * are not tracked past the commit point.
+ */
+struct cgroup_task_migrate_ctx {
+	struct task_struct	*task;
+	struct cgroup		*src_dcgrp;
+	struct cgroup		*dst_dcgrp;
+};
+
 extern struct file_system_type cgroup_fs_type;
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 extern struct mutex cgroup_mutex;
 extern spinlock_t css_set_lock;
 extern struct blocking_notifier_head cgroup_lifetime_notifier;
+extern struct blocking_notifier_head cgroup_task_notifier;
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>
@@ -480,7 +506,7 @@ static inline void cgroup_unlock(void)
 		rcu_read_lock_sched_held() ||				\
 		lockdep_is_held(&cgroup_mutex) ||			\
 		lockdep_is_held(&css_set_lock) ||			\
-		((task)->flags & PF_EXITING) || (__c))
+		(data_race((task)->flags) & PF_EXITING) || (__c))
 #else
 #define task_css_set_check(task, __c)					\
 	rcu_dereference((task)->cgroups)
@@ -621,6 +647,27 @@ static inline struct cgroup *cgroup_ancestor(struct cgroup *cgrp,
 	if (ancestor_level < 0 || ancestor_level > cgrp->level)
 		return NULL;
 	return cgrp->ancestors[ancestor_level];
+}
+
+/**
+ * cgroup_common_ancestor - find common ancestor of two cgroups
+ * @a: first cgroup to find common ancestor of
+ * @b: second cgroup to find common ancestor of
+ *
+ * Find the first cgroup that is an ancestor of both @a and @b, if it exists
+ * and return a pointer to it. If such a cgroup doesn't exist, return NULL.
+ *
+ * This function is safe to call as long as both @a and @b are accessible.
+ */
+static inline struct cgroup *cgroup_common_ancestor(struct cgroup *a,
+						    struct cgroup *b)
+{
+	int level;
+
+	for (level = min(a->level, b->level); level >= 0; level--)
+		if (a->ancestors[level] == b->ancestors[level])
+			return a->ancestors[level];
+	return NULL;
 }
 
 /**

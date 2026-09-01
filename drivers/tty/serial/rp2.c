@@ -197,7 +197,7 @@ struct rp2_card {
 };
 
 #define RP_ID(prod) PCI_VDEVICE(RP, (prod))
-#define RP_CAP(ports, smpte) (((ports) << 8) | ((smpte) << 0))
+#define RP_CAP(ports, smpte) .driver_data = (((ports) << 8) | ((smpte) << 0))
 
 static inline void rp2_decode_cap(const struct pci_device_id *id,
 				  int *ports, int *smpte)

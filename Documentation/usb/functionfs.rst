@@ -72,12 +72,92 @@ have been written to their ep0's.
 Conversely, the gadget is unregistered after the first USB function
 closes its endpoints.
 
+Endpoint IOCTLs
+===============
+
+FunctionFS supports additional IOCTLs that can be performed on data endpoints
+(ie. not ep0). For a full list of these IOCTLs, please refer to the documentation
+in ``include/uapi/linux/usb/functionfs.h``.
+
+One such IOCTL is:
+
+  ``FUNCTIONFS_ENDPOINT_ENABLE_ZLP(__u32 *)``
+    Enable or disable automatic zero-length packet (ZLP) appending for the
+    endpoint. The argument is a pointer to a __u32: 0 to disable, non-zero to
+    enable. When enabled, the kernel will automatically append a ZLP at the end
+    of a transfer if the payload length is an exact multiple of the endpoint's
+    max packet size. This is useful for compatibility with legacy protocols
+    which require automatic ZLP appending to data written from userspace. This
+    IOCTL can only be used on IN endpoints. It can be called at any time after
+    the FunctionFS instance is active, even before the host has connected or
+    enabled the endpoint. Returns zero on success, or a negative errno value on
+    error:
+
+    * ``-ENODEV``: The FunctionFS instance is not active.
+    * ``-EINVAL``: The endpoint is not an IN endpoint.
+    * ``-EFAULT``: Invalid user space pointer for the argument.
+
+RW Proxy Endpoints
+==================
+
+If the ``FUNCTIONFS_RW_PROXY_EPS`` flag is passed in the descriptor header
+(requires ``FUNCTIONFS_DESCRIPTORS_MAGIC_V2``), FunctionFS will provision a
+bidirectional rw_proxy file descriptor (e.g., "ep1_rw") alongside each pair
+of IN and OUT endpoints. The rw_proxy file aliases the underlying hardware
+endpoints, allowing userspace to use a single file descriptor for both reading
+(OUT) and writing (IN).
+
+This flag requires the total number of hardware endpoints to be an even number.
+FunctionFS will automatically walk the provided endpoints and group them into
+adjacent pairs (e.g., ep1 and ep2 form the first pair, ep3 and ep4 form the
+second pair). Each pair must consist of exactly one IN endpoint and one OUT
+endpoint.
+
+For each valid pair, a rw_proxy file is created and named after the first
+endpoint in the pair with a "_rw" suffix. For example, if ep1 and ep2 are
+paired, a rw_proxy file named "ep1_rw" is created. If ep3 and ep4 are paired,
+"ep3_rw" is created.
+
+If the ``FUNCTIONFS_VIRTUAL_ADDR`` flag is also enabled, the endpoints will be
+named using their physical endpoint address in hexadecimal instead of their
+index. RW proxy files will inherit this naming convention. For example, if the
+first endpoint of a pair maps to address 0x02, the rw_proxy file will be
+named "ep02_rw".
+
+When this flag is enabled, userspace has the choice of performing data transfers
+via the single rw_proxy file descriptor or the two base file descriptors. The
+rw_proxy file descriptor acts as a pure VFS alias that proxies all operations
+directly to the underlying base file descriptors.
+
+Because it is a pure proxy, there are no data races or buffer corruptions if
+userspace uses both the rw_proxy endpoint and the base endpoints concurrently.
+The native mutexes of the base endpoints perfectly serialize all concurrent
+transfers. However, userspace should generally pick one method and stick to it
+to avoid interleaving its own data stream.
+
+- **IOCTLs (Clear Halt, etc.):** RW proxy endpoints do not support IOCTLs and
+  will return ``-ENOTTY``. To clear a host-initiated halt, userspace must issue
+  the ``FUNCTIONFS_CLEAR_HALT`` ioctl directly on the corresponding base
+  endpoint file descriptor.
+- **Intentional Stalls:** The traditional mechanism for intentionally halting an
+  endpoint by issuing a reverse-direction data operation (e.g., attempting to
+  read from an IN endpoint) continues to work, but it must be issued on the
+  base endpoint. RW proxy endpoints cannot be used to trigger a stall because
+  they are fully bidirectional.
+
+Note that DMABUF data transfers (``FUNCTIONFS_DMABUF_TRANSFER``) are unsupported
+via the rw_proxy endpoint because it does not support IOCTLs. If DMABUF
+transfers are required, users must use the standard base endpoints.
 DMABUF interface
 ================
 
 FunctionFS additionally supports a DMABUF based interface, where the
 userspace can attach DMABUF objects (externally created) to an endpoint,
 and subsequently use them for data transfers.
+
+Note: The DMABUF interface is unsupported on rw_proxy endpoints. See
+the RW Proxy Endpoints section for details on using DMABUF alongside
+the ``FUNCTIONFS_RW_PROXY_EPS`` flag.
 
 A userspace application can then use this interface to share DMABUF
 objects between several interfaces, allowing it to transfer data in a

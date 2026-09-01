@@ -17,11 +17,7 @@ static int meta_out_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				unsigned int *nplanes, unsigned int sizes[],
 				struct device *alloc_devs[])
 {
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	unsigned int size =  sizeof(struct vivid_meta_out_buf);
-
-	if (!vivid_is_webcam(dev))
-		return -EINVAL;
 
 	if (*nplanes) {
 		if (sizes[0] < size)
@@ -127,11 +123,6 @@ const struct vb2_ops vivid_meta_out_qops = {
 int vidioc_enum_fmt_meta_out(struct file *file, void  *priv,
 			     struct v4l2_fmtdesc *f)
 {
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (!vivid_is_webcam(dev))
-		return -EINVAL;
-
 	if (f->index > 0)
 		return -EINVAL;
 
@@ -143,11 +134,7 @@ int vidioc_enum_fmt_meta_out(struct file *file, void  *priv,
 int vidioc_g_fmt_meta_out(struct file *file, void *priv,
 			  struct v4l2_format *f)
 {
-	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_meta_format *meta = &f->fmt.meta;
-
-	if (!vivid_is_webcam(dev) || !dev->has_meta_out)
-		return -EINVAL;
 
 	meta->dataformat = V4L2_META_FMT_VIVID;
 	meta->buffersize = sizeof(struct vivid_meta_out_buf);
@@ -159,10 +146,12 @@ void vivid_meta_out_process(struct vivid_dev *dev,
 {
 	struct vivid_meta_out_buf *meta = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
-	v4l2_ctrl_s_ctrl(dev->brightness, meta->brightness);
-	v4l2_ctrl_s_ctrl(dev->contrast, meta->contrast);
-	v4l2_ctrl_s_ctrl(dev->saturation, meta->saturation);
-	v4l2_ctrl_s_ctrl(dev->hue, meta->hue);
+	if (dev->brightness) {
+		v4l2_ctrl_s_ctrl(dev->brightness, meta->brightness);
+		v4l2_ctrl_s_ctrl(dev->contrast, meta->contrast);
+		v4l2_ctrl_s_ctrl(dev->saturation, meta->saturation);
+		v4l2_ctrl_s_ctrl(dev->hue, meta->hue);
+	}
 
 	dprintk(dev, 2, " %s brightness %u contrast %u saturation %u hue %d\n",
 		__func__, meta->brightness, meta->contrast,

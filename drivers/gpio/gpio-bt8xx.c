@@ -154,12 +154,18 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 			const struct pci_device_id *pci_id)
 {
 	struct bt8xxgpio *bg;
+	void __iomem *mmio;
 	int err;
+
+	mmio = devm_ioremap_resource(&dev->dev, pci_resource_n(dev, 0));
+	if (IS_ERR(mmio))
+		return PTR_ERR(mmio);
 
 	bg = devm_kzalloc(&dev->dev, sizeof(struct bt8xxgpio), GFP_KERNEL);
 	if (!bg)
 		return -ENOMEM;
 
+	bg->mmio = mmio;
 	bg->pdev = dev;
 	spin_lock_init(&bg->lock);
 
@@ -168,23 +174,8 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 		dev_err(&dev->dev, "can't enable device.\n");
 		return err;
 	}
-	if (!devm_request_mem_region(&dev->dev, pci_resource_start(dev, 0),
-				pci_resource_len(dev, 0),
-				"bt8xxgpio")) {
-		dev_warn(&dev->dev, "can't request iomem (0x%llx).\n",
-		       (unsigned long long)pci_resource_start(dev, 0));
-		err = -EBUSY;
-		goto err_disable;
-	}
 	pci_set_master(dev);
 	pci_set_drvdata(dev, bg);
-
-	bg->mmio = devm_ioremap(&dev->dev, pci_resource_start(dev, 0), 0x1000);
-	if (!bg->mmio) {
-		dev_err(&dev->dev, "ioremap() failed\n");
-		err = -EIO;
-		goto err_disable;
-	}
 
 	/* Disable interrupts */
 	bgwrite(0, BT848_INT_MASK);

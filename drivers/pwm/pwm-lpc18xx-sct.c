@@ -329,7 +329,7 @@ static const struct pwm_ops lpc18xx_pwm_ops = {
 
 static const struct of_device_id lpc18xx_pwm_of_match[] = {
 	{ .compatible = "nxp,lpc1850-sct-pwm" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lpc18xx_pwm_of_match);
 

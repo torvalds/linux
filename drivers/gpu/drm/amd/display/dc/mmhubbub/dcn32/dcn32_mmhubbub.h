@@ -200,6 +200,11 @@
 	SF(MMHUBBUB_WARMUP_CONTROL_STATUS, MMHUBBUB_WARMUP_SW_INT_ACK, mask_sh),\
 	SF(MMHUBBUB_WARMUP_CONTROL_STATUS, MMHUBBUB_WARMUP_INC_ADDR, mask_sh)
 
+void mmhubbub32_warmup_mcif(struct mcif_wb *mcif_wb,
+		struct mcif_warmup_params *params);
+void mmhubbub32_config_mcif_buf(struct mcif_wb *mcif_wb,
+		struct mcif_buf_params *params,
+		unsigned int dest_height);
 
 void dcn32_mmhubbub_construct(struct dcn30_mmhubbub *mcif_wb30,
 	struct dc_context *ctx,

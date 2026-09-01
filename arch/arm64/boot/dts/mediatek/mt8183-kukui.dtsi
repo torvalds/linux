@@ -13,6 +13,7 @@
 / {
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 		mmc0 = &mmc0;
 		mmc1 = &mmc1;
 	};
@@ -849,6 +850,8 @@
 		compatible = "winbond,w25q64dw", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <25000000>;
+		/* Power actually controlled by security chip */
+		vcc-supply = <&pp1800_alw>;
 	};
 };
 

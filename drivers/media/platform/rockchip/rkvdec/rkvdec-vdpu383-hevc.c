@@ -287,8 +287,8 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	memset(row_height, 0, sizeof(row_height));
 
 	max_cu_width = 1 << (sps->log2_diff_max_min_luma_coding_block_size + log2_min_cb_size);
-	pic_in_cts_width = (width + max_cu_width - 1) / max_cu_width;
-	pic_in_cts_height = (height + max_cu_width - 1) / max_cu_width;
+	pic_in_cts_width = DIV_ROUND_UP(width, max_cu_width);
+	pic_in_cts_height = DIV_ROUND_UP(height, max_cu_width);
 
 	if (tiles_enabled) {
 		if (pps->flags & V4L2_HEVC_PPS_FLAG_UNIFORM_SPACING) {
@@ -301,8 +301,8 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 						  column_width, row_height);
 		}
 	} else {
-		column_width[0] = (width + max_cu_width - 1) / max_cu_width;
-		row_height[0] = (height + max_cu_width - 1) / max_cu_width;
+		column_width[0] = DIV_ROUND_UP(width, max_cu_width);
+		row_height[0] = DIV_ROUND_UP(height, max_cu_width);
 	}
 
 	for (i = 0; i < 20; i++)

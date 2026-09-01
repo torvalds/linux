@@ -213,7 +213,7 @@ static int devlink_dpipe_tables_fill(struct genl_info *info,
 				     struct list_head *dpipe_tables,
 				     const char *table_name)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_dpipe_table *table;
 	struct nlattr *tables_attr;
 	struct sk_buff *skb = NULL;
@@ -290,7 +290,7 @@ err_table_put:
 
 int devlink_nl_dpipe_table_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	const char *table_name =  NULL;
 
 	if (info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME])
@@ -478,7 +478,7 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
 	if (!dump_ctx->hdr)
 		goto nla_put_failure;
 
-	devlink = dump_ctx->info->user_ptr[0];
+	devlink = devlink_nl_ctx(dump_ctx->info)->devlink;
 	if (devlink_nl_put_handle(dump_ctx->skb, devlink))
 		goto nla_put_failure;
 	dump_ctx->nest = nla_nest_start_noflag(dump_ctx->skb,
@@ -563,7 +563,7 @@ send_done:
 int devlink_nl_dpipe_entries_get_doit(struct sk_buff *skb,
 				      struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_dpipe_table *table;
 	const char *table_name;
 
@@ -650,7 +650,7 @@ static int devlink_dpipe_headers_fill(struct genl_info *info,
 				      struct devlink_dpipe_headers *
 				      dpipe_headers)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct nlattr *headers_attr;
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
@@ -713,7 +713,7 @@ err_table_put:
 int devlink_nl_dpipe_headers_get_doit(struct sk_buff *skb,
 				      struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 
 	if (!devlink->dpipe_headers)
 		return -EOPNOTSUPP;
@@ -747,7 +747,7 @@ static int devlink_dpipe_table_counters_set(struct devlink *devlink,
 int devlink_nl_dpipe_table_counters_set_doit(struct sk_buff *skb,
 					     struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	const char *table_name;
 	bool counters_enable;
 

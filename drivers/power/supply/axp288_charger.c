@@ -946,8 +946,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 					NULL, axp288_charger_irq_thread_handler,
 					IRQF_ONESHOT, info->pdev->name, info);
 		if (ret)
-			return dev_err_probe(dev, ret, "failed to request interrupt=%d\n",
-					     info->irq[i]);
+			return ret;
 	}
 
 	return 0;

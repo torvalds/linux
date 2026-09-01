@@ -777,11 +777,15 @@ static int san_consumer_links_setup(struct platform_device *pdev)
 
 static int san_probe(struct platform_device *pdev)
 {
-	struct acpi_device *san = ACPI_COMPANION(&pdev->dev);
 	struct ssam_controller *ctrl;
+	struct acpi_device *san;
 	struct san_data *data;
 	acpi_status astatus;
 	int status;
+
+	san = ACPI_COMPANION(&pdev->dev);
+	if (!san)
+		return -ENODEV;
 
 	ctrl = ssam_client_bind(&pdev->dev);
 	if (IS_ERR(ctrl))

@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
@@ -2030,9 +2031,10 @@ static struct snd_soc_dai_driver rx_macro_dai[] = {
 	},
 };
 
-static void rx_macro_mclk_enable(struct rx_macro *rx, bool mclk_enable)
+static int rx_macro_mclk_enable(struct rx_macro *rx, bool mclk_enable)
 {
 	struct regmap *regmap = rx->regmap;
+	int ret;
 
 	if (mclk_enable) {
 		if (rx->rx_mclk_users == 0) {
@@ -2047,14 +2049,16 @@ static void rx_macro_mclk_enable(struct rx_macro *rx, bool mclk_enable)
 					   CDC_RX_FS_MCLK_CNT_EN_MASK,
 					   CDC_RX_FS_MCLK_CNT_ENABLE);
 			regcache_mark_dirty(regmap);
-			regcache_sync(regmap);
+			ret = regcache_sync(regmap);
+			if (ret)
+				return ret;
 		}
 		rx->rx_mclk_users++;
 	} else {
 		if (rx->rx_mclk_users <= 0) {
 			dev_err(rx->dev, "%s: clock already disabled\n", __func__);
 			rx->rx_mclk_users = 0;
-			return;
+			return 0;
 		}
 		rx->rx_mclk_users--;
 		if (rx->rx_mclk_users == 0) {
@@ -2068,6 +2072,8 @@ static void rx_macro_mclk_enable(struct rx_macro *rx, bool mclk_enable)
 					   CDC_RX_CLK_MCLK2_EN_MASK, 0x0);
 		}
 	}
+
+	return 0;
 }
 
 static int rx_macro_mclk_event(struct snd_soc_dapm_widget *w,
@@ -2079,11 +2085,9 @@ static int rx_macro_mclk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		rx_macro_mclk_enable(rx, true);
-		break;
+		return rx_macro_mclk_enable(rx, true);
 	case SND_SOC_DAPM_POST_PMD:
-		rx_macro_mclk_enable(rx, false);
-		break;
+		return rx_macro_mclk_enable(rx, false);
 	default:
 		dev_err(component->dev, "%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
@@ -3671,13 +3675,15 @@ static int swclk_gate_enable(struct clk_hw *hw)
 	struct rx_macro *rx = to_rx_macro(hw);
 	int ret;
 
-	ret = clk_prepare_enable(rx->mclk);
+	ret = pm_runtime_resume_and_get(rx->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = rx_macro_mclk_enable(rx, true);
 	if (ret) {
-		dev_err(rx->dev, "unable to prepare mclk\n");
+		clk_disable_unprepare(rx->mclk);
 		return ret;
 	}
-
-	rx_macro_mclk_enable(rx, true);
 
 	regmap_update_bits(rx->regmap, CDC_RX_CLK_RST_CTRL_SWR_CONTROL,
 			   CDC_RX_SWR_CLK_EN_MASK, 1);
@@ -3693,7 +3699,7 @@ static void swclk_gate_disable(struct clk_hw *hw)
 			   CDC_RX_SWR_CLK_EN_MASK, 0);
 
 	rx_macro_mclk_enable(rx, false);
-	clk_disable_unprepare(rx->mclk);
+	pm_runtime_put_autosuspend(rx->dev);
 }
 
 static int swclk_gate_is_enabled(struct clk_hw *hw)
@@ -3864,28 +3870,31 @@ static int rx_macro_probe(struct platform_device *pdev)
 	rx->dev = dev;
 
 	/* set MCLK and NPL rates */
-	clk_set_rate(rx->mclk, MCLK_FREQ);
-	clk_set_rate(rx->npl, MCLK_FREQ);
-
-	ret = clk_prepare_enable(rx->macro);
+	ret = clk_set_rate(rx->mclk, MCLK_FREQ);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(rx->dcodec);
+	ret = clk_set_rate(rx->npl, MCLK_FREQ);
 	if (ret)
-		goto err_dcodec;
+		return ret;
 
-	ret = clk_prepare_enable(rx->mclk);
+	ret = devm_pm_clk_create(dev);
 	if (ret)
-		goto err_mclk;
+		return ret;
 
-	ret = clk_prepare_enable(rx->npl);
-	if (ret)
-		goto err_npl;
+	ret = of_pm_clk_add_clks(dev);
+	if (ret < 0)
+		return ret;
 
-	ret = clk_prepare_enable(rx->fsgen);
+	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_use_autosuspend(dev);
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		goto err_fsgen;
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
 
 	/* reset swr block  */
 	regmap_update_bits(rx->regmap, CDC_RX_CLK_RST_CTRL_SWR_CONTROL,
@@ -3902,44 +3911,23 @@ static int rx_macro_probe(struct platform_device *pdev)
 					      rx_macro_dai,
 					      ARRAY_SIZE(rx_macro_dai));
 	if (ret)
-		goto err_clkout;
-
-
-	pm_runtime_set_autosuspend_delay(dev, 3000);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
+		goto err_rpm_put;
 
 	ret = rx_macro_register_mclk_output(rx);
 	if (ret)
-		goto err_clkout;
+		goto err_rpm_put;
+
+	ret = pm_runtime_put_autosuspend(dev);
+	if (ret < 0)
+		dev_warn(dev, "runtime PM put failed after probe: %d\n", ret);
 
 	return 0;
 
-err_clkout:
-	clk_disable_unprepare(rx->fsgen);
-err_fsgen:
-	clk_disable_unprepare(rx->npl);
-err_npl:
-	clk_disable_unprepare(rx->mclk);
-err_mclk:
-	clk_disable_unprepare(rx->dcodec);
-err_dcodec:
-	clk_disable_unprepare(rx->macro);
+err_rpm_put:
+	if (pm_runtime_put_sync_suspend(dev) < 0)
+		dev_warn(dev, "runtime PM sync suspend failed in probe unwind\n");
 
 	return ret;
-}
-
-static void rx_macro_remove(struct platform_device *pdev)
-{
-	struct rx_macro *rx = dev_get_drvdata(&pdev->dev);
-
-	clk_disable_unprepare(rx->mclk);
-	clk_disable_unprepare(rx->npl);
-	clk_disable_unprepare(rx->fsgen);
-	clk_disable_unprepare(rx->macro);
-	clk_disable_unprepare(rx->dcodec);
 }
 
 static const struct of_device_id rx_macro_dt_match[] = {
@@ -3969,13 +3957,17 @@ MODULE_DEVICE_TABLE(of, rx_macro_dt_match);
 static int rx_macro_runtime_suspend(struct device *dev)
 {
 	struct rx_macro *rx = dev_get_drvdata(dev);
+	int ret;
 
 	regcache_cache_only(rx->regmap, true);
-	regcache_mark_dirty(rx->regmap);
 
-	clk_disable_unprepare(rx->fsgen);
-	clk_disable_unprepare(rx->npl);
-	clk_disable_unprepare(rx->mclk);
+	ret = pm_clk_suspend(dev);
+	if (ret) {
+		regcache_cache_only(rx->regmap, false);
+		return ret;
+	}
+
+	regcache_mark_dirty(rx->regmap);
 
 	return 0;
 }
@@ -3985,33 +3977,23 @@ static int rx_macro_runtime_resume(struct device *dev)
 	struct rx_macro *rx = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(rx->mclk);
+	ret = pm_clk_resume(dev);
 	if (ret) {
-		dev_err(dev, "unable to prepare mclk\n");
+		regcache_cache_only(rx->regmap, true);
+		regcache_mark_dirty(rx->regmap);
 		return ret;
 	}
 
-	ret = clk_prepare_enable(rx->npl);
-	if (ret) {
-		dev_err(dev, "unable to prepare mclkx2\n");
-		goto err_npl;
-	}
-
-	ret = clk_prepare_enable(rx->fsgen);
-	if (ret) {
-		dev_err(dev, "unable to prepare fsgen\n");
-		goto err_fsgen;
-	}
 	regcache_cache_only(rx->regmap, false);
-	regcache_sync(rx->regmap);
+	ret = regcache_sync(rx->regmap);
+	if (ret) {
+		regcache_cache_only(rx->regmap, true);
+		regcache_mark_dirty(rx->regmap);
+		pm_clk_suspend(dev);
+		return ret;
+	}
 
 	return 0;
-err_fsgen:
-	clk_disable_unprepare(rx->npl);
-err_npl:
-	clk_disable_unprepare(rx->mclk);
-
-	return ret;
 }
 
 static const struct dev_pm_ops rx_macro_pm_ops = {
@@ -4026,7 +4008,6 @@ static struct platform_driver rx_macro_driver = {
 		.pm = pm_ptr(&rx_macro_pm_ops),
 	},
 	.probe = rx_macro_probe,
-	.remove = rx_macro_remove,
 };
 
 module_platform_driver(rx_macro_driver);

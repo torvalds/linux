@@ -78,13 +78,13 @@ static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
 }
 
 /*
- * In CoreSight PMU architecture, all of the MMIO registers are 32-bit except
- * counter register. The counter register can be implemented as 32-bit or 64-bit
- * register depending on the value of PMCFGR.SIZE field. For 64-bit access,
- * single-copy 64-bit atomic support is implementation defined. APMT node flag
- * is used to identify if the PMU supports 64-bit single copy atomic. If 64-bit
- * single copy atomic is not supported, the driver treats the register as a pair
- * of 32-bit register.
+ * With FEAT_CSPMU_EXT32, all of the MMIO registers are 32-bit except the
+ * counter registers, which are either 32-bit or 64-bit depending on the value
+ * of PMCFGR.SIZE. It is implementation-defined whether single-copy-atomic
+ * 64-bit accesses are supported, so we rely on a firmware flag to identify
+ * that, and otherwise treat a 64-bit counter as a non-atomic pair of 32-bit
+ * registers. With FEAT_CSPMU_EXT64, everything is 64-bit, but we may still
+ * have to deal with atomicity being broken.
  */
 
 /*
@@ -173,12 +173,29 @@ arm_cspmu_event_attr_is_visible(struct kobject *kobj,
 	eattr = container_of(attr, typeof(*eattr), attr.attr);
 
 	/* Hide cycle event if not supported */
-	if (!supports_cycle_counter(cspmu) &&
+	if ((cspmu->has_ext64 || !supports_cycle_counter(cspmu)) &&
 	    eattr->id == ARM_CSPMU_EVT_CYCLES_DEFAULT)
 		return 0;
 
 	return attr->mode;
 }
+
+ssize_t arm_cspmu_default_format_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct perf_pmu_events_attr *fmt = container_of(attr, typeof(*fmt), attr);
+	struct arm_cspmu *cspmu = to_arm_cspmu(dev_get_drvdata(dev));
+	u64 field = cspmu->has_ext64 ? U64_MAX : U32_MAX;
+	DECLARE_BITMAP(bits, 64) = { BITMAP_FROM_U64(field) };
+
+	if (!fmt->id) {
+		set_bit(32, bits); /* For 32-bit "cycles" event */
+		return sysfs_emit(buf, "config:%*pbl\n", 64, bits);
+	}
+
+	return sysfs_emit(buf, "config%lld:%*pbl\n", fmt->id, 64, bits);
+}
+EXPORT_SYMBOL_GPL(arm_cspmu_default_format_show);
 
 static struct attribute *arm_cspmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
@@ -198,14 +215,24 @@ arm_cspmu_get_format_attrs(const struct arm_cspmu *cspmu)
 	return attrs;
 }
 
-static u32 arm_cspmu_event_type(const struct perf_event *event)
+static u64 arm_cspmu_event_type(const struct perf_event *event)
 {
-	return event->attr.config & ARM_CSPMU_EVENT_MASK;
+	return event->attr.config;
 }
 
 static bool arm_cspmu_is_cycle_counter_event(const struct perf_event *event)
 {
 	return (event->attr.config == ARM_CSPMU_EVT_CYCLES_DEFAULT);
+}
+
+static u64 arm_cspmu_filter(const struct perf_event *event)
+{
+	return event->attr.config1;
+}
+
+static u64 arm_cspmu_filter2(const struct perf_event *event)
+{
+	return event->attr.config2;
 }
 
 static ssize_t arm_cspmu_identifier_show(struct device *dev,
@@ -250,38 +277,43 @@ static const char *arm_cspmu_get_name(const struct arm_cspmu *cspmu)
 	struct device *dev;
 	struct acpi_apmt_node *apmt_node;
 	u8 pmu_type;
-	char *name;
 	char acpi_hid_string[ACPI_ID_LEN] = { 0 };
-	static atomic_t pmu_idx[ACPI_APMT_NODE_TYPE_COUNT] = { 0 };
+	static atomic_t pmu_idx;
+	u32 id;
 
 	dev = cspmu->dev;
 	apmt_node = arm_cspmu_apmt_node(dev);
 	if (!apmt_node)
 		return devm_kasprintf(dev, GFP_KERNEL, PMUNAME "_%u",
-				      atomic_fetch_inc(&pmu_idx[0]));
+				      atomic_fetch_inc(&pmu_idx));
 
 	pmu_type = apmt_node->type;
-
-	if (pmu_type >= ACPI_APMT_NODE_TYPE_COUNT) {
+	switch (pmu_type) {
+	default:
 		dev_err(dev, "unsupported PMU type-%u\n", pmu_type);
 		return NULL;
-	}
-
-	if (pmu_type == ACPI_APMT_NODE_TYPE_ACPI) {
+	case ACPI_APMT_NODE_TYPE_ACPI:
 		memcpy(acpi_hid_string,
 			&apmt_node->inst_primary,
 			sizeof(apmt_node->inst_primary));
-		name = devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%s_%u", PMUNAME,
+		return devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%s_%u", PMUNAME,
 				      arm_cspmu_type_str[pmu_type],
 				      acpi_hid_string,
 				      apmt_node->inst_secondary);
-	} else {
-		name = devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%d", PMUNAME,
-				      arm_cspmu_type_str[pmu_type],
-				      atomic_fetch_inc(&pmu_idx[pmu_type]));
+	case ACPI_APMT_NODE_TYPE_MC:
+		id = apmt_node->id;
+		break;
+	case ACPI_APMT_NODE_TYPE_SMMU:
+	case ACPI_APMT_NODE_TYPE_PCIE_ROOT:
+		id = apmt_node->inst_primary;
+		break;
+	case ACPI_APMT_NODE_TYPE_CACHE:
+		id = apmt_node->inst_secondary;
+		break;
 	}
 
-	return name;
+	return devm_kasprintf(dev, GFP_KERNEL, "%s_%s_%u", PMUNAME,
+			      arm_cspmu_type_str[pmu_type], id);
 }
 
 static ssize_t arm_cspmu_cpumask_show(struct device *dev,
@@ -305,7 +337,7 @@ static ssize_t arm_cspmu_cpumask_show(struct device *dev,
 	default:
 		return 0;
 	}
-	return cpumap_print_to_pagebuf(true, buf, cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask));
 }
 
 static struct attribute *arm_cspmu_cpumask_attrs[] = {
@@ -412,6 +444,17 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 		DEFAULT_IMPL_OP(event_attr_is_visible),
 	};
 
+	/*
+	 * With 64-bit events, since our default "cycles" encoding won't work,
+	 * and the architecture recommends against implementing it anyway, we
+	 * choose to effectively ignore FEAT_CSPMU_CCNTR, unless a vendor
+	 * module really wants to provide its own encoding and ops.
+	 */
+	if (cspmu->has_ext64) {
+		cspmu->impl.ops.is_cycle_counter_event = NULL;
+		cspmu->impl.ops.set_cc_filter = NULL;
+	}
+
 	/* Firmware may override implementer/product ID from PMIIDR */
 	if (apmt_node && apmt_node->impl_id)
 		cspmu->impl.pmiidr = apmt_node->impl_id;
@@ -432,13 +475,15 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 				if (ret)
 					module_put(match->module);
 			} else {
-				WARN(1, "arm_cspmu failed to get module: %s\n",
+				dev_WARN(cspmu->dev, "Failed to get module: %s\n",
 					match->module_name);
 				ret = -EINVAL;
 			}
 		} else {
 			request_module_nowait(match->module_name);
-			ret = -EPROBE_DEFER;
+			ret = dev_err_probe(cspmu->dev, -EPROBE_DEFER,
+					    "Waiting for module %s to load\n",
+					    match->module_name);
 		}
 
 		mutex_unlock(&arm_cspmu_lock);
@@ -511,19 +556,24 @@ static int arm_cspmu_alloc_attr_groups(struct arm_cspmu *cspmu)
 	return 0;
 }
 
+static inline int arm_cspmu_pmcr(struct arm_cspmu *cspmu)
+{
+	return cspmu->has_ext64 ? PMCR_64 : PMCR;
+}
+
 static inline void arm_cspmu_reset_counters(struct arm_cspmu *cspmu)
 {
-	writel(PMCR_C | PMCR_P, cspmu->base0 + PMCR);
+	writel(PMCR_C | PMCR_P, cspmu->base0 + arm_cspmu_pmcr(cspmu));
 }
 
 static inline void arm_cspmu_start_counters(struct arm_cspmu *cspmu)
 {
-	writel(PMCR_E, cspmu->base0 + PMCR);
+	writel(PMCR_E, cspmu->base0 + arm_cspmu_pmcr(cspmu));
 }
 
 static inline void arm_cspmu_stop_counters(struct arm_cspmu *cspmu)
 {
-	writel(0, cspmu->base0 + PMCR);
+	writel(0, cspmu->base0 + arm_cspmu_pmcr(cspmu));
 }
 
 static void arm_cspmu_enable(struct pmu *pmu)
@@ -554,7 +604,8 @@ static int arm_cspmu_get_event_idx(struct arm_cspmu_hw_events *hw_events,
 	struct arm_cspmu *cspmu = to_arm_cspmu(event->pmu);
 
 	if (supports_cycle_counter(cspmu)) {
-		if (cspmu->impl.ops.is_cycle_counter_event(event)) {
+		if (cspmu->impl.ops.is_cycle_counter_event &&
+		    cspmu->impl.ops.is_cycle_counter_event(event)) {
 			/* Search for available cycle counter. */
 			if (test_and_set_bit(cspmu->cycle_counter_logical_idx,
 					     hw_events->used_ctrs))
@@ -797,26 +848,33 @@ static void arm_cspmu_event_update(struct perf_event *event)
 static inline void arm_cspmu_set_event(struct arm_cspmu *cspmu,
 					struct hw_perf_event *hwc)
 {
-	u32 offset = PMEVTYPER + (4 * hwc->idx);
-
-	writel(hwc->config, cspmu->base0 + offset);
+	if (cspmu->has_ext64)
+		writeq(hwc->config, cspmu->base0 + PMEVTYPER + (8 * hwc->idx));
+	else
+		writel(hwc->config, cspmu->base0 + PMEVTYPER + (4 * hwc->idx));
 }
 
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
 				    const struct perf_event *event)
 {
-	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
-	u32 filter2 = event->attr.config2 & ARM_CSPMU_FILTER_MASK;
-	u32 offset = 4 * event->hw.idx;
+	u64 filter = arm_cspmu_filter(event);
+	u64 filter2 = arm_cspmu_filter2(event);
+	int n = event->hw.idx;
 
-	writel(filter, cspmu->base0 + PMEVFILTR + offset);
-	writel(filter2, cspmu->base0 + PMEVFILT2R + offset);
+	if (cspmu->has_ext64) {
+		writeq(filter, cspmu->base0 + PMEVFILTR + (8 * n));
+		writeq(filter2, cspmu->base0 + PMEVFILT2R + (8 * n));
+	} else {
+		writel(filter, cspmu->base0 + PMEVFILTR + (4 * n));
+		writel(filter2, cspmu->base0 + PMEVFILT2R + (4 * n));
+	}
 }
 
+/* Note we deliberately don't expect 64-bit filters here; see init_impl_ops */
 static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
 				    const struct perf_event *event)
 {
-	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
+	u32 filter = arm_cspmu_filter(event);
 
 	writel(filter, cspmu->base0 + PMCCFILTR);
 }
@@ -969,6 +1027,30 @@ static int arm_cspmu_init_mmio(struct arm_cspmu *cspmu)
 		}
 	}
 
+	/*
+	 * We can infer FEAT_CSPMU_EXT64 from PMCNTEN, or hope that anything
+	 * that failed to get that right has at least implemented the optional
+	 * PMDEVARCH correctly...
+	 *
+	 * Note that architecturally, has_ext64 *should* imply has_atomic_dword,
+	 * but enough implementations have ignored that already that we'll just
+	 * have to still rely on the firmware flag.
+	 */
+	writel(~0U, cspmu->base0 + PMCNTENCLR);
+	writel(~0U, cspmu->base0 + PMCNTEN);
+	if (readl(cspmu->base0 + PMCNTENCLR)) {
+		cspmu->has_ext64 = true;
+		writel(0, cspmu->base0 + PMCNTEN);
+	} else {
+		u32 reg = readl(cspmu->base0 + PMDEVARCH);
+
+		if (reg & ARM_CSPMU_PMDEVARCH_PRESENT) {
+			reg &= ARM_CSPMU_PMDEVARCH_ARCHPART;
+			if (reg == 0xaf4 || reg == 0xaf5)
+				cspmu->has_ext64 = true;
+		}
+	}
+
 	cspmu->pmcfgr = readl(cspmu->base0 + PMCFGR);
 
 	cspmu->num_logical_ctrs = FIELD_GET(PMCFGR_N, cspmu->pmcfgr) + 1;
@@ -1070,10 +1152,8 @@ static int arm_cspmu_request_irq(struct arm_cspmu *cspmu)
 	ret = devm_request_irq(dev, irq, arm_cspmu_handle_irq,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD, dev_name(dev),
 			       cspmu);
-	if (ret) {
-		dev_err(dev, "Could not request IRQ %d\n", irq);
+	if (ret)
 		return ret;
-	}
 
 	cspmu->irq = irq;
 
@@ -1249,8 +1329,11 @@ static int arm_cspmu_device_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = arm_cspmu_request_irq(cspmu);
-	if (ret)
-		return ret;
+	if (ret) {
+		if (counter_size(cspmu) < 64)
+			return ret;
+		dev_info(cspmu->dev, "Continuing without IRQ\n");
+	}
 
 	ret = arm_cspmu_get_cpus(cspmu);
 	if (ret)

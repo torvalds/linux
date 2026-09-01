@@ -141,7 +141,7 @@ static int apple_pwm_probe(struct platform_device *pdev)
 
 static const struct of_device_id apple_pwm_of_match[] = {
 	{ .compatible = "apple,s5l-fpwm" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, apple_pwm_of_match);
 

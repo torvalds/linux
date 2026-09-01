@@ -2145,7 +2145,7 @@ struct usb_string_match {
 
 struct usb_audio_quirk_flags_table {
 	u32 id;
-	u32 flags;
+	u64 flags;
 	const struct usb_string_match *usb_string_match;
 };
 
@@ -2215,10 +2215,10 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 	DEVICE_FLG(0x03f0, 0x654a, /* HP 320 FHD Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
-	DEVICE_FLG(0x040b, 0x0897, /* Weltrend Semiconductor, sold as Redragon H510-PRO Wireless headset */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN),
 	DEVICE_FLG(0x041e, 0x3000, /* Creative SB Extigy */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
+	DEVICE_FLG(0x041e, 0x324d, /* Creative Sound Blaster Play! 3 */
+		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
 	DEVICE_FLG(0x041e, 0x4080, /* Creative Live Cam VF0610 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x045e, 0x083c, /* MS USB Link headset */
@@ -2256,8 +2256,9 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x046d, 0x0a8f, /* Logitech H390 headset */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M |
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
-	DEVICE_FLG(0x046d, 0x0af7, /* Logitech PRO X 2 LIGHTSPEED */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN),
+	DEVICE_FLG(0x046d, 0x0aba, /* Logitech PRO X Wireless */
+		   QUIRK_FLAG_MIXER_GET_CUR_OK |
+		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
 	DEVICE_FLG(0x0499, 0x1506, /* Yamaha THR5 */
 		   QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x0499, 0x1509, /* Steinberg UR22 */
@@ -2314,7 +2315,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x0661, 0x0883, /* iBasso DC04 Ultra */
 		   QUIRK_FLAG_DSD_RAW),
 	DEVICE_FLG(0x0666, 0x0880, /* SPACETOUCH USB Audio */
-		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
+		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY |
+		   QUIRK_FLAG_CTL_MSG_DELAY_5M),
 	DEVICE_FLG(0x06f8, 0xb000, /* Hercules DJ Console (Windows Edition) */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
 	DEVICE_FLG(0x06f8, 0xd002, /* Hercules DJ Console (Macintosh Edition) */
@@ -2328,15 +2330,19 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x0763, 0x2031, /* M-Audio Fast Track C600 */
 		   QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x0763, 0x2080, /* M-Audio Fast Track Ultra */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
+		   QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x0763, 0x2081, /* M-Audio Fast Track Ultra */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
+		   QUIRK_FLAG_GENERIC_IMPLICIT_FB),
+	DEVICE_FLG(0x0763, 0x2084, /* M-Audio Venom */
+		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_DISABLE_AUTOSUSPEND),
 	DEVICE_FLG(0x07fd, 0x000b, /* MOTU M Series 2nd hardware revision */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x08bb, 0x2702, /* LineX FM Transmitter */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
 	DEVICE_FLG(0x0951, 0x16ad, /* Kingston HyperX */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
+	DEVICE_FLG(0x0a73, 0x003a, /* Mackie DLZ Creator XS */
+		   QUIRK_FLAG_ALWAYS_SET_RATE),
 	DEVICE_FLG(0x0b05, 0x18a6, /* ASUSTek Computer, Inc. */
 		   QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE),
 	DEVICE_FLG(0x0b0e, 0x0349, /* Jabra 550a */
@@ -2367,8 +2373,6 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x1038, 0x1294, /* SteelSeries Arctis Pro Wireless */
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
-	DEVICE_FLG(0x1038, 0x2232, /* SteelSeries Arctis Nova 5 */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN),
 	DEVICE_FLG(0x1101, 0x0003, /* Audioengine D1 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x12d1, 0x3a07, /* HUAWEI USB-C HEADSET */
@@ -2376,8 +2380,6 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 	DEVICE_FLG(0x1224, 0x2a25, /* Jieli Technology USB PHY 2.0 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
-	DEVICE_FLG(0x1377, 0x6004, /* Sennheiser MOMENTUM 3 */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN),
 	DEVICE_FLG(0x1395, 0x740a, /* Sennheiser DECT */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x1397, 0x0507, /* Behringer UMC202HD */
@@ -2390,6 +2392,9 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_IFB_SILENCE_ON_EMPTY),
 	DEVICE_FLG(0x13e5, 0x0001, /* Serato Phono */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
+	DEVICE_FLG(0x152a, 0x85dd, /* SMSL USB DAC */
+		   QUIRK_FLAG_DSD_RAW | QUIRK_FLAG_DISABLE_AUTOSUSPEND |
+		   QUIRK_FLAG_SKIP_IFACE_SETUP),
 	DEVICE_FLG(0x152a, 0x880a, /* NeuralDSP Quad Cortex */
 		   0), /* Doesn't have the vendor quirk which would otherwise apply */
 	DEVICE_FLG(0x1532, 0x055e, /* Razer Nommo V2 X */
@@ -2432,6 +2437,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
 	DEVICE_FLG(0x1bcf, 0x2283, /* NexiGo N930AF FHD Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
+	DEVICE_FLG(0x1e0b, 0xd01e, /* Generic USB Audio Device */
+		   QUIRK_FLAG_PLAYBACK_URB_FIXUP),
 	DEVICE_FLG(0x1ff7, 0x0f81, /* SC13A Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2040, 0x7200, /* Hauppauge HVR-950Q */
@@ -2500,8 +2507,6 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x2d99, 0x0026, /* HECATE G2 GAMING HEADSET */
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
-	DEVICE_FLG(0x2d99, 0xa024, /* Edifier MF200 */
-		   QUIRK_FLAG_MIXER_GET_CUR_BROKEN),
 	DEVICE_FLG(0x2fc6, 0xf06b, /* MOONDROP Moonriver2 Ti */
 		   QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x2fc6, 0xf0b5, /* iBasso DC-Elite */
@@ -2528,6 +2533,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x534d, 0x2109, /* MacroSilicon MS2109 */
 		   QUIRK_FLAG_ALIGN_TRANSFER),
+	DEVICE_FLG(0x84ef, 0x002a, /* Valeton GP-200 */
+		   QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x84ef, 0x0082, /* Hotone Audio Pulze Mini */
 		   QUIRK_FLAG_MIXER_PLAYBACK_LINEAR_VOL | QUIRK_FLAG_MIXER_CAPTURE_LINEAR_VOL),
 
@@ -2640,19 +2647,13 @@ static const char *const snd_usb_audio_quirk_flag_names[] = {
 	QUIRK_STRING_ENTRY(MIXER_PLAYBACK_LINEAR_VOL),
 	QUIRK_STRING_ENTRY(MIXER_CAPTURE_LINEAR_VOL),
 	QUIRK_STRING_ENTRY(IFB_SILENCE_ON_EMPTY),
-	QUIRK_STRING_ENTRY(MIXER_GET_CUR_BROKEN),
+	QUIRK_STRING_ENTRY(MIXER_GET_CUR_OK),
+	QUIRK_STRING_ENTRY(PLAYBACK_URB_FIXUP),
+	QUIRK_STRING_ENTRY(ALWAYS_SET_RATE),
 	NULL
 };
 
-const char *snd_usb_quirk_flag_find_name(unsigned long index)
-{
-	if (index >= ARRAY_SIZE(snd_usb_audio_quirk_flag_names))
-		return NULL;
-
-	return snd_usb_audio_quirk_flag_names[index];
-}
-
-u32 snd_usb_quirk_flags_from_name(const char *name)
+static u64 snd_usb_quirk_flags_from_name(const char *name)
 {
 	int i;
 
@@ -2661,7 +2662,7 @@ u32 snd_usb_quirk_flags_from_name(const char *name)
 
 	for (i = 0; snd_usb_audio_quirk_flag_names[i]; i++) {
 		if (strcasecmp(name, snd_usb_audio_quirk_flag_names[i]) == 0)
-			return BIT_U32(i);
+			return BIT_U64(i);
 	}
 
 	return 0;
@@ -2719,7 +2720,7 @@ void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 {
 	u16 chip_vid = USB_ID_VENDOR(chip->usb_id);
 	u16 chip_pid = USB_ID_PRODUCT(chip->usb_id);
-	u32 mask_flags, unmask_flags, bit;
+	u64 mask_flags, unmask_flags, bit;
 	char *p, *field, *flag;
 	bool is_unmask;
 	u16 vid, pid;
@@ -2773,7 +2774,7 @@ void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 				is_unmask = false;
 			}
 
-			if (!kstrtou32(flag, 16, &bit)) {
+			if (!kstrtou64(flag, 16, &bit)) {
 				if (is_unmask)
 					unmask_flags |= bit;
 				else

@@ -25,7 +25,7 @@ enum mana_ib_create_cq_flags {
 
 struct mana_ib_create_cq {
 	__aligned_u64 buf_addr;
-	__u16	flags;
+	__u16	comp_mask;
 	__u16	reserved0;
 	__u32	reserved1;
 };
@@ -57,6 +57,17 @@ struct mana_ib_create_rc_qp_resp {
 	__u32 queue_id[4];
 };
 
+struct mana_ib_create_uc_qp {
+	__aligned_u64 queue_buf[3];
+	__u32 queue_size[3];
+	__u32 comp_mask;
+};
+
+struct mana_ib_create_uc_qp_resp {
+	__u32 queue_id[3];
+	__u32 reserved;
+};
+
 struct mana_ib_create_wq {
 	__aligned_u64 wq_buf_addr;
 	__u32 wq_buf_size;
@@ -85,6 +96,28 @@ struct rss_resp_entry {
 struct mana_ib_create_qp_rss_resp {
 	__aligned_u64 num_entries;
 	struct rss_resp_entry entries[64];
+};
+
+enum mana_ib_ucontext_support {
+	MANA_IB_UCNTX_ALLOC_PDN_SUPPORT = 1 << 0,
+};
+
+struct mana_ib_alloc_ucontext_resp {
+	__aligned_u64 comp_mask;
+};
+
+enum mana_ib_create_pd_flags {
+	MANA_IB_PD_SHORT_PDN = 1 << 0,
+};
+
+struct mana_ib_alloc_pd {
+	__u32 comp_mask;
+	__u32 reserved;
+};
+
+struct mana_ib_alloc_pd_resp {
+	__u32 pdn;
+	__u32 reserved;
 };
 
 #endif

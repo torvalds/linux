@@ -314,6 +314,9 @@ enum hclge_opcode_type {
 
 	/* Query link diagnosis info command */
 	HCLGE_OPC_QUERY_LINK_DIAGNOSIS	= 0x702A,
+
+	/* Config pause storm param command */
+	HCLGE_OPC_CFG_PAUSE_STORM_PARA = 0x7019,
 };
 
 enum hclge_comm_cmd_return_status {

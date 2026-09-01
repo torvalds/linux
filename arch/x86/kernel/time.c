@@ -82,7 +82,7 @@ static __init void x86_late_time_init(void)
 	x86_init.irqs.intr_mode_init();
 	tsc_init();
 
-	if (static_cpu_has(X86_FEATURE_WAITPKG))
+	if (cpu_feature_enabled(X86_FEATURE_WAITPKG))
 		use_tpause_delay();
 }
 

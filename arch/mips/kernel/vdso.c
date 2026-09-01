@@ -91,8 +91,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 		/* Map delay slot emulation page */
 		base = do_mmap(NULL, STACK_TOP, PAGE_SIZE, PROT_READ | PROT_EXEC,
-			       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, 0, 0, &unused,
-			       NULL);
+			       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+			       EMPTY_VMA_FLAGS, 0, &unused, NULL);
 		if (IS_ERR_VALUE(base)) {
 			ret = base;
 			goto out;
@@ -129,7 +129,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * This ensures that when the kernel updates the VDSO data userland
 	 * will observe it without requiring cache invalidations.
 	 */
-	if (cpu_has_dc_aliases && IS_ENABLED(CONFIG_HAVE_GENERIC_VDSO)) {
+	if (cpu_has_dc_aliases && IS_ENABLED(CONFIG_MIPS_GENERIC_GETTIMEOFDAY)) {
 		base = __ALIGN_MASK(base, shm_align_mask);
 		base += ((unsigned long)vdso_k_time_data - gic_size) & shm_align_mask;
 	}
@@ -137,7 +137,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	data_addr = base + gic_size;
 	vdso_addr = data_addr + VDSO_NR_PAGES * PAGE_SIZE;
 
-	if (IS_ENABLED(CONFIG_HAVE_GENERIC_VDSO)) {
+	if (IS_ENABLED(CONFIG_MIPS_GENERIC_GETTIMEOFDAY)) {
 		vma = vdso_install_vvar_mapping(mm, data_addr);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);

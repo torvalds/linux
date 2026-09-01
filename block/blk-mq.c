@@ -4975,6 +4975,7 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 	srcu_barrier(&set->tags_srcu);
 	cleanup_srcu_struct(&set->tags_srcu);
 	if (set->flags & BLK_MQ_F_BLOCKING) {
+		srcu_barrier(set->srcu);
 		cleanup_srcu_struct(set->srcu);
 		kfree(set->srcu);
 	}

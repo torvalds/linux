@@ -15,7 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>

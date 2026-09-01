@@ -27,10 +27,11 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
-#include <linux/gpio_keys.h>
+#include <linux/gpio/property.h>
 #include <linux/input.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/gpio/machine.h>
+#include <linux/property.h>
 #include <linux/power/gpio-charger.h>
 
 #include <video/sa1100fb.h>
@@ -228,43 +229,57 @@ struct platform_device collie_locomo_device = {
 	.resource	= locomo_resources,
 };
 
-static struct gpio_keys_button collie_gpio_keys[] = {
-	{
-		.type	= EV_PWR,
-		.code	= KEY_RESERVED,
-		.gpio	= COLLIE_GPIO_ON_KEY,
-		.desc	= "On key",
-		.wakeup	= 1,
-		.active_low = 1,
-	},
-	{
-		.type	= EV_PWR,
-		.code	= KEY_WAKEUP,
-		.gpio	= COLLIE_GPIO_WAKEUP,
-		.desc	= "Sync",
-		.wakeup = 1,
-		.active_low = 1,
-	},
+static const struct software_node collie_gpio_keys_node = {
+	.name = "collie-gpio-keys",
 };
 
-static struct gpio_keys_platform_data collie_gpio_keys_data = {
-	.buttons	= collie_gpio_keys,
-	.nbuttons	= ARRAY_SIZE(collie_gpio_keys),
+static const struct property_entry collie_on_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_RESERVED),
+	PROPERTY_ENTRY_GPIO("gpios", &sa1100_gpiochip_node,
+			    COLLIE_GPIO_ON_KEY, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_STRING("label", "On key"),
+	PROPERTY_ENTRY_U32("linux,input-type", EV_PWR),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
 };
 
-static struct platform_device collie_gpio_keys_device = {
-	.name	= "gpio-keys",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &collie_gpio_keys_data,
-	},
+static const struct software_node collie_on_key_node = {
+	.parent = &collie_gpio_keys_node,
+	.properties = collie_on_key_props,
+};
+
+static const struct property_entry collie_wakeup_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_WAKEUP),
+	PROPERTY_ENTRY_GPIO("gpios", &sa1100_gpiochip_node,
+			    COLLIE_GPIO_WAKEUP, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_STRING("label", "Sync"),
+	PROPERTY_ENTRY_U32("linux,input-type", EV_PWR),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct software_node collie_wakeup_key_node = {
+	.parent = &collie_gpio_keys_node,
+	.properties = collie_wakeup_key_props,
+};
+
+static const struct software_node * const collie_gpio_keys_swnodes[] __initconst = {
+	&collie_gpio_keys_node,
+	&collie_on_key_node,
+	&collie_wakeup_key_node,
+	NULL
+};
+
+static const struct platform_device_info collie_gpio_keys_dev_info __initconst = {
+	.name = "gpio-keys",
+	.id = PLATFORM_DEVID_NONE,
+	.swnode = &collie_gpio_keys_node,
 };
 
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
 	&collie_power_device,
-	&collie_gpio_keys_device,
 };
 
 static struct mtd_partition collie_partitions[] = {
@@ -383,6 +398,9 @@ static void __init collie_init(void)
 	if (ret) {
 		printk(KERN_WARNING "collie: Unable to register LoCoMo device\n");
 	}
+
+	software_node_register_node_group(collie_gpio_keys_swnodes);
+	platform_device_register_full(&collie_gpio_keys_dev_info);
 
 	sa11x0_register_lcd(&collie_lcd_info);
 	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,

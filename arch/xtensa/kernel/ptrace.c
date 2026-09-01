@@ -547,14 +547,13 @@ int do_syscall_trace_enter(struct pt_regs *regs)
 		regs->areg[2] = -ENOSYS;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    ptrace_report_syscall_entry(regs)) {
+	    !ptrace_report_syscall_permit_entry(regs)) {
 		regs->areg[2] = -ENOSYS;
 		regs->syscall = NO_SYSCALL;
 		return 0;
 	}
 
-	if (regs->syscall == NO_SYSCALL ||
-	    secure_computing() == -1) {
+	if (regs->syscall == NO_SYSCALL || !seccomp_permit_syscall()) {
 		do_syscall_trace_leave(regs);
 		return 0;
 	}

@@ -222,15 +222,6 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
-config DMA_FENCE_TRACE
-	bool "Enable verbose DMA_FENCE_TRACE messages"
-	depends on DMA_SHARED_BUFFER
-	help
-	  Enable the DMA_FENCE_TRACE printks. This will add extra
-	  spam to the console log, but will make it easier to diagnose
-	  lockup related problems for dma-buffers shared across multiple
-	  devices.
-
 config GENERIC_ARCH_TOPOLOGY
 	bool
 	help
@@ -238,13 +229,6 @@ config GENERIC_ARCH_TOPOLOGY
 	  CPU capacity information from DT, usage of such information for
 	  appropriate scaling, sysfs interface for reading capacity values at
 	  runtime.
-
-config GENERIC_ARCH_NUMA
-	bool
-	select NUMA_MEMBLKS
-	help
-	  Enable support for generic NUMA implementation. Currently, RISC-V
-	  and ARM64 use it.
 
 config FW_DEVLINK_SYNC_STATE_TIMEOUT
 	bool "sync_state() behavior defaults to timeout instead of strict"

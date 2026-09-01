@@ -12,6 +12,7 @@
 
 #include "abi/guc_actions_abi.h"
 #include "abi/guc_errors_abi.h"
+#include "abi/guc_klvs_abi.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_gtt_defs.h"
 #include "regs/xe_guc_regs.h"
@@ -100,6 +101,14 @@ static u32 guc_ctl_feature_flags(struct xe_guc *guc)
 
 	if (xe_device_is_l2_flush_optimized(xe) && xe_gt_is_media_type(guc_to_gt(guc)))
 		flags |= GUC_CTL_ENABLE_L2FLUSH_OPT;
+
+	/*
+	 * On GuC firmware 70.66 and above, the GUC_FEATURE_KLV_DISABLE_MULTI_QUEUE
+	 * Feature KLV is used instead.
+	 */
+	if (!xe_configfs_get_enable_multi_queue(to_pci_dev(xe->drm.dev)) &&
+	    !GUC_FIRMWARE_VER_AT_LEAST(guc, 70, 66))
+		flags |= GUC_CTL_DISABLE_MULTI_QUEUE;
 
 	return flags;
 }
@@ -640,6 +649,15 @@ int xe_guc_opt_in_features_enable(struct xe_guc *guc)
 	 */
 	if (GUC_SUBMIT_VER(guc) >= MAKE_GUC_VER(1, 7, 0))
 		klvs[count++] = PREP_GUC_KLV_TAG(OPT_IN_FEATURE_EXT_CAT_ERR_TYPE);
+
+	/*
+	 * The uncorrectable local error notification opt-in was added in
+	 * GuC v70.38.0, which maps to compatibility version v1.18.0.
+	 */
+	if (GUC_SUBMIT_VER(guc) >= MAKE_GUC_VER(1, 18, 0) &&
+	    guc_to_gt(guc)->info.has_uncorrectable_error_reporting)
+		klvs[count++] =
+			PREP_GUC_KLV_TAG(OPT_IN_FEATURE_UNCORRECTABLE_LOCAL_ERROR_NOTIFICATION);
 
 	if (supports_dynamic_ics(guc))
 		klvs[count++] = PREP_GUC_KLV_TAG(OPT_IN_FEATURE_DYNAMIC_INHIBIT_CONTEXT_SWITCH);
@@ -1844,6 +1862,58 @@ bool xe_guc_using_main_gamctrl_queues(struct xe_guc *guc)
 	}
 
 	return GT_VER(gt) >= 35;
+}
+
+bool xe_guc_has_paging_engine(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+
+	/*
+	 * On newer platforms the GuC now has a dedicated engine class for the
+	 * special PAGING engine, which is the driver reserved BCS engine used
+	 * for KMD paging/binding operations. GuC requires KMD to refer to this
+	 * using the special PAGING engine class. Note that there is no new hw
+	 * engine here, this is purely a sw view in the GuC itself, which we
+	 * need to respect.
+	 */
+
+	if (IS_SRIOV_VF(xe))
+		return xe_gt_sriov_vf_paging_engines(gt);
+
+	return xe->info.platform >= XE_NOVALAKE_S &&
+	       GUC_FIRMWARE_VER_AT_LEAST(guc, 70, 69, 0);
+}
+
+/**
+ * xe_hwe_guc_logical_instance - Get the GuC-aligned logical instance of a
+ * hardware engine.
+ * @hwe: Hardware engine.
+ *
+ * For GuC backend usage, we should no longer use the raw logical instance
+ * directly. This helper must be used to retrieve the logical instance of the
+ * hardware engine, taking care of any necessary adjustments (such as the GuC
+ * PAGING engine mapping). This is assumed to be used in conjunction with the
+ * GuC engine class.
+ *
+ * Return: Logical instance, taking into account for stuff like GuC PAGING
+ * engine mapping.
+ */
+u16 xe_hwe_guc_logical_instance(struct xe_hw_engine *hwe)
+{
+	struct xe_gt *gt = hwe->gt;
+
+	if (xe_guc_has_paging_engine(&hwe->gt->uc.guc) &&
+	    xe_gt_is_usm_hwe(gt, hwe)) {
+		int shift = gt->usm.paging_hwe0->logical_instance;
+
+		xe_gt_assert(gt, shift <= hwe->logical_instance);
+
+		/* GUC_PAGING_CLASS:guc_logical_instance */
+		return hwe->logical_instance - shift;
+	}
+
+	return hwe->logical_instance;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

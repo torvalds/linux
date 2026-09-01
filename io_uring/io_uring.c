@@ -59,6 +59,7 @@
 #include <linux/audit.h>
 #include <linux/security.h>
 #include <linux/jump_label.h>
+#include <linux/kcov.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -293,6 +294,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_HLIST_HEAD(&ctx->cancelable_uring_cmd);
 	io_napi_init(ctx);
 	mutex_init(&ctx->mmap_lock);
+	ctx->kcov_handle = kcov_common_handle();
 
 	return ctx;
 
@@ -405,7 +407,7 @@ static void io_prep_async_link(struct io_kiocb *req)
 	}
 }
 
-static void io_queue_iowq(struct io_kiocb *req)
+void io_queue_iowq(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->tctx;
 
@@ -431,17 +433,6 @@ static void io_queue_iowq(struct io_kiocb *req)
 
 	trace_io_uring_queue_async_work(req, io_wq_is_hashed(&req->work));
 	io_wq_enqueue(tctx->io_wq, &req->work);
-}
-
-static void io_req_queue_iowq_tw(struct io_tw_req tw_req, io_tw_token_t tw)
-{
-	io_queue_iowq(tw_req.req);
-}
-
-void io_req_queue_iowq(struct io_kiocb *req)
-{
-	req->io_task_work.func = io_req_queue_iowq_tw;
-	io_req_task_work_add(req);
 }
 
 unsigned io_linked_nr(struct io_kiocb *req)
@@ -484,7 +475,7 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 	if (ctx->int_flags & IO_RING_F_OFF_TIMEOUT_USED)
 		io_flush_timeouts(ctx);
 	if (ctx->int_flags & IO_RING_F_HAS_EVFD)
-		io_eventfd_signal(ctx, true);
+		io_eventfd_signal(ctx, true, false);
 }
 
 static inline void __io_cq_lock(struct io_ring_ctx *ctx)
@@ -3245,7 +3236,7 @@ static int __init io_uring_init(void)
 	io_uring_optable_init();
 
 	/* imu->dir is u8 */
-	BUILD_BUG_ON((IO_IMU_DEST | IO_IMU_SOURCE) > U8_MAX);
+	BUILD_BUG_ON((IO_BUF_DEST | IO_BUF_SOURCE) > U8_MAX);
 
 	/*
 	 * Allow user copy in the per-command field, which starts after the

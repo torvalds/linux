@@ -661,9 +661,6 @@ static inline bool drm_gem_is_imported(const struct drm_gem_object *obj)
  *
  * This initializes the &drm_gem_object's &drm_gpuvm_bo list.
  *
- * Calling this function is only necessary for drivers intending to support the
- * &drm_driver_feature DRIVER_GEM_GPUVA.
- *
  * See also drm_gem_gpuva_set_lock().
  */
 static inline void drm_gem_gpuva_init(struct drm_gem_object *obj)

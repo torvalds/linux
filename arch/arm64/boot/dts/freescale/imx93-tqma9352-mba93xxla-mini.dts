@@ -58,6 +58,37 @@
 		spi5 = &lpspi6;
 	};
 
+	backlight_lvds: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&tpm5 0 5000000 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+		power-supply = <&reg_12v0>;
+		enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
+	display: display {
+		/*
+		 * Display is not fixed, so compatible has to be added from
+		 * DT overlay
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_display>;
+		power-supply = <&reg_3v3>;
+		enable-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		backlight = <&backlight_lvds>;
+		status = "disabled";
+
+		port {
+			panel_in_lvds0: endpoint {
+				remote-endpoint = <&ldb_lvds_ch0>;
+			};
+		};
+	};
+
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>;
@@ -311,6 +342,10 @@
 	status = "okay";
 };
 
+&ldb_lvds_ch0 {
+	remote-endpoint = <&panel_in_lvds0>;
+};
+
 &pcf85063 {
 	/* RTC_EVENT# from SoM is connected on mainboard */
 	pinctrl-names = "default";
@@ -375,6 +410,16 @@
 };
 
 &iomuxc {
+	pinctrl_backlight: backlightgrp {
+		fsl,pins = /* HYS | PD | FSEL_2 | DSE X4 */
+			   <MX93_PAD_GPIO_IO05__GPIO2_IO05			0x011e>;
+	};
+
+	pinctrl_display: displaygrp {
+		fsl,pins = /* HYS | PD | FSEL_2 | DSE X4 */
+			   <MX93_PAD_GPIO_IO07__GPIO2_IO07			0x011e>;
+	};
+
 	pinctrl_eqos: eqosgrp {
 		fsl,pins = /* PD | FSEL_2 | DSE X4 */
 			   <MX93_PAD_ENET1_MDC__ENET_QOS_MDC				0x51e>,

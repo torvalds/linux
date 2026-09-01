@@ -131,15 +131,6 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static const struct acpi_device_id i2c_acpi_ignored_device_ids[] = {
-	/*
-	 * ACPI video acpi_devices, which are handled by the acpi-video driver
-	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, ignore these.
-	 */
-	{ ACPI_VIDEO_HID, 0 },
-	{}
-};
-
 struct i2c_acpi_irq_context {
 	int irq;
 	bool wake_capable;
@@ -158,7 +149,11 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	if (!acpi_dev_ready_for_enumeration(adev))
 		return -ENODEV;
 
-	if (acpi_match_device_ids(adev, i2c_acpi_ignored_device_ids) == 0)
+	/*
+	 * ACPI video devices, which are handled by the acpi-video driver,
+	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, ignore these.
+	 */
+	if (acpi_dev_is_video_device(adev))
 		return -ENODEV;
 
 	memset(info, 0, sizeof(*info));
@@ -168,9 +163,12 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     i2c_acpi_fill_info, lookup);
+	if (ret < 0)
+		return ret;
+
 	acpi_dev_free_resource_list(&resource_list);
 
-	if (ret < 0 || !info->addr)
+	if (!info->addr)
 		return -EINVAL;
 
 	return 0;
@@ -376,6 +374,7 @@ static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
 	{ "DLL0945", 0 },
 	{ "ELAN0678", 0 },
 	{ "ELAN06FA", 0 },
+	{ "ELAN1300", 0 },
 	{}
 };
 

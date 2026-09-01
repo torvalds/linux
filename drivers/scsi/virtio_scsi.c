@@ -122,10 +122,11 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 	struct virtio_scsi_cmd *cmd = buf;
 	struct scsi_cmnd *sc = cmd->sc;
 	struct virtio_scsi_cmd_resp *resp = &cmd->resp.cmd;
+	unsigned sense_len = virtio32_to_cpu(vscsi->vdev, resp->sense_len);
 
 	dev_dbg(&sc->device->sdev_gendev,
 		"cmd %p response %u status %#02x sense_len %u\n",
-		sc, resp->response, resp->status, resp->sense_len);
+		sc, resp->response, resp->status, sense_len);
 
 	sc->result = resp->status;
 	virtscsi_compute_resid(sc, virtio32_to_cpu(vscsi->vdev, resp->resid));
@@ -166,13 +167,10 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		break;
 	}
 
-	WARN_ON(virtio32_to_cpu(vscsi->vdev, resp->sense_len) >
-		VIRTIO_SCSI_SENSE_SIZE);
+	WARN_ON(sense_len > VIRTIO_SCSI_SENSE_SIZE);
 	if (resp->sense_len) {
 		memcpy(sc->sense_buffer, resp->sense,
-		       min_t(u32,
-			     virtio32_to_cpu(vscsi->vdev, resp->sense_len),
-			     VIRTIO_SCSI_SENSE_SIZE));
+		       min_t(u32, sense_len, VIRTIO_SCSI_SENSE_SIZE));
 	}
 
 	scsi_done(sc);
@@ -288,8 +286,9 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 	struct Scsi_Host *shost = virtio_scsi_host(vscsi->vdev);
 	unsigned int target = event->lun[1];
 	unsigned int lun = (event->lun[2] << 8) | event->lun[3];
+	unsigned int reason = virtio32_to_cpu(vscsi->vdev, event->reason);
 
-	switch (virtio32_to_cpu(vscsi->vdev, event->reason)) {
+	switch (reason) {
 	case VIRTIO_SCSI_EVT_RESET_RESCAN:
 		if (lun == 0) {
 			scsi_scan_target(&shost->shost_gendev, 0, target,
@@ -309,7 +308,7 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 		}
 		break;
 	default:
-		pr_info("Unsupported virtio scsi event reason %x\n", event->reason);
+		pr_info("Unsupported virtio scsi event reason %x\n", reason);
 	}
 }
 
@@ -409,7 +408,8 @@ static void virtscsi_handle_event(struct work_struct *work)
 		virtscsi_handle_param_change(vscsi, event);
 		break;
 	default:
-		pr_err("Unsupported virtio scsi event %x\n", event->event);
+		pr_err("Unsupported virtio scsi event %x\n",
+		       virtio32_to_cpu(vscsi->vdev, event->event));
 	}
 	virtscsi_kick_event(vscsi, event_node);
 }

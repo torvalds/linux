@@ -85,7 +85,7 @@ examples:
   - |
     gpio@8012e080 {
         compatible = "st,nomadik-gpio";
-        reg =  <0x8012e080 0x80>;
+        reg = <0x8012e080 0x80>;
         interrupts = <0 120 0x4>;
         #gpio-cells = <2>;
         gpio-controller;

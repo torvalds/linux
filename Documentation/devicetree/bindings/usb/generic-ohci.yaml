@@ -83,6 +83,10 @@ properties:
         - if a USB DRD channel: first clock should be host and second
           one should be peripheral
 
+  clock-names:
+    minItems: 1
+    maxItems: 4
+
   power-domains:
     maxItems: 1
 
@@ -182,6 +186,7 @@ allOf:
 
     else:
       properties:
+        clock-names: false
         atmel,vbus-gpio: false
         atmel,oc-gpio: false
 

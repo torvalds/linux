@@ -57,6 +57,16 @@
 #include "amdgpu_dm/dc_fpu.h"
 #endif /* CONFIG_DRM_AMD_DC_FP */
 
+
+/*
+ * On Linux this is provided by <linux/kconfig.h> and evaluates Kconfig
+ * options for both built-in (=y) and module (=m) cases. Windows has no
+ * Kconfig, so config options are never set here and this always yields 0.
+ */
+#ifndef IS_ENABLED
+#define IS_ENABLED(option) 0
+#endif
+
 /*
  *
  * general debug capabilities

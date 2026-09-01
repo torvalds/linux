@@ -30,7 +30,7 @@
 #include <drm/drm_syncobj.h>
 
 #include "amdgpu.h"
-#include "amdgpu_userq_fence.h"
+#include "amdgpu_trace.h"
 
 #define AMDGPU_USERQ_MAX_HANDLES	(1U << 16)
 
@@ -191,14 +191,15 @@ void amdgpu_userq_fence_driver_destroy(struct kref *ref)
 	struct dma_fence *f;
 
 	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
+	lockdep_assert_held(&fence_drv->fence_list_lock);
 	list_for_each_entry_safe(fence, tmp, &fence_drv->fences, link) {
 		f = &fence->base;
-
-		if (!dma_fence_is_signaled(f)) {
+		spin_lock(dma_fence_spinlock(f));
+		if (!dma_fence_is_signaled_locked(f)) {
 			dma_fence_set_error(f, -ECANCELED);
-			dma_fence_signal(f);
+			dma_fence_signal_locked(f);
 		}
-
+		spin_unlock(dma_fence_spinlock(f));
 		list_del(&fence->link);
 		dma_fence_put(f);
 	}
@@ -423,11 +424,16 @@ amdgpu_userq_fence_driver_set_error(struct amdgpu_userq_fence *fence,
 	struct dma_fence *f;
 
 	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
-
+	lockdep_assert_held(&fence_drv->fence_list_lock);
 	f = rcu_dereference_protected(&fence->base,
 				      lockdep_is_held(&fence_drv->fence_list_lock));
-	if (f && !dma_fence_is_signaled_locked(f))
-		dma_fence_set_error(f, error);
+	if (f) {
+		/* nest f->lock inside fence_list_lock */
+		spin_lock(dma_fence_spinlock(f));
+		if (!dma_fence_is_signaled_locked(f))
+			dma_fence_set_error(f, error);
+		spin_unlock(dma_fence_spinlock(f));
+	}
 	spin_unlock_irqrestore(&fence_drv->fence_list_lock, flags);
 }
 
@@ -528,6 +534,8 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	/* Create the new fence */
 	amdgpu_userq_fence_init(queue, fence, wptr);
 
+	trace_amdgpu_userq_emit_fence(dev->dev, queue, fence);
+
 	mutex_unlock(&userq_mgr->userq_mutex);
 
 	/*
@@ -535,7 +543,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	 * amdgpu_userq_ensure_ev_fence() can't be called while holding the resv
 	 * locks.
 	 */
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES,
 		      (num_read_bo_handles + num_write_bo_handles));
 
 	drm_exec_until_all_locked(&exec) {
@@ -641,7 +649,7 @@ amdgpu_userq_wait_count_fences(struct drm_file *filp,
 	/* TODO: It is actually not necessary to lock them */
 	num_read_bo_handles = wait_info->num_bo_read_handles;
 	num_write_bo_handles = wait_info->num_bo_write_handles;
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES,
 		      num_read_bo_handles + num_write_bo_handles);
 
 	drm_exec_until_all_locked(&exec) {
@@ -701,7 +709,7 @@ amdgpu_userq_wait_add_fence(struct drm_amdgpu_userq_wait *wait_info,
 }
 
 static int
-amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
+amdgpu_userq_wait_return_fence_info(struct drm_device *dev, struct drm_file *filp,
 				    struct drm_amdgpu_userq_wait *wait_info,
 				    u32 *syncobj_handles, u64 *timeline_points,
 				    u32 *timeline_handles,
@@ -776,7 +784,7 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 	/* Lock all the GEM objects */
 	num_read_bo_handles = wait_info->num_bo_read_handles;
 	num_write_bo_handles = wait_info->num_bo_write_handles;
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES,
 		      num_read_bo_handles + num_write_bo_handles);
 
 	drm_exec_until_all_locked(&exec) {
@@ -868,6 +876,8 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 			goto put_waitq;
 
 		amdgpu_userq_fence_driver_get(fence_drv);
+
+		trace_amdgpu_userq_wait_deps(dev->dev, waitq, userq_fence);
 
 		/* Store drm syncobj's gpu va address and value */
 		fence_info[cnt].va = fence_drv->va;
@@ -969,7 +979,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 						   gobj_write,
 						   gobj_read);
 	} else {
-		r = amdgpu_userq_wait_return_fence_info(filp, wait_info,
+		r = amdgpu_userq_wait_return_fence_info(dev, filp, wait_info,
 							syncobj_handles,
 							timeline_points,
 							timeline_handles,

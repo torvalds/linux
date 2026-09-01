@@ -1,3 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-obj-$(CONFIG_HAVE_GENERIC_VDSO) += datastore.o
+obj-$(CONFIG_VDSO_DATASTORE) += datastore.o

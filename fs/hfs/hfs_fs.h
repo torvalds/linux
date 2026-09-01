@@ -64,14 +64,22 @@ struct hfs_inode_info {
  * The HFS-specific part of a Linux (struct super_block)
  */
 struct hfs_sb_info {
+	struct mutex mdb_lock;			/* MDB operations lock */
 	struct buffer_head *mdb_bh;		/* The hfs_buffer
 						   holding the real
 						   superblock (aka VIB
 						   or MDB) */
-	struct hfs_mdb *mdb;
+	unsigned int mdb_offset;		/* byte offset of the MDB
+						   sector within mdb_bh's
+						   data */
+	struct hfs_mdb *mdb;			/* in-memory copy of the MDB */
 	struct buffer_head *alt_mdb_bh;		/* The hfs_buffer holding
 						   the alternate superblock */
-	struct hfs_mdb *alt_mdb;
+	unsigned int alt_mdb_offset;		/* byte offset of the alternate
+						   MDB sector within
+						   alt_mdb_bh's data */
+	struct hfs_mdb *alt_mdb;		/* in-memory copy of the
+						   alternate MDB */
 	__be32 *bitmap;				/* The page holding the
 						   allocation bitmap */
 	struct hfs_btree *ext_tree;			/* Information about
@@ -155,6 +163,25 @@ extern int hfs_cat_move(u32 cnid, struct inode *src_dir,
 extern void hfs_cat_build_key(struct super_block *sb, btree_key *key,
 			      u32 parent, const struct qstr *name);
 
+/*
+ * Validate the CNID of a catalog record.
+ */
+static inline bool hfs_is_valid_cnid(u32 cnid, u8 type)
+{
+	if (likely(cnid >= HFS_FIRSTUSER_CNID))
+		return true;
+
+	switch (cnid) {
+	case HFS_ROOT_CNID:
+		return type == HFS_CDR_DIR;
+	case HFS_EXT_CNID:
+	case HFS_CAT_CNID:
+		return type == HFS_CDR_FIL;
+	default:
+		return false;
+	}
+}
+
 /* dir.c */
 extern const struct file_operations hfs_dir_operations;
 extern const struct inode_operations hfs_dir_inode_operations;
@@ -201,7 +228,7 @@ extern const struct xattr_handler * const hfs_xattr_handlers[];
 /* mdb.c */
 extern bool is_hfs_cnid_counts_valid(struct super_block *sb);
 extern int hfs_mdb_get(struct super_block *sb);
-extern void hfs_mdb_commit(struct super_block *sb);
+extern int hfs_mdb_commit(struct super_block *sb);
 extern void hfs_mdb_close(struct super_block *sb);
 extern void hfs_mdb_put(struct super_block *sb);
 

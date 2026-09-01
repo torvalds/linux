@@ -1660,6 +1660,10 @@ static int vhost_process_iotlb_msg(struct vhost_dev *dev, u32 asid,
 			ret = -EFAULT;
 			break;
 		}
+		if (!msg->size) {
+			ret = -EINVAL;
+			break;
+		}
 		vhost_vq_meta_reset(dev);
 		vhost_iotlb_del_range(dev->iotlb, msg->iova,
 				      msg->iova + msg->size - 1);

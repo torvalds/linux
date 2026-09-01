@@ -30,3 +30,13 @@ config AMD_PMF_DEBUG
 	 in the PMF config store.
 
 	 Say Y here to enable more debug logs and Say N here if you are not sure.
+
+config AMD_PMF_UTIL_SUPPORT
+	bool "AMD PMF Util layer support"
+	depends on AMD_PMF
+	help
+	  Enabling this option provides a character device for userspace to capture
+	  PMF features (Smart PC Builder, Auto Mode, Static Power Slider, Dynamic
+	  Power Slider AC/DC) along with PMF metrics from the AMD PMF driver.
+
+	  Say Y here to enable it and Say N here if you are not sure.

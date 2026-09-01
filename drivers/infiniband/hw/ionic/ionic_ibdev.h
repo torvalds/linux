@@ -33,7 +33,6 @@
 #define IONIC_MAX_QPID 0xffffff
 #define IONIC_SPEC_HIGH 8
 #define IONIC_MAX_PD 1024
-#define IONIC_SPEC_HIGH 8
 #define IONIC_SQCMB_ORDER 5
 #define IONIC_RQCMB_ORDER 0
 
@@ -72,6 +71,7 @@ enum ionic_admin_flags {
 
 enum ionic_mmap_flag {
 	IONIC_MMAP_WC = BIT(0),
+	IONIC_MMAP_PHC = BIT(1),
 };
 
 struct ionic_mmap_entry {
@@ -173,6 +173,7 @@ struct ionic_ctx {
 	struct ib_ucontext	ibctx;
 	u32			dbid;
 	struct rdma_user_mmap_entry	*mmap_dbell;
+	struct rdma_user_mmap_entry	*mmap_phc;
 };
 
 struct ionic_tbl_buf {
@@ -331,13 +332,20 @@ struct ionic_counter_stats {
 	int queue_stats_count;
 	struct ionic_v1_stat *hdr;
 	struct rdma_stat_desc *stats_hdrs;
-	struct xarray xa_counters;
+	struct ida counter_ida;
 };
 
-struct ionic_counter {
+struct ionic_rdma_counter {
+	struct rdma_counter rdma_counter;
 	void *vals;
 	struct list_head qp_list;
 };
+
+static inline struct ionic_rdma_counter *
+to_ionic_rdma_counter(struct rdma_counter *counter)
+{
+	return container_of(counter, struct ionic_rdma_counter, rdma_counter);
+}
 
 static inline struct ionic_ibdev *to_ionic_ibdev(struct ib_device *ibdev)
 {

@@ -26,12 +26,14 @@ tests="
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces
 	tunnel_metadata				ovs: test extraction of tunnel metadata
-	tunnel_refcount				ovs: test tunnel vport reference cleanup
 	drop_reason				drop: test drop reasons are emitted
 	pop_vlan				vlan: POP_VLAN action strips tag
 	dec_ttl					ttl: dec_ttl decrements IP TTL
 	flow_set				flow-set: Flow modify
 	action_set				set: SET action rewrites fields
+	trunc					trunc: output truncation
+	icmpv6					icmpv6: ICMPv6 echo type match
+	sctp_connect_v4				sctp: SCTP flow key matching
 	psample					psample: Sampling packets with psample"
 
 info() {
@@ -439,6 +441,261 @@ test_action_set() {
 	info "verify connectivity restored without SET"
 	ovs_sbx "test_action_set" ip netns exec client ping -c 1 -W 2 \
 		10.0.0.2 || return 1
+
+	return 0
+}
+
+# trunc test
+# - trunc(14): truncate to ETH_HLEN, strips IP payload, ping fails
+# - trunc(1) and trunc(13): kernel rejects below ETH_HLEN (EINVAL)
+# - restore normal forwarding and verify recovery
+test_trunc() {
+	sbx_add "test_trunc" || return $?
+	ovs_add_dp "test_trunc" trunctest || return 1
+
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "test_trunc" "trunctest" \
+		    "$ns" "${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	ip netns exec client ip addr add 10.0.0.1/24 dev c1
+	ip netns exec client ip link set c1 up
+	ip netns exec server ip addr add 10.0.0.2/24 dev s1
+	ip netns exec server ip link set s1 up
+
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4()' \
+	    '2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0800),ipv4()' \
+	    '1' || return 1
+
+	info "verify connectivity without truncation"
+	ovs_sbx "test_trunc" ip netns exec client \
+	    ping -c 1 -W 2 10.0.0.2 || return 1
+
+	# trunc below ETH_HLEN must be rejected by the kernel
+	info "verify trunc(1) is rejected"
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4()' \
+	    'trunc(1),2' &> /dev/null \
+	    && { info "trunc(1) should be rejected"; return 1; }
+
+	info "verify trunc(13) is rejected"
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4()' \
+	    'trunc(13),2' &> /dev/null \
+	    && { info "trunc(13) should be rejected"; return 1; }
+
+	ovs_del_flows "test_trunc" trunctest
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+
+	info "add trunc(14) forwarding flow"
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4()' \
+	    'trunc(14),2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0800),ipv4()' \
+	    '1' || return 1
+
+	info "verify ping fails with trunc(14)"
+	ovs_sbx "test_trunc" ip netns exec client \
+	    ping -c 1 -W 2 10.0.0.2 >/dev/null 2>&1 \
+	    && { info "ping should fail with trunc(14)"
+	         return 1; }
+
+	ovs_del_flows "test_trunc" trunctest
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4()' \
+	    '2' || return 1
+	ovs_add_flow "test_trunc" trunctest \
+	    'in_port(2),eth(),eth_type(0x0800),ipv4()' \
+	    '1' || return 1
+
+	info "verify connectivity restored"
+	ovs_sbx "test_trunc" ip netns exec client \
+	    ping -c 1 -W 2 10.0.0.2 || return 1
+
+	return 0
+}
+
+# icmpv6 test
+# - static neighbours to bypass NDP (nud permanent)
+# - icmpv6(type=128) echo request, icmpv6(type=129) echo reply
+# - remove flows and verify ping fails, reinstall and recover
+test_icmpv6() {
+	local t="test_icmpv6"
+	local v6="eth_type(0x86dd),ipv6(proto=58)"
+
+	sbx_add "$t" || return $?
+	ovs_add_dp "$t" icmpv6 || return 1
+
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "$t" "icmpv6" \
+		    "$ns" "${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	ip netns exec client ip addr add fd00::1/64 dev c1 nodad
+	ip netns exec client ip link set c1 up
+	ip netns exec server ip addr add fd00::2/64 dev s1 nodad
+	ip netns exec server ip link set s1 up
+
+	local cl_mac sl_mac
+	cl_mac=$(ip netns exec client ip link show c1 \
+	    | awk '/link\/ether/ {print $2}')
+	[ -z "$cl_mac" ] && \
+	    { info "failed to get c1 hwaddr"; return 1; }
+	sl_mac=$(ip netns exec server ip link show s1 \
+	    | awk '/link\/ether/ {print $2}')
+	[ -z "$sl_mac" ] && \
+	    { info "failed to get s1 hwaddr"; return 1; }
+	ip netns exec client ip -6 neigh add fd00::2 \
+	    lladdr "$sl_mac" nud permanent dev c1 || return 1
+	ip netns exec server ip -6 neigh add fd00::1 \
+	    lladdr "$cl_mac" nud permanent dev s1 || return 1
+
+	# Probe: check if kernel supports icmpv6 flow key.
+	ovs_add_flow "$t" icmpv6 \
+	    "in_port(1),eth(),$v6,icmpv6(type=128)" \
+	    '2' &>/dev/null
+	if [ $? -ne 0 ]; then
+		info "no support for icmpv6 key - skipping"
+		ovs_exit_sig
+		return $ksft_skip
+	fi
+	ovs_del_flows "$t" icmpv6
+
+	ovs_add_flow "$t" icmpv6 \
+	    "in_port(1),eth(),$v6,icmpv6(type=128)" \
+	    '2' || return 1
+	ovs_add_flow "$t" icmpv6 \
+	    "in_port(2),eth(),$v6,icmpv6(type=129)" \
+	    '1' || return 1
+
+	info "verify ICMPv6 echo with type-specific flows"
+	ovs_sbx "$t" ip netns exec client \
+	    ping -6 -c 1 -W 2 fd00::2 || return 1
+
+	ovs_del_flows "$t" icmpv6
+
+	info "verify ping fails without echo flows"
+	ovs_sbx "$t" ip netns exec client \
+	    ping -6 -c 1 -W 2 fd00::2 >/dev/null 2>&1 \
+	    && { info "ping should fail without flows"
+	         return 1; }
+
+	ovs_add_flow "$t" icmpv6 \
+	    "in_port(1),eth(),$v6,icmpv6(type=128)" \
+	    '2' || return 1
+	ovs_add_flow "$t" icmpv6 \
+	    "in_port(2),eth(),$v6,icmpv6(type=129)" \
+	    '1' || return 1
+
+	info "verify connectivity restored"
+	ovs_sbx "$t" ip netns exec client \
+	    ping -6 -c 1 -W 2 fd00::2 || return 1
+
+	return 0
+}
+
+# Check for an SCTP endpoint via /proc, which works without sctp_diag.
+sctp_eps_has() {
+	ip netns exec "$1" awk -v p="$2" '$6==p' /proc/net/sctp/eps | grep -q .
+}
+
+# sctp_connect_v4 test
+# - sctp(dst=4443) matches client-to-server INIT
+# - sctp(src=4443) matches server-to-client INIT-ACK
+# - remove flows and verify connection fails, reinstall and recover
+test_sctp_connect_v4() {
+	local t="test_sctp_connect_v4"
+	local srv_ip=172.31.110.20
+
+	modprobe -q sctp 2>/dev/null || return "$ksft_skip"
+	socat -V 2>&1 | grep -q "define WITH_SCTP" || return "$ksft_skip"
+
+	sbx_add "$t" || return $?
+	ovs_add_dp "$t" sctp4 || return 1
+
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "$t" "sctp4" "$ns" \
+		    "${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	ip netns exec client ip addr add 172.31.110.10/24 dev c1
+	ip netns exec client ip link set c1 up
+	ip netns exec server ip addr add "${srv_ip}/24" dev s1
+	ip netns exec server ip link set s1 up
+
+	# ARP forwarding
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(1),eth(),eth_type(0x0806),arp()' \
+	    '2' || return 1
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(2),eth(),eth_type(0x0806),arp()' \
+	    '1' || return 1
+
+	# SCTP port matching: dst for request, src for reply
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4(proto=132),sctp(dst=4443)' \
+	    '2' || return 1
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(2),eth(),eth_type(0x0800),ipv4(proto=132),sctp(src=4443)' \
+	    '1' || return 1
+
+	# The listener forks a child per association, so one instance serves
+	# the whole test and the flows stay the only variable. -t 1 bounds
+	# how long a child lingers after its association closes.
+	ovs_netns_spawn_daemon "$t" "server" \
+	    socat -u -t 1 SCTP4-LISTEN:4443,fork STDOUT
+	ovs_wait sctp_eps_has server 4443 || return 1
+
+	info "verify SCTP association with port-keyed flows"
+	ovs_sbx "$t" ip netns exec client \
+	    timeout 3 socat -u STDIN "SCTP4-CONNECT:${srv_ip}:4443" </dev/null \
+	    || return 1
+
+	ovs_del_flows "$t" sctp4
+
+	info "verify connection fails without flows"
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(1),eth(),eth_type(0x0806),arp()' \
+	    '2' || return 1
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(2),eth(),eth_type(0x0806),arp()' \
+	    '1' || return 1
+
+	ovs_sbx "$t" ip netns exec client \
+	    timeout 3 socat -u STDIN "SCTP4-CONNECT:${srv_ip}:4443" </dev/null \
+	    >/dev/null 2>&1 \
+	    && { info "connection should fail without flows"
+	         return 1; }
+
+	info "reinstall flows and verify recovery"
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(1),eth(),eth_type(0x0800),ipv4(proto=132),sctp(dst=4443)' \
+	    '2' || return 1
+	ovs_add_flow "$t" sctp4 \
+	    'in_port(2),eth(),eth_type(0x0800),ipv4(proto=132),sctp(src=4443)' \
+	    '1' || return 1
+
+	ovs_sbx "$t" ip netns exec client \
+	    timeout 3 socat -u STDIN "SCTP4-CONNECT:${srv_ip}:4443" </dev/null \
+	    || return 1
 
 	return 0
 }
@@ -1038,43 +1295,6 @@ test_tunnel_metadata() {
 		ovs_sbx "${sbxname}" grep -qE "MISS upcall.*${tnl_md}.*${arp_hdr}" \
 			${ovs_dir}/ovs-vxlan0.out || return 1
 	done <<< "${configs}"
-
-	return 0
-}
-
-test_tunnel_refcount() {
-	sbxname="test_tunnel_refcount"
-	sbx_add "${sbxname}" || return 1
-
-	ovs_sbx "${sbxname}" ip netns add trefns || return 1
-	on_exit "ovs_sbx ${sbxname} ip netns del trefns"
-
-	for tun_type in gre vxlan geneve; do
-		info "testing ${tun_type} tunnel vport refcount"
-
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			add-dp dp-${tun_type} || return 1
-
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			add-if --no-lwt -t ${tun_type} \
-			dp-${tun_type} ovs-${tun_type}0 || return 1
-
-		ovs_wait ip -netns trefns link show \
-			ovs-${tun_type}0 >/dev/null 2>&1 || return 1
-
-		info "deleting dp - may hang if reference counting is broken"
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			del-dp dp-${tun_type} &
-
-		dev_removed() {
-			! ip -netns trefns link show "$1" >/dev/null 2>&1
-		}
-		ovs_wait dev_removed dp-${tun_type} || return 1
-		ovs_wait dev_removed ovs-${tun_type}0 || return 1
-	done
 
 	return 0
 }

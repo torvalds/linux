@@ -24,8 +24,6 @@
 #define DRV_NAME "omap-hdmi-audio"
 
 struct hdmi_audio_data {
-	struct snd_soc_card *card;
-
 	const struct omap_hdmi_audio_ops *ops;
 	struct device *dssdev;
 	struct snd_dmaengine_dai_dma_data dma_data;
@@ -375,12 +373,9 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 	card->dev = dev;
 
 	ret = devm_snd_soc_register_card(dev, card);
-	if (ret) {
-		dev_err(dev, "snd_soc_register_card failed (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "snd_soc_register_card() failed\n");
 
-	ad->card = card;
 	snd_soc_card_set_drvdata(card, ad);
 
 	dev_set_drvdata(dev, ad);

@@ -22,6 +22,7 @@ void topology_set_dom(struct topo_scan *tscan, enum x86_topology_domains dom,
 bool cpu_parse_topology_ext(struct topo_scan *tscan);
 void cpu_parse_topology_amd(struct topo_scan *tscan);
 void cpu_topology_fixup_amd(struct topo_scan *tscan);
+enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c);
 
 static inline u32 topo_shift_apicid(u32 apicid, enum x86_topology_domains dom)
 {

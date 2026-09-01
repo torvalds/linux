@@ -32,7 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
@@ -2285,7 +2285,7 @@ void db8500_prcmu_system_reset(u16 reset_code)
 /**
  * db8500_prcmu_get_reset_code - Retrieve SW reset reason code
  *
- * Retrieves the reset reason code stored by prcmu_system_reset() before
+ * Retrieves the reset reason code stored by db8500_prcmu_system_reset() before
  * last restart.
  */
 u16 db8500_prcmu_get_reset_code(void)
@@ -3041,7 +3041,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 
 	db8500_irq_init(np);
 
-	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
+	db8500_prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
 	err = mfd_add_devices(&pdev->dev, 0, common_prcmu_devs,
 			      ARRAY_SIZE(common_prcmu_devs), NULL, 0, db8500_irq_domain);

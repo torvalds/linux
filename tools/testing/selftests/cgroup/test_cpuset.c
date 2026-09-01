@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#define _GNU_SOURCE
+#include <assert.h>
 #include <linux/limits.h>
+#include <pthread.h>
+#include <sched.h>
 #include <signal.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "kselftest.h"
 #include "cgroup_util.h"
@@ -232,6 +238,246 @@ cleanup:
 	return ret;
 }
 
+static int get_cpu_affinity(cpu_set_t *mask)
+{
+	CPU_ZERO(mask);
+	return sched_getaffinity(0, sizeof(*mask), mask);
+}
+
+static int cpu_set_equal(cpu_set_t *dst, unsigned long mask)
+{
+	cpu_set_t expected;
+
+	CPU_ZERO(&expected);
+	assert(sizeof(mask) < CPU_SETSIZE);
+
+	for (int cpu = 0; cpu < sizeof(mask) * 8; ++cpu)
+		if ((1UL << cpu) & mask)
+			CPU_SET(cpu, &expected);
+
+	return CPU_EQUAL(&expected, dst);
+}
+
+enum test_phase {
+	AFFINITY_SETUP,
+	AFFINITY_CONTROLLER_DISABLED,
+	AFFINITY_COMPLETE,
+	AFFINITY_ERROR
+};
+
+struct thread_args {
+	const char *cgroup;
+	cpu_set_t *affinity_before;
+	cpu_set_t *affinity_after;
+	int affinity_before_ready;
+};
+
+static pthread_mutex_t test_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t test_cond = PTHREAD_COND_INITIALIZER;
+static enum test_phase test_phase;
+
+static void *affinity_thread_fn(void *arg)
+{
+	struct thread_args *args = (struct thread_args *)arg;
+
+	if (cg_enter_current_thread(args->cgroup))
+		goto fail;
+
+	if (get_cpu_affinity(args->affinity_before) != 0)
+		goto fail;
+
+	pthread_mutex_lock(&test_mutex);
+	args->affinity_before_ready = 1;
+	pthread_cond_broadcast(&test_cond);
+
+	while (test_phase < AFFINITY_CONTROLLER_DISABLED)
+		pthread_cond_wait(&test_cond, &test_mutex);
+	pthread_mutex_unlock(&test_mutex);
+
+	if (get_cpu_affinity(args->affinity_after) != 0)
+		goto fail;
+
+
+	return NULL;
+
+fail:
+	pthread_mutex_lock(&test_mutex);
+	test_phase = AFFINITY_ERROR;
+	pthread_cond_broadcast(&test_cond);
+	pthread_mutex_unlock(&test_mutex);
+	return NULL;
+}
+
+/*
+ * Test that disabling cpuset controller properly updates thread affinity.
+ *
+ * This test exposes a bug in cpuset_attach() where threads in child cgroups
+ * don't get their affinity updated when the cpuset controller is disabled.
+ *
+ * Setup:
+ * - Create parent cgroup with cpuset.cpus=0-1
+ * - Create child A with cpuset.cpus=0-1
+ * - Create child B with cpuset.cpus=1
+ * - Place multithreaded process: group leader + thread_a in A, thread_b in B
+ * - Disable cpuset controller on parent
+ *
+ * Expected: thread_b's affinity should expand from {1} to {0-1}
+ * Buggy: thread_b's affinity remains {1}
+ */
+static int test_cpuset_affinity_on_controller_disable(const char *root)
+{
+	char *parent = NULL, *child_a = NULL, *child_b = NULL;
+	pthread_t thread_a, thread_b;
+	int thread_a_created = 0, thread_b_created = 0;
+	cpu_set_t affinity_a_before, affinity_a_after;
+	cpu_set_t affinity_b_before, affinity_b_after;
+	int ret = KSFT_FAIL;
+
+	parent = cg_name(root, "cpuset_affinity_test");
+	if (!parent)
+		goto cleanup;
+	if (cg_create(parent))
+		goto cleanup;
+	if (cg_write(parent, "cgroup.type", "threaded"))
+		goto cleanup;
+
+	child_a = cg_name(parent, "A");
+	if (!child_a)
+		goto cleanup;
+	if (cg_create(child_a))
+		goto cleanup;
+	if (cg_write(child_a, "cgroup.type", "threaded"))
+		goto cleanup;
+
+	child_b = cg_name(parent, "B");
+	if (!child_b)
+		goto cleanup;
+	if (cg_create(child_b))
+		goto cleanup;
+	if (cg_write(child_b, "cgroup.type", "threaded"))
+		goto cleanup;
+
+	/* Now enable cpuset controller in parent */
+	if (cg_write(parent, "cgroup.subtree_control", "+cpuset"))
+		goto skip;
+
+	/*
+	 * Set CPU affinity constraints
+	 * Skip the test if the setting of "cpuset.cpus" fails as the test
+	 * system may not have CPU 1.
+	 */
+	if (cg_write(parent, "cpuset.cpus", "0-1"))
+		goto skip;
+	if (cg_write(child_a, "cpuset.cpus", "0-1"))
+		goto skip;
+	if (cg_write(child_b, "cpuset.cpus", "1"))
+		goto skip;
+
+	/* Move group leader (main thread) to child A */
+	if (cg_enter_current(child_a))
+		goto cleanup;
+
+	/* Create threads - they will move themselves to their respective cgroups */
+	test_phase = AFFINITY_SETUP;
+
+	struct thread_args args_a = {
+		.cgroup = child_a,
+		.affinity_before = &affinity_a_before,
+		.affinity_after = &affinity_a_after,
+		.affinity_before_ready = 0,
+	};
+	if (pthread_create(&thread_a, NULL, affinity_thread_fn, &args_a))
+		goto cleanup;
+	thread_a_created = 1;
+
+	struct thread_args args_b = {
+		.cgroup = child_b,
+		.affinity_before = &affinity_b_before,
+		.affinity_after = &affinity_b_after,
+		.affinity_before_ready = 0,
+	};
+	if (pthread_create(&thread_b, NULL, affinity_thread_fn, &args_b))
+		goto cleanup_threads;
+	thread_b_created = 1;
+
+	pthread_mutex_lock(&test_mutex);
+	while ((test_phase < AFFINITY_ERROR) &&
+	       (args_a.affinity_before_ready + args_b.affinity_before_ready < 2))
+		pthread_cond_wait(&test_cond, &test_mutex);
+
+	/* If a thread failed during setup, bail out */
+	if (test_phase == AFFINITY_ERROR) {
+		pthread_mutex_unlock(&test_mutex);
+		goto cleanup_threads;
+	}
+	pthread_mutex_unlock(&test_mutex);
+
+	if (!cpu_set_equal(&affinity_a_before, 0x3)) {
+		ksft_print_msg("FAIL: thread_a initial affinity incorrect\n");
+		goto cleanup_threads;
+	}
+
+	if (!cpu_set_equal(&affinity_b_before, 0x2)) {
+		ksft_print_msg("FAIL: thread_b initial affinity incorrect\n");
+		goto cleanup_threads;
+	}
+
+	/* Disable cpuset controller - this should trigger affinity update */
+	if (cg_write(parent, "cgroup.subtree_control", "-cpuset"))
+		goto cleanup_threads;
+
+	/* Signal threads to save their final affinity and exit */
+	pthread_mutex_lock(&test_mutex);
+	test_phase = AFFINITY_CONTROLLER_DISABLED;
+	pthread_cond_broadcast(&test_cond);
+	pthread_mutex_unlock(&test_mutex);
+
+	pthread_join(thread_a, NULL);
+	pthread_join(thread_b, NULL);
+
+	/* Verify thread affinities AFTER disabling controller */
+	if (!cpu_set_equal(&affinity_a_after, 0x3)) {
+		ksft_print_msg("FAIL: thread_a final affinity incorrect\n");
+		goto cleanup;
+	}
+
+	if (!cpu_set_equal(&affinity_b_after, 0x3)) {
+		ksft_print_msg("FAIL: thread_b affinity did not expand to {0-1}\n");
+		goto cleanup;
+	}
+
+	ret = KSFT_PASS;
+	goto cleanup;
+
+skip:
+	ret = KSFT_SKIP;
+	goto cleanup;
+
+cleanup_threads:
+	pthread_mutex_lock(&test_mutex);
+	test_phase = AFFINITY_COMPLETE;
+	pthread_cond_broadcast(&test_cond);
+	pthread_mutex_unlock(&test_mutex);
+
+	if (thread_a_created)
+		pthread_join(thread_a, NULL);
+	if (thread_b_created)
+		pthread_join(thread_b, NULL);
+
+cleanup:
+	/* Move back to root before cleanup */
+	cg_enter_current(root);
+
+	cg_destroy(child_b);
+	free(child_b);
+	cg_destroy(child_a);
+	free(child_a);
+	cg_destroy(parent);
+	free(parent);
+
+	return ret;
+}
+
 
 #define T(x) { x, #x }
 struct cpuset_test {
@@ -241,6 +487,7 @@ struct cpuset_test {
 	T(test_cpuset_perms_object_allow),
 	T(test_cpuset_perms_object_deny),
 	T(test_cpuset_perms_subtree),
+	T(test_cpuset_affinity_on_controller_disable),
 };
 #undef T
 

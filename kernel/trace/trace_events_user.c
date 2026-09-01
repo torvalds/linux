@@ -868,6 +868,9 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 	struct user_event_mm *mm = user_event_mm_alloc(t);
 	struct user_event_enabler *enabler;
 
+	/* On failure, do not free parent's copy */
+	t->user_event_mm = NULL;
+
 	if (!mm)
 		return;
 
@@ -1838,7 +1841,7 @@ static int user_event_show(struct seq_file *m, struct dyn_event *ev)
 
 	list_for_each_entry_reverse(field, head, link) {
 		if (depth == 0)
-			seq_puts(m, " ");
+			seq_putc(m, ' ');
 		else
 			seq_puts(m, "; ");
 
@@ -1850,7 +1853,7 @@ static int user_event_show(struct seq_file *m, struct dyn_event *ev)
 		depth++;
 	}
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -2806,7 +2809,7 @@ static int user_seq_show(struct seq_file *m, void *p)
 	hash_for_each(group->register_table, i, user, node) {
 		status = user->status;
 
-		seq_printf(m, "%s", EVENT_TP_NAME(user));
+		seq_puts(m, EVENT_TP_NAME(user));
 
 		if (status != 0) {
 			seq_puts(m, " # Used by");
@@ -2819,13 +2822,13 @@ static int user_seq_show(struct seq_file *m, void *p)
 			busy++;
 		}
 
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 		active++;
 	}
 
 	mutex_unlock(&group->reg_mutex);
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 	seq_printf(m, "Active: %d\n", active);
 	seq_printf(m, "Busy: %d\n", busy);
 

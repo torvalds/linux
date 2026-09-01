@@ -123,12 +123,13 @@
 #define ID_NACK			BIT(4)
 #define ID_EPROTO		BIT(5)
 /* persistent flags */
+#define ID_P_NO_RST_STAT	BIT(26)
 #define ID_P_FMPLUS		BIT(27)
 #define ID_P_NOT_ATOMIC		BIT(28)
 #define ID_P_HOST_NOTIFY	BIT(29)
 #define ID_P_NO_RXDMA		BIT(30) /* HW forbids RXDMA sometimes */
 #define ID_P_PM_BLOCKED		BIT(31)
-#define ID_P_MASK		GENMASK(31, 27)
+#define ID_P_MASK		GENMASK(31, 26)
 
 #define ID_SLAVE_NACK		BIT(0)
 
@@ -137,6 +138,7 @@ enum rcar_i2c_type {
 	I2C_RCAR_GEN2,
 	I2C_RCAR_GEN3,
 	I2C_RCAR_GEN4,
+	I2C_RCAR_GEN5,
 };
 
 struct rcar_i2c_priv {
@@ -900,8 +902,11 @@ static int rcar_i2c_do_reset(struct rcar_i2c_priv *priv)
 	if (ret)
 		return ret;
 
-	return read_poll_timeout_atomic(reset_control_status, ret, ret == 0, 1,
-					100, false, priv->rstc);
+	if (priv->flags & ID_P_NO_RST_STAT)
+		return 0;
+
+	return read_poll_timeout_atomic(reset_control_status, ret, ret == 0,
+					1, 100, false, priv->rstc);
 }
 
 static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
@@ -1111,6 +1116,7 @@ static const struct of_device_id rcar_i2c_dt_ids[] = {
 	{ .compatible = "renesas,rcar-gen2-i2c", .data = (void *)I2C_RCAR_GEN2 },
 	{ .compatible = "renesas,rcar-gen3-i2c", .data = (void *)I2C_RCAR_GEN3 },
 	{ .compatible = "renesas,rcar-gen4-i2c", .data = (void *)I2C_RCAR_GEN4 },
+	{ .compatible = "renesas,rcar-gen5-i2c", .data = (void *)I2C_RCAR_GEN5 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
@@ -1195,7 +1201,10 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 		}
 
 		ret = reset_control_status(priv->rstc);
-		if (ret < 0)
+		/* Some SCMI firmware does not support reading reset status */
+		if (ret == -ENOTSUPP)
+			priv->flags |= ID_P_NO_RST_STAT;
+		else if (ret < 0)
 			goto out_pm_put;
 
 		/* hard reset disturbs HostNotify local target, so disable it */

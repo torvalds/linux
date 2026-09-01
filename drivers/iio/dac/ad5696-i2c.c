@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * AD5338R, AD5671R, AD5673R, AD5675R, AD5677R, AD5691R, AD5692R, AD5693,
- * AD5693R, AD5694, AD5694R, AD5695R, AD5696, AD5696R
- * Digital to analog converters driver
+ * I2C driver for AD5696 and similar Digital to Analog Converters
  *
  * Copyright 2018 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -34,9 +33,8 @@ static int ad5686_i2c_read(struct ad5686_state *st, u8 addr)
 	};
 	int ret;
 
-	st->data[0].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_NOOP) |
-				      AD5686_ADDR(addr) |
-				      0x00);
+	st->data[0].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, AD5686_CMD_NOOP) |
+				      FIELD_PREP(AD5686_ADDR_MSK, addr));
 
 	ret = i2c_transfer(i2c->adapter, msg, 2);
 	if (ret < 0)
@@ -51,8 +49,9 @@ static int ad5686_i2c_write(struct ad5686_state *st,
 	struct i2c_client *i2c = to_i2c_client(st->dev);
 	int ret;
 
-	st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) | AD5686_ADDR(addr)
-				      | val);
+	st->data[0].d32 = cpu_to_be32(FIELD_PREP(AD5686_CMD_MSK, cmd) |
+				      FIELD_PREP(AD5686_ADDR_MSK, addr) |
+				      FIELD_PREP(AD5686_DATA_MSK, val));
 
 	ret = i2c_master_send(i2c, &st->data[0].d8[1], 3);
 	if (ret < 0)
@@ -68,16 +67,23 @@ static const struct ad5686_bus_ops ad5686_i2c_ops = {
 
 static int ad5686_i2c_probe(struct i2c_client *i2c)
 {
-	return ad5686_probe(&i2c->dev, i2c_get_match_data(i2c),
-			    i2c->name, &ad5686_i2c_ops);
+	const struct ad5686_chip_info *info;
+
+	info = i2c_get_match_data(i2c);
+	if (!info)
+		return -ENODATA;
+
+	return ad5686_probe(&i2c->dev, info, i2c->name, &ad5686_i2c_ops, NULL);
 }
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
 	{ .name = "ad5311r", .driver_data = (kernel_ulong_t)&ad5311r_chip_info },
+	{ .name = "ad5316r", .driver_data = (kernel_ulong_t)&ad5317r_chip_info },
 	{ .name = "ad5337r", .driver_data = (kernel_ulong_t)&ad5337r_chip_info },
 	{ .name = "ad5338r", .driver_data = (kernel_ulong_t)&ad5338r_chip_info },
 	{ .name = "ad5671r", .driver_data = (kernel_ulong_t)&ad5672r_chip_info },
 	{ .name = "ad5673r", .driver_data = (kernel_ulong_t)&ad5674r_chip_info },
+	{ .name = "ad5675",  .driver_data = (kernel_ulong_t)&ad5676_chip_info },
 	{ .name = "ad5675r", .driver_data = (kernel_ulong_t)&ad5676r_chip_info },
 	{ .name = "ad5677r", .driver_data = (kernel_ulong_t)&ad5679r_chip_info },
 	{ .name = "ad5691r", .driver_data = (kernel_ulong_t)&ad5681r_chip_info },
@@ -89,16 +95,21 @@ static const struct i2c_device_id ad5686_i2c_id[] = {
 	{ .name = "ad5695r", .driver_data = (kernel_ulong_t)&ad5685r_chip_info },
 	{ .name = "ad5696",  .driver_data = (kernel_ulong_t)&ad5686_chip_info },
 	{ .name = "ad5696r", .driver_data = (kernel_ulong_t)&ad5686r_chip_info },
+	{ .name = "ad5697r", .driver_data = (kernel_ulong_t)&ad5687r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
 static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5311r", .data = &ad5311r_chip_info },
+	{ .compatible = "adi,ad5316r", .data = &ad5317r_chip_info },
 	{ .compatible = "adi,ad5337r", .data = &ad5337r_chip_info },
 	{ .compatible = "adi,ad5338r", .data = &ad5338r_chip_info },
 	{ .compatible = "adi,ad5671r", .data = &ad5672r_chip_info },
+	{ .compatible = "adi,ad5673r", .data = &ad5674r_chip_info },
+	{ .compatible = "adi,ad5675",  .data = &ad5676_chip_info },
 	{ .compatible = "adi,ad5675r", .data = &ad5676r_chip_info },
+	{ .compatible = "adi,ad5677r", .data = &ad5679r_chip_info },
 	{ .compatible = "adi,ad5691r", .data = &ad5681r_chip_info },
 	{ .compatible = "adi,ad5692r", .data = &ad5682r_chip_info },
 	{ .compatible = "adi,ad5693",  .data = &ad5683_chip_info },
@@ -108,6 +119,7 @@ static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5695r", .data = &ad5685r_chip_info },
 	{ .compatible = "adi,ad5696",  .data = &ad5686_chip_info },
 	{ .compatible = "adi,ad5696r", .data = &ad5686r_chip_info },
+	{ .compatible = "adi,ad5697r", .data = &ad5687r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5686_of_match);

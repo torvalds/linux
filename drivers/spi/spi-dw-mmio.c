@@ -31,6 +31,8 @@ struct dw_spi_mmio {
 	struct clk     *pclk;
 	void           *priv;
 	struct reset_control *rstc;
+	void (*platform_suspend)(struct dw_spi_mmio *dwsmmio);
+	int (*platform_resume)(struct dw_spi_mmio *dwsmmio);
 };
 
 #define MSCC_CPU_SYSTEM_CTRL_GENERAL_CTRL	0x24
@@ -47,6 +49,8 @@ struct dw_spi_mmio {
 
 #define SPARX5_FORCE_ENA			0xa4
 #define SPARX5_FORCE_VAL			0xa8
+
+#define JHB100_ADDRMODE_CS			0x00
 
 struct dw_spi_mscc {
 	struct regmap       *syscon;
@@ -310,6 +314,58 @@ static int dw_spi_elba_init(struct platform_device *pdev,
 	return 0;
 }
 
+static int dw_spi_jhb100_set_addr_nbyte(struct spi_device *spi, u8 nbyte)
+{
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
+	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
+	struct regmap *syscon = dwsmmio->priv;
+
+	if (nbyte == 3) {
+		regmap_update_bits(syscon, JHB100_ADDRMODE_CS,
+				   BIT(spi_get_chipselect(spi, 0)),
+				   0);
+	} else if (nbyte == 4) {
+		regmap_update_bits(syscon, JHB100_ADDRMODE_CS,
+				   BIT(spi_get_chipselect(spi, 0)),
+				   BIT(spi_get_chipselect(spi, 0)));
+	} else {
+		dev_err(&spi->dev, "Unsupported address nbyte %d\n", nbyte);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dw_spi_jhb100_resume(struct dw_spi_mmio *dwsmmio)
+{
+	dw_spi_jhb100_mask_intr(&dwsmmio->dws, 0xff);
+
+	return 0;
+}
+
+static int dw_spi_jhb100_init(struct platform_device *pdev,
+			      struct dw_spi_mmio *dwsmmio)
+{
+	struct regmap *syscon;
+
+	syscon = syscon_regmap_lookup_by_phandle(dev_of_node(&pdev->dev),
+						 "starfive,sfc-filter-syscon");
+	if (IS_ERR(syscon))
+		return dev_err_probe(&pdev->dev, PTR_ERR(syscon),
+				     "syscon regmap lookup failed\n");
+
+	dwsmmio->priv = syscon;
+	dwsmmio->platform_resume = dw_spi_jhb100_resume;
+
+	dwsmmio->dws.set_addr_nbyte = dw_spi_jhb100_set_addr_nbyte;
+	dwsmmio->dws.ip = DW_HSSI_ID;
+	dwsmmio->dws.quirk_flags = DW_SPI_QUIRK_JHB100;
+
+	dw_spi_jhb100_mask_intr(&dwsmmio->dws, 0xff);
+
+	return 0;
+}
+
 static int dw_spi_mmio_probe(struct platform_device *pdev)
 {
 	int (*init_func)(struct platform_device *pdev,
@@ -399,6 +455,9 @@ static int dw_spi_mmio_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (dwsmmio->platform_suspend)
+		dwsmmio->platform_suspend(dwsmmio);
+
 	reset_control_assert(dwsmmio->rstc);
 
 	clk_disable_unprepare(dwsmmio->pclk);
@@ -410,11 +469,23 @@ static int dw_spi_mmio_suspend(struct device *dev)
 static int dw_spi_mmio_resume(struct device *dev)
 {
 	struct dw_spi_mmio *dwsmmio = dev_get_drvdata(dev);
+	int ret;
 
 	clk_prepare_enable(dwsmmio->clk);
 	clk_prepare_enable(dwsmmio->pclk);
 
 	reset_control_deassert(dwsmmio->rstc);
+
+	if (dwsmmio->platform_resume) {
+		ret = dwsmmio->platform_resume(dwsmmio);
+		if (ret) {
+			reset_control_assert(dwsmmio->rstc);
+
+			clk_disable_unprepare(dwsmmio->pclk);
+			clk_disable_unprepare(dwsmmio->clk);
+			return ret;
+		}
+	}
 
 	return dw_spi_resume_controller(&dwsmmio->dws);
 }
@@ -447,6 +518,7 @@ static const struct of_device_id dw_spi_mmio_of_match[] = {
 	{ .compatible = "microchip,sparx5-spi", dw_spi_mscc_sparx5_init},
 	{ .compatible = "canaan,k210-spi", dw_spi_canaan_k210_init},
 	{ .compatible = "amd,pensando-elba-spi", .data = dw_spi_elba_init},
+	{ .compatible = "starfive,jhb100-sfc", .data = dw_spi_jhb100_init},
 	{ /* end of table */}
 };
 MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);

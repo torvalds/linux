@@ -146,12 +146,12 @@ examples:
     // Case 1: PSCI v0.1 only.
 
     psci {
-      compatible      = "arm,psci";
-      method          = "smc";
-      cpu_suspend     = <0x95c10000>;
-      cpu_off         = <0x95c10001>;
-      cpu_on          = <0x95c10002>;
-      migrate         = <0x95c10003>;
+      compatible = "arm,psci";
+      method = "smc";
+      cpu_suspend = <0x95c10000>;
+      cpu_off = <0x95c10001>;
+      cpu_on = <0x95c10002>;
+      migrate = <0x95c10003>;
     };
 
   - |+
@@ -159,8 +159,8 @@ examples:
     // Case 2: PSCI v0.2 only
 
     psci {
-      compatible      = "arm,psci-0.2";
-      method          = "smc";
+      compatible = "arm,psci-0.2";
+      method = "smc";
     };
 
   - |+
@@ -251,7 +251,7 @@ examples:
 
       cpu_pd1: power-domain-cpu1 {
         #power-domain-cells = <0>;
-        domain-idle-states =  <&cpu_pwrdn>;
+        domain-idle-states = <&cpu_pwrdn>;
         power-domains = <&cluster_pd>;
       };
 

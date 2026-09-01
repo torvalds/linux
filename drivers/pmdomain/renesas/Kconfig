@@ -13,6 +13,10 @@ config SYSC_RMOBILE
 	bool "System Controller support for R-Mobile" if COMPILE_TEST
 
 # SoC
+config MDLC_R8A78000
+	bool "Module Controller support for R8A78000 (R-Car X5H)" if COMPILE_TEST
+	select RESET_CONTROLLER
+
 config SYSC_R8A7742
 	bool "System Controller support for R8A7742 (RZ/G1H)" if COMPILE_TEST
 	select SYSC_RCAR

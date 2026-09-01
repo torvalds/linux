@@ -8,8 +8,11 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/compiler_attributes.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/dmi.h>
@@ -17,10 +20,12 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/string_choices.h>
 #include <linux/types.h>
+#include <linux/unaligned.h>
 
 #include <acpi/battery.h>
 
@@ -57,13 +62,18 @@ MODULE_PARM_DESC(fw_debug, "Enable printing of firmware debug messages");
 #define LG_ADDRESS_SPACE_DEBUG_MSG_START_ADR	0x3E8
 #define LG_ADDRESS_SPACE_DEBUG_MSG_END_ADR	0x5E8
 
-#define WMI_EVENT_GUID0	"E4FB94F9-7F2B-4173-AD1A-CD1D95086248"
-#define WMI_EVENT_GUID1	"023B133E-49D1-4E10-B313-698220140DC2"
-#define WMI_EVENT_GUID2	"37BE1AC0-C3F2-4B1F-BFBE-8FDEAF2814D6"
-#define WMI_EVENT_GUID3	"911BAD44-7DF8-4FBB-9319-BABA1C4B293B"
-#define WMI_METHOD_WMAB "C3A72B38-D3EF-42D3-8CBB-D5A57049F66D"
-#define WMI_METHOD_WMBB "2B4F501A-BD3C-4394-8DCF-00A7D2BC8210"
-#define WMI_EVENT_GUID  WMI_EVENT_GUID0
+#define LG_NOTIFY_TABLET_MODE_OFF	0x50
+#define LG_NOTIFY_TABLET_MODE_ON	0x51
+#define LG_NOTIFY_HOTKEY		0x80
+#define LG_NOTIFY_THERMAL		0x81
+#define LG_NOTIFY_MISC			0x82
+
+#define LG_OREP_READ_EC			0
+#define LG_OREP_WRITE_EC		1
+#define LG_OREP_DEBUG			2
+#define LG_OREP_UPDATE_SYSTEM_STATE	3
+#define LG_OREP_INTERCEPT_WMI_EVENTS	4
+#define LG_OREP_WAKE_ON_LAN		6
 
 #define SB_GGOV_METHOD  "\\_SB.GGOV"
 #define GOV_TLED        0x2020008
@@ -78,41 +88,94 @@ MODULE_PARM_DESC(fw_debug, "Enable printing of firmware debug messages");
 #define WMBB_USB_CHARGE 0x10B
 #define WMBB_BATT_LIMIT 0x10C
 
+#define KBD_LED_BRIGHTNESS_MASK GENMASK(4, 0)
+#define KBD_LED_BRIGHTNESS_OFF	0x0
+#define KBD_LED_BRIGHTNESS_HALF 0x2
+#define KBD_LED_BRIGHTNESS_FULL 0x4
+#define KBD_LED_MODE_MASK	GENMASK(6, 5)
+#define KBD_LED_MODE_OFF	0x0
+#define KBD_LED_MODE_ON		0x1
+#define KBD_LED_STATUS		BIT(7)
+#define KBD_LED_MAGIC_MASK	GENMASK(15, 8)
+/* Exact purpose is unknown, maybe some sort of brightness limit? */
+#define KBD_LED_MAGIC		0x05
+
 #define FAN_MODE_LOWER GENMASK(1, 0)
 #define FAN_MODE_UPPER GENMASK(5, 4)
 
 #define PLATFORM_NAME   "lg-laptop"
 
-MODULE_ALIAS("wmi:" WMI_EVENT_GUID0);
-MODULE_ALIAS("wmi:" WMI_EVENT_GUID1);
-MODULE_ALIAS("wmi:" WMI_EVENT_GUID2);
-MODULE_ALIAS("wmi:" WMI_EVENT_GUID3);
-MODULE_ALIAS("wmi:" WMI_METHOD_WMAB);
-MODULE_ALIAS("wmi:" WMI_METHOD_WMBB);
+struct lg_wmab_buffer_result {
+	__le32 value;
+	__le32 status;
+} __packed;
 
 static struct platform_device *pf_device;
-static struct input_dev *wmi_input_dev;
-
-static u32 inited;
-#define INIT_INPUT_WMI_0        0x01
-#define INIT_INPUT_WMI_2        0x02
-#define INIT_INPUT_ACPI         0x04
-#define INIT_SPARSE_KEYMAP      0x80
 
 static int battery_limit_use_wmbb;
+static bool kbd_backlight_available;
 static struct led_classdev kbd_backlight;
 static enum led_brightness get_kbd_backlight_level(struct device *dev);
 
 static const struct key_entry wmi_keymap[] = {
-	{KE_KEY, 0x70, {KEY_F15} },	 /* LG control panel (F1) */
-	{KE_KEY, 0x74, {KEY_F21} },	 /* Touchpad toggle (F5) */
-	{KE_KEY, 0xf020000, {KEY_F14} }, /* Read mode (F9) */
-	{KE_KEY, 0x10000000, {KEY_F16} },/* Keyboard backlight (F8) - pressing
-					  * this key both sends an event and
-					  * changes backlight level.
-					  */
+	/* Placeholder value send by multiple hotkeys handled by ACPI */
+	{ KE_IGNORE,	0x0,		{ KEY_UNKNOWN }},
+	/* LG control panel */
+	{ KE_KEY,	0x70,		{ KEY_F15 }},
+	/* Touchpad toggle */
+	{ KE_KEY,	0x74,		{ KEY_F21 }},
+	/* Mute Audio, already handled by ACPI */
+	{ KE_IGNORE,	0x78,		{ KEY_MUTE }},
+	/* Read mode */
+	{ KE_KEY,	0xf020000,	{ KEY_F14 }},
+	/* Open settings */
+	{ KE_KEY,	0xf070002,	{ KEY_CONFIG }},
+	/* Keyboard backlight - pressing this key both sends an event and changes backlight level */
+	{ KE_KEY,	0x10000000,	{ KEY_F16 }},
+	/* Hotkey combination pressed */
+	{ KE_IGNORE,	0x30010000,	{ KEY_UNKNOWN }},
+	/* Hotkey combination released */
+	{ KE_IGNORE,	0x30010001,	{ KEY_UNKNOWN }},
+	/* Change fan mode */
+	{ KE_KEY,	0x30010051,	{ KEY_PERFORMANCE }},
+	/* Disable camera */
+	{ KE_KEY,	0x40020000,	{ KEY_CAMERA_ACCESS_TOGGLE }},
+	/* Mute microphone */
+	{ KE_KEY,	0x40020001,	{ KEY_MICMUTE }},
+	/* Fn-Lock */
+	{ KE_KEY,	0x40030001,	{ KEY_FN_ESC }},
 	{KE_END, 0}
 };
+
+static int lg_laptop_execute_orep(acpi_handle handle, u64 command, u64 value,
+				  unsigned long long *result)
+{
+	union acpi_object objs[] = {
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = command,
+			},
+		},
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = value,
+			},
+		}
+	};
+	struct acpi_object_list args = {
+		.count = ARRAY_SIZE(objs),
+		.pointer = objs,
+	};
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, "OREP", &args, result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
 
 static int ggov(u32 arg0)
 {
@@ -154,30 +217,97 @@ static int ggov(u32 arg0)
 	return res;
 }
 
-static union acpi_object *lg_wmab(struct device *dev, u32 method, u32 arg1, u32 arg2)
+static int lg_wmab_get(struct device *dev, u32 method, u32 *result)
 {
-	union acpi_object args[3];
-	acpi_status status;
-	struct acpi_object_list arg;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object in[] = {
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = method,
+			},
+		},
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = WM_GET,
+			},
+		},
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = 0,
+			},
+		},
+	};
+	struct lg_wmab_buffer_result *buffer_result;
+	struct acpi_object_list input = {
+		.count = ARRAY_SIZE(in),
+		.pointer = in,
+	};
+	acpi_status status;
 
-	args[0].type = ACPI_TYPE_INTEGER;
-	args[0].integer.value = method;
-	args[1].type = ACPI_TYPE_INTEGER;
-	args[1].integer.value = arg1;
-	args[2].type = ACPI_TYPE_INTEGER;
-	args[2].integer.value = arg2;
+	status = acpi_evaluate_object(ACPI_HANDLE(dev), "WMAB", &input, &buffer);
+	if (ACPI_FAILURE(status))
+		return -EIO;
 
-	arg.count = 3;
-	arg.pointer = args;
+	union acpi_object *obj __free(kfree) = buffer.pointer;
 
-	status = acpi_evaluate_object(ACPI_HANDLE(dev), "WMAB", &arg, &buffer);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "WMAB: call failed.\n");
-		return NULL;
+	if (!obj)
+		return -ENODATA;
+
+	switch (obj->type) {
+	case ACPI_TYPE_INTEGER:
+		*result = obj->integer.value;
+		return 0;
+	case ACPI_TYPE_BUFFER:
+		if (obj->buffer.length != sizeof(*buffer_result))
+			return -EPROTO;
+
+		buffer_result = (struct lg_wmab_buffer_result *)obj->buffer.pointer;
+		if (get_unaligned_le32(&buffer_result->status))
+			return -EIO;
+
+		*result = get_unaligned_le32(&buffer_result->value);
+		return 0;
+	default:
+		return -EPROTO;
 	}
+}
 
-	return buffer.pointer;
+static int lg_wmab_set(struct device *dev, u32 method, u32 arg)
+{
+	union acpi_object in[] = {
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = method,
+			},
+		},
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = WM_SET,
+			},
+		},
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = arg,
+			},
+		},
+	};
+	struct acpi_object_list input = {
+		.count = ARRAY_SIZE(in),
+		.pointer = in,
+	};
+	acpi_status status;
+
+	status = acpi_evaluate_object(ACPI_HANDLE(dev), "WMAB", &input, NULL);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
 }
 
 static union acpi_object *lg_wmbb(struct device *dev, u32 method_id, u32 arg1, u32 arg2)
@@ -211,72 +341,11 @@ static union acpi_object *lg_wmbb(struct device *dev, u32 method_id, u32 arg1, u
 	return (union acpi_object *)buffer.pointer;
 }
 
-static void wmi_notify(union acpi_object *obj, void *context)
-{
-	long data = (long)context;
-
-	pr_debug("event guid %li\n", data);
-	if (!obj)
-		return;
-
-	if (obj->type == ACPI_TYPE_INTEGER) {
-		int eventcode = obj->integer.value;
-		struct key_entry *key;
-
-		if (eventcode == 0x10000000) {
-			led_classdev_notify_brightness_hw_changed(
-				&kbd_backlight, get_kbd_backlight_level(kbd_backlight.dev->parent));
-		} else {
-			key = sparse_keymap_entry_from_scancode(
-				wmi_input_dev, eventcode);
-			if (key && key->type == KE_KEY)
-				sparse_keymap_report_entry(wmi_input_dev,
-							   key, 1, true);
-		}
-	}
-
-	pr_debug("Type: %i    Eventcode: 0x%llx\n", obj->type,
-		 obj->integer.value);
-}
-
-static void wmi_input_setup(void)
-{
-	acpi_status status;
-
-	wmi_input_dev = input_allocate_device();
-	if (wmi_input_dev) {
-		wmi_input_dev->name = "LG WMI hotkeys";
-		wmi_input_dev->phys = "wmi/input0";
-		wmi_input_dev->id.bustype = BUS_HOST;
-
-		if (sparse_keymap_setup(wmi_input_dev, wmi_keymap, NULL) ||
-		    input_register_device(wmi_input_dev)) {
-			pr_info("Cannot initialize input device");
-			input_free_device(wmi_input_dev);
-			return;
-		}
-
-		inited |= INIT_SPARSE_KEYMAP;
-		status = wmi_install_notify_handler(WMI_EVENT_GUID0, wmi_notify,
-						    (void *)0);
-		if (ACPI_SUCCESS(status))
-			inited |= INIT_INPUT_WMI_0;
-
-		status = wmi_install_notify_handler(WMI_EVENT_GUID2, wmi_notify,
-						    (void *)2);
-		if (ACPI_SUCCESS(status))
-			inited |= INIT_INPUT_WMI_2;
-	} else {
-		pr_info("Cannot allocate input device");
-	}
-}
-
 static ssize_t fan_mode_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buffer, size_t count)
 {
 	unsigned long value;
-	union acpi_object *r;
 	int ret;
 
 	ret = kstrtoul(buffer, 10, &value);
@@ -285,10 +354,10 @@ static ssize_t fan_mode_store(struct device *dev,
 	if (value >= 3)
 		return -EINVAL;
 
-	r = lg_wmab(dev, WM_FAN_MODE, WM_SET,
-		FIELD_PREP(FAN_MODE_LOWER, value) |
-		FIELD_PREP(FAN_MODE_UPPER, value));
-	kfree(r);
+	ret = lg_wmab_set(dev, WM_FAN_MODE, FIELD_PREP(FAN_MODE_LOWER, value) |
+			  FIELD_PREP(FAN_MODE_UPPER, value));
+	if (ret < 0)
+		return ret;
 
 	return count;
 }
@@ -296,22 +365,14 @@ static ssize_t fan_mode_store(struct device *dev,
 static ssize_t fan_mode_show(struct device *dev,
 			     struct device_attribute *attr, char *buffer)
 {
-	unsigned int mode;
-	union acpi_object *r;
+	u32 mode;
+	int ret;
 
-	r = lg_wmab(dev, WM_FAN_MODE, WM_GET, 0);
-	if (!r)
-		return -EIO;
+	ret = lg_wmab_get(dev, WM_FAN_MODE, &mode);
+	if (ret < 0)
+		return ret;
 
-	if (r->type != ACPI_TYPE_INTEGER) {
-		kfree(r);
-		return -EIO;
-	}
-
-	mode = FIELD_GET(FAN_MODE_LOWER, r->integer.value);
-	kfree(r);
-
-	return sysfs_emit(buffer, "%d\n", mode);
+	return sysfs_emit(buffer, "%lu\n", FIELD_GET(FAN_MODE_LOWER, mode));
 }
 
 static ssize_t usb_charge_store(struct device *dev,
@@ -361,41 +422,30 @@ static ssize_t reader_mode_store(struct device *dev,
 				 const char *buffer, size_t count)
 {
 	bool value;
-	union acpi_object *r;
 	int ret;
 
 	ret = kstrtobool(buffer, &value);
 	if (ret)
 		return ret;
 
-	r = lg_wmab(dev, WM_READER_MODE, WM_SET, value);
-	if (!r)
-		return -EIO;
+	ret = lg_wmab_set(dev, WM_READER_MODE, value);
+	if (ret < 0)
+		return ret;
 
-	kfree(r);
 	return count;
 }
 
 static ssize_t reader_mode_show(struct device *dev,
 				struct device_attribute *attr, char *buffer)
 {
-	unsigned int status;
-	union acpi_object *r;
+	u32 status;
+	int ret;
 
-	r = lg_wmab(dev, WM_READER_MODE, WM_GET, 0);
-	if (!r)
-		return -EIO;
+	ret = lg_wmab_get(dev, WM_READER_MODE, &status);
+	if (ret < 0)
+		return ret;
 
-	if (r->type != ACPI_TYPE_INTEGER) {
-		kfree(r);
-		return -EIO;
-	}
-
-	status = !!r->integer.value;
-
-	kfree(r);
-
-	return sysfs_emit(buffer, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", !!status);
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -403,40 +453,30 @@ static ssize_t fn_lock_store(struct device *dev,
 			     const char *buffer, size_t count)
 {
 	bool value;
-	union acpi_object *r;
 	int ret;
 
 	ret = kstrtobool(buffer, &value);
 	if (ret)
 		return ret;
 
-	r = lg_wmab(dev, WM_FN_LOCK, WM_SET, value);
-	if (!r)
-		return -EIO;
+	ret = lg_wmab_set(dev, WM_FN_LOCK, value);
+	if (ret < 0)
+		return ret;
 
-	kfree(r);
 	return count;
 }
 
 static ssize_t fn_lock_show(struct device *dev,
 			    struct device_attribute *attr, char *buffer)
 {
-	unsigned int status;
-	union acpi_object *r;
+	u32 status;
+	int ret;
 
-	r = lg_wmab(dev, WM_FN_LOCK, WM_GET, 0);
-	if (!r)
-		return -EIO;
+	ret = lg_wmab_get(dev, WM_FN_LOCK, &status);
+	if (ret < 0)
+		return ret;
 
-	if (r->type != ACPI_TYPE_BUFFER) {
-		kfree(r);
-		return -EIO;
-	}
-
-	status = !!r->buffer.pointer[0];
-	kfree(r);
-
-	return sysfs_emit(buffer, "%d\n", status);
+	return sysfs_emit(buffer, "%d\n", !!status);
 }
 
 static ssize_t charge_control_end_threshold_store(struct device *dev,
@@ -453,14 +493,18 @@ static ssize_t charge_control_end_threshold_store(struct device *dev,
 	if (value == 100 || value == 80) {
 		union acpi_object *r;
 
-		if (battery_limit_use_wmbb)
+		if (battery_limit_use_wmbb) {
 			r = lg_wmbb(&pf_device->dev, WMBB_BATT_LIMIT, WM_SET, value);
-		else
-			r = lg_wmab(&pf_device->dev, WM_BATT_LIMIT, WM_SET, value);
-		if (!r)
-			return -EIO;
+			if (!r)
+				return -EIO;
 
-		kfree(r);
+			kfree(r);
+		} else {
+			ret = lg_wmab_set(&pf_device->dev, WM_BATT_LIMIT, value);
+			if (ret < 0)
+				return ret;
+		}
+
 		return count;
 	}
 
@@ -471,8 +515,9 @@ static ssize_t charge_control_end_threshold_show(struct device *device,
 						 struct device_attribute *attr,
 						 char *buf)
 {
-	unsigned int status;
 	union acpi_object *r;
+	u32 status;
+	int ret;
 
 	if (battery_limit_use_wmbb) {
 		r = lg_wmbb(&pf_device->dev, WMBB_BATT_LIMIT, WM_GET, 0);
@@ -485,19 +530,13 @@ static ssize_t charge_control_end_threshold_show(struct device *device,
 		}
 
 		status = r->buffer.pointer[0x10];
+		kfree(r);
 	} else {
-		r = lg_wmab(&pf_device->dev, WM_BATT_LIMIT, WM_GET, 0);
-		if (!r)
-			return -EIO;
-
-		if (r->type != ACPI_TYPE_INTEGER) {
-			kfree(r);
-			return -EIO;
-		}
-
-		status = r->integer.value;
+		ret = lg_wmab_get(&pf_device->dev, WM_BATT_LIMIT, &status);
+		if (ret < 0)
+			return ret;
 	}
-	kfree(r);
+
 	if (status != 80 && status != 100)
 		status = 0;
 
@@ -563,10 +602,7 @@ static const struct attribute_group dev_attribute_group = {
 static void tpad_led_set(struct led_classdev *cdev,
 			 enum led_brightness brightness)
 {
-	union acpi_object *r;
-
-	r = lg_wmab(cdev->dev->parent, WM_TLED, WM_SET, brightness > LED_OFF);
-	kfree(r);
+	lg_wmab_set(cdev->dev->parent, WM_TLED, brightness > LED_OFF);
 }
 
 static enum led_brightness tpad_led_get(struct led_classdev *cdev)
@@ -579,47 +615,50 @@ static LED_DEVICE(tpad_led, 1, 0);
 static void kbd_backlight_set(struct led_classdev *cdev,
 			      enum led_brightness brightness)
 {
-	u32 val;
-	union acpi_object *r;
+	/* Must always be written */
+	u32 value = KBD_LED_STATUS;
+	u32 mode, bright;
 
-	val = 0x22;
-	if (brightness <= LED_OFF)
-		val = 0;
-	if (brightness >= LED_FULL)
-		val = 0x24;
-	r = lg_wmab(cdev->dev->parent, WM_KEY_LIGHT, WM_SET, val);
-	kfree(r);
+	if (brightness <= LED_OFF) {
+		mode = KBD_LED_MODE_OFF;
+		bright = KBD_LED_BRIGHTNESS_OFF;
+	} else {
+		mode = KBD_LED_MODE_ON;
+		if (brightness >= LED_FULL)
+			bright = KBD_LED_BRIGHTNESS_FULL;
+		else
+			bright = KBD_LED_BRIGHTNESS_HALF;
+	}
+
+	value |= FIELD_PREP(KBD_LED_BRIGHTNESS_MASK, bright);
+	value |= FIELD_PREP(KBD_LED_MODE_MASK, mode);
+
+	lg_wmab_set(cdev->dev->parent, WM_KEY_LIGHT, value);
 }
 
 static enum led_brightness get_kbd_backlight_level(struct device *dev)
 {
-	union acpi_object *r;
-	int val;
+	u32 value;
+	int ret;
 
-	r = lg_wmab(dev, WM_KEY_LIGHT, WM_GET, 0);
-
-	if (!r)
+	ret = lg_wmab_get(dev, WM_KEY_LIGHT, &value);
+	if (ret < 0)
 		return LED_OFF;
 
-	if (r->type != ACPI_TYPE_BUFFER || r->buffer.pointer[1] != 0x05) {
-		kfree(r);
+	if (FIELD_GET(KBD_LED_MAGIC_MASK, value) != KBD_LED_MAGIC)
 		return LED_OFF;
-	}
 
-	switch (r->buffer.pointer[0] & 0x27) {
-	case 0x24:
-		val = LED_FULL;
-		break;
-	case 0x22:
-		val = LED_HALF;
-		break;
+	if (FIELD_GET(KBD_LED_MODE_MASK, value) == KBD_LED_MODE_OFF)
+		return LED_OFF;
+
+	switch (FIELD_GET(KBD_LED_BRIGHTNESS_MASK, value)) {
+	case KBD_LED_BRIGHTNESS_FULL:
+		return LED_FULL;
+	case KBD_LED_BRIGHTNESS_HALF:
+		return LED_HALF;
 	default:
-		val = LED_OFF;
+		return LED_OFF;
 	}
-
-	kfree(r);
-
-	return val;
 }
 
 static enum led_brightness kbd_backlight_get(struct led_classdev *cdev)
@@ -629,25 +668,162 @@ static enum led_brightness kbd_backlight_get(struct led_classdev *cdev)
 
 static LED_DEVICE(kbd_backlight, 255, LED_BRIGHT_HW_CHANGED);
 
-static void wmi_input_destroy(void)
-{
-	if (inited & INIT_INPUT_WMI_2)
-		wmi_remove_notify_handler(WMI_EVENT_GUID2);
-
-	if (inited & INIT_INPUT_WMI_0)
-		wmi_remove_notify_handler(WMI_EVENT_GUID0);
-
-	if (inited & INIT_SPARSE_KEYMAP)
-		input_unregister_device(wmi_input_dev);
-
-	inited &= ~(INIT_INPUT_WMI_0 | INIT_INPUT_WMI_2 | INIT_SPARSE_KEYMAP);
-}
-
 static struct platform_driver pf_driver = {
 	.driver = {
 		   .name = PLATFORM_NAME,
 	}
 };
+
+static int lg_laptop_get_event_data(acpi_handle handle, u32 value, u32 *data)
+{
+	union acpi_object objs[] = {
+		{
+			.integer = {
+				.type = ACPI_TYPE_INTEGER,
+				.value = value,
+			},
+		}
+	};
+	struct acpi_object_list args = {
+		.count = ARRAY_SIZE(objs),
+		.pointer = objs,
+	};
+	unsigned long long result;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, "_WED", &args, &result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	if (result > U32_MAX)
+		return -EPROTO;
+
+	*data = result;
+
+	return 0;
+}
+
+static void lg_laptop_handle_input_event(struct input_dev *input_dev, u32 value, u32 data)
+{
+	unsigned int kbd_brightness;
+
+	switch (value) {
+	case LG_NOTIFY_HOTKEY:
+		sparse_keymap_report_event(input_dev, data, 1, true);
+		break;
+	case LG_NOTIFY_THERMAL:
+		/* Currently not supported */
+		break;
+	case LG_NOTIFY_MISC:
+		switch (data) {
+		case 0x10000000:
+			if (!kbd_backlight_available)
+				break;
+
+			kbd_brightness = get_kbd_backlight_level(kbd_backlight.dev->parent);
+			led_classdev_notify_brightness_hw_changed(&kbd_backlight, kbd_brightness);
+			break;
+		default:
+			sparse_keymap_report_event(input_dev, data, 1, true);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void lg_laptop_notify_handler(acpi_handle handle, u32 value, void *context)
+{
+	struct input_dev *input_dev = context;
+	u32 data;
+	int ret;
+
+	switch (value) {
+	case LG_NOTIFY_TABLET_MODE_OFF:
+	case LG_NOTIFY_TABLET_MODE_ON:
+		/* Already handled by intel-hid */
+		return;
+	case LG_NOTIFY_HOTKEY:
+	case LG_NOTIFY_THERMAL:
+	case LG_NOTIFY_MISC:
+		ret = lg_laptop_get_event_data(handle, value, &data);
+		if (ret < 0) {
+			dev_notice(input_dev->dev.parent, "Failed to get event data: %d\n", ret);
+			return;
+		}
+
+		dev_dbg(input_dev->dev.parent, "Received event %u (%u)\n", value, data);
+
+		lg_laptop_handle_input_event(input_dev, value, data);
+		return;
+	default:
+		dev_notice(input_dev->dev.parent, "Received unknown event %u\n", value);
+	}
+};
+
+static void lg_laptop_remove_notify_handler(void *context)
+{
+	acpi_handle handle = context;
+
+	acpi_remove_notify_handler(handle, ACPI_ALL_NOTIFY, lg_laptop_notify_handler);
+}
+
+static void lg_laptop_reenable_wmi_events(void *context)
+{
+	acpi_handle handle = context;
+	unsigned long long dummy;
+
+	lg_laptop_execute_orep(handle, LG_OREP_INTERCEPT_WMI_EVENTS, 0, &dummy);
+}
+
+static int lg_laptop_input_init(struct device *dev, acpi_handle handle)
+{
+	struct input_dev *input_dev;
+	unsigned long long result;
+	acpi_status status;
+	int ret;
+
+	if (!acpi_has_method(handle, "_WED"))
+		return 0;
+
+	input_dev = devm_input_allocate_device(dev);
+	if (!input_dev)
+		return -ENOMEM;
+
+	input_dev->name = "LG WMI hotkeys";
+	input_dev->phys = "wmi/input0";
+	input_dev->id.bustype = BUS_HOST;
+	ret = sparse_keymap_setup(input_dev, wmi_keymap, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = input_register_device(input_dev);
+	if (ret < 0)
+		return ret;
+
+	status = acpi_install_notify_handler(handle, ACPI_ALL_NOTIFY, lg_laptop_notify_handler,
+					     input_dev);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	ret = devm_add_action_or_reset(dev, lg_laptop_remove_notify_handler, handle);
+	if (ret < 0)
+		return ret;
+
+	if (acpi_has_method(handle, "OREP")) {
+		ret = lg_laptop_execute_orep(handle, LG_OREP_INTERCEPT_WMI_EVENTS, 1, &result);
+		if (ret < 0)
+			return ret;
+		if (result)
+			return -EIO;
+
+		ret = devm_add_action_or_reset(dev, lg_laptop_reenable_wmi_events, handle);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
 
 static acpi_status lg_laptop_address_space_write(struct device *dev, acpi_physical_address address,
 						 size_t size, u64 value)
@@ -860,15 +1036,23 @@ static int acpi_probe(struct platform_device *pdev)
 	if (year >= 2019)
 		battery_limit_use_wmbb = 1;
 
+	/* LEDs are optional */
+	ret = devm_led_classdev_register(&pdev->dev, &kbd_backlight);
+	if (ret < 0)
+		kbd_backlight_available = false;
+	else
+		kbd_backlight_available = true;
+
+	devm_led_classdev_register(&pdev->dev, &tpad_led);
+
+	ret = lg_laptop_input_init(&pdev->dev, device->handle);
+	if (ret < 0)
+		goto out_platform_device;
+
 	ret = sysfs_create_group(&pf_device->dev.kobj, &dev_attribute_group);
 	if (ret)
 		goto out_platform_device;
 
-	/* LEDs are optional */
-	led_classdev_register(&pf_device->dev, &kbd_backlight);
-	led_classdev_register(&pf_device->dev, &tpad_led);
-
-	wmi_input_setup();
 	battery_hook_register(&battery_hook);
 
 	return 0;
@@ -884,11 +1068,7 @@ static void acpi_remove(struct platform_device *pdev)
 {
 	sysfs_remove_group(&pf_device->dev.kobj, &dev_attribute_group);
 
-	led_classdev_unregister(&tpad_led);
-	led_classdev_unregister(&kbd_backlight);
-
 	battery_hook_unregister(&battery_hook);
-	wmi_input_destroy();
 	platform_device_unregister(pf_device);
 	pf_device = NULL;
 	platform_driver_unregister(&pf_driver);

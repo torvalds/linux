@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/hrtimer.h>
+#include <linux/hrtimer_bases.h>
 #include <linux/notifier.h>
 #include <linux/syscalls.h>
 #include <linux/interrupt.h>
@@ -676,6 +677,8 @@ static ktime_t hrtimer_update_next_event(struct hrtimer_cpu_base *cpu_base)
 
 static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 {
+	lockdep_assert_held(&base->lock);
+
 	ktime_t *offs_real = &base->clock_base[HRTIMER_BASE_REALTIME].offset;
 	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
 	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
@@ -707,7 +710,7 @@ static inline void hrtimer_rearm_event(ktime_t expires_next, bool deferred)
 	tick_program_event(expires_next, 1);
 }
 
-static void __hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base, struct hrtimer *next_timer,
+static void __hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base,
 				ktime_t expires_next)
 {
 	cpu_base->expires_next = expires_next;
@@ -743,7 +746,7 @@ static void hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, bool skip
 	if (skip_equal && expires_next == cpu_base->expires_next)
 		return;
 
-	__hrtimer_reprogram(cpu_base, cpu_base->next_timer, expires_next);
+	__hrtimer_reprogram(cpu_base, expires_next);
 }
 
 /* High resolution timer related functions */
@@ -896,14 +899,14 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 
 	cpu_base->next_timer = timer;
 
-	__hrtimer_reprogram(cpu_base, timer, expires);
+	__hrtimer_reprogram(cpu_base, expires);
 }
 
 static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base, unsigned int active)
 {
 	struct hrtimer_clock_base *base;
-	unsigned int seq;
 	ktime_t expires;
+	u32 seq;
 
 	/*
 	 * Update the base offsets unconditionally so the following
@@ -1038,6 +1041,30 @@ static inline void unlock_hrtimer_base(const struct hrtimer *timer, unsigned lon
 {
 	raw_spin_unlock_irqrestore(&timer->base->cpu_base->lock, *flags);
 }
+
+/**
+ * hrtimer_update_function - Update the timer's callback function
+ * @timer:	Timer to update
+ * @function:	New callback function
+ *
+ * Only safe to call if the timer is not enqueued. Can be called in the callback function if the
+ * timer is not enqueued at the same time (see the comments above HRTIMER_STATE_ENQUEUED).
+ */
+void hrtimer_update_function(struct hrtimer *timer,
+			     enum hrtimer_restart (*function)(struct hrtimer *))
+{
+#ifdef CONFIG_PROVE_LOCKING
+	guard(raw_spinlock_irqsave)(&timer->base->cpu_base->lock);
+
+	if (WARN_ON_ONCE(hrtimer_is_queued(timer)))
+		return;
+
+	if (WARN_ON_ONCE(!function))
+		return;
+#endif
+	ACCESS_PRIVATE(timer, function) = function;
+}
+EXPORT_SYMBOL_GPL(hrtimer_update_function);
 
 /**
  * hrtimer_forward() - forward the timer expiry
@@ -1786,13 +1813,21 @@ EXPORT_SYMBOL_GPL(__hrtimer_get_remaining);
 ktime_t hrtimer_get_next_event(void)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	ktime_t expires = KTIME_MAX;
+
+	/*
+	 * When HRES is active cmp_next_hrtimer_event() expects KTIME_MAX.
+	 *
+	 * cpu_base->hres_active is written only by the local CPU in
+	 * hrtimer_switch_to_hres() from hard interrupt context and in
+	 * hrtimers_cpu_starting() during CPU bring-up, and all callers reach
+	 * this with interrupts disabled on the same CPU, so an unlocked read is
+	 * stable without holding the lock.
+	 */
+	if (hrtimer_hres_active(cpu_base))
+		return KTIME_MAX;
 
 	guard(raw_spinlock_irqsave)(&cpu_base->lock);
-	if (!hrtimer_hres_active(cpu_base))
-		expires = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
-
-	return expires;
+	return __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
 }
 
 /**
@@ -2060,13 +2095,6 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_cloc
 	base->running = NULL;
 }
 
-static __always_inline struct hrtimer *clock_base_next_timer_safe(struct hrtimer_clock_base *base)
-{
-	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
-
-	return next ? hrtimer_from_timerqueue_node(next) : NULL;
-}
-
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 				 unsigned long flags, unsigned int active_mask)
 {
@@ -2228,8 +2256,10 @@ retry:
 	expires_next = hrtimer_update_next_event(cpu_base);
 	cpu_base->hang_detected = false;
 	if (expires_next < now) {
-		if (++retries < 3)
+		if (++retries < 3) {
+			cpu_base->nr_retries++;
 			goto retry;
+		}
 
 		delta = ktime_sub(now, entry_time);
 		cpu_base->max_hang_time = max_t(unsigned int, cpu_base->max_hang_time, delta);

@@ -7,93 +7,7 @@
  */
 #include <kunit/run-in-irq-context.h>
 #include <kunit/test.h>
-#include <linux/vmalloc.h>
-
-/* test_buf is a guarded buffer, i.e. &test_buf[TEST_BUF_LEN] is not mapped. */
-#define TEST_BUF_LEN 16384
-static u8 *test_buf;
-
-static u8 *orig_test_buf;
-
-static u64 random_seed;
-
-/*
- * This is a simple linear congruential generator.  It is used only for testing,
- * which does not require cryptographically secure random numbers.  A hard-coded
- * algorithm is used instead of <linux/prandom.h> so that it matches the
- * algorithm used by the test vector generation script.  This allows the input
- * data in random test vectors to be concisely stored as just the seed.
- */
-static u32 rand32(void)
-{
-	random_seed = (random_seed * 25214903917 + 11) & ((1ULL << 48) - 1);
-	return random_seed >> 16;
-}
-
-static void rand_bytes(u8 *out, size_t len)
-{
-	for (size_t i = 0; i < len; i++)
-		out[i] = rand32();
-}
-
-static void rand_bytes_seeded_from_len(u8 *out, size_t len)
-{
-	random_seed = len;
-	rand_bytes(out, len);
-}
-
-static bool rand_bool(void)
-{
-	return rand32() % 2;
-}
-
-/* Generate a random length, preferring small lengths. */
-static size_t rand_length(size_t max_len)
-{
-	size_t len;
-
-	switch (rand32() % 3) {
-	case 0:
-		len = rand32() % 128;
-		break;
-	case 1:
-		len = rand32() % 3072;
-		break;
-	default:
-		len = rand32();
-		break;
-	}
-	return len % (max_len + 1);
-}
-
-static size_t rand_offset(size_t max_offset)
-{
-	return min(rand32() % 128, max_offset);
-}
-
-static int hash_suite_init(struct kunit_suite *suite)
-{
-	/*
-	 * Allocate the test buffer using vmalloc() with a page-aligned length
-	 * so that it is immediately followed by a guard page.  This allows
-	 * buffer overreads to be detected, even in assembly code.
-	 */
-	size_t alloc_len = round_up(TEST_BUF_LEN, PAGE_SIZE);
-
-	orig_test_buf = vmalloc(alloc_len);
-	if (!orig_test_buf)
-		return -ENOMEM;
-
-	test_buf = orig_test_buf + alloc_len - TEST_BUF_LEN;
-	return 0;
-}
-
-static void hash_suite_exit(struct kunit_suite *suite)
-{
-	vfree(orig_test_buf);
-	orig_test_buf = NULL;
-	test_buf = NULL;
-}
+#include "test-utils.h"
 
 /*
  * Test the hash function against a list of test vectors.
@@ -104,14 +18,16 @@ static void hash_suite_exit(struct kunit_suite *suite)
  */
 static void test_hash_test_vectors(struct kunit *test)
 {
+	const size_t max_len = 16384;
+	u8 *data = alloc_buf(test, max_len);
+
 	for (size_t i = 0; i < ARRAY_SIZE(hash_testvecs); i++) {
 		size_t data_len = hash_testvecs[i].data_len;
 		u8 actual_hash[HASH_SIZE];
 
-		KUNIT_ASSERT_LE(test, data_len, TEST_BUF_LEN);
-		rand_bytes_seeded_from_len(test_buf, data_len);
-
-		HASH(test_buf, data_len, actual_hash);
+		KUNIT_ASSERT_LE(test, data_len, max_len);
+		rand_bytes_seeded_from_len(data, data_len);
+		HASH(data, data_len, actual_hash);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, actual_hash, hash_testvecs[i].digest, HASH_SIZE,
 			"Wrong result with test vector %zu; data_len=%zu", i,
@@ -127,14 +43,15 @@ static void test_hash_test_vectors(struct kunit *test)
  */
 static void test_hash_all_lens_up_to_4096(struct kunit *test)
 {
+	const size_t max_len = 4096;
+	u8 *data = alloc_buf(test, max_len);
 	struct HASH_CTX ctx;
 	u8 hash[HASH_SIZE];
 
-	static_assert(TEST_BUF_LEN >= 4096);
-	rand_bytes_seeded_from_len(test_buf, 4096);
+	rand_bytes_seeded_from_len(data, max_len);
 	HASH_INIT(&ctx);
-	for (size_t len = 0; len <= 4096; len++) {
-		HASH(test_buf, len, hash);
+	for (size_t len = 0; len <= max_len; len++) {
+		HASH(data, len, hash);
 		HASH_UPDATE(&ctx, hash, HASH_SIZE);
 	}
 	HASH_FINAL(&ctx, hash);
@@ -147,6 +64,9 @@ static void test_hash_all_lens_up_to_4096(struct kunit *test)
  */
 static void test_hash_incremental_updates(struct kunit *test)
 {
+	const size_t max_len = 16384;
+	u8 *data = alloc_guarded_buf(test, max_len);
+
 	for (int i = 0; i < 1000; i++) {
 		size_t total_len, offset;
 		struct HASH_CTX ctx;
@@ -155,12 +75,12 @@ static void test_hash_incremental_updates(struct kunit *test)
 		size_t num_parts = 0;
 		size_t remaining_len, cur_offset;
 
-		total_len = rand_length(TEST_BUF_LEN);
-		offset = rand_offset(TEST_BUF_LEN - total_len);
-		rand_bytes(&test_buf[offset], total_len);
+		total_len = rand_length(max_len);
+		offset = rand_offset(max_len - total_len);
+		rand_bytes(&data[offset], total_len);
 
 		/* Compute the hash value in one shot. */
-		HASH(&test_buf[offset], total_len, hash1);
+		HASH(&data[offset], total_len, hash1);
 
 		/*
 		 * Compute the hash value incrementally, using a randomly
@@ -172,13 +92,13 @@ static void test_hash_incremental_updates(struct kunit *test)
 		while (rand_bool()) {
 			size_t part_len = rand_length(remaining_len);
 
-			HASH_UPDATE(&ctx, &test_buf[cur_offset], part_len);
+			HASH_UPDATE(&ctx, &data[cur_offset], part_len);
 			num_parts++;
 			cur_offset += part_len;
 			remaining_len -= part_len;
 		}
 		if (remaining_len != 0 || rand_bool()) {
-			HASH_UPDATE(&ctx, &test_buf[cur_offset], remaining_len);
+			HASH_UPDATE(&ctx, &data[cur_offset], remaining_len);
 			num_parts++;
 		}
 		HASH_FINAL(&ctx, hash2);
@@ -197,11 +117,13 @@ static void test_hash_incremental_updates(struct kunit *test)
  */
 static void test_hash_buffer_overruns(struct kunit *test)
 {
-	const size_t max_tested_len = TEST_BUF_LEN - sizeof(struct HASH_CTX);
-	void *const buf_end = &test_buf[TEST_BUF_LEN];
+	const size_t buf_len = 16384;
+	u8 *buf = alloc_guarded_buf(test, buf_len);
+	void *const buf_end = &buf[buf_len];
+	const size_t max_tested_len = buf_len - sizeof(struct HASH_CTX);
 	struct HASH_CTX *guarded_ctx = buf_end - sizeof(*guarded_ctx);
 
-	rand_bytes(test_buf, TEST_BUF_LEN);
+	rand_bytes(buf, buf_len);
 
 	for (int i = 0; i < 100; i++) {
 		size_t len = rand_length(max_tested_len);
@@ -215,14 +137,14 @@ static void test_hash_buffer_overruns(struct kunit *test)
 		HASH_FINAL(&ctx, hash);
 
 		/* Check for overruns of the hash value buffer. */
-		HASH(test_buf, len, buf_end - HASH_SIZE);
+		HASH(buf, len, buf_end - HASH_SIZE);
 		HASH_INIT(&ctx);
-		HASH_UPDATE(&ctx, test_buf, len);
+		HASH_UPDATE(&ctx, buf, len);
 		HASH_FINAL(&ctx, buf_end - HASH_SIZE);
 
-		/* Check for overuns of the hash context. */
+		/* Check for overruns of the hash context. */
 		HASH_INIT(guarded_ctx);
-		HASH_UPDATE(guarded_ctx, test_buf, len);
+		HASH_UPDATE(guarded_ctx, buf, len);
 		HASH_FINAL(guarded_ctx, hash);
 	}
 }
@@ -233,30 +155,32 @@ static void test_hash_buffer_overruns(struct kunit *test)
  */
 static void test_hash_overlaps(struct kunit *test)
 {
-	const size_t max_tested_len = TEST_BUF_LEN - HASH_SIZE;
+	const size_t buf_len = 16384;
+	u8 *buf = alloc_guarded_buf(test, buf_len);
+	const size_t max_tested_len = buf_len - HASH_SIZE;
 	struct HASH_CTX ctx;
 	u8 hash[HASH_SIZE];
 
-	rand_bytes(test_buf, TEST_BUF_LEN);
+	rand_bytes(buf, buf_len);
 
 	for (int i = 0; i < 100; i++) {
 		size_t len = rand_length(max_tested_len);
 		size_t offset = HASH_SIZE + rand_offset(max_tested_len - len);
 		bool left_end = rand_bool();
-		u8 *ovl_hash = left_end ? &test_buf[offset] :
-					  &test_buf[offset + len - HASH_SIZE];
+		u8 *ovl_hash = left_end ? &buf[offset] :
+					  &buf[offset + len - HASH_SIZE];
 
-		HASH(&test_buf[offset], len, hash);
-		HASH(&test_buf[offset], len, ovl_hash);
+		HASH(&buf[offset], len, hash);
+		HASH(&buf[offset], len, ovl_hash);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, hash, ovl_hash, HASH_SIZE,
 			"Overlap test 1 failed with len=%zu offset=%zu left_end=%d",
 			len, offset, left_end);
 
 		/* Repeat the above test, but this time use init+update+final */
-		HASH(&test_buf[offset], len, hash);
+		HASH(&buf[offset], len, hash);
 		HASH_INIT(&ctx);
-		HASH_UPDATE(&ctx, &test_buf[offset], len);
+		HASH_UPDATE(&ctx, &buf[offset], len);
 		HASH_FINAL(&ctx, ovl_hash);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, hash, ovl_hash, HASH_SIZE,
@@ -264,10 +188,10 @@ static void test_hash_overlaps(struct kunit *test)
 			len, offset, left_end);
 
 		/* Test modifying the source data after it was used. */
-		HASH(&test_buf[offset], len, hash);
+		HASH(&buf[offset], len, hash);
 		HASH_INIT(&ctx);
-		HASH_UPDATE(&ctx, &test_buf[offset], len);
-		rand_bytes(&test_buf[offset], len);
+		HASH_UPDATE(&ctx, &buf[offset], len);
+		rand_bytes(&buf[offset], len);
 		HASH_FINAL(&ctx, ovl_hash);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, hash, ovl_hash, HASH_SIZE,
@@ -282,20 +206,22 @@ static void test_hash_overlaps(struct kunit *test)
  */
 static void test_hash_alignment_consistency(struct kunit *test)
 {
+	const size_t max_len = 16384;
+	u8 *data = alloc_guarded_buf(test, max_len);
 	u8 hash1[128 + HASH_SIZE];
 	u8 hash2[128 + HASH_SIZE];
 
 	for (int i = 0; i < 100; i++) {
-		size_t len = rand_length(TEST_BUF_LEN);
-		size_t data_offs1 = rand_offset(TEST_BUF_LEN - len);
-		size_t data_offs2 = rand_offset(TEST_BUF_LEN - len);
+		size_t len = rand_length(max_len);
+		size_t data_offs1 = rand_offset(max_len - len);
+		size_t data_offs2 = rand_offset(max_len - len);
 		size_t hash_offs1 = rand_offset(128);
 		size_t hash_offs2 = rand_offset(128);
 
-		rand_bytes(&test_buf[data_offs1], len);
-		HASH(&test_buf[data_offs1], len, &hash1[hash_offs1]);
-		memmove(&test_buf[data_offs2], &test_buf[data_offs1], len);
-		HASH(&test_buf[data_offs2], len, &hash2[hash_offs2]);
+		rand_bytes(&data[data_offs1], len);
+		HASH(&data[data_offs1], len, &hash1[hash_offs1]);
+		memmove(&data[data_offs2], &data[data_offs1], len);
+		HASH(&data[data_offs2], len, &hash2[hash_offs2]);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, &hash1[hash_offs1], &hash2[hash_offs2], HASH_SIZE,
 			"Alignment consistency test failed with len=%zu data_offs=(%zu,%zu) hash_offs=(%zu,%zu)",
@@ -308,11 +234,14 @@ static void test_hash_ctx_zeroization(struct kunit *test)
 {
 	static const u8 zeroes[sizeof(struct HASH_CTX)];
 	struct HASH_CTX ctx;
+	const size_t data_len = 128;
+	u8 *data = alloc_buf(test, data_len);
+	u8 hash[HASH_SIZE];
 
-	rand_bytes(test_buf, 128);
+	rand_bytes(data, data_len);
 	HASH_INIT(&ctx);
-	HASH_UPDATE(&ctx, test_buf, 128);
-	HASH_FINAL(&ctx, test_buf);
+	HASH_UPDATE(&ctx, data, data_len);
+	HASH_FINAL(&ctx, hash);
 	KUNIT_ASSERT_MEMEQ_MSG(test, &ctx, zeroes, sizeof(ctx),
 			       "Hash context was not zeroized by finalization");
 }
@@ -321,6 +250,7 @@ static void test_hash_ctx_zeroization(struct kunit *test)
 #define IRQ_TEST_NUM_BUFFERS 3 /* matches max concurrency level */
 
 struct hash_irq_test1_state {
+	u8 *data;
 	u8 expected_hashes[IRQ_TEST_NUM_BUFFERS][HASH_SIZE];
 	atomic_t seqno;
 };
@@ -336,7 +266,8 @@ static bool hash_irq_test1_func(void *state_)
 	u32 i = (u32)atomic_inc_return(&state->seqno) % IRQ_TEST_NUM_BUFFERS;
 	u8 actual_hash[HASH_SIZE];
 
-	HASH(&test_buf[i * IRQ_TEST_DATA_LEN], IRQ_TEST_DATA_LEN, actual_hash);
+	HASH(&state->data[i * IRQ_TEST_DATA_LEN], IRQ_TEST_DATA_LEN,
+	     actual_hash);
 	return memcmp(actual_hash, state->expected_hashes[i], HASH_SIZE) == 0;
 }
 
@@ -346,12 +277,14 @@ static bool hash_irq_test1_func(void *state_)
  */
 static void test_hash_interrupt_context_1(struct kunit *test)
 {
+	const size_t total_data_len = IRQ_TEST_NUM_BUFFERS * IRQ_TEST_DATA_LEN;
 	struct hash_irq_test1_state state = {};
 
 	/* Prepare some test messages and compute the expected hash of each. */
-	rand_bytes(test_buf, IRQ_TEST_NUM_BUFFERS * IRQ_TEST_DATA_LEN);
+	state.data = alloc_buf(test, total_data_len);
+	rand_bytes(state.data, total_data_len);
 	for (int i = 0; i < IRQ_TEST_NUM_BUFFERS; i++)
-		HASH(&test_buf[i * IRQ_TEST_DATA_LEN], IRQ_TEST_DATA_LEN,
+		HASH(&state.data[i * IRQ_TEST_DATA_LEN], IRQ_TEST_DATA_LEN,
 		     state.expected_hashes[i]);
 
 	kunit_run_irq_test(test, hash_irq_test1_func, 100000, &state);
@@ -365,6 +298,8 @@ struct hash_irq_test2_hash_ctx {
 };
 
 struct hash_irq_test2_state {
+	u8 *data;
+	size_t data_len;
 	struct hash_irq_test2_hash_ctx ctxs[IRQ_TEST_NUM_BUFFERS];
 	u8 expected_hash[HASH_SIZE];
 	u16 update_lens[32];
@@ -397,7 +332,7 @@ static bool hash_irq_test2_func(void *state_)
 		ctx->step++;
 	} else if (ctx->step < state->num_steps - 1) {
 		/* Update step */
-		HASH_UPDATE(&ctx->hash_ctx, &test_buf[ctx->offset],
+		HASH_UPDATE(&ctx->hash_ctx, &state->data[ctx->offset],
 			    state->update_lens[ctx->step - 1]);
 		ctx->offset += state->update_lens[ctx->step - 1];
 		ctx->step++;
@@ -405,7 +340,7 @@ static bool hash_irq_test2_func(void *state_)
 		/* Final step */
 		u8 actual_hash[HASH_SIZE];
 
-		if (WARN_ON_ONCE(ctx->offset != TEST_BUF_LEN))
+		if (WARN_ON_ONCE(ctx->offset != state->data_len))
 			ret = false;
 		HASH_FINAL(&ctx->hash_ctx, actual_hash);
 		if (memcmp(actual_hash, state->expected_hash, HASH_SIZE) != 0)
@@ -426,20 +361,23 @@ static bool hash_irq_test2_func(void *state_)
  */
 static void test_hash_interrupt_context_2(struct kunit *test)
 {
+	const size_t data_len = 16384;
 	struct hash_irq_test2_state *state;
-	int remaining = TEST_BUF_LEN;
+	size_t remaining = data_len;
 
 	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, state);
+	state->data_len = data_len;
+	state->data = alloc_buf(test, data_len);
 
-	rand_bytes(test_buf, TEST_BUF_LEN);
-	HASH(test_buf, TEST_BUF_LEN, state->expected_hash);
+	rand_bytes(state->data, data_len);
+	HASH(state->data, data_len, state->expected_hash);
 
 	/*
 	 * Generate a list of update lengths to use.  Ensure that it contains
 	 * multiple entries but is limited to a maximum length.
 	 */
-	static_assert(TEST_BUF_LEN / 4096 > 1);
+	KUNIT_ASSERT_GT(test, data_len / 4096, 1);
 	for (state->num_steps = 0;
 	     state->num_steps < ARRAY_SIZE(state->update_lens) - 1 && remaining;
 	     state->num_steps++) {
@@ -485,21 +423,23 @@ static void test_hash_interrupt_context_2(struct kunit *test)
  */
 static void test_hmac(struct kunit *test)
 {
+	const size_t max_data_len = 4096;
+	const size_t max_key_len = 293;
+	const size_t outer_key_len = 32;
+	u8 *data = alloc_guarded_buf(test, max_data_len);
+	u8 *raw_key = alloc_guarded_buf(test, max_key_len);
 	static const u8 zeroes[sizeof(struct HMAC_CTX)];
-	u8 *raw_key;
 	struct HMAC_KEY key;
 	struct HMAC_CTX ctx;
 	u8 mac[HASH_SIZE];
 	u8 mac2[HASH_SIZE];
 
-	static_assert(TEST_BUF_LEN >= 4096 + 293);
-	rand_bytes_seeded_from_len(test_buf, 4096);
-	raw_key = &test_buf[4096];
+	rand_bytes_seeded_from_len(data, max_data_len);
+	rand_bytes_seeded_from_len(raw_key, outer_key_len);
 
-	rand_bytes_seeded_from_len(raw_key, 32);
-	HMAC_PREPAREKEY(&key, raw_key, 32);
+	HMAC_PREPAREKEY(&key, raw_key, outer_key_len);
 	HMAC_INIT(&ctx, &key);
-	for (size_t data_len = 0; data_len <= 4096; data_len++) {
+	for (size_t data_len = 0; data_len <= max_data_len; data_len++) {
 		/*
 		 * Cycle through key lengths as well.  Somewhat arbitrarily go
 		 * up to 293, which is somewhat larger than the largest hash
@@ -507,17 +447,17 @@ static void test_hmac(struct kunit *test)
 		 * hashed down to one block); going higher would not be useful.
 		 * To reduce correlation with data_len, use a prime number here.
 		 */
-		size_t key_len = data_len % 293;
+		size_t key_len = data_len % max_key_len;
 
-		HMAC_UPDATE(&ctx, test_buf, data_len);
+		HMAC_UPDATE(&ctx, data, data_len);
 
 		rand_bytes_seeded_from_len(raw_key, key_len);
-		HMAC_USINGRAWKEY(raw_key, key_len, test_buf, data_len, mac);
+		HMAC_USINGRAWKEY(raw_key, key_len, data, data_len, mac);
 		HMAC_UPDATE(&ctx, mac, HASH_SIZE);
 
 		/* Verify that HMAC() is consistent with HMAC_USINGRAWKEY(). */
 		HMAC_PREPAREKEY(&key, raw_key, key_len);
-		HMAC(&key, test_buf, data_len, mac2);
+		HMAC(&key, data, data_len, mac2);
 		KUNIT_ASSERT_MEMEQ_MSG(
 			test, mac, mac2, HASH_SIZE,
 			"HMAC gave different results with raw and prepared keys");
@@ -540,14 +480,17 @@ static void benchmark_hash(struct kunit *test)
 		1,   16,  64,	127,  128,  200,   256,
 		511, 512, 1024, 3173, 4096, 16384,
 	};
+	const size_t max_len = 16384;
+	u8 *data = alloc_buf(test, max_len);
 	u8 hash[HASH_SIZE];
 
 	if (!IS_ENABLED(CONFIG_CRYPTO_LIB_BENCHMARK))
 		kunit_skip(test, "not enabled");
 
 	/* Warm-up */
-	for (size_t i = 0; i < 10000000; i += TEST_BUF_LEN)
-		HASH(test_buf, TEST_BUF_LEN, hash);
+	memset(data, 0, max_len);
+	for (size_t i = 0; i < 10000000; i += max_len)
+		HASH(data, max_len, hash);
 
 	for (size_t i = 0; i < ARRAY_SIZE(lens_to_test); i++) {
 		size_t len = lens_to_test[i];
@@ -555,11 +498,11 @@ static void benchmark_hash(struct kunit *test)
 		size_t num_iters = 10000000 / (len + 128);
 		u64 t;
 
-		KUNIT_ASSERT_LE(test, len, TEST_BUF_LEN);
+		KUNIT_ASSERT_LE(test, len, max_len);
 		preempt_disable();
 		t = ktime_get_ns();
 		for (size_t j = 0; j < num_iters; j++)
-			HASH(test_buf, len, hash);
+			HASH(data, len, hash);
 		t = ktime_get_ns() - t;
 		preempt_enable();
 		kunit_info(test, "len=%zu: %llu MB/s", len,

@@ -54,7 +54,7 @@ static struct dentry *
 nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
-	ino_t ino;
+	u64 ino;
 	int res;
 
 	if (dentry->d_name.len > NILFS_NAME_LEN)
@@ -69,7 +69,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
 		if (inode == ERR_PTR(-ESTALE)) {
 			nilfs_error(dir->i_sb,
-					"deleted inode referenced: %lu", ino);
+				"deleted inode referenced: %llu", ino);
 			return ERR_PTR(-EIO);
 		}
 	}
@@ -86,7 +86,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
  * with d_instantiate().
  */
 static int nilfs_create(struct mnt_idmap *idmap, struct inode *dir,
-			struct dentry *dentry, umode_t mode, bool excl)
+			struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;
@@ -231,7 +231,7 @@ static struct dentry *nilfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inc_nlink(dir);
 
-	inode = nilfs_new_inode(dir, S_IFDIR | mode);
+	inode = nilfs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_dir;
@@ -463,7 +463,7 @@ out:
  */
 static struct dentry *nilfs_get_parent(struct dentry *child)
 {
-	ino_t ino;
+	u64 ino;
 	int res;
 	struct nilfs_root *root;
 

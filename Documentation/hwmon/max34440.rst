@@ -65,6 +65,16 @@ Supported chips:
 
     Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max34451.pdf
 
+  * Maxim MAX34452
+
+    PMBus 16-Channel V/I Monitor and 12-Channel Sequencer/Marginer
+
+    Prefixes: 'max34452'
+
+    Addresses scanned: -
+
+    Datasheet: -
+
   * Maxim MAX34460
 
     PMBus 12-Channel Voltage Monitor & Sequencer
@@ -94,11 +104,11 @@ Description
 This driver supports multiple devices: hardware monitoring for Maxim MAX34440
 PMBus 6-Channel Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply
 Manager and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data
-Logger; PMBus Voltage Monitor and Sequencers for MAX34451, MAX34460, and
-MAX34461; PMBus DC/DC Power Module ADPM12160, ADPM12200, and ADPM12250. The
-MAX34451 supports monitoring voltage or current of 12 channels based on GIN
-pins. The MAX34460 supports 12 voltage channels, and the MAX34461 supports 16
-voltage channels. The ADPM12160, ADPM12200, and ADPM12250 also monitors both
+Logger; PMBus Voltage Monitor and Sequencers for MAX34451, MAX34452, MAX34460,
+and MAX34461; PMBus DC/DC Power Module ADPM12160, ADPM12200, and ADPM12250. The
+MAX34451 and MAX34452 support monitoring voltage or current of 16 channels based
+on GIN pins. The MAX34460 supports 12 voltage channels, and the MAX34461 supports
+16 voltage channels. The ADPM12160, ADPM12200, and ADPM12250 also monitor both
 input and output of voltage and current.
 
 The driver is a client driver to the core PMBus driver. Please see
@@ -171,7 +181,7 @@ curr[1-6]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT
 			register.
 curr[1-6]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
 curr[1-6]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
-curr[1-4]_average	Historical average current (MAX34446/34451 only).
+curr[1-4]_average	Historical average current (MAX34446/34451/34452 only).
 curr[1-6]_highest	Historical maximum current.
 curr[1-6]_reset_history	Write any value to reset history.
 ======================= ========================================================
@@ -223,7 +233,7 @@ temp[1-8]_reset_history	Write any value to reset history.
 
 .. note::
 
-   - MAX34451 supports attribute groups in[1-16] (or curr[1-16] based on
-     input pins) and temp[1-5].
+   - MAX34451 and MAX34452 support attribute groups in[1-16] (or curr[1-16]
+     based on input pins) and temp[1-5].
    - MAX34460 supports attribute groups in[1-12] and temp[1-5].
    - MAX34461 supports attribute groups in[1-16] and temp[1-5].

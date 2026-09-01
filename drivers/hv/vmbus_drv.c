@@ -1320,14 +1320,8 @@ static void vmbus_message_sched(struct hv_per_cpu_context *hv_cpu, void *message
 	msg = (struct hv_message *)message_page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be processed */
-	if (msg->header.message_type != HVMSG_NONE) {
-		if (msg->header.message_type == HVMSG_TIMER_EXPIRED) {
-			hv_stimer0_isr();
-			vmbus_signal_eom(msg, HVMSG_TIMER_EXPIRED);
-		} else {
-			tasklet_schedule(&hv_cpu->msg_dpc);
-		}
-	}
+	if (msg->header.message_type != HVMSG_NONE)
+		tasklet_schedule(&hv_cpu->msg_dpc);
 }
 
 static void __vmbus_isr(void)
@@ -2982,6 +2976,13 @@ static int __init hv_acpi_init(void)
 		return -ENODEV;
 
 	if (hv_root_partition() && !hv_nested)
+		/*
+		 * A non-nested root partition does not need VMBus client
+		 * functionality. However, the mshv_root module may have
+		 * a dependency on the VMBus module as described in
+		 * commit 840b740a35bf. Return success so the module
+		 * loads even though no VMBus initialization is done.
+		 */
 		return 0;
 
 	/*
@@ -3029,6 +3030,14 @@ cleanup:
 static void __exit vmbus_exit(void)
 {
 	int cpu;
+
+	if (hv_root_partition() && !hv_nested)
+		/*
+		 * If a non-nested root partition loaded the VMBus module,
+		 * hv_acpi_init() did not do any VMBus initialization.
+		 * There's nothing to clean up, so just return.
+		 */
+		return;
 
 	unregister_syscore(&hv_synic_syscore);
 

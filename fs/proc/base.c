@@ -211,8 +211,8 @@ static int get_task_root(struct task_struct *task, struct path *root)
 	int result = -ENOENT;
 
 	task_lock(task);
-	if (task->fs) {
-		get_fs_root(task->fs, root);
+	if (task->real_fs) {
+		get_fs_root(task->real_fs, root);
 		result = 0;
 	}
 	task_unlock(task);
@@ -225,8 +225,8 @@ static int proc_cwd_link(struct dentry *dentry, struct path *path,
 	int result = -ENOENT;
 
 	task_lock(task);
-	if (task->fs) {
-		get_fs_pwd(task->fs, path);
+	if (task->real_fs) {
+		get_fs_pwd(task->real_fs, path);
 		result = 0;
 	}
 	task_unlock(task);

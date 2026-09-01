@@ -14,7 +14,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 &{/} {
-	vreg_cam1_1p8: vreg_cam1_1p8 {
+	vreg_cam1_1p8: cam1-1p8-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_cam1_1p8";
 		startup-delay-us = <10000>;

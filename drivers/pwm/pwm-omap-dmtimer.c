@@ -444,8 +444,8 @@ static void pwm_omap_dmtimer_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id pwm_omap_dmtimer_of_match[] = {
-	{.compatible = "ti,omap-dmtimer-pwm"},
-	{}
+	{ .compatible = "ti,omap-dmtimer-pwm" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pwm_omap_dmtimer_of_match);
 

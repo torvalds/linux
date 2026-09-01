@@ -165,7 +165,8 @@ static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
  */
 unsigned long cpu_khz_from_msr(void)
 {
-	u32 lo, hi, ratio, freq, tscref;
+	u32 ratio, freq, tscref;
+	struct msr val;
 	const struct freq_desc *freq_desc;
 	const struct x86_cpu_id *id;
 	const struct muldiv *md;
@@ -178,16 +179,16 @@ unsigned long cpu_khz_from_msr(void)
 
 	freq_desc = (struct freq_desc *)id->driver_data;
 	if (freq_desc->use_msr_plat) {
-		rdmsr(MSR_PLATFORM_INFO, lo, hi);
-		ratio = (lo >> 8) & 0xff;
+		rdmsrq(MSR_PLATFORM_INFO, val.q);
+		ratio = (val.l >> 8) & 0xff;
 	} else {
-		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
-		ratio = (hi >> 8) & 0x1f;
+		rdmsrq(MSR_IA32_PERF_STATUS, val.q);
+		ratio = (val.h >> 8) & 0x1f;
 	}
 
 	/* Get FSB FREQ ID */
-	rdmsr(MSR_FSB_FREQ, lo, hi);
-	index = lo & freq_desc->mask;
+	rdmsrq(MSR_FSB_FREQ, val.q);
+	index = val.l & freq_desc->mask;
 	md = &freq_desc->muldiv[index];
 
 	/*

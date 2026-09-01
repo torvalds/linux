@@ -186,11 +186,11 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
  * Return all the pipes using a transcoder in @transcoder_mask.
  * For joiner configs return only the joiner primary.
  */
-static u8 get_transcoder_pipes(struct intel_display *display,
-			       u8 transcoder_mask)
+static u16 get_transcoder_pipes(struct intel_display *display,
+				u16 transcoder_mask)
 {
 	struct intel_crtc *temp_crtc;
-	u8 pipes = 0;
+	u16 pipes = 0;
 
 	for_each_intel_crtc(display, temp_crtc) {
 		struct intel_crtc_state *temp_crtc_state =
@@ -214,7 +214,7 @@ static u8 get_transcoder_pipes(struct intel_display *display,
  * For joiner configs return only the joiner primary pipes.
  */
 static void get_portsync_pipes(struct intel_crtc *crtc,
-			       u8 *master_pipe_mask, u8 *slave_pipes_mask)
+			       u16 *master_pipe_mask, u16 *slave_pipes_mask)
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct intel_crtc_state *crtc_state =
@@ -243,10 +243,10 @@ static void get_portsync_pipes(struct intel_crtc *crtc,
 	*slave_pipes_mask = get_transcoder_pipes(display, master_crtc_state->sync_mode_slaves_mask);
 }
 
-static u8 get_joiner_secondary_pipes(struct intel_display *display, u8 primary_pipes_mask)
+static u16 get_joiner_secondary_pipes(struct intel_display *display, u16 primary_pipes_mask)
 {
 	struct intel_crtc *primary_crtc;
-	u8 pipes = 0;
+	u16 pipes = 0;
 
 	for_each_intel_crtc_in_pipe_mask(display, primary_crtc, primary_pipes_mask) {
 		struct intel_crtc_state *primary_crtc_state =
@@ -263,9 +263,9 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct intel_crtc *temp_crtc;
-	u8 portsync_master_mask;
-	u8 portsync_slaves_mask;
-	u8 joiner_secondaries_mask;
+	u16 portsync_master_mask;
+	u16 portsync_slaves_mask;
+	u16 joiner_secondaries_mask;
 
 	/* TODO: Add support for MST */
 	get_portsync_pipes(crtc, &portsync_master_mask, &portsync_slaves_mask);
@@ -854,14 +854,10 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 			 * FIXME don't have the fb yet, so can't
 			 * use plane->min_cdclk() :(
 			 */
-			if (plane_state->uapi.visible && plane->min_cdclk) {
-				if (crtc_state->double_wide || DISPLAY_VER(display) >= 10)
-					crtc_state->plane_min_cdclk[plane->id] =
-						DIV_ROUND_UP(crtc_state->pixel_rate, 2);
-				else
-					crtc_state->plane_min_cdclk[plane->id] =
-						crtc_state->pixel_rate;
-			}
+			if (plane_state->uapi.visible && plane->min_cdclk)
+				crtc_state->plane_min_cdclk[plane->id] =
+					DIV_ROUND_UP(crtc_state->pixel_rate_cdclk,
+						     intel_cdclk_ppc(display, crtc_state->double_wide));
 			drm_dbg_kms(display->drm,
 				    "[PLANE:%d:%s] min_cdclk %d kHz\n",
 				    plane->base.base.id, plane->base.name,

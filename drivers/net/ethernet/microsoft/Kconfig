@@ -21,6 +21,7 @@ config MICROSOFT_MANA
 	depends on X86_64 || (ARM64 && !CPU_BIG_ENDIAN)
 	depends on PCI_HYPERV
 	select AUXILIARY_BUS
+	select DIMLIB
 	select PAGE_POOL
 	select NET_SHAPER
 	help

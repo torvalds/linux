@@ -12,10 +12,19 @@ use kernel::{
         Device,
         DmaMask, //
     },
-    page, pci,
+    io::{
+        io_project,
+        io_read,
+        Io, //
+    },
+    page,
+    pci,
     prelude::*,
-    scatterlist::{Owned, SGTable},
-    sync::aref::ARef,
+    scatterlist::{
+        Owned,
+        SGTable, //
+    },
+    sync::aref::ARef, //
 };
 
 #[pin_data(PinnedDrop)]
@@ -34,6 +43,7 @@ const TEST_VALUES: [(u32, u32); 5] = [
     (0xcd, 0xef),
 ];
 
+#[derive(FromBytes, IntoBytes)]
 struct MyStruct {
     h: u32,
     b: u32,
@@ -51,7 +61,6 @@ unsafe impl kernel::transmute::FromBytes for MyStruct {}
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <DmaSampleDriver as pci::Driver>::IdInfo,
     [(pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5), ())]
 );
@@ -63,7 +72,7 @@ impl pci::Driver for DmaSampleDriver {
 
     fn probe<'bound>(
         pdev: &'bound pci::Device<Core<'_>>,
-        _info: &'bound Self::IdInfo,
+        _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self, Error> + 'bound {
         pin_init::pin_init_scope(move || {
             dev_info!(pdev, "Probe DMA test driver.\n");
@@ -77,7 +86,7 @@ impl pci::Driver for DmaSampleDriver {
                 Coherent::zeroed_slice(pdev.as_ref(), TEST_VALUES.len(), GFP_KERNEL)?;
 
             for (i, value) in TEST_VALUES.into_iter().enumerate() {
-                kernel::dma_write!(ca, [try: i], MyStruct::new(value.0, value.1));
+                io_project!(ca, [panic: i]).copy_write(MyStruct::new(value.0, value.1));
             }
 
             let size = 4 * page::PAGE_SIZE;
@@ -97,8 +106,8 @@ impl pci::Driver for DmaSampleDriver {
 impl DmaSampleDriver {
     fn check_dma(&self) {
         for (i, value) in TEST_VALUES.into_iter().enumerate() {
-            let val0 = kernel::dma_read!(self.ca, [panic: i].h);
-            let val1 = kernel::dma_read!(self.ca, [panic: i].b);
+            let val0 = io_read!(self.ca, [panic: i].h);
+            let val1 = io_read!(self.ca, [panic: i].b);
 
             assert_eq!(val0, value.0);
             assert_eq!(val1, value.1);

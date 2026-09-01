@@ -278,6 +278,56 @@ Per riassumere, vi serve un *commit* che includa:
  - *stub* di ripiego in ``kernel/sys_ni.c``
 
 
+.. _it_syscall_generic_6_11:
+
+Dalla versione 6.11
+~~~~~~~~~~~~~~~~~~~~
+
+A partire dalla versione 6.11 del kernel, l'implementazione generica delle
+chiamate di sistema per le seguenti architetture non richiede più modifiche
+a ``include/uapi/asm-generic/unistd.h``:
+
+ - arc
+ - arm64
+ - csky
+ - hexagon
+ - loongarch
+ - nios2
+ - openrisc
+ - riscv
+
+Al suo posto, dovete aggiornare ``scripts/syscall.tbl`` e, se necessario,
+modificare ``arch/*/kernel/Makefile.syscalls``.
+
+Dato che ``scripts/syscall.tbl`` funge da tabella comune delle chiamate di
+sistema condivisa fra più architetture, in questa tabella è richiesto un
+nuovo elemento::
+
+    468   common   xyzzy     sys_xyzzy
+
+Da notare che l'aggiunta di un elemento a ``scripts/syscall.tbl`` con l'ABI
+"common" influisce anche su tutte le architetture che condividono questa
+tabella. Per modifiche più limitate o specifiche di un'architettura,
+considerate l'uso di un'ABI specifica per l'architettura, o la definizione
+di una nuova.
+
+Se viene introdotta una nuova ABI, per esempio ``xyz``, andranno fatti i
+corrispondenti aggiornamenti anche in ``arch/*/kernel/Makefile.syscalls``::
+
+    syscall_abis_{32,64} += xyz (...)
+
+Per riassumere, vi serve un *commit* che includa:
+
+ - un'opzione ``CONFIG`` per la nuova funzione, normalmente in
+   ``init/Kconfig``
+ - ``SYSCALL_DEFINEn(xyzzy, ...)`` per il punto d'accesso
+ - il corrispondente prototipo in ``include/linux/syscalls.h``
+ - un nuovo elemento in ``scripts/syscall.tbl``
+ - (se necessario) aggiornamenti al Makefile in
+   ``arch/*/kernel/Makefile.syscalls``
+ - *stub* di ripiego in ``kernel/sys_ni.c``
+
+
 Implementazione delle chiamate di sistema x86
 ---------------------------------------------
 
@@ -395,6 +445,47 @@ Riassumendo, vi serve:
    ``include/linux/compat.h``
  - una voce ``__SC_COMP``, e non ``__SYSCALL``, in
    ``include/uapi/asm-generic/unistd.h``
+
+
+Dalla versione 6.11
+~~~~~~~~~~~~~~~~~~~~
+
+Questo si applica a tutte le architetture elencate in
+:ref:`Dalla versione 6.11<it_syscall_generic_6_11>` sotto "Implementazione
+di chiamate di sistema generiche", eccetto arm64. Vedere
+:ref:`Chiamate di sistema compatibili (arm64)<it_compat_arm64>` per maggiori
+informazioni.
+
+Dovete estendere la voce in ``scripts/syscall.tbl`` con una colonna
+aggiuntiva per indicare che un programma in spazio utente a 32-bit in
+esecuzione su un kernel a 64-bit deve invocare il punto d'accesso
+*compatibile*::
+
+    468   common     xyzzy     sys_xyzzy    compat_sys_xyzzy
+
+Riassumendo, vi serve:
+
+ - un ``COMPAT_SYSCALL_DEFINEn(xyzzy, ...)`` per il punto d'accesso
+   *compatibile*
+ - il corrispondente prototipo in ``include/linux/compat.h``
+ - la modifica della voce in ``scripts/syscall.tbl`` per includere una
+   colonna "compat" aggiuntiva
+ - (se necessario) una struttura di mappatura a 32-bit in
+   ``include/linux/compat.h``
+
+
+.. _it_compat_arm64:
+
+Chiamate di sistema compatibili (arm64)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Su arm64 esiste una tabella delle chiamate di sistema dedicata per le
+chiamate di sistema compatibili rivolte allo spazio utente a 32-bit
+(AArch32): ``arch/arm64/tools/syscall_32.tbl``. Dovete aggiungere una riga
+aggiuntiva a questa tabella specificando il punto d'accesso *compatibile*::
+
+    468   common     xyzzy     sys_xyzzy    compat_sys_xyzzy
+
 
 Compatibilità delle chiamate di sistema (x86)
 ---------------------------------------------
@@ -641,3 +732,6 @@ Riferimenti e fonti
  - Raccomandazioni da Linus Torvalds che le chiamate di sistema x32 dovrebbero
    favorire la compatibilità con le versioni a 64-bit piuttosto che quelle a 32-bit:
    https://lore.kernel.org/r/CA+55aFxfmwfB7jbbrXxa=K7VBYPfAvmu3XOkGrLbB1UFjX1+Ew@mail.gmail.com
+ - Serie di patch che revisiona l'infrastruttura della tabella delle chiamate
+   di sistema per usare scripts/syscall.tbl su più architetture:
+   https://lore.kernel.org/lkml/20240704143611.2979589-1-arnd@kernel.org

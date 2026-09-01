@@ -876,18 +876,28 @@ int
 dpll_pin_register(struct dpll_device *dpll, struct dpll_pin *pin,
 		  const struct dpll_pin_ops *ops, void *priv)
 {
+	const struct dpll_device_ops *dev_ops;
 	int ret;
 
 	if (WARN_ON(!ops) ||
 	    WARN_ON(!ops->state_on_dpll_get) ||
 	    WARN_ON(!ops->direction_get) ||
-	    WARN_ON(ops->measured_freq_get &&
-		    (!dpll_device_ops(dpll)->freq_monitor_get ||
-		     !dpll_device_ops(dpll)->freq_monitor_set)) ||
-	    WARN_ON(ops->supported_ffo && !ops->ffo_get))
+	    WARN_ON(ops->supported_ffo && !ops->ffo_get) ||
+	    WARN_ON((pin->prop.capabilities &
+		     DPLL_PIN_CAPABILITIES_STATE_CONNECTED_OVERRIDE) &&
+		    !(pin->prop.capabilities &
+		      DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE)))
 		return -EINVAL;
 
 	mutex_lock(&dpll_lock);
+
+	dev_ops = dpll_device_ops(dpll);
+	if (WARN_ON(ops->measured_freq_get &&
+		    (!dev_ops || !dev_ops->freq_monitor_get ||
+		     !dev_ops->freq_monitor_set))) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	/*
 	 * For pins identified via firmware (pin->fwnode), allow registration
@@ -1081,12 +1091,8 @@ EXPORT_SYMBOL_GPL(dpll_pin_ref_sync_pair_add);
 static struct dpll_device_registration *
 dpll_device_registration_first(struct dpll_device *dpll)
 {
-	struct dpll_device_registration *reg;
-
-	reg = list_first_entry_or_null((struct list_head *)&dpll->registration_list,
-				       struct dpll_device_registration, list);
-	WARN_ON(!reg);
-	return reg;
+	return list_first_entry_or_null((struct list_head *)&dpll->registration_list,
+					struct dpll_device_registration, list);
 }
 
 void *dpll_priv(struct dpll_device *dpll)
@@ -1094,6 +1100,8 @@ void *dpll_priv(struct dpll_device *dpll)
 	struct dpll_device_registration *reg;
 
 	reg = dpll_device_registration_first(dpll);
+	if (!reg)
+		return NULL;
 	return reg->priv;
 }
 
@@ -1102,6 +1110,8 @@ const struct dpll_device_ops *dpll_device_ops(struct dpll_device *dpll)
 	struct dpll_device_registration *reg;
 
 	reg = dpll_device_registration_first(dpll);
+	if (!reg)
+		return NULL;
 	return reg->ops;
 }
 

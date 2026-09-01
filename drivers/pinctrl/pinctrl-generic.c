@@ -42,33 +42,44 @@ int pinctrl_generic_to_map(struct pinctrl_dev *pctldev, struct device_node *pare
 	ret = pinctrl_utils_add_map_mux(pctldev, maps, num_reserved_maps, num_maps, group_name,
 					parent->name);
 	if (ret < 0)
-		return ret;
+		goto err_free_map;
 
 	ret = pinctrl_generic_add_group(pctldev, group_name, pins, npins, data);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "failed to add group %s: %d\n",
+	if (ret < 0) {
+		dev_err_probe(dev, ret, "failed to add group %s: %d\n",
 				     group_name, ret);
+		goto err_free_map;
+	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs, &num_configs);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to parse pin config of group %s\n",
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to parse pin config of group %s\n",
 			group_name);
+		goto err_free_map;
+	}
 
 	if (num_configs == 0)
 		return 0;
 
 	ret = pinctrl_utils_reserve_map(pctldev, maps, num_reserved_maps, num_maps, reserve);
 	if (ret)
-		return ret;
+		goto err_free_map;
 
 	ret = pinctrl_utils_add_map_configs(pctldev, maps, num_reserved_maps, num_maps, group_name,
 					    configs,
 			num_configs, PIN_MAP_TYPE_CONFIGS_GROUP);
 	kfree(configs);
 	if (ret)
-		return ret;
+		goto err_free_map;
 
 	return 0;
+
+err_free_map:
+	pinctrl_utils_free_map(pctldev, *maps, *num_maps);
+	*maps = NULL;
+	*num_maps = 0;
+	*num_reserved_maps = 0;
+	return ret;
 };
 EXPORT_SYMBOL_GPL(pinctrl_generic_to_map);
 

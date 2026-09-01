@@ -322,6 +322,15 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 		goto out;
 	}
 	server_conf.share_fake_fscaps = req->share_fake_fscaps;
+
+	/* AAPL model string for Finder icon */
+	if (req->aapl_model[0])
+		strscpy(server_conf.aapl_model, req->aapl_model,
+			sizeof(server_conf.aapl_model));
+	else
+		strscpy(server_conf.aapl_model, "Xserve",
+			sizeof(server_conf.aapl_model));
+
 	ksmbd_init_domain(req->sub_auth);
 
 	if (req->smb2_max_read)
@@ -497,6 +506,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	{
 		struct ksmbd_rpc_command *resp = entry->response;
 
+		if (entry->msg_sz < sizeof(struct ksmbd_rpc_command))
+			return -EINVAL;
+
 		if (check_add_overflow(sizeof(struct ksmbd_rpc_command),
 				       resp->payload_sz, &msg_sz))
 			return -EINVAL;
@@ -506,6 +518,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	{
 		struct ksmbd_spnego_authen_response *resp = entry->response;
 
+		if (entry->msg_sz < sizeof(struct ksmbd_spnego_authen_response))
+			return -EINVAL;
+
 		msg_sz = sizeof(struct ksmbd_spnego_authen_response) +
 				resp->session_key_len + resp->spnego_blob_len;
 		break;
@@ -513,6 +528,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	case KSMBD_EVENT_SHARE_CONFIG_REQUEST:
 	{
 		struct ksmbd_share_config_response *resp = entry->response;
+
+		if (entry->msg_sz < sizeof(struct ksmbd_share_config_response))
+			return -EINVAL;
 
 		if (resp->payload_sz) {
 			if (resp->payload_sz < resp->veto_list_sz)
@@ -527,6 +545,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	case KSMBD_EVENT_LOGIN_REQUEST_EXT:
 	{
 		struct ksmbd_login_response_ext *resp = entry->response;
+
+		if (entry->msg_sz < sizeof(struct ksmbd_login_response_ext))
+			return -EINVAL;
 
 		if (resp->ngroups) {
 			if (resp->ngroups < 0 ||
@@ -658,7 +679,7 @@ ksmbd_ipc_spnego_authen_request(const char *spnego_blob, int blob_len)
 		return NULL;
 
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_spnego_authen_request) +
-			blob_len + 1);
+			blob_len);
 	if (!msg)
 		return NULL;
 
@@ -839,7 +860,7 @@ struct ksmbd_rpc_command *ksmbd_rpc_write(struct ksmbd_session *sess, int handle
 	if (payload_sz > KSMBD_IPC_MAX_PAYLOAD)
 		return NULL;
 
-	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
+	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz);
 	if (!msg)
 		return NULL;
 
@@ -898,7 +919,7 @@ struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle
 	if (payload_sz > KSMBD_IPC_MAX_PAYLOAD)
 		return NULL;
 
-	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
+	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz);
 	if (!msg)
 		return NULL;
 

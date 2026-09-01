@@ -829,7 +829,7 @@ static void qcom_qspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused qcom_qspi_runtime_suspend(struct device *dev)
+static int qcom_qspi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
@@ -873,7 +873,7 @@ err_enable_clk:
 	return ret;
 }
 
-static int __maybe_unused qcom_qspi_runtime_resume(struct device *dev)
+static int qcom_qspi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
@@ -917,7 +917,7 @@ err_opp_set_rate_zero:
 	return ret;
 }
 
-static int __maybe_unused qcom_qspi_suspend(struct device *dev)
+static int qcom_qspi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
@@ -933,7 +933,7 @@ static int __maybe_unused qcom_qspi_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused qcom_qspi_resume(struct device *dev)
+static int qcom_qspi_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
@@ -950,9 +950,9 @@ static int __maybe_unused qcom_qspi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops qcom_qspi_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(qcom_qspi_runtime_suspend,
-			   qcom_qspi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(qcom_qspi_suspend, qcom_qspi_resume)
+	RUNTIME_PM_OPS(qcom_qspi_runtime_suspend,
+		       qcom_qspi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(qcom_qspi_suspend, qcom_qspi_resume)
 };
 
 static const struct of_device_id qcom_qspi_dt_match[] = {
@@ -964,7 +964,7 @@ MODULE_DEVICE_TABLE(of, qcom_qspi_dt_match);
 static struct platform_driver qcom_qspi_driver = {
 	.driver = {
 		.name		= "qcom_qspi",
-		.pm		= &qcom_qspi_dev_pm_ops,
+		.pm		= pm_ptr(&qcom_qspi_dev_pm_ops),
 		.of_match_table = qcom_qspi_dt_match,
 	},
 	.probe = qcom_qspi_probe,

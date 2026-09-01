@@ -8,6 +8,8 @@
 	ARM64	ARM64 architecture is enabled.
 	CLK	Common clock infrastructure is enabled.
 	CMA	Contiguous Memory Area support is enabled.
+	CPU_FREQ CPU frequency scaling is enabled.
+	CPU_IDLE CPU idle time management is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	EARLY	Parameter processed too early to be embedded in initrd.
@@ -47,6 +49,7 @@
 	PCI	PCI bus support is enabled.
 	PCIE	PCI Express support is enabled.
 	PCMCIA	The PCMCIA subsystem is enabled.
+	PM	Power Management support is enabled.
 	PNP	Plug & Play support is enabled.
 	PPC	PowerPC architecture is enabled.
 	PPT	Parallel port support is enabled.
@@ -564,6 +567,9 @@ Kernel parameters
 
 	arm64.nogcs	[ARM64] Unconditionally disable Guarded Control Stack
 			support
+
+	arm64.nohaft	[ARM64] Unconditionally disable Hardware managed Access
+			Flag for Table descriptors support
 
 	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
 			Set instructions support
@@ -1089,14 +1095,14 @@ Kernel parameters
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 	crashkernel=size[KMG],cma
-			[KNL, X86, ppc] Reserve additional crash kernel memory from
-			CMA. This reservation is usable by the first system's
-			userspace memory and kernel movable allocations (memory
-			balloon, zswap). Pages allocated from this memory range
-			will not be included in the vmcore so this should not
-			be used if dumping of userspace memory is intended and
-			it has to be expected that some movable kernel pages
-			may be missing from the dump.
+			[KNL, X86, ARM64, RISCV, PPC] Reserve additional crash
+			kernel memory from CMA. This reservation is usable by
+			the first system's userspace memory and kernel movable
+			allocations (memory balloon, zswap). Pages allocated
+			from this memory range will not be included in the vmcore
+			so this should not be used if dumping of userspace memory
+			is intended and it has to be expected that some movable
+			kernel pages may be missing from the dump.
 
 			A standard crashkernel reservation, as described above,
 			is still needed to hold the crash kernel and initrd.
@@ -1614,10 +1620,17 @@ Kernel parameters
 			on all PCI bridges while in the EFI boot stub
 
 	efi_no_storage_paranoia [EFI,X86,EARLY]
-			Using this parameter you can use more than 50% of
-			your efi variable storage. Use this parameter only if
-			you are really sure that your UEFI does sane gc and
-			fulfills the spec otherwise your board may brick.
+			The kernel reserves 5KB of EFI variable storage for
+			safety, because some UEFI implementation may fail to
+			boot if there's insufficient space in the EFI variable
+			storage.
+
+			Using this parameter, you can use the 5KB reservation
+			in the EFI variable storage.
+
+			However, Use this parameter only if you are really
+			sure that your UEFI does sane gc and fulfills the spec
+			otherwise your board may brick.
 
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
 			that is to be dynamically loaded by Linux. If there are
@@ -2064,8 +2077,14 @@ Kernel parameters
 	hugetlb_cma=	[HW,CMA,EARLY] The size of a CMA area used for allocation
 			of gigantic hugepages. Or using node format, the size
 			of a CMA area per node can be specified.
-			Format: nn[KMGTPE] or (node format)
-				<node>:nn[KMGTPE][,<node>:nn[KMGTPE]]
+			The size can be an absolute value (e.g., 2G) or a
+			percentage of the total memory or node memory (e.g., 20%).
+			Percentage-derived sizes are rounded down to a multiple of
+			the architecture's gigantic hugepage size and may become
+			zero.
+			Format: nn[KMGTPE] or nn% or (node format)
+				<node>:nn[KMGTPE][,<node>:nn[KMGTPE]] or
+				<node>:nn%[,<node>:nn%]
 
 			The size must be a multiple of the gigantic page size.
 			When using node format, this applies to each per-node size.
@@ -2235,6 +2254,29 @@ Kernel parameters
 			In such case C2/C3 won't be used again.
 
 			idle=nomwait: Disable mwait for CPU C-states
+
+			[ARM64,EARLY]
+			Format: idle=wfi, idle=yield, idle=nop
+
+			idle=wfi: Use the WFI (Wait For Interrupt) hint
+			instruction in the idle loop. This is the default and
+			allows the CPU to enter a low-power state until an
+			interrupt arrives.
+
+			idle=yield: Use the YIELD hint instruction instead of
+			WFI. CPUs supporting simultaneous multi-threading (SMT),
+			can continue executing another thread when the current
+			thread reaches the idle loop. This will make the CPUs
+			eat more power, but may be useful to get slightly better
+			performance in some applications, since the CPUs will
+			not enter a low-power state.
+
+			idle=nop: Do not execute any idle instruction in the
+			idle loop. This is useful on platforms where WFI
+			misbehaves, leading to system instability or loss of CPU
+			state. This will make the CPUs eat more power, but may
+			give slightly better performance in some applications,
+			since the CPUs will not enter a low-power state.
 
 	idxd.sva=	[HW]
 			Format: <bool>
@@ -3047,7 +3089,7 @@ Kernel parameters
 			Default is 0 (don't ignore, but inject #GP)
 
 	kvm.eager_page_split=
-			[KVM,X86] Controls whether or not KVM will try to
+			[KVM,X86,RISCV] Controls whether or not KVM will try to
 			proactively split all huge pages during dirty logging.
 			Eager page splitting reduces interruptions to vCPU
 			execution by eliminating the write-protection faults
@@ -3067,7 +3109,10 @@ Kernel parameters
 			the KVM_CLEAR_DIRTY ioctl, and only for the pages being
 			cleared.
 
-			Eager page splitting is only supported when kvm.tdp_mmu=Y.
+			On x86, eager page splitting is only supported when
+			kvm.tdp_mmu=Y.
+
+			On RISCV, eager page splitting is supported by default.
 
 			Default is Y (on).
 
@@ -3782,6 +3827,9 @@ Kernel parameters
 		nobootlog
 			disable boot machine check logging.
 
+		print_all
+			print all machine check logs to the console.
+
 		monarchtimeout (number)
 			sets the time in us to wait for other CPUs on machine
 			checks. 0 to disable.
@@ -3976,6 +4024,11 @@ Kernel parameters
 			/sys/module/memory_hotplug/parameters/memmap_on_memory.
 			Note that even when enabled, there are a few cases where
 			the feature is not effective.
+
+	mempool_debug	[MM]
+			Enable mempool debugging. This enables element
+			poison checking when freeing elements back to the
+			pool. Useful for debugging mempool corruption.
 
 	memtest=	[KNL,X86,ARM,M68K,PPC,RISCV,EARLY] Enable memtest
 			Format: <integer>
@@ -4587,9 +4640,6 @@ Kernel parameters
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
 
-	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
-			with UP alternatives
-
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
 
@@ -4810,6 +4860,12 @@ Kernel parameters
 			Adjust the minimal page reporting order. The page
 			reporting is disabled when it exceeds MAX_PAGE_ORDER.
 
+	page_reporting.page_reporting_delay_ms=
+			[KNL] Free page reporting delay in milliseconds
+			Format: <unsigned integer>
+			Adjust the delay in milliseconds between free page
+			reporting intervals. Default is 2000 (2 seconds).
+
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
@@ -4850,6 +4906,7 @@ Kernel parameters
 
 	panic_print=	Bitmask for printing system info when panic happens.
 			User can chose combination of the following bits:
+
 			bit 0: print all tasks info
 			bit 1: print system memory info
 			bit 2: print timer info
@@ -4858,10 +4915,16 @@ Kernel parameters
 			bit 5: replay all kernel messages on consoles at the end of panic
 			bit 6: print all CPUs backtrace (if available in the arch)
 			bit 7: print only tasks in uninterruptible (blocked) state
-			*Be aware* that this option may print a _lot_ of lines,
-			so there are risks of losing older messages in the log.
-			Use this option carefully, maybe worth to setup a
-			bigger log buffer with "log_buf_len" along with this.
+
+			*Be aware* that this option may print a _lot_ of lines.
+
+			There is an increased risk of losing older messages in
+			the log. Maybe worth to setup a	bigger log buffer with
+			"log_buf_len" along with this.
+
+			Also consider using "printk.console_no_auto_verbose=Y"
+			if using this along with pstore, to avoid extra delays
+			due to increased console verbosity during panic.
 
 	panic_sys_info= A comma separated list of extra information to be dumped
                         on panic.
@@ -4876,7 +4939,9 @@ Kernel parameters
                         all_bt:         print all CPUs backtrace (if available in the arch)
                         blocked_tasks:  print only tasks in uninterruptible (blocked) state
 
-                        This is a human readable alternative to the 'panic_print' option.
+			This is a human readable alternative to the 'panic_print'
+			option above. Please be aware of the caveats using this,
+			check the 'panic_print' parameter for more details.
 
 	panic_console_replay
 			When panic happens, replay all kernel messages on
@@ -5353,6 +5418,12 @@ Kernel parameters
 
 	pm_debug_messages	[SUSPEND,KNL]
 			Enable suspend/resume debug messages during boot up.
+
+	pm.dpm_watchdog_enabled=
+			[PM] Enable or disable the DPM watchdog.  Requires
+			CONFIG_PM_SLEEP and CONFIG_DPM_WATCHDOG enabled.
+			Format: <bool>
+			Default value is set by CONFIG_DPM_WATCHDOG_ENABLED.
 
 	pnp.debug=1	[PNP]
 			Enable PNP debug messages (depends on the
@@ -6117,6 +6188,11 @@ Kernel parameters
 			the number of CPUs.  For example, -2 selects N
 			(the number of CPUs), -3 selects N+1, and so on.
 
+	rcutorture.nwriters= [KNL]
+			Set number of RCU writers, which must be either
+			zero or one.  For additional writers, use instead
+			the rcutorture.nfakewriters parameter.
+
 	rcutorture.object_debug= [KNL]
 			Enable debug-object double-call_rcu() testing.
 
@@ -6205,6 +6281,15 @@ Kernel parameters
 			warnings, zero to disable.  If both stall_cpu
 			and stall_gp_kthread are specified, the
 			kthread is starved first, then the CPU.
+
+	rcutorture.stall_only= [KNL]
+			Shut off all rcutorture kthreads other than the
+			RCU CPU stall-warning test kthreads.  The purpose
+			of this is to test production applictions'
+			reactions to CPU stalls, and with minimal
+			additional overhead.  Or you can omit the
+			stall-warning tests as well and get a heavy
+			no-op, your choice!
 
 	rcutorture.stat_interval= [KNL]
 			Time (s) between statistics printk()s.
@@ -6413,9 +6498,9 @@ Kernel parameters
 	reboot=		[KNL]
 			Format (x86 or x86_64):
 				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] | d[efault] \
-				[[,]s[mp]#### \
+				[[,]s[mp]####] \
 				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
-				[[,]f[orce]
+				[[,]f[orce]]
 			Where reboot_mode is one of warm (soft) or cold (hard) or gpio
 					(prefix with 'panic_' to set mode for panic
 					reboot only),
@@ -6875,7 +6960,7 @@ Kernel parameters
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
 			Format: { "0" | "1" }
-			0 -- disable. (may be 1 via CONFIG_CMDLINE="skew_tick=1"
+			0 -- disable. (may be 1 via CONFIG_CMDLINE="skew_tick=1")
 			1 -- enable.
 			Note: increases power consumption, thus should only be
 			enabled if running jitter sensitive (HPC/RT) workloads.
@@ -6916,7 +7001,7 @@ Kernel parameters
 			apic=verbose is specified.
 			Example: apic=debug show_lapic=all
 
-	slab_debug[=options[,slabs][;[options[,slabs]]...]	[MM]
+	slab_debug[=options[,slabs][;[options[,slabs]]...]]	[MM]
 			Enabling slab_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling
 			slab_debug can create guard zones around objects and
@@ -7005,17 +7090,6 @@ Kernel parameters
 			system.  By default, let CSD-lock acquisition
 			take as long as they take.  Specifying 300,000
 			for this value provides a 5-minute timeout.
-
-	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
-	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
-	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port
-	smsc-ircc2.ircc_fir=	[HW] FIR base I/O port
-	smsc-ircc2.ircc_irq=	[HW] IRQ line
-	smsc-ircc2.ircc_dma=	[HW] DMA channel
-	smsc-ircc2.ircc_transceiver= [HW] Transceiver type:
-				0: Toshiba Satellite 1800 (GP data pin select)
-				1: Fast pin select (default)
-				2: ATC IRMode
 
 	smt=		[KNL,MIPS,S390,EARLY] Set the maximum number of threads
 			(logical CPUs) to use per physical CPU on systems
@@ -7441,19 +7515,13 @@ Kernel parameters
 
 	sunrpc.pool_mode=
 			[NFS]
-			Control how the NFS server code allocates CPUs to
-			service thread pools.  Depending on how many NICs
-			you have and where their interrupts are bound, this
-			option will affect which CPUs will do NFS serving.
-			Note: this parameter cannot be changed while the
-			NFS server is running.
-
-			auto	    the server chooses an appropriate mode
-				    automatically using heuristics
-			global	    a single global pool contains all CPUs
-			percpu	    one pool for each CPU
-			pernode	    one pool for each NUMA node (equivalent
-				    to global on non-NUMA machines)
+			Deprecated.  The NFS server now always uses one
+			service thread pool per NUMA node (equivalent to a
+			single global pool on non-NUMA machines).  All of
+			the previously accepted values (auto, global,
+			percpu, pernode) are still accepted for backward
+			compatibility but are ignored: the mode is always
+			pernode, and reads always return "pernode".
 
 	sunrpc.tcp_slot_table_entries=
 	sunrpc.udp_slot_table_entries=
@@ -7477,7 +7545,7 @@ Kernel parameters
 			Execution Facility on pSeries.
 
 	swiotlb=	[ARM,PPC,MIPS,X86,S390,EARLY]
-			Format: { <int> [,<int>] | force | noforce }
+			Format: { <int> [,<int>] | force | noforce | track_hiwater}
 			<int> -- Number of I/O TLB slabs
 			<int> -- Second integer after comma. Number of swiotlb
 				 areas with their own lock. Will be rounded up
@@ -7485,6 +7553,8 @@ Kernel parameters
 			force -- force using of bounce buffers even if they
 			         wouldn't be automatically used by the kernel
 			noforce -- Never use bounce buffers (for debugging)
+			track_hiwater -- Track high watermark of swiotlb buffers.
+			                 Only available when CONFIG_DEBUG_FS is set.
 
 	switches=	[HW,M68k,EARLY]
 

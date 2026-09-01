@@ -93,7 +93,6 @@ static void rt5575_spi_burst_write(struct spi_device *spi, u32 addr, const u8 *t
 int rt5575_spi_fw_load(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	const struct firmware *firmware;
 	int i, ret;
 	static const char * const fw_path[] = {
 		"realtek/rt5575/rt5575_fw1.bin",
@@ -104,6 +103,7 @@ int rt5575_spi_fw_load(struct spi_device *spi)
 	static const u32 fw_addr[] = { 0x5f400000, 0x5f600000, 0x5f7fe000, 0x5f7ff000 };
 
 	for (i = 0; i < ARRAY_SIZE(fw_addr); i++) {
+		const struct firmware *firmware __free(firmware) = NULL;
 		ret = request_firmware(&firmware, fw_path[i], dev);
 		if (ret) {
 			dev_err(dev, "Request firmware failure: %d\n", ret);
@@ -111,7 +111,6 @@ int rt5575_spi_fw_load(struct spi_device *spi)
 		}
 
 		rt5575_spi_burst_write(spi, fw_addr[i], firmware->data, firmware->size);
-		release_firmware(firmware);
 	}
 
 	return 0;

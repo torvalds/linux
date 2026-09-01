@@ -22,10 +22,12 @@
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_pci_error.h"
 #include "xe_pci_rebar.h"
 #include "xe_pci_sriov.h"
 #include "xe_pci_types.h"
@@ -35,6 +37,7 @@
 #include "xe_step.h"
 #include "xe_survivability_mode.h"
 #include "xe_tile.h"
+#include "xe_tile_printk.h"
 
 enum toggle_d3cold {
 	D3COLD_DISABLE,
@@ -119,6 +122,7 @@ static const struct xe_graphics_desc graphics_xe2 = {
 static const struct xe_graphics_desc graphics_xe3p_lpg = {
 	XE2_GFX_FEATURES,
 	.has_indirect_ring_state = 1,
+	.has_uncorrectable_error_reporting = 1,
 	.multi_queue_engine_class_mask = BIT(XE_ENGINE_CLASS_COPY) | BIT(XE_ENGINE_CLASS_COMPUTE),
 	.num_geometry_xecore_fuse_regs = 3,
 	.num_compute_xecore_fuse_regs = 3,
@@ -128,6 +132,7 @@ static const struct xe_graphics_desc graphics_xe3p_xpc = {
 	XE2_GFX_FEATURES,
 	.has_access_counter = 0,
 	.has_indirect_ring_state = 1,
+	.has_uncorrectable_error_reporting = 1,
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_BCS8, XE_HW_ENGINE_BCS1) |
 		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0),
@@ -144,6 +149,14 @@ static const struct xe_media_desc media_xem = {
 };
 
 static const struct xe_media_desc media_xelpmp = {
+	.hw_engine_mask =
+		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
+		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
+		BIT(XE_HW_ENGINE_GSCCS0)
+};
+
+static const struct xe_media_desc media_xe3p_hpm = {
+	.has_uncorrectable_error_reporting = 1,
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
 		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
@@ -185,7 +198,7 @@ static const struct xe_ip media_ips[] = {
 	{ 3000, "Xe3_LPM", &media_xelpmp },
 	{ 3002, "Xe3_LPM", &media_xelpmp },
 	{ 3500, "Xe3p_LPM", &media_xelpmp },
-	{ 3503, "Xe3p_HPM", &media_xelpmp },
+	{ 3503, "Xe3p_HPM", &media_xe3p_hpm },
 };
 
 #define MULTI_LRC_MASK \
@@ -355,6 +368,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	PLATFORM(PVC),
 	.dma_mask_size = 52,
 	.has_display = false,
+	.has_drm_ras = true,
 	.has_gsc_nvm = 1,
 	.has_heci_gscfi = 1,
 	.max_gt_per_tile = 1,
@@ -447,7 +461,6 @@ static const struct xe_device_desc nvls_desc = {
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
-	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 4,
 };
@@ -457,6 +470,7 @@ static const struct xe_device_desc cri_desc = {
 	PLATFORM(CRESCENTISLAND),
 	.dma_mask_size = 52,
 	.has_display = false,
+	.has_drm_ras = true,
 	.has_flat_ccs = false,
 	.has_gsc_nvm = 1,
 	.has_i2c = true,
@@ -599,8 +613,6 @@ static int read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u
 	struct xe_reg gmdid_reg = GMD_ID;
 	u32 val;
 
-	KUNIT_STATIC_STUB_REDIRECT(read_gmdid, xe, type, ver, revid);
-
 	if (IS_SRIOV_VF(xe)) {
 		/*
 		 * To get the value of the GMDID register, VFs must obtain it
@@ -726,14 +738,30 @@ static int handle_gmdid(struct xe_device *xe,
 	return 0;
 }
 
-static void init_devid(struct xe_device *xe)
+struct xe_probed_info {
+	u16 devid;
+	u8 revid;
+	u8 tile_count;
+	struct xe_step_info step;
+	const struct xe_ip *graphics_ip;
+	const struct xe_ip *media_ip;
+};
+
+/*
+ * Probe from the hardware the info required by xe_info_init_early().
+ */
+static int xe_probe_info_early(struct xe_device *xe,
+			       const struct xe_device_desc *desc,
+			       struct xe_probed_info *probed_info)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
-	KUNIT_STATIC_STUB_REDIRECT(init_devid, xe);
+	probed_info->devid = pdev->device;
+	probed_info->revid = pdev->revision;
 
-	xe->info.devid = pdev->device;
-	xe->info.revid = pdev->revision;
+	xe_step_platform_get(desc->platform, probed_info->revid, &probed_info->step);
+
+	return 0;
 }
 
 /*
@@ -742,16 +770,19 @@ static void init_devid(struct xe_device *xe)
  */
 static int xe_info_init_early(struct xe_device *xe,
 			      const struct xe_device_desc *desc,
-			      const struct xe_subplatform_desc *subplatform_desc)
+			      const struct xe_subplatform_desc *subplatform_desc,
+			      struct xe_probed_info *probed_info)
 {
 	int err;
+
+	xe->info.devid = probed_info->devid;
+	xe->info.revid = probed_info->revid;
+	xe->info.step.platform = probed_info->step.platform;
 
 	xe->info.platform_name = desc->platform_name;
 	xe->info.platform = desc->platform;
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
-
-	init_devid(xe);
 
 	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.va_bits = desc->va_bits;
@@ -760,6 +791,7 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_cached_pt = desc->has_cached_pt;
+	xe->info.has_drm_ras = desc->has_drm_ras;
 	xe->info.has_fan_control = desc->has_fan_control;
 	/* runtime fusing may force flat_ccs to disabled later */
 	xe->info.has_flat_ccs = desc->has_flat_ccs;
@@ -790,14 +822,10 @@ static int xe_info_init_early(struct xe_device *xe,
 				 xe_modparam.probe_display &&
 				 desc->has_display &&
 				 !xe_device_is_admin_only(xe);
-	xe->info.force_execlist = xe_modparam.force_execlist;
 
 	xe_assert(xe, desc->max_gt_per_tile > 0);
 	xe_assert(xe, desc->max_gt_per_tile <= XE_MAX_GT_PER_TILE);
 	xe->info.max_gt_per_tile = desc->max_gt_per_tile;
-	xe->info.tile_count = 1 + desc->max_remote_tiles;
-
-	xe_step_platform_get(xe);
 
 	err = xe_tile_init_early(xe_device_get_root_tile(xe), xe, 0);
 	if (err)
@@ -806,22 +834,21 @@ static int xe_info_init_early(struct xe_device *xe,
 	return 0;
 }
 
-/*
- * Possibly override number of tile based on configuration register.
- */
-static void xe_info_probe_tile_count(struct xe_device *xe)
+static void xe_probe_tile_count(struct xe_device *xe,
+				const struct xe_device_desc *desc,
+				struct xe_probed_info *probed_info)
 {
 	struct xe_mmio *mmio;
 	u8 tile_count;
 	u32 mtcfg;
 
-	KUNIT_STATIC_STUB_REDIRECT(xe_info_probe_tile_count, xe);
+	probed_info->tile_count = 1 + desc->max_remote_tiles;
 
 	/*
 	 * Probe for tile count only for platforms that support multiple
 	 * tiles.
 	 */
-	if (xe->info.tile_count == 1)
+	if (probed_info->tile_count == 1)
 		return;
 
 	mmio = xe_root_tile_mmio(xe);
@@ -834,10 +861,10 @@ static void xe_info_probe_tile_count(struct xe_device *xe)
 	mtcfg = xe_mmio_read32(mmio, XEHP_MTCFG_ADDR);
 	tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
-	if (tile_count < xe->info.tile_count) {
+	if (tile_count < probed_info->tile_count) {
 		drm_info(&xe->drm, "tile_count: %d, reduced_tile_count %d\n",
-			 xe->info.tile_count, tile_count);
-		xe->info.tile_count = tile_count;
+			 probed_info->tile_count, tile_count);
+		probed_info->tile_count = tile_count;
 	}
 }
 
@@ -849,7 +876,7 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	struct xe_gt *gt;
 
 	if (!xe_configfs_primary_gt_allowed(to_pci_dev(xe->drm.dev))) {
-		xe_info(xe, "Primary GT disabled via configfs\n");
+		xe_tile_info(tile, "Primary GT disabled via configfs\n");
 		return NULL;
 	}
 
@@ -860,7 +887,13 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	gt->info.type = XE_GT_TYPE_MAIN;
 	gt->info.id = tile->id * xe->info.max_gt_per_tile;
 	gt->info.has_indirect_ring_state = graphics_desc->has_indirect_ring_state;
+	gt->info.has_uncorrectable_error_reporting =
+		graphics_desc->has_uncorrectable_error_reporting;
 	gt->info.multi_queue_engine_class_mask = graphics_desc->multi_queue_engine_class_mask;
+	if (!xe_configfs_get_enable_multi_queue(to_pci_dev(xe->drm.dev))) {
+		xe_gt_info(gt, "Multi-queue disabled via configfs\n");
+		gt->info.multi_queue_engine_class_mask = 0;
+	}
 	gt->info.engine_mask = graphics_desc->hw_engine_mask;
 	gt->info.num_geometry_xecore_fuse_regs = graphics_desc->num_geometry_xecore_fuse_regs;
 	gt->info.num_compute_xecore_fuse_regs = graphics_desc->num_compute_xecore_fuse_regs;
@@ -891,7 +924,7 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 	struct xe_gt *gt;
 
 	if (!xe_configfs_media_gt_allowed(to_pci_dev(xe->drm.dev))) {
-		xe_info(xe, "Media GT disabled via configfs\n");
+		xe_tile_info(tile, "Media GT disabled via configfs\n");
 		return NULL;
 	}
 
@@ -905,9 +938,68 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 	gt->info.type = XE_GT_TYPE_MEDIA;
 	gt->info.id = tile->id * xe->info.max_gt_per_tile + 1;
 	gt->info.has_indirect_ring_state = media_desc->has_indirect_ring_state;
+	gt->info.has_uncorrectable_error_reporting = media_desc->has_uncorrectable_error_reporting;
 	gt->info.engine_mask = media_desc->hw_engine_mask;
 
 	return gt;
+}
+
+static int xe_probe_ips(struct xe_device *xe,
+			const struct xe_device_desc *desc,
+			struct xe_probed_info *probed_info)
+{
+	/*
+	 * If this platform supports GMD_ID, we'll detect the proper IP
+	 * descriptor to use from hardware registers.
+	 * desc->pre_gmdid_graphics_ip will only ever be set at this point for
+	 * platforms before GMD_ID. In that case the IP descriptions and
+	 * versions are simply derived from that.
+	 */
+	if (desc->pre_gmdid_graphics_ip) {
+		probed_info->graphics_ip = desc->pre_gmdid_graphics_ip;
+		probed_info->media_ip = desc->pre_gmdid_media_ip;
+		xe_step_pre_gmdid_get(xe, &probed_info->step);
+	} else {
+		int err;
+		u32 graphics_revid, media_revid;
+
+		xe_assert(xe, !desc->pre_gmdid_media_ip);
+
+		err = handle_gmdid(xe, &probed_info->graphics_ip, &probed_info->media_ip,
+				   &graphics_revid, &media_revid);
+		if (err)
+			return err;
+
+		xe_step_gmdid_get(xe, graphics_revid, media_revid, &probed_info->step);
+	}
+
+	/*
+	 * If we couldn't detect the graphics IP, that's considered a fatal
+	 * error and we should abort driver load.  Failing to detect media
+	 * IP is non-fatal; we'll just proceed without enabling media support.
+	 */
+	if (!probed_info->graphics_ip)
+		return -ENODEV;
+
+	return 0;
+}
+
+/*
+ * Probe from the hardware the info required by xe_info_init().
+ */
+static int xe_probe_info(struct xe_device *xe,
+			 const struct xe_device_desc *desc,
+			 struct xe_probed_info *probed_info)
+{
+	int err;
+
+	xe_probe_tile_count(xe, desc, probed_info);
+
+	err = xe_probe_ips(xe, desc, probed_info);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /*
@@ -917,46 +1009,24 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
  * present in device info.
  */
 static int xe_info_init(struct xe_device *xe,
-			const struct xe_device_desc *desc)
+			const struct xe_device_desc *desc,
+			struct xe_probed_info *probed_info)
 {
-	u32 graphics_gmdid_revid = 0, media_gmdid_revid = 0;
 	const struct xe_ip *graphics_ip;
 	const struct xe_ip *media_ip;
 	const struct xe_graphics_desc *graphics_desc;
 	const struct xe_media_desc *media_desc;
 	struct xe_tile *tile;
 	struct xe_gt *gt;
-	int ret;
 	u8 id;
 
-	/*
-	 * If this platform supports GMD_ID, we'll detect the proper IP
-	 * descriptor to use from hardware registers.
-	 * desc->pre_gmdid_graphics_ip will only ever be set at this point for
-	 * platforms before GMD_ID. In that case the IP descriptions and
-	 * versions are simply derived from that.
-	 */
-	if (desc->pre_gmdid_graphics_ip) {
-		graphics_ip = desc->pre_gmdid_graphics_ip;
-		media_ip = desc->pre_gmdid_media_ip;
-		xe_step_pre_gmdid_get(xe);
-	} else {
-		xe_assert(xe, !desc->pre_gmdid_media_ip);
-		ret = handle_gmdid(xe, &graphics_ip, &media_ip,
-				   &graphics_gmdid_revid, &media_gmdid_revid);
-		if (ret)
-			return ret;
+	graphics_ip = probed_info->graphics_ip;
+	media_ip = probed_info->media_ip;
 
-		xe_step_gmdid_get(xe, graphics_gmdid_revid, media_gmdid_revid);
-	}
-
-	/*
-	 * If we couldn't detect the graphics IP, that's considered a fatal
-	 * error and we should abort driver load.  Failing to detect media
-	 * IP is non-fatal; we'll just proceed without enabling media support.
-	 */
-	if (!graphics_ip)
-		return -ENODEV;
+	xe->info.tile_count = probed_info->tile_count;
+	xe->info.step.basedie = probed_info->step.basedie;
+	xe->info.step.graphics = probed_info->step.graphics;
+	xe->info.step.media = probed_info->step.media;
 
 	xe->info.graphics_verx100 = graphics_ip->verx100;
 	xe->info.graphics_name = graphics_ip->name;
@@ -988,8 +1058,6 @@ static int xe_info_init(struct xe_device *xe,
 		xe->info.has_soc_remapper_sysctrl = 0;
 		xe->info.has_soc_remapper_telem = 0;
 	}
-
-	xe_info_probe_tile_count(xe);
 
 	for_each_remote_tile(tile, xe, id) {
 		int err;
@@ -1079,9 +1147,11 @@ static void xe_pci_remove(struct pci_dev *pdev)
  */
 static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct xe_probed_info probed_info = {};
 	const struct xe_device_desc *desc = (const void *)ent->driver_data;
 	const struct xe_subplatform_desc *subplatform_desc;
 	struct xe_device *xe;
+	void *group;
 	int err;
 
 	subplatform_desc = find_subplatform(desc, pdev->device);
@@ -1109,6 +1179,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (xe_display_driver_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
+	/* Group all devres so xe_pci_error_slot_reset() can release them as a unit. */
+	group = devres_open_group(&pdev->dev, NULL, GFP_KERNEL);
+	if (!group)
+		return -ENOMEM;
+
 	err = pcim_enable_device(pdev);
 	if (err)
 		return err;
@@ -1117,13 +1192,19 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(xe))
 		return PTR_ERR(xe);
 
+	xe->devres_group = group;
+
 	pci_set_drvdata(pdev, &xe->drm);
 
 	xe_pm_assert_unbounded_bridge(xe);
 
 	pci_set_master(pdev);
 
-	err = xe_info_init_early(xe, desc, subplatform_desc);
+	err = xe_probe_info_early(xe, desc, &probed_info);
+	if (err)
+		return err;
+
+	err = xe_info_init_early(xe, desc, subplatform_desc, &probed_info);
 	if (err)
 		return err;
 
@@ -1142,7 +1223,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	err = xe_info_init(xe, desc);
+	err = xe_probe_info(xe, desc, &probed_info);
+	if (err)
+		return err;
+
+	err = xe_info_init(xe, desc, &probed_info);
 	if (err)
 		return err;
 
@@ -1355,6 +1440,7 @@ static struct pci_driver xe_pci_driver = {
 	.remove = xe_pci_remove,
 	.shutdown = xe_pci_shutdown,
 	.sriov_configure = xe_pci_sriov_configure,
+	.err_handler = &xe_pci_error_handlers,
 #ifdef CONFIG_PM_SLEEP
 	.driver.pm = &xe_pm_ops,
 #endif

@@ -443,7 +443,7 @@ static int bperf_check_target(struct evsel *evsel,
 	} else if (target->tid) {
 		*filter_type = BPERF_FILTER_PID;
 		*filter_entry_cnt = perf_thread_map__nr(evsel->core.threads);
-	} else if (target->pid || evsel->evlist->workload.pid != -1) {
+	} else if (target->pid || evlist__workload_pid(evsel->evlist) != -1) {
 		*filter_type = BPERF_FILTER_TGID;
 		*filter_entry_cnt = perf_thread_map__nr(evsel->core.threads);
 	} else {

@@ -11,6 +11,7 @@ config ARM
 	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
+	select ARCH_HAS_DELAY_TIMER
 	select ARCH_HAS_DMA_ALLOC if MMU
 	select ARCH_HAS_DMA_OPS
 	select ARCH_HAS_DMA_WRITE_COMBINE if !ARM_DMA_MEM_BUFFERABLE
@@ -98,7 +99,7 @@ config ARM
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if ARM_LPAE
 	select HAVE_ARM_SMCCC if CPU_V7
-	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
+	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32 && !CPU_32v3
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_BUILDTIME_MCOUNT_SORT
@@ -133,6 +134,7 @@ config ARM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
 	select MMU_GATHER_RCU_TABLE_FREE if SMP && ARM_LPAE
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
@@ -471,7 +473,7 @@ source "arch/arm/mach-zynq/Kconfig"
 
 # ARMv7-M architecture
 config ARCH_LPC18XX
-	bool "NXP LPC18xx/LPC43xx"
+	bool "NXP LPC18xx/LPC43xx (DEPRECATED)"
 	depends on ARM_SINGLE_ARMV7M
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_AMBA
@@ -481,8 +483,10 @@ config ARCH_LPC18XX
 	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
 	  high performance microcontrollers.
 
+	  This platform is scheduled for removal in early 2027
+
 config ARCH_MPS2
-	bool "ARM MPS2 platform"
+	bool "ARM MPS2 platform (DEPRECATED)"
 	depends on ARM_SINGLE_ARMV7M
 	select ARM_AMBA
 	select CLKSRC_MPS2
@@ -492,6 +496,8 @@ config ARCH_MPS2
 
 	  Please, note that depends which Application Note is used memory map
 	  for the platform may vary, so adjustment of RAM base might be needed.
+
+	  This platform is scheduled for removal in early 2027
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -513,12 +519,20 @@ config PLAT_VERSATILE
 source "arch/arm/mm/Kconfig"
 
 config IWMMXT
-	bool "Enable iWMMXt support"
-	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK
-	default y if PXA27x || PXA3xx || ARCH_MMP
+	bool "Enable iWMMXt support (DEPRECATED)"
+	depends on PXA27x || PXA3xx || ARCH_MMP
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
+
+	  Machines that actually support this feature are very rare,
+	  and support is deprecated in new gcc-14.  While there were a
+	  few applications that used this in the past, none are known
+	  to still do so.
+
+	  If you use this, please send a patch to remove the
+	  deprecation, otherwise this will be removed in early
+	  2027.
 
 if !MMU
 source "arch/arm/Kconfig-nommu"
@@ -1151,23 +1165,23 @@ config ARM_PATCH_IDIV
 	  code to do integer division.
 
 config AEABI
-	bool "Use the ARM EABI to compile the kernel" if !CPU_V7 && \
-		!CPU_V7M && !CPU_V6 && !CPU_V6K && !CC_IS_CLANG
-	default CPU_V7 || CPU_V7M || CPU_V6 || CPU_V6K || CC_IS_CLANG
+	bool "Use the ARM EABI to compile the kernel" if CPU_SA110 || CPU_SA1100
+	default y
 	help
-	  This option allows for the kernel to be compiled using the latest
-	  ARM ABI (aka EABI).  This is only useful if you are using a user
-	  space environment that is also compiled with EABI.
+	  The Arm EABI is the default ABI on all modern Linux
+	  distributions, replacing the obsolete and "OABI" that was
+	  commonly used on ARMv4 distributions before ca. 2013.
 
-	  Since there are major incompatibilities between the legacy ABI and
-	  EABI, especially with regard to structure member alignment, this
-	  option also changes the kernel syscall calling convention to
-	  disambiguate both ABIs and allow for backward compatibility support
-	  (selected with CONFIG_OABI_COMPAT).
+	  Everyone should enable this, as support for OABI user space
+	  was dropped in gcc-4.8 and most distributions after ca. 2013.
+
+	  Support for OABI mode will be removed from the kernel
+	  once Intel StrongARM CPUs are phased out.
 
 config OABI_COMPAT
 	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
 	depends on AEABI && !THUMB2_KERNEL
+	depends on CPU_SA110 || CPU_SA1100
 	help
 	  This option preserves the old syscall interface along with the
 	  new (ARM EABI) one. It also provides a compatibility layer to
@@ -1180,11 +1194,8 @@ config OABI_COMPAT
 	  selected, since there is no way yet to sensibly distinguish
 	  between calling conventions during filtering.
 
-	  If you know you'll be using only pure EABI user space then you
-	  can say N here. If this option is not selected and you attempt
-	  to execute a legacy ABI binary then the result will be
-	  UNPREDICTABLE (in fact it can be predicted that it won't work
-	  at all). If in doubt say N.
+	  Support for OABI_COMPAT will be removed from the kernel
+	  once Intel StrongARM CPUs are phased out.
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -1393,19 +1404,22 @@ config ARCH_WANT_FLAT_DTB_INSTALL
 
 config ATAGS
 	bool "Support for the traditional ATAGS boot data passing"
-	default y
+	depends on EXPERT
 	help
-	  This is the traditional way of passing data to the kernel at boot
-	  time. If you are solely relying on the flattened device tree (or
-	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
-	  to remove ATAGS support from your kernel binary.
+	  This is the traditional way of passing data to the kernel at
+	  boot but is now only used by a few of the oldest ARMv4 and
+	  ARMv5 machines.  Users that still rely on ATAGS should plan
+	  on migrating to devicetree based booting.
+
+	  Support for ATAGS will be removed when the last machine using
+	  it is either converted to DT or removed.
 
 config DEPRECATED_PARAM_STRUCT
-	bool "Provide old way to pass kernel parameters"
+	bool "Provide old way to pass kernel parameters (DEPRECATED)"
 	depends on ATAGS
 	help
 	  This was deprecated in 2001 and announced to live on for 5 years.
-	  Some old boot loaders still use this way.
+	  It is now scheduled for removal in early 2027.
 
 # Compressed boot loader in ROM.  Yes, we really want to ask about
 # TEXT and BSS so we preserve their values in the config files.
@@ -1651,16 +1665,16 @@ menu "Floating point emulation"
 comment "At least one emulation must be selected"
 
 config FPE_NWFPE
-	bool "NWFPE math emulation"
+	bool "NWFPE math emulation (DEPRECATED)"
 	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
 	help
 	  Say Y to include the NWFPE floating point emulator in the kernel.
-	  This is necessary to run most binaries. Linux does not currently
-	  support floating point hardware so you need to say Y here even if
-	  your machine has an FPA or floating point co-processor podule.
 
-	  You may say N here if you are going to load the Acorn FPEmulator
-	  early in the bootup.
+	  This is only used on OABI userspace binaries, either using a
+	  pure OABI (!CONFIG_AEABI) kernel, or the OABI emulation.
+
+	  Support for NWFPE will be removed in the future when OABI
+	  support is removed.
 
 config FPE_NWFPE_XP
 	bool "Support extended precision"

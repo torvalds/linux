@@ -164,11 +164,18 @@ static int pcm1789_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static const u64 pcm1789_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops pcm1789_dai_ops = {
 	.set_fmt	= pcm1789_set_dai_fmt,
 	.hw_params	= pcm1789_hw_params,
 	.mute_stream	= pcm1789_mute,
 	.trigger	= pcm1789_trigger,
+	.auto_selectable_formats	= &pcm1789_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 

@@ -140,7 +140,7 @@ xfs_trans_get_buf_map(
 		ASSERT(xfs_buf_islocked(bp));
 		if (xfs_is_shutdown(tp->t_mountp)) {
 			xfs_buf_stale(bp);
-			bp->b_flags |= XBF_DONE;
+			xfs_buf_set_uptodate(bp);
 		}
 
 		ASSERT(bp->b_transp == tp);
@@ -482,7 +482,7 @@ xfs_trans_dirty_buf(
 	 * item from the AIL and free it when the buffer is flushed
 	 * to disk.
 	 */
-	bp->b_flags |= XBF_DONE;
+	xfs_buf_set_uptodate(bp);
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
@@ -494,8 +494,7 @@ xfs_trans_dirty_buf(
 	 */
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		bip->bli_flags &= ~XFS_BLI_STALE;
-		ASSERT(bp->b_flags & XBF_STALE);
-		bp->b_flags &= ~XBF_STALE;
+		xfs_buf_clear_stale(bp);
 		bip->__bli_format.blf_flags &= ~XFS_BLF_CANCEL;
 	}
 	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;

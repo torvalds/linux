@@ -328,8 +328,10 @@ static int pit_timer_init(struct device_node *np)
 	if (pit_instances == max_pit_instances) {
 		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "PIT timer:starting",
 					pit_clockevent_starting_cpu, NULL);
-		if (ret < 0)
+		if (ret < 0) {
+			pit_clockevent_per_cpu_exit(pit, pit_instances);
 			goto out_pit_clocksource_unregister;
+		}
 	}
 
 	return 0;

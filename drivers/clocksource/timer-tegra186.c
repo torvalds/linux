@@ -532,10 +532,8 @@ static int tegra186_timer_probe(struct platform_device *pdev)
 	if (kernel_wdt) {
 		err = devm_request_irq(dev, irq, tegra186_wdt_irq, 0,
 				       dev_name(dev), kernel_wdt);
-		if (err < 0) {
-			dev_err(dev, "failed to request kernel WDT IRQ: %d\n", err);
+		if (err < 0)
 			goto unregister_usec;
-		}
 
 		tegra186_wdt_set_timeout(&kernel_wdt->base, TEGRA186_KERNEL_WDT_TIMEOUT);
 		tegra186_wdt_enable(kernel_wdt);

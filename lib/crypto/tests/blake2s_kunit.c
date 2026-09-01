@@ -41,9 +41,9 @@ static void blake2s_init_default(struct blake2s_ctx *ctx)
 static void test_blake2s_all_key_and_hash_lens(struct kunit *test)
 {
 	const size_t data_len = 100;
-	u8 *data = &test_buf[0];
-	u8 *key = data + data_len;
-	u8 *hash = key + BLAKE2S_KEY_SIZE;
+	u8 *data = alloc_buf(test, data_len);
+	u8 *key = alloc_buf(test, BLAKE2S_KEY_SIZE);
+	u8 *hash = alloc_buf(test, BLAKE2S_HASH_SIZE);
 	struct blake2s_ctx main_ctx;
 	u8 main_hash[BLAKE2S_HASH_SIZE];
 
@@ -68,11 +68,13 @@ static void test_blake2s_all_key_and_hash_lens(struct kunit *test)
 static void test_blake2s_with_guarded_key_buf(struct kunit *test)
 {
 	const size_t data_len = 100;
+	u8 *data = alloc_buf(test, data_len);
+	u8 *guarded_key_buf = alloc_guarded_buf(test, BLAKE2S_KEY_SIZE);
 
-	rand_bytes(test_buf, data_len);
+	rand_bytes(data, data_len);
 	for (int key_len = 0; key_len <= BLAKE2S_KEY_SIZE; key_len++) {
 		u8 key[BLAKE2S_KEY_SIZE];
-		u8 *guarded_key = &test_buf[TEST_BUF_LEN - key_len];
+		u8 *guarded_key = &guarded_key_buf[BLAKE2S_KEY_SIZE - key_len];
 		u8 hash1[BLAKE2S_HASH_SIZE];
 		u8 hash2[BLAKE2S_HASH_SIZE];
 		struct blake2s_ctx ctx;
@@ -80,14 +82,13 @@ static void test_blake2s_with_guarded_key_buf(struct kunit *test)
 		rand_bytes(key, key_len);
 		memcpy(guarded_key, key, key_len);
 
-		blake2s(key, key_len, test_buf, data_len,
-			hash1, BLAKE2S_HASH_SIZE);
-		blake2s(guarded_key, key_len, test_buf, data_len,
-			hash2, BLAKE2S_HASH_SIZE);
+		blake2s(key, key_len, data, data_len, hash1, BLAKE2S_HASH_SIZE);
+		blake2s(guarded_key, key_len, data, data_len, hash2,
+			BLAKE2S_HASH_SIZE);
 		KUNIT_ASSERT_MEMEQ(test, hash1, hash2, BLAKE2S_HASH_SIZE);
 
 		blake2s_init_key(&ctx, BLAKE2S_HASH_SIZE, guarded_key, key_len);
-		blake2s_update(&ctx, test_buf, data_len);
+		blake2s_update(&ctx, data, data_len);
 		blake2s_final(&ctx, hash2);
 		KUNIT_ASSERT_MEMEQ(test, hash1, hash2, BLAKE2S_HASH_SIZE);
 	}
@@ -100,14 +101,16 @@ static void test_blake2s_with_guarded_key_buf(struct kunit *test)
 static void test_blake2s_with_guarded_out_buf(struct kunit *test)
 {
 	const size_t data_len = 100;
+	u8 *data = alloc_buf(test, data_len);
+	u8 *out_buf = alloc_guarded_buf(test, BLAKE2S_HASH_SIZE);
 
-	rand_bytes(test_buf, data_len);
+	rand_bytes(data, data_len);
 	for (int out_len = 1; out_len <= BLAKE2S_HASH_SIZE; out_len++) {
 		u8 hash[BLAKE2S_HASH_SIZE];
-		u8 *guarded_hash = &test_buf[TEST_BUF_LEN - out_len];
+		u8 *guarded_hash = &out_buf[BLAKE2S_HASH_SIZE - out_len];
 
-		blake2s(NULL, 0, test_buf, data_len, hash, out_len);
-		blake2s(NULL, 0, test_buf, data_len, guarded_hash, out_len);
+		blake2s(NULL, 0, data, data_len, hash, out_len);
+		blake2s(NULL, 0, data, data_len, guarded_hash, out_len);
 		KUNIT_ASSERT_MEMEQ(test, hash, guarded_hash, out_len);
 	}
 }
@@ -124,8 +127,6 @@ static struct kunit_case blake2s_test_cases[] = {
 static struct kunit_suite blake2s_test_suite = {
 	.name = "blake2s",
 	.test_cases = blake2s_test_cases,
-	.suite_init = hash_suite_init,
-	.suite_exit = hash_suite_exit,
 };
 kunit_test_suite(blake2s_test_suite);
 

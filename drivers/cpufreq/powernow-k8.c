@@ -87,10 +87,10 @@ static u32 convert_fid_to_vco_fid(u32 fid)
  */
 static int pending_bit_stuck(void)
 {
-	u32 lo, hi __always_unused;
+	u64 msr;
 
-	rdmsr(MSR_FIDVID_STATUS, lo, hi);
-	return lo & MSR_S_LO_CHANGE_PENDING ? 1 : 0;
+	rdmsrq(MSR_FIDVID_STATUS, msr);
+	return msr & MSR_S_LO_CHANGE_PENDING ? 1 : 0;
 }
 
 /*
@@ -99,7 +99,7 @@ static int pending_bit_stuck(void)
  */
 static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 {
-	u32 lo, hi;
+	struct msr msr;
 	u32 i = 0;
 
 	do {
@@ -107,11 +107,11 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 			pr_debug("detected change pending stuck\n");
 			return 1;
 		}
-		rdmsr(MSR_FIDVID_STATUS, lo, hi);
-	} while (lo & MSR_S_LO_CHANGE_PENDING);
+		rdmsrq(MSR_FIDVID_STATUS, msr.q);
+	} while (msr.l & MSR_S_LO_CHANGE_PENDING);
 
-	data->currvid = hi & MSR_S_HI_CURRENT_VID;
-	data->currfid = lo & MSR_S_LO_CURRENT_FID;
+	data->currvid = msr.h & MSR_S_HI_CURRENT_VID;
+	data->currfid = msr.l & MSR_S_LO_CURRENT_FID;
 
 	return 0;
 }
@@ -131,22 +131,22 @@ static void count_off_vst(struct powernow_k8_data *data)
 /* need to init the control msr to a safe value (for each cpu) */
 static void fidvid_msr_init(void)
 {
-	u32 lo, hi;
+	struct msr msr;
 	u8 fid, vid;
 
-	rdmsr(MSR_FIDVID_STATUS, lo, hi);
-	vid = hi & MSR_S_HI_CURRENT_VID;
-	fid = lo & MSR_S_LO_CURRENT_FID;
-	lo = fid | (vid << MSR_C_LO_VID_SHIFT);
-	hi = MSR_C_HI_STP_GNT_BENIGN;
-	pr_debug("cpu%d, init lo 0x%x, hi 0x%x\n", smp_processor_id(), lo, hi);
-	wrmsr(MSR_FIDVID_CTL, lo, hi);
+	rdmsrq(MSR_FIDVID_STATUS, msr.q);
+	vid = msr.h & MSR_S_HI_CURRENT_VID;
+	fid = msr.l & MSR_S_LO_CURRENT_FID;
+	msr.l = fid | (vid << MSR_C_LO_VID_SHIFT);
+	msr.h = MSR_C_HI_STP_GNT_BENIGN;
+	pr_debug("cpu%d, init lo 0x%x, hi 0x%x\n", smp_processor_id(), msr.l, msr.h);
+	wrmsrq(MSR_FIDVID_CTL, msr.q);
 }
 
 /* write the new fid value along with the other control fields to the msr */
 static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 {
-	u32 lo;
+	struct msr msr;
 	u32 savevid = data->currvid;
 	u32 i = 0;
 
@@ -155,15 +155,15 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 		return 1;
 	}
 
-	lo = fid;
-	lo |= (data->currvid << MSR_C_LO_VID_SHIFT);
-	lo |= MSR_C_LO_INIT_FID_VID;
+	msr.l = fid;
+	msr.l |= (data->currvid << MSR_C_LO_VID_SHIFT);
+	msr.l |= MSR_C_LO_INIT_FID_VID;
+	msr.h = data->plllock * PLL_LOCK_CONVERSION;
 
-	pr_debug("writing fid 0x%x, lo 0x%x, hi 0x%x\n",
-		fid, lo, data->plllock * PLL_LOCK_CONVERSION);
+	pr_debug("writing fid 0x%x, lo 0x%x, hi 0x%x\n", fid, msr.l, msr.h);
 
 	do {
-		wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
+		wrmsrq(MSR_FIDVID_CTL, msr.q);
 		if (i++ > 100) {
 			pr_err("Hardware error - pending bit very stuck - no further pstate changes possible\n");
 			return 1;
@@ -190,7 +190,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 /* Write a new vid to the hardware */
 static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 {
-	u32 lo;
+	struct msr msr;
 	u32 savefid = data->currfid;
 	int i = 0;
 
@@ -199,15 +199,15 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 		return 1;
 	}
 
-	lo = data->currfid;
-	lo |= (vid << MSR_C_LO_VID_SHIFT);
-	lo |= MSR_C_LO_INIT_FID_VID;
+	msr.l = data->currfid;
+	msr.l |= (vid << MSR_C_LO_VID_SHIFT);
+	msr.l |= MSR_C_LO_INIT_FID_VID;
+	msr.h = STOP_GRANT_5NS;
 
-	pr_debug("writing vid 0x%x, lo 0x%x, hi 0x%x\n",
-		vid, lo, STOP_GRANT_5NS);
+	pr_debug("writing vid 0x%x, lo 0x%x, hi 0x%x\n", vid, msr.l, msr.h);
 
 	do {
-		wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
+		wrmsrq(MSR_FIDVID_CTL, msr.q);
 		if (i++ > 100) {
 			pr_err("internal error - pending bit very stuck - no further pstate changes possible\n");
 			return 1;
@@ -281,9 +281,10 @@ static int transition_fid_vid(struct powernow_k8_data *data,
 static int core_voltage_pre_transition(struct powernow_k8_data *data,
 		u32 reqvid, u32 reqfid)
 {
+	struct msr msr;
 	u32 rvosteps = data->rvo;
 	u32 savefid = data->currfid;
-	u32 maxvid, lo __always_unused, rvomult = 1;
+	u32 maxvid, rvomult = 1;
 
 	pr_debug("ph1 (cpu%d): start, currfid 0x%x, currvid 0x%x, reqvid 0x%x, rvo 0x%x\n",
 		smp_processor_id(),
@@ -292,8 +293,8 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data,
 	if ((savefid < LO_FID_TABLE_TOP) && (reqfid < LO_FID_TABLE_TOP))
 		rvomult = 2;
 	rvosteps *= rvomult;
-	rdmsr(MSR_FIDVID_STATUS, lo, maxvid);
-	maxvid = 0x1f & (maxvid >> 16);
+	rdmsrq(MSR_FIDVID_STATUS, msr.q);
+	maxvid = 0x1f & (msr.h >> 16);
 	pr_debug("ph1 maxvid=0x%x\n", maxvid);
 	if (reqvid < maxvid) /* lower numbers are higher voltages */
 		reqvid = maxvid;

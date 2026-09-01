@@ -446,7 +446,8 @@ static int i2c_init_recovery(struct i2c_adapter *adap)
 		bri->set_scl = set_scl_gpio_value;
 		if (bri->sda_gpiod) {
 			bri->get_sda = get_sda_gpio_value;
-			if (gpiod_get_direction(bri->sda_gpiod) == GPIO_LINE_DIRECTION_OUT)
+			if (gpiod_get_direction(bri->sda_gpiod) == GPIO_LINE_DIRECTION_OUT ||
+			    gpiod_is_single_ended(bri->sda_gpiod))
 				bri->set_sda = set_sda_gpio_value;
 		}
 	} else if (bri->recover_bus == i2c_generic_scl_recovery) {
@@ -1814,6 +1815,12 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
 		return;
 	}
+
+	/*
+	 * This drains any in-flight writers, so all
+	 * clients will be caught by i2c_deregister_clients().
+	 */
+	device_remove_file(&adap->dev, &dev_attr_new_device);
 
 	i2c_acpi_remove_space_handler(adap);
 

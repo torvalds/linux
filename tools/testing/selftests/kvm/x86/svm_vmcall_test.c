@@ -19,13 +19,10 @@ static void l2_guest_code(struct svm_test_data *svm)
 
 static void l1_guest_code(struct svm_test_data *svm)
 {
-	#define L2_GUEST_STACK_SIZE 64
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 
 	/* Prepare for L2 execution. */
-	generic_svm_setup(svm, l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_guest_code);
 
 	run_guest(vmcb, svm->vmcb_gpa);
 

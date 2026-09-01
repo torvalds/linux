@@ -368,11 +368,8 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 						IRQF_NO_SUSPEND | IRQF_ONESHOT,
 						dev_name(&pdev->dev),
 						&pdev->dev);
-		if (ret) {
-			dev_err(&pdev->dev, "devm_request_threaded_irq '%d' failed with %d\n",
-				irq, ret);
+		if (ret)
 			return ret;
-		}
 	} else {
 		dev_err(&pdev->dev, "Required property not found in DT node\n");
 		return -ENOENT;

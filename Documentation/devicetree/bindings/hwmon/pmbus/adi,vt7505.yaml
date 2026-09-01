@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,vt7505.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices MAX16545/MAX16550 and Volterra VT7505 PMBus controllers
+
+maintainers:
+  - Sanman Pradhan <psanman@juniper.net>
+
+description: |
+  The Analog Devices MAX16545 and MAX16550, and the Volterra VT7505, are PMBus
+  controllers that provide input/output voltage, input/output current,
+  input power and temperature monitoring over the PMBus interface.
+
+  The MAX16545 uses the same programming model as the VT7505.
+
+  Datasheets:
+  https://www.analog.com/media/en/technical-documentation/data-sheets/max16545b-max16545c.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/max16550.pdf
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - adi,max16550
+          - adi,vt7505
+      - items:
+          - const: adi,max16545
+          - const: adi,vt7505
+
+  reg:
+    maxItems: 1
+
+  adi,rload-ohms:
+    description:
+      Resistance in ohms of the external telemetry load resistor connected
+      between the ILOAD current-output pin and ground. This is not a
+      current-path shunt resistor; it sets the scaling of the reported input
+      current, output current and input power.
+    minimum: 1
+    maximum: 283383959
+    default: 4750
+
+  adi,ocp-severe-filter-us:
+    description:
+      Deglitch time, in microseconds, applied to the severe
+      overcurrent-protection comparator, programmed into the
+      MFR_CONFIG[15:14] field. The MAX16550 and VT7505 expose this field.
+      On the MAX16545 the severe overcurrent delay is fixed and these bits
+      are reserved. If omitted, the existing hardware setting is retained.
+    enum: [0, 1, 2, 10]
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  # The severe OCP deglitch filter is fixed on the MAX16545, so the property
+  # is only valid for the MAX16550 and VT7505.
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,max16545
+    then:
+      properties:
+        adi,ocp-severe-filter-us: false
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@40 {
+            compatible = "adi,vt7505";
+            reg = <0x40>;
+            adi,rload-ohms = <4750>;
+            adi,ocp-severe-filter-us = <10>;
+        };
+    };

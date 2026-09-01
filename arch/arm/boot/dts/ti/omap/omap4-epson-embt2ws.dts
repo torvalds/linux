@@ -64,6 +64,13 @@
 		};
 	};
 
+	multi-led {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+		leds = <&led_r>, <&led_g>, <&led_b>;
+	};
+
 	cb_v18: regulator-cb-v18 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&cb_v18_pins>;
@@ -368,19 +375,19 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		led@0 {
+		led_g: led@0 {
 			reg = <0>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_STATUS;
 		};
 
-		led@2 {
+		led_b: led@2 {
 			reg = <2>;
 			color = <LED_COLOR_ID_BLUE>;
 			function = LED_FUNCTION_STATUS;
 		};
 
-		led@4 {
+		led_r: led@4 {
 			reg = <4>;
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_STATUS;

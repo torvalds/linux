@@ -14,6 +14,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include "rk3399-nanopi4.dtsi"
 
 / {
@@ -25,19 +26,22 @@
 		/delete-node/ led-0;
 
 		lan_led: led-lan {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_LAN;
 			gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
-			label = "green:lan";
 		};
 
 		sys_led: led-sys {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
-			label = "red:power";
 			default-state = "on";
 		};
 
 		wan_led: led-wan {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_WAN;
 			gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
-			label = "green:wan";
 		};
 	};
 

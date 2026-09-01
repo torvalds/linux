@@ -21,7 +21,7 @@
 		};
 	};
 
- 	aliases {
+	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
 	};
@@ -147,12 +147,12 @@
 				};
 
 				clkuart0: uart0 {
- 					#clock-cells = <0>;
- 					compatible = "via,vt8500-device-clock";
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
 					clocks = <&ref24>;
 					enable-reg = <0x250>;
 					enable-bit = <1>;
- 				};
+				};
 
 				clkuart1: uart1 {
 					#clock-cells = <0>;

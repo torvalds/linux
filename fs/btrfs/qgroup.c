@@ -3915,8 +3915,8 @@ out:
 			ret = PTR_ERR(trans);
 			trans = NULL;
 			btrfs_err(fs_info,
-				  "fail to start transaction for status update: %d",
-				  ret);
+				  "fail to start transaction for status update: %pe",
+				  ERR_PTR(ret));
 		}
 	} else {
 		trans = NULL;
@@ -3931,7 +3931,7 @@ out:
 
 		if (ret2 < 0) {
 			ret = ret2;
-			btrfs_err(fs_info, "fail to update qgroup status: %d", ret);
+			btrfs_err(fs_info, "fail to update qgroup status: %pe", ERR_PTR(ret));
 		}
 	}
 	fs_info->qgroup_rescan_running = false;
@@ -3952,7 +3952,7 @@ out:
 		btrfs_info(fs_info, "qgroup scan completed%s",
 			ret > 0 ? " (inconsistency flag cleared)" : "");
 	} else {
-		btrfs_err(fs_info, "qgroup scan failed with %d", ret);
+		btrfs_err(fs_info, "qgroup scan failed with %pe", ERR_PTR(ret));
 	}
 }
 
@@ -4339,12 +4339,13 @@ static int qgroup_free_reserved_data(struct btrfs_inode *inode,
 	struct ulist_node *unode;
 	struct ulist_iterator uiter;
 	struct extent_changeset changeset;
+	const u32 sectorsize = root->fs_info->sectorsize;
+	const u64 aligned_start = round_down(start, sectorsize);
+	const u64 aligned_len = round_up(start + len, sectorsize) - aligned_start;
 	u64 freed = 0;
 	int ret;
 
 	extent_changeset_init_bytes_only(&changeset);
-	len = round_up(start + len, root->fs_info->sectorsize);
-	start = round_down(start, root->fs_info->sectorsize);
 
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(&reserved->range_changed, &uiter))) {
@@ -4356,12 +4357,15 @@ static int qgroup_free_reserved_data(struct btrfs_inode *inode,
 
 		extent_changeset_release(&changeset);
 
-		/* Only free range in range [start, start + len) */
-		if (range_start >= start + len ||
-		    range_start + range_len <= start)
+		/*
+		 * Only free the range within
+		 * [aligned_start, aligned_start + aligned_len).
+		 */
+		if (range_start >= aligned_start + aligned_len ||
+		    range_start + range_len <= aligned_start)
 			continue;
-		free_start = max(range_start, start);
-		free_len = min(start + len, range_start + range_len) -
+		free_start = max(range_start, aligned_start);
+		free_len = min(aligned_start + aligned_len, range_start + range_len) -
 			   free_start;
 		/*
 		 * TODO: To also modify reserved->ranges_reserved to reflect

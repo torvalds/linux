@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_FOOTBRIDGE
-	bool "FootBridge Implementations"
+	bool "FootBridge Implementations (DEPRECATED)"
 	depends on ARCH_MULTI_V4 && !(ARCH_MULTI_V4T || ARCH_MULTI_V5)
 	depends on !(ARCH_MOXART || ARCH_GEMINI || ARCH_SA1100)
 	depends on ATAGS
@@ -12,7 +12,10 @@ menuconfig ARCH_FOOTBRIDGE
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
-	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
+	  ("FootBridge"), used in the EBSA285 and the Rebel NetWinder.
+
+	  Support for these machines will go away in 2027,
+	  unless there are any remaining users that speak up.
 
 if ARCH_FOOTBRIDGE
 

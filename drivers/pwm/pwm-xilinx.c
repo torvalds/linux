@@ -281,8 +281,8 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id xilinx_pwm_of_match[] = {
-	{ .compatible = "xlnx,xps-timer-1.00.a", },
-	{},
+	{ .compatible = "xlnx,xps-timer-1.00.a" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, xilinx_pwm_of_match);
 

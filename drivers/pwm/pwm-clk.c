@@ -119,7 +119,7 @@ static void pwm_clk_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id pwm_clk_dt_ids[] = {
-	{ .compatible = "clk-pwm", },
+	{ .compatible = "clk-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pwm_clk_dt_ids);

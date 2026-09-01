@@ -200,7 +200,7 @@ static const struct of_device_id __maybe_unused max77838_of_match[] = {
 MODULE_DEVICE_TABLE(of, max77838_of_match);
 
 static const struct i2c_device_id max77838_id[] = {
-	{ "max77838-regulator" },
+	{ .name = "max77838-regulator" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, max77838_id);

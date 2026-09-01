@@ -60,7 +60,7 @@
 				link-frequencies = /bits/ 64 <400000000>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&csiphy0_ep>;
-                        };
-                };
+			};
+		};
 	};
 };

@@ -7,13 +7,16 @@
  *
  * Author: Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
+#include <linux/amd-pmf.h>
 #include <linux/amd-pmf-io.h>
+#include <linux/cleanup.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
 
 #include "amd_sfh_interface.h"
 
 static struct amd_mp2_dev *emp2;
+static DEFINE_MUTEX(emp2_lock);
 
 static int amd_sfh_wait_response(struct amd_mp2_dev *mp2, u8 sid, u32 cmd_id)
 {
@@ -78,13 +81,46 @@ static struct amd_mp2_ops amd_sfh_ops = {
 
 void sfh_deinit_emp2(void)
 {
+	guard(mutex)(&emp2_lock);
 	emp2 = NULL;
+}
+
+void sfh_set_emp2(struct amd_mp2_dev *mp2)
+{
+	guard(mutex)(&emp2_lock);
+	emp2 = mp2;
 }
 
 void sfh_interface_init(struct amd_mp2_dev *mp2)
 {
 	mp2->mp2_ops = &amd_sfh_ops;
+	guard(mutex)(&emp2_lock);
 	emp2 = mp2;
+}
+
+static int amd_sfh_op_mode_info(u32 *op_mode)
+{
+	struct sfh_op_mode mode;
+	bool present;
+
+	if (!op_mode)
+		return -EINVAL;
+	if (!emp2)
+		return -ENODEV;
+
+	present = emp2->sfh1_1_ops ? emp2->dev_en.is_sra_present
+				   : (emp2->mp2_ver == MP2_VER_V2 &&
+				      amd_sfh_op_idx_enabled(emp2));
+	if (!present)
+		return -ENODEV;
+
+	mode.val = readl(emp2->mmio + amd_get_c2p_val(emp2, 3));
+	dev_dbg(&emp2->pdev->dev, "op-mode: %s (mode=%u)\n",
+		mode.op_mode.mode == SFH_MODE_TABLET ? "tablet" : "laptop",
+		mode.op_mode.mode);
+	*op_mode = mode.op_mode.mode;
+
+	return 0;
 }
 
 static int amd_sfh_mode_info(u32 *platform_type, u32 *laptop_placement)
@@ -102,20 +138,20 @@ static int amd_sfh_mode_info(u32 *platform_type, u32 *laptop_placement)
 	*platform_type = mode.op_mode.devicemode;
 
 	if (mode.op_mode.ontablestate == 1) {
-		*laptop_placement = ON_TABLE;
+		*laptop_placement = AMD_PMF_ON_TABLE;
 	} else if (mode.op_mode.ontablestate == 2) {
-		*laptop_placement = ON_LAP_MOTION;
+		*laptop_placement = AMD_PMF_ON_LAP_MOTION;
 	} else if (mode.op_mode.inbagstate == 1) {
-		*laptop_placement = IN_BAG;
+		*laptop_placement = AMD_PMF_IN_BAG;
 	} else if (mode.op_mode.outbagstate == 1) {
-		*laptop_placement = OUT_OF_BAG;
+		*laptop_placement = AMD_PMF_OUT_OF_BAG;
 	} else if (mode.op_mode.ontablestate == 0 || mode.op_mode.inbagstate == 0 ||
 		 mode.op_mode.outbagstate == 0) {
-		*laptop_placement = LP_UNKNOWN;
+		*laptop_placement = AMD_PMF_LP_UNKNOWN;
 		pr_warn_once("Unknown laptop placement\n");
 	} else if (mode.op_mode.ontablestate == 3 || mode.op_mode.inbagstate == 3 ||
 		 mode.op_mode.outbagstate == 3) {
-		*laptop_placement = LP_UNDEFINED;
+		*laptop_placement = AMD_PMF_LP_UNDEFINED;
 		pr_warn_once("Undefined laptop placement\n");
 	}
 
@@ -160,6 +196,8 @@ static int amd_sfh_als_info(u32 *ambient_light)
 
 int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op)
 {
+	guard(mutex)(&emp2_lock);
+
 	if (sfh_info) {
 		switch (op) {
 		case MT_HPD:
@@ -169,6 +207,8 @@ int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op)
 		case MT_SRA:
 			return amd_sfh_mode_info(&sfh_info->platform_type,
 						 &sfh_info->laptop_placement);
+		case MT_OP_MODE:
+			return amd_sfh_op_mode_info(&sfh_info->op_mode);
 		}
 	}
 	return -EINVAL;

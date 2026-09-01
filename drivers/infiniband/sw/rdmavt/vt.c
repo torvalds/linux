@@ -55,8 +55,10 @@ struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 		return rdi;
 
 	rdi->ports = kzalloc_objs(*rdi->ports, nports);
-	if (!rdi->ports)
+	if (!rdi->ports) {
 		ib_dealloc_device(&rdi->ibdev);
+		return NULL;
+	}
 
 	return rdi;
 }
@@ -82,14 +84,14 @@ static int rvt_query_device(struct ib_device *ibdev,
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	int err;
 
-	err = ib_is_udata_in_empty(uhw);
+	err = ib_no_udata_io(uhw);
 	if (err)
 		return err;
 	/*
 	 * Return rvt_dev_info.dparms.props contents
 	 */
 	*props = rdi->dparms.props;
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 static int rvt_get_numa_node(struct ib_device *ibdev)

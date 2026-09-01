@@ -181,7 +181,7 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_umem_dmabuf_get);
 
-static struct dma_buf_attach_ops ib_umem_dmabuf_attach_pinned_ops = {
+static const struct dma_buf_attach_ops ib_umem_dmabuf_attach_pinned_ops = {
 	.allow_peer2peer = true,
 };
 
@@ -205,7 +205,7 @@ static void ib_umem_dmabuf_revoke_locked(struct dma_buf_attachment *attach)
 	umem_dmabuf->revoked = 1;
 }
 
-static struct dma_buf_attach_ops ib_umem_dmabuf_attach_pinned_revocable_ops = {
+static const struct dma_buf_attach_ops ib_umem_dmabuf_attach_pinned_revocable_ops = {
 	.allow_peer2peer = true,
 	.invalidate_mappings = ib_umem_dmabuf_revoke_locked,
 };

@@ -89,6 +89,10 @@ static void amd_asf_process_target(struct work_struct *work)
 		outb_p(reg, ASFDATABNKSEL);
 		cmd = inb_p(ASFINDEX);
 		len = inb_p(ASFDATARWPTR);
+
+		if (len > ASF_BLOCK_MAX_BYTES)
+			return;
+
 		for (idx = 0; idx < len; idx++)
 			data[idx] = inb_p(ASFINDEX);
 
@@ -333,11 +337,11 @@ static int amd_asf_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(dev, irq, "missing IRQ resources\n");
+		return irq;
 
 	ret = devm_request_irq(dev, irq, amd_asf_irq_handler, IRQF_SHARED, "amd_asf", asf_dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "Unable to request irq: %d for use\n", irq);
+		return ret;
 
 	asf_dev->adap.owner = THIS_MODULE;
 	asf_dev->adap.algo = &amd_asf_smbus_algorithm;

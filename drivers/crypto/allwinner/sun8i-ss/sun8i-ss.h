@@ -8,7 +8,6 @@
 #include <crypto/aes.h>
 #include <crypto/des.h>
 #include <crypto/engine.h>
-#include <crypto/rng.h>
 #include <crypto/skcipher.h>
 #include <linux/atomic.h>
 #include <linux/debugfs.h>
@@ -27,7 +26,6 @@
 #define SS_ALG_DES		(1 << 2)
 #define SS_ALG_3DES		(2 << 2)
 #define SS_ALG_MD5		(3 << 2)
-#define SS_ALG_PRNG		(4 << 2)
 #define SS_ALG_SHA1		(6 << 2)
 #define SS_ALG_SHA224		(7 << 2)
 #define SS_ALG_SHA256		(8 << 2)
@@ -68,8 +66,6 @@
 #define SS_FLOW0	BIT(30)
 #define SS_FLOW1	BIT(31)
 
-#define SS_PRNG_CONTINUE	BIT(18)
-
 #define MAX_SG 8
 
 #define MAXFLOW 2
@@ -78,9 +74,6 @@
 
 #define SS_DIE_ID_SHIFT	20
 #define SS_DIE_ID_MASK	0x07
-
-#define PRNG_DATA_SIZE (160 / 8)
-#define PRNG_SEED_SIZE DIV_ROUND_UP(175, 8)
 
 #define MAX_PAD_SIZE 4096
 
@@ -214,16 +207,6 @@ struct sun8i_cipher_tfm_ctx {
 };
 
 /*
- * struct sun8i_ss_prng_ctx - context for PRNG TFM
- * @seed:	The seed to use
- * @slen:	The size of the seed
- */
-struct sun8i_ss_rng_tfm_ctx {
-	void *seed;
-	unsigned int slen;
-};
-
-/*
  * struct sun8i_ss_hash_tfm_ctx - context for an ahash TFM
  * @fallback_tfm:	pointer to the fallback TFM
  * @ss:			pointer to the private data of driver handling this TFM
@@ -274,7 +257,6 @@ struct sun8i_ss_alg_template {
 	struct sun8i_ss_dev *ss;
 	union {
 		struct skcipher_engine_alg skcipher;
-		struct rng_alg rng;
 		struct ahash_engine_alg hash;
 	} alg;
 	unsigned long stat_req;
@@ -300,11 +282,6 @@ int sun8i_ss_skencrypt(struct skcipher_request *areq);
 int sun8i_ss_get_engine_number(struct sun8i_ss_dev *ss);
 
 int sun8i_ss_run_task(struct sun8i_ss_dev *ss, struct sun8i_cipher_req_ctx *rctx, const char *name);
-int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
-			   unsigned int slen, u8 *dst, unsigned int dlen);
-int sun8i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
-int sun8i_ss_prng_init(struct crypto_tfm *tfm);
-void sun8i_ss_prng_exit(struct crypto_tfm *tfm);
 
 int sun8i_ss_hash_init_tfm(struct crypto_ahash *tfm);
 void sun8i_ss_hash_exit_tfm(struct crypto_ahash *tfm);

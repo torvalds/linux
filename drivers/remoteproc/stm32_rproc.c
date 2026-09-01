@@ -113,35 +113,6 @@ static int stm32_rproc_pa_to_da(struct rproc *rproc, phys_addr_t pa, u64 *da)
 	return -EINVAL;
 }
 
-static int stm32_rproc_mem_alloc(struct rproc *rproc,
-				 struct rproc_mem_entry *mem)
-{
-	struct device *dev = rproc->dev.parent;
-	void *va;
-
-	dev_dbg(dev, "map memory: %pad+%zx\n", &mem->dma, mem->len);
-	va = (__force void *)ioremap_wc(mem->dma, mem->len);
-	if (IS_ERR_OR_NULL(va)) {
-		dev_err(dev, "Unable to map memory region: %pad+0x%zx\n",
-			&mem->dma, mem->len);
-		return -ENOMEM;
-	}
-
-	/* Update memory entry va */
-	mem->va = va;
-
-	return 0;
-}
-
-static int stm32_rproc_mem_release(struct rproc *rproc,
-				   struct rproc_mem_entry *mem)
-{
-	dev_dbg(rproc->dev.parent, "unmap memory: %pa\n", &mem->dma);
-	iounmap((__force __iomem void *)mem->va);
-
-	return 0;
-}
-
 static int stm32_rproc_of_memory_translations(struct platform_device *pdev,
 					      struct stm32_rproc *ddata)
 {
@@ -237,8 +208,8 @@ static int stm32_rproc_prepare(struct rproc *rproc)
 			mem = rproc_mem_entry_init(dev, NULL,
 						   (dma_addr_t)res.start,
 						   resource_size(&res), da,
-						   stm32_rproc_mem_alloc,
-						   stm32_rproc_mem_release,
+						   rproc_mem_entry_ioremap_wc,
+						   rproc_mem_entry_iounmap,
 						   "%.*s", strchrnul(res.name, '@') - res.name,
 						   res.name);
 			if (mem)
@@ -263,9 +234,8 @@ static int stm32_rproc_prepare(struct rproc *rproc)
 
 static int stm32_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc_elf_load_rsc_table(rproc, fw))
-		dev_warn(&rproc->dev, "no resource table found for this firmware\n");
-
+	rproc_elf_load_rsc_table_optional(rproc, fw, dev_warn,
+					  "no resource table found for this firmware\n");
 	return 0;
 }
 
@@ -712,8 +682,7 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 		err = devm_request_irq(dev, irq, stm32_rproc_wdg, 0,
 				       dev_name(dev), pdev);
 		if (err)
-			return dev_err_probe(dev, err,
-					     "failed to request wdg irq\n");
+			return err;
 
 		ddata->wdg_irq = irq;
 
@@ -957,4 +926,3 @@ MODULE_DESCRIPTION("STM32 Remote Processor Control Driver");
 MODULE_AUTHOR("Ludovic Barre <ludovic.barre@st.com>");
 MODULE_AUTHOR("Fabien Dessenne <fabien.dessenne@st.com>");
 MODULE_LICENSE("GPL v2");
-

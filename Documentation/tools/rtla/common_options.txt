@@ -22,9 +22,13 @@
 
         Enable an event in the trace (**-t**) session. The argument can be a specific event, e.g., **-e** *sched:sched_switch*, or all events of a system group, e.g., **-e** *sched*. Multiple **-e** are allowed. It is only active when **-t** or **-a** are set.
 
+        This option cannot be unset.
+
 **--filter** *<filter>*
 
         Filter the previous **-e** *sys:event* event with *<filter>*. For further information about event filtering see https://www.kernel.org/doc/html/latest/trace/events.html#event-filtering.
+
+        This option cannot be unset.
 
 **--trigger** *<trigger>*
         Enable a trace event trigger to the previous **-e** *sys:event*.
@@ -36,6 +40,8 @@
         Will automatically save the content of the histogram associated to *osnoise:irq_noise* event in *osnoise_irq_noise_hist.txt*.
 
         For further information about event trigger see https://www.kernel.org/doc/html/latest/trace/events.html#event-triggers.
+
+        This option cannot be unset.
 
 **-P**, **--priority** *o:prio|r:prio|f:prio|d:runtime:period*
 
@@ -78,7 +84,8 @@
 
           Saves trace output, optionally taking a filename. Alternative to -t/--trace.
           Note that unlike -t/--trace, specifying this multiple times will result in
-          the trace being saved multiple times.
+          the trace being saved multiple times, and --no-trace will not disable trace
+          output when enabled through this option.
 
         - *signal,num=<sig>,pid=<pid>*
 
@@ -107,6 +114,8 @@
 
         |actionsperf|
 
+        This option cannot be unset.
+
 **--on-end** *action*
 
         Defines an action to be executed at the end of tracing.
@@ -123,6 +132,8 @@
         $ rtla |tool| -d 5s --on-end trace
 
         This runs rtla with the default options, and saves trace output at the end.
+
+        This option cannot be unset.
 
 **-h**, **--help**
 

@@ -893,7 +893,7 @@ static const struct drm_bridge_funcs dw_mipi_dsi2_bridge_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = dw_mipi_dsi2_bridge_atomic_get_input_bus_fmts,
 	.atomic_check		= dw_mipi_dsi2_bridge_atomic_check,
-	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_create_state		= drm_atomic_helper_bridge_create_state,
 	.atomic_pre_enable	= dw_mipi_dsi2_bridge_atomic_pre_enable,
 	.atomic_enable		= dw_mipi_dsi2_bridge_atomic_enable,
 	.atomic_post_disable	= dw_mipi_dsi2_bridge_post_atomic_disable,
@@ -907,7 +907,6 @@ static const struct regmap_config dw_mipi_dsi2_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.fast_io = true,
 };
 
 static struct dw_mipi_dsi2 *

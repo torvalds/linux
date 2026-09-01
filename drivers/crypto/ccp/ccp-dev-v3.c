@@ -28,7 +28,7 @@ static u32 ccp_alloc_ksb(struct ccp_cmd_queue *cmd_q, unsigned int count)
 							ccp->sb_count,
 							ccp->sb_start,
 							count, 0);
-		if (start <= ccp->sb_count) {
+		if (start < ccp->sb_count) {
 			bitmap_set(ccp->sb, start, count);
 
 			mutex_unlock(&ccp->sb_mutex);

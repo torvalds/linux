@@ -66,7 +66,7 @@ struct block_device {
 	int			bd_holders;
 	struct kobject		*bd_holder_dir;
 
-	atomic_t		bd_fsfreeze_count; /* number of freeze requests */
+	atomic_t		bd_fsfreeze_count; /* >0 freeze requests, <0 freeze deniers */
 	struct mutex		bd_fsfreeze_mutex; /* serialize freeze/thaw */
 
 	struct partition_meta_info *bd_meta_info;
@@ -322,6 +322,7 @@ enum {
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_PLUGGING, /* bio handled through zone write plugging */
 	BIO_EMULATES_ZONE_APPEND, /* bio emulates a zone append operation */
+	BIO_COMPLETE_IN_TASK, /* complete bi_end_io() in task context */
 	BIO_FLAG_LAST
 };
 

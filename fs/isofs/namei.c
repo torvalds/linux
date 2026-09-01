@@ -10,6 +10,26 @@
 #include <linux/gfp.h>
 #include "isofs.h"
 
+bool isofs_dir_record_valid(struct iso_directory_record *de,
+			    unsigned long offset,
+			    unsigned long bufsize)
+{
+	unsigned int len;
+	unsigned int name_len;
+	unsigned long min_len = offsetof(struct iso_directory_record, name);
+
+	if (offset > bufsize || bufsize - offset < min_len)
+		return false;
+
+	len = isonum_711(de->length);
+	name_len = isonum_711(de->name_len);
+	if (len < min_len || name_len > len - min_len)
+		return false;
+	if (len > bufsize - offset)
+		return false;
+	return true;
+}
+
 static int
 isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 {
@@ -28,7 +48,7 @@ isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 static unsigned long
 isofs_find_entry(struct inode *dir, struct dentry *dentry,
 	unsigned long *block_rv, unsigned long *offset_rv,
-	char *tmpname, struct iso_directory_record *tmpde)
+	char *tmpname)
 {
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(dir);
 	unsigned char bufbits = ISOFS_BUFFER_BITS(dir);
@@ -71,33 +91,15 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 		offset += de_len;
 		f_pos += de_len;
 
-		/* Make sure we have a full directory entry */
-		if (offset >= bufsize) {
-			int slop = bufsize - offset + de_len;
-			memcpy(tmpde, de, slop);
-			offset &= bufsize - 1;
-			block++;
-			brelse(bh);
-			bh = NULL;
-			if (offset) {
-				bh = isofs_bread(dir, block);
-				if (!bh)
-					return 0;
-				memcpy((void *) tmpde + slop, bh->b_data, offset);
-			}
-			de = tmpde;
-		}
-
-		dlen = de->name_len[0];
-		dpnt = de->name;
-		/* Basic sanity check, whether name doesn't exceed dir entry */
-		if (de_len < dlen + sizeof(struct iso_directory_record)) {
+		if (!isofs_dir_record_valid(de, offset_saved, bufsize)) {
 			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
 			       " in block %lu of inode %llu\n", block,
 			       dir->i_ino);
 			brelse(bh);
 			return 0;
 		}
+		dlen = de->name_len[0];
+		dpnt = de->name;
 
 		if (sbi->s_rock &&
 		    ((i = get_rock_ridge_filename(de, tmpname, dir)))) {
@@ -149,17 +151,14 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 	unsigned long block;
 	unsigned long offset;
 	struct inode *inode;
-	struct page *page;
+	char *tmpname;
 
-	page = alloc_page(GFP_USER);
-	if (!page)
+	tmpname = kmalloc(1024, GFP_USER);
+	if (!tmpname)
 		return ERR_PTR(-ENOMEM);
 
-	found = isofs_find_entry(dir, dentry,
-				&block, &offset,
-				page_address(page),
-				1024 + page_address(page));
-	__free_page(page);
+	found = isofs_find_entry(dir, dentry, &block, &offset, tmpname);
+	kfree(tmpname);
 
 	inode = found ? isofs_iget(dir->i_sb, block, offset) : NULL;
 

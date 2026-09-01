@@ -103,6 +103,17 @@
 		regulator-min-microvolt = <1800000>;
 	};
 
+	reg_phy1_supply: regulator-phy1 {
+		compatible = "regulator-fixed";
+		regulator-name = "SUPPLY_PHY1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pca6408_2 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		regulator-always-on;
+	};
+
 	reg_usdhc2_vmmc: regulator-vmmc-usdhc2 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_SD2_3V3";
@@ -180,9 +191,6 @@
 		ethphy1: ethernet-phy@1 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <1>;
-			reset-assert-us = <15000>;
-			reset-deassert-us = <100000>;
-			reset-gpios = <&pca6408_2 0 GPIO_ACTIVE_LOW>;
 
 			leds {
 				#address-cells = <1>;

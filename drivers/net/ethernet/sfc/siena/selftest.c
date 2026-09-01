@@ -399,8 +399,8 @@ static void efx_iterate_state(struct efx_nic *efx)
 
 	/* Initialise udp header */
 	payload->udp.source = 0;
-	payload->udp.len = htons(sizeof(*payload) -
-				 offsetof(struct efx_loopback_payload, udp));
+	udp_set_len_short(&payload->udp, sizeof(*payload) -
+			  offsetof(struct efx_loopback_payload, udp));
 	payload->udp.check = 0;	/* checksum ignored */
 
 	/* Fill out payload */

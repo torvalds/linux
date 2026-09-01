@@ -258,9 +258,9 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 		for (i = 0; i <= pps->num_tile_rows_minus1; i++)
 			WRITE_PPS(pps->row_height_minus1[i], ROW_HEIGHT(i));
 	} else {
-		WRITE_PPS(((sps->pic_width_in_luma_samples + ctb_size_y - 1) / ctb_size_y) - 1,
+		WRITE_PPS(DIV_ROUND_UP(sps->pic_width_in_luma_samples, ctb_size_y) - 1,
 			  COLUMN_WIDTH(0));
-		WRITE_PPS(((sps->pic_height_in_luma_samples + ctb_size_y - 1) / ctb_size_y) - 1,
+		WRITE_PPS(DIV_ROUND_UP(sps->pic_height_in_luma_samples, ctb_size_y) - 1,
 			  ROW_HEIGHT(0));
 	}
 

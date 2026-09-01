@@ -237,6 +237,7 @@ static int add_event(struct evlist *evlist, struct list_head *events,
 
 	if (evlist__parse_sample(evlist, event, &sample)) {
 		pr_debug("evlist__parse_sample failed\n");
+		perf_sample__exit(&sample);
 		return -1;
 	}
 
@@ -282,8 +283,8 @@ static int process_events(struct evlist *evlist,
 	struct mmap *md;
 	int i, ret;
 
-	for (i = 0; i < evlist->core.nr_mmaps; i++) {
-		md = &evlist->mmap[i];
+	for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
+		md = &evlist__mmap(evlist)[i];
 		if (perf_mmap__read_init(&md->core) < 0)
 			continue;
 
@@ -374,7 +375,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 		goto out_err;
 	}
 
-	perf_evlist__set_maps(&evlist->core, cpus, threads);
+	perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 
 	/* First event */
 	err = parse_event(evlist, "cpu-clock:u");
@@ -471,7 +472,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 		goto out;
 	}
 
-	err = evlist__mmap(evlist, UINT_MAX);
+	err = evlist__do_mmap(evlist, UINT_MAX);
 	if (err) {
 		pr_debug("evlist__mmap failed!\n");
 		goto out_err;
@@ -582,7 +583,7 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 out:
 	if (evlist) {
 		evlist__disable(evlist);
-		evlist__delete(evlist);
+		evlist__put(evlist);
 	}
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);

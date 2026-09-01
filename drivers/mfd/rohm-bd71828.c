@@ -5,7 +5,6 @@
  * ROHM BD718[15/28/79] and BD72720 PMIC driver
  */
 
-#include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -20,6 +19,8 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+
+#include "rohm-pwrbutton.h"
 
 #define BD72720_TYPED_IRQ_REG(_irq, _stat_offset, _mask, _type_offset)     \
 	[_irq] = {							   \
@@ -36,19 +37,6 @@
 				IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW,  \
 		},							   \
 	}
-
-static struct gpio_keys_button button = {
-	.code = KEY_POWER,
-	.gpio = -1,
-	.type = EV_KEY,
-	.wakeup = 1,
-};
-
-static const struct gpio_keys_platform_data bd71828_powerkey_data = {
-	.buttons = &button,
-	.nbuttons = 1,
-	.name = "bd71828-pwrkey",
-};
 
 static const struct resource bd71815_rtc_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC0, "bd70528-rtc-alm-0"),
@@ -174,10 +162,6 @@ static struct mfd_cell bd71828_mfd_cells[] = {
 		.name = "bd71828-rtc",
 		.resources = bd71828_rtc_irqs,
 		.num_resources = ARRAY_SIZE(bd71828_rtc_irqs),
-	}, {
-		.name = "gpio-keys",
-		.platform_data = &bd71828_powerkey_data,
-		.pdata_size = sizeof(bd71828_powerkey_data),
 	},
 };
 
@@ -242,11 +226,8 @@ static const struct mfd_cell bd72720_mfd_cells[] = {
 		.name = "bd72720-rtc",
 		.resources = bd72720_rtc_irqs,
 		.num_resources = ARRAY_SIZE(bd72720_rtc_irqs),
-	}, {
-		.name = "gpio-keys",
-		.platform_data = &bd71828_powerkey_data,
-		.pdata_size = sizeof(bd71828_powerkey_data),
 	},
+	/* Power button is registered separately */
 };
 
 static const struct regmap_range bd71815_volatile_ranges[] = {
@@ -877,6 +858,8 @@ static int set_clk_mode(struct device *dev, struct regmap *regmap,
 				  OUT32K_MODE_CMOS);
 }
 
+
+
 static struct i2c_client *bd71828_dev;
 static void bd71828_power_off(void)
 {
@@ -929,6 +912,7 @@ static struct regmap *bd72720_do_regmaps(struct i2c_client *i2c)
 static int bd71828_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_irq_chip_data *irq_data;
+	struct irq_domain *irq_domain;
 	int ret;
 	struct regmap *regmap = NULL;
 	const struct regmap_config *regmap_config;
@@ -1022,23 +1006,24 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 					"Failed to enable main level IRQs\n");
 		}
 	}
-	if (button_irq) {
-		ret = regmap_irq_get_virq(irq_data, button_irq);
-		if (ret < 0)
-			return dev_err_probe(&i2c->dev, ret,
-					     "Failed to get the power-key IRQ\n");
-
-		button.irq = ret;
-	}
 
 	ret = set_clk_mode(&i2c->dev, regmap, clkmode_reg);
 	if (ret)
 		return ret;
 
+	irq_domain = regmap_irq_get_domain(irq_data);
+
 	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, mfd, cells,
-				   NULL, 0, regmap_irq_get_domain(irq_data));
+				   NULL, 0, irq_domain);
 	if (ret)
-		return	dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+		return dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+
+	if (button_irq) {
+		ret = rohm_register_pwrbutton(&i2c->dev, button_irq,
+					      "bd71828-pwrkey", true, irq_domain);
+		if (ret)
+			return ret;
+	}
 
 	if (of_device_is_system_power_controller(i2c->dev.of_node) &&
 	    chip_type == ROHM_CHIP_TYPE_BD71828) {

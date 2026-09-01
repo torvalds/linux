@@ -592,8 +592,8 @@ static int process_events(struct machine *machine, struct evlist *evlist,
 	struct mmap *md;
 	int i, ret;
 
-	for (i = 0; i < evlist->core.nr_mmaps; i++) {
-		md = &evlist->mmap[i];
+	for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
+		md = &evlist__mmap(evlist)[i];
 		if (perf_mmap__read_init(&md->core) < 0)
 			continue;
 
@@ -781,7 +781,7 @@ static int do_test_code_reading(bool try_kcore)
 			goto out_put;
 		}
 
-		perf_evlist__set_maps(&evlist->core, cpus, threads);
+		perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 
 		str = events[evidx];
 		pr_debug("Parsing event '%s'\n", str);
@@ -809,8 +809,8 @@ static int do_test_code_reading(bool try_kcore)
 				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
 			}
 
-			perf_evlist__set_maps(&evlist->core, NULL, NULL);
-			evlist__delete(evlist);
+			perf_evlist__set_maps(evlist__core(evlist), NULL, NULL);
+			evlist__put(evlist);
 			evlist = NULL;
 			continue;
 		}
@@ -820,7 +820,7 @@ static int do_test_code_reading(bool try_kcore)
 	if (events[evidx] == NULL)
 		goto out_put;
 
-	ret = evlist__mmap(evlist, UINT_MAX);
+	ret = evlist__do_mmap(evlist, UINT_MAX);
 	if (ret < 0) {
 		pr_debug("evlist__mmap failed\n");
 		goto out_put;
@@ -847,7 +847,7 @@ static int do_test_code_reading(bool try_kcore)
 out_put:
 	thread__put(thread);
 out_err:
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
 	machine__delete(machine);

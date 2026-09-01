@@ -2189,16 +2189,8 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	mt_set_modes(hdev, HID_LATENCY_NORMAL, TOUCHPAD_REPORT_ALL);
 
-	if (td->is_haptic_touchpad) {
-		if (hid_haptic_init(hdev, &td->haptic)) {
-			dev_warn(&hdev->dev, "Cannot allocate haptic for %s\n",
-				 hdev->name);
-			td->is_haptic_touchpad = false;
-			devm_kfree(&hdev->dev, td->haptic);
-		}
-	} else {
+	if (!td->is_haptic_touchpad)
 		devm_kfree(&hdev->dev, td->haptic);
-	}
 
 	return 0;
 }
@@ -2722,7 +2714,7 @@ static const struct hid_device_id mt_devices[] = {
 			HID_ANY_ID) },
 
 	/* Hantick */
-	{ .driver_data = MT_CLS_NSMU,
+	{ .driver_data = MT_CLS_WIN_8_FORCE_MULTI_INPUT_NSMU,
 		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
 			   I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288) },
 

@@ -138,7 +138,7 @@ void host1x_job_add_wait(struct host1x_job *job, u32 id, u32 thresh,
 }
 EXPORT_SYMBOL(host1x_job_add_wait);
 
-static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
+static int pin_job(struct host1x *host, struct host1x_job *job)
 {
 	unsigned long mask = HOST1X_RELOC_READ | HOST1X_RELOC_WRITE;
 	struct host1x_client *client = job->client;

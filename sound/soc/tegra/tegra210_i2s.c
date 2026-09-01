@@ -23,9 +23,9 @@ static const struct reg_default tegra210_i2s_reg_defaults[] = {
 	{ TEGRA210_I2S_RX_CIF_CTRL, 0x00007700 },
 	{ TEGRA210_I2S_TX_INT_MASK, 0x00000003 },
 	{ TEGRA210_I2S_TX_CIF_CTRL, 0x00007700 },
+	{ TEGRA210_I2S_ENABLE, 0x0 },
 	{ TEGRA210_I2S_CG, 0x1 },
 	{ TEGRA210_I2S_TIMING, 0x0000001f },
-	{ TEGRA210_I2S_ENABLE, 0x1 },
 	/*
 	 * Below update does not have any effect on Tegra186 and Tegra194.
 	 * On Tegra210, I2S4 has "i2s4a" and "i2s4b" pins and below update
@@ -38,13 +38,13 @@ static const struct reg_default tegra210_i2s_reg_defaults[] = {
 static const struct reg_default tegra264_i2s_reg_defaults[] = {
 	{ TEGRA210_I2S_RX_INT_MASK, 0x00000003 },
 	{ TEGRA210_I2S_RX_CIF_CTRL, 0x00003f00 },
+	{ TEGRA264_I2S_RX_FIFO_WR_ACCESS_MODE, 0x1 },
 	{ TEGRA264_I2S_TX_INT_MASK, 0x00000003 },
 	{ TEGRA264_I2S_TX_CIF_CTRL, 0x00003f00 },
+	{ TEGRA264_I2S_TX_FIFO_RD_ACCESS_MODE, 0x1 },
+	{ TEGRA264_I2S_ENABLE, 0x0 },
 	{ TEGRA264_I2S_CG, 0x1 },
 	{ TEGRA264_I2S_TIMING, 0x0000001f },
-	{ TEGRA264_I2S_ENABLE, 0x1 },
-	{ TEGRA264_I2S_RX_FIFO_WR_ACCESS_MODE, 0x1 },
-	{ TEGRA264_I2S_TX_FIFO_RD_ACCESS_MODE, 0x1 },
 };
 
 static void tegra210_i2s_set_slot_ctrl(struct tegra210_i2s *i2s,
@@ -201,9 +201,21 @@ static int tegra210_i2s_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(i2s->regmap, false);
-	regcache_sync(i2s->regmap);
+	err = regcache_sync(i2s->regmap);
+	if (err)
+		goto err;
+
+	err = regmap_write(i2s->regmap, i2s->soc_data->enable_reg, I2S_EN);
+	if (err)
+		goto err;
 
 	return 0;
+
+err:
+	regcache_cache_only(i2s->regmap, true);
+	clk_disable_unprepare(i2s->clk_i2s);
+
+	return err;
 }
 
 static void tegra210_i2s_set_data_offset(struct tegra210_i2s *i2s,
@@ -1078,13 +1090,13 @@ static int tegra210_i2s_probe(struct platform_device *pdev)
 				     "can't retrieve I2S bit clock\n");
 
 	/*
-	 * Not an error, as this clock is needed only when some other I/O
-	 * requires input clock from current I2S instance, which is
-	 * configurable from DT.
+	 * This clock is optional and is only needed when another I/O uses
+	 * the current I2S instance as its input clock, as configured in DT.
 	 */
-	i2s->clk_sync_input = devm_clk_get(dev, "sync_input");
+	i2s->clk_sync_input = devm_clk_get_optional(dev, "sync_input");
 	if (IS_ERR(i2s->clk_sync_input))
-		dev_dbg(dev, "can't retrieve I2S sync input clock\n");
+		return dev_err_probe(dev, PTR_ERR(i2s->clk_sync_input),
+				     "can't retrieve I2S sync input clock\n");
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -1133,6 +1145,7 @@ static const struct tegra_i2s_soc_data soc_data_tegra210 = {
 	.regmap_conf		= &tegra210_regmap_conf,
 	.i2s_cmpnt		= &tegra210_i2s_cmpnt,
 	.max_ch			= TEGRA210_I2S_MAX_CHANNEL,
+	.enable_reg		= TEGRA210_I2S_ENABLE,
 	.tx_offset		= TEGRA210_I2S_TX_OFFSET,
 	.i2s_ctrl_offset	= TEGRA210_I2S_CTRL_OFFSET,
 	.fsync_width_mask	= I2S_CTRL_FSYNC_WIDTH_MASK,
@@ -1144,6 +1157,7 @@ static const struct tegra_i2s_soc_data soc_data_tegra264 = {
 	.regmap_conf		= &tegra264_regmap_conf,
 	.i2s_cmpnt		= &tegra264_i2s_cmpnt,
 	.max_ch			= TEGRA264_I2S_MAX_CHANNEL,
+	.enable_reg		= TEGRA264_I2S_ENABLE,
 	.tx_offset		= TEGRA264_I2S_TX_OFFSET,
 	.i2s_ctrl_offset	= TEGRA264_I2S_CTRL_OFFSET,
 	.fsync_width_mask	= TEGRA264_I2S_CTRL_FSYNC_WIDTH_MASK,

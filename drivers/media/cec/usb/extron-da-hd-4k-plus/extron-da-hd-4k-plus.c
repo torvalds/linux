@@ -657,7 +657,8 @@ static void extron_process_received(struct extron_port *port, const char *data)
 	if (!port || port->disconnected)
 		return;
 
-	if (len < 5 || (len - 2) % 3 || data[len - 2] != '*')
+	if (len < 5 || ((len - 2) / 3 > sizeof(msg.msg)) ||
+	    (len - 2) % 3 || data[len - 2] != '*')
 		goto malformed;
 
 	while (*data != '*') {

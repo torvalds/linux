@@ -1736,7 +1736,7 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 	tcp_ca_openreq_child(newsk, dst);
 
 	tcp_sync_mss(newsk, dst4_mtu(dst));
-	newtp->advmss = tcp_mss_clamp(tcp_sk(sk), dst_metric_advmss(dst));
+	newtp->advmss = tcp_mss_clamp(tcp_sk(sk), tcp_dst_advmss(dst));
 
 	tcp_initialize_rcv_mss(newsk);
 
@@ -2931,8 +2931,8 @@ static int bpf_iter_tcp_realloc_batch(struct bpf_tcp_iter_state *iter,
 {
 	union bpf_tcp_iter_batch_item *new_batch;
 
-	new_batch = kvmalloc(sizeof(*new_batch) * new_batch_sz,
-			     flags | __GFP_NOWARN);
+	new_batch = kvmalloc_array(new_batch_sz, sizeof(*new_batch),
+				   flags | __GFP_NOWARN);
 	if (!new_batch)
 		return -ENOMEM;
 

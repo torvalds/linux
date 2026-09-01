@@ -24,7 +24,7 @@
 #define TEGRA30_FUSE_SATA_CALIB	0x124
 #define TEGRA_FUSE_USB_CALIB_EXT_0 0x250
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 enum tegra_revision {
 	TEGRA_REVISION_UNKNOWN = 0,
@@ -122,6 +122,6 @@ static inline int tegra194_miscreg_mask_serror(void)
 
 struct device *tegra_soc_device_register(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __SOC_TEGRA_FUSE_H__ */

@@ -9,7 +9,7 @@
  * 2009 (c) MontaVista Software, Inc.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mfd/da8xx-cfgchip.h>

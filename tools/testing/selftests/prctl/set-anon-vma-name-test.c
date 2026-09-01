@@ -4,11 +4,13 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/prctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "kselftest_harness.h"
 
@@ -73,15 +75,24 @@ int was_renaming_successful(char *target_name, unsigned long ptr)
 
 FIXTURE(vma) {
 	void *ptr_anon, *ptr_not_anon;
+	int fd_not_anon;
 };
 
 FIXTURE_SETUP(vma) {
+	char template[] = "./set-anon-vma-test-XXXXXX";
+
 	self->ptr_anon = mmap(NULL, AREA_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	ASSERT_NE(self->ptr_anon, NULL);
+					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	ASSERT_NE(self->ptr_anon, MAP_FAILED);
+
+	self->fd_not_anon = mkstemp(template);
+	ASSERT_NE(self->fd_not_anon, -1);
+	unlink(template);
+	ASSERT_EQ(ftruncate(self->fd_not_anon, AREA_SIZE), 0);
 	self->ptr_not_anon = mmap(NULL, AREA_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE, 0, 0);
-	ASSERT_NE(self->ptr_not_anon, NULL);
+					MAP_PRIVATE, self->fd_not_anon, 0);
+	ASSERT_NE(self->ptr_not_anon, MAP_FAILED);
+	close(self->fd_not_anon);
 }
 
 FIXTURE_TEARDOWN(vma) {
@@ -98,7 +109,7 @@ TEST_F(vma, renaming) {
 	EXPECT_EQ(rename_vma((unsigned long)self->ptr_anon, AREA_SIZE, BAD_NAME), -EINVAL);
 
 	TH_LOG("Try to rename non-anonymous VMA");
-	EXPECT_EQ(rename_vma((unsigned long) self->ptr_not_anon, AREA_SIZE, GOOD_NAME), -EINVAL);
+	EXPECT_EQ(rename_vma((unsigned long) self->ptr_not_anon, AREA_SIZE, GOOD_NAME), -EBADF);
 }
 
 TEST_HARNESS_MAIN

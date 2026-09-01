@@ -747,8 +747,6 @@ static int posix_acl_fix_xattr_common(const void *value, size_t size)
 	count = posix_acl_xattr_count(size);
 	if (count < 0)
 		return -EINVAL;
-	if (count == 0)
-		return 0;
 
 	return count;
 }

@@ -103,8 +103,8 @@ out:
 struct batadv_orig_node *
 batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node;
 	struct batadv_orig_node *orig_node = NULL;
+	struct batadv_gw_node *gw_node;
 
 	gw_node = batadv_gw_get_selected_gw_node(bat_priv);
 	if (!gw_node)
@@ -125,6 +125,14 @@ out:
 	return orig_node;
 }
 
+/**
+ * batadv_gw_select() - select a new currently active gateway
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @new_gw_node: gateway node to be set as the current gateway, may be NULL
+ *
+ * Atomically replace the currently active gateway with @new_gw_node and drop
+ * the reference to the previous one.
+ */
 static void batadv_gw_select(struct batadv_priv *bat_priv,
 			     struct batadv_gw_node *new_gw_node)
 {
@@ -197,10 +205,10 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
  */
 void batadv_gw_election(struct batadv_priv *bat_priv)
 {
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
+	struct batadv_neigh_node *router = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_gw_node *next_gw = NULL;
-	struct batadv_neigh_node *router = NULL;
-	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
 
 	if (READ_ONCE(bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
@@ -370,7 +378,8 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *gw_node_tmp, *gw_node = NULL;
+	struct batadv_gw_node *gw_node = NULL;
+	struct batadv_gw_node *gw_node_tmp;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node_tmp, &bat_priv->gw.gateway_list,
@@ -400,7 +409,8 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node,
 			   struct batadv_tvlv_gateway_data *gateway)
 {
-	struct batadv_gw_node *gw_node, *curr_gw = NULL;
+	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *gw_node;
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	gw_node = batadv_gw_node_get(bat_priv, orig_node);
@@ -545,7 +555,10 @@ out:
  * @chaddr: buffer where the client address will be stored. Valid
  *  only if the function returns BATADV_DHCP_TO_CLIENT
  *
- * This function may re-allocate the data buffer of the skb passed as argument.
+ * Warning: This function may reallocate the skb data buffer via
+ * pskb_may_pull()/... Any pointer into the skb data (e.g.
+ * obtained from skb->data or eth_hdr()) before this call must be considered
+ * invalid afterwards and has to be reacquired.
  *
  * Return:
  * - BATADV_DHCP_NO if the packet is not a dhcp message or if there was an error
@@ -558,11 +571,11 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 			     u8 *chaddr)
 {
 	enum batadv_dhcp_recipient ret = BATADV_DHCP_NO;
-	struct ethhdr *ethhdr;
-	struct iphdr *iphdr;
-	struct ipv6hdr *ipv6hdr;
-	struct udphdr *udphdr;
 	struct vlan_ethhdr *vhdr;
+	struct ipv6hdr *ipv6hdr;
+	struct ethhdr *ethhdr;
+	struct udphdr *udphdr;
+	struct iphdr *iphdr;
 	int chaddr_offset;
 	__be16 proto;
 	u8 *p;
@@ -669,7 +682,11 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
  * server. Due to topology changes it may be the case that the GW server
  * previously selected is not the best one anymore.
  *
- * This call might reallocate skb data.
+ * Warning: This function may reallocate the skb data buffer via
+ * batadv_get_vid()/... Any pointer into the skb data (e.g. obtained
+ * from skb->data or eth_hdr()) before this call must be considered
+ * invalid afterwards and has to be reacquired.
+ *
  * Must be invoked only when the DHCP packet is going TO a DHCP SERVER.
  *
  * Return: true if the packet destination is unicast and it is not the best gw,
@@ -678,16 +695,17 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
 {
+	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_neigh_node *neigh_curr = NULL;
 	struct batadv_neigh_node *neigh_old = NULL;
-	struct batadv_orig_node *orig_dst_node = NULL;
+	struct batadv_neigh_ifinfo *curr_ifinfo;
+	struct batadv_neigh_ifinfo *old_ifinfo;
 	struct batadv_gw_node *gw_node = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
-	struct batadv_neigh_ifinfo *curr_ifinfo, *old_ifinfo;
-	struct ethhdr *ethhdr;
 	bool out_of_range = false;
-	u8 curr_tq_avg;
+	struct ethhdr *ethhdr;
 	unsigned short vid;
+	u8 curr_tq_avg;
 
 	vid = batadv_get_vid(skb, 0);
 	ethhdr = (struct ethhdr *)skb->data;

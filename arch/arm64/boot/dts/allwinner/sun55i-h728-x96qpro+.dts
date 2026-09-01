@@ -44,6 +44,24 @@
 		vin-supply = <&reg_vcc5v>;
 		regulator-always-on;
 	};
+
+	sound-spdif {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "spdif-out";
+
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
 };
 
 &ehci0 {
@@ -266,6 +284,12 @@
 	};
 };
 
+&r_ir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_ir_rx_pin>;
+	status = "okay";
+};
+
 &r_pio {
 /*
  * Specifying the supply would create a circular dependency.
@@ -273,6 +297,12 @@
  *	vcc-pl-supply = <&reg_aldo3>;
  */
 	vcc-pm-supply = <&reg_aldo3>;
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_out_ph_pin>;
+	status = "okay";
 };
 
 &uart0 {

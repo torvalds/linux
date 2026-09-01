@@ -7,10 +7,10 @@
 extern const struct vm_special_mapping vdso_vvar_mapping;
 struct vm_area_struct *vdso_install_vvar_mapping(struct mm_struct *mm, unsigned long addr);
 
-#ifdef CONFIG_HAVE_GENERIC_VDSO
+#ifdef CONFIG_VDSO_DATASTORE
 void __init vdso_setup_data_pages(void);
-#else /* !CONFIG_HAVE_GENERIC_VDSO */
+#else /* !CONFIG_VDSO_DATASTORE */
 static inline void vdso_setup_data_pages(void) { }
-#endif /* CONFIG_HAVE_GENERIC_VDSO */
+#endif /* CONFIG_VDSO_DATASTORE */
 
 #endif /* _LINUX_VDSO_DATASTORE_H */

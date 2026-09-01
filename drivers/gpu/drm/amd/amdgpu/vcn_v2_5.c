@@ -159,9 +159,8 @@ static void vcn_v2_5_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vcn_inst *v = &adev->vcn.inst[ring->me];
 
-	atomic_inc(&adev->vcn.inst[0].total_submission_cnt);
-
-	cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
+	if (!atomic_fetch_inc(&adev->vcn.inst[0].total_submission_cnt))
+		cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
 
 	/* We can safely return early here because we've cancelled the
 	 * the delayed work so there is no one else to set it to false
@@ -207,10 +206,9 @@ static void vcn_v2_5_ring_end_use(struct amdgpu_ring *ring)
 	    !adev->vcn.inst[ring->me].using_unified_queue)
 		atomic_dec(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt);
 
-	atomic_dec(&adev->vcn.inst[0].total_submission_cnt);
-
-	schedule_delayed_work(&adev->vcn.inst[0].idle_work,
-			      VCN_IDLE_TIMEOUT);
+	if (atomic_dec_and_test(&adev->vcn.inst[0].total_submission_cnt))
+		schedule_delayed_work(&adev->vcn.inst[0].idle_work,
+				      VCN_IDLE_TIMEOUT);
 }
 
 /**

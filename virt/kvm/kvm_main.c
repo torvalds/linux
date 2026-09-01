@@ -56,6 +56,7 @@
 
 #include "coalesced_mmio.h"
 #include "async_pf.h"
+#include "guest_memfd.h"
 #include "kvm_mm.h"
 #include "vfio.h"
 
@@ -3118,6 +3119,9 @@ int __kvm_vcpu_map(struct kvm_vcpu *vcpu, gfn_t gfn, struct kvm_host_map *map,
 		.pin = true,
 	};
 
+	if (WARN_ON_ONCE(map->hva))
+		kvm_vcpu_unmap(vcpu, map);
+
 	map->pinned_page = NULL;
 	map->page = NULL;
 	map->hva = NULL;
@@ -4173,6 +4177,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 		return -EINVAL;
 	}
 
+	if (test_bit(id, kvm->vcpu_ids)) {
+		mutex_unlock(&kvm->lock);
+		return -EEXIST;
+	}
+
 	r = kvm_arch_vcpu_precreate(kvm, id);
 	if (r) {
 		mutex_unlock(&kvm->lock);
@@ -4180,6 +4189,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 	}
 
 	kvm->created_vcpus++;
+	__set_bit(id, kvm->vcpu_ids);
 	mutex_unlock(&kvm->lock);
 
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
@@ -4187,6 +4197,8 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 		r = -ENOMEM;
 		goto vcpu_decrement;
 	}
+
+	vcpu->vcpu_idx = -1;
 
 	BUILD_BUG_ON(sizeof(struct kvm_run) > PAGE_SIZE);
 	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
@@ -4211,11 +4223,16 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 
 	mutex_lock(&kvm->lock);
 
-	if (kvm_get_vcpu_by_id(kvm, id)) {
+	if (WARN_ON_ONCE(kvm_get_vcpu_by_id(kvm, id))) {
 		r = -EEXIST;
 		goto unlock_vcpu_destroy;
 	}
 
+	/*
+	 * Set the vCPU's index *before* the vCPU is reachable by other tasks.
+	 * Unwind the index back to -1 on failure so that KVM can use the index
+	 * to detect that the vCPU is unreachable, e.g. for lockdep asserts.
+	 */
 	vcpu->vcpu_idx = atomic_read(&kvm->online_vcpus);
 	r = xa_insert(&kvm->vcpu_array, vcpu->vcpu_idx, vcpu, GFP_KERNEL_ACCOUNT);
 	WARN_ON_ONCE(r == -EBUSY);
@@ -4254,6 +4271,7 @@ kvm_put_xa_erase:
 	kvm_put_kvm_no_destroy(kvm);
 	xa_erase(&kvm->vcpu_array, vcpu->vcpu_idx);
 unlock_vcpu_destroy:
+	vcpu->vcpu_idx = -1;
 	mutex_unlock(&kvm->lock);
 	kvm_dirty_ring_free(&vcpu->dirty_ring);
 arch_vcpu_destroy:
@@ -4265,6 +4283,7 @@ vcpu_free:
 vcpu_decrement:
 	mutex_lock(&kvm->lock);
 	kvm->created_vcpus--;
+	__clear_bit(id, kvm->vcpu_ids);
 	mutex_unlock(&kvm->lock);
 	return r;
 }
@@ -6553,6 +6572,7 @@ err_virt:
 err_gmem:
 	kvm_vfio_ops_exit();
 err_vfio:
+	debugfs_remove_recursive(kvm_debugfs_dir);
 	kvm_async_pf_deinit();
 err_async_pf:
 	kvm_irqfd_exit();

@@ -88,7 +88,7 @@ void affs_mark_sb_dirty(struct super_block *sb)
 	spin_lock(&sbi->work_lock);
 	if (!sbi->work_queued) {
 	       delay = msecs_to_jiffies(dirty_writeback_interval * 10);
-	       queue_delayed_work(system_long_wq, &sbi->sb_work, delay);
+	       queue_delayed_work(system_dfl_long_wq, &sbi->sb_work, delay);
 	       sbi->work_queued = 1;
 	}
 	spin_unlock(&sbi->work_lock);
@@ -108,7 +108,6 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	i->i_lc = NULL;
 	i->i_ext_bh = NULL;
 	i->i_pa_cnt = 0;
-	mmb_init(&i->i_metadata_bhs, &i->vfs_inode.i_data);
 
 	return &i->vfs_inode;
 }

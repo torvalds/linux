@@ -5,6 +5,7 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/fs_struct.h>
 #include <linux/init_syscalls.h>
 
 /* static minor (LCD_MINOR) */
@@ -160,18 +161,22 @@ static void __init miscdev_test_can_open(struct kunit *test, struct miscdevice *
 	char *devname;
 
 	devname = kasprintf(GFP_KERNEL, "/dev/%s", misc->name);
-	ret = init_mknod(devname, S_IFCHR | 0600,
-			 new_encode_dev(MKDEV(MISC_MAJOR, misc->minor)));
-	if (ret != 0)
-		KUNIT_FAIL(test, "failed to create node\n");
 
-	filp = filp_open(devname, O_RDONLY, 0);
-	if (IS_ERR(filp))
-		KUNIT_FAIL(test, "failed to open misc device: %ld\n", PTR_ERR(filp));
-	else
-		fput(filp);
+	/* Tests run in a nullfs kthread; borrow the init fs to resolve /dev. */
+	scoped_with_init_fs() {
+		ret = init_mknod(devname, S_IFCHR | 0600,
+				 new_encode_dev(MKDEV(MISC_MAJOR, misc->minor)));
+		if (ret != 0)
+			KUNIT_FAIL(test, "failed to create node\n");
 
-	init_unlink(devname);
+		filp = filp_open(devname, O_RDONLY, 0);
+		if (IS_ERR(filp))
+			KUNIT_FAIL(test, "failed to open misc device: %ld\n", PTR_ERR(filp));
+		else
+			fput(filp);
+
+		init_unlink(devname);
+	}
 	kfree(devname);
 }
 

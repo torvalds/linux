@@ -60,7 +60,7 @@ Quando sarete in grado di creare rami git che siano guardabili da altri,
 vi servirà, ovviamente, un server dal quale sia possibile attingere le vostre
 modifiche.  Se avete un server accessibile da Internet, configurarlo per
 eseguire git-daemon è relativamente semplice .  Altrimenti, iniziano a
-svilupparsi piattaforme che offrono spazi pubblici, e gratuiti (Github,
+svilupparsi piattaforme che offrono spazi pubblici, e gratuiti (GitHub,
 per esempio).  Gli sviluppatori permanenti possono ottenere un account
 su kernel.org, ma non è proprio facile da ottenere; per maggiori informazioni
 consultate la pagina web https://kernel.org/faq/.

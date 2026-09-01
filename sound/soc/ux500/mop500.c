@@ -68,10 +68,11 @@ static void mop500_of_node_put(void)
 	of_node_put(mop500_dai_links[0].codecs->of_node);
 }
 
-static int mop500_of_probe(struct platform_device *pdev,
-			   struct device_node *np)
+static int mop500_of_probe(struct snd_soc_card *card)
 {
+	struct device *dev = card->dev;
 	struct device_node *codec_np, *msp_np[2];
+	struct device_node *np = dev->of_node;
 	int i;
 
 	msp_np[0] = of_parse_phandle(np, "stericsson,cpu-dai", 0);
@@ -79,7 +80,7 @@ static int mop500_of_probe(struct platform_device *pdev,
 	codec_np  = of_parse_phandle(np, "stericsson,audio-codec", 0);
 
 	if (!(msp_np[0] && msp_np[1] && codec_np)) {
-		dev_err(&pdev->dev, "Phandle missing or invalid\n");
+		dev_err(dev, "Phandle missing or invalid\n");
 		for (i = 0; i < 2; i++)
 			of_node_put(msp_np[i]);
 		of_node_put(codec_np);
@@ -95,21 +96,20 @@ static int mop500_of_probe(struct platform_device *pdev,
 		mop500_dai_links[i].codecs->name = NULL;
 	}
 
-	snd_soc_of_parse_card_name(&mop500_card, "stericsson,card-name");
+	snd_soc_of_parse_card_name(card, "stericsson,card-name");
 
 	return 0;
 }
 
 static int mop500_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
 	dev_dbg(&pdev->dev, "%s: Enter.\n", __func__);
 
 	mop500_card.dev = &pdev->dev;
 
-	ret = mop500_of_probe(pdev, np);
+	ret = mop500_of_probe(&mop500_card);
 	if (ret)
 		return ret;
 

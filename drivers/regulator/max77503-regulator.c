@@ -107,7 +107,7 @@ static const struct of_device_id of_max77503_match_tbl[] = {
 MODULE_DEVICE_TABLE(of, of_max77503_match_tbl);
 
 static const struct i2c_device_id max77503_regulator_id[] = {
-	{"max77503"},
+	{ .name = "max77503" },
 	{ }
 };
 

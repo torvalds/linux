@@ -694,9 +694,7 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 {
 	struct mt76_testmode_data *td = &mphy->test;
 	struct mt7915_phy *phy = mphy->priv;
-	struct mt7915_dev *dev = phy->dev;
-	u32 chainmask = mphy->chainmask, changed = 0;
-	bool ext_phy = phy != &dev->phy;
+	u32 chainmask = mt7915_band_chainmask(phy), changed = 0;
 	int i;
 
 	BUILD_BUG_ON(NUM_TM_CHANGED >= 32);
@@ -705,7 +703,6 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 	    td->state == MT76_TM_STATE_OFF)
 		return 0;
 
-	chainmask = ext_phy ? chainmask >> dev->chainshift : chainmask;
 	if (td->tx_antenna_mask > chainmask)
 		return -EINVAL;
 

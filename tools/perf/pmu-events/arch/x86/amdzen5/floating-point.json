@@ -180,6 +180,30 @@
     "UMask": "0x09"
   },
   {
+    "EventName": "fp_ops_retired_by_type.scalar_mov",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point MOV ops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_ops_retired_by_type.scalar_shuffle",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_ops_retired_by_type.scalar_bfloat",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point bfloat ops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_ops_retired_by_type.scalar_logical",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point logical ops.",
+    "UMask": "0x0d"
+  },
+  {
     "EventName": "fp_ops_retired_by_type.scalar_other",
     "EventCode": "0x0a",
     "BriefDescription": "Retired scalar floating-point ops of other types.",
@@ -246,10 +270,22 @@
     "UMask": "0x90"
   },
   {
+    "EventName": "fp_ops_retired_by_type.vector_mov",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point MOV ops.",
+    "UMask": "0xa0"
+  },
+  {
     "EventName": "fp_ops_retired_by_type.vector_shuffle",
     "EventCode": "0x0a",
     "BriefDescription": "Retired vector floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_ops_retired_by_type.vector_bfloat",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point bfloat ops.",
+    "UMask": "0xc0"
   },
   {
     "EventName": "fp_ops_retired_by_type.vector_logical",
@@ -278,7 +314,7 @@
   {
     "EventName": "sse_avx_ops_retired.mmx_add",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired MMX integer add.",
+    "BriefDescription": "Retired MMX integer add ops.",
     "UMask": "0x01"
   },
   {
@@ -300,15 +336,33 @@
     "UMask": "0x04"
   },
   {
+    "EventName": "sse_avx_ops_retired.mmx_aes",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer AES ops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "sse_avx_ops_retired.mmx_sha",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer SHA ops.",
+    "UMask": "0x06"
+  },
+  {
     "EventName": "sse_avx_ops_retired.mmx_cmp",
     "EventCode": "0x0b",
     "BriefDescription": "Retired MMX integer compare ops.",
     "UMask": "0x07"
   },
   {
+    "EventName": "sse_avx_ops_retired.mmx_cvt",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer convert or pack ops.",
+    "UMask": "0x08"
+  },
+  {
     "EventName": "sse_avx_ops_retired.mmx_shift",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired MMX integer shift ops.",
+    "BriefDescription": "Retired MMX integer shift or rotate ops.",
     "UMask": "0x09"
   },
   {
@@ -324,9 +378,16 @@
     "UMask": "0x0b"
   },
   {
+    "EventName": "sse_avx_ops_retired.mmx_vnni",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer VNNI ops.",
+    "UMask": "0x0c"
+  },
+  {
     "EventName": "sse_avx_ops_retired.mmx_pack",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired MMX integer pack ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event sse_avx_ops_retired.mmx_vnni",
+    "Deprecated": "1",
     "UMask": "0x0c"
   },
   {
@@ -390,15 +451,22 @@
     "UMask": "0x70"
   },
   {
+    "EventName": "sse_avx_ops_retired.sse_avx_cvt",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer convert or pack ops.",
+    "UMask": "0x80"
+  },
+  {
     "EventName": "sse_avx_ops_retired.sse_avx_clm",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired SSE and AVX integer CLM ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event sse_avx_ops_retired.sse_avx_cvt",
+    "Deprecated": "1",
     "UMask": "0x80"
   },
   {
     "EventName": "sse_avx_ops_retired.sse_avx_shift",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired SSE and AVX integer shift ops.",
+    "BriefDescription": "Retired SSE and AVX integer shift or rotate ops.",
     "UMask": "0x90"
   },
   {
@@ -414,9 +482,16 @@
     "UMask": "0xb0"
   },
   {
+    "EventName": "sse_avx_ops_retired.sse_avx_vnni",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer VNNI ops.",
+    "UMask": "0xc0"
+  },
+  {
     "EventName": "sse_avx_ops_retired.sse_avx_pack",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired SSE and AVX integer pack ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event sse_avx_ops_retired.sse_avx_vnni",
+    "Deprecated": "1",
     "UMask": "0xc0"
   },
   {
@@ -498,10 +573,22 @@
     "UMask": "0x09"
   },
   {
+    "EventName": "fp_pack_ops_retired.fp128_mov",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point MOV ops.",
+    "UMask": "0x0a"
+  },
+  {
     "EventName": "fp_pack_ops_retired.fp128_shuffle",
     "EventCode": "0x0c",
     "BriefDescription": "Retired 128-bit packed floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_pack_ops_retired.fp128_bfloat",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point bfloat ops.",
+    "UMask": "0x0c"
   },
   {
     "EventName": "fp_pack_ops_retired.fp128_logical",
@@ -576,10 +663,22 @@
     "UMask": "0x90"
   },
   {
+    "EventName": "fp_pack_ops_retired.fp256_mov",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point MOV ops.",
+    "UMask": "0xa0"
+  },
+  {
     "EventName": "fp_pack_ops_retired.fp256_shuffle",
     "EventCode": "0x0c",
     "BriefDescription": "Retired 256-bit packed floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_pack_ops_retired.fp256_bfloat",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point bfloat ops.",
+    "UMask": "0xc0"
   },
   {
     "EventName": "fp_pack_ops_retired.fp256_logical",
@@ -648,15 +747,22 @@
     "UMask": "0x07"
   },
   {
+    "EventName": "packed_int_op_type.int128_cvt",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer convert or pack ops.",
+    "UMask": "0x08"
+  },
+  {
     "EventName": "packed_int_op_type.int128_clm",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 128-bit packed integer CLM ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event packed_int_op_type.int128_cvt",
+    "Deprecated": "1",
     "UMask": "0x08"
   },
   {
     "EventName": "packed_int_op_type.int128_shift",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 128-bit packed integer shift ops.",
+    "BriefDescription": "Retired 128-bit packed integer shift or rotate ops.",
     "UMask": "0x09"
   },
   {
@@ -672,9 +778,16 @@
     "UMask": "0x0b"
   },
   {
+    "EventName": "packed_int_op_type.int128_vnni",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer VNNI ops.",
+    "UMask": "0x0c"
+  },
+  {
     "EventName": "packed_int_op_type.int128_pack",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 128-bit packed integer pack ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event packed_int_op_type.int128_vnni",
+    "Deprecated": "1",
     "UMask": "0x0c"
   },
   {
@@ -720,15 +833,33 @@
     "UMask": "0x40"
   },
   {
+    "EventName": "packed_int_op_type.int256_aes",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer AES ops.",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "packed_int_op_type.int256_sha",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer SHA ops.",
+    "UMask": "0x60"
+  },
+  {
     "EventName": "packed_int_op_type.int256_cmp",
     "EventCode": "0x0d",
     "BriefDescription": "Retired 256-bit packed integer compare ops.",
     "UMask": "0x70"
   },
   {
+    "EventName": "packed_int_op_type.int256_cvt",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer convert or pack ops.",
+    "UMask": "0x80"
+  },
+  {
     "EventName": "packed_int_op_type.int256_shift",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 256-bit packed integer shift ops.",
+    "BriefDescription": "Retired 256-bit packed integer shift or rotate ops.",
     "UMask": "0x90"
   },
   {
@@ -744,9 +875,16 @@
     "UMask": "0xb0"
   },
   {
+    "EventName": "packed_int_op_type.int256_vnni",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer VNNI ops.",
+    "UMask": "0xc0"
+  },
+  {
     "EventName": "packed_int_op_type.int256_pack",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 256-bit packed integer pack ops.",
+    "BriefDescription": "This event is deprecated. Refer to new event packed_int_op_type.int256_vnni",
+    "Deprecated": "1",
     "UMask": "0xc0"
   },
   {

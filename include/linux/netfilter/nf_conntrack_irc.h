@@ -10,6 +10,7 @@
 
 typedef unsigned int
 nf_nat_irc_hook_fn(struct sk_buff *skb,
+		   struct nf_conn *ct,
 		   enum ip_conntrack_info ctinfo,
 		   unsigned int protoff,
 		   unsigned int matchoff,

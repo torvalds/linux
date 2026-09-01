@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/ti,tps65217.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TPS65217 family of regulators
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+description:
+  The TPS65217 chip contains a boost converter and current sinks which can be
+  used to drive LEDs for use as backlights.
+
+properties:
+  compatible:
+    const: ti,tps65217
+
+  reg:
+    maxItems: 1
+    description: I2C slave address
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  ti,pmic-shutdown-controller:
+    type: boolean
+    description:
+      Set the PMIC to shutdown on PWR_EN toggle.
+
+  backlight:
+    type: object
+    additionalProperties: false
+    description:
+      Node for specifying WLED1 and WLED2 lines in TPS65217.
+
+    properties:
+      isel:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2]
+        description: |
+          Selection bit. Valid values:
+            1 - ISEL1 (low-level)
+            2 - ISEL2 (high-level)
+
+      fdim:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [100, 200, 500, 1000]
+        description:
+          PWM dimming frequency in Hz.
+
+      default-brightness:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 100
+
+    required:
+      - isel
+      - fdim
+      - default-brightness
+
+  regulators:
+    type: object
+    additionalProperties: false
+    description:
+      List of child nodes that specify the regulator initialization data.
+      Not all regulators for the given device need to be present.
+
+    patternProperties:
+      "^(dcdc[1-3]|ldo[1-4])$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+  charger:
+    $ref: /schemas/power/supply/tps65217-charger.yaml#
+    unevaluatedProperties: false
+
+  pwrbutton:
+    $ref: /schemas/input/ti,tps65217-pwrbutton.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@24 {
+            compatible = "ti,tps65217";
+            reg = <0x24>;
+            interrupt-controller;
+            #interrupt-cells = <1>;
+            ti,pmic-shutdown-controller;
+
+            backlight {
+                isel = <1>;   /* 1 - ISET1, 2 ISET2 */
+                fdim = <100>; /* TPS65217_BL_FDIM_100HZ */
+                default-brightness = <50>;
+            };
+
+            charger {
+                compatible = "ti,tps65217-charger";
+                interrupts = <0>, <1>;
+                interrupt-names = "USB", "AC";
+            };
+
+            pwrbutton {
+                compatible = "ti,tps65217-pwrbutton";
+                interrupts = <2>;
+            };
+
+            regulators {
+                dcdc1 {
+                    regulator-name = "vdds_dpr";
+                    regulator-always-on;
+                };
+
+                dcdc2 {
+                    regulator-name = "vdd_mpu";
+                    regulator-min-microvolt = <925000>;
+                    regulator-max-microvolt = <1351500>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                dcdc3 {
+                    regulator-name = "vdd_core";
+                    regulator-min-microvolt = <925000>;
+                    regulator-max-microvolt = <1150000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo1 {
+                    regulator-name = "vio,vrtc,vdds";
+                    regulator-always-on;
+                };
+
+                ldo2 {
+                    regulator-name = "vdd_3v3aux";
+                    regulator-always-on;
+                };
+
+                ldo3 {
+                    regulator-name = "vdd_1v8";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-always-on;
+                };
+
+                ldo4 {
+                    regulator-name = "vdd_3v3a";
+                    regulator-always-on;
+                };
+            };
+        };
+    };

@@ -2024,8 +2024,10 @@ static int dcmi_probe(struct platform_device *pdev)
 	mdma_chan = dma_request_chan(&pdev->dev, "mdma_tx");
 	if (IS_ERR(mdma_chan)) {
 		ret = PTR_ERR(mdma_chan);
-		if (ret != -ENODEV)
-			return dev_err_probe(&pdev->dev, ret, "Failed to request MDMA channel\n");
+		if (ret != -ENODEV) {
+			dev_err_probe(&pdev->dev, ret, "Failed to request MDMA channel\n");
+			goto err_release_chan;
+		}
 		mdma_chan = NULL;
 	}
 
@@ -2050,6 +2052,7 @@ static int dcmi_probe(struct platform_device *pdev)
 		dcmi->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
 		if (!dcmi->sram_pool) {
 			dev_info(&pdev->dev, "No SRAM pool, can't use MDMA chaining\n");
+			ret = -ENOMEM;
 			goto err_dma_slave_config;
 		}
 
@@ -2061,6 +2064,7 @@ static int dcmi_probe(struct platform_device *pdev)
 						     &dcmi->sram_dma_buf);
 		if (!dcmi->sram_buf) {
 			dev_err(dcmi->dev, "Failed to allocate from SRAM\n");
+			ret = -ENOMEM;
 			goto err_dma_slave_config;
 		}
 
@@ -2206,12 +2210,13 @@ err_device_unregister:
 err_media_device_cleanup:
 	media_device_cleanup(&dcmi->mdev);
 err_mdma_slave_config:
-	if (dcmi->mdma_chan)
+	if (mdma_chan)
 		gen_pool_free(dcmi->sram_pool, (unsigned long)dcmi->sram_buf, dcmi->sram_buf_size);
 err_dma_slave_config:
-	dma_release_channel(dcmi->dma_chan);
-	if (dcmi->mdma_chan)
+	if (mdma_chan)
 		dma_release_channel(mdma_chan);
+err_release_chan:
+	dma_release_channel(chan);
 
 	return ret;
 }
@@ -2273,9 +2278,7 @@ static int dcmi_resume(struct device *dev)
 	pinctrl_pm_select_default_state(dev);
 
 	/* clock enable */
-	pm_runtime_force_resume(dev);
-
-	return 0;
+	return pm_runtime_force_resume(dev);
 }
 
 static const struct dev_pm_ops dcmi_pm_ops = {

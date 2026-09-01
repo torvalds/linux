@@ -1536,6 +1536,7 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 
 	lock_sock(sk);
 
+	memset(sa, 0, sizeof(struct sockaddr_iso));
 	addr->sa_family = AF_BLUETOOTH;
 
 	if (peer) {
@@ -1546,6 +1547,7 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 		sa->iso_bdaddr_type = iso_pi(sk)->dst_type;
 
 		if (hcon && (hcon->type == BIS_LINK || hcon->type == PA_LINK)) {
+			memset(sa->iso_bc, 0, sizeof(struct sockaddr_iso_bc));
 			sa->iso_bc->bc_sid = iso_pi(sk)->bc_sid;
 			sa->iso_bc->bc_num_bis = iso_pi(sk)->bc_num_bis;
 			memcpy(sa->iso_bc->bc_bis, iso_pi(sk)->bc_bis,
@@ -1658,9 +1660,9 @@ static void iso_conn_defer_accept(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_LE_ACCEPT_CIS, sizeof(cp), &cp);
 }
 
-static void iso_conn_big_sync(struct sock *sk)
+static int iso_conn_big_sync(struct sock *sk)
 {
-	int err;
+	int err = 0;
 	struct hci_dev *hdev;
 	struct iso_conn *conn;
 	bdaddr_t src, dst;
@@ -1675,7 +1677,7 @@ static void iso_conn_big_sync(struct sock *sk)
 	hdev = hci_get_route(&dst, &src, src_type);
 
 	if (!hdev)
-		return;
+		return -EHOSTUNREACH;
 
 	/* hci_le_big_create_sync requires hdev lock to be held, since
 	 * it enqueues the HCI LE BIG Create Sync command via
@@ -1691,8 +1693,10 @@ static void iso_conn_big_sync(struct sock *sk)
 	 * both before dereferencing conn->hcon.
 	 */
 	conn = iso_pi(sk)->conn;
-	if (!conn || !conn->hcon)
+	if (!conn || !conn->hcon) {
+		err = -ENOTCONN;
 		goto unlock;
+	}
 
 	if (!test_and_set_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags)) {
 		err = hci_conn_big_create_sync(hdev, conn->hcon,
@@ -1708,6 +1712,8 @@ unlock:
 	release_sock(sk);
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
+
+	return err;
 }
 
 static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
@@ -1732,10 +1738,19 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		case BT_CONNECT2:
 			if (test_bit(BT_SK_PA_SYNC, &pi->flags)) {
 				release_sock(sk);
-				iso_conn_big_sync(sk);
+				err = iso_conn_big_sync(sk);
 				lock_sock(sk);
 
-				sk->sk_state = BT_LISTEN;
+				/* The socket lock was dropped, so the
+				 * connection may have been torn down
+				 * meanwhile and iso_chan_del() may have
+				 * already moved the socket to BT_CLOSED.
+				 * Only move on to BT_LISTEN if the BIG sync
+				 * was actually started and nothing else has
+				 * changed the state.
+				 */
+				if (!err && sk->sk_state == BT_CONNECT2)
+					sk->sk_state = BT_LISTEN;
 			} else {
 				iso_conn_defer_accept(pi->conn->hcon);
 				sk->sk_state = BT_CONFIG;
@@ -1746,10 +1761,11 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		case BT_CONNECTED:
 			if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
 				release_sock(sk);
-				iso_conn_big_sync(sk);
+				err = iso_conn_big_sync(sk);
 				lock_sock(sk);
 
-				sk->sk_state = BT_LISTEN;
+				if (!err && sk->sk_state == BT_CONNECTED)
+					sk->sk_state = BT_LISTEN;
 				early_ret = true;
 			}
 
@@ -2260,6 +2276,14 @@ static void iso_conn_ready(struct iso_conn *conn)
 			return;
 
 		lock_sock(parent);
+
+		/* The listener may have been closed concurrently. */
+		if (parent->sk_state != BT_LISTEN ||
+		    sock_flag(parent, SOCK_ZAPPED)) {
+			release_sock(parent);
+			sock_put(parent);
+			return;
+		}
 
 		sk = iso_sock_alloc(sock_net(parent), NULL,
 				    BTPROTO_ISO, GFP_ATOMIC, 0);

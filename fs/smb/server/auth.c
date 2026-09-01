@@ -24,7 +24,6 @@
 
 #include <linux/fips.h>
 #include <crypto/arc4.h>
-#include <crypto/des.h>
 
 #include "server.h"
 #include "smb_common.h"
@@ -122,6 +121,8 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 out:
 	kfree(uniname);
 	kfree(domain);
+	if (ret)	/* Done by hmac_md5_final() already if ret == 0 */
+		memzero_explicit(&ctx, sizeof(ctx));
 	return ret;
 }
 
@@ -439,6 +440,7 @@ int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 		resp_ext = ksmbd_ipc_login_request_ext(resp->login_response.account);
 
 	user = ksmbd_alloc_user(&resp->login_response, resp_ext);
+	kvfree(resp_ext);
 	if (!user) {
 		ksmbd_debug(AUTH, "login failure\n");
 		retval = -ENOMEM;
@@ -462,9 +464,11 @@ int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 	memcpy(out_blob, resp->payload + resp->session_key_len,
 	       resp->spnego_blob_len);
 	*out_len = resp->spnego_blob_len;
+	sess->kerberos_expiry = resp->session_expiry;
 	retval = 0;
 out:
-	kvfree(resp);
+	kvfree_sensitive(resp, sizeof(*resp) + resp->session_key_len +
+				resp->spnego_blob_len);
 	return retval;
 }
 #else
@@ -509,7 +513,7 @@ void ksmbd_sign_smb2_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
 void ksmbd_sign_smb3_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
 			 int n_vec, char *sig)
 {
-	struct aes_cmac_key cmac_key;
+	struct aes_cmac_key cmac_key __cleanup(aes_cmac_zeroize_key);
 	struct aes_cmac_ctx cmac_ctx;
 	int i;
 
@@ -556,6 +560,7 @@ static void generate_key(struct ksmbd_conn *conn, const char *sess_key,
 
 	hmac_sha256_final(&ctx, prfhash);
 	memcpy(key, prfhash, key_size);
+	memzero_explicit(prfhash, sizeof(prfhash));
 }
 
 static int generate_smb3signingkey(struct ksmbd_session *sess,
@@ -716,8 +721,21 @@ static int ksmbd_get_encryption_key(struct ksmbd_work *work, __u64 ses_id,
 
 	if (enc)
 		sess = work->sess;
-	else
-		sess = ksmbd_session_lookup_all(work->conn, ses_id);
+	else {
+		/*
+		 * A previous-session replacement leaves the old encryption key in
+		 * place.  Use it to authenticate an encrypted request, then let
+		 * session validation reject the expired session.  This preserves the
+		 * encrypted STATUS_USER_SESSION_DELETED response without reviving
+		 * the session.
+		 */
+		sess = ksmbd_session_lookup_all_states(work->conn, ses_id);
+		if (sess && sess->state != SMB2_SESSION_VALID &&
+		    (sess->state != SMB2_SESSION_EXPIRED || !sess->enc)) {
+			ksmbd_user_session_put(sess);
+			sess = NULL;
+		}
+	}
 	if (!sess)
 		return -EINVAL;
 
@@ -814,6 +832,189 @@ static struct scatterlist *ksmbd_init_sg(struct kvec *iov, unsigned int nvec,
 	return sg;
 }
 
+/**
+ * ksmbd_init_rdma_sg() - build an AEAD scatterlist for an RDMA payload
+ * @buf: payload buffer
+ * @buflen: payload length
+ * @tag: authentication tag buffer
+ * @taglen: authentication tag length
+ *
+ * Split vmalloc-backed payloads at page boundaries and append the detached
+ * authentication tag as the final scatterlist entry.
+ *
+ * Return: allocated scatterlist, or NULL on allocation failure
+ */
+static struct scatterlist *ksmbd_init_rdma_sg(void *buf,
+					      unsigned int buflen,
+					      u8 *tag,
+					      unsigned int taglen)
+{
+	struct scatterlist *sg;
+	unsigned int nr_data = 1, nr_entries, i = 0;
+	void *data = buf;
+	int len = buflen;
+
+	if (is_vmalloc_addr(buf))
+		nr_data = DIV_ROUND_UP(offset_in_page(buf) + buflen, PAGE_SIZE);
+	nr_entries = nr_data + 1;
+
+	sg = kmalloc_objs(struct scatterlist, nr_entries, KSMBD_DEFAULT_GFP);
+	if (!sg)
+		return NULL;
+
+	sg_init_table(sg, nr_entries);
+	if (!is_vmalloc_addr(buf)) {
+		smb2_sg_set_buf(&sg[i++], buf, buflen);
+	} else {
+		while (len) {
+			unsigned int bytes = min_t(unsigned int,
+						PAGE_SIZE - offset_in_page(data), len);
+
+			sg_set_page(&sg[i++], vmalloc_to_page(data), bytes,
+				    offset_in_page(data));
+			data += bytes;
+			len -= bytes;
+		}
+	}
+	smb2_sg_set_buf(&sg[i], tag, taglen);
+	return sg;
+}
+
+/**
+ * ksmbd_crypt_rdma() - encrypt or decrypt an SMB Direct data buffer
+ * @conn: connection containing the negotiated cipher
+ * @key: session encryption or decryption key
+ * @buf: RDMA payload, transformed in place
+ * @buflen: payload length (the authentication tag is carried out of band)
+ * @nonce: transform nonce
+ * @nonce_len: nonce length
+ * @tag: authentication tag output for encryption, input for decryption
+ * @tag_len: authentication tag length
+ * @enc: true to encrypt, false to decrypt
+ *
+ * SMB2_RDMA_CRYPTO_TRANSFORM carries the nonce and authentication tag in the
+ * SMB2 message while only the payload is transferred through RDMA.  Therefore
+ * this uses AEAD without the normal SMB3 transform header as associated data.
+ *
+ * Return: 0 on success, otherwise a negative errno
+ */
+int ksmbd_crypt_rdma(struct ksmbd_conn *conn, const u8 *key,
+		     void *buf, unsigned int buflen, const u8 *nonce,
+		     unsigned int nonce_len, u8 *tag, unsigned int tag_len,
+		     bool enc)
+{
+	struct ksmbd_crypto_ctx *ctx;
+	struct crypto_aead *tfm;
+	struct aead_request *req = NULL;
+	struct scatterlist *sg = NULL;
+	unsigned int iv_len, crypt_len;
+	u8 auth_tag[SMB2_SIGNATURE_SIZE] = {};
+	u8 *iv = NULL;
+	u16 cipher = le16_to_cpu(conn->cipher_type);
+	int rc;
+	DECLARE_CRYPTO_WAIT(wait);
+
+	if (!buflen || !tag_len || tag_len > SMB2_SIGNATURE_SIZE) {
+		pr_err("RDMA %s rejected: cipher=0x%04x payload=%u nonce=%u tag=%u\n",
+		       enc ? "encryption" : "decryption", cipher, buflen,
+		       nonce_len, tag_len);
+		return -EINVAL;
+	}
+	if (!enc)
+		memcpy(auth_tag, tag, tag_len);
+
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
+		if (nonce_len != SMB3_AES_GCM_NONCE) {
+			pr_err("RDMA %s rejected: cipher=0x%04x invalid nonce=%u expected=%u\n",
+			       enc ? "encryption" : "decryption", cipher,
+			       nonce_len, SMB3_AES_GCM_NONCE);
+			return -EINVAL;
+		}
+		ctx = ksmbd_crypto_ctx_find_gcm();
+	} else {
+		if (nonce_len != SMB3_AES_CCM_NONCE) {
+			pr_err("RDMA %s rejected: cipher=0x%04x invalid nonce=%u expected=%u\n",
+			       enc ? "encryption" : "decryption", cipher,
+			       nonce_len, SMB3_AES_CCM_NONCE);
+			return -EINVAL;
+		}
+		ctx = ksmbd_crypto_ctx_find_ccm();
+	}
+	if (!ctx) {
+		pr_err("RDMA %s failed: cipher=0x%04x crypto context unavailable\n",
+		       enc ? "encryption" : "decryption", cipher);
+		return -ENOMEM;
+	}
+
+	tfm = (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	       conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) ?
+		CRYPTO_GCM(ctx) : CRYPTO_CCM(ctx);
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES256_CCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM256_CRYPTKEY_SIZE);
+	else
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM128_CRYPTKEY_SIZE);
+	if (rc)
+		goto out;
+
+	rc = crypto_aead_setauthsize(tfm, tag_len);
+	if (rc)
+		goto out;
+
+	req = aead_request_alloc(tfm, KSMBD_DEFAULT_GFP);
+	if (!req) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	sg = ksmbd_init_rdma_sg(buf, buflen, auth_tag, tag_len);
+	if (!sg) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	iv_len = crypto_aead_ivsize(tfm);
+	iv = kzalloc(iv_len, KSMBD_DEFAULT_GFP);
+	if (!iv) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
+		memcpy(iv, nonce, nonce_len);
+	} else {
+		iv[0] = 3;
+		memcpy(iv + 1, nonce, nonce_len);
+	}
+
+	crypt_len = buflen + (enc ? 0 : tag_len);
+	aead_request_set_crypt(req, sg, sg, crypt_len, iv);
+	aead_request_set_ad(req, 0);
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+				  CRYPTO_TFM_REQ_MAY_SLEEP,
+				  crypto_req_done, &wait);
+	rc = crypto_wait_req(enc ? crypto_aead_encrypt(req) :
+			     crypto_aead_decrypt(req), &wait);
+	if (!rc && enc)
+		memcpy(tag, auth_tag, tag_len);
+out:
+	kfree(iv);
+	kfree(sg);
+	aead_request_free(req);
+	ksmbd_release_crypto_ctx(ctx);
+	if (rc)
+		pr_err("RDMA %s failed: cipher=0x%04x payload=%u nonce=%u tag=%u rc=%d\n",
+		       enc ? "encryption" : "decryption", cipher, buflen,
+		       nonce_len, tag_len, rc);
+	else
+		ksmbd_debug(RDMA,
+			    "RDMA %s completed: cipher=0x%04x payload=%u nonce=%u tag=%u\n",
+			    enc ? "encryption" : "decryption", cipher, buflen,
+			    nonce_len, tag_len);
+	return rc;
+}
+
 int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 			unsigned int nvec, int enc)
 {
@@ -848,7 +1049,8 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 		ctx = ksmbd_crypto_ctx_find_ccm();
 	if (!ctx) {
 		pr_err("crypto alloc failed\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto zeroize_key;
 	}
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
@@ -928,5 +1130,8 @@ free_req:
 	aead_request_free(req);
 free_ctx:
 	ksmbd_release_crypto_ctx(ctx);
+zeroize_key:
+	memzero_explicit(key, sizeof(key));
+	memzero_explicit(sign, sizeof(sign));
 	return rc;
 }

@@ -179,7 +179,7 @@ files describing that cpuset:
  - cpuset.mem_hardwall flag:  is memory allocation hardwalled
  - cpuset.memory_pressure: measure of how much paging pressure in cpuset
  - cpuset.memory_spread_page flag: if set, spread page cache evenly on allowed nodes
- - cpuset.memory_spread_slab flag: OBSOLETE. Doesn't have any function.
+ - cpuset.memory_spread_slab flag: OBSOLETE. Has no effect on allocation behavior.
  - cpuset.sched_load_balance flag: if set, load balance within CPUs on that cpuset
  - cpuset.sched_relax_domain_level: the searching range when migrating tasks
 
@@ -284,7 +284,7 @@ take action.
 ==>
     Unless this feature is enabled by writing "1" to the special file
     /dev/cpuset/memory_pressure_enabled, the hook in the rebalance
-    code of __alloc_pages() for this metric reduces to simply noticing
+    code of the page allocator for this metric reduces to simply noticing
     that the cpuset_memory_pressure_enabled flag is zero.  So only
     systems that enable this feature will compute the metric.
 
@@ -318,26 +318,20 @@ times 1000.
 
 1.6 What is memory spread ?
 ---------------------------
-There are two boolean flag files per cpuset that control where the
-kernel allocates pages for the file system buffers and related in
-kernel data structures.  They are called 'cpuset.memory_spread_page' and
-'cpuset.memory_spread_slab'.
+The 'cpuset.memory_spread_page' boolean flag file controls where the kernel
+allocates page-cache pages.
+The 'cpuset.memory_spread_slab' file is obsolete and has no effect on
+allocation behavior, but is retained for compatibility.
 
 If the per-cpuset boolean flag file 'cpuset.memory_spread_page' is set, then
 the kernel will spread the file system buffers (page cache) evenly
 over all the nodes that the faulting task is allowed to use, instead
 of preferring to put those pages on the node where the task is running.
 
-If the per-cpuset boolean flag file 'cpuset.memory_spread_slab' is set,
-then the kernel will spread some file system related slab caches,
-such as for inodes and dentries evenly over all the nodes that the
-faulting task is allowed to use, instead of preferring to put those
-pages on the node where the task is running.
-
-The setting of these flags does not affect anonymous data segment or
+The setting of this flag does not affect anonymous data segment or
 stack segment pages of a task.
 
-By default, both kinds of memory spreading are off, and memory
+By default, page cache memory spreading is off, and memory
 pages are allocated on the node local to where the task is running,
 except perhaps as modified by the task's NUMA mempolicy or cpuset
 configuration, so long as sufficient free memory pages are available.
@@ -345,18 +339,18 @@ configuration, so long as sufficient free memory pages are available.
 When new cpusets are created, they inherit the memory spread settings
 of their parent.
 
-Setting memory spreading causes allocations for the affected page
-or slab caches to ignore the task's NUMA mempolicy and be spread
-instead.    Tasks using mbind() or set_mempolicy() calls to set NUMA
-mempolicies will not notice any change in these calls as a result of
-their containing task's memory spread settings.  If memory spreading
+Setting page cache memory spreading causes affected allocations to ignore the
+task's NUMA mempolicy and be spread instead. Tasks using mbind() or
+set_mempolicy() to set NUMA mempolicies will not notice any change as a
+result of their containing task's memory spread settings.  If memory spreading
 is turned off, then the currently specified NUMA mempolicy once again
 applies to memory page allocations.
 
-Both 'cpuset.memory_spread_page' and 'cpuset.memory_spread_slab' are boolean flag
-files.  By default they contain "0", meaning that the feature is off
-for that cpuset.  If a "1" is written to that file, then that turns
-the named feature on.
+Both 'cpuset.memory_spread_page' and 'cpuset.memory_spread_slab' are boolean
+flag files. In the root cpuset, both files initially contain "0". Writing "1"
+or "0" to 'cpuset.memory_spread_page' enables or disables page-cache spreading,
+respectively. The value of 'cpuset.memory_spread_slab' is retained, can be read
+back and inherited, but it does not affect allocation behavior.
 
 The implementation is simple.
 
@@ -366,10 +360,6 @@ joins that cpuset.  The page allocation calls for the page cache
 is modified to perform an inline check for this PFA_SPREAD_PAGE task
 flag, and if set, a call to a new routine cpuset_mem_spread_node()
 returns the node to prefer for the allocation.
-
-Similarly, setting 'cpuset.memory_spread_slab' turns on the flag
-PFA_SPREAD_SLAB, and appropriately marked slab caches will allocate
-pages from the node returned by cpuset_mem_spread_node().
 
 The cpuset_mem_spread_node() routine is also simple.  It uses the
 value of a per-task rotor cpuset_mem_spread_rotor to select the next

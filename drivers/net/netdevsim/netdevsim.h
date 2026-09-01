@@ -292,7 +292,6 @@ enum nsim_dev_port_type {
 };
 
 #define NSIM_DEV_VF_PORT_INDEX_BASE 128
-#define NSIM_DEV_VF_PORT_INDEX_MAX UINT_MAX
 
 struct nsim_dev_port {
 	struct list_head list;
@@ -472,6 +471,7 @@ nsim_psp_handle_ext(struct sk_buff *skb, struct skb_ext *psp_ext) {}
 int nsim_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		  void *type_data);
 
+#define NSIM_BUS_DEV_MAX_VFS 4
 struct nsim_bus_dev {
 	struct device dev;
 	struct list_head list;
@@ -480,7 +480,6 @@ struct nsim_bus_dev {
 	struct net *initial_net; /* Purpose of this is to carry net pointer
 				  * during the probe time only.
 				  */
-	unsigned int max_vfs;
 	unsigned int num_vfs;
 	bool init;
 };

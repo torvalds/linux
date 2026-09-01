@@ -1007,6 +1007,7 @@ static inline int drm_mode_config_init(struct drm_device *dev)
 	return drmm_mode_config_init(dev);
 }
 
+int drm_mode_config_create_initial_state(struct drm_device *dev);
 void drm_mode_config_reset(struct drm_device *dev);
 void drm_mode_config_cleanup(struct drm_device *dev);
 

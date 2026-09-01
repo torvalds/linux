@@ -466,6 +466,7 @@ struct ucsi_debugfs_entry {
 	struct ucsi_data {
 		u64 low;
 		u64 high;
+		u64 ext;
 	} response;
 	int status;
 	u8 message_out[MESSAGE_OUT_MAX_LEN];

@@ -4,7 +4,7 @@
  *
  * Maintainer: Ronen Shitrit <rshitrit@marvell.com>
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>

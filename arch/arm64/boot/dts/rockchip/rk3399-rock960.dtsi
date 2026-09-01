@@ -382,7 +382,7 @@
 };
 
 &i2s2 {
-        status = "okay";
+	status = "okay";
 };
 
 &io_domains {

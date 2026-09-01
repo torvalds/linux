@@ -145,6 +145,11 @@ struct xe_gt {
 		/** @info.has_indirect_ring_state: GT has indirect ring state support */
 		u8 has_indirect_ring_state:1;
 		/**
+		 * @info.has_uncorrectable_error_reporting: GT has uncorrectable
+		 * error reporting support
+		 */
+		u8 has_uncorrectable_error_reporting:1;
+		/**
 		 * @info.has_xe2_blt_instructions: GT supports Xe2-style MEM_SET
 		 * and MEM_COPY blitter functionality.  Note that despite the
 		 * name, some Xe1 platforms may also support this "Xe2-style"
@@ -230,10 +235,16 @@ struct xe_gt {
 		 */
 		struct xe_sa_manager *bb_pool;
 		/**
-		 * @usm.reserved_bcs_instance: reserved BCS instance used for USM
-		 * operations (e.g. migrations, fixing page tables)
+		 * @usm.paging_hwe0: The first designated paging engine.
+		 * This is some reserved BCS instance used for USM operations
+		 * (e.g. migrations, fixing page tables)
 		 */
-		u16 reserved_bcs_instance;
+		struct xe_hw_engine *paging_hwe0;
+		/**
+		 * @usm.paging_logical_mask: logical mask of paging engines.
+		 * Should be densely populated.
+		 */
+		u32 paging_logical_mask;
 	} usm;
 
 	/** @ordered_wq: used to serialize GT resets and TDRs */

@@ -743,11 +743,19 @@ static void adav80x_dai_shutdown(struct snd_pcm_substream *substream,
 		adav80x->rate = 0;
 }
 
+static const u64 adav80x_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops adav80x_dai_ops = {
 	.set_fmt = adav80x_set_dai_fmt,
 	.hw_params = adav80x_hw_params,
 	.startup = adav80x_dai_startup,
 	.shutdown = adav80x_dai_shutdown,
+	.auto_selectable_formats = &adav80x_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 #define ADAV80X_PLAYBACK_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \

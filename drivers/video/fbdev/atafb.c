@@ -158,14 +158,6 @@ static int DontCalcRes = 0;
 #define VMO_PREMASK		0x0c
 #endif
 
-static struct fb_info fb_info = {
-	.fix = {
-		.id	= "Atari ",
-		.visual	= FB_VISUAL_PSEUDOCOLOR,
-		.accel	= FB_ACCEL_NONE,
-	}
-};
-
 static void *screen_base;	/* base address of screen */
 static unsigned long phys_screen_base;	/* (only for Overscan) */
 
@@ -175,6 +167,12 @@ static int current_par_valid;
 
 static int mono_moni;
 
+/* monspecs passed by user */
+
+static __u32 mcap_hmin;		/* hfreq lower limit (Hz) */
+static __u32 mcap_hmax;		/* hfreq upper limit (Hz) */
+static __u16 mcap_vmin;		/* vfreq lower limit (Hz) */
+static __u16 mcap_vmax;		/* vfreq upper limit (Hz) */
 
 #ifdef ATAFB_EXT
 
@@ -299,7 +297,7 @@ static int *MV300_reg = MV300_reg_8bit;
 /* ++roman: This structure abstracts from the underlying hardware (ST(e),
  * TT, or Falcon.
  *
- * int (*detect)(void)
+ * int (*detect)(struct fb_info *info)
  *   This function should detect the current video mode settings and
  *   store them in atafb_predefined[0] for later reference by the
  *   user. Return the index+1 of an equivalent predefined mode or 0
@@ -311,7 +309,7 @@ static int *MV300_reg = MV300_reg_8bit;
  *   values in the 'par' structure.
  * !!! Obsolete, perhaps !!!
  *
- * int (*decode_var)(struct fb_var_screeninfo *var,
+ * int (*decode_var)(struct fb_info *info, struct fb_var_screeninfo *var,
  *                   struct atafb_par *par)
  *   Get the video params out of 'var'. If a value doesn't fit, round
  *   it up, if it's too big, return EINVAL.
@@ -345,10 +343,10 @@ static int *MV300_reg = MV300_reg_8bit;
  */
 
 static struct fb_hwswitch {
-	int (*detect)(void);
+	int (*detect)(struct fb_info *info);
 	int (*encode_fix)(struct fb_fix_screeninfo *fix,
 			  struct atafb_par *par);
-	int (*decode_var)(struct fb_var_screeninfo *var,
+	int (*decode_var)(struct fb_info *info, struct fb_var_screeninfo *var,
 			  struct atafb_par *par);
 	int (*encode_var)(struct fb_var_screeninfo *var,
 			  struct atafb_par *par);
@@ -576,7 +574,7 @@ static int tt_encode_fix(struct fb_fix_screeninfo *fix, struct atafb_par *par)
 	return 0;
 }
 
-static int tt_decode_var(struct fb_var_screeninfo *var, struct atafb_par *par)
+static int tt_decode_var(struct fb_info *info, struct fb_var_screeninfo *var, struct atafb_par *par)
 {
 	int xres = var->xres;
 	int yres = var->yres;
@@ -782,7 +780,7 @@ static int tt_setcolreg(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static int tt_detect(void)
+static int tt_detect(struct fb_info *info)
 {
 	struct atafb_par par;
 
@@ -877,7 +875,7 @@ static int falcon_encode_fix(struct fb_fix_screeninfo *fix,
 	return 0;
 }
 
-static int falcon_decode_var(struct fb_var_screeninfo *var,
+static int falcon_decode_var(struct fb_info *info, struct fb_var_screeninfo *var,
 			     struct atafb_par *par)
 {
 	int bpp = var->bits_per_pixel;
@@ -1069,13 +1067,13 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 			/* Choose master pixelclock depending on hor. timing */
 			plen = 1 * xstretch;
 			if ((plen * xres + f25.right + f25.hsync + f25.left) *
-			    fb_info.monspecs.hfmin < f25.f)
+			    info->monspecs.hfmin < f25.f)
 				pclock = &f25;
 			else if ((plen * xres + f32.right + f32.hsync +
-				  f32.left) * fb_info.monspecs.hfmin < f32.f)
+				  f32.left) * info->monspecs.hfmin < f32.f)
 				pclock = &f32;
 			else if ((plen * xres + fext.right + fext.hsync +
-				  fext.left) * fb_info.monspecs.hfmin < fext.f &&
+				  fext.left) * info->monspecs.hfmin < fext.f &&
 			         fext.f)
 				pclock = &fext;
 			else
@@ -1245,14 +1243,14 @@ again:
 
 	/*  check hor. frequency */
 	hfreq = pclock->f / ((par->HHT + 2) * prescale * 2);
-	if (hfreq > fb_info.monspecs.hfmax && mon_type != F_MON_VGA) {
+	if (hfreq > info->monspecs.hfmax && mon_type != F_MON_VGA) {
 		/* ++guenther:   ^^^^^^^^^^^^^^^^^^^ can't remember why I did this */
 		/* Too high -> enlarge margin */
 		left_margin += 1;
 		right_margin += 1;
 		goto again;
 	}
-	if (hfreq > fb_info.monspecs.hfmax || hfreq < fb_info.monspecs.hfmin)
+	if (hfreq > info->monspecs.hfmax || hfreq < info->monspecs.hfmin)
 		return -EINVAL;
 
 	/* Vxx-registers */
@@ -1283,50 +1281,50 @@ again:
 	/* V-frequency check, hope I didn't create any loop here. */
 	/* Interlace and doubleline are mutually exclusive. */
 	vfreq = (hfreq * 2) / (par->VFT + 1);
-	if (vfreq > fb_info.monspecs.vfmax && !doubleline && !interlace) {
+	if (vfreq > info->monspecs.vfmax && !doubleline && !interlace) {
 		/* Too high -> try again with doubleline */
 		doubleline = 1;
 		goto again;
-	} else if (vfreq < fb_info.monspecs.vfmin && !interlace && !doubleline) {
+	} else if (vfreq < info->monspecs.vfmin && !interlace && !doubleline) {
 		/* Too low -> try again with interlace */
 		interlace = 1;
 		goto again;
-	} else if (vfreq < fb_info.monspecs.vfmin && doubleline) {
+	} else if (vfreq < info->monspecs.vfmin && doubleline) {
 		/* Doubleline too low -> clear doubleline and enlarge margins */
 		int lines;
 		doubleline = 0;
 		for (lines = 0;
 		     (hfreq * 2) / (par->VFT + 1 + 4 * lines - 2 * yres) >
-		     fb_info.monspecs.vfmax;
+		     info->monspecs.vfmax;
 		     lines++)
 			;
 		upper_margin += lines;
 		lower_margin += lines;
 		goto again;
-	} else if (vfreq > fb_info.monspecs.vfmax && doubleline) {
+	} else if (vfreq > info->monspecs.vfmax && doubleline) {
 		/* Doubleline too high -> enlarge margins */
 		int lines;
 		for (lines = 0;
 		     (hfreq * 2) / (par->VFT + 1 + 4 * lines) >
-		     fb_info.monspecs.vfmax;
+		     info->monspecs.vfmax;
 		     lines += 2)
 			;
 		upper_margin += lines;
 		lower_margin += lines;
 		goto again;
-	} else if (vfreq > fb_info.monspecs.vfmax && interlace) {
+	} else if (vfreq > info->monspecs.vfmax && interlace) {
 		/* Interlace, too high -> enlarge margins */
 		int lines;
 		for (lines = 0;
 		     (hfreq * 2) / (par->VFT + 1 + 4 * lines) >
-		     fb_info.monspecs.vfmax;
+		     info->monspecs.vfmax;
 		     lines++)
 			;
 		upper_margin += lines;
 		lower_margin += lines;
 		goto again;
-	} else if (vfreq < fb_info.monspecs.vfmin ||
-		   vfreq > fb_info.monspecs.vfmax)
+	} else if (vfreq < info->monspecs.vfmin ||
+		   vfreq > info->monspecs.vfmax)
 		return -EINVAL;
 
 set_screen_base:
@@ -1720,7 +1718,7 @@ static int falcon_blank(int blank_mode)
 	return 0;
 }
 
-static int falcon_detect(void)
+static int falcon_detect(struct fb_info *info)
 {
 	struct atafb_par par;
 	unsigned char fhw;
@@ -1732,18 +1730,18 @@ static int falcon_detect(void)
 	f030_bus_width = fhw << 6 & 0x80;
 	switch (mon_type) {
 	case F_MON_SM:
-		fb_info.monspecs.vfmin = 70;
-		fb_info.monspecs.vfmax = 72;
-		fb_info.monspecs.hfmin = 35713;
-		fb_info.monspecs.hfmax = 35715;
+		info->monspecs.vfmin = 70;
+		info->monspecs.vfmax = 72;
+		info->monspecs.hfmin = 35713;
+		info->monspecs.hfmax = 35715;
 		break;
 	case F_MON_SC:
 	case F_MON_TV:
 		/* PAL...NTSC */
-		fb_info.monspecs.vfmin = 49;	/* not 50, since TOS defaults to 49.9x Hz */
-		fb_info.monspecs.vfmax = 60;
-		fb_info.monspecs.hfmin = 15620;
-		fb_info.monspecs.hfmax = 15755;
+		info->monspecs.vfmin = 49;	/* not 50, since TOS defaults to 49.9x Hz */
+		info->monspecs.vfmax = 60;
+		info->monspecs.hfmin = 15620;
+		info->monspecs.hfmax = 15755;
 		break;
 	}
 	/* initialize hsync-len */
@@ -1795,7 +1793,7 @@ static int stste_encode_fix(struct fb_fix_screeninfo *fix,
 	return 0;
 }
 
-static int stste_decode_var(struct fb_var_screeninfo *var,
+static int stste_decode_var(struct fb_info *info, struct fb_var_screeninfo *var,
 			    struct atafb_par *par)
 {
 	int xres = var->xres;
@@ -1971,7 +1969,7 @@ static int stste_setcolreg(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static int stste_detect(void)
+static int stste_detect(struct fb_info *info)
 {
 	struct atafb_par par;
 
@@ -2081,8 +2079,12 @@ static int ext_encode_fix(struct fb_fix_screeninfo *fix, struct atafb_par *par)
 			 external_pmode == FB_TYPE_PACKED_PIXELS) ?
 				FB_VISUAL_MONO10 : FB_VISUAL_MONO01;
 	} else {
-		/* Use STATIC if we don't know how to access color registers */
-		int visual = external_vgaiobase ?
+		/* Use STATIC if we don't know how to access color registers;
+		 * SuperVidel 8bpp chunky (fb in SV RAM) uses the Falcon palette
+		 */
+		int visual = (external_vgaiobase ||
+			      (external_depth == 8 &&
+			       external_addr >= 0xa0000000)) ?
 					 FB_VISUAL_PSEUDOCOLOR :
 					 FB_VISUAL_STATIC_PSEUDOCOLOR;
 		switch (external_pmode) {
@@ -2112,7 +2114,8 @@ static int ext_encode_fix(struct fb_fix_screeninfo *fix, struct atafb_par *par)
 	return 0;
 }
 
-static int ext_decode_var(struct fb_var_screeninfo *var, struct atafb_par *par)
+static int ext_decode_var(struct fb_info *info, struct fb_var_screeninfo *var,
+			struct atafb_par *par)
 {
 	struct fb_var_screeninfo *myvar = &atafb_predefined[0];
 
@@ -2159,6 +2162,35 @@ static int ext_encode_var(struct fb_var_screeninfo *var, struct atafb_par *par)
 	var->transp.offset = 0;
 	var->transp.length = 0;
 	var->transp.msb_right = 0;
+	if (external_pmode == -1 && external_depth == 16) {
+		/* RGB565 truecolor (e.g. SuperVidel native mode) */
+		var->red.offset = 11;
+		var->red.length = 5;
+		var->green.offset = 5;
+		var->green.length = 6;
+		var->blue.offset = 0;
+		var->blue.length = 5;
+	} else if (external_pmode == -1 && external_depth == 32) {
+		/* ARGB8888 truecolor (e.g. SuperVidel native mode) */
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
+		var->transp.offset = 24;
+		var->transp.length = 8;
+	} else if (external_pmode == FB_TYPE_PACKED_PIXELS &&
+		   external_depth == 8 && external_addr >= 0xa0000000) {
+		/* SuperVidel 8bpp chunky: palette has 8 bits per channel.
+		 * Without this, fb_get_color_depth() sees length 0 and
+		 * fbcon falls back to its 2-color palette — the console
+		 * text (color 7) stays black on black.
+		 */
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+	}
 	var->yres_virtual = var->yres;
 	var->xoffset = 0;
 	var->yoffset = 0;
@@ -2193,6 +2225,38 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 {
 	unsigned char colmask = (1 << external_bitspercol) - 1;
 
+	if (external_pmode == -1 && external_depth == 16) {
+		/* truecolor: only the pseudo palette for fbcon is needed */
+		if (regno > 15)
+			return 1;
+		((u32 *)info->pseudo_palette)[regno] = (red & 0xf800) |
+						       ((green & 0xfc00) >> 5) |
+						       ((blue & 0xf800) >> 11);
+		return 0;
+	}
+	if (external_pmode == -1 && external_depth == 32) {
+		/* ARGB8888, alpha forced opaque */
+		if (regno > 15)
+			return 1;
+		((u32 *)info->pseudo_palette)[regno] = 0xff000000 |
+						       ((red & 0xff00) << 8) |
+						       (green & 0xff00) |
+						       ((blue & 0xff00) >> 8);
+		return 0;
+	}
+	if (external_pmode == FB_TYPE_PACKED_PIXELS && external_depth == 8 &&
+	    external_addr >= 0xa0000000) {
+		/* SuperVidel native 8bpp chunky scans out via the Falcon
+		 * palette registers, honoring all 8 bits per channel
+		 */
+		if (regno > 255)
+			return 1;
+		f030_col[regno] = ((red & 0xff00) << 16) |
+				  ((green & 0xff00) << 8) |
+				  ((blue & 0xff00) >> 8);
+		return 0;
+	}
+
 	if (!external_vgaiobase)
 		return 1;
 
@@ -2226,7 +2290,7 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 	}
 }
 
-static int ext_detect(void)
+static int ext_detect(struct fb_info *info)
 {
 	struct fb_var_screeninfo *myvar = &atafb_predefined[0];
 	struct atafb_par dummy_par;
@@ -2237,6 +2301,185 @@ static int ext_detect(void)
 	myvar->bits_per_pixel = external_depth;
 	ext_encode_var(myvar, &dummy_par);
 	return 1;
+}
+
+/* ------------------- SuperVidel SuperBlitter ---------------------- */
+
+/*
+ * Hardware blitter in the SuperVidel FPGA, operating within SV DDR2 RAM.
+ * FW revision >= 9 provides a command FIFO (async operation); older
+ * revisions are programmed directly with busy-polling.
+ */
+#define SVBLIT_REGS_PHYS	0x80010000
+#define SVBLIT_SRC1		0x58	/* bits 26:0 */
+#define SVBLIT_SRC2		0x5c
+#define SVBLIT_DST		0x60
+#define SVBLIT_COUNT		0x64	/* bytes per line - 1 */
+#define SVBLIT_SRC1_OFFSET	0x68	/* line start to next line start */
+#define SVBLIT_SRC2_OFFSET	0x6c
+#define SVBLIT_DST_OFFSET	0x70
+#define SVBLIT_MASK_AND_LINES	0x74	/* bits 11:0: number of lines */
+#define SVBLIT_CONTROL		0x78	/* bit 0: busy/start, bits 4:1: mode */
+#define SVBLIT_VERSION		0x7c	/* bits 9:0: FW revision */
+#define SVBLIT_FIFO		0x80	/* wr: data; rd: bit 0 empty, bit 1 full */
+
+/*
+ * SuperBlitter bug: Instead of declared 2048 bytes, 2032 is the real maximum.
+ */
+#define SVBLIT_MAX_SPAN	2032
+
+static void __iomem *svblit_regs;
+static int svblit_fw;
+
+static inline u32 svblit_rd(unsigned int reg)
+{
+	return __raw_readl(svblit_regs + reg);
+}
+
+static inline void svblit_wr(unsigned int reg, u32 val)
+{
+	__raw_writel(val, svblit_regs + reg);
+}
+
+/* wait until all queued blits have finished */
+static void svblit_wait(void)
+{
+	if (svblit_fw >= 9)
+		/* FIFO empty flag = fewer than 9 longwords queued */
+		while (!(svblit_rd(SVBLIT_FIFO) & 1))
+			cpu_relax();
+	while (svblit_rd(SVBLIT_CONTROL) & 1)
+		cpu_relax();
+}
+
+/*
+ * FW >= 9 queues commands through the 512-longword FIFO: a command is
+ * 9 longwords (registers 0x58..0x78 in order), executed whenever >= 9
+ * words are queued and the blitter is idle. The full flag rises at
+ * >= 500 queued words, so below it there is always room for a whole
+ * command — one flag check per command prevents overflow (dropped
+ * words would desync the 9-word framing until an SV reinit, which is
+ * exactly what overflowing did before this guard existed). Older FW
+ * is programmed directly with busy-polling.
+ *
+ * The line byte count field is 11 bits but see SVBLIT_MAX_SPAN.
+ */
+static void svblit_copy(u32 src, u32 dst, u32 nbytes, u32 src_offset,
+			u32 dst_offset, u32 lines)
+{
+	while (nbytes) {
+		u32 chunk = min(nbytes, SVBLIT_MAX_SPAN);
+
+		if (svblit_fw >= 9) {
+			while (svblit_rd(SVBLIT_FIFO) & 2)
+				cpu_relax();
+			svblit_wr(SVBLIT_FIFO, src);
+			svblit_wr(SVBLIT_FIFO, 0);
+			svblit_wr(SVBLIT_FIFO, dst);
+			svblit_wr(SVBLIT_FIFO, chunk - 1);
+			svblit_wr(SVBLIT_FIFO, src_offset);
+			svblit_wr(SVBLIT_FIFO, 0);
+			svblit_wr(SVBLIT_FIFO, dst_offset);
+			svblit_wr(SVBLIT_FIFO, lines);
+			svblit_wr(SVBLIT_FIFO, 0x01);
+		} else {
+			while (svblit_rd(SVBLIT_CONTROL) & 1)
+				cpu_relax();
+			svblit_wr(SVBLIT_SRC1, src);
+			svblit_wr(SVBLIT_SRC2, 0);
+			svblit_wr(SVBLIT_DST, dst);
+			svblit_wr(SVBLIT_COUNT, chunk - 1);
+			svblit_wr(SVBLIT_SRC1_OFFSET, src_offset);
+			svblit_wr(SVBLIT_SRC2_OFFSET, 0);
+			svblit_wr(SVBLIT_DST_OFFSET, dst_offset);
+			svblit_wr(SVBLIT_MASK_AND_LINES, lines);
+			svblit_wr(SVBLIT_CONTROL, 0x01);
+		}
+
+		src += chunk;
+		dst += chunk;
+		nbytes -= chunk;
+	}
+}
+
+static int svblit_sync(struct fb_info *info)
+{
+	svblit_wait();
+	return 0;
+}
+
+static void svblit_copyarea(struct fb_info *info,
+			    const struct fb_copyarea *area)
+{
+	u32 bytespp = info->var.bits_per_pixel / 8;
+	u32 pitch = info->fix.line_length;
+
+	/*
+	 * The blitter walks lines in ascending order, so overlapping
+	 * moves down/right would read already overwritten data. Those
+	 * are rare for fbcon (scrolling backwards); leave them and
+	 * oversized areas to the CPU.
+	 */
+	if (area->height > 4095 ||
+	    area->dy > area->sy ||
+	    (area->dy == area->sy && area->dx > area->sx)) {
+		svblit_wait();
+		cfb_copyarea(info, area);
+		return;
+	}
+
+	svblit_copy(external_addr + area->sy * pitch + area->sx * bytespp,
+		    external_addr + area->dy * pitch + area->dx * bytespp,
+		    area->width * bytespp, pitch, pitch, area->height);
+	/* async: every CPU access to the fb goes through svblit_wait() */
+}
+
+static void svblit_fillrect(struct fb_info *info,
+			    const struct fb_fillrect *rect)
+{
+	u32 bytespp = info->var.bits_per_pixel / 8;
+	u32 pitch = info->fix.line_length;
+	u8 *line;
+	u32 pix;
+
+	svblit_wait();		/* the CPU is about to touch the fb */
+
+	if (rect->rop != ROP_COPY || rect->height <= 1 ||
+	    rect->height > 4096) {
+		cfb_fillrect(info, rect);
+		return;
+	}
+
+	pix = (info->fix.visual == FB_VISUAL_TRUECOLOR) ?
+		((u32 *)info->pseudo_palette)[rect->color] : rect->color;
+
+	/* draw the first line with the CPU ... */
+	line = (u8 *)info->screen_base + rect->dy * pitch +
+	       rect->dx * bytespp;
+	switch (bytespp) {
+	case 1:
+		memset(line, pix, rect->width);
+		break;
+	case 2:
+		memset16((u16 *)line, pix, rect->width);
+		break;
+	default:
+		memset32((u32 *)line, pix, rect->width);
+		break;
+	}
+
+	/* ... and let the blitter replicate it into the other lines */
+	svblit_copy(external_addr + rect->dy * pitch + rect->dx * bytespp,
+		    external_addr + (rect->dy + 1) * pitch +
+		    rect->dx * bytespp,
+		    rect->width * bytespp, 0, pitch, rect->height - 1);
+}
+
+static void svblit_imageblit(struct fb_info *info,
+			     const struct fb_image *image)
+{
+	svblit_wait();		/* CPU rendering must not race queued blits */
+	cfb_imageblit(info, image);
 }
 
 #endif /* ATAFB_EXT */
@@ -2344,12 +2587,12 @@ static void ata_set_par(struct atafb_par *par)
 
 /* used for hardware scrolling */
 
-static int do_fb_set_var(struct fb_var_screeninfo *var, int isactive)
+static int do_fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var, int isactive)
 {
 	int err, activate;
 	struct atafb_par par;
 
-	err = fbhw->decode_var(var, &par);
+	err = fbhw->decode_var(info, var, &par);
 	if (err)
 		return err;
 	activate = var->activate;
@@ -2368,7 +2611,7 @@ static int atafb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 	struct atafb_par par;
 	int err;
 	// Get fix directly (case con == -1 before)??
-	err = fbhw->decode_var(&info->var, &par);
+	err = fbhw->decode_var(info, &info->var, &par);
 	if (err)
 		return err;
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
@@ -2422,7 +2665,9 @@ static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return;
 
 #ifdef ATAFB_FALCON
-	if (info->var.bits_per_pixel == 16) {
+	/* chunky modes (Falcon hicolor, external packed/truecolor) */
+	if (info->fix.type == FB_TYPE_PACKED_PIXELS &&
+	    info->var.bits_per_pixel > 1) {
 		cfb_fillrect(info, rect);
 		return;
 	}
@@ -2463,7 +2708,9 @@ static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	int rev_copy = 0;
 
 #ifdef ATAFB_FALCON
-	if (info->var.bits_per_pixel == 16) {
+	/* chunky modes (Falcon hicolor, external packed/truecolor) */
+	if (info->fix.type == FB_TYPE_PACKED_PIXELS &&
+	    info->var.bits_per_pixel > 1) {
 		cfb_copyarea(info, area);
 		return;
 	}
@@ -2517,7 +2764,9 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 	u32 dx, dy, width, height, pitch;
 
 #ifdef ATAFB_FALCON
-	if (info->var.bits_per_pixel == 16) {
+	/* chunky modes (Falcon hicolor, external packed/truecolor) */
+	if (info->fix.type == FB_TYPE_PACKED_PIXELS &&
+	    info->var.bits_per_pixel > 1) {
 		cfb_imageblit(info, image);
 		return;
 	}
@@ -2635,7 +2884,7 @@ static int atafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	/* Validate wanted screen parameters */
 	// if ((err = ata_decode_var(var, &par)))
-	err = fbhw->decode_var(var, &par);
+	err = fbhw->decode_var(info, var, &par);
 	if (err)
 		return err;
 
@@ -2651,7 +2900,7 @@ static int atafb_set_par(struct fb_info *info)
 	struct atafb_par *par = info->par;
 
 	/* Decode wanted screen parameters */
-	fbhw->decode_var(&info->var, par);
+	fbhw->decode_var(info, &info->var, par);
 	mutex_lock(&info->mm_lock);
 	fbhw->encode_fix(&info->fix, par);
 	mutex_unlock(&info->mm_lock);
@@ -2677,7 +2926,7 @@ static struct fb_ops atafb_ops = {
 	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
-static void check_default_par(int detected_mode)
+static void check_default_par(struct fb_info *info, int detected_mode)
 {
 	char default_name[10];
 	int i;
@@ -2688,14 +2937,14 @@ static void check_default_par(int detected_mode)
 	if (default_par) {
 		var = atafb_predefined[default_par - 1];
 		var.activate = FB_ACTIVATE_TEST;
-		if (do_fb_set_var(&var, 1))
+		if (do_fb_set_var(info, &var, 1))
 			default_par = 0;	/* failed */
 	}
 	/* Next is the autodetected one */
 	if (!default_par) {
 		var = atafb_predefined[detected_mode - 1]; /* autodetect */
 		var.activate = FB_ACTIVATE_TEST;
-		if (!do_fb_set_var(&var, 1))
+		if (!do_fb_set_var(info, &var, 1))
 			default_par = detected_mode;
 	}
 	/* If that also failed, try some default modes... */
@@ -2708,7 +2957,7 @@ static void check_default_par(int detected_mode)
 				panic("can't set default video mode");
 			var = atafb_predefined[default_par - 1];
 			var.activate = FB_ACTIVATE_TEST;
-			if (!do_fb_set_var(&var,1))
+			if (!do_fb_set_var(info, &var, 1))
 				break;	/* ok */
 		}
 	}
@@ -2753,7 +3002,7 @@ static void __init atafb_setup_ext(char *spec)
 		return;
 	depth = simple_strtoul(p, NULL, 10);
 	if (depth != 1 && depth != 2 && depth != 4 && depth != 8 &&
-	    depth != 16 && depth != 24)
+	    depth != 16 && depth != 24 && depth != 32)
 		return;
 
 	p = strsep(&spec, ";");
@@ -2901,10 +3150,10 @@ static void __init atafb_setup_mcap(char *spec)
 	if (hmax <= 0 || hmax <= hmin)
 		return;
 
-	fb_info.monspecs.vfmin = vmin;
-	fb_info.monspecs.vfmax = vmax;
-	fb_info.monspecs.hfmin = hmin;
-	fb_info.monspecs.hfmax = hmax;
+	mcap_vmin = vmin;
+	mcap_vmax = vmax;
+	mcap_hmin = hmin;
+	mcap_hmax = hmax;
 }
 #endif /* ATAFB_FALCON */
 
@@ -2991,11 +3240,18 @@ static int __init atafb_probe(struct platform_device *pdev)
 	unsigned int defmode = 0;
 	unsigned long mem_req;
 	char *option = NULL;
+	struct fb_info *fb_info;
 
 	if (fb_get_options("atafb", &option))
 		return -ENODEV;
 	atafb_setup(option);
 	dev_dbg(&pdev->dev, "%s: start\n", __func__);
+
+	fb_info =  framebuffer_alloc(sizeof(struct atafb_par), &pdev->dev);
+
+	strscpy(fb_info->fix.id, "Atari ");
+	fb_info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
+	fb_info->fix.accel = FB_ACCEL_NONE;
 
 	do {
 #ifdef ATAFB_EXT
@@ -3052,15 +3308,20 @@ static int __init atafb_probe(struct platform_device *pdev)
 
 	/* Multisync monitor capabilities */
 	/* Atari-TOS defaults if no boot option present */
-	if (fb_info.monspecs.hfmin == 0) {
-		fb_info.monspecs.hfmin = 31000;
-		fb_info.monspecs.hfmax = 32000;
-		fb_info.monspecs.vfmin = 58;
-		fb_info.monspecs.vfmax = 62;
+	if (mcap_hmin == 0) {
+		fb_info->monspecs.hfmin = 31000;
+		fb_info->monspecs.hfmax = 32000;
+		fb_info->monspecs.vfmin = 58;
+		fb_info->monspecs.vfmax = 62;
+	} else {
+		fb_info->monspecs.vfmin = mcap_vmin;
+		fb_info->monspecs.vfmax = mcap_vmax;
+		fb_info->monspecs.hfmin = mcap_hmin;
+		fb_info->monspecs.hfmax = mcap_hmax;
 	}
 
-	detected_mode = fbhw->detect();
-	check_default_par(detected_mode);
+	detected_mode = fbhw->detect(fb_info);
+	check_default_par(fb_info, detected_mode);
 #ifdef ATAFB_EXT
 	if (!external_addr) {
 #endif /* ATAFB_EXT */
@@ -3097,46 +3358,67 @@ static int __init atafb_probe(struct platform_device *pdev)
 		phys_screen_base = external_addr;
 		screen_len = external_len & PAGE_MASK;
 		memset (screen_base, 0, external_len);
+
+		/* framebuffer in SV RAM: enable the SuperBlitter */
+		if (external_addr >= 0xa0000000) {
+			svblit_regs = ioremap(SVBLIT_REGS_PHYS, 0x100);
+			if (svblit_regs) {
+				svblit_fw = svblit_rd(SVBLIT_VERSION) & 0x1ff;
+				atafb_ops.fb_fillrect = svblit_fillrect;
+				atafb_ops.fb_copyarea = svblit_copyarea;
+				atafb_ops.fb_imageblit = svblit_imageblit;
+				atafb_ops.fb_sync = svblit_sync;
+				fb_info->flags |= FBINFO_HWACCEL_COPYAREA |
+						  FBINFO_HWACCEL_FILLRECT;
+				dev_info(&pdev->dev,
+					 "SuperBlitter enabled, FW revision %d (%s)\n",
+					 svblit_fw, svblit_fw >= 9 ?
+					 "async FIFO" : "sync");
+			}
+		}
 	}
 #endif /* ATAFB_EXT */
 
-//	strcpy(fb_info.mode->name, "Atari Builtin ");
-	fb_info.fbops = &atafb_ops;
+//	strcpy(fb_info->mode->name, "Atari Builtin ");
+	fb_info->fbops = &atafb_ops;
 	// try to set default (detected; requested) var
-	do_fb_set_var(&atafb_predefined[default_par - 1], 1);
+	do_fb_set_var(fb_info, &atafb_predefined[default_par - 1], 1);
 	// reads hw state into current par, which may not be sane yet
 	ata_get_par(&current_par);
-	fb_info.par = &current_par;
+	fb_info->par = &current_par;
 	// tries to read from HW which may not be initialized yet
 	// so set sane var first, then call atafb_set_par
-	atafb_get_var(&fb_info.var, &fb_info);
+	atafb_get_var(&(fb_info->var), fb_info);
 
 #ifdef ATAFB_FALCON
-	fb_info.pseudo_palette = current_par.hw.falcon.pseudo_palette;
+	fb_info->pseudo_palette = current_par.hw.falcon.pseudo_palette;
 #endif
 
-	if (!fb_find_mode(&fb_info.var, &fb_info, mode_option, atafb_modedb,
+	if (!fb_find_mode(&(fb_info->var), fb_info, mode_option, atafb_modedb,
 			  NUM_TOTAL_MODES, &atafb_modedb[defmode],
-			  fb_info.var.bits_per_pixel)) {
+			  fb_info->var.bits_per_pixel)) {
 		return -EINVAL;
 	}
 
 	fb_videomode_to_modelist(atafb_modedb, NUM_TOTAL_MODES,
-				 &fb_info.modelist);
+				 &(fb_info->modelist));
 
-	atafb_set_disp(&fb_info);
+	atafb_set_disp(fb_info);
 
-	fb_alloc_cmap(&(fb_info.cmap), 1 << fb_info.var.bits_per_pixel, 0);
+	/* truecolor visuals only need the 16-entry console palette; this
+	 * also avoids 1 << 32 overflowing at 32bpp
+	 */
+	fb_alloc_cmap(&(fb_info->cmap), fb_info->var.bits_per_pixel > 8 ?
+		      16 : 1 << fb_info->var.bits_per_pixel, 0);
 
-
-	dev_info(&pdev->dev, "Determined %dx%d, depth %d\n", fb_info.var.xres,
-		 fb_info.var.yres, fb_info.var.bits_per_pixel);
-	if ((fb_info.var.xres != fb_info.var.xres_virtual) ||
-	    (fb_info.var.yres != fb_info.var.yres_virtual))
+	dev_info(&pdev->dev, "Determined %dx%d, depth %d\n", fb_info->var.xres,
+		 fb_info->var.yres, fb_info->var.bits_per_pixel);
+	if ((fb_info->var.xres != fb_info->var.xres_virtual) ||
+	    (fb_info->var.yres != fb_info->var.yres_virtual))
 		dev_info(&pdev->dev, "   virtual %dx%d\n",
-			 fb_info.var.xres_virtual, fb_info.var.yres_virtual);
+			 fb_info->var.xres_virtual, fb_info->var.yres_virtual);
 
-	if (register_framebuffer(&fb_info) < 0) {
+	if (register_framebuffer(fb_info) < 0) {
 #ifdef ATAFB_EXT
 		if (external_addr) {
 			iounmap(external_screen_base);
@@ -3150,7 +3432,7 @@ static int __init atafb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	fb_info(&fb_info, "frame buffer device, using %dK of video memory\n",
+	fb_info(fb_info, "frame buffer device, using %dK of video memory\n",
 		screen_len >> 10);
 
 	/* TODO: This driver cannot be unloaded yet */

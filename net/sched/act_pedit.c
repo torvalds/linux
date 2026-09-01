@@ -626,6 +626,29 @@ static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
 	return 0;
 }
 
+static size_t tcf_pedit_get_fill_size(const struct tc_action *act)
+{
+	const struct tcf_pedit_parms *parms;
+	size_t size;
+
+	rcu_read_lock();
+	parms = rcu_dereference(to_pedit(act)->parms);
+	size = nla_total_size(struct_size_t(struct tc_pedit, keys,
+					    parms->tcfp_nkeys));
+	if (parms->tcfp_keys_ex) {
+		/* TCA_PEDIT_KEYS_EX, holding one TCA_PEDIT_KEY_EX nest with a
+		 * HTYPE and a CMD attribute per key.
+		 */
+		size += nla_total_size(0)
+			+ parms->tcfp_nkeys * (nla_total_size(0)
+					       + nla_total_size(sizeof(u16))
+					       + nla_total_size(sizeof(u16)));
+	}
+	rcu_read_unlock();
+
+	return size;
+}
+
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
 	.id		=	TCA_ID_PEDIT,
@@ -635,6 +658,7 @@ static struct tc_action_ops act_pedit_ops = {
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
 	.init		=	tcf_pedit_init,
+	.get_fill_size	=	tcf_pedit_get_fill_size,
 	.offload_act_setup =	tcf_pedit_offload_act_setup,
 	.size		=	sizeof(struct tcf_pedit),
 };

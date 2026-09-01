@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (c) 2026, Val Packett <val@packett.cool>
+ */
+
+/dts-v1/;
+
+#include "sm7325-motorola-dubai-common.dtsi"
+
+/ {
+	model = "Motorola Edge 30 (Tianma)";
+	compatible = "motorola,dubai", "qcom,sm7325";
+};

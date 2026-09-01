@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_SA1100
-	bool "SA11x0 Implementations"
+	bool "SA11x0 Implementations (DEPRECATED)"
 	depends on ARCH_MULTI_V4 && !(ARCH_MULTI_V4T || ARCH_MULTI_V5)
 	depends on !(ARCH_MOXART || ARCH_GEMINI)
 	depends on ATAGS
@@ -19,6 +19,9 @@ menuconfig ARCH_SA1100
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for StrongARM 11x0 based boards.
+
+	  Support for these machines will go away in 2027,
+	  unless there are any remaining users that speak up.
 
 if ARCH_SA1100
 

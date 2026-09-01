@@ -87,7 +87,7 @@
 		function = "gsbi7";
 	};
 
-	gsbi7_uart_4pins: gsbi7_uart_4pins-state {
+	gsbi7_uart_4pins: gsbi7-uart-4pins-state {
 		pins = "gpio82", "gpio83", "gpio84", "gpio85";
 		function = "gsbi7";
 	};

@@ -1764,7 +1764,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct omap_hsmmc_host *host = NULL;
 	struct resource *res;
-	int ret, irq;
+	int ret, irq, wake_irq;
 	const struct of_device_id *match;
 	const struct omap_mmc_of_data *data;
 	void __iomem *base;
@@ -1792,6 +1792,11 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	wake_irq = platform_get_irq_optional(pdev, 1);
+	if (wake_irq == -EPROBE_DEFER)
+		return wake_irq;
+	wake_irq = max(wake_irq, 0);
+
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -1811,6 +1816,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->use_dma	= 1;
 	host->dma_ch	= -1;
 	host->irq	= irq;
+	host->wake_irq	= wake_irq;
 	host->mapbase	= res->start + pdata->reg_offset;
 	host->base	= base + pdata->reg_offset;
 	host->power_mode = MMC_POWER_OFF;
@@ -1819,9 +1825,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->vqmmc_enabled = false;
 
 	platform_set_drvdata(pdev, host);
-
-	if (pdev->dev.of_node)
-		host->wake_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 
 	mmc->ops	= &omap_hsmmc_ops;
 
@@ -1915,10 +1918,8 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	/* Request IRQ for MMC operations */
 	ret = devm_request_irq(&pdev->dev, host->irq, omap_hsmmc_irq, 0,
 			mmc_hostname(mmc), host);
-	if (ret) {
-		dev_err(mmc_dev(host->mmc), "Unable to grab HSMMC IRQ\n");
+	if (ret)
 		goto err_irq;
-	}
 
 	ret = omap_hsmmc_reg_get(host);
 	if (ret)

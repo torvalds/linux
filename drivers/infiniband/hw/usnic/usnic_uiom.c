@@ -114,7 +114,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 	INIT_LIST_HEAD(chunk_list);
 
-	page_list = (struct page **) __get_free_page(GFP_KERNEL);
+	page_list = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!page_list)
 		return -ENOMEM;
 
@@ -182,7 +182,7 @@ out:
 		mmgrab(uiomr->owning_mm);
 
 	mmap_read_unlock(mm);
-	free_page((unsigned long) page_list);
+	kfree(page_list);
 	return ret;
 }
 

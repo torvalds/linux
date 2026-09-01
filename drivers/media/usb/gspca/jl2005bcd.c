@@ -148,17 +148,12 @@ static int jl2005c_start_new_frame(struct gspca_dev *gspca_dev)
 static int jl2005c_write_reg(struct gspca_dev *gspca_dev, unsigned char reg,
 						    unsigned char value)
 {
-	int retval;
 	u8 instruction[2];
 
 	instruction[0] = reg;
 	instruction[1] = value;
 
-	retval = jl2005c_write2(gspca_dev, instruction);
-	if (retval < 0)
-			return retval;
-
-	return retval;
+	return jl2005c_write2(gspca_dev, instruction);
 }
 
 static int jl2005c_get_firmware_id(struct gspca_dev *gspca_dev)

@@ -5,6 +5,7 @@
  * Copyright (c) 2003-2010 Cavium Networks
  */
 
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -649,23 +650,25 @@ static irqreturn_t cvm_oct_tx_cleanup_watchdog(int cpl, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void cvm_oct_tx_initialize(void)
+int cvm_oct_tx_initialize(struct platform_device *pdev)
 {
-	int i;
+	int ret;
 
 	/* Disable the interrupt.  */
 	cvmx_write_csr(CVMX_CIU_TIMX(1), 0);
 	/* Register an IRQ handler to receive CIU_TIMX(1) interrupts */
-	i = request_irq(OCTEON_IRQ_TIMER1,
-			cvm_oct_tx_cleanup_watchdog, 0,
-			"Ethernet", cvm_oct_device);
-
-	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
+	ret = request_irq(OCTEON_IRQ_TIMER1, cvm_oct_tx_cleanup_watchdog, 0,
+			  "Ethernet", cvm_oct_device);
+	if (ret)
+		dev_warn(&pdev->dev, "Could not acquire Ethernet IRQ %d\n",
+			 OCTEON_IRQ_TIMER1);
+	return ret;
 }
 
 void cvm_oct_tx_shutdown(void)
 {
 	/* Free the interrupt handler */
 	free_irq(OCTEON_IRQ_TIMER1, cvm_oct_device);
+
+	tasklet_kill(&cvm_oct_tx_cleanup_tasklet);
 }

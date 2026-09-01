@@ -9,10 +9,12 @@ void __setup_cpu_power7(unsigned long offset, struct cpu_spec *spec);
 void __setup_cpu_power8(unsigned long offset, struct cpu_spec *spec);
 void __setup_cpu_power9(unsigned long offset, struct cpu_spec *spec);
 void __setup_cpu_power10(unsigned long offset, struct cpu_spec *spec);
+void __setup_cpu_power12(unsigned long offset, struct cpu_spec *spec);
 void __restore_cpu_power7(void);
 void __restore_cpu_power8(void);
 void __restore_cpu_power9(void);
 void __restore_cpu_power10(void);
+void __restore_cpu_power12(void);
 
 void __setup_cpu_e500v1(unsigned long offset, struct cpu_spec *spec);
 void __setup_cpu_e500v2(unsigned long offset, struct cpu_spec *spec);

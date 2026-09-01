@@ -562,7 +562,6 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 
 	/* Save struct pci_dev pointer */
 	tpci200->info->pdev = pdev;
-	tpci200->info->id_table = (struct pci_device_id *)id;
 
 	/* register the device and initialize it */
 	ret = tpci200_install(tpci200);

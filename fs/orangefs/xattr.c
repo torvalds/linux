@@ -72,11 +72,6 @@ static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
 	if (hlist_empty(h))
 		return NULL;
 	hlist_for_each_entry_safe(cx, tmp, h, node) {
-/*		if (!time_before(jiffies, cx->timeout)) {
-			hlist_del(&cx->node);
-			kfree(cx);
-			continue;
-		}*/
 		if (!strcmp(cx->key, key))
 			return cx;
 	}

@@ -82,4 +82,6 @@ void i915gm_irq_cstate_wa(struct intel_display *display, bool enable);
 struct intel_display_irq_snapshot *intel_display_irq_snapshot_capture(struct intel_display *display);
 void intel_display_irq_snapshot_print(const struct intel_display_irq_snapshot *snapshot, struct drm_printer *p);
 
+void intel_display_irq_port_interrupt_mask(struct intel_display *display, u32 bits, bool mask);
+
 #endif /* __INTEL_DISPLAY_IRQ_H__ */

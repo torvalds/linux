@@ -618,7 +618,7 @@ chipone_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs chipone_bridge_funcs = {
 	.atomic_duplicate_state	= drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_create_state		= drm_atomic_helper_bridge_create_state,
 	.atomic_pre_enable	= chipone_atomic_pre_enable,
 	.atomic_enable		= chipone_atomic_enable,
 	.atomic_post_disable	= chipone_atomic_post_disable,
@@ -784,8 +784,8 @@ static struct mipi_dsi_driver chipone_dsi_driver = {
 };
 
 static const struct i2c_device_id chipone_i2c_id[] = {
-	{ "chipone,icn6211" },
-	{},
+	{ .name = "chipone,icn6211" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, chipone_i2c_id);
 

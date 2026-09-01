@@ -10,6 +10,17 @@
 #include "cgroup_iter_memcg.h"
 #include "cgroup_iter_memcg.skel.h"
 
+/*
+ * memcg stats are cached per-cpu and only become visible once the periodic
+ * flusher runs (FLUSH_TIME, 2s), or once pending updates cross
+ * MEMCG_CHARGE_BATCH * num_online_cpus(). That threshold grows with the CPU
+ * count, so on a large machine a single pass does not reach it and
+ * bpf_mem_cgroup_flush_stats() returns without flushing anything. Retry for
+ * long enough to cover a flusher cycle.
+ */
+#define MEMCG_STAT_RETRIES		16
+#define MEMCG_STAT_RETRY_DELAY_US	(250 * 1000)
+
 static int read_stats(struct bpf_link *link)
 {
 	int fd, ret = 0;
@@ -35,11 +46,13 @@ static int read_stats(struct bpf_link *link)
 
 static void test_anon(struct bpf_link *link, struct memcg_query *memcg_query)
 {
+	int retries = 0;
 	void *map;
 	size_t len;
 
 	len = sysconf(_SC_PAGESIZE) * 1024;
 
+retry:
 	/*
 	 * Increase memcg anon usage by mapping and writing
 	 * to a new anon region.
@@ -53,6 +66,12 @@ static void test_anon(struct bpf_link *link, struct memcg_query *memcg_query)
 	if (!ASSERT_OK(read_stats(link), "read stats"))
 		goto cleanup;
 
+	if (!memcg_query->nr_anon_mapped && ++retries < MEMCG_STAT_RETRIES) {
+		usleep(MEMCG_STAT_RETRY_DELAY_US);
+		munmap(map, len);
+		goto retry;
+	}
+
 	ASSERT_GT(memcg_query->nr_anon_mapped, 0, "final anon mapped val");
 
 cleanup:
@@ -61,6 +80,7 @@ cleanup:
 
 static void test_file(struct bpf_link *link, struct memcg_query *memcg_query)
 {
+	int retries = 0;
 	void *map;
 	size_t len;
 	char *path;
@@ -76,6 +96,7 @@ static void test_file(struct bpf_link *link, struct memcg_query *memcg_query)
 	fd = open(path, O_CREAT | O_RDWR, 0644);
 	if (!ASSERT_OK_FD(fd, "open fd"))
 		return;
+retry:
 	if (!ASSERT_OK(ftruncate(fd, len), "ftruncate"))
 		goto cleanup_fd;
 
@@ -87,6 +108,13 @@ static void test_file(struct bpf_link *link, struct memcg_query *memcg_query)
 
 	if (!ASSERT_OK(read_stats(link), "read stats"))
 		goto cleanup_map;
+
+	if ((!memcg_query->nr_file_pages || !memcg_query->nr_file_mapped) &&
+	    ++retries < MEMCG_STAT_RETRIES) {
+		usleep(MEMCG_STAT_RETRY_DELAY_US);
+		munmap(map, len);
+		goto retry;
+	}
 
 	ASSERT_GT(memcg_query->nr_file_pages, 0, "final file value");
 	ASSERT_GT(memcg_query->nr_file_mapped, 0, "final file mapped value");
@@ -100,6 +128,7 @@ cleanup_fd:
 
 static void test_shmem(struct bpf_link *link, struct memcg_query *memcg_query)
 {
+	int retries = 0;
 	size_t len;
 	int fd;
 
@@ -113,11 +142,17 @@ static void test_shmem(struct bpf_link *link, struct memcg_query *memcg_query)
 	if (!ASSERT_OK_FD(fd, "memfd_create"))
 		return;
 
+retry:
 	if (!ASSERT_OK(fallocate(fd, 0, 0, len), "fallocate"))
 		goto cleanup;
 
 	if (!ASSERT_OK(read_stats(link), "read stats"))
 		goto cleanup;
+
+	if (!memcg_query->nr_shmem && ++retries < MEMCG_STAT_RETRIES) {
+		usleep(MEMCG_STAT_RETRY_DELAY_US);
+		goto retry;
+	}
 
 	ASSERT_GT(memcg_query->nr_shmem, 0, "final shmem value");
 
@@ -127,11 +162,13 @@ cleanup:
 
 static void test_pgfault(struct bpf_link *link, struct memcg_query *memcg_query)
 {
+	int retries = 0;
 	void *map;
 	size_t len;
 
 	len = sysconf(_SC_PAGESIZE) * 1024;
 
+retry:
 	/* Create region to use for triggering a page fault. */
 	map = mmap(NULL, len, PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (!ASSERT_NEQ(map, MAP_FAILED, "mmap anon"))
@@ -142,6 +179,12 @@ static void test_pgfault(struct bpf_link *link, struct memcg_query *memcg_query)
 
 	if (!ASSERT_OK(read_stats(link), "read stats"))
 		goto cleanup;
+
+	if (!memcg_query->pgfault && ++retries < MEMCG_STAT_RETRIES) {
+		usleep(MEMCG_STAT_RETRY_DELAY_US);
+		munmap(map, len);
+		goto retry;
+	}
 
 	ASSERT_GT(memcg_query->pgfault, 0, "final pgfault val");
 

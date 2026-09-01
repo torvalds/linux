@@ -25,20 +25,39 @@ unsigned int xprt_bc_max_slots(struct rpc_xprt *xprt)
 }
 
 /*
- * Helper function to nullify backchannel server pointer in transport.
- * We need to synchronize setting the pointer to NULL (done so after
- * the backchannel server is shutdown) with the usage of that pointer
- * by the backchannel request processing routines
- * xprt_complete_bc_request() and rpcrdma_bc_receive_call().
+ * Close the backchannel producer side, drain any requests still
+ * queued on sv_cb_list, then destroy the callback service.
  */
 void xprt_svc_destroy_nullify_bc(struct rpc_xprt *xprt, struct svc_serv **serv)
 {
-	spin_lock(&xprt->bc_pa_lock);
+	struct svc_serv *bc_serv = *serv;
+	struct rpc_rqst *req;
+
+	xprt_svc_shutdown_bc(xprt);
+	while ((req = lwq_dequeue(&bc_serv->sv_cb_list, struct rpc_rqst,
+				  rq_bc_list)) != NULL) {
+		atomic_dec(&req->rq_xprt->bc_slot_count);
+		xprt_free_bc_request(req);
+	}
 	svc_destroy(serv);
+}
+EXPORT_SYMBOL_GPL(xprt_svc_destroy_nullify_bc);
+
+/*
+ * Clear the backchannel server pointer in the transport.  The NULL
+ * store is serialized under bc_pa_lock against readers of
+ * xprt->bc_serv in xprt_complete_bc_request() and
+ * rpcrdma_bc_receive_call().  Clearing it before the callback service
+ * is stopped prevents a producer from enqueueing onto a service that
+ * is being torn down.
+ */
+void xprt_svc_shutdown_bc(struct rpc_xprt *xprt)
+{
+	spin_lock(&xprt->bc_pa_lock);
 	xprt->bc_serv = NULL;
 	spin_unlock(&xprt->bc_pa_lock);
 }
-EXPORT_SYMBOL_GPL(xprt_svc_destroy_nullify_bc);
+EXPORT_SYMBOL_GPL(xprt_svc_shutdown_bc);
 
 /*
  * Helper routines that track the number of preallocation elements
@@ -393,7 +412,12 @@ void xprt_enqueue_bc_request(struct rpc_rqst *req)
 	if (bc_serv) {
 		lwq_enqueue(&req->rq_bc_list, &bc_serv->sv_cb_list);
 		svc_pool_wake_idle_thread(&bc_serv->sv_pools[0]);
+		spin_unlock(&xprt->bc_pa_lock);
+		return;
 	}
 	spin_unlock(&xprt->bc_pa_lock);
+
+	atomic_dec(&xprt->bc_slot_count);
+	xprt_free_bc_request(req);
 }
 EXPORT_SYMBOL_GPL(xprt_enqueue_bc_request);

@@ -28,6 +28,7 @@
 #include "trace.h"
 #include "pmu.h"
 #include "xen.h"
+#include "x86.h"
 
 /*
  * Unlike "struct cpuinfo_x86.x86_capability", kvm_cpu_caps doesn't need to be
@@ -369,7 +370,7 @@ static u32 cpuid_get_reg_unsafe(struct kvm_cpuid_entry2 *entry, u32 reg)
 	}
 }
 
-static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func, u32 index,
 			       bool include_partially_emulated);
 
 void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
@@ -399,7 +400,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		if (!entry)
 			continue;
 
-		cpuid_func_emulated(&emulated, cpuid.function, true);
+		cpuid_func_emulated(&emulated, cpuid.function, cpuid.index, true);
 
 		/*
 		 * A vCPU has a feature if it's supported by KVM and is enabled
@@ -1272,8 +1273,12 @@ void kvm_initialize_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_NULL_SEL_CLR_BASE);
 
 	kvm_cpu_cap_init(CPUID_C000_0001_EDX,
+		F(SM2),
+		F(SM2_EN),
 		F(XSTORE),
 		F(XSTORE_EN),
+		F(CCS),
+		F(CCS_EN),
 		F(XCRYPT),
 		F(XCRYPT_EN),
 		F(ACE2),
@@ -1282,6 +1287,12 @@ void kvm_initialize_cpu_caps(void)
 		F(PHE_EN),
 		F(PMM),
 		F(PMM_EN),
+		F(RNG2),
+		F(RNG2_EN),
+		F(PHE2),
+		F(PHE2_EN),
+		F(RSA),
+		F(RSA_EN),
 	);
 
 	/*
@@ -1368,10 +1379,14 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 	return entry;
 }
 
-static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func, u32 index,
 			       bool include_partially_emulated)
 {
 	memset(entry, 0, sizeof(*entry));
+
+	/* KVM doesn't currently emulate any non-zero indices. */
+	if (cpuid_function_is_indexed(func) && index)
+		return 0;
 
 	entry->function = func;
 	entry->index = 0;
@@ -1410,7 +1425,7 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	if (array->nent >= array->maxnent)
 		return -E2BIG;
 
-	array->nent += cpuid_func_emulated(&array->entries[array->nent], func, false);
+	array->nent += cpuid_func_emulated(&array->entries[array->nent], func, 0, false);
 	return 0;
 }
 
@@ -1507,7 +1522,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		union cpuid10_eax eax = { };
 		union cpuid10_edx edx = { };
 
-		if (!enable_pmu || !static_cpu_has(X86_FEATURE_ARCH_PERFMON)) {
+		if (!enable_pmu || !cpu_feature_enabled(X86_FEATURE_ARCH_PERFMON)) {
 			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
 			break;
 		}
@@ -1748,7 +1763,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * loop if said highest leaf has no subleaves indexed by ECX.
 		 */
 		if (entry->eax >= 0x8000001d &&
-		    (static_cpu_has(X86_FEATURE_LFENCE_RDTSC)
+		    (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC)
 		     || !static_cpu_has_bug(X86_BUG_NULL_SEG)))
 			entry->eax = max(entry->eax, 0x80000021);
 		break;
@@ -2117,22 +2132,6 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 		} else if (function == 0x80000007) {
 			if (kvm_hv_invtsc_suppressed(vcpu))
 				*edx &= ~feature_bit(CONSTANT_TSC);
-		} else if (IS_ENABLED(CONFIG_KVM_XEN) &&
-			   kvm_xen_is_tsc_leaf(vcpu, function)) {
-			/*
-			 * Update guest TSC frequency information if necessary.
-			 * Ignore failures, there is no sane value that can be
-			 * provided if KVM can't get the TSC frequency.
-			 */
-			if (kvm_check_request(KVM_REQ_CLOCK_UPDATE, vcpu))
-				kvm_guest_time_update(vcpu);
-
-			if (index == 1) {
-				*ecx = vcpu->arch.pvclock_tsc_mul;
-				*edx = vcpu->arch.pvclock_tsc_shift;
-			} else if (index == 2) {
-				*eax = vcpu->arch.hw_tsc_khz;
-			}
 		}
 	} else {
 		*eax = *ebx = *ecx = *edx = 0;

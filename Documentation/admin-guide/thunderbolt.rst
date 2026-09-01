@@ -294,8 +294,8 @@ for the retimers::
 
 This enumerates and adds the on-board retimers. Now retimer NVM can be
 upgraded in the same way than with cable connected (see previous
-section). However, the retimer is not disconnected as we are offline
-mode) so after writing ``1`` to ``nvm_authenticate`` one should wait for
+section). However, the retimer is not disconnected as we are in offline
+mode, so after writing ``1`` to ``nvm_authenticate`` one should wait for
 5 or more seconds before running rescan again::
 
   # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/rescan

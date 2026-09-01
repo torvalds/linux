@@ -7,6 +7,7 @@
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
@@ -225,11 +226,10 @@ static int aw87390_profile_set(struct snd_kcontrol *kcontrol,
 	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(codec);
 	int ret;
 
-	mutex_lock(&aw87390->lock);
+	guard(mutex)(&aw87390->lock);
 	ret = aw87390_dev_set_profile_index(aw87390->aw_pa, ucontrol->value.integer.value[0]);
 	if (ret) {
 		dev_dbg(codec->dev, "profile index does not change\n");
-		mutex_unlock(&aw87390->lock);
 		return 0;
 	}
 
@@ -237,8 +237,6 @@ static int aw87390_profile_set(struct snd_kcontrol *kcontrol,
 		aw87390_power_off(aw87390->aw_pa);
 		aw87390_power_on(aw87390->aw_pa);
 	}
-
-	mutex_unlock(&aw87390->lock);
 
 	return 1;
 }
@@ -250,7 +248,7 @@ static const struct snd_kcontrol_new aw87390_controls[] = {
 
 static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	int ret;
 
 	aw87390->aw_pa->fw_status = AW87390_DEV_FW_FAILED;
@@ -265,14 +263,11 @@ static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 
 	aw87390->aw_cfg = devm_kzalloc(aw87390->aw_pa->dev,
 				struct_size(aw87390->aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw87390->aw_cfg) {
-		release_firmware(cont);
+	if (!aw87390->aw_cfg)
 		return -ENOMEM;
-	}
 
 	aw87390->aw_cfg->len = cont->size;
 	memcpy(aw87390->aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	ret = aw88395_dev_load_acf_check(aw87390->aw_pa, aw87390->aw_cfg);
 	if (ret) {
@@ -280,13 +275,11 @@ static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 		return ret;
 	}
 
-	mutex_lock(&aw87390->lock);
+	guard(mutex)(&aw87390->lock);
 
 	ret = aw88395_dev_cfg_load(aw87390->aw_pa, aw87390->aw_cfg);
 	if (ret)
 		dev_err(aw87390->aw_pa->dev, "aw_dev acf parse failed\n");
-
-	mutex_unlock(&aw87390->lock);
 
 	return ret;
 }

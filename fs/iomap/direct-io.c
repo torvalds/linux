@@ -10,6 +10,7 @@
 #include <linux/iomap.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fserror.h>
+#include <linux/init.h>
 #include "internal.h"
 #include "trace.h"
 
@@ -88,9 +89,9 @@ static inline enum fserror_type iomap_dio_err_type(const struct iomap_dio *dio)
 	return FSERR_DIRECTIO_READ;
 }
 
-static inline bool should_report_dio_fserror(const struct iomap_dio *dio)
+static inline bool should_report_dio_fserror(int error)
 {
-	switch (dio->error) {
+	switch (error) {
 	case 0:
 	case -EAGAIN:
 	case -ENOTBLK:
@@ -110,7 +111,7 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 
 	if (dops && dops->end_io)
 		ret = dops->end_io(iocb, dio->size, ret, dio->flags);
-	if (should_report_dio_fserror(dio))
+	if (should_report_dio_fserror(dio->error))
 		fserror_report_io(file_inode(iocb->ki_filp),
 				  iomap_dio_err_type(dio), offset, dio->size,
 				  dio->error, GFP_NOFS);
@@ -358,6 +359,7 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 				iomap_max_bio_size(&iter->iomap), alignment);
 	else
 		ret = bio_iov_iter_get_pages(bio, dio->submit.iter,
+					     bdev_dma_alignment(bio->bi_bdev),
 					     alignment - 1);
 	if (unlikely(ret))
 		goto out_put_bio;
@@ -403,6 +405,14 @@ out_put_bio:
 	return ret;
 }
 
+static inline unsigned int iomap_dio_alignment(struct inode *inode,
+		struct block_device *bdev, unsigned int dio_flags)
+{
+	if (dio_flags & IOMAP_DIO_FSBLOCK_ALIGNED)
+		return i_blocksize(inode);
+	return bdev_logical_block_size(bdev);
+}
+
 static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iter->iomap;
@@ -421,10 +431,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	 * File systems that write out of place and always allocate new blocks
 	 * need each bio to be block aligned as that's the unit of allocation.
 	 */
-	if (dio->flags & IOMAP_DIO_FSBLOCK_ALIGNED)
-		alignment = fs_block_size;
-	else
-		alignment = bdev_logical_block_size(iomap->bdev);
+	alignment = iomap_dio_alignment(inode, iomap->bdev, dio->flags);
 
 	if ((pos | length) & (alignment - 1))
 		return -EINVAL;
@@ -907,3 +914,175 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	return iomap_dio_complete(dio);
 }
 EXPORT_SYMBOL_GPL(iomap_dio_rw);
+
+struct iomap_dio_simple {
+	struct kiocb		*iocb;
+	size_t			size;
+	unsigned int		dio_flags;
+	struct work_struct	work;
+	/*
+	 * Align @bio to a cacheline boundary so that, combined with the
+	 * front_pad passed to bioset_init(), the bio sits at the start of
+	 * a cacheline in memory returned by the (HWCACHE-aligned) bio
+	 * slab.  This keeps the hot fields block layer touches on submit
+	 * and completion (bi_iter, bi_status, ...) within a single line.
+	 */
+	struct bio		bio ____cacheline_aligned_in_smp;
+};
+
+static struct bio_set iomap_dio_simple_pool;
+
+static ssize_t iomap_dio_simple_complete(struct iomap_dio_simple *sr)
+{
+	struct bio *bio = &sr->bio;
+	struct kiocb *iocb = sr->iocb;
+	struct inode *inode = file_inode(iocb->ki_filp);
+	ssize_t ret;
+
+	if (unlikely(bio->bi_status)) {
+		ret = blk_status_to_errno(bio->bi_status);
+		if (should_report_dio_fserror(ret))
+			fserror_report_io(inode, FSERR_DIRECTIO_READ,
+					  iocb->ki_pos, sr->size, ret,
+					  GFP_NOFS);
+	} else {
+		ret = sr->size;
+		iocb->ki_pos += ret;
+	}
+
+	if (sr->dio_flags & IOMAP_DIO_USER_BACKED) {
+		bio_check_pages_dirty(bio);
+	} else {
+		bio_release_pages(bio, false);
+		bio_put(bio);
+	}
+	inode_dio_end(inode);
+	trace_iomap_dio_complete(iocb, ret < 0 ? ret : 0, ret);
+	return ret;
+}
+
+static void iomap_dio_simple_complete_work(struct work_struct *work)
+{
+	struct iomap_dio_simple *sr =
+		container_of(work, struct iomap_dio_simple, work);
+	struct kiocb *iocb = sr->iocb;
+
+	WRITE_ONCE(iocb->private, NULL);
+	iocb->ki_complete(iocb, iomap_dio_simple_complete(sr));
+}
+
+static void iomap_dio_simple_end_io(struct bio *bio)
+{
+	struct iomap_dio_simple *sr =
+		container_of(bio, struct iomap_dio_simple, bio);
+	struct kiocb *iocb = sr->iocb;
+
+	if (unlikely(sr->bio.bi_status)) {
+		struct inode *inode = file_inode(iocb->ki_filp);
+
+		INIT_WORK(&sr->work, iomap_dio_simple_complete_work);
+		queue_work(inode->i_sb->s_dio_done_wq, &sr->work);
+		return;
+	}
+
+	WRITE_ONCE(iocb->private, NULL);
+	iocb->ki_complete(iocb, iomap_dio_simple_complete(sr));
+}
+
+ssize_t __iomap_dio_read_simple(struct kiocb *iocb, struct iov_iter *iter,
+		struct iomap_iter *iomi)
+{
+	gfp_t gfp = (iomi->flags & IOMAP_NOWAIT) ? GFP_NOWAIT : GFP_KERNEL;
+	struct iomap_dio_simple *sr;
+	unsigned int alignment;
+	struct bio *bio;
+	ssize_t ret;
+
+	if (iomi->iomap.type != IOMAP_MAPPED ||
+	    iomi->iomap.offset + iomi->iomap.length < iomi->pos + iomi->len ||
+	    (iomi->iomap.flags & IOMAP_F_INTEGRITY)) {
+		ret = -ENOTBLK;
+		goto out_dio_end;
+	}
+
+	alignment = iomap_dio_alignment(iomi->inode, iomi->iomap.bdev, 0);
+	if ((iomi->pos | iomi->len) & (alignment - 1)) {
+		ret = -EINVAL;
+		goto out_dio_end;
+	}
+
+	if (unlikely(!iomi->inode->i_sb->s_dio_done_wq &&
+			!is_sync_kiocb(iocb))) {
+		ret = sb_init_dio_done_wq(iomi->inode->i_sb);
+		if (ret < 0)
+			goto out_dio_end;
+	}
+
+	trace_iomap_dio_rw_begin(iocb, iter, 0, 0);
+
+	bio = bio_alloc_bioset(iomi->iomap.bdev,
+			       bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS),
+			       REQ_OP_READ, gfp, &iomap_dio_simple_pool);
+	if (!bio) {
+		ret = -EAGAIN;
+		goto out_dio_end;
+	}
+	sr = container_of(bio, struct iomap_dio_simple, bio);
+	sr->iocb = iocb;
+	sr->dio_flags = 0;
+
+	bio->bi_iter.bi_sector = iomap_sector(&iomi->iomap, iomi->pos);
+	bio->bi_ioprio = iocb->ki_ioprio;
+
+	ret = bio_iov_iter_get_pages(bio, iter,
+				bdev_dma_alignment(bio->bi_bdev),
+				alignment - 1);
+	if (unlikely(ret))
+		goto out_bio_put;
+
+	if (bio->bi_iter.bi_size != iomi->len) {
+		iov_iter_revert(iter, bio->bi_iter.bi_size);
+		ret = -ENOTBLK;
+		goto out_bio_release_pages;
+	}
+
+	sr->size = bio->bi_iter.bi_size;
+	if (user_backed_iter(iter)) {
+		bio_set_pages_dirty(bio);
+		sr->dio_flags |= IOMAP_DIO_USER_BACKED;
+	}
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		bio->bi_opf |= REQ_NOWAIT;
+
+	if (is_sync_kiocb(iocb)) {
+		submit_bio_wait(bio);
+		return iomap_dio_simple_complete(sr);
+	}
+
+	if ((iocb->ki_flags & IOCB_HIPRI)) {
+		bio->bi_opf |= REQ_POLLED;
+		WRITE_ONCE(iocb->private, bio);
+	}
+	bio->bi_end_io = iomap_dio_simple_end_io;
+	submit_bio(bio);
+	trace_iomap_dio_rw_queued(iomi->inode, iocb->ki_pos, iomi->len);
+	return -EIOCBQUEUED;
+
+out_bio_release_pages:
+	bio_release_pages(bio, false);
+out_bio_put:
+	bio_put(bio);
+out_dio_end:
+	inode_dio_end(iomi->inode);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__iomap_dio_read_simple);
+
+static int __init iomap_dio_init(void)
+{
+	return bioset_init(&iomap_dio_simple_pool, 4,
+			   offsetof(struct iomap_dio_simple, bio),
+			   BIOSET_NEED_BVECS | BIOSET_PERCPU_CACHE);
+}
+fs_initcall(iomap_dio_init);

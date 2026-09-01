@@ -378,6 +378,17 @@ static const u32 a6xx_gmu_gpucc_registers[] = {
 
 static const u32 a621_gmu_gpucc_registers[] = {
 	/* GPU CC */
+	0x24000, 0x2400e, 0x24400, 0x2440e, 0x24800, 0x24805, 0x24c00, 0x24cff,
+	0x25800, 0x25804, 0x25c00, 0x25c04, 0x26000, 0x26004, 0x26400, 0x26405,
+	0x26414, 0x2641d, 0x2642a, 0x26430, 0x26432, 0x26432, 0x26441, 0x26455,
+	0x26466, 0x26468, 0x26478, 0x2647a, 0x26489, 0x2648a, 0x2649c, 0x2649e,
+	0x264a0, 0x264a3, 0x264b3, 0x264b5, 0x264c5, 0x264c7, 0x264d6, 0x264d8,
+	0x264e8, 0x264e9, 0x264f9, 0x264fc, 0x2650b, 0x2650c, 0x2651c, 0x2651e,
+	0x26540, 0x26570, 0x26600, 0x26616, 0x26620, 0x2662d,
+};
+
+static const u32 a623_gmu_gpucc_registers[] = {
+	/* GPU CC */
 	0x24000, 0x2400e, 0x24400, 0x2440e, 0x25800, 0x25804, 0x25c00, 0x25c04,
 	0x26000, 0x26004, 0x26400, 0x26405, 0x26414, 0x2641d, 0x2642a, 0x26430,
 	0x26432, 0x26432, 0x26441, 0x26455, 0x26466, 0x26468, 0x26478, 0x2647a,
@@ -402,6 +413,7 @@ static const struct a6xx_registers a6xx_gmu_reglist[] = {
 
 static const struct a6xx_registers a6xx_gpucc_reg = REGS(a6xx_gmu_gpucc_registers, 0, 0);
 static const struct a6xx_registers a621_gpucc_reg = REGS(a621_gmu_gpucc_registers, 0, 0);
+static const struct a6xx_registers a623_gpucc_reg = REGS(a623_gmu_gpucc_registers, 0, 0);
 
 static u32 a6xx_get_cp_roq_size(struct msm_gpu *gpu);
 static u32 a7xx_get_cp_roq_size(struct msm_gpu *gpu);
@@ -460,6 +472,11 @@ static const struct a6xx_indexed_registers a7xx_cp_bv_mempool_indexed[] = {
 		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2200, NULL },
 	{ "CP_BV_MEM_POOL_DBG", REG_A7XX_CP_BV_MEM_POOL_DBG_ADDR,
 		REG_A7XX_CP_BV_MEM_POOL_DBG_DATA, 0x2200, NULL },
+};
+
+static const struct a6xx_indexed_registers a7xx_cp_mempool_indexed[] = {
+	{ "CP_MEM_POOL_DBG", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
+		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2200, NULL },
 };
 
 #define DEBUGBUS(_id, _count) { .id = _id, .name = #_id, .count = _count }

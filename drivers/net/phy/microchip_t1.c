@@ -1028,11 +1028,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	rc = genphy_read_status_fixed(phydev);
-	if (rc < 0)
-		return rc;
-
-	return rc;
+	return genphy_read_status_fixed(phydev);
 }
 
 static int lan87xx_config_aneg(struct phy_device *phydev)

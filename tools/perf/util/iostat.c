@@ -4,7 +4,7 @@
 
 enum iostat_mode_t iostat_mode = IOSTAT_NONE;
 
-__weak int iostat_prepare(struct evlist *evlist __maybe_unused,
+__weak int iostat_prepare(struct evlist **evlist __maybe_unused,
 			  struct perf_stat_config *config __maybe_unused)
 {
 	return -1;

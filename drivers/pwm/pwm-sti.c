@@ -625,7 +625,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sti_pwm_of_match[] = {
-	{ .compatible = "st,sti-pwm", },
+	{ .compatible = "st,sti-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sti_pwm_of_match);

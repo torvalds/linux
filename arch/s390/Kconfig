@@ -20,6 +20,9 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
+config ARCH_HAS_CPU_RELAX
+	def_bool y
+
 config GENERIC_HWEIGHT
 	def_bool !HAVE_MARCH_Z196_FEATURES
 
@@ -82,8 +85,9 @@ config S390
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
-	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_PMD_SOFTLEAVES if TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_CC_CAN_LINK
+	select ARCH_HAS_CC_PLATFORM
 	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
@@ -144,13 +148,16 @@ config S390
 	select ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_CFI
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select ARCH_SUPPORTS_HUGETLBFS
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128 && CC_IS_CLANG
 	select ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
+	select ARCH_HAS_PTE_PROTNONE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_SUPPORTS_PAGE_TABLE_CHECK
 	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select ARCH_USES_CFI_GENERIC_LLVM_PASS if CC_IS_CLANG
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_SYM_ANNOTATIONS
@@ -163,6 +170,7 @@ config S390
 	select ARCH_WANTS_THP_SWAP
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
+	select DCACHE_WORD_ACCESS if !KMSAN
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select FUNCTION_ALIGNMENT_8B if CC_IS_GCC
 	select FUNCTION_ALIGNMENT_16B if !CC_IS_GCC
@@ -215,7 +223,6 @@ config S390
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
-	select HAVE_GENERIC_VDSO
 	select HAVE_IOREMAP_PROT if PCI
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
@@ -273,8 +280,11 @@ config S390
 	select PCI_MSI			if PCI
 	select PCI_MSI_ARCH_FALLBACKS	if PCI_MSI
 	select PCI_QUIRKS		if PCI
+	select HAS_SEPARATE_PREEMPT_RESCHED_BITS
 	select SPARSE_IRQ
 	select SWIOTLB
+	select SWIOTLB_DYNAMIC
+	select DMA_COHERENT_POOL
 	select SYSCTL_EXCEPTION_TRACE
 	select SYSTEM_DATA_VERIFICATION if KEXEC_SIG
 	select THREAD_INFO_IN_TASK
@@ -575,7 +585,7 @@ config HIPERDISPATCH_ON
 	def_bool y
 	bool "Use hiperdispatch on vertical polarization by default"
 	depends on SCHED_TOPOLOGY
-	depends on PROC_SYSCTL
+	depends on SYSCTL
 	help
 	  Hiperdispatch aims to improve the CPU scheduler's decision
 	  making when using vertical polarization by adjusting CPU
@@ -704,6 +714,8 @@ config KERNEL_IMAGE_BASE
 	  option is ignored and the image is loaded above the structures.
 
 endmenu
+
+source "drivers/cpuidle/Kconfig"
 
 menu "Memory setup"
 
@@ -893,7 +905,7 @@ config CMM_IUCV
 config APPLDATA_BASE
 	def_bool n
 	prompt "Linux - VM Monitor Stream, base infrastructure"
-	depends on PROC_SYSCTL
+	depends on SYSCTL
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time

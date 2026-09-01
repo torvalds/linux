@@ -28,7 +28,7 @@ static inline bool __COMPAT_read_enum(const char *type, const char *name, u64 *v
 	const struct btf_type *t;
 	const char *n;
 	s32 tid;
-	int i;
+	__u32 i;
 
 	__COMPAT_load_vmlinux_btf();
 
@@ -42,7 +42,7 @@ static inline bool __COMPAT_read_enum(const char *type, const char *name, u64 *v
 	if (btf_is_enum(t)) {
 		struct btf_enum *e = btf_enum(t);
 
-		for (i = 0; i < BTF_INFO_VLEN(t->info); i++) {
+		for (i = 0; i < btf_vlen(t); i++) {
 			n = btf__name_by_offset(__COMPAT_vmlinux_btf, e[i].name_off);
 			SCX_BUG_ON(!n, "btf__name_by_offset()");
 			if (!strcmp(n, name)) {
@@ -53,7 +53,7 @@ static inline bool __COMPAT_read_enum(const char *type, const char *name, u64 *v
 	} else if (btf_is_enum64(t)) {
 		struct btf_enum64 *e = btf_enum64(t);
 
-		for (i = 0; i < BTF_INFO_VLEN(t->info); i++) {
+		for (i = 0; i < btf_vlen(t); i++) {
 			n = btf__name_by_offset(__COMPAT_vmlinux_btf, e[i].name_off);
 			SCX_BUG_ON(!n, "btf__name_by_offset()");
 			if (!strcmp(n, name)) {
@@ -85,7 +85,7 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
 	const struct btf_member *m;
 	const char *n;
 	s32 tid;
-	int i;
+	__u32 i;
 
 	__COMPAT_load_vmlinux_btf();
 	tid = btf__find_by_name_kind(__COMPAT_vmlinux_btf, type, BTF_KIND_STRUCT);
@@ -97,7 +97,7 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
 
 	m = btf_members(t);
 
-	for (i = 0; i < BTF_INFO_VLEN(t->info); i++) {
+	for (i = 0; i < btf_vlen(t); i++) {
 		n = btf__name_by_offset(__COMPAT_vmlinux_btf, m[i].name_off);
 		SCX_BUG_ON(!n, "btf__name_by_offset()");
 			if (!strcmp(n, field))
@@ -154,7 +154,7 @@ static inline long scx_hotplug_seq(void)
  * struct sched_ext_ops can change over time. Two complementary mechanisms
  * keep BPF schedulers built against newer headers running on older kernels:
  *
- * 1. Load-time fix-up (this macro). For each optional ops callback or field
+ * 1. Load-time fix-up (SCX_OPS_OPEN()). For each optional ops callback or field
  *    added to struct sched_ext_ops, an explicit stanza below probes the
  *    running kernel's BTF via __COMPAT_struct_has_field() and, if the field
  *    is missing, clears it in the in-memory struct_ops (with a warning to
@@ -175,17 +175,25 @@ static inline long scx_hotplug_seq(void)
  * - v6.17: ops.cgroup_set_bandwidth()
  * - v6.19: ops.cgroup_set_idle()
  * - v7.1:  ops.sub_attach(), ops.sub_detach(), ops.sub_cgroup_id
+ * - v7.3:  ops.rescue_bandwidth_ppt, ops.rescue_quantum_us
  */
+#define __SCX_OPS_OPEN(__ops_name, __scx_name, __ops_struct) ({			\
+	struct __scx_name *__oskel;						\
+										\
+	SCX_BUG_ON(!__COMPAT_struct_has_field(__ops_struct, "dump"),		\
+		   __ops_struct ".dump() missing, kernel too old?");		\
+										\
+	__oskel = __scx_name##__open();						\
+	SCX_BUG_ON(!__oskel, "Could not open " #__scx_name);			\
+	__oskel->struct_ops.__ops_name->hotplug_seq = scx_hotplug_seq();	\
+	SCX_ENUM_INIT(__oskel);							\
+	__oskel;								\
+})
+
 #define SCX_OPS_OPEN(__ops_name, __scx_name) ({					\
 	struct __scx_name *__skel;						\
 										\
-	SCX_BUG_ON(!__COMPAT_struct_has_field("sched_ext_ops", "dump"),		\
-		   "sched_ext_ops.dump() missing, kernel too old?");		\
-										\
-	__skel = __scx_name##__open();						\
-	SCX_BUG_ON(!__skel, "Could not open " #__scx_name);			\
-	__skel->struct_ops.__ops_name->hotplug_seq = scx_hotplug_seq();		\
-	SCX_ENUM_INIT(__skel);							\
+	__skel = __SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops");	\
 	if (__skel->struct_ops.__ops_name->cgroup_set_bandwidth &&		\
 	    !__COMPAT_struct_has_field("sched_ext_ops", "cgroup_set_bandwidth")) { \
 		fprintf(stderr, "WARNING: kernel doesn't support ops.cgroup_set_bandwidth()\n"); \
@@ -211,8 +219,25 @@ static inline long scx_hotplug_seq(void)
 		fprintf(stderr, "WARNING: kernel doesn't support ops.sub_cgroup_id\n"); \
 		__skel->struct_ops.__ops_name->sub_cgroup_id = 0;		\
 	}									\
+	if (__skel->struct_ops.__ops_name->rescue_bandwidth_ppt > 0 &&		\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "rescue_bandwidth_ppt")) { \
+		fprintf(stderr, "WARNING: kernel doesn't support ops.rescue_bandwidth_ppt\n"); \
+		__skel->struct_ops.__ops_name->rescue_bandwidth_ppt = 0;	\
+	}									\
+	if (__skel->struct_ops.__ops_name->rescue_quantum_us > 0 &&		\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "rescue_quantum_us")) { \
+		fprintf(stderr, "WARNING: kernel doesn't support ops.rescue_quantum_us\n"); \
+		__skel->struct_ops.__ops_name->rescue_quantum_us = 0;		\
+	}									\
 	__skel; 								\
 })
+
+/*
+ * Open a cid-form (struct sched_ext_ops_cid) skeleton. The cid form postdates
+ * every op the load-time fix-ups above handle, so none of them apply.
+ */
+#define SCX_OPS_CID_OPEN(__ops_name, __scx_name)				\
+	__SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops_cid")
 
 /*
  * Associate non-struct_ops BPF programs with the scheduler's struct_ops map so

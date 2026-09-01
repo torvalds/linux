@@ -1172,10 +1172,8 @@ static int safexcel_request_ring_irq(void *pdev, int irqid,
 	ret = devm_request_threaded_irq(dev, irq, handler,
 					threaded_handler, IRQF_ONESHOT,
 					dev_name(dev), ring_irq_priv);
-	if (ret) {
-		dev_err(dev, "unable to request IRQ %d\n", irq);
+	if (ret)
 		return ret;
-	}
 
 	/* Set affinity */
 	cpu = cpumask_local_spread(ring_id, NUMA_NO_NODE);

@@ -440,7 +440,7 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 	u32 rcv_wnd;
 	int mss;
 
-	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
+	mss = tcp_mss_clamp(tp, tcp_dst_advmss(dst));
 	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
 	req->rsk_window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
@@ -453,8 +453,8 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 	rcv_wnd = tcp_rwnd_init_bpf((struct sock *)req);
 	if (rcv_wnd == 0)
 		rcv_wnd = dst_metric(dst, RTAX_INITRWND);
-	else if (full_space < rcv_wnd * mss)
-		full_space = rcv_wnd * mss;
+	else if (full_space < (u64)rcv_wnd * mss)
+		full_space = min_t(u64, (u64)rcv_wnd * mss, INT_MAX);
 
 	/* tcp_full_space because it is guaranteed to be the first packet */
 	tcp_select_initial_window(sk_listener, full_space,

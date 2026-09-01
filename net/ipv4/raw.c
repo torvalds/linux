@@ -818,23 +818,18 @@ static int raw_seticmpfilter(struct sock *sk, sockptr_t optval, int optlen)
 	return 0;
 }
 
-static int raw_geticmpfilter(struct sock *sk, char __user *optval, int __user *optlen)
+static int raw_geticmpfilter(struct sock *sk, sockopt_t *opt)
 {
-	int len, ret = -EFAULT;
+	int len = opt->optlen;
 
-	if (get_user(len, optlen))
-		goto out;
-	ret = -EINVAL;
 	if (len < 0)
-		goto out;
+		return -EINVAL;
 	if (len > sizeof(struct icmp_filter))
 		len = sizeof(struct icmp_filter);
-	ret = -EFAULT;
-	if (put_user(len, optlen) ||
-	    copy_to_user(optval, &raw_sk(sk)->filter, len))
-		goto out;
-	ret = 0;
-out:	return ret;
+	opt->optlen = len;
+	if (copy_to_iter(&raw_sk(sk)->filter, len, &opt->iter_out) != len)
+		return -EFAULT;
+	return 0;
 }
 
 static int do_raw_setsockopt(struct sock *sk, int optname,
@@ -857,14 +852,13 @@ static int raw_setsockopt(struct sock *sk, int level, int optname,
 	return do_raw_setsockopt(sk, optname, optval, optlen);
 }
 
-static int do_raw_getsockopt(struct sock *sk, int optname,
-			     char __user *optval, int __user *optlen)
+static int do_raw_getsockopt(struct sock *sk, int optname, sockopt_t *opt)
 {
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->inet_num != IPPROTO_ICMP)
 			return -EOPNOTSUPP;
 		else
-			return raw_geticmpfilter(sk, optval, optlen);
+			return raw_geticmpfilter(sk, opt);
 	}
 	return -ENOPROTOOPT;
 }
@@ -872,9 +866,24 @@ static int do_raw_getsockopt(struct sock *sk, int optname,
 static int raw_getsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int __user *optlen)
 {
+	sockopt_t opt;
+	int err;
+
 	if (level != SOL_RAW)
 		return ip_getsockopt(sk, level, optname, optval, optlen);
-	return do_raw_getsockopt(sk, optname, optval, optlen);
+
+	err = sockopt_init_user(&opt, optval, optlen);
+	if (err)
+		return err;
+
+	err = do_raw_getsockopt(sk, optname, &opt);
+	if (err)
+		return err;
+
+	if (put_user(opt.optlen, optlen))
+		return -EFAULT;
+
+	return 0;
 }
 
 static int raw_ioctl(struct sock *sk, int cmd, int *karg)

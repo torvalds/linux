@@ -75,7 +75,6 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 	TP_ARGS(mpext),
 
 	TP_STRUCT__entry(
-		__field(u64, data_ack)
 		__field(u64, data_seq)
 		__field(u32, subflow_seq)
 		__field(u16, data_len)
@@ -94,7 +93,6 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 	),
 
 	TP_fast_assign(
-		__entry->data_ack = mpext->ack64 ? mpext->data_ack : mpext->data_ack32;
 		__entry->data_seq = mpext->data_seq;
 		__entry->subflow_seq = mpext->subflow_seq;
 		__entry->data_len = mpext->data_len;
@@ -112,8 +110,8 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 		__entry->infinite_map = mpext->infinite_map;
 	),
 
-	TP_printk("data_ack=%llu data_seq=%llu subflow_seq=%u data_len=%u csum=%x use_map=%u dsn64=%u data_fin=%u use_ack=%u ack64=%u mpc_map=%u frozen=%u reset_transient=%u reset_reason=%u csum_reqd=%u infinite_map=%u",
-		  __entry->data_ack, __entry->data_seq,
+	TP_printk("data_seq=%llu subflow_seq=%u data_len=%u csum=%x use_map=%u dsn64=%u data_fin=%u use_ack=%u ack64=%u mpc_map=%u frozen=%u reset_transient=%u reset_reason=%u csum_reqd=%u infinite_map=%u",
+		  __entry->data_seq,
 		  __entry->subflow_seq, __entry->data_len,
 		  __entry->csum, __entry->use_map,
 		  __entry->dsn64, __entry->data_fin,

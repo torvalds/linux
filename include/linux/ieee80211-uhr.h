@@ -17,6 +17,11 @@
 #define IEEE80211_UHR_OPER_PARAMS_PEDCA_ENA		0x0004
 #define IEEE80211_UHR_OPER_PARAMS_DBE_ENA		0x0008
 #define IEEE80211_UHR_OPER_PARAMS_DBE_BW		0x0070
+#define IEEE80211_UHR_OPER_PARAMS_DUO_PRES		0x0080
+#define IEEE80211_UHR_OPER_PARAMS_DPS_PRES		0x0100
+#define IEEE80211_UHR_OPER_PARAMS_NPCA_PRES		0x0200
+#define IEEE80211_UHR_OPER_PARAMS_PEDCA_PRES		0x0400
+#define IEEE80211_UHR_OPER_PARAMS_DBE_PRES		0x0800
 
 struct ieee80211_uhr_operation {
 	__le16 params;
@@ -265,8 +270,7 @@ struct ieee80211_uhr_p_edca_info {
 	__le16 params;
 } __packed;
 
-static inline bool ieee80211_uhr_oper_size_ok(const u8 *data, u8 len,
-					      bool beacon)
+static inline bool ieee80211_uhr_oper_size_ok(const u8 *data, u8 len)
 {
 	const struct ieee80211_uhr_operation *oper = (const void *)data;
 	u8 needed = sizeof(*oper);
@@ -274,19 +278,15 @@ static inline bool ieee80211_uhr_oper_size_ok(const u8 *data, u8 len,
 	if (len < needed)
 		return false;
 
-	/* nothing else present in beacons */
-	if (beacon)
-		return true;
-
 	/* DPS Operation Parameters (fixed 4 bytes) */
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_ENA)) {
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_PRES)) {
 		needed += sizeof(struct ieee80211_uhr_dps_info);
 		if (len < needed)
 			return false;
 	}
 
 	/* NPCA Operation Parameters (fixed 4 bytes + optional 2 bytes) */
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_ENA)) {
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_PRES)) {
 		const struct ieee80211_uhr_npca_info *npca =
 			(const void *)(data + needed);
 
@@ -303,14 +303,14 @@ static inline bool ieee80211_uhr_oper_size_ok(const u8 *data, u8 len,
 	}
 
 	/* P-EDCA Operation Parameters (fixed 3 bytes) */
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_PEDCA_ENA)) {
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_PEDCA_PRES)) {
 		needed += sizeof(struct ieee80211_uhr_p_edca_info);
 		if (len < needed)
 			return false;
 	}
 
 	/* DBE Operation Parameters (fixed 1 byte + optional 2 bytes) */
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DBE_ENA)) {
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DBE_PRES)) {
 		const struct ieee80211_uhr_dbe_info *dbe =
 			(const void *)(data + needed);
 
@@ -329,19 +329,19 @@ static inline bool ieee80211_uhr_oper_size_ok(const u8 *data, u8 len,
 	return len >= needed;
 }
 
-/*
- * Note: cannot call this on the element coming from a beacon,
- * must ensure ieee80211_uhr_oper_size_ok(..., false) first
- */
+/* Note: must ensure ieee80211_uhr_oper_size_ok(...) first */
 static inline const struct ieee80211_uhr_npca_info *
 ieee80211_uhr_npca_info(const struct ieee80211_uhr_operation *oper)
 {
 	const u8 *pos = oper->variable;
 
+	if (!(oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_PRES)))
+		return NULL;
+
 	if (!(oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_ENA)))
 		return NULL;
 
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_ENA))
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_PRES))
 		pos += sizeof(struct ieee80211_uhr_dps_info);
 
 	return (const void *)pos;
@@ -360,22 +360,22 @@ ieee80211_uhr_npca_dis_subch_bitmap(const struct ieee80211_uhr_operation *oper)
 	return npca->dis_subch_bmap;
 }
 
-/*
- * Note: cannot call this on the element coming from a beacon,
- * must ensure ieee80211_uhr_oper_size_ok(..., false) first
- */
+/* Note: must ensure ieee80211_uhr_oper_size_ok(...) first */
 static inline const struct ieee80211_uhr_dbe_info *
 ieee80211_uhr_oper_dbe_info(const struct ieee80211_uhr_operation *oper)
 {
 	const u8 *pos = oper->variable;
 
+	if (!(oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DBE_PRES)))
+		return NULL;
+
 	if (!(oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DBE_ENA)))
 		return NULL;
 
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_ENA))
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_DPS_PRES))
 		pos += sizeof(struct ieee80211_uhr_dps_info);
 
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_ENA)) {
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_NPCA_PRES)) {
 		const struct ieee80211_uhr_npca_info *npca = (const void *)pos;
 
 		pos += sizeof(*npca);
@@ -383,7 +383,7 @@ ieee80211_uhr_oper_dbe_info(const struct ieee80211_uhr_operation *oper)
 			pos += sizeof(npca->dis_subch_bmap[0]);
 	}
 
-	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_PEDCA_ENA))
+	if (oper->params & cpu_to_le16(IEEE80211_UHR_OPER_PARAMS_PEDCA_PRES))
 		pos += sizeof(struct ieee80211_uhr_p_edca_info);
 
 	return (const void *)pos;

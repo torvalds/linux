@@ -59,11 +59,6 @@ static const struct super_operations mbt_sops = {
 	.free_inode	= mbt_free_inode,
 };
 
-static void mbt_kill_sb(struct super_block *sb)
-{
-	generic_shutdown_super(sb);
-}
-
 static int mbt_init_fs_context(struct fs_context *fc)
 {
 	return 0;
@@ -72,7 +67,7 @@ static int mbt_init_fs_context(struct fs_context *fc)
 static struct file_system_type mbt_fs_type = {
 	.name			= "mballoc test",
 	.init_fs_context	= mbt_init_fs_context,
-	.kill_sb		= mbt_kill_sb,
+	.kill_sb		= kill_anon_super,
 };
 
 static int mbt_mb_init(struct super_block *sb)
@@ -136,7 +131,7 @@ static void mbt_mb_release(struct super_block *sb)
 
 static int mbt_set(struct super_block *sb, struct fs_context *fc)
 {
-	return 0;
+	return set_anon_super_fc(sb, fc);
 }
 
 static struct super_block *mbt_ext4_alloc_super_block(void)

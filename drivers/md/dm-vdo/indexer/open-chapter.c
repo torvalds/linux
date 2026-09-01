@@ -343,7 +343,7 @@ int uds_save_open_chapter(struct uds_index *index, struct buffered_writer *write
 	return uds_flush_buffered_writer(writer);
 }
 
-u64 uds_compute_saved_open_chapter_size(struct index_geometry *geometry)
+u64 uds_compute_saved_open_chapter_size(const struct index_geometry *geometry)
 {
 	unsigned int records_per_chapter = geometry->records_per_chapter;
 

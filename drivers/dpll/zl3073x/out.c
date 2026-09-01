@@ -85,12 +85,8 @@ int zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index)
 	if (rc)
 		return rc;
 
-	rc = zl3073x_read_u32(zldev, ZL_REG_OUTPUT_PHASE_COMP,
-			      &out->phase_comp);
-	if (rc)
-		return rc;
-
-	return rc;
+	return zl3073x_read_u32(zldev, ZL_REG_OUTPUT_PHASE_COMP,
+				&out->phase_comp);
 }
 
 /**

@@ -1,5 +1,14 @@
 [
     {
+        "BriefDescription": "Counts the number of core requests (demand and L1 prefetchers) rejected by the L2 queue (L2Q) due to a full condition.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0x31",
+        "EventName": "CORE_REJECT_L2Q.ANY",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2 queue (L2Q) due to a full or nearly full condition, which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the External Queue (XQ), but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to ensure fairness between cores, or to delay a cores dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event).  Counts on a per core basis.",
+        "SampleAfterValue": "200003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "L1D.HWPF_MISS",
         "Counter": "0,1,2,3",
         "EventCode": "0x51",
@@ -120,6 +129,15 @@
         "SampleAfterValue": "200003",
         "UMask": "0x4",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_XQ.ANY",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "SampleAfterValue": "200003",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the total number of L2 Cache accesses. Counts on a per core basis.",
@@ -439,6 +457,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which missed in the L2 cache.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS.IFETCH_L2_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x30",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the LLC or other core with HITE/F/M.",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x34",
@@ -473,6 +500,15 @@
         "EventName": "MEM_BOUND_STALLS.LOAD_L2_HIT",
         "SampleAfterValue": "200003",
         "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load which missed in the L2 cache.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS.LOAD_L2_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x6",
         "Unit": "cpu_atom"
     },
     {

@@ -166,7 +166,6 @@ void noinstr do_io_irq(struct pt_regs *regs)
 	if (from_idle)
 		account_idle_time_irq();
 
-	set_cpu_flag(CIF_NOHZ_DELAY);
 	do {
 		regs->tpi_info = get_lowcore()->tpi_info;
 		if (get_lowcore()->tpi_info.adapter_IO)
@@ -369,9 +368,6 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 	int index;
 
 	ext_code.int_code = regs->int_code;
-	if (ext_code.code != EXT_IRQ_CLK_COMP)
-		set_cpu_flag(CIF_NOHZ_DELAY);
-
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(p, &ext_int_hash[index], entry) {

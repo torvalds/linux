@@ -33,12 +33,11 @@ static void bmg160_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id bmg160_spi_id[] = {
-	{"bmg160", 0},
-	{"bmi055_gyro", 0},
-	{"bmi088_gyro", 0},
+	{ .name = "bmg160" },
+	{ .name = "bmi055_gyro" },
+	{ .name = "bmi088_gyro" },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(spi, bmg160_spi_id);
 
 static const struct of_device_id bmg160_of_match[] = {

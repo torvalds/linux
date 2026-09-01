@@ -45,6 +45,8 @@ properties:
       - const: low
       - const: high
 
+  label: true
+
   vdd-supply:
     description:
       Dedicated, controllable supply-regulator to reset the device and
@@ -54,6 +56,9 @@ required:
   - compatible
   - reg
   - vdd-supply
+
+allOf:
+  - $ref: hwmon-common.yaml#
 
 additionalProperties: false
 
@@ -72,6 +77,7 @@ examples:
                          <5 IRQ_TYPE_EDGE_RISING>,
                          <6 IRQ_TYPE_EDGE_RISING>;
             interrupt-names = "ready", "low", "high";
+            label = "Room";
             vdd-supply = <&reg_vdd>;
         };
     };

@@ -1222,7 +1222,8 @@ static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 	return intel_de_read(display, DEISR) & bit;
 }
 
-static int g4x_dp_compute_config(struct intel_encoder *encoder,
+static int g4x_dp_compute_config(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 struct intel_crtc_state *crtc_state,
 				 struct drm_connector_state *conn_state)
 {
@@ -1232,7 +1233,7 @@ static int g4x_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(display) && encoder->port != PORT_A)
 		crtc_state->has_pch_encoder = true;
 
-	ret = intel_dp_compute_config(encoder, crtc_state, conn_state);
+	ret = intel_dp_compute_config(state, encoder, crtc_state, conn_state);
 	if (ret)
 		return ret;
 
@@ -1252,10 +1253,13 @@ static void g4x_dp_suspend_complete(struct intel_encoder *encoder)
 
 static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 {
+	struct intel_digital_port *dig_port = enc_to_dig_port(to_intel_encoder(encoder));
+
 	intel_dp_encoder_flush_work(encoder);
 
 	drm_encoder_cleanup(encoder);
-	kfree(enc_to_dig_port(to_intel_encoder(encoder)));
+	intel_dp_link_cleanup(&dig_port->dp);
+	kfree(dig_port);
 }
 
 static void intel_dp_encoder_reset(struct drm_encoder *encoder)
@@ -1350,6 +1354,9 @@ bool g4x_dp_init(struct intel_display *display,
 	intel_encoder->audio_enable = g4x_dp_audio_enable;
 	intel_encoder->audio_disable = g4x_dp_audio_disable;
 
+	if (intel_dp_link_init(&dig_port->dp) != 0)
+		goto err_dp_init;
+
 	if ((display->platform.ivybridge && port == PORT_A) ||
 	    (HAS_PCH_CPT(display) && port != PORT_A)) {
 		dig_port->dp.set_link_train = cpt_set_link_train;
@@ -1419,6 +1426,8 @@ bool g4x_dp_init(struct intel_display *display,
 	return true;
 
 err_init_connector:
+	intel_dp_link_cleanup(&dig_port->dp);
+err_dp_init:
 	drm_encoder_cleanup(encoder);
 err_encoder_init:
 	kfree(intel_connector);

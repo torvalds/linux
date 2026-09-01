@@ -168,6 +168,10 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 
 	drv_data->nci_spi = nci_spi_allocate_spi(drv_data->spi, 0, 10,
 						 drv_data->priv->ndev);
+	if (!drv_data->nci_spi) {
+		nfcmrvl_nci_unregister_dev(drv_data->priv);
+		return -ENOMEM;
+	}
 
 	/* Init completion for slave handshake */
 	init_completion(&drv_data->handshake_completion);
@@ -181,14 +185,14 @@ static void nfcmrvl_spi_remove(struct spi_device *spi)
 	nfcmrvl_nci_unregister_dev(drv_data->priv);
 }
 
-static const struct of_device_id of_nfcmrvl_spi_match[] __maybe_unused = {
-	{ .compatible = "marvell,nfc-spi", },
-	{},
+static const struct of_device_id of_nfcmrvl_spi_match[] = {
+	{ .compatible = "marvell,nfc-spi" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_nfcmrvl_spi_match);
 
 static const struct spi_device_id nfcmrvl_spi_id_table[] = {
-	{ "nfcmrvl_spi", 0 },
+	{ .name = "nfcmrvl_spi" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, nfcmrvl_spi_id_table);

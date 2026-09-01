@@ -317,6 +317,13 @@ static const struct snd_pcm_ops snd_usbtv_pcm_ops = {
 	.pointer = snd_usbtv_pointer,
 };
 
+static void usbtv_audio_card_free(struct snd_card *card)
+{
+	struct usbtv *usbtv = card->private_data;
+
+	v4l2_device_put(&usbtv->v4l2_dev);
+}
+
 int usbtv_audio_init(struct usbtv *usbtv)
 {
 	int rv;
@@ -330,6 +337,10 @@ int usbtv_audio_init(struct usbtv *usbtv)
 		THIS_MODULE, 0, &card);
 	if (rv < 0)
 		return rv;
+
+	v4l2_device_get(&usbtv->v4l2_dev);
+	card->private_data = usbtv;
+	card->private_free = usbtv_audio_card_free;
 
 	strscpy(card->driver, usbtv->dev->driver->name, sizeof(card->driver));
 	strscpy(card->shortname, "usbtv", sizeof(card->shortname));

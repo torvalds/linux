@@ -1413,6 +1413,7 @@ static const struct of_device_id mt7623_pctrl_match[] = {
 	{ .compatible = "mediatek,mt7623-moore-pinctrl", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt7623_pctrl_match);
 
 static int mt7623_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1440,3 +1441,7 @@ static int __init mtk_pinctrl_init(void)
 	return platform_driver_register(&mtk_pinctrl_driver);
 }
 arch_initcall(mtk_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT7623 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("MTK_PINCTRL");

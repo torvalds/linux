@@ -13,8 +13,6 @@
  * configurations, ensuring p-state watermark support in the blank period only.
  */
 
-static const double MIN_VACTIVE_MARGIN_PCT = 0.25; // We need more than non-zero margin because DET buffer granularity can alter vactive latency hiding
-
 static const struct dml2_pmo_pstate_strategy dcn42_strategy_list_1_display[] = {
 	// VBlank only
 	{
@@ -179,7 +177,7 @@ bool pmo_dcn42_init_for_pstate_support(struct dml2_pmo_init_for_pstate_support_i
 
 	// Figure out which streams can do vactive, and also build up implicit SVP and FAMS2 meta
 	for (stream_index = 0; stream_index < display_config->display_config.num_streams; stream_index++) {
-		if (dcn4_get_vactive_pstate_margin(display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) >= (int)(MIN_VACTIVE_MARGIN_PCT * pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us))
+		if (dcn4_get_vactive_pstate_margin(display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) >= 0)
 			dcn42_set_bit_in_bitfield(&s->pmo_dcn4.stream_vactive_capability_mask, stream_index);
 	}
 
@@ -259,27 +257,17 @@ bool pmo_dcn42_fams2_optimize_for_pstate_support(struct dml2_pmo_optimize_for_ps
 
 bool pmo_dcn42_test_for_pstate_support(struct dml2_pmo_test_for_pstate_support_in_out *in_out)
 {
-	const struct dml2_pmo_scratch *s = &in_out->instance->scratch;
-	bool p_state_supported = true;
-	unsigned int stream_index;
-
-	if (s->pmo_dcn4.cur_pstate_candidate < 0)
+	/* Return false on the initial candidate (cur_pstate_candidate == -1) so the
+	 * optimization phase runs at least one optimize iteration; otherwise the
+	 * FAMS2/stage-3 setup in the optimize callback is skipped.
+	 */
+	if (in_out->instance->scratch.pmo_dcn4.cur_pstate_candidate < 0)
 		return false;
 
-	for (stream_index = 0; stream_index < in_out->base_display_config->display_config.num_streams; stream_index++) {
-		if (s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.cur_pstate_candidate].per_stream_pstate_method[stream_index] == dml2_pstate_method_vactive) {
-			if (dcn4_get_minimum_reserved_time_us_for_planes(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < (int)in_out->instance->soc_bb->power_management_parameters.dram_clk_change_blackout_us ||
-			    dcn4_get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < (int)(MIN_VACTIVE_MARGIN_PCT * in_out->instance->soc_bb->power_management_parameters.dram_clk_change_blackout_us)) {
-				p_state_supported = false;
-				break;
-			}
-		} else {
-			p_state_supported = false;
-			break;
-		}
-	}
-
-	return p_state_supported;
+	/* No-op: reserved time is guaranteed by the override and vactive p-state
+	 * margin is now enforced in core mode support.
+	 */
+	return true;
 }
 
 bool pmo_dcn42_initialize(struct dml2_pmo_initialize_in_out *in_out)

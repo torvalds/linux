@@ -2,7 +2,12 @@
 #ifndef _LINUX_HRTIMER_REARM_H
 #define _LINUX_HRTIMER_REARM_H
 
+#include <linux/types.h>
+
 #ifdef CONFIG_HRTIMER_REARM_DEFERRED
+#include <linux/irqflags.h>
+#include <linux/lockdep.h>
+#include <linux/preempt.h>
 #include <linux/thread_info.h>
 
 void __hrtimer_rearm_deferred(void);

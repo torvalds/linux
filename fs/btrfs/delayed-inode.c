@@ -1523,10 +1523,10 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	ret = __btrfs_add_delayed_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
 		btrfs_err(trans->fs_info,
-"error adding delayed dir index item, name: %.*s, index: %llu, root: %llu, dir: %llu, dir->index_cnt: %llu, delayed_node->index_cnt: %llu, error: %d",
+"error adding delayed dir index item, name: %.*s, index: %llu, root: %llu, dir: %llu, dir->index_cnt: %llu, delayed_node->index_cnt: %llu, error: %pe",
 			  name_len, name, index, btrfs_root_id(delayed_node->root),
 			  delayed_node->inode_id, dir->index_cnt,
-			  delayed_node->index_cnt, ret);
+			  delayed_node->index_cnt, ERR_PTR(ret));
 		btrfs_release_delayed_item(delayed_item);
 		btrfs_release_dir_index_item_space(trans);
 		mutex_unlock(&delayed_node->mutex);
@@ -1645,8 +1645,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 */
 	if (ret < 0) {
 		btrfs_err(trans->fs_info,
-"metadata reservation failed for delayed dir item deletion, index: %llu, root: %llu, inode: %llu, error: %d",
-			  index, btrfs_root_id(node->root), node->inode_id, ret);
+"metadata reservation failed for delayed dir item deletion, index: %llu, root: %llu, inode: %llu, error: %pe",
+			  index, btrfs_root_id(node->root), node->inode_id, ERR_PTR(ret));
 		btrfs_release_delayed_item(item);
 		goto end;
 	}
@@ -1655,8 +1655,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	ret = __btrfs_add_delayed_item(node, item);
 	if (unlikely(ret)) {
 		btrfs_err(trans->fs_info,
-"failed to add delayed dir index item, root: %llu, inode: %llu, index: %llu, error: %d",
-			  btrfs_root_id(node->root), node->inode_id, index, ret);
+"failed to add delayed dir index item, root: %llu, inode: %llu, index: %llu, error: %pe",
+			  btrfs_root_id(node->root), node->inode_id, index, ERR_PTR(ret));
 		btrfs_delayed_item_release_metadata(dir->root, item);
 		btrfs_release_delayed_item(item);
 	}

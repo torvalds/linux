@@ -92,13 +92,13 @@ static void report_char_chartab_status(int reset, int received, int used,
 	if (reset) {
 		pr_info("%s reset to defaults\n", object_type[do_characters]);
 	} else if (received) {
-		len = snprintf(buf, sizeof(buf),
-			       " updated %d of %d %s\n",
-			       used, received, object_type[do_characters]);
+		len = scnprintf(buf, sizeof(buf),
+				" updated %d of %d %s\n",
+				used, received, object_type[do_characters]);
 		if (rejected)
 			snprintf(buf + (len - 1), sizeof(buf) - (len - 1),
 				 " with %d reject%s\n",
-				 rejected, rejected > 1 ? "s" : "");
+				 rejected, str_plural(rejected));
 		pr_info("%s", buf);
 	}
 }
@@ -120,7 +120,7 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 	ssize_t retval = count;
 	unsigned long flags;
 	unsigned long index = 0;
-	int charclass = 0;
+	u16 charclass = 0;
 	int received = 0;
 	int used = 0;
 	int rejected = 0;
@@ -461,7 +461,7 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 	struct st_var_header *p_header;
 	struct punc_var_t *var;
 	struct st_bits_data *pb;
-	short mask;
+	u16 mask;
 	unsigned long flags;
 
 	p_header = spk_var_header_by_name(attr->attr.name);
@@ -740,7 +740,7 @@ static void report_msg_status(int reset, int received, int used,
 		if (rejected)
 			snprintf(buf + (len - 1), sizeof(buf) - (len - 1),
 				 " with %d reject%s\n",
-				 rejected, rejected > 1 ? "s" : "");
+				 rejected, str_plural(rejected));
 		pr_info("%s", buf);
 	}
 }

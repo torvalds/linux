@@ -787,7 +787,6 @@ static void dln2_spi_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to disable SPI module\n");
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dln2_spi_suspend(struct device *dev)
 {
 	int ret;
@@ -834,9 +833,7 @@ static int dln2_spi_resume(struct device *dev)
 
 	return spi_controller_resume(host);
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int dln2_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -852,18 +849,16 @@ static int dln2_spi_runtime_resume(struct device *dev)
 
 	return  dln2_spi_enable(dln2, true);
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops dln2_spi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(dln2_spi_suspend, dln2_spi_resume)
-	SET_RUNTIME_PM_OPS(dln2_spi_runtime_suspend,
-			   dln2_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dln2_spi_suspend, dln2_spi_resume)
+	RUNTIME_PM_OPS(dln2_spi_runtime_suspend, dln2_spi_runtime_resume, NULL)
 };
 
 static struct platform_driver spi_dln2_driver = {
 	.driver = {
 		.name	= "dln2-spi",
-		.pm	= &dln2_spi_pm,
+		.pm	= pm_ptr(&dln2_spi_pm),
 	},
 	.probe		= dln2_spi_probe,
 	.remove		= dln2_spi_remove,

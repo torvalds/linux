@@ -10,8 +10,6 @@
 #ifndef __ASM_SH_MAGICPANELR2_H
 #define __ASM_SH_MAGICPANELR2_H
 
-#include <linux/gpio.h>
-
 #define __IO_PREFIX mpr2
 #include <asm/io_generic.h>
 

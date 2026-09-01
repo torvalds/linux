@@ -265,8 +265,8 @@ static void wilco_ec_debugfs_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id wilco_ec_debugfs_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, wilco_ec_debugfs_id);
 

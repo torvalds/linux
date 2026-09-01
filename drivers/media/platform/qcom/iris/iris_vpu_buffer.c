@@ -580,7 +580,7 @@ static u32 hfi_buffer_line_av1d(u32 frame_width, u32 frame_height,
 		ALIGN(size_av1d_qp(frame_width, frame_height), DMA_ALIGNMENT);
 	opbwr8 = size_av1d_lb_opb_wr1_nv12_ubwc(frame_width, frame_height);
 	opbwr10 = size_av1d_lb_opb_wr1_tp10_ubwc(frame_width, frame_height);
-	opbwrbufsize = opbwr8 >= opbwr10 ? opbwr8 : opbwr10;
+	opbwrbufsize = max(opbwr8, opbwr10);
 	size = ALIGN((size + opbwrbufsize), DMA_ALIGNMENT);
 	if (is_opb) {
 		vpss_lb_size = size_vpss_lb(frame_width, frame_height);
@@ -700,7 +700,7 @@ static u32 hfi_buffer_ibc_av1d(u32 frame_width, u32 frame_height)
 
 	ibc8 = size_av1d_ibc_nv12_ubwc(frame_width, frame_height);
 	ibc10 = size_av1d_ibc_tp10_ubwc(frame_width, frame_height);
-	size = ibc8 >= ibc10 ? ibc8 : ibc10;
+	size = max(ibc8, ibc10);
 
 	return ALIGN(size, DMA_ALIGNMENT);
 }

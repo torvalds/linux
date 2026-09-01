@@ -405,13 +405,13 @@ extern void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oa
 /*
  * ptrace report for syscall entry and exit looks identical.
  */
-static inline int ptrace_report_syscall(unsigned long message)
+static inline bool ptrace_report_syscall(unsigned long message)
 {
 	int ptrace = current->ptrace;
 	int signr;
 
 	if (!(ptrace & PT_PTRACED))
-		return 0;
+		return true;
 
 	signr = ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0),
 			      message);
@@ -424,11 +424,11 @@ static inline int ptrace_report_syscall(unsigned long message)
 	if (signr)
 		send_sig(signr, current, 1);
 
-	return fatal_signal_pending(current);
+	return !fatal_signal_pending(current);
 }
 
 /**
- * ptrace_report_syscall_entry - task is about to attempt a system call
+ * ptrace_report_syscall_permit_entry - task is about to attempt a system call
  * @regs:		user register state of current task
  *
  * This will be called if %SYSCALL_WORK_SYSCALL_TRACE or
@@ -438,7 +438,7 @@ static inline int ptrace_report_syscall(unsigned long message)
  * call number and arguments to be tried.  It is safe to block here,
  * preventing the system call from beginning.
  *
- * Returns zero normally, or nonzero if the calling arch code should abort
+ * Returns True normally, or False if the calling architecture code should abort
  * the system call.  That must prevent normal entry so no system call is
  * made.  If @task ever returns to user mode after this, its register state
  * is unspecified, but should be something harmless like an %ENOSYS error
@@ -447,8 +447,7 @@ static inline int ptrace_report_syscall(unsigned long message)
  *
  * Called without locks, just after entering kernel mode.
  */
-static inline __must_check int ptrace_report_syscall_entry(
-	struct pt_regs *regs)
+static inline __must_check bool ptrace_report_syscall_permit_entry(struct pt_regs *regs)
 {
 	return ptrace_report_syscall(PTRACE_EVENTMSG_SYSCALL_ENTRY);
 }
