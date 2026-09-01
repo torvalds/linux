@@ -175,7 +175,7 @@ enum fw_device_quirk {
 	// See 10389536742c ("firewire: core: check for 1394a compliant IRM, fix inaccessibility of Sony camcorder").
 	FW_DEVICE_QUIRK_IRM_IS_1394_1995_ONLY = BIT(0),
 
-	// See a509e43ff338 ("firewire: core: fix unstable I/O with Canon camcorder").
+	// See 6044565af458 ("firewire: core: fix unstable I/O with Canon camcorder").
 	FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER = BIT(1),
 
 	// MOTU Audio Express transfers acknowledge packet with 0x10 for pending state.
