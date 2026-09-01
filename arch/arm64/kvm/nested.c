@@ -1260,6 +1260,17 @@ void kvm_handle_s1e2_tlbi(struct kvm_vcpu *vcpu, u32 inst, u64 val)
 	invalidate_vncr_va(vcpu->kvm, &scope);
 }
 
+static void kvm_invalidate_vncr_ipa_all(struct kvm *kvm)
+{
+	struct kvm_pgtable *pgt = kvm->arch.mmu.pgt;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	/* if the mmu lock was dropped, pgt teardown may have raced. */
+	if (pgt)
+		kvm_invalidate_vncr_ipa(kvm, 0, BIT(pgt->ia_bits));
+}
+
 void kvm_nested_s2_wp(struct kvm *kvm)
 {
 	int i;
@@ -1276,7 +1287,7 @@ void kvm_nested_s2_wp(struct kvm *kvm)
 			kvm_stage2_wp_range(mmu, 0, kvm_phys_size(mmu));
 	}
 
-	kvm_invalidate_vncr_ipa(kvm, 0, BIT(kvm->arch.mmu.pgt->ia_bits));
+	kvm_invalidate_vncr_ipa_all(kvm);
 }
 
 void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
@@ -1295,7 +1306,7 @@ void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
 			kvm_stage2_unmap_range(mmu, 0, kvm_phys_size(mmu), may_block);
 	}
 
-	kvm_invalidate_vncr_ipa(kvm, 0, BIT(kvm->arch.mmu.pgt->ia_bits));
+	kvm_invalidate_vncr_ipa_all(kvm);
 }
 
 void kvm_nested_s2_flush(struct kvm *kvm)
