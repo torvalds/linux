@@ -316,6 +316,32 @@ static void add_descriptor_with_invalid_length(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&entry_with_invalid_length), -EINVAL);
 }
 
+static void add_descriptor_with_invalid_data(struct kunit *test)
+{
+	// Use vendor directory defined in Annex A of Configuration ROM for AV/C Devices 1.0 (Dec.
+	// 2000, 1394 Trading Association, TA Document 1999027).
+	static const u32 invalid_vendor_directory[] = {
+		0x00020000,
+		(CSR_MODEL << 24) | 0x00009402,
+		((CSR_LEAF | CSR_DESCRIPTOR) << 24) | 0x00000001,
+		0xffff0000,	// The length should be 6, invalid.
+		0x00000000,
+		0x00000000,
+		0x436f6e63,
+		0x6174204e,
+		0x6f746174,
+		0x696f6e00,
+	};
+	// Use kernel stack since they should be mutable for doubly linked-list.
+	struct fw_descriptor entry_with_invalid_data = {
+		.length = ARRAY_SIZE(invalid_vendor_directory),
+		.key = (CSR_DIRECTORY | CSR_VENDOR) << 24,
+		.data = invalid_vendor_directory,
+	};
+
+	KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&entry_with_invalid_data), -EINVAL);
+}
+
 static const struct fw_card_driver dummy_card_driver;
 
 static int config_rom_generator_test_init(struct kunit *test)
@@ -347,6 +373,7 @@ static void config_rom_generator_test_exit(struct kunit *test)
 static struct kunit_case config_rom_generator_test_cases[] = {
 	KUNIT_CASE_PARAM(test_config_rom_generator, generator_test_gen_params),
 	KUNIT_CASE(add_descriptor_with_invalid_length),
+	KUNIT_CASE(add_descriptor_with_invalid_data),
 	{}
 };
 
