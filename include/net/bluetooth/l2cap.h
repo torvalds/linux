@@ -653,21 +653,26 @@ struct l2cap_ops {
 	char			*name;
 
 	int			(*new_connection)(struct l2cap_chan *chan,
-						  struct l2cap_chan *new_chan);
+						  struct l2cap_chan *new_chan)
+					__must_hold(&chan->lock)
+					__must_hold(&new_chan->lock);
 	int			(*recv) (struct l2cap_chan * chan,
 					 struct sk_buff *skb);
 	void			(*teardown) (struct l2cap_chan *chan, int err)
 					__must_hold(&chan->lock);
-	void			(*close) (struct l2cap_chan *chan);
+	void			(*close) (struct l2cap_chan *chan)
+					__must_hold(&chan->lock);
 	void			(*state_change) (struct l2cap_chan *chan,
 						 int state, int err);
 	void			(*ready) (struct l2cap_chan *chan)
 					__must_hold(&chan->lock)
 					__must_hold(&chan->conn->lock);
 	void			(*defer) (struct l2cap_chan *chan);
-	void			(*resume) (struct l2cap_chan *chan);
+	void			(*resume) (struct l2cap_chan *chan)
+					__must_hold(&chan->lock);
 	void			(*suspend) (struct l2cap_chan *chan);
-	void			(*set_shutdown) (struct l2cap_chan *chan);
+	void			(*set_shutdown) (struct l2cap_chan *chan)
+					__must_hold(&chan->lock);
 	long			(*get_sndtimeo) (struct l2cap_chan *chan);
 	struct pid		*(*get_peer_pid) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,

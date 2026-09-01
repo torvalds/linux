@@ -4214,6 +4214,7 @@ static inline int l2cap_command_rej(struct l2cap_conn *conn,
 static struct l2cap_chan *l2cap_new_connection(struct l2cap_conn *conn,
 					       struct l2cap_chan *pchan)
 	__must_hold(&conn->lock)
+	__must_hold(&pchan->lock)
 {
 	struct l2cap_chan *chan;
 
