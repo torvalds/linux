@@ -87,6 +87,81 @@ static const u32 config_rom_with_avc_unit[] = {
 	cpu_to_be32(0x50756900), // v
 };
 
+// Following to 1394-based Digital Camera Specification Version 1.04 (Aug. 1996. 1394 Trading
+// Association)
+#define IIDC_COMMAND_REGS_BASE	0x00
+#define IIDC_VENDOR_NAME_LEAF	0x01
+#define IIDC_MODEL_NAME_LEAF	0x02
+
+static const u32 iidc_unit_directories_and_leafs[] = {
+	0x00030000,
+	(CSR_SPECIFIER_ID << 24) | UNIT_SPEC_ID_1394TA,
+	(CSR_VERSION << 24) | UNIT_SW_VERSION_IIDC_0104,
+	((CSR_DIRECTORY | CSR_DEPENDENT_INFO) << 24) | 0x00000001,
+	0x00030000,
+	((CSR_OFFSET | IIDC_COMMAND_REGS_BASE) << 24) | 0x00012345,
+	((CSR_LEAF | IIDC_VENDOR_NAME_LEAF) << 24) | 0x00000002,
+	((CSR_LEAF | IIDC_MODEL_NAME_LEAF) << 24) | 0x00000008,
+	0x00060000,	// Text leaf consists of below 6 quads.
+	0x00000000,
+	0x00000000,
+	0x4c696e75,	// Use the same name in root directory.
+	0x78204669,
+	0x72657769,
+	0x72650000,
+	0x00040000,	// Text leaf consists of below 4 quads.
+	0x00000000,
+	0x00000000,
+	0x43686566,	// Chef Cat is a nick name when inventing IEEE 1394 itself.
+	0x20436174,
+};
+
+static const u32 config_rom_with_iidc_unit[] = {
+	cpu_to_be32(0x04046a3e), // bus info
+	cpu_to_be32(0x31333934), // |
+	cpu_to_be32(0xf000b243), // |
+	cpu_to_be32(0x01234567), // |
+	cpu_to_be32(0x89abcdef), // v
+	cpu_to_be32(0x0006a2d2), // root directory
+	cpu_to_be32(0x0c0083c0), // |
+	cpu_to_be32(0x03001f11), // |
+	cpu_to_be32(0x81000004), // |
+	cpu_to_be32(0x17023901), // |
+	cpu_to_be32(0x81000009), // |
+	cpu_to_be32(0xd100000c), // v
+	cpu_to_be32(0x00064cb7), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4c696e75), // |
+	cpu_to_be32(0x78204669), // |
+	cpu_to_be32(0x72657769), // |
+	cpu_to_be32(0x72650000), // v
+	cpu_to_be32(0x0003ff1c), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4a756a75), // v
+	cpu_to_be32(0x0003d7fe), // unit directory (from root)
+	cpu_to_be32(0x1200a02d), // |
+	cpu_to_be32(0x13000100), // |
+	cpu_to_be32(0xd4000001), // v
+	cpu_to_be32(0x0003ea57), // dependent directory (from unit directory)
+	cpu_to_be32(0x40012345), // |
+	cpu_to_be32(0x81000002), // |
+	cpu_to_be32(0x82000008), // v
+	cpu_to_be32(0x00064cb7), // text descriptor leaf (from dependent directory)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4c696e75), // |
+	cpu_to_be32(0x78204669), // |
+	cpu_to_be32(0x72657769), // |
+	cpu_to_be32(0x72650000), // v
+	cpu_to_be32(0x0004a3e9), // text descriptor leaf (from dependent directory)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x43686566), // |
+	cpu_to_be32(0x20436174), // v
+};
+
 static const struct generator_test_case {
 	const char *const name;
 	int config_rom_generation;
@@ -104,6 +179,12 @@ static const struct generator_test_case {
 		.config_rom_generation = 1,
 		.expected = config_rom_with_avc_unit,
 		.quadlet_length = ARRAY_SIZE(config_rom_with_avc_unit),
+	},
+	{
+		.name = "with_iidc_unit",
+		.config_rom_generation = 2,
+		.expected = config_rom_with_iidc_unit,
+		.quadlet_length = ARRAY_SIZE(config_rom_with_iidc_unit),
 	},
 };
 
@@ -123,6 +204,11 @@ static void test_config_rom_generator(struct kunit *test)
 		.key = (CSR_DIRECTORY | CSR_UNIT) << 24,
 		.data = avc_unit_directory_and_leaf,
 	};
+	struct fw_descriptor iidc_unit_entry = {
+		.length = ARRAY_SIZE(iidc_unit_directories_and_leafs),
+		.key = (CSR_DIRECTORY | CSR_UNIT) << 24,
+		.data = iidc_unit_directories_and_leafs,
+	};
 	const struct generator_test_case *test_case = test->param_value;
 	struct state_data *state = test->priv;
 	struct fw_card *card = &state->card;
@@ -136,6 +222,9 @@ static void test_config_rom_generator(struct kunit *test)
 	if (test_case->expected == config_rom_with_avc_unit)
 		KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&avc_unit_entry), 0);
 
+	if (test_case->expected == config_rom_with_iidc_unit)
+		KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&iidc_unit_entry), 0);
+
 	scoped_guard(mutex, &card_mutex) {
 		generate_config_rom(card, config_rom);
 		KUNIT_EXPECT_EQ(test, config_rom_length, test_case->quadlet_length);
@@ -143,6 +232,9 @@ static void test_config_rom_generator(struct kunit *test)
 
 	KUNIT_EXPECT_MEMEQ(test, config_rom, test_case->expected,
 			   sizeof(*test_case->expected) * test_case->quadlet_length);
+
+	if (test_case->expected == config_rom_with_iidc_unit)
+		fw_core_remove_descriptor(&iidc_unit_entry);
 
 	if (test_case->expected == config_rom_with_avc_unit)
 		fw_core_remove_descriptor(&avc_unit_entry);
