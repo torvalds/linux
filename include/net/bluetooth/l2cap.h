@@ -614,31 +614,6 @@ struct l2cap_chan {
 	struct mutex		lock;
 };
 
-struct l2cap_ops {
-	char			*name;
-
-	int			(*new_connection)(struct l2cap_chan *chan,
-						  struct l2cap_chan *new_chan);
-	int			(*recv) (struct l2cap_chan * chan,
-					 struct sk_buff *skb);
-	void			(*teardown) (struct l2cap_chan *chan, int err);
-	void			(*close) (struct l2cap_chan *chan);
-	void			(*state_change) (struct l2cap_chan *chan,
-						 int state, int err);
-	void			(*ready) (struct l2cap_chan *chan);
-	void			(*defer) (struct l2cap_chan *chan);
-	void			(*resume) (struct l2cap_chan *chan);
-	void			(*suspend) (struct l2cap_chan *chan);
-	void			(*set_shutdown) (struct l2cap_chan *chan);
-	long			(*get_sndtimeo) (struct l2cap_chan *chan);
-	struct pid		*(*get_peer_pid) (struct l2cap_chan *chan);
-	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
-					       unsigned long hdr_len,
-					       unsigned long len, int nb);
-	int			(*filter) (struct l2cap_chan * chan,
-					   struct sk_buff *skb);
-};
-
 struct l2cap_conn {
 	struct hci_conn		*hcon;
 	struct hci_chan		*hchan;
@@ -672,6 +647,34 @@ struct l2cap_conn {
 	struct mutex		lock;
 	struct kref		ref;
 	struct list_head	users;
+};
+
+struct l2cap_ops {
+	char			*name;
+
+	int			(*new_connection)(struct l2cap_chan *chan,
+						  struct l2cap_chan *new_chan);
+	int			(*recv) (struct l2cap_chan * chan,
+					 struct sk_buff *skb);
+	void			(*teardown) (struct l2cap_chan *chan, int err)
+					__must_hold(&chan->lock);
+	void			(*close) (struct l2cap_chan *chan);
+	void			(*state_change) (struct l2cap_chan *chan,
+						 int state, int err);
+	void			(*ready) (struct l2cap_chan *chan)
+					__must_hold(&chan->lock)
+					__must_hold(&chan->conn->lock);
+	void			(*defer) (struct l2cap_chan *chan);
+	void			(*resume) (struct l2cap_chan *chan);
+	void			(*suspend) (struct l2cap_chan *chan);
+	void			(*set_shutdown) (struct l2cap_chan *chan);
+	long			(*get_sndtimeo) (struct l2cap_chan *chan);
+	struct pid		*(*get_peer_pid) (struct l2cap_chan *chan);
+	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
+					       unsigned long hdr_len,
+					       unsigned long len, int nb);
+	int			(*filter) (struct l2cap_chan * chan,
+					   struct sk_buff *skb);
 };
 
 struct l2cap_user {
@@ -983,7 +986,8 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 typedef void (*l2cap_chan_func_t)(struct l2cap_chan *chan, void *data);
 void l2cap_chan_list(struct l2cap_conn *conn, l2cap_chan_func_t func,
 		     void *data);
-void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void l2cap_chan_del(struct l2cap_chan *chan, int err)
+	__must_hold(&chan->lock) __must_hold(&chan->conn->lock);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
 
 struct l2cap_conn *l2cap_conn_get(struct l2cap_conn *conn);

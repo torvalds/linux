@@ -722,6 +722,8 @@ out:
 }
 
 static inline void chan_ready_cb(struct l2cap_chan *chan)
+	__must_hold(&chan->lock)
+	__must_hold(&chan->conn->lock)
 {
 	struct lowpan_btle_dev *dev;
 	bool new_netdev = false;
