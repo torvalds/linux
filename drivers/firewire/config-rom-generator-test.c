@@ -342,6 +342,26 @@ static void add_descriptor_with_invalid_data(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&entry_with_invalid_data), -EINVAL);
 }
 
+static void add_descriptor_beyond_upper_limit(struct kunit *test)
+{
+	// Use kernel stack since they should be mutable for doubly linked-list.
+	struct fw_descriptor entry_beyond_upper_limit = {
+		.length = 255,
+		.key = (CSR_DIRECTORY | CSR_UNIT) << 24,
+		.data = NULL,
+	};
+	u32 *data;
+
+	data = kunit_kzalloc(test, entry_beyond_upper_limit.length, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, data);
+
+	data[0] = (entry_beyond_upper_limit.length - 1) << 16;
+	entry_beyond_upper_limit.data = data;
+	KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&entry_beyond_upper_limit), -EBUSY);
+
+	kunit_kfree(test, data);
+}
+
 static const struct fw_card_driver dummy_card_driver;
 
 static int config_rom_generator_test_init(struct kunit *test)
@@ -374,6 +394,7 @@ static struct kunit_case config_rom_generator_test_cases[] = {
 	KUNIT_CASE_PARAM(test_config_rom_generator, generator_test_gen_params),
 	KUNIT_CASE(add_descriptor_with_invalid_length),
 	KUNIT_CASE(add_descriptor_with_invalid_data),
+	KUNIT_CASE(add_descriptor_beyond_upper_limit),
 	{}
 };
 
