@@ -25,6 +25,7 @@
 #include <linux/sizes.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -355,6 +356,8 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	}
 	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
 	drm_plane_enable_fb_damage_clips(cursor_plane);
+	drm_plane_create_blend_mode_property(cursor_plane,
+					     BIT(DRM_MODE_BLEND_COVERAGE));
 
 	return 0;
 }
