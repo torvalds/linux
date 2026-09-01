@@ -1442,3 +1442,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 #ifdef CONFIG_FIREWIRE_KUNIT_DEVICE_ATTRIBUTE_TEST
 #include "device-attribute-test.c"
 #endif
+
+#ifdef CONFIG_FIREWIRE_KUNIT_CONFIG_ROM_PARSER_AND_GENERATOR_TEST
+#include "config-rom-parser-test.c"
+#endif

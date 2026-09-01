@@ -851,3 +851,7 @@ int fw_card_read_cycle_time(struct fw_card *card, u32 *cycle_time)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fw_card_read_cycle_time);
+
+#ifdef CONFIG_FIREWIRE_KUNIT_CONFIG_ROM_PARSER_AND_GENERATOR_TEST
+#include "config-rom-generator-test.c"
+#endif
