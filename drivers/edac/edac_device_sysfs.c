@@ -84,18 +84,23 @@ static ssize_t edac_device_ctl_poll_msec_show(struct edac_device_ctl_info
 	return sprintf(data, "%u\n", ctl_info->poll_msec);
 }
 
-static ssize_t edac_device_ctl_poll_msec_store(struct edac_device_ctl_info
-					*ctl_info, const char *data,
-					size_t count)
+static ssize_t edac_device_ctl_poll_msec_store(struct edac_device_ctl_info *ctl_info,
+					       const char *data, size_t count)
 {
-	unsigned long value;
+	unsigned int value;
+	int ret;
 
-	/* get the value and enforce that it is non-zero, must be at least
-	 * one millisecond for the delay period, between scans
-	 * Then cancel last outstanding delay for the work request
-	 * and set a new one.
+	/*
+	 * Get the value, make sure it is non-zero, must be at least one millisecond
+	 * for the delay period between scans.
 	 */
-	value = simple_strtoul(data, NULL, 0);
+	ret = kstrtouint(data, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value < 1)
+		return -EINVAL;
+
 	edac_device_reset_delay_period(ctl_info, value);
 
 	return count;

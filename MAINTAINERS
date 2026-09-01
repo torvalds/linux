@@ -9387,9 +9387,8 @@ S:	Maintained
 F:	drivers/edac/octeon_edac*
 
 EDAC-CAVIUM THUNDERX
-M:	Robert Richter <rric@kernel.org>
 L:	linux-edac@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 F:	drivers/edac/thunderx_edac*
 
 EDAC-CORE
@@ -9416,9 +9415,8 @@ S:	Supported
 F:	drivers/edac/dmc520_edac.c
 
 EDAC-E752X
-M:	Mark Gross <markgross@kernel.org>
 L:	linux-edac@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/edac/e752x_edac.c
 
 EDAC-E7XXX
@@ -9493,9 +9491,8 @@ S:	Maintained
 F:	drivers/edac/igen6_edac.c
 
 EDAC-MPC85XX
-M:	Johannes Thumshirn <morbidrsa@gmail.com>
 L:	linux-edac@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/edac/mpc85xx_edac.[ch]
 
 EDAC-NPCM
@@ -13283,7 +13280,6 @@ F:	drivers/crypto/intel/keembay/ocs-aes.h
 
 INTEL KEEM BAY OCS ECC CRYPTO DRIVER
 M:	Prabhjot Khurana <prabhjot.khurana@intel.com>
-M:	Mark Gross <mgross@linux.intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-ecc.yaml
 F:	drivers/crypto/intel/keembay/Kconfig
@@ -26954,8 +26950,7 @@ S:	Maintained
 F:	drivers/net/ethernet/tehuti/tn40*
 
 TELECOM CLOCK DRIVER FOR MCPL0010
-M:	Mark Gross <markgross@kernel.org>
-S:	Supported
+S:	Orphan
 F:	drivers/char/tlclk.c
 
 TEMPO SEMICONDUCTOR DRIVERS
@@ -29937,12 +29932,14 @@ F:	include/uapi/linux/xilinx-v4l2-controls.h
 XILINX VERSAL EDAC DRIVER
 M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
 M:	Sai Krishna Potthuri <sai.krishna.potthuri@amd.com>
+R:	Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/memory-controllers/xlnx,versal-ddrmc-edac.yaml
 F:	drivers/edac/versal_edac.c
 
 XILINX VERSALNET EDAC DRIVER
 M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+R:	Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/memory-controllers/xlnx,versal-net-ddrmc5.yaml
 F:	drivers/edac/versalnet_edac.c
@@ -29988,6 +29985,7 @@ F:	include/dt-bindings/dma/xlnx-zynqmp-dpdma.h
 XILINX ZYNQMP OCM EDAC DRIVER
 M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
 M:	Sai Krishna Potthuri <sai.krishna.potthuri@amd.com>
+R:	Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/memory-controllers/xlnx,zynqmp-ocmc-1.0.yaml
 F:	drivers/edac/zynqmp_edac.c
