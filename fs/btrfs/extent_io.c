@@ -1808,6 +1808,22 @@ out:
 	return 0;
 }
 
+static struct btrfs_ordered_extent *get_oe_from_bbio(const struct btrfs_bio *bbio,
+						     u64 filepos)
+{
+	struct btrfs_ordered_extent *oe;
+
+	if (!bbio || !bbio->ordered)
+		return NULL;
+
+	oe = bbio->ordered;
+	if (!in_range(filepos, oe->file_offset, oe->num_bytes))
+		return NULL;
+
+	refcount_inc(&oe->refs);
+	return oe;
+}
+
 /*
  * Return 0 if we have submitted or queued the sector for submission.
  * Return <0 for critical errors, and the involved sector will be cleaned up.
@@ -1820,11 +1836,10 @@ static int submit_one_sector(struct btrfs_inode *inode,
 			     loff_t i_size)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_map *em;
+	struct btrfs_ordered_extent *oe;
 	u64 block_start;
 	u64 disk_bytenr;
 	u64 extent_offset;
-	u64 em_end;
 	const u32 sectorsize = fs_info->sectorsize;
 	unsigned int queued;
 
@@ -1833,8 +1848,11 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	/* @filepos >= i_size case should be handled by the caller. */
 	ASSERT(filepos < i_size);
 
-	em = btrfs_get_extent(inode, NULL, filepos, sectorsize);
-	if (IS_ERR(em)) {
+	/* Try to reuse the existing OE from bbio first. */
+	oe = get_oe_from_bbio(bio_ctrl->bbio, filepos);
+	if (!oe)
+		oe = btrfs_lookup_ordered_extent(inode, filepos);
+	if (unlikely(!oe)) {
 		/*
 		 * bio_ctrl may contain a bio crossing several folios.
 		 * Submit it immediately so that the bio has a chance
@@ -1857,31 +1875,25 @@ static int submit_one_sector(struct btrfs_inode *inode,
 		 */
 		btrfs_mark_ordered_io_finished(inode, filepos, fs_info->sectorsize,
 					       false);
-		return PTR_ERR(em);
+		btrfs_err_rl(fs_info,
+		"no ordered extent for root %lld ino %llu filepos %llu",
+			     btrfs_root_id(inode->root), btrfs_ino(inode),
+			     filepos);
+		return -EUCLEAN;
 	}
 
-	extent_offset = filepos - em->start;
-	em_end = btrfs_extent_map_end(em);
-	ASSERT(filepos <= em_end);
-	ASSERT(IS_ALIGNED(em->start, sectorsize));
-	ASSERT(IS_ALIGNED(em->len, sectorsize));
+	extent_offset = filepos - oe->file_offset;
+	ASSERT(filepos < oe->file_offset + oe->num_bytes);
+	ASSERT(IS_ALIGNED(oe->file_offset, sectorsize));
+	ASSERT(IS_ALIGNED(oe->num_bytes, sectorsize));
+	ASSERT(oe->compress_type == BTRFS_COMPRESS_NONE);
+	ASSERT(!test_bit(BTRFS_ORDERED_COMPRESSED, &oe->flags));
 
-	block_start = btrfs_extent_map_block_start(em);
-	disk_bytenr = btrfs_extent_map_block_start(em) + extent_offset;
+	block_start = oe->disk_bytenr + oe->offset;
+	disk_bytenr = block_start + extent_offset;
 
-	ASSERT(!btrfs_extent_map_is_compressed(em));
-	ASSERT(block_start != EXTENT_MAP_HOLE);
-	ASSERT(block_start != EXTENT_MAP_INLINE);
+	btrfs_put_ordered_extent(oe);
 
-	btrfs_free_extent_map(em);
-	em = NULL;
-
-	/*
-	 * Although the PageDirty bit is cleared before entering this
-	 * function, subpage dirty bit is not cleared.
-	 * So clear subpage dirty bit here so next time we won't submit
-	 * a folio for a range already written to disk.
-	 */
 	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
 	btrfs_folio_set_writeback(fs_info, folio, filepos, sectorsize);
 	/*
@@ -1898,6 +1910,10 @@ static int submit_one_sector(struct btrfs_inode *inode,
 		btrfs_folio_clear_writeback(fs_info, folio, filepos, sectorsize);
 		btrfs_mark_ordered_io_finished(inode, filepos, fs_info->sectorsize,
 					       false);
+		btrfs_err_rl(fs_info,
+		"failed to queue sector for root %lld ino %llu filepos %llu",
+			     btrfs_root_id(inode->root),
+			     btrfs_ino(inode), filepos);
 		return -EUCLEAN;
 	}
 	return 0;
