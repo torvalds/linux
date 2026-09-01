@@ -24,6 +24,7 @@
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <kunit/static_stub.h>
 
 #include <asm/byteorder.h>
 
@@ -485,6 +486,9 @@ int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
 		       void *payload, size_t length)
 {
+	KUNIT_STATIC_STUB_REDIRECT(fw_run_transaction, card, tcode, destination_id, generation,
+				   speed, offset, payload, length);
+
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
