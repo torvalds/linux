@@ -13,11 +13,13 @@
 
 #include <linux/acpi.h>
 #include <linux/amd-pmf-io.h>
+#include <linux/bits.h>
 #include <linux/circ_buf.h>
 #include <linux/compiler_attributes.h>
 #include <linux/compiler_types.h>
 #include <linux/input.h>
 #include <linux/mutex_types.h>
+#include <linux/power_supply.h>
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
 #include <linux/types.h>
@@ -1073,17 +1075,46 @@ struct ta_pmf_shared_memory {
 /* Core Layer */
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev);
 void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev);
-int is_apmf_func_supported(struct amd_pmf_dev *pdev, unsigned long index);
 int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32 *data);
 int amd_pmf_init_metrics_table(struct amd_pmf_dev *dev);
-int amd_pmf_get_power_source(void);
 int apmf_install_handler(struct amd_pmf_dev *pmf_dev);
 int apmf_os_power_slider_update(struct amd_pmf_dev *dev, u8 flag);
 int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer);
 int amd_pmf_notify_sbios_heartbeat_event_v2(struct amd_pmf_dev *dev, u8 flag);
-u32 fixp_q88_fromint(u32 val);
-int is_apmf_bios_input_notifications_supported(struct amd_pmf_dev *pdev);
 void amd_pmf_set_device(struct device *p_device);
+
+static inline int is_apmf_func_supported(struct amd_pmf_dev *pdev, unsigned long index)
+{
+	/* If bit-n is set, that indicates function n+1 is supported */
+	return !!(pdev->supported_func & BIT(index - 1));
+}
+
+static inline int is_apmf_bios_input_notifications_supported(struct amd_pmf_dev *pdev)
+{
+	return !!(pdev->notifications & CUSTOM_BIOS_INPUT_BITS);
+}
+
+static inline int amd_pmf_get_power_source(void)
+{
+	if (power_supply_is_system_supplied() > 0)
+		return POWER_SOURCE_AC;
+	else
+		return POWER_SOURCE_DC;
+}
+
+/**
+ * fixp_q88_fromint: Convert integer to Q8.8
+ * @val: input value
+ *
+ * Converts an integer into binary fixed point format where 8 bits
+ * are used for integer and 8 bits are used for the decimal.
+ *
+ * Return: unsigned integer converted to Q8.8 format
+ */
+static inline u32 fixp_q88_fromint(u32 val)
+{
+	return val << 8;
+}
 
 /* Metrics layer */
 int amd_pmf_get_tbl_dram_addr(struct amd_pmf_dev *dev);

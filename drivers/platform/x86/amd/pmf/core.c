@@ -138,14 +138,6 @@ static void amd_pmf_dbgfs_register(struct amd_pmf_dev *dev)
 				    &current_power_limits_fops);
 }
 
-int amd_pmf_get_power_source(void)
-{
-	if (power_supply_is_system_supplied() > 0)
-		return POWER_SOURCE_AC;
-	else
-		return POWER_SOURCE_DC;
-}
-
 static inline u32 amd_pmf_reg_read(struct amd_pmf_dev *dev, int reg_offset)
 {
 	return ioread32(dev->regbase + reg_offset);
@@ -174,20 +166,6 @@ static void __maybe_unused amd_pmf_dump_registers(struct amd_pmf_dev *dev)
 
 	value = amd_pmf_reg_read(dev, dev->smu_regs->msg_reg);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_MESSAGE:%x\n", value);
-}
-
-/**
- * fixp_q88_fromint: Convert integer to Q8.8
- * @val: input value
- *
- * Converts an integer into binary fixed point format where 8 bits
- * are used for integer and 8 bits are used for the decimal.
- *
- * Return: unsigned integer converted to Q8.8 format
- */
-u32 fixp_q88_fromint(u32 val)
-{
-	return val << 8;
 }
 
 int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32 *data)

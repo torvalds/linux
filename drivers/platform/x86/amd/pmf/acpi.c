@@ -158,17 +158,6 @@ out:
 	return err;
 }
 
-int is_apmf_func_supported(struct amd_pmf_dev *pdev, unsigned long index)
-{
-	/* If bit-n is set, that indicates function n+1 is supported */
-	return !!(pdev->supported_func & BIT(index - 1));
-}
-
-int is_apmf_bios_input_notifications_supported(struct amd_pmf_dev *pdev)
-{
-	return !!(pdev->notifications & CUSTOM_BIOS_INPUT_BITS);
-}
-
 int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
 				       struct amd_pmf_apts_granular_output *data, u32 apts_idx)
 {
