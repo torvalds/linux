@@ -19,6 +19,7 @@
  * calls to msleep.
  */
 
+#include <linux/cleanup.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -89,8 +90,17 @@ static bool tpm_transmit_completed(u8 status, struct tpm_chip *chip)
 	return status_masked == chip->ops->req_complete_val;
 }
 
+static void tpm_go_idle(struct tpm_chip *chip)
+{
+	if (chip->ops->go_idle)
+		chip->ops->go_idle(chip);
+}
+
+DEFINE_FREE(tpm_go_idle, struct tpm_chip *, if (_T) tpm_go_idle(_T))
+
 static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 {
+	struct tpm_chip *chip_idle __free(tpm_go_idle) = NULL;
 	struct tpm_header *header = buf;
 	int rc;
 	ssize_t len = 0;
@@ -112,6 +122,18 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 			"invalid count value %x %zx\n", count, bufsiz);
 		return -E2BIG;
 	}
+
+	if (chip->ops->cmd_ready) {
+		rc = chip->ops->cmd_ready(chip);
+		if (rc) {
+			dev_err(&chip->dev,
+				"%s: cmd_ready(): error %d\n", __func__, rc);
+			return rc;
+		}
+	}
+
+	/* Ensure go_idle() is called on every exit path from here on. */
+	chip_idle = chip;
 
 	rc = chip->ops->send(chip, buf, bufsiz, count);
 	if (rc < 0) {
