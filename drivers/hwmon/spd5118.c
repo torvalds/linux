@@ -16,6 +16,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bits.h>
+#include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/i3c/device.h>
@@ -663,6 +664,13 @@ static int spd5118_i2c_init(struct i2c_client *client)
 	mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
 	if (mode < 0)
 		return mode;
+
+	/* 16-bit addressing is not supported */
+	if (mode & SPD5118_LEGACY_MODE_ADDR) {
+		dev_notice(&client->dev,
+			   "Unable to access device due to 16-bit addressing being enabled\n");
+		return -ENODEV;
+	}
 
 	err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
 					mode & ~SPD5118_LEGACY_PAGE_MASK);
