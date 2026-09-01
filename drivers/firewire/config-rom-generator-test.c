@@ -162,6 +162,62 @@ static const u32 config_rom_with_iidc_unit[] = {
 	cpu_to_be32(0x20436174), // v
 };
 
+static const u32 config_rom_with_avc_and_iidc_units[] = {
+	cpu_to_be32(0x040439c0), // bus info
+	cpu_to_be32(0x31333934), // |
+	cpu_to_be32(0xf000b253), // |
+	cpu_to_be32(0x01234567), // |
+	cpu_to_be32(0x89abcdef), // v
+	cpu_to_be32(0x0007073e), // root directory
+	cpu_to_be32(0x0c0083c0), // |
+	cpu_to_be32(0x03001f11), // |
+	cpu_to_be32(0x81000005), // |
+	cpu_to_be32(0x17023901), // |
+	cpu_to_be32(0x8100000a), // |
+	cpu_to_be32(0xd100000d), // |
+	cpu_to_be32(0xd1000015), // v
+	cpu_to_be32(0x00064cb7), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4c696e75), // |
+	cpu_to_be32(0x78204669), // |
+	cpu_to_be32(0x72657769), // |
+	cpu_to_be32(0x72650000), // v
+	cpu_to_be32(0x0003ff1c), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4a756a75), // v
+	cpu_to_be32(0x0004227b), // unit directory (from root)
+	cpu_to_be32(0x1200a02d), // |
+	cpu_to_be32(0x13010001), // |
+	cpu_to_be32(0x17260827), // |
+	cpu_to_be32(0x81000001), // v
+	cpu_to_be32(0x0003f771), // text descriptor leaf (from unit)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x50756900), // v
+	cpu_to_be32(0x0003d7fe), // unit directory (from root)
+	cpu_to_be32(0x1200a02d), // |
+	cpu_to_be32(0x13000100), // |
+	cpu_to_be32(0xd4000001), // v
+	cpu_to_be32(0x0003ea57), // dependent directory (from unit directory)
+	cpu_to_be32(0x40012345), // |
+	cpu_to_be32(0x81000002), // |
+	cpu_to_be32(0x82000008), // v
+	cpu_to_be32(0x00064cb7), // text descriptor leaf (from dependent directory)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4c696e75), // |
+	cpu_to_be32(0x78204669), // |
+	cpu_to_be32(0x72657769), // |
+	cpu_to_be32(0x72650000), // v
+	cpu_to_be32(0x0004a3e9), // text descriptor leaf (from dependent directory)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x43686566), // |
+	cpu_to_be32(0x20436174), // v
+};
+
 static const struct generator_test_case {
 	const char *const name;
 	int config_rom_generation;
@@ -185,6 +241,12 @@ static const struct generator_test_case {
 		.config_rom_generation = 2,
 		.expected = config_rom_with_iidc_unit,
 		.quadlet_length = ARRAY_SIZE(config_rom_with_iidc_unit),
+	},
+	{
+		.name = "with_avc_and_iidc_unit",
+		.config_rom_generation = 3,
+		.expected = config_rom_with_avc_and_iidc_units,
+		.quadlet_length = ARRAY_SIZE(config_rom_with_avc_and_iidc_units),
 	},
 };
 
@@ -219,10 +281,12 @@ static void test_config_rom_generator(struct kunit *test)
 	card->max_receive = 11;
 	card->guid = 0x0123456789abcdefULL;
 
-	if (test_case->expected == config_rom_with_avc_unit)
+	if (test_case->expected == config_rom_with_avc_unit ||
+	    test_case->expected == config_rom_with_avc_and_iidc_units)
 		KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&avc_unit_entry), 0);
 
-	if (test_case->expected == config_rom_with_iidc_unit)
+	if (test_case->expected == config_rom_with_iidc_unit ||
+	    test_case->expected == config_rom_with_avc_and_iidc_units)
 		KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&iidc_unit_entry), 0);
 
 	scoped_guard(mutex, &card_mutex) {
@@ -233,10 +297,12 @@ static void test_config_rom_generator(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, config_rom, test_case->expected,
 			   sizeof(*test_case->expected) * test_case->quadlet_length);
 
-	if (test_case->expected == config_rom_with_iidc_unit)
+	if (test_case->expected == config_rom_with_iidc_unit ||
+	    test_case->expected == config_rom_with_avc_and_iidc_units)
 		fw_core_remove_descriptor(&iidc_unit_entry);
 
-	if (test_case->expected == config_rom_with_avc_unit)
+	if (test_case->expected == config_rom_with_avc_unit ||
+	    test_case->expected == config_rom_with_avc_and_iidc_units)
 		fw_core_remove_descriptor(&avc_unit_entry);
 }
 
