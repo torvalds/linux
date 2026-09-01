@@ -758,6 +758,10 @@ enum {
  * otherwise considers all channels equal and will e.g. complain about a
  * connection oriented channel triggering SMP procedures or a listening
  * channel creating and locking a child channel.
+ *
+ * Lock nesting of channels at the same nesting level is allowed if the channels
+ * have the same l2cap_chan::conn and l2cap_chan::conn.lock is taken before the
+ * nested locks. l2cap_chan_try_sibling_lock() must be used.
  */
 enum {
 	L2CAP_NESTING_SMP,

@@ -848,6 +848,8 @@ static void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
 
+	lockdep_assert_held(&chan->lock);
+
 	switch (chan->state) {
 	case BT_LISTEN:
 		chan->ops->teardown(chan, 0);
@@ -3950,6 +3952,7 @@ static void l2cap_ecred_list_defer(struct l2cap_chan *chan, void *data)
 }
 
 struct l2cap_ecred_rsp_data {
+	struct l2cap_chan *locked_chan;
 	struct {
 		struct l2cap_ecred_conn_rsp_hdr rsp;
 		__le16 scid[L2CAP_ECRED_MAX_CID];
@@ -3957,11 +3960,42 @@ struct l2cap_ecred_rsp_data {
 	int count;
 };
 
+/* Lock @chan if it is not @locked_chan, and has same or lower nesting level.
+ *
+ * They must have the same chan->conn, and conn->lock must be held.
+ *
+ * Caller must ensure @chan has lock nesting level <= that of @locked_chan, as
+ * nested locking of l2cap_chan of different levels is allowed also without
+ * holding conn->lock.
+ *
+ * See l2cap.h for the global l2cap_chan locking rules.
+ */
+static bool l2cap_chan_try_sibling_lock(struct l2cap_chan *chan,
+					struct l2cap_chan *locked_chan)
+	__must_hold(&locked_chan->lock)
+	__must_hold(&locked_chan->conn->lock)
+	__cond_acquires(true, &chan->lock)
+{
+	if (chan == locked_chan)
+		return false;
+
+	if (WARN_ON_ONCE(locked_chan->conn != chan->conn))
+		return false;
+
+	if (WARN_ON_ONCE(atomic_read(&locked_chan->nesting)
+			 < atomic_read(&chan->nesting)))
+		return false;
+
+	mutex_lock_nest_lock(&chan->lock, &locked_chan->conn->lock);
+	return true;
+}
+
 static void l2cap_ecred_rsp_defer(struct l2cap_chan *chan, void *data)
 {
 	struct l2cap_ecred_rsp_data *rsp = data;
 	struct l2cap_ecred_conn_rsp *rsp_flex =
 		container_of(&rsp->pdu.rsp, struct l2cap_ecred_conn_rsp, hdr);
+	bool locked;
 
 	if (chan->mode != L2CAP_MODE_EXT_FLOWCTL)
 		return;
@@ -3972,6 +4006,22 @@ static void l2cap_ecred_rsp_defer(struct l2cap_chan *chan, void *data)
 	if (test_bit(FLAG_ECRED_CONN_REQ_SENT, &chan->flags) ||
 	    !test_and_clear_bit(FLAG_DEFER_SETUP, &chan->flags))
 		return;
+
+	lockdep_assert_held(&rsp->locked_chan->lock);
+	lockdep_assert_held(&rsp->locked_chan->conn->lock);
+
+	l2cap_chan_hold(chan);
+
+	locked = l2cap_chan_try_sibling_lock(chan, rsp->locked_chan);
+
+	/* Cannot occur: PARENT channels do not appear in chan_l, and SMP
+	 * channels never have FLAG_DEFER_SETUP.
+	 */
+	if (context_unsafe(!locked && chan != rsp->locked_chan))
+		goto done;
+
+	lockdep_assert_held(&chan->lock);
+	lockdep_assert_held(&chan->conn->lock);
 
 	/* Reset ident so only one response is sent */
 	chan->ident = 0;
@@ -3985,6 +4035,12 @@ static void l2cap_ecred_rsp_defer(struct l2cap_chan *chan, void *data)
 		rsp_flex->dcid[rsp->count++] = cpu_to_le16(chan->scid);
 	else
 		l2cap_chan_del(chan, ECONNRESET);
+
+done:
+	if (locked)
+		l2cap_chan_unlock(chan);
+
+	l2cap_chan_put(chan);
 }
 
 void __l2cap_ecred_conn_rsp_defer(struct l2cap_chan *chan)
@@ -3996,10 +4052,14 @@ void __l2cap_ecred_conn_rsp_defer(struct l2cap_chan *chan)
 
 	if (!id)
 		return;
+	if (!test_bit(FLAG_DEFER_SETUP, &chan->flags))
+		return;
 
 	BT_DBG("chan %p id %d", chan, id);
 
 	memset(&data, 0, sizeof(data));
+
+	data.locked_chan = chan;
 
 	data.pdu.rsp.mtu     = cpu_to_le16(chan->imtu);
 	data.pdu.rsp.mps     = cpu_to_le16(chan->mps);
