@@ -34,6 +34,59 @@ static const u32 config_rom_bare[] = {
 	cpu_to_be32(0x4a756a75), // v Juju is a code name at the development time of this stack.
 };
 
+// Following to Configuration ROM for AV/C Devices 1.0 (Dec. 2000. 1394 Trading Association,
+// Document 1999027).
+#define UNIT_SPEC_ID_1394TA		0x0000a02d
+#define UNIT_SW_VERSION_AVC		0x00010001
+#define UNIT_SW_VERSION_IIDC_0104	0x00000100
+
+static const u32 avc_unit_directory_and_leaf[] = {
+	0x00040000,		// Unit directory consists of below 4 quads.
+	(CSR_SPECIFIER_ID << 24) | UNIT_SPEC_ID_1394TA,
+	(CSR_VERSION << 24) | UNIT_SW_VERSION_AVC,
+	(CSR_MODEL << 24) | 0x00260827,	// Today.
+	((CSR_LEAF | CSR_DESCRIPTOR) << 24) | 0x00000001, // Point to next quadlet.
+	0x00030000,	// Text leaf consists of below 3 quads.
+	0x00000000,
+	0x00000000,
+	0x50756900,	// Pui is the name of a cat that the author takes care of.
+};
+
+static const u32 config_rom_with_avc_unit[] = {
+	cpu_to_be32(0x0404c1e5), // bus info
+	cpu_to_be32(0x31333934), // |
+	cpu_to_be32(0xf000b233), // |
+	cpu_to_be32(0x01234567), // |
+	cpu_to_be32(0x89abcdef), // v
+	cpu_to_be32(0x0006a2d2), // root directory
+	cpu_to_be32(0x0c0083c0), // |
+	cpu_to_be32(0x03001f11), // |
+	cpu_to_be32(0x81000004), // |
+	cpu_to_be32(0x17023901), // |
+	cpu_to_be32(0x81000009), // |
+	cpu_to_be32(0xd100000c), // v
+	cpu_to_be32(0x00064cb7), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4c696e75), // |
+	cpu_to_be32(0x78204669), // |
+	cpu_to_be32(0x72657769), // |
+	cpu_to_be32(0x72650000), // v
+	cpu_to_be32(0x0003ff1c), // text descriptor leaf (from root)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x4a756a75), // v
+	cpu_to_be32(0x0004227b), // unit directory (from root)
+	cpu_to_be32(0x1200a02d), // |
+	cpu_to_be32(0x13010001), // |
+	cpu_to_be32(0x17260827), // |
+	cpu_to_be32(0x81000001), // v
+	cpu_to_be32(0x0003f771), // text descriptor leaf (from unit)
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x00000000), // |
+	cpu_to_be32(0x50756900), // v
+};
+
 static const struct generator_test_case {
 	const char *const name;
 	int config_rom_generation;
@@ -45,6 +98,12 @@ static const struct generator_test_case {
 		.config_rom_generation = 0,
 		.expected = config_rom_bare,
 		.quadlet_length = ARRAY_SIZE(config_rom_bare),
+	},
+	{
+		.name = "with_avc_unit",
+		.config_rom_generation = 1,
+		.expected = config_rom_with_avc_unit,
+		.quadlet_length = ARRAY_SIZE(config_rom_with_avc_unit),
 	},
 };
 
@@ -58,6 +117,12 @@ struct state_data {
 
 static void test_config_rom_generator(struct kunit *test)
 {
+	// Use kernel stack since they should be mutable for doubly linked-list.
+	struct fw_descriptor avc_unit_entry = {
+		.length = ARRAY_SIZE(avc_unit_directory_and_leaf),
+		.key = (CSR_DIRECTORY | CSR_UNIT) << 24,
+		.data = avc_unit_directory_and_leaf,
+	};
 	const struct generator_test_case *test_case = test->param_value;
 	struct state_data *state = test->priv;
 	struct fw_card *card = &state->card;
@@ -68,6 +133,9 @@ static void test_config_rom_generator(struct kunit *test)
 	card->max_receive = 11;
 	card->guid = 0x0123456789abcdefULL;
 
+	if (test_case->expected == config_rom_with_avc_unit)
+		KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&avc_unit_entry), 0);
+
 	scoped_guard(mutex, &card_mutex) {
 		generate_config_rom(card, config_rom);
 		KUNIT_EXPECT_EQ(test, config_rom_length, test_case->quadlet_length);
@@ -75,6 +143,9 @@ static void test_config_rom_generator(struct kunit *test)
 
 	KUNIT_EXPECT_MEMEQ(test, config_rom, test_case->expected,
 			   sizeof(*test_case->expected) * test_case->quadlet_length);
+
+	if (test_case->expected == config_rom_with_avc_unit)
+		fw_core_remove_descriptor(&avc_unit_entry);
 }
 
 static const struct fw_card_driver dummy_card_driver;
