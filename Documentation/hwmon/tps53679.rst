@@ -3,6 +3,14 @@ Kernel driver tps53679
 
 Supported chips:
 
+  * Texas Instruments TPS53622
+
+    Prefix: 'tps53622'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.ti.com/lit/gpn/TPS53622
+
   * Texas Instruments TPS53647
 
     Prefix: 'tps53647'
@@ -10,6 +18,14 @@ Supported chips:
     Addresses scanned: -
 
     Datasheet: https://www.ti.com/lit/gpn/tps53647
+
+  * Texas Instruments TPS53659
+
+    Prefix: 'tps53659'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.ti.com/lit/gpn/TPS53659
 
   * Texas Instruments TPS53667
 
@@ -108,7 +124,7 @@ in1_crit_alarm		Input voltage critical high alarm.
 in[N]_label		"vout[1-2]"
 
 			- TPS53647, TPS53667: N=2
-			- TPS53679, TPS53588: N=2,3
+			- TPS53622, TPS53659, TPS53679, TPS53688: N=2,3
 
 in[N]_input		Measured output voltage.
 
@@ -135,7 +151,7 @@ in[N]_crit_alarm	Output voltage critical high alarm.
 temp[N]_input		Measured temperature.
 
 			- TPS53647, TPS53667: N=1
-			- TPS53679, TPS53681, TPS53588: N=1,2
+			- TPS53622, TPS53659, TPS53679, TPS53681, TPS53688: N=1,2
 
 temp[N]_max		Maximum temperature.
 
@@ -152,7 +168,7 @@ power1_input		Measured input power.
 power[N]_label		"pout[1-2]".
 
 			- TPS53647, TPS53667: N=2
-			- TPS53676, TPS53679, TPS53681, TPS53588: N=2,3
+			- TPS53622, TPS53659, TPS53676, TPS53679, TPS53681, TPS53688: N=2,3
 
 power[N]_input		Measured output power.
 
@@ -175,7 +191,7 @@ curr[N]_label		"iout[1-2]" or "iout1.[0-5]".
 			telemetry supported on TPS53676 and TPS53681 only.
 
 			- TPS53647, TPS53667: N=2
-			- TPS53679, TPS53588: N=2,3
+			- TPS53622, TPS53659, TPS53679, TPS53688: N=2,3
 			- TPS53676: N=2-8
 			- TPS53681: N=2-9
 
