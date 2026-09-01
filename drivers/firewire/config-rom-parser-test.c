@@ -100,6 +100,39 @@ static const u32 motu_audioexpress_config_rom[] = {
 	0x000a8a7b,
 };
 
+static const u32 tascam_fw1884_config_rom[] = {
+	0x040f23c0,
+	0x31333934,
+	0x20ff7002,
+	0x00022eff,
+	0xfe800000,
+	0x0004bccc,
+	0x0300022e,
+	0x0c0083c0,
+	0x8d000006,
+	0xd1000001,
+	0x000347f5,
+	0x1200022e,
+	0x13800000,
+	0xd4000004,
+	0x000289aa,
+	0x00022eff,
+	0xfe800000,
+	0x0002ae47,
+	0x81000002,
+	0x82000006,
+	0x0004a79e,
+	0x00000000,
+	0x00000000,
+	0x54415343,
+	0x414d0000,
+	0x00045443,
+	0x00000000,
+	0x00000000,
+	0x46572d31,
+	0x38383400,
+};
+
 static const struct parser_test_case {
 	const char *name;
 	const u32 *quadlets;
@@ -140,6 +173,17 @@ static const struct parser_test_case {
 		.phy_speed_in_self_id = SCODE_400,
 		.expected_speed = SCODE_400,
 		.expected_quirk = FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE,
+		.expected_max_rec = 7,
+		.expected_cmc = false,
+		.expected_irmc = false,
+	},
+	{
+		.name = "detect_unstable_at_s400_quirk",
+		.quadlets = tascam_fw1884_config_rom,
+		.quadlet_length = ARRAY_SIZE(tascam_fw1884_config_rom),
+		.phy_speed_in_self_id = SCODE_400,
+		.expected_speed = SCODE_200,
+		.expected_quirk = FW_DEVICE_QUIRK_UNSTABLE_AT_S400,
 		.expected_max_rec = 7,
 		.expected_cmc = false,
 		.expected_irmc = false,
