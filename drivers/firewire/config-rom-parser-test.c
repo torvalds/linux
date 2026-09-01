@@ -193,7 +193,7 @@ static const struct parser_test_case {
 // Define parser_test_gen_params.
 KUNIT_ARRAY_PARAM_DESC(parser_test, parser_test_cases, name);
 
-static int stub_run_regular_transaction(struct fw_card *card, int tcode, int destination_id,
+static int stub_run_transaction_regular(struct fw_card *card, int tcode, int destination_id,
 					int generation, int speed, unsigned long long offset,
 					void *payload, size_t length)
 {
@@ -221,7 +221,7 @@ static void test_parser_with_regular_cases(struct kunit *test)
 	struct fw_device *device = test->priv;
 	const struct parser_test_case *param = test->param_value;
 
-	kunit_activate_static_stub(test, fw_run_transaction, stub_run_regular_transaction);
+	kunit_activate_static_stub(test, fw_run_transaction, stub_run_transaction_regular);
 
 	device->card->link_speed = SCODE_BETA;
 	device->node->max_speed = param->phy_speed_in_self_id;
@@ -236,6 +236,69 @@ static void test_parser_with_regular_cases(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, (unsigned int)device->max_rec, param->expected_max_rec);
 	KUNIT_EXPECT_EQ(test, (bool)device->cmc, param->expected_cmc);
 	KUNIT_EXPECT_EQ(test, (bool)device->irmc, param->expected_irmc);
+
+	kunit_deactivate_static_stub(test, fw_run_transaction);
+}
+
+static int stub_run_transaction_malformed(struct fw_card *card, int tcode, int destination_id,
+					  int generation, int speed, unsigned long long offset,
+					  void *payload, size_t length)
+{
+	static const u32 config_rom_first_part[] = {
+		0x04000000,
+		0x31333934,
+		0x00008002,
+		0x00000000,
+		0x00000000,
+		0x00030000,
+		(CSR_VENDOR << 24) | 0x00123456,	// Regular entry.
+		((CSR_LEAF | CSR_DESCRIPTOR) << 24) | 0x000000f9,	// Beyond the upper limit.
+		((CSR_DIRECTORY | CSR_UNIT) << 24) | 0x00000001,
+		0xffff0000,	// Over the upper limit.
+	};
+	struct kunit *test = kunit_get_current_test();
+
+	KUNIT_ASSERT_GE(test, offset, CSR_REGISTER_BASE | CSR_CONFIG_ROM);
+	KUNIT_ASSERT_LT(test, offset, CSR_REGISTER_BASE | CSR_CONFIG_ROM_END);
+	KUNIT_ASSERT_NOT_NULL(test, payload);
+	KUNIT_ASSERT_EQ(test, length, 4);
+
+	unsigned int index = (offset - (CSR_REGISTER_BASE | CSR_CONFIG_ROM)) / sizeof(u32);
+	u32 *quadlet = payload;
+
+	if (index < ARRAY_SIZE(config_rom_first_part))
+		*quadlet = cpu_to_be32(config_rom_first_part[index]);
+	else
+		*quadlet = 0;
+
+	return RCODE_COMPLETE;
+}
+
+static void test_parser_with_overflowed_case(struct kunit *test)
+{
+	static const u32 corrected_config_rom[] = {
+		0x04000000,
+		0x31333934,
+		0x00008002,
+		0x00000000,
+		0x00000000,
+		0x00030000,
+		0x03123456,
+		0x00000000,	// Sanitized.
+		0xd1000001,
+		0x00000000,	// Sanitized.
+	};
+	struct fw_device *device = test->priv;
+
+	kunit_activate_static_stub(test, fw_run_transaction, stub_run_transaction_malformed);
+
+	device->card->link_speed = SCODE_BETA;
+
+	KUNIT_EXPECT_EQ(test, read_config_rom(device, 0), RCODE_COMPLETE);
+
+	KUNIT_EXPECT_EQ(test, device->config_rom_length, ARRAY_SIZE(corrected_config_rom));
+	KUNIT_EXPECT_MEMEQ(test, device->config_rom, corrected_config_rom,
+			   sizeof(corrected_config_rom));
 
 	kunit_deactivate_static_stub(test, fw_run_transaction);
 }
@@ -279,6 +342,7 @@ static void config_rom_parser_test_exit(struct kunit *test)
 
 static struct kunit_case config_rom_parser_test_cases[] = {
 	KUNIT_CASE_PARAM(test_parser_with_regular_cases, parser_test_gen_params),
+	KUNIT_CASE(test_parser_with_overflowed_case),
 	{}
 };
 
