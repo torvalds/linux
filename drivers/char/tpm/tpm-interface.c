@@ -268,7 +268,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
 	int err;
 	ssize_t len;
 
-	len = tpm_transmit(chip, buf->data, PAGE_SIZE);
+	len = tpm_transmit(chip, buf->data, buf->capacity);
 	if (len <  0)
 		return len;
 
