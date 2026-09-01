@@ -1126,10 +1126,7 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 int amd_pmf_init_sps(struct amd_pmf_dev *dev);
 int apmf_get_static_slider_granular(struct amd_pmf_dev *pdev,
 				    struct apmf_static_slider_granular_output *output);
-bool is_pprof_balanced(struct amd_pmf_dev *pmf);
 int amd_pmf_power_slider_update_event(struct amd_pmf_dev *dev);
-const char *amd_pmf_source_as_str(unsigned int state);
-
 const char *amd_pmf_source_as_str(unsigned int state);
 
 int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx);
@@ -1138,6 +1135,11 @@ int apmf_get_static_slider_granular_v2(struct amd_pmf_dev *dev,
 				       struct apmf_static_slider_granular_output_v2 *data);
 int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
 				       struct amd_pmf_apts_granular_output *data, u32 apts_idx);
+
+static inline bool is_pprof_balanced(struct amd_pmf_dev *pmf)
+{
+	return pmf->current_profile == PLATFORM_PROFILE_BALANCED;
+}
 
 /* Auto Mode Layer */
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data);
