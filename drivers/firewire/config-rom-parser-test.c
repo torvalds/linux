@@ -80,6 +80,26 @@ static const u32 canon_mv5i_mc_config_rom[] = {
 	0x00000000,
 };
 
+static const u32 motu_audioexpress_config_rom[] = {
+	0x0410a756,
+	0x31333934,
+	0x20ff7000,
+	0x0001f200,
+	0x000a8a7b,
+	0x0004ef04,
+	0x030001f2,
+	0x0c0083c0,
+	0xd1000002,
+	0x8d000005,
+	0x00031680,
+	0x120001f2,
+	0x13000033,
+	0x17104800,
+	0x00025ef3,
+	0x0001f200,
+	0x000a8a7b,
+};
+
 static const struct parser_test_case {
 	const char *name;
 	const u32 *quadlets;
@@ -112,6 +132,17 @@ static const struct parser_test_case {
 		.expected_max_rec = 8,
 		.expected_cmc = true,
 		.expected_irmc = true,
+	},
+	{
+		.name = "detect_ack_packet_with_invalid_pending_code_quirk",
+		.quadlets = motu_audioexpress_config_rom,
+		.quadlet_length = ARRAY_SIZE(motu_audioexpress_config_rom),
+		.phy_speed_in_self_id = SCODE_400,
+		.expected_speed = SCODE_400,
+		.expected_quirk = FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE,
+		.expected_max_rec = 7,
+		.expected_cmc = false,
+		.expected_irmc = false,
 	},
 };
 
