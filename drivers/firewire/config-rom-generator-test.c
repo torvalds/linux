@@ -306,6 +306,16 @@ static void test_config_rom_generator(struct kunit *test)
 		fw_core_remove_descriptor(&avc_unit_entry);
 }
 
+static void add_descriptor_with_invalid_length(struct kunit *test)
+{
+	// Use kernel stack since they should be mutable for doubly linked-list.
+	struct fw_descriptor entry_with_invalid_length = {
+		.length = 257,
+	};
+
+	KUNIT_EXPECT_EQ(test, fw_core_add_descriptor(&entry_with_invalid_length), -EINVAL);
+}
+
 static const struct fw_card_driver dummy_card_driver;
 
 static int config_rom_generator_test_init(struct kunit *test)
@@ -336,6 +346,7 @@ static void config_rom_generator_test_exit(struct kunit *test)
 
 static struct kunit_case config_rom_generator_test_cases[] = {
 	KUNIT_CASE_PARAM(test_config_rom_generator, generator_test_gen_params),
+	KUNIT_CASE(add_descriptor_with_invalid_length),
 	{}
 };
 
