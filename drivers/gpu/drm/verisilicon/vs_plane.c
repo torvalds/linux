@@ -136,7 +136,7 @@ struct drm_plane_state *vs_plane_duplicate_state(struct drm_plane *plane)
 
 	vs_state_old = to_vs_plane_state(plane->state);
 
-	vs_state = kzalloc_obj(*vs_state, GFP_KERNEL);
+	vs_state = kzalloc_obj(*vs_state);
 	if (!vs_state)
 		return NULL;
 
@@ -166,7 +166,7 @@ void vs_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	vs_state = kzalloc_obj(*vs_state, GFP_KERNEL);
+	vs_state = kzalloc_obj(*vs_state);
 	if (!vs_state)
 		return;
 

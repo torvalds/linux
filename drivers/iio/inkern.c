@@ -345,7 +345,7 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 		return ERR_PTR(-ENODEV);
 
 	struct iio_channel *channel __free(kfree) =
-		kzalloc(sizeof(*channel), GFP_KERNEL);
+		kzalloc_obj(*channel);
 	if (!channel) {
 		err = -ENOMEM;
 		goto error_no_mem;

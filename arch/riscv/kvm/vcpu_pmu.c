@@ -503,8 +503,8 @@ int kvm_riscv_vcpu_pmu_event_info(struct kvm_vcpu *vcpu, unsigned long saddr_low
 		}
 	}
 
-	einfo = kvcalloc(num_events, sizeof(*einfo),
-			 GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+	einfo = kvzalloc_objs(*einfo, num_events,
+			      GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!einfo) {
 		ret = SBI_ERR_FAILURE;
 		goto out;

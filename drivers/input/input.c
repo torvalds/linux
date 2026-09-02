@@ -2344,7 +2344,7 @@ static int input_device_tune_vals(struct input_dev *dev)
 	if (dev->max_vals >= max_vals)
 		return 0;
 
-	vals = kcalloc(max_vals, sizeof(*vals), GFP_KERNEL);
+	vals = kzalloc_objs(*vals, max_vals);
 	if (!vals)
 		return -ENOMEM;
 

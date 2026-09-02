@@ -639,7 +639,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	printk(KERN_NOTICE "into device \"%s\"\n", name);
 
 	/* allocate the device structure */
-	concat = kzalloc_flex(*concat, subdev, num_devs, GFP_KERNEL);
+	concat = kzalloc_flex(*concat, subdev, num_devs);
 	if (!concat) {
 		printk
 		    ("memory allocation error while creating concatenated device \"%s\"\n",

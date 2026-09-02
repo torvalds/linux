@@ -22,15 +22,13 @@
 
 static int mm81x_yaps_alloc_pkt_buffers(struct mm81x_yaps *yaps)
 {
-	yaps->hw.to_chip_pkts = kcalloc(MAX_PKTS_PER_TX_TXN,
-					sizeof(*yaps->hw.to_chip_pkts),
-					GFP_KERNEL);
+	yaps->hw.to_chip_pkts = kzalloc_objs(*yaps->hw.to_chip_pkts,
+					     MAX_PKTS_PER_TX_TXN);
 	if (!yaps->hw.to_chip_pkts)
 		return -ENOMEM;
 
-	yaps->hw.from_chip_pkts = kcalloc(MAX_PKTS_PER_RX_TXN,
-					  sizeof(*yaps->hw.from_chip_pkts),
-					  GFP_KERNEL);
+	yaps->hw.from_chip_pkts = kzalloc_objs(*yaps->hw.from_chip_pkts,
+					       MAX_PKTS_PER_RX_TXN);
 	if (!yaps->hw.from_chip_pkts) {
 		kfree(yaps->hw.to_chip_pkts);
 		yaps->hw.to_chip_pkts = NULL;

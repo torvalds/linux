@@ -2539,7 +2539,7 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	struct ntfs_volume *vol;
 
 	/* Allocate a new struct ntfs_volume and place it in sb->s_fs_info. */
-	vol = kmalloc(sizeof(struct ntfs_volume), GFP_NOFS);
+	vol = kmalloc_obj(struct ntfs_volume, GFP_NOFS);
 	if (!vol)
 		return -ENOMEM;
 

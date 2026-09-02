@@ -1341,7 +1341,7 @@ alloc_init_dir_deleg(struct nfs4_client *clp, struct nfs4_file *fp)
 		return NULL;
 	}
 
-	ncn->ncn_nf = kcalloc(NOTIFY4_EVENT_QUEUE_SIZE, sizeof(*ncn->ncn_nf), GFP_KERNEL);
+	ncn->ncn_nf = kzalloc_objs(*ncn->ncn_nf, NOTIFY4_EVENT_QUEUE_SIZE);
 	if (!ncn->ncn_nf) {
 		nfs4_put_stid(&dp->dl_stid);
 		return NULL;
@@ -10419,8 +10419,9 @@ alloc_nfsd_notify_event(u32 mask, const struct qstr *q, struct dentry *dentry,
 		newnamelen = newname.name.len;
 	}
 
-	ne = kmalloc(struct_size(ne, ne_name, q->len + 1 +
-				 (newnamelen ? newnamelen + 1 : 0)), GFP_NOFS);
+	ne = kmalloc_flex(*ne, ne_name,
+			  q->len + 1 + (newnamelen ? newnamelen + 1 : 0),
+			  GFP_NOFS);
 	if (!ne)
 		goto out;
 

@@ -2746,8 +2746,8 @@ xfs_dabuf_map(
 	 * larger one that needs to be free by the caller.
 	 */
 	if (nirecs > 1) {
-		map = kcalloc(nirecs, sizeof(struct xfs_buf_map),
-			      GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+		map = kzalloc_objs(struct xfs_buf_map, nirecs,
+				   GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 		*mapp = map;
 	}
 

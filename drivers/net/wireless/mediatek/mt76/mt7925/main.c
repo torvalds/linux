@@ -1105,7 +1105,7 @@ mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			mlink = &msta->deflink;
 			is_deflink = true;
 		} else {
-			mlink = kzalloc(sizeof(*mlink), GFP_KERNEL);
+			mlink = kzalloc_obj(*mlink);
 			if (!mlink) {
 				err = -ENOMEM;
 				break;

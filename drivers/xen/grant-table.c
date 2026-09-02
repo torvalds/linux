@@ -1478,7 +1478,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	/* No need for kzalloc as it is initialized in following hypercall
 	 * GNTTABOP_setup_table.
 	 */
-	frames = kmalloc_array(nr_gframes, sizeof(*frames), GFP_ATOMIC);
+	frames = kmalloc_objs(*frames, nr_gframes, GFP_ATOMIC);
 	if (!frames)
 		return -ENOMEM;
 

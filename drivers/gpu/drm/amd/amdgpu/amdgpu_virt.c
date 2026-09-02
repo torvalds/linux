@@ -316,8 +316,8 @@ static int amdgpu_virt_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 	if (align_space > AMDGPU_VIRT_RAS_BAD_PAGE_TABLE_MAX_CAPACITY)
 		return -ENOMEM;
 
-	new_bps = kmalloc_array(align_space, sizeof(*data->bps), GFP_KERNEL);
-	new_bo = kcalloc(align_space, sizeof(*data->bps_bo), GFP_KERNEL);
+	new_bps = kmalloc_objs(*data->bps, align_space);
+	new_bo = kzalloc_objs(*data->bps_bo, align_space);
 	if (!new_bps || !new_bo) {
 		kfree(new_bps);
 		kfree(new_bo);
@@ -355,7 +355,7 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	if (!bps)
 		goto bps_failure;
 
-	bps_bo = kcalloc(align_space, sizeof(*(*data)->bps_bo), GFP_KERNEL);
+	bps_bo = kzalloc_objs(*(*data)->bps_bo, align_space);
 	if (!bps_bo)
 		goto bps_bo_failure;
 

@@ -251,7 +251,7 @@ devlink_get_parent_from_attrs_lock(struct net *net, struct nlattr **attrs)
 	if (!attrs[DEVLINK_ATTR_PARENT_DEV])
 		return ERR_PTR(-EINVAL);
 
-	tb = kcalloc(maxtype + 1, sizeof(*tb), GFP_KERNEL);
+	tb = kzalloc_objs(*tb, maxtype + 1);
 	if (!tb)
 		return ERR_PTR(-ENOMEM);
 

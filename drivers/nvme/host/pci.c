@@ -201,7 +201,7 @@ static int quirks_param_set(const char *value, const struct kernel_param *kp)
 			count++;
 	}
 
-	qlist = kcalloc(count, sizeof(*qlist), GFP_KERNEL);
+	qlist = kzalloc_objs(*qlist, count);
 	if (!qlist) {
 		err = -ENOMEM;
 		goto out_free_val;

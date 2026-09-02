@@ -616,7 +616,7 @@ static int dpaa2_switch_lag_fdb_add(struct dpaa2_switch_lag *lag,
 		goto out;
 	}
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a) {
 		err = -ENOMEM;
 		goto out;
@@ -4131,8 +4131,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 		goto err_free_fdbs;
 	}
 
-	ethsw->lags = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->lags),
-			      GFP_KERNEL);
+	ethsw->lags = kzalloc_objs(*ethsw->lags, ethsw->sw_attr.num_ifs);
 	if (!ethsw->lags) {
 		err = -ENOMEM;
 		goto err_free_filter;

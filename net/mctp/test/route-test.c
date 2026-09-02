@@ -193,7 +193,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	if (netid != MCTP_NET_ANY)
 		WRITE_ONCE(dev->mdev->net, netid);
 
-	dev->mdev->addrs = kmalloc_objs(u8, 1, GFP_KERNEL);
+	dev->mdev->addrs = kmalloc_objs(u8, 1);
 	dev->mdev->num_addrs = 1;
 	dev->mdev->addrs[0] = 8;
 

@@ -981,7 +981,7 @@ static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 

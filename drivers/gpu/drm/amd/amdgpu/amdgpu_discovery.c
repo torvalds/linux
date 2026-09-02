@@ -1608,11 +1608,11 @@ int amdgpu_discovery_sysfs_early_init(struct amdgpu_device *adev, struct pci_dev
 
 	discovery_bin = adev->discovery.bin;
 
-	early_entry = kzalloc(sizeof(*early_entry), GFP_KERNEL);
+	early_entry = kzalloc_obj(*early_entry);
 	if (!early_entry)
 		return -ENOMEM;
 
-	ip_top = kzalloc(sizeof(*ip_top), GFP_KERNEL);
+	ip_top = kzalloc_obj(*ip_top);
 	if (!ip_top) {
 		kfree(early_entry);
 		return -ENOMEM;

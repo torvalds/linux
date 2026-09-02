@@ -1647,7 +1647,7 @@ static int nfsd_nl_fh_key_set(const struct nlattr *attr, struct nfsd_net *nn)
 	k1 = get_unaligned_le64(nla_data(attr) + 8);
 
 	if (!fh_key) {
-		fh_key = kmalloc(sizeof(siphash_key_t), GFP_KERNEL);
+		fh_key = kmalloc_obj(siphash_key_t);
 		if (!fh_key) {
 			trace_nfsd_ctl_fh_key_set(false, -ENOMEM);
 			return -ENOMEM;

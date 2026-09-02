@@ -526,7 +526,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	}
 	t = to_tunnel_key(*a);
 
-	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
+	params_new = kzalloc_obj(*params_new);
 	if (unlikely(!params_new)) {
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		ret = -ENOMEM;

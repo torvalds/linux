@@ -235,7 +235,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 		ea_info_qsize = le32_to_cpu(p_ea_info->ea_query_length);
 	} else {
 create_ea_info:
-		p_ea_info = kzalloc(sizeof(struct ea_information), GFP_NOFS);
+		p_ea_info = kzalloc_obj(struct ea_information, GFP_NOFS);
 		if (!p_ea_info)
 			return -ENOMEM;
 

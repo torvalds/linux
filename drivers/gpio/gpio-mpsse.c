@@ -518,7 +518,7 @@ static void gpio_mpsse_irq_enable(struct irq_data *irqd)
 		 * Can't be devm because it uses a non-raw spinlock (illegal in
 		 * this context, where a raw spinlock is held by our caller)
 		 */
-		worker = kzalloc(sizeof(*worker), GFP_NOWAIT);
+		worker = kzalloc_obj(*worker, GFP_NOWAIT);
 		if (!worker)
 			return;
 

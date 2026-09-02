@@ -364,7 +364,7 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 						sound_debugfs_root);
 #endif
 #ifdef CONFIG_SND_CTL_DEBUG
-	card->value_buf = kmalloc(sizeof(*card->value_buf), GFP_KERNEL);
+	card->value_buf = kmalloc_obj(*card->value_buf);
 	if (!card->value_buf)
 		return -ENOMEM;
 #endif

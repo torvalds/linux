@@ -239,7 +239,7 @@ static void dm_test_atomic_destroy_state_no_context(struct kunit *test)
 	 * Use kzalloc(), not kunit_kzalloc(): dm_atomic_destroy_state() frees
 	 * the state itself, so KUnit-managed memory would be double-freed.
 	 */
-	dm_state = kzalloc(sizeof(*dm_state), GFP_KERNEL);
+	dm_state = kzalloc_obj(*dm_state);
 	KUNIT_ASSERT_NOT_NULL(test, dm_state);
 
 	/* context == NULL: dc_state_release() is skipped and the state is freed. */
