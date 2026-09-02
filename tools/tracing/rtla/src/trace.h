@@ -4,6 +4,7 @@
 
 struct trace_events {
 	struct trace_events *next;
+	struct trace_events *prev;
 	char *system;
 	char *event;
 	char *filter;

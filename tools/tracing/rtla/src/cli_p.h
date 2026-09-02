@@ -394,8 +394,10 @@ static int opt_event_cb(const struct option *opt, const char *arg, int unset)
 	if (!tevent)
 		fatal("Error alloc trace event");
 
-	if (*events)
+	if (*events) {
 		tevent->next = *events;
+		(*events)->prev = tevent;
+	}
 	*events = tevent;
 
 	return 0;
