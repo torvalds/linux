@@ -290,6 +290,25 @@ static void __setinlinepair(struct __test_metadata *_metadata,
 	}
 }
 
+static void __setblockingpair(struct __test_metadata *_metadata,
+			      FIXTURE_DATA(msg_oob) *self)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		int ret, old_flags, flags;
+
+		old_flags = fcntl(self->fd[i * 2 + 1], F_GETFL, 0);
+		ASSERT_NE(-1, old_flags);
+
+		ret = fcntl(self->fd[i * 2 + 1], F_SETFL, old_flags & ~O_NONBLOCK);
+		ASSERT_EQ(0, ret);
+
+		flags = fcntl(self->fd[i * 2 + 1], F_GETFL, 0);
+		ASSERT_EQ(old_flags & ~O_NONBLOCK, flags);
+	}
+}
+
 static void __siocatmarkpair(struct __test_metadata *_metadata,
 			     FIXTURE_DATA(msg_oob) *self,
 			     bool oob_head)
@@ -346,6 +365,9 @@ static void __resetpair(struct __test_metadata *_metadata,
 
 #define setinlinepair()							\
 	__setinlinepair(_metadata, self)
+
+#define setblockingpair()						\
+	__setblockingpair(_metadata, self)
 
 #define resetpair(reset)						\
 	__resetpair(_metadata, self, variant, reset)
@@ -886,6 +908,51 @@ TEST_F(msg_oob, inline_ex_oob_siocatmark)
 	siocatmarkpair(false);
 
 	resetpair(true);
+}
+
+TEST_F(msg_oob, zero_buf_oob)
+{
+	sendpair("a", 1, MSG_OOB);
+	recvpair("", 0, 0, 0);
+}
+
+TEST_F(msg_oob, zero_buf_oob_blocking)
+{
+	sendpair("a", 1, MSG_OOB);
+	setblockingpair();
+	recvpair("", 0, 0, 0);
+}
+
+TEST_F(msg_oob, zero_buf_non_oob_oob)
+{
+	sendpair("ab", 2, MSG_OOB);
+	recvpair("", 0, 0, 0);
+}
+
+TEST_F(msg_oob, zero_buf_non_oob_oob_blocking)
+{
+	sendpair("ab", 2, MSG_OOB);
+	setblockingpair();
+	recvpair("", 0, 0, 0);
+}
+
+TEST_F(msg_oob, zero_buf_ex_oob_oob)
+{
+	sendpair("a", 1, MSG_OOB);
+	recvpair("a", 1, 1, MSG_OOB);
+
+	sendpair("b", 1, MSG_OOB);
+	recvpair("", 0, 0, 0);
+}
+
+TEST_F(msg_oob, zero_buf_ex_oob_oob_blocking)
+{
+	sendpair("a", 1, MSG_OOB);
+	recvpair("a", 1, 1, MSG_OOB);
+
+	sendpair("b", 1, MSG_OOB);
+	setblockingpair();
+	recvpair("", 0, 0, 0);
 }
 
 TEST_HARNESS_MAIN
