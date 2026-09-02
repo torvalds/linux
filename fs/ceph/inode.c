@@ -1078,7 +1078,7 @@ static int decode_encrypted_symlink(struct ceph_mds_client *mdsc,
  * Populate an inode based on info from mds.  May be called on new or
  * existing inodes.
  */
-int ceph_fill_inode(struct inode *inode, struct page *locked_page,
+int ceph_fill_inode(struct inode *inode, struct folio *locked_folio,
 		    struct ceph_mds_reply_info_in *iinfo,
 		    struct ceph_mds_reply_dirfrag *dirinfo,
 		    struct ceph_mds_session *session, int cap_fmode,
@@ -1435,7 +1435,7 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 		ceph_set_inline_version(ci, iinfo->inline_version);
 		if (ceph_has_inline_data(ci) &&
-		    (locked_page || (info_caps & cache_caps)))
+		    (locked_folio || (info_caps & cache_caps)))
 			fill_inline = true;
 	}
 
@@ -1451,8 +1451,7 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 	ceph_fscache_register_inode_cookie(inode);
 
 	if (fill_inline)
-		ceph_fill_inline_data(inode,
-				      locked_page ? page_folio(locked_page) : NULL,
+		ceph_fill_inline_data(inode, locked_folio,
 				      iinfo->inline_data, iinfo->inline_len);
 
 	if (wake)
@@ -1782,7 +1781,7 @@ retry_lookup:
 
 		in = req->r_target_inode;
 		ceph_inode_set_subvolume(in, rinfo->targeti.subvolume_id);
-		err = ceph_fill_inode(in, req->r_locked_page, &rinfo->targeti,
+		err = ceph_fill_inode(in, req->r_locked_folio, &rinfo->targeti,
 				NULL, session,
 				(!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
 				 !test_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags) &&
@@ -3061,7 +3060,7 @@ int ceph_try_to_choose_auth_mds(struct inode *inode, int mask)
  * Verify that we have a lease on the given mask.  If not,
  * do a getattr against an mds.
  */
-int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
+int __ceph_do_getattr(struct inode *inode, struct folio *locked_folio,
 		      int mask, bool force)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(inode->i_sb);
@@ -3090,9 +3089,9 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	ihold(inode);
 	req->r_num_caps = 1;
 	req->r_args.getattr.mask = cpu_to_le32(mask);
-	req->r_locked_page = locked_page;
+	req->r_locked_folio = locked_folio;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
-	if (locked_page && err == 0) {
+	if (locked_folio && err == 0) {
 		u64 inline_version = req->r_reply_info.targeti.inline_version;
 		if (inline_version == 0) {
 			/* the reply is supposed to contain inline data */

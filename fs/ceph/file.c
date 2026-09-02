@@ -2258,8 +2258,7 @@ again:
 			mask = CEPH_STAT_CAP_INLINE_DATA;
 		}
 
-		statret = __ceph_do_getattr(inode, folio ? &folio->page : NULL,
-					    mask, !!folio);
+		statret = __ceph_do_getattr(inode, folio, mask, !!folio);
 		if (statret < 0) {
 			if (folio)
 				folio_put(folio);
