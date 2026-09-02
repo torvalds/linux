@@ -87,12 +87,10 @@ xfs_healthmon_put(
 	struct xfs_healthmon		*hm)
 {
 	if (refcount_dec_and_test(&hm->ref)) {
-		struct xfs_healthmon_event	*event;
-		struct xfs_healthmon_event	*next = hm->first_event;
+		struct xfs_healthmon_event	*event, *s;
 
-		while ((event = next) != NULL) {
+		list_for_each_entry_safe(event, s, &hm->event_list, entry) {
 			trace_xfs_healthmon_drop(hm, event);
-			next = event->next;
 			kfree(event);
 		}
 
@@ -173,9 +171,13 @@ static inline void xfs_healthmon_bump_lost(struct xfs_healthmon *hm)
  */
 static bool
 xfs_healthmon_merge_events(
-	struct xfs_healthmon_event		*existing,
+	struct xfs_healthmon			*hm,
 	const struct xfs_healthmon_event	*new)
 {
+	struct xfs_healthmon_event		*existing =
+		list_last_entry_or_null(&hm->event_list, struct
+				xfs_healthmon_event, entry);
+
 	if (!existing)
 		return false;
 
@@ -281,10 +283,7 @@ __xfs_healthmon_insert(
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
 
-	event->next = hm->first_event;
-	hm->first_event = event;
-	if (!hm->last_event)
-		hm->last_event = event;
+	list_add(&event->entry, &hm->event_list);
 	xfs_healthmon_bump_events(hm);
 	wake_up(&hm->wait);
 
@@ -304,12 +303,7 @@ __xfs_healthmon_push(
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
 
-	if (!hm->first_event)
-		hm->first_event = event;
-	if (hm->last_event)
-		hm->last_event->next = event;
-	hm->last_event = event;
-	event->next = NULL;
+	list_add_tail(&event->entry, &hm->event_list);
 	xfs_healthmon_bump_events(hm);
 	wake_up(&hm->wait);
 
@@ -328,7 +322,7 @@ xfs_healthmon_clear_lost_prev(
 	};
 	struct xfs_healthmon_event	*event = NULL;
 
-	if (xfs_healthmon_merge_events(hm->last_event, &lost_event)) {
+	if (xfs_healthmon_merge_events(hm, &lost_event)) {
 		wake_up(&hm->wait);
 		goto cleared;
 	}
@@ -375,7 +369,7 @@ xfs_healthmon_push(
 	}
 
 	/* Try to merge with the newest event */
-	if (xfs_healthmon_merge_events(hm->last_event, template)) {
+	if (xfs_healthmon_merge_events(hm, template)) {
 		wake_up(&hm->wait);
 		goto out_unlock;
 	}
@@ -901,11 +895,10 @@ xfs_healthmon_format_pop(
 		return NULL;
 
 	mutex_lock(&hm->lock);
-	event = hm->first_event;
+	event = list_first_entry_or_null(&hm->event_list,
+			struct xfs_healthmon_event, entry);
 	if (event) {
-		if (hm->last_event == event)
-			hm->last_event = NULL;
-		hm->first_event = event->next;
+		list_del_init(&event->entry);
 		hm->events--;
 
 		trace_xfs_healthmon_pop(hm, event);
@@ -1205,6 +1198,7 @@ xfs_ioc_health_monitor(
 		return -ENOMEM;
 	hm->dev = mp->m_super->s_dev;
 	refcount_set(&hm->ref, 1);
+	INIT_LIST_HEAD(&hm->event_list);
 
 	mutex_init(&hm->lock);
 	init_waitqueue_head(&hm->wait);
