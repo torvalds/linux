@@ -1451,7 +1451,8 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 	ceph_fscache_register_inode_cookie(inode);
 
 	if (fill_inline)
-		ceph_fill_inline_data(inode, locked_page,
+		ceph_fill_inline_data(inode,
+				      locked_page ? page_folio(locked_page) : NULL,
 				      iinfo->inline_data, iinfo->inline_len);
 
 	if (wake)

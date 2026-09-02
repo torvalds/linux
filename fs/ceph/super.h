@@ -1414,8 +1414,8 @@ int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invali
 
 #ifdef CONFIG_CEPH_FS_INLINE_DATA
 extern int ceph_uninline_data(struct file *file);
-extern void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
-				  char *data, size_t len);
+void ceph_fill_inline_data(struct inode *inode, struct folio *locked_folio,
+			   char *data, size_t len);
 
 static inline u64 ceph_inline_version(const struct ceph_inode_info *ci)
 {
@@ -1439,7 +1439,7 @@ static inline int ceph_uninline_data(struct file *file)
 }
 
 static inline void ceph_fill_inline_data(struct inode *inode,
-					 struct page *locked_page,
+					 struct folio *locked_folio,
 					 char *data, size_t len)
 {
 }
