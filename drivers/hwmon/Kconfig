@@ -1490,6 +1490,22 @@ config SENSORS_MENF21BMC_HWMON
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_hwmon.
 
+config SENSORS_MINISFORUM_UM780XTX
+	tristate "Minisforum UM780 XTX EC hardware monitoring"
+	depends on ACPI_EC && DMI && X86
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the embedded controller in the Minisforum UM780 XTX.
+	  This includes CPU and system fan speeds, their control temperatures,
+	  two CPU fan profiles, system fan temperature thresholds, and
+	  preservation of the selected settings across suspend and resume.
+
+	  This driver only binds to explicitly supported board and firmware
+	  versions.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called minisforum-um780xtx.
+
 config SENSORS_MR75203
 	tristate "Moortec Semiconductor MR75203 PVT Controller"
 	select REGMAP_MMIO
