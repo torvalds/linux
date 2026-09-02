@@ -108,6 +108,7 @@ struct common_params {
 	bool			kernel_workload;
 	bool			user_data;
 	bool			aa_only;
+	bool			ipi;
 
 	struct actions		threshold_actions;
 	struct actions		end_actions;

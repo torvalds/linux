@@ -78,6 +78,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		RTLA_OPT_STOP_TOTAL('S', "stop-total", "total sample"),
 		OSNOISE_OPT_THRESHOLD,
 		RTLA_OPT_TRACE_OUTPUT("osnoise", opt_osnoise_trace_output_cb),
+		OSNOISE_OPT_IPI,
 
 	OPT_GROUP("Event Configuration:"),
 		RTLA_OPT_EVENT,
