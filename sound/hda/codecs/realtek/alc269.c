@@ -2379,6 +2379,33 @@ static void alc_fixup_headset_mode_alc255_no_hp_mic(struct hda_codec *codec,
 	}
 }
 
+/*
+ * On the Acer Aspire A515-57G (and possibly other models sharing this
+ * board), if headphones are already inserted into the combo jack before
+ * the codec powers up (cold boot), the impedance-based headset-type
+ * sensing races and misclassifies the jack, driving the wrong output
+ * configuration (audible as missing center-panned/vocal content). A
+ * genuine physical unplug/replug after boot fixes it by forcing a fresh
+ * sense transient. Mirror that here on cold boot only: give the sense
+ * hardware time to settle, then force a fresh classification.
+ */
+static void alc_fixup_headset_mode_acer_coldboot(struct hda_codec *codec,
+						 const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	alc_fixup_headset_mode(codec, fix, action);
+
+	if (action == HDA_FIXUP_ACT_INIT &&
+	    !is_s3_resume(codec) && !is_s4_resume(codec) &&
+		spec->current_headset_mode != ALC_HEADSET_MODE_UNPLUGGED) {
+		msleep(500);
+		spec->current_headset_mode = ALC_HEADSET_MODE_UNKNOWN;
+		spec->current_headset_type = ALC_HEADSET_TYPE_UNKNOWN;
+		alc_fixup_headset_mode(codec, fix, action);
+	}
+}
+
 static void alc288_update_headset_jack_cb(struct hda_codec *codec,
 				       struct hda_jack_callback *jack)
 {
@@ -4248,6 +4275,7 @@ enum {
 	ALC282_FIXUP_ACER_DISABLE_LINEOUT,
 	ALC255_FIXUP_ACER_LIMIT_INT_MIC_BOOST,
 	ALC256_FIXUP_ACER_HEADSET_MIC,
+	ALC256_FIXUP_ACER_COLDBOOT,
 	ALC285_FIXUP_IDEAPAD_S740_COEF,
 	ALC285_FIXUP_HP_LIMIT_INT_MIC_BOOST,
 	ALC295_FIXUP_ASUS_DACS,
@@ -6311,6 +6339,12 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC
 	},
+	[ALC256_FIXUP_ACER_COLDBOOT] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_headset_mode_acer_coldboot,
+		.chained = true,
+		.chain_id = ALC256_FIXUP_ACER_SFG16_MICMUTE_LED,
+	},
 	[ALC285_FIXUP_IDEAPAD_S740_COEF] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc285_fixup_ideapad_s740_coef,
@@ -7148,7 +7182,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x1597, "Acer Nitro 5 AN517-55", ALC2XX_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1025, 0x159e, "Acer Nitro 5 AN515-46", ALC2XX_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1025, 0x160e, "Acer PT316-51S", ALC2XX_FIXUP_HEADSET_MIC),
-	SND_PCI_QUIRK(0x1025, 0x1616, "Acer Aspire A515-57", ALC256_FIXUP_ACER_SFG16_MICMUTE_LED),
+	SND_PCI_QUIRK(0x1025, 0x1616, "Acer Aspire A515-57", ALC256_FIXUP_ACER_COLDBOOT),
 	SND_PCI_QUIRK(0x1025, 0x161f, "Acer S40-54", ALC256_FIXUP_ACER_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1025, 0x1640, "Acer Aspire A315-44P", ALC256_FIXUP_ACER_SFG16_MICMUTE_LED),
 	SND_PCI_QUIRK(0x1025, 0x166c, "Acer Predator PH16-71", ALC2XX_FIXUP_HEADSET_MIC),
