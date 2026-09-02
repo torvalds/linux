@@ -375,6 +375,14 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 		return;
 	}
 
+	// Because readers disable preemption, we should never get here.
+	// However, a splat and some spinning is usually preferable to
+	// memory corruption due to a too-short grace period.  There is
+	// the possibility that this will hang if the preempted reader is
+	// not looked upon favorably by the scheduler, but this is still
+	// preferable to memory corruption.
+	WARN_ON_ONCE(1);
+
 	// Wait to drive a grace period or for someone else to do it
 	// for us while we are lazily preempted.
 	while (ssp->srcu_atomic_gp_flag) {
