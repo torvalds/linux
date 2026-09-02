@@ -270,10 +270,16 @@ out_merge:
 	return true;
 }
 
-/* Insert an event onto the start of the queue. */
+enum insert_where {
+	INSERT_HEAD,
+	INSERT_TAIL,
+};
+
+/* Add an event onto the start or the end of the queue. */
 static inline void
 __xfs_healthmon_insert(
 	struct xfs_healthmon		*hm,
+	enum insert_where		where,
 	struct xfs_healthmon_event	*event)
 {
 	struct timespec64		now;
@@ -283,31 +289,21 @@ __xfs_healthmon_insert(
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
 
-	list_add(&event->entry, &hm->event_list);
+	switch (where) {
+	case INSERT_HEAD:
+		trace_xfs_healthmon_insert_head(hm, event);
+
+		list_add(&event->entry, &hm->event_list);
+		break;
+	case INSERT_TAIL:
+		trace_xfs_healthmon_insert_tail(hm, event);
+
+		list_add_tail(&event->entry, &hm->event_list);
+		break;
+	}
+
 	xfs_healthmon_bump_events(hm);
 	wake_up(&hm->wait);
-
-	trace_xfs_healthmon_insert(hm, event);
-}
-
-/* Push an event onto the end of the queue. */
-static inline void
-__xfs_healthmon_push(
-	struct xfs_healthmon		*hm,
-	struct xfs_healthmon_event	*event)
-{
-	struct timespec64		now;
-
-	lockdep_assert_held(&hm->lock);
-
-	ktime_get_coarse_real_ts64(&now);
-	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
-
-	list_add_tail(&event->entry, &hm->event_list);
-	xfs_healthmon_bump_events(hm);
-	wake_up(&hm->wait);
-
-	trace_xfs_healthmon_push(hm, event);
 }
 
 /* Deal with any previously lost events */
@@ -333,7 +329,7 @@ xfs_healthmon_clear_lost_prev(
 	if (!event)
 		return -ENOMEM;
 
-	__xfs_healthmon_push(hm, event);
+	__xfs_healthmon_insert(hm, INSERT_TAIL, event);
 cleared:
 	hm->lost_prev_event = 0;
 	return 0;
@@ -386,7 +382,7 @@ xfs_healthmon_push(
 		goto out_unlock;
 	}
 
-	__xfs_healthmon_push(hm, event);
+	__xfs_healthmon_insert(hm, INSERT_TAIL, event);
 
 out_unlock:
 	mutex_unlock(&hm->lock);
@@ -415,7 +411,7 @@ xfs_healthmon_unmount(
 	 * we've inserted the unmount event, hm no longer owns that event.
 	 */
 	mutex_lock(&hm->lock);
-	__xfs_healthmon_insert(hm, hm->unmount_event);
+	__xfs_healthmon_insert(hm, INSERT_HEAD, hm->unmount_event);
 	hm->unmount_event = NULL;
 	mutex_unlock(&hm->lock);
 
@@ -1214,7 +1210,7 @@ xfs_ioc_health_monitor(
 	}
 	running_event->type = XFS_HEALTHMON_RUNNING;
 	running_event->domain = XFS_HEALTHMON_MOUNT;
-	__xfs_healthmon_insert(hm, running_event);
+	__xfs_healthmon_insert(hm, INSERT_HEAD, running_event);
 
 	/*
 	 * Preallocate the unmount event so that we can't fail to notify the
