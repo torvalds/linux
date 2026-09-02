@@ -103,7 +103,6 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 	bbio->can_use_append = orig_bbio->can_use_append;
 	bbio->is_scrub = orig_bbio->is_scrub;
 	bbio->is_remap = orig_bbio->is_remap;
-	bbio->async_csum = orig_bbio->async_csum;
 
 	atomic_inc(&orig_bbio->pending_ios);
 	return bbio;
@@ -113,9 +112,6 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 {
 	/* Make sure we're already in task context. */
 	ASSERT(in_task());
-
-	if (bbio->async_csum)
-		wait_for_completion(&bbio->csum_done);
 
 	bbio->bio.bi_status = status;
 	if (bbio->bio.bi_pool == &btrfs_clone_bioset) {

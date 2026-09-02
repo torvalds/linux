@@ -58,7 +58,6 @@ struct btrfs_bio {
 			struct btrfs_ordered_extent *ordered;
 			struct btrfs_ordered_sum *sums;
 			struct work_struct csum_work;
-			struct completion csum_done;
 			struct bvec_iter csum_saved_iter;
 			u64 orig_physical;
 			u64 orig_logical;
@@ -92,9 +91,6 @@ struct btrfs_bio {
 
 	/* Whether the bio is coming from copy_remapped_data_io(). */
 	bool is_remap:1;
-
-	/* Whether the csum generation for data write is async. */
-	bool async_csum:1;
 
 	/* Whether the bio is written using zone append. */
 	bool can_use_append:1;
