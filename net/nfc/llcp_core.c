@@ -20,6 +20,8 @@ static LIST_HEAD(llcp_devices);
 /* Protects llcp_devices list */
 static DEFINE_SPINLOCK(llcp_devices_lock);
 
+static struct workqueue_struct *llcp_wq;
+
 static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
 
 void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *sk)
@@ -63,21 +65,33 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 	}
 }
 
+static struct sock *nfc_llcp_sock_list_pop(struct llcp_sock_list *l)
+{
+	struct sock *sk;
+
+	write_lock(&l->lock);
+	sk = sk_head(&l->head);
+	if (sk) {
+		sock_hold(sk);
+		sk_del_node_init(sk);
+	}
+	write_unlock(&l->lock);
+
+	return sk;
+}
+
 static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 				    int err)
 {
 	struct sock *sk;
-	struct hlist_node *tmp;
 	struct nfc_llcp_sock *llcp_sock;
 
 	skb_queue_purge(&local->tx_queue);
 
-	write_lock(&local->sockets.lock);
-
-	sk_for_each_safe(sk, tmp, &local->sockets.head) {
+	while ((sk = nfc_llcp_sock_list_pop(&local->sockets))) {
 		llcp_sock = nfc_llcp_sock(sk);
 
-		bh_lock_sock(sk);
+		lock_sock(sk);
 
 		nfc_llcp_socket_purge(llcp_sock);
 
@@ -91,17 +105,27 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 			list_for_each_entry_safe(lsk, n,
 						 &llcp_sock->accept_queue,
 						 accept_queue) {
+				bool put_creation = false;
+
 				accept_sk = &lsk->sk;
-				bh_lock_sock(accept_sk);
+				lock_sock_nested(accept_sk,
+						 SINGLE_DEPTH_NESTING);
 
-				nfc_llcp_accept_unlink(accept_sk);
+				if (nfc_llcp_sock(accept_sk)->parent == sk) {
+					nfc_llcp_accept_unlink(accept_sk);
+					nfc_llcp_sock_unlink(&local->sockets, accept_sk);
 
-				if (err)
-					accept_sk->sk_err = err;
-				accept_sk->sk_state = LLCP_CLOSED;
-				accept_sk->sk_state_change(sk);
+					if (err)
+						accept_sk->sk_err = err;
+					accept_sk->sk_state = LLCP_CLOSED;
+					accept_sk->sk_state_change(accept_sk);
+					sock_orphan(accept_sk);
+					put_creation = true;
+				}
 
-				bh_unlock_sock(accept_sk);
+				release_sock(accept_sk);
+				if (put_creation)
+					sock_put(accept_sk); /* creation ref */
 			}
 		}
 
@@ -110,23 +134,18 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 		sk->sk_state = LLCP_CLOSED;
 		sk->sk_state_change(sk);
 
-		bh_unlock_sock(sk);
-
-		sk_del_node_init(sk);
+		release_sock(sk);
+		sock_put(sk);
 	}
-
-	write_unlock(&local->sockets.lock);
 
 	/* If we still have a device, we keep the RAW sockets alive */
 	if (device == true)
 		return;
 
-	write_lock(&local->raw_sockets.lock);
-
-	sk_for_each_safe(sk, tmp, &local->raw_sockets.head) {
+	while ((sk = nfc_llcp_sock_list_pop(&local->raw_sockets))) {
 		llcp_sock = nfc_llcp_sock(sk);
 
-		bh_lock_sock(sk);
+		lock_sock(sk);
 
 		nfc_llcp_socket_purge(llcp_sock);
 
@@ -135,26 +154,20 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 		sk->sk_state = LLCP_CLOSED;
 		sk->sk_state_change(sk);
 
-		bh_unlock_sock(sk);
-
-		sk_del_node_init(sk);
+		release_sock(sk);
+		sock_put(sk);
 	}
-
-	write_unlock(&local->raw_sockets.lock);
 }
 
 static struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local)
 {
-	/* Since using nfc_llcp_local may result in usage of nfc_dev, whenever
-	 * we hold a reference to local, we also need to hold a reference to
-	 * the device to avoid UAF.
-	 */
-	if (!nfc_get_device(local->dev->idx))
+	if (!local)
 		return NULL;
 
-	kref_get(&local->ref);
+	if (kref_get_unless_zero(&local->ref))
+		return local;
 
-	return local;
+	return NULL;
 }
 
 static void local_cleanup(struct nfc_llcp_local *local)
@@ -172,30 +185,34 @@ static void local_cleanup(struct nfc_llcp_local *local)
 	nfc_llcp_free_sdp_tlv_list(&local->pending_sdreqs);
 }
 
+static void local_release_work(struct work_struct *work)
+{
+	struct nfc_llcp_local *local;
+	struct nfc_dev *dev;
+
+	local = container_of(work, struct nfc_llcp_local, release_work);
+	dev = local->dev;
+
+	local_cleanup(local);
+	kfree(local);
+	nfc_put_device(dev);
+}
+
 static void local_release(struct kref *ref)
 {
 	struct nfc_llcp_local *local;
 
 	local = container_of(ref, struct nfc_llcp_local, ref);
 
-	local_cleanup(local);
-	kfree(local);
+	queue_work(llcp_wq, &local->release_work);
 }
 
 int nfc_llcp_local_put(struct nfc_llcp_local *local)
 {
-	struct nfc_dev *dev;
-	int ret;
-
-	if (local == NULL)
+	if (!local)
 		return 0;
 
-	dev = local->dev;
-
-	ret = kref_put(&local->ref, local_release);
-	nfc_put_device(dev);
-
-	return ret;
+	return kref_put(&local->ref, local_release);
 }
 
 static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
@@ -1705,6 +1722,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	INIT_WORK(&local->rx_work, nfc_llcp_rx_work);
 
 	INIT_WORK(&local->timeout_work, nfc_llcp_timeout_work);
+	INIT_WORK(&local->release_work, local_release_work);
 
 	rwlock_init(&local->sockets.lock);
 	rwlock_init(&local->connecting_sockets.lock);
@@ -1748,10 +1766,23 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 
 int __init nfc_llcp_init(void)
 {
-	return nfc_llcp_sock_init();
+	int ret;
+
+	llcp_wq = alloc_workqueue("nfc_llcp_wq", WQ_UNBOUND, 0);
+	if (!llcp_wq)
+		return -ENOMEM;
+
+	ret = nfc_llcp_sock_init();
+	if (ret) {
+		destroy_workqueue(llcp_wq);
+		return ret;
+	}
+
+	return 0;
 }
 
 void nfc_llcp_exit(void)
 {
 	nfc_llcp_sock_exit();
+	destroy_workqueue(llcp_wq);
 }
