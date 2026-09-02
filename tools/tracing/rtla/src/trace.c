@@ -494,6 +494,10 @@ static int trace_event_enable_filter(struct trace_instance *instance,
 	char filter[MAX_PATH];
 	int retval;
 
+	/* Unconditionally clean any pre-existing filters */
+	tracefs_event_file_write(instance->inst, tevent->system,
+				 tevent->event, "filter", "0");
+
 	if (!tevent->filter)
 		return 0;
 

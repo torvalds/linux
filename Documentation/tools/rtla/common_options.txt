@@ -26,12 +26,19 @@
 
 **--filter** *<filter>*
 
-        Filter the previous **-e** *sys:event* event with *<filter>*. For further information about event filtering see https://www.kernel.org/doc/html/latest/trace/events.html#event-filtering.
+        Filter the previous **-e** *sys:event* event with *<filter>*.
+
+        If the same event is specified more than once but with different filters, the last specified filter will be the only one applied.
+
+	For further information about event filtering see https://www.kernel.org/doc/html/latest/trace/events.html#event-filtering.
 
         This option cannot be unset.
 
 **--trigger** *<trigger>*
         Enable a trace event trigger to the previous **-e** *sys:event*.
+
+        If the same event is specified more than once but with different triggers, the last specified trigger will be the only one applied.
+
         If the *hist:* trigger is activated, the output histogram will be automatically saved to a file named *system_event_hist.txt*.
         For example, the command:
 
