@@ -214,6 +214,12 @@ struct srcu_struct {
  * instead of smp_mb(), and given that the first (for example)
  * srcu_read_lock_fast() might race with the first synchronize_srcu(),
  * this different must be specified at initialization time.
+ *
+ * If you use any of the DEFINE_SRCU() functions within a module, the
+ * module-entry code will invoke init_srcu_struct() and the module-exit
+ * code will invoke cleanup_srcu_struct().  This means that if your module
+ * passes the resulting srcu_struct structure to call_srcu(), you will
+ * need to also pass this structure to srcu_barrier() prior to module exit.
  */
 #ifdef MODULE
 # define __DEFINE_SRCU(name, fast, is_static)							\
