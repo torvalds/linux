@@ -71,6 +71,7 @@ extern void map_cpu_to_node(int cpu, int node);
 extern void unmap_cpu_from_node(unsigned long cpu);
 #endif /* CONFIG_HOTPLUG_CPU */
 
+int cpu_to_coregroup_id(int cpu);
 #else
 
 static inline int early_cpu_to_node(int cpu) { return 0; }
@@ -107,14 +108,6 @@ static inline void map_cpu_to_node(int cpu, int node) {}
 static inline void unmap_cpu_from_node(unsigned long cpu) {}
 #endif /* CONFIG_HOTPLUG_CPU */
 #endif /* CONFIG_SMP */
-
-#endif /* CONFIG_NUMA */
-
-#if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
-void find_and_update_cpu_nid(int cpu);
-extern int cpu_to_coregroup_id(int cpu);
-#else
-static inline void find_and_update_cpu_nid(int cpu) {}
 static inline int cpu_to_coregroup_id(int cpu)
 {
 #ifdef CONFIG_SMP
@@ -124,6 +117,12 @@ static inline int cpu_to_coregroup_id(int cpu)
 #endif
 }
 
+#endif /* CONFIG_NUMA */
+
+#if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
+void find_and_update_cpu_nid(int cpu);
+#else
+static inline void find_and_update_cpu_nid(int cpu) {}
 #endif /* CONFIG_NUMA && CONFIG_PPC_SPLPAR */
 
 #include <asm-generic/topology.h>

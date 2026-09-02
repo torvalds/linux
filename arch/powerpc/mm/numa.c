@@ -1428,6 +1428,21 @@ void find_and_update_cpu_nid(int cpu)
 	pr_debug("%s:%d cpu %d nid %d\n", __func__, __LINE__, cpu, new_nid);
 }
 
+static int topology_update_init(void)
+{
+	topology_inited = 1;
+	return 0;
+}
+device_initcall(topology_update_init);
+
+#else
+static long vphn_get_associativity(unsigned long cpu,
+					__be32 *associativity)
+{
+	return -1;
+}
+#endif /* CONFIG_PPC_SPLPAR */
+
 int cpu_to_coregroup_id(int cpu)
 {
 	__be32 associativity[VPHN_ASSOC_BUFSIZE] = {0};
@@ -1453,10 +1468,3 @@ out:
 	return cpu_to_core_id(cpu);
 }
 
-static int topology_update_init(void)
-{
-	topology_inited = 1;
-	return 0;
-}
-device_initcall(topology_update_init);
-#endif /* CONFIG_PPC_SPLPAR */
