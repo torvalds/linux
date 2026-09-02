@@ -326,8 +326,10 @@ xfs_healthmon_clear_lost_prev(
 	if (hm->events < XFS_HEALTHMON_MAX_EVENTS)
 		event = kmemdup(&lost_event, sizeof(struct xfs_healthmon_event),
 				GFP_NOFS);
-	if (!event)
+	if (!event) {
+		xfs_healthmon_bump_lost(hm);
 		return -ENOMEM;
+	}
 
 	__xfs_healthmon_insert(hm, INSERT_TAIL, event);
 cleared:
