@@ -192,7 +192,7 @@ xfs_healthmon_merge_events(
 
 	case XFS_HEALTHMON_LOST:
 		existing->lostcount += new->lostcount;
-		return true;
+		goto out_merge;
 
 	case XFS_HEALTHMON_SICK:
 	case XFS_HEALTHMON_CORRUPT:
@@ -200,19 +200,19 @@ xfs_healthmon_merge_events(
 		switch (existing->domain) {
 		case XFS_HEALTHMON_FS:
 			existing->fsmask |= new->fsmask;
-			return true;
+			goto out_merge;
 		case XFS_HEALTHMON_AG:
 		case XFS_HEALTHMON_RTGROUP:
 			if (existing->group == new->group){
 				existing->grpmask |= new->grpmask;
-				return true;
+				goto out_merge;
 			}
 			return false;
 		case XFS_HEALTHMON_INODE:
 			if (existing->ino == new->ino &&
 			    existing->gen == new->gen) {
 				existing->imask |= new->imask;
-				return true;
+				goto out_merge;
 			}
 			return false;
 		default:
@@ -224,18 +224,18 @@ xfs_healthmon_merge_events(
 	case XFS_HEALTHMON_SHUTDOWN:
 		/* yes, we can race to shutdown */
 		existing->flags |= new->flags;
-		return true;
+		goto out_merge;
 
 	case XFS_HEALTHMON_MEDIA_ERROR:
 		/* physically adjacent errors can merge */
 		if (existing->daddr + existing->bbcount == new->daddr) {
 			existing->bbcount += new->bbcount;
-			return true;
+			goto out_merge;
 		}
 		if (new->daddr + new->bbcount == existing->daddr) {
 			existing->daddr = new->daddr;
 			existing->bbcount += new->bbcount;
-			return true;
+			goto out_merge;
 		}
 		return false;
 
@@ -250,18 +250,22 @@ xfs_healthmon_merge_events(
 
 		if (existing->fpos + existing->flen == new->fpos) {
 			existing->flen += new->flen;
-			return true;
+			goto out_merge;
 		}
 
 		if (new->fpos + new->flen == existing->fpos) {
 			existing->fpos = new->fpos;
 			existing->flen += new->flen;
-			return true;
+			goto out_merge;
 		}
 		return false;
 	}
 
 	return false;
+
+out_merge:
+	trace_xfs_healthmon_merge(hm, existing);
+	return true;
 }
 
 /* Insert an event onto the start of the queue. */
@@ -325,7 +329,6 @@ xfs_healthmon_clear_lost_prev(
 	struct xfs_healthmon_event	*event = NULL;
 
 	if (xfs_healthmon_merge_events(hm->last_event, &lost_event)) {
-		trace_xfs_healthmon_merge(hm, hm->last_event);
 		wake_up(&hm->wait);
 		goto cleared;
 	}
@@ -373,7 +376,6 @@ xfs_healthmon_push(
 
 	/* Try to merge with the newest event */
 	if (xfs_healthmon_merge_events(hm->last_event, template)) {
-		trace_xfs_healthmon_merge(hm, hm->last_event);
 		wake_up(&hm->wait);
 		goto out_unlock;
 	}
