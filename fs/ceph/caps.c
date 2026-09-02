@@ -3202,12 +3202,12 @@ int __ceph_get_caps(struct inode *inode, struct ceph_file_info *fi, int need,
 		    ceph_has_inline_data(ci) &&
 		    (_got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
 		    i_size_read(inode) > 0) {
-			struct page *page =
-				find_get_page(inode->i_mapping, 0);
-			if (page) {
-				bool uptodate = PageUptodate(page);
+			struct folio *folio =
+				filemap_get_folio(inode->i_mapping, 0);
+			if (!IS_ERR(folio)) {
+				bool uptodate = folio_test_uptodate(folio);
 
-				put_page(page);
+				folio_put(folio);
 				if (uptodate)
 					break;
 			}
