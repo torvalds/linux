@@ -65,6 +65,10 @@ int osnoise_enable(struct osnoise_tool *tool);
 int osnoise_main(int argc, char **argv);
 int hwnoise_main(int argc, char **argv);
 
+int osnoise_init_ipi_filters(struct osnoise_tool *tool,
+			     struct common_params *params,
+			     bool *filters_enabled);
+
 extern struct tool_ops timerlat_top_ops, timerlat_hist_ops;
 extern struct tool_ops osnoise_top_ops, osnoise_hist_ops;
 

@@ -228,7 +228,7 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 
 	if (params->threshold_actions.present[ACTION_TRACE_OUTPUT] ||
 	    params->end_actions.present[ACTION_TRACE_OUTPUT]) {
-		tool->record = osnoise_init_trace_tool(ops->tracer);
+		tool->record = osnoise_init_trace_tool(params, ops->tracer);
 		if (!tool->record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;

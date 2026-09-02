@@ -1223,9 +1223,55 @@ struct osnoise_tool *osnoise_init_tool(char *tool_name)
 }
 
 /*
+ * osnoise_init_ipi_filters - Initialize event filtering for IPI events
+ */
+int osnoise_init_ipi_filters(struct osnoise_tool *tool,
+				    struct common_params *params,
+				    bool *filters_enabled)
+{
+	char filter[MAX_PATH];
+	int retval;
+	/*
+	 * If tracing on a subset of possible CPUs, leverage the kernel filtering
+	 * infrastructure to only generate events on traced CPUs.
+	 * Older kernels (pre v6.6) may have the IPI events but not the ability
+	 * to filter them, so allow that to fail gracefully.
+	 */
+
+	snprintf(filter, ARRAY_SIZE(filter), "cpu & CPUS{%s}\n", params->cpus);
+	retval = tracefs_event_file_write(tool->trace.inst,
+					  "ipi", "ipi_send_cpu", "filter",
+					  filter);
+	if (retval < 0) {
+		debug_msg("Could not set ipi_send_cpu CPU filter\n");
+		*filters_enabled = false;
+		return 0;
+	}
+
+
+	snprintf(filter, ARRAY_SIZE(filter), "cpumask & CPUS{%s}\n", params->cpus);
+	retval = tracefs_event_file_write(tool->trace.inst,
+					  "ipi", "ipi_send_cpumask", "filter",
+					  filter);
+	if (retval < 0) {
+		/*
+		 * If we managed to set up the previous filter but not
+		 * this one, something's really wrong
+		 */
+		err_msg("Could not set ipi_send_cpumask CPU filter\n");
+		*filters_enabled = false;
+		return -1;
+	}
+
+	*filters_enabled = true;
+	return 0;
+}
+
+/*
  * osnoise_init_trace_tool - init a tracer instance to trace osnoise events
  */
-struct osnoise_tool *osnoise_init_trace_tool(const char *tracer)
+struct osnoise_tool *osnoise_init_trace_tool(struct common_params *params,
+					     const char *tracer)
 {
 	struct osnoise_tool *trace;
 	int retval;
@@ -1240,6 +1286,30 @@ struct osnoise_tool *osnoise_init_trace_tool(const char *tracer)
 		goto out_err;
 	}
 
+	if (!params->ipi)
+		goto done;
+
+	retval = tracefs_event_enable(trace->trace.inst, "ipi", "ipi_send_cpu");
+	if (retval < 0 && !errno) {
+		err_msg("Could not find ipi_send_cpu event\n");
+		goto out_err;
+	}
+
+	retval = tracefs_event_enable(trace->trace.inst, "ipi", "ipi_send_cpumask");
+	if (retval < 0 && !errno) {
+		err_msg("Could not find ipi_send_cpumask event\n");
+		goto out_err;
+	}
+
+	if (params->cpus) {
+		bool unused;
+
+		retval = osnoise_init_ipi_filters(trace, params, &unused);
+		if (retval < 0)
+			goto out_err;
+	}
+
+done:
 	retval = enable_tracer_by_name(trace->trace.inst, tracer);
 	if (retval) {
 		err_msg("Could not enable %s tracer for tracing\n", tracer);

@@ -393,7 +393,7 @@ osnoise_ipi_cpumask_handler(struct trace_seq *s, struct tep_record *record,
  */
 struct osnoise_tool *osnoise_init_top(struct common_params *params)
 {
-	bool ipi_filters_enabled = false;
+	bool ipi_filters_enabled;
 	struct osnoise_tool *tool;
 	int retval;
 
@@ -425,41 +425,11 @@ struct osnoise_tool *osnoise_init_top(struct common_params *params)
 		goto out_err;
 	}
 
-	/*
-	 * If tracing on a subset of possible CPUs, leverage the kernel filtering
-	 * infrastructure to only generate events on traced CPUs.
-	 * Older kernels (pre v6.6) may have the IPI events but not the ability
-	 * to filter them, so allow that to fail gracefully.
-	 */
 	if (params->cpus) {
-		char filter[MAX_PATH];
-
-		snprintf(filter, ARRAY_SIZE(filter), "cpu & CPUS{%s}\n", params->cpus);
-		retval = tracefs_event_file_write(tool->trace.inst,
-						  "ipi", "ipi_send_cpu", "filter",
-						  filter);
-		if (retval < 0) {
-			debug_msg("Could not set ipi_send_cpu CPU filter\n");
-			goto no_filter;
-		}
-
-
-		snprintf(filter, ARRAY_SIZE(filter), "cpumask & CPUS{%s}\n", params->cpus);
-		retval = tracefs_event_file_write(tool->trace.inst,
-						  "ipi", "ipi_send_cpumask", "filter",
-						  filter);
-		if (retval < 0) {
-			/*
-			 * If we managed to set up the previous filter but not
-			 * this one, something's really wrong
-			 */
-			err_msg("Could not set ipi_send_cpumask CPU filter\n");
+		retval = osnoise_init_ipi_filters(tool, params, &ipi_filters_enabled);
+		if (retval < 0)
 			goto out_err;
-		}
-
-		ipi_filters_enabled = true;
 	}
-no_filter:
 
 	/*
 	 * If no filtering is available and we're tracing all CPUs, we can still
