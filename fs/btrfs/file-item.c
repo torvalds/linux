@@ -797,18 +797,18 @@ fail:
 	return ret;
 }
 
-static void csum_one_bio(struct btrfs_bio *bbio, struct bvec_iter *src)
+static void csum_one_bio(struct btrfs_bio *bbio)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_sum *sums = bbio->sums;
-	struct bvec_iter iter;
 	const u32 blocksize = fs_info->sectorsize;
 	int index = 0;
 
-	for (iter = *src; iter.bi_size; bio_advance_iter(&bbio->bio, &iter, blocksize)) {
-		btrfs_csum_one_bio_block(fs_info, &bbio->bio, &iter,
-					 sums->sums + index);
+	for (struct bvec_iter *iter = &bbio->csum_saved_iter;
+	     iter->bi_size;
+	     bio_advance_iter(&bbio->bio, iter, blocksize)) {
+		btrfs_csum_one_bio_block(fs_info, &bbio->bio, iter, sums->sums + index);
 
 		index += fs_info->csum_size;
 	}
@@ -820,7 +820,7 @@ static void csum_one_bio_work(struct work_struct *work)
 
 	ASSERT(btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE);
 	ASSERT(bbio->async_csum == true);
-	csum_one_bio(bbio, &bbio->csum_saved_iter);
+	csum_one_bio(bbio);
 	complete(&bbio->csum_done);
 }
 
@@ -850,13 +850,13 @@ int btrfs_csum_one_bio(struct btrfs_bio *bbio, bool async)
 	bbio->sums = sums;
 	btrfs_add_ordered_sum(ordered, sums);
 
+	bbio->csum_saved_iter = bio->bi_iter;
 	if (!async) {
-		csum_one_bio(bbio, &bbio->bio.bi_iter);
+		csum_one_bio(bbio);
 		return 0;
 	}
 	init_completion(&bbio->csum_done);
 	bbio->async_csum = true;
-	bbio->csum_saved_iter = bbio->bio.bi_iter;
 	INIT_WORK(&bbio->csum_work, csum_one_bio_work);
 	schedule_work(&bbio->csum_work);
 	return 0;
