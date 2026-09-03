@@ -47,7 +47,7 @@ There is only one value per file, unlike the older /proc specification.
 The common scheme for files naming is: <type><number>_<item>. Usual
 types for sensor chips are "in" (voltage), "temp" (temperature) and
 "fan" (fan). Usual items are "input" (measured value), "max" (high
-threshold, "min" (low threshold). Numbering usually starts from 1,
+threshold), "min" (low threshold). Numbering usually starts from 1,
 except for voltages which start from 0 (because most data sheets use
 this). A number is always used for elements that can be present more
 than once, even if there is a single element of the given type on the
