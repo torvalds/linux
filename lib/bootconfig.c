@@ -536,18 +536,21 @@ static char xbc_namebuf[XBC_KEYLEN_MAX] __initdata;
 #define rest(dst, end) ((end) > (dst) ? (end) - (dst) : 0)
 
 /**
- * xbc_snprint_cmdline() - Render bootconfig keys under @root as a cmdline string
+ * xbc_snprint_cmdline_filter() - Render bootconfig keys as cmdline string
  * @buf: Destination buffer (may be NULL when @size is 0 to query the length)
  * @size: Size of @buf in bytes
  * @root: Subtree root whose key=value pairs should be rendered
+ * @filter: Filter callback (returns true to include, false to skip; may be NULL)
+ * @data: Private context passed to @filter
  *
  * Walk all key/value pairs under @root and emit them as a space-separated
  * cmdline string into @buf. Values containing whitespace are quoted with
- * double quotes. Returns the number of bytes that would be written if @buf
- * were large enough (matching snprintf semantics), or a negative errno on
- * failure.
+ * double quotes. Keys for which @filter returns false are omitted.
+ * Returns the number of bytes that would be written if @buf were large enough
+ * (matching snprintf semantics), or a negative errno on failure.
  */
-int __init xbc_snprint_cmdline(char *buf, size_t size, struct xbc_node *root)
+int __init xbc_snprint_cmdline_filter(char *buf, size_t size, struct xbc_node *root,
+				      xbc_cmdline_filter_fn filter, void *data)
 {
 	struct xbc_node *knode, *vnode;
 	const char *val, *q;
@@ -578,6 +581,9 @@ int __init xbc_snprint_cmdline(char *buf, size_t size, struct xbc_node *root)
 					xbc_namebuf, XBC_KEYLEN_MAX);
 		if (ret < 0)
 			return ret;
+
+		if (filter && !filter(knode, xbc_namebuf, data))
+			continue;
 
 		vnode = xbc_node_get_child(knode);
 		if (!vnode) {
