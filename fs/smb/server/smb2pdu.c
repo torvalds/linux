@@ -85,8 +85,6 @@ struct channel *lookup_chann_list(struct ksmbd_session *sess, struct ksmbd_conn 
 	return chann;
 }
 
-#define KSMBD_MAX_CHANNELS	32
-
 static int register_session_channel(struct ksmbd_session *sess,
 				    struct ksmbd_conn *conn,
 				    const char *sess_key)
@@ -933,8 +931,14 @@ static bool smb2_session_expired_cmd_allowed(struct ksmbd_work *work,
 
 static bool smb2_session_kerberos_expired(struct ksmbd_session *sess)
 {
-	return sess->kerberos_expiry &&
-		ktime_get_real_seconds() >= sess->kerberos_expiry;
+	if (!sess->kerberos_expiry ||
+	    ktime_get_real_seconds() < sess->kerberos_expiry)
+		return false;
+
+	if (cmpxchg(&sess->state, SMB2_SESSION_VALID,
+		    SMB2_SESSION_EXPIRED) == SMB2_SESSION_VALID)
+		ksmbd_counter_inc(KSMBD_COUNTER_SESSION_TIMEOUTS);
+	return true;
 }
 
 /**
@@ -969,9 +973,8 @@ int smb2_check_user_session(struct ksmbd_work *work)
 		if (!work->next_smb2_rcv_hdr_off && sess_id)
 			work->sess = ksmbd_session_lookup_all_states(conn, sess_id);
 		if (work->sess) {
-			if (smb2_session_kerberos_expired(work->sess)) {
-				work->sess->state = SMB2_SESSION_EXPIRED;
-			} else if (work->sess->state != SMB2_SESSION_VALID) {
+			if (!smb2_session_kerberos_expired(work->sess) &&
+			    work->sess->state != SMB2_SESSION_VALID) {
 				ksmbd_user_session_put(work->sess);
 				work->sess = NULL;
 			}
@@ -996,8 +999,7 @@ int smb2_check_user_session(struct ksmbd_work *work)
 					sess_id, work->sess->id);
 			return -EINVAL;
 		}
-		if (smb2_session_kerberos_expired(work->sess))
-			work->sess->state = SMB2_SESSION_EXPIRED;
+		smb2_session_kerberos_expired(work->sess);
 		if (work->sess->state != SMB2_SESSION_VALID) {
 			pr_err("compound request on a non-valid session (state %d)\n",
 					work->sess->state);
@@ -1014,7 +1016,6 @@ int smb2_check_user_session(struct ksmbd_work *work)
 	work->sess = ksmbd_session_lookup_all_states(conn, sess_id);
 	if (work->sess) {
 		if (smb2_session_kerberos_expired(work->sess)) {
-			work->sess->state = SMB2_SESSION_EXPIRED;
 			return smb2_session_expired_cmd_allowed(work, cmd) ?
 				1 : -EKEYEXPIRED;
 		}
@@ -2436,7 +2437,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 	struct smb2_sess_setup_req *req;
 	struct smb2_sess_setup_rsp *rsp;
-	struct ksmbd_session *sess;
+	struct ksmbd_session *sess = NULL;
 	struct negotiate_message *negblob;
 	unsigned int negblob_len, negblob_off;
 	int rc = 0;
@@ -2592,6 +2593,9 @@ int smb2_sess_setup(struct ksmbd_work *work)
 			goto out_err;
 		}
 
+		if (work->session_setup_reauth)
+			WRITE_ONCE(sess->state, SMB2_SESSION_IN_PROGRESS);
+
 		conn->binding = false;
 	}
 	work->sess = sess;
@@ -2703,6 +2707,14 @@ out_err:
 	}
 
 	if (rc < 0) {
+		bool setup_in_progress = sess &&
+			READ_ONCE(sess->state) == SMB2_SESSION_IN_PROGRESS &&
+			!(req->Flags & SMB2_SESSION_REQ_FLAG_BINDING);
+
+		/* Authentication errors must not leave the new session published. */
+		if (setup_in_progress)
+			ksmbd_session_unregister(conn, sess);
+
 		if (sess && conn->dialect == SMB311_PROT_ID &&
 		    (req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)) {
 			struct preauth_session *preauth_sess;
@@ -2736,7 +2748,8 @@ out_err:
 			 * For binding requests, session belongs to another
 			 * connection. Do not expire it.
 			 */
-			if (!(req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)) {
+			if (!(req->Flags & SMB2_SESSION_REQ_FLAG_BINDING) &&
+			    !setup_in_progress) {
 				sess->last_active = jiffies;
 				sess->kerberos_expiry = 0;
 				sess->state = SMB2_SESSION_EXPIRED;
