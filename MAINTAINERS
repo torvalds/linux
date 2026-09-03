@@ -24772,7 +24772,7 @@ K:	\bsecurity_[a-z_0-9]\+\b
 SELINUX SECURITY MODULE
 M:	Paul Moore <paul@paul-moore.com>
 M:	Stephen Smalley <stephen.smalley.work@gmail.com>
-R:	Ondrej Mosnacek <omosnace@redhat.com>
+R:	Ondrej Mosnáček <omosnacek@gmail.com>
 L:	selinux@vger.kernel.org
 S:	Supported
 W:	https://github.com/SELinuxProject
