@@ -58,7 +58,7 @@ static struct table_header *unpack_table(const char *blob, size_t bsize)
 	if (th.td_lolen == 0)
 		goto out;
 	tsize = table_size(th.td_lolen, th.td_flags);
-	if (bsize < tsize)
+	if (!tsize || bsize < tsize)
 		goto out;
 
 	table = kvzalloc(tsize, GFP_KERNEL);
@@ -281,6 +281,10 @@ static struct table_header *remap_data16_to_data32(struct table_header *old)
 	u32 i;
 
 	tsize = table_size(old->td_lolen, YYTD_DATA32);
+	if (!tsize) {
+		kvfree(old);
+		return NULL;
+	}
 	new = kvzalloc(tsize, GFP_KERNEL);
 	if (!new) {
 		kvfree(old);

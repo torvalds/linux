@@ -1053,6 +1053,11 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 		u16 tdflags = pdb->dfa->tables[YYTD_ID_ACCEPT]->td_flags;
 		size_t tsize = table_size(noents, tdflags);
 
+		if (!tsize) {
+			*info = "invalid dfa flags table size";
+			error = -EPROTO;
+			goto fail;
+		}
 		pdb->dfa->tables[YYTD_ID_ACCEPT2] = kvzalloc(tsize, GFP_KERNEL);
 		if (!pdb->dfa->tables[YYTD_ID_ACCEPT2]) {
 			*info = "failed to alloc dfa flags table";

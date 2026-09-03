@@ -12,6 +12,7 @@
 #define __AA_MATCH_H
 
 #include <linux/kref.h>
+#include <linux/overflow.h>
 
 #define DFA_NOMATCH			0
 #define DFA_START			1
@@ -120,7 +121,15 @@ struct aa_dfa {
 
 static inline size_t table_size(size_t len, size_t el_size)
 {
-	return ALIGN(sizeof(struct table_header) + len * el_size, 8);
+	size_t size;
+
+	/* Need check_*_overflow for 32 bit machines */
+	if (check_mul_overflow(len, el_size, &size) ||
+	    check_add_overflow(size, sizeof(struct table_header), &size) ||
+	    size > SIZE_MAX - 7)
+		return 0;
+
+	return ALIGN(size, 8);
 }
 
 #define aa_state_t unsigned int
