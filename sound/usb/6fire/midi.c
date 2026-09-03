@@ -66,7 +66,7 @@ static void usb6fire_midi_out_trigger(
 		struct snd_rawmidi_substream *alsa_sub, int up)
 {
 	struct midi_runtime *rt = alsa_sub->rmidi->private_data;
-	struct urb *urb = &rt->out_urb;
+	struct urb *urb = rt->out_urb;
 	__s8 ret;
 
 	guard(spinlock_irqsave)(&rt->out_lock);
@@ -137,6 +137,19 @@ static const struct snd_rawmidi_ops in_ops = {
 	.trigger = usb6fire_midi_in_trigger
 };
 
+static void usb6fire_midi_free(struct midi_runtime *rt)
+{
+	if (!rt)
+		return;
+
+	if (rt->chip)
+		rt->chip->midi = NULL;
+
+	usb_free_urb(rt->out_urb);
+	kfree(rt->out_buffer);
+	kfree(rt);
+}
+
 int usb6fire_midi_init(struct sfire_chip *chip)
 {
 	int ret;
@@ -148,8 +161,14 @@ int usb6fire_midi_init(struct sfire_chip *chip)
 
 	rt->out_buffer = kzalloc(MIDI_BUFSIZE, GFP_KERNEL);
 	if (!rt->out_buffer) {
-		kfree(rt);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	rt->out_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!rt->out_urb) {
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	rt->chip = chip;
@@ -160,15 +179,13 @@ int usb6fire_midi_init(struct sfire_chip *chip)
 	spin_lock_init(&rt->in_lock);
 	spin_lock_init(&rt->out_lock);
 
-	comm_rt->init_urb(comm_rt, &rt->out_urb, rt->out_buffer, rt,
+	comm_rt->init_urb(comm_rt, rt->out_urb, rt->out_buffer, rt,
 			usb6fire_midi_out_handler);
 
 	ret = snd_rawmidi_new(chip->card, "6FireUSB", 0, 1, 1, &rt->instance);
 	if (ret < 0) {
-		kfree(rt->out_buffer);
-		kfree(rt);
 		dev_err(&chip->dev->dev, "unable to create midi.\n");
-		return ret;
+		goto error;
 	}
 	rt->instance->private_data = rt;
 	strscpy(rt->instance->name, "DMX6FireUSB MIDI");
@@ -182,6 +199,10 @@ int usb6fire_midi_init(struct sfire_chip *chip)
 
 	chip->midi = rt;
 	return 0;
+
+ error:
+	usb6fire_midi_free(rt);
+	return ret;
 }
 
 void usb6fire_midi_abort(struct sfire_chip *chip)
@@ -189,14 +210,10 @@ void usb6fire_midi_abort(struct sfire_chip *chip)
 	struct midi_runtime *rt = chip->midi;
 
 	if (rt)
-		usb_poison_urb(&rt->out_urb);
+		usb_poison_urb(rt->out_urb);
 }
 
 void usb6fire_midi_destroy(struct sfire_chip *chip)
 {
-	struct midi_runtime *rt = chip->midi;
-
-	kfree(rt->out_buffer);
-	kfree(rt);
-	chip->midi = NULL;
+	usb6fire_midi_free(chip->midi);
 }
