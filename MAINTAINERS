@@ -4515,6 +4515,8 @@ M:	Prasad Bolisetty <pbolisetty@axiado.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/hwmon/axiado,ax3000-tsadc.yaml
+F:	Documentation/hwmon/axiado-tsadc.rst
+F:	drivers/hwmon/axiado-tsadc.c
 
 AYANEO PLATFORM EC DRIVER
 M:	Antheas Kapenekakis <lkml@antheas.dev>

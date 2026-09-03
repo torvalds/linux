@@ -51,6 +51,7 @@ Hardware Monitoring Kernel Drivers
    asus_ec_sensors
    asus_rog_ryujin
    asus_wmi_sensors
+   axiado-tsadc
    bcm54140
    bel-pfe
    bpa-rs600
