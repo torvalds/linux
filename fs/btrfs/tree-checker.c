@@ -1962,18 +1962,30 @@ static int check_inode_extref(struct extent_buffer *leaf,
 {
 	unsigned long ptr = btrfs_item_ptr_offset(leaf, slot);
 	unsigned long end = ptr + btrfs_item_size(leaf, slot);
+	const bool is_fstree = btrfs_is_fstree(btrfs_header_owner(leaf));
 
 	if (unlikely(!check_prev_ino(leaf, key, slot, prev_key)))
 		return -EUCLEAN;
 
 	while (ptr < end) {
 		struct btrfs_inode_extref *extref = (struct btrfs_inode_extref *)ptr;
+		u64 parent;
 		u16 namelen;
 
 		if (unlikely(ptr + sizeof(*extref) > end)) {
 			inode_ref_err(leaf, slot,
 			"inode extref overflow, ptr %lu end %lu inode_extref size %zu",
 				      ptr, end, sizeof(*extref));
+			return -EUCLEAN;
+		}
+
+		parent = btrfs_inode_extref_parent(leaf, extref);
+		if (unlikely(is_fstree && (parent < BTRFS_FIRST_FREE_OBJECTID ||
+					   parent > BTRFS_LAST_FREE_OBJECTID))) {
+			inode_ref_err(leaf, slot,
+		      "invalid parent for extref key, have %llu expect [%llu, %lld]",
+			      parent, BTRFS_FIRST_FREE_OBJECTID,
+				      BTRFS_LAST_FREE_OBJECTID);
 			return -EUCLEAN;
 		}
 
