@@ -53,6 +53,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/log2.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
@@ -113,6 +114,7 @@ struct pcc_chan_info {
 #define to_pcc_chan_info(c) container_of(c, struct pcc_chan_info, chan)
 static struct pcc_chan_info *chan_info;
 static int pcc_chan_count;
+static DEFINE_MUTEX(pcc_chan_mutex);
 
 /*
  * PCC can be used with perf critical drivers such as CPPC
@@ -392,6 +394,8 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 	if (subspace_id < 0 || subspace_id >= pcc_chan_count)
 		return ERR_PTR(-ENOENT);
 
+	guard(mutex)(&pcc_chan_mutex);
+
 	pchan = chan_info + subspace_id;
 	chan = pchan->chan.mchan;
 	if (IS_ERR(chan) || chan->cl) {
@@ -433,6 +437,8 @@ void pcc_mbox_free_channel(struct pcc_mbox_chan *pchan)
 	struct mbox_chan *chan = pchan->mchan;
 	struct pcc_chan_info *pchan_info;
 	struct pcc_mbox_chan *pcc_mbox_chan;
+
+	guard(mutex)(&pcc_chan_mutex);
 
 	if (!chan || !chan->cl)
 		return;
