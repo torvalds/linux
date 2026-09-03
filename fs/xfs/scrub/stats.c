@@ -188,31 +188,37 @@ STATIC void
 xchk_stats_merge_one(
 	struct xchk_stats		*cs,
 	const struct xfs_scrub_metadata	*sm,
+	int				error,
 	const struct xchk_stats_run	*run)
 {
 	struct xchk_scrub_stats		*css;
+	unsigned int			sm_flags = sm->sm_flags;
 
 	if (sm->sm_type >= XFS_SCRUB_TYPE_NR) {
 		ASSERT(sm->sm_type < XFS_SCRUB_TYPE_NR);
 		return;
 	}
 
+	/* caller applies this same transformation after we return */
+	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
+		sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+
 	css = &cs->cs_stats[sm->sm_type];
 	spin_lock(&css->css_lock);
 	css->invocations++;
-	if (!(sm->sm_flags & XFS_SCRUB_OFLAG_UNCLEAN))
+	if (!(sm_flags & XFS_SCRUB_OFLAG_UNCLEAN))
 		css->clean++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+	if (sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		css->corrupt++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_PREEN)
+	if (sm_flags & XFS_SCRUB_OFLAG_PREEN)
 		css->preen++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_XFAIL)
+	if (sm_flags & XFS_SCRUB_OFLAG_XFAIL)
 		css->xfail++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_XCORRUPT)
+	if (sm_flags & XFS_SCRUB_OFLAG_XCORRUPT)
 		css->xcorrupt++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
+	if (sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
 		css->incomplete++;
-	if (sm->sm_flags & XFS_SCRUB_OFLAG_WARNING)
+	if (sm_flags & XFS_SCRUB_OFLAG_WARNING)
 		css->warning++;
 	css->retries += run->retries;
 	css->checktime_us += howmany_64(run->scrub_ns, NSEC_PER_USEC);
@@ -230,10 +236,14 @@ void
 xchk_stats_merge(
 	struct xfs_mount		*mp,
 	const struct xfs_scrub_metadata	*sm,
+	int				error,
 	const struct xchk_stats_run	*run)
 {
-	xchk_stats_merge_one(&global_stats, sm, run);
-	xchk_stats_merge_one(mp->m_scrub_stats, sm, run);
+	if (error == -ENOENT)
+		return;
+
+	xchk_stats_merge_one(&global_stats, sm, error, run);
+	xchk_stats_merge_one(mp->m_scrub_stats, sm, error, run);
 }
 
 /* debugfs boilerplate */
