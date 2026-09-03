@@ -379,7 +379,7 @@ static int axiado_mbox_probe(struct platform_device *pdev)
 		return ret;
 
 	for (i = 0; i < drv_data->num_chans; i++) {
-		char name[16];
+		char name[32];
 
 		ch_data[i].channel_num = i;
 		ch_data[i].chan = &mb->mbox.chans[i];
