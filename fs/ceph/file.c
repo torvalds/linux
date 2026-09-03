@@ -329,10 +329,6 @@ int ceph_renew_caps(struct inode *inode, int fmode)
 		flags = O_RDONLY;
 	else if (wanted & CEPH_CAP_FILE_WR)
 		flags = O_WRONLY;
-#ifdef O_LAZY
-	if (wanted & CEPH_CAP_FILE_LAZYIO)
-		flags |= O_LAZY;
-#endif
 
 	req = prepare_open_request(inode->i_sb, flags, 0);
 	if (IS_ERR(req)) {
@@ -340,6 +336,10 @@ int ceph_renew_caps(struct inode *inode, int fmode)
 		goto out;
 	}
 
+	if (wanted & CEPH_CAP_FILE_LAZYIO) {
+		req->r_fmode |= CEPH_FILE_MODE_LAZY;
+		req->r_args.open.flags |= cpu_to_le32(CEPH_O_LAZY);
+	}
 	req->r_inode = inode;
 	ihold(inode);
 	req->r_num_caps = 1;
@@ -391,6 +391,19 @@ int ceph_open(struct inode *inode, struct file *file)
 	doutc(cl, "%p %llx.%llx file %p flags %d (%d)\n", inode,
 	      ceph_vinop(inode), file, flags, file->f_flags);
 	fmode = ceph_flags_to_mode(flags);
+
+	/*
+	 * If lazyio mount option is set, enable lazyio for all regular
+	 * files.  Skip snapped files: snap caps never include LAZYIO,
+	 * so including it in wanted would force an unnecessary MDS
+	 * round-trip for every open of a snapped file.
+	 */
+	if (S_ISREG(inode->i_mode) &&
+	    ceph_snap(inode) == CEPH_NOSNAP &&
+	    (fsc->mount_options->flags & CEPH_MOUNT_OPT_LAZYIO)) {
+		fmode |= CEPH_FILE_MODE_LAZY;
+	}
+
 	wanted = ceph_caps_for_mode(fmode);
 
 	if (fmode & CEPH_FILE_MODE_WR)
@@ -467,13 +480,16 @@ int ceph_open(struct inode *inode, struct file *file)
 		err = PTR_ERR(req);
 		goto out;
 	}
+	req->r_fmode |= fmode & CEPH_FILE_MODE_LAZY;
+	if (fmode & CEPH_FILE_MODE_LAZY)
+		req->r_args.open.flags |= cpu_to_le32(CEPH_O_LAZY);
 	req->r_inode = inode;
 	ihold(inode);
 
 	req->r_num_caps = 1;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	if (!err)
-		err = ceph_init_file(inode, file, req->r_fmode);
+		err = ceph_init_file(inode, file, fmode);
 	ceph_mdsc_put_request(req);
 	doutc(cl, "open result=%d on %llx.%llx\n", err, ceph_vinop(inode));
 out:
@@ -818,6 +834,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		} else {
 			int fmode = ceph_flags_to_mode(flags);
 
+			if (fsc->mount_options->flags & CEPH_MOUNT_OPT_LAZYIO)
+				fmode |= CEPH_FILE_MODE_LAZY;
+
 			mask = MAY_READ;
 			if (fmode & CEPH_FILE_MODE_WR)
 				mask |= MAY_WRITE;
@@ -859,6 +878,10 @@ retry:
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out_ctx;
+	}
+	if (fsc->mount_options->flags & CEPH_MOUNT_OPT_LAZYIO) {
+		req->r_fmode |= CEPH_FILE_MODE_LAZY;
+		req->r_args.open.flags |= cpu_to_le32(CEPH_O_LAZY);
 	}
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;

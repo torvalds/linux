@@ -516,6 +516,10 @@ static int ceph_init_request(struct netfs_io_request *rreq, struct file *file)
 			rreq->netfs_priv = priv;
 			return 0;
 		}
+
+		/* If this is a lazy fd, also try to get LAZYIO caps */
+		if (fi->fmode & CEPH_FILE_MODE_LAZY)
+			want |= CEPH_CAP_FILE_LAZYIO;
 	}
 
 	/*
@@ -2025,6 +2029,42 @@ static void ceph_restore_sigs(sigset_t *oldset)
 }
 
 /*
+ * True if the page cache is only being kept alive by LAZYIO: CACHE is no
+ * longer present in the implemented cap set, while LAZYIO still is, so
+ * handle_cap_grant() left the pages in place for the lazy openers.
+ *
+ * Such pages are only valid under the lazy semantics, and a non-lazy reader
+ * must not be served from them.  try_get_cap_refs() already refuses to
+ * satisfy a non-lazy CACHE want with LAZYIO for read_iter()/write_iter();
+ * faults need the same gate.
+ *
+ * Unlike __prep_cap(), which has to reason about a single cap, the question
+ * here is whether the cached data can have gone stale, so the aggregate of
+ * all caps is the right granularity: as long as any one of them still has
+ * CACHE implemented, its revocation has not been ACKed and the MDS cannot
+ * have handed CACHE to another client.  Note that __ceph_caps_issued()
+ * reports i_snap_caps in "have" only and not in "implemented", hence the
+ * OR; snap caps never include LAZYIO, so folding them in can only make this
+ * more conservative.
+ */
+static bool ceph_pages_retained_for_lazyio(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int have, implemented;
+
+	if (!inode->i_data.nrpages)
+		return false;
+
+	spin_lock(&ci->i_ceph_lock);
+	have = __ceph_caps_issued(ci, &implemented);
+	implemented |= have;
+	spin_unlock(&ci->i_ceph_lock);
+
+	return !(implemented & CEPH_CAP_FILE_CACHE) &&
+	       (implemented & CEPH_CAP_FILE_LAZYIO);
+}
+
+/*
  * vm ops
  */
 static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
@@ -2058,6 +2098,43 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 
 	doutc(cl, "%llx.%llx %llu got cap refs on %s\n", ceph_vinop(inode),
 	      off, ceph_cap_string(got));
+
+	/*
+	 * Don't fault a non-lazy mapping in from page cache that only LAZYIO
+	 * covers.  The "every opener is lazy" gate in handle_cap_grant() can't
+	 * catch this on its own: an open that happens after the cache was
+	 * retained sends no cap message, so nothing re-evaluates the decision.
+	 * Drop the range here instead and let the fault below re-read it.
+	 */
+	if (!(fi->fmode & CEPH_FILE_MODE_LAZY) &&
+	    !(got & CEPH_CAP_FILE_CACHE) &&
+	    ceph_pages_retained_for_lazyio(inode)) {
+		struct address_space *mapping = inode->i_mapping;
+
+		doutc(cl, "%llx.%llx %llu dropping LAZYIO page cache\n",
+		      ceph_vinop(inode), off);
+		err = invalidate_inode_pages2_range(mapping, vmf->pgoff,
+						    vmf->pgoff);
+		if (err == -EBUSY) {
+			/*
+			 * The folio is dirty and ceph has no launder_folio(),
+			 * so invalidate_inode_pages2_range() cannot drop it.
+			 * Write it back and retry -- handing a folio that only
+			 * LAZYIO covers to a non-lazy vma is not an option.
+			 */
+			err = filemap_write_and_wait_range(mapping, off,
+							   off + PAGE_SIZE - 1);
+			if (!err)
+				err = invalidate_inode_pages2_range(mapping,
+						vmf->pgoff, vmf->pgoff);
+		}
+		if (err) {
+			doutc(cl, "%llx.%llx %llu failed to drop LAZYIO page cache: %d\n",
+			      ceph_vinop(inode), off, err);
+			ceph_put_cap_refs(ci, got);
+			goto out_restore;
+		}
+	}
 
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
 	    !ceph_has_inline_data(ci)) {
@@ -2119,6 +2196,30 @@ out_restore:
 	return ret;
 }
 
+/*
+ * Return true if the MDS has issued us a cap that covers buffered
+ * dirtying: either BUFFER, or LAZYIO (as long as LAZYIO itself is not
+ * being revoked).  This mirrors the conditions under which
+ * try_get_cap_refs() will hand out a BUFFER or LAZYIO ref.
+ */
+static bool ceph_have_dirtyable_caps(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int have, implemented;
+	bool ret = false;
+
+	spin_lock(&ci->i_ceph_lock);
+	have = __ceph_caps_issued(ci, &implemented);
+	if (have & CEPH_CAP_FILE_BUFFER) {
+		ret = true;
+	} else if ((have & CEPH_CAP_FILE_LAZYIO) &&
+		   !((implemented & ~have) & CEPH_CAP_FILE_LAZYIO)) {
+		ret = true;
+	}
+	spin_unlock(&ci->i_ceph_lock);
+	return ret;
+}
+
 static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -2157,6 +2258,7 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 
+retry_caps:
 	got = 0;
 	err = ceph_get_caps(vma->vm_file, CEPH_CAP_FILE_WR, want, off + len, &got);
 	if (err < 0)
@@ -2164,6 +2266,42 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 
 	doutc(cl, "%llx.%llx %llu~%zd got cap refs on %s\n", ceph_vinop(inode),
 	      off, len, ceph_cap_string(got));
+
+	/*
+	 * ceph_write_iter() makes the same check and falls back to
+	 * synchronous writes, but a page fault has no such fallback:
+	 * dirtying the folio without BUFFER or LAZYIO would leave dirty
+	 * data uncovered by any issued cap (e.g. while LAZYIO is being
+	 * revoked, or after it has been released).  Wait for the MDS to
+	 * (re)grant a covering cap, matching how the exclude gate in
+	 * try_get_cap_refs() blocks buffered writes while BUFFER is
+	 * revoking.
+	 */
+	if ((fi->fmode & CEPH_FILE_MODE_LAZY) &&
+	    (got & (CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO)) == 0) {
+		ceph_put_cap_refs(ci, got);
+		got = 0;
+		doutc(cl, "%llx.%llx %llu~%zd waiting for BUFFER or LAZYIO\n",
+		      ceph_vinop(inode), off, len);
+		/*
+		 * Bail out if the inode is being shut down: the caps are gone
+		 * for good, so ceph_have_dirtyable_caps() would never become
+		 * true again.  Note that we cannot rely on ceph_get_caps()
+		 * failing with -ESTALE on the retry either -- if WR is still
+		 * held it would succeed without BUFFER or LAZYIO and send us
+		 * straight back here.
+		 */
+		err = wait_event_killable(ci->i_cap_wq,
+					  ceph_have_dirtyable_caps(inode) ||
+					  ceph_inode_is_shutdown(inode));
+		if (err)
+			goto out_free;
+		if (ceph_inode_is_shutdown(inode)) {
+			err = -ESTALE;
+			goto out_free;
+		}
+		goto retry_caps;
+	}
 
 	/* Update time before taking folio lock */
 	file_update_time(vma->vm_file);

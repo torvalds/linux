@@ -1028,6 +1028,53 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
 	return used;
 }
 
+/*
+ * Substitute LAZYIO for CACHE/BUFFER when they are not issued.
+ * If we have LAZYIO but not CACHE/BUFFER, report LAZYIO as used instead
+ * so the MDS knows we're fine with the weaker consistency guarantee.
+ *
+ * Base the substitution on "implemented" rather than "issued": while
+ * LAZYIO is being revoked, "issued" no longer contains it but
+ * "implemented" still does.  If used reverted to CACHE/BUFFER at that
+ * point, ceph_check_caps() would see (revoking & cap_used) == 0 and
+ * ACK the revoke while dirty or stale pages were still present.  Only
+ * once the revoke is ACKed does "implemented" drop LAZYIO.
+ *
+ * Caller must hold i_ceph_lock.
+ */
+static inline int ceph_adjust_caps_used_for_lazyio(struct ceph_inode_info *ci,
+						   int used, int issued,
+						   int implemented)
+{
+	if (!(used & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_BUFFER)))
+		return used;
+	if (!(implemented & CEPH_CAP_FILE_LAZYIO))
+		return used;
+	/*
+	 * While LAZYIO is still issued, it only covers the cached data if
+	 * every opener has accepted the lazy semantics.  With a non-lazy
+	 * opener around, keep reporting CACHE/BUFFER so that a pending
+	 * revocation is not ACKed before the invalidation queued by
+	 * handle_cap_grant() has emptied the page cache.
+	 *
+	 * Once LAZYIO is itself being revoked ("implemented" has it but
+	 * "issued" no longer does) the substitution is unconditional: the
+	 * revoke must not be ACKed while pages are still around, no matter
+	 * who has the file open.
+	 */
+	if ((issued & CEPH_CAP_FILE_LAZYIO) && !__ceph_all_opens_lazy(ci))
+		return used;
+	if (!(issued & CEPH_CAP_FILE_CACHE)) {
+		used &= ~CEPH_CAP_FILE_CACHE;
+		used |= CEPH_CAP_FILE_LAZYIO;
+	}
+	if (!(issued & CEPH_CAP_FILE_BUFFER)) {
+		used &= ~CEPH_CAP_FILE_BUFFER;
+		used |= CEPH_CAP_FILE_LAZYIO;
+	}
+	return used;
+}
+
 #define FMODE_WAIT_BIAS 1000
 
 /*
@@ -1449,6 +1496,20 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_inode_info *ci,
 	 * dirty pages _before_ allowing sync writes to avoid reordering.
 	 */
 	arg->wake = cap->implemented & ~cap->issued;
+	/*
+	 * "used" decides which of the revoked caps stay in cap->implemented,
+	 * i.e. which revocations this message does _not_ ack yet.  Callers on
+	 * the flush paths (try_flush_caps(), __kick_flushing_caps()) hand us
+	 * the raw __ceph_caps_used(), which reports CACHE/BUFFER as long as
+	 * the page cache is populated.  While LAZYIO is being revoked it is no
+	 * longer in cap->issued, so a raw used set would drop it from
+	 * cap->implemented and implicitly ack the revoke with pages still
+	 * cached -- the MDS could then hand CACHE to another client.  Report
+	 * LAZYIO as used instead, and only stop doing so once writeback and
+	 * invalidation have emptied the page cache.
+	 */
+	used = ceph_adjust_caps_used_for_lazyio(ci, used, cap->issued,
+						cap->implemented);
 	cap->implemented &= cap->issued | used;
 	cap->mds_wanted = want;
 
@@ -2094,6 +2155,7 @@ retry:
 	 * usually because they have outstanding references).
 	 */
 	issued = __ceph_caps_issued(ci, &implemented);
+
 	revoking = implemented & ~issued;
 
 	want = file_wanted;
@@ -2185,6 +2247,19 @@ retry:
 		if (ci->i_auth_cap && cap != ci->i_auth_cap)
 			cap_used &= ~ci->i_auth_cap->issued;
 
+		/*
+		 * Substitute LAZYIO for CACHE/BUFFER when they are not issued.
+		 * Do this per cap and not once for the whole inode: only the
+		 * cap that actually holds LAZYIO may report it as used.  A cap
+		 * that is revoking CACHE without holding LAZYIO must keep
+		 * reporting CACHE as used, or the (revoking & cap_used) test
+		 * below would treat the revocation as completed while the page
+		 * cache is still populated.
+		 */
+		cap_used = ceph_adjust_caps_used_for_lazyio(ci, cap_used,
+							   cap->issued,
+							   cap->implemented);
+
 		revoking = cap->implemented & ~cap->issued;
 		doutc(cl, " mds%d cap %p used %s issued %s implemented %s revoking %s\n",
 		      cap->mds, cap, ceph_cap_string(cap_used),
@@ -2209,10 +2284,13 @@ retry:
 			 * at most 5 seconds. That means the MDS needs to wait at
 			 * most 5 seconds to finished the Fb capability's revocation.
 			 *
-			 * Let's queue a writeback for it.
+			 * Let's queue a writeback for it.  The same applies when
+			 * LAZYIO is revoked while it was covering for BUFFER
+			 * (dirty pages exist, but BUFFER isn't issued).
 			 */
 			if (S_ISREG(inode->i_mode) && ci->i_wrbuffer_ref &&
-			    (revoking & CEPH_CAP_FILE_BUFFER))
+			    (revoking & (CEPH_CAP_FILE_BUFFER |
+					 CEPH_CAP_FILE_LAZYIO)))
 				queue_writeback = true;
 		}
 
@@ -2961,9 +3039,45 @@ again:
 				}
 				snap_rwsem_locked = true;
 			}
-			if ((have & want) == want)
+			/*
+			 * Allow LAZYIO to act as a substitute for
+			 * CACHE or BUFFER when those caps are not
+			 * issued, but only for callers that
+			 * explicitly requested LAZYIO.  This
+			 * prevents a non-lazy fd from having its
+			 * CACHE/BUFFER wants satisfied by LAZYIO
+			 * on an inode where a different fd is lazy.
+			 *
+			 * A missing LAZYIO cap, however, must never
+			 * cost us the CACHE/BUFFER refs that are
+			 * actually issued: the MDS only grants
+			 * LAZYIO for files opened with CEPH_O_LAZY
+			 * and it can be revoked at any time.  If we
+			 * made the whole want unsatisfiable without
+			 * it, the I/O paths would silently drop
+			 * CACHE/BUFFER (e.g. take no wrbuffer refs)
+			 * and degrade to synchronous writes.
+			 */
+			if ((have & (want & ~CEPH_CAP_FILE_LAZYIO)) ==
+			    (want & ~CEPH_CAP_FILE_LAZYIO)) {
+				*got = need | (want & ~exclude &
+					       ~CEPH_CAP_FILE_LAZYIO);
+				if ((want & CEPH_CAP_FILE_LAZYIO) &&
+				    (have & CEPH_CAP_FILE_LAZYIO) &&
+				    !(exclude & CEPH_CAP_FILE_LAZYIO))
+					*got |= CEPH_CAP_FILE_LAZYIO;
+			} else if ((want & CEPH_CAP_FILE_LAZYIO) &&
+				   (have & CEPH_CAP_FILE_LAZYIO) &&
+				   !(exclude & CEPH_CAP_FILE_LAZYIO) &&
+				   ((have & want) ==
+				    (want & ~(CEPH_CAP_FILE_CACHE |
+					      CEPH_CAP_FILE_BUFFER)))) {
+				/*
+				 * LAZYIO substitutes for missing CACHE/BUFFER;
+				 * it is already included via (want & ~exclude).
+				 */
 				*got = need | (want & ~exclude);
-			else
+			} else
 				*got = need;
 			ceph_take_cap_refs(ci, *got, true);
 			ret = 1;
@@ -3052,6 +3166,14 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY);
 }
 
+/*
+ * The inverse of ceph_caps_for_mode().  LAZYIO has to be mapped back as
+ * well: __ceph_get_caps() feeds the result to ceph_get_fmode() to bias
+ * i_nr_by_mode[] by FMODE_WAIT_BIAS while it waits, and dropping LAZY
+ * here would bias the open count without biasing the lazy count, making
+ * __ceph_all_opens_lazy() report a phantom non-lazy opener for as long
+ * as a lazy fd is waiting for caps.
+ */
 static inline int get_used_fmode(int caps)
 {
 	int fmode = 0;
@@ -3059,6 +3181,8 @@ static inline int get_used_fmode(int caps)
 		fmode |= CEPH_FILE_MODE_RD;
 	if (caps & CEPH_CAP_FILE_WR)
 		fmode |= CEPH_FILE_MODE_WR;
+	if (caps & CEPH_CAP_FILE_LAZYIO)
+		fmode |= CEPH_FILE_MODE_LAZY;
 	return fmode;
 }
 
@@ -3620,17 +3744,74 @@ static void handle_cap_grant(struct inode *inode,
 
 
 	/*
-	 * If CACHE is being revoked, and we have no dirty buffers,
-	 * try to invalidate (once).  (If there are dirty buffers, we
-	 * will invalidate _after_ writeback.)
+	 * Check the revocation of *both* CACHE and LAZYIO, because
+	 * CACHE may have been revoked earlier and cap->issued no
+	 * longer contains it -- at that point only LAZYIO was
+	 * covering us.  If LAZYIO is now also being revoked and no
+	 * cache cap remains, we must invalidate the page cache.
+	 * Without this, a CACHE-revoked-then-LAZYIO-revoked sequence
+	 * leaves stale pages in memory until the next periodic
+	 * check_caps (up to 60s).  Also invalidate when we have no
+	 * dirty buffers (if dirty, invalidate after writeback).
+	 *
+	 * Keeping the page cache alive on a remaining LAZYIO is only
+	 * safe if every opener has accepted the lazy semantics: those
+	 * pages are retained for the lazy fds alone, and a non-lazy
+	 * reader (mmap, or an fd that never asked for LAZYIO) must not
+	 * be served from them.  So drop the cache as well whenever a
+	 * non-lazy opener is around.
 	 */
 	if (S_ISREG(inode->i_mode) && /* don't invalidate readdir cache */
-	    ((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
-	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
+	    ((cap->issued & ~newcaps) &
+	     (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) &&
+	    !(newcaps & CEPH_CAP_FILE_CACHE) &&
+	    (!(newcaps & CEPH_CAP_FILE_LAZYIO) ||
+	     !__ceph_all_opens_lazy(ci)) &&
 	    !(ci->i_wrbuffer_ref || ci->i_wb_ref)) {
 		if (try_nonblocking_invalidate(inode)) {
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */
+			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
+				queue_invalidate = true;
+				ci->i_rdcache_revoking = ci->i_rdcache_gen;
+			}
+		}
+	}
+
+	/*
+	 * The counterpart on the grant arm: pages that survived a CACHE
+	 * revocation are only kept alive by LAZYIO, and they may have
+	 * gone stale while CACHE was away.  Once a later grant brings
+	 * CACHE back, ceph_pages_retained_for_lazyio() (addr.c) turns
+	 * false the moment CACHE shows up in the implemented set, and a
+	 * non-lazy opener would be served those folios as coherent
+	 * CACHE data.  Drop the cache here, before a non-lazy
+	 * read_iter/fault can use it.
+	 *
+	 * The aggregate check below still sees the pre-grant state:
+	 * cap->issued and cap->implemented are only updated further
+	 * down, so CACHE is absent from "implemented" here, exactly
+	 * as it was when the pages were retained.
+	 *
+	 * Dirty folios (this client's own lazy writes) are not
+	 * droppable -- ceph has no launder_folio() -- and are left in
+	 * place by the invalidate, which is fine: they hold current
+	 * local data.
+	 */
+	if (S_ISREG(inode->i_mode) &&
+	    ((newcaps & ~cap->issued) & CEPH_CAP_FILE_CACHE) &&
+	    inode->i_data.nrpages) {
+		int have, implemented;
+
+		have = __ceph_caps_issued(ci, &implemented);
+		implemented |= have;
+		if (!(implemented & CEPH_CAP_FILE_CACHE) &&
+		    (implemented & CEPH_CAP_FILE_LAZYIO) &&
+		    try_nonblocking_invalidate(inode)) {
+			/*
+			 * There were locked pages.. invalidate later in
+			 * a separate thread.
+			 */
 			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 				queue_invalidate = true;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
@@ -3770,6 +3951,8 @@ static void handle_cap_grant(struct inode *inode,
 	/* check cap bits */
 	wanted = __ceph_caps_wanted(ci);
 	used = __ceph_caps_used(ci);
+	used = ceph_adjust_caps_used_for_lazyio(ci, used, cap->issued,
+						cap->implemented);
 	dirty = __ceph_caps_dirty(ci);
 	doutc(cl, " my wanted = %s, used = %s, dirty %s\n",
 	      ceph_cap_string(wanted), ceph_cap_string(used),
@@ -3797,13 +3980,26 @@ static void handle_cap_grant(struct inode *inode,
 		doutc(cl, "revocation: %s -> %s (revoking %s)\n",
 		      ceph_cap_string(cap->issued), ceph_cap_string(newcaps),
 		      ceph_cap_string(revoking));
+		/*
+		 * If BUFFER is being revoked and we have dirty data,
+		 * trigger writeback before acking.  When LAZYIO was
+		 * covering for BUFFER (BUFFER not issued, dirty refs
+		 * held), also trigger writeback.  Clean cached pages
+		 * under LAZYIO are handled by queue_invalidate below.
+		 */
 		if (S_ISREG(inode->i_mode) &&
 		    (revoking & used & CEPH_CAP_FILE_BUFFER)) {
 			writeback = true;  /* initiate writeback; will delay ack */
 			revoke_wait = true;
+		} else if (S_ISREG(inode->i_mode) &&
+			   (revoking & used & CEPH_CAP_FILE_LAZYIO) &&
+			   (ci->i_wrbuffer_ref || ci->i_wb_ref)) {
+			/* LAZYIO was covering for dirty data — flush first */
+			writeback = true;
+			revoke_wait = true;
 		} else if (queue_invalidate &&
-			 revoking == CEPH_CAP_FILE_CACHE &&
-			 (newcaps & CEPH_CAP_FILE_LAZYIO) == 0) {
+			 (revoking & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) &&
+			 !(newcaps & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO))) {
 			revoke_wait = true; /* do nothing yet, invalidation will be queued */
 		} else if (cap == ci->i_auth_cap) {
 			check_caps = 1; /* check auth cap only */

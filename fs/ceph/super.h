@@ -46,6 +46,7 @@
 #define CEPH_MOUNT_OPT_NOPAGECACHE     (1<<16) /* bypass pagecache altogether */
 #define CEPH_MOUNT_OPT_SPARSEREAD      (1<<17) /* always do sparse reads */
 #define CEPH_MOUNT_OPT_NEARFULL_SYNC   (1<<18) /* sync writes when nearfull */
+#define CEPH_MOUNT_OPT_LAZYIO          (1<<19) /* force lazyio for all file opens */
 
 #define CEPH_MOUNT_OPT_DEFAULT			\
 	(CEPH_MOUNT_OPT_DCACHE |		\
@@ -907,6 +908,22 @@ static inline bool __ceph_is_file_opened(struct ceph_inode_info *ci)
 {
 	return ci->i_nr_by_mode[0];
 }
+
+/*
+ * True if the inode is open and every opener is a lazy one.  Bit 0 of
+ * i_nr_by_mode[] is set for every open regardless of mode (see
+ * ceph_get_fmode()), so it doubles as the total open count.
+ *
+ * Callers must hold i_ceph_lock.
+ */
+static inline bool __ceph_all_opens_lazy(struct ceph_inode_info *ci)
+{
+	int nr_open = ci->i_nr_by_mode[ffs(CEPH_FILE_MODE_PIN)];
+	int nr_lazy = ci->i_nr_by_mode[ffs(CEPH_FILE_MODE_LAZY)];
+
+	return nr_open > 0 && nr_lazy >= nr_open;
+}
+
 extern int __ceph_caps_file_wanted(struct ceph_inode_info *ci);
 extern int __ceph_caps_wanted(struct ceph_inode_info *ci);
 

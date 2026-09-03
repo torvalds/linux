@@ -414,6 +414,7 @@ extern const char *ceph_mds_op_name(int op);
 #define CEPH_O_CREAT		00000100
 #define CEPH_O_EXCL		00000200
 #define CEPH_O_TRUNC		00001000
+#define CEPH_O_LAZY		00020000
 #define CEPH_O_DIRECTORY	00200000
 #define CEPH_O_NOFOLLOW		00400000
 
