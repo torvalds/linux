@@ -428,7 +428,7 @@ static inline void
 xchk_rtrefcountbt_xref_gaps(
 	struct xfs_scrub	*sc,
 	struct xchk_rtrefcbt_records *rrc,
-	xfs_rtblock_t		bno)
+	xfs_rgblock_t		bno)
 {
 	struct xfs_rmap_irec	low;
 	struct xfs_rmap_irec	high;
@@ -538,7 +538,7 @@ xchk_refcount_xref_rmap(
 		xchk_btree_xref_set_corrupt(sc, sc->sr.rmap_cur, 0);
 }
 
-/* Scrub the refcount btree for some AG. */
+/* Scrub the refcount btree for some rtgroup. */
 int
 xchk_rtrefcountbt(
 	struct xfs_scrub	*sc)
@@ -564,10 +564,10 @@ xchk_rtrefcountbt(
 
 	/*
 	 * Check that all blocks between the last refcount > 1 record and the
-	 * end of the rt volume have at most one reverse mapping.
+	 * end of the rtgroup have at most one reverse mapping.
 	 */
-	xchk_rtrefcountbt_xref_gaps(sc, &rrc, sc->mp->m_sb.sb_rblocks);
-
+	xchk_rtrefcountbt_xref_gaps(sc, &rrc,
+			xfs_rtx_to_rgbno(sc->sr.rtg, sc->mp->m_sb.sb_rgextents));
 	xchk_refcount_xref_rmap(sc, &btree_oinfo, rrc.cow_blocks);
 
 	return 0;
