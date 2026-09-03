@@ -182,7 +182,7 @@ static struct debug_param_t {
 static int debug_param_num;
 
 /* functions */
-static void debug_get_param(const char *name, int *level, int *pages)
+static void debug_get_param(const char *name, int *level, int *pages, bool quiet)
 {
 	struct debug_param_t *p;
 	int i;
@@ -192,11 +192,13 @@ static void debug_get_param(const char *name, int *level, int *pages)
 		if (!glob_match(p->name, name))
 			continue;
 		if (level && p->level != PARAM_UNSET) {
-			pr_info("%s: override level to %d\n", name, p->level);
+			if (!quiet)
+				pr_info("%s: override level to %d\n", name, p->level);
 			*level = p->level;
 		}
 		if (pages && p->pages != PARAM_UNSET) {
-			pr_info("%s: override pages to %d\n", name, p->pages);
+			if (!quiet)
+				pr_info("%s: override pages to %d\n", name, p->pages);
 			*pages = p->pages;
 		}
 	}
@@ -251,7 +253,7 @@ static int __init s390dbf_parse(char *arg)
 	 * regular memory allocations are possible.
 	 */
 	for (i = 0, id = __s390dbf_info; &id[i] < __s390dbf_info_end; i++)
-		debug_get_param(id[i]->name, &id[i]->level, NULL);
+		debug_get_param(id[i]->name, &id[i]->level, NULL, false);
 
 	return rc;
 }
@@ -395,7 +397,7 @@ static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 	int level = DEBUG_DEFAULT_LEVEL;
 	debug_info_t *rc;
 
-	debug_get_param(name, &level, &pages_per_area);
+	debug_get_param(name, &level, &pages_per_area, false);
 	rc = debug_info_alloc(name, pages_per_area, nr_areas, buf_size, level, ALL_AREAS);
 	if (!rc)
 		goto out;
@@ -960,7 +962,7 @@ void debug_register_static(debug_info_t *id, int pages_per_area, int nr_areas)
 		return;
 	}
 
-	debug_get_param(id->name, &id->level, &pages_per_area);
+	debug_get_param(id->name, &id->level, &pages_per_area, false);
 	copy = debug_info_alloc("", pages_per_area, nr_areas, id->buf_size,
 				id->level, ALL_AREAS);
 	if (!copy) {
@@ -1101,8 +1103,11 @@ void debug_set_level(debug_info_t *id, int new_level)
 	if (!id)
 		return;
 
-	/* Level specified via kernel parameter takes precedence */
-	debug_get_param(id->name, &new_level, NULL);
+	/*
+	 * Level specified via kernel parameter takes precedence. The override
+	 * was already announced during registration, so stay quiet here.
+	 */
+	debug_get_param(id->name, &new_level, NULL, true);
 
 	_debug_set_level(id, new_level);
 }
