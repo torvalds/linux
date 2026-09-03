@@ -1074,9 +1074,6 @@ static void _debug_set_level(debug_info_t *id, int new_level)
 {
 	unsigned long flags;
 
-	if (!id)
-		return;
-
 	if (new_level == DEBUG_OFF_LEVEL) {
 		pr_info("%s: switched off\n", id->name);
 	} else if ((new_level > DEBUG_MAX_LEVEL) || (new_level < 0)) {
@@ -1101,6 +1098,9 @@ static void _debug_set_level(debug_info_t *id, int new_level)
  */
 void debug_set_level(debug_info_t *id, int new_level)
 {
+	if (!id)
+		return;
+
 	/* Level specified via kernel parameter takes precedence */
 	debug_get_param(id->name, &new_level, NULL);
 
