@@ -353,5 +353,28 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 parent root drr"
         ]
+    },
+    {
+        "id": "70fd",
+        "name": "Add u32 filter when node ID pool is exhausted (4096th filter rejected)",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY clsact",
+            "bash -c 'for i in {1..4095}; do echo filter add dev $DUMMY ingress prio 1 protocol ip u32 match u8 0 0 at 0; done | $TC -b -'"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY ingress prio 1 protocol ip u32 match u8 0 0 at 0",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -d filter show dev $DUMMY ingress",
+        "matchPattern": "fh 800::",
+        "matchCount": "4095",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY clsact"
+        ]
     }
 ]
