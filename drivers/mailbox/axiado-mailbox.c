@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/unaligned.h>
 
@@ -35,6 +36,12 @@
 
 #define AXIADO_MBOX_CSR_ERRORS		(AXIADO_MBOX_CSR_OVERFLOW | \
 					 AXIADO_MBOX_CSR_UNDERFLOW)
+
+enum axiado_mbox_frame_result {
+	AXIADO_MBOX_FRAME_EMPTY,
+	AXIADO_MBOX_FRAME_OK,
+	AXIADO_MBOX_FRAME_BAD,		/* malformed/incomplete; FIFO flushed */
+};
 
 struct axiado_mbox_data {
 	u8 num_chans;
@@ -116,6 +123,13 @@ static int axiado_mbox_send_data(struct mbox_chan *chan, void *data)
 		return -EBUSY;
 	}
 
+	/*
+	 * Per-word get_unaligned_le32()/writel(), not writesl(): @data is
+	 * supplied by whatever client calls mbox_send_message(), and
+	 * mbox_chan_ops.send_data(void *data) makes no alignment guarantee
+	 * for that buffer. writesl() dereferences it as a native u32 *,
+	 * which is unsafe unless alignment is known.
+	 */
 	for (offset = 0; offset + sizeof(u32) <= msg_len;
 	     offset += sizeof(u32))
 		writel(get_unaligned_le32(buf + offset), priv->mbox_reg);
@@ -131,31 +145,42 @@ static int axiado_mbox_send_data(struct mbox_chan *chan, void *data)
 	return 0;
 }
 
-static irqreturn_t axiado_rx_thread(int irq, void *dev_id)
+/*
+ * Read and, if valid, deliver exactly one length-prefixed frame currently
+ * at the head of the RX FIFO. Does not loop -- the caller decides whether
+ * to call this again. May clear a pending FIFO error at several points
+ * below, wherever a new one could plausibly have appeared since the last
+ * check; each check is a cheap readl() when nothing is pending.
+ */
+static enum axiado_mbox_frame_result axiado_mbox_receive_one_frame(struct axiado_channel_data *priv,
+								    bool *serviced)
 {
-	struct axiado_channel_data *priv = dev_id;
 	struct mbox_chan *chan = priv->chan;
 	struct axiado_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	u8 *buf = priv->rx_buffer;
 	unsigned int num_words;
 	unsigned int remaining;
-	unsigned int i;
 	u32 msg_len;
 	u32 word;
 	u32 csr;
 	int ret;
 
 	/*
-	 * Clear and log/count any pending errors, but don't discard data
-	 * on their account alone: a rejected overflow write doesn't
-	 * corrupt what was already safely queued ahead of it, so let the
-	 * length-based read below decide whether what's here is usable.
+	 * Don't discard data on a cleared error's account alone: a rejected
+	 * overflow write doesn't corrupt what was already safely queued
+	 * ahead of it, so let the length-based read below decide whether
+	 * what's here is usable. Count clearing a real error as @serviced
+	 * so the handler reports IRQ_HANDLED whenever it actually handled
+	 * a hardware condition.
 	 */
-	axiado_mbox_clear_fifo_errors(priv);
+	if (axiado_mbox_clear_fifo_errors(priv))
+		*serviced = true;
 
 	csr = readl(priv->csr_reg);
 	if (csr & AXIADO_MBOX_CSR_EMPTY)
-		return IRQ_NONE;
+		return AXIADO_MBOX_FRAME_EMPTY;
+
+	*serviced = true;
 
 	/*
 	 * The first word contains the total message length in bytes,
@@ -165,8 +190,12 @@ static irqreturn_t axiado_rx_thread(int irq, void *dev_id)
 	msg_len = word;
 	put_unaligned_le32(word, buf);
 
-	if (msg_len < sizeof(u32) || msg_len > mb->drv_data->msg_size)
-		goto invalid_message;
+	if (msg_len < sizeof(u32) || msg_len > mb->drv_data->msg_size) {
+		dev_warn_ratelimited(chan->mbox->dev,
+				     "Channel %u invalid frame length %u (max %u)\n",
+				     priv->channel_num, msg_len, mb->drv_data->msg_size);
+		goto bad_frame;
+	}
 
 	num_words = DIV_ROUND_UP(msg_len, sizeof(u32));
 	remaining = num_words - 1;
@@ -182,33 +211,68 @@ static irqreturn_t axiado_rx_thread(int irq, void *dev_id)
 					  remaining,
 					  AXIADO_MBOX_RX_POLL_US,
 					  AXIADO_MBOX_RX_TIMEOUT_US);
-		if (ret)
-			goto incomplete_message;
+		/*
+		 * The wait condition above is satisfied by EITHER the
+		 * expected word count landing OR a FIFO error appearing.
+		 * ret == 0 only means "didn't time out" - it does not mean
+		 * the words are actually there. Check @csr for the error
+		 * bit explicitly; otherwise an underflow can present as
+		 * "success" and the read loop below pulls words that were
+		 * never pushed, handing the client garbage.
+		 */
+		if (ret || (csr & AXIADO_MBOX_CSR_ERRORS)) {
+			dev_warn_ratelimited(chan->mbox->dev,
+					     "Channel %u incomplete frame: got %lu/%u words (%s)\n",
+					     priv->channel_num,
+					     FIELD_GET(AXIADO_MBOX_CSR_LEVEL, csr),
+					     num_words,
+					     (csr & AXIADO_MBOX_CSR_ERRORS) ?
+					     "FIFO error" : "timed out");
+			goto bad_frame;
+		}
 
 		axiado_mbox_clear_fifo_errors(priv);
 	}
 
-	for (i = 1; i < num_words; i++) {
-		word = readl(priv->mbox_reg);
-		put_unaligned_le32(word, buf + i * sizeof(u32));
-	}
+	/*
+	 * readsl() streams the payload words directly into rx_buffer, which
+	 * is allocated by this driver via devm_kzalloc() and therefore has
+	 * suitable alignment for a stream accessor.
+	 */
+	readsl(priv->mbox_reg, buf + sizeof(u32), remaining);
 
 	axiado_mbox_clear_fifo_errors(priv);
 
 	if (READ_ONCE(priv->active))
 		mbox_chan_received_data(chan, priv->rx_buffer);
 
-	return IRQ_HANDLED;
+	return AXIADO_MBOX_FRAME_OK;
 
-incomplete_message:
-	dev_warn_ratelimited(chan->mbox->dev,
-			     "Channel %u received an incomplete message\n",
-			     priv->channel_num);
-
-invalid_message:
+bad_frame:
+	axiado_mbox_clear_fifo_errors(priv);
 	writel(AXIADO_MBOX_CSR_FLUSH, priv->csr_reg);
 
-	return IRQ_HANDLED;
+	return AXIADO_MBOX_FRAME_BAD;
+}
+
+static irqreturn_t axiado_rx_thread(int irq, void *dev_id)
+{
+	struct axiado_channel_data *priv = dev_id;
+	enum axiado_mbox_frame_result result;
+	bool handled = false;
+
+	/*
+	 * Drain all frames currently queued in the FIFO before returning.
+	 * Multiple frames may accumulate while the threaded handler is
+	 * running. cond_resched() prevents a continuously-fed channel from
+	 * monopolizing the CPU.
+	 */
+	do {
+		result = axiado_mbox_receive_one_frame(priv, &handled);
+		cond_resched();
+	} while (result == AXIADO_MBOX_FRAME_OK);
+
+	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int axiado_mbox_startup(struct mbox_chan *chan)
