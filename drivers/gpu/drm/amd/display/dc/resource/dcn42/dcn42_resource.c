@@ -2441,7 +2441,7 @@ struct resource_pool *dcn42_create_resource_pool(
 	struct dc *dc)
 {
 	struct dcn42_resource_pool *pool =
-		kzalloc(sizeof(struct dcn401_resource_pool), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn42_resource_pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;
