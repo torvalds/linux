@@ -404,10 +404,12 @@ alloc_new_ea:
 		*packed_ea_size = p_ea_info->ea_length;
 	mark_mft_record_dirty(ni);
 out:
-	if (ea_info_qsize > 0)
-		NInoSetHasEA(ni);
-	else
-		NInoClearHasEA(ni);
+	if (!err) {
+		if (ea_info_qsize > 0)
+			NInoSetHasEA(ni);
+		else
+			NInoClearHasEA(ni);
+	}
 
 	kvfree(ea_buf);
 	kvfree(old_ea_buf);
@@ -615,7 +617,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler,
 		if (!buffer) {
 			err = sizeof(u8);
 		} else if (size < sizeof(u8)) {
-			err = -ENODATA;
+			err = -ERANGE;
 		} else {
 			err = sizeof(u8);
 			*(u8 *)buffer = (u8)(le32_to_cpu(ni->flags) & 0x3F);
@@ -628,7 +630,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler,
 		if (!buffer) {
 			err = sizeof(u32);
 		} else if (size < sizeof(u32)) {
-			err = -ENODATA;
+			err = -ERANGE;
 		} else {
 			err = sizeof(u32);
 			*(u32 *)buffer = le32_to_cpu(ni->flags);
@@ -753,18 +755,39 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 	old_arec_size = le32_to_cpu(a->length);
 
 	/*
-	 * Move payloads before shrinking the record.  Otherwise resizing moves
+	 * Move payloads before shrinking the record. Otherwise resizing moves
 	 * the following attribute over the old payload before it can be copied.
+	 *
+	 * When offsets increase, move mapping_pairs first to avoid name
+	 * overwriting the start of mapping_pairs.
 	 */
 	if (arec_size < old_arec_size) {
-		if (a->name_length && name_ofs != old_name_ofs)
-			memmove((u8 *)a + name_ofs, (u8 *)a + old_name_ofs,
-				a->name_length * sizeof(__le16));
-		if (mp_ofs != old_mp_ofs)
-			memmove((u8 *)a + mp_ofs, (u8 *)a + old_mp_ofs, mp_size);
+		if (name_ofs > old_name_ofs) {
+			/* Payload offsets increased: move mapping pairs first. */
+			if (mp_ofs != old_mp_ofs)
+				memmove((u8 *)a + mp_ofs,
+						(u8 *)a + old_mp_ofs,
+						mp_size);
+			if (a->name_length && name_ofs != old_name_ofs)
+				memmove((u8 *)a + name_ofs,
+						(u8 *)a + old_name_ofs,
+						a->name_length *
+							sizeof(__le16));
+		} else {
+			/* Payload offsets decreased or unchanged: move name first. */
+			if (a->name_length && name_ofs != old_name_ofs)
+				memmove((u8 *)a + name_ofs,
+						(u8 *)a + old_name_ofs,
+						a->name_length *
+							sizeof(__le16));
+			if (mp_ofs != old_mp_ofs)
+				memmove((u8 *)a + mp_ofs,
+						(u8 *)a + old_mp_ofs,
+						mp_size);
+		}
 	}
 
-	err = ntfs_attr_record_resize(m, a, arec_size);
+	err = ntfs_attr_record_resize(ctx->mrec, a, arec_size);
 	if (unlikely(err))
 		goto err_out;
 

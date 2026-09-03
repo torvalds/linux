@@ -64,7 +64,7 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 
 		end = start_buf;
 		while (end < end_buf) {
-			u64 aligned_start, aligned_count;
+			u64 aligned_start, aligned_end, aligned_count;
 			u64 start = find_next_zero_bit(bitmap, end_buf - start_buf,
 					end - start_buf) + start_buf;
 			if (start >= end_buf)
@@ -74,8 +74,10 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 					start - start_buf) + start_buf;
 
 			aligned_start = ALIGN(ntfs_cluster_to_bytes(vol, start), dq);
-			aligned_count =
-				ALIGN_DOWN(ntfs_cluster_to_bytes(vol, end - start), dq);
+			aligned_end = ALIGN_DOWN(ntfs_cluster_to_bytes(vol, end), dq);
+			if (aligned_start >= aligned_end)
+				continue;
+			aligned_count = aligned_end - aligned_start;
 			if (aligned_count >= range->minlen) {
 				ret = blkdev_issue_discard(vol->sb->s_bdev, aligned_start >> 9,
 						aligned_count >> 9, GFP_NOFS);

@@ -557,8 +557,8 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 	 * Check sectors per cluster value is valid and the cluster size
 	 * is not above the maximum (2MB).
 	 */
-	if (b->bpb.sectors_per_cluster > 0x80 &&
-	    b->bpb.sectors_per_cluster < 0xf4)
+	if (b->bpb.sectors_per_cluster < 0xf4 &&
+	    !is_power_of_2(b->bpb.sectors_per_cluster))
 		goto not_ntfs;
 
 	/* Check reserved/unused fields are really zero. */
@@ -695,7 +695,7 @@ static bool parse_ntfs_boot_sector(struct ntfs_volume *vol,
 		 * = -log2(mft_record_size) bytes. mft_record_size normaly is
 		 * 1024 bytes, which is encoded as 0xF6 (-10 in decimal).
 		 */
-		vol->mft_record_size = 1 << -clusters_per_mft_record;
+		vol->mft_record_size = 1U << -clusters_per_mft_record;
 	vol->mft_record_size_mask = vol->mft_record_size - 1;
 	vol->mft_record_size_bits = ffs(vol->mft_record_size) - 1;
 	ntfs_debug("vol->mft_record_size = %i (0x%x)", vol->mft_record_size,
@@ -732,7 +732,7 @@ static bool parse_ntfs_boot_sector(struct ntfs_volume *vol,
 		 * index_record_size normaly equals 4096 bytes, which is
 		 * encoded as 0xF4 (-12 in decimal).
 		 */
-		vol->index_record_size = 1 << -clusters_per_index_record;
+		vol->index_record_size = 1U << -clusters_per_index_record;
 	vol->index_record_size_mask = vol->index_record_size - 1;
 	vol->index_record_size_bits = ffs(vol->index_record_size) - 1;
 	ntfs_debug("vol->index_record_size = %i (0x%x)",
@@ -1241,9 +1241,9 @@ static bool load_and_init_attrdef(struct ntfs_volume *vol)
 		goto failed;
 	}
 	NInoSetSparseDisabled(NTFS_I(ino));
-	/* The size of FILE_AttrDef must be above 0 and fit inside 31 bits. */
+	/* FILE_AttrDef must hold at least one entry and fit inside 31 bits. */
 	i_size = i_size_read(ino);
-	if (i_size <= 0 || i_size > 0x7fffffff)
+	if (i_size < (s64)sizeof(struct attr_def) || i_size > 0x7fffffff)
 		goto iput_failed;
 	vol->attrdef = kvzalloc(i_size, GFP_NOFS);
 	if (!vol->attrdef)
@@ -1862,7 +1862,8 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 
 	/* If there are some dirty buffers in the bdev inode */
-	if (ntfs_clear_volume_flags(vol, VOLUME_IS_DIRTY)) {
+	if (!NVolErrors(vol) &&
+	    ntfs_clear_volume_flags(vol, VOLUME_IS_DIRTY)) {
 		ntfs_warning(sb, "Failed to clear dirty bit in volume information flags.  Run chkdsk.");
 		err = -EIO;
 	}
