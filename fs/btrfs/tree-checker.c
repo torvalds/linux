@@ -1990,6 +1990,13 @@ static int check_inode_extref(struct extent_buffer *leaf,
 		}
 
 		namelen = btrfs_inode_extref_name_len(leaf, extref);
+		if (unlikely(namelen == 0 || namelen > BTRFS_NAME_LEN)) {
+			inode_ref_err(leaf, slot,
+				"invalid inode extref name length, has %u expect [1, %u]",
+				namelen, BTRFS_NAME_LEN);
+			return -EUCLEAN;
+		}
+
 		if (unlikely(ptr + sizeof(*extref) + namelen > end)) {
 			inode_ref_err(leaf, slot,
 				"inode extref overflow, ptr %lu end %lu namelen %u",
