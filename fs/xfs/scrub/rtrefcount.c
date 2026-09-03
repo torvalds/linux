@@ -20,6 +20,7 @@
 #include "xfs_metafile.h"
 #include "xfs_rtrefcount_btree.h"
 #include "xfs_rtalloc.h"
+#include "xfs_ag.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -504,30 +505,75 @@ xchk_rtrefcountbt_rec(
 	return 0;
 }
 
+/* Count the number of blocks used by the rtrefcount btree file in this AG. */
+static int
+xchk_rtrefcount_count_agblocks(
+	struct xfs_scrub	*sc,
+	xfs_agnumber_t		agno,
+	const struct xfs_owner_info *btree_oinfo,
+	xfs_filblks_t		*blocks)
+{
+	xfs_filblks_t		agblocks = 0;
+	int			error;
+
+	error = xchk_ag_init_existing(sc, agno, &sc->sa);
+	if (error)
+		goto out_free;
+
+	/*
+	 * If we don't have an rmap cursor, we can't complete the cross
+	 * referencing, so return EFSCORRUPTED to end the loop and trigger the
+	 * XFAIL flag.
+	 */
+	if (!sc->sa.rmap_cur) {
+		error = -EFSCORRUPTED;
+		goto out_free;
+	}
+
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, btree_oinfo,
+			&agblocks);
+	if (error)
+		goto out_free;
+
+	*blocks += agblocks;
+out_free:
+	xchk_ag_free(sc, &sc->sa);
+	return error;
+}
+
 /* Make sure we have as many refc blocks as the rmap says. */
 STATIC void
-xchk_refcount_xref_rmap(
+xchk_rtrefcount_xref_rmap(
 	struct xfs_scrub	*sc,
 	const struct xfs_owner_info *btree_oinfo,
 	xfs_extlen_t		cow_blocks)
 {
 	xfs_filblks_t		refcbt_blocks = 0;
-	xfs_filblks_t		blocks;
-	int			error;
+	xfs_filblks_t		blocks = 1; /* one for the iroot */
+	xfs_agnumber_t		agno;
+	int			error = 0;
 
-	if (!sc->sr.rmap_cur || !sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
+	if (!xfs_has_rmapbt(sc->mp) || xchk_skip_xref(sc->sm))
 		return;
 
 	/* Check that we saw as many refcbt blocks as the rmap knows about. */
 	error = xfs_btree_count_blocks(sc->sr.refc_cur, &refcbt_blocks);
 	if (!xchk_btree_process_error(sc, sc->sr.refc_cur, 0, &error))
 		return;
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, btree_oinfo,
-			&blocks);
-	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+
+	for (agno = 0; agno < sc->mp->m_sb.sb_agcount; agno++) {
+		error = xchk_rtrefcount_count_agblocks(sc, agno, btree_oinfo,
+				&blocks);
+		if (error)
+			break;
+	}
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		return;
 	if (blocks != refcbt_blocks)
-		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+		xchk_fblock_xref_set_corrupt(sc, XFS_DATA_FORK, 0);
+
+	if (!sc->sr.rmap_cur || xchk_skip_xref(sc->sm))
+		return;
 
 	/* Check that we saw as many cow blocks as the rmap knows about. */
 	error = xchk_count_rmap_ownedby_ag(sc, sc->sr.rmap_cur,
@@ -568,7 +614,7 @@ xchk_rtrefcountbt(
 	 */
 	xchk_rtrefcountbt_xref_gaps(sc, &rrc,
 			xfs_rtx_to_rgbno(sc->sr.rtg, sc->mp->m_sb.sb_rgextents));
-	xchk_refcount_xref_rmap(sc, &btree_oinfo, rrc.cow_blocks);
+	xchk_rtrefcount_xref_rmap(sc, &btree_oinfo, rrc.cow_blocks);
 
 	return 0;
 }
