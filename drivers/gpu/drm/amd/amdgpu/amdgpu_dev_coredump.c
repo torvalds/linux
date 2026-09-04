@@ -299,10 +299,10 @@ amdgpu_devcoredump_print_ibs(struct drm_printer *p,
 			amdgpu_res_first(abo->tbo.resource, offset,
 					 coredump->ibs[i].ib_size_dw * 4, &cursor);
 			while (cursor.remaining) {
-				amdgpu_device_mm_access(adev, cursor.start / 4,
-							&ib_content[off], cursor.size / 4,
+				amdgpu_device_mm_access(adev, cursor.start,
+							&ib_content[off], cursor.size,
 							false);
-				off += cursor.size;
+				off += cursor.size / 4;
 				amdgpu_res_next(&cursor, cursor.size);
 			}
 			emit_content = true;
