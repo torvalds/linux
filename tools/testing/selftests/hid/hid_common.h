@@ -13,6 +13,7 @@
 #include <linux/uhid.h>
 
 #define SHOW_UHID_DEBUG 0
+#define MAX_BUF_SIZE 10
 
 #define min(a, b) \
 	({ __typeof__(a) _a = (a); \
@@ -110,7 +111,7 @@ static pthread_cond_t uhid_started = PTHREAD_COND_INITIALIZER;
 
 static pthread_mutex_t uhid_output_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t uhid_output_cond = PTHREAD_COND_INITIALIZER;
-static unsigned char output_report[10];
+static unsigned char output_report[MAX_BUF_SIZE];
 
 /* no need to protect uhid_stopped, only one thread accesses it */
 static bool uhid_stopped;
