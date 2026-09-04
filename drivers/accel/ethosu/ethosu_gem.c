@@ -204,7 +204,7 @@ static u64 feat_matrix_length(struct ethosu_device *edev,
 			      struct feat_matrix *fm,
 			      u32 x, u32 y, u32 c, bool ofm)
 {
-	u32 element_size, storage = fm->precision >> 14;
+	u32 element_size, storage = ethosu_is_u65(edev) ? 0 : fm->precision >> 14;
 	int tile = 0;
 	u64 addr;
 
