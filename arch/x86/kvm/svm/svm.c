@@ -4632,6 +4632,10 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 			svm->vmcb->control.erap_ctl &= ~ERAP_CONTROL_CLEAR_RAP;
 
 		vmcb_mark_all_clean(svm->vmcb);
+
+		if (!msr_write_intercepted(svm, MSR_AMD64_PERF_CNTR_GLOBAL_CTL))
+			rdmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_CTL,
+			       vcpu_to_pmu(vcpu)->global_ctrl);
 	}
 
 	/* if exit due to PF check for async PF */
@@ -4640,9 +4644,6 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 			kvm_read_and_reset_apf_flags();
 
 	kvm_clear_available_registers(vcpu, SVM_REGS_LAZY_LOAD_SET);
-
-	if (!msr_write_intercepted(svm, MSR_AMD64_PERF_CNTR_GLOBAL_CTL))
-		rdmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_CTL, vcpu_to_pmu(vcpu)->global_ctrl);
 
 	trace_kvm_exit(vcpu, KVM_ISA_SVM);
 
