@@ -676,7 +676,7 @@ static int update_reparse_data(struct ntfs_inode *ni, struct ntfs_index_context 
 
 	rp_inode = ntfs_attr_iget(VFS_I(ni), AT_REPARSE_POINT, AT_UNNAMED, 0);
 	if (IS_ERR(rp_inode))
-		return -EINVAL;
+		return PTR_ERR(rp_inode);
 	rp_ni = NTFS_I(rp_inode);
 
 	/* remove the existing reparse data */
