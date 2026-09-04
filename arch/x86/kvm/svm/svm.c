@@ -4527,10 +4527,8 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 		svm->vmcb->control.asid = svm->asid;
 		vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
 	}
-	if (this_cpu_ptr(&svm_data)->flush_all_asids) {
+	if (this_cpu_ptr(&svm_data)->flush_all_asids)
 		svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ALL_ASID;
-		vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
-	}
 
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
