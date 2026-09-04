@@ -19569,7 +19569,7 @@ F:	include/linux/platform_data/x86/nvidia-wmi-ec-backlight.h
 
 NVM EXPRESS DRIVER
 M:	Keith Busch <kbusch@kernel.org>
-M:	Jens Axboe <axboe@fb.com>
+M:	Jens Axboe <axboe@kernel.dk>
 M:	Christoph Hellwig <hch@lst.de>
 M:	Sagi Grimberg <sagi@grimberg.me>
 L:	linux-nvme@lists.infradead.org

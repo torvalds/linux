@@ -155,8 +155,6 @@ static const struct class nvme_ns_chr_class = {
 };
 
 static void nvme_put_subsystem(struct nvme_subsystem *subsys);
-static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
-					   unsigned nsid);
 static void nvme_update_keep_alive(struct nvme_ctrl *ctrl,
 				   struct nvme_command *cmd);
 static int nvme_get_log_lsi(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page,
@@ -1612,7 +1610,7 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl,
 	}
 
 	if (nvme_multi_css(ctrl) && !csi_seen) {
-		dev_warn(ctrl->device, "Command set not reported for nsid:%d\n",
+		dev_warn(ctrl->device, "Command set not reported for nsid:%u\n",
 			 info->nsid);
 		status = -EINVAL;
 	}
@@ -2341,14 +2339,6 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	size_t size;
 	int i, ret;
 
-	/*
-	 * The FDP configuration is static for the lifetime of the namespace,
-	 * so return immediately if we've already registered this namespace's
-	 * streams.
-	 */
-	if (head->nr_plids)
-		return 0;
-
 	ret = nvme_get_features(ctrl, NVME_FEAT_FDP, info->endgid, NULL, 0,
 				&fdp);
 	if (ret) {
@@ -2395,6 +2385,7 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 
 	for (i = 0; i < head->nr_plids; i++)
 		head->plids[i] = le16_to_cpu(ruhs->ruhsd[i].pid);
+	head->write_stream_granularity = min(info->runs, U32_MAX);
 free:
 	kfree(ruhs);
 	return ret;
@@ -2442,12 +2433,6 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 			goto out;
 	}
 
-	if (ns->ctrl->ctratt & NVME_CTRL_ATTR_FDPS) {
-		ret = nvme_query_fdp_info(ns, info);
-		if (ret < 0)
-			goto out;
-	}
-
 	if (nvme_invalid_lba_sz(le64_to_cpu(id->nsze),
 			id->lbaf[lbaf].ds - SECTOR_SHIFT, &capacity)) {
 		dev_warn_once(ns->ctrl->device,
@@ -2468,9 +2453,26 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	if (!nvme_update_disk_info(ns, id, nvm, &lim))
 		capacity = 0;
 
+	/*
+	 * A failed zone info query leaves zi zero-initialized, so skip the
+	 * zoned limits update instead of configuring the queue from it.
+	 * During a revalidation that keeps the zone geometry the queue was
+	 * last validated with; on a first scan the namespace is registered
+	 * without zoned limits, so that it is still available as a handle
+	 * for admin commands.
+	 */
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
-	    ns->head->ids.csi == NVME_CSI_ZNS)
-		nvme_update_zone_info(ns, &lim, &zi);
+	    ns->head->ids.csi == NVME_CSI_ZNS) {
+		if (zi.zone_size)
+			nvme_update_zone_info(ns, &lim, &zi);
+		else
+			dev_warn(ns->ctrl->device,
+				 "zone info query failed for nsid %u, %s\n",
+				 ns->head->ns_id,
+				 blk_queue_is_zoned(ns->disk->queue) ?
+				 "keeping the previous zone limits" :
+				 "not enabling zoned mode");
+	}
 
 	if ((ns->ctrl->vwc & NVME_CTRL_VWC_PRESENT) && !info->no_vwc)
 		lim.features |= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA;
@@ -2490,10 +2492,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		capacity = 0;
 
 	lim.max_write_streams = ns->head->nr_plids;
-	if (lim.max_write_streams)
-		lim.write_stream_granularity = min(info->runs, U32_MAX);
-	else
-		lim.write_stream_granularity = 0;
+	lim.write_stream_granularity = ns->head->write_stream_granularity;
 
 	/*
 	 * Only set the DEAC bit if the device guarantees that reads from
@@ -4001,10 +4000,11 @@ static void nvme_add_ns_cdev(struct nvme_ns *ns)
 	set_bit(NVME_NS_CDEV_LIVE, &ns->flags);
 }
 
-static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
+static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ns *ns,
 		struct nvme_ns_info *info)
-	__must_hold(&ctrl->subsys->lock)
+	__must_hold(&ns->ctrl->subsys->lock)
 {
+	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_ns_head *head;
 	size_t size = sizeof(*head);
 	int ret = -ENOMEM;
@@ -4032,6 +4032,7 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 	ratelimit_state_init(&head->rs_nuse, 5 * HZ, 1);
 	ratelimit_set_flags(&head->rs_nuse, RATELIMIT_MSG_ON_RELEASE);
 	kref_init(&head->ref);
+	ns->head = head;
 
 	if (head->ids.csi) {
 		ret = nvme_get_effects_log(ctrl, head->ids.csi, &head->effects);
@@ -4040,21 +4041,30 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 	} else
 		head->effects = ctrl->effects;
 
+	if (ctrl->ctratt & NVME_CTRL_ATTR_FDPS) {
+		ret = nvme_query_fdp_info(ns, info);
+		if (ret < 0)
+			goto out_cleanup_srcu;
+	}
+
 	ret = nvme_mpath_alloc_disk(ctrl, head);
 	if (ret)
-		goto out_cleanup_srcu;
+		goto out_cleanup_fdp;
 
 	list_add_tail(&head->entry, &ctrl->subsys->nsheads);
 
 	kref_get(&ctrl->subsys->ref);
 
 	return head;
+out_cleanup_fdp:
+	kfree(head->plids);
 out_cleanup_srcu:
 	cleanup_srcu_struct(&head->srcu);
 out_ida_remove:
 	ida_free(&ctrl->subsys->ns_ida, head->instance);
 out_free_head:
 	kfree(head);
+	ns->head = NULL;
 out:
 	if (ret > 0)
 		ret = blk_status_to_errno(nvme_error_status(ret));
@@ -4116,13 +4126,13 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		    ((ns->ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) &&
 		     info->is_shared)) {
 			dev_err(ctrl->device,
-				"ignoring nsid %d because of duplicate IDs\n",
+				"ignoring nsid %u because of duplicate IDs\n",
 				info->nsid);
 			return ret;
 		}
 
 		dev_err(ctrl->device,
-			"clearing duplicate IDs for nsid %d\n", info->nsid);
+			"clearing duplicate IDs for nsid %u\n", info->nsid);
 		dev_err(ctrl->device,
 			"use of /dev/disk/by-id/ may cause data corruption\n");
 		memset(&info->ids.nguid, 0, sizeof(info->ids.nguid));
@@ -4137,11 +4147,11 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		ret = nvme_subsys_check_duplicate_ids(ctrl->subsys, &info->ids);
 		if (ret) {
 			dev_err(ctrl->device,
-				"duplicate IDs in subsystem for nsid %d\n",
+				"duplicate IDs in subsystem for nsid %u\n",
 				info->nsid);
 			goto out_unlock;
 		}
-		head = nvme_alloc_ns_head(ctrl, info);
+		head = nvme_alloc_ns_head(ns, info);
 		if (IS_ERR(head)) {
 			ret = PTR_ERR(head);
 			goto out_unlock;
@@ -4151,20 +4161,20 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		if ((!info->is_shared || !head->shared) &&
 		    !list_empty(&head->list)) {
 			dev_err(ctrl->device,
-				"Duplicate unshared namespace %d\n",
+				"Duplicate unshared namespace %u\n",
 				info->nsid);
 			goto out_put_ns_head;
 		}
 		if (!nvme_ns_ids_equal(&head->ids, &info->ids)) {
 			dev_err(ctrl->device,
-				"IDs don't match for shared namespace %d\n",
+				"IDs don't match for shared namespace %u\n",
 					info->nsid);
 			goto out_put_ns_head;
 		}
 
 		if (!multipath) {
 			dev_warn(ctrl->device,
-				"Found shared namespace %d, but multipathing not supported.\n",
+				"Found shared namespace %u, but multipathing not supported.\n",
 				info->nsid);
 			dev_warn_once(ctrl->device,
 				"Shared namespace support requires core_nvme.multipath=Y.\n");
@@ -4333,6 +4343,9 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 			last_path = true;
 	}
 	mutex_unlock(&ctrl->subsys->lock);
+
+	/* guarantee not available in head->list */
+	synchronize_srcu(&ns->head->srcu);
 	if (last_path)
 		nvme_put_ns_head(ns->head);
 	nvme_put_ns_head(ns->head);
@@ -4410,7 +4423,7 @@ static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_info *info)
 
 	if (!nvme_ns_ids_equal(&ns->head->ids, &info->ids)) {
 		dev_err(ns->ctrl->device,
-			"identifiers changed for nsid %d\n", ns->head->ns_id);
+			"identifiers changed for nsid %u\n", ns->head->ns_id);
 		goto out;
 	}
 
@@ -4437,7 +4450,7 @@ static void nvme_scan_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	if (info.ids.csi != NVME_CSI_NVM && !nvme_multi_css(ctrl)) {
 		dev_warn(ctrl->device,
-			"command set not reported for nsid: %d\n", nsid);
+			"command set not reported for nsid: %u\n", nsid);
 		return;
 	}
 
@@ -4501,15 +4514,16 @@ static void nvme_scan_ns_async(void *data, async_cookie_t cookie)
 	nvme_scan_ns(scan_info->ctrl, nsid);
 }
 
-static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
-					unsigned nsid)
+static void nvme_remove_nsid_range(struct nvme_ctrl *ctrl, u32 start, u32 end)
 {
 	struct nvme_ns *ns, *next;
 	LIST_HEAD(rm_list);
 
 	mutex_lock(&ctrl->namespaces_lock);
 	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list) {
-		if (ns->head->ns_id > nsid) {
+		if (ns->head->ns_id >= end)
+			break;
+		if (ns->head->ns_id > start) {
 			list_del_rcu(&ns->list);
 			synchronize_srcu(&ctrl->srcu);
 			list_add_tail_rcu(&ns->list, &rm_list);
@@ -4559,13 +4573,14 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 				goto out;
 			async_schedule_domain(nvme_scan_ns_async, &scan_info,
 						&domain);
-			while (++prev < nsid)
-				nvme_ns_remove_by_nsid(ctrl, prev);
+			if (prev + 1 < nsid)
+				nvme_remove_nsid_range(ctrl, prev, nsid);
+			prev = max(prev + 1, nsid);
 		}
 		async_synchronize_full_domain(&domain);
 	}
  out:
-	nvme_remove_invalid_namespaces(ctrl, prev);
+	nvme_remove_nsid_range(ctrl, prev, UINT_MAX);
  free:
 	async_synchronize_full_domain(&domain);
 	kfree(ns_list);
@@ -4585,7 +4600,7 @@ static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl)
 	for (i = 1; i <= nn; i++)
 		nvme_scan_ns(ctrl, i);
 
-	nvme_remove_invalid_namespaces(ctrl, nn);
+	nvme_remove_nsid_range(ctrl, nn, UINT_MAX);
 }
 
 static void nvme_clear_changed_ns_log(struct nvme_ctrl *ctrl)
