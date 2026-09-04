@@ -283,62 +283,60 @@ static struct pf1550_desc pf1550_regulators[] = {
 	PF_LDO1(PF1550, "ldo3", LDO3, 0x1f, pf1550_ldo13_volts),
 };
 
+/*
+ * The _LS interrupts indicate an over-current event. The _HS
+ * interrupts, which are more accurate and can detect catastrophic
+ * faults, issue an error event. The current limit FAULT interrupt is
+ * similar to the _HS.
+ */
+static const struct pf1550_regulator_irq {
+	unsigned int event;
+	u8 id;
+} pf1550_regulator_irqs[] = {
+	[PF1550_PMIC_IRQ_SW1_LS]     = { REGULATOR_EVENT_OVER_CURRENT_WARN, PF1550_SW1 },
+	[PF1550_PMIC_IRQ_SW2_LS]     = { REGULATOR_EVENT_OVER_CURRENT_WARN, PF1550_SW2 },
+	[PF1550_PMIC_IRQ_SW3_LS]     = { REGULATOR_EVENT_OVER_CURRENT_WARN, PF1550_SW3 },
+	[PF1550_PMIC_IRQ_SW1_HS]     = { REGULATOR_EVENT_OVER_CURRENT, PF1550_SW1 },
+	[PF1550_PMIC_IRQ_SW2_HS]     = { REGULATOR_EVENT_OVER_CURRENT, PF1550_SW2 },
+	[PF1550_PMIC_IRQ_SW3_HS]     = { REGULATOR_EVENT_OVER_CURRENT, PF1550_SW3 },
+	[PF1550_PMIC_IRQ_LDO1_FAULT] = { REGULATOR_EVENT_OVER_CURRENT, PF1550_LDO1 },
+	[PF1550_PMIC_IRQ_LDO2_FAULT] = { REGULATOR_EVENT_OVER_CURRENT, PF1550_LDO2 },
+	[PF1550_PMIC_IRQ_LDO3_FAULT] = { REGULATOR_EVENT_OVER_CURRENT, PF1550_LDO3 },
+};
+
 static irqreturn_t pf1550_regulator_irq_handler(int irq, void *data)
 {
+	const struct pf1550_regulator_irq *map;
 	struct pf1550_regulator_info *info = data;
 	struct device *dev = info->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	int i, irq_type = -1;
-	unsigned int event;
 
 	for (i = 0; i < PF1550_REGULATOR_IRQ_NR; i++)
 		if (irq == platform_get_irq(pdev, i))
 			irq_type = i;
 
-	switch (irq_type) {
-	/* The _LS interrupts indicate over-current event. The _HS interrupts
-	 * which are more accurate and can detect catastrophic faults, issue
-	 * an error event. The current limit FAULT interrupt is similar to the
-	 * _HS'
-	 */
-	case PF1550_PMIC_IRQ_SW1_LS:
-	case PF1550_PMIC_IRQ_SW2_LS:
-	case PF1550_PMIC_IRQ_SW3_LS:
-		event = REGULATOR_EVENT_OVER_CURRENT_WARN;
-		for (i = 0; i < PF1550_MAX_REGULATOR; i++)
-			if (!strcmp(rdev_get_name(info->rdevs[i]), "SW3"))
-				regulator_notifier_call_chain(info->rdevs[i],
-							      event, NULL);
-		break;
-	case PF1550_PMIC_IRQ_SW1_HS:
-	case PF1550_PMIC_IRQ_SW2_HS:
-	case PF1550_PMIC_IRQ_SW3_HS:
-		event = REGULATOR_EVENT_OVER_CURRENT;
-		for (i = 0; i < PF1550_MAX_REGULATOR; i++)
-			if (!strcmp(rdev_get_name(info->rdevs[i]), "SW3"))
-				regulator_notifier_call_chain(info->rdevs[i],
-							      event, NULL);
-		break;
-	case PF1550_PMIC_IRQ_LDO1_FAULT:
-	case PF1550_PMIC_IRQ_LDO2_FAULT:
-	case PF1550_PMIC_IRQ_LDO3_FAULT:
-		event = REGULATOR_EVENT_OVER_CURRENT;
-		for (i = 0; i < PF1550_MAX_REGULATOR; i++)
-			if (!strcmp(rdev_get_name(info->rdevs[i]), "LDO3"))
-				regulator_notifier_call_chain(info->rdevs[i],
-							      event, NULL);
-		break;
-	case PF1550_PMIC_IRQ_TEMP_110:
-	case PF1550_PMIC_IRQ_TEMP_125:
-		event = REGULATOR_EVENT_OVER_TEMP;
+	/* The die temperature concerns every rail. */
+	if (irq_type == PF1550_PMIC_IRQ_TEMP_110 ||
+	    irq_type == PF1550_PMIC_IRQ_TEMP_125) {
 		for (i = 0; i < PF1550_MAX_REGULATOR; i++)
 			regulator_notifier_call_chain(info->rdevs[i],
-						      event, NULL);
-		break;
-	default:
-		dev_err(dev, "regulator interrupt: irq %d occurred\n",
-			irq_type);
+						      REGULATOR_EVENT_OVER_TEMP,
+						      NULL);
+		return IRQ_HANDLED;
 	}
+
+	if (irq_type < 0 || irq_type >= (int)ARRAY_SIZE(pf1550_regulator_irqs)) {
+		dev_err(dev, "regulator interrupt: irq %d occurred\n", irq_type);
+		return IRQ_HANDLED;
+	}
+
+	map = &pf1550_regulator_irqs[irq_type];
+
+	for (i = 0; i < PF1550_MAX_REGULATOR; i++)
+		if (rdev_get_id(info->rdevs[i]) == map->id)
+			regulator_notifier_call_chain(info->rdevs[i],
+						      map->event, NULL);
 
 	return IRQ_HANDLED;
 }
