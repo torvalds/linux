@@ -335,8 +335,8 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 
 	ni_mrec = map_mft_record(ni);
 	if (IS_ERR(ni_mrec)) {
-		ntfs_debug("Invalid arguments.\n");
-		return -EIO;
+		ntfs_debug("Failed to map mft record.\n");
+		return PTR_ERR(ni_mrec);
 	}
 
 	mref = MK_LE_MREF(ni->mft_no, le16_to_cpu(ni_mrec->sequence_number));
