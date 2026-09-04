@@ -141,6 +141,9 @@ struct dma_fence_ops {
 	 * compute the name at runtime, without having it to store permanently
 	 * for each fence, or build a cache of some sort.
 	 *
+	 * The returned string is RCU protected and can be freed after the fence
+	 * signaled and a RCU grace period passed.
+	 *
 	 * This callback is mandatory.
 	 */
 	const char * (*get_driver_name)(struct dma_fence *fence);
@@ -152,6 +155,9 @@ struct dma_fence_ops {
 	 * callback to allow drivers to compute the name at runtime, without
 	 * having it to store permanently for each fence, or build a cache of
 	 * some sort.
+	 *
+	 * The returned string is RCU protected and can be freed after the fence
+	 * signaled and a RCU grace period passed.
 	 *
 	 * This callback is mandatory.
 	 */
