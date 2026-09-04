@@ -791,7 +791,7 @@ static size_t can_pwm_get_size(const struct can_pwm_const *pwm_const,
 {
 	size_t size;
 
-	if (!pwm_const || !pwm_on)
+	if (!pwm_const)
 		return 0;
 
 	size = nla_total_size(0);			/* nest IFLA_CAN_PWM */
@@ -803,9 +803,11 @@ static size_t can_pwm_get_size(const struct can_pwm_const *pwm_const,
 	size += nla_total_size(sizeof(u32));		/* IFLA_CAN_PWM_PWMO_MIN */
 	size += nla_total_size(sizeof(u32));		/* IFLA_CAN_PWM_PWMO_MAX */
 
-	size += nla_total_size(sizeof(u32));		/* IFLA_CAN_PWM_PWMS */
-	size += nla_total_size(sizeof(u32));		/* IFLA_CAN_PWM_PWML */
-	size += nla_total_size(sizeof(u32));		/* IFLA_CAN_PWM_PWMO */
+	if (pwm_on) {
+		size += nla_total_size(sizeof(u32));	/* IFLA_CAN_PWM_PWMS */
+		size += nla_total_size(sizeof(u32));	/* IFLA_CAN_PWM_PWML */
+		size += nla_total_size(sizeof(u32));	/* IFLA_CAN_PWM_PWMO */
+	}
 
 	return size;
 }
