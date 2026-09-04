@@ -1539,7 +1539,6 @@ static int ntfs_mft_bitmap_extend_initialized_nolock(struct ntfs_volume *vol)
 	ret = ntfs_attr_set(mftbmp_ni, old_initialized_size, 8, 0);
 	if (likely(!ret)) {
 		ntfs_debug("Done.  (Wrote eight initialized bytes to mft bitmap.");
-		ntfs_inc_free_mft_records(vol, 8 * 8);
 		return 0;
 	}
 	ntfs_error(vol->sb, "Failed to write to mft bitmap.");
@@ -2135,6 +2134,7 @@ int ntfs_mft_record_alloc(struct ntfs_volume *vol, const int mode,
 			  struct mft_record **ni_mrec, const s64 mft_data_vcn)
 {
 	s64 ll, bit, old_data_initialized, old_data_size;
+	s64 nr_new_mft_records = 0;
 	s64 max_mft_no = -1, reserve_start = -1, reserve_end = -1;
 	s64 candidate_reserve_end = -1;
 	s64 *reserve_endp;
@@ -2501,8 +2501,13 @@ have_alloc_rec:
 			mft_ni->initialized_size);
 	WARN_ON(i_size_read(vol->mft_ino) > mft_ni->allocated_size);
 	WARN_ON(mft_ni->initialized_size > i_size_read(vol->mft_ino));
+	nr_new_mft_records = (i_size_read(vol->mft_ino) - old_data_size) >>
+			     vol->mft_record_size_bits;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 mft_rec_already_initialized:
+	/* Account for newly visible MFT records before dropping the lock. */
+	if (nr_new_mft_records > 0)
+		ntfs_inc_free_mft_records(vol, nr_new_mft_records);
 	/*
 	 * We can finally drop the mft bitmap lock as the mft data attribute
 	 * has been fully updated.  The only disparity left is that the
@@ -2813,6 +2818,8 @@ int ntfs_mft_record_free(struct ntfs_volume *vol, struct ntfs_inode *ni)
 	if (base_ni->mft_no != FILE_MFT)
 		down_write(&vol->mftbmp_lock);
 	err = ntfs_bitmap_clear_bit(vol->mftbmp_ino, mft_no);
+	if (!err)
+		ntfs_inc_free_mft_records(vol, 1);
 	if (!err && base_ni->mft_no == FILE_MFT &&
 	    mft_no + 1 == vol->mft_record_reserve_pos &&
 	    mft_no < vol->mft_record_reserve_end)
@@ -2822,9 +2829,7 @@ int ntfs_mft_record_free(struct ntfs_volume *vol, struct ntfs_inode *ni)
 	memalloc_nofs_restore(memalloc_flags);
 	if (err)
 		goto bitmap_rollback;
-
 	unmap_mft_record(ni);
-	ntfs_inc_free_mft_records(vol, 1);
 	return 0;
 
 	/* Rollback what we did... */

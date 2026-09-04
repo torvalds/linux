@@ -258,17 +258,11 @@ static inline void ntfs_dec_free_clusters(struct ntfs_volume *vol, s64 nr)
 
 static inline void ntfs_inc_free_mft_records(struct ntfs_volume *vol, s64 nr)
 {
-	if (!NVolFreeClusterKnown(vol))
-		return;
-
 	atomic64_add(nr, &vol->free_mft_records);
 }
 
 static inline void ntfs_dec_free_mft_records(struct ntfs_volume *vol, s64 nr)
 {
-	if (!NVolFreeClusterKnown(vol))
-		return;
-
 	atomic64_sub(nr, &vol->free_mft_records);
 }
 
