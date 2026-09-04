@@ -134,6 +134,20 @@ struct btintel_pcie_dbgc_ctxt {
 	struct btintel_pcie_dbgc_ctxt_buf bufs[BTINTEL_PCIE_DBGC_BUFFER_COUNT];
 };
 
+struct btintel_pcie_mdbgc_ctxt {
+	u32     magic_num;
+	u32     ver;
+	u32     buf1_index;
+	u32     buf1_count;
+	struct btintel_pcie_dbgc_ctxt_buf buf1[BTINTEL_PCIE_DBGC_BUFFER_COUNT];
+	u32     buf2_index;
+	u32     buf2_count;
+	struct btintel_pcie_dbgc_ctxt_buf buf2[BTINTEL_PCIE_DBGC_BUFFER_COUNT];
+	u32     buf3_index;
+	u32     buf3_count;
+	struct btintel_pcie_dbgc_ctxt_buf buf3[BTINTEL_PCIE_DBGC_BUFFER_COUNT];
+};
+
 struct btintel_pcie_trigger_evt {
 	u8 type;
 	u8 len;
@@ -184,55 +198,157 @@ static inline bool btintel_pcie_dbg_to_wifi(struct btintel_pcie_data *data)
 	return data->dbg_path_cache != BTINTEL_PCIE_DRAM;
 }
 
-/* This function initializes the memory for DBGC buffers and formats the
- * DBGC fragment which consists header info and DBGC buffer's LSB, MSB and
- * size as the payload
- */
+/* Helper function to allocate and setup a debug buffer group */
+static int btintel_pcie_alloc_dbgc_buf(struct btintel_pcie_data *data,
+				       struct data_buf **buf,
+				       dma_addr_t *p_addr,
+				       void **v_addr,
+				       struct btintel_pcie_dbgc_ctxt_buf *frag,
+				       u32 buf_index,
+				       u32 buf_count)
+{
+	struct data_buf *b;
+	int i;
+
+	*buf = devm_kcalloc(&data->pdev->dev, buf_count,
+			    sizeof(**buf), GFP_KERNEL);
+	if (!*buf) {
+		BT_ERR("Failed to allocate dbgc buf: %u",
+		       buf_index + 1);
+		return -ENOMEM;
+	}
+
+	*v_addr = dmam_alloc_coherent(&data->pdev->dev,
+				      buf_count *
+				      BTINTEL_PCIE_DBGC_BUFFER_SIZE,
+				      p_addr,
+				      GFP_KERNEL | __GFP_NOWARN);
+	if (!*v_addr) {
+		BT_ERR("Failed to allocate dbgc buf: %u DMA",
+		       buf_index + 1);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < buf_count; i++) {
+		b = &(*buf)[i];
+		b->data_p_addr = *p_addr +
+				 i * BTINTEL_PCIE_DBGC_BUFFER_SIZE;
+		b->data = *v_addr +
+			  i * BTINTEL_PCIE_DBGC_BUFFER_SIZE;
+		frag[i].buf_addr_lsb =
+			lower_32_bits(b->data_p_addr);
+		frag[i].buf_addr_msb =
+			upper_32_bits(b->data_p_addr);
+		frag[i].buf_size = BTINTEL_PCIE_DBGC_BUFFER_SIZE;
+	}
+
+	return 0;
+}
+
+/* This function initializes the memory for MDBGC buffers */
+static int btintel_pcie_setup_mdbgc(struct btintel_pcie_data *data)
+{
+	struct btintel_pcie_mdbgc_ctxt db_frag;
+	u32 frag_size = sizeof(db_frag);
+	void *frag_v_addr;
+	int err;
+
+	data->mdbgc.count = BTINTEL_PCIE_DBGC_BUFFER_COUNT;
+
+	frag_v_addr = dmam_alloc_coherent(&data->pdev->dev, frag_size,
+					  &data->mdbgc.frag_p_addr,
+					  GFP_KERNEL | __GFP_NOWARN);
+	if (!frag_v_addr)
+		return -ENOMEM;
+
+	data->mdbgc.frag_v_addr = frag_v_addr;
+	data->mdbgc.frag_size = frag_size;
+
+	memset(&db_frag, 0, sizeof(db_frag));
+	db_frag.magic_num = BTINTEL_PCIE_MAGIC_NUM;
+	db_frag.ver = BTINTEL_PCIE_MDBGC_FRAG_VERSION;
+
+	/* Allocate DBGC buffer 1 */
+	db_frag.buf1_index = BTINTEL_PCIE_MDBGC_ALLOCATIONID_1;
+	db_frag.buf1_count = data->mdbgc.count;
+	err = btintel_pcie_alloc_dbgc_buf(data,
+					  &data->mdbgc.buf1,
+					  &data->mdbgc.buf1_p_addr,
+					  &data->mdbgc.buf1_v_addr,
+					  db_frag.buf1, 0,
+					  data->mdbgc.count);
+	if (err)
+		return err;
+
+	/* Allocate DBGC buffer 2 */
+	db_frag.buf2_index = BTINTEL_PCIE_MDBGC_ALLOCATIONID_2;
+	db_frag.buf2_count = data->mdbgc.count;
+	err = btintel_pcie_alloc_dbgc_buf(data,
+					  &data->mdbgc.buf2,
+					  &data->mdbgc.buf2_p_addr,
+					  &data->mdbgc.buf2_v_addr,
+					  db_frag.buf2, 1,
+					  data->mdbgc.count);
+	if (err)
+		return err;
+
+	/* Allocate DBGC buffer 3 */
+	db_frag.buf3_index = BTINTEL_PCIE_MDBGC_ALLOCATIONID_3;
+	db_frag.buf3_count = data->mdbgc.count;
+	err = btintel_pcie_alloc_dbgc_buf(data,
+					  &data->mdbgc.buf3,
+					  &data->mdbgc.buf3_p_addr,
+					  &data->mdbgc.buf3_v_addr,
+					  db_frag.buf3, 2,
+					  data->mdbgc.count);
+	if (err)
+		return err;
+
+	memcpy(data->mdbgc.frag_v_addr, &db_frag, sizeof(db_frag));
+	return 0;
+}
+
+/* This function initializes the memory for DBGC buffers */
 static int btintel_pcie_setup_dbgc(struct btintel_pcie_data *data)
 {
 	struct btintel_pcie_dbgc_ctxt db_frag;
-	struct data_buf *buf;
-	int i;
+	int err;
 
 	data->dbgc.count = BTINTEL_PCIE_DBGC_BUFFER_COUNT;
-	data->dbgc.bufs = devm_kcalloc(&data->pdev->dev, data->dbgc.count,
-				       sizeof(*buf), GFP_KERNEL);
-	if (!data->dbgc.bufs)
-		return -ENOMEM;
-
-	data->dbgc.buf_v_addr = dmam_alloc_coherent(&data->pdev->dev,
-						    data->dbgc.count *
-						    BTINTEL_PCIE_DBGC_BUFFER_SIZE,
-						    &data->dbgc.buf_p_addr,
-						    GFP_KERNEL | __GFP_NOWARN);
-	if (!data->dbgc.buf_v_addr)
-		return -ENOMEM;
 
 	data->dbgc.frag_v_addr = dmam_alloc_coherent(&data->pdev->dev,
-						     sizeof(struct btintel_pcie_dbgc_ctxt),
-						     &data->dbgc.frag_p_addr,
-						     GFP_KERNEL | __GFP_NOWARN);
+				sizeof(struct btintel_pcie_dbgc_ctxt),
+				&data->dbgc.frag_p_addr,
+				GFP_KERNEL | __GFP_NOWARN);
 	if (!data->dbgc.frag_v_addr)
 		return -ENOMEM;
 
 	data->dbgc.frag_size = sizeof(struct btintel_pcie_dbgc_ctxt);
 
+	memset(&db_frag, 0, sizeof(db_frag));
 	db_frag.magic_num = BTINTEL_PCIE_MAGIC_NUM;
 	db_frag.ver = BTINTEL_PCIE_DBGC_FRAG_VERSION;
 	db_frag.total_size = BTINTEL_PCIE_DBGC_FRAG_PAYLOAD_SIZE;
 	db_frag.num_buf = BTINTEL_PCIE_DBGC_FRAG_BUFFER_COUNT;
 
-	for (i = 0; i < data->dbgc.count; i++) {
-		buf = &data->dbgc.bufs[i];
-		buf->data_p_addr = data->dbgc.buf_p_addr + i * BTINTEL_PCIE_DBGC_BUFFER_SIZE;
-		buf->data = data->dbgc.buf_v_addr + i * BTINTEL_PCIE_DBGC_BUFFER_SIZE;
-		db_frag.bufs[i].buf_addr_lsb = lower_32_bits(buf->data_p_addr);
-		db_frag.bufs[i].buf_addr_msb = upper_32_bits(buf->data_p_addr);
-		db_frag.bufs[i].buf_size = BTINTEL_PCIE_DBGC_BUFFER_SIZE;
-	}
+	err = btintel_pcie_alloc_dbgc_buf(data,
+					  &data->dbgc.bufs,
+					  &data->dbgc.buf_p_addr,
+					  &data->dbgc.buf_v_addr,
+					  db_frag.bufs, 0,
+					  data->dbgc.count);
+	if (err)
+		return err;
 
 	memcpy(data->dbgc.frag_v_addr, &db_frag, sizeof(db_frag));
 	return 0;
+}
+
+static bool btintel_pcie_is_mdbgc_supported(struct btintel_pcie_data *data)
+{
+	return data->pdev->device == BTINTEL_PCIE_DEVICE_ID_NVL_S_SCP2 ||
+		data->pdev->device == BTINTEL_PCIE_DEVICE_ID_NVL_Hx_SCP2 ||
+		data->pdev->device == BTINTEL_PCIE_DEVICE_ID_PTL_FMP2;
 }
 
 static inline void ipc_print_ia_ring(struct hci_dev *hdev, struct ia *ia,
@@ -1877,6 +1993,12 @@ static void btintel_pcie_coredump_worker(struct work_struct *work)
 		goto out;
 	}
 
+	if (btintel_pcie_is_mdbgc_supported(data)) {
+		bt_dev_info(data->hdev,
+			    "Skipping coredump: MDBGC dump format not supported yet");
+		goto out;
+	}
+
 	btintel_pcie_dump_traces(data->hdev);
 out:
 	/* Release guard last so a new trigger can run only after this
@@ -2282,10 +2404,14 @@ static void btintel_pcie_init_ci(struct btintel_pcie_data *data,
 		 */
 		ci->dbgc_addr = 0;
 		ci->dbgc_size = 0;
+	} else if (btintel_pcie_is_mdbgc_supported(data)) {
+		ci->dbgc_addr = data->mdbgc.frag_p_addr;
+		ci->dbgc_size = data->mdbgc.frag_size;
 	} else {
 		ci->dbgc_addr = data->dbgc.frag_p_addr;
 		ci->dbgc_size = data->dbgc.frag_size;
 	}
+
 	ci->dbg_preset = 0x00;
 }
 
@@ -2518,6 +2644,8 @@ static int btintel_pcie_alloc(struct btintel_pcie_data *data)
 		 * buffer allocation entirely.
 		 */
 		err = 0;
+	} else if (btintel_pcie_is_mdbgc_supported(data)) {
+		err = btintel_pcie_setup_mdbgc(data);
 	} else {
 		err = btintel_pcie_setup_dbgc(data);
 	}
