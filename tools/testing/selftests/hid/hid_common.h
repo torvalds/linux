@@ -13,7 +13,7 @@
 #include <linux/uhid.h>
 
 #define SHOW_UHID_DEBUG 0
-#define MAX_BUF_SIZE 10
+#define MAX_BUF_SIZE 128
 
 #define min(a, b) \
 	({ __typeof__(a) _a = (a); \
@@ -97,6 +97,28 @@ static unsigned char rdesc[] = {
 };
 
 static __u8 feature_data[] = { 1, 2 };
+
+static __maybe_unused unsigned char fido2_rdesc[] = {
+	0x06, 0xd0, 0xf1,	/* Usage Page (FIDO Alliance) */
+	0x09, 0x01,		/* Usage (U2F Authenticator Device) */
+	0xa1, 0x01,		/* Collection (Application) */
+	0x09, 0x20,		/*  Usage (Input Report Data) */
+	0x15, 0x00,		/*  Logical Minimum (0) */
+	0x26, 0xff, 0x00,	/*  Logical Maximum (255) */
+	0x75, 0x08,		/*  Report Size (8) */
+	0x95, 0x40,		/*  Report Count (64) */
+	0x81, 0x02,		/*  Input (Data,Var,Abs) */
+	0x09, 0x21,		/*  Usage (Output Report Data) */
+	0x15, 0x00,		/*  Logical Minimum (0) */
+	0x26, 0xff, 0x00,	/*  Logical Maximum (255) */
+	0x75, 0x08,		/*  Report Size (8) */
+	0x95, 0x40,		/*  Report Count (64) */
+	0x91, 0x02,		/*  Output (Data,Var,Abs) */
+	0x06, 0x00, 0xff,	/*  Usage Page (Vendor Defined Page 1) */
+	0x09, 0x22,		/*  Usage (Vendor Usage 0x22) */
+	0xb1, 0x02,		/*  Feature (Data,Var,Abs) */
+	0xc0,			/* End Collection */
+};
 
 #define ASSERT_OK(data) ASSERT_FALSE(data)
 #define ASSERT_OK_PTR(ptr) ASSERT_NE(NULL, ptr)
