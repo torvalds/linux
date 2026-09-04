@@ -32,7 +32,7 @@ static const u8 REG_TEMP_MAX[4] = { 0x34, 0x30, 0x31, 0x32 };
 #define REG_PRODUCT_ID		0xfd
 #define REG_MFG_ID		0xfe
 
-/* equation 4 from datasheet: rpm = (3932160 * multipler) / count */
+/* equation 4 from datasheet: rpm = (3932160 * multiplier) / count */
 #define FAN_RPM_FACTOR		3932160
 
 /*
