@@ -95,52 +95,32 @@ static __le32 ceph_flags_sys2wire(struct ceph_mds_client *mdsc, u32 flags)
  * need to wait for MDS acknowledgement.
  */
 
-/*
- * How many pages to get in one call to iov_iter_get_pages().  This
- * determines the size of the on-stack array used as a buffer.
- */
-#define ITER_GET_BVECS_PAGES	64
-
 static ssize_t __iter_get_bvecs(struct iov_iter *iter, size_t maxsize,
-				struct bio_vec *bvecs)
+				struct bio_vec *bvecs, unsigned short max_vecs,
+				unsigned short *nr_vecs)
 {
 	size_t size = 0;
-	int bvec_idx = 0;
 
 	if (maxsize > iov_iter_count(iter))
 		maxsize = iov_iter_count(iter);
 
+	/* iov_iter_extract_bvecs() only handles one iov_iter segment per call */
 	while (size < maxsize) {
-		struct page *pages[ITER_GET_BVECS_PAGES];
 		ssize_t bytes;
-		size_t start;
-		int idx = 0;
 
-		bytes = iov_iter_get_pages2(iter, pages, maxsize - size,
-					   ITER_GET_BVECS_PAGES, &start);
-		if (bytes < 0)
+		bytes = iov_iter_extract_bvecs(iter, bvecs, maxsize - size,
+					       nr_vecs, max_vecs, 0, 0);
+		if (bytes <= 0)
 			return size ?: bytes;
 
 		size += bytes;
-
-		for ( ; bytes; idx++, bvec_idx++) {
-			int len = min_t(int, bytes, PAGE_SIZE - start);
-
-			bvec_set_page(&bvecs[bvec_idx], pages[idx], len, start);
-			bytes -= len;
-			start = 0;
-		}
 	}
 
 	return size;
 }
 
 /*
- * iov_iter_get_pages() only considers one iov_iter segment, no matter
- * what maxsize or maxpages are given.  For ITER_BVEC that is a single
- * page.
- *
- * Attempt to get up to @maxsize bytes worth of pages from @iter.
+ * Attempt to extract up to @maxsize bytes worth of pages from @iter.
  * Return the number of bytes in the created bio_vec array, or an error.
  */
 static ssize_t iter_get_bvecs_alloc(struct iov_iter *iter, size_t maxsize,
@@ -148,22 +128,20 @@ static ssize_t iter_get_bvecs_alloc(struct iov_iter *iter, size_t maxsize,
 {
 	struct bio_vec *bv;
 	size_t orig_count = iov_iter_count(iter);
+	unsigned short nr_vecs = 0;
 	ssize_t bytes;
 	int npages;
 
 	iov_iter_truncate(iter, maxsize);
-	npages = iov_iter_npages(iter, INT_MAX);
+	npages = iov_iter_npages(iter, USHRT_MAX);
 	iov_iter_reexpand(iter, orig_count);
 
-	/*
-	 * __iter_get_bvecs() may populate only part of the array -- zero it
-	 * out.
-	 */
-	bv = kvmalloc_objs(*bv, npages, GFP_KERNEL | __GFP_ZERO);
+	/* Worst case is one bio_vec per page */
+	bv = kvmalloc_objs(*bv, npages, GFP_KERNEL);
 	if (!bv)
 		return -ENOMEM;
 
-	bytes = __iter_get_bvecs(iter, maxsize, bv);
+	bytes = __iter_get_bvecs(iter, maxsize, bv, npages, &nr_vecs);
 	if (bytes < 0) {
 		/*
 		 * No pages were pinned -- just free the array.
@@ -173,20 +151,24 @@ static ssize_t iter_get_bvecs_alloc(struct iov_iter *iter, size_t maxsize,
 	}
 
 	*bvecs = bv;
-	*num_bvecs = npages;
+	*num_bvecs = nr_vecs;
 	return bytes;
 }
 
-static void put_bvecs(struct bio_vec *bvecs, int num_bvecs, bool should_dirty)
+static void put_bvecs(struct bio_vec *bvecs, int num_bvecs, bool should_dirty,
+		      bool pinned)
 {
 	int i;
 
 	for (i = 0; i < num_bvecs; i++) {
-		if (bvecs[i].bv_page) {
-			if (should_dirty)
-				set_page_dirty_lock(bvecs[i].bv_page);
-			put_page(bvecs[i].bv_page);
-		}
+		struct folio *folio = bvec_folio(&bvecs[i]);
+		unsigned int nr_pages = DIV_ROUND_UP(bvecs[i].bv_offset +
+						     bvecs[i].bv_len, PAGE_SIZE);
+
+		if (should_dirty)
+			folio_mark_dirty_lock(folio);
+		if (pinned)
+			unpin_user_folio(folio, nr_pages);
 	}
 	kvfree(bvecs);
 }
@@ -1295,6 +1277,7 @@ struct ceph_aio_request {
 	size_t total_len;
 	bool write;
 	bool should_dirty;
+	bool pinned;
 	int error;
 	struct list_head osd_reqs;
 	unsigned num_reqs;
@@ -1439,7 +1422,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	}
 
 	put_bvecs(osd_data->bvec_pos.bvecs, osd_data->num_bvecs,
-		  aio_req->should_dirty);
+		  aio_req->should_dirty, aio_req->pinned);
 	ceph_osdc_put_request(req);
 
 	if (rc < 0)
@@ -1530,14 +1513,15 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct ceph_osd_request *req;
 	struct bio_vec *bvecs;
 	struct ceph_aio_request *aio_req = NULL;
-	int num_pages = 0;
+	int num_bvecs = 0;
 	int flags;
 	int ret = 0;
 	struct timespec64 mtime = current_time(inode);
 	size_t count = iov_iter_count(iter);
 	loff_t pos = iocb->ki_pos;
 	bool write = iov_iter_rw(iter) == WRITE;
-	bool should_dirty = !write && user_backed_iter(iter);
+	bool pinned = iov_iter_extract_will_pin(iter);
+	bool should_dirty = !write && pinned;
 	bool sparse = ceph_test_mount_opt(fsc, SPARSEREAD);
 
 	if (write && ceph_in_snap(file_inode(file)))
@@ -1600,7 +1584,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			}
 		}
 
-		len = iter_get_bvecs_alloc(iter, size, &bvecs, &num_pages);
+		len = iter_get_bvecs_alloc(iter, size, &bvecs, &num_bvecs);
 		if (len < 0) {
 			ceph_osdc_put_request(req);
 			ret = len;
@@ -1609,7 +1593,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		if (len != size)
 			osd_req_op_extent_update(req, 0, len);
 
-		osd_req_op_extent_osd_data_bvecs(req, 0, bvecs, num_pages, len);
+		osd_req_op_extent_osd_data_bvecs(req, 0, bvecs, num_bvecs, len);
 
 		/*
 		 * To simplify error handling, allow AIO when IO within i_size
@@ -1622,6 +1606,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 				aio_req->iocb = iocb;
 				aio_req->write = write;
 				aio_req->should_dirty = should_dirty;
+				aio_req->pinned = pinned;
 				INIT_LIST_HEAD(&aio_req->osd_reqs);
 				if (write) {
 					aio_req->mtime = mtime;
@@ -1689,7 +1674,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 				int zlen = min_t(size_t, len - ret,
 						 size - pos - ret);
 
-				iov_iter_bvec(&i, ITER_DEST, bvecs, num_pages, len);
+				iov_iter_bvec(&i, ITER_DEST, bvecs, num_bvecs, len);
 				iov_iter_advance(&i, ret);
 				iov_iter_zero(zlen, &i);
 				ret += zlen;
@@ -1698,7 +1683,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 				len = ret;
 		}
 
-		put_bvecs(bvecs, num_pages, should_dirty);
+		put_bvecs(bvecs, num_bvecs, should_dirty, pinned);
 		ceph_osdc_put_request(req);
 		if (ret < 0)
 			break;
