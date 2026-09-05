@@ -519,8 +519,8 @@ static int exfat_read_boot_sector(struct super_block *sb)
 		EXFAT_RESERVED_CLUSTERS;
 
 	sbi->root_dir = le32_to_cpu(p_boot->root_cluster);
-	sbi->dentries_per_clu = 1 <<
-		(sbi->cluster_size_bits - DENTRY_SIZE_BITS);
+	sbi->dentries_per_clu_bits = sbi->cluster_size_bits - DENTRY_SIZE_BITS;
+	sbi->dentries_per_clu = 1 << sbi->dentries_per_clu_bits;
 
 	sbi->vol_flags = le16_to_cpu(p_boot->vol_flags);
 	sbi->vol_flags_persistent = sbi->vol_flags & (VOLUME_DIRTY | MEDIA_FAILURE);

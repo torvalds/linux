@@ -232,6 +232,7 @@ struct exfat_sb_info {
 	unsigned int num_FAT_sectors; /* num of FAT sectors */
 	unsigned int root_dir; /* root dir cluster */
 	unsigned int dentries_per_clu; /* num of dentries per cluster */
+	unsigned int dentries_per_clu_bits;
 	unsigned int vol_flags; /* volume flags */
 	unsigned int vol_flags_persistent; /* volume flags to retain */
 	struct buffer_head *boot_bh; /* buffer_head of BOOT sector */

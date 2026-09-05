@@ -1309,7 +1309,8 @@ static int exfat_get_volume_label_dentry(struct super_block *sb,
 			es->bh = es->__bh;
 			es->bh[0] = bh;
 			es->num_bh = 1;
-			es->start_off = exfat_dentries_to_bytes(i) % sb->s_blocksize;
+			es->start_off = exfat_dentries_to_bytes(i) &
+					((u32)sb->s_blocksize - 1);
 
 			return 0;
 		}
