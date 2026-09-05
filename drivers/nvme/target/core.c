@@ -558,7 +558,7 @@ static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 	if (ret < 0)
 		pci_dev_put(p2p_dev);
 
-	pr_info("using p2pmem on %s for nsid %d\n", pci_name(p2p_dev),
+	pr_info("using p2pmem on %s for nsid %u\n", pci_name(p2p_dev),
 		ns->nsid);
 }
 
@@ -590,6 +590,11 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 
 	if (ns->enabled)
 		goto out_unlock;
+
+	if (!ns->device_path) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	ret = nvmet_bdev_ns_enable(ns);
 	if (ret == -ENOTBLK)
@@ -980,7 +985,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	wait_for_completion(&sq->confirm_done);
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
-	nvmet_auth_sq_free(sq);
+	nvmet_auth_sq_destroy(sq);
 	nvmet_cq_put(sq->cq);
 
 	/*
