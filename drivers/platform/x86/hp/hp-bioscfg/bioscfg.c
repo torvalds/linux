@@ -484,6 +484,103 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 	return ret;
 }
 
+/**
+ * hp_get_common_data_from_package() - Parse the package elements shared
+ * by every attribute type (PATH..SECURITY_LEVEL)
+ * @obj: ACPI object package for this attribute instance
+ * @obj_count: Number of elements in @obj
+ * @elem: Current position in @obj; advanced in place when PREREQUISITES
+ *	  consumes additional array elements
+ * @eloc: Current common-element locator; advanced in place when
+ *	  PREREQUISITES_SIZE is zero, since PREREQUISITES is then omitted
+ *	  by BIOS
+ * @int_value: Integer value already decoded by the caller for *@eloc,
+ *	       when applicable
+ * @str_value: String value already decoded by the caller for *@eloc, when
+ *	       applicable; reused and reset to NULL while walking
+ *	       PREREQUISITES, same as the caller does with its own copy
+ * @common: Destination common_data struct for this attribute instance
+ *
+ * Called by each type's own hp_populate_*_elements_from_package()
+ * instead of duplicating this parsing per type, since every BIOS
+ * attribute package uses the same layout for these elements (see
+ * struct common_data).
+ *
+ * Return: 0 on success, or -EINVAL if @obj is too small for the
+ * declared PREREQUISITES_SIZE.
+ */
+int hp_get_common_data_from_package(union acpi_object *obj, int obj_count,
+				    int *elem, int *eloc, u32 int_value,
+				    char **str_value, struct common_data *common)
+{
+	int value_len;
+	int reqs;
+	int size;
+
+	switch (*eloc) {
+	case PATH:
+		strscpy(common->path, *str_value);
+		break;
+	case IS_READONLY:
+		common->is_readonly = int_value;
+		break;
+	case DISPLAY_IN_UI:
+		common->display_in_ui = int_value;
+		break;
+	case REQUIRES_PHYSICAL_PRESENCE:
+		common->requires_physical_presence = int_value;
+		break;
+	case SEQUENCE:
+		common->sequence = int_value;
+		break;
+	case PREREQUISITES_SIZE:
+		if (int_value > MAX_PREREQUISITES_SIZE) {
+			pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
+			int_value = MAX_PREREQUISITES_SIZE;
+		}
+		common->prerequisites_size = int_value;
+
+		/*
+		 * This step is needed to keep the expected
+		 * element list pointing to the right obj[elem].type
+		 * when the size is zero. PREREQUISITES
+		 * object is omitted by BIOS when the size is
+		 * zero.
+		 */
+		if (common->prerequisites_size == 0)
+			(*eloc)++;
+		break;
+	case PREREQUISITES:
+		size = min_t(u32, common->prerequisites_size, MAX_PREREQUISITES_SIZE);
+
+		for (reqs = 0; reqs < size; reqs++) {
+			if (*elem + reqs >= obj_count) {
+				pr_err("Error elem-objects package is too small\n");
+				return -EINVAL;
+			}
+
+			if (hp_convert_hexstr_to_str(obj[*elem + reqs].string.pointer,
+						     obj[*elem + reqs].string.length,
+						     str_value, &value_len))
+				continue;
+
+			strscpy(common->prerequisites[reqs], *str_value);
+			kfree(*str_value);
+			*str_value = NULL;
+		}
+		if (size)
+			*elem += size - 1;
+		break;
+	case SECURITY_LEVEL:
+		common->security_level = int_value;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /* map output size to the corresponding WMI method id */
 int hp_encode_outsize_for_pvsz(int outsize)
 {

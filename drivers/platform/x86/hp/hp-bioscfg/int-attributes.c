@@ -145,9 +145,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 	int ret;
 	u32 int_value = 0;
 	int elem;
-	int reqs;
 	int eloc;
-	int size;
 	struct integer_data *integer_data = &bioscfg_drv.integer_data[instance_id];
 
 	if (!integer_obj)
@@ -192,63 +190,18 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 			integer_data->current_value = int_value;
 			break;
 		case PATH:
-			strscpy(integer_data->common.path, str_value);
-			break;
 		case IS_READONLY:
-			integer_data->common.is_readonly = int_value;
-			break;
 		case DISPLAY_IN_UI:
-			integer_data->common.display_in_ui = int_value;
-			break;
 		case REQUIRES_PHYSICAL_PRESENCE:
-			integer_data->common.requires_physical_presence = int_value;
-			break;
 		case SEQUENCE:
-			integer_data->common.sequence = int_value;
-			break;
 		case PREREQUISITES_SIZE:
-			if (int_value > MAX_PREREQUISITES_SIZE) {
-				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
-				int_value = MAX_PREREQUISITES_SIZE;
-			}
-			integer_data->common.prerequisites_size = int_value;
-
-			/*
-			 * This step is needed to keep the expected
-			 * element list pointing to the right obj[elem].type
-			 * when the size is zero. PREREQUISITES
-			 * object is omitted by BIOS when the size is
-			 * zero.
-			 */
-			if (integer_data->common.prerequisites_size == 0)
-				eloc++;
-			break;
 		case PREREQUISITES:
-			size = min_t(u32, integer_data->common.prerequisites_size, MAX_PREREQUISITES_SIZE);
-
-			for (reqs = 0; reqs < size; reqs++) {
-				if (elem + reqs >= integer_obj_count) {
-					pr_err("Error elem-objects package is too small\n");
-					return -EINVAL;
-				}
-
-				ret = hp_convert_hexstr_to_str(integer_obj[elem + reqs].string.pointer,
-							       integer_obj[elem + reqs].string.length,
-							       &str_value, &value_len);
-
-				if (ret)
-					continue;
-
-				strscpy(integer_data->common.prerequisites[reqs], str_value);
-				kfree(str_value);
-				str_value = NULL;
-			}
-			if (size)
-				elem += size - 1;
-			break;
-
 		case SECURITY_LEVEL:
-			integer_data->common.security_level = int_value;
+			ret = hp_get_common_data_from_package(integer_obj, integer_obj_count,
+							      &elem, &eloc, int_value, &str_value,
+							      &integer_data->common);
+			if (ret)
+				return ret;
 			break;
 		case INT_LOWER_BOUND:
 			integer_data->lower_bound = int_value;

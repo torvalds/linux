@@ -132,7 +132,6 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 	u32 size = 0;
 	u32 int_value = 0;
 	int elem = 0;
-	int reqs;
 	int pos_values;
 	int ret;
 	int eloc;
@@ -176,64 +175,18 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 		case VALUE:
 			break;
 		case PATH:
-			strscpy(enum_data->common.path, str_value);
-			break;
 		case IS_READONLY:
-			enum_data->common.is_readonly = int_value;
-			break;
 		case DISPLAY_IN_UI:
-			enum_data->common.display_in_ui = int_value;
-			break;
 		case REQUIRES_PHYSICAL_PRESENCE:
-			enum_data->common.requires_physical_presence = int_value;
-			break;
 		case SEQUENCE:
-			enum_data->common.sequence = int_value;
-			break;
 		case PREREQUISITES_SIZE:
-			if (int_value > MAX_PREREQUISITES_SIZE) {
-				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
-				int_value = MAX_PREREQUISITES_SIZE;
-			}
-			enum_data->common.prerequisites_size = int_value;
-
-			/*
-			 * This step is needed to keep the expected
-			 * element list pointing to the right obj[elem].type
-			 * when the size is zero. PREREQUISITES
-			 * object is omitted by BIOS when the size is
-			 * zero.
-			 */
-			if (int_value == 0)
-				eloc++;
-			break;
-
 		case PREREQUISITES:
-			size = min_t(u32, enum_data->common.prerequisites_size, MAX_PREREQUISITES_SIZE);
-			for (reqs = 0; reqs < size; reqs++) {
-				if (elem + reqs >= enum_obj_count) {
-					pr_err("Error enum-objects package is too small\n");
-					return -EINVAL;
-				}
-
-				ret = hp_convert_hexstr_to_str(enum_obj[elem + reqs].string.pointer,
-							       enum_obj[elem + reqs].string.length,
-							       &str_value, &value_len);
-
-				if (ret)
-					return -EINVAL;
-
-				strscpy(enum_data->common.prerequisites[reqs], str_value);
-
-				kfree(str_value);
-				str_value = NULL;
-			}
-			if (size)
-				elem += size - 1;
-			break;
-
 		case SECURITY_LEVEL:
-			enum_data->common.security_level = int_value;
+			ret = hp_get_common_data_from_package(enum_obj, enum_obj_count,
+							      &elem, &eloc, int_value, &str_value,
+							      &enum_data->common);
+			if (ret)
+				return ret;
 			break;
 
 		case ENUM_CURRENT_VALUE:

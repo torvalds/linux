@@ -224,7 +224,6 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 	u32 size;
 	u32 int_value = 0;
 	int elem;
-	int reqs;
 	int eloc;
 	int pos_values;
 	struct password_data *password_data = &bioscfg_drv.password_data[instance_id];
@@ -268,64 +267,18 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 		case VALUE:
 			break;
 		case PATH:
-			strscpy(password_data->common.path, str_value);
-			break;
 		case IS_READONLY:
-			password_data->common.is_readonly = int_value;
-			break;
 		case DISPLAY_IN_UI:
-			password_data->common.display_in_ui = int_value;
-			break;
 		case REQUIRES_PHYSICAL_PRESENCE:
-			password_data->common.requires_physical_presence = int_value;
-			break;
 		case SEQUENCE:
-			password_data->common.sequence = int_value;
-			break;
 		case PREREQUISITES_SIZE:
-			if (int_value > MAX_PREREQUISITES_SIZE) {
-				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
-				int_value = MAX_PREREQUISITES_SIZE;
-			}
-			password_data->common.prerequisites_size = int_value;
-
-			/* This step is needed to keep the expected
-			 * element list pointing to the right obj[elem].type
-			 * when the size is zero. PREREQUISITES
-			 * object is omitted by BIOS when the size is
-			 * zero.
-			 */
-			if (int_value == 0)
-				eloc++;
-			break;
 		case PREREQUISITES:
-			size = min_t(u32, password_data->common.prerequisites_size,
-				     MAX_PREREQUISITES_SIZE);
-
-			for (reqs = 0; reqs < size; reqs++) {
-				if (elem + reqs >= password_obj_count) {
-					pr_err("Error elem-objects package is too small\n");
-					return -EINVAL;
-				}
-
-				ret = hp_convert_hexstr_to_str(password_obj[elem + reqs].string.pointer,
-							       password_obj[elem + reqs].string.length,
-							       &str_value, &value_len);
-
-				if (ret)
-					break;
-
-				strscpy(password_data->common.prerequisites[reqs], str_value);
-
-				kfree(str_value);
-				str_value = NULL;
-
-			}
-			if (size)
-				elem += size - 1;
-			break;
 		case SECURITY_LEVEL:
-			password_data->common.security_level = int_value;
+			ret = hp_get_common_data_from_package(password_obj, password_obj_count,
+							      &elem, &eloc, int_value, &str_value,
+							      &password_data->common);
+			if (ret)
+				return ret;
 			break;
 		case PSWD_MIN_LENGTH:
 			password_data->min_password_length = int_value;
