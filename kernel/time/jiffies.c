@@ -181,7 +181,7 @@ static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
 					      int *k_ptr, int dir,
 					      const struct ctl_table *tbl)
 {
-	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, true,
 			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
 }
 
