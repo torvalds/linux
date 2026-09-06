@@ -17330,8 +17330,7 @@ static int nl80211_parse_nan_channel(struct cfg80211_registered_device *rdev,
 	u8 n_rx_nss;
 	int ret;
 
-	channel_parsed = kcalloc(NL80211_ATTR_MAX + 1, sizeof(*channel_parsed),
-				 GFP_KERNEL);
+	channel_parsed = kzalloc_objs(*channel_parsed, NL80211_ATTR_MAX + 1);
 	if (!channel_parsed)
 		return -ENOMEM;
 
@@ -17554,8 +17553,7 @@ static int nl80211_nan_set_peer_sched(struct sk_buff *skb,
 	}
 
 	if (n_channels) {
-		nan_channels = kcalloc(n_channels, sizeof(*nan_channels),
-				       GFP_KERNEL);
+		nan_channels = kzalloc_objs(*nan_channels, n_channels);
 		if (!nan_channels)
 			return -ENOMEM;
 	}
@@ -17693,8 +17691,7 @@ static int nl80211_nan_set_local_sched(struct sk_buff *skb,
 				 info->nlhdr, GENL_HDRLEN, rem)
 		n_channels++;
 
-	sched = kzalloc(struct_size(sched, nan_channels, n_channels),
-			GFP_KERNEL);
+	sched = kzalloc_flex(*sched, nan_channels, n_channels);
 	if (!sched)
 		return -ENOMEM;
 

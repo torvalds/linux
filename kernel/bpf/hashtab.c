@@ -511,7 +511,7 @@ static int bpf_ma_set_dtor(struct bpf_map *map, struct bpf_mem_alloc *ma,
 	if (IS_ERR_OR_NULL(map->record))
 		return 0;
 
-	hrec = kzalloc(sizeof(*hrec), GFP_KERNEL);
+	hrec = kzalloc_obj(*hrec);
 	if (!hrec)
 		return -ENOMEM;
 	hrec->key_size = map->key_size;

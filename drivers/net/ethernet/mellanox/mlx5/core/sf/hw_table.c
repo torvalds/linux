@@ -317,7 +317,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 
 	num_spfs = mlx5_esw_get_num_spfs(dev);
 	num_hwc = MLX5_SF_HWC_FIRST_SPF + num_spfs;
-	table->hwc = kcalloc(num_hwc, sizeof(*table->hwc), GFP_KERNEL);
+	table->hwc = kzalloc_objs(*table->hwc, num_hwc);
 	if (!table->hwc) {
 		err = -ENOMEM;
 		goto hwc_alloc_err;

@@ -382,7 +382,7 @@ static int pdsc_send_package_data(struct pldmfw *context, const u8 *data,
 	if (!length)
 		return 0;
 
-	deferred = kmalloc_obj(*deferred, GFP_KERNEL);
+	deferred = kmalloc_obj(*deferred);
 	if (!deferred)
 		return -ENOMEM;
 
@@ -505,7 +505,7 @@ static int pdsc_send_component_table(struct pldmfw *context,
 		component->version_string, component->index,
 		component->component_size, transfer_flag);
 
-	component_priv = kzalloc_obj(*component_priv, GFP_KERNEL);
+	component_priv = kzalloc_obj(*component_priv);
 	if (!component_priv)
 		return -ENOMEM;
 
@@ -710,7 +710,7 @@ static int pdsc_flash_component_chunk(struct pdsc *pdsc, struct device *dev,
 	u8 *component_data;
 	int err;
 
-	deferred = kmalloc_obj(*deferred, GFP_KERNEL);
+	deferred = kmalloc_obj(*deferred);
 	if (!deferred)
 		return -ENOMEM;
 

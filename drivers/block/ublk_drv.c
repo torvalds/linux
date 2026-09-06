@@ -5396,7 +5396,7 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 		       page_to_pfn(pages[i + 1]) == pfn + (i - start) + 1)
 			i++;
 
-		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		range = kzalloc_obj(*range);
 		if (!range) {
 			ret = -ENOMEM;
 			goto unwind;
@@ -5459,7 +5459,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	nr_pages = buf_reg.len >> PAGE_SHIFT;
 
 	/* Pin pages before any locks (may sleep) */
-	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, nr_pages);
 	if (!pages)
 		return -ENOMEM;
 

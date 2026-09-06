@@ -6423,8 +6423,7 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 		goto update_scan;
 	}
 
-	accept_list = kmalloc_array(num_entries, sizeof(*accept_list),
-				    GFP_KERNEL);
+	accept_list = kmalloc_objs(*accept_list, num_entries);
 	if (!accept_list) {
 		hci_dev_unlock(hdev);
 		return -ENOMEM;

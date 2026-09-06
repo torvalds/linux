@@ -469,7 +469,7 @@ static int steelseries_arctis_probe(struct hid_device *hdev,
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
 	if (interface_num == info->sync_interface) {
-		sd = kzalloc_obj(*sd, GFP_KERNEL);
+		sd = kzalloc_obj(*sd);
 		if (!sd)
 			return -ENOMEM;
 

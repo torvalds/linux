@@ -767,7 +767,7 @@ static int fnic_nvmef_debugfs_open(struct inode *inode, struct file *file)
 	struct fnic_nvmef_info *info;
 	int buf_size = 2 * PAGE_SIZE;
 
-	info = kzalloc_obj(struct fnic_nvmef_info, GFP_KERNEL);
+	info = kzalloc_obj(struct fnic_nvmef_info);
 	if (!info)
 		return -ENOMEM;
 

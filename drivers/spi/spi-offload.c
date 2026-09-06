@@ -434,7 +434,7 @@ int devm_spi_offload_trigger_register(struct device *dev,
 	if (!info->fwnode || !info->ops || !info->ops->match)
 		return -EINVAL;
 
-	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
+	trigger = kzalloc_obj(*trigger);
 	if (!trigger)
 		return -ENOMEM;
 

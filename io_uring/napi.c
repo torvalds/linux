@@ -58,7 +58,7 @@ int __io_napi_add_id(struct io_ring_ctx *ctx, unsigned int napi_id,
 		}
 	}
 
-	e = kmalloc(sizeof(*e), GFP_NOWAIT);
+	e = kmalloc_obj(*e, GFP_NOWAIT);
 	if (!e)
 		return -ENOMEM;
 

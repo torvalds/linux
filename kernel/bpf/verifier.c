@@ -5483,7 +5483,7 @@ static int check_max_stack_depth(struct bpf_verifier_env *env)
 	bool priv_stack_supported;
 	int ret;
 
-	dinfo = kvcalloc(env->subprog_cnt, sizeof(*dinfo), GFP_KERNEL_ACCOUNT);
+	dinfo = kvzalloc_objs(*dinfo, env->subprog_cnt, GFP_KERNEL_ACCOUNT);
 	if (!dinfo)
 		return -ENOMEM;
 
@@ -20536,8 +20536,7 @@ static int process_fd_array_continuous(struct bpf_verifier_env *env,
 		return -E2BIG;
 	}
 
-	env->fd_array = kvcalloc(cnt, sizeof(*env->fd_array),
-				 GFP_KERNEL_ACCOUNT);
+	env->fd_array = kvzalloc_objs(*env->fd_array, cnt, GFP_KERNEL_ACCOUNT);
 	if (!env->fd_array)
 		return -ENOMEM;
 	env->fd_array_cnt = cnt;

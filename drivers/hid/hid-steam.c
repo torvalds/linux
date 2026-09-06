@@ -759,7 +759,7 @@ static inline int steam_haptic_pulse(struct steam_device *steam, u8 pad,
 
 	if (steam->quirks & STEAM_QUIRK_IBEX) {
 		struct steam_ibex_output_report *report =
-			kzalloc(sizeof(struct steam_ibex_output_report), GFP_KERNEL);
+			kzalloc_obj(struct steam_ibex_output_report);
 
 		if (!report)
 			return -ENOMEM;
@@ -798,7 +798,7 @@ static inline int steam_haptic_rumble(struct steam_device *steam,
 
 	if (steam->quirks & STEAM_QUIRK_IBEX) {
 		struct steam_ibex_output_report *report =
-			kzalloc(sizeof(struct steam_ibex_output_report), GFP_KERNEL);
+			kzalloc_obj(struct steam_ibex_output_report);
 
 		if (!report)
 			return -ENOMEM;

@@ -483,8 +483,8 @@ static int io_zcrx_append_area(struct io_zcrx_ifq *ifq,
 	old_areas = ifq->areas;
 	old_nr = ifq->nr_areas;
 
-	areas = kmalloc_array(old_nr + 1, sizeof(areas[0]),
-			      GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	areas = kmalloc_objs(areas[0], old_nr + 1,
+			     GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!areas)
 		return -ENOMEM;
 	if (old_areas)

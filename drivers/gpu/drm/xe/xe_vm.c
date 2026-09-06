@@ -4148,7 +4148,7 @@ static int fill_faults(struct xe_vm *vm,
 	entry_size = sizeof(struct xe_vm_fault);
 	count = args->size / entry_size;
 
-	fault_list = kcalloc(count, sizeof(struct xe_vm_fault), GFP_KERNEL);
+	fault_list = kzalloc_objs(struct xe_vm_fault, count);
 	if (!fault_list)
 		return -ENOMEM;
 

@@ -11820,7 +11820,7 @@ static void smb2_notify_cancel_fn(void **argv)
 		return;
 	conn = in_work->conn;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kmalloc_obj(*ctx, GFP_ATOMIC);
 	if (!ctx) {
 		/* Can't defer the response -- free without sending one. */
 		list_del_init(&in_work->async_request_entry);

@@ -254,8 +254,8 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	/* Only allocate memory for ISP blob info */
 	if (sh_css_num_binaries > NUM_OF_SPS) {
 		sh_css_blob_info =
-			kmalloc_array(sh_css_num_binaries - NUM_OF_SPS,
-				      sizeof(*sh_css_blob_info), GFP_KERNEL);
+			kmalloc_objs(*sh_css_blob_info,
+				     sh_css_num_binaries - NUM_OF_SPS);
 		if (!sh_css_blob_info)
 			return -ENOMEM;
 	} else {

@@ -514,8 +514,7 @@ void iwl_mld_init_ap_type_tables(struct iwl_mld *mld)
 		return;
 
 	if (iwl_fw_lookup_cmd_ver(mld->fw, cmd.id, 1) == 1) {
-		struct iwl_mcc_allowed_ap_type_cmd_v1 *cmd_v1 =
-			kzalloc(sizeof(*cmd_v1), GFP_KERNEL);
+		struct iwl_mcc_allowed_ap_type_cmd_v1 *cmd_v1 = kzalloc_obj(*cmd_v1);
 
 		if (!cmd_v1)
 			return;

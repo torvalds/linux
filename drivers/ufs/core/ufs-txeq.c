@@ -1073,7 +1073,7 @@ static int __ufshcd_tx_eqtr(struct ufs_hba *hba,
 			    struct ufs_pa_layer_attr *pwr_mode)
 {
 	struct ufshcd_tx_eqtr_data *eqtr_data  __free(kfree) =
-		kzalloc(sizeof(*eqtr_data), GFP_KERNEL);
+		kzalloc_obj(*eqtr_data);
 	struct tx_eqtr_iter h_iter = {};
 	struct tx_eqtr_iter d_iter = {};
 	u32 gear = pwr_mode->gear_tx;

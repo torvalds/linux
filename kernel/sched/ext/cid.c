@@ -98,16 +98,16 @@ static struct scx_cid_tables *scx_cid_alloc_tables(void)
 	u32 npossible = num_possible_cpus();
 	struct scx_cid_tables *tbls;
 
-	tbls = kzalloc_obj(*tbls, GFP_KERNEL);
+	tbls = kzalloc_obj(*tbls);
 	if (!tbls)
 		return NULL;
 
-	tbls->cid_to_cpu = kvcalloc(npossible, sizeof(*tbls->cid_to_cpu), GFP_KERNEL);
-	tbls->cpu_to_cid = kvcalloc(nr_cpu_ids, sizeof(*tbls->cpu_to_cid), GFP_KERNEL);
-	tbls->cid_to_shard = kvcalloc(npossible, sizeof(*tbls->cid_to_shard), GFP_KERNEL);
-	tbls->shard_node = kvcalloc(npossible, sizeof(*tbls->shard_node), GFP_KERNEL);
-	tbls->shard_ranges = kvcalloc(npossible, sizeof(*tbls->shard_ranges), GFP_KERNEL);
-	tbls->topo = kvcalloc(npossible, sizeof(*tbls->topo), GFP_KERNEL);
+	tbls->cid_to_cpu = kvzalloc_objs(*tbls->cid_to_cpu, npossible);
+	tbls->cpu_to_cid = kvzalloc_objs(*tbls->cpu_to_cid, nr_cpu_ids);
+	tbls->cid_to_shard = kvzalloc_objs(*tbls->cid_to_shard, npossible);
+	tbls->shard_node = kvzalloc_objs(*tbls->shard_node, npossible);
+	tbls->shard_ranges = kvzalloc_objs(*tbls->shard_ranges, npossible);
+	tbls->topo = kvzalloc_objs(*tbls->topo, npossible);
 
 	if (!tbls->cid_to_cpu || !tbls->cpu_to_cid || !tbls->cid_to_shard ||
 	    !tbls->shard_node || !tbls->shard_ranges || !tbls->topo) {
@@ -490,7 +490,7 @@ __bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid__arena, u32 cpu_to_c
 	 * region that arena fault recovery covers.
 	 */
 	alloced = zalloc_cpumask_var(&seen, GFP_KERNEL);
-	node_counts = kcalloc(nr_node_ids, sizeof(*node_counts), GFP_KERNEL);
+	node_counts = kzalloc_objs(*node_counts, nr_node_ids);
 	if (cpu_to_cid_cnt == nr_cpu_ids)
 		cpu_to_cid = kmemdup(cpu_to_cid__arena, cpu_to_cid_cnt * sizeof(s32),
 				     GFP_KERNEL);

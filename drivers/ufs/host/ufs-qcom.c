@@ -2770,7 +2770,7 @@ static int ufs_qcom_get_rx_fom(struct ufs_hba *hba,
 			       struct tx_eqtr_iter *d_iter)
 {
 	struct ufshcd_tx_eq_params *params __free(kfree) =
-		kzalloc(sizeof(*params), GFP_KERNEL);
+		kzalloc_obj(*params);
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_pa_layer_attr old_pwr_info;
 	u32 fom[PA_MAXDATALANES] = { 0 };

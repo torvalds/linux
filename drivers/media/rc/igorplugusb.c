@@ -164,7 +164,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	if (!ir)
 		return -ENOMEM;
 
-	ir->request = kzalloc_obj(*ir->request, GFP_KERNEL);
+	ir->request = kzalloc_obj(*ir->request);
 	if (!ir->request)
 		goto fail;
 

@@ -40,7 +40,7 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 			end_cluster = vol->nr_clusters;
 	}
 
-	ra = kzalloc(sizeof(*ra), GFP_NOFS);
+	ra = kzalloc_obj(*ra, GFP_NOFS);
 	if (!ra)
 		return -ENOMEM;
 

@@ -810,8 +810,7 @@ void pdsc_host_mem_add(struct pdsc *pdsc)
 	if (count == 0)
 		return;
 
-	pdsc->host_mem_reqs = kzalloc_objs(*pdsc->host_mem_reqs, count,
-					   GFP_KERNEL);
+	pdsc->host_mem_reqs = kzalloc_objs(*pdsc->host_mem_reqs, count);
 	if (!pdsc->host_mem_reqs) {
 		dev_err(pdsc->dev, "failed to alloc host_mem_reqs array\n");
 		return;

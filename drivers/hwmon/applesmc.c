@@ -1476,9 +1476,9 @@ static int __init applesmc_init(void)
 	applesmc_fan_config[smcreg.fan_count] = 0;
 	applesmc_pwm_config[smcreg.fan_count] = 0;
 
-	applesmc_info_temp = kzalloc_obj(*applesmc_info_temp, GFP_KERNEL);
-	applesmc_info_fan = kzalloc_obj(*applesmc_info_fan, GFP_KERNEL);
-	applesmc_info_pwm = kzalloc_obj(*applesmc_info_pwm, GFP_KERNEL);
+	applesmc_info_temp = kzalloc_obj(*applesmc_info_temp);
+	applesmc_info_fan = kzalloc_obj(*applesmc_info_fan);
+	applesmc_info_pwm = kzalloc_obj(*applesmc_info_pwm);
 	if (!applesmc_info_temp || !applesmc_info_fan || !applesmc_info_pwm) {
 		ret = -ENOMEM;
 		goto out_info;
@@ -1493,7 +1493,7 @@ static int __init applesmc_init(void)
 	applesmc_info_pwm->type = hwmon_pwm;
 	applesmc_info_pwm->config = applesmc_pwm_config;
 
-	applesmc_info_arr = kcalloc(4, sizeof(*applesmc_info_arr), GFP_KERNEL);
+	applesmc_info_arr = kzalloc_objs(*applesmc_info_arr, 4);
 	if (!applesmc_info_arr) {
 		ret = -ENOMEM;
 		goto out_info;
@@ -1504,7 +1504,7 @@ static int __init applesmc_init(void)
 	applesmc_info_arr[2] = applesmc_info_pwm;
 	applesmc_info_arr[3] = NULL;
 
-	applesmc_chip = kzalloc_obj(*applesmc_chip, GFP_KERNEL);
+	applesmc_chip = kzalloc_obj(*applesmc_chip);
 	if (!applesmc_chip) {
 		ret = -ENOMEM;
 		goto out_info;
@@ -1514,10 +1514,9 @@ static int __init applesmc_init(void)
 	applesmc_chip->info = applesmc_info_arr;
 
 	/* Create non-standard fanX_safe attributes group */
-	fan_safe_attrs = kcalloc(smcreg.fan_count,
-				      sizeof(*fan_safe_attrs), GFP_KERNEL);
-	fan_safe_attr_list = kcalloc(smcreg.fan_count + 1,
-					  sizeof(*fan_safe_attr_list), GFP_KERNEL);
+	fan_safe_attrs = kzalloc_objs(*fan_safe_attrs, smcreg.fan_count);
+	fan_safe_attr_list = kzalloc_objs(*fan_safe_attr_list,
+					  smcreg.fan_count + 1);
 	if (!fan_safe_attrs || !fan_safe_attr_list) {
 		ret = -ENOMEM;
 		goto out_info;

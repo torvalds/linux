@@ -149,7 +149,7 @@ static int kvm_dmsintc_create(struct kvm_device *dev, u32 type)
 		return -EINVAL;
 	}
 
-	s = kzalloc(sizeof(struct loongarch_dmsintc), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_dmsintc);
 	if (!s)
 		return -ENOMEM;
 

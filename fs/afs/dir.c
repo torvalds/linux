@@ -1801,7 +1801,7 @@ static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		goto error;
 
 	ret = -ENOMEM;
-	symlink = kmalloc_flex(struct afs_symlink, content, clen + 1, GFP_KERNEL);
+	symlink = kmalloc_flex(struct afs_symlink, content, clen + 1);
 	if (!symlink)
 		goto error;
 	refcount_set(&symlink->ref, 1);

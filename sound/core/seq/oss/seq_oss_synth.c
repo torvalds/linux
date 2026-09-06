@@ -86,7 +86,7 @@ snd_seq_oss_synth_probe(struct snd_seq_device *dev)
 	struct seq_oss_synth *rec;
 	struct snd_seq_oss_reg *reg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
 
-	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	rec = kzalloc_obj(*rec);
 	if (!rec)
 		return -ENOMEM;
 	rec->seq_device = -1;

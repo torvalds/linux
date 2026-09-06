@@ -65,7 +65,7 @@ static int __init brcmstb_soc_device_init(void)
 		goto out_put_node;
 	}
 
-	soc_info = kzalloc(sizeof(*soc_info), GFP_KERNEL);
+	soc_info = kzalloc_obj(*soc_info);
 	if (!soc_info) {
 		ret = -ENOMEM;
 		goto out_unmap;

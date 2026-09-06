@@ -2600,8 +2600,8 @@ rb_allocate_cpu_buffer(struct trace_buffer *buffer, long nr_pages, int cpu)
 		cpu_buffer->remote = buffer->remote;
 		cpu_buffer->meta_page = (struct trace_buffer_meta *)(void *)desc->meta_va;
 		cpu_buffer->nr_pages = nr_pages;
-		cpu_buffer->subbuf_ids = kcalloc(cpu_buffer->nr_pages + 1,
-						 sizeof(*cpu_buffer->subbuf_ids), GFP_KERNEL);
+		cpu_buffer->subbuf_ids = kzalloc_objs(*cpu_buffer->subbuf_ids,
+						      cpu_buffer->nr_pages + 1);
 		if (!cpu_buffer->subbuf_ids)
 			goto fail_free_reader;
 

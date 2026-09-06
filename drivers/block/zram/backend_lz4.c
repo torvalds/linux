@@ -42,7 +42,7 @@ static int lz4_setup_params(struct zcomp_params *params)
 	if (!params->dict || !params->dict_sz)
 		return 0;
 
-	dict_stream = kzalloc_obj(*dict_stream, GFP_KERNEL);
+	dict_stream = kzalloc_obj(*dict_stream);
 	if (!dict_stream)
 		return -ENOMEM;
 

@@ -720,9 +720,8 @@ static int hsmp_acpi_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		hsmp_pdev->sock = kcalloc(hsmp_pdev->num_sockets,
-					  sizeof(*hsmp_pdev->sock),
-					  GFP_KERNEL);
+		hsmp_pdev->sock = kzalloc_objs(*hsmp_pdev->sock,
+					       hsmp_pdev->num_sockets);
 		if (!hsmp_pdev->sock)
 			return -ENOMEM;
 

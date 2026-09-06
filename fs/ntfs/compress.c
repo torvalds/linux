@@ -514,8 +514,8 @@ int ntfs_read_compressed_block(struct folio *folio)
 		return -EIO;
 	}
 
-	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS);
-	completed_pages = kmalloc_array(nr_pages + 1, sizeof(int), GFP_NOFS);
+	pages = kmalloc_objs(struct page *, nr_pages, GFP_NOFS);
+	completed_pages = kmalloc_objs(int, nr_pages + 1, GFP_NOFS);
 
 	if (unlikely(!pages || !completed_pages)) {
 		kfree(pages);
@@ -1262,7 +1262,7 @@ static int ntfs_compress_workspace_init(struct ntfs_inode *ni,
 	size = ni->itype.compressed.block_size + 2 *
 		(ni->itype.compressed.block_size / NTFS_SB_SIZE) + 2;
 	ws->nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);
-	ws->pages = kcalloc(ws->nr_pages, sizeof(*ws->pages), GFP_NOFS);
+	ws->pages = kzalloc_objs(*ws->pages, ws->nr_pages, GFP_NOFS);
 	if (!ws->pages)
 		return -ENOMEM;
 
@@ -1483,7 +1483,7 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 	pages_per_cb = DIV_ROUND_UP(offset_in_page(pos & ~(cb_size - 1)) +
 			cb_size, PAGE_SIZE);
 
-	pages = kmalloc_array(pages_per_cb, sizeof(struct page *), GFP_NOFS);
+	pages = kmalloc_objs(struct page *, pages_per_cb, GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 	ctx = kvzalloc_obj(*ctx, GFP_NOFS);

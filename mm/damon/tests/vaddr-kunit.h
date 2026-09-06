@@ -136,7 +136,7 @@ static void damon_do_test_apply_three_regions(struct kunit *test,
 	if (!t)
 		kunit_skip(test, "target alloc fail");
 
-	ranges = kmalloc_array(nr_regions / 2, sizeof(*ranges), GFP_KERNEL);
+	ranges = kmalloc_objs(*ranges, nr_regions / 2);
 	if (!ranges) {
 		damon_destroy_target(t, NULL);
 		kunit_skip(test, "ranges alloc fail");

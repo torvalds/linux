@@ -486,7 +486,8 @@ static u32 acpi_add_prt_dep(acpi_handle handle)
 			if (ACPI_FAILURE(status))
 				continue;
 			dep_devices.count = 1;
-			dep_devices.handles = kcalloc(1, sizeof(*dep_devices.handles), GFP_KERNEL);
+			dep_devices.handles = kzalloc_objs(*dep_devices.handles,
+							   1);
 			if (!dep_devices.handles) {
 				acpi_handle_err(handle, "failed to allocate memory\n");
 				continue;
@@ -499,7 +500,8 @@ static u32 acpi_add_prt_dep(acpi_handle handle)
 			if (!gsi_handle)
 				continue;
 			dep_devices.count = 1;
-			dep_devices.handles = kcalloc(1, sizeof(*dep_devices.handles), GFP_KERNEL);
+			dep_devices.handles = kzalloc_objs(*dep_devices.handles,
+							   1);
 			if (!dep_devices.handles) {
 				acpi_handle_err(handle, "failed to allocate memory\n");
 				continue;
@@ -526,7 +528,7 @@ static u32 acpi_add_irq_dep(acpi_handle handle)
 			continue;
 
 		dep_devices.count = 1;
-		dep_devices.handles = kcalloc(1, sizeof(*dep_devices.handles), GFP_KERNEL);
+		dep_devices.handles = kzalloc_objs(*dep_devices.handles, 1);
 		if (!dep_devices.handles) {
 			acpi_handle_err(handle, "failed to allocate memory\n");
 			continue;
