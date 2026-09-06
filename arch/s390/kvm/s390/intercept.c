@@ -11,6 +11,8 @@
 #include <linux/kvm_host.h>
 #include <linux/errno.h>
 #include <linux/pagemap.h>
+#include <linux/cleanup.h>
+#include <linux/slab.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/irq.h>
@@ -411,9 +413,9 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
  */
 int handle_sthyi(struct kvm_vcpu *vcpu)
 {
+	struct sthyi_sctns *sctns __free(kfree) = NULL;
 	int reg1, reg2, cc = 0, r = 0;
 	u64 code, addr, rc = 0;
-	struct sthyi_sctns *sctns = NULL;
 
 	if (!test_kvm_facility(vcpu->kvm, 74))
 		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
@@ -430,37 +432,32 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	if (code & 0xffff) {
-		cc = 3;
-		rc = 4;
-		goto out;
+		vcpu->run->s.regs.gprs[reg2 + 1] = 4;
+		kvm_s390_set_psw_cc(vcpu, 3);
+		return 0;
 	}
 
 	if (!kvm_s390_pv_cpu_is_protected(vcpu) && (addr & ~PAGE_MASK))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	sctns = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
+	sctns = kzalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!sctns)
 		return -ENOMEM;
 
 	cc = sthyi_fill(sctns, &rc);
-	if (cc < 0) {
-		free_page((unsigned long)sctns);
+	if (cc < 0)
 		return cc;
-	}
-out:
+
 	if (!cc) {
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(sida_addr(vcpu->arch.sie_block), sctns, PAGE_SIZE);
 		} else {
 			r = write_guest(vcpu, addr, reg2, sctns, PAGE_SIZE);
-			if (r) {
-				free_page((unsigned long)sctns);
+			if (r)
 				return kvm_s390_inject_prog_cond(vcpu, r);
-			}
 		}
 	}
 
-	free_page((unsigned long)sctns);
 	vcpu->run->s.regs.gprs[reg2 + 1] = rc;
 	kvm_s390_set_psw_cc(vcpu, cc);
 	return r;
