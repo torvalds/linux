@@ -1131,7 +1131,8 @@ found:
 	return ll;
 }
 
-static int ntfs_mft_attr_extend(struct ntfs_inode *ni)
+static int ntfs_mft_attr_extend(struct ntfs_inode *ni,
+				struct ntfs_inode *locked_ni)
 {
 	int ret = 0;
 	struct ntfs_inode *base_ni;
@@ -1152,7 +1153,7 @@ static int ntfs_mft_attr_extend(struct ntfs_inode *ni)
 		}
 	}
 
-	ret = ntfs_attr_update_mapping_pairs(ni, 0);
+	ret = ntfs_attr_update_mapping_pairs_locked(ni, 0, locked_ni);
 	if (ret)
 		pr_err("MP update failed\n");
 
@@ -1340,7 +1341,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(struct ntfs_volume *vol)
 	ret = ntfs_attr_record_resize(ctx->mrec, a, mp_size +
 			le16_to_cpu(a->data.non_resident.mapping_pairs_offset));
 	if (unlikely(ret)) {
-		ret = ntfs_mft_attr_extend(mftbmp_ni);
+		ret = ntfs_mft_attr_extend(mftbmp_ni, mftbmp_ni);
 		if (!ret)
 			goto extended_ok;
 		if (ret != -EAGAIN)
@@ -1451,7 +1452,9 @@ undo_alloc:
 			NVolSetErrors(vol);
 		}
 		mark_mft_record_dirty(ctx->ntfs_ino);
-	} else if (status.mp_extended && ntfs_attr_update_mapping_pairs(mftbmp_ni, 0)) {
+	} else if (status.mp_extended &&
+		   ntfs_attr_update_mapping_pairs_locked(mftbmp_ni, 0,
+							  mftbmp_ni)) {
 		ntfs_error(vol->sb, "Failed to restore mapping pairs.%s", es);
 		NVolSetErrors(vol);
 	}
@@ -1776,7 +1779,7 @@ static int ntfs_mft_data_extend_allocation_nolock(struct ntfs_volume *vol)
 	ret = ntfs_attr_record_resize(ctx->mrec, a, mp_size +
 			le16_to_cpu(a->data.non_resident.mapping_pairs_offset));
 	if (unlikely(ret)) {
-		ret = ntfs_mft_attr_extend(mft_ni);
+		ret = ntfs_mft_attr_extend(mft_ni, NULL);
 		if (!ret)
 			goto extended_ok;
 		if (ret != -EAGAIN)

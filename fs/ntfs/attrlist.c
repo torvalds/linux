@@ -68,7 +68,8 @@ int ntfs_attrlist_need(struct ntfs_inode *ni)
  * legal list size as a reserve.
  */
 static int ntfs_attrlist_repack(struct inode *attr_vi,
-		struct ntfs_inode *attr_ni, s64 min_alloc_size)
+		struct ntfs_inode *attr_ni, s64 min_alloc_size,
+		struct ntfs_inode *locked_ni)
 {
 	struct ntfs_volume *vol = attr_ni->vol;
 	struct runlist_element *old_rl, *new_rl;
@@ -78,10 +79,12 @@ static int ntfs_attrlist_repack(struct inode *attr_vi,
 	size_t old_rl_count, new_rl_count;
 	unsigned long flags;
 	int err, restore_err;
-
 	if (attr_ni->mft_no != FILE_MFT || !NInoNonResident(attr_ni) ||
 		min_alloc_size < 0)
 		return -EINVAL;
+	/* The buffered I/O below can reacquire the attribute runlist lock. */
+	if (attr_ni == locked_ni)
+		return -ENOSPC;
 
 	err = ntfs_attr_map_whole_runlist(attr_ni);
 	if (err)
@@ -131,7 +134,6 @@ static int ntfs_attrlist_repack(struct inode *attr_vi,
 		err = -ENOSPC;
 		goto out_free_data;
 	}
-
 	old_rl = attr_ni->runlist.rl;
 	old_rl_count = attr_ni->runlist.count;
 	down_write(&attr_ni->runlist.lock);
@@ -152,7 +154,7 @@ static int ntfs_attrlist_repack(struct inode *attr_vi,
 		}
 	}
 
-	err = ntfs_attr_update_mapping_pairs(attr_ni, 0);
+	err = ntfs_attr_update_mapping_pairs_locked(attr_ni, 0, locked_ni);
 	if (err)
 		goto restore_old_runlist;
 
@@ -177,7 +179,8 @@ restore_old_runlist:
 	attr_ni->allocated_size = old_alloc_size;
 	write_unlock_irqrestore(&attr_ni->size_lock, flags);
 
-	restore_err = ntfs_attr_update_mapping_pairs(attr_ni, 0);
+	restore_err = ntfs_attr_update_mapping_pairs_locked(
+			attr_ni, 0, locked_ni);
 	if (restore_err) {
 		ntfs_error(vol->sb, "Failed to restore ATTRIBUTE_LIST mapping pairs (%d)",
 			   restore_err);
@@ -193,7 +196,8 @@ out_free_data:
 	return err;
 }
 
-int ntfs_attrlist_update(struct ntfs_inode *base_ni)
+int ntfs_attrlist_update_locked(struct ntfs_inode *base_ni,
+				struct ntfs_inode *locked_ni)
 {
 	struct inode *attr_vi;
 	struct ntfs_inode *attr_ni;
@@ -215,20 +219,27 @@ int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 		return err;
 	}
 	attr_ni = NTFS_I(attr_vi);
+	/* Truncation and page-cache writes can reacquire this runlist lock. */
+	if (attr_ni == locked_ni) {
+		iput(attr_vi);
+		return -ENOSPC;
+	}
 
-	err = ntfs_attr_truncate_i(attr_ni, base_ni->attr_list_size, HOLES_NO);
+	err = ntfs_attr_truncate_i_locked(
+			attr_ni, base_ni->attr_list_size, HOLES_NO, locked_ni);
 	if (err == -ENOSPC && attr_ni->mft_no == FILE_MFT &&
 		NInoNonResident(attr_ni)) {
 		retry_err = ntfs_attrlist_repack(attr_vi, attr_ni,
-					base_ni->attr_list_size);
+					base_ni->attr_list_size, locked_ni);
 		if (retry_err) {
 			ntfs_error(base_ni->vol->sb, "Failed to repack attribute list");
 			iput(attr_vi);
 			return retry_err;
 		}
 
-		retry_err = ntfs_attr_truncate_i(attr_ni, base_ni->attr_list_size,
-						 HOLES_NO);
+		retry_err = ntfs_attr_truncate_i_locked(
+				attr_ni, base_ni->attr_list_size,
+				HOLES_NO, locked_ni);
 		if (retry_err) {
 			ntfs_error(base_ni->vol->sb,
 				   "Failed to resize attribute list after repack");
@@ -252,11 +263,13 @@ int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 	 */
 	if (base_ni->mft_no == FILE_MFT && NInoNonResident(attr_ni) &&
 		attr_ni->allocated_size < NTFS_MAX_ATTR_LIST_SIZE) {
-		retry_err = ntfs_attr_expand(attr_ni, base_ni->attr_list_size,
-					     NTFS_MAX_ATTR_LIST_SIZE);
+		retry_err = ntfs_attr_expand_locked(
+				attr_ni, base_ni->attr_list_size,
+				NTFS_MAX_ATTR_LIST_SIZE, locked_ni);
 		if (retry_err == -ENOSPC) {
-			retry_err = ntfs_attrlist_repack(attr_vi, attr_ni,
-					NTFS_MAX_ATTR_LIST_SIZE);
+			retry_err = ntfs_attrlist_repack(
+					attr_vi, attr_ni,
+					NTFS_MAX_ATTR_LIST_SIZE, locked_ni);
 			if (retry_err == -ENOSPC)
 				retry_err = 0;
 		}
@@ -287,6 +300,11 @@ int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 	NInoSetAttrListDirty(base_ni);
 	iput(attr_vi);
 	return 0;
+}
+
+int ntfs_attrlist_update(struct ntfs_inode *base_ni)
+{
+	return ntfs_attrlist_update_locked(base_ni, NULL);
 }
 
 /*

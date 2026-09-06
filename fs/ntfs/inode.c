@@ -2772,7 +2772,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 
 	if (NInoNonResident(ni) && NInoRunlistDirty(ni)) {
 		down_write(&ni->runlist.lock);
-		err = ntfs_attr_update_mapping_pairs(ni, 0);
+		err = ntfs_attr_update_mapping_pairs_locked(ni, 0, ni);
 		if (!err)
 			NInoClearRunlistDirty(ni);
 		up_write(&ni->runlist.lock);
