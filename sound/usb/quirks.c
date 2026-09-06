@@ -2413,6 +2413,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_PLAYBACK_FIRST | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x1397, 0x050c, /* Behringer Flow 8 */
 		   QUIRK_FLAG_IFB_SILENCE_ON_EMPTY),
+	DEVICE_FLG(0x1397, 0x0510, /* Behringer UV1 */
+		   QUIRK_FLAG_PLAYBACK_FIRST | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x13e5, 0x0001, /* Serato Phono */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
 	DEVICE_FLG(0x152a, 0x85dd, /* SMSL USB DAC */
