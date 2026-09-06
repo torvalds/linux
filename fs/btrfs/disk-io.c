@@ -2715,10 +2715,14 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 	int ret = 0;
 
 	if (use_backup) {
-		ret = read_backup_root(fs_info, 1);
+		ASSERT(fs_info->use_backup_slot >= 0 &&
+		       fs_info->use_backup_slot < BTRFS_NUM_BACKUP_ROOTS);
+
+		ret = read_backup_root(fs_info, fs_info->use_backup_slot);
 		if (ret < 0) {
 			btrfs_err(fs_info,
-				  "failed to load backup roots at slot %d", 1);
+				  "failed to load backup roots at slot %d",
+				  fs_info->use_backup_slot);
 			return ret;
 		}
 		/*
@@ -2727,7 +2731,8 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		 */
 		btrfs_set_super_log_root(sb, 0);
 		backup_index = ret;
-		btrfs_warn(fs_info, "loaded backup roots at slot %d", 1);
+		btrfs_warn(fs_info, "loaded backup roots at slot %d",
+			   fs_info->use_backup_slot);
 	}
 
 	ret = load_important_roots(fs_info);
@@ -2898,6 +2903,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	init_waitqueue_head(&fs_info->async_submit_wait);
 	init_waitqueue_head(&fs_info->delayed_iputs_wait);
 
+	fs_info->use_backup_slot = -1;
 	/* Usable values until the real ones are cached from the superblock */
 	fs_info->nodesize = 4096;
 	fs_info->sectorsize = 4096;

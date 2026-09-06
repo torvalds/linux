@@ -87,6 +87,7 @@ struct btrfs_fs_context {
 	unsigned long long mount_opt;
 	unsigned long compress_type:4;
 	int compress_level;
+	int use_backup_slot;
 	refcount_t refs;
 };
 
@@ -175,6 +176,10 @@ static const struct constant_table btrfs_parameter_space_cache[] = {
 
 enum {
 	Opt_rescue_usebackuproot,
+	Opt_rescue_usebackup_slot_0,
+	Opt_rescue_usebackup_slot_1,
+	Opt_rescue_usebackup_slot_2,
+	Opt_rescue_usebackup_slot_3,
 	Opt_rescue_nologreplay,
 	Opt_rescue_ignorebadroots,
 	Opt_rescue_ignoredatacsums,
@@ -185,6 +190,10 @@ enum {
 
 static const struct constant_table btrfs_parameter_rescue[] = {
 	{ "usebackuproot", Opt_rescue_usebackuproot },
+	{ "usebackuproot_0", Opt_rescue_usebackup_slot_0},
+	{ "usebackuproot_1", Opt_rescue_usebackup_slot_1},
+	{ "usebackuproot_2", Opt_rescue_usebackup_slot_2},
+	{ "usebackuproot_3", Opt_rescue_usebackup_slot_3},
 	{ "nologreplay", Opt_rescue_nologreplay },
 	{ "ignorebadroots", Opt_rescue_ignorebadroots },
 	{ "ibadroots", Opt_rescue_ignorebadroots },
@@ -588,6 +597,14 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		switch (result.uint_32) {
 		case Opt_rescue_usebackuproot:
 			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
+			ctx->use_backup_slot = 1;
+			break;
+		case Opt_rescue_usebackup_slot_0:
+		case Opt_rescue_usebackup_slot_1:
+		case Opt_rescue_usebackup_slot_2:
+		case Opt_rescue_usebackup_slot_3:
+			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
+			ctx->use_backup_slot = result.uint_32 - Opt_rescue_usebackup_slot_0;
 			break;
 		case Opt_rescue_nologreplay:
 			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
@@ -611,6 +628,7 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			btrfs_set_opt(ctx->mount_opt, IGNOREBADROOTS);
 			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
 			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
+			ctx->use_backup_slot = 1;
 			break;
 		default:
 			btrfs_info(NULL, "unrecognized rescue option '%s'",
@@ -1089,8 +1107,11 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",notreelog");
 	if (btrfs_test_opt(info, NOLOGREPLAY))
 		print_rescue_option(seq, "nologreplay", &printed);
-	if (btrfs_test_opt(info, USEBACKUPROOT))
-		print_rescue_option(seq, "usebackuproot", &printed);
+	if (btrfs_test_opt(info, USEBACKUPROOT)) {
+		seq_printf(seq, "%susebackuproot_%d", printed ? ":" : ",rescue=",
+			   info->use_backup_slot);
+		printed = true;
+	}
 	if (btrfs_test_opt(info, IGNOREBADROOTS))
 		print_rescue_option(seq, "ignorebadroots", &printed);
 	if (btrfs_test_opt(info, IGNOREDATACSUMS))
@@ -1406,6 +1427,7 @@ static void btrfs_ctx_to_info(struct btrfs_fs_info *fs_info, struct btrfs_fs_con
 	fs_info->mount_opt = ctx->mount_opt;
 	fs_info->compress_type = ctx->compress_type;
 	fs_info->compress_level = ctx->compress_level;
+	fs_info->use_backup_slot = ctx->use_backup_slot;
 }
 
 static void btrfs_info_to_ctx(struct btrfs_fs_info *fs_info, struct btrfs_fs_context *ctx)
@@ -1417,6 +1439,7 @@ static void btrfs_info_to_ctx(struct btrfs_fs_info *fs_info, struct btrfs_fs_con
 	ctx->mount_opt = fs_info->mount_opt;
 	ctx->compress_type = fs_info->compress_type;
 	ctx->compress_level = fs_info->compress_level;
+	ctx->use_backup_slot = fs_info->use_backup_slot;
 }
 
 #define btrfs_info_if_set(fs_info, old_ctx, opt, fmt, args...)			\
@@ -2209,6 +2232,7 @@ static int btrfs_init_fs_context(struct fs_context *fc)
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 		btrfs_info_to_ctx(btrfs_sb(fc->root->d_sb), ctx);
 	} else {
+		ctx->use_backup_slot = -1;
 		ctx->thread_pool_size =
 			min_t(unsigned long, num_online_cpus() + 2, 8);
 		ctx->max_inline = BTRFS_DEFAULT_MAX_INLINE;
