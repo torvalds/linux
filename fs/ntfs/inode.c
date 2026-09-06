@@ -3745,6 +3745,7 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 			u64 rl_length = 0;
 			s64 vcn;
 			struct runlist_element *rl;
+			int bio_err;
 
 			lcn_count = max_t(s64, 1, ntfs_bytes_to_cluster(vol, attr_len));
 			vcn = ntfs_pidx_to_cluster(vol, folio->index);
@@ -3787,8 +3788,15 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 					goto err_unlock_folio;
 				}
 
-				submit_bio_wait(bio);
+				bio_err = submit_bio_wait(bio);
 				bio_put(bio);
+				if (bio_err) {
+					ntfs_error(vi->i_sb,
+						   "Synchronous attribute write failed (%d)",
+						   bio_err);
+					ret = bio_err;
+					goto err_unlock_folio;
+				}
 				vcn += rl_length;
 				offset += length;
 			} while (lcn_count != 0);

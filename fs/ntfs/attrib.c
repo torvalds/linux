@@ -3844,13 +3844,13 @@ retry:
 			 */
 			if (ni->type == AT_ATTRIBUTE_LIST) {
 				ntfs_attr_put_search_ctx(ctx);
-				if (ntfs_inode_free_space(base_ni, mp_size -
-							cur_max_mp_size)) {
-					ntfs_debug("Attribute list is too big. Defragment the volume\n");
-					return -ENOSPC;
-				}
-				if (ntfs_attrlist_update(base_ni))
-					return -EIO;
+				err = ntfs_inode_free_space(base_ni, mp_size -
+							cur_max_mp_size);
+				if (err)
+					return err;
+				err = ntfs_attrlist_update(base_ni);
+				if (err)
+					return err;
 				goto retry;
 			}
 
@@ -4522,12 +4522,38 @@ static int ntfs_non_resident_attr_expand(struct ntfs_inode *ni, const s64 newsiz
 					ntfs_bytes_to_cluster(vol, ni->allocated_size),
 					first_free_vcn -
 					ntfs_bytes_to_cluster(vol, ni->allocated_size),
-					lcn_seek_from, DATA_ZONE, false, false, false);
+					lcn_seek_from, DATA_ZONE, false,
+					ni->type == AT_ATTRIBUTE_LIST, false);
 			if (IS_ERR(rl)) {
 				ntfs_debug("Cluster allocation failed (%lld)",
 						(long long)first_free_vcn -
 						ntfs_bytes_to_cluster(vol, ni->allocated_size));
 				return PTR_ERR(rl);
+			}
+			/*
+			 * A contiguous ATTRIBUTE_LIST allocation keeps its mapping
+			 * pairs small enough to fit in the base MFT record. The
+			 * allocator can return a short run when contiguity was
+			 * requested, so discard it and retry normally if necessary.
+			 */
+			if (ni->type == AT_ATTRIBUTE_LIST &&
+				(rl->vcn != ntfs_bytes_to_cluster(vol,
+						ni->allocated_size) ||
+				 rl->length != first_free_vcn -
+					ntfs_bytes_to_cluster(vol, ni->allocated_size) ||
+				 rl[1].length)) {
+				ntfs_cluster_free_from_rl(vol, rl);
+				kvfree(rl);
+				rl = ntfs_cluster_alloc(vol,
+						ntfs_bytes_to_cluster(vol,
+								ni->allocated_size),
+						first_free_vcn -
+						ntfs_bytes_to_cluster(vol,
+								ni->allocated_size),
+						lcn_seek_from, DATA_ZONE, false,
+						false, false);
+				if (IS_ERR(rl))
+					return PTR_ERR(rl);
 			}
 		}
 
@@ -4921,7 +4947,8 @@ int ntfs_attr_expand(struct ntfs_inode *ni, const s64 newsize, const s64 preallo
 	ntfs_debug("Entering for inode 0x%llx, attr 0x%x, size %lld\n",
 			(unsigned long long)ni->mft_no, ni->type, newsize);
 
-	if (ni->data_size == newsize) {
+	if (ni->data_size == newsize &&
+		(!prealloc_size || prealloc_size <= ni->allocated_size)) {
 		ntfs_debug("Size is already ok\n");
 		return 0;
 	}
@@ -4936,7 +4963,7 @@ int ntfs_attr_expand(struct ntfs_inode *ni, const s64 newsize, const s64 preallo
 	}
 
 	if (NInoNonResident(ni)) {
-		if (newsize > ni->data_size)
+		if (newsize > ni->data_size || prealloc_size > ni->allocated_size)
 			err = ntfs_non_resident_attr_expand(ni, newsize, prealloc_size,
 							    NVolDisableSparse(ni->vol) ?
 							    HOLES_NO : HOLES_OK, true);

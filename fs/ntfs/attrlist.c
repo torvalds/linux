@@ -12,6 +12,9 @@
 #include "mft.h"
 #include "attrib.h"
 #include "attrlist.h"
+#include "lcnalloc.h"
+
+#define NTFS_MAX_ATTR_LIST_SIZE	(256 * 1024)
 
 /*
  * ntfs_attrlist_need - check whether inode need attribute list
@@ -51,11 +54,151 @@ int ntfs_attrlist_need(struct ntfs_inode *ni)
 	return 0;
 }
 
+/*
+ * Repack the $MFT/$ATTRIBUTE_LIST data into one run.
+ *
+ * The mapping pairs for an $ATTRIBUTE_LIST must remain in the base MFT
+ * record. Once that record has no room left, extending a fragmented list
+ * can require one more mapping-pairs byte than the record can hold. There
+ * is no attribute that can legally be moved out in that state: $STANDARD_
+ * INFORMATION, $ATTRIBUTE_LIST, and the first $MFT/$DATA extent all have to
+ * stay in the base record.  Move the list data to one contiguous run. The
+ * caller supplies the minimum allocation size so a recovery can use the
+ * smallest useful run while normal updates can still request the maximum
+ * legal list size as a reserve.
+ */
+static int ntfs_attrlist_repack(struct inode *attr_vi,
+		struct ntfs_inode *attr_ni, s64 min_alloc_size)
+{
+	struct ntfs_volume *vol = attr_ni->vol;
+	struct runlist_element *old_rl, *new_rl;
+	u8 *data = NULL;
+	s64 data_size, alloc_size, nr_clusters, written;
+	s64 old_alloc_size;
+	size_t old_rl_count, new_rl_count;
+	unsigned long flags;
+	int err, restore_err;
+
+	if (attr_ni->mft_no != FILE_MFT || !NInoNonResident(attr_ni) ||
+		min_alloc_size < 0)
+		return -EINVAL;
+
+	err = ntfs_attr_map_whole_runlist(attr_ni);
+	if (err)
+		return err;
+
+	data_size = attr_ni->data_size;
+	if (data_size < 0)
+		return -EIO;
+
+	if (data_size) {
+		data = kvmalloc(data_size, GFP_NOFS);
+		if (!data)
+			return -ENOMEM;
+
+		written = ntfs_inode_attr_pread(attr_vi, 0, data_size, data);
+		if (written != data_size) {
+			err = written < 0 ? (int)written : -EIO;
+			goto out_free_data;
+		}
+	}
+
+	old_alloc_size = attr_ni->allocated_size;
+	alloc_size = max_t(s64, old_alloc_size, min_alloc_size);
+	nr_clusters = ntfs_bytes_to_cluster(vol,
+			alloc_size + vol->cluster_size - 1);
+	if (nr_clusters <= 0) {
+		err = -EFBIG;
+		goto out_free_data;
+	}
+
+	/* A single run keeps the mapping pairs at the minimum size. */
+	new_rl = ntfs_cluster_alloc(vol, 0, nr_clusters, -1, DATA_ZONE,
+				    true, true, false);
+	if (IS_ERR(new_rl)) {
+		err = PTR_ERR(new_rl);
+		goto out_free_data;
+	}
+
+	new_rl_count = 0;
+	if (new_rl->vcn == 0 && new_rl->length == nr_clusters &&
+		!new_rl[1].length)
+		new_rl_count = 2;
+
+	if (new_rl_count != 2) {
+		ntfs_cluster_free_from_rl(vol, new_rl);
+		kvfree(new_rl);
+		err = -ENOSPC;
+		goto out_free_data;
+	}
+
+	old_rl = attr_ni->runlist.rl;
+	old_rl_count = attr_ni->runlist.count;
+	down_write(&attr_ni->runlist.lock);
+	attr_ni->runlist.rl = new_rl;
+	attr_ni->runlist.count = new_rl_count;
+	up_write(&attr_ni->runlist.lock);
+
+	write_lock_irqsave(&attr_ni->size_lock, flags);
+	attr_ni->allocated_size = ntfs_cluster_to_bytes(vol, nr_clusters);
+	write_unlock_irqrestore(&attr_ni->size_lock, flags);
+
+	/* Populate the replacement extent before publishing its mapping pairs. */
+	if (data_size) {
+		written = ntfs_inode_attr_pwrite(attr_vi, 0, data_size, data, true);
+		if (written != data_size) {
+			err = written < 0 ? (int)written : -EIO;
+			goto restore_old_runlist;
+		}
+	}
+
+	err = ntfs_attr_update_mapping_pairs(attr_ni, 0);
+	if (err)
+		goto restore_old_runlist;
+
+	/* The new mapping is now authoritative; release the old data runs. */
+	if (ntfs_cluster_free_from_rl(vol, old_rl)) {
+		ntfs_error(vol->sb,
+			   "Failed to free old ATTRIBUTE_LIST extent: inode %#llx",
+			   (long long)attr_ni->mft_no);
+		NVolSetErrors(vol);
+	}
+	kvfree(old_rl);
+	kvfree(data);
+	return 0;
+
+restore_old_runlist:
+	down_write(&attr_ni->runlist.lock);
+	attr_ni->runlist.rl = old_rl;
+	attr_ni->runlist.count = old_rl_count;
+	up_write(&attr_ni->runlist.lock);
+
+	write_lock_irqsave(&attr_ni->size_lock, flags);
+	attr_ni->allocated_size = old_alloc_size;
+	write_unlock_irqrestore(&attr_ni->size_lock, flags);
+
+	restore_err = ntfs_attr_update_mapping_pairs(attr_ni, 0);
+	if (restore_err) {
+		ntfs_error(vol->sb, "Failed to restore ATTRIBUTE_LIST mapping pairs (%d)",
+			   restore_err);
+		NVolSetErrors(vol);
+	}
+
+	ntfs_cluster_free_from_rl(vol, new_rl);
+	kvfree(new_rl);
+	err = err ? err : restore_err;
+
+out_free_data:
+	kvfree(data);
+	return err;
+}
+
 int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 {
 	struct inode *attr_vi;
 	struct ntfs_inode *attr_ni;
-	int err;
+	s64 written;
+	int err, retry_err;
 
 	/*
 	 * generic_shutdown_super() clears SB_ACTIVE before evicting cached
@@ -74,21 +217,55 @@ int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 	attr_ni = NTFS_I(attr_vi);
 
 	err = ntfs_attr_truncate_i(attr_ni, base_ni->attr_list_size, HOLES_NO);
-	if (err == -ENOSPC && attr_ni->mft_no == FILE_MFT) {
-		err = ntfs_attr_truncate(attr_ni, 0);
-		if (err || ntfs_attr_truncate_i(attr_ni, base_ni->attr_list_size, HOLES_NO) != 0) {
+	if (err == -ENOSPC && attr_ni->mft_no == FILE_MFT &&
+		NInoNonResident(attr_ni)) {
+		retry_err = ntfs_attrlist_repack(attr_vi, attr_ni,
+					base_ni->attr_list_size);
+		if (retry_err) {
+			ntfs_error(base_ni->vol->sb, "Failed to repack attribute list");
 			iput(attr_vi);
+			return retry_err;
+		}
+
+		retry_err = ntfs_attr_truncate_i(attr_ni, base_ni->attr_list_size,
+						 HOLES_NO);
+		if (retry_err) {
 			ntfs_error(base_ni->vol->sb,
-					"Failed to truncate attribute list of inode %#llx",
-					(long long)base_ni->mft_no);
-			return -EIO;
+				   "Failed to resize attribute list after repack");
+			iput(attr_vi);
+			return retry_err;
 		}
 	} else if (err) {
 		iput(attr_vi);
 		ntfs_error(base_ni->vol->sb,
 			   "Failed to truncate attribute list of inode %#llx",
 			   (long long)base_ni->mft_no);
-		return -EIO;
+		return err;
+	}
+
+	/*
+	 * Reserve the maximum legal list size while the MFT metadata area is
+	 * still easy to allocate contiguously. This prevents a later list entry
+	 * from needing another mapping-pairs byte in the full base MFT record.
+	 * Failure to obtain the optional reserve must not reject the current
+	 * metadata update; the repack retry above remains available if needed.
+	 */
+	if (base_ni->mft_no == FILE_MFT && NInoNonResident(attr_ni) &&
+		attr_ni->allocated_size < NTFS_MAX_ATTR_LIST_SIZE) {
+		retry_err = ntfs_attr_expand(attr_ni, base_ni->attr_list_size,
+					     NTFS_MAX_ATTR_LIST_SIZE);
+		if (retry_err == -ENOSPC) {
+			retry_err = ntfs_attrlist_repack(attr_vi, attr_ni,
+					NTFS_MAX_ATTR_LIST_SIZE);
+			if (retry_err == -ENOSPC)
+				retry_err = 0;
+		}
+		if (retry_err) {
+			ntfs_error(base_ni->vol->sb,
+				   "Failed to reserve attribute list space");
+			iput(attr_vi);
+			return retry_err;
+		}
 	}
 
 	i_size_write(attr_vi, base_ni->attr_list_size);
@@ -96,14 +273,15 @@ int ntfs_attrlist_update(struct ntfs_inode *base_ni)
 	if (NInoNonResident(attr_ni) && !NInoAttrListNonResident(base_ni))
 		NInoSetAttrListNonResident(base_ni);
 
-	if (ntfs_inode_attr_pwrite(attr_vi, 0, base_ni->attr_list_size,
-				   base_ni->attr_list, false) !=
-	    base_ni->attr_list_size) {
+	written = ntfs_inode_attr_pwrite(attr_vi, 0, base_ni->attr_list_size,
+					 base_ni->attr_list, false);
+	if (written != base_ni->attr_list_size) {
+		err = written < 0 ? (int)written : -EIO;
 		iput(attr_vi);
 		ntfs_error(base_ni->vol->sb,
 			   "Failed to write attribute list of inode %#llx",
 			   (long long)base_ni->mft_no);
-		return -EIO;
+		return err;
 	}
 
 	NInoSetAttrListDirty(base_ni);
