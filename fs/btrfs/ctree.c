@@ -3943,7 +3943,7 @@ static noinline int split_item(struct btrfs_trans_handle *trans,
 	orig_offset = btrfs_item_offset(leaf, path->slots[0]);
 	item_size = btrfs_item_size(leaf, path->slots[0]);
 
-	buf = kmalloc(item_size, GFP_NOFS);
+	buf = kvmalloc(item_size, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 
@@ -3981,7 +3981,7 @@ static noinline int split_item(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(trans, leaf);
 
 	BUG_ON(btrfs_leaf_free_space(leaf) < 0);
-	kfree(buf);
+	kvfree(buf);
 	return 0;
 }
 
