@@ -5759,8 +5759,12 @@ static int __ext4_get_inode_loc(struct super_block *sb, unsigned long ino,
 
 		start = inode_offset & ~(inodes_per_block - 1);
 
-		/* Is the inode bitmap in cache? */
-		bitmap_bh = sb_getblk(sb, ext4_inode_bitmap(sb, gdp));
+		/*
+		 * Is the inode bitmap in cache? Non-blocking lookup: bh above
+		 * is locked, and blocking here would folio_lock() against a
+		 * block_read_full_folio() that locks bh the other way round.
+		 */
+		bitmap_bh = sb_find_get_block(sb, ext4_inode_bitmap(sb, gdp));
 		if (unlikely(!bitmap_bh))
 			goto make_io;
 
