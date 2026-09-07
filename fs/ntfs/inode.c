@@ -3713,7 +3713,7 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 					FGP_CREAT | FGP_LOCK,
 					mapping_gfp_mask(mapping));
 			if (IS_ERR(folio)) {
-				ret = -ENOMEM;
+				ret = PTR_ERR(folio);
 				break;
 			}
 		} else {
