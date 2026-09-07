@@ -5855,7 +5855,7 @@ int ntfs_attr_fallocate(struct ntfs_inode *ni, loff_t start, loff_t byte_len, bo
 						goto out;
 				}
 
-				if (signal_pending(current))
+				if (fatal_signal_pending(current))
 					goto signal_out;
 
 				vcn += alloc_cnt;
@@ -5876,7 +5876,7 @@ int ntfs_attr_fallocate(struct ntfs_inode *ni, loff_t start, loff_t byte_len, bo
 					    try_alloc_cnt, &balloc, false, false);
 		up_write(&ni->runlist.lock);
 		mutex_unlock(&ni->mrec_lock);
-		if (err || signal_pending(current))
+		if (err || fatal_signal_pending(current))
 			goto signal_out;
 
 		vcn += alloc_cnt;
