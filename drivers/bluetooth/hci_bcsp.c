@@ -25,6 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
 #include <linux/bitrev.h>
+#include <linux/crc-ccitt.h>
 #include <linux/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -75,34 +76,13 @@ struct bcsp_struct {
 
 /* ---- BCSP CRC calculation ---- */
 
-/* Table for calculating CRC for polynomial 0x1021, LSB processed first,
- * initial value 0xffff, bits shifted in reverse order.
- */
-
-static const u16 crc_table[] = {
-	0x0000, 0x1081, 0x2102, 0x3183,
-	0x4204, 0x5285, 0x6306, 0x7387,
-	0x8408, 0x9489, 0xa50a, 0xb58b,
-	0xc60c, 0xd68d, 0xe70e, 0xf78f
-};
-
 /* Initialise the crc calculator */
 #define BCSP_CRC_INIT(x) x = 0xffff
 
-/* Update crc with next data byte
- *
- * Implementation note
- *     The data byte is treated as two nibbles.  The crc is generated
- *     in reverse, i.e., bits are fed into the register from the top.
- */
+/* Update crc with next data byte */
 static void bcsp_crc_update(u16 *crc, u8 d)
 {
-	u16 reg = *crc;
-
-	reg = (reg >> 4) ^ crc_table[(reg ^ d) & 0x000f];
-	reg = (reg >> 4) ^ crc_table[(reg ^ (d >> 4)) & 0x000f];
-
-	*crc = reg;
+	*crc = crc_ccitt_byte(*crc, d);
 }
 
 /* ---- BCSP core ---- */
