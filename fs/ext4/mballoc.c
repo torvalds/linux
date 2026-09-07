@@ -234,7 +234,7 @@
  *
  * there are two types of preallocations:
  *  - inode
- *    assiged to specific inode and can be used for this inode only.
+ *    assigned to specific inode and can be used for this inode only.
  *    it describes part of inode's space preallocated to specific
  *    physical blocks. any block from that preallocated can be used
  *    independent. the descriptor just tracks number of blocks left
@@ -2324,11 +2324,11 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
  *   stop the scan and use it immediately
  *
  * * If free extent found is smaller than goal, then keep retrying
- *   upto a max of sbi->s_mb_max_to_scan times (default 200). After
+ *   up to a max of sbi->s_mb_max_to_scan times (default 200). After
  *   that stop scanning and use whatever we have.
  *
  * * If free extent found is bigger than goal, then keep retrying
- *   upto a max of sbi->s_mb_min_to_scan times (default 10) before
+ *   up to a max of sbi->s_mb_min_to_scan times (default 10) before
  *   stopping the scan and using the extent.
  *
  *
@@ -3027,7 +3027,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	 * is greater than equal to the sbi_s_mb_order2_reqs
 	 * You can tune it via /sys/fs/ext4/<partition>/mb_order2_req
 	 * We also support searching for power-of-two requests only for
-	 * requests upto maximum buddy size we have constructed.
+	 * requests up to maximum buddy size we have constructed.
 	 */
 	if (i >= sbi->s_mb_order2_reqs && i <= MB_NUM_ORDERS(sb)) {
 		if (is_power_of_2(ac->ac_g_ex.fe_len))

@@ -3186,7 +3186,7 @@ int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
  * @handle: the journal handle
  * @inode: the file inode
  * @path: the path to the extent
- * @split: the logical block where the extent is splitted.
+ * @split: the logical block where the extent is split.
  * @flags: flags used to insert new extent to extent tree.
  *
  *

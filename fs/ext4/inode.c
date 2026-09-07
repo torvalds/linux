@@ -2289,7 +2289,7 @@ static bool mpage_add_bh_to_extent(struct mpage_da_data *mpd, ext4_lblk_t lblk,
  * @bh - buffer we should start processing from
  * @lblk - logical number of the block in the file corresponding to @bh
  *
- * Walk through page buffers from @bh upto @head (exclusive) and either submit
+ * Walk through page buffers from @bh up to @head (exclusive) and either submit
  * the page for IO if all buffers in this page were mapped and there's no
  * accumulated extent of buffers to map or add buffers in the page to the
  * extent of buffers to map. The function returns 1 if the caller can continue

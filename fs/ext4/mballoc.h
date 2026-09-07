@@ -86,9 +86,9 @@
 #define MB_DEFAULT_LINEAR_SCAN_THRESHOLD	16
 
 /*
- * The maximum order upto which CR_BEST_AVAIL_LEN can trim a particular
+ * The maximum order up to which CR_BEST_AVAIL_LEN can trim a particular
  * allocation request. Example, if we have an order 7 request and max trim order
- * of 3, we can trim this request upto order 4.
+ * of 3, we can trim this request up to order 4.
  */
 #define MB_DEFAULT_BEST_AVAIL_TRIM_ORDER	3
 
