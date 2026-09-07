@@ -2119,6 +2119,8 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 {
 	unsigned long srcu_state;
 	struct srcu_usage *sup = ssp->srcu_sup;
+	unsigned long rdm0, rdm1;
+	unsigned long unlocks0, unlocks1;
 
 	// Initialize.	Either init_srcu_struct() was invoked or
 	// DEFINE_SRCU() or similar was used.  Therefore, no allocation
@@ -2153,6 +2155,52 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 	ASSERT_EXCLUSIVE_WRITER(ssp->srcu_sup->srcu_gp_seq);
 	srcu_gp_start(ssp);
 	raw_spin_unlock_irq_rcu_node(sup);
+
+	//
+	// Fastpath:  If there are no readers at all, neither grace-period
+	// scan need wait, so both can be satisfied at once without doing
+	// the index flip.  The counter-sum proof is the same as that of
+	// srcu_readers_active_idx_check(), but spanning both indices.
+	// Atomic SRCU guarantees that all readers are of
+	// SRCU_READ_FLAVOR_ATOMIC, so the SLOWGP check never triggers and
+	// the ->srcu_reader_flavor masks returned by
+	// srcu_readers_unlock_idx() are unused.
+	//
+	// This proof must follow the grace-period anchor written by the
+	// srcu_gp_start() above, never precede it.  With the anchor first,
+	// a reader whose lock increment is missed by the sums below cannot
+	// have incremented its lock counter before the anchor, and therefore
+	// cannot be a pre-existing reader of this grace period.  Placing the
+	// proof before the anchor would let this grace period miss a
+	// pre-existing reader and return without waiting for it.
+	//
+	// The smp_mb() pairs with the smp_mb() in __srcu_read_lock()
+	// (store-buffering pattern), which guarantees that a lock is always
+	// counted if the corresponding unlock is counted, the same
+	// memory-ordering guarantee as is provided by
+	// srcu_readers_active_idx_check().
+	//
+	unlocks0 = srcu_readers_unlock_idx(ssp, 0, &rdm0);
+	unlocks1 = srcu_readers_unlock_idx(ssp, 1, &rdm1);
+	smp_mb(); /* A */
+	if (srcu_readers_lock_idx(ssp, 0, false, unlocks0) &&
+	    srcu_readers_lock_idx(ssp, 1, false, unlocks1)) {
+		// No readers, so end this grace period manually, skipping
+		// the index flip.  Advancing the sequence number via
+		// rcu_seq_start() in srcu_gp_start() above and rcu_seq_end()
+		// below keeps get_state_synchronize_srcu() and
+		// poll_state_synchronize_srcu() working, all under ->lock
+		// and ->srcu_atomic_gp_flag, which excludes concurrent
+		// sequence-number updates.
+		raw_spin_lock_irq_rcu_node(sup);
+		rcu_seq_end(&sup->srcu_gp_seq);
+		raw_spin_unlock_irq_rcu_node(sup);
+		WARN_ON_ONCE(!poll_state_synchronize_srcu(ssp, srcu_state));
+		atomic_set_release(&sup->srcu_atomic_gp_flag, 0);
+		preempt_enable();
+		non_block_end();
+		return;
+	}
 
 	// Wait for it to complete, helping it along.
 	while (!poll_state_synchronize_srcu(ssp, srcu_state)) {
