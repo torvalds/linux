@@ -170,9 +170,10 @@ struct inode *ntfs_iget(struct super_block *sb, u64 mft_no)
 	/* If this is a freshly allocated inode, need to read it now. */
 	if (inode_state_read_once(vi) & I_NEW) {
 		err = ntfs_read_locked_inode(vi);
-		if (err)
+		if (err) {
+			remove_inode_hash(vi);
 			discard_new_inode(vi);
-		else
+		} else
 			unlock_new_inode(vi);
 	}
 	/*
@@ -232,9 +233,10 @@ struct inode *ntfs_attr_iget(struct inode *base_vi, __le32 type,
 	/* If this is a freshly allocated inode, need to read it now. */
 	if (inode_state_read_once(vi) & I_NEW) {
 		err = ntfs_read_locked_attr_inode(base_vi, vi);
-		if (err)
+		if (err) {
+			remove_inode_hash(vi);
 			discard_new_inode(vi);
-		else
+		} else
 			unlock_new_inode(vi);
 	}
 	/*
@@ -288,9 +290,10 @@ struct inode *ntfs_index_iget(struct inode *base_vi, __le16 *name,
 	/* If this is a freshly allocated inode, need to read it now. */
 	if (inode_state_read_once(vi) & I_NEW) {
 		err = ntfs_read_locked_index_inode(base_vi, vi);
-		if (err)
+		if (err) {
+			remove_inode_hash(vi);
 			discard_new_inode(vi);
-		else
+		} else
 			unlock_new_inode(vi);
 	}
 	/*
