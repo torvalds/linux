@@ -1309,32 +1309,32 @@ void ip_vs_stats_free(struct ip_vs_stats *stats)
  * - conns reach u_threshold and exceed it: set the flag
  * - conns go below l_threshold (or 75% of u_threshold): clear the flag
  */
-static void __ip_vs_dest_update_overload(struct ip_vs_dest *dest, int mode)
+static void __ip_vs_dest_update_overload(struct ip_vs_dest *dest, bool overload)
 {
 	int conns;
 	u32 l, u;
 
 	lockdep_assert_held(&dest->dst_lock);
 	u = READ_ONCE(dest->u_threshold);
-	if (!u)
-		goto unset;
-	l = READ_ONCE(dest->l_threshold_val);
-	conns = atomic_read(&dest->totalconns);
-	if (conns >= (mode > 0 ? l : u)) {
-		dest->flags |= IP_VS_DEST_F_OVERLOAD;
-		return;
+	if (u) {
+		/* Low threshold defaults to 75% of upper threshold */
+		l = READ_ONCE(dest->l_threshold) ? : (u - (u >> 2));
+		conns = atomic_read(&dest->totalconns);
+		if (conns >= (overload ? l : u)) {
+			WRITE_ONCE(dest->u_threshold_val, INT_MAX);
+			WRITE_ONCE(dest->l_threshold_val, l);
+			return;
+		}
 	}
-	if (conns >= (mode < 0 ? u : l))
-		return;
 
-unset:
-	dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
+	WRITE_ONCE(dest->u_threshold_val, u ? : INT_MAX);
+	WRITE_ONCE(dest->l_threshold_val, 0);
 }
 
-void ip_vs_dest_update_overload(struct ip_vs_dest *dest, int mode)
+void ip_vs_dest_update_overload(struct ip_vs_dest *dest, bool overload)
 {
 	spin_lock_bh(&dest->dst_lock);
-	__ip_vs_dest_update_overload(dest, mode);
+	__ip_vs_dest_update_overload(dest, overload);
 	spin_unlock_bh(&dest->dst_lock);
 }
 
@@ -1406,15 +1406,13 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 
 	if (READ_ONCE(dest->u_threshold) != udest->u_threshold ||
 	    READ_ONCE(dest->l_threshold) != udest->l_threshold) {
+		bool overload;
+
 		spin_lock_bh(&dest->dst_lock);
 		WRITE_ONCE(dest->u_threshold, udest->u_threshold);
 		WRITE_ONCE(dest->l_threshold, udest->l_threshold);
-		/* Low threshold defaults to 75% of upper threshold */
-		WRITE_ONCE(dest->l_threshold_val,
-			   udest->l_threshold ? :
-			   (udest->u_threshold -
-			    (udest->u_threshold >> 2)));
-		__ip_vs_dest_update_overload(dest, 0);
+		overload = ip_vs_dest_is_overloaded(dest);
+		__ip_vs_dest_update_overload(dest, overload);
 		spin_unlock_bh(&dest->dst_lock);
 	}
 
