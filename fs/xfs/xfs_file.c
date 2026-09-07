@@ -130,8 +130,8 @@ xfs_file_fsync(
 {
 	struct xfs_inode	*ip = XFS_I(file->f_mapping->host);
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error, err2;
 	int			log_flushed = 0;
+	int			error;
 
 	trace_xfs_file_fsync(ip);
 
@@ -154,15 +154,17 @@ xfs_file_fsync(
 		error = blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev);
 	else if (mp->m_logdev_targp != mp->m_ddev_targp)
 		error = blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
+	if (error)
+		return error;
 
 	/*
 	 * If the inode has a inode log item attached, it may need the journal
 	 * flushed to persist any changes the log item might be tracking.
 	 */
 	if (ip->i_itemp) {
-		err2 = xfs_fsync_flush_log(ip, datasync, &log_flushed);
-		if (err2 && !error)
-			error = err2;
+		error = xfs_fsync_flush_log(ip, datasync, &log_flushed);
+		if (error)
+			return error;
 	}
 
 	/*
@@ -178,14 +180,11 @@ xfs_file_fsync(
 	if (!log_flushed) {
 		struct xfs_buftarg *file_targp = xfs_inode_buftarg(ip);
 
-		if (mp->m_logdev_targp == file_targp) {
-			err2 = blkdev_issue_flush(file_targp->bt_bdev);
-			if (err2 && !error)
-				error = err2;
-		}
+		if (mp->m_logdev_targp == file_targp)
+			return blkdev_issue_flush(file_targp->bt_bdev);
 	}
 
-	return error;
+	return 0;
 }
 
 static int
