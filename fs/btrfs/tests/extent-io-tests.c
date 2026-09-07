@@ -18,8 +18,8 @@
 #define PROCESS_RELEASE		(1U << 1)
 #define PROCESS_TEST_LOCKED	(1U << 2)
 
-static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
-				       unsigned long flags)
+static noinline int process_folio_range(struct inode *inode, u64 start, u64 end,
+					unsigned long flags)
 {
 	int ret;
 	struct folio_batch fbatch;
@@ -221,8 +221,8 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 				test_start, max_bytes - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end,
-			       PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
+	if (process_folio_range(inode, start, end,
+				PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
 		test_err("there were unlocked pages in the range");
 		goto out_bits;
 	}
@@ -276,8 +276,8 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 			 test_start, total_dirty - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end,
-			       PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
+	if (process_folio_range(inode, start, end,
+				PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
 		test_err("pages in range were not all locked");
 		goto out_bits;
 	}
@@ -317,8 +317,8 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 			 test_start, test_start + PAGE_SIZE - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end, PROCESS_TEST_LOCKED |
-			       PROCESS_UNLOCK)) {
+	if (process_folio_range(inode, start, end, PROCESS_TEST_LOCKED |
+				PROCESS_UNLOCK)) {
 		test_err("pages in range were not all locked");
 		goto out_bits;
 	}
@@ -330,8 +330,8 @@ out_bits:
 out:
 	if (locked_page)
 		put_page(locked_page);
-	process_page_range(inode, 0, total_dirty - 1,
-			   PROCESS_UNLOCK | PROCESS_RELEASE);
+	process_folio_range(inode, 0, total_dirty - 1,
+			    PROCESS_UNLOCK | PROCESS_RELEASE);
 	iput(inode);
 out_root_info:
 	btrfs_free_dummy_root(root);
