@@ -1016,10 +1016,10 @@ static void srcu_gp_end(struct srcu_struct *ssp, bool is_atomic)
 
 	/* Initiate callback invocation as needed. */
 	ss_state = smp_load_acquire(&sup->srcu_size_state);
-	if (ss_state < SRCU_SIZE_WAIT_BARRIER) {
+	if (!is_atomic && ss_state < SRCU_SIZE_WAIT_BARRIER) {
 		srcu_schedule_cbs_sdp(per_cpu_ptr(ssp->sda, get_boot_cpu_id()),
 					cbdelay);
-	} else {
+	} else if (!is_atomic) {
 		idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
 		srcu_for_each_node_breadth_first(ssp, snp) {
 			raw_spin_lock_irq_rcu_node(snp);
