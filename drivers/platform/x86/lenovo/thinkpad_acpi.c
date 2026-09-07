@@ -459,9 +459,7 @@ do {									\
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUG
 #define vdbg_printk dbg_printk
-static const char *str_supported(int is_supported);
 #else
-static inline const char *str_supported(int is_supported) { return ""; }
 #define vdbg_printk(a_dbg_level, format, arg...)	\
 	do { if (0) no_printk(format, ##arg); } while (0)
 #endif
@@ -3389,7 +3387,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		"hotkeys are %s\n",
-		str_supported(tp_features.hotkey));
+		str_supported_unsupported(tp_features.hotkey));
 
 	if (!tp_features.hotkey)
 		return -ENODEV;
@@ -3466,7 +3464,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		"hotkey masks are %s\n",
-		str_supported(tp_features.hotkey_mask));
+		str_supported_unsupported(tp_features.hotkey_mask));
 
 	/* Init hotkey_all_mask if not initialized yet */
 	if (!tp_features.hotkey_mask && !hotkey_all_mask &&
@@ -4394,7 +4392,7 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
 		"bluetooth is %s, status 0x%02x\n",
-		str_supported(tp_features.bluetooth),
+		str_supported_unsupported(tp_features.bluetooth),
 		status);
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
@@ -4573,7 +4571,7 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
 		"wan is %s, status 0x%02x\n",
-		str_supported(tp_features.wan),
+		str_supported_unsupported(tp_features.wan),
 		status);
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
@@ -4701,7 +4699,7 @@ static int __init uwb_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
 		"uwb is %s, status 0x%02x\n",
-		str_supported(tp_features.uwb),
+		str_supported_unsupported(tp_features.uwb),
 		status);
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
@@ -4809,7 +4807,7 @@ static int __init video_init(struct ibm_init_struct *iibm)
 		video_supported = TPACPI_VIDEO_NEW;
 
 	vdbg_printk(TPACPI_DBG_INIT, "video is %s, mode %d\n",
-		str_supported(video_supported != TPACPI_VIDEO_NONE),
+		str_supported_unsupported(video_supported != TPACPI_VIDEO_NONE),
 		video_supported);
 
 	return (video_supported != TPACPI_VIDEO_NONE) ? 0 : -ENODEV;
@@ -5402,8 +5400,8 @@ static int __init light_init(struct ibm_init_struct *iibm)
 			acpi_evalf(ec_handle, NULL, "KBLT", "qv");
 
 	vdbg_printk(TPACPI_DBG_INIT, "light is %s, light status is %s\n",
-		str_supported(tp_features.light),
-		str_supported(tp_features.light_status));
+		str_supported_unsupported(tp_features.light),
+		str_supported_unsupported(tp_features.light_status));
 
 	if (!tp_features.light)
 		return -ENODEV;
@@ -5520,7 +5518,7 @@ static int __init cmos_init(struct ibm_init_struct *iibm)
 	TPACPI_ACPIHANDLE_INIT(cmos);
 
 	vdbg_printk(TPACPI_DBG_INIT, "cmos commands are %s\n",
-		    str_supported(cmos_handle != NULL));
+		    str_supported_unsupported(cmos_handle));
 
 	return cmos_handle ? 0 : -ENODEV;
 }
@@ -5865,7 +5863,8 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	}
 
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
-		str_supported(led_supported), led_supported);
+		str_supported_unsupported(led_supported != TPACPI_LED_NONE),
+		led_supported);
 
 	if (led_supported == TPACPI_LED_NONE)
 		return -ENODEV;
@@ -5986,7 +5985,7 @@ static int __init beep_init(struct ibm_init_struct *iibm)
 	TPACPI_ACPIHANDLE_INIT(beep);
 
 	vdbg_printk(TPACPI_DBG_INIT, "beep is %s\n",
-		str_supported(beep_handle != NULL));
+		str_supported_unsupported(beep_handle));
 
 	quirks = tpacpi_check_quirks(beep_quirk_table,
 				     ARRAY_SIZE(beep_quirk_table));
@@ -6437,7 +6436,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 	thermal_read_mode = thermal_read_mode_check();
 
 	vdbg_printk(TPACPI_DBG_INIT, "thermal is %s, mode %d\n",
-		str_supported(thermal_read_mode != TPACPI_THERMAL_NONE),
+		str_supported_unsupported(thermal_read_mode != TPACPI_THERMAL_NONE),
 		thermal_read_mode);
 
 	return thermal_read_mode != TPACPI_THERMAL_NONE ? 0 : -ENODEV;
@@ -7659,7 +7658,7 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
 			"mute is supported, volume control is %s\n",
-			str_supported(!tp_features.mixer_no_level_control));
+			str_supported_unsupported(!tp_features.mixer_no_level_control));
 
 	if (software_mute_requested && volume_set_software_mute(true) == 0) {
 		software_mute_active = true;
@@ -9057,8 +9056,8 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
 		"fan is %s, modes %d, %d\n",
-		str_supported(fan_status_access_mode != TPACPI_FAN_NONE ||
-		  fan_control_access_mode != TPACPI_FAN_WR_NONE),
+		str_supported_unsupported(fan_status_access_mode != TPACPI_FAN_NONE ||
+					  fan_control_access_mode != TPACPI_FAN_WR_NONE),
 		fan_status_access_mode, fan_control_access_mode);
 
 	/* fan control master switch */
@@ -11689,15 +11688,6 @@ static struct proc_dir_entry *proc_dir;
  */
 
 static bool force_load;
-
-#ifdef CONFIG_THINKPAD_ACPI_DEBUG
-static const char * __init str_supported(int is_supported)
-{
-	static char text_unsupported[] __initdata = "not supported";
-
-	return (is_supported) ? &text_unsupported[4] : &text_unsupported[0];
-}
-#endif /* CONFIG_THINKPAD_ACPI_DEBUG */
 
 static struct dentry *tpacpi_dbg;
 static void tpacpi_debugfs_init(void)
