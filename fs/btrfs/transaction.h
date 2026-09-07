@@ -288,7 +288,7 @@ do {										\
  * Call btrfs_abort_transaction() as early as possible when an error condition
  * is detected, that way the exact stack trace is reported for some errors.
  *
- * Error number must be negative as it encodes wheather it's the first abort.
+ * Error number must be negative as it encodes whether it's the first abort.
  */
 #define btrfs_abort_transaction(trans, error)		\
 do {								\

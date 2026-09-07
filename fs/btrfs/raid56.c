@@ -953,7 +953,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t status)
 
 	/*
 	 * Clear the data bitmap, as the rbio may be cached for later usage.
-	 * do this before before unlock_stripe() so there will be no new bio
+	 * do this before unlock_stripe() so there will be no new bio
 	 * for this bio.
 	 */
 	bitmap_clear(&rbio->dbitmap, 0, rbio->stripe_nsectors);
@@ -988,7 +988,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t status)
  * as possible, and only use stripe_sectors as fallback.
  *
  * Return NULL if bio_list_only is set but the specified sector has no
- * coresponding bio.
+ * corresponding bio.
  */
 static phys_addr_t *sector_paddrs_in_rbio(struct btrfs_raid_bio *rbio,
 					  int stripe_nr, int sector_nr,
@@ -1450,10 +1450,7 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 	/* We should have at least one data sector. */
 	ASSERT(bitmap_weight(&rbio->dbitmap, rbio->stripe_nsectors));
 
-	/*
-	 * Reset errors, as we may have errors inherited from from degraded
-	 * write.
-	 */
+	/* Reset errors, as we may have errors inherited from degraded write. */
 	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
 	/*
@@ -2632,7 +2629,7 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-/* Return true if the content of the step matches the caclulated one. */
+/* Return true if the content of the step matches the calculated one. */
 static bool verify_one_parity_step(struct btrfs_raid_bio *rbio,
 				   void *pointers[], unsigned int sector_nr,
 				   unsigned int step_nr)

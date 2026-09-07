@@ -230,7 +230,7 @@
  *
  * Stored as an inline ref rather to avoid wasting space on a separate item on
  * top of the existing extent item. However, unlike the other inline refs,
- * there is one one owner ref per extent rather than one per extent.
+ * there is one owner ref per extent rather than one per extent.
  *
  * Because of this, it goes at the front of the list of inline refs, and thus
  * must have a lower type value than any other inline ref type (to satisfy the
@@ -243,7 +243,7 @@
 #define BTRFS_EXTENT_DATA_REF_KEY	178
 
 /*
- * Obsolete key. Defintion removed in 6.6, value may be reused in the future.
+ * Obsolete key. Definition removed in 6.6, value may be reused in the future.
  *
  * #define BTRFS_EXTENT_REF_V0_KEY	180
  */

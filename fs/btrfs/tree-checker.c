@@ -228,7 +228,7 @@ static bool can_have_extent_data(struct extent_buffer *leaf,
 	}
 
 	/*
-	 * The rest are special files, e.g. block/FIFO files, which cannnot
+	 * The rest are special files, e.g. block/FIFO files, which cannot
 	 * have any file extent.
 	 */
 	return false;
