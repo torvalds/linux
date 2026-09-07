@@ -213,7 +213,8 @@ struct mft_record *map_mft_record(struct ntfs_inode *ni)
 		return m;
 
 	atomic_dec(&ni->count);
-	ntfs_error(ni->vol->sb, "Failed with error code %lu.", -PTR_ERR(m));
+	if (PTR_ERR(m) != -EINTR && PTR_ERR(m) != -ERESTARTSYS)
+		ntfs_error(ni->vol->sb, "Failed with error code %lu.", -PTR_ERR(m));
 	return m;
 }
 
