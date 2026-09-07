@@ -1303,11 +1303,8 @@ static bool load_and_init_attrdef(struct ntfs_volume *vol)
 	ntfs_debug("Entering.");
 	/* Read attrdef table and setup vol->attrdef and vol->attrdef_size. */
 	ino = ntfs_iget(sb, FILE_AttrDef);
-	if (IS_ERR(ino)) {
-		if (!IS_ERR(ino))
-			iput(ino);
+	if (IS_ERR(ino))
 		goto failed;
-	}
 	NInoSetSparseDisabled(NTFS_I(ino));
 	/* FILE_AttrDef must hold at least one entry and fit inside 31 bits. */
 	i_size = i_size_read(ino);
@@ -1369,11 +1366,8 @@ static bool load_and_init_upcase(struct ntfs_volume *vol)
 	ntfs_debug("Entering.");
 	/* Read upcase table and setup vol->upcase and vol->upcase_len. */
 	ino = ntfs_iget(sb, FILE_UpCase);
-	if (IS_ERR(ino)) {
-		if (!IS_ERR(ino))
-			iput(ino);
+	if (IS_ERR(ino))
 		goto upcase_failed;
-	}
 	/*
 	 * The upcase size must not be above 64k Unicode characters, must not
 	 * be zero and must be a multiple of sizeof(__le16).
