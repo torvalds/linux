@@ -5997,12 +5997,8 @@ static int __init beep_init(struct ibm_init_struct *iibm)
 
 static int beep_read(struct seq_file *m)
 {
-	if (!beep_handle)
-		seq_puts(m, "status:\t\tnot supported\n");
-	else {
-		seq_puts(m, "status:\t\tsupported\n");
-		seq_puts(m, "commands:\t<cmd> (<cmd> is 0-17)\n");
-	}
+	seq_puts(m, "status:\t\tsupported\n");
+	seq_puts(m, "commands:\t<cmd> (<cmd> is 0-17)\n");
 
 	return 0;
 }
