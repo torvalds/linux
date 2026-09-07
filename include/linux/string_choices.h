@@ -65,6 +65,12 @@ static inline const char *str_read_write(bool v)
 }
 #define str_write_read(v)		str_read_write(!(v))
 
+static inline const char *str_supported_unsupported(bool v)
+{
+	return v ? "supported" : "unsupported";
+}
+#define str_unsupported_supported(v)	str_supported_unsupported(!(v))
+
 static inline const char *str_true_false(bool v)
 {
 	return v ? "true" : "false";
