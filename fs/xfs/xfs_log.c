@@ -1544,6 +1544,35 @@ xlog_bio_end_io(
 		   &iclog->ic_end_io_work);
 }
 
+/*
+ * When using multiple devices, we also need to flush the data and RT device
+ * caches first to ensure that all metadata writeback covered by the LSN in
+ * this iclog is on stable storage. This is slow, but it *must* complete
+ * before we issue the external log IO.
+ *
+ * If the flush fails, we cannot conclude that past metadata writeback from
+ * the log succeeded.  Repeating the flush is not possible, hence we must
+ * shut down with log IO error to avoid shutdown re-entering this path and
+ * erroring out again.
+ */
+static int
+xlog_flush_data_caches(
+	struct xlog		*log)
+{
+	struct xfs_mount	*mp = log->l_mp;
+
+	if (log->l_targ != mp->m_ddev_targp) {
+		if (blkdev_issue_flush(mp->m_ddev_targp->bt_bdev))
+			return -EIO;
+	}
+	if (mp->m_rtdev_targp && mp->m_rtdev_targp != mp->m_ddev_targp) {
+		if (blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 STATIC void
 xlog_write_iclog(
 	struct xlog		*log,
@@ -1588,21 +1617,9 @@ xlog_write_iclog(
 	iclog->ic_bio.bi_private = iclog;
 
 	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH) {
-		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
-		/*
-		 * For external log devices, we also need to flush the data
-		 * device cache first to ensure all metadata writeback covered
-		 * by the LSN in this iclog is on stable storage. This is slow,
-		 * but it *must* complete before we issue the external log IO.
-		 *
-		 * If the flush fails, we cannot conclude that past metadata
-		 * writeback from the log succeeded.  Repeating the flush is
-		 * not possible, hence we must shut down with log IO error to
-		 * avoid shutdown re-entering this path and erroring out again.
-		 */
-		if (log->l_targ != log->l_mp->m_ddev_targp &&
-		    blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev))
+		if (xlog_flush_data_caches(log))
 			goto shutdown;
+		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 	}
 	if (iclog->ic_flags & XLOG_ICL_NEED_FUA)
 		iclog->ic_bio.bi_opf |= REQ_FUA;
