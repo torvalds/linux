@@ -202,5 +202,215 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 parent root drr"
         ]
+    },
+    {
+        "id": "a7d2",
+        "name": "Delete a route filter that was moved to another bucket",
+        "category": [
+            "filter",
+            "route"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 route from 1 to 1 classid 1:1",
+            "$TC filter change dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10001 route from 1 to 2 classid 1:1",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 200 route from 5 to 5 classid 1:5"
+        ],
+        "cmdUnderTest": "$TC filter del dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10002 route from 1 to 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter show dev $DEV1 parent ffff:",
+        "matchJSON": [
+            {
+                "protocol": "ip",
+                "pref": 200,
+                "kind": "route",
+                "chain": 0
+            },
+            {
+                "protocol": "ip",
+                "pref": 200,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x50005",
+                    "flowid": "1:5"
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "c05a",
+        "name": "Try to change a route filter onto an already used handle",
+        "category": [
+            "filter",
+            "route"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 route from 1 to 1 classid 1:1 action ok",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 route from 2 to 2 classid 1:2 action drop"
+        ],
+        "cmdUnderTest": "$TC filter change dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10001 route from 2 to 2 classid 1:1 action ok",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j filter show dev $DEV1 parent ffff:",
+        "matchJSON": [
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x10001",
+                    "flowid": "1:1",
+                    "actions": [
+                        {
+                            "order": 1,
+                            "kind": "gact",
+                            "control_action": {
+                                "type": "pass"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x20002",
+                    "flowid": "1:2",
+                    "actions": [
+                        {
+                            "order": 1,
+                            "kind": "gact",
+                            "control_action": {
+                                "type": "drop"
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "3f21",
+        "name": "Replace a route filter that shares its key with another filter",
+        "category": [
+            "filter",
+            "route"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10101 route from 1 to 1 classid 1:1",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10201 route from 1 to 1 classid 1:2"
+        ],
+        "cmdUnderTest": "$TC filter replace dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10101 route from 1 to 1 classid 1:9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter show dev $DEV1 parent ffff:",
+        "matchJSON": [
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x10101",
+                    "flowid": "1:9"
+                }
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x10201",
+                    "flowid": "1:2"
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "9d0e",
+        "name": "Replace both route filters sharing a key",
+        "category": [
+            "filter",
+            "route"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10101 route from 1 to 1 classid 1:1",
+            "$TC filter add dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10201 route from 1 to 1 classid 1:2",
+            "$TC filter replace dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10101 route from 1 to 1 classid 1:9"
+        ],
+        "cmdUnderTest": "$TC filter replace dev $DEV1 parent ffff: protocol ip prio 100 handle 0x10201 route from 1 to 1 classid 1:8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j filter show dev $DEV1 parent ffff:",
+        "matchJSON": [
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x10101",
+                    "flowid": "1:9"
+                }
+            },
+            {
+                "protocol": "ip",
+                "pref": 100,
+                "kind": "route",
+                "chain": 0,
+                "options": {
+                    "fh": "0x10201",
+                    "flowid": "1:8"
+                }
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
     }
 ]
