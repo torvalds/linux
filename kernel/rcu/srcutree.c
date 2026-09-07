@@ -1892,12 +1892,9 @@ void srcu_barrier(struct srcu_struct *ssp)
 	unsigned long s;
 
 	check_init_srcu_struct(ssp, false);
-	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC)) {
-		// There shouldn't be any callbacks for atomic SRCU,
-		// but just in case.
-		schedule_timeout_uninterruptible(HZ/10);
+	// Atomic SRCU has no callbacks, so there is nothing to wait on.
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC))
 		return;
-	}
 
 	/*
 	 * Register any deferred callbacks before snapshotting the sequence.  The
