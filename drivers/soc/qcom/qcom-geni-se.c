@@ -42,7 +42,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(geni_se_regs);
  *
  * GENI based QUP is a highly-flexible and programmable module for supporting
  * a wide range of serial interfaces like UART, SPI, I2C, I3C, etc. A single
- * QUP module can provide upto 8 serial interfaces, using its internal
+ * QUP module can provide up to 8 serial interfaces, using its internal
  * serial engines. The actual configuration is determined by the target
  * platform configuration. The protocol supported by each interface is
  * determined by the firmware loaded to the serial engine. Each SE consists
