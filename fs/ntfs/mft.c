@@ -463,7 +463,7 @@ int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 {
 	u8 *kmirr;
 	struct folio *folio;
-	unsigned int folio_ofs, lcn_folio_off = 0;
+	unsigned int folio_ofs;
 	int err = 0;
 	struct bio *bio;
 
@@ -493,15 +493,11 @@ int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 	memcpy(kmirr, m, vol->mft_record_size);
 	kunmap_local(kmirr);
 
-	if (vol->cluster_size_bits > PAGE_SHIFT) {
-		lcn_folio_off = folio->index << PAGE_SHIFT;
-		lcn_folio_off &= vol->cluster_size_mask;
-	}
-
 	bio = bio_alloc(vol->sb->s_bdev, 1, REQ_OP_WRITE, GFP_NOIO);
 	bio->bi_iter.bi_sector =
 		ntfs_bytes_to_bio_sector(NTFS_CLU_TO_B(vol, vol->mftmirr_lcn) +
-					 lcn_folio_off + folio_ofs);
+					 ((u64)folio->index << PAGE_SHIFT) +
+					 folio_ofs);
 
 	if (bio_add_folio(bio, folio, vol->mft_record_size, folio_ofs))
 		err = submit_bio_wait(bio);
