@@ -305,26 +305,27 @@ err_free_sup:
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 static int
-__init_srcu_struct_common(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+__init_srcu_struct_common(struct srcu_struct *ssp, const char *name,
+			  struct lock_class_key *key, bool is_atomic)
 {
 	/* Don't re-initialize a lock while it is held. */
 	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
-	return init_srcu_struct_fields(ssp, false, false);
+	return init_srcu_struct_fields(ssp, false, is_atomic);
 }
 
 int init_srcu_struct_lockdep(struct srcu_struct *ssp, const char *name,
 			     struct lock_class_key *key)
 {
 	ssp->srcu_reader_flavor = 0;
-	return __init_srcu_struct_common(ssp, name, key);
+	return __init_srcu_struct_common(ssp, name, key, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct_lockdep);
 
 int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
 {
 	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST;
-	return __init_srcu_struct_common(ssp, name, key);
+	return __init_srcu_struct_common(ssp, name, key, false);
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct_fast);
 
@@ -332,14 +333,14 @@ int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 				   struct lock_class_key *key)
 {
 	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST_UPDOWN;
-	return __init_srcu_struct_common(ssp, name, key);
+	return __init_srcu_struct_common(ssp, name, key, false);
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
 
 int __init_srcu_struct_atomic(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
 {
 	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_ATOMIC;
-	return __init_srcu_struct_common(ssp, name, key);
+	return __init_srcu_struct_common(ssp, name, key, true);
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct_atomic);
 
@@ -414,7 +415,7 @@ EXPORT_SYMBOL_GPL(init_srcu_struct_fast_updown);
 int init_srcu_struct_atomic(struct srcu_struct *ssp)
 {
 	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_ATOMIC;
-	return init_srcu_struct_fields(ssp, false, false);
+	return init_srcu_struct_fields(ssp, false, true);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct_atomic);
 
