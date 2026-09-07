@@ -367,7 +367,7 @@ struct fuse_file_lock {
 	uint32_t	pid; /* tgid */
 };
 
-/**
+/*
  * Bitmasks for fuse_setattr_in.valid
  */
 #define FATTR_MODE	(1 << 0)
@@ -383,7 +383,7 @@ struct fuse_file_lock {
 #define FATTR_CTIME	(1 << 10)
 #define FATTR_KILL_SUIDGID	(1 << 11)
 
-/**
+/*
  * Flags returned by the OPEN request
  *
  * FOPEN_DIRECT_IO: bypass page cache for this open file
@@ -411,7 +411,7 @@ struct fuse_file_lock {
 #define FOPEN_PASSTHROUGH	(1 << 7)
 #define FOPEN_IO_URING_ZERO_COPY (1 << 8)
 
-/**
+/*
  * INIT request/reply flags
  *
  * FUSE_ASYNC_READ: asynchronous read requests
@@ -523,30 +523,30 @@ struct fuse_file_lock {
 #define FUSE_HAS_IO_URING_BUFPOOL (1ULL << 43)
 #define FUSE_HAS_SYNCFS		(1ULL << 44)
 
-/**
+/*
  * CUSE INIT request/reply flags
  *
  * CUSE_UNRESTRICTED_IOCTL:  use unrestricted ioctl
  */
 #define CUSE_UNRESTRICTED_IOCTL	(1 << 0)
 
-/**
+/*
  * Release flags
  */
 #define FUSE_RELEASE_FLUSH	(1 << 0)
 #define FUSE_RELEASE_FLOCK_UNLOCK	(1 << 1)
 
-/**
+/*
  * Getattr flags
  */
 #define FUSE_GETATTR_FH		(1 << 0)
 
-/**
+/*
  * Lock flags
  */
 #define FUSE_LK_FLOCK		(1 << 0)
 
-/**
+/*
  * WRITE flags
  *
  * FUSE_WRITE_CACHE: delayed write from page cache, file handle is guessed
@@ -560,12 +560,12 @@ struct fuse_file_lock {
 /* Obsolete alias; this flag implies killing suid/sgid only. */
 #define FUSE_WRITE_KILL_PRIV	FUSE_WRITE_KILL_SUIDGID
 
-/**
+/*
  * Read flags
  */
 #define FUSE_READ_LOCKOWNER	(1 << 1)
 
-/**
+/*
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
@@ -586,21 +586,21 @@ struct fuse_file_lock {
 
 #define FUSE_IOCTL_MAX_IOV	256
 
-/**
+/*
  * Poll flags
  *
  * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
  */
 #define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
 
-/**
+/*
  * Fsync flags
  *
  * FUSE_FSYNC_FDATASYNC: Sync data only, not metadata
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
-/**
+/*
  * fuse_attr flags
  *
  * FUSE_ATTR_SUBMOUNT: Object is a submount root
@@ -609,28 +609,28 @@ struct fuse_file_lock {
 #define FUSE_ATTR_SUBMOUNT      (1 << 0)
 #define FUSE_ATTR_DAX		(1 << 1)
 
-/**
+/*
  * Open flags
  * FUSE_OPEN_KILL_SUIDGID: Kill suid and sgid if executable
  */
 #define FUSE_OPEN_KILL_SUIDGID	(1 << 0)
 
-/**
+/*
  * setxattr flags
  * FUSE_SETXATTR_ACL_KILL_SGID: Clear SGID when system.posix_acl_access is set
  */
 #define FUSE_SETXATTR_ACL_KILL_SGID	(1 << 0)
 
-/**
+/*
  * notify_inval_entry flags
  * FUSE_EXPIRE_ONLY
  */
 #define FUSE_EXPIRE_ONLY		(1 << 0)
 
 /**
- * extension type
- * FUSE_MAX_NR_SECCTX: maximum value of &fuse_secctx_header.nr_secctx
- * FUSE_EXT_GROUPS: &fuse_supp_groups extension
+ * enum fuse_ext_type - extension type
+ * @FUSE_MAX_NR_SECCTX: maximum value of &fuse_secctx_header.nr_secctx
+ * @FUSE_EXT_GROUPS: &fuse_supp_groups extension
  */
 enum fuse_ext_type {
 	/* Types 0..31 are reserved for fuse_secctx_header */
@@ -1036,14 +1036,14 @@ struct fuse_fallocate_in {
 };
 
 /**
- * FUSE request unique ID flag
+ * define FUSE_UNIQUE_RESEND - FUSE request unique ID flag
  *
  * Indicates whether this is a resend request. The receiver should handle this
  * request accordingly.
  */
 #define FUSE_UNIQUE_RESEND (1ULL << 63)
 
-/**
+/*
  * This value will be set by the kernel to
  * (struct fuse_in_header).{uid,gid} fields in
  * case when:
@@ -1273,12 +1273,12 @@ struct fuse_supp_groups {
 };
 
 /**
- * Size of the ring buffer header
+ * define FUSE_URING_IN_OUT_HEADER_SZ - Size of the ring buffer header
  */
 #define FUSE_URING_IN_OUT_HEADER_SZ 128
 #define FUSE_URING_OP_IN_OUT_SZ 128
 
-/**
+/*
  * fuse_uring_ent_in_out flags
  *
  * FUSE_URING_ENT_ZERO_COPY: Set if the ent's payload is zero-copied
@@ -1305,34 +1305,52 @@ struct fuse_uring_ent_in_out {
 };
 
 /**
- * Header for all fuse-io-uring requests
+ * struct fuse_uring_req_header - Header for all fuse-io-uring requests
  */
 struct fuse_uring_req_header {
-	/* struct fuse_in_header / struct fuse_out_header */
+	/**
+	 * @in_out: struct fuse_in_header / struct fuse_out_header
+	 */
 	char in_out[FUSE_URING_IN_OUT_HEADER_SZ];
 
-	/* per op code header */
+	/**
+	 * @op_in: per op code header
+	 */
 	char op_in[FUSE_URING_OP_IN_OUT_SZ];
 
+	/**
+	 * @ring_ent_in_out: TBD
+	 */
 	struct fuse_uring_ent_in_out ring_ent_in_out;
 };
 
 /**
- * sqe commands to the kernel
+ * enum fuse_uring_cmd - sqe commands to the kernel
  */
 enum fuse_uring_cmd {
+	/** @FUSE_IO_URING_CMD_INVALID: invalid command value */
 	FUSE_IO_URING_CMD_INVALID = 0,
 
-	/* register the request buffer and fetch a fuse request */
+	/**
+	 * @FUSE_IO_URING_CMD_REGISTER: register the request buffer and
+	 * fetch a fuse request
+	 */
 	FUSE_IO_URING_CMD_REGISTER = 1,
 
-	/* commit fuse request result and fetch next request */
+	/**
+	 * @FUSE_IO_URING_CMD_COMMIT_AND_FETCH: commit fuse request result
+	 * and fetch next request
+	 */
 	FUSE_IO_URING_CMD_COMMIT_AND_FETCH = 2,
 
-	/* add a queue */
+	/**
+	 * @FUSE_IO_URING_CMD_ADD_QUEUE: add a queue
+	 */
 	FUSE_IO_URING_CMD_ADD_QUEUE = 3,
 
-	/* add a bufpool to a queue */
+	/**
+	 * @FUSE_IO_URING_CMD_ADD_BUFPOOL: add a bufpool to a queue
+	 */
 	FUSE_IO_URING_CMD_ADD_BUFPOOL = 4,
 };
 
@@ -1344,7 +1362,7 @@ enum fuse_uring_cmd {
  */
 #define FUSE_URING_ZERO_COPY		(1 << 0)
 
-/**
+/*
  * In the 80B command area of the SQE.
  */
 struct fuse_uring_cmd_req {
