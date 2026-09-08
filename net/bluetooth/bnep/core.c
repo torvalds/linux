@@ -495,10 +495,7 @@ send:
 	iv[il++] = (struct kvec) { skb->data, skb->len };
 	len += skb->len;
 
-	/* FIXME: linearize skb */
-	{
-		len = kernel_sendmsg(sock, &s->msg, iv, il, len);
-	}
+	len = kernel_sendmsg(sock, &s->msg, iv, il, len);
 	kfree_skb(skb);
 
 	if (len > 0) {
@@ -539,9 +536,12 @@ static int bnep_session(void *arg)
 			break;
 
 		/* TX */
-		while ((skb = skb_dequeue(&sk->sk_write_queue)))
-			if (bnep_tx_frame(s, skb))
+		while ((skb = skb_dequeue(&sk->sk_write_queue))) {
+			if (skb_linearize(skb))
+				kfree_skb(skb);
+			else if (bnep_tx_frame(s, skb))
 				break;
+		}
 		netif_wake_queue(dev);
 
 		/*
