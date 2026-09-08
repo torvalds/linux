@@ -5,9 +5,9 @@
 
 #include "xe_mmio_gem.h"
 
+#include <linux/dma-resv.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_managed.h>
 
 #include "xe_device_types.h"
 
@@ -37,6 +37,7 @@ static vm_fault_t xe_mmio_gem_vm_fault(struct vm_fault *);
 struct xe_mmio_gem {
 	struct drm_gem_object base;
 	phys_addr_t phys_addr;
+	struct page *dummy_page; /* protected by the GEM's dma_resv */
 };
 
 static int xe_mmio_gem_vm_may_split(struct vm_area_struct *area, unsigned long addr)
@@ -131,6 +132,8 @@ static void xe_mmio_gem_free(struct drm_gem_object *base)
 {
 	struct xe_mmio_gem *obj = to_xe_mmio_gem(base);
 
+	if (obj->dummy_page)
+		__free_page(obj->dummy_page);
 	drm_gem_object_release(base);
 	kfree(obj);
 }
@@ -169,27 +172,29 @@ static int xe_mmio_gem_mmap(struct drm_gem_object *base, struct vm_area_struct *
 	return 0;
 }
 
-static void xe_mmio_gem_release_dummy_page(struct drm_device *dev, void *res)
+static int alloc_dummy_page_if_needed(struct drm_gem_object *base)
 {
-	__free_page((struct page *)res);
+	struct xe_mmio_gem *obj = to_xe_mmio_gem(base);
+
+	dma_resv_lock(base->resv, NULL);
+	if (!obj->dummy_page)
+		obj->dummy_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	dma_resv_unlock(base->resv);
+
+	return obj->dummy_page ? 0 : -ENOMEM;
 }
 
 static vm_fault_t xe_mmio_gem_vm_fault_dummy_page(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *base = vma->vm_private_data;
-	struct drm_device *dev = base->dev;
-	struct page *page;
+	struct xe_mmio_gem *obj = to_xe_mmio_gem(base);
 	unsigned long pfn;
 
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!page)
+	if (alloc_dummy_page_if_needed(base))
 		return VM_FAULT_OOM;
 
-	if (drmm_add_action_or_reset(dev, xe_mmio_gem_release_dummy_page, page))
-		return VM_FAULT_OOM;
-
-	pfn = page_to_pfn(page);
+	pfn = page_to_pfn(obj->dummy_page);
 
 	return vmf_insert_pfn_prot(vma, vmf->address, pfn,
 				   vm_get_page_prot(vma->vm_flags));
