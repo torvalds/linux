@@ -1443,13 +1443,18 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 	return ret;
 }
 
-int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
+int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
 {
 	char *event = NULL, *sub = NULL, *match, *mod;
-	int ret;
+	char *buf;
 
 	if (!tr)
 		return -ENOENT;
+
+	char *dupped_buf __free(kfree) = kstrdup(arg_buf, GFP_KERNEL);
+	if (!dupped_buf)
+		return -ENOMEM;
+	buf = dupped_buf;
 
 	/* Modules events can be appended with :mod:<module> */
 	mod = strstr(buf, ":mod:");
@@ -1487,15 +1492,7 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 			match = NULL;
 	}
 
-	ret = __ftrace_set_clr_event(tr, match, sub, event, set, mod);
-
-	/* Put back the colon to allow this to be called again */
-	if (buf)
-		*(buf - 1) = ':';
-	if (mod)
-		*(mod - 5) = ':';
-
-	return ret;
+	return __ftrace_set_clr_event(tr, match, sub, event, set, mod);
 }
 
 /**
