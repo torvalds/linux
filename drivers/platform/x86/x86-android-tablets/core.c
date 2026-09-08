@@ -390,6 +390,7 @@ static int gpio_secondary_fwnode_init(struct device *parent,
 {
 	const struct software_node *const *swnode;
 	struct fwnode_handle *fwnode;
+	struct device *phys_dev;
 	int ret;
 
 	if (!node_group)
@@ -417,9 +418,15 @@ static int gpio_secondary_fwnode_init(struct device *parent,
 		if (WARN_ON(!fwnode))
 			return -ENOENT;
 
-		set_secondary_fwnode(dev, fwnode);
+		phys_dev = acpi_get_first_physical_node(to_acpi_device(dev));
+		if (!phys_dev)
+			return dev_err_probe(parent, -ENODEV,
+					     "No physical device for ACPI GPIO dev: %pfwP\n",
+					     fwnode);
 
-		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, get_device(dev));
+		set_secondary_fwnode(phys_dev, fwnode);
+
+		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, get_device(phys_dev));
 		if (ret)
 			return ret;
 	}
