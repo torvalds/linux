@@ -1443,25 +1443,18 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 	return ret;
 }
 
-int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
+static void
+ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod)
 {
-	char *event = NULL, *sub = NULL, *match, *mod;
-	char *buf;
-
-	if (!tr)
-		return -ENOENT;
-
-	char *dupped_buf __free(kfree) = kstrdup(arg_buf, GFP_KERNEL);
-	if (!dupped_buf)
-		return -ENOMEM;
-	buf = dupped_buf;
+	*event = NULL;
+	*sub = NULL;
 
 	/* Modules events can be appended with :mod:<module> */
-	mod = strstr(buf, ":mod:");
-	if (mod) {
-		*mod = '\0';
+	*mod = strstr(buf, ":mod:");
+	if (*mod) {
+		**mod = '\0';
 		/* move to the module name */
-		mod += 5;
+		*mod += 5;
 	}
 
 	/*
@@ -1476,21 +1469,35 @@ int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
 	 *  the name <name> or any event that matches <name>
 	 */
 
-	match = strsep(&buf, ":");
+	*match = strsep(&buf, ":");
 	if (buf) {
-		sub = match;
-		event = buf;
-		match = NULL;
+		*sub = *match;
+		*event = buf;
+		*match = NULL;
 
-		if (!strlen(sub) || strcmp(sub, "*") == 0)
-			sub = NULL;
-		if (!strlen(event) || strcmp(event, "*") == 0)
-			event = NULL;
-	} else if (mod) {
+		if (!strlen(*sub) || strcmp(*sub, "*") == 0)
+			*sub = NULL;
+		if (!strlen(*event) || strcmp(*event, "*") == 0)
+			*event = NULL;
+	} else if (*mod) {
 		/* Allow wildcard for no length or star */
-		if (!strlen(match) || strcmp(match, "*") == 0)
-			match = NULL;
+		if (!strlen(*match) || strcmp(*match, "*") == 0)
+			*match = NULL;
 	}
+}
+
+int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
+{
+	char *event, *sub, *match, *mod;
+
+	if (!tr)
+		return -ENOENT;
+
+	char *dupped_buf __free(kfree) = kstrdup(arg_buf, GFP_KERNEL);
+	if (!dupped_buf)
+		return -ENOMEM;
+
+	ftrace_parse_event_string(dupped_buf, &match, &sub, &event, &mod);
 
 	return __ftrace_set_clr_event(tr, match, sub, event, set, mod);
 }
