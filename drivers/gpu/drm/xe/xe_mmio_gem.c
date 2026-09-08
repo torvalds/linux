@@ -38,6 +38,7 @@ struct xe_mmio_gem {
 	struct drm_gem_object base;
 	phys_addr_t phys_addr;
 	struct page *dummy_page; /* protected by the GEM's dma_resv */
+	bool destroyed; /* protected by the GEM's dma_resv */
 };
 
 static int xe_mmio_gem_vm_may_split(struct vm_area_struct *area, unsigned long addr)
@@ -150,8 +151,22 @@ static void xe_mmio_gem_free(struct drm_gem_object *base)
  */
 void xe_mmio_gem_destroy(struct xe_mmio_gem *gem, struct drm_file *file)
 {
-	drm_vma_node_revoke(&gem->base.vma_node, file);
-	xe_mmio_gem_free(&gem->base);
+	struct drm_gem_object *base = &gem->base;
+	struct drm_device *dev = base->dev;
+
+	drm_vma_node_revoke(&base->vma_node, file);
+
+	dma_resv_lock(base->resv, NULL);
+	gem->destroyed = true;
+	dma_resv_unlock(base->resv);
+	/*
+	 * Setting 'destroyed' under lock takes care of the subsequent faults.
+	 * Zap the existing PTEs to cut off access to the real MMIO through
+	 * currently mapped pages.
+	 */
+	drm_vma_node_unmap(&base->vma_node, dev->anon_inode->i_mapping);
+
+	drm_gem_object_put(base);
 }
 
 static int xe_mmio_gem_mmap(struct drm_gem_object *base, struct vm_area_struct *vma)
@@ -162,8 +177,6 @@ static int xe_mmio_gem_mmap(struct drm_gem_object *base, struct vm_area_struct *
 	if ((vma->vm_flags & VM_SHARED) == 0)
 		return -EINVAL;
 
-	/* Set vm_pgoff (used as a fake buffer offset by DRM) to 0 */
-	vma->vm_pgoff = 0;
 	vma->vm_page_prot = pgprot_noncached(vma_get_page_prot(vma));
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
 		     VM_DONTCOPY | VM_NORESERVE);
@@ -176,10 +189,9 @@ static int alloc_dummy_page_if_needed(struct drm_gem_object *base)
 {
 	struct xe_mmio_gem *obj = to_xe_mmio_gem(base);
 
-	dma_resv_lock(base->resv, NULL);
+	dma_resv_assert_held(base->resv);
 	if (!obj->dummy_page)
 		obj->dummy_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	dma_resv_unlock(base->resv);
 
 	return obj->dummy_page ? 0 : -ENOMEM;
 }
@@ -200,7 +212,7 @@ static vm_fault_t xe_mmio_gem_vm_fault_dummy_page(struct vm_fault *vmf)
 				   vm_get_page_prot(vma->vm_flags));
 }
 
-static vm_fault_t xe_mmio_gem_vm_fault(struct vm_fault *vmf)
+static vm_fault_t xe_mmio_gem_vm_fault_locked(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *base = vma->vm_private_data;
@@ -209,6 +221,10 @@ static vm_fault_t xe_mmio_gem_vm_fault(struct vm_fault *vmf)
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	unsigned long addr, pfn;
 	int idx;
+
+	dma_resv_assert_held(base->resv);
+	if (obj->destroyed)
+		return VM_FAULT_SIGBUS;
 
 	if (!drm_dev_enter(dev, &idx)) {
 		/*
@@ -230,5 +246,17 @@ static vm_fault_t xe_mmio_gem_vm_fault(struct vm_fault *vmf)
 	}
 
 	drm_dev_exit(idx);
+	return ret;
+}
+
+static vm_fault_t xe_mmio_gem_vm_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct drm_gem_object *base = vma->vm_private_data;
+	vm_fault_t ret;
+
+	dma_resv_lock(base->resv, NULL);
+	ret = xe_mmio_gem_vm_fault_locked(vmf);
+	dma_resv_unlock(base->resv);
 	return ret;
 }
