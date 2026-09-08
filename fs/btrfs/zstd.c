@@ -373,7 +373,7 @@ void zstd_free_workspace(struct list_head *ws)
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
 	kvfree(workspace->mem);
-	kfree(workspace->buf);
+	kvfree(workspace->buf);
 	kfree(workspace);
 }
 
@@ -391,7 +391,7 @@ struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level)
 	workspace->req_level = level;
 	workspace->last_used = jiffies;
 	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL | __GFP_NOWARN);
-	workspace->buf = kmalloc(fs_info->sectorsize, GFP_KERNEL);
+	workspace->buf = kvmalloc(fs_info->sectorsize, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf)
 		goto fail;
 
