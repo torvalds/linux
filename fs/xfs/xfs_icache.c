@@ -82,24 +82,20 @@ static inline xa_mark_t ici_tag_to_mark(unsigned int tag)
 
 /*
  * Allocate and initialise an xfs_inode.
+ *
+ * This can happen in context of already dirtied transactions, so the memory
+ * allocations must not fail.
  */
 struct xfs_inode *
 xfs_inode_alloc(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino)
 {
+	gfp_t			gfp = GFP_KERNEL | __GFP_NOFAIL;
 	struct xfs_inode	*ip;
 
-	/*
-	 * XXX: If this didn't occur in transactions, we could drop GFP_NOFAIL
-	 * and return NULL here on ENOMEM.
-	 */
-	ip = alloc_inode_sb(mp->m_super, xfs_inode_cache, GFP_KERNEL | __GFP_NOFAIL);
-
-	if (inode_init_always(mp->m_super, VFS_I(ip))) {
-		kmem_cache_free(xfs_inode_cache, ip);
-		return NULL;
-	}
+	ip = alloc_inode_sb(mp->m_super, xfs_inode_cache, gfp);
+	inode_init_always_gfp(mp->m_super, VFS_I(ip), gfp);
 
 	VFS_I(ip)->i_ino = ino;
 	/* VFS doesn't initialise i_mode! */

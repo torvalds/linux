@@ -2984,8 +2984,7 @@ static void leapraid_fw_evt_put(struct leapraid_fw_evt_work *fw_work)
 
 static struct leapraid_fw_evt_work *leapraid_alloc_fw_evt_work(void)
 {
-	struct leapraid_fw_evt_work *fw_evt =
-		kzalloc(sizeof(*fw_evt), GFP_ATOMIC);
+	struct leapraid_fw_evt_work *fw_evt = kzalloc_obj(*fw_evt, GFP_ATOMIC);
 
 	if (fw_evt)
 		kref_init(&fw_evt->refcnt);
@@ -3644,8 +3643,7 @@ static void leapraid_sas_host_add(struct leapraid_adapter *adapter,
 			return;
 
 		adapter->dev_topo.card.card_phy =
-			kcalloc(phys_num,
-				sizeof(struct leapraid_card_phy), GFP_KERNEL);
+			kzalloc_objs(struct leapraid_card_phy, phys_num);
 		if (!adapter->dev_topo.card.card_phy)
 			return;
 
@@ -3763,8 +3761,7 @@ static int leapraid_internal_exp_add(struct leapraid_adapter *adapter,
 	}
 
 	topo_node_exp->card_phy =
-		kcalloc(topo_node_exp->phys_num,
-			sizeof(struct leapraid_card_phy), GFP_KERNEL);
+		kzalloc_objs(struct leapraid_card_phy, topo_node_exp->phys_num);
 	if (!topo_node_exp->card_phy) {
 		dev_err(&adapter->pdev->dev,
 			"%s: Failed to alloc expander phy array, count=%u\n",
@@ -4352,7 +4349,7 @@ static void leapraid_sas_volume_add(
 		return;
 	}
 
-	raid_volume = kzalloc(sizeof(*raid_volume), GFP_KERNEL);
+	raid_volume = kzalloc_obj(*raid_volume);
 	if (!raid_volume)
 		return;
 
@@ -6090,17 +6087,15 @@ static void leapraid_update_card_port_after_reset(
 
 	if (!adapter->dev_topo.card.card_phy) {
 		adapter->dev_topo.card.card_phy =
-			kcalloc(nr_phys, sizeof(struct leapraid_card_phy),
-				GFP_KERNEL);
+			kzalloc_objs(struct leapraid_card_phy, nr_phys);
 		if (!adapter->dev_topo.card.card_phy)
 			return;
 	}
 
 	adapter->dev_topo.card.phys_num = nr_phys;
 
-	new_card_port_table = kcalloc(adapter->dev_topo.card.phys_num,
-				      sizeof(struct leapraid_card_port),
-				      GFP_KERNEL);
+	new_card_port_table = kzalloc_objs(struct leapraid_card_port,
+					   adapter->dev_topo.card.phys_num);
 	if (!new_card_port_table)
 		return;
 
@@ -7224,8 +7219,8 @@ static int leapraid_set_legacy_int(struct leapraid_adapter *adapter)
 		 adapter->notification_desc.iopoll_qdex,
 		 adapter->notification_desc.iopoll_qcnt);
 	adapter->notification_desc.int_rqs =
-		kcalloc(adapter->notification_desc.iopoll_qdex,
-			sizeof(struct leapraid_int_rq), GFP_KERNEL);
+		kzalloc_objs(struct leapraid_int_rq,
+			     adapter->notification_desc.iopoll_qdex);
 	if (!adapter->notification_desc.int_rqs)
 		return -ENOMEM;
 
@@ -7268,9 +7263,8 @@ static int leapraid_set_msix(struct leapraid_adapter *adapter)
 	}
 	if (iopoll_qcnt) {
 		adapter->notification_desc.blk_mq_poll_rqs =
-			kcalloc(iopoll_qcnt,
-				sizeof(struct leapraid_blk_mq_poll_rq),
-				GFP_KERNEL);
+			kzalloc_objs(struct leapraid_blk_mq_poll_rq,
+				     iopoll_qcnt);
 		if (!adapter->notification_desc.blk_mq_poll_rqs)
 			return -ENOMEM;
 		adapter->adapter_attr.rq_cnt =
@@ -7289,8 +7283,8 @@ static int leapraid_set_msix(struct leapraid_adapter *adapter)
 		 adapter->notification_desc.iopoll_qcnt);
 
 	adapter->notification_desc.int_rqs =
-		kcalloc(adapter->notification_desc.iopoll_qdex,
-			sizeof(struct leapraid_int_rq), GFP_KERNEL);
+		kzalloc_objs(struct leapraid_int_rq,
+			     adapter->notification_desc.iopoll_qdex);
 	if (!adapter->notification_desc.int_rqs)
 		return -ENOMEM;
 
@@ -7365,9 +7359,8 @@ static int leapraid_set_msi(struct leapraid_adapter *adapter)
 
 	if (iopoll_qcnt) {
 		adapter->notification_desc.blk_mq_poll_rqs =
-			kcalloc(iopoll_qcnt,
-				sizeof(struct leapraid_blk_mq_poll_rq),
-				GFP_KERNEL);
+			kzalloc_objs(struct leapraid_blk_mq_poll_rq,
+				     iopoll_qcnt);
 		if (!adapter->notification_desc.blk_mq_poll_rqs)
 			return -ENOMEM;
 
@@ -7404,9 +7397,8 @@ static int leapraid_set_msi(struct leapraid_adapter *adapter)
 		 adapter->notification_desc.iopoll_qcnt);
 
 	adapter->notification_desc.int_rqs =
-		kcalloc(adapter->notification_desc.iopoll_qdex,
-			sizeof(struct leapraid_int_rq),
-			GFP_KERNEL);
+		kzalloc_objs(struct leapraid_int_rq,
+			     adapter->notification_desc.iopoll_qdex);
 	if (!adapter->notification_desc.int_rqs)
 		return -ENOMEM;
 
@@ -7958,18 +7950,16 @@ try_again:
 		DIV_ROUND_UP(adapter->adapter_attr.rq_cnt,
 			     LEAPRAID_REP_DESC_CHUNK_SIZE);
 	adapter->mem_desc.rep_desc_seg_maint =
-		kcalloc(adapter->adapter_attr.rep_desc_q_seg_cnt,
-			sizeof(struct leapraid_rep_desc_seg_maint),
-			GFP_KERNEL);
+		kzalloc_objs(struct leapraid_rep_desc_seg_maint,
+			     adapter->adapter_attr.rep_desc_q_seg_cnt);
 	if (!adapter->mem_desc.rep_desc_seg_maint)
 		return -ENOMEM;
 
 	rep_desc_q_cnt_allocated = 0;
 	for (i = 0; i < adapter->adapter_attr.rep_desc_q_seg_cnt; i++) {
 		adapter->mem_desc.rep_desc_seg_maint[i].rep_desc_maint =
-			kcalloc(LEAPRAID_REP_DESC_CHUNK_SIZE,
-				sizeof(struct leapraid_rep_desc_maint),
-				GFP_KERNEL);
+			kzalloc_objs(struct leapraid_rep_desc_maint,
+				     LEAPRAID_REP_DESC_CHUNK_SIZE);
 		if (!adapter->mem_desc.rep_desc_seg_maint[i].rep_desc_maint)
 			return -ENOMEM;
 

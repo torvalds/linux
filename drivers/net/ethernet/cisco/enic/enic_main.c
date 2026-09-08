@@ -2858,7 +2858,7 @@ enic_sriov_v2_enable(struct enic *enic, int num_vfs)
 		return -EOPNOTSUPP;
 	}
 
-	enic->vf_state = kcalloc(num_vfs, sizeof(*enic->vf_state), GFP_KERNEL);
+	enic->vf_state = kzalloc_objs(*enic->vf_state, num_vfs);
 	if (!enic->vf_state)
 		return -ENOMEM;
 
@@ -2946,7 +2946,7 @@ enic_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		if (enic->vf_type == ENIC_VF_TYPE_V2)
 			return enic_sriov_v2_enable(enic, num_vfs);
 
-		pp = kcalloc(num_vfs, sizeof(*pp), GFP_KERNEL);
+		pp = kzalloc_objs(*pp, num_vfs);
 		if (!pp)
 			return -ENOMEM;
 
@@ -2971,7 +2971,7 @@ enic_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return 0;
 	}
 
-	pp = kzalloc_obj(*enic->pp, GFP_KERNEL);
+	pp = kzalloc_obj(*enic->pp);
 	if (!pp)
 		return -ENOMEM;
 

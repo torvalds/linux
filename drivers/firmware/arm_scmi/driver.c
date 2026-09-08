@@ -1792,7 +1792,7 @@ static void *scmi_iterator_init(const struct scmi_protocol_handle *ph,
 {
 	int ret;
 
-	struct scmi_iterator *i __free(kfree) = kzalloc(sizeof(*i), GFP_KERNEL);
+	struct scmi_iterator *i __free(kfree) = kzalloc_obj(*i);
 	if (!i)
 		return ERR_PTR(-ENOMEM);
 

@@ -136,7 +136,7 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 	struct timestamp_event_queue *queue;
 	char debugfsname[32];
 
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue);
 	if (!queue)
 		return -EINVAL;
 	queue->mask = bitmap_alloc(PTP_MAX_CHANNELS, GFP_KERNEL);

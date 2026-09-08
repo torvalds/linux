@@ -659,8 +659,7 @@ int ieee80211_nan_set_peer_sched(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return -ENOENT;
 
-	new_sched = kzalloc(struct_size(new_sched, channels, sched->n_channels),
-			    GFP_KERNEL);
+	new_sched = kzalloc_flex(*new_sched, channels, sched->n_channels);
 	if (!new_sched)
 		return -ENOMEM;
 

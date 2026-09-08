@@ -1246,7 +1246,8 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 			   scx_read_event(&events, SCX_EV_BYPASS_ACTIVATE));
 	}
 
-	bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
+	if (bpf_timer_start(timer, ONE_SEC_IN_NS, 0))
+		scx_bpf_error("failed to re-arm stats timer");
 	return 0;
 }
 
@@ -1268,7 +1269,8 @@ struct {
 static int lowpri_timerfn(void *map, int *key, struct bpf_timer *timer)
 {
 	scx_bpf_dsq_reenq(LOWPRI_DSQ, 0);
-	bpf_timer_start(timer, LOWPRI_INTV_NS, 0);
+	if (bpf_timer_start(timer, LOWPRI_INTV_NS, 0))
+		scx_bpf_error("failed to re-arm lowpri timer");
 	return 0;
 }
 
@@ -1747,7 +1749,8 @@ static void rr_advance(void)
 static int round_robin_timerfn(void *map, int *key, struct bpf_timer *timer)
 {
 	rr_advance();
-	bpf_timer_start(timer, round_robin_ns, 0);
+	if (bpf_timer_start(timer, round_robin_ns, 0))
+		scx_bpf_error("failed to re-arm round-robin timer");
 	return 0;
 }
 

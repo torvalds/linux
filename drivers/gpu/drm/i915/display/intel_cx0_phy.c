@@ -3233,7 +3233,8 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	 * 8. Program DDI_CLK_VALFREQ to match intended DDI
 	 * clock frequency.
 	 */
-	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
+	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
+		       intel_ddi_link_symbol_clock(encoder, port_clock));
 
 	/*
 	 * 9. Set PORT_CLOCK_CTL register PCLK PLL Request
@@ -3406,7 +3407,7 @@ void intel_mtl_tbt_pll_enable_clock(struct intel_encoder *encoder, int port_cloc
 	 * clock frequency.
 	 */
 	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
-		       port_clock);
+		       intel_ddi_link_symbol_clock(encoder, port_clock));
 }
 
 void intel_mtl_pll_enable(struct intel_encoder *encoder,

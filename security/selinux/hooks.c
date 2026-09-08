@@ -7267,24 +7267,6 @@ static int selinux_bpf_prog(struct bpf_prog *prog)
 			    BPF__PROG_RUN, NULL);
 }
 
-static u32 selinux_bpffs_creator_sid(u32 fd)
-{
-	struct path path;
-	struct super_block *sb;
-	struct superblock_security_struct *sbsec;
-
-	CLASS(fd, f)(fd);
-
-	if (fd_empty(f))
-		return SECSID_NULL;
-
-	path = fd_file(f)->f_path;
-	sb = path.dentry->d_sb;
-	sbsec = selinux_superblock(sb);
-
-	return sbsec->creator_sid;
-}
-
 static int selinux_bpf_map_create(struct bpf_map *map, union bpf_attr *attr,
 				  struct bpf_token *token, bool kernel)
 {
@@ -7297,7 +7279,7 @@ static int selinux_bpf_map_create(struct bpf_map *map, union bpf_attr *attr,
 	if (!token)
 		ssid = bpfsec->sid;
 	else
-		ssid = selinux_bpffs_creator_sid(attr->map_token_fd);
+		ssid = selinux_bpf_token_security(token)->grantor_sid;
 
 	return avc_has_perm(ssid, bpfsec->sid, SECCLASS_BPF, BPF__MAP_CREATE,
 			    NULL);
@@ -7315,7 +7297,7 @@ static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
 	if (!token)
 		ssid = bpfsec->sid;
 	else
-		ssid = selinux_bpffs_creator_sid(attr->prog_token_fd);
+		ssid = selinux_bpf_token_security(token)->grantor_sid;
 
 	return avc_has_perm(ssid, bpfsec->sid, SECCLASS_BPF, BPF__PROG_LOAD,
 			    NULL);
@@ -7329,12 +7311,14 @@ static int selinux_bpf_token_create(struct bpf_token *token,
 				    const struct path *path)
 {
 	struct bpf_security_struct *bpfsec;
-	u32 sid = selinux_bpffs_creator_sid(attr->token_create.bpffs_fd);
+	struct superblock_security_struct *sbsec;
 	int err;
+
+	sbsec = selinux_superblock(path->dentry->d_sb);
 
 	bpfsec = selinux_bpf_token_security(token);
 	bpfsec->sid = current_sid();
-	bpfsec->grantor_sid = sid;
+	bpfsec->grantor_sid = sbsec->creator_sid;
 
 	bpfsec->perms = 0;
 	/**
@@ -7343,15 +7327,15 @@ static int selinux_bpf_token_create(struct bpf_token *token,
 	 * in the allowed_cmds bitmap.
 	 */
 	if (bpf_token_cmd(token, BPF_MAP_CREATE)) {
-		err = avc_has_perm(bpfsec->sid, sid, SECCLASS_BPF,
-				   BPF__MAP_CREATE_AS, NULL);
+		err = avc_has_perm(bpfsec->sid, bpfsec->grantor_sid,
+				   SECCLASS_BPF, BPF__MAP_CREATE_AS, NULL);
 		if (err)
 			return err;
 		bpfsec->perms |= BPF__MAP_CREATE;
 	}
 	if (bpf_token_cmd(token, BPF_PROG_LOAD)) {
-		err = avc_has_perm(bpfsec->sid, sid, SECCLASS_BPF,
-				   BPF__PROG_LOAD_AS, NULL);
+		err = avc_has_perm(bpfsec->sid, bpfsec->grantor_sid,
+				   SECCLASS_BPF, BPF__PROG_LOAD_AS, NULL);
 		if (err)
 			return err;
 		bpfsec->perms |= BPF__PROG_LOAD;

@@ -28,9 +28,7 @@
 #include "internal.h"
 #include "sleep.h"
 
-#define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"LNXSYBUS"
-#define ACPI_BUS_DEVICE_NAME		"System Bus"
 
 #define INVALID_ACPI_HANDLE	((acpi_handle)ZERO_PAGE(0))
 
@@ -1450,8 +1448,6 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 			 acpi_object_is_system_bus(handle)) {
 			/* \_SB, \_TZ, LNXSYBUS */
 			acpi_add_id(pnp, ACPI_BUS_HID);
-			strscpy(pnp->device_name, ACPI_BUS_DEVICE_NAME);
-			strscpy(pnp->device_class, ACPI_BUS_CLASS);
 		}
 
 		break;

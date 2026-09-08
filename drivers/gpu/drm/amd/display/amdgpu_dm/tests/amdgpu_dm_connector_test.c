@@ -4180,7 +4180,7 @@ dm_test_destroy_connector(struct kunit *test, struct drm_device *drm)
 {
 	struct amdgpu_dm_connector *aconnector;
 
-	aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
+	aconnector = kzalloc_obj(*aconnector);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 
 	KUNIT_ASSERT_EQ(test,

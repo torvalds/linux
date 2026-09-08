@@ -1253,7 +1253,7 @@ config HID_HYPERV_MOUSE
 
 config HID_HYPERV_MOUSE_KUNIT_TEST
 	bool "KUnit tests for Hyper-V mouse driver" if !KUNIT_ALL_TESTS
-	depends on KUNIT && HID_HYPERV_MOUSE
+	depends on KUNIT && (HID_HYPERV_MOUSE = KUNIT || KUNIT = y)
 	default KUNIT_ALL_TESTS
 	help
 	  Builds unit tests for the Hyper-V synthetic HID driver.

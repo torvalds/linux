@@ -1512,6 +1512,10 @@ N: Andy Gross
 E: agross@kernel.org
 D: Qualcomm SoC subsystem and drivers
 
+N: Mark Gross
+E: markgross@kernel.org
+D: x86/mellanox platform maintenance and various x86 specific drivers
+
 N: Grant Grundler
 E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
@@ -4304,6 +4308,10 @@ S: United Kingdom
 N: Juergen Weigert
 E: jnweiger@immd4.informatik.uni-erlangen.de
 D: The Linux Support Team Erlangen
+
+N: Russ Weight
+E: russ.weight@gmail.com
+D: Added support for Firmware Upload to the Firmware Loader
 
 N: David Weinehall
 E: tao@acc.umu.se

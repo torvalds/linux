@@ -245,7 +245,7 @@ int ceph_subvolume_metrics_snapshot(struct ceph_subvolume_metrics_tracker *track
 		return 0;
 	}
 
-	snap = kcalloc(count, sizeof(*snap), GFP_NOFS);
+	snap = kzalloc_objs(*snap, count, GFP_NOFS);
 	if (!snap) {
 		atomic64_inc(&tracker->snapshot_failures);
 		return -ENOMEM;

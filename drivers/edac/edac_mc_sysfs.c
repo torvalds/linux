@@ -129,7 +129,7 @@ static ssize_t dimmdev_location_show(struct device *dev,
 	ssize_t count;
 
 	count = edac_dimm_info_location(dimm, data, PAGE_SIZE);
-	count += scnprintf(data + count, PAGE_SIZE - count, "\n");
+	count += sysfs_emit_at(data, count, "\n");
 
 	return count;
 }

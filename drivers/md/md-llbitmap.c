@@ -810,7 +810,7 @@ static int llbitmap_expand_pages(struct llbitmap *llbitmap,
 	if (nr_pages <= old_nr_pages)
 		return 0;
 
-	pctl = kcalloc(nr_pages, sizeof(*pctl), GFP_NOIO);
+	pctl = kzalloc_objs(*pctl, nr_pages, GFP_NOIO);
 	if (!pctl)
 		return -ENOMEM;
 
@@ -846,7 +846,7 @@ static int llbitmap_alloc_pages(struct llbitmap *llbitmap)
 	unsigned int nr_pages = max(used_pages, llbitmap_reserved_pages(llbitmap));
 	int i;
 
-	llbitmap->pctl = kcalloc(nr_pages, sizeof(*llbitmap->pctl), GFP_NOIO);
+	llbitmap->pctl = kzalloc_objs(*llbitmap->pctl, nr_pages, GFP_NOIO);
 	if (!llbitmap->pctl)
 		return -ENOMEM;
 

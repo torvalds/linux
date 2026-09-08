@@ -196,7 +196,7 @@ static int rocket_job_push(struct rocket_job *job)
 	if (check_add_overflow(job->in_bo_count, job->out_bo_count, &bo_count))
 		return -EINVAL;
 
-	bos = kvmalloc_array(bo_count, sizeof(*bos), GFP_KERNEL);
+	bos = kvmalloc_objs(*bos, bo_count);
 	if (!bos)
 		return -ENOMEM;
 	memcpy(bos, job->in_bos, job->in_bo_count * sizeof(void *));

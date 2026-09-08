@@ -88,7 +88,7 @@ nxpwifi_uap_event_sta_assoc(struct nxpwifi_private *priv)
 	struct nxpwifi_sta_node *node;
 	int len, i;
 
-	sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return -ENOMEM;
 

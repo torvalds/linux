@@ -85,7 +85,7 @@ static struct func_instance *call_instance(struct bpf_verifier_env *env,
 	if (f)
 		return f;
 
-	f = kvzalloc(sizeof(*f), GFP_KERNEL_ACCOUNT);
+	f = kvzalloc_obj(*f, GFP_KERNEL_ACCOUNT);
 	if (!f)
 		return ERR_PTR(-ENOMEM);
 	f->callsite = lookup_key;

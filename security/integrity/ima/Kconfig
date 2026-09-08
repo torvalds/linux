@@ -46,12 +46,16 @@ config IMA_KEXEC
 
 config IMA_MEASURE_PCR_IDX
 	int
+	prompt "PCR Index for Aggregate" if EXPERT
 	range 8 14
 	default 10
 	help
 	  IMA_MEASURE_PCR_IDX determines the TPM PCR register index
 	  that IMA uses to maintain the integrity aggregate of the
-	  measurement list.  If unsure, use the default 10.
+	  measurement list. Most attestation tooling expects PCR 10.
+
+	  The default is almost always what you want. Only change this
+	  if you know what you are doing.
 
 config IMA_LSM_RULES
 	bool

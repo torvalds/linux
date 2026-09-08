@@ -103,7 +103,7 @@ static enum dc_status dm_test_dp_read_hpd_rx_irq_data_ok(struct dc_link *link,
  */
 static struct dc_sink *dm_test_sink_create(struct dc_link *link)
 {
-	struct dc_sink *sink = kzalloc(sizeof(*sink), GFP_KERNEL);
+	struct dc_sink *sink = kzalloc_obj(*sink);
 
 	if (!sink)
 		return NULL;
@@ -2131,7 +2131,7 @@ static void dm_test_hpd_rx_offload_work_no_connector(struct kunit *test)
 	offload_wq = kunit_kzalloc(test, sizeof(*offload_wq), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_wq);
 
-	offload_work = kzalloc(sizeof(*offload_work), GFP_KERNEL);
+	offload_work = kzalloc_obj(*offload_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_work);
 	offload_work->offload_wq = offload_wq;
 	offload_work->adev = adev;
@@ -2177,7 +2177,7 @@ static void dm_test_hpd_rx_offload_work_no_connection(struct kunit *test)
 	link->dc = dc;
 	aconn->dc_link = link;
 
-	offload_work = kzalloc(sizeof(*offload_work), GFP_KERNEL);
+	offload_work = kzalloc_obj(*offload_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_work);
 	offload_work->offload_wq = offload_wq;
 	offload_work->adev = adev;
@@ -2244,7 +2244,7 @@ static void dm_test_hpd_rx_offload_work_automated_test(struct kunit *test)
 	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 	aconn->dc_link = link;
 
-	offload_work = kzalloc(sizeof(*offload_work), GFP_KERNEL);
+	offload_work = kzalloc_obj(*offload_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_work);
 	offload_work->offload_wq = offload_wq;
 	offload_work->adev = adev;
@@ -2315,7 +2315,7 @@ static void dm_test_hpd_rx_offload_work_link_loss(struct kunit *test)
 	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 	aconn->dc_link = link;
 
-	offload_work = kzalloc(sizeof(*offload_work), GFP_KERNEL);
+	offload_work = kzalloc_obj(*offload_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_work);
 	offload_work->offload_wq = offload_wq;
 	offload_work->adev = adev;
@@ -3452,9 +3452,9 @@ static void dm_test_handle_hpd_work_out_of_range(struct kunit *test)
 	struct amdgpu_device *adev;
 
 	adev = dm_kunit_alloc_adev(test);
-	hpd_work = kzalloc(sizeof(*hpd_work), GFP_KERNEL);
+	hpd_work = kzalloc_obj(*hpd_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hpd_work);
-	hpd_work->dmub_notify = kzalloc(sizeof(*hpd_work->dmub_notify), GFP_KERNEL);
+	hpd_work->dmub_notify = kzalloc_obj(*hpd_work->dmub_notify);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hpd_work->dmub_notify);
 	hpd_work->dmub_notify->type =
 		(enum dmub_notification_type)ARRAY_SIZE(adev->dm.dmub_callback);
@@ -3899,9 +3899,9 @@ static void dm_test_handle_vmin_vmax_update(struct kunit *test)
 	kref_get(&stream->refcount);
 
 	/* The worker kfree()s both, so they must come from the slab. */
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, work);
-	adjust = kzalloc(sizeof(*adjust), GFP_KERNEL);
+	adjust = kzalloc_obj(*adjust);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adjust);
 
 	work->adev = adev;

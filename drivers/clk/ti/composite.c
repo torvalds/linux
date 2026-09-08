@@ -248,7 +248,7 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 		return -EINVAL;
 	}
 
-	parent_data = kcalloc(num_parents, sizeof(*parent_data), GFP_KERNEL);
+	parent_data = kzalloc_objs(*parent_data, num_parents);
 	if (!parent_data)
 		return -ENOMEM;
 

@@ -641,7 +641,7 @@ nxpwifi_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 change
 
 	switch (priv->bss_role) {
 	case NXPWIFI_BSS_ROLE_UAP:
-		bss_cfg = kzalloc_obj(*bss_cfg, GFP_KERNEL);
+		bss_cfg = kzalloc_obj(*bss_cfg);
 		if (!bss_cfg) {
 			ret = -ENOMEM;
 			break;
@@ -1713,7 +1713,7 @@ static int nxpwifi_cfg80211_start_ap(struct wiphy *wiphy,
 	if (!nxpwifi_is_channel_setting_allowable(priv, params->chandef.chan))
 		return -EOPNOTSUPP;
 
-	bss_cfg = kzalloc_obj(*bss_cfg, GFP_KERNEL);
+	bss_cfg = kzalloc_obj(*bss_cfg);
 	if (!bss_cfg)
 		return -ENOMEM;
 
@@ -1866,7 +1866,7 @@ nxpwifi_cfg80211_scan(struct wiphy *wiphy,
 	if (!nxpwifi_stop_bg_scan(priv))
 		cfg80211_sched_scan_stopped_locked(priv->wdev.wiphy, 0);
 
-	user_scan_cfg = kzalloc_obj(*user_scan_cfg, GFP_KERNEL);
+	user_scan_cfg = kzalloc_obj(*user_scan_cfg);
 	if (!user_scan_cfg)
 		return -ENOMEM;
 
@@ -1973,7 +1973,7 @@ nxpwifi_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		   request->n_channels, request->scan_plans->interval,
 		   (int)request->ie_len);
 
-	bgscan_cfg = kzalloc_obj(*bgscan_cfg, GFP_KERNEL);
+	bgscan_cfg = kzalloc_obj(*bgscan_cfg);
 	if (!bgscan_cfg)
 		return -ENOMEM;
 
@@ -2304,7 +2304,7 @@ nxpwifi_setup_he_caps(struct nxpwifi_private *priv,
 	if (!hw_he_cap_len)
 		return;
 
-	iftype_data = kmalloc_obj(*iftype_data, GFP_KERNEL);
+	iftype_data = kmalloc_obj(*iftype_data);
 	if (!iftype_data)
 		return;
 	memset(iftype_data, 0, sizeof(*iftype_data));
@@ -2759,7 +2759,7 @@ static int nxpwifi_set_mef_filter(struct nxpwifi_private *priv,
 	if (wowlan->n_patterns || wowlan->magic_pkt)
 		num_entries++;
 
-	mef_entry = kzalloc_objs(*mef_entry, num_entries, GFP_KERNEL);
+	mef_entry = kzalloc_objs(*mef_entry, num_entries);
 	if (!mef_entry)
 		return -ENOMEM;
 
@@ -3227,7 +3227,7 @@ static int nxpwifi_tm_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!tb[NXPWIFI_TM_ATTR_DATA])
 			return -EINVAL;
 
-		hostcmd = kzalloc_obj(*hostcmd, GFP_KERNEL);
+		hostcmd = kzalloc_obj(*hostcmd);
 		if (!hostcmd)
 			return -ENOMEM;
 

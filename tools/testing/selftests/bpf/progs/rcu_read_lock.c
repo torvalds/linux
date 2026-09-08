@@ -592,9 +592,9 @@ int non_own_ref_untrusted_ld(void *ctx)
 	}
 	bpf_rcu_read_unlock();
 	/*
-	 * The unlock leaves node as PTR_TO_BTF_ID | MEM_ALLOC | PTR_UNTRUSTED
-	 * | NON_OWN_REF, and the load below has to get the BPF_PROBE_MEM
-	 * rewrite for it, otherwise a bad address panics the kernel.
+	 * The unlock leaves node as PTR_TO_BTF_ID | MEM_ALLOC | PTR_UNTRUSTED,
+	 * and the load below has to get the BPF_PROBE_MEM rewrite for it,
+	 * otherwise a bad address panics the kernel.
 	 */
 	non_own_ref_key = node->key;
 	return 0;

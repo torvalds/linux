@@ -771,6 +771,9 @@ static int amdgpu_device_read_fb_via_bar0(struct amdgpu_device *adev,
 	if (!buf || !size)
 		return -EINVAL;
 
+	if (!amdgpu_sriov_vf(adev))
+		return -EINVAL;
+
 	flags = pci_resource_flags(adev->pdev, 0);
 	if ((flags & IORESOURCE_UNSET) || !(flags & IORESOURCE_MEM))
 		return -EINVAL;

@@ -1660,7 +1660,7 @@ resplit:
 			goto out;
 		}
 	} else {
-		si = kzalloc(sizeof(struct split_info), GFP_NOFS);
+		si = kzalloc_obj(struct split_info, GFP_NOFS);
 		if (!si) {
 			ntfs_ibm_clear(icx, new_vcn);
 			ret = -ENOMEM;

@@ -168,7 +168,7 @@ int simple_util_parse_tdm_width_map(struct simple_util_priv *priv, struct device
 	if (!dai->tdm_width_map)
 		return simple_ret(priv, ret); /* see NOTE */
 
-	u32 *array_values __free(kfree) = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
+	u32 *array_values __free(kfree) = kzalloc_objs(*array_values, n);
 	if (!array_values)
 		goto end;
 

@@ -480,7 +480,7 @@ pwrseq_device_register(const struct pwrseq_config *config)
 	    !config->targets[0])
 		return ERR_PTR(-EINVAL);
 
-	pwrseq = kzalloc(sizeof(*pwrseq), GFP_KERNEL);
+	pwrseq = kzalloc_obj(*pwrseq);
 	if (!pwrseq)
 		return ERR_PTR(-ENOMEM);
 

@@ -519,6 +519,19 @@ static const struct usbmix_name_map audient_id14_map[] = {
 };
 
 /*
+ * Audient iD24: feature unit 12 ("Speaker Playback Volume") sits in the
+ * monitor-mixer branch and does not apply volume to all of its channels;
+ * when userspace adopts it as the master playback volume, the left main
+ * output stays at 0 dB while the right one is attenuated, producing a
+ * stereo imbalance.  Rename it so that it is not picked up as the
+ * stream's master volume control.
+ */
+static const struct usbmix_name_map audient_id24_map[] = {
+	{ 12, "Monitor Mix Playback" },	/* FU, partial channel coverage */
+	{}
+};
+
+/*
  * Control map entries
  */
 
@@ -610,6 +623,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Audient iD14 MkII */
 		.id = USB_ID(0x2708, 0x0008),
 		.map = audient_id14_map,
+	},
+	{
+		/* Audient iD24 */
+		.id = USB_ID(0x2708, 0x000d),
+		.map = audient_id24_map,
 	},
 	{
 		/* KEF X300A */

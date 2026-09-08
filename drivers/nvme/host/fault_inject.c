@@ -42,9 +42,11 @@ void nvme_fault_inject_init(struct nvme_fault_inject *fault_inj,
 	}
 	fault_inj->parent = parent;
 
-	/* create debugfs for status code and dont_retry */
+	/* create debugfs for opcode, status code, and dont_retry */
+	fault_inj->opcode = 0xffff;
 	fault_inj->status = NVME_SC_INVALID_OPCODE;
 	fault_inj->dont_retry = true;
+	debugfs_create_x16("opcode", 0600, dir,	&fault_inj->opcode);
 	debugfs_create_x16("status", 0600, dir,	&fault_inj->status);
 	debugfs_create_bool("dont_retry", 0600, dir, &fault_inj->dont_retry);
 }
@@ -59,6 +61,7 @@ void nvme_should_fail(struct request *req)
 {
 	struct gendisk *disk = req->q->disk;
 	struct nvme_fault_inject *fault_inject = NULL;
+	struct nvme_command *cmd = nvme_req(req)->cmd;
 	u16 status;
 
 	if (disk) {
@@ -72,7 +75,14 @@ void nvme_should_fail(struct request *req)
 		fault_inject = &nvme_req(req)->ctrl->fault_inject;
 	}
 
-	if (fault_inject && should_fail(&fault_inject->attr, 1)) {
+	if (!fault_inject)
+		return;
+
+	if (fault_inject->opcode <= 0xff &&
+	    fault_inject->opcode != cmd->common.opcode)
+		return;
+
+	if (should_fail(&fault_inject->attr, 1)) {
 		/* inject status code and DNR bit */
 		status = fault_inject->status;
 		if (fault_inject->dont_retry)

@@ -38,11 +38,9 @@
 #include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
 #include <linux/spinlock.h>
-#include <linux/completion.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/refcount.h>
 #include <linux/unaligned.h>
 #include <linux/uaccess.h>
 
@@ -67,8 +65,6 @@ struct syncppp {
 
 	struct tasklet_struct tsk;
 
-	refcount_t	refcnt;
-	struct completion dead_cmp;
 	struct ppp_channel chan;	/* interface to generic ppp layer */
 };
 
@@ -117,37 +113,6 @@ ppp_print_buffer (const char *name, const __u8 *buf, int count)
  */
 
 /*
- * We have a potential race on dereferencing tty->disc_data,
- * because the tty layer provides no locking at all - thus one
- * cpu could be running ppp_synctty_receive while another
- * calls ppp_synctty_close, which zeroes tty->disc_data and
- * frees the memory that ppp_synctty_receive is using.  The best
- * way to fix this is to use a rwlock in the tty struct, but for now
- * we use a single global rwlock for all ttys in ppp line discipline.
- *
- * FIXME: Fixed in tty_io nowadays.
- */
-static DEFINE_RWLOCK(disc_data_lock);
-
-static struct syncppp *sp_get(struct tty_struct *tty)
-{
-	struct syncppp *ap;
-
-	read_lock(&disc_data_lock);
-	ap = tty->disc_data;
-	if (ap != NULL)
-		refcount_inc(&ap->refcnt);
-	read_unlock(&disc_data_lock);
-	return ap;
-}
-
-static void sp_put(struct syncppp *ap)
-{
-	if (refcount_dec_and_test(&ap->refcnt))
-		complete(&ap->dead_cmp);
-}
-
-/*
  * Called when a tty is put into sync-PPP line discipline.
  */
 static int
@@ -177,9 +142,6 @@ ppp_sync_open(struct tty_struct *tty)
 	skb_queue_head_init(&ap->rqueue);
 	tasklet_setup(&ap->tsk, ppp_sync_process);
 
-	refcount_set(&ap->refcnt, 1);
-	init_completion(&ap->dead_cmp);
-
 	ap->chan.private = ap;
 	ap->chan.ops = &sync_ops;
 	ap->chan.mtu = PPP_MRU;
@@ -201,51 +163,24 @@ ppp_sync_open(struct tty_struct *tty)
 }
 
 /*
- * Called when the tty is put into another line discipline
- * or it hangs up.  We have to wait for any cpu currently
- * executing in any of the other ppp_synctty_* routines to
- * finish before we can call ppp_unregister_channel and free
- * the syncppp struct.  This routine must be called from
- * process context, not interrupt or softirq context.
+ * Called when the tty is put into another line discipline or it hangs up.
+ * This call is serialized against other ldisc functions.
  */
 static void
 ppp_sync_close(struct tty_struct *tty)
 {
-	struct syncppp *ap;
+	struct syncppp *ap = tty->disc_data;
 
-	write_lock_irq(&disc_data_lock);
-	ap = tty->disc_data;
-	tty->disc_data = NULL;
-	write_unlock_irq(&disc_data_lock);
 	if (!ap)
 		return;
 
-	/*
-	 * We have now ensured that nobody can start using ap from now
-	 * on, but we have to wait for all existing users to finish.
-	 * Note that ppp_unregister_channel ensures that no calls to
-	 * our channel ops (i.e. ppp_sync_send/ioctl) are in progress
-	 * by the time it returns.
-	 */
-	if (!refcount_dec_and_test(&ap->refcnt))
-		wait_for_completion(&ap->dead_cmp);
+	tty->disc_data = NULL;
 	tasklet_kill(&ap->tsk);
 
 	ppp_unregister_channel(&ap->chan);
 	skb_queue_purge(&ap->rqueue);
 	kfree_skb(ap->tpkt);
 	kfree(ap);
-}
-
-/*
- * Called on tty hangup in process context.
- *
- * Wait for I/O to driver to complete and unregister PPP channel.
- * This is already done by the close routine, so just call that.
- */
-static void ppp_sync_hangup(struct tty_struct *tty)
-{
-	ppp_sync_close(tty);
 }
 
 /*
@@ -273,7 +208,7 @@ ppp_sync_write(struct tty_struct *tty, struct file *file, const u8 *buf,
 static int
 ppp_synctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
-	struct syncppp *ap = sp_get(tty);
+	struct syncppp *ap = tty->disc_data;
 	int __user *p = (int __user *)arg;
 	int err, val;
 
@@ -314,7 +249,6 @@ ppp_synctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	sp_put(ap);
 	return err;
 }
 
@@ -323,7 +257,7 @@ static void
 ppp_sync_receive(struct tty_struct *tty, const u8 *buf, const u8 *cflags,
 		 size_t count)
 {
-	struct syncppp *ap = sp_get(tty);
+	struct syncppp *ap = tty->disc_data;
 	unsigned long flags;
 
 	if (!ap)
@@ -333,21 +267,19 @@ ppp_sync_receive(struct tty_struct *tty, const u8 *buf, const u8 *cflags,
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
 	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
-	sp_put(ap);
 	tty_unthrottle(tty);
 }
 
 static void
 ppp_sync_wakeup(struct tty_struct *tty)
 {
-	struct syncppp *ap = sp_get(tty);
+	struct syncppp *ap = tty->disc_data;
 
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	if (!ap)
 		return;
 	set_bit(XMIT_WAKEUP, &ap->xmit_flags);
 	tasklet_schedule(&ap->tsk);
-	sp_put(ap);
 }
 
 
@@ -357,7 +289,6 @@ static struct tty_ldisc_ops ppp_sync_ldisc = {
 	.name	= "pppsync",
 	.open	= ppp_sync_open,
 	.close	= ppp_sync_close,
-	.hangup	= ppp_sync_hangup,
 	.read	= ppp_sync_read,
 	.write	= ppp_sync_write,
 	.ioctl	= ppp_synctty_ioctl,

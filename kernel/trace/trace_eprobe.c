@@ -930,7 +930,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	} else
 		ep->filter_str = NULL;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->event = ep->event;

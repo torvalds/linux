@@ -729,10 +729,8 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 					thunderx_lmc_err_isr,
 					thunderx_lmc_threaded_isr, 0,
 					"[EDAC] ThunderX LMC", mci);
-	if (ret) {
-		dev_err(&pdev->dev, "Cannot set ISR: %d\n", ret);
+	if (ret)
 		goto err_free;
-	}
 
 	lmc->node = FIELD_GET(THUNDERX_NODE, pci_resource_start(pdev, 0));
 

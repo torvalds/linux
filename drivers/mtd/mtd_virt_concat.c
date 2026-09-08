@@ -166,7 +166,7 @@ static int mtd_virt_concat_create_item(struct device_node *parts,
 			return 0;
 	}
 
-	item = kzalloc_flex(*item, nodes, count, GFP_KERNEL);
+	item = kzalloc_flex(*item, nodes, count);
 	if (!item)
 		return -ENOMEM;
 
@@ -182,7 +182,7 @@ static int mtd_virt_concat_create_item(struct device_node *parts,
 	for (i = 1; i < count; i++)
 		item->nodes[i] = of_parse_phandle(parts, CONCAT_PROP, (i - 1));
 
-	concat = kzalloc_flex(*concat, subdev, count, GFP_KERNEL);
+	concat = kzalloc_flex(*concat, subdev, count);
 	if (!concat) {
 		kfree(item);
 		return -ENOMEM;

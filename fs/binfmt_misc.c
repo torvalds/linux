@@ -331,8 +331,8 @@ static int entry_attach_interpreter(struct binfmt_misc_entry *e,
 		return -ENOSPC;
 
 	/* One allocation, both strings in it, like the entry's own buffer. */
-	interp = kmalloc(struct_size(interp, name, nlen + plen + 2),
-			 GFP_KERNEL_ACCOUNT);
+	interp = kmalloc_flex(*interp, name, nlen + plen + 2,
+			      GFP_KERNEL_ACCOUNT);
 	if (!interp) {
 		dec_ucount(ucounts, UCOUNT_BINFMT_MISC_INTERPRETERS);
 		return -ENOMEM;
@@ -858,8 +858,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	if ((count < 11) || (count > MAX_REGISTER_LENGTH))
 		return ERR_PTR(-EINVAL);
 
-	e = kmalloc(struct_size(e, buf, count + MISC_DELIM_PAD),
-		    GFP_KERNEL_ACCOUNT);
+	e = kmalloc_flex(*e, buf, count + MISC_DELIM_PAD, GFP_KERNEL_ACCOUNT);
 	if (!e)
 		return ERR_PTR(-ENOMEM);
 

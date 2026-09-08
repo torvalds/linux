@@ -29,6 +29,20 @@ int xfs_zero_range(struct xfs_inode *ip, loff_t pos, loff_t len,
 int xfs_truncate_page(struct xfs_inode *ip, loff_t pos,
 		struct xfs_zone_alloc_ctx *ac, bool *did_zero);
 
+static inline void
+xfs_iomap_set_anon_write(
+	struct xfs_inode		*ip,
+	struct iomap			*iomap,
+	loff_t				offset,
+	loff_t				length)
+{
+	iomap->type = IOMAP_MAPPED;
+	iomap->bdev = ip->i_mount->m_rtdev_targp->bt_bdev;
+	iomap->offset = offset;
+	iomap->length = length;
+	iomap->flags = IOMAP_F_ANON_WRITE | IOMAP_F_DIRTY;
+}
+
 static inline xfs_filblks_t
 xfs_aligned_fsb_count(
 	xfs_fileoff_t		offset_fsb,

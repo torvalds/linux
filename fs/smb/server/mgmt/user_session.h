@@ -42,6 +42,7 @@ struct ksmbd_session {
 
 	bool				sign;
 	bool				enc;
+	bool				tearing_down;
 
 	int				state;
 	__u8				*Preauth_HashValue;

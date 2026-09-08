@@ -480,8 +480,7 @@ int eea_alloc_tx(struct eea_net_init_ctx *ctx, struct eea_net_tx *tx, u32 idx)
 	tx->dma_dev = ctx->edev->dma_dev;
 
 	/* meta */
-	tx->meta = kvcalloc(ctx->cfg.tx_ring_depth,
-			    sizeof(*tx->meta), GFP_KERNEL);
+	tx->meta = kvzalloc_objs(*tx->meta, ctx->cfg.tx_ring_depth);
 	if (!tx->meta)
 		goto err_free_tx;
 

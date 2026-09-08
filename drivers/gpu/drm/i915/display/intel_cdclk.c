@@ -2381,8 +2381,10 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 	 * dividers both syncing to an active pipe, or asynchronously
 	 * (PIPE_NONE).
 	 */
-	cdctl &= ~bxt_cdclk_cd2x_pipe_mask(display);
-	cdctl |= bxt_cdclk_cd2x_pipe(display, INVALID_PIPE);
+	if (DISPLAY_VER(display) < 30) {
+		cdctl &= ~bxt_cdclk_cd2x_pipe_mask(display);
+		cdctl |= bxt_cdclk_cd2x_pipe(display, INVALID_PIPE);
+	}
 
 	if (cdctl != expected) {
 		if (DISPLAY_VER(display) < 20) {
@@ -2713,8 +2715,8 @@ static void intel_set_cdclk(struct intel_display *display,
 	}
 }
 
-static bool dg2_power_well_count(struct intel_display *display,
-				 const struct intel_cdclk_state *cdclk_state)
+static int dg2_power_well_count(struct intel_display *display,
+				const struct intel_cdclk_state *cdclk_state)
 {
 	return display->platform.dg2 ? hweight8(cdclk_state->active_pipes) : 0;
 }

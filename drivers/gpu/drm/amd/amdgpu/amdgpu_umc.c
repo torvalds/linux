@@ -159,8 +159,8 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 		    adev->umc.ras->ecc_info_query_ras_error_address &&
 		    adev->umc.max_ras_err_cnt_per_query) {
 			err_data->err_addr =
-				kcalloc(adev->umc.max_ras_err_cnt_per_query,
-					sizeof(struct eeprom_table_record), GFP_KERNEL);
+				kzalloc_objs(struct eeprom_table_record,
+					     adev->umc.max_ras_err_cnt_per_query);
 
 			/* still call query_ras_error_address to clear error status
 			 * even NOMEM error is encountered

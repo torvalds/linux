@@ -776,7 +776,8 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 	struct uni_pagedict *dict;
 	unsigned int d, r, g;
 
-	struct unipair *unilist __free(kvfree) = kvmalloc_array(ct, sizeof(*unilist), GFP_KERNEL);
+	struct unipair *unilist __free(kvfree) = kvmalloc_objs(*unilist, ct,
+							       GFP_KERNEL);
 	if (!unilist)
 		return -ENOMEM;
 

@@ -1445,7 +1445,7 @@ static void dm_test_crtc_destroy_state_no_stream(struct kunit *test)
 	struct dm_crtc_state *dm_state;
 
 	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
-	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	dm_state = kzalloc_obj(*dm_state);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
 
 	amdgpu_dm_crtc_destroy_state(NULL, &dm_state->base);
@@ -1475,7 +1475,7 @@ static void dm_test_crtc_destroy_state_releases_stream(struct kunit *test)
 	kref_get(&stream->refcount);
 
 	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
-	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	dm_state = kzalloc_obj(*dm_state);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
 	dm_state->stream = stream;
 
@@ -1569,7 +1569,7 @@ static void dm_test_crtc_handle_vblank_completes_cursor_only(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
 
 	/* drm_crtc_send_vblank_event() consumes (kfree()s) the event. */
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 
 	acrtc->base.dev = &adev->ddev;
@@ -1628,7 +1628,7 @@ dm_test_vblank_control_worker_setup(struct kunit *test, bool enable,
 	kref_get(&stream->refcount);
 
 	/* Worker kfree()s the work item, so it must be a plain allocation. */
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, work);
 	work->dm = &adev->dm;
 	work->acrtc = acrtc;

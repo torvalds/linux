@@ -92,15 +92,20 @@ int bpf_cpumask_populate(struct bpf_cpumask *dst, void *src, size_t src__sz) __k
 
 /*
  * v6.19: Introduce lockless peek API for user DSQs.
+ * v7.1:  Fix scx_bpf_dsq_peek() spuriously returning NULL on non-empty
+ *        FIFO DSQs (2f2ea7709266).
  *
- * Preserve the following macro until v6.21.
+ * The kfunc exists from v6.19 but can return NULL for a non-empty FIFO DSQ
+ * before the v7.1 fix. Require kernel version >= 7.1.0 before calling it;
+ * otherwise fall through to the bpf_iter_scx_dsq fallback below.
  */
 static inline struct task_struct *__COMPAT_scx_bpf_dsq_peek(u64 dsq_id)
 {
 	struct task_struct *p = NULL;
 	struct bpf_iter_scx_dsq it;
 
-	if (bpf_ksym_exists(scx_bpf_dsq_peek))
+	if (bpf_ksym_exists(scx_bpf_dsq_peek) &&
+	    LINUX_KERNEL_VERSION >= KERNEL_VERSION(7, 1, 0))
 		return scx_bpf_dsq_peek(dsq_id);
 	if (!bpf_iter_scx_dsq_new(&it, dsq_id, 0))
 		p = bpf_iter_scx_dsq_next(&it);
@@ -237,6 +242,26 @@ static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
 	(bpf_ksym_exists(scx_bpf_pick_any_cpu_node) ?				\
 	 scx_bpf_pick_any_cpu_node(cpus_allowed, node, flags) :			\
 	 scx_bpf_pick_any_cpu(cpus_allowed, flags))
+
+/*
+ * v6.18: Add a helper to retrieve the current task running on a CPU.
+ *
+ * The kernel tree dropped this helper and scx_bpf_cpu_rq(), but schedulers in
+ * this tree still support pre-v6.18 kernels where scx_bpf_cpu_curr() doesn't
+ * resolve and the scx_bpf_cpu_rq() fallback still exists. Keep it until
+ * pre-v6.18 kernels fall out of the support window.
+ */
+static inline struct task_struct *__COMPAT_scx_bpf_cpu_curr(int cpu)
+{
+	struct rq *rq;
+
+	if (bpf_ksym_exists(scx_bpf_cpu_curr))
+		return scx_bpf_cpu_curr(cpu);
+
+	rq = scx_bpf_cpu_rq(cpu);
+
+	return rq ? rq->curr : NULL;
+}
 
 /*
  * v6.19: To work around BPF maximum parameter limit, the following kfuncs are
@@ -379,6 +404,17 @@ static inline void scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
 }
 
 /*
+ * v7.1: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
+ * will eventually deprecate scx_bpf_reenqueue_local().
+ */
+void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags) __ksym __weak;
+
+static inline bool __COMPAT_has_generic_reenq(void)
+{
+	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+}
+
+/*
  * v6.19: The new void variant can be called from anywhere while the older v1
  * variant can only be called from ops.cpu_release(). The double ___ prefixes on
  * the v2 variant need to be removed once libbpf is updated to ignore ___ prefix
@@ -395,21 +431,31 @@ static inline bool __COMPAT_scx_bpf_reenqueue_local_from_anywhere(void)
 
 static inline void scx_bpf_reenqueue_local(void)
 {
-	if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
+	if (__COMPAT_has_generic_reenq())
+		scx_bpf_dsq_reenq___compat(SCX_DSQ_LOCAL, 0);
+	else if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
 		scx_bpf_reenqueue_local___v2___compat();
 	else
 		scx_bpf_reenqueue_local___v1();
 }
 
-/*
- * v7.1: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
- * will eventually deprecate scx_bpf_reenqueue_local().
- */
-void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags) __ksym __weak;
-
-static inline bool __COMPAT_has_generic_reenq(void)
+static inline int scx_bpf_reenqueue_local_from_anywhere(void)
 {
-	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+	/*
+	 * The generic reenq kfunc and the v2 reenqueue-local variant can both be
+	 * called from anywhere; v1 cannot. Test each ksym in its own branch with a
+	 * distinct call: combining them with || would fold into a bitwise OR of the
+	 * two ksym addresses, which the verifier rejects.
+	 */
+	if (__COMPAT_has_generic_reenq()) {
+		scx_bpf_dsq_reenq___compat(SCX_DSQ_LOCAL, 0);
+		return 0;
+	}
+	if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere()) {
+		scx_bpf_reenqueue_local___v2___compat();
+		return 0;
+	}
+	return -EOPNOTSUPP;
 }
 
 static inline void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags)

@@ -62,7 +62,7 @@ static int eea_alloc_irq_blks(struct eea_net *enet)
 
 	num = enet->edev->rx_num;
 
-	irq_blks = kvcalloc(num, sizeof(*blk), GFP_KERNEL);
+	irq_blks = kvzalloc_objs(*blk, num);
 	if (!irq_blks)
 		return -ENOMEM;
 
@@ -194,11 +194,11 @@ static int eea_alloc_rxtx_q_mem(struct eea_net_init_ctx *ctx)
 	struct eea_net_tx *tx;
 	int err, i;
 
-	ctx->tx = kvcalloc(ctx->cfg.tx_ring_num, sizeof(*ctx->tx), GFP_KERNEL);
+	ctx->tx = kvzalloc_objs(*ctx->tx, ctx->cfg.tx_ring_num);
 	if (!ctx->tx)
 		return -ENOMEM;
 
-	ctx->rx = kvcalloc(ctx->cfg.rx_ring_num, sizeof(*ctx->rx), GFP_KERNEL);
+	ctx->rx = kvzalloc_objs(*ctx->rx, ctx->cfg.rx_ring_num);
 	if (!ctx->rx)
 		goto err_free_tx;
 
@@ -601,7 +601,7 @@ static int eea_netdev_init_features(struct net_device *netdev,
 	int err;
 	u32 mtu;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return -ENOMEM;
 

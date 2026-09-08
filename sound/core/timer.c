@@ -1855,7 +1855,7 @@ static int snd_timer_user_info(struct file *file,
 		return -EBADFD;
 
 	struct snd_timer_info *info __free(kfree) =
-		kzalloc(sizeof(*info), GFP_KERNEL);
+		kzalloc_obj(*info);
 	if (! info)
 		return -ENOMEM;
 	info->card = t->card ? t->card->number : -1;

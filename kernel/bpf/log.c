@@ -862,7 +862,7 @@ struct bpf_verifier_log *bpf_log_attr_create_vlog(struct bpf_log_attr *attr_log,
 	if (!size)
 		return NULL;
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		return ERR_PTR(-ENOMEM);
 

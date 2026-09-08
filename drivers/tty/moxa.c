@@ -954,8 +954,7 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	unsigned int i, first_idx;
 	int ret;
 
-	brd->ports = kcalloc(MAX_PORTS_PER_BOARD, sizeof(*brd->ports),
-			GFP_KERNEL);
+	brd->ports = kzalloc_objs(*brd->ports, MAX_PORTS_PER_BOARD);
 	if (brd->ports == NULL) {
 		printk(KERN_ERR "cannot allocate memory for ports\n");
 		ret = -ENOMEM;

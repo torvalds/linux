@@ -282,9 +282,8 @@ int gss_krb5_mic_build_sg(const struct xdr_buf *body,
 		unsigned int overflow_nents =
 			nsg - XDR_BUF_TO_SG_NENTS + 1;
 
-		*sg_overflow = kmalloc_array(overflow_nents,
-					     sizeof(**sg_overflow),
-					     GFP_NOFS);
+		*sg_overflow = kmalloc_objs(**sg_overflow, overflow_nents,
+					    GFP_NOFS);
 		if (!*sg_overflow)
 			return -ENOMEM;
 

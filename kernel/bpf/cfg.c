@@ -125,6 +125,7 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env)
 		/* mark branch target for state pruning */
 		mark_prune_point(env, w);
 		mark_jmp_point(env, w);
+		mark_jump_target(env, w);
 	}
 
 	if (insn_state[w] == 0) {
@@ -403,6 +404,7 @@ static int visit_gotox_insn(int t, struct bpf_verifier_env *env)
 		}
 
 		mark_jmp_point(env, w);
+		mark_jump_target(env, w);
 
 		/* EXPLORED || DISCOVERED */
 		if (insn_state[w])
@@ -564,6 +566,7 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 
 		mark_prune_point(env, t + off + 1);
 		mark_jmp_point(env, t + off + 1);
+		mark_jump_target(env, t + off + 1);
 
 		return ret;
 

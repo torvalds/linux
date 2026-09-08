@@ -240,7 +240,7 @@ static int tcf_gate_copy_entries(struct tcf_gate_params *dst,
 	list_for_each_entry(entry, &src->entries, list) {
 		struct tcfg_gate_entry *new;
 
-		new = kzalloc(sizeof(*new), GFP_ATOMIC);
+		new = kzalloc_obj(*new, GFP_ATOMIC);
 		if (!new) {
 			NL_SET_ERR_MSG(extack, "Not enough memory for entry");
 			return -ENOMEM;
@@ -415,7 +415,7 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 	if (err < 0)
 		goto release_idr;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		err = -ENOMEM;
 		goto chain_put;

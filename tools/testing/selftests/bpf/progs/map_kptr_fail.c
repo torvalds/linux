@@ -409,4 +409,41 @@ int reject_scalar_store_to_kptr(struct __sk_buff *ctx)
 	return 0;
 }
 
+SEC("?tc")
+__description("reject imprecise scalar store to kptr after state pruning")
+__failure __msg("invalid kptr access, R7 type=scalar")
+__naked void reject_imprecise_scalar_store_to_kptr(void)
+{
+	asm volatile (
+		"r0 = 0;"
+		"*(u32 *)(r10 - 4) = r0;"
+		"r2 = r10;"
+		"r2 += -4;"
+		"r1 = %[array_map] ll;"
+		"call %[bpf_map_lookup_elem];"
+		"if r0 == 0 goto l2_%=;"
+		"r6 = r0;"
+		"r9 = *(u64 *)(r6 + 0);"
+		"if r9 != 0 goto l0_%=;"
+		"r7 = 0;"
+		".rept 10;"
+		"r5 = 1;"
+		".endr;"
+		"goto l1_%=;"
+	"l0_%=:"
+		"r7 = 0x4141414141414141 ll;"
+		".rept 10;"
+		"r5 = 1;"
+		".endr;"
+	"l1_%=:"
+		"*(u64 *)(r6 + 8) = r7;"
+	"l2_%=:"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_map_lookup_elem),
+		  __imm_addr(array_map)
+		: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

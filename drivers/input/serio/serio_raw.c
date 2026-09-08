@@ -84,7 +84,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 		if (serio_raw->dead)
 			return -ENODEV;
 
-		client = kzalloc(sizeof(*client), GFP_KERNEL);
+		client = kzalloc_obj(*client);
 		if (!client)
 			return -ENOMEM;
 

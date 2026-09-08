@@ -380,13 +380,14 @@ SEC("socket")
 __success __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 /*
- * check that r0 and r5 have different IDs after 'if',
- * collect_linked_regs() can't tie more than 5 registers for a single insn.
+ * check that r5 is unlinked after 'if', collect_linked_regs() can't tie
+ * more than 5 registers for a single insn and the register compared by
+ * the jump is not exempt from that.
  */
-__msg("7: (25) if r0 > 0x7 goto pc+0         ; R0=scalar(id=1")
+__msg("7: (25) if r5 > 0x7 goto pc+0         ; R5=scalar(smin=")
 __msg("12: (bf) r5 = r5                      ; R5=scalar(id=2")
 /* check that r{0-4} are marked precise after 'if' */
-__msg("frame0: regs=r0 stack= before 7: (25) if r0 > 0x7 goto pc+0")
+__msg("frame0: regs=r0 stack= before 7: (25) if r5 > 0x7 goto pc+0")
 __msg("frame0: parent state regs=r0,r1,r2,r3,r4 stack=:")
 __naked void linked_regs_too_many_regs(void)
 {
@@ -400,8 +401,8 @@ __naked void linked_regs_too_many_regs(void)
 	"r3 = r0;"
 	"r4 = r0;"
 	"r5 = r0;"
-	/* propagate range for r{0-5} */
-	"if r0 > 7 goto +0;"
+	/* r{0-4} fill the record, r5 does not fit and is unlinked */
+	"if r5 > 7 goto +0;"
 	/* keep r{1-4} live */
 	"r1 = r1;"
 	"r2 = r2;"

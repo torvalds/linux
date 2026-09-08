@@ -659,23 +659,13 @@ int smp_cpu_get_polarization(int cpu)
 	return per_cpu(pcpu_devices, cpu).polarization;
 }
 
-void smp_cpu_set_capacity(int cpu, unsigned long val)
-{
-	per_cpu(pcpu_devices, cpu).capacity = val;
-}
-
-unsigned long smp_cpu_get_capacity(int cpu)
-{
-	return per_cpu(pcpu_devices, cpu).capacity;
-}
-
 void smp_set_core_capacity(int cpu, unsigned long val)
 {
 	int i;
 
 	cpu = smp_get_base_cpu(cpu);
 	for (i = cpu; (i <= cpu + smp_cpu_mtid) && (i < nr_cpu_ids); i++)
-		smp_cpu_set_capacity(i, val);
+		topology_set_cpu_scale(i, val);
 }
 
 int smp_cpu_get_cpu_address(int cpu)
@@ -727,7 +717,7 @@ static int smp_add_core(struct sclp_core_entry *core, cpumask_t *avail,
 		else
 			pcpu->state = CPU_STATE_STANDBY;
 		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
-		smp_cpu_set_capacity(cpu, CPU_CAPACITY_HIGH);
+		topology_set_cpu_scale(cpu, CPU_CAPACITY_HIGH);
 		set_cpu_present(cpu, true);
 		if (!early && arch_register_cpu(cpu))
 			set_cpu_present(cpu, false);
@@ -967,7 +957,7 @@ void __init smp_prepare_boot_cpu(void)
 	ipl_pcpu->state = CPU_STATE_CONFIGURED;
 	lc->pcpu = (unsigned long)ipl_pcpu;
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
-	smp_cpu_set_capacity(0, CPU_CAPACITY_HIGH);
+	topology_set_cpu_scale(0, CPU_CAPACITY_HIGH);
 }
 
 void __init smp_setup_processor_id(void)

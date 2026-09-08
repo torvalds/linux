@@ -981,7 +981,7 @@ batadv_wifi_net_device_insert(struct net_device *net_dev, u32 wifi_flags)
 
 	ASSERT_RTNL();
 
-	device_state = kzalloc_obj(*device_state, GFP_KERNEL);
+	device_state = kzalloc_obj(*device_state);
 	if (!device_state)
 		return -ENOMEM;
 
