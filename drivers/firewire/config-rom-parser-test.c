@@ -206,7 +206,7 @@ static int stub_run_transaction_regular(struct fw_card *card, int tcode, int des
 	KUNIT_ASSERT_EQ(test, length, 4);
 
 	unsigned int index = (offset - (CSR_REGISTER_BASE | CSR_CONFIG_ROM)) / sizeof(u32);
-	u32 *quadlet = payload;
+	__be32 *quadlet = payload;
 
 	KUNIT_EXPECT_LE(test, speed, param->expected_speed);
 	KUNIT_EXPECT_LT(test, index, param->quadlet_length);
@@ -264,7 +264,7 @@ static int stub_run_transaction_malformed(struct fw_card *card, int tcode, int d
 	KUNIT_ASSERT_EQ(test, length, 4);
 
 	unsigned int index = (offset - (CSR_REGISTER_BASE | CSR_CONFIG_ROM)) / sizeof(u32);
-	u32 *quadlet = payload;
+	__be32 *quadlet = payload;
 
 	if (index < ARRAY_SIZE(config_rom_first_part))
 		*quadlet = cpu_to_be32(config_rom_first_part[index]);
