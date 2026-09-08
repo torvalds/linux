@@ -76,8 +76,8 @@
 #define BTINTEL_PCIE_DBGC_DBGBUFF_WRAP_ARND_SCP		(BTINTEL_PCIE_DBGC_BASE_ADDR_SCP + 0x2C)
 #define BTINTEL_PCIE_DBGC_ALLOCATION_OFFSET		0x100
 
-#define BTINTEL_PCIE_SMEM_MAX_SIZE		(16 * 1024)
-#define BTINTEL_PCIE_REGION_MAX_SIZE		(16 * 1024 * 1024)
+/* Upper bound for device-supplied debug-region sizes. */
+#define BTINTEL_PCIE_REGION_MAX_SIZE		(1 * 1024 * 1024)
 #define BTINTEL_PCIE_DBG_IDX_BIT_MASK		0x0F
 #define BTINTEL_PCIE_DBGC_DBG_BUF_IDX(data)	(((data) >> 24) & BTINTEL_PCIE_DBG_IDX_BIT_MASK)
 #define BTINTEL_PCIE_DBG_OFFSET_BIT_MASK	0xFFFFFF
@@ -497,17 +497,17 @@ struct btintel_pcie_dump_mem_info {
 	u32	exception_dump_addr;
 	u32	exception_dump_len;
 	u32	dccm_addr_start;
-	u32	dccm_addr_end;
+	u32	dccm_size;
 	u32	sds_fixed_rom_addr_start;
-	u32	sds_fixed_rom_addr_end;
+	u32	sds_fixed_rom_size;
 	u32	sds_start_addr_start;
-	u32	sds_start_addr_end;
+	u32	sds_start_size;
 	u32	sds_iosf_data_addr_start;
-	u32	sds_iosf_data_addr_end;
+	u32	sds_iosf_data_size;
 	u32	ecl_addr_start;
-	u32	ecl_addr_end;
+	u32	ecl_size;
 	u32	smem_addr_start;
-	u32	smem_addr_end;
+	u32	smem_size;
 };
 
 struct btintel_pcie_mbox {

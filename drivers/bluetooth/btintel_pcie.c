@@ -966,13 +966,6 @@ static int btintel_pcie_dump_target_region(struct btintel_pcie_data *data,
 		return 1;
 	}
 
-	if (size > BTINTEL_PCIE_REGION_MAX_SIZE) {
-		bt_dev_warn(data->hdev,
-			    "Skipping dump region %s: size %u exceeds max %u",
-			    name, size, BTINTEL_PCIE_REGION_MAX_SIZE);
-		return 1;
-	}
-
 	if (addr_start > U32_MAX - size) {
 		bt_dev_warn(data->hdev,
 			    "Skipping dump region %s: addr_start 0x%08x + size %u would overflow",
@@ -1202,28 +1195,10 @@ static bool btintel_pcie_is_mdbgc_supported(struct btintel_pcie_data *data)
 static void btintel_pcie_dump_mem_range(struct btintel_pcie_data *data,
 					struct list_head *list, u32 region_id,
 					const char *name, u32 addr_start,
-					u32 addr_end, u64 *regions_mask)
+					u32 region_size, u64 *regions_mask)
 {
-	u32 region_size;
-
-	if (!addr_start || !addr_end || addr_end < addr_start)
+	if (!region_size)
 		return;
-
-	if (addr_end > U32_MAX - 0x04) {
-		bt_dev_warn(data->hdev,
-			    "Skipping dump region %s: addr_end 0x%08x would overflow",
-			    name, addr_end);
-		return;
-	}
-
-	region_size = (addr_end + 0x04) - addr_start;
-	if (region_size > BTINTEL_PCIE_REGION_MAX_SIZE) {
-		bt_dev_warn(data->hdev,
-			    "Skipping dump region %s: size %u exceeds max %u",
-			    name, region_size,
-			    BTINTEL_PCIE_REGION_MAX_SIZE);
-		return;
-	}
 
 	if (!btintel_pcie_dump_target_region(data, list, region_id, name,
 					     addr_start, region_size))
@@ -1234,16 +1209,14 @@ static int btintel_pcie_read_debug_regions(struct btintel_pcie_data *data)
 {
 	struct btintel_pcie_dbgc *dbgc = NULL;
 	struct btintel_pcie_mdbgc *mdbgc = NULL;
+	struct btintel_pcie_dump_mem_info *dump_info = &data->dump_info;
 	struct hci_dev *hdev = data->hdev;
 	struct btintel_pcie_dump_entry *entry;
 	struct btintel_pcie_dump_file_hdr *file_hdr;
 	struct scatterlist *sg_dump_data;
 	u32 status_reg, wrap_reg;
-	u32 exception_dump_len;
-	u32 exc_addr;
 	u64 regions_mask = 0;
 	u8 hw_variant;
-	u32 smem_rd_addr = 0, smem_rd_size = 0;
 	u32 file_len;
 	u8 count;
 	int ret;
@@ -1274,35 +1247,6 @@ static int btintel_pcie_read_debug_regions(struct btintel_pcie_data *data)
 			   "Unsupported Intel hardware variant (0x%2.2x)",
 			   hw_variant);
 		return -EINVAL;
-	}
-
-	smem_rd_addr = data->dump_info.smem_addr_start;
-	smem_rd_size = 0;
-
-	if (!smem_rd_addr && !data->dump_info.smem_addr_end) {
-		bt_dev_dbg(hdev, "smem region not advertised by firmware");
-	} else if (data->dump_info.smem_addr_end < smem_rd_addr ||
-		   data->dump_info.smem_addr_end > U32_MAX - 0x04) {
-		bt_dev_err(hdev,
-			   "Invalid smem region: start=0x%08x end=0x%08x",
-			   smem_rd_addr, data->dump_info.smem_addr_end);
-	} else {
-		smem_rd_size = (data->dump_info.smem_addr_end + 0x04) -
-			       smem_rd_addr;
-
-		bt_dev_dbg(hdev,
-			   "smem_region: smem_start_addr=0x%08x smem_end_addr=0x%08x smem_rd_size=%u",
-			   smem_rd_addr, data->dump_info.smem_addr_end,
-			   smem_rd_size);
-
-		if (smem_rd_size == 0 ||
-		    smem_rd_size > BTINTEL_PCIE_SMEM_MAX_SIZE) {
-			bt_dev_err(hdev,
-				   "Invalid smem region: smem_rd_addr 0x%08x size %u (max %u)",
-				   smem_rd_addr, smem_rd_size,
-				   BTINTEL_PCIE_SMEM_MAX_SIZE);
-			smem_rd_size = 0;
-		}
 	}
 
 	if (btintel_pcie_is_mdbgc_supported(data)) {
@@ -1356,47 +1300,46 @@ static int btintel_pcie_read_debug_regions(struct btintel_pcie_data *data)
 				    "Failed to dump DRAM region: %d", ret);
 	}
 
-	if (smem_rd_size &&
+	if (dump_info->smem_size &&
 	    !btintel_pcie_dump_smem_monitor_region(data, &dump_list,
 						   BTINTEL_PCIE_INI_ID_SMEM,
 						   "monitor_smem",
-						   smem_rd_addr,
-						   smem_rd_size))
+						   dump_info->smem_addr_start,
+						   dump_info->smem_size))
 		regions_mask |= BIT_ULL(BTINTEL_PCIE_INI_ID_SMEM);
 
-	exc_addr = data->dump_info.exception_dump_addr;
-	exception_dump_len = data->dump_info.exception_dump_len;
-	if (exc_addr && exception_dump_len) {
+	if (dump_info->exception_dump_addr && dump_info->exception_dump_len) {
 		ret = btintel_pcie_dump_target_region(data, &dump_list,
 						      BTINTEL_PCIE_INI_ID_EXCEPTION_EVT,
-						      "EXCEPTION_EVT_BUFFER", exc_addr,
-						      exception_dump_len);
+						      "EXCEPTION_EVT_BUFFER",
+						      dump_info->exception_dump_addr,
+						      dump_info->exception_dump_len);
 		if (!ret)
 			regions_mask |= BIT_ULL(BTINTEL_PCIE_INI_ID_EXCEPTION_EVT);
 	}
 
 	btintel_pcie_dump_mem_range(data, &dump_list,
 				    BTINTEL_PCIE_INI_ID_DCCM, "DCCM",
-				    data->dump_info.dccm_addr_start,
-				    data->dump_info.dccm_addr_end,
+				    dump_info->dccm_addr_start,
+				    dump_info->dccm_size,
 				    &regions_mask);
 
 	btintel_pcie_dump_mem_range(data, &dump_list,
 				    BTINTEL_PCIE_INI_ID_SDS, "SDS",
-				    data->dump_info.sds_start_addr_start,
-				    data->dump_info.sds_start_addr_end,
+				    dump_info->sds_start_addr_start,
+				    dump_info->sds_start_size,
 				    &regions_mask);
 
 	btintel_pcie_dump_mem_range(data, &dump_list,
 				    BTINTEL_PCIE_INI_ID_SDS_IOSF, "SDS_IOSF",
-				    data->dump_info.sds_iosf_data_addr_start,
-				    data->dump_info.sds_iosf_data_addr_end,
+				    dump_info->sds_iosf_data_addr_start,
+				    dump_info->sds_iosf_data_size,
 				    &regions_mask);
 
 	btintel_pcie_dump_mem_range(data, &dump_list,
 				    BTINTEL_PCIE_INI_ID_ECL, "ECL_REGION",
-				    data->dump_info.ecl_addr_start,
-				    data->dump_info.ecl_addr_end,
+				    dump_info->ecl_addr_start,
+				    dump_info->ecl_size,
 				    &regions_mask);
 
 	ret = btintel_pcie_dump_info(data, &dump_list, regions_mask);
@@ -1599,6 +1542,34 @@ static inline bool btintel_pcie_in_error(struct btintel_pcie_data *data)
 	return	data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_ABORT_HANDLER;
 }
 
+static u32 btintel_pcie_region_size(struct hci_dev *hdev, const char *name,
+				    u32 start, u32 end)
+{
+	u64 size;
+
+	if (!start || !end)
+		return 0;
+
+	if (end < start) {
+		bt_dev_warn(hdev, "%s region invalid: start=0x%08x end=0x%08x",
+			    name, start, end);
+		return 0;
+	}
+
+	size = (u64)end + 0x04 - start;
+	if (size % sizeof(u32))
+		bt_dev_warn(hdev, "%s region size %llu is not 4-byte aligned",
+			    name, size);
+
+	if (size > BTINTEL_PCIE_REGION_MAX_SIZE) {
+		bt_dev_warn(hdev, "%s region size %llu exceeds cap %u, ignoring",
+			    name, size, BTINTEL_PCIE_REGION_MAX_SIZE);
+		return 0;
+	}
+
+	return (u32)size;
+}
+
 static const char *btintel_pcie_tlv_str(u8 tlv_type)
 {
 	switch (tlv_type) {
@@ -1726,6 +1697,15 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 				get_unaligned_le32(&tlv->val[0]);
 			data->dump_info.exception_dump_len =
 				get_unaligned_le32(&tlv->val[4]);
+			if (data->dump_info.exception_dump_len >
+			    BTINTEL_PCIE_REGION_MAX_SIZE) {
+				bt_dev_warn(data->hdev,
+					    "EXCEPTION_EVT_BUFFER size %u exceeds cap %u, ignoring",
+					    data->dump_info.exception_dump_len,
+					    BTINTEL_PCIE_REGION_MAX_SIZE);
+				data->dump_info.exception_dump_addr = 0;
+				data->dump_info.exception_dump_len = 0;
+			}
 			break;
 		case BTINTEL_PCIE_TLV_TYPE_DCCM_MEM_ADDRESS:
 			if (tlv_len < 8) {
@@ -1737,10 +1717,16 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 			}
 			data->dump_info.dccm_addr_start =
 				get_unaligned_le32(&tlv->val[0]);
-			data->dump_info.dccm_addr_end =
-				get_unaligned_le32(&tlv->val[4]);
+			data->dump_info.dccm_size =
+				btintel_pcie_region_size(data->hdev, "DCCM",
+							 data->dump_info.dccm_addr_start,
+							 get_unaligned_le32(&tlv->val[4]));
+			if (!data->dump_info.dccm_size)
+				data->dump_info.dccm_addr_start = 0;
 			break;
-		case BTINTEL_PCIE_TLV_TYPE_SDS_MEM_ADDRESS:
+		case BTINTEL_PCIE_TLV_TYPE_SDS_MEM_ADDRESS: {
+			struct btintel_pcie_dump_mem_info *di = &data->dump_info;
+
 			/* hw_variant comes from cnvi_bt which is set during
 			 * setup. If mailbox fires before setup completes,
 			 * hw_variant is 0. Skip SDS parsing in that case.
@@ -1750,35 +1736,52 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 				break;
 			}
 			if (tlv_len == 16 && hw_variant > BTINTEL_HWID_BZRI) {
-				data->dump_info.sds_start_addr_start =
+				di->sds_start_addr_start =
 					get_unaligned_le32(&tlv->val[0]);
-				data->dump_info.sds_start_addr_end =
-					get_unaligned_le32(&tlv->val[4]);
-				data->dump_info.sds_iosf_data_addr_start =
+				di->sds_start_size =
+					btintel_pcie_region_size(data->hdev, "SDS",
+								 di->sds_start_addr_start,
+								 get_unaligned_le32(&tlv->val[4]));
+				di->sds_iosf_data_addr_start =
 					get_unaligned_le32(&tlv->val[8]);
-				data->dump_info.sds_iosf_data_addr_end =
-					get_unaligned_le32(&tlv->val[12]);
+				di->sds_iosf_data_size =
+					btintel_pcie_region_size(data->hdev, "SDS_IOSF",
+								 di->sds_iosf_data_addr_start,
+								 get_unaligned_le32(&tlv->val[12]));
 			} else if (tlv_len == 24 &&
 				   (hw_variant == BTINTEL_HWID_BZRI ||
 				    hw_variant == BTINTEL_HWID_BZRIW)) {
-				data->dump_info.sds_fixed_rom_addr_start =
+				di->sds_fixed_rom_addr_start =
 					get_unaligned_le32(&tlv->val[0]);
-				data->dump_info.sds_fixed_rom_addr_end =
-					get_unaligned_le32(&tlv->val[4]);
-				data->dump_info.sds_start_addr_start =
+				di->sds_fixed_rom_size =
+					btintel_pcie_region_size(data->hdev, "SDS_FIXED_ROM",
+								 di->sds_fixed_rom_addr_start,
+								 get_unaligned_le32(&tlv->val[4]));
+				di->sds_start_addr_start =
 					get_unaligned_le32(&tlv->val[8]);
-				data->dump_info.sds_start_addr_end =
-					get_unaligned_le32(&tlv->val[12]);
-				data->dump_info.sds_iosf_data_addr_start =
+				di->sds_start_size =
+					btintel_pcie_region_size(data->hdev, "SDS",
+								 di->sds_start_addr_start,
+								 get_unaligned_le32(&tlv->val[12]));
+				di->sds_iosf_data_addr_start =
 					get_unaligned_le32(&tlv->val[16]);
-				data->dump_info.sds_iosf_data_addr_end =
-					get_unaligned_le32(&tlv->val[20]);
+				di->sds_iosf_data_size =
+					btintel_pcie_region_size(data->hdev, "SDS_IOSF",
+								 di->sds_iosf_data_addr_start,
+								 get_unaligned_le32(&tlv->val[20]));
 			} else {
 				bt_dev_err(data->hdev,
 					   "SDS TLV: hw=0x%2.2x len=%u",
 					   hw_variant, tlv_len);
 			}
+			if (!di->sds_start_size)
+				di->sds_start_addr_start = 0;
+			if (!di->sds_iosf_data_size)
+				di->sds_iosf_data_addr_start = 0;
+			if (!di->sds_fixed_rom_size)
+				di->sds_fixed_rom_addr_start = 0;
 			break;
+		}
 		case BTINTEL_PCIE_TLV_TYPE_ECL_MEM_ADDRESS:
 			if (tlv_len < 8) {
 				bt_dev_err(data->hdev,
@@ -1789,8 +1792,12 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 			}
 			data->dump_info.ecl_addr_start =
 				get_unaligned_le32(&tlv->val[0]);
-			data->dump_info.ecl_addr_end =
-				get_unaligned_le32(&tlv->val[4]);
+			data->dump_info.ecl_size =
+				btintel_pcie_region_size(data->hdev, "ECL",
+							 data->dump_info.ecl_addr_start,
+							 get_unaligned_le32(&tlv->val[4]));
+			if (!data->dump_info.ecl_size)
+				data->dump_info.ecl_addr_start = 0;
 			break;
 		case BTINTEL_PCIE_TLV_TYPE_SMEM_ADDRESS:
 			if (tlv_len < 8) {
@@ -1802,8 +1809,12 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 			}
 			data->dump_info.smem_addr_start =
 				get_unaligned_le32(&tlv->val[0]);
-			data->dump_info.smem_addr_end =
-				get_unaligned_le32(&tlv->val[4]);
+			data->dump_info.smem_size =
+				btintel_pcie_region_size(data->hdev, "SMEM",
+							 data->dump_info.smem_addr_start,
+							 get_unaligned_le32(&tlv->val[4]));
+			if (!data->dump_info.smem_size)
+				data->dump_info.smem_addr_start = 0;
 			break;
 		default:
 			bt_dev_dbg(data->hdev, "Unknown TLV type: %u length: %u",
@@ -1821,29 +1832,29 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 		   data->dump_info.exception_dump_addr,
 		   data->dump_info.exception_dump_len);
 	bt_dev_info(data->hdev,
-		   "dccm: start:0x%08x end:0x%08x",
+		   "dccm: start:0x%8.8x size:%u",
 		   data->dump_info.dccm_addr_start,
-		   data->dump_info.dccm_addr_end);
+		   data->dump_info.dccm_size);
 	bt_dev_info(data->hdev,
-		   "sds_fixed_rom: start:0x%08x end:0x%08x",
+		   "sds_fixed_rom: start:0x%8.8x size:%u",
 		   data->dump_info.sds_fixed_rom_addr_start,
-		   data->dump_info.sds_fixed_rom_addr_end);
+		   data->dump_info.sds_fixed_rom_size);
 	bt_dev_info(data->hdev,
-		   "sds: start:0x%08x end:0x%08x",
+		   "sds: start:0x%8.8x size:%u",
 		   data->dump_info.sds_start_addr_start,
-		   data->dump_info.sds_start_addr_end);
+		   data->dump_info.sds_start_size);
 	bt_dev_info(data->hdev,
-		   "sds_iosf: start:0x%08x end:0x%08x",
+		   "sds_iosf: start:0x%8.8x size:%u",
 		   data->dump_info.sds_iosf_data_addr_start,
-		   data->dump_info.sds_iosf_data_addr_end);
+		   data->dump_info.sds_iosf_data_size);
 	bt_dev_info(data->hdev,
-		   "ecl: start:0x%08x end:0x%08x",
+		   "ecl: start:0x%8.8x size:%u",
 		   data->dump_info.ecl_addr_start,
-		   data->dump_info.ecl_addr_end);
+		   data->dump_info.ecl_size);
 	bt_dev_info(data->hdev,
-		   "smem: start:0x%08x end:0x%08x",
+		   "smem: start:0x%8.8x size:%u",
 		   data->dump_info.smem_addr_start,
-		   data->dump_info.smem_addr_end);
+		   data->dump_info.smem_size);
 
 	vfree(buffer);
 	return 0;
