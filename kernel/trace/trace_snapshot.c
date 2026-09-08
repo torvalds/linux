@@ -142,18 +142,18 @@ int resize_buffer_duplicate_size(struct array_buffer *trace_buf,
 	if (cpu_id == RING_BUFFER_ALL_CPUS) {
 		for_each_tracing_cpu(cpu) {
 			ret = ring_buffer_resize(trace_buf->buffer,
-				 per_cpu_ptr(size_buf->data, cpu)->entries, cpu);
+				 per_cpu_ptr(size_buf->data, cpu)->capacity, cpu);
 			if (ret < 0)
 				break;
-			per_cpu_ptr(trace_buf->data, cpu)->entries =
-				per_cpu_ptr(size_buf->data, cpu)->entries;
+			per_cpu_ptr(trace_buf->data, cpu)->capacity =
+				per_cpu_ptr(size_buf->data, cpu)->capacity;
 		}
 	} else {
 		ret = ring_buffer_resize(trace_buf->buffer,
-				 per_cpu_ptr(size_buf->data, cpu_id)->entries, cpu_id);
+				 per_cpu_ptr(size_buf->data, cpu_id)->capacity, cpu_id);
 		if (ret == 0)
-			per_cpu_ptr(trace_buf->data, cpu_id)->entries =
-				per_cpu_ptr(size_buf->data, cpu_id)->entries;
+			per_cpu_ptr(trace_buf->data, cpu_id)->capacity =
+				per_cpu_ptr(size_buf->data, cpu_id)->capacity;
 	}
 
 	return ret;
@@ -193,7 +193,7 @@ void free_snapshot(struct trace_array *tr)
 	 */
 	ring_buffer_subbuf_order_set(tr->snapshot_buffer.buffer, 0);
 	ring_buffer_resize(tr->snapshot_buffer.buffer, 1, RING_BUFFER_ALL_CPUS);
-	trace_set_buffer_entries(&tr->snapshot_buffer, 1);
+	trace_set_buffer_capacity(&tr->snapshot_buffer, 1);
 	tracing_reset_online_cpus(&tr->snapshot_buffer);
 	tr->allocated_snapshot = false;
 }
