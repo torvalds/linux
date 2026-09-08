@@ -946,6 +946,7 @@ struct event_mod_load {
 	char			*match;
 	char			*system;
 	char			*event;
+	char			*filter;
 };
 
 static void free_event_mod(struct event_mod_load *event_mod)
@@ -955,6 +956,7 @@ static void free_event_mod(struct event_mod_load *event_mod)
 	kfree(event_mod->match);
 	kfree(event_mod->system);
 	kfree(event_mod->event);
+	kfree(event_mod->filter);
 	kfree(event_mod);
 }
 
@@ -996,7 +998,7 @@ static int remove_cache_mod(struct trace_array *tr, const char *mod,
 }
 
 static int cache_mod(struct trace_array *tr, const char *mod, int set,
-		     const char *match, const char *system, const char *event)
+		     const char *match, const char *system, const char *event, const char *filter)
 {
 	struct event_mod_load *event_mod;
 
@@ -1035,6 +1037,12 @@ static int cache_mod(struct trace_array *tr, const char *mod, int set,
 			goto out_free;
 	}
 
+	if (filter) {
+		event_mod->filter = kstrdup(filter, GFP_KERNEL);
+		if (!event_mod->filter)
+			goto out_free;
+	}
+
 	list_add(&event_mod->list, &tr->mod_events);
 
 	return 0;
@@ -1047,7 +1055,7 @@ static int cache_mod(struct trace_array *tr, const char *mod, int set,
 #else /* CONFIG_MODULES */
 static inline void clear_mod_events(struct trace_array *tr) { }
 static int cache_mod(struct trace_array *tr, const char *mod, int set,
-		     const char *match, const char *system, const char *event)
+		     const char *match, const char *system, const char *event, const char *filter)
 {
 	return -EINVAL;
 }
@@ -1356,7 +1364,7 @@ static void remove_event_file_dir(struct trace_event_file *file)
 static int
 __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 			      const char *sub, const char *event, int set,
-			      const char *mod)
+			      const char *mod, char *filter)
 {
 	struct trace_event_file *file;
 	struct trace_event_call *call;
@@ -1406,7 +1414,11 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 		if (event && strcmp(event, name) != 0)
 			continue;
 
-		ret = ftrace_event_enable_disable(file, set);
+		if (filter)
+			ret = apply_event_filter(file, filter);
+
+		if (!filter || !ret)
+			ret = ftrace_event_enable_disable(file, set);
 
 		/*
 		 * Save the first error and return that. Some events
@@ -1424,14 +1436,14 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 	 * check if the module was loaded. If it wasn't cache it.
 	 */
 	if (module && ret == -EINVAL && !eret)
-		ret = cache_mod(tr, module, set, match, sub, event);
+		ret = cache_mod(tr, module, set, match, sub, event, filter);
 
 	return ret;
 }
 
 static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 				  const char *sub, const char *event, int set,
-				  const char *mod)
+				  const char *mod, char *filter)
 {
 	int ret;
 
@@ -1439,7 +1451,7 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 		return -EACCES;
 
 	mutex_lock(&event_mutex);
-	ret = __ftrace_set_clr_event_nolock(tr, match, sub, event, set, mod);
+	ret = __ftrace_set_clr_event_nolock(tr, match, sub, event, set, mod, filter);
 	mutex_unlock(&event_mutex);
 
 	return ret;
@@ -1502,7 +1514,7 @@ int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
 
 	ftrace_parse_event_string(dupped_buf, &match, &sub, &event, &mod);
 
-	return __ftrace_set_clr_event(tr, match, sub, event, set, mod);
+	return __ftrace_set_clr_event(tr, match, sub, event, set, mod, NULL);
 }
 
 /**
@@ -1524,7 +1536,7 @@ int trace_set_clr_event(const char *system, const char *event, int set)
 	if (!tr)
 		return -ENODEV;
 
-	return __ftrace_set_clr_event(tr, NULL, system, event, set, NULL);
+	return __ftrace_set_clr_event(tr, NULL, system, event, set, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(trace_set_clr_event);
 
@@ -1550,7 +1562,7 @@ int trace_array_set_clr_event(struct trace_array *tr, const char *system,
 		return -ENOENT;
 
 	set = (enable == true) ? 1 : 0;
-	return __ftrace_set_clr_event(tr, NULL, system, event, set, NULL);
+	return __ftrace_set_clr_event(tr, NULL, system, event, set, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(trace_array_set_clr_event);
 
@@ -2070,7 +2082,7 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (system)
 		name = system->name;
 
-	ret = __ftrace_set_clr_event(dir->tr, NULL, name, NULL, val, NULL);
+	ret = __ftrace_set_clr_event(dir->tr, NULL, name, NULL, val, NULL, NULL);
 	if (ret)
 		goto out;
 
@@ -4045,7 +4057,8 @@ static void update_mod_cache(struct trace_array *tr, struct module *mod)
 
 		__ftrace_set_clr_event_nolock(tr, event_mod->match,
 					      event_mod->system,
-					      event_mod->event, 1, mod->name);
+					      event_mod->event, 1, mod->name,
+					      event_mod->filter);
 		free_event_mod(event_mod);
 	}
 }
@@ -4819,7 +4832,7 @@ int event_trace_del_tracer(struct trace_array *tr)
 	__ftrace_clear_event_pids(tr, TRACE_PIDS | TRACE_NO_PIDS);
 
 	/* Disable any running events */
-	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0, NULL);
+	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0, NULL, NULL);
 
 	/* Make sure no more events are being executed */
 	tracepoint_synchronize_unregister();
@@ -5129,7 +5142,7 @@ static __init void event_trace_self_tests(void)
 
 		pr_info("Testing event system %s: ", system->name);
 
-		ret = __ftrace_set_clr_event(tr, NULL, system->name, NULL, 1, NULL);
+		ret = __ftrace_set_clr_event(tr, NULL, system->name, NULL, 1, NULL, NULL);
 		if (WARN_ON_ONCE(ret)) {
 			pr_warn("error enabling system %s\n",
 				system->name);
@@ -5138,7 +5151,7 @@ static __init void event_trace_self_tests(void)
 
 		event_test_stuff();
 
-		ret = __ftrace_set_clr_event(tr, NULL, system->name, NULL, 0, NULL);
+		ret = __ftrace_set_clr_event(tr, NULL, system->name, NULL, 0, NULL, NULL);
 		if (WARN_ON_ONCE(ret)) {
 			pr_warn("error disabling system %s\n",
 				system->name);
@@ -5153,7 +5166,7 @@ static __init void event_trace_self_tests(void)
 	pr_info("Running tests on all trace events:\n");
 	pr_info("Testing all events: ");
 
-	ret = __ftrace_set_clr_event(tr, NULL, NULL, NULL, 1, NULL);
+	ret = __ftrace_set_clr_event(tr, NULL, NULL, NULL, 1, NULL, NULL);
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error enabling all events\n");
 		return;
@@ -5162,7 +5175,7 @@ static __init void event_trace_self_tests(void)
 	event_test_stuff();
 
 	/* reset sysname */
-	ret = __ftrace_set_clr_event(tr, NULL, NULL, NULL, 0, NULL);
+	ret = __ftrace_set_clr_event(tr, NULL, NULL, NULL, 0, NULL, NULL);
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error disabling all events\n");
 		return;
