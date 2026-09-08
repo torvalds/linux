@@ -2511,5 +2511,6 @@ static inline int rv_init_interface(void)
 #endif /* _LINUX_KERNEL_TRACE_H */
 
 #if IS_ENABLED(CONFIG_KUNIT)
-void ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod);
+void ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod,
+			       bool handle_filter, char **filter);
 #endif

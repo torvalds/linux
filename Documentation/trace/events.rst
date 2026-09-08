@@ -118,6 +118,11 @@ In order to facilitate early boot debugging, use boot option::
 event-list is a comma separated list of events. See section 2.1 for event
 format.
 
+The boot option also supports the ``:filter:`` keyword to apply a filter.
+The ``:filter:`` keyword needs to be at the end of the event specification::
+
+	<system>:<event>:mod:<module>:filter:<filter>
+
 3. Defining an event-enabled tracepoint
 =======================================
 

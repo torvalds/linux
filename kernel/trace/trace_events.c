@@ -1458,10 +1458,21 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 }
 
 VISIBLE_IF_KUNIT void
-ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod)
+ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod,
+			  bool handle_filter, char **filter)
 {
 	*event = NULL;
 	*sub = NULL;
+	*filter = NULL;
+
+	/* event filters can be appended with :filter:<filter> */
+	if (handle_filter) {
+		*filter = strstr(buf, ":filter:");
+		if (*filter) {
+			**filter = '\0';
+			*filter += 8;
+		}
+	}
 
 	/* Modules events can be appended with :mod:<module> */
 	*mod = strstr(buf, ":mod:");
@@ -1501,9 +1512,9 @@ ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, cha
 }
 EXPORT_SYMBOL_IF_KUNIT(ftrace_parse_event_string);
 
-int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
+int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set, bool handle_filter)
 {
-	char *event, *sub, *match, *mod;
+	char *event, *sub, *match, *mod, *filter;
 
 	if (!tr)
 		return -ENOENT;
@@ -1512,9 +1523,9 @@ int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
 	if (!dupped_buf)
 		return -ENOMEM;
 
-	ftrace_parse_event_string(dupped_buf, &match, &sub, &event, &mod);
+	ftrace_parse_event_string(dupped_buf, &match, &sub, &event, &mod, handle_filter, &filter);
 
-	return __ftrace_set_clr_event(tr, match, sub, event, set, mod, NULL);
+	return __ftrace_set_clr_event(tr, match, sub, event, set, mod, filter);
 }
 
 /**
@@ -1596,7 +1607,7 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 		if (*parser.buffer == '!')
 			set = 0;
 
-		ret = ftrace_set_clr_event(tr, parser.buffer + !set, set);
+		ret = ftrace_set_clr_event(tr, parser.buffer + !set, set, false);
 		if (ret)
 			goto out_put;
 	}
@@ -4865,10 +4876,10 @@ static __init void __early_set_events(struct trace_array *tr, char *buf, bool en
 	while ((token = strsep(&buf, ","))) {
 		if (*token) {
 			if (enable) {
-				if (ftrace_set_clr_event(tr, token, 1))
+				if (ftrace_set_clr_event(tr, token, 1, true))
 					pr_warn("Failed to enable trace event: %s\n", token);
 			} else {
-				ftrace_set_clr_event(tr, token, 0);
+				ftrace_set_clr_event(tr, token, 0, true);
 			}
 		}
 

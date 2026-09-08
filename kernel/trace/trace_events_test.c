@@ -8,7 +8,7 @@
 struct parse_event_string_test_case {
 	const char *input;
 
-	const char *match, *sub, *event, *mod;
+	const char *match, *sub, *event, *mod, *filter;
 };
 
 static const struct parse_event_string_test_case parse_event_string_test_cases[] = {
@@ -38,6 +38,12 @@ static const struct parse_event_string_test_case parse_event_string_test_cases[]
 		.event	= "event",
 	},
 	{
+		"sub:event:filter:filter",
+		.sub	= "sub",
+		.event	= "event",
+		.filter	= "filter",
+	},
+	{
 		"match",
 		.match	= "match",
 	},
@@ -50,6 +56,19 @@ static const struct parse_event_string_test_case parse_event_string_test_cases[]
 		.sub	= "sub",
 		.event	= "event",
 		.mod	= "module",
+	},
+	{
+		"sub:event:mod:module:filter:filter",
+		.sub	= "sub",
+		.event	= "event",
+		.mod	= "module",
+		.filter	= "filter",
+	},
+	{
+		"sub:event:mod:module:filter:unexpected-filter",
+		.sub	= "sub",
+		.event	= "event",
+		.mod	= "module:filter:unexpected-filter",
 	},
 };
 
@@ -72,18 +91,19 @@ KUNIT_ARRAY_PARAM(parse_event_string, parse_event_string_test_cases, parse_event
 static void parse_event_string(struct kunit *test)
 {
 	const struct parse_event_string_test_case *params = test->param_value;
-	char *input, *match, *sub, *event, *mod;
+	char *input, *match, *sub, *event, *mod, *filter;
 
 	input = kunit_kstrdup(test, params->input, GFP_KERNEL);
 	if (!input)
 		kunit_skip(test, "ENOMEM");
 
-	ftrace_parse_event_string(input, &match, &sub, &event, &mod);
+	ftrace_parse_event_string(input, &match, &sub, &event, &mod, params->filter, &filter);
 
 	EXPECT_NULL_OR_STR_EQ(test, match, params->match);
 	EXPECT_NULL_OR_STR_EQ(test, sub, params->sub);
 	EXPECT_NULL_OR_STR_EQ(test, event, params->event);
 	EXPECT_NULL_OR_STR_EQ(test, mod, params->mod);
+	EXPECT_NULL_OR_STR_EQ(test, filter, params->filter);
 }
 
 static struct kunit_case trace_events_test_cases[] = {
