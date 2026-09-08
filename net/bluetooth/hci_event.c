@@ -6311,6 +6311,15 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	if (irk) {
 		bdaddr = &irk->bdaddr;
 		bdaddr_type = irk->addr_type;
+	} else {
+		/* The peer is on air with its identity address, so whatever
+		 * RPA is cached for it has been abandoned. Drop it, or
+		 * hci_connect_le() would swap it back in and dial an address
+		 * the peer no longer answers.
+		 */
+		irk = hci_find_irk_by_addr(hdev, bdaddr, bdaddr_type);
+		if (irk)
+			bacpy(&irk->rpa, BDADDR_ANY);
 	}
 
 	bdaddr_type = ev_bdaddr_type(hdev, bdaddr_type, &bdaddr_resolved);
