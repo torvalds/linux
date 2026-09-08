@@ -25,6 +25,8 @@
 #include <linux/delay.h>
 #include <linux/btf.h>
 
+#include <kunit/visibility.h>
+
 #include <trace/events/sched.h>
 #include <trace/syscall.h>
 
@@ -1443,7 +1445,7 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 	return ret;
 }
 
-static void
+VISIBLE_IF_KUNIT void
 ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, char **mod)
 {
 	*event = NULL;
@@ -1485,6 +1487,7 @@ ftrace_parse_event_string(char *buf, char **match, char **sub, char **event, cha
 			*match = NULL;
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(ftrace_parse_event_string);
 
 int ftrace_set_clr_event(struct trace_array *tr, const char *arg_buf, int set)
 {

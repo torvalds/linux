@@ -151,6 +151,14 @@ config EVENT_TRACING
 	select GLOB
 	bool
 
+config EVENT_TRACING_TEST
+	tristate "Test for event tracing" if !KUNIT_ALL_TESTS
+	depends on EVENT_TRACING
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  KUnit test for the event tracing implementation.
+
 config CONTEXT_SWITCH_TRACER
 	bool
 
