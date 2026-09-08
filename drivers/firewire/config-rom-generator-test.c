@@ -9,7 +9,7 @@
 #include <kunit/test.h>
 #include <kunit/device.h>
 
-static const u32 config_rom_bare[] = {
+static const __be32 config_rom_bare[] = {
 	cpu_to_be32(0x0404921b), // bus info
 	cpu_to_be32(0x31333934), // |
 	cpu_to_be32(0xf000b223), // |
@@ -52,7 +52,7 @@ static const u32 avc_unit_directory_and_leaf[] = {
 	0x50756900,	// Pui is the name of a cat that the author takes care of.
 };
 
-static const u32 config_rom_with_avc_unit[] = {
+static const __be32 config_rom_with_avc_unit[] = {
 	cpu_to_be32(0x0404c1e5), // bus info
 	cpu_to_be32(0x31333934), // |
 	cpu_to_be32(0xf000b233), // |
@@ -116,7 +116,7 @@ static const u32 iidc_unit_directories_and_leafs[] = {
 	0x20436174,
 };
 
-static const u32 config_rom_with_iidc_unit[] = {
+static const __be32 config_rom_with_iidc_unit[] = {
 	cpu_to_be32(0x04046a3e), // bus info
 	cpu_to_be32(0x31333934), // |
 	cpu_to_be32(0xf000b243), // |
@@ -162,7 +162,7 @@ static const u32 config_rom_with_iidc_unit[] = {
 	cpu_to_be32(0x20436174), // v
 };
 
-static const u32 config_rom_with_avc_and_iidc_units[] = {
+static const __be32 config_rom_with_avc_and_iidc_units[] = {
 	cpu_to_be32(0x040439c0), // bus info
 	cpu_to_be32(0x31333934), // |
 	cpu_to_be32(0xf000b253), // |
