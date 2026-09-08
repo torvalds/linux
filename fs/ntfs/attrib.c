@@ -2917,7 +2917,7 @@ retry:
 
 	attr_ni = NULL;
 	/* Allocate new extent. */
-	err = ntfs_mft_record_alloc(ni->vol, 0, &attr_ni, ni, NULL);
+	err = ntfs_mft_record_alloc(ni->vol, 0, &attr_ni, ni, NULL, -1);
 	if (err) {
 		ntfs_error(sb, "Failed to allocate extent record");
 		goto err_out;
@@ -3550,7 +3550,7 @@ int ntfs_attr_record_move_away(struct ntfs_attr_search_ctx *ctx, int extra)
 	 * new extent and move attribute to it.
 	 */
 	ni = NULL;
-	err = ntfs_mft_record_alloc(base_ni->vol, 0, &ni, base_ni, NULL);
+	err = ntfs_mft_record_alloc(base_ni->vol, 0, &ni, base_ni, NULL, -1);
 	if (err) {
 		ntfs_error(sb, "Couldn't allocate MFT record, err : %d", err);
 		return err;
@@ -3976,7 +3976,10 @@ retry:
 		unsigned int de_cnt = 0;
 
 		/* Allocate new mft record. */
-		err = ntfs_mft_record_alloc(ni->vol, 0, &ext_ni, base_ni, NULL);
+		err = ntfs_mft_record_alloc(ni->vol, 0, &ext_ni, base_ni, NULL,
+					    base_ni->mft_no == FILE_MFT &&
+					    ni->type == AT_DATA &&
+					    ni->name == AT_UNNAMED ? stop_vcn : -1);
 		if (err) {
 			ntfs_error(sb, "Failed to allocate extent record");
 			goto put_err_out;
@@ -4836,7 +4839,7 @@ attr_resize_again:
 	}
 
 	/* Allocate new mft record. */
-	err = ntfs_mft_record_alloc(base_ni->vol, 0, &ext_ni, base_ni, NULL);
+	err = ntfs_mft_record_alloc(base_ni->vol, 0, &ext_ni, base_ni, NULL, -1);
 	if (err) {
 		ntfs_error(sb, "Couldn't allocate MFT record");
 		goto put_err_out;

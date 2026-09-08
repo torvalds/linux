@@ -55,6 +55,10 @@
  * @attrdef_size: Size of the attribute definition table in bytes.
  * @attrdef: Table of attribute definitions. Obtained from FILE_AttrDef.
  * @mft_data_pos: Mft record number at which to allocate the next mft record.
+ * @mft_record_reserve_pos: First record in the in-memory MFT metadata reserve
+ *                         (protected by mftbmp_lock).
+ * @mft_record_reserve_end: First record beyond the MFT metadata reserve
+ *                         (protected by mftbmp_lock).
  * @mft_zone_start: First cluster of the mft zone.
  * @mft_zone_end: First cluster beyond the mft zone.
  * @mft_zone_pos: Current position in the mft zone.
@@ -119,6 +123,8 @@ struct ntfs_volume {
 	s32 attrdef_size;
 	struct attr_def *attrdef;
 	s64 mft_data_pos;
+	s64 mft_record_reserve_pos;
+	s64 mft_record_reserve_end;
 	s64 mft_zone_start;
 	s64 mft_zone_end;
 	s64 mft_zone_pos;
