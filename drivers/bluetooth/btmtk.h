@@ -67,6 +67,15 @@ enum {
 	BTMTK_WMT_ON_PROGRESS,
 };
 
+/* Position of a BTMTK_WMT_PATCH_DWNLD packet within a download sequence,
+ * carried in struct btmtk_wmt_hdr's flag field.
+ */
+enum btmtk_wmt_pkt_flag {
+	BTMTK_WMT_PKT_START = 1,
+	BTMTK_WMT_PKT_CONTINUE = 2,
+	BTMTK_WMT_PKT_END = 3,
+};
+
 struct btmtk_wmt_hdr {
 	u8	dir;
 	u8	op;
