@@ -16,9 +16,6 @@
 #include <uapi/linux/mman.h>
 #include <uapi/linux/random.h>
 
-/* Bring in default accessors */
-#include <vdso/vsyscall.h>
-
 #ifndef __arch_get_vdso_u_rng_data
 static __always_inline const struct vdso_rng_data *__arch_get_vdso_u_rng_data(void)
 {

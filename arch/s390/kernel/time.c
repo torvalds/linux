@@ -40,7 +40,6 @@
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/vdso_time.h>
-#include <vdso/vsyscall.h>
 #include <vdso/clocksource.h>
 #include <vdso/helpers.h>
 #include <asm/facility.h>

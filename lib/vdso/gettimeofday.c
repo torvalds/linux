@@ -27,9 +27,6 @@
 
 #include <linux/build_bug.h>
 
-/* Bring in default accessors */
-#include <vdso/vsyscall.h>
-
 #ifndef vdso_calc_ns
 
 #ifdef VDSO_DELTA_NOMASK

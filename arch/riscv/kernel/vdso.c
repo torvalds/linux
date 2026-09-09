@@ -15,7 +15,6 @@
 #include <asm/vdso.h>
 #include <linux/vdso_datastore.h>
 #include <vdso/datapage.h>
-#include <vdso/vsyscall.h>
 
 #define VVAR_SIZE  (VDSO_NR_PAGES << PAGE_SHIFT)
 

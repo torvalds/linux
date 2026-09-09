@@ -19,7 +19,6 @@
 #include <asm/vendor_extensions/sifive_hwprobe.h>
 #include <asm/vendor_extensions/thead_hwprobe.h>
 #include <vdso/datapage.h>
-#include <vdso/vsyscall.h>
 
 
 #define EXT_KEY(isa_arg, ext, pv, missing)					\
