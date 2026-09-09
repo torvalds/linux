@@ -25,7 +25,6 @@
 #include <asm/page.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
-#include <asm/vdso/vsyscall.h>
 #include <clocksource/hyperv_timer.h>
 
 static_assert(VDSO_NR_PAGES + VDSO_NR_VCLOCK_PAGES == __VDSO_PAGES);
