@@ -5819,6 +5819,12 @@ failed_mount8: __maybe_unused
 failed_mount7:
 	ext4_unregister_li_request(sb);
 failed_mount6:
+	/*
+	 * We can have a running transaction from orphan replay or quota
+	 * setup. Commit it so that discard work after commit runs before
+	 * we shutdown mballoc.
+	 */
+	ext4_force_commit(sb);
 	ext4_mb_release(sb);
 	ext4_flex_groups_free(sbi);
 failed_mount5:

@@ -3896,6 +3896,8 @@ void ext4_mb_release(struct super_block *sb)
 	 * wait the discard work to drain all of ext4_free_data
 	 */
 	flush_work(&sbi->s_discard_work);
+	/* Prevent the later journal teardown from requeueing discard work. */
+	disable_work_sync(&sbi->s_discard_work);
 	WARN_ON_ONCE(!list_empty(&sbi->s_discard_list));
 
 	group_info = rcu_access_pointer(sbi->s_group_info);
