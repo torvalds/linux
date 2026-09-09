@@ -3,6 +3,4 @@
 #ifndef _ASM_SPARC_VDSO_VSYSCALL_H
 #define _ASM_SPARC_VDSO_VSYSCALL_H
 
-#define __VDSO_PAGES 4
-
 #endif /* _ASM_SPARC_VDSO_VSYSCALL_H */
