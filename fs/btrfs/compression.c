@@ -1489,7 +1489,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 				     struct heuristic_ws *ws)
 {
 	struct folio *folio;
-	pgoff_t index, index_end;
+	u64 index, index_end;
 	u32 i, curr_sample_pos;
 	u8 *in_data;
 
@@ -1517,7 +1517,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 		folio = filemap_get_folio(inode->i_mapping, index);
 		ASSERT(!IS_ERR(folio));
 		in_data = kmap_local_folio(folio,
-				offset_in_folio(folio, (u64)index << PAGE_SHIFT));
+				offset_in_folio(folio, index << PAGE_SHIFT));
 		/* Handle case where the start is not aligned to PAGE_SIZE */
 		i = start % PAGE_SIZE;
 		while (i < PAGE_SIZE - SAMPLING_READ_SIZE) {
