@@ -676,7 +676,7 @@ where
 /// This should be switched to `UnsafePinned` when it is stable.
 /// NOTE: This type needs to be covariant; Rust's 1.89+'s `UnsafePinned` is invariant.
 #[repr(transparent)]
-pub struct Borrowed<T: ?Sized>(PhantomPinned, T);
+pub struct Borrowed<T: ?Sized, P>(PhantomInvariant<P>, PhantomPinned, T);
 
 // Lifetimes not needed by drop glue are considered by Rust's drop check to be considered
 // `#[may_dangle]`. In case for a self-referential struct, we may have fields which need lifetime of
@@ -702,17 +702,17 @@ pub struct Borrowed<T: ?Sized>(PhantomPinned, T);
 // outlive the struct. And this can be done by a simple `Drop` impl that does nothing. Without a
 // dropck eye patch, presence of `Drop` impl, albeit empty, tells the drop check that the strict
 // outlive relation is needed.
-impl<T: ?Sized> Drop for Borrowed<T> {
+impl<T: ?Sized, P> Drop for Borrowed<T, P> {
     #[inline(always)]
     fn drop(&mut self) {}
 }
 
-impl<T: ?Sized> Deref for Borrowed<T> {
+impl<T: ?Sized, P> Deref for Borrowed<T, P> {
     type Target = T;
 
     #[inline(always)]
     fn deref(&self) -> &T {
-        &self.1
+        &self.2
     }
 }
 
