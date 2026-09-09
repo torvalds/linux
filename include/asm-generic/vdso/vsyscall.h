@@ -4,17 +4,6 @@
 
 #ifndef __ASSEMBLER__
 
-#ifndef __arch_update_vdso_clock
-static __always_inline void __arch_update_vdso_clock(struct vdso_clock *vc)
-{
-}
-#endif /* __arch_update_vdso_clock */
-
-#ifndef __arch_sync_vdso_time_data
-static __always_inline void __arch_sync_vdso_time_data(struct vdso_time_data *vdata)
-{
-}
-#endif /* __arch_sync_vdso_time_data */
 
 #endif /* !__ASSEMBLER__ */
 
