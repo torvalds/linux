@@ -453,8 +453,8 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 		_find_opp_table(dev);
 
 	if (IS_ERR(opp_table)) {
-		dev_dbg(dev, "%s: OPP table not found (%ld)\n",
-			__func__, PTR_ERR(opp_table));
+		dev_dbg(dev, "%s: OPP table not found (%pe)\n",
+			__func__, opp_table);
 		return PTR_ERR(opp_table);
 	}
 
@@ -611,8 +611,8 @@ _find_key(struct device *dev, unsigned long *key, int index, bool available,
 		_find_opp_table(dev);
 
 	if (IS_ERR(opp_table)) {
-		dev_err(dev, "%s: OPP table not found (%ld)\n", __func__,
-			PTR_ERR(opp_table));
+		dev_err(dev, "%s: OPP table not found (%pe)\n", __func__,
+			opp_table);
 		return ERR_CAST(opp_table);
 	}
 
@@ -722,8 +722,8 @@ struct dev_pm_opp *dev_pm_opp_find_key_exact(struct device *dev,
 	struct opp_table *opp_table __free(put_opp_table) = _find_opp_table(dev);
 
 	if (IS_ERR(opp_table)) {
-		dev_err(dev, "%s: OPP table not found (%ld)\n", __func__,
-			PTR_ERR(opp_table));
+		dev_err(dev, "%s: OPP table not found (%pe)\n", __func__,
+			opp_table);
 		return ERR_CAST(opp_table);
 	}
 
@@ -1036,8 +1036,8 @@ static int _set_opp_voltage(struct device *dev, struct regulator *reg,
 
 	/* Regulator not available for device */
 	if (IS_ERR(reg)) {
-		dev_dbg(dev, "%s: regulator not available: %ld\n", __func__,
-			PTR_ERR(reg));
+		dev_dbg(dev, "%s: regulator not available: %pe\n", __func__,
+			reg);
 		return 0;
 	}
 
@@ -1448,8 +1448,8 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		temp_freq = freq;
 		opp = _find_freq_ceil(opp_table, &temp_freq);
 		if (IS_ERR(opp)) {
-			dev_err(dev, "%s: failed to find OPP for freq %lu (%ld)\n",
-				__func__, freq, PTR_ERR(opp));
+			dev_err(dev, "%s: failed to find OPP for freq %lu (%pe)\n",
+				__func__, freq, opp);
 			return PTR_ERR(opp);
 		}
 
@@ -1581,6 +1581,8 @@ static struct opp_table *_update_opp_table_clk(struct device *dev,
 					       struct opp_table *opp_table,
 					       bool getclk)
 {
+	int ret;
+
 	/*
 	 * Return early if we don't need to get clk or we have already done it
 	 * earlier.
@@ -1607,9 +1609,9 @@ static struct opp_table *_update_opp_table_clk(struct device *dev,
 	opp_table->clk = clk_get_optional(dev, NULL);
 
 	if (IS_ERR(opp_table->clk)) {
+		ret = dev_err_probe(dev, PTR_ERR(opp_table->clk), "Couldn't find clock\n");
 		dev_pm_opp_put_opp_table(opp_table);
-		dev_err_probe(dev, PTR_ERR(opp_table->clk), "Couldn't find clock\n");
-		return ERR_CAST(opp_table->clk);
+		return ERR_PTR(ret);
 	}
 
 	if (opp_table->clk)
@@ -2869,8 +2871,8 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 	struct dev_pm_opp *opp __free(put_opp) = ERR_PTR(-ENODEV), *tmp_opp;
 
 	if (IS_ERR(opp_table)) {
-		dev_warn(dev, "%s: Device OPP not found (%ld)\n", __func__,
-			 PTR_ERR(opp_table));
+		dev_warn(dev, "%s: Device OPP not found (%pe)\n", __func__,
+			 opp_table);
 		return PTR_ERR(opp_table);
 	}
 
