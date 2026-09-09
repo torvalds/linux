@@ -96,6 +96,9 @@ struct f_hidg {
 	struct usb_request		*get_req;
 	struct usb_hidg_report		get_report;
 	bool				get_report_returned;
+	/* Cancel pending work and distinguish requests across reconfiguration. */
+	bool				get_report_cancelled;
+	unsigned int			get_report_req_tag;
 	int				get_report_req_report_id;
 	int				get_report_req_report_length;
 	spinlock_t			get_report_spinlock;
@@ -562,10 +565,16 @@ static void get_report_workqueue_handler(struct work_struct *work)
 	struct usb_request		*req;
 	struct report_entry *ptr;
 	unsigned long	flags;
+	unsigned int	req_tag;
 
 	int status = 0;
 
 	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+	if (hidg->get_report_cancelled) {
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+		return;
+	}
+	req_tag = hidg->get_report_req_tag;
 	req = hidg->get_req;
 	if (!req) {
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -598,6 +607,11 @@ static void get_report_workqueue_handler(struct work_struct *work)
 		status = wait_event_interruptible_timeout(hidg->get_queue, !GET_REPORT_COND,
 					msecs_to_jiffies(GET_REPORT_TIMEOUT_MS));
 		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		if (hidg->get_report_cancelled ||
+		    req_tag != hidg->get_report_req_tag) {
+			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+			return;
+		}
 		req = hidg->get_req;
 		if (!req) {
 			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -858,6 +872,8 @@ static int hidg_setup(struct usb_function *f,
 		 * GET_REPORT the request was actually for.
 		 */
 		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		hidg->get_report_cancelled = false;
+		hidg->get_report_req_tag++;
 		hidg->get_report_req_report_id = value & 0xff;
 		hidg->get_report_req_report_length = length;
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -991,12 +1007,11 @@ static void hidg_disable(struct usb_function *f)
 	}
 
 	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
-	if (!hidg->get_report_returned) {
-		usb_ep_free_request(f->config->cdev->gadget->ep0, hidg->get_req);
-		hidg->get_req = NULL;
-		hidg->get_report_returned = true;
-	}
+	hidg->get_report_cancelled = true;
+	hidg->get_report_req_tag++;
+	hidg->get_report_returned = true;
 	spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+	wake_up(&hidg->get_queue);
 
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 	hidg->disabled = true;
@@ -1582,6 +1597,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	cdev_device_del(hidg->cdev, &hidg->dev);
 	destroy_workqueue(hidg->workqueue);
+	usb_ep_free_request(c->cdev->gadget->ep0, hidg->get_req);
 	usb_free_all_descriptors(f);
 }
 
