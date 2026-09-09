@@ -53,8 +53,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	if (retval < 0)
 		goto err_out;
 	path = ext4_ext_insert_extent(handle, inode, path, &newext, 0);
-	if (IS_ERR(path))
-		retval = PTR_ERR(path);
+	retval = PTR_ERR_OR_ZERO(path);
 err_out:
 	up_write((&EXT4_I(inode)->i_data_sem));
 	ext4_free_ext_path(path);
