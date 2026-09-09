@@ -6,7 +6,6 @@
 #ifndef __ASSEMBLER__
 
 #include <vdso/datapage.h>
-#include <asm/vdso/vsyscall.h>
 #include <asm/syscall.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
