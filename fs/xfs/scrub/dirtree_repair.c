@@ -479,6 +479,7 @@ again:
 	}
 
 	if (xfs_has_parent(sc->mp)) {
+		memset(&dl->ppargs, 0, sizeof(dl->ppargs));
 		error = xfs_parent_removename(sc->tp, &dl->ppargs, dp,
 				&dl->xname, sc->ip);
 		if (error)
