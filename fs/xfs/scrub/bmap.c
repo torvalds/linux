@@ -1103,8 +1103,9 @@ xchk_bmap(
 	 * the rmap must match the combined mapping exactly.
 	 */
 	while (xchk_bmap_iext_iter(&info, &irec)) {
-		if (xchk_should_terminate(sc, &error) ||
-		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		if (xchk_should_terminate(sc, &error))
+			return error;
+		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			return 0;
 
 		if (irec.br_startoff >= endoff) {
