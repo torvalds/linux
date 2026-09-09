@@ -246,7 +246,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info)
 				 ACPI_HANDLE(dev));
 }
 
-static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 
 static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 			    const struct pnp_device_id *pnp_id)
@@ -302,7 +302,7 @@ static struct pnp_driver tis_pnp_driver = {
 	.probe = tpm_tis_pnp_init,
 	.remove = tpm_tis_pnp_remove,
 	.driver	= {
-		.pm = &tpm_tis_pm,
+		.pm = pm_sleep_ptr(&tpm_tis_pm),
 	},
 };
 

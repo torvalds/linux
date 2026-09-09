@@ -307,7 +307,7 @@ static int tpm_tis_spi_driver_probe(struct spi_device *spi)
 	return probe_func(spi);
 }
 
-static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_spi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_spi_resume);
 
 static void tpm_tis_spi_remove(struct spi_device *dev)
 {
@@ -347,7 +347,7 @@ MODULE_DEVICE_TABLE(acpi, acpi_tis_spi_match);
 static struct spi_driver tpm_tis_spi_driver = {
 	.driver = {
 		.name = "tpm_tis_spi",
-		.pm = &tpm_tis_pm,
+		.pm = pm_sleep_ptr(&tpm_tis_pm),
 		.of_match_table = of_match_ptr(of_tis_spi_match),
 		.acpi_match_table = ACPI_PTR(acpi_tis_spi_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

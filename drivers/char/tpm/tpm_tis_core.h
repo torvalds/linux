@@ -161,8 +161,6 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		      const struct tpm_tis_phy_ops *phy_ops,
 		      acpi_handle acpi_dev_handle);
 
-#ifdef CONFIG_PM_SLEEP
 int tpm_tis_resume(struct device *dev);
-#endif
 
 #endif

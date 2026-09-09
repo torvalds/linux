@@ -320,7 +320,7 @@ static int tpm_tis_i2c_init_guard_time(struct tpm_tis_i2c_phy *phy)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 
 static const struct tpm_tis_phy_ops tpm_i2c_phy_ops = {
 	.read_bytes = tpm_tis_i2c_read_bytes,
@@ -405,7 +405,7 @@ MODULE_DEVICE_TABLE(of, of_tis_i2c_match);
 static struct i2c_driver tpm_tis_i2c_driver = {
 	.driver = {
 		.name = "tpm_tis_i2c",
-		.pm = &tpm_tis_pm,
+		.pm = pm_sleep_ptr(&tpm_tis_pm),
 		.of_match_table = of_match_ptr(of_tis_i2c_match),
 	},
 	.probe = tpm_tis_i2c_probe,
