@@ -5350,7 +5350,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		 * have a bunch of extents we just want to commit since it will
 		 * be faster.
 		 */
-		if (++num > 32768) {
+		if (++num > SZ_16K) {
 			list_del_init(&tree->modified_extents);
 			ret = -EFBIG;
 			goto process;
@@ -5368,7 +5368,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		refcount_inc(&em->refs);
 		em->flags |= EXTENT_FLAG_LOGGING;
 		list_add_tail(&em->list, &extents);
-		num++;
 	}
 
 	list_sort(NULL, &extents, extent_cmp);
