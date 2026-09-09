@@ -25,7 +25,7 @@ enum sensor_access { access_direct, access_asuswmi };
 static const char * const nct6775_sio_names[] __initconst = {
 	[nct6106] = "NCT6106D",
 	[nct6116] = "NCT6116D",
-	[nct6126] = "NCT6126D",
+	[nct6126] = "NCT6122D/NCT6126D",
 	[nct6775] = "NCT6775F",
 	[nct6776] = "NCT6776D/F",
 	[nct6779] = "NCT6779D",
@@ -77,6 +77,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 
 #define SIO_NCT6106_ID		0xc450
 #define SIO_NCT6116_ID		0xd280
+#define SIO_NCT6122_ID		0xd2a0
 #define SIO_NCT6126_A_ID	0xd283
 #define SIO_NCT6126_B_ID	0xd284
 #define SIO_NCT6775_ID		0xb470
@@ -1034,6 +1035,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 			sio_data->kind = nct6126;
 		else
 			sio_data->kind = nct6116;
+		break;
+	case SIO_NCT6122_ID:
+		sio_data->kind = nct6126;
 		break;
 	case SIO_NCT6775_ID:
 		sio_data->kind = nct6775;
