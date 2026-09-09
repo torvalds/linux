@@ -11,8 +11,9 @@ use syn::{
     spanned::Spanned,
     visit::Visit,
     visit_mut::VisitMut,
-    Attribute, Field, Fields, GenericParam, Generics, Ident, Index, Item, ItemStruct, Lifetime,
-    LifetimeParam, Member, Meta, PathSegment, Token, Type, TypePath,
+    Attribute, Field, Fields, GenericArgument, GenericParam, Generics, Ident, Index, Item,
+    ItemStruct, Lifetime, LifetimeParam, Member, Meta, PathArguments, PathSegment, Token, Type,
+    TypeParamBound, TypePath, WhereClause, WherePredicate,
 };
 
 use crate::{
@@ -183,6 +184,7 @@ impl Capture {
         dcx: &mut DiagCtxt,
         attrs: &mut Vec<Attribute>,
         bound_lifetimes: &BTreeSet<&Lifetime>,
+        exist_lifetimes: &BTreeSet<ExistLt>,
         field_idx_map: &BTreeMap<Ident, usize>,
     ) -> Option<(BTreeSet<Capture>, Variance)> {
         let attr = attrs.extract_single_attr(dcx, "uses")?;
@@ -208,7 +210,10 @@ impl Capture {
                 continue;
             }
 
-            if lt.ident != "_" && !field_idx_map.contains_key(&lt.ident) {
+            if lt.ident != "_"
+                && !exist_lifetimes.contains(lt)
+                && !field_idx_map.contains_key(&lt.ident)
+            {
                 dcx.error(lt, format!("`{lt}` is not a field name"));
                 continue;
             }
@@ -240,11 +245,15 @@ struct StructInfo {
     field_idx_map: BTreeMap<Ident, usize>,
     is_tuple_struct: bool,
     self_referential: bool,
+    /// Existential lifetimes defined.
+    exist_lts: BTreeSet<ExistLt>,
     /// Field lifetime genercis with outlive chain.
     field_lts_outlive_chain: Generics,
     /// Field lifetime genercis with outlive chain, with one chain for covariant fields and one
     /// chain for invariant fields.
     field_lts_split_variance_outlive_chain: Generics,
+    /// Existential lifetime with their outlives bounds.
+    exist_lts_generics: Generics,
 }
 
 pub(crate) fn expand_with_cfg(
@@ -334,6 +343,12 @@ fn expand(
 
     let is_tuple_struct = matches!(struct_.fields, Fields::Unnamed(_));
 
+    let exist_lts = if let Some(whr) = &mut struct_.generics.where_clause {
+        ExistLt::parse(dcx, whr)
+    } else {
+        BTreeSet::new()
+    };
+
     // Collect all bound lifetimes from generics.
     let bound_lifetimes: BTreeSet<&Lifetime> =
         struct_.generics.lifetimes().map(|x| &x.lifetime).collect();
@@ -346,6 +361,16 @@ fn expand(
         .enumerate()
         .filter_map(|(index, field)| Some((field.ident.clone()?, index)))
         .collect();
+
+    for l in &exist_lts {
+        let lt = &l.lifetime;
+        if bound_lifetimes.contains(&lt) {
+            dcx.error(
+                lt,
+                format!("existential `{lt}` conflicts with struct generics"),
+            );
+        }
+    }
 
     // Keep track on fields being implicitly borrowed by being mentioned.
     let mut implicitly_borrowed = BTreeSet::new();
@@ -370,9 +395,14 @@ fn expand(
             };
 
             // Parse `#[uses]` attribute.
-            let (mut captures, wildcard_variance) =
-                Capture::parse_list(dcx, &mut field.attrs, &bound_lifetimes, &field_idx_map)
-                    .unwrap_or_default();
+            let (mut captures, wildcard_variance) = Capture::parse_list(
+                dcx,
+                &mut field.attrs,
+                &bound_lifetimes,
+                &exist_lts,
+                &field_idx_map,
+            )
+            .unwrap_or_default();
 
             let mut generic_lt_captures = BTreeSet::new();
             let mut generic_ty_captures = BTreeSet::new();
@@ -399,7 +429,7 @@ fn expand(
                     return;
                 }
 
-                if !field_idx_map.contains_key(&lt.ident) {
+                if !exist_lts.contains(lt) && !field_idx_map.contains_key(&lt.ident) {
                     dcx.error(
                         lt,
                         format!("`{lt}` is neither a lifetime in generics nor a field name"),
@@ -414,8 +444,10 @@ fn expand(
             })
             .visit_type(&field.ty);
 
-            for capture in captures.iter() {
-                implicitly_borrowed.insert(capture.lifetime.ident.clone());
+            for capture in captures.iter(){
+                if !exist_lts.contains(&capture.lifetime){
+                    implicitly_borrowed.insert(capture.lifetime.ident.clone());
+                }
             }
 
             GenericParam::maybe_type_params_visitor(|ident| {
@@ -495,6 +527,9 @@ fn expand(
     let mut worklist = Vec::new();
     for field in fields.iter() {
         for borrow in field.captures.iter() {
+            if exist_lts.contains(&borrow.lifetime) {
+                continue;
+            }
             if let Variance::Invariant = borrow.variance {
                 let Some(borrow_idx) = fields
                     .iter()
@@ -510,6 +545,9 @@ fn expand(
     }
     while let Some(field) = worklist.pop() {
         for borrow in field.captures.iter() {
+            if exist_lts.contains(&borrow.lifetime) {
+                continue;
+            }
             let Some(borrow_idx) = fields
                 .iter()
                 .position(|f| f.member.as_ident() == borrow.lifetime.ident)
@@ -581,6 +619,23 @@ fn expand(
         }
     }
 
+    let exist_lt_generics = Generics {
+        lt_token: Some(Default::default()),
+        params: exist_lts
+            .iter()
+            .map(|l| {
+                GenericParam::Lifetime(LifetimeParam {
+                    attrs: Vec::new(),
+                    lifetime: l.lifetime.clone(),
+                    colon_token: Default::default(),
+                    bounds: l.bounds.iter().cloned().collect(),
+                })
+            })
+            .collect(),
+        gt_token: Some(Default::default()),
+        where_clause: None,
+    };
+
     let mut field_lts_split_variance_outlive_chain = Generics {
         lt_token: Some(Default::default()),
         params: borrowed_covariant_fields
@@ -642,6 +697,16 @@ fn expand(
                 .push(parse_quote!(#ty: #field_lt));
         }
 
+        for borrow in field.captures.iter().rev() {
+            let lt = &borrow.lifetime;
+            if exist_lts.contains(lt) {
+                field_lts_split_variance_outlive_chain
+                    .make_where_clause()
+                    .predicates
+                    .push(parse_quote!(#lt: #field_lt));
+            }
+        }
+
         // If a field is invariant, then the invariance closure rule will make all borrowed fields
         // to be invariant, so they're already captured in `field_lts_split_variance_outlive_chain`.
         if borrowed.lt_variance != Variance::Covariant {
@@ -681,8 +746,10 @@ fn expand(
         fields,
         field_idx_map,
         is_tuple_struct,
+        exist_lts,
         field_lts_outlive_chain,
         field_lts_split_variance_outlive_chain,
+        exist_lts_generics: exist_lt_generics,
     };
 
     for field in &info.fields {
@@ -745,6 +812,129 @@ fn is_phantom_pinned(ty: &Type) -> bool {
     }
 }
 
+struct ExistLt {
+    lifetime: Lifetime,
+    bounds: Vec<Lifetime>,
+}
+
+impl std::borrow::Borrow<Lifetime> for ExistLt {
+    fn borrow(&self) -> &Lifetime {
+        &self.lifetime
+    }
+}
+
+impl PartialEq for ExistLt {
+    fn eq(&self, other: &Self) -> bool {
+        self.lifetime == other.lifetime
+    }
+}
+
+impl Eq for ExistLt {}
+
+impl PartialOrd for ExistLt {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExistLt {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.lifetime.cmp(&other.lifetime)
+    }
+}
+
+impl ExistLt {
+    fn parse(dcx: &mut DiagCtxt, whr: &mut WhereClause) -> BTreeSet<ExistLt> {
+        fn parse_one(
+            dcx: &mut DiagCtxt,
+            pred: &WherePredicate,
+            result: &mut BTreeSet<ExistLt>,
+        ) -> bool {
+            let WherePredicate::Type(pred) = &pred else {
+                return false;
+            };
+            let Type::Path(path) = &pred.bounded_ty else {
+                return false;
+            };
+
+            if path.qself.is_some()
+                || path.path.leading_colon.is_some()
+                || path.path.segments.len() != 1
+            {
+                return false;
+            }
+            let path_seg = &path.path.segments[0];
+
+            if path_seg.ident != "exists" {
+                return false;
+            };
+
+            let PathArguments::AngleBracketed(p) = &path_seg.arguments else {
+                dcx.error(
+                    path_seg,
+                    "existential clauses require a single lifetime, e.g. `exists<'a>`",
+                );
+                return true;
+            };
+
+            if p.args.len() != 1 {
+                dcx.error(
+                    path_seg,
+                    "existential clauses require a single lifetime, e.g. `exists<'a>`",
+                );
+                return true;
+            }
+
+            let GenericArgument::Lifetime(lt) = &p.args[0] else {
+                dcx.error(
+                    path_seg,
+                    "existential clauses require a single lifetime, e.g. `exists<'a>`",
+                );
+                return true;
+            };
+
+            if result.contains(lt) {
+                dcx.error(
+                    lt,
+                    format!("an existential clause for `{lt}` already exists"),
+                );
+                return true;
+            }
+
+            let mut bounds = Vec::new();
+            for bound in pred.bounds.iter() {
+                let TypeParamBound::Lifetime(lt) = bound else {
+                    dcx.error(bound, "only lifetime can appear in existential clauses");
+                    return true;
+                };
+                bounds.push(lt.clone());
+            }
+            if bounds.is_empty() {
+                dcx.error(
+                    pred.colon_token,
+                    "existential clauses require at least one outlive bounds",
+                );
+                return true;
+            }
+
+            result.insert(ExistLt {
+                lifetime: lt.clone(),
+                bounds: bounds.clone(),
+            });
+
+            true
+        }
+
+        let mut result = BTreeSet::new();
+        whr.predicates = std::mem::take(&mut whr.predicates)
+            .into_pairs()
+            .filter(|p| !parse_one(dcx, p.value(), &mut result))
+            .collect();
+
+        result
+    }
+}
+
 fn generate_struct_def(info: &StructInfo) -> TokenStream {
     let ItemStruct {
         attrs,
@@ -783,12 +973,23 @@ fn generate_struct_def(info: &StructInfo) -> TokenStream {
             // implementation and thus may be used inside `Erase`.
             ty = quote!((#ty,));
 
+            let mut exist_lt_phantoms = Vec::new();
             for borrow in field.captures.iter().rev() {
                 let lt = &borrow.lifetime;
                 ty = quote!(for<#lt> fn(&#lt()) -> #ty);
+
+                if let Some(exist_lt) = info.exist_lts.get(lt) {
+                    for bound in &exist_lt.bounds {
+                        exist_lt_phantoms.push(quote!(::pin_init::__internal::ExistLt<#bound>));
+                    }
+                }
             }
 
             ty = quote!(::pin_init::__internal::Erase<#ty>);
+
+            if !exist_lt_phantoms.is_empty() {
+                ty = quote!(::pin_init::__internal::WithPhantom<#ty, (#(#exist_lt_phantoms,)*)>);
+            }
         };
 
         if let Some(borrowed) = &field.borrowed {
@@ -998,8 +1199,11 @@ fn generate_drop_order_check(dcx: &mut DiagCtxt, info: &StructInfo) -> TokenStre
     // with known lifetime bounds as bounds on the function, and asks Rust to *prove* that the types
     // are wellformed, given the bounds that we understand.
 
-    let generics_with_field_lt =
-        CombinedGenerics(vec![&info.field_lts_split_variance_outlive_chain, generics]);
+    let generics_with_field_lt = CombinedGenerics(vec![
+        &info.exist_lts_generics,
+        &info.field_lts_split_variance_outlive_chain,
+        generics,
+    ]);
 
     let (_, ty_generics, _) = generics.split_for_impl();
     let (impl_generics_with_field_lt, _, whr_with_field_lt) =
@@ -1138,20 +1342,25 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
 
     // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
     // used with `for`.
-    let field_lts = CombinedGenerics(vec![&info.field_lts_outlive_chain]);
+    let field_lts = CombinedGenerics(vec![
+        &info.field_lts_outlive_chain,
+        &info.exist_lts_generics,
+    ]);
     let generics_with_this_lt = CombinedGenerics(vec![&this_lt_generics, generics]);
     let generics_with_this_field_lt = CombinedGenerics(vec![
         &this_lt_generics,
+        &info.exist_lts_generics,
         &info.field_lts_outlive_chain,
         generics,
     ]);
     let generics_with_this_field_ref_lt = CombinedGenerics(vec![
         &this_lt_generics,
+        &info.exist_lts_generics,
         &info.field_lts_split_variance_outlive_chain,
         generics,
     ]);
-    let (impl_generics, ty_generics, whr) = generics.split_for_impl();
     let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
+    let (impl_generics, ty_generics, whr) = generics.split_for_impl();
     let (_, ty_generics_with_this_lt, _) = generics_with_this_lt.split_for_impl();
     let (_, ty_generics_with_this_field_lt, _) = generics_with_this_field_lt.split_for_impl();
     let (_, ty_generics_with_this_field_ref_lt, _) =
@@ -1665,10 +1874,19 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
     // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
     // used with `for`.
     let field_lts = CombinedGenerics(vec![&info.field_lts_outlive_chain]);
-    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts_outlive_chain, generics]);
+    let field_exist_lts = CombinedGenerics(vec![
+        &info.field_lts_outlive_chain,
+        &info.exist_lts_generics,
+    ]);
+    let generics_with_field_lt = CombinedGenerics(vec![
+        &info.field_lts_outlive_chain,
+        &info.exist_lts_generics,
+        generics,
+    ]);
 
     let (impl_generics, ty_generics, whr) = generics.split_for_impl();
     let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
+    let (_, field_exist_lt_ty_generics, _) = field_exist_lts.split_for_impl();
     let (impl_generics_with_lt, ty_generics_with_field_lt, whr_with_field_lt) =
         generics_with_field_lt.split_for_impl();
 
@@ -1778,6 +1996,7 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
         })
         .collect::<TokenStream>();
 
+    let exist_lt_generics_params = info.exist_lts_generics.params.iter();
     quote! {
         // We declare this struct which will host all of the projection function for our type.
         #[doc(hidden)]
@@ -1833,7 +2052,7 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
         {
             /// Type inference helper function.
             #[inline(always)]
-            #vis fn __make_closure<__F, __E>(self, f: __F) -> __F
+            #vis fn __make_closure<#(#exist_lt_generics_params,)* __F, __E>(self, f: __F) -> __F
             where
                 __F: for #field_lt_ty_generics ::core::ops::FnOnce(
                     *mut #struct_name #ty_generics,
@@ -1844,7 +2063,9 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
             }
 
             #[inline(always)]
-            #vis fn __with_lt #field_lts(self) -> __PinDataLt #ty_generics_with_field_lt {
+            #vis fn __with_lt #field_exist_lt_ty_generics(self)
+                -> __PinDataLt #ty_generics_with_field_lt
+            {
                 // Generate a zeroed to avoid naming all fields.
                 // SAFETY: `__PinDataLt` only contains phantom fields.
                 unsafe { ::core::mem::zeroed() }

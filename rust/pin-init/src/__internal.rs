@@ -725,3 +725,18 @@ impl<T: ?Sized> NotVisible<T> {
         Self(PhantomData)
     }
 }
+
+/// Marker type to capture outlive bounds coming from existential lifetimes.
+pub struct ExistLt<'a>(PhantomData<&'a ()>);
+
+// Dummy `Drop`, same reason as `Borrowed`.
+impl Drop for ExistLt<'_> {
+    #[inline(always)]
+    fn drop(&mut self) {}
+}
+
+/// Type that allows additional `PhantomData` to be attached.
+///
+/// This allows changing variance of types without introducing additional fields.
+#[repr(transparent)]
+pub struct WithPhantom<T, P>(PhantomData<P>, T);
