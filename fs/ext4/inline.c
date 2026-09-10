@@ -151,7 +151,7 @@ int ext4_find_inline_data_nolock(struct inode *inode)
 	};
 	int error;
 
-	if (EXT4_I(inode)->i_extra_isize == 0)
+	if (!EXT4_INODE_HAS_XATTR_SPACE(inode))
 		return 0;
 
 	error = ext4_get_inode_loc(inode, &is.iloc);
