@@ -136,6 +136,8 @@ static int sysctl_k2u_int_conv_userhz(bool *negp, ulong *u_ptr, const int *k_ptr
 
 static ulong sysctl_msecs_to_jiffies(const ulong val)
 {
+	if (val > jiffies_to_msecs(MAX_JIFFY_OFFSET))
+		return MAX_JIFFY_OFFSET;
 	return msecs_to_jiffies(val);
 }
 
