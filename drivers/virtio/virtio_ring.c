@@ -559,6 +559,11 @@ static void virtqueue_init(struct vring_virtqueue *vq, u32 num)
 	vq->in_use = false;
 	vq->last_add_time_valid = false;
 #endif
+
+	if (virtqueue_is_in_order(vq)) {
+		vq->free_head = 0;
+		vq->batch_last.id = UINT_MAX;
+	}
 }
 
 
