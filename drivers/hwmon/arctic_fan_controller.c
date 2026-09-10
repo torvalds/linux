@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 /*
  * Linux hwmon driver for ARCTIC Fan Controller
  *
@@ -375,4 +375,4 @@ module_hid_driver(arctic_fan_driver);
 
 MODULE_AUTHOR("Aureo Serrano de Souza <aureo.serrano@arctic.de>");
 MODULE_DESCRIPTION("HID hwmon driver for ARCTIC Fan Controller");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0-or-later
+.. SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 
 Kernel driver arctic_fan_controller
 =====================================
