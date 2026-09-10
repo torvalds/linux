@@ -1416,7 +1416,7 @@ Controls whether userspace may arm Syscall User Dispatch via
   ==  ===================================================================
 
 Only present when the kernel is built with ``CONFIG_SYSCALL_USER_DISPATCH``
-and ``CONFIG_PROC_SYSCTL``.
+and ``CONFIG_SYSCTL``.
 
 
 sysctl_writes_strict
