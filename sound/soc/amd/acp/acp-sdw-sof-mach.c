@@ -121,6 +121,15 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			return -EINVAL;
 		}
 
+		if (!sof_end->link_mask) {
+			dev_err(dev, "invalid zero link_mask\n");
+			return -EINVAL;
+		}
+		if ((ffs(sof_end->link_mask) - 1) >= amd_ctx->max_sdw_links) {
+			dev_err(dev, "link_id %d exceeds max_sdw_links %d\n",
+				ffs(sof_end->link_mask) - 1, amd_ctx->max_sdw_links);
+			return -EINVAL;
+		}
 		switch (amd_ctx->acp_rev) {
 		case ACP63_PCI_REV:
 			ret = get_acp63_cpu_pin_id(ffs(sof_end->link_mask - 1),
