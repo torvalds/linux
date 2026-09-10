@@ -3,6 +3,7 @@
  * Copyright (c) 2024 Paulo Alcantara <pc@manguebit.com>
  */
 
+#include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
@@ -159,15 +160,24 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		convert_delimiter(sym, sep);
 
 	/*
-	 * For absolute NT symlinks it is required to pass also leading
-	 * backslash and to not mangle NT object prefix "\\??\\" and not to
-	 * mangle colon in drive letter. But cifs_convert_path_to_utf16()
-	 * removes leading backslash and replaces '?' and ':'. So temporary
-	 * mask these characters in NT object prefix by '_' and then change
-	 * them back.
+	 * Absolute NT symlinks must retain the leading backslash, "\\??\\"
+	 * prefix and drive-letter colon. cifs_convert_path_to_utf16() strips
+	 * the leading backslash and maps '?' and ':', so temporarily mask
+	 * these characters with '_' and restore them after conversion.
+	 *
+	 * When symlinkroot is unset, sym comes directly from the caller.
+	 * Validate the complete "\\??\\X:" prefix before using fixed offsets
+	 * or subtracting the NT prefix length below. Require an ASCII drive
+	 * letter so the prefix occupies six characters in UTF-16 too.
 	 */
-	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
+	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		if (!strstarts(sym, "\\??\\") || !isascii(sym[4]) ||
+		    !isalpha(sym[4]) || sym[5] != ':') {
+			rc = -EINVAL;
+			goto out;
+		}
 		sym[0] = sym[1] = sym[2] = sym[5] = '_';
+	}
 
 	/*
 	 * On a POSIX paths mount the symlink target is stored verbatim, so
