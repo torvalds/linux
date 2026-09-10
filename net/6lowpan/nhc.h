@@ -15,7 +15,7 @@
  * @__nhc: variable name of the lowpan_nhc struct.
  * @_name: const char * of common header compression name.
  * @_nexthdr: ipv6 nexthdr field for the header compression.
- * @_nexthdrlen: ipv6 nexthdr len for the reserved space.
+ * @_hdrlen: ipv6 nexthdr len for the reserved space.
  * @_id: one byte nhc id value.
  * @_idmask: one byte nhc id mask value.
  * @_uncompress: callback for uncompression call.
@@ -102,7 +102,6 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 /**
  * lowpan_nhc_do_uncompression - calling uncompress callback for nhc
  *
- * @nhc: 6LoWPAN nhc context, get by lowpan_nhc_by_ functions.
  * @skb: skb of 6LoWPAN header, skb->data should be pointed to nhc id value.
  * @dev: netdevice for print logging information.
  * @hdr: ipv6hdr for setting nexthdr value.

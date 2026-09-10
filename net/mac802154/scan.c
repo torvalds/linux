@@ -104,13 +104,9 @@ static unsigned int mac802154_scan_get_channel_time(u8 duration_order,
 
 static void mac802154_flush_queued_beacons(struct ieee802154_local *local)
 {
-	struct cfg802154_mac_pkt *mac_pkt, *tmp;
-
-	list_for_each_entry_safe(mac_pkt, tmp, &local->rx_beacon_list, node) {
-		list_del(&mac_pkt->node);
-		kfree_skb(mac_pkt->skb);
-		kfree(mac_pkt);
-	}
+	spin_lock_bh(&local->rx_lock);
+	mac802154_flush_list(&local->rx_beacon_list, NULL);
+	spin_unlock_bh(&local->rx_lock);
 }
 
 static void

@@ -1672,15 +1672,22 @@ static int ionic_tx(struct net_device *netdev, struct ionic_queue *q,
 	stats->pkts++;
 	stats->bytes += skb->len;
 
+	ionic_txq_post(q, false);
+
 	if (likely(!ionic_txq_hwstamp_enabled(q))) {
 		struct netdev_queue *ndq = q_to_ndq(netdev, q);
 
-		if (unlikely(!ionic_q_has_space(q, MAX_SKB_FRAGS + 1)))
-			netif_tx_stop_queue(ndq);
+		netif_txq_maybe_stop(ndq, ionic_q_space_avail(q),
+				     MAX_SKB_FRAGS + 1, MAX_SKB_FRAGS + 1);
 		ring_dbell = __netdev_tx_sent_queue(ndq, skb->len,
 						    netdev_xmit_more());
 	}
-	ionic_txq_post(q, ring_dbell);
+
+	if (ring_dbell) {
+		ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
+				 q->dbval | q->head_idx);
+		q->dbell_jiffies = jiffies;
+	}
 
 	return 0;
 }

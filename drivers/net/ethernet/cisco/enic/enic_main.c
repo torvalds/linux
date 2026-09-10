@@ -1800,6 +1800,8 @@ static int enic_open(struct net_device *netdev)
 
 	enic_notify_timer_start(enic);
 	enic_rfs_timer_start(enic);
+	if (enic_is_sriov_vf_v2(enic))
+		enic_mbox_vf_link_state_set_running(enic, true);
 
 	return 0;
 
@@ -1853,7 +1855,10 @@ static int enic_stop(struct net_device *netdev)
 	for (i = 0; i < enic->rq_count; i++)
 		napi_disable(&enic->napi[i]);
 
-	netif_carrier_off(netdev);
+	if (enic_is_sriov_vf_v2(enic))
+		enic_mbox_vf_link_state_set_running(enic, false);
+	else
+		netif_carrier_off(netdev);
 	if (vnic_dev_get_intr_mode(enic->vdev) == VNIC_DEV_INTR_MODE_MSIX)
 		for (i = 0; i < enic->wq_count; i++)
 			napi_disable(&enic->napi[enic_cq_wq(enic, i)]);
@@ -2201,9 +2206,10 @@ static void enic_admin_chan_reopen(struct enic *enic)
 {
 	int err;
 
-	/* Install the MBOX receive handler and reset the sequence number
-	 * before opening the channel, so the handler is in place before the
-	 * admin interrupt is unmasked and no early completion is dropped.
+	/* Install the MBOX receive handler and clear pending reply state before
+	 * opening the channel, so the handler is in place before the admin
+	 * interrupt is unmasked and no early completion is dropped.  Keep the
+	 * sequence number monotonic across channel generations.
 	 */
 	enic_mbox_init(enic);
 
@@ -2215,7 +2221,7 @@ static void enic_admin_chan_reopen(struct enic *enic)
 	 * registration over a dead channel.
 	 */
 	if (enic_is_sriov_vf_v2(enic))
-		enic->vf_registered = false;
+		WRITE_ONCE(enic->vf_registered, false);
 
 	err = enic_admin_channel_open(enic);
 	if (err) {
@@ -2271,6 +2277,8 @@ static void enic_reset(struct work_struct *work)
 		enic_admin_channel_close(enic);
 
 	enic_stop(enic->netdev);
+	if (enic_is_sriov_vf_v2(enic))
+		enic_mbox_vf_link_state_reset(enic);
 
 	enic_dev_soft_reset(enic);
 	enic_reset_addr_lists(enic);
@@ -2315,6 +2323,8 @@ static void enic_tx_hang_reset(struct work_struct *work)
 
 	enic_dev_hang_notify(enic);
 	enic_stop(enic->netdev);
+	if (enic_is_sriov_vf_v2(enic))
+		enic_mbox_vf_link_state_reset(enic);
 
 	enic_dev_hang_reset(enic);
 	enic_reset_addr_lists(enic);
@@ -3015,6 +3025,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	enic = netdev_priv(netdev);
 	enic->netdev = netdev;
 	enic->pdev = pdev;
+	spin_lock_init(&enic->vf_link_state_lock);
 
 	/* Setup PCI resources
 	 */
@@ -3339,7 +3350,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_admin_close:
 	if (enic_is_sriov_vf_v2(enic)) {
-		if (enic->vf_registered) {
+		if (READ_ONCE(enic->vf_registered)) {
 			int unreg_err = enic_mbox_vf_unregister(enic);
 
 			if (unreg_err)
@@ -3392,7 +3403,7 @@ static void enic_remove(struct pci_dev *pdev)
 		 * touching a netdev that is being torn down.
 		 */
 		if (enic_is_sriov_vf_v2(enic)) {
-			if (enic->vf_registered) {
+			if (READ_ONCE(enic->vf_registered)) {
 				int unreg_err = enic_mbox_vf_unregister(enic);
 
 				if (unreg_err)

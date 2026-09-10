@@ -105,5 +105,209 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
         ]
+    },
+    {
+        "id": "dbe3",
+        "name": "Set tx_queue_len to S16_MAX boundary (32767 accepted)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$IP link set dev $DUMMY txqueuelen 32767",
+        "expExitCode": "0",
+        "verifyCmd": "$IP link show dev $DUMMY",
+        "matchPattern": "qlen 32767$",
+        "matchCount": "1",
+        "teardown": []
+    },
+    {
+        "id": "b50e",
+        "name": "Reject tx_queue_len above S16_MAX at set time (32768)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$IP link set dev $DUMMY txqueuelen 32768",
+        "expExitCode": "2",
+        "verifyCmd": "$IP link show dev $DUMMY",
+        "matchPattern": "qlen 1000$",
+        "matchCount": "1",
+        "teardown": []
+    },
+    {
+        "id": "40f8",
+        "name": "Reject tx_queue_len above S16_MAX via sysfs (32768)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "sh -c 'echo 32768 > /sys/class/net/$DUMMY/tx_queue_len'",
+        "expExitCode": "1",
+        "verifyCmd": "$IP link show dev $DUMMY",
+        "matchPattern": "qlen 1000$",
+        "matchCount": "1",
+        "teardown": []
+    },
+    {
+        "id": "4b6e",
+        "name": "Set tx_queue_len to S16_MAX via sysfs (32767 accepted)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "sh -c 'echo 32767 > /sys/class/net/$DUMMY/tx_queue_len'",
+        "expExitCode": "0",
+        "verifyCmd": "$IP link show dev $DUMMY",
+        "matchPattern": "qlen 32767$",
+        "matchCount": "1",
+        "teardown": []
+    },
+    {
+        "id": "b90d",
+        "name": "Create device with tx_queue_len at S16_MAX boundary (32767 accepted)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$IP link del dev $DUMMY",
+                0,
+                1
+            ]
+        ],
+        "cmdUnderTest": "$IP link add dev $DUMMY txqueuelen 32767 type dummy",
+        "expExitCode": "0",
+        "verifyCmd": "$IP link show dev $DUMMY",
+        "matchPattern": "qlen 32767$",
+        "matchCount": "1",
+        "teardown": [
+            [
+                "$IP link del dev $DUMMY",
+                0,
+                1
+            ]
+        ]
+    },
+    {
+        "id": "57ab",
+        "name": "Reject creating device with tx_queue_len above S16_MAX (32768)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$IP link del dev $DUMMY",
+                0,
+                1
+            ]
+        ],
+        "cmdUnderTest": "$IP link add dev $DUMMY txqueuelen 32768 type dummy",
+        "expExitCode": "2",
+        "verifyCmd": "$IP -o link show",
+        "matchPattern": "^[0-9]+: $DUMMY",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "e777",
+        "name": "Reject creating device with oversized tx_queue_len (500000)",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$IP link del dev $DUMMY",
+                0,
+                1
+            ]
+        ],
+        "cmdUnderTest": "$IP link add dev $DUMMY txqueuelen 500000 type dummy",
+        "expExitCode": "2",
+        "verifyCmd": "$IP -o link show",
+        "matchPattern": "^[0-9]+: $DUMMY",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "31ac",
+        "name": "Reject veth peer nest tx_queue_len above S16_MAX at create",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$IP link del dev $DEV1",
+                0,
+                1
+            ]
+        ],
+        "cmdUnderTest": "$IP link add dev $DEV1 type veth peer name $DEV0 txqueuelen 500000",
+        "expExitCode": "2",
+        "verifyCmd": "$IP -o link show",
+        "matchPattern": "^[0-9]+: $DEV1",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "b567",
+        "name": "Accept veth peer nest tx_queue_len within S16_MAX",
+        "category": [
+            "qdisc",
+            "pfifo_fast"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$IP link del dev $DEV1",
+                0,
+                1
+            ]
+        ],
+        "cmdUnderTest": "$IP link add dev $DEV1 txqueuelen 100 type veth peer name $DEV0 txqueuelen 200",
+        "expExitCode": "0",
+        "verifyCmd": "$IP link show",
+        "matchPattern": "qlen (100|200)$",
+        "matchCount": "2",
+        "teardown": [
+            [
+                "$IP link del dev $DEV0",
+                0,
+                1
+            ]
+        ]
     }
 ]
