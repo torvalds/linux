@@ -1596,7 +1596,7 @@ int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 	 * ASoC will set the corresponding channel numbers for each cpu dai.
 	 */
 	for_each_link_ch_maps(rtd->dai_link, i, ch_maps)
-		ch_maps->ch_mask = ch_mask << (i * step);
+		ch_maps->cpu_ch_mask = ch_mask << (i * step);
 
 	return 0;
 }
