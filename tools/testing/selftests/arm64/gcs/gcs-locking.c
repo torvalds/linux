@@ -115,7 +115,7 @@ TEST_F(valid_modes, enable_lock_disable)
 	ASSERT_EQ(ret, 0);
 
 	ret = my_syscall2(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0);
-	ASSERT_EQ(ret, -EBUSY);
+	ASSERT_EQ(ret, -EPERM);
 
 	_exit(0);
 }
@@ -131,7 +131,7 @@ TEST_F(valid_modes, lock_enable)
 
 	ret = my_syscall2(__NR_prctl, PR_SET_SHADOW_STACK_STATUS,
 			  variant->mode);
-	ASSERT_EQ(ret, -EBUSY);
+	ASSERT_EQ(ret, -EPERM);
 
 	ret = prctl(PR_GET_SHADOW_STACK_STATUS, &mode, 0, 0, 0);
 	ASSERT_EQ(ret, 0);
