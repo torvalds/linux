@@ -1489,10 +1489,8 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 				     struct heuristic_ws *ws)
 {
 	const u32 blocksize = BTRFS_I(inode)->root->fs_info->sectorsize;
-	struct folio *folio;
-	u64 index, index_end;
-	u32 i, curr_sample_pos;
-	u8 *in_data;
+	u64 cur = start;
+	u32 curr_sample_pos = 0;
 
 	ASSERT(IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize));
 
@@ -1508,33 +1506,27 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 	if (end + 1 - start > BTRFS_MAX_UNCOMPRESSED)
 		end = start + BTRFS_MAX_UNCOMPRESSED - 1;
 
-	index = start >> PAGE_SHIFT;
-	index_end = end >> PAGE_SHIFT;
+	while (cur < end) {
+		struct folio *folio;
+		void *in_data;
+		u64 next_pos;
 
-	curr_sample_pos = 0;
-	while (index <= index_end) {
-		folio = filemap_get_folio(inode->i_mapping, index);
+		folio = filemap_get_folio(inode->i_mapping, cur >> PAGE_SHIFT);
+		/* All folios inside the range should exist and be locked. */
 		ASSERT(!IS_ERR(folio));
-		in_data = kmap_local_folio(folio,
-				offset_in_folio(folio, index << PAGE_SHIFT));
-		/* Handle case where the start is not aligned to PAGE_SIZE */
-		i = start % PAGE_SIZE;
-		while (i < PAGE_SIZE - SAMPLING_READ_SIZE) {
-			/* Don't sample any garbage from the last page */
-			if (start > end + 1 - SAMPLING_READ_SIZE)
-				break;
-			memcpy(&ws->sample[curr_sample_pos], &in_data[i],
-					SAMPLING_READ_SIZE);
-			i += SAMPLING_INTERVAL;
-			start += SAMPLING_INTERVAL;
+		next_pos = min_t(u64, end + 1, folio_next_pos(folio));
+		in_data = kmap_local_folio(folio, 0);
+
+		for (; cur < next_pos; cur += SAMPLING_INTERVAL) {
+			memcpy(&ws->sample[curr_sample_pos],
+			       in_data + offset_in_folio(folio, cur),
+			       SAMPLING_READ_SIZE);
 			curr_sample_pos += SAMPLING_READ_SIZE;
 		}
 		kunmap_local(in_data);
 		folio_put(folio);
-
-		index++;
+		cur = next_pos;
 	}
-
 	ws->sample_size = curr_sample_pos;
 }
 
