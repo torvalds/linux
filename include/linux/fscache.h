@@ -147,6 +147,23 @@ struct fscache_cookie {
 	};
 };
 
+enum fscache_extent_type {
+	FSCACHE_EXTENT_DATA,
+	FSCACHE_EXTENT_ZERO,
+} __mode(byte);
+
+/*
+ * Cache occupancy information.
+ */
+struct fscache_occupancy {
+	unsigned long long	query_from;	/* Point to query from */
+	unsigned long long	query_to;	/* Point to query to */
+	unsigned long long	cached_from[2];	/* Point at which cache extents start */
+	unsigned long long	cached_to[2];	/* Point at which cache extents end */
+	unsigned int		granularity;	/* Granularity desired */
+	enum fscache_extent_type cached_type[2];	/* Type of cache extent */
+};
+
 /*
  * slow-path functions for when there is actually caching available, and the
  * netfs does actually have a valid token

@@ -43,6 +43,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 	struct dentry *dentry;
 	struct file *file = object->file;
 	unsigned int len = object->cookie->aux_len;
+	uoff_t object_size = object->cookie->object_size;
 	int ret;
 
 	if (!file)
@@ -55,7 +56,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 	if (!buf)
 		return -ENOMEM;
 
-	buf->object_size	= cpu_to_be64(object->cookie->object_size);
+	buf->object_size	= cpu_to_be64(object_size);
 	buf->zero_point		= 0;
 	buf->type		= CACHEFILES_COOKIE_TYPE_DATA;
 	buf->content		= object->content_info;
@@ -79,7 +80,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 		trace_cachefiles_vfs_error(object, file_inode(file), ret,
 					   cachefiles_trace_setxattr_error);
 		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
-					   buf->data, buf->content,
+					   object_size, buf->data, buf->content,
 					   cachefiles_coherency_set_fail);
 		if (ret != -ENOMEM)
 			cachefiles_io_error_obj(
@@ -87,7 +88,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 				"Failed to set xattr with error %d", ret);
 	} else {
 		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
-					   buf->data, buf->content,
+					   object_size, buf->data, buf->content,
 					   cachefiles_coherency_set_ok);
 	}
 
@@ -103,10 +104,12 @@ int cachefiles_check_auxdata(struct cachefiles_object *object, struct file *file
 {
 	struct cachefiles_xattr *buf;
 	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file_inode(file);
 	unsigned int len = object->cookie->aux_len, tlen;
 	const void *p = fscache_get_aux(object->cookie);
 	enum cachefiles_coherency_trace why;
 	ssize_t xlen;
+	uoff_t obj_size;
 	int ret = -ESTALE;
 
 	tlen = sizeof(struct cachefiles_xattr) + len;
@@ -121,34 +124,39 @@ int cachefiles_check_auxdata(struct cachefiles_object *object, struct file *file
 	if (xlen != tlen) {
 		if (xlen < 0) {
 			ret = xlen;
-			trace_cachefiles_vfs_error(object, file_inode(file), xlen,
+			trace_cachefiles_vfs_error(object, inode, xlen,
 						   cachefiles_trace_getxattr_error);
 		}
 		if (xlen == -EIO)
 			cachefiles_io_error_obj(
 				object,
 				"Failed to read aux with error %zd", xlen);
+		obj_size = 0;
 		why = cachefiles_coherency_check_xattr;
 		goto out;
 	}
 
+	obj_size = be64_to_cpu(buf->object_size);
 	if (buf->type != CACHEFILES_COOKIE_TYPE_DATA) {
 		why = cachefiles_coherency_check_type;
 	} else if (memcmp(buf->data, p, len) != 0) {
 		why = cachefiles_coherency_check_aux;
-	} else if (be64_to_cpu(buf->object_size) != object->cookie->object_size) {
+	} else if (obj_size != object->cookie->object_size) {
 		why = cachefiles_coherency_check_objsize;
 	} else if (buf->content == CACHEFILES_CONTENT_DIRTY) {
 		// TODO: Begin conflict resolution
 		pr_warn("Dirty object in cache\n");
 		why = cachefiles_coherency_check_dirty;
 	} else {
+		object->content_info = buf->content;
+		object->object_size = obj_size;
+		atomic64_set(&object->read_limit, i_size_read(inode));
 		why = cachefiles_coherency_check_ok;
 		ret = 0;
 	}
 
 out:
-	trace_cachefiles_coherency(object, file_inode(file)->i_ino,
+	trace_cachefiles_coherency(object, inode->i_ino, obj_size,
 				   buf->data, buf->content, why);
 	kfree(buf);
 	return ret;
@@ -162,6 +170,9 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 				   struct dentry *dentry)
 {
 	int ret;
+
+	trace_cachefiles_coherency(object, d_inode(dentry)->i_ino, 0, NULL, 0,
+				   cachefiles_coherency_remove);
 
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0) {

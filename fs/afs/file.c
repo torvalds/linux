@@ -447,7 +447,6 @@ void afs_set_i_size(struct afs_vnode *vnode, uoff_t new_i_size)
 	}
 	spin_unlock(&inode->i_lock);
 	write_sequnlock(&vnode->cb_lock);
-	fscache_update_cookie(afs_vnode_cache(vnode), NULL, &new_i_size);
 }
 
 static void afs_update_i_size(struct inode *inode, uoff_t new_i_size)

@@ -49,6 +49,10 @@
 #define netfs_rreq_traces					\
 	EM(netfs_rreq_trace_all_queued,		"ALL-Q  ")	\
 	EM(netfs_rreq_trace_assess,		"ASSESS ")	\
+	EM(netfs_rreq_trace_cache_cancelled,	"CA-CNCL")	\
+	EM(netfs_rreq_trace_cache_failed,	"CA-FAIL")	\
+	EM(netfs_rreq_trace_cache_fail_collect,	"CA-F-CO")	\
+	EM(netfs_rreq_trace_cache_no_space,	"CA-NOSP")	\
 	EM(netfs_rreq_trace_collect,		"COLLECT")	\
 	EM(netfs_rreq_trace_complete,		"COMPLET")	\
 	EM(netfs_rreq_trace_copy,		"COPY   ")	\
@@ -57,11 +61,14 @@
 	EM(netfs_rreq_trace_end_copy_to_cache,	"END-C2C")	\
 	EM(netfs_rreq_trace_free,		"FREE   ")	\
 	EM(netfs_rreq_trace_intr,		"INTR   ")	\
+	EM(netfs_rreq_trace_inval_cache,	"INVL-CA")	\
 	EM(netfs_rreq_trace_ki_complete,	"KI-CMPL")	\
 	EM(netfs_rreq_trace_ra_put_ref,		"RA-PUT ")	\
 	EM(netfs_rreq_trace_recollect,		"RECLLCT")	\
 	EM(netfs_rreq_trace_redirty,		"REDIRTY")	\
 	EM(netfs_rreq_trace_resubmit,		"RESUBMT")	\
+	EM(netfs_rreq_trace_retry_begin,	"RETRY-BEGIN")	\
+	EM(netfs_rreq_trace_retry_end,		"RETRY-END")	\
 	EM(netfs_rreq_trace_set_abandon,	"S-ABNDN")	\
 	EM(netfs_rreq_trace_set_pause,		"PAUSE  ")	\
 	EM(netfs_rreq_trace_unlock,		"UNLOCK ")	\
@@ -135,12 +142,12 @@
 
 #define netfs_failures							\
 	EM(netfs_fail_check_write_begin,	"check-write-begin")	\
-	EM(netfs_fail_copy_to_cache,		"copy-to-cache")	\
 	EM(netfs_fail_dio_read_short,		"dio-read-short")	\
 	EM(netfs_fail_dio_read_zero,		"dio-read-zero")	\
 	EM(netfs_fail_read,			"read")			\
 	EM(netfs_fail_short_read,		"short-read")		\
 	EM(netfs_fail_prepare_write,		"prep-write")		\
+	EM(netfs_fail_upload,			"upload")		\
 	E_(netfs_fail_write,			"write")
 
 #define netfs_rreq_ref_traces					\

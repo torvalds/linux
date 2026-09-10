@@ -58,20 +58,6 @@ static int netfs_single_begin_cache_read(struct netfs_io_request *rreq, struct n
 	return fscache_begin_read_operation(&rreq->cache_resources, netfs_i_cookie(ctx));
 }
 
-static void netfs_single_cache_prepare_read(struct netfs_io_request *rreq,
-					    struct netfs_io_subrequest *subreq)
-{
-	struct netfs_cache_resources *cres = &rreq->cache_resources;
-
-	if (!cres->ops) {
-		subreq->source = NETFS_DOWNLOAD_FROM_SERVER;
-		return;
-	}
-	subreq->source = cres->ops->prepare_read(subreq, rreq->i_size);
-	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
-
-}
-
 static void netfs_single_read_cache(struct netfs_io_request *rreq,
 				    struct netfs_io_subrequest *subreq)
 {
@@ -89,10 +75,27 @@ static void netfs_single_read_cache(struct netfs_io_request *rreq,
  */
 static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 {
+	struct fscache_occupancy occ = {
+		.query_from	= 0,
+		.query_to	= rreq->len,
+		.cached_from[0]	= ULLONG_MAX,
+		.cached_to[0]	= ULLONG_MAX,
+		.cached_from[1]	= ULLONG_MAX,
+		.cached_to[1]	= ULLONG_MAX,
+	};
 	struct netfs_io_subrequest *subreq;
+	enum netfs_io_source source = NETFS_DOWNLOAD_FROM_SERVER;
 	int ret = 0;
 
-	subreq = netfs_alloc_subrequest(rreq, NETFS_SOURCE_UNKNOWN);
+	/* Try to use the cache if the cache content matches the size of the
+	 * remote file.
+	 */
+	netfs_read_query_cache(rreq, &occ);
+	if (occ.cached_from[0] == 0 &&
+	    occ.cached_to[0] >= rreq->len)
+		source = NETFS_READ_FROM_CACHE;
+
+	subreq = netfs_alloc_subrequest(rreq, source);
 	if (!subreq)
 		return -ENOMEM;
 
@@ -102,7 +105,6 @@ static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 
 	netfs_queue_read(rreq, subreq);
 
-	netfs_single_cache_prepare_read(rreq, subreq);
 	switch (subreq->source) {
 	case NETFS_DOWNLOAD_FROM_SERVER:
 		netfs_stat(&netfs_n_rh_download);
@@ -117,6 +119,12 @@ static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 		rreq->submitted += subreq->len;
 		break;
 	case NETFS_READ_FROM_CACHE:
+		if (rreq->cache_resources.ops->prepare_read) {
+			ret = rreq->cache_resources.ops->prepare_read(subreq);
+			if (ret < 0)
+				goto cancel;
+		}
+
 		netfs_all_subreqs_queued(rreq);
 		trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
 		netfs_single_read_cache(rreq, subreq);

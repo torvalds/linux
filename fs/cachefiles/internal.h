@@ -16,8 +16,6 @@
 #include <linux/cred.h>
 #include <linux/security.h>
 
-#define CACHEFILES_DIO_BLOCK_SIZE 4096
-
 struct cachefiles_cache;
 struct cachefiles_object;
 
@@ -51,12 +49,17 @@ struct cachefiles_object {
 	struct list_head		cache_link;	/* Link in cache->*_list */
 	struct file			*file;		/* The file representing this object */
 	char				*d_name;	/* Backing file name */
+	unsigned long			flags;
+#define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */
+	uoff_t				object_size;	/* Size of the object stored
+							 * (independent of cookie->object_size for
+							 * coherency reasons)
+							 */
+	atomic64_t			read_limit;	/* Point beyond which uncommitted writes */
 	int				debug_id;
 	spinlock_t			lock;
 	refcount_t			ref;
-	enum cachefiles_content		content_info:8;	/* Info about content presence */
-	unsigned long			flags;
-#define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */
+	enum cachefiles_content		content_info;	/* Info about content presence */
 };
 
 /*

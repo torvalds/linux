@@ -22,6 +22,7 @@
 
 enum netfs_sreq_ref_trace;
 typedef struct mempool mempool_t;
+struct fscache_occupancy;
 struct folio_queue;
 
 /**
@@ -125,6 +126,12 @@ static inline struct netfs_group *netfs_folio_group(struct folio *folio)
 	return priv;
 }
 
+enum netfs_cache_collect {
+	NETFS_CACHE_COLLECT_WRITE_GAP,		/* Gap in collection, no state either way */
+	NETFS_CACHE_COLLECT_WRITE_DATA,		/* Currently collecting good writes */
+	NETFS_CACHE_COLLECT_WRITE_CANCEL,	/* Currently collecting cancelled writes */
+};
+
 /*
  * Stream of I/O subrequests going to a particular destination, such as the
  * server or the local cache.  This is mainly intended for writing where we may
@@ -152,6 +159,7 @@ struct netfs_io_stream {
 	bool			need_retry;	/* T if this stream needs retrying */
 	bool			failed;		/* T if this stream failed */
 	bool			transferred_valid; /* T is ->transferred is valid */
+	enum netfs_cache_collect cache_collect;	/* Current writeback cache collect state */
 };
 
 /*
@@ -161,9 +169,11 @@ struct netfs_cache_resources {
 	const struct netfs_cache_ops	*ops;
 	void				*cache_priv;
 	void				*cache_priv2;
+	uoff_t				cache_i_size;	/* Initial size of cache file */
 	unsigned int			cookie_id;	/* Cache cookie debug ID */
 	unsigned int			object_id;	/* Cache object debug ID */
 	unsigned int			inval_counter;	/* object->inval_counter at begin_op */
+	unsigned int			dio_size;	/* DIO block size */
 };
 
 /*
@@ -197,6 +207,7 @@ struct netfs_io_subrequest {
 #define NETFS_SREQ_IN_PROGRESS		8	/* Unlocked when the subrequest completes */
 #define NETFS_SREQ_NEED_RETRY		9	/* Set if the filesystem requests a retry */
 #define NETFS_SREQ_FAILED		10	/* Set if the subreq failed unretryably */
+#define NETFS_SREQ_CANCELLED		11	/* Set if the subreq was cancelled by netfslib */
 };
 
 enum netfs_io_origin {
@@ -252,6 +263,7 @@ struct netfs_io_request {
 	uoff_t			start;		/* Start position */
 	atomic64_t		issued_to;	/* Write issuer folio cursor */
 	uoff_t			collected_to;	/* Point we've collected to */
+	uoff_t			cache_coll_to;	/* Point the cache has collected to */
 	uoff_t			cleaned_to;	/* Position we've cleaned folios to */
 	uoff_t			abandon_to;	/* Position to abandon folios to */
 	const struct folio	*no_unlock_folio; /* Don't unlock this folio after read */
@@ -273,11 +285,13 @@ struct netfs_io_request {
 #define NETFS_RREQ_FAILED		3	/* The request failed */
 #define NETFS_RREQ_RETRYING		4	/* Set if we're in the retry path */
 #define NETFS_RREQ_SHORT_TRANSFER	5	/* Set if we have a short transfer */
-#define NETFS_RREQ_OFFLOAD_COLLECTION	8	/* Offload collection to workqueue */
-#define NETFS_RREQ_NO_UNLOCK_FOLIO	9	/* Don't unlock no_unlock_folio on completion */
+#define NETFS_RREQ_CACHE_STOP		8	/* Set to stop caching (ENOBUFS or error) */
+#define NETFS_RREQ_CACHE_ERROR		9	/* Set if we got an error from the cache */
 #define NETFS_RREQ_CANCEL_CACHING	10	/* Set to cancel caching */
-#define NETFS_RREQ_UPLOAD_TO_SERVER	11	/* Need to write to the server */
-#define NETFS_RREQ_USE_IO_ITER		12	/* Use ->io_iter rather than ->i_pages */
+#define NETFS_RREQ_OFFLOAD_COLLECTION	12	/* Offload collection to workqueue */
+#define NETFS_RREQ_NO_UNLOCK_FOLIO	13	/* Don't unlock no_unlock_folio on completion */
+#define NETFS_RREQ_UPLOAD_TO_SERVER	14	/* Need to write to the server */
+#define NETFS_RREQ_USE_IO_ITER		15	/* Use ->io_iter rather than ->i_pages */
 #define NETFS_RREQ_NEED_PUT_RA_REFS	17	/* Need to put the folio refs RA gave us */
 #ifdef CONFIG_NETFS_PGPRIV2
 #define NETFS_RREQ_USE_PGPRIV2		31	/* [DEPRECATED] Use PG_private_2 to mark
@@ -359,8 +373,7 @@ struct netfs_cache_ops {
 	/* Prepare a read operation, shortening it to a cached/uncached
 	 * boundary as appropriate.
 	 */
-	enum netfs_io_source (*prepare_read)(struct netfs_io_subrequest *subreq,
-					     uoff_t i_size);
+	int (*prepare_read)(struct netfs_io_subrequest *subreq);
 
 	/* Prepare a write subrequest, working out if we're allowed to do it
 	 * and finding out the maximum amount of data to gather before
@@ -380,8 +393,17 @@ struct netfs_cache_ops {
 	 * next chunk of data starts and how long it is.
 	 */
 	int (*query_occupancy)(struct netfs_cache_resources *cres,
-			       uoff_t start, size_t len, size_t granularity,
-			       uoff_t *_data_start, size_t *_data_len);
+			       struct fscache_occupancy *occ);
+
+	/* Collect the result of buffered writeback to the cache.  This
+	 * includes copying a read to the cache.  block_type is one of:
+	 * - NETFS_CACHE_COLLECT_WRITE_DATA for a block of data
+	 * - NETFS_CACHE_COLLECT_WRITE_GAP if a discontiguity was skipped
+	 * - NETFS_CACHE_COLLECT_WRITE_CANCEL for a cancellation gap
+	 */
+	void (*collect_write)(struct netfs_io_request *wreq,
+			      uoff_t start, size_t len,
+			      enum netfs_cache_collect block_type);
 };
 
 /* High-level read API. */
