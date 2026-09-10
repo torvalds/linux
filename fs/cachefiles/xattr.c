@@ -35,6 +35,57 @@ struct cachefiles_vol_xattr {
 } __packed;
 
 /*
+ * Preset the state xattr on a cache file to allocate space for it.
+ */
+int cachefiles_preset_object_xattr(struct cachefiles_object *object, struct file *file)
+{
+	struct cachefiles_xattr *buf;
+	struct dentry *dentry = file->f_path.dentry;
+	unsigned int len = object->cookie->aux_len;
+	int ret;
+
+	buf = kzalloc(sizeof(struct cachefiles_xattr) + min(len, sizeof(__be64)), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf->type		= CACHEFILES_COOKIE_TYPE_DATA;
+	buf->content		= CACHEFILES_CONTENT_DIRTY;
+
+	ret = cachefiles_inject_write_error();
+	if (ret == 0) {
+		ret = mnt_want_write_file(file);
+		if (ret == 0) {
+			ret = vfs_setxattr(&nop_mnt_idmap, dentry,
+					   cachefiles_xattr_cache, buf,
+					   sizeof(struct cachefiles_xattr) + len, 0);
+			mnt_drop_write_file(file);
+		}
+	}
+	if (ret < 0) {
+		trace_cachefiles_vfs_error(object, file_inode(file), ret,
+					   cachefiles_trace_setxattr_error);
+		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
+					   object->object_size,
+					   buf->data, buf->content,
+					   cachefiles_coherency_set_fail);
+		switch (ret) {
+		case -ENOMEM:
+		case -ENOSPC:
+			break;
+		default:
+			cachefiles_io_error_obj(
+				object,
+				"Failed to set xattr with error %d", ret);
+			break;
+		}
+	}
+
+	kfree(buf);
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * set the state xattr on a cache file
  */
 int cachefiles_set_object_xattr(struct cachefiles_object *object)
@@ -82,10 +133,16 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
 					   object_size, buf->data, buf->content,
 					   cachefiles_coherency_set_fail);
-		if (ret != -ENOMEM)
+		switch (ret) {
+		case -ENOMEM:
+			break;
+		case -ENOSPC:
+		default:
 			cachefiles_io_error_obj(
 				object,
 				"Failed to set xattr with error %d", ret);
+			break;
+		}
 	} else {
 		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
 					   object_size, buf->data, buf->content,

@@ -450,6 +450,11 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 		pr_notice("Cache does not support read_iter and write_iter\n");
 		goto err_unuse;
 	}
+
+	/* Preallocate space for the xattr. */
+	ret = cachefiles_preset_object_xattr(object, file);
+	if (ret < 0)
+		goto err_unuse;
 out:
 	cachefiles_end_secure(cache, saved_cred);
 	object->content_info = CACHEFILES_CONTENT_ALL;
