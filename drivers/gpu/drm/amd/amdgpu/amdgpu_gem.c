@@ -567,8 +567,10 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	if (args->flags & AMDGPU_GEM_USERPTR_VALIDATE) {
 		range = amdgpu_hmm_range_alloc(NULL);
-		if (unlikely(!range))
-			return -ENOMEM;
+		if (unlikely(!range)) {
+			r = -ENOMEM;
+			goto release_object;
+		}
 		r = amdgpu_ttm_tt_get_user_pages(bo, range);
 		if (r) {
 			amdgpu_hmm_range_free(range);
