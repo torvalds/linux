@@ -410,7 +410,7 @@ static int free_ext_block(handle_t *handle, struct inode *inode)
 int ext4_ext_migrate(struct inode *inode)
 {
 	handle_t *handle;
-	int retval = 0, i;
+	int retval = 0, err, i;
 	__le32 *i_data;
 	struct ext4_inode_info *ei;
 	struct inode *tmp_inode = NULL;
@@ -567,9 +567,12 @@ err_out:
 	}
 
 	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
-	retval = ext4_journal_ensure_credits(handle, 1, 0);
-	if (retval < 0)
+	err = ext4_journal_ensure_credits(handle, 1, 0);
+	if (err < 0) {
+		if (!retval)
+			retval = err;
 		goto out_stop;
+	}
 	/*
 	 * Mark the tmp_inode as of size zero
 	 */
