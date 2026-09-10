@@ -70,7 +70,8 @@ static int update_extent_range(handle_t *handle, struct inode *inode,
 	 */
 	if (lb->first_pblock &&
 		(lb->last_pblock+1 == pblock) &&
-		(lb->last_block+1 == lb->curr_block)) {
+		(lb->last_block+1 == lb->curr_block) &&
+		(lb->last_block - lb->first_block + 1 < EXT_INIT_MAX_LEN)) {
 		lb->last_pblock = pblock;
 		lb->last_block = lb->curr_block;
 		lb->curr_block++;
