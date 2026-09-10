@@ -2306,7 +2306,7 @@ static int check_free_space_extent(struct extent_buffer *leaf, struct btrfs_key 
 
 	if (unlikely(btrfs_item_size(leaf, slot) != 0)) {
 		generic_err(leaf, slot,
-			    "invalid item size for free space info, has %u expect 0",
+			    "invalid item size for free space extent, has %u expect 0",
 			    btrfs_item_size(leaf, slot));
 		return -EUCLEAN;
 	}
