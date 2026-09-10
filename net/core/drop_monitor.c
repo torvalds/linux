@@ -448,7 +448,7 @@ net_dm_hw_trap_summary_probe(void *ignore, const struct devlink *devlink,
 	if (metadata->trap_type == DEVLINK_TRAP_TYPE_CONTROL)
 		return;
 
-	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
+	hw_data = raw_cpu_ptr(&dm_hw_cpu_data);
 	raw_spin_lock_irqsave(&hw_data->lock, flags);
 	hw_entries = hw_data->hw_entries;
 
@@ -516,7 +516,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 	 */
 	nskb->tstamp = tstamp;
 
-	data = this_cpu_ptr(&dm_cpu_data);
+	data = raw_cpu_ptr(&dm_cpu_data);
 
 	spin_lock_irqsave(&data->drop_queue.lock, flags);
 	if (skb_queue_len(&data->drop_queue) < net_dm_queue_len)
@@ -983,7 +983,7 @@ net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
 	NET_DM_SKB_CB(nskb)->hw_metadata = n_hw_metadata;
 	nskb->tstamp = tstamp;
 
-	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
+	hw_data = raw_cpu_ptr(&dm_hw_cpu_data);
 
 	spin_lock_irqsave(&hw_data->drop_queue.lock, flags);
 	if (skb_queue_len(&hw_data->drop_queue) < net_dm_queue_len)
