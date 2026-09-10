@@ -573,6 +573,7 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 	return 0;
 
  err:
+	ida_free(&cdev_ctx->minor_ida, minor);
 	put_device(dev);
 	wq->idxd_cdev = NULL;
 	return rc;
