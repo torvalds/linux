@@ -10,7 +10,7 @@
 #include "vs_dc_top_regs.h"
 #include "vs_hwdb.h"
 
-static const u32 vs_formats_array_no_yuv444[] = {
+static const u32 vs_primary_formats_array_no_yuv444[] = {
 	DRM_FORMAT_XRGB4444,
 	DRM_FORMAT_XBGR4444,
 	DRM_FORMAT_RGBX4444,
@@ -44,7 +44,7 @@ static const u32 vs_formats_array_no_yuv444[] = {
 	/* TODO: non-RGB formats */
 };
 
-static const u32 vs_formats_array_with_yuv444[] = {
+static const u32 vs_primary_formats_array_with_yuv444[] = {
 	DRM_FORMAT_XRGB4444,
 	DRM_FORMAT_XBGR4444,
 	DRM_FORMAT_RGBX4444,
@@ -79,13 +79,13 @@ static const u32 vs_formats_array_with_yuv444[] = {
 };
 
 static const struct vs_formats vs_formats_no_yuv444 = {
-	.array = vs_formats_array_no_yuv444,
-	.num = ARRAY_SIZE(vs_formats_array_no_yuv444)
+	.primary_array = vs_primary_formats_array_no_yuv444,
+	.primary_num = ARRAY_SIZE(vs_primary_formats_array_no_yuv444)
 };
 
 static const struct vs_formats vs_formats_with_yuv444 = {
-	.array = vs_formats_array_with_yuv444,
-	.num = ARRAY_SIZE(vs_formats_array_with_yuv444)
+	.primary_array = vs_primary_formats_array_with_yuv444,
+	.primary_num = ARRAY_SIZE(vs_primary_formats_array_with_yuv444)
 };
 
 static struct vs_chip_identity vs_chip_identities[] = {
