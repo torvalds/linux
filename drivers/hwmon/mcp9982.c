@@ -395,6 +395,8 @@ static int mcp9982_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 					       reg_status, !(reg_status & MCP9982_STATUS_BUSY),
 					       MCP9982_WAKE_UP_TIME_US,
 					       MCP9982_WAKE_UP_TIME_US * 10);
+				if (ret)
+					return ret;
 				break;
 			}
 			break;
