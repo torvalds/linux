@@ -1545,7 +1545,7 @@ display_result:
 		struct isst_pkg_ctdp_level_info ctdp_level;
 
 		/* Wait for updated base frequencies */
-		usleep(2000);
+		usleep(10000);
 
 		/* Adjusting uncore freq */
 		if (!is_dmr_plus_platform())
