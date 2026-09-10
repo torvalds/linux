@@ -1895,6 +1895,33 @@ static const struct dmi_system_id power_limits[] = {
 			},
 		},
 	},
+		{
+			.matches = {
+				DMI_MATCH(DMI_BOARD_NAME, "GX651AR"),
+			},
+			.driver_data = &(struct power_data) {
+				.ac_data = &(struct power_limits) {
+					.ppt_pl1_spl_min = 30,
+					.ppt_pl1_spl_max = 75,
+					.ppt_pl2_sppt_min = 38,
+					.ppt_pl2_sppt_max = 80,
+					.nv_dynamic_boost_min = 5,
+					.nv_dynamic_boost_max = 25,
+					.nv_temp_target_min = 75,
+					.nv_temp_target_max = 87,
+					.nv_tgp_min = 80,
+					.nv_tgp_max = 115,
+				},
+				.dc_data = &(struct power_limits) {
+					.ppt_pl1_spl_min = 30,
+					.ppt_pl1_spl_max = 75,
+					.ppt_pl2_sppt_min = 38,
+					.ppt_pl2_sppt_max = 80,
+					.nv_temp_target_min = 75,
+					.nv_temp_target_max = 87,
+				},
+			},
+		},
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "GZ302EA"),
