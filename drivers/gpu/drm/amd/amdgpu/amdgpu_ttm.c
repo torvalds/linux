@@ -2081,6 +2081,7 @@ static int amdgpu_ttm_buffer_entity_init(struct amdgpu_gtt_mgr *mgr,
 	r = amdgpu_gtt_mgr_alloc_entries(mgr, &entity->gart_node, num_pages,
 					 DRM_MM_INSERT_BEST);
 	if (r) {
+		mutex_destroy(&entity->lock);
 		drm_sched_entity_destroy(&entity->base);
 		return r;
 	}
@@ -2098,6 +2099,7 @@ static void amdgpu_ttm_buffer_entity_fini(struct amdgpu_gtt_mgr *mgr,
 					  struct amdgpu_ttm_buffer_entity *entity)
 {
 	amdgpu_gtt_mgr_free_entries(mgr, &entity->gart_node);
+	mutex_destroy(&entity->lock);
 	drm_sched_entity_destroy(&entity->base);
 }
 
