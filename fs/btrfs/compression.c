@@ -1488,10 +1488,13 @@ static bool sample_repeated_patterns(struct heuristic_ws *ws)
 static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 				     struct heuristic_ws *ws)
 {
+	const u32 blocksize = BTRFS_I(inode)->root->fs_info->sectorsize;
 	struct folio *folio;
 	u64 index, index_end;
 	u32 i, curr_sample_pos;
 	u8 *in_data;
+
+	ASSERT(IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize));
 
 	/*
 	 * Compression handles the input data by chunks of 128KiB
@@ -1502,18 +1505,14 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 	 * MAX_SAMPLE_SIZE - calculated under assumption that heuristic will
 	 * process no more than BTRFS_MAX_UNCOMPRESSED at a time.
 	 */
-	if (end - start > BTRFS_MAX_UNCOMPRESSED)
-		end = start + BTRFS_MAX_UNCOMPRESSED;
+	if (end + 1 - start > BTRFS_MAX_UNCOMPRESSED)
+		end = start + BTRFS_MAX_UNCOMPRESSED - 1;
 
 	index = start >> PAGE_SHIFT;
 	index_end = end >> PAGE_SHIFT;
 
-	/* Don't miss unaligned end */
-	if (!PAGE_ALIGNED(end))
-		index_end++;
-
 	curr_sample_pos = 0;
-	while (index < index_end) {
+	while (index <= index_end) {
 		folio = filemap_get_folio(inode->i_mapping, index);
 		ASSERT(!IS_ERR(folio));
 		in_data = kmap_local_folio(folio,
@@ -1522,7 +1521,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 		i = start % PAGE_SIZE;
 		while (i < PAGE_SIZE - SAMPLING_READ_SIZE) {
 			/* Don't sample any garbage from the last page */
-			if (start > end - SAMPLING_READ_SIZE)
+			if (start > end + 1 - SAMPLING_READ_SIZE)
 				break;
 			memcpy(&ws->sample[curr_sample_pos], &in_data[i],
 					SAMPLING_READ_SIZE);

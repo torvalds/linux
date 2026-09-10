@@ -730,6 +730,9 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 				      u64 end, bool check_inline)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 blocksize = fs_info->sectorsize;
+
+	ASSERT(IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize));
 
 	if (unlikely(!btrfs_inode_can_compress(inode))) {
 		DEBUG_WARN("BTRFS: unexpected compression for ino %llu", btrfs_ino(inode));
@@ -2331,7 +2334,7 @@ static int run_delalloc_inline(struct btrfs_inode *inode, struct folio *locked_f
 	btrfs_check_folio_write_protected(locked_folio);
 
 	if (btrfs_inode_can_compress(inode) &&
-	    inode_need_compress(inode, 0, blocksize, true)) {
+	    inode_need_compress(inode, 0, blocksize - 1, true)) {
 		if (inode->defrag_compress > 0 &&
 		    inode->defrag_compress < BTRFS_NR_COMPRESS_TYPES) {
 			compress_type = inode->defrag_compress;
