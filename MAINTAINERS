@@ -2177,7 +2177,7 @@ F:	drivers/net/arcnet/
 F:	include/uapi/linux/if_arcnet.h
 
 ARCTIC FAN CONTROLLER DRIVER
-M:	Aureo Serrano de Souza <aureo.serrano@arctic.de>
+M:	ARCTIC (HK) <arctic.it.hk@arctic.de>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/arctic_fan_controller.rst
