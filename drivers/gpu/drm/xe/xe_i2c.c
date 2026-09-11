@@ -318,8 +318,10 @@ void xe_i2c_pm_resume(struct xe_device *xe, bool d3cold)
 static void xe_i2c_remove(void *data)
 {
 	struct xe_i2c *i2c = data;
+	struct xe_device *xe = tile_to_xe(i2c->mmio->tile);
 	unsigned int i;
 
+	xe_i2c_irq_reset(xe);
 	xe_amc_exit(i2c);
 
 	for (i = 0; i < XE_I2C_MAX_CLIENTS; i++) {
@@ -329,6 +331,7 @@ static void xe_i2c_remove(void *data)
 
 	bus_unregister_notifier(&i2c_bus_type, &i2c->bus_notifier);
 	xe_i2c_unregister_adapter(i2c);
+	xe->i2c = NULL;
 }
 
 /**
