@@ -277,6 +277,9 @@ struct inbound_win {
 	u64 cpu_addr;
 };
 
+/* QUIRKS */
+#define BQUIRK(pcie, quirk)	((pcie)->cfg->quirks & CFG_QUIRK_ ## quirk)
+
 /*
  * The RESCAL block is tied to PCIe controller #1, regardless of the number of
  * controllers, and turning off PCIe controller #1 prevents access to the RESCAL
@@ -1627,7 +1630,7 @@ static int brcm_pcie_turn_off(struct brcm_pcie *pcie)
 	u32p_replace_bits(&tmp, 1, PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK);
 	writel(tmp, base + HARD_DEBUG(pcie));
 
-	if (!(pcie->cfg->quirks & CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN))
+	if (!(BQUIRK(pcie, AVOID_BRIDGE_SHUTDOWN)))
 		/* Shutdown PCIe bridge */
 		ret = brcm_pcie_bridge_sw_init_set(pcie, 1);
 
