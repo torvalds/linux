@@ -152,7 +152,7 @@ struct ivmd_header {
 } __attribute__((packed));
 
 bool amd_iommu_dump;
-bool amd_iommu_irq_remap __read_mostly;
+static bool amd_iommu_irq_remap __read_mostly;
 
 enum protection_domain_mode amd_iommu_pgtable = PD_MODE_V1;
 /* Virtual address size */
