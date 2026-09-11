@@ -288,9 +288,9 @@ struct inbound_win {
 
 struct pcie_cfg_data {
 	const int *offsets;
-	const enum pcie_soc_base soc_base;
-	const bool has_phy;
-	const u32 quirks;
+	enum pcie_soc_base soc_base;
+	bool has_phy;
+	u32 quirks;
 	u8 num_inbound_wins;
 	int (*perst_set)(struct brcm_pcie *pcie, u32 val);
 	int (*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
