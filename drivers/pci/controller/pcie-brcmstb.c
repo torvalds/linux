@@ -300,7 +300,8 @@ struct inbound_win {
 #define CFG_FLG_HAS_PHY				BIT(0)
 /* The SoC PCIe HW can dump to the console PCIe error info */
 #define CFG_FLG_HAS_ERR_REPORT			BIT(1)
-
+/* SoC uses a Broadcom variant of the MIPS-1 ISA */
+#define CFG_FLG_IS_BMIPS			BIT(2)
 
 struct pcie_cfg_data {
 	const int *offsets;
@@ -360,11 +361,6 @@ struct brcm_pcie {
 	struct notifier_block	panic_notifier;
 	spinlock_t		bridge_lock;
 };
-
-static inline bool is_bmips(const struct brcm_pcie *pcie)
-{
-	return pcie->cfg->soc_base == BCM7435 || pcie->cfg->soc_base == BCM7425;
-}
 
 static int brcm_pcie_bridge_sw_init_set(struct brcm_pcie *pcie, u32 val)
 {
@@ -1176,7 +1172,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 		return ret;
 
 	tmp = readl(base + HARD_DEBUG(pcie));
-	if (is_bmips(pcie))
+	if (BFLAG(pcie, IS_BMIPS))
 		tmp &= ~PCIE_BMIPS_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
 	else
 		tmp &= ~PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
@@ -1189,7 +1185,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	 * is encoded as 0=128, 1=256, 2=512, 3=Rsvd, for BCM7278 it
 	 * is encoded as 0=Rsvd, 1=128, 2=256, 3=512.
 	 */
-	if (is_bmips(pcie))
+	if (BFLAG(pcie, IS_BMIPS))
 		burst = 0x1; /* 256 bytes */
 	else if (pcie->cfg->soc_base == BCM2711)
 		burst = 0x0; /* 128 bytes */
@@ -2001,6 +1997,7 @@ static const struct pcie_cfg_data bcm7425_cfg = {
 	.num_inbound_wins = 3,
 	.quirks		= CFG_QUIRK_OB_WIN_32BIT_ADDR
 		| CFG_QUIRK_OB_WIN_MAXSZ_128MB,
+	.flags		= CFG_FLG_IS_BMIPS,
 };
 
 static const struct pcie_cfg_data bcm7435_cfg = {
@@ -2011,6 +2008,7 @@ static const struct pcie_cfg_data bcm7435_cfg = {
 	.num_inbound_wins = 3,
 	.quirks		= CFG_QUIRK_OB_WIN_32BIT_ADDR
 		| CFG_QUIRK_OB_WIN_MAXSZ_128MB,
+	.flags		= CFG_FLG_IS_BMIPS,
 };
 
 static const struct pcie_cfg_data bcm7216_cfg = {
