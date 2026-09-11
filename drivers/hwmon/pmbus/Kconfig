@@ -393,6 +393,25 @@ config SENSORS_MAX20751
 	  This driver can also be built as a module. If so, the module will
 	  be called max20751.
 
+config SENSORS_MAX20826
+	tristate "Analog Devices MAX20826 and similar devices"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices MAX20826 and similar devices.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max20826.
+
+config SENSORS_MAX20826_REGULATOR
+	bool "Regulator support for Analog Devices MAX20826 and similar devices"
+	depends on SENSORS_MAX20826 && REGULATOR
+	help
+	  If you say yes here you get regulator support for Analog Devices
+	  MAX20826 and similar sensors.
+
+	  This enables the MAX20826 to be used as a regulator device,
+	  providing voltage control through the regulator framework.
+
 config SENSORS_MAX20830
 	tristate "Analog Devices MAX20830 and compatibles"
 	help

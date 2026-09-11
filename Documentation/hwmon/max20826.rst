@@ -1,0 +1,139 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max20826
+======================
+
+Supported chips:
+
+  * Analog Devices MAX20826
+
+    Prefix: 'max20826'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+  * Analog Devices MAX20855B
+
+    Prefix: 'max20855b'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+  * Analog Devices MAX20908
+
+    Prefix: 'max20908'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+  * Analog Devices MAX20912
+
+    Prefix: 'max20912'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+  * Analog Devices MAX20916
+
+    Prefix: 'max20916'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+Author:
+
+  - Nuno Sá <nuno.sa@analog.com>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices MAX20826,
+MAX20855B, MAX20908, MAX20912, and MAX20916 multiphase voltage regulator
+controllers with PMBus interface.
+
+The devices are dual-loop, multiphase controllers. Depending on the device and
+configuration, the high-speed processor voltage-control interface can be
+Nvidia PWMVID, Intel SVID, AMD SVI3, or AVSBus. PMBus is used for monitoring,
+configuration, status, and fault reporting.
+
+The driver detects whether the device uses PMBus page mode or direct address
+mode. In direct address mode, rail B is accessed at the rail A I2C address plus
+one. If rail B is present, the driver exposes a second PMBus page.
+
+The driver detects the active number of phases and exposes per-phase input and
+output current attributes through the PMBus virtual phase support.
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+The optional ``avren`` and ``bvren`` GPIOs may be provided to control the rail A
+and rail B hardware enable pins. If regulator support is enabled, the rails are
+also registered through the PMBus regulator framework.
+
+The source of the output voltage of each rail, i.e. either the high-speed
+processor voltage-control interface or PMBus, is normally selected once, before
+the processor boots. Hence it is described in firmware with the
+``adi,rail-a-high-speed`` and ``adi,rail-b-high-speed`` properties. If the
+property is not given for a rail, PMBus controls its output voltage.
+
+Sysfs entries
+-------------
+
+The following attributes are supported. Limits, alarms, and per-phase entries
+are exposed depending on device capabilities, rail configuration, and detected
+phase count.
+
+=========================== ================================================
+in1_label                   "vin"
+in1_input                   Measured input voltage
+in1_alarm                   Input voltage alarm
+in[2-3]_label               "vout[1-2]"
+in[2-3]_input               Measured output voltage
+in[2-3]_alarm               Output voltage alarm
+currX_label                 "iinN", "iinN.P", "ioutN", or "ioutN.P"
+currX_input                 Measured input/output current
+currX_alarm                 Current alarm
+powerX_label                "pinN" or "poutN"
+powerX_input                Measured input/output power
+temp[1-2]_input             Measured temperature
+temp[1-2]_alarm             Temperature alarm
+=========================== ================================================
+
+Notes
+-----
+
+``N`` is the rail number, starting at 1. ``P`` is the phase number, starting at
+0. The exact ``currX`` indices depend on the number of present rails and on the
+detected phase count.
+
+Debugfs entries
+---------------
+
+In addition to the entries provided by the PMBus core, the following entries are
+available for debug purposes only. They are not part of any ABI and may change
+or go away at any time.
+
+=========================== ================================================
+in[2-3]_high_speed_en       Enable high-speed voltage-control interface
+in_high_speed_bus           Active high-speed voltage-control interface
+=========================== ================================================
+
+``in[2-3]_high_speed_en`` is a per-rail read/write entry matching the standard
+hwmon voltage channels for the output rails. ``in2_high_speed_en`` controls rail
+A / ``vout1``. ``in3_high_speed_en`` controls rail B / ``vout2`` and is only
+present if rail B is detected. Writing 1 selects the high-speed voltage-control
+interface for that rail; writing 0 selects PMBus voltage control.
+
+``in_high_speed_bus`` is a read-only entry reporting the high-speed interface
+used by the device, for example ``Nvidia PWMVID``, ``Intel SVID``, ``AMD SVI3``,
+or ``AVSBus``.

@@ -167,6 +167,7 @@ Hardware Monitoring Kernel Drivers
    max197
    max20730
    max20751
+   max20826
    max20830
    max20860a
    max31722
