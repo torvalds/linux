@@ -294,6 +294,8 @@ struct inbound_win {
 #define CFG_QUIRK_OB_WIN_MAXSZ_128MB		BIT(2)
 /* PCIe HW can only access config space with 32bit R/W */
 #define CFG_QUIRK_32BIT_PCI_OPS			BIT(3)
+/* PCIe HW does not have an internal bus timer */
+#define CFG_QUIRK_NO_RGR1_TIMER			BIT(4)
 
 /* FLAGS */
 #define BFLAG(pcie, flag)	((pcie)->cfg->flags & CFG_FLG_ ## flag)
@@ -1339,8 +1341,8 @@ static void brcm_extend_rbus_timeout(struct brcm_pcie *pcie)
 	const unsigned int REG_OFFSET = PCIE_RGR1_SW_INIT_1(pcie) - 8;
 	u32 timeout_us = 4000000; /* 4 seconds, our setting for L1SS */
 
-	/* 7712 does not have this (RGR1) timer */
-	if (pcie->cfg->soc_base == BCM7712)
+	/* Don't do access if there is no timer */
+	if (BQUIRK(pcie, NO_RGR1_TIMER))
 		return;
 
 	/* Each unit in timeout register is 1/216,000,000 seconds */
@@ -1971,7 +1973,8 @@ static const struct pcie_cfg_data bcm2712_cfg = {
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.post_setup	= brcm_pcie_post_setup_bcm2712,
-	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN,
+	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN |
+		CFG_QUIRK_NO_RGR1_TIMER,
 	.num_inbound_wins = 10,
 };
 
@@ -2028,6 +2031,7 @@ static const struct pcie_cfg_data bcm7712_cfg = {
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.soc_base	= BCM7712,
 	.num_inbound_wins = 10,
+	.quirks		= CFG_QUIRK_NO_RGR1_TIMER,
 };
 
 static const struct of_device_id brcm_pcie_match[] = {
