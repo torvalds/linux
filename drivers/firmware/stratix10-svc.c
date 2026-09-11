@@ -493,6 +493,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 		cb_data->status = BIT(SVC_STATUS_BUSY);
 	} else if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
 		cb_data->status = BIT(SVC_STATUS_COMPLETED);
+		cb_data->kaddr1 = &res.a1;
 		cb_data->kaddr2 = (res.a2) ?
 				  svc_pa_to_va(res.a2) : NULL;
 		cb_data->kaddr3 = (res.a3) ? &res.a3 : NULL;
