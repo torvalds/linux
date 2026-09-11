@@ -70,7 +70,7 @@ rppx1_bls_swap_regs(struct rpp_module *mod, const u32 input[4], u32 output[4])
 
 	/* Swap to pattern used in our path, PRE1 or PRE2. */
 	struct rpp_module *acq = mod == &mod->rpp->pre1.bls ?
-		&mod->rpp->pre1.acq : &mod->rpp->pre2.bls;
+		&mod->rpp->pre1.acq : &mod->rpp->pre2.acq;
 	enum rpp_raw_pattern pattern = acq->info.acq.raw_pattern;
 
 	for (unsigned int i = 0; i < 4; ++i)
