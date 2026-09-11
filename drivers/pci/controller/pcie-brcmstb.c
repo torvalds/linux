@@ -286,16 +286,24 @@ struct inbound_win {
  */
 #define CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN		BIT(0)
 
+/* FLAGS */
+#define BFLAG(pcie, flag)	((pcie)->cfg->flags & CFG_FLG_ ## flag)
+
+/* The PCIe HW registers have phy control of a "RESCAL" reset block */
+#define CFG_FLG_HAS_PHY				BIT(0)
+/* The SoC PCIe HW can dump to the console PCIe error info */
+#define CFG_FLG_HAS_ERR_REPORT			BIT(1)
+
+
 struct pcie_cfg_data {
 	const int *offsets;
 	enum pcie_soc_base soc_base;
-	bool has_phy;
+	u32 flags;
 	u32 quirks;
 	u8 num_inbound_wins;
 	int (*perst_set)(struct brcm_pcie *pcie, u32 val);
 	int (*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 	int (*post_setup)(struct brcm_pcie *pcie);
-	bool has_err_report;
 };
 
 struct subdev_regulators {
@@ -356,14 +364,14 @@ static int brcm_pcie_bridge_sw_init_set(struct brcm_pcie *pcie, u32 val)
 	unsigned long flags;
 	int ret;
 
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		spin_lock_irqsave(&pcie->bridge_lock, flags);
 
 	ret = pcie->cfg->bridge_sw_init_set(pcie, val);
 	/* If we fail, assume the bridge is in reset (off) */
 	pcie->bridge_in_reset = ret ? true : val;
 
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		spin_unlock_irqrestore(&pcie->bridge_lock, flags);
 
 	return ret;
@@ -1589,12 +1597,12 @@ static int brcm_phy_cntl(struct brcm_pcie *pcie, const int start)
 
 static inline int brcm_phy_start(struct brcm_pcie *pcie)
 {
-	return pcie->cfg->has_phy ? brcm_phy_cntl(pcie, 1) : 0;
+	return BFLAG(pcie, HAS_PHY) ? brcm_phy_cntl(pcie, 1) : 0;
 }
 
 static inline int brcm_phy_stop(struct brcm_pcie *pcie)
 {
-	return pcie->cfg->has_phy ? brcm_phy_cntl(pcie, 0) : 0;
+	return BFLAG(pcie, HAS_PHY) ? brcm_phy_cntl(pcie, 0) : 0;
 }
 
 static int brcm_pcie_turn_off(struct brcm_pcie *pcie)
@@ -1898,7 +1906,7 @@ static void brcm_pcie_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	pci_unlock_rescan_remove();
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		brcm_unregister_die_notifiers(pcie);
 
 	__brcm_pcie_remove(pcie);
@@ -1999,9 +2007,8 @@ static const struct pcie_cfg_data bcm7216_cfg = {
 	.soc_base	= BCM7278,
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
-	.has_phy	= true,
+	.flags		= CFG_FLG_HAS_PHY | CFG_FLG_HAS_ERR_REPORT,
 	.num_inbound_wins = 3,
-	.has_err_report = true,
 };
 
 static const struct pcie_cfg_data bcm7712_cfg = {
@@ -2179,7 +2186,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pcie->cfg->has_err_report) {
+	if (BFLAG(pcie, HAS_ERR_REPORT)) {
 		spin_lock_init(&pcie->bridge_lock);
 		brcm_register_die_notifiers(pcie);
 	}
