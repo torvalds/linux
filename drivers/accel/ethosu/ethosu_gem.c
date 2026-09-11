@@ -390,6 +390,7 @@ static int ethosu_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 	struct ethosu_validated_cmdstream_info __free(kfree) *info = kzalloc_obj(*info);
 	struct ethosu_device *edev = to_ethosu_device(ddev);
 	u32 *bocmds = bo->base.vaddr;
+	bool ends_with_stop = false;
 	struct cmd_state st;
 	int i, ret;
 
@@ -426,6 +427,11 @@ static int ethosu_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		}
 
 		switch (cmd) {
+		case NPU_OP_STOP:
+			if (i != size / 4 - 1)
+				return -EINVAL;
+			ends_with_stop = true;
+			break;
 		case NPU_OP_DMA_START:
 			srclen = dma_length(info, &st.dma, &st.dma.src);
 			dstlen = dma_length(info, &st.dma, &st.dma.dst);
@@ -687,6 +693,9 @@ static int ethosu_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 			break;
 		}
 	}
+
+	if (!ends_with_stop)
+		return -EINVAL;
 
 	for (i = 0; i < NPU_BASEP_REGION_MAX; i++) {
 		if (!info->region_size[i])

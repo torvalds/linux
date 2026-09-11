@@ -343,7 +343,7 @@ int ethosu_job_init(struct ethosu_device *edev)
 	ret = devm_request_threaded_irq(dev, edev->irq,
 					ethosu_job_irq_handler,
 					ethosu_job_irq_handler_thread,
-					IRQF_SHARED, KBUILD_MODNAME,
+					0, KBUILD_MODNAME,
 					edev);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
@@ -374,12 +374,10 @@ int ethosu_job_open(struct ethosu_file_priv *ethosu_priv)
 {
 	struct ethosu_device *dev = ethosu_priv->edev;
 	struct drm_gpu_scheduler *sched = &dev->sched;
-	int ret;
 
-	ret = drm_sched_entity_init(&ethosu_priv->sched_entity,
-				    DRM_SCHED_PRIORITY_NORMAL,
-				    &sched, 1, NULL);
-	return WARN_ON(ret);
+	return drm_sched_entity_init(&ethosu_priv->sched_entity,
+				     DRM_SCHED_PRIORITY_NORMAL,
+				     &sched, 1, NULL);
 }
 
 void ethosu_job_close(struct ethosu_file_priv *ethosu_priv)
@@ -449,13 +447,13 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 			if (!cmd_info->region_size[i])
 				continue;
 			if (i == ETHOSU_SRAM_REGION) {
-				if (cmd_info->region_size[i] <= edev->npu_info.sram_size)
+				if (cmd_info->region_size[i] <= ejob->sram_size)
 					continue;
 
 				dev_err(dev->dev,
-					"cmd stream region %d size greater than SRAM size (%llu > %u)\n",
+					"cmd stream region %d size greater than job SRAM size (%llu > %u)\n",
 					i, cmd_info->region_size[i],
-					edev->npu_info.sram_size);
+					ejob->sram_size);
 				ret = -EINVAL;
 				goto out_cleanup_job;
 			}
