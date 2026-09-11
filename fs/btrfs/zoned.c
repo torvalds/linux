@@ -3245,7 +3245,7 @@ int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num
 		ASSERT(reclaimed == bg->zone_capacity,
 		       "reclaimed=%llu bg->zone_capacity=%llu", reclaimed, bg->zone_capacity);
 		bg->free_space_ctl->free_space += reclaimed;
-		space_info->bytes_zone_unusable -= reclaimed;
+		btrfs_space_info_update_bytes_zone_unusable(space_info, -reclaimed);
 		spin_unlock(&bg->lock);
 		btrfs_return_free_space(space_info, reclaimed);
 		spin_unlock(&space_info->lock);
