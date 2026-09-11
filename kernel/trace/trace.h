@@ -1953,6 +1953,7 @@ struct event_trigger_data {
 
 struct enable_trigger_data {
 	struct trace_event_file		*file;
+	struct trace_event_call		*call;
 	bool				enable;
 	bool				hist;
 };
