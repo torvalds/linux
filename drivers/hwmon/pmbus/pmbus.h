@@ -461,6 +461,13 @@ struct pmbus_driver_info {
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
 	int (*read_word_data)(struct i2c_client *client, int page, int phase,
 			      int reg);
+	/*
+	 * data_buf is at least I2C_SMBUS_BLOCK_MAX bytes long. The callback
+	 * must never return more than I2C_SMBUS_BLOCK_MAX bytes of data and
+	 * returns the number of bytes written into data_buf.
+	 */
+	int (*read_block_data)(struct i2c_client *client, int page, u8 reg,
+			       char *data_buf);
 	int (*write_byte_data)(struct i2c_client *client, int page, int reg,
 			      u8 byte);
 	int (*write_word_data)(struct i2c_client *client, int page, int reg,

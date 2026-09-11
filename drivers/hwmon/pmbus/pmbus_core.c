@@ -616,6 +616,26 @@ static int pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
 	return pmbus_read_smbus_i2c_block_data(client, reg, data_buf);
 }
 
+/*
+ * _pmbus_read_block_data() is similar to pmbus_read_block_data(), but checks if
+ * a device specific mapping function exists and calls it if necessary.
+ */
+static int _pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
+				  char *data_buf)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->read_block_data) {
+		status = info->read_block_data(client, page, reg, data_buf);
+		if (status != -ENODATA)
+			return status;
+	}
+
+	return pmbus_read_block_data(client, page, reg, data_buf);
+}
+
 static struct pmbus_sensor *pmbus_find_sensor(struct pmbus_data *data, int page,
 					      int reg)
 {
@@ -761,7 +781,7 @@ static bool __maybe_unused pmbus_check_block_register(struct i2c_client *client,
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	char data_buf[I2C_SMBUS_BLOCK_MAX + 2];
 
-	rv = pmbus_read_block_data(client, page, reg, data_buf);
+	rv = _pmbus_read_block_data(client, page, reg, data_buf);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
 		rv = pmbus_check_status_cml(client);
 	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
@@ -3679,7 +3699,7 @@ static ssize_t pmbus_debugfs_block_read(struct file *file, char __user *buf,
 	char data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
 
 	scoped_guard(pmbus_lock, client) {
-		rc = pmbus_read_block_data(client, entry->page, entry->reg, data);
+		rc = _pmbus_read_block_data(client, entry->page, entry->reg, data);
 		if (rc < 0)
 			return rc;
 	}
