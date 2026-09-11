@@ -44,6 +44,21 @@ allOf:
     else:
       properties:
         starfive,sfc-filter-syscon: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ultrarisc,dp1000-spi
+    then:
+      properties:
+        reg:
+          maxItems: 1
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - clock-names
 
 properties:
   compatible:
@@ -63,6 +78,7 @@ properties:
               - mscc,jaguar2-spi
               - sophgo,sg2042-spi
               - thead,th1520-spi
+              - ultrarisc,dp1000-spi
           - const: snps,dw-apb-ssi
       - description: Vendor controllers compatible with v1.01a
         items:
