@@ -23,6 +23,7 @@ properties:
           - silergy,syr827
           - silergy,syr828
           - tcs,tcs4525
+          - tcs,tcs4526
       - items:
           - const: rockchip,rk8601
           - const: rockchip,rk8600
