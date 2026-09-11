@@ -642,6 +642,11 @@ static __always_inline unsigned int rb_subbuf_max_data_size(struct trace_buffer 
 	return rb_subbuf_capacity(buffer) - RB_EVNT_HDR_SIZE - sizeof(event->array[0]);
 }
 
+static unsigned long rb_calculate_nr_pages(struct trace_buffer *buffer, unsigned long size)
+{
+	return max(DIV_ROUND_UP(size, rb_subbuf_capacity(buffer)), RING_BUFFER_MIN_NR_PAGES);
+}
+
 /**
  * rb_subbuf_start - Get the start address of a subbuffer
  * @buffer:	A trace buffer
@@ -2864,7 +2869,7 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 			goto fail_free_buffers;
 
 		/* Need at least two pages plus the reader page */
-		if (nr_pages < 3)
+		if (nr_pages < RING_BUFFER_MIN_NR_PAGES + 1)
 			goto fail_free_buffers;
 
  again:
@@ -2876,7 +2881,7 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 			ptr += subbuf_size * nr_pages;
 		}
 		if (ptr > end) {
-			if (nr_pages <= 3)
+			if (nr_pages <= RING_BUFFER_MIN_NR_PAGES + 1)
 				goto fail_free_buffers;
 			nr_pages--;
 			goto again;
@@ -2899,13 +2904,10 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 		if (nr_pages > rb_static_max_pages())
 			goto fail_free_buffers;
 
-		if (nr_pages < 2)
+		if (nr_pages < RING_BUFFER_MIN_NR_PAGES)
 			goto fail_free_buffers;
 	} else {
-		/* need at least two pages */
-		nr_pages = DIV_ROUND_UP(size, rb_subbuf_capacity(buffer));
-		if (nr_pages < 2)
-			nr_pages = 2;
+		nr_pages = rb_calculate_nr_pages(buffer, size);
 	}
 
 	cpumask_set_cpu(cpu, buffer->cpumask);
@@ -3318,11 +3320,7 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 	mutex_lock(&buffer->mutex);
 	atomic_inc(&buffer->resizing);
 
-	nr_pages = DIV_ROUND_UP(size, rb_subbuf_capacity(buffer));
-
-	/* we need a minimum of two pages */
-	if (nr_pages < 2)
-		nr_pages = 2;
+	nr_pages = rb_calculate_nr_pages(buffer, size);
 
 	if (cpu_id == RING_BUFFER_ALL_CPUS) {
 		/*
@@ -7502,12 +7500,8 @@ int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 		}
 
 		/* Update the number of pages to match the new size */
-		nr_pages = old_capacity * buffer->buffers[cpu]->nr_pages;
-		nr_pages = DIV_ROUND_UP(nr_pages, rb_subbuf_capacity(buffer));
-
-		/* we need a minimum of two pages */
-		if (nr_pages < 2)
-			nr_pages = 2;
+		nr_pages = rb_calculate_nr_pages(buffer,
+						 old_capacity * buffer->buffers[cpu]->nr_pages);
 
 		cpu_buffer->nr_pages_to_update = nr_pages;
 
@@ -8102,7 +8096,7 @@ int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node)
 	}
 	/* allocate minimum pages, user can later expand it */
 	if (!nr_pages_same)
-		nr_pages = 2;
+		nr_pages = RING_BUFFER_MIN_NR_PAGES;
 	buffer->buffers[cpu] =
 		rb_allocate_cpu_buffer(buffer, nr_pages, cpu);
 	if (!buffer->buffers[cpu]) {
