@@ -2122,6 +2122,14 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 	unsigned long rdm0, rdm1;
 	unsigned long unlocks0, unlocks1;
 
+	srcu_lock_sync(&ssp->dep_map);
+
+	RCU_LOCKDEP_WARN(lockdep_is_held(ssp),
+			 "Illegal synchronize_srcu_atomic() in same-type SRCU read-side critical section");
+
+	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
+		return;
+
 	// Initialize.	Either init_srcu_struct() was invoked or
 	// DEFINE_SRCU() or similar was used.  Therefore, no allocation
 	// will be done here.
