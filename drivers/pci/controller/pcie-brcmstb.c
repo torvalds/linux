@@ -298,6 +298,8 @@ struct inbound_win {
 #define CFG_QUIRK_NO_RGR1_TIMER			BIT(4)
 /* PCIe PERST# must be asserted before internal bridge turned on */
 #define CFG_QUIRK_EARLY_PERST_ASSERT		BIT(5)
+/* PCIe SW PERST behavior only works up to a specific HW version */
+#define CFG_QUIRK_PERST_PCIE_REV_CUTOFF		BIT(6)
 
 /* FLAGS */
 #define BFLAG(pcie, flag)	((pcie)->cfg->flags & CFG_FLG_ ## flag)
@@ -1987,6 +1989,7 @@ static const struct pcie_cfg_data bcm4908_cfg = {
 	.perst_set	= brcm_pcie_perst_set_4908,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_PERST_PCIE_REV_CUTOFF,
 };
 
 static const struct pcie_cfg_data bcm7278_cfg = {
@@ -2168,7 +2171,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		goto fail;
 
 	pcie->hw_rev = readl(pcie->base + PCIE_MISC_REVISION);
-	if (pcie->cfg->soc_base == BCM4908 &&
+	if (BQUIRK(pcie, PERST_PCIE_REV_CUTOFF) &&
 	    pcie->hw_rev >= BRCM_PCIE_HW_REV_3_20) {
 		dev_err(pcie->dev, "hardware revision with unsupported PERST# setup\n");
 		ret = -ENODEV;
