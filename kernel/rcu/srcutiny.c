@@ -361,6 +361,12 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 
 	srcu_lock_sync(&ssp->dep_map);
 
+	RCU_LOCKDEP_WARN(lockdep_is_held(ssp),
+			 "Illegal synchronize_srcu_atomic() in same-type SRCU read-side critical section");
+
+	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
+		return;
+
 	if (IS_ENABLED(CONFIG_PREEMPTION))
 		synchronize_rcu(); // Needed for RCU Tasks Trace to imply RCU grace period.
 				   // And in Tiny RCU, it is near zero cost and doesn't block.
