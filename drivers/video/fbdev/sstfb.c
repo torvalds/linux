@@ -1332,7 +1332,8 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 
 	/* Enable device in PCI config. */
-	if ((err=pci_enable_device(pdev))) {
+	err = pcim_enable_device(pdev);
+	if (err) {
 		printk(KERN_ERR "cannot enable device\n");
 		return err;
 	}
