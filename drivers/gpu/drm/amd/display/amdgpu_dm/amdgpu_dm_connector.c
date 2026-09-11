@@ -2274,8 +2274,8 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 	 * below gate which of these entries are actually attempted.
 	 */
 	static const enum dc_pixel_encoding encoding_order[] = {
-		PIXEL_ENCODING_YCBCR444,
 		PIXEL_ENCODING_RGB,
+		PIXEL_ENCODING_YCBCR444,
 		PIXEL_ENCODING_YCBCR422,
 		PIXEL_ENCODING_YCBCR420,
 	};
