@@ -296,6 +296,8 @@ struct inbound_win {
 #define CFG_QUIRK_32BIT_PCI_OPS			BIT(3)
 /* PCIe HW does not have an internal bus timer */
 #define CFG_QUIRK_NO_RGR1_TIMER			BIT(4)
+/* PCIe PERST# must be asserted before internal bridge turned on */
+#define CFG_QUIRK_EARLY_PERST_ASSERT		BIT(5)
 
 /* FLAGS */
 #define BFLAG(pcie, flag)	((pcie)->cfg->flags & CFG_FLG_ ## flag)
@@ -1159,8 +1161,8 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	if (ret)
 		return ret;
 
-	/* Ensure that PERST# is asserted; some bootloaders may deassert it. */
-	if (pcie->cfg->soc_base == BCM2711) {
+	if (BQUIRK(pcie, EARLY_PERST_ASSERT)) {
+		/* Ensure that PERST# is asserted; some bootloaders may deassert it. */
 		ret = pcie->cfg->perst_set(pcie, 1);
 		if (ret) {
 			pcie->cfg->bridge_sw_init_set(pcie, 0);
@@ -1965,6 +1967,7 @@ static const struct pcie_cfg_data bcm2711_cfg = {
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_EARLY_PERST_ASSERT,
 };
 
 static const struct pcie_cfg_data bcm2712_cfg = {
