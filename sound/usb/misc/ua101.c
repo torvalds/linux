@@ -109,10 +109,10 @@ struct ua101 {
 		unsigned int buffer_pos;
 		unsigned int queue_length;
 		struct ua101_urb {
-			struct urb urb;
-			struct usb_iso_packet_descriptor iso_frame_desc[1];
+			struct urb *urb;
 			struct list_head ready_list;
-		} *urbs[MAX_QUEUE_LENGTH];
+			struct ua101 *ua;
+		} urbs[MAX_QUEUE_LENGTH];
 		struct {
 			unsigned int size;
 			void *addr;
@@ -167,15 +167,15 @@ static void abort_usb_playback(struct ua101 *ua)
 		wake_up(&ua->alsa_playback_wait);
 }
 
-static void playback_urb_complete(struct urb *usb_urb)
+static void playback_urb_complete(struct urb *urb)
 {
-	struct ua101_urb *urb = (struct ua101_urb *)usb_urb;
-	struct ua101 *ua = urb->urb.context;
+	struct ua101_urb *ua_urb = urb->context;
+	struct ua101 *ua = ua_urb->ua;
 
-	if (unlikely(urb->urb.status == -ENOENT ||	/* unlinked */
-		     urb->urb.status == -ENODEV ||	/* device removed */
-		     urb->urb.status == -ECONNRESET ||	/* unlinked */
-		     urb->urb.status == -ESHUTDOWN)) {	/* device disabled */
+	if (unlikely(urb->status == -ENOENT ||	/* unlinked */
+		     urb->status == -ENODEV ||	/* device removed */
+		     urb->status == -ECONNRESET ||	/* unlinked */
+		     urb->status == -ESHUTDOWN)) {	/* device disabled */
 		abort_usb_playback(ua);
 		abort_alsa_playback(ua);
 		return;
@@ -184,18 +184,19 @@ static void playback_urb_complete(struct urb *usb_urb)
 	if (test_bit(USB_PLAYBACK_RUNNING, &ua->states)) {
 		/* append URB to FIFO */
 		guard(spinlock_irqsave)(&ua->lock);
-		list_add_tail(&urb->ready_list, &ua->ready_playback_urbs);
+		list_add_tail(&ua_urb->ready_list, &ua->ready_playback_urbs);
 		if (ua->rate_feedback_count > 0)
 			queue_work(system_highpri_wq, &ua->playback_work);
 		ua->playback.substream->runtime->delay -=
-				urb->urb.iso_frame_desc[0].length /
+				urb->iso_frame_desc[0].length /
 						ua->playback.frame_bytes;
 	}
 }
 
 static void first_playback_urb_complete(struct urb *urb)
 {
-	struct ua101 *ua = urb->context;
+	struct ua101_urb *ua_urb = urb->context;
+	struct ua101 *ua = ua_urb->ua;
 
 	urb->complete = playback_urb_complete;
 	playback_urb_complete(urb);
@@ -248,7 +249,8 @@ static void playback_work(struct work_struct *work)
 {
 	struct ua101 *ua = container_of(work, struct ua101, playback_work);
 	unsigned int frames;
-	struct ua101_urb *urb;
+	struct ua101_urb *ua_urb;
+	struct urb *urb;
 	bool do_period_elapsed = false;
 	int err;
 
@@ -275,23 +277,24 @@ static void playback_work(struct work_struct *work)
 			ua->rate_feedback_count--;
 
 			/* take URB out of FIFO */
-			urb = list_first_entry(&ua->ready_playback_urbs,
-					       struct ua101_urb, ready_list);
-			list_del(&urb->ready_list);
+			ua_urb = list_first_entry(&ua->ready_playback_urbs,
+						  struct ua101_urb, ready_list);
+			list_del(&ua_urb->ready_list);
+			urb = ua_urb->urb;
 
 			/* fill packet with data or silence */
-			urb->urb.iso_frame_desc[0].length =
+			urb->iso_frame_desc[0].length =
 				frames * ua->playback.frame_bytes;
 			if (test_bit(ALSA_PLAYBACK_RUNNING, &ua->states))
 				do_period_elapsed |= copy_playback_data(&ua->playback,
-									&urb->urb,
+									urb,
 									frames);
 			else
-				memset(urb->urb.transfer_buffer, 0,
-				       urb->urb.iso_frame_desc[0].length);
+				memset(urb->transfer_buffer, 0,
+				       urb->iso_frame_desc[0].length);
 
 			/* and off you go ... */
-			err = usb_submit_urb(&urb->urb, GFP_ATOMIC);
+			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (unlikely(err < 0)) {
 				abort_usb_playback(ua);
 				abort_alsa_playback(ua);
@@ -342,7 +345,8 @@ static bool copy_capture_data(struct ua101_stream *stream, struct urb *urb,
 
 static void capture_urb_complete(struct urb *urb)
 {
-	struct ua101 *ua = urb->context;
+	struct ua101_urb *ua_urb = urb->context;
+	struct ua101 *ua = ua_urb->ua;
 	struct ua101_stream *stream = &ua->capture;
 	unsigned int frames, write_ptr;
 	bool do_period_elapsed;
@@ -413,7 +417,8 @@ stream_stopped:
 
 static void first_capture_urb_complete(struct urb *urb)
 {
-	struct ua101 *ua = urb->context;
+	struct ua101_urb *ua_urb = urb->context;
+	struct ua101 *ua = ua_urb->ua;
 
 	urb->complete = capture_urb_complete;
 	capture_urb_complete(urb);
@@ -427,7 +432,7 @@ static int submit_stream_urbs(struct ua101 *ua, struct ua101_stream *stream)
 	unsigned int i;
 
 	for (i = 0; i < stream->queue_length; ++i) {
-		int err = usb_submit_urb(&stream->urbs[i]->urb, GFP_KERNEL);
+		int err = usb_submit_urb(stream->urbs[i].urb, GFP_KERNEL);
 		if (err < 0) {
 			dev_err(&ua->dev->dev, "USB request error %d: %s\n",
 				err, usb_error_string(err));
@@ -442,8 +447,8 @@ static void kill_stream_urbs(struct ua101_stream *stream)
 	unsigned int i;
 
 	for (i = 0; i < stream->queue_length; ++i)
-		if (stream->urbs[i])
-			usb_kill_urb(&stream->urbs[i]->urb);
+		if (stream->urbs[i].urb)
+			usb_kill_urb(stream->urbs[i].urb);
 }
 
 static int enable_iso_interface(struct ua101 *ua, unsigned int intf_index)
@@ -508,7 +513,7 @@ static int start_usb_capture(struct ua101 *ua)
 		return err;
 
 	clear_bit(CAPTURE_URB_COMPLETED, &ua->states);
-	ua->capture.urbs[0]->urb.complete = first_capture_urb_complete;
+	ua->capture.urbs[0].urb->complete = first_capture_urb_complete;
 	ua->rate_feedback_start = 0;
 	ua->rate_feedback_count = 0;
 
@@ -550,7 +555,7 @@ static int start_usb_playback(struct ua101 *ua)
 		return err;
 
 	clear_bit(PLAYBACK_URB_COMPLETED, &ua->states);
-	ua->playback.urbs[0]->urb.complete =
+	ua->playback.urbs[0].urb->complete =
 		first_playback_urb_complete;
 	scoped_guard(spinlock_irq, &ua->lock) {
 		INIT_LIST_HEAD(&ua->ready_playback_urbs);
@@ -580,7 +585,7 @@ static int start_usb_playback(struct ua101 *ua)
 			add_with_wraparound(ua, &ua->rate_feedback_start, 1);
 			ua->rate_feedback_count--;
 		}
-		urb = &ua->playback.urbs[i]->urb;
+		urb = ua->playback.urbs[i].urb;
 		urb->iso_frame_desc[0].length =
 			frames * ua->playback.frame_bytes;
 		memset(urb->transfer_buffer, 0,
@@ -1059,7 +1064,7 @@ static int alloc_stream_urbs(struct ua101 *ua, struct ua101_stream *stream,
 			     void (*urb_complete)(struct urb *))
 {
 	unsigned max_packet_size = stream->max_packet_bytes;
-	struct ua101_urb *urb;
+	struct urb *urb;
 	unsigned int b, u = 0;
 
 	for (b = 0; b < ARRAY_SIZE(stream->buffers); ++b) {
@@ -1070,23 +1075,24 @@ static int alloc_stream_urbs(struct ua101 *ua, struct ua101_stream *stream,
 		while (size >= max_packet_size) {
 			if (u >= stream->queue_length)
 				goto bufsize_error;
-			urb = kmalloc_obj(*urb);
+			urb = usb_alloc_urb(1, GFP_KERNEL);
 			if (!urb)
 				return -ENOMEM;
-			usb_init_urb(&urb->urb);
-			urb->urb.dev = ua->dev;
-			urb->urb.pipe = stream->usb_pipe;
-			urb->urb.transfer_flags = URB_NO_TRANSFER_DMA_MAP;
-			urb->urb.transfer_buffer = addr;
-			urb->urb.transfer_dma = dma;
-			urb->urb.transfer_buffer_length = max_packet_size;
-			urb->urb.number_of_packets = 1;
-			urb->urb.interval = 1;
-			urb->urb.context = ua;
-			urb->urb.complete = urb_complete;
-			urb->urb.iso_frame_desc[0].offset = 0;
-			urb->urb.iso_frame_desc[0].length = max_packet_size;
-			stream->urbs[u++] = urb;
+			urb->dev = ua->dev;
+			urb->pipe = stream->usb_pipe;
+			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+			urb->transfer_buffer = addr;
+			urb->transfer_dma = dma;
+			urb->transfer_buffer_length = max_packet_size;
+			urb->number_of_packets = 1;
+			urb->interval = 1;
+			urb->context = &stream->urbs[u];
+			urb->complete = urb_complete;
+			urb->iso_frame_desc[0].offset = 0;
+			urb->iso_frame_desc[0].length = max_packet_size;
+			stream->urbs[u].ua = ua;
+			stream->urbs[u].urb = urb;
+			u++;
 			size -= max_packet_size;
 			addr += max_packet_size;
 			dma += max_packet_size;
@@ -1104,8 +1110,8 @@ static void free_stream_urbs(struct ua101_stream *stream)
 	unsigned int i;
 
 	for (i = 0; i < stream->queue_length; ++i) {
-		kfree(stream->urbs[i]);
-		stream->urbs[i] = NULL;
+		usb_free_urb(stream->urbs[i].urb);
+		stream->urbs[i].urb = NULL;
 	}
 }
 

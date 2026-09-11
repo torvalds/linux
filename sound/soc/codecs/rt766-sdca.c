@@ -936,9 +936,8 @@ static int rt766_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt766_sdca_priv *rt766 = snd_soc_component_get_drvdata(component);
-	struct sdw_stream_config stream_config;
+	struct sdw_stream_config stream_config = {0};
 	struct sdw_port_config port_config;
-	enum sdw_data_direction direction;
 	struct sdw_stream_runtime *sdw_stream;
 	unsigned int sampling_rate;
 	int retval, port;
@@ -957,7 +956,6 @@ static int rt766_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* SoundWire specific configuration */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		direction = SDW_DATA_DIR_RX;
 		if (dai->id == RT766_AIF1)
 			port = 3;
 		else if (dai->id == RT766_AIF2)
@@ -965,7 +963,6 @@ static int rt766_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		else
 			return -EINVAL;
 	} else {
-		direction = SDW_DATA_DIR_TX;
 		if (dai->id == RT766_AIF1)
 			port = 12;
 		else if (dai->id == RT766_AIF3)

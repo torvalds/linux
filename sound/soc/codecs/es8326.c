@@ -26,6 +26,7 @@ struct es8326_priv {
 	struct snd_soc_component *component;
 	struct delayed_work jack_detect_work;
 	struct delayed_work button_press_work;
+	struct delayed_work capture_pop_work;
 	struct snd_soc_jack *jack;
 	int irq;
 	/* The lock protects the situation that an irq is generated
@@ -628,6 +629,7 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 			regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF,
 					0x30, 0x00);
 		} else {
+			cancel_delayed_work_sync(&es8326->capture_pop_work);
 			regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
 					0x0F, 0x0F);
 			if (es8326->version > ES8326_VERSION_B) {
@@ -666,8 +668,9 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 				regmap_update_bits(es8326->regmap, ES8326_ANA_MICBIAS, 0x70, 0x70);
 				regmap_update_bits(es8326->regmap, ES8326_VMIDSEL, 0x40, 0x00);
 			}
-			regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
-					0x0F, 0x00);
+
+			queue_delayed_work(system_dfl_wq, &es8326->capture_pop_work,
+				   msecs_to_jiffies(40));
 		}
 	}
 	return 0;
@@ -771,6 +774,15 @@ static void es8326_disable_micbias(struct snd_soc_component *component)
 	snd_soc_dapm_disable_pin_unlocked(dapm, "MICBIAS2");
 	snd_soc_dapm_sync_unlocked(dapm);
 	snd_soc_dapm_mutex_unlock(dapm);
+}
+
+static void es8326_capture_pop_handler(struct work_struct *work)
+{
+	struct es8326_priv *es8326 =
+		container_of(work, struct es8326_priv, capture_pop_work.work);
+
+	regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
+					0x0F, 0x00);
 }
 
 /*
@@ -1140,6 +1152,7 @@ static int es8326_suspend(struct snd_soc_component *component)
 	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&es8326->jack_detect_work);
+	cancel_delayed_work_sync(&es8326->capture_pop_work);
 	es8326_disable_micbias(component);
 	es8326->calibrated = false;
 	regmap_write(es8326->regmap, ES8326_CLK_MUX, 0x2d);
@@ -1291,6 +1304,8 @@ static int es8326_i2c_probe(struct i2c_client *i2c)
 			  es8326_jack_detect_handler);
 	INIT_DELAYED_WORK(&es8326->button_press_work,
 			  es8326_jack_button_handler);
+	INIT_DELAYED_WORK(&es8326->capture_pop_work,
+			  es8326_capture_pop_handler);
 	/* ES8316 is level-based while ES8326 is edge-based */
 	ret = devm_request_threaded_irq(&i2c->dev, es8326->irq, NULL, es8326_irq,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
