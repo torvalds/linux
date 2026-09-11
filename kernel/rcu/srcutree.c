@@ -2422,8 +2422,10 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		}
 		pr_cont(" T(%ld,%ld)\n", s0, s1);
 	}
-	if (SRCU_SIZING_IS_TORTURE())
-		srcu_transition_to_big(ssp);
+	if (SRCU_SIZING_IS_TORTURE()) {
+		if (!WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC))
+			srcu_transition_to_big(ssp);
+	}
 }
 EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
 
