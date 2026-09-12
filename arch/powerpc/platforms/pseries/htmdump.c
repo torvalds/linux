@@ -527,28 +527,28 @@ static int htmdump_init_debugfs(void)
 	htm_status_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!htm_status_buf) {
 		pr_err("Failed to allocate htmstatus buf\n");
-		return -ENOMEM;
+		goto htm_status_buf_err;
 	}
 
 	/* Debugfs interface file to present System Processor Configuration */
 	htm_info_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!htm_info_buf) {
 		pr_err("Failed to allocate htm info buf\n");
-		return -ENOMEM;
+		goto htm_info_buf_err;
 	}
 
 	/* Debugfs interface file to present HTM capabilities */
 	htm_caps_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!htm_caps_buf) {
 		pr_err("Failed to allocate htm caps buf\n");
-		return -ENOMEM;
+		goto htm_caps_buf_err;
 	}
 
 	/* Memory to present HTM system memory configuration */
 	htm_mem_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!htm_mem_buf) {
 		pr_err("Failed to allocate htm mem buf\n");
-		return -ENOMEM;
+		goto htm_mem_buf_err;
 	}
 
 	debugfs_create_file("htmstatus", 0400, htmdump_debugfs_dir, htm_status_buf, &htmstatus_fops);
@@ -557,6 +557,17 @@ static int htmdump_init_debugfs(void)
 	debugfs_create_file("htmsystem_mem", 0400, htmdump_debugfs_dir, htm_mem_buf, &htmsystem_mem_fops);
 
 	return 0;
+
+htm_mem_buf_err:
+	kfree(htm_caps_buf);
+htm_caps_buf_err:
+	kfree(htm_info_buf);
+htm_info_buf_err:
+	kfree(htm_status_buf);
+htm_status_buf_err:
+	debugfs_remove_recursive(htmdump_debugfs_dir);
+	kfree(htm_buf);
+	return -ENOMEM;
 }
 
 static int __init htmdump_init(void)
