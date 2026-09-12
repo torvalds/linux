@@ -622,7 +622,7 @@ static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
 		*value = !!SMUQ10_ROUND(metrics->NodePower);
 		break;
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
-		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
+		*value = SMUQ10_ROUND(metrics->NPMResidencyAcc);
 		break;
 	default:
 		return -EINVAL;
