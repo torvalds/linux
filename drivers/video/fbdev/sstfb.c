@@ -15,7 +15,7 @@
  * 09/2002 Helge Deller    <deller@gmx.de>
  *	(enable driver on big-endian machines (hppa), ioctl fixes)
  * 12/2002 Helge Deller    <deller@gmx.de>
- *	(port driver to new frambuffer infrastructure)
+ *	(port driver to new framebuffer infrastructure)
  * 01/2003 Helge Deller    <deller@gmx.de>
  *	(initial work on fb hardware acceleration for voodoo2)
  * 08/2006 Alan Cox 	   <alan@redhat.com>
