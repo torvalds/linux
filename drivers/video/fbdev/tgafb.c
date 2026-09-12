@@ -884,7 +884,7 @@ tgafb_clut_imageblit(struct fb_info *info, const struct fb_image *image)
 
 /**
  *      tgafb_imageblit - REQUIRED function. Can use generic routines if
- *                        non acclerated hardware and packed pixel based.
+ *                        non accelerated hardware and packed pixel based.
  *                        Copies a image from system memory to the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -921,7 +921,7 @@ tgafb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 /**
  *      tgafb_fillrect - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
+ *                       non accelerated hardware and packed pixel based.
  *                       Draws a rectangle on the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -1047,7 +1047,7 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 /*
  *      tgafb_copyarea - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
+ *                       non accelerated hardware and packed pixel based.
  *                       Copies on area of the screen to another area.
  *
  *      @info: frame buffer structure that represents a single frame buffer
