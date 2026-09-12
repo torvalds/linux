@@ -13,10 +13,10 @@
  * See struct hv_deposit_memory. The first u64 is partition ID, the rest
  * are GPAs.
  */
-#define HV_DEPOSIT_MAX (HV_HYP_PAGE_SIZE / sizeof(u64) - 1)
+#define HV_DEPOSIT_MAX_OLD (HV_HYP_PAGE_SIZE / sizeof(u64) - 1)
 
 /* Deposits exact number of pages. Must be called with interrupts enabled.  */
-int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
+static int hv_call_deposit_pages_old(int node, u64 partition_id, u32 num_pages)
 {
 	struct page **pages, *page;
 	int *counts;
@@ -29,7 +29,7 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 	struct hv_deposit_memory *input_page;
 	unsigned long flags;
 
-	if (num_pages > HV_DEPOSIT_MAX)
+	if (num_pages > HV_DEPOSIT_MAX_OLD)
 		return -E2BIG;
 	if (!num_pages)
 		return 0;
@@ -40,7 +40,7 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 		return -ENOMEM;
 	pages = page_address(page);
 
-	counts = kzalloc_objs(int, HV_DEPOSIT_MAX);
+	counts = kzalloc_objs(int, HV_DEPOSIT_MAX_OLD);
 	if (!counts) {
 		free_page((unsigned long)pages);
 		return -ENOMEM;
@@ -108,10 +108,14 @@ free_buf:
 	kfree(counts);
 	return ret;
 }
+
+int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
+{
+	return hv_call_deposit_pages_old(node, partition_id, num_pages);
+}
 EXPORT_SYMBOL_GPL(hv_call_deposit_pages);
 
-int hv_deposit_memory_node(int node, u64 partition_id,
-			   u64 hv_status)
+static int __maybe_unused hv_deposit_memory_node_old(int node, u64 partition_id, u64 hv_status)
 {
 	u32 num_pages = 1;
 
@@ -137,7 +141,12 @@ int hv_deposit_memory_node(int node, u64 partition_id,
 		hv_status_err(hv_status, "Unexpected!\n");
 		return -ENOMEM;
 	}
-	return hv_call_deposit_pages(node, partition_id, num_pages);
+	return hv_call_deposit_pages_old(node, partition_id, num_pages);
+}
+
+int hv_deposit_memory_node(int node, u64 partition_id, u64 hv_status)
+{
+	return hv_deposit_memory_node_old(node, partition_id, hv_status);
 }
 EXPORT_SYMBOL_GPL(hv_deposit_memory_node);
 
