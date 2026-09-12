@@ -162,7 +162,6 @@ struct context {
 struct at_context {
 	struct context context;
 	struct work_struct work;
-	bool flushing;
 };
 
 struct iso_context {
@@ -1338,9 +1337,7 @@ static void at_context_flush(struct at_context *ctx)
 
 	disable_work_sync(&ctx->work);
 
-	WRITE_ONCE(ctx->flushing, true);
 	ohci_at_context_work(&ctx->work);
-	WRITE_ONCE(ctx->flushing, false);
 
 	enable_work(&ctx->work);
 }
@@ -1362,8 +1359,10 @@ static int handle_at_packet(struct context *context,
 	struct driver_data *driver_data;
 	struct fw_packet *packet;
 	int evt;
+	// Check whether this is called from at_context_flush().
+	bool in_flushing = current_work() != &ctx->work;
 
-	if (last->transfer_status == 0 && !READ_ONCE(ctx->flushing))
+	if (last->transfer_status == 0 && !in_flushing)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
@@ -1395,7 +1394,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_missing_ack:
-		if (READ_ONCE(ctx->flushing))
+		if (in_flushing)
 			packet->ack = RCODE_GENERATION;
 		else {
 			/*
@@ -1417,7 +1416,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_no_status:
-		if (READ_ONCE(ctx->flushing)) {
+		if (in_flushing) {
 			packet->ack = RCODE_GENERATION;
 			break;
 		}
