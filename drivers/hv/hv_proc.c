@@ -9,6 +9,180 @@
 #include <linux/export.h>
 #include <asm/mshyperv.h>
 
+#define HV_DEPOSIT_MAX 512
+#define HV_DEPOSIT_INP_MAX ((HV_HYP_PAGE_SIZE -  \
+	offsetof(struct hv_deposit_memory, gpa_page_list)) / sizeof(u64))
+
+/*
+ * Allocate free pages for deposit to hypervisor. pfna[] must be large enough
+ * to hold HV_DEPOSIT_INP_MAX (511) pages. If num_pages is 512, return last
+ * pfn in lastpfn. If @single, then it must be a single allocation (not split
+ * over multiple contiguous ranges).
+ *
+ * Returns: number of pages allocated or -ENOMEM
+ */
+static int hv_alloc_dep_pages(int node, u64 *pfna, u64 *lastpfnp, int num_pages,
+			      bool single)
+{
+	struct page *page;
+	int num_allocd, count = 0;
+
+	/* Published ABI, enforce its immutability. */
+	BUILD_BUG_ON(HV_DEPOSIT_INP_MAX != 511);
+
+	if (num_pages > HV_DEPOSIT_MAX ||
+	    (num_pages == HV_DEPOSIT_MAX && lastpfnp == NULL))
+		return -EINVAL;
+
+	while (num_pages) {
+		/* Find highest order we can actually allocate */
+		int order = 31 - __builtin_clz(num_pages);
+		gfp_t gfp_flags = GFP_KERNEL;
+
+		if (!single)
+			gfp_flags |= __GFP_NOWARN;
+
+		while (1) {
+			page = alloc_pages_node(node, gfp_flags, order);
+			if (page || order == 0 || single)
+				break;
+
+			order--;
+		}
+
+		if (page == NULL)
+			break;
+
+		split_page(page, order);
+		num_allocd = 1 << order;
+		num_pages -= num_allocd;
+
+		while (num_allocd && count < HV_DEPOSIT_INP_MAX) {
+			pfna[count++] = page_to_pfn(page++);
+			num_allocd--;
+		}
+
+		if (num_allocd-- && count == HV_DEPOSIT_INP_MAX) {
+			*lastpfnp = page_to_pfn(page);
+			count++;
+			break;
+		}
+	}
+
+	return count ? count : -ENOMEM;
+}
+
+/*
+ * Deposit memory in the hypervisor. Even if @contiguous is false, a contiguous
+ * 2M worth of pfns is utmost desired for performance reasons. But short of
+ * that, we deposit whatever contiguous chunks we can get. If @contiguous is
+ * true, then the entire range has to be physically contiguous. Note, in that
+ * case, upon withdrawl, hypervisor could return any page in between the range,
+ * so we must split that also. Lastly, HV_MAX_CONTIGUOUS_ALLOCATION_PAGES is
+ * not guaranteed to always be power of 2.
+ */
+static int hv_call_deposit_pages(int node, u64 partition_id, bool contiguous)
+{
+	struct hv_deposit_memory *hc_input;
+	int i, rc, num_pages;
+	u64 status, *pfna, lastpfn = 0;
+	bool trunc_extra = false;
+
+	BUILD_BUG_ON(HV_MAX_CONTIGUOUS_ALLOCATION_PAGES > HV_DEPOSIT_MAX);
+
+	if (contiguous) {
+		num_pages = roundup_pow_of_two(
+					  HV_MAX_CONTIGUOUS_ALLOCATION_PAGES);
+		trunc_extra = num_pages != HV_MAX_CONTIGUOUS_ALLOCATION_PAGES;
+	} else {
+		num_pages = HV_DEPOSIT_MAX;
+	}
+
+	hc_input = (struct hv_deposit_memory *)get_zeroed_page(GFP_KERNEL);
+	if (hc_input == NULL)
+		return -ENOMEM;
+
+	hc_input->partition_id = partition_id;
+	pfna = hc_input->gpa_page_list;
+
+	rc = hv_alloc_dep_pages(node, pfna, &lastpfn, num_pages, contiguous);
+	if (rc < 0)
+		goto out_free;
+
+	num_pages = rc;
+	if (num_pages > HV_DEPOSIT_INP_MAX)
+		num_pages = HV_DEPOSIT_INP_MAX;
+
+	if (contiguous && trunc_extra) {
+		for (i = HV_MAX_CONTIGUOUS_ALLOCATION_PAGES; i < num_pages; i++)
+			__free_page(pfn_to_page(pfna[i]));
+
+		if (lastpfn) {
+			__free_page(pfn_to_page(lastpfn));
+			lastpfn = 0;
+		}
+
+		num_pages = HV_MAX_CONTIGUOUS_ALLOCATION_PAGES;
+	}
+
+	/* Not using hyperv_pcpu_input_arg, so no need to disable interrupts */
+
+	status = hv_do_rep_hypercall(HVCALL_DEPOSIT_MEMORY, num_pages, 0,
+				     hc_input, NULL);
+	if (!hv_result_success(status))
+		goto err_free_dep_pages;
+
+	if (lastpfn) {
+		hc_input->gpa_page_list[0] = lastpfn;
+		status = hv_do_rep_hypercall(HVCALL_DEPOSIT_MEMORY, 1, 0,
+					     hc_input, NULL);
+
+		if (!hv_result_success(status) && hv_repcomp(status) == 0)
+			/* We deposited lot earlier, so give it a go */
+			__free_page(pfn_to_page(lastpfn));
+	}
+
+	free_page((unsigned long)hc_input);
+	return 0;
+
+err_free_dep_pages:
+	hv_status_err(status, "\n");
+	rc = hv_result_to_errno(status);
+
+	for (i = hv_repcomp(status); i < num_pages; i++)
+		__free_page(pfn_to_page(pfna[i]));
+	if (lastpfn)
+		__free_page(pfn_to_page(lastpfn));
+
+out_free:
+	free_page((unsigned long)hc_input);
+	return rc;
+}
+
+int hv_deposit_memory_node(int node, u64 pt_id, u64 hv_status)
+{
+	int result = hv_result(hv_status);
+	bool contiguous = false;
+
+	if (result == HV_STATUS_INSUFFICIENT_ROOT_MEMORY ||
+	    result == HV_STATUS_INSUFFICIENT_CONTIGUOUS_ROOT_MEMORY) {
+		if (!hv_root_partition()) {
+			hv_status_err(hv_status,
+				      "Unexpected root memory deposit\n");
+			return -EINVAL;
+		}
+
+		pt_id = HV_PARTITION_ID_SELF;
+	}
+
+	if (result == HV_STATUS_INSUFFICIENT_CONTIGUOUS_MEMORY ||
+	    result == HV_STATUS_INSUFFICIENT_CONTIGUOUS_ROOT_MEMORY)
+		contiguous = true;
+
+	return hv_call_deposit_pages(node, pt_id, contiguous);
+}
+EXPORT_SYMBOL_GPL(hv_deposit_memory_node);
+
 /*
  * See struct hv_deposit_memory. The first u64 is partition ID, the rest
  * are GPAs.
@@ -109,12 +283,6 @@ free_buf:
 	return ret;
 }
 
-int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
-{
-	return hv_call_deposit_pages_old(node, partition_id, num_pages);
-}
-EXPORT_SYMBOL_GPL(hv_call_deposit_pages);
-
 static int __maybe_unused hv_deposit_memory_node_old(int node, u64 partition_id, u64 hv_status)
 {
 	u32 num_pages = 1;
@@ -143,12 +311,6 @@ static int __maybe_unused hv_deposit_memory_node_old(int node, u64 partition_id,
 	}
 	return hv_call_deposit_pages_old(node, partition_id, num_pages);
 }
-
-int hv_deposit_memory_node(int node, u64 partition_id, u64 hv_status)
-{
-	return hv_deposit_memory_node_old(node, partition_id, hv_status);
-}
-EXPORT_SYMBOL_GPL(hv_deposit_memory_node);
 
 bool hv_result_needs_memory(u64 status)
 {
@@ -211,14 +373,6 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 	u64 status;
 	unsigned long irq_flags;
 	int ret = 0;
-
-	/* Root VPs don't seem to need pages deposited */
-	if (partition_id != hv_current_partition_id) {
-		/* The value 90 is empirically determined. It may change. */
-		ret = hv_call_deposit_pages(node, partition_id, 90);
-		if (ret)
-			return ret;
-	}
 
 	do {
 		local_irq_save(irq_flags);
