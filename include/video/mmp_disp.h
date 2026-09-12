@@ -172,7 +172,7 @@ struct mmp_panel {
 	/* use node to register to list */
 	struct list_head node;
 	const char *name;
-	/* path name used to connect to proper path configed */
+	/* path name used to connect to proper path configured */
 	const char *plat_path_name;
 	struct device *dev;
 	int panel_type;
@@ -291,7 +291,7 @@ static inline int mmp_overlay_set_addr(struct mmp_overlay *overlay,
  * it defined a common interface that plat driver need to implement
  */
 struct mmp_path_info {
-	/* driver data, set when registed*/
+	/* driver data, set when registered */
 	const char *name;
 	struct device *dev;
 	int id;
@@ -309,7 +309,7 @@ extern void mmp_unregister_path(struct mmp_path *path);
 extern void mmp_register_panel(struct mmp_panel *panel);
 extern void mmp_unregister_panel(struct mmp_panel *panel);
 
-/* defintions for platform data */
+/* definitions for platform data */
 /* interface for buffer driver */
 struct mmp_buffer_driver_mach_info {
 	const char	*name;

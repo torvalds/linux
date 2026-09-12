@@ -65,7 +65,7 @@ static DEFINE_MUTEX(disp_lock);
  * @p: panel to be registered
  *
  * this function provides interface for panel drivers to register panel
- * to panel_list and connect to path which matchs panel->plat_path_name.
+ * to panel_list and connect to path which matches panel->plat_path_name.
  * no error returns when no matching path is found as path register after
  * panel register is permitted.
  */
