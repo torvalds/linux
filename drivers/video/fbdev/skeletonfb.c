@@ -478,7 +478,7 @@ static int xxxfb_blank(int blank_mode, struct fb_info *info)
 
 /**
  *      xxxfb_fillrect - REQUIRED function. Can use generic routines if
- *		 	 non acclerated hardware and packed pixel based.
+ *		 	 non accelerated hardware and packed pixel based.
  *			 Draws a rectangle on the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -505,7 +505,7 @@ void xxxfb_fillrect(struct fb_info *p, const struct fb_fillrect *region)
 
 /**
  *      xxxfb_copyarea - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
+ *                       non accelerated hardware and packed pixel based.
  *                       Copies one area of the screen to another area.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -530,7 +530,7 @@ void xxxfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 
 /**
  *      xxxfb_imageblit - REQUIRED function. Can use generic routines if
- *                        non acclerated hardware and packed pixel based.
+ *                        non accelerated hardware and packed pixel based.
  *                        Copies a image from system memory to the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
