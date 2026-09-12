@@ -129,9 +129,8 @@ xfs_file_fsync(
 	int			datasync)
 {
 	struct xfs_inode	*ip = XFS_I(file->f_mapping->host);
-	struct xfs_mount	*mp = ip->i_mount;
-	int			error, err2;
 	int			log_flushed = 0;
+	int			error;
 
 	trace_xfs_file_fsync(ip);
 
@@ -139,30 +138,22 @@ xfs_file_fsync(
 	if (error)
 		return error;
 
-	if (xfs_is_shutdown(mp))
+	if (xfs_is_shutdown(ip->i_mount))
 		return -EIO;
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
 
 	/*
-	 * If we have an RT and/or log subvolume we need to make sure to flush
-	 * the write cache the device used for file data first.  This is to
-	 * ensure newly written file data make it to disk before logging the new
-	 * inode size in case of an extending write.
-	 */
-	if (XFS_IS_REALTIME_INODE(ip) && mp->m_rtdev_targp != mp->m_ddev_targp)
-		error = blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev);
-	else if (mp->m_logdev_targp != mp->m_ddev_targp)
-		error = blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
-
-	/*
-	 * If the inode has a inode log item attached, it may need the journal
-	 * flushed to persist any changes the log item might be tracking.
+	 * If the inode has a log item attached, we must force the log up to the
+	 * last LSN in which the inode was modified to ensure all metadata is
+	 * persisted.  The log force will flush the caches for all devices
+	 * before writing the log records unless it is a no-op because there are
+	 * no modifications to this inode that need to be pushed out.
 	 */
 	if (ip->i_itemp) {
-		err2 = xfs_fsync_flush_log(ip, datasync, &log_flushed);
-		if (err2 && !error)
-			error = err2;
+		error = xfs_fsync_flush_log(ip, datasync, &log_flushed);
+		if (error)
+			return error;
 	}
 
 	/*
@@ -171,21 +162,11 @@ xfs_file_fsync(
 	 * when no metadata needed to be committed.
 	 *
 	 * Use the inode's actual file data target rather than assuming the
-	 * main data device. Realtime inodes with a separate realtime device
-	 * are flushed before the log force, so this fallback only applies
-	 * when the file data target is the same as the log target.
+	 * main data device.
 	 */
-	if (!log_flushed) {
-		struct xfs_buftarg *file_targp = xfs_inode_buftarg(ip);
-
-		if (mp->m_logdev_targp == file_targp) {
-			err2 = blkdev_issue_flush(file_targp->bt_bdev);
-			if (err2 && !error)
-				error = err2;
-		}
-	}
-
-	return error;
+	if (!log_flushed)
+		return blkdev_issue_flush(xfs_inode_buftarg(ip)->bt_bdev);
+	return 0;
 }
 
 static int

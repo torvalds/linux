@@ -605,8 +605,8 @@ xlog_wait(
 	remove_wait_queue(wq, &wait);
 }
 
-int xlog_wait_on_iclog(struct xlog_in_core *iclog)
-		__releases(iclog->ic_log->l_icloglock);
+int xlog_wait_on_iclog(struct xlog *log, struct xlog_in_core *iclog)
+		__releases(log->l_icloglock);
 
 /* Calculate the distance between two LSNs in bytes */
 static inline uint64_t

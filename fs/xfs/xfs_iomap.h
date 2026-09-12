@@ -41,6 +41,8 @@ xfs_iomap_set_anon_write(
 	iomap->offset = offset;
 	iomap->length = length;
 	iomap->flags = IOMAP_F_ANON_WRITE | IOMAP_F_DIRTY;
+	if (bdev_has_integrity_csum(iomap->bdev))
+		iomap->flags |= IOMAP_F_INTEGRITY;
 }
 
 static inline xfs_filblks_t

@@ -244,4 +244,6 @@ xfs_failaddr_t xfs_da3_node_header_check(struct xfs_buf *bp, xfs_ino_t owner);
 
 extern struct kmem_cache	*xfs_da_state_cache;
 
+int xfs_dabuf_nfsb(struct xfs_mount *mp, int whichfork);
+
 #endif	/* __XFS_DA_BTREE_H__ */

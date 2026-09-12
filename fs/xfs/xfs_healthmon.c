@@ -87,12 +87,10 @@ xfs_healthmon_put(
 	struct xfs_healthmon		*hm)
 {
 	if (refcount_dec_and_test(&hm->ref)) {
-		struct xfs_healthmon_event	*event;
-		struct xfs_healthmon_event	*next = hm->first_event;
+		struct xfs_healthmon_event	*event, *s;
 
-		while ((event = next) != NULL) {
+		list_for_each_entry_safe(event, s, &hm->event_list, entry) {
 			trace_xfs_healthmon_drop(hm, event);
-			next = event->next;
 			kfree(event);
 		}
 
@@ -173,9 +171,13 @@ static inline void xfs_healthmon_bump_lost(struct xfs_healthmon *hm)
  */
 static bool
 xfs_healthmon_merge_events(
-	struct xfs_healthmon_event		*existing,
+	struct xfs_healthmon			*hm,
 	const struct xfs_healthmon_event	*new)
 {
+	struct xfs_healthmon_event		*existing =
+		list_last_entry_or_null(&hm->event_list, struct
+				xfs_healthmon_event, entry);
+
 	if (!existing)
 		return false;
 
@@ -192,7 +194,7 @@ xfs_healthmon_merge_events(
 
 	case XFS_HEALTHMON_LOST:
 		existing->lostcount += new->lostcount;
-		return true;
+		goto out_merge;
 
 	case XFS_HEALTHMON_SICK:
 	case XFS_HEALTHMON_CORRUPT:
@@ -200,19 +202,19 @@ xfs_healthmon_merge_events(
 		switch (existing->domain) {
 		case XFS_HEALTHMON_FS:
 			existing->fsmask |= new->fsmask;
-			return true;
+			goto out_merge;
 		case XFS_HEALTHMON_AG:
 		case XFS_HEALTHMON_RTGROUP:
 			if (existing->group == new->group){
 				existing->grpmask |= new->grpmask;
-				return true;
+				goto out_merge;
 			}
 			return false;
 		case XFS_HEALTHMON_INODE:
 			if (existing->ino == new->ino &&
 			    existing->gen == new->gen) {
 				existing->imask |= new->imask;
-				return true;
+				goto out_merge;
 			}
 			return false;
 		default:
@@ -224,18 +226,18 @@ xfs_healthmon_merge_events(
 	case XFS_HEALTHMON_SHUTDOWN:
 		/* yes, we can race to shutdown */
 		existing->flags |= new->flags;
-		return true;
+		goto out_merge;
 
 	case XFS_HEALTHMON_MEDIA_ERROR:
 		/* physically adjacent errors can merge */
 		if (existing->daddr + existing->bbcount == new->daddr) {
 			existing->bbcount += new->bbcount;
-			return true;
+			goto out_merge;
 		}
 		if (new->daddr + new->bbcount == existing->daddr) {
 			existing->daddr = new->daddr;
 			existing->bbcount += new->bbcount;
-			return true;
+			goto out_merge;
 		}
 		return false;
 
@@ -250,63 +252,58 @@ xfs_healthmon_merge_events(
 
 		if (existing->fpos + existing->flen == new->fpos) {
 			existing->flen += new->flen;
-			return true;
+			goto out_merge;
 		}
 
 		if (new->fpos + new->flen == existing->fpos) {
 			existing->fpos = new->fpos;
 			existing->flen += new->flen;
-			return true;
+			goto out_merge;
 		}
 		return false;
 	}
 
 	return false;
+
+out_merge:
+	trace_xfs_healthmon_merge(hm, existing);
+	return true;
 }
 
-/* Insert an event onto the start of the queue. */
+enum insert_where {
+	INSERT_HEAD,
+	INSERT_TAIL,
+};
+
+/* Add an event onto the start or the end of the queue. */
 static inline void
 __xfs_healthmon_insert(
 	struct xfs_healthmon		*hm,
+	enum insert_where		where,
 	struct xfs_healthmon_event	*event)
 {
 	struct timespec64		now;
 
-	ktime_get_coarse_real_ts64(&now);
-	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
-
-	event->next = hm->first_event;
-	if (!hm->first_event)
-		hm->first_event = event;
-	if (!hm->last_event)
-		hm->last_event = event;
-	xfs_healthmon_bump_events(hm);
-	wake_up(&hm->wait);
-
-	trace_xfs_healthmon_insert(hm, event);
-}
-
-/* Push an event onto the end of the queue. */
-static inline void
-__xfs_healthmon_push(
-	struct xfs_healthmon		*hm,
-	struct xfs_healthmon_event	*event)
-{
-	struct timespec64		now;
+	lockdep_assert_held(&hm->lock);
 
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
 
-	if (!hm->first_event)
-		hm->first_event = event;
-	if (hm->last_event)
-		hm->last_event->next = event;
-	hm->last_event = event;
-	event->next = NULL;
+	switch (where) {
+	case INSERT_HEAD:
+		trace_xfs_healthmon_insert_head(hm, event);
+
+		list_add(&event->entry, &hm->event_list);
+		break;
+	case INSERT_TAIL:
+		trace_xfs_healthmon_insert_tail(hm, event);
+
+		list_add_tail(&event->entry, &hm->event_list);
+		break;
+	}
+
 	xfs_healthmon_bump_events(hm);
 	wake_up(&hm->wait);
-
-	trace_xfs_healthmon_push(hm, event);
 }
 
 /* Deal with any previously lost events */
@@ -321,8 +318,7 @@ xfs_healthmon_clear_lost_prev(
 	};
 	struct xfs_healthmon_event	*event = NULL;
 
-	if (xfs_healthmon_merge_events(hm->last_event, &lost_event)) {
-		trace_xfs_healthmon_merge(hm, hm->last_event);
+	if (xfs_healthmon_merge_events(hm, &lost_event)) {
 		wake_up(&hm->wait);
 		goto cleared;
 	}
@@ -330,10 +326,12 @@ xfs_healthmon_clear_lost_prev(
 	if (hm->events < XFS_HEALTHMON_MAX_EVENTS)
 		event = kmemdup(&lost_event, sizeof(struct xfs_healthmon_event),
 				GFP_NOFS);
-	if (!event)
+	if (!event) {
+		xfs_healthmon_bump_lost(hm);
 		return -ENOMEM;
+	}
 
-	__xfs_healthmon_push(hm, event);
+	__xfs_healthmon_insert(hm, INSERT_TAIL, event);
 cleared:
 	hm->lost_prev_event = 0;
 	return 0;
@@ -369,8 +367,7 @@ xfs_healthmon_push(
 	}
 
 	/* Try to merge with the newest event */
-	if (xfs_healthmon_merge_events(hm->last_event, template)) {
-		trace_xfs_healthmon_merge(hm, hm->last_event);
+	if (xfs_healthmon_merge_events(hm, template)) {
 		wake_up(&hm->wait);
 		goto out_unlock;
 	}
@@ -387,7 +384,7 @@ xfs_healthmon_push(
 		goto out_unlock;
 	}
 
-	__xfs_healthmon_push(hm, event);
+	__xfs_healthmon_insert(hm, INSERT_TAIL, event);
 
 out_unlock:
 	mutex_unlock(&hm->lock);
@@ -415,8 +412,10 @@ xfs_healthmon_unmount(
 	 * There's nothing actionable for userspace after an unmount.  Once
 	 * we've inserted the unmount event, hm no longer owns that event.
 	 */
-	__xfs_healthmon_insert(hm, hm->unmount_event);
+	mutex_lock(&hm->lock);
+	__xfs_healthmon_insert(hm, INSERT_HEAD, hm->unmount_event);
 	hm->unmount_event = NULL;
+	mutex_unlock(&hm->lock);
 
 	xfs_healthmon_detach(hm);
 	xfs_healthmon_put(hm);
@@ -738,6 +737,13 @@ static const unsigned int type_map[] = {
 	[XFS_HEALTHMON_DATALOST]	= XFS_HEALTH_MONITOR_TYPE_DATALOST,
 };
 
+static inline bool
+xfs_healthmon_check_outbuffer_space(const struct xfs_healthmon *hm)
+{
+	return hm->bufhead + sizeof(struct xfs_health_monitor_event) <=
+		hm->bufsize;
+}
+
 /* Render event as a V0 structure */
 STATIC int
 xfs_healthmon_format_v0(
@@ -804,10 +810,10 @@ xfs_healthmon_format_v0(
 		break;
 	}
 
-	ASSERT(hm->bufhead + sizeof(hme) <= hm->bufsize);
+	ASSERT(xfs_healthmon_check_outbuffer_space(hm));
 
 	/* copy formatted object to the outbuf */
-	if (hm->bufhead + sizeof(hme) <= hm->bufsize) {
+	if (xfs_healthmon_check_outbuffer_space(hm)) {
 		memcpy(hm->buffer + hm->bufhead, &hme, sizeof(hme));
 		hm->bufhead += sizeof(hme);
 	}
@@ -890,15 +896,18 @@ xfs_healthmon_format_pop(
 {
 	struct xfs_healthmon_event *event;
 
-	if (hm->bufhead + sizeof(*event) > hm->bufsize)
+	/*
+	 * Don't bother if there's not enough space to format even one event in
+	 * the outbuffer.
+	 */
+	if (!xfs_healthmon_check_outbuffer_space(hm))
 		return NULL;
 
 	mutex_lock(&hm->lock);
-	event = hm->first_event;
+	event = list_first_entry_or_null(&hm->event_list,
+			struct xfs_healthmon_event, entry);
 	if (event) {
-		if (hm->last_event == event)
-			hm->last_event = NULL;
-		hm->first_event = event->next;
+		list_del_init(&event->entry);
 		hm->events--;
 
 		trace_xfs_healthmon_pop(hm, event);
@@ -1198,6 +1207,7 @@ xfs_ioc_health_monitor(
 		return -ENOMEM;
 	hm->dev = mp->m_super->s_dev;
 	refcount_set(&hm->ref, 1);
+	INIT_LIST_HEAD(&hm->event_list);
 
 	mutex_init(&hm->lock);
 	init_waitqueue_head(&hm->wait);
@@ -1213,7 +1223,9 @@ xfs_ioc_health_monitor(
 	}
 	running_event->type = XFS_HEALTHMON_RUNNING;
 	running_event->domain = XFS_HEALTHMON_MOUNT;
-	__xfs_healthmon_insert(hm, running_event);
+	mutex_lock(&hm->lock);
+	__xfs_healthmon_insert(hm, INSERT_HEAD, running_event);
+	mutex_unlock(&hm->lock);
 
 	/*
 	 * Preallocate the unmount event so that we can't fail to notify the

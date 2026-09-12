@@ -475,6 +475,8 @@ static struct xfs_open_zone *
 xfs_try_open_zone(
 	struct xfs_mount	*mp,
 	enum rw_hint		write_hint)
+		__releases(&mp->m_zone_info->zi_open_zones_lock)
+		__acquires(&mp->m_zone_info->zi_open_zones_lock)
 {
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	struct xfs_open_zone	*oz;

@@ -161,8 +161,8 @@ xfs_extent_busy_update_extent(
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
 	bool			userdata)
-		__releases(&eb->eb_lock)
-		__acquires(&eb->eb_lock)
+		__releases(&xg->xg_busy_extents->eb_lock)
+		__acquires(&xg->xg_busy_extents->eb_lock)
 {
 	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	xfs_agblock_t		fend = fbno + flen;
