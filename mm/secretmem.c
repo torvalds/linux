@@ -39,7 +39,7 @@
 
 static bool secretmem_enable __ro_after_init = 1;
 module_param_named(enable, secretmem_enable, bool, 0400);
-MODULE_PARM_DESC(secretmem_enable,
+MODULE_PARM_DESC(enable,
 		 "Enable secretmem and memfd_secret(2) system call");
 
 static atomic_t secretmem_users;
