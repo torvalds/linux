@@ -528,7 +528,7 @@ static int au1100fb_setmode(struct au1100fb_device *fbdev)
 	if (!info->var.rotate || (info->var.rotate == 180)) {
 		words *= info->var.yres_virtual;
 		if (info->var.rotate /* 180 */) {
-			words -= (words % 8); /* should be divisable by 8 */
+			words -= (words % 8); /* should be divisible by 8 */
 		}
 	}
 	fbdev->regs->lcd_words = LCD_WRD_WRDS_N(words);
