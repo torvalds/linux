@@ -58,7 +58,7 @@ static struct fb_fix_screeninfo tridentfb_fix = {
 	.accel = FB_ACCEL_NONE,
 };
 
-/* defaults which are normally overriden by user values */
+/* defaults which are normally overridden by user values */
 
 /* video mode */
 static char *mode_option;
