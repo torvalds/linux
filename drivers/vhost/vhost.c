@@ -3179,7 +3179,6 @@ static int vhost_add_used_n_in_order(struct vhost_virtqueue *vq,
 		return -EINVAL;
 
 	start = vq->last_used_idx & (vq->num - 1);
-	used = vq->used->ring + start;
 
 	for (i = 0; i < count; i++) {
 		if (vhost_put_used(vq, &heads[i], start, 1)) {
@@ -3193,14 +3192,31 @@ static int vhost_add_used_n_in_order(struct vhost_virtqueue *vq,
 	}
 
 	if (unlikely(vq->log_used)) {
+		unsigned int log_count = 0;
+		int log_start = 0, next;
+
 		/* Make sure data is seen before log. */
 		smp_wmb();
-		/* Log used ring entry write. */
-		log_used(vq, ((void __user *)used - (void __user *)vq->used),
-			 (vq->num - start) * sizeof *used);
-		if (start + count > vq->num)
-			log_used(vq, 0,
-				 (start + count - vq->num) * sizeof *used);
+		/* Log contiguous runs of used ring entries that were written. */
+		start = vq->last_used_idx & (vq->num - 1);
+		for (i = 0; i < count; i++) {
+			if (!log_count)
+				log_start = start;
+			log_count++;
+
+			next = start + nheads[i];
+			if (next >= vq->num)
+				next -= vq->num;
+			if (i + 1 == count || next != start + 1) {
+				used = vq->used->ring + log_start;
+				log_used(vq,
+					 ((void __user *)used -
+					  (void __user *)vq->used),
+					 log_count * sizeof(*used));
+				log_count = 0;
+			}
+			start = next;
+		}
 	}
 
 	old = vq->last_used_idx;
