@@ -96,7 +96,7 @@ struct iommu_domain *
 amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 			      const struct iommu_user_data *user_data)
 {
-	int ret;
+	int ret, hdom_id;
 	unsigned long irqflags;
 	struct nested_domain *ndom;
 	struct guest_domain_mapping_info *gdom_info;
@@ -161,8 +161,8 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	}
 
 	/* The gDomID does not exist. We allocate new hdom_id */
-	gdom_info->hdom_id = amd_iommu_pdom_id_alloc();
-	if (gdom_info->hdom_id <= 0) {
+	hdom_id = amd_iommu_pdom_id_alloc();
+	if (hdom_id <= 0) {
 		__xa_cmpxchg(&aviommu->gdomid_array,
 			     ndom->gdom_id, gdom_info, NULL, GFP_ATOMIC);
 		xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
@@ -170,6 +170,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 		goto out_err_gdom_info;
 	}
 
+	gdom_info->hdom_id = hdom_id;
 	ndom->gdom_info = gdom_info;
 	refcount_set(&gdom_info->users, 1);
 
