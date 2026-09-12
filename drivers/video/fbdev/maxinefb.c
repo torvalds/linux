@@ -98,7 +98,7 @@ static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 
 	red   >>= 8;    /* The cmap fields are 16 bits    */
-	green >>= 8;    /* wide, but the harware colormap */
+	green >>= 8;    /* wide, but the hardware colormap */
 	blue  >>= 8;    /* registers are only 8 bits wide */
 
 	hw_colorvalue = (blue << 16) + (green << 8) + (red);
