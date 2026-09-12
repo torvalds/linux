@@ -1626,6 +1626,12 @@ struct pptable_funcs {
 	 * unsupported.
 	 */
 	u64 (*get_npm_cap)(struct smu_context *smu);
+
+	/**
+	 * @set_npm_limit: Set node power limit in watts.
+	 */
+	int (*set_npm_limit)(struct smu_context *smu, uint32_t limit);
+
 	/**
 	 * @ras_send_msg: Send a message with a parameter from Ras
 	 * &msg: Type of message.

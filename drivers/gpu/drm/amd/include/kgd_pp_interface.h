@@ -530,6 +530,7 @@ struct amd_pm_funcs {
 	ssize_t (*get_temp_metrics)(void *handle, enum smu_temp_metric_type type, void *table);
 	bool (*temp_metrics_is_supported)(void *handle, enum smu_temp_metric_type type);
 	u64 (*get_npm_cap)(void *handle);
+	int (*set_npm_limit)(void *handle, uint32_t limit);
 	ssize_t (*get_xcp_metrics)(void *handle, int xcp_id, void *table);
 	ssize_t (*get_pm_metrics)(void *handle, void *pmmetrics, size_t size);
 	int (*set_watermarks_for_clock_ranges)(void *handle,

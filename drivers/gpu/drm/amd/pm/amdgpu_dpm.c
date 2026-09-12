@@ -2124,6 +2124,24 @@ u64 amdgpu_dpm_get_npm_cap(struct amdgpu_device *adev)
 	return cap;
 }
 
+int amdgpu_dpm_set_npm_limit(struct amdgpu_device *adev, uint32_t limit)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
+
+	if (!pp_funcs || !pp_funcs->set_npm_limit)
+		return -EOPNOTSUPP;
+
+	if (amdgpu_sriov_vf(adev))
+		return -EPERM;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = pp_funcs->set_npm_limit(adev->powerplay.pp_handle, limit);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
 /**
  * amdgpu_dpm_get_xcp_metrics - Retrieve metrics for a specific compute
  * partition

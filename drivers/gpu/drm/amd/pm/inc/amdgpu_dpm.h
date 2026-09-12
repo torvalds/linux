@@ -617,5 +617,6 @@ bool amdgpu_dpm_reset_vcn_is_supported(struct amdgpu_device *adev);
 bool amdgpu_dpm_is_temp_metrics_supported(struct amdgpu_device *adev,
 					  enum smu_temp_metric_type type);
 u64 amdgpu_dpm_get_npm_cap(struct amdgpu_device *adev);
+int amdgpu_dpm_set_npm_limit(struct amdgpu_device *adev, uint32_t limit);
 
 #endif
