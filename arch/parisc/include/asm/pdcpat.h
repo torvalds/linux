@@ -54,7 +54,7 @@
 #define PAT_GMMIO           2         /* > 4G MMIO Space */
 #define PAT_NPIOP           3         /* Non Postable I/O Port Space */
 #define PAT_PIOP            4         /* Postable I/O Port Space */
-#define PAT_AHPA            5         /* Addional HPA Space */
+#define PAT_AHPA            5         /* Additional HPA Space */
 #define PAT_UFO             6         /* HPA Space (UFO for Mariposa) */
 #define PAT_GNIP            7         /* GNI Reserved Space */
 
@@ -292,7 +292,7 @@ struct pdc_pat_pd_addr_map_entry {
 * ----------------------------------------------------------
 * Bit  0 to 51 - conf_base_addr
 * Bit 52 to 62 - reserved
-* Bit       63 - endianess bit
+* Bit       63 - endianness bit
 ********************************************************************/
 #define PAT_GET_CBA(value) ((value) & 0xfffffffffffff000UL)
 
