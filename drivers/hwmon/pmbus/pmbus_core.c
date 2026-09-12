@@ -2982,6 +2982,11 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	}
 
 	for (page = 0; page < info->pages; page++) {
+		if (info->phases[page] > PMBUS_PHASES) {
+			dev_err(dev, "Bad number of PMBus phases for page %d: %d\n",
+				page, info->phases[page]);
+			return -ENODEV;
+		}
 		ret = pmbus_identify_common(client, data, page);
 		if (ret < 0) {
 			dev_err(dev, "Failed to identify chip capabilities\n");
