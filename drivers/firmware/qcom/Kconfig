@@ -26,8 +26,7 @@ config QCOM_PAS_TEE
 	  by the firmware TEE implementation as the backend.
 
 config QCOM_SCM
-	tristate "Qualcomm PAS SCM interface driver"
-	depends on ARCH_QCOM || COMPILE_TEST
+	tristate "Qualcomm PAS SCM interface driver" if ARCH_QCOM || COMPILE_TEST
 	select QCOM_PAS
 	select QCOM_TZMEM
 	default y if ARCH_QCOM
