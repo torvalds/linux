@@ -108,6 +108,8 @@ ssize_t ksmbd_vfs_getxattr(const struct mnt_idmap *idmap,
 			   struct dentry *dentry,
 			   char *xattr_name,
 			   char **xattr_buf);
+ssize_t ksmbd_vfs_xattr_len(const struct mnt_idmap *idmap,
+			    struct dentry *dentry, char *xattr_name);
 ssize_t ksmbd_vfs_getcasexattr(const struct mnt_idmap *idmap,
 			       struct dentry *dentry, char *attr_name,
 			       int attr_name_len, char **attr_value);
