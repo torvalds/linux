@@ -1536,14 +1536,11 @@ static bool in_bus_management_csr_registers(u64 offset)
 	return in_range(offset, CSR_BUS_MANAGER_ID, 0x22c - CSR_BUS_MANAGER_ID);
 }
 
-static void handle_local_request(struct at_context *ctx, struct fw_packet *packet)
+static void handle_local_at_request_packet(struct fw_ohci *ohci, struct fw_packet *packet)
 {
-	struct fw_ohci *ohci = ctx->context.ohci;
-
-	if (ctx == &ohci->at_request_ctx) {
-		packet->ack = ACK_PENDING;
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+	// Emulate split transaction.
+	packet->ack = ACK_PENDING;
+	packet->callback(packet, &ohci->card, packet->ack);
 
 	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
 
@@ -1563,16 +1560,23 @@ static void handle_local_request(struct at_context *ctx, struct fw_packet *packe
 		// Finish the transaction immediately.
 		fw_core_handle_response(&ohci->card, &response);
 	} else {
-		if (ctx == &ohci->at_request_ctx)
-			fw_core_handle_request(&ohci->card, packet);
-		else
-			fw_core_handle_response(&ohci->card, packet);
+		fw_core_handle_request(&ohci->card, packet);
 	}
+}
 
-	if (ctx == &ohci->at_response_ctx) {
-		packet->ack = ACK_COMPLETE;
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+static void handle_local_at_response_packet(struct fw_ohci *ohci, struct fw_packet *packet)
+{
+	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
+
+	// The transaction is already finished by handle_local_at_request_packet().
+	if (WARN_ON(in_config_rom_csr_registers(csr_offset)) ||
+	    WARN_ON(in_bus_management_csr_registers(csr_offset)))
+		return;
+
+	fw_core_handle_response(&ohci->card, packet);
+
+	packet->ack = ACK_COMPLETE;
+	packet->callback(packet, &ohci->card, packet->ack);
 }
 
 static bool destination_is_local(const struct fw_packet *packet, const struct fw_ohci *ohci)
@@ -1598,7 +1602,10 @@ static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet
 		// Timestamping on behalf of the hardware.
 		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
 
-		handle_local_request(ctx, packet);
+		if (ctx == &ohci->at_request_ctx)
+			handle_local_at_request_packet(ohci, packet);
+		else
+			handle_local_at_response_packet(ohci, packet);
 		return;
 	}
 
