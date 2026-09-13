@@ -68,6 +68,9 @@ struct ksmbd_conn {
 		u8			inet6_addr[16];
 #endif
 	};
+#if IS_ENABLED(CONFIG_IPV6)
+	bool				is_ipv6;
+#endif
 	unsigned int			inet_hash;
 	char				*request_buf;
 	struct ksmbd_transport		*transport;

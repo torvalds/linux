@@ -77,6 +77,7 @@ static struct tcp_transport *alloc_transport(struct socket *client_sk)
 	if (client_sk->sk->sk_family == AF_INET6) {
 		memcpy(&conn->inet6_addr, &client_sk->sk->sk_v6_daddr, 16);
 		conn->inet_hash = ipv6_addr_hash(&client_sk->sk->sk_v6_daddr);
+		conn->is_ipv6 = true;
 	} else {
 		conn->inet_addr = inet_sk(client_sk->sk)->inet_daddr;
 		conn->inet_hash = ipv4_addr_hash(inet_sk(client_sk->sk)->inet_daddr);

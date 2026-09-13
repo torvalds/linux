@@ -114,7 +114,7 @@ static int proc_show_clients(struct seq_file *m, void *v)
 			sessions++;
 		rcu_read_unlock();
 #if IS_ENABLED(CONFIG_IPV6)
-		if (!conn->inet_addr)
+		if (conn->is_ipv6)
 			seq_printf(m, "client:\t%pI6c\n", &conn->inet6_addr);
 		else
 #endif

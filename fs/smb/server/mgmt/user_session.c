@@ -130,7 +130,7 @@ static int show_proc_session(struct seq_file *m, void *v)
 		const char *name;
 
 #if IS_ENABLED(CONFIG_IPV6)
-		if (chan->conn->inet_addr)
+		if (!chan->conn->is_ipv6)
 			seq_printf(m, "client:\t%pI4\n",
 					&chan->conn->inet_addr);
 		else
@@ -231,7 +231,7 @@ static int show_proc_sessions(struct seq_file *m, void *v)
 			ksmbd_user_session_get(session);
 
 #if IS_ENABLED(CONFIG_IPV6)
-			if (!chan->conn->inet_addr)
+			if (chan->conn->is_ipv6)
 				seq_printf(m, "client:\t%pI6c\n", &chan->conn->inet6_addr);
 			else
 #endif
