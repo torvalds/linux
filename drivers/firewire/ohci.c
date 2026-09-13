@@ -1534,35 +1534,38 @@ static void handle_local_lock(struct fw_ohci *ohci,
 	fw_core_handle_response(&ohci->card, &response);
 }
 
+static bool in_config_rom_csr_registers(u64 offset)
+{
+	return in_range(offset, CSR_CONFIG_ROM, CONFIG_ROM_SIZE);
+}
+
+// 5.5.1 Bus Management CSR Registers.
+static bool in_bus_management_csr_registers(u64 offset)
+{
+	// 0x22c = CSR_MAINT_CONTROL following to CSR_CHANNELS_AVAILABLE_LO.
+	return in_range(offset, CSR_BUS_MANAGER_ID, 0x22c - CSR_BUS_MANAGER_ID);
+}
+
 static void handle_local_request(struct at_context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->context.ohci;
-	u64 offset, csr;
 
 	if (ctx == &ohci->at_request_ctx) {
 		packet->ack = ACK_PENDING;
 		packet->callback(packet, &ohci->card, packet->ack);
 	}
 
-	offset = async_header_get_offset(packet->header);
-	csr = offset - CSR_REGISTER_BASE;
+	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
 
-	/* Handle config rom reads. */
-	if (csr >= CSR_CONFIG_ROM && csr < CSR_CONFIG_ROM_END)
-		handle_local_rom(ohci, packet, csr);
-	else switch (csr) {
-	case CSR_BUS_MANAGER_ID:
-	case CSR_BANDWIDTH_AVAILABLE:
-	case CSR_CHANNELS_AVAILABLE_HI:
-	case CSR_CHANNELS_AVAILABLE_LO:
-		handle_local_lock(ohci, packet, csr);
-		break;
-	default:
+	if (in_config_rom_csr_registers(csr_offset)) {
+		handle_local_rom(ohci, packet, csr_offset);
+	} else if (in_bus_management_csr_registers(csr_offset)) {
+		handle_local_lock(ohci, packet, csr_offset);
+	} else {
 		if (ctx == &ohci->at_request_ctx)
 			fw_core_handle_request(&ohci->card, packet);
 		else
 			fw_core_handle_response(&ohci->card, packet);
-		break;
 	}
 
 	if (ctx == &ohci->at_response_ctx) {
