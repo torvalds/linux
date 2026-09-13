@@ -9844,6 +9844,7 @@ R:	Yuezhang Mo <yuezhang.mo@sony.com>
 L:	exfat@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linkinjeon/exfat.git
+F:	Documentation/filesystems/exfat.rst
 F:	fs/exfat/
 
 EXPRESSWIRE PROTOCOL LIBRARY
