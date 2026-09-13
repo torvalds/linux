@@ -238,7 +238,7 @@ found_it:
 		 */
 		rc = ntfs_collate_names(uname, uname_len,
 				(__le16 *)&ie->key.file_name.file_name,
-				ie->key.file_name.file_name_length, 1,
+				ie->key.file_name.file_name_length, false,
 				IGNORE_CASE, vol->upcase, vol->upcase_len);
 		/*
 		 * If uname collates before the name of the current entry, there
@@ -257,7 +257,7 @@ found_it:
 		 */
 		rc = ntfs_collate_names(uname, uname_len,
 				(__le16 *)&ie->key.file_name.file_name,
-				ie->key.file_name.file_name_length, 1,
+				ie->key.file_name.file_name_length, false,
 				CASE_SENSITIVE, vol->upcase, vol->upcase_len);
 		if (rc == -1)
 			break;
@@ -474,7 +474,7 @@ found_it2:
 		 */
 		rc = ntfs_collate_names(uname, uname_len,
 				(__le16 *)&ie->key.file_name.file_name,
-				ie->key.file_name.file_name_length, 1,
+				ie->key.file_name.file_name_length, false,
 				IGNORE_CASE, vol->upcase, vol->upcase_len);
 		/*
 		 * If uname collates before the name of the current entry, there
@@ -493,7 +493,7 @@ found_it2:
 		 */
 		rc = ntfs_collate_names(uname, uname_len,
 				(__le16 *)&ie->key.file_name.file_name,
-				ie->key.file_name.file_name_length, 1,
+				ie->key.file_name.file_name_length, false,
 				CASE_SENSITIVE, vol->upcase, vol->upcase_len);
 		if (rc == -1)
 			break;

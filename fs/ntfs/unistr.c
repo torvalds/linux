@@ -64,7 +64,8 @@ bool ntfs_are_names_equal(const __le16 *s1, size_t s1_len,
  * @name1_len:	first Unicode name length
  * @name2:	second Unicode name to compare
  * @name2_len:	second Unicode name length
- * @err_val:	if @name1 contains an invalid character return this value
+ * @check_invalid:	if true and @name1 contains an invalid character,
+ *			return -EINVAL
  * @ic:		either CASE_SENSITIVE or IGNORE_CASE
  * @upcase:	upcase table (ignored if @ic is CASE_SENSITIVE)
  * @upcase_len:	upcase table size (ignored if @ic is CASE_SENSITIVE)
@@ -74,13 +75,14 @@ bool ntfs_are_names_equal(const __le16 *s1, size_t s1_len,
  *  -1 if the first name collates before the second one,
  *   0 if the names match,
  *   1 if the second name collates before the first one, or
- * @err_val if an invalid character is found in @name1 during the comparison.
+ * -EINVAL if @check_invalid is true and an invalid character is found in
+ * @name1 during the comparison.
  *
  * The following characters are considered invalid: '"', '*', '<', '>' and '?'.
  */
 int ntfs_collate_names(const __le16 *name1, const u32 name1_len,
 		const __le16 *name2, const u32 name2_len,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len)
 {
 	u32 cnt, min_len;
@@ -98,8 +100,8 @@ int ntfs_collate_names(const __le16 *name1, const u32 name1_len,
 			if (c2 < upcase_len)
 				c2 = le16_to_cpu(upcase[c2]);
 		}
-		if (c1 < 64 && legal_ansi_char_array[c1] & 8)
-			return err_val;
+		if (check_invalid && c1 < 64 && legal_ansi_char_array[c1] & 8)
+			return -EINVAL;
 		if (c1 < c2)
 			return -1;
 		if (c1 > c2)
@@ -111,8 +113,8 @@ int ntfs_collate_names(const __le16 *name1, const u32 name1_len,
 		return 0;
 	/* name1_len > name2_len */
 	c1 = le16_to_cpu(*name1);
-	if (c1 < 64 && legal_ansi_char_array[c1] & 8)
-		return err_val;
+	if (check_invalid && c1 < 64 && legal_ansi_char_array[c1] & 8)
+		return -EINVAL;
 	return 1;
 }
 
@@ -191,14 +193,23 @@ int ntfs_ucsncasecmp(const __le16 *s1, const __le16 *s2, size_t n,
 
 int ntfs_file_compare_values(const struct file_name_attr *file_name_attr1,
 		const struct file_name_attr *file_name_attr2,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len)
 {
+	bool compare_check = check_invalid;
+
+	/*
+	 * POSIX file names may contain characters that are invalid in the
+	 * Windows namespace, so compare them without treating them as errors.
+	 */
+	if (file_name_attr1->file_name_type == FILE_NAME_POSIX)
+		compare_check = false;
+
 	return ntfs_collate_names((__le16 *)&file_name_attr1->file_name,
 			file_name_attr1->file_name_length,
 			(__le16 *)&file_name_attr2->file_name,
 			file_name_attr2->file_name_length,
-			err_val, ic, upcase, upcase_len);
+			compare_check, ic, upcase, upcase_len);
 }
 
 /*

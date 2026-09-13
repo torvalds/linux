@@ -909,7 +909,7 @@ static int ntfs_attr_find(const __le32 type, const __le16 *name,
 
 				rc = ntfs_collate_names(name, name_len,
 						(__le16 *)((u8 *)a + le16_to_cpu(a->name_offset)),
-						a->name_length, 1, IGNORE_CASE,
+						a->name_length, true, IGNORE_CASE,
 						upcase, upcase_len);
 				/*
 				 * If @name collates before a->name, there is no
@@ -922,7 +922,7 @@ static int ntfs_attr_find(const __le32 type, const __le16 *name,
 					continue;
 				rc = ntfs_collate_names(name, name_len,
 						(__le16 *)((u8 *)a + le16_to_cpu(a->name_offset)),
-						a->name_length, 1, CASE_SENSITIVE,
+						a->name_length, true, CASE_SENSITIVE,
 						upcase, upcase_len);
 				if (rc == -1)
 					return -ENOENT;
@@ -1313,7 +1313,7 @@ find_attr_list_attr:
 			register int rc;
 
 			rc = ntfs_collate_names(name, name_len, al_name,
-					al_name_len, 1, IGNORE_CASE,
+					al_name_len, true, IGNORE_CASE,
 					vol->upcase, vol->upcase_len);
 			/*
 			 * If @name collates before al_name, there is no
@@ -1326,7 +1326,7 @@ find_attr_list_attr:
 				continue;
 
 			rc = ntfs_collate_names(name, name_len, al_name,
-					al_name_len, 1, CASE_SENSITIVE,
+					al_name_len, true, CASE_SENSITIVE,
 					vol->upcase, vol->upcase_len);
 			if (rc == -1)
 				goto not_found;

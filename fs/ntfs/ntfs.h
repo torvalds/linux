@@ -234,14 +234,14 @@ bool ntfs_are_names_equal(const __le16 *s1, size_t s1_len,
 		const __le16 *upcase, const u32 upcase_size);
 int ntfs_collate_names(const __le16 *name1, const u32 name1_len,
 		const __le16 *name2, const u32 name2_len,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len);
 int ntfs_ucsncmp(const __le16 *s1, const __le16 *s2, size_t n);
 int ntfs_ucsncasecmp(const __le16 *s1, const __le16 *s2, size_t n,
 		const __le16 *upcase, const u32 upcase_size);
 int ntfs_file_compare_values(const struct file_name_attr *file_name_attr1,
 		const struct file_name_attr *file_name_attr2,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len);
 int ntfs_nlstoucs(const struct ntfs_volume *vol, const char *ins,
 		const int ins_len, __le16 **outs, int max_name_len);

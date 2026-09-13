@@ -100,11 +100,11 @@ static int ntfs_collate_file_name(struct ntfs_volume *vol,
 {
 	int rc;
 
-	rc = ntfs_file_compare_values(data1, data2, -EINVAL,
-			IGNORE_CASE, vol->upcase, vol->upcase_len);
+	rc = ntfs_file_compare_values(data1, data2,
+				      true, IGNORE_CASE, vol->upcase, vol->upcase_len);
 	if (!rc)
 		rc = ntfs_file_compare_values(data1, data2,
-			-EINVAL, CASE_SENSITIVE, vol->upcase, vol->upcase_len);
+			true, CASE_SENSITIVE, vol->upcase, vol->upcase_len);
 	return rc;
 }
 
