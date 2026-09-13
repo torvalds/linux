@@ -1574,6 +1574,15 @@ static void handle_local_request(struct at_context *ctx, struct fw_packet *packe
 	}
 }
 
+static bool destination_is_local(const struct fw_packet *packet, const struct fw_ohci *ohci)
+__must_hold(&ohci->lock)
+{
+	lockdep_assert_held(&ohci->lock);
+
+	return (async_header_get_destination(packet->header) == ohci->node_id &&
+		ohci->generation == packet->generation);
+}
+
 static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->context.ohci;
@@ -1582,8 +1591,7 @@ static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet
 
 	spin_lock_irqsave(&ohci->lock, flags);
 
-	if (async_header_get_destination(packet->header) == ohci->node_id &&
-	    ohci->generation == packet->generation) {
+	if (destination_is_local(packet, ohci)) {
 		spin_unlock_irqrestore(&ohci->lock, flags);
 
 		// Timestamping on behalf of the hardware.
