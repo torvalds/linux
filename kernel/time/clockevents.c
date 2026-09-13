@@ -615,6 +615,24 @@ void clockevents_handle_noop(struct clock_event_device *dev)
 {
 }
 
+void __clockevents_exchange_device(struct clock_event_device *old,
+				   struct clock_event_device *new)
+{
+	/*
+	 * Caller releases a clock event device. We queue it into the
+	 * released list and do a notify add later.
+	 */
+	if (old) {
+		clockevents_switch_state(old, CLOCK_EVT_STATE_DETACHED);
+		list_move(&old->list, &clockevents_released);
+	}
+
+	if (new) {
+		WARN_ON(!clockevent_state_detached(new));
+		clockevents_shutdown(new);
+	}
+}
+
 /**
  * clockevents_exchange_device - release and request clock devices
  * @old:	device to release (can be NULL)
@@ -626,20 +644,9 @@ void clockevents_handle_noop(struct clock_event_device *dev)
 void clockevents_exchange_device(struct clock_event_device *old,
 				 struct clock_event_device *new)
 {
-	/*
-	 * Caller releases a clock event device. We queue it into the
-	 * released list and do a notify add later.
-	 */
-	if (old) {
+	__clockevents_exchange_device(old, new);
+	if (old)
 		module_put(old->owner);
-		clockevents_switch_state(old, CLOCK_EVT_STATE_DETACHED);
-		list_move(&old->list, &clockevents_released);
-	}
-
-	if (new) {
-		BUG_ON(!clockevent_state_detached(new));
-		clockevents_shutdown(new);
-	}
 }
 
 /**
@@ -699,7 +706,7 @@ void tick_offline_cpu(unsigned int cpu)
 		if (cpumask_test_cpu(cpu, dev->cpumask) &&
 		    cpumask_weight(dev->cpumask) == 1 &&
 		    !tick_is_broadcast_device(dev)) {
-			BUG_ON(!clockevent_state_detached(dev));
+			WARN_ON(!clockevent_state_detached(dev));
 			list_del(&dev->list);
 		}
 	}
