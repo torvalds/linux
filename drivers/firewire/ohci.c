@@ -1455,10 +1455,9 @@ static int handle_at_packet(struct context *context,
 
 static u32 get_cycle_time(struct fw_ohci *ohci);
 
-static void handle_local_rom(struct fw_ohci *ohci,
-			     struct fw_packet *packet, u32 csr)
+static void handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr,
+			     struct fw_packet *response)
 {
-	struct fw_packet response;
 	int tcode, rcode, length, i;
 	void *payload = NULL;
 
@@ -1480,17 +1479,12 @@ static void handle_local_rom(struct fw_ohci *ohci,
 		payload = (u8 *)ohci->config_rom + i;
 	}
 
-	fw_fill_response(&response, packet->header, rcode, payload, length);
-
-	// Timestamping on behalf of the hardware.
-	response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-	fw_core_handle_response(&ohci->card, &response);
+	fw_fill_response(response, packet->header, rcode, payload, length);
 }
 
-static void handle_local_lock(struct fw_ohci *ohci,
-			      struct fw_packet *packet, u32 csr)
+static void handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr,
+			      struct fw_packet *response)
 {
-	struct fw_packet response;
 	int tcode, length, ext_tcode, sel, try;
 	__be32 *payload, lock_old;
 	u32 lock_arg, lock_data;
@@ -1508,9 +1502,8 @@ static void handle_local_lock(struct fw_ohci *ohci,
 		lock_arg = 0;
 		lock_data = 0;
 	} else {
-		fw_fill_response(&response, packet->header,
-				 RCODE_TYPE_ERROR, NULL, 0);
-		goto out;
+		fw_fill_response(response, packet->header, RCODE_TYPE_ERROR, NULL, 0);
+		return;
 	}
 
 	sel = (csr - CSR_BUS_MANAGER_ID) / 4;
@@ -1522,19 +1515,13 @@ static void handle_local_lock(struct fw_ohci *ohci,
 		if (reg_read(ohci, OHCI1394_CSRControl) & 0x80000000) {
 			lock_old = cpu_to_be32(reg_read(ohci,
 							OHCI1394_CSRData));
-			fw_fill_response(&response, packet->header,
-					 RCODE_COMPLETE,
-					 &lock_old, sizeof(lock_old));
-			goto out;
+			fw_fill_response(response, packet->header, RCODE_COMPLETE, &lock_old,
+					 sizeof(lock_old));
+			return;
 		}
 
 	ohci_err(ohci, "swap not done (CSR lock timeout)\n");
-	fw_fill_response(&response, packet->header, RCODE_BUSY, NULL, 0);
-
- out:
-	// Timestamping on behalf of the hardware.
-	response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-	fw_core_handle_response(&ohci->card, &response);
+	fw_fill_response(response, packet->header, RCODE_BUSY, NULL, 0);
 }
 
 static bool in_config_rom_csr_registers(u64 offset)
@@ -1560,10 +1547,21 @@ static void handle_local_request(struct at_context *ctx, struct fw_packet *packe
 
 	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
 
-	if (in_config_rom_csr_registers(csr_offset)) {
-		handle_local_rom(ohci, packet, csr_offset);
-	} else if (in_bus_management_csr_registers(csr_offset)) {
-		handle_local_lock(ohci, packet, csr_offset);
+	if (in_config_rom_csr_registers(csr_offset) || in_bus_management_csr_registers(csr_offset)) {
+		struct fw_packet response;
+
+		memset(&response, 0, sizeof(response));
+
+		if (in_bus_management_csr_registers(csr_offset))
+			handle_local_lock(ohci, packet, csr_offset, &response);
+		else
+			handle_local_rom(ohci, packet, csr_offset, &response);
+
+		// Timestamping on behalf of the hardware.
+		response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+
+		// Finish the transaction immediately.
+		fw_core_handle_response(&ohci->card, &response);
 	} else {
 		if (ctx == &ohci->at_request_ctx)
 			fw_core_handle_request(&ohci->card, packet);
