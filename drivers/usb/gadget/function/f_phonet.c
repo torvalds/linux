@@ -23,7 +23,6 @@
 #include <linux/usb/composite.h>
 
 #include "u_phonet.h"
-#include "u_ether.h"
 
 #define PN_MEDIA_USB	0x1B
 #define MAXPACKET	512
@@ -600,7 +599,9 @@ static const struct configfs_item_operations phonet_item_ops = {
 
 static ssize_t f_phonet_ifname_show(struct config_item *item, char *page)
 {
-	return gether_get_ifname(to_f_phonet_opts(item)->net, page, PAGE_SIZE);
+	struct net_device *net = to_f_phonet_opts(item)->net;
+
+	return sysfs_emit(page, "%s\n", netdev_name(net));
 }
 
 CONFIGFS_ATTR_RO(f_phonet_, ifname);
