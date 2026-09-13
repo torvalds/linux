@@ -8022,9 +8022,11 @@ static int smb2_rename(struct ksmbd_work *work,
 		return PTR_ERR(new_name);
 
 	if (fp->is_posix_ctxt == false && strchr(new_name, ':')) {
-		int s_type;
+		int s_type = 0;
 		char *xattr_stream_name, *stream_name = NULL;
+		char *stream_buf = NULL;
 		size_t xattr_stream_size;
+		ssize_t stream_buf_len = 0;
 		int len;
 
 		rc = parse_stream_name(new_name, &stream_name, &s_type);
@@ -8038,6 +8040,10 @@ static int smb2_rename(struct ksmbd_work *work,
 			goto out;
 		}
 
+		/* An empty stream name is the base file's default stream. */
+		if (!stream_name || !stream_name[0])
+			goto out;
+
 		rc = ksmbd_vfs_xattr_stream_name(stream_name,
 						 &xattr_stream_name,
 						 &xattr_stream_size,
@@ -8045,15 +8051,34 @@ static int smb2_rename(struct ksmbd_work *work,
 		if (rc)
 			goto out;
 
+		/* A handle opened without a stream has no source to copy. */
+		if (ksmbd_stream_fd(fp)) {
+			if (!strcasecmp(xattr_stream_name, fp->stream.name)) {
+				kfree(xattr_stream_name);
+				goto out;
+			}
+
+			stream_buf_len = ksmbd_vfs_getcasexattr(file_mnt_idmap(fp->filp),
+								fp->filp->f_path.dentry,
+								fp->stream.name,
+								fp->stream.size,
+								&stream_buf);
+			if (stream_buf_len < 0) {
+				rc = stream_buf_len;
+				kfree(xattr_stream_name);
+				goto out;
+			}
+		}
+
 		rc = ksmbd_vfs_setxattr(file_mnt_idmap(fp->filp),
 					&fp->filp->f_path,
 					xattr_stream_name,
-					NULL, 0, 0, true);
-		if (rc < 0) {
+					stream_buf, stream_buf_len, 0, true);
+		kfree(stream_buf);
+		if (rc < 0)
 			pr_err("failed to store stream name in xattr: %d\n",
 			       rc);
-			rc = -EINVAL;
-		}
+
 		kfree(xattr_stream_name);
 		goto out;
 	}
