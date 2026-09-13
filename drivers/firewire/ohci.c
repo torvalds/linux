@@ -1459,7 +1459,8 @@ static void handle_local_rom(struct fw_ohci *ohci,
 			     struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
-	int tcode, length, i;
+	int tcode, rcode, length, i;
+	void *payload = NULL;
 
 	tcode = async_header_get_tcode(packet->header);
 	if (tcode_is_block_packet(tcode))
@@ -1469,15 +1470,17 @@ static void handle_local_rom(struct fw_ohci *ohci,
 
 	i = csr - CSR_CONFIG_ROM;
 	if (i + length > CONFIG_ROM_SIZE) {
-		fw_fill_response(&response, packet->header,
-				 RCODE_ADDRESS_ERROR, NULL, 0);
+		rcode = RCODE_ADDRESS_ERROR;
+		length = 0;
 	} else if (!tcode_is_read_request(tcode)) {
-		fw_fill_response(&response, packet->header,
-				 RCODE_TYPE_ERROR, NULL, 0);
+		rcode = RCODE_TYPE_ERROR;
+		length = 0;
 	} else {
-		fw_fill_response(&response, packet->header, RCODE_COMPLETE,
-				 (void *) ohci->config_rom + i, length);
+		rcode = RCODE_COMPLETE;
+		payload = (u8 *)ohci->config_rom + i;
 	}
+
+	fw_fill_response(&response, packet->header, rcode, payload, length);
 
 	// Timestamping on behalf of the hardware.
 	response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
