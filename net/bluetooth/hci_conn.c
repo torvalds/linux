@@ -1518,7 +1518,15 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	}
 
 	if (conn) {
+		/* dst may just have been swapped for the peer's RPA above, and
+		 * dst_type describes dst -- it has to travel with it. Leaving
+		 * the identity type behind makes the pair describe a peer that
+		 * does not exist, and nothing downstream repairs it:
+		 * hci_bdaddr_is_rpa() tests the type before the address, so
+		 * the RPA is never treated as one.
+		 */
 		bacpy(&conn->dst, dst);
+		conn->dst_type = dst_type;
 	} else {
 		conn = hci_conn_add_unset(hdev, LE_LINK, dst, dst_type, role);
 		if (IS_ERR(conn))
