@@ -2544,7 +2544,7 @@ static int fill_fscrypt_truncate(struct inode *inode,
 			goto out;
 	}
 
-	page = __page_cache_alloc(GFP_KERNEL);
+	page = alloc_page(GFP_KERNEL);
 	if (page == NULL) {
 		ret = -ENOMEM;
 		goto out;
