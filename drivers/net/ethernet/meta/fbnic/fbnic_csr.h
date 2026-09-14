@@ -1216,6 +1216,10 @@ enum {
 #define FBNIC_IPC_MBX_DESC_LEN_MASK	DESC_GENMASK(63, 48)
 #define FBNIC_IPC_MBX_DESC_EOM		DESC_BIT(46)
 #define FBNIC_IPC_MBX_DESC_ADDR_MASK	DESC_GENMASK(45, 3)
+/* Set with FW_CMPL when the FW completed a descriptor without successfully
+ * processing it (e.g. a mailbox DMA error); the completion has no valid data.
+ */
+#define FBNIC_IPC_MBX_DESC_FW_ERR	DESC_BIT(2)
 #define FBNIC_IPC_MBX_DESC_FW_CMPL	DESC_BIT(1)
 #define FBNIC_IPC_MBX_DESC_HOST_CMPL	DESC_BIT(0)
 
