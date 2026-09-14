@@ -944,6 +944,7 @@ struct kernel_ethtool_ts_info {
 #define ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM	BIT(6)
 #define ETHTOOL_OP_NEEDS_RTNL_RSS		BIT(7)
 #define ETHTOOL_OP_NEEDS_RTNL_GLINK		BIT(8)
+#define ETHTOOL_OP_NEEDS_RTNL_TEST		BIT(9)
 
 /**
  * struct ethtool_ops - optional netdev operations
@@ -981,6 +982,7 @@ struct kernel_ethtool_ts_info {
  *	 - netdev_update_features()
  *	 - netif_set_real_num_tx_queues()
  *	 - ethtool_op_get_link() (syncs link watch under rtnl_lock)
+ *	 - netif_open() / netif_close() (used by @self_test)
  *
  * @get_drvinfo: Report driver/device information. Modern drivers no
  *	longer have to implement this callback. Most fields are
