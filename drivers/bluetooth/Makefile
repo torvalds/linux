@@ -52,5 +52,6 @@ hci_uart-$(CONFIG_BT_HCIUART_AML)	+= hci_aml.o
 hci_uart-objs				:= $(hci_uart-y)
 
 btusb-y				:= btusb_main.o
+btusb-$(CONFIG_BT_HCIBTUSB_QCOM)	+= btusb_qcom.o
 
 CONTEXT_ANALYSIS := y

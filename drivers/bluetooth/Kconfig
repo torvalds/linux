@@ -90,6 +90,20 @@ config BT_HCIBTUSB_RTL
 
 	  Say Y here to compile support for Realtek protocol.
 
+config BT_HCIBTUSB_QCOM
+	bool "Qualcomm protocol support"
+	depends on BT_HCIBTUSB
+	select FW_LOADER
+	select GPIOLIB
+	select WANT_DEV_COREDUMP
+	default y
+	help
+	  Enables various required support, such as configuration, firmware
+	  download, and error recovery, for Qualcomm Bluetooth controllers.
+
+	  Say Y here to compile support for Qualcomm protocol.
+	  If unsure, say Y.
+
 config BT_HCIBTSDIO
 	tristate "HCI SDIO driver"
 	depends on MMC
