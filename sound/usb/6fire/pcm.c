@@ -335,11 +335,19 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 
 	/* setup out urb structure */
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
+		unsigned int frames = 0;
+
 		isoc_out = &out_urb->instance->iso_frame_desc[i];
 		isoc_in = &in_urb->instance->iso_frame_desc[i];
+		if (isoc_in->actual_length > 4)
+			frames = (isoc_in->actual_length - 4)
+					/ (rt->in_n_analog << 2);
+		frames = min_t(unsigned int, frames,
+				       (rt->out_packet_size - 4)
+				       / (rt->out_n_analog << 2));
+
 		isoc_out->offset = total_length;
-		isoc_out->length = (isoc_in->actual_length - 4) / (rt->in_n_analog << 2)
-				* (rt->out_n_analog << 2) + 4;
+		isoc_out->length = frames * (rt->out_n_analog << 2) + 4;
 		isoc_out->status = 0;
 		total_length += isoc_out->length;
 	}
