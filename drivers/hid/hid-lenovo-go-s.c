@@ -1452,6 +1452,7 @@ static struct led_classdev_mc gos_cdev_rgb = {
 
 static void cfg_setup(struct work_struct *work)
 {
+	bool gp_registered, rgb_registered;
 	int ret;
 
 	/* MCU */
@@ -1497,10 +1498,53 @@ static void cfg_setup(struct work_struct *work)
 		return;
 	}
 
+	/* Pairs with smp_store_release from below */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	if (gp_registered)
+		goto try_rgb;
+
+	ret = sysfs_create_groups(&drvdata.hdev->dev.kobj, top_level_attr_groups);
+	if (ret) {
+		dev_err(&drvdata.hdev->dev,
+			"Failed to create gamepad configuration attributes: %i\n", ret);
+		goto try_rgb;
+	}
+
 	/* Pairs with smp_load_acquire in attribute show/store functions */
 	smp_store_release(&drvdata.gp_registered, true);
+	gp_registered = true;
+
+try_rgb:
+	/* Pairs with smp_store_release from below */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (rgb_registered)
+		goto update_kobjects;
+
+	ret = devm_led_classdev_multicolor_register(&drvdata.hdev->dev, &gos_cdev_rgb);
+	if (ret) {
+		dev_err(&drvdata.hdev->dev,
+			"Failed to create RGB device: %i\n", ret);
+		goto update_kobjects;
+	}
+
+	ret = devm_device_add_group(gos_cdev_rgb.led_cdev.dev, &rgb_attr_group);
+	if (ret) {
+		dev_err(&drvdata.hdev->dev,
+			"Failed to create RGB configuration attributes: %i\n", ret);
+		goto update_kobjects;
+	}
+
+	drvdata.led_cdev = &gos_cdev_rgb.led_cdev;
+
 	/* Pairs with smp_load_acquire in attribute show/store functions */
 	smp_store_release(&drvdata.rgb_registered, true);
+	rgb_registered = true;
+
+update_kobjects:
+	if (gp_registered)
+		kobject_uevent(&drvdata.hdev->dev.kobj, KOBJ_CHANGE);
+	if (rgb_registered)
+		kobject_uevent(&drvdata.led_cdev->dev->kobj, KOBJ_CHANGE);
 }
 
 static int hid_gos_cfg_probe(struct hid_device *hdev,
@@ -1510,30 +1554,8 @@ static int hid_gos_cfg_probe(struct hid_device *hdev,
 
 	hid_set_drvdata(hdev, &drvdata);
 	drvdata.hdev = hdev;
+
 	mutex_init(&drvdata.cfg_mutex);
-
-	ret = sysfs_create_groups(&hdev->dev.kobj, top_level_attr_groups);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret,
-			      "Failed to create gamepad configuration attributes\n");
-		return ret;
-	}
-
-	ret = devm_led_classdev_multicolor_register(&hdev->dev, &gos_cdev_rgb);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret, "Failed to create RGB device\n");
-		return ret;
-	}
-
-	ret = devm_device_add_group(gos_cdev_rgb.led_cdev.dev, &rgb_attr_group);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret,
-			      "Failed to create RGB configuration attributes\n");
-		return ret;
-	}
-
-	drvdata.led_cdev = &gos_cdev_rgb.led_cdev;
-
 	init_completion(&drvdata.send_cmd_complete);
 
 	/* Executing calls prior to returning from probe will lock the MCU. Schedule
