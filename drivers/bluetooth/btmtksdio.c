@@ -378,17 +378,13 @@ static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
 
 	/* Return ownership to the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, &err);
-	if (err < 0)
-		goto out;
-
-	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 !(status & C_COM_DRV_OWN), 2000, 1000000);
-
-out:
-	sdio_release_host(bdev->func);
-
+	if (err == 0)
+		err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
+					 !(status & C_COM_DRV_OWN), 2000, 1000000);
 	if (err < 0)
 		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
+out:
+	sdio_release_host(bdev->func);
 
 	return err;
 }
