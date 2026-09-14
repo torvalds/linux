@@ -820,7 +820,7 @@ xfs_get_cached_zone(
 		spin_unlock(&ip->i_flags_lock);
 	}
 
-	if (!atomic_inc_not_zero(&oz->oz_ref))
+	if (oz && !atomic_inc_not_zero(&oz->oz_ref))
 		oz = NULL;
 out_unlock:
 	rcu_read_unlock();
