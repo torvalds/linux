@@ -299,8 +299,9 @@ union fw_transaction_callback {
 };
 
 /*
- * This callback handles an inbound request subaction.  It is called in
- * RCU read-side context, therefore must not sleep.
+ * This callback handles an inbound request subaction. If the request subaction is initiated from
+ * the local node (e.g. by unit driver), the execution context depends on the initiator and is
+ * unspecified. Otherwise, it runs in workqueue context.
  *
  * The callback should not initiate outbound request subactions directly.
  * Otherwise there is a danger of recursion of inbound and outbound
