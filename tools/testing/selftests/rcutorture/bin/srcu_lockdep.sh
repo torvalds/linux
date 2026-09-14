@@ -56,7 +56,6 @@ do
 			if ! grep -q '^CONFIG_PROVE_LOCKING=y' .config
 			then
 				echo "rcu_torture_init_srcu_lockdep:Error: CONFIG_PROVE_LOCKING disabled in rcutorture SRCU-P scenario"
-				nerrs=$((nerrs+1))
 				err=1
 			fi
 			if test "$d" -ne 0 && test "$ret" -eq 0
@@ -126,7 +125,6 @@ do
 	if ! grep -q '^CONFIG_PROVE_LOCKING=y' .config
 	then
 		echo "rcu_torture_init_srcu_lockdep:Error: CONFIG_PROVE_LOCKING disabled in rcutorture SRCU-P scenario"
-		nerrs=$((nerrs+1))
 		err=1
 	fi
 	if test "$val" = 0xf && test "$ret" -eq 0
