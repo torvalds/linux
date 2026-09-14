@@ -14,7 +14,7 @@
  * represented by a single extent
  */
 struct migrate_struct {
-	ext4_lblk_t first_block, last_block, curr_block;
+	u64 first_block, last_block, curr_block;
 	ext4_fsblk_t first_pblock, last_pblock;
 };
 
@@ -65,6 +65,10 @@ static int update_extent_range(handle_t *handle, struct inode *inode,
 			       ext4_fsblk_t pblock, struct migrate_struct *lb)
 {
 	int retval;
+
+	if (lb->curr_block >= EXT_MAX_BLOCKS)
+		return -EOPNOTSUPP;
+
 	/*
 	 * See if we can add on to the existing range (if it exists)
 	 */
