@@ -74,7 +74,7 @@ static void __ipoib_mcast_schedule_join_thread(struct ipoib_dev_priv *priv,
 					       struct ipoib_mcast *mcast,
 					       bool delay)
 {
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+	if (!ipoib_mcast_allowed(priv))
 		return;
 
 	/*
@@ -469,7 +469,7 @@ static int ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 	int ret = 0;
 
 	if (!priv->broadcast ||
-	    !test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+	    !ipoib_mcast_allowed(priv))
 		return -EINVAL;
 
 	init_completion(&mcast->done);
@@ -555,7 +555,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	unsigned long delay_until = 0;
 	struct ipoib_mcast *mcast = NULL;
 
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+	if (!ipoib_mcast_allowed(priv))
 		return;
 
 	if (ib_query_port(priv->ca, priv->port, &port_attr)) {
@@ -577,7 +577,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	netif_addr_unlock_bh(dev);
 
 	spin_lock_irq(&priv->lock);
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+	if (!ipoib_mcast_allowed(priv))
 		goto out;
 
 	if (!priv->broadcast) {
@@ -749,7 +749,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)		||
+	if (!ipoib_mcast_allowed(priv)				||
 	    !priv->broadcast					||
 	    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
 		++dev->stats.tx_dropped;
@@ -871,7 +871,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	LIST_HEAD(remove_list);
 	struct ib_sa_mcmember_rec rec;
 
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+	if (!ipoib_mcast_allowed(priv))
 		/*
 		 * shortcut...on shutdown flush is called next, just
 		 * let it do all the work
@@ -965,9 +965,9 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	ipoib_mcast_remove_list(&remove_list);
 
 	/*
-	 * Double check that we are still up
+	 * Double check that we are still up and not flushing
 	 */
-	if (test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)) {
+	if (ipoib_mcast_allowed(priv)) {
 		spin_lock_irq(&priv->lock);
 		__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
 		spin_unlock_irq(&priv->lock);
