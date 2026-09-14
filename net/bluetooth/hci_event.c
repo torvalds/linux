@@ -7474,6 +7474,9 @@ static void hci_le_conn_rate_change_evt(struct hci_dev *hdev, void *data,
 #define HCI_LE_EV_STATUS(_op, _func) \
 	HCI_LE_EV(_op, _func, sizeof(struct hci_ev_status))
 
+#define HCI_MAX_LE_SUBEVT_PLEN \
+	(HCI_MAX_EVENT_PLEN - sizeof(struct hci_ev_le_meta))
+
 /* Entries in this table shall have their position according to the subevent
  * opcode they handle so the use of the macros above is recommend since it does
  * attempt to initialize at its proper index using Designated Initializers that
@@ -7490,7 +7493,7 @@ static const struct hci_le_ev {
 	/* [0x02 = HCI_EV_LE_ADVERTISING_REPORT] */
 	HCI_LE_EV_VL(HCI_EV_LE_ADVERTISING_REPORT, hci_le_adv_report_evt,
 		     sizeof(struct hci_ev_le_advertising_report),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x03 = HCI_EV_LE_CONN_UPDATE_COMPLETE] */
 	HCI_LE_EV(HCI_EV_LE_CONN_UPDATE_COMPLETE,
 		  hci_le_conn_update_complete_evt,
@@ -7513,14 +7516,14 @@ static const struct hci_le_ev {
 	/* [0x0b = HCI_EV_LE_DIRECT_ADV_REPORT] */
 	HCI_LE_EV_VL(HCI_EV_LE_DIRECT_ADV_REPORT, hci_le_direct_adv_report_evt,
 		     sizeof(struct hci_ev_le_direct_adv_report),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x0c = HCI_EV_LE_PHY_UPDATE_COMPLETE] */
 	HCI_LE_EV(HCI_EV_LE_PHY_UPDATE_COMPLETE, hci_le_phy_update_evt,
 		  sizeof(struct hci_ev_le_phy_update_complete)),
 	/* [0x0d = HCI_EV_LE_EXT_ADV_REPORT] */
 	HCI_LE_EV_VL(HCI_EV_LE_EXT_ADV_REPORT, hci_le_ext_adv_report_evt,
 		     sizeof(struct hci_ev_le_ext_adv_report),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x0e = HCI_EV_LE_PA_SYNC_ESTABLISHED] */
 	HCI_LE_EV(HCI_EV_LE_PA_SYNC_ESTABLISHED,
 		  hci_le_pa_sync_established_evt,
@@ -7529,7 +7532,7 @@ static const struct hci_le_ev {
 	HCI_LE_EV_VL(HCI_EV_LE_PER_ADV_REPORT,
 				 hci_le_per_adv_report_evt,
 				 sizeof(struct hci_ev_le_per_adv_report),
-				 HCI_MAX_EVENT_SIZE),
+				 HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x10 = HCI_EV_LE_PA_SYNC_LOST] */
 	HCI_LE_EV(HCI_EV_LE_PA_SYNC_LOST, hci_le_pa_sync_lost_evt,
 		  sizeof(struct hci_ev_le_pa_sync_lost)),
@@ -7550,28 +7553,28 @@ static const struct hci_le_ev {
 	HCI_LE_EV_VL(HCI_EVT_LE_CREATE_BIG_COMPLETE,
 		     hci_le_create_big_complete_evt,
 		     sizeof(struct hci_evt_le_create_big_complete),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x1d = HCI_EV_LE_BIG_SYNC_ESTABLISHED] */
 	HCI_LE_EV_VL(HCI_EVT_LE_BIG_SYNC_ESTABLISHED,
 		     hci_le_big_sync_established_evt,
 		     sizeof(struct hci_evt_le_big_sync_established),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x1e = HCI_EVT_LE_BIG_SYNC_LOST] */
 	HCI_LE_EV_VL(HCI_EVT_LE_BIG_SYNC_LOST,
 		     hci_le_big_sync_lost_evt,
 		     sizeof(struct hci_evt_le_big_sync_lost),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x22 = HCI_EVT_LE_BIG_INFO_ADV_REPORT] */
 	HCI_LE_EV_VL(HCI_EVT_LE_BIG_INFO_ADV_REPORT,
 		     hci_le_big_info_adv_report_evt,
 		     sizeof(struct hci_evt_le_big_info_adv_report),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x2b = HCI_EVT_LE_ALL_REMOTE_FEATURES_COMPLETE] */
 	HCI_LE_EV_VL(HCI_EVT_LE_ALL_REMOTE_FEATURES_COMPLETE,
 		     hci_le_read_all_remote_features_evt,
 		     sizeof(struct
 			    hci_evt_le_read_all_remote_features_complete),
-		     HCI_MAX_EVENT_SIZE),
+		     HCI_MAX_LE_SUBEVT_PLEN),
 	/* [0x37 = HCI_EVT_LE_CONN_RATE_CHANGE] */
 	HCI_LE_EV(HCI_EVT_LE_CONN_RATE_CHANGE, hci_le_conn_rate_change_evt,
 		  sizeof(struct hci_evt_le_conn_rate_change)),
