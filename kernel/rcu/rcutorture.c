@@ -4662,6 +4662,17 @@ static DECLARE_RWSEM(rwsem7);
 static DECLARE_RWSEM(rwsem8);
 static DECLARE_RWSEM(rwsem9);
 
+static DEFINE_RAW_SPINLOCK(spin0);
+static DEFINE_RAW_SPINLOCK(spin1);
+static DEFINE_RAW_SPINLOCK(spin2);
+static DEFINE_RAW_SPINLOCK(spin3);
+static DEFINE_RAW_SPINLOCK(spin4);
+static DEFINE_RAW_SPINLOCK(spin5);
+static DEFINE_RAW_SPINLOCK(spin6);
+static DEFINE_RAW_SPINLOCK(spin7);
+static DEFINE_RAW_SPINLOCK(spin8);
+static DEFINE_RAW_SPINLOCK(spin9);
+
 DEFINE_STATIC_SRCU(srcu0);
 DEFINE_STATIC_SRCU(srcu1);
 DEFINE_STATIC_SRCU(srcu2);
@@ -4672,6 +4683,17 @@ DEFINE_STATIC_SRCU(srcu6);
 DEFINE_STATIC_SRCU(srcu7);
 DEFINE_STATIC_SRCU(srcu8);
 DEFINE_STATIC_SRCU(srcu9);
+
+DEFINE_STATIC_SRCU_ATOMIC(srcu0_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu1_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu2_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu3_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu4_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu5_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu6_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu7_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu8_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu9_atomic);
 
 static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, const char *fu, int i,
 			     int cyclelen, int deadlock)
@@ -4702,6 +4724,12 @@ static void rcu_torture_init_srcu_lockdep(void)
 					  &rwsem5, &rwsem6, &rwsem7, &rwsem8, &rwsem9 };
 	struct srcu_struct *srcus[] = { &srcu0, &srcu1, &srcu2, &srcu3, &srcu4,
 					&srcu5, &srcu6, &srcu7, &srcu8, &srcu9 };
+	raw_spinlock_t *spins[] = { &spin0, &spin1, &spin2, &spin3, &spin4,
+				    &spin5, &spin6, &spin7, &spin8, &spin9 };
+	struct srcu_struct *srcus_atomic[] = { &srcu0_atomic, &srcu1_atomic, &srcu2_atomic,
+					       &srcu3_atomic, &srcu4_atomic, &srcu5_atomic,
+					       &srcu6_atomic, &srcu7_atomic, &srcu8_atomic,
+					       &srcu9_atomic };
 	int testtype;
 
 	if (!test_srcu_lockdep)
@@ -4812,11 +4840,65 @@ static void rcu_torture_init_srcu_lockdep(void)
 	}
 #endif // #ifdef CONFIG_TASKS_TRACE_RCU
 
+	if (testtype == 4) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU_ATOMIC %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			j = srcu_lockdep_next(__func__, "srcu_read_lock_atomic",
+					      "synchronize_srcu_atomic",
+					      "srcu_read_unlock_atomic", i,
+					      cyclelen, deadlock);
+			idx = srcu_read_lock_atomic(srcus_atomic[i]);
+			if (j >= 0)
+				synchronize_srcu_atomic(srcus_atomic[j]);
+			srcu_read_unlock_atomic(srcus_atomic[i], idx);
+		}
+		return;
+	}
+
+	if (testtype == 5) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU_ATOMIC/raw_spinlock %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock_atomic(%d), raw_spin_lock(%d), raw_spin_unlock(%d), srcu_read_unlock_atomic(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock_atomic(srcus_atomic[i]);
+			raw_spin_lock(spins[i]);
+			raw_spin_unlock(spins[i]);
+			srcu_read_unlock_atomic(srcus_atomic[i], idx);
+
+			j = srcu_lockdep_next(__func__, "raw_spin_lock",
+					      "synchronize_srcu_atomic",
+					      "raw_spin_unlock", i, cyclelen,
+					      deadlock);
+			raw_spin_lock(spins[i]);
+			if (j >= 0)
+				synchronize_srcu_atomic(srcus_atomic[j]);
+			raw_spin_unlock(spins[i]);
+		}
+		return;
+	}
+
+	if (testtype == 6) {
+		pr_info("%s: test_srcu_lockdep = %05d: synchronize_srcu_atomic() inside rcu_read_lock() %d-way.\n",
+			__func__, test_srcu_lockdep, cyclelen);
+		for (i = 0; i < cyclelen; i++) {
+			rcu_read_lock();
+			synchronize_srcu_atomic(srcus_atomic[i]);
+			rcu_read_unlock();
+		}
+		return;
+	}
+
 err_out:
 	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
 	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
 	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
-	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU.\n", __func__);
+	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU, 4=SRCU_ATOMIC, ",
+		__func__);
+	pr_cont("5=SRCU_ATOMIC/raw_spinlock, 6=synchronize_srcu_atomic inside rcu_read_lock.\n");
 	pr_info("%s: L: Cycle length.\n", __func__);
 	if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU))
 		pr_info("%s: NN=3 disallowed because kernel is built with CONFIG_TASKS_TRACE_RCU=n\n", __func__);
