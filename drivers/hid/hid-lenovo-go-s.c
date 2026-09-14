@@ -39,6 +39,8 @@ static struct hid_gos_cfg {
 	struct hid_device *hdev;
 	bool orphan_ack_pending;
 	struct mutex cfg_mutex; /*ensure single synchronous output report*/
+	bool gp_registered;
+	bool rgb_registered;
 	int cmd_status;
 	u8 gp_auto_sleep_time;
 	u8 gp_dpad_mode;
@@ -504,9 +506,21 @@ static ssize_t gamepad_property_store(struct device *dev,
 				      const char *buf, size_t count,
 				      enum feature_status_index index)
 {
+	bool dev_registered;
 	size_t size = 1;
 	u8 val = 0;
 	int ret;
+
+	/* rgb_enabled is attached to led_classdev, not hid_device */
+	if (index == FEATURE_RGB_ENABLE)
+		/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata.rgb_registered);
+	else
+		/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata.gp_registered);
+
+	if (!dev_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case FEATURE_GAMEPAD_MODE:
@@ -588,8 +602,20 @@ static ssize_t gamepad_property_show(struct device *dev,
 				     struct device_attribute *attr, char *buf,
 				     enum feature_status_index index)
 {
+	bool dev_registered;
 	ssize_t count = 0;
 	u8 i;
+
+	/* rgb_enabled is attached to led_classdev, not hid_device */
+	if (index == FEATURE_RGB_ENABLE)
+		/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata.rgb_registered);
+	else
+		/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata.gp_registered);
+
+	if (!dev_registered)
+		return -ENODEV;
 
 	count = mcu_property_out(drvdata.hdev, GET_GAMEPAD_CFG, index, NULL, 0);
 	if (count < 0)
@@ -726,9 +752,15 @@ static ssize_t touchpad_property_store(struct device *dev,
 				       const char *buf, size_t count,
 				       enum touchpad_config_index index)
 {
+	bool gp_registered;
 	size_t size = 1;
 	u8 val = 0;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case CFG_WINDOWS_MODE:
@@ -760,8 +792,14 @@ static ssize_t touchpad_property_show(struct device *dev,
 				      struct device_attribute *attr, char *buf,
 				      enum touchpad_config_index index)
 {
+	bool gp_registered;
 	int ret = 0;
 	u8 i;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
 
 	ret = mcu_property_out(drvdata.hdev, GET_TP_PARAM, index, NULL, 0);
 	if (ret < 0)
@@ -789,8 +827,14 @@ static ssize_t touchpad_property_options(struct device *dev,
 					 char *buf,
 					 enum touchpad_config_index index)
 {
+	bool gp_registered;
 	size_t count = 0;
 	unsigned int i;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case CFG_WINDOWS_MODE:
@@ -814,8 +858,14 @@ static ssize_t test_property_show(struct device *dev,
 				  struct device_attribute *attr, char *buf,
 				  enum test_command_index index)
 {
+	bool gp_registered;
 	size_t count = 0;
 	u8 i;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case TEST_TP_MFR:
@@ -874,8 +924,14 @@ static ssize_t rgb_effect_store(struct device *dev,
 {
 	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	u8 effect;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = sysfs_match_string(rgb_effect_text, buf);
 	if (ret < 0)
@@ -901,7 +957,13 @@ static ssize_t rgb_effect_store(struct device *dev,
 static ssize_t rgb_effect_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
+	bool rgb_registered;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = rgb_attr_show();
 	if (ret)
@@ -934,8 +996,14 @@ static ssize_t rgb_speed_store(struct device *dev,
 {
 	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	int val = 0;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = kstrtoint(buf, 10, &val);
 	if (ret)
@@ -964,7 +1032,13 @@ static ssize_t rgb_speed_store(struct device *dev,
 static ssize_t rgb_speed_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
+	bool rgb_registered;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = rgb_attr_show();
 	if (ret)
@@ -985,8 +1059,14 @@ static ssize_t rgb_speed_range_show(struct device *dev,
 static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
+	bool rgb_registered;
 	int ret;
 	u8 val;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = sysfs_match_string(rgb_mode_text, buf);
 	if (ret <= 0)
@@ -1007,7 +1087,13 @@ static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 static ssize_t rgb_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
+	bool rgb_registered;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, LIGHT_MODE_SEL, NULL, 0);
 	if (ret)
@@ -1038,9 +1124,15 @@ static ssize_t rgb_profile_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
+	bool rgb_registered;
 	size_t size = 1;
 	int ret;
 	u8 val;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = kstrtou8(buf, 10, &val);
 	if (ret < 0)
@@ -1061,7 +1153,13 @@ static ssize_t rgb_profile_store(struct device *dev,
 static ssize_t rgb_profile_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	bool rgb_registered;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, LIGHT_PROFILE_SEL, NULL, 0);
 	if (ret)
@@ -1084,7 +1182,13 @@ static void hid_gos_brightness_set(struct led_classdev *led_cdev,
 {
 	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!rgb_registered)
+		return;
 
 	if (brightness > led_cdev->max_brightness) {
 		dev_err(led_cdev->dev, "Invalid argument\n");
@@ -1392,6 +1496,11 @@ static void cfg_setup(struct work_struct *work)
 			"Failed to retrieve OS Mode: %i\n", ret);
 		return;
 	}
+
+	/* Pairs with smp_load_acquire in attribute show/store functions */
+	smp_store_release(&drvdata.gp_registered, true);
+	/* Pairs with smp_load_acquire in attribute show/store functions */
+	smp_store_release(&drvdata.rgb_registered, true);
 }
 
 static int hid_gos_cfg_probe(struct hid_device *hdev,
@@ -1451,8 +1560,23 @@ static void hid_gos_cfg_remove(struct hid_device *hdev)
 
 static int hid_gos_cfg_reset_resume(struct hid_device *hdev)
 {
+	bool gp_registered, rgb_registered;
 	u8 os_mode = drvdata.os_mode;
 	int ret;
+
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata.gp_registered);
+	/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata.rgb_registered);
+	if (!gp_registered || !rgb_registered) {
+		ret = schedule_delayed_work(&drvdata.gos_cfg_setup, msecs_to_jiffies(2));
+		if (!ret) {
+			dev_err(&hdev->dev, "Failed to schedule startup delayed work\n");
+			return -ENODEV;
+		}
+
+		return 0;
+	}
 
 	ret = mcu_property_out(drvdata.hdev, SET_GAMEPAD_CFG,
 			       FEATURE_OS_MODE, &os_mode, 1);
@@ -1542,6 +1666,30 @@ static int hid_gos_reset_resume(struct hid_device *hdev)
 	return 0;
 }
 
+static int hid_gos_cfg_suspend(void)
+{
+	disable_delayed_work_sync(&drvdata.gos_cfg_setup);
+
+	return 0;
+}
+
+static int hid_gos_suspend(struct hid_device *hdev, pm_message_t msg)
+{
+	int ret;
+	u8 ep;
+
+	/* Safe assumption. SET_INTERFACE ioctl can't be used while driver is bound */
+	ret = get_endpoint_address(hdev);
+	if (ret <= 0)
+		return 0;
+
+	ep = ret;
+	if (ep == GO_S_CFG_INTF_IN)
+		return hid_gos_cfg_suspend();
+
+	return 0;
+}
+
 static const struct hid_device_id hid_gos_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_QHE,
 			 USB_DEVICE_ID_LENOVO_LEGION_GO_S_XINPUT) },
@@ -1558,6 +1706,7 @@ static struct hid_driver hid_lenovo_go_s = {
 	.remove = hid_gos_remove,
 	.raw_event = hid_gos_raw_event,
 	.reset_resume = pm_ptr(hid_gos_reset_resume),
+	.suspend = pm_ptr(hid_gos_suspend),
 };
 module_hid_driver(hid_lenovo_go_s);
 
