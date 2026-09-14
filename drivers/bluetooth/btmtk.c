@@ -1060,6 +1060,13 @@ int btmtk_usb_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
 	struct btmtk_data *data = hci_get_priv(hdev);
 	u16 handle = le16_to_cpu(hci_acl_hdr(skb)->handle);
 
+	/* The handles below are vendor-reserved values MTK firmware uses to
+	 * tag out-of-band debug/dump data on the ACL channel rather than a
+	 * real connection. Each is always sent as a single, complete
+	 * ACL_START packet, so unlike genuine connection data they never
+	 * arrive fragmented (e.g. 0x2efd is never followed by an ACL_CONT
+	 * continuation, 0x1efd).
+	 */
 	switch (handle) {
 	case 0xfc6f:		/* Firmware dump from device */
 		/* When the firmware hangs, the device can no longer
@@ -1081,6 +1088,7 @@ int btmtk_usb_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
 		fallthrough;
 	case 0x05ff:		/* Firmware debug logging 1 */
 	case 0x05fe:		/* Firmware debug logging 2 */
+	case 0x2efd:		/* Firmware debug event */
 		return hci_recv_diag(hdev, skb);
 	}
 
