@@ -33,6 +33,16 @@ Supported chips:
 
 	       http://www.national.com/pf/LM/LM96163.html
 
+  * Sensylink CTF2301
+
+    Prefix: 'ctf2301'
+
+    Addresses scanned: none
+
+    Datasheet: https://www.sensylink.com/upload/1/net.sensylink.portal/1689557281035.pdf
+
+    Register description: https://github.com/TroyMitchell911/ctf2301-datasheet
+
 
 Author: Jean Delvare <jdelvare@suse.de>
 
@@ -62,6 +72,8 @@ value have to be masked out. The value is still 16 bit in width.
 
 All temperature values are given in degrees Celsius. Resolution is 1.0
 degree for the local temperature, 0.125 degree for the remote temperature.
+The CTF2301 local temperature input and limit have a resolution of 0.0625
+degree.
 
 The fan speed is measured using a tachometer. Contrary to most chips which
 store the value in an 8-bit register and have a selectable clock divider
@@ -93,3 +105,13 @@ support these GPIO lines at present.
 The LM96163 is an enhanced version of LM63 with improved temperature accuracy
 and better PWM resolution. For LM96163, the external temperature sensor type is
 configurable as CPU embedded diode(1) or 3904 transistor(2).
+
+The CTF2301 is register-compatible with the LM63 family and provides 12 fan
+control lookup table entries. It supports 8-bit PWM resolution when configured
+for a 22.5 kHz PWM frequency.
+
+Device tree nodes may declare ``#cooling-cells`` to register the fan controller
+with the thermal framework. The cooling state is mapped to the existing
+``pwm1`` range from 0 to 255. The driver keeps the current automatic or manual
+fan control mode during probe and switches to manual control when the thermal
+framework first requests a cooling state.
