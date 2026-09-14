@@ -454,8 +454,8 @@ config SENSORS_MAX34440
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
 	  MAX34440, MAX34441, MAX34446, MAX34451, MAX34452, MAX34460, and
-	  MAX34461. Other compatible devices are ADPM12160, ADPM12200, and
-	  ADPM12250.
+	  MAX34461. Other compatible devices are ADPM12160, ADPM12200,
+	  ADPM12250, and ADPM12300.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max34440.
