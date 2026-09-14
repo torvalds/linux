@@ -4695,6 +4695,8 @@ DEFINE_STATIC_SRCU_ATOMIC(srcu7_atomic);
 DEFINE_STATIC_SRCU_ATOMIC(srcu8_atomic);
 DEFINE_STATIC_SRCU_ATOMIC(srcu9_atomic);
 
+DEFINE_STATIC_SRCU_ATOMIC(srcu_irq);
+
 static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, const char *fu, int i,
 			     int cyclelen, int deadlock)
 {
@@ -4707,6 +4709,11 @@ static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, cons
 	else
 		pr_info("%s: %s(%d), %s(%d)\n", f, fl, i, fu, i);
 	return j;
+}
+
+static void srcu_sync_irq(void *unused)
+{
+	synchronize_srcu_atomic(&srcu_irq);
 }
 
 // Test lockdep on SRCU-based deadlock scenarios.
@@ -4892,13 +4899,31 @@ static void rcu_torture_init_srcu_lockdep(void)
 		return;
 	}
 
+	if (testtype == 7) {
+		int cpu;
+
+		for (i = 0; i < cyclelen; i++) {
+			idx = srcu_read_lock_atomic(&srcu_irq);
+			cpu = cpumask_any_but(cpu_online_mask,
+					      smp_processor_id());
+			if (cpu < nr_cpu_ids) {
+				pr_info("%s: CPU%d sending IPI to CPU%d\n",
+					__func__, smp_processor_id(), cpu);
+				smp_call_function_single(cpu, srcu_sync_irq,
+					NULL, 1);
+			}
+			srcu_read_unlock_atomic(&srcu_irq, idx);
+		}
+		return;
+	}
+
 err_out:
 	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
 	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
 	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
 	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU, 4=SRCU_ATOMIC, ",
 		__func__);
-	pr_cont("5=SRCU_ATOMIC/raw_spinlock, 6=synchronize_srcu_atomic inside rcu_read_lock.\n");
+	pr_cont("5=SRCU_ATOMIC/raw_spinlock, 6=synchronize_srcu_atomic inside rcu_read_lock, 7=atomic SRCU cross-CPU IRQ context mismatch.\n");
 	pr_info("%s: L: Cycle length.\n", __func__);
 	if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU))
 		pr_info("%s: NN=3 disallowed because kernel is built with CONFIG_TASKS_TRACE_RCU=n\n", __func__);
