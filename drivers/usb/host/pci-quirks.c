@@ -1026,15 +1026,22 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
  * Returns 0 when the mask bits have the value done.
  * Returns -ETIMEDOUT if this condition is not true after
  * wait_usec microseconds have passed.
+ * Returns -ENODEV if the register reads as all-ones (hardware removed).
  */
 static int handshake(void __iomem *ptr, u32 mask, u32 done,
 		int wait_usec, int delay_usec)
 {
 	u32	result;
+	int	ret;
 
-	return readl_poll_timeout_atomic(ptr, result,
-					 ((result & mask) == done),
-					 delay_usec, wait_usec);
+	ret = readl_poll_timeout_atomic(ptr, result,
+					(result & mask) == done ||
+					PCI_POSSIBLE_ERROR(result),
+					delay_usec, wait_usec);
+	if (PCI_POSSIBLE_ERROR(result))
+		return -ENODEV;
+
+	return ret;
 }
 
 /*
@@ -1206,6 +1213,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,
 				0, 1000000, 10);
 
+		if (timeout == -ENODEV)
+			goto iounmap;
+
 		/* Assume a buggy BIOS and take HC ownership anyway */
 		if (timeout) {
 			dev_warn(&pdev->dev,
@@ -1236,6 +1246,9 @@ hc_init:
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
 			5000000, 10);
+	if (timeout == -ENODEV)
+		goto iounmap;
+
 	/* Assume a buggy HC and start HC initialization anyway */
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
@@ -1252,6 +1265,9 @@ hc_init:
 	/* Wait for the HC to halt - poll every 125 usec (one microframe). */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_HALT, 1,
 			XHCI_MAX_HALT_USEC, 125);
+	if (timeout == -ENODEV)
+		goto iounmap;
+
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
