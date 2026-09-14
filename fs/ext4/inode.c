@@ -57,6 +57,7 @@ static void ext4_journalled_zero_new_buffers(handle_t *handle,
 					    struct inode *inode,
 					    struct folio *folio,
 					    unsigned from, unsigned to);
+static void ext4_wait_for_tail_page_commit(struct inode *inode);
 
 static __u32 ext4_inode_csum(struct inode *inode, struct ext4_inode *raw,
 			      struct ext4_inode_info *ei)
@@ -1723,6 +1724,7 @@ static int ext4_journalled_write_end(const struct kiocb *iocb,
 	if (!ret)
 		ret = ret2;
 	if (pos + len > inode->i_size && !verity) {
+		ext4_wait_for_tail_page_commit(inode);
 		ext4_truncate_failed_write(inode);
 		/*
 		 * If truncate failed early the inode might still be
