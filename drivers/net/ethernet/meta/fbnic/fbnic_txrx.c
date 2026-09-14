@@ -1791,7 +1791,7 @@ int fbnic_alloc_napi_vectors(struct fbnic_net *fbn)
 	int err;
 
 	/* Allocate 1 Tx queue per napi vector */
-	if (num_napi < FBNIC_MAX_TXQS && num_napi == num_tx + num_rx) {
+	if (num_napi <= FBNIC_MAX_TXQS && num_napi == num_tx + num_rx) {
 		while (num_tx) {
 			err = fbnic_alloc_napi_vector(fbd, fbn,
 						      num_napi, v_idx,
