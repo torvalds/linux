@@ -4099,6 +4099,9 @@ unlock:
 #define HCI_CC_STATUS(_op, _func) \
 	HCI_CC(_op, _func, sizeof(struct hci_ev_status))
 
+#define HCI_MAX_CC_PLEN \
+	(HCI_MAX_EVENT_PLEN - sizeof(struct hci_ev_cmd_complete))
+
 static const struct hci_cc {
 	u16  op;
 	u8 (*func)(struct hci_dev *hdev, void *data, struct sk_buff *skb);
@@ -4192,7 +4195,7 @@ static const struct hci_cc {
 	       sizeof(struct hci_rp_le_read_local_features)),
 	HCI_CC_VL(HCI_OP_LE_READ_CONN_INTERVAL, hci_cc_le_read_conn_interval,
 		  sizeof(struct hci_rp_le_read_conn_interval),
-		  HCI_MAX_EVENT_SIZE),
+		  HCI_MAX_CC_PLEN),
 	HCI_CC(HCI_OP_LE_READ_ADV_TX_POWER, hci_cc_le_read_adv_tx_power,
 	       sizeof(struct hci_rp_le_read_adv_tx_power)),
 	HCI_CC(HCI_OP_USER_CONFIRM_REPLY, hci_cc_user_confirm_reply,
@@ -4264,7 +4267,7 @@ static const struct hci_cc {
 	HCI_CC(HCI_OP_LE_READ_BUFFER_SIZE_V2, hci_cc_le_read_buffer_size_v2,
 	       sizeof(struct hci_rp_le_read_buffer_size_v2)),
 	HCI_CC_VL(HCI_OP_LE_SET_CIG_PARAMS, hci_cc_le_set_cig_params,
-		  sizeof(struct hci_rp_le_set_cig_params), HCI_MAX_EVENT_SIZE),
+		  sizeof(struct hci_rp_le_set_cig_params), HCI_MAX_CC_PLEN),
 	HCI_CC(HCI_OP_LE_SETUP_ISO_PATH, hci_cc_le_setup_iso_path,
 	       sizeof(struct hci_rp_le_setup_iso_path)),
 	HCI_CC(HCI_OP_LE_READ_ALL_LOCAL_FEATURES,
