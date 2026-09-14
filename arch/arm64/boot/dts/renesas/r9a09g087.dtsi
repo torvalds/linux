@@ -643,36 +643,45 @@
 
 			mtl_tx_setup0: tx-queues-config {
 				snps,tx-queues-to-use = <8>;
+				snps,tx-sched-wrr;
 
 				queue0 {
+					snps,weight = <0x10>;
 					snps,dcb-algorithm;
 				};
 
 				queue1 {
+					snps,weight = <0x11>;
 					snps,dcb-algorithm;
 				};
 
 				queue2 {
+					snps,weight = <0x12>;
 					snps,dcb-algorithm;
 				};
 
 				queue3 {
+					snps,weight = <0x13>;
 					snps,dcb-algorithm;
 				};
 
 				queue4 {
+					snps,weight = <0x14>;
 					snps,dcb-algorithm;
 				};
 
 				queue5 {
+					snps,weight = <0x15>;
 					snps,dcb-algorithm;
 				};
 
 				queue6 {
+					snps,weight = <0x16>;
 					snps,dcb-algorithm;
 				};
 
 				queue7 {
+					snps,weight = <0x17>;
 					snps,dcb-algorithm;
 				};
 			};
@@ -790,36 +799,45 @@
 
 			mtl_tx_setup1: tx-queues-config {
 				snps,tx-queues-to-use = <8>;
+				snps,tx-sched-wrr;
 
 				queue0 {
+					snps,weight = <0x10>;
 					snps,dcb-algorithm;
 				};
 
 				queue1 {
+					snps,weight = <0x11>;
 					snps,dcb-algorithm;
 				};
 
 				queue2 {
+					snps,weight = <0x12>;
 					snps,dcb-algorithm;
 				};
 
 				queue3 {
+					snps,weight = <0x13>;
 					snps,dcb-algorithm;
 				};
 
 				queue4 {
+					snps,weight = <0x14>;
 					snps,dcb-algorithm;
 				};
 
 				queue5 {
+					snps,weight = <0x15>;
 					snps,dcb-algorithm;
 				};
 
 				queue6 {
+					snps,weight = <0x16>;
 					snps,dcb-algorithm;
 				};
 
 				queue7 {
+					snps,weight = <0x17>;
 					snps,dcb-algorithm;
 				};
 			};
@@ -937,36 +955,45 @@
 
 			mtl_tx_setup2: tx-queues-config {
 				snps,tx-queues-to-use = <8>;
+				snps,tx-sched-wrr;
 
 				queue0 {
+					snps,weight = <0x10>;
 					snps,dcb-algorithm;
 				};
 
 				queue1 {
+					snps,weight = <0x11>;
 					snps,dcb-algorithm;
 				};
 
 				queue2 {
+					snps,weight = <0x12>;
 					snps,dcb-algorithm;
 				};
 
 				queue3 {
+					snps,weight = <0x13>;
 					snps,dcb-algorithm;
 				};
 
 				queue4 {
+					snps,weight = <0x14>;
 					snps,dcb-algorithm;
 				};
 
 				queue5 {
+					snps,weight = <0x15>;
 					snps,dcb-algorithm;
 				};
 
 				queue6 {
+					snps,weight = <0x16>;
 					snps,dcb-algorithm;
 				};
 
 				queue7 {
+					snps,weight = <0x17>;
 					snps,dcb-algorithm;
 				};
 			};
