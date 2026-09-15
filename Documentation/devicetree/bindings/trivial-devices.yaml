@@ -524,6 +524,8 @@ properties:
           - ti,tps53685
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
+            # TI Dual channel DCAP+ multiphase controller TPS536C7
+          - ti,tps536c7
             # TI DC-DC converters on PMBus
           - ti,tps544b20
           - ti,tps544b25
