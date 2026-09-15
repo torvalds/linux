@@ -6368,17 +6368,9 @@ nfsd4_vbuf_to_stream(struct xdr_stream *xdr, char *buf, u32 buflen)
 		if (!p)
 			return nfserr_resource;
 
-		memcpy(p, buf, cplen);
-
-		if (cplen < PAGE_SIZE) {
-			/*
-			 * We're done, with a length that wasn't page
-			 * aligned, so possibly not word aligned. Pad
-			 * any trailing bytes with 0.
-			 */
-			xdr_encode_opaque_fixed(p, NULL, cplen);
+		xdr_encode_opaque_fixed(p, buf, cplen);
+		if (cplen < PAGE_SIZE)
 			break;
-		}
 
 		buflen -= PAGE_SIZE;
 		buf += PAGE_SIZE;
