@@ -123,6 +123,7 @@ static const struct file_operations pmf_if_ops = {
 	.owner          = THIS_MODULE,
 	.open           = amd_pmf_open,
 	.unlocked_ioctl = amd_pmf_set_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static struct miscdevice amd_pmf_util_if = {
