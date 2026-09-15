@@ -16,6 +16,7 @@
 #include <linux/swap.h>
 #include <linux/pagewalk.h>
 #include <linux/backing-dev.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
@@ -242,34 +243,38 @@ void uv_free_stor_var(void *stor_var)
 }
 EXPORT_SYMBOL_FOR_MODULES(uv_free_stor_var, "kvm");
 
-static int uv_alloc_range_cb(pte_t *ptep, unsigned long addr, void *data)
-{
-	struct page *page;
-	pte_t pte;
-
-	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
-	if (!page)
-		return -ENOMEM;
-	pte = __pte(page_to_phys(page) | pgprot_val(PAGE_KERNEL));
-	set_pte(ptep, pte);
-	return 0;
-}
-
 void *uv_alloc_stor_var(unsigned long size)
 {
+	unsigned long i, nr_pages, addr;
 	struct vm_struct *area;
-	unsigned long addr;
+	struct page **pages;
 
 	size = PAGE_ALIGN(size);
+	nr_pages = size >> PAGE_SHIFT;
 	area = get_vm_area(size, VM_SPARSE);
 	if (!area)
 		return NULL;
+	pages = kvcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
+	if (!pages)
+		goto free_area;
+	for (i = 0; i < nr_pages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+		if (!pages[i])
+			goto free_pages;
+	}
 	addr = (unsigned long)area->addr;
-	if (apply_to_page_range(&init_mm, addr, size, uv_alloc_range_cb, NULL))
-		goto out;
+	if (vm_area_map_pages(area, addr, addr + size, pages))
+		goto free_pages;
+	kvfree(pages);
 	return area->addr;
-out:
-	uv_free_stor_var(area->addr);
+free_pages:
+	for (i = 0; i < nr_pages; i++) {
+		if (pages[i])
+			__free_page(pages[i]);
+	}
+	kvfree(pages);
+free_area:
+	free_vm_area(area);
 	return NULL;
 }
 EXPORT_SYMBOL_FOR_MODULES(uv_alloc_stor_var, "kvm");
