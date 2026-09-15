@@ -331,7 +331,6 @@ descend_into_child_node:
 	}
 
 	memcpy_from_folio(kaddr, folio, 0, PAGE_SIZE);
-	post_read_mst_fixup((struct ntfs_record *)kaddr, PAGE_SIZE);
 	folio_unlock(folio);
 	folio_put(folio);
 fast_descend_into_child_node:
@@ -349,6 +348,14 @@ fast_descend_into_child_node:
 	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb,
 			   "Index buffer (VCN 0x%llx) of directory inode 0x%llx crosses page boundary. Impossible! Cannot access! This is probably a bug in the driver.",
+			   vcn, dir_ni->mft_no);
+		goto unm_err_out;
+	}
+	err = post_read_mst_fixup((struct ntfs_record *)ia,
+				  dir_ni->itype.index.block_size);
+	if (err) {
+		ntfs_error(sb,
+			   "MST fixup failed for index block vcn %lld in directory inode 0x%llx.",
 			   vcn, dir_ni->mft_no);
 		goto unm_err_out;
 	}
