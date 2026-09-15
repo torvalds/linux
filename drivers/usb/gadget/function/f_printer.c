@@ -940,8 +940,8 @@ static void printer_soft_reset(struct printer_dev *dev)
 	}
 
 	while (likely(!(list_empty(&dev->rx_reqs_active)))) {
-		req = container_of(dev->rx_buffers.next, struct usb_request,
-				list);
+		req = list_first_entry(&dev->rx_reqs_active,
+				       struct usb_request, list);
 		list_del_init(&req->list);
 		list_add(&req->list, &dev->rx_reqs);
 	}
