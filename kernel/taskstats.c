@@ -59,8 +59,7 @@ static DEFINE_PER_CPU(struct listener_list, listener_array);
 
 enum actions {
 	REGISTER,
-	DEREGISTER,
-	CPU_DONT_CARE
+	DEREGISTER
 };
 
 static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
