@@ -54,8 +54,8 @@ static int can_cap_in_hardware(void)
 }
 
 static const struct acpi_device_id power_meter_ids[] = {
-	{"ACPI000D", 0},
-	{"", 0},
+	{ .id = "ACPI000D" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, power_meter_ids);
 
