@@ -435,6 +435,11 @@ static void netfs_rreq_assess_single(struct netfs_io_request *rreq)
 		netfs_single_mark_inode_dirty(rreq->inode);
 	}
 
+	/* To do DIO, the cache has to round the size up, so we need to undo
+	 * the rounding.
+	 */
+	rreq->transferred = min(rreq->transferred, rreq->i_size);
+
 	if (rreq->iocb) {
 		rreq->iocb->ki_pos += rreq->transferred;
 		if (rreq->iocb->ki_complete) {
