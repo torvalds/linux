@@ -17,13 +17,20 @@
 
 enum chips {
 	tps53622, tps53647, tps53659, tps53667, tps53676, tps53679, tps53681,
-	tps53685, tps53688
+	tps53685, tps53688, tps536c7
 };
 
 #define TPS53647_PAGE_NUM		1
 
-#define TPS53676_USER_DATA_03		0xb3
+#define TPS536XX_PHASE_CONFIG		0xb3
 #define TPS53676_MAX_PHASES		7
+#define TPS536C7_MAX_PHASES		12
+
+#define TPS536XX_PHASE_ENABLE		BIT(7)
+#define TPS536XX_PHASE_PAGE		BIT(4)
+
+#define TPS53676_DEVICE_ID		"TI\x53\x67\x60\x00"
+#define TPS536C7_DEVICE_ID		"TI\x53\x6c\x70\x00"
 
 #define TPS53679_PROT_VR12_5MV		0x01 /* VR12.0 mode, 5-mV DAC */
 #define TPS53679_PROT_VR12_5_10MV	0x02 /* VR12.5 mode, 10-mV DAC */
@@ -166,34 +173,72 @@ static int tps53681_identify(struct i2c_client *client,
 					    TPS53681_DEVICE_ID);
 }
 
-static int tps53676_identify(struct i2c_client *client,
-			     struct pmbus_driver_info *info)
+static int tps536xx_read_block(struct i2c_client *client, u8 reg, u8 *buf,
+			       bool retry_without_pec)
+{
+	int ret = i2c_smbus_read_block_data(client, reg, buf);
+
+	/*
+	 * Some TPS536C7 samples return an invalid PEC on the device-ID and
+	 * phase-configuration block reads. Retry once without PEC; ordinary
+	 * telemetry keeps using PEC.
+	 */
+	if (ret == -EBADMSG && retry_without_pec &&
+	    (client->flags & I2C_CLIENT_PEC)) {
+		client->flags &= ~I2C_CLIENT_PEC;
+		ret = i2c_smbus_read_block_data(client, reg, buf);
+		client->flags |= I2C_CLIENT_PEC;
+	}
+	return ret;
+}
+
+static int tps536xx_read_phases(struct i2c_client *client,
+				const char *device_id, int max_phases,
+				bool retry_without_pec, int *phases_a,
+				int *phases_b)
 {
 	u8 buf[I2C_SMBUS_BLOCK_MAX];
-	int phases_a = 0, phases_b = 0;
 	int i, ret;
 
-	ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
+	ret = tps536xx_read_block(client, PMBUS_IC_DEVICE_ID, buf,
+				  retry_without_pec);
 	if (ret < 0)
 		return ret;
-	if (ret != 6 || memcmp(buf, "TI\x53\x67\x60\x00", 6)) {
+	if (ret != 6 || memcmp(buf, device_id, 6)) {
 		dev_err(&client->dev, "Unexpected device ID: %*ph\n", ret, buf);
 		return -ENODEV;
 	}
 
-	ret = i2c_smbus_read_block_data(client, TPS53676_USER_DATA_03, buf);
+	ret = tps536xx_read_block(client, TPS536XX_PHASE_CONFIG, buf,
+				  retry_without_pec);
 	if (ret < 0)
 		return ret;
 	if (ret != 24)
 		return -EIO;
-	for (i = 0; i < 2 * TPS53676_MAX_PHASES; i += 2) {
-		if (buf[i + 1] & 0x80) {
-			if (buf[i] & BIT(4))
-				phases_b++;
+
+	*phases_a = 0;
+	*phases_b = 0;
+	for (i = 0; i < 2 * max_phases; i += 2) {
+		if (buf[i + 1] & TPS536XX_PHASE_ENABLE) {
+			if (buf[i] & TPS536XX_PHASE_PAGE)
+				(*phases_b)++;
 			else
-				phases_a++;
+				(*phases_a)++;
 		}
 	}
+	return 0;
+}
+
+static int tps53676_identify(struct i2c_client *client,
+			     struct pmbus_driver_info *info)
+{
+	int phases_a, phases_b, ret;
+
+	ret = tps536xx_read_phases(client, TPS53676_DEVICE_ID,
+				   TPS53676_MAX_PHASES, false,
+				   &phases_a, &phases_b);
+	if (ret)
+		return ret;
 
 	info->format[PSC_VOLTAGE_OUT] = linear;
 	info->pages = 1;
@@ -210,6 +255,58 @@ static int tps53676_identify(struct i2c_client *client,
 		ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, 0);
 		if (ret < 0)
 			return ret;
+	}
+	return 0;
+}
+
+static int tps536c7_identify(struct i2c_client *client,
+			     struct pmbus_driver_info *info)
+{
+	int phases_a, phases_b, page, ret;
+
+	ret = tps536xx_read_phases(client, TPS536C7_DEVICE_ID,
+				   TPS536C7_MAX_PHASES, true,
+				   &phases_a, &phases_b);
+	if (ret)
+		return ret;
+	if (!phases_a) {
+		dev_err(&client->dev,
+			"TPS536C7 without channel A is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	info->format[PSC_VOLTAGE_OUT] = linear;
+	/*
+	 * TPS536C7 can place up to 12 phases on channel A, which exceeds
+	 * PMBUS_PHASES. Report aggregate per-channel telemetry only and do
+	 * not populate info->phases[].
+	 */
+	info->pages = phases_b ? 2 : 1;
+
+	/*
+	 * With info->phases[] left unset the PMBus core never programs the
+	 * PHASE selector, so make sure each page reports the aggregate
+	 * current (PHASE = 0xff) rather than whatever a previous boot left.
+	 */
+	for (page = 0; page < info->pages; page++) {
+		ret = pmbus_read_byte_data(client, page, PMBUS_PHASE);
+		if (ret < 0)
+			return ret;
+		if (ret == 0xff)
+			continue;
+		ret = pmbus_write_byte_data(client, page, PMBUS_PHASE, 0xff);
+		if (ret < 0)
+			return ret;
+		/* PHASE may be write-protected; confirm it actually changed. */
+		ret = pmbus_read_byte_data(client, page, PMBUS_PHASE);
+		if (ret < 0)
+			return ret;
+		if (ret != 0xff) {
+			dev_err(&client->dev,
+				"failed to select aggregate PHASE on page %d\n",
+				page);
+			return -EIO;
+		}
 	}
 	return 0;
 }
@@ -295,6 +392,9 @@ static int tps53679_probe(struct i2c_client *client)
 		info->pages = TPS53679_PAGE_NUM;
 		info->identify = tps53685_identify;
 		break;
+	case tps536c7:
+		info->identify = tps536c7_identify;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -313,6 +413,7 @@ static const struct i2c_device_id tps53679_id[] = {
 	{ .name = "tps53681", .driver_data = tps53681 },
 	{ .name = "tps53685", .driver_data = tps53685 },
 	{ .name = "tps53688", .driver_data = tps53688 },
+	{ .name = "tps536c7", .driver_data = tps536c7 },
 	{ }
 };
 
@@ -328,6 +429,7 @@ static const struct of_device_id __maybe_unused tps53679_of_match[] = {
 	{.compatible = "ti,tps53681", .data = (void *)tps53681},
 	{.compatible = "ti,tps53685", .data = (void *)tps53685},
 	{.compatible = "ti,tps53688", .data = (void *)tps53688},
+	{.compatible = "ti,tps536c7", .data = (void *)tps536c7},
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps53679_of_match);
