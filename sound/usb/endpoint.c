@@ -449,7 +449,9 @@ static void push_back_to_ready_list(struct snd_usb_endpoint *ep,
 				    struct snd_urb_ctx *ctx)
 {
 	guard(spinlock_irqsave)(&ep->lock);
-	list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
+	/* ctx may still be linked: a stale completion racing a stop/restart. */
+	if (list_empty(&ctx->ready_list))
+		list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
 }
 
 /*
@@ -1037,6 +1039,7 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
  */
 static int stop_urbs(struct snd_usb_endpoint *ep, bool force, bool keep_pending)
 {
+	struct snd_urb_ctx *ctx, *n;
 	unsigned int i;
 
 	if (!force && atomic_read(&ep->running))
@@ -1046,7 +1049,9 @@ static int stop_urbs(struct snd_usb_endpoint *ep, bool force, bool keep_pending)
 		return 0;
 
 	scoped_guard(spinlock_irqsave, &ep->lock) {
-		INIT_LIST_HEAD(&ep->ready_playback_urbs);
+		/* Unlink each ctx; INIT_LIST_HEAD() alone would leave them looking linked. */
+		list_for_each_entry_safe(ctx, n, &ep->ready_playback_urbs, ready_list)
+			list_del_init(&ctx->ready_list);
 		ep->next_packet_head = 0;
 		ep->next_packet_queued = 0;
 	}
