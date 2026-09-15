@@ -572,6 +572,12 @@ struct sched_ext_ops {
 	 *
 	 * Specify the %SCX_OPS_KEEP_BUILTIN_IDLE flag to keep the built-in idle
 	 * tracking.
+	 *
+	 * Only actual transitions are reported. A CPU that is claimed with an
+	 * idle pick and kicked but dispatches no task returns to idle without a
+	 * transition. A scheduler tracking idle CPUs itself must restore the
+	 * idle state from ops.dispatch() when it returns without the next task
+	 * to run.
 	 */
 	void (*update_idle)(s32 cpu, bool idle);
 

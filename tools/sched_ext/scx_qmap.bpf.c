@@ -818,10 +818,10 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 			batch--;
 			cpuc->dsp_cnt--;
 			if (!batch || !scx_bpf_dispatch_nr_slots()) {
-				if (scan_shared_dsq(false))
+				if (scan_shared_dsq(false) ||
+				    scx_bpf_dsq_move_to_local(SHARED_DSQ, needs_immed(cid)))
 					return;
-				scx_bpf_dsq_move_to_local(SHARED_DSQ, needs_immed(cid));
-				return;
+				goto prev;
 			}
 			if (!cpuc->dsp_cnt)
 				break;
@@ -832,10 +832,14 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 
 	if (scan_shared_dsq(false))
 		return;
-
+prev:
 	/*
 	 * No other tasks. @prev will keep running. Update its core_sched_seq as
 	 * if the task were enqueued and dispatched immediately.
+	 *
+	 * No @prev to keep running means the CPU goes idle. If its claim was
+	 * never used, that is not a transition and ops.update_idle() stays
+	 * silent. Restore the claim here.
 	 */
 	if (prev) {
 		taskc = lookup_task_ctx(prev);
@@ -844,6 +848,8 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 
 		taskc->core_sched_seq =
 			qa.core_sched_tail_seqs[weight_to_idx(prev->scx.weight)]++;
+	} else {
+		cmask_set(cid, &qa.idle_cids.mask);
 	}
 }
 
