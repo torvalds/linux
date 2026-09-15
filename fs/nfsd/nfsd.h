@@ -117,6 +117,8 @@ extern const struct svc_version localio_version1;
 
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
+bool nfsd_version_registerable(struct net *net,
+			       const struct svc_program *progp, u32 version);
 int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change);
 void nfsd_reset_versions(struct nfsd_net *nn);
 int nfsd_create_serv(struct net *net, bool no_rpcbind);
