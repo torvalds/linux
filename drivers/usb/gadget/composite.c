@@ -1930,7 +1930,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			break;
 
 		spin_lock(&cdev->lock);
-		value = f->set_alt(f, w_index, w_value);
+		value = f->set_alt(f, intf, w_value);
 		if (value == USB_GADGET_DELAYED_STATUS) {
 			DBG(cdev,
 			 "%s: interface %d (%s) requested delayed status\n",
@@ -1950,7 +1950,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		if (!f)
 			break;
 		/* lots of interfaces only need altsetting zero... */
-		value = f->get_alt ? f->get_alt(f, w_index) : 0;
+		value = f->get_alt ? f->get_alt(f, intf) : 0;
 		if (value < 0)
 			break;
 		*((u8 *)req->buf) = value;
