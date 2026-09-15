@@ -1351,9 +1351,10 @@ static ssize_t ext_prop_data_store(struct config_item *item,
 
 	if (page[len - 1] == '\n' || page[len - 1] == '\0')
 		--len;
-	new_data = kmemdup(page, len, GFP_KERNEL);
+	new_data = kzalloc(len + 1, GFP_KERNEL);
 	if (!new_data)
 		return -ENOMEM;
+	memcpy(new_data, page, len);
 
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);
