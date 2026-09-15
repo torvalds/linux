@@ -748,7 +748,14 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 		return -EINVAL;
 	trace_nfsd_ctl_ports_addfd(net, fd);
 
-	err = nfsd_create_serv(net);
+	/*
+	 * svc_register() is a no-op once userland owns rpcbind, and this
+	 * interface has no way to hand the new listener to that owner.
+	 */
+	if (nn->nfsd_serv && nn->nfsd_serv->sv_no_rpcbind)
+		return -EBUSY;
+
+	err = nfsd_create_serv(net, false);
 	if (err != 0)
 		return err;
 
@@ -780,7 +787,7 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cr
 		return -EINVAL;
 	trace_nfsd_ctl_ports_addxprt(net, transport, port);
 
-	err = nfsd_create_serv(net);
+	err = nfsd_create_serv(net, false);
 	if (err != 0)
 		return err;
 
@@ -2022,7 +2029,8 @@ static bool nfsd_nl_transport_supported(const char *name)
  * Walk every NFSD_A_SERVER_SOCK_ADDR attribute and confirm that the list is
  * not oversized and that each entry is well-formed.
  *
- * Return: 0 if every entry is valid, or a negative errno otherwise.
+ * Return: the number of entries if every entry is valid, or a negative
+ * errno otherwise.
  */
 static int nfsd_nl_validate_listeners(struct genl_info *info)
 {
@@ -2076,7 +2084,7 @@ static int nfsd_nl_validate_listeners(struct genl_info *info)
 		}
 	}
 
-	return 0;
+	return count;
 }
 
 /**
@@ -2095,11 +2103,13 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 	unsigned int rpcb_failures;
 	const struct nlattr *attr;
 	bool skipped_rpcb = false;
+	bool userspace_rpcbind;
 	bool bad_rpcb = false;
 	struct svc_serv *serv;
 	LIST_HEAD(permsocks);
 	struct nfsd_net *nn;
 	bool delete = false;
+	int nlisteners;
 	int err, rem;
 
 	/*
@@ -2107,19 +2117,36 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 	 * malformed request fails cleanly without creating a serv or touching
 	 * the existing listeners.
 	 */
-	err = nfsd_nl_validate_listeners(info);
-	if (err)
-		return err;
+	nlisteners = nfsd_nl_validate_listeners(info);
+	if (nlisteners < 0)
+		return nlisteners;
+
+	userspace_rpcbind = nla_get_flag(info->attrs[NFSD_A_SERVER_SOCK_USERSPACE_RPCBIND]);
 
 	mutex_lock(&nfsd_mutex);
 
-	err = nfsd_create_serv(net);
+	nn = net_generic(net, nfsd_net_id);
+
+	/*
+	 * An empty list destroys the serv, and nfsd_destroy_serv() drops
+	 * whatever svc_bind() took either way, so teardown is not an
+	 * ownership change. Only a request that leaves a listener standing
+	 * has to agree with the serv it found.
+	 */
+	if (nlisteners && nn->nfsd_serv &&
+	    nn->nfsd_serv->sv_no_rpcbind != userspace_rpcbind) {
+		NL_SET_ERR_MSG(info->extack,
+			       "cannot change rpcbind ownership while a server exists");
+		mutex_unlock(&nfsd_mutex);
+		return -EBUSY;
+	}
+
+	err = nfsd_create_serv(net, userspace_rpcbind);
 	if (err) {
 		mutex_unlock(&nfsd_mutex);
 		return err;
 	}
 
-	nn = net_generic(net, nfsd_net_id);
 	serv = nn->nfsd_serv;
 
 	spin_lock_bh(&serv->sv_lock);
@@ -2213,12 +2240,12 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 			continue;
 		}
 
-		flags = skipped_rpcb ? SVC_SOCK_ANONYMOUS : 0;
+		flags = (userspace_rpcbind || skipped_rpcb) ? SVC_SOCK_ANONYMOUS : 0;
 		ret = svc_xprt_create_from_sa(serv, xcl_name, net, sa, flags,
 					      current_cred());
 
 		hit_rpcb = false;
-		if (!skipped_rpcb &&
+		if (!userspace_rpcbind && !skipped_rpcb &&
 		    svc_rpcb_failure_count(serv) != rpcb_failures) {
 			skipped_rpcb = true;
 			hit_rpcb = true;

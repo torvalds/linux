@@ -607,7 +607,14 @@ struct svc_rqst *nfsd_current_rqst(void)
 	return NULL;
 }
 
-int nfsd_create_serv(struct net *net)
+/**
+ * nfsd_create_serv - create the svc_serv for a namespace if it has none
+ * @net: network namespace to operate within
+ * @no_rpcbind: true if the caller registers the listeners with rpcbind
+ *
+ * Return: 0 on success or a negative errno.
+ */
+int nfsd_create_serv(struct net *net, bool no_rpcbind)
 {
 	int error;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -634,6 +641,9 @@ int nfsd_create_serv(struct net *net)
 		percpu_ref_exit(&nn->nfsd_net_ref);
 		return -ENOMEM;
 	}
+
+	/* svc_bind() reads this, so set it first. */
+	serv->sv_no_rpcbind = no_rpcbind;
 
 	error = svc_bind(serv, net);
 	if (error < 0) {
@@ -775,7 +785,7 @@ nfsd_svc(int n, int *nthreads, struct net *net, const struct cred *cred, const c
 	strscpy(nn->nfsd_name, scope ? scope : utsname()->nodename,
 		sizeof(nn->nfsd_name));
 
-	error = nfsd_create_serv(net);
+	error = nfsd_create_serv(net, false);
 	if (error)
 		goto out;
 	serv = nn->nfsd_serv;

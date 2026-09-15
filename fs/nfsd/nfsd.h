@@ -119,7 +119,7 @@ enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
 int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change);
 void nfsd_reset_versions(struct nfsd_net *nn);
-int nfsd_create_serv(struct net *net);
+int nfsd_create_serv(struct net *net, bool no_rpcbind);
 void nfsd_destroy_serv(struct net *net);
 
 #ifdef CONFIG_DEBUG_FS
