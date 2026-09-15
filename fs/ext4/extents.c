@@ -6322,7 +6322,7 @@ int ext4_ext_replay_set_iblocks(struct inode *inode)
 		map.m_len = end - cur;
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret < 0)
-			break;
+			goto cleanup;
 		if (ret > 0)
 			numblks += ret;
 		cur = cur + map.m_len;
@@ -6338,15 +6338,19 @@ int ext4_ext_replay_set_iblocks(struct inode *inode)
 	cur = 0;
 	ret = skip_hole(inode, &cur);
 	if (ret < 0)
-		goto out;
+		goto cleanup;
 	path = ext4_find_extent(inode, cur, path, 0);
-	if (IS_ERR(path))
-		goto out;
+	if (IS_ERR(path)) {
+		ret = PTR_ERR(path);
+		goto cleanup;
+	}
 	numblks += path->p_depth;
 	while (cur < end) {
 		path = ext4_find_extent(inode, cur, path, 0);
-		if (IS_ERR(path))
-			break;
+		if (IS_ERR(path)) {
+			ret = PTR_ERR(path);
+			goto cleanup;
+		}
 		ex = path[path->p_depth].p_ext;
 		if (!ex)
 			goto cleanup;
@@ -6355,11 +6359,13 @@ int ext4_ext_replay_set_iblocks(struct inode *inode)
 					ext4_ext_get_actual_len(ex));
 		ret = skip_hole(inode, &cur);
 		if (ret < 0)
-			break;
+			goto cleanup;
 
 		path2 = ext4_find_extent(inode, cur, path2, 0);
-		if (IS_ERR(path2))
-			break;
+		if (IS_ERR(path2)) {
+			ret = PTR_ERR(path2);
+			goto cleanup;
+		}
 
 		for (i = 0; i <= max(path->p_depth, path2->p_depth); i++) {
 			cmp1 = cmp2 = 0;
@@ -6380,7 +6386,7 @@ out:
 cleanup:
 	ext4_free_ext_path(path);
 	ext4_free_ext_path(path2);
-	return 0;
+	return ret;
 }
 
 int ext4_ext_clear_bb(struct inode *inode)
