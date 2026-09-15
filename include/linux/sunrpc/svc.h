@@ -87,6 +87,8 @@ struct svc_serv {
 	char *			sv_name;	/* service name */
 
 	bool			sv_is_pooled;	/* is this a pooled service? */
+	/* Caller registers with rpcbind itself. Set before svc_bind(). */
+	bool			sv_no_rpcbind;
 	struct svc_pool *	sv_pools;	/* array of thread pools */
 	int			(*sv_threadfn)(void *data);
 
