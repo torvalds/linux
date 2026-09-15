@@ -16,6 +16,7 @@
 #include <linux/mount.h>
 #include <linux/filelock.h>
 #include <linux/fileattr.h>
+#include <linux/math.h>
 #include <linux/timekeeping.h>
 #include <linux/unaligned.h>
 
@@ -7218,7 +7219,7 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 	struct ksmbd_file *fp;
 	int fileinfoclass = 0;
 	int rc = 0;
-	unsigned int fixed_len;
+	unsigned int fixed_len, req_output_len;
 	unsigned int id = KSMBD_NO_FID, pid = KSMBD_NO_FID;
 
 	if (test_share_config_flag(work->tcon->share_conf,
@@ -7325,6 +7326,7 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 		rc = -EOPNOTSUPP;
 	}
 	if (!rc) {
+		req_output_len = le32_to_cpu(req->OutputBufferLength);
 		fixed_len = le32_to_cpu(rsp->OutputBufferLength);
 		switch (fileinfoclass) {
 		case FILE_ALL_INFORMATION:
@@ -7335,14 +7337,13 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 			break;
 		case FILE_NORMALIZED_NAME_INFORMATION:
 			fixed_len = FILE_NORMALIZED_NAME_INFORMATION_SIZE;
+			req_output_len = round_down(req_output_len, 2);
 			break;
 		case FILE_STREAM_INFORMATION:
 			fixed_len = FILE_STREAM_INFORMATION_SIZE;
 			break;
 		}
-		rc = buffer_check_err(le32_to_cpu(req->OutputBufferLength),
-				      fixed_len,
-				      rsp);
+		rc = buffer_check_err(req_output_len, fixed_len, rsp);
 	}
 	ksmbd_fd_put(work, fp);
 
