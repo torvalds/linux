@@ -262,6 +262,7 @@ struct asus_wmi {
 	struct led_classdev lightbar_led;
 	int lightbar_led_wk;
 	struct led_classdev micmute_led;
+	struct led_classdev mute_led;
 	struct led_classdev camera_led;
 	struct workqueue_struct *led_workqueue;
 	struct work_struct tpd_led_work;
@@ -2054,6 +2055,16 @@ static int micmute_led_set(struct led_classdev *led_cdev,
 	return err < 0 ? err : 0;
 }
 
+static int mute_led_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	int state = brightness != LED_OFF;
+	int err;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_MUTE_LED, state, NULL);
+	return err < 0 ? err : 0;
+}
+
 static enum led_brightness camera_led_get(struct led_classdev *led_cdev)
 {
 	struct asus_wmi *asus;
@@ -2084,6 +2095,7 @@ static void asus_wmi_led_exit(struct asus_wmi *asus)
 	led_classdev_unregister(&asus->wlan_led);
 	led_classdev_unregister(&asus->lightbar_led);
 	led_classdev_unregister(&asus->micmute_led);
+	led_classdev_unregister(&asus->mute_led);
 	led_classdev_unregister(&asus->camera_led);
 
 	if (asus->led_workqueue)
@@ -2188,7 +2200,19 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 		asus->micmute_led.default_trigger = "audio-micmute";
 
 		rv = led_classdev_register(&asus->platform_device->dev,
-						&asus->micmute_led);
+					   &asus->micmute_led);
+		if (rv)
+			goto error;
+	}
+
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MUTE_LED)) {
+		asus->mute_led.name = "platform::mute";
+		asus->mute_led.max_brightness = 1;
+		asus->mute_led.brightness_set_blocking = mute_led_set;
+		asus->mute_led.default_trigger = "audio-mute";
+
+		rv = led_classdev_register(&asus->platform_device->dev,
+					   &asus->mute_led);
 		if (rv)
 			goto error;
 	}
