@@ -950,13 +950,19 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 	/*
 	 * Optimistically write out the src inode before taking locks.
 	 * Consistency is properly ensured by the btrfs_wait_ordered_range()
-	 * inside btrfs_remap_file_range_prep().
+	 * inside btrfs_remap_file_range_prep(). This optimization causes
+	 * redundant writeback if there is a concurrent writer to the src file
+	 * so try to catch anyone holding the file open for writes and skip
+	 * the optimization in that case.
 	 */
 	wb_start = ALIGN_DOWN(off, src_inode->root->fs_info->sectorsize);
 	wb_len = calc_remap_wb_len(src_inode, off, len, remap_flags);
-	ret = btrfs_wait_ordered_range(src_inode, wb_start, wb_len);
-	if (ret < 0)
-		return ret;
+	if (!inode_is_open_for_write(&src_inode->vfs_inode) &&
+	    !mapping_writably_mapped(src_inode->vfs_inode.i_mapping)) {
+		ret = btrfs_wait_ordered_range(src_inode, wb_start, wb_len);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (same_inode) {
 		btrfs_inode_lock(src_inode, BTRFS_ILOCK_MMAP);
