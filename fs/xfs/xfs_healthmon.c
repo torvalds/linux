@@ -247,7 +247,9 @@ xfs_healthmon_merge_events(
 	case XFS_HEALTHMON_DIOWRITE:
 	case XFS_HEALTHMON_DATALOST:
 		/* logically adjacent file ranges can merge */
-		if (existing->fino != new->fino || existing->fgen != new->fgen)
+		if (existing->fino != new->fino ||
+		    existing->fgen != new->fgen ||
+		    existing->error != new->error)
 			return false;
 
 		if (existing->fpos + existing->flen == new->fpos) {
