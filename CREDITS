@@ -1,6 +1,7 @@
 	This is at least a partial credits-file of people that have
-	contributed to the Linux project.  It is sorted by name and
-	formatted to allow easy grepping and beautification by
+	contributed to the Linux project.  It is sorted by family name,
+	assuming the used locale is default, e.g. by setting LC_ALL=C,
+	and formatted to allow easy grepping and beautification by
 	scripts.  The fields are: name (N), email (E), web-address
 	(W), PGP key ID and fingerprint (P), description (D), and
 	snail-mail address (S).
@@ -344,6 +345,14 @@ D: Hardware spinlock (hwspinlock) subsystem
 D: OMAP hwspinlock driver
 D: OMAP remoteproc driver
 
+N: Muli Ben-Yehuda
+E: mulix@mulix.org
+E: muli@il.ibm.com
+W: http://www.mulix.org
+D: trident OSS sound driver, x86-64 dma-ops and Calgary IOMMU,
+D: KVM and Xen bits and other misc. hackery.
+S: Haifa, Israel
+
 N: Krzysztof Benedyczak
 E: golbi@mat.uni.torun.pl
 W: http://www.mat.uni.torun.pl/~golbi
@@ -361,14 +370,6 @@ D: Author of driver for Cyclom-Y and Cyclades-Z async mux
 S: 2322 37th Ave SW
 S: Seattle, Washington 98126-2010
 S: USA
-
-N: Muli Ben-Yehuda
-E: mulix@mulix.org
-E: muli@il.ibm.com
-W: http://www.mulix.org
-D: trident OSS sound driver, x86-64 dma-ops and Calgary IOMMU,
-D: KVM and Xen bits and other misc. hackery.
-S: Haifa, Israel
 
 N: Johannes Berg
 E: johannes@sipsolutions.net
@@ -393,13 +394,13 @@ S: 1549 Hiironen Rd.
 S: Brimson, MN  55602
 S: USA
 
-N: Arnd Bergmann
-D: Maintainer of Cell Broadband Engine Architecture
-
 N: Hennus Bergman
 P: 1024/77D50909 76 99 FD 31 91 E1 96 1C  90 BB 22 80 62 F6 BD 63
 D: Author and maintainer of the QIC-02 tape driver
 S: The Netherlands
+
+N: Arnd Bergmann
+D: Maintainer of Cell Broadband Engine Architecture
 
 N: Tomas Berndtsson
 E: tomas@nocrew.org
@@ -491,10 +492,6 @@ D: IP policy routing by mark
 D: Various fixes (mostly networking)
 S: Montreal, Quebec
 S: Canada
-
-N: Zoltán Böszörményi
-E: zboszor@mail.externet.hu
-D: MTRR emulation with Cyrix style ARR registers, Athlon MTRR support
 
 N: John Boyd
 E: boyd@cis.ohio-state.edu
@@ -589,9 +586,6 @@ N: Zach Brown
 E: zab@zabbo.net
 D: maestro pci sound
 
-N: Zefan Li
-D: Contribution to control group stuff
-
 N: David Brownell
 D: Kernel engineer, mentor, and friend.  Maintained USB EHCI and
 D: gadget layers, SPI subsystem, GPIO subsystem, and more than a few
@@ -631,6 +625,10 @@ D: Various ARM bits and pieces
 S: Ravenhorst 58
 S: 2317 AK Leiden
 S: The Netherlands
+
+N: Zoltán Böszörményi
+E: zboszor@mail.externet.hu
+D: MTRR emulation with Cyrix style ARR registers, Athlon MTRR support
 
 N: Michael Callahan
 E: callahan@maths.ox.ac.uk
@@ -703,6 +701,10 @@ S: Tamsui town, Taipei county,
 S: Taiwan 251
 S: Republic of China
 
+N: Landen Chao
+E: Landen.Chao@mediatek.com
+D: MT7531 Ethernet switch support
+
 N: Michael Elizabeth Chastain
 E: mec@shout.net
 D: Configure, Menuconfig, xconfig
@@ -714,10 +716,6 @@ E: mchehab@infradead.org
 D: Media subsystem (V4L/DVB) drivers and core
 D: EDAC drivers and EDAC 3.0 core rework
 S: Brazil
-
-N: Landen Chao
-E: Landen.Chao@mediatek.com
-D: MT7531 Ethernet switch support
 
 N: Raymond Chen
 E: raymondc@microsoft.com
@@ -1447,6 +1445,10 @@ D: Made support for modules, ramdisk, generic-serial, etc. optional.
 D: Transformed old user space bdflush into 1st kernel thread - kflushd.
 D: Many other patches, documentation files, mini kernels, utilities, ...
 
+N: Andy Gospodarek
+E: andy@greyhouse.net
+D: Maintenance and contributions to the network interface bonding driver.
+
 N: Masanori GOTO
 E: gotom@debian.or.jp
 D: Workbit NinjaSCSI-32Bi/UDE driver
@@ -1458,10 +1460,6 @@ D: kernel hacker
 S: 8124 Constitution Apt. 7
 S: Sterling Heights, Michigan 48313
 S: USA
-
-N: Andy Gospodarek
-E: andy@greyhouse.net
-D: Maintenance and contributions to the network interface bonding driver.
 
 N: Vivek Goyal
 E: vgoyal@redhat.com
@@ -1535,6 +1533,14 @@ S: 44 St. Joseph Street, Suite 506
 S: Toronto, Ontario, M4Y 2W4
 S: Canada
 
+N: Nitin Gupta
+E: ngupta@vflare.org
+D: zsmalloc memory allocator and zram block device driver
+
+N: Justin Guyett
+E: jguyett@andrew.cmu.edu
+D: via-rhine net driver hacking
+
 N: Richard Günther
 E: rguenth@tat.physik.uni-tuebingen.de
 W: http://www.tat.physik.uni-tuebingen.de/~rguenth
@@ -1542,14 +1548,6 @@ P: 2048/2E829319 2F 83 FC 93 E9 E4 19 E2  93 7A 32 42 45 37 23 57
 D: binfmt_misc
 S: 72074 Tübingen
 S: Germany
-
-N: Justin Guyett
-E: jguyett@andrew.cmu.edu
-D: via-rhine net driver hacking
-
-N: Nitin Gupta
-E: ngupta@vflare.org
-D: zsmalloc memory allocator and zram block device driver
 
 N: Danny ter Haar
 E: dth@cistron.nl
@@ -1945,16 +1943,6 @@ E: sjenning@redhat.com
 D: Creation and maintenance of zswap
 D: Creation and maintenace of the zbud allocator
 
-N: Jeremy Kerr
-D: Maintainer of SPU File System
-
-N: Michael Kerrisk
-E: mtk.manpages@gmail.com
-W: https://man7.org/
-P: 4096R/3A35CE5E E522 595B 52ED A4E6 BFCC  CB5E 8561 9911 3A35 CE5E
-D: Maintainer of the Linux man-pages project
-D: Linux man pages online, at <https://man7.org/linux/man-pages/>
-
 N: Niels Kristian Bech Jensen
 E: nkbj1970@hotmail.com
 D: Miscellaneous kernel updates and fixes.
@@ -2098,6 +2086,16 @@ D: Kernel fixes and cleanups
 S: Keplerstr. 6
 S: 4050 Traun
 S: Austria
+
+N: Jeremy Kerr
+D: Maintainer of SPU File System
+
+N: Michael Kerrisk
+E: mtk.manpages@gmail.com
+W: https://man7.org/
+P: 4096R/3A35CE5E E522 595B 52ED A4E6 BFCC  CB5E 8561 9911 3A35 CE5E
+D: Maintainer of the Linux man-pages project
+D: Linux man pages online, at <https://man7.org/linux/man-pages/>
 
 N: Karl Keyte
 E: karl@koft.com
@@ -2483,6 +2481,9 @@ D: and much more. He was the maintainer of MD from 2016 to 2018. Shaohua
 D: passed away late 2018, he will be greatly missed.
 W: https://www.spinics.net/lists/raid/msg61993.html
 
+N: Zefan Li
+D: Contribution to control group stuff
+
 N: Stephan Linz
 E: linz@mazet.de
 E: Stephan.Linz@gmx.de
@@ -2542,11 +2543,6 @@ D: misc. kernel hacking and debugging
 S: Cambridge, MA 02139
 S: USA
 
-N: Martin von Löwis
-E: loewis@informatik.hu-berlin.de
-D: script binary format
-D: NTFS driver
-
 N: H.J. Lu
 E: hjl@gnu.ai.mit.edu
 D: GCC + libraries hacker
@@ -2574,6 +2570,11 @@ D: Console-mouse-tracking patches
 S: Puistokaari 1 E 18
 S: 00200 Helsinki
 S: Finland
+
+N: Martin von Löwis
+E: loewis@informatik.hu-berlin.de
+D: script binary format
+D: NTFS driver
 
 N: Daniel J. Maas
 E: dmaas@dcine.com
@@ -2624,10 +2625,6 @@ D: Program in DOSEMU
 S: PO BOX 220, HFX. CENTRAL
 S: Halifax, Nova Scotia
 S: Canada B3J 3C8
-
-N: Kai Mäkisara
-E: Kai.Makisara@kolumbus.fi
-D: SCSI Tape Driver
 
 N: Asit Mallick
 E: asit.k.mallick@intel.com
@@ -2912,13 +2909,6 @@ S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005
 S: USA
 
-N: Eberhard Mönkeberg
-E: emoenke@gwdg.de
-D: CDROM driver "sbpcd" (Matsushita/Panasonic/Soundblaster)
-S: Ruhstrathöhe 2 b.
-S: D-37085 Göttingen
-S: Germany
-
 N: Thomas Molina
 E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
@@ -3004,6 +2994,17 @@ D: PS/2 mouse driver writer etc.
 S: Dragonvagen 1 A 13
 S: FIN-00330 Helsingfors
 S: Finland
+
+N: Kai Mäkisara
+E: Kai.Makisara@kolumbus.fi
+D: SCSI Tape Driver
+
+N: Eberhard Mönkeberg
+E: emoenke@gwdg.de
+D: CDROM driver "sbpcd" (Matsushita/Panasonic/Soundblaster)
+S: Ruhstrathöhe 2 b.
+S: D-37085 Göttingen
+S: Germany
 
 N: Matija Nalis
 E: mnalis@jagor.srce.hr
@@ -3200,19 +3201,19 @@ S: RR #5, 497 Pole Line Road
 S: Thunder Bay, Ontario
 S: CANADA P7C 5M9
 
-N: Inaky Perez-Gonzalez
-E: inaky.perez-gonzalez@intel.com
-E: linux-wimax@intel.com
-E: inakypg@yahoo.com
-D: WiMAX stack
-D: Intel Wireless WiMAX Connection 2400 driver
-
 N: Yuri Per
 E: yuri@pts.mipt.ru
 D: Some smbfs fixes
 S: Demonstratsii 8-382
 S: Tula 300000
 S: Russia
+
+N: Inaky Perez-Gonzalez
+E: inaky.perez-gonzalez@intel.com
+E: linux-wimax@intel.com
+E: inakypg@yahoo.com
+D: WiMAX stack
+D: Intel Wireless WiMAX Connection 2400 driver
 
 N: Thomas Petazzoni
 E: thomas.petazzoni@bootlin.com
@@ -3328,13 +3329,13 @@ N: Frederic Potter
 E: fpotter@cirpack.com
 D: Some PCI kernel support
 
-N: Rui Prior
-E: rprior@inescn.pt
-D: ATM device driver for NICStAR based cards
-
 N: Roopa Prabhu
 E: roopa@nvidia.com
 D: Bridge co-maintainer, vxlan and networking contributor
+
+N: Rui Prior
+E: rprior@inescn.pt
+D: ATM device driver for NICStAR based cards
 
 N: Stefan Probst
 E: sp@caldera.de
@@ -4023,12 +4024,6 @@ S: C/ Federico Garcia Lorca 1 10-A
 S: Sevilla 41005
 S: Spain
 
-N: Björn Töpel
-E: bjorn@kernel.org
-D: AF_XDP
-S: Gothenburg
-S: Sweden
-
 N: Linus Torvalds
 E: torvalds@linux-foundation.org
 D: Original kernel hacker
@@ -4082,17 +4077,6 @@ D: Linux-Workshop Köln (aka LUG Cologne, Germany), Installfests
 S: Tacitusstr. 6
 S: D-50968 Köln
 
-N: Tsu-Sheng Tsao
-E: tsusheng@scf.usc.edu
-D: IGMP (Internet Group Management Protocol) version 2
-S: 2F 14 ALY 31 LN 166 SEC 1 SHIH-PEI RD
-S: Taipei
-S: Taiwan 112
-S: Republic of China
-S: 24335 Delta Drive
-S: Diamond Bar, California 91765
-S: USA
-
 N: Theodore Ts'o
 E: tytso@mit.edu
 D: Random Linux hacker
@@ -4107,6 +4091,17 @@ D: Author of /dev/random driver
 S: MIT Room E40-343
 S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139
+S: USA
+
+N: Tsu-Sheng Tsao
+E: tsusheng@scf.usc.edu
+D: IGMP (Internet Group Management Protocol) version 2
+S: 2F 14 ALY 31 LN 166 SEC 1 SHIH-PEI RD
+S: Taipei
+S: Taiwan 112
+S: Republic of China
+S: 24335 Delta Drive
+S: Diamond Bar, California 91765
 S: USA
 
 N: Luben Tuikov
@@ -4134,6 +4129,12 @@ D: kswap vm management code
 S: 44 Campbell Park Crescent
 S: Edinburgh EH13 0HT
 S: United Kingdom
+
+N: Björn Töpel
+E: bjorn@kernel.org
+D: AF_XDP
+S: Gothenburg
+S: Sweden
 
 N: Thomas Uhl
 E: uhl@sun1.rz.fh-heilbronn.de
