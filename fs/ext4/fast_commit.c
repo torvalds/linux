@@ -1941,8 +1941,11 @@ static int ext4_fc_replay_inode(struct super_block *sb,
 
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
 	if (!IS_ERR(inode)) {
-		ext4_ext_clear_bb(inode);
+		ret = ext4_ext_clear_bb(inode);
 		iput(inode);
+		inode = NULL;
+		if (ret)
+			goto out;
 	}
 	inode = NULL;
 

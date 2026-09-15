@@ -6416,29 +6416,34 @@ int ext4_ext_clear_bb(struct inode *inode)
 		map.m_len = end - cur;
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret < 0)
-			break;
+			goto out;
 		if (ret > 0) {
 			path = ext4_find_extent(inode, map.m_lblk, path, 0);
-			if (!IS_ERR(path)) {
-				for (j = 0; j < path->p_depth; j++) {
-					ext4_mb_mark_bb(inode->i_sb,
-							path[j].p_block, 1, false);
-					ext4_fc_record_regions(inode->i_sb, inode->i_ino,
-							0, path[j].p_block, 1, 1);
-				}
-			} else {
-				path = NULL;
+			if (IS_ERR(path)) {
+				ret = PTR_ERR(path);
+				goto out;
+			}
+			for (j = 0; j < path->p_depth; j++) {
+				ext4_mb_mark_bb(inode->i_sb,
+						path[j].p_block, 1, false);
+				ret = ext4_fc_record_regions(inode->i_sb,
+							     inode->i_ino, 0,
+							     path[j].p_block, 1, 1);
+				if (ret)
+					goto out;
 			}
 			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, false);
-			ext4_fc_record_regions(inode->i_sb, inode->i_ino,
-					map.m_lblk, map.m_pblk, map.m_len, 1);
+			ret = ext4_fc_record_regions(inode->i_sb, inode->i_ino,
+						     map.m_lblk, map.m_pblk, map.m_len, 1);
+			if (ret)
+				goto out;
 		}
 		cur = cur + map.m_len;
 	}
 
 out:
 	ext4_free_ext_path(path);
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
