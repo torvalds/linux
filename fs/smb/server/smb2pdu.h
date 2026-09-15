@@ -199,7 +199,7 @@ struct file_sparse {
 #define FILE_INTERNAL_INFORMATION_SIZE        8
 #define FILE_EA_INFORMATION_SIZE              4
 #define FILE_ACCESS_INFORMATION_SIZE          4
-#define FILE_NAME_INFORMATION_SIZE            9
+#define FILE_NAME_INFORMATION_SIZE            8
 #define FILE_RENAME_INFORMATION_SIZE          10
 #define FILE_LINK_INFORMATION_SIZE            11
 #define FILE_NAMES_INFORMATION_SIZE           12
@@ -211,8 +211,6 @@ struct file_sparse {
 #define FILE_ALL_INFORMATION_SIZE             104
 #define FILE_ALLOCATION_INFORMATION_SIZE      19
 #define FILE_END_OF_FILE_INFORMATION_SIZE     20
-#define FILE_ALTERNATE_NAME_INFORMATION_SIZE  8
-#define FILE_NORMALIZED_NAME_INFORMATION_SIZE 8
 #define FILE_STREAM_INFORMATION_SIZE          32
 #define FILE_PIPE_INFORMATION_SIZE            23
 #define FILE_PIPE_LOCAL_INFORMATION_SIZE      24
@@ -259,7 +257,7 @@ struct smb2_file_alignment_info {
 	__le32 AlignmentRequirement;
 } __packed;
 
-struct smb2_file_alt_name_info {
+struct smb2_file_name_info {
 	__le32 FileNameLength;
 	char FileName[];
 } __packed;

@@ -6779,12 +6779,12 @@ static void get_file_alternate_info(struct ksmbd_work *work,
 				    void *rsp_org)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_file_alt_name_info *file_info;
+	struct smb2_file_name_info *file_info;
 	struct dentry *dentry = fp->filp->f_path.dentry;
 	int conv_len;
 
 	spin_lock(&dentry->d_lock);
-	file_info = (struct smb2_file_alt_name_info *)rsp->Buffer;
+	file_info = (struct smb2_file_name_info *)rsp->Buffer;
 	conv_len = ksmbd_extract_shortname(conn,
 					   dentry->d_name.name,
 					   file_info->FileName);
@@ -6831,7 +6831,7 @@ static int get_file_normalized_name_info(struct ksmbd_work *work,
 					 struct smb2_query_info_rsp *rsp,
 					 struct ksmbd_file *fp)
 {
-	struct smb2_file_alt_name_info *file_info;
+	struct smb2_file_name_info *file_info;
 	char *filename, *normalized, *stream_name;
 	int buf_free_len, conv_len, filename_len;
 
@@ -6865,7 +6865,7 @@ static int get_file_normalized_name_info(struct ksmbd_work *work,
 		return -EINVAL;
 	}
 
-	file_info = (struct smb2_file_alt_name_info *)rsp->Buffer;
+	file_info = (struct smb2_file_name_info *)rsp->Buffer;
 	conv_len = smbConvertToUTF16((__le16 *)file_info->FileName,
 				     normalized, filename_len,
 				     work->conn->local_nls, 0);
@@ -7333,10 +7333,10 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 			fixed_len = FILE_ALL_INFORMATION_SIZE;
 			break;
 		case FILE_ALTERNATE_NAME_INFORMATION:
-			fixed_len = FILE_ALTERNATE_NAME_INFORMATION_SIZE;
+			fixed_len = FILE_NAME_INFORMATION_SIZE;
 			break;
 		case FILE_NORMALIZED_NAME_INFORMATION:
-			fixed_len = FILE_NORMALIZED_NAME_INFORMATION_SIZE;
+			fixed_len = FILE_NAME_INFORMATION_SIZE;
 			req_output_len = round_down(req_output_len, 2);
 			break;
 		case FILE_STREAM_INFORMATION:
