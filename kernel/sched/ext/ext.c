@@ -3670,8 +3670,20 @@ static void handle_hotplug(struct rq *rq, bool online)
 		s16 *tbl = rcu_dereference_check(scx_cpu_to_cid_tbl,
 						 lockdep_is_cpus_held());
 
-		if (tbl)
+		if (tbl) {
+			struct scx_sched *pos;
+
 			cpu_or_cid = tbl[cpu];
+
+			guard(raw_spinlock_irqsave)(&scx_sched_lock);
+			list_for_each_entry(pos, &scx_sched_all, all) {
+				struct scx_cmask *mask = pos->online_cmask;
+
+				if (mask)
+					__assign_bit(cpu_or_cid, (unsigned long *)mask->bits,
+						     online);
+			}
+		}
 	}
 
 	if (online && SCX_HAS_OP(sch, cpu_online))
@@ -5280,11 +5292,16 @@ static void free_exit_info(struct scx_exit_info *ei);
 static const char *scx_exit_reason(enum scx_exit_kind kind);
 static bool scx_claim_exit(struct scx_sched *sch, enum scx_exit_kind kind);
 
-s32 scx_set_cmask_scratch_alloc(struct scx_sched *sch)
+s32 scx_alloc_kern_arena_objs(struct scx_sched *sch)
 {
 	size_t size = struct_size_t(struct scx_cmask, bits,
 				    SCX_CMASK_NR_WORDS(num_possible_cpus()));
+	struct scx_cmask *online;
+	struct scx_cmask_ref ref;
 	int cpu;
+
+	/* hotplug stays excluded until the online mask is published */
+	lockdep_assert_cpus_held();
 
 	if (!sch->is_cid_type || !sch->arena_pool)
 		return 0;
@@ -5301,15 +5318,28 @@ s32 scx_set_cmask_scratch_alloc(struct scx_sched *sch)
 			return -ENOMEM;
 		scx_cmask_init(*slot, 0, num_possible_cpus());
 	}
+
+	/* pack the online mask alongside the scratch masks */
+	online = scx_arena_alloc(sch, size);
+	if (!online)
+		return -ENOMEM;
+
+	scoped_guard(rcu) {
+		scx_cmask_ref_init_kern(sch, online, 0, num_possible_cpus(), &ref);
+		scx_cmask_ref_from_cpumask(&ref, cpu_active_mask);
+	}
+	sch->online_cmask = online;
+
 	return 0;
 }
 
-static void scx_set_cmask_scratch_free(struct scx_sched *sch)
+static void scx_free_kern_arena_objs(struct scx_sched *sch)
 {
 	size_t size = struct_size_t(struct scx_cmask, bits,
 				    SCX_CMASK_NR_WORDS(num_possible_cpus()));
 	int cpu;
 
+	scx_arena_free(sch, sch->online_cmask, size);
 	if (!sch->set_cmask_scratch)
 		return;
 
@@ -5396,7 +5426,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 
 	rhashtable_free_and_destroy(&sch->dsq_hash, NULL, NULL);
 	free_exit_info(sch->exit_info);
-	scx_set_cmask_scratch_free(sch);
+	scx_free_kern_arena_objs(sch);
 	scx_arena_pool_destroy(sch);
 	if (sch->arena_map)
 		bpf_map_put(sch->arena_map);
@@ -7601,7 +7631,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 		goto err_disable;
 	}
 
-	ret = scx_set_cmask_scratch_alloc(sch);
+	ret = scx_alloc_kern_arena_objs(sch);
 	if (ret) {
 		cpus_read_unlock();
 		goto err_disable;
@@ -10338,11 +10368,43 @@ __bpf_kfunc u32 scx_bpf_nr_cids(void)
  * hotplug, which lets schedulers treat [0, nr_online_cids) as the online
  * range. Schedulers that prefer to handle hotplug without a restart should
  * install a custom mapping via scx_bpf_cid_override() and track onlining
- * through the ops.cid_online / ops.cid_offline callbacks.
+ * through the ops.cid_online / ops.cid_offline callbacks, starting from the
+ * mask scx_bpf_online_cmask() returns.
  */
 __bpf_kfunc u32 scx_bpf_nr_online_cids(void)
 {
 	return num_online_cpus();
+}
+
+/**
+ * scx_bpf_online_cmask - Return the online cid mask in the scheduler arena
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
+ *
+ * Return a kernel-maintained cmask covering [0, scx_bpf_nr_cids()), or NULL if
+ * the calling program is not associated with a live cid-form scheduler or the
+ * mask is not allocated yet, as in ops.init_cids(). Treat the mask as read-only
+ * even though arena memory stays writable by the BPF scheduler. The mask
+ * follows the SCX hotplug notifications: a cid's bit is updated before
+ * ops.cid_online/offline() runs for it. The pointer is valid from ops.init()
+ * through ops.exit(). Root ops.init() runs with hotplug excluded. Other
+ * contexts can observe concurrent updates.
+ */
+__bpf_kfunc const void *scx_bpf_online_cmask(const struct bpf_prog_aux *aux)
+{
+	struct scx_sched *sch;
+	struct scx_cmask *online;
+
+	guard(rcu)();
+
+	sch = scx_prog_sched(aux);
+	if (unlikely(!sch))
+		return NULL;
+	online = sch->online_cmask;
+	if (unlikely(!online))
+		return NULL;
+
+	/* BPF rebases by the low 32 bits, like __arena callback args */
+	return (void *)((unsigned long)online - sch->arena_kern_base);
 }
 
 /**
@@ -10708,6 +10770,7 @@ BTF_ID_FLAGS(func, scx_bpf_nr_node_ids)
 BTF_ID_FLAGS(func, scx_bpf_nr_cpu_ids)
 BTF_ID_FLAGS(func, scx_bpf_nr_cids)
 BTF_ID_FLAGS(func, scx_bpf_nr_online_cids)
+BTF_ID_FLAGS(func, scx_bpf_online_cmask, KF_IMPLICIT_ARGS | KF_ARENA_RET)
 BTF_ID_FLAGS(func, scx_bpf_this_cid)
 BTF_ID_FLAGS(func, scx_bpf_get_possible_cpumask, KF_ACQUIRE)
 BTF_ID_FLAGS(func, scx_bpf_get_online_cpumask, KF_ACQUIRE)
