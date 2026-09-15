@@ -100,6 +100,12 @@ enum {
 	 */
 	BTRFS_INODE_COW_WRITE_ERROR,
 	/*
+	 * Set by reflink while it holds the source's VFS inode lock shared.
+	 * Direct IO writes also take that lock shared; one that finds this bit
+	 * set after acquiring it must retry with the exclusive lock.
+	 */
+	BTRFS_INODE_REFLINK_SRC,
+	/*
 	 * Indicate this is a directory that points to a subvolume for which
 	 * there is no root reference item. That's a case like the following:
 	 *

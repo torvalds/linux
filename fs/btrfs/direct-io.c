@@ -913,6 +913,13 @@ relock:
 		goto relock;
 	}
 
+	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
+	    test_bit(BTRFS_INODE_REFLINK_SRC, &BTRFS_I(inode)->runtime_flags)) {
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
+		ilock_flags &= ~BTRFS_ILOCK_SHARED;
+		goto relock;
+	}
+
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0) {
 		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
