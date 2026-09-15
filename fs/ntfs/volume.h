@@ -189,6 +189,8 @@ struct ntfs_volume {
  *				Windows-reserved names (CON, AUX, NUL, COM1,
  *				LPT1, etc.) or invalid characters.
  *
+ * NV_Hibernated		Windows is hibernated on the volume; the sync
+ *				paths must not write the volume flags.
  * NV_Discard			Issue discard/TRIM commands for freed clusters.
  * NV_DisableSparse		Disable creation of sparse regions.
  * NV_NativeSymlinkRel		Translate absolute Windows reparse targets (native_symlink=rel).
@@ -207,6 +209,7 @@ enum {
 	NV_ShowHiddenFiles,
 	NV_HideDotFiles,
 	NV_CheckWindowsNames,
+	NV_Hibernated,
 	NV_Discard,
 	NV_DisableSparse,
 	NV_NativeSymlinkRel,
@@ -245,6 +248,7 @@ DEFINE_NVOL_BIT_OPS(SysImmutable)
 DEFINE_NVOL_BIT_OPS(ShowHiddenFiles)
 DEFINE_NVOL_BIT_OPS(HideDotFiles)
 DEFINE_NVOL_BIT_OPS(CheckWindowsNames)
+DEFINE_NVOL_BIT_OPS(Hibernated)
 DEFINE_NVOL_BIT_OPS(Discard)
 DEFINE_NVOL_BIT_OPS(DisableSparse)
 DEFINE_NVOL_BIT_OPS(NativeSymlinkRel)
