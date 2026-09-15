@@ -536,6 +536,7 @@ bool damon_ops_filter_match(struct damon_filter *filter, struct folio *folio)
 {
 	bool matched = false;
 	struct mem_cgroup *memcg;
+	size_t folio_sz;
 
 	switch (filter->type) {
 	case DAMON_FILTER_TYPE_ANON:
@@ -557,6 +558,15 @@ bool damon_ops_filter_match(struct damon_filter *filter, struct folio *folio)
 		else
 			matched = filter->memcg_id == mem_cgroup_id(memcg);
 		rcu_read_unlock();
+		break;
+	case DAMON_FILTER_TYPE_HUGEPAGE_SIZE:
+		if (!folio) {
+			matched = false;
+			break;
+		}
+		folio_sz = folio_size(folio);
+		matched = filter->range_min <= folio_sz &&
+			folio_sz <= filter->range_max;
 		break;
 	default:
 		break;
