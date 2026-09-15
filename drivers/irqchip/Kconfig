@@ -522,7 +522,7 @@ config GOLDFISH_PIC
 
 config QCOM_PDC
 	tristate "Qualcomm PDC"
-	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_SCM
 	select IRQ_DOMAIN_HIERARCHY
 	default ARCH_QCOM
 	help
