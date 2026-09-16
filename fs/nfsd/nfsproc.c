@@ -878,10 +878,31 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	},
 };
 
+/*
+ * Storage requirements for XDR arguments and results.
+ */
+union nfsd_xdrstore {
+	struct nfsd_sattrargs	sattr;
+	struct nfsd_diropargs	dirop;
+	struct nfsd_readargs	read;
+	struct nfsd_writeargs	write;
+	struct nfsd_createargs	create;
+	struct nfsd_renameargs	rename;
+	struct nfsd_linkargs	link;
+	struct nfsd_symlinkargs	symlink;
+	struct nfsd_readdirargs	readdir;
+	struct nfsd_attrstat	attrstat;
+	struct nfsd_diropres	diropres;
+	struct nfsd_readlinkres	readlinkres;
+	struct nfsd_readres	readres;
+	struct nfsd_readdirres	readdirres;
+	struct nfsd_statfsres	statfsres;
+};
+
 const struct svc_version nfsd_version2 = {
 	.vs_vers	= 2,
 	.vs_nproc	= ARRAY_SIZE(nfsd_procedures2),
 	.vs_proc	= nfsd_procedures2,
 	.vs_dispatch	= nfsd_dispatch,
-	.vs_xdrsize	= NFS2_SVC_XDRSIZE,
+	.vs_xdrsize	= sizeof(union nfsd_xdrstore),
 };

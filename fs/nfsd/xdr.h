@@ -119,24 +119,6 @@ struct nfsd_statfsres {
 	struct kstatfs		stats;
 };
 
-/*
- * Storage requirements for XDR arguments and results.
- */
-union nfsd_xdrstore {
-	struct nfsd_sattrargs	sattr;
-	struct nfsd_diropargs	dirop;
-	struct nfsd_readargs	read;
-	struct nfsd_writeargs	write;
-	struct nfsd_createargs	create;
-	struct nfsd_renameargs	rename;
-	struct nfsd_linkargs	link;
-	struct nfsd_symlinkargs	symlink;
-	struct nfsd_readdirargs	readdir;
-};
-
-#define NFS2_SVC_XDRSIZE	sizeof(union nfsd_xdrstore)
-
-
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
