@@ -85,6 +85,14 @@ struct writeargs_wrapper {
 
 static_assert(offsetof(struct writeargs_wrapper, xdrgen) == 0);
 
+struct renameargs_wrapper {
+	struct renameargs	xdrgen;
+	struct svc_fh		ffh;
+	struct svc_fh		tfh;
+};
+
+static_assert(offsetof(struct renameargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -875,17 +883,35 @@ static __be32 nfsd_proc_remove(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-static __be32
-nfsd_proc_rename(struct svc_rqst *rqstp)
+/**
+ * nfsd_proc_rename - RENAME: Rename a file or directory
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   nfsstat NFSPROC_RENAME(renameargs) = 11;
+ */
+static __be32 nfsd_proc_rename(struct svc_rqst *rqstp)
 {
-	struct nfsd_renameargs *argp = rqstp->rq_argp;
-	struct nfsd_stat *resp = rqstp->rq_resp;
+	struct renameargs_wrapper *argp = rqstp->rq_argp;
+	struct diropargs *from = &argp->xdrgen.from;
+	struct diropargs *to = &argp->xdrgen.to;
+	nfsstat *resp = rqstp->rq_resp;
+	struct svc_fh *ffhp = &argp->ffh;
+	struct svc_fh *tfhp = &argp->tfh;
 
-	resp->status = nfsd_rename(rqstp, &argp->ffh, argp->fname, argp->flen,
-				   &argp->tfh, argp->tname, argp->tlen);
-	fh_put(&argp->ffh);
-	fh_put(&argp->tfh);
-	resp->status = nfsd_map_status(resp->status);
+	nfsd_fhandle_to_svc_fh(ffhp, &from->dir);
+	nfsd_fhandle_to_svc_fh(tfhp, &to->dir);
+
+	*resp = nfsd_rename(rqstp, ffhp, (char *)from->name.data,
+			    from->name.len, tfhp, (char *)to->name.data,
+			    to->name.len);
+	*resp = nfsd_map_status(*resp);
+
+	fh_put(ffhp);
+	fh_put(tfhp);
 	return rpc_success;
 }
 
@@ -1178,15 +1204,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "REMOVE",
 	},
 	[NFSPROC_RENAME] = {
-		.pc_func = nfsd_proc_rename,
-		.pc_decode = nfssvc_decode_renameargs,
-		.pc_encode = nfssvc_encode_statres,
-		.pc_argsize = sizeof(struct nfsd_renameargs),
-		.pc_argzero = sizeof(struct nfsd_renameargs),
-		.pc_ressize = sizeof(struct nfsd_stat),
-		.pc_cachetype = RC_REPLSTAT,
-		.pc_xdrressize = ST,
-		.pc_name = "RENAME",
+		.pc_func	= nfsd_proc_rename,
+		.pc_decode	= nfs_svc_decode_renameargs,
+		.pc_encode	= nfs_svc_encode_nfsstat,
+		.pc_argsize	= sizeof(struct renameargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(nfsstat),
+		.pc_cachetype	= RC_REPLSTAT,
+		.pc_xdrressize	= NFS2_nfsstat_sz,
+		.pc_name	= "RENAME",
 	},
 	[NFSPROC_LINK] = {
 		.pc_func = nfsd_proc_link,
@@ -1266,7 +1292,7 @@ union nfsd_xdrstore {
 	struct readargs_wrapper		readargs;
 	struct writeargs_wrapper	writeargs;
 	struct createargs_wrapper	createargs;
-	struct nfsd_renameargs	rename;
+	struct renameargs_wrapper	renameargs;
 	struct nfsd_linkargs	link;
 	struct nfsd_symlinkargs	symlink;
 	struct nfsd_readdirargs	readdir;
