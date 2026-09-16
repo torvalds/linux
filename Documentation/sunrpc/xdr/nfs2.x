@@ -44,6 +44,7 @@ enum nfsstat {
 	NFSERR_STALE		= 70,
 	NFSERR_WFLUSH		= 99
 };
+pragma big_endian nfsstat;
 
 enum ftype {
 	NFNON		= 0,
