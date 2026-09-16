@@ -284,6 +284,17 @@ static int tps536c7_identify(struct i2c_client *client,
 	info->pages = phases_b ? 2 : 1;
 
 	/*
+	 * pmbus_set_page() does not update the PAGE register on single-page
+	 * devices, so select page 0 explicitly in case the boot firmware
+	 * left the device on another page.
+	 */
+	if (info->pages == 1) {
+		ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
 	 * With info->phases[] left unset the PMBus core never programs the
 	 * PHASE selector, so make sure each page reports the aggregate
 	 * current (PHASE = 0xff) rather than whatever a previous boot left.
