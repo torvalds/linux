@@ -8,12 +8,6 @@
 
 #include "vfs.h"
 
-struct nfsd_readdirargs {
-	struct svc_fh		fh;
-	__u32			cookie;
-	__u32			count;
-};
-
 struct nfsd_attrstat {
 	__be32			status;
 	struct svc_fh		fh;
@@ -34,7 +28,6 @@ struct nfsd_readdirres {
 };
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);

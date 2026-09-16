@@ -116,6 +116,13 @@ struct statfsres_wrapper {
 
 static_assert(offsetof(struct statfsres_wrapper, xdrgen) == 0);
 
+struct readdirargs_wrapper {
+	struct readdirargs	xdrgen;
+	struct svc_fh		fh;
+};
+
+static_assert(offsetof(struct readdirargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -1135,28 +1142,35 @@ static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
 	xdr_init_encode_pages(xdr, buf);
 }
 
-/*
- * Read a portion of a directory.
+/**
+ * nfsd_proc_readdir - READDIR: Read from directory
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   readdirres NFSPROC_READDIR(readdirargs) = 16;
  */
-static __be32
-nfsd_proc_readdir(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_readdir(struct svc_rqst *rqstp)
 {
-	struct nfsd_readdirargs *argp = rqstp->rq_argp;
+	struct readdirargs_wrapper *argp = rqstp->rq_argp;
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
-	loff_t		offset;
+	loff_t offset = be32_to_cpup((__be32 *)argp->xdrgen.cookie);
+	struct svc_fh *fhp = &argp->fh;
 
-	trace_nfsd_vfs_readdir(rqstp, &argp->fh, argp->count, argp->cookie);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen.dir);
+	trace_nfsd_vfs_readdir(rqstp, fhp, argp->xdrgen.count, offset);
 
-	nfsd_init_dirlist_pages(rqstp, resp, argp->count);
+	nfsd_init_dirlist_pages(rqstp, resp, argp->xdrgen.count);
 
 	resp->common.err = nfs_ok;
 	resp->cookie_offset = 0;
-	offset = argp->cookie;
-	resp->status = nfsd_readdir(rqstp, &argp->fh, &offset,
+	resp->status = nfsd_readdir(rqstp, fhp, &offset,
 				    &resp->common, nfssvc_encode_entry);
 	nfssvc_encode_nfscookie(resp, offset);
 
-	fh_put(&argp->fh);
+	fh_put(fhp);
 	resp->status = nfsd_map_status(resp->status);
 	return rpc_success;
 }
@@ -1385,14 +1399,14 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "RMDIR",
 	},
 	[NFSPROC_READDIR] = {
-		.pc_func = nfsd_proc_readdir,
-		.pc_decode = nfssvc_decode_readdirargs,
-		.pc_encode = nfssvc_encode_readdirres,
-		.pc_argsize = sizeof(struct nfsd_readdirargs),
-		.pc_argzero = sizeof(struct nfsd_readdirargs),
-		.pc_ressize = sizeof(struct nfsd_readdirres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_name = "READDIR",
+		.pc_func	= nfsd_proc_readdir,
+		.pc_decode	= nfs_svc_decode_readdirargs,
+		.pc_encode	= nfssvc_encode_readdirres,
+		.pc_argsize	= sizeof(struct readdirargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct nfsd_readdirres),
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_name	= "READDIR",
 	},
 	[NFSPROC_STATFS] = {
 		.pc_func	= nfsd_proc_statfs,
@@ -1420,6 +1434,7 @@ union nfsd_xdrstore {
 	struct renameargs_wrapper	renameargs;
 	struct linkargs_wrapper		linkargs;
 	struct symlinkargs_wrapper	symlinkargs;
+	struct readdirargs_wrapper	readdirargs;
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
 	struct readlinkres	readlinkres;
