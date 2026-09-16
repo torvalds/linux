@@ -232,31 +232,6 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return true;
 }
 
-bool
-nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_statfsres *resp = rqstp->rq_resp;
-	struct kstatfs	*stat = &resp->stats;
-	__be32 *p;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		p = xdr_reserve_space(xdr, XDR_UNIT * 5);
-		if (!p)
-			return false;
-		*p++ = cpu_to_be32(NFS_MAXDATA);
-		*p++ = cpu_to_be32(stat->f_bsize);
-		*p++ = cpu_to_be32(stat->f_blocks);
-		*p++ = cpu_to_be32(stat->f_bfree);
-		*p = cpu_to_be32(stat->f_bavail);
-		break;
-	}
-
-	return true;
-}
-
 /**
  * nfssvc_encode_nfscookie - Encode a directory offset cookie
  * @resp: readdir result context

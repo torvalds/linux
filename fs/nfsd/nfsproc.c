@@ -109,6 +109,13 @@ struct symlinkargs_wrapper {
 
 static_assert(offsetof(struct symlinkargs_wrapper, xdrgen) == 0);
 
+struct statfsres_wrapper {
+	struct statfsres	xdrgen;
+	struct kstatfs		stats;
+};
+
+static_assert(offsetof(struct statfsres_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -1154,19 +1161,40 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-/*
- * Get file system info
+/**
+ * nfsd_proc_statfs - STATFS: Get filesystem attributes
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   statfsres NFSPROC_STATFS(fhandle) = 17;
  */
-static __be32
-nfsd_proc_statfs(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_statfs(struct svc_rqst *rqstp)
 {
-	struct nfsd_fhandle *argp = rqstp->rq_argp;
-	struct nfsd_statfsres *resp = rqstp->rq_resp;
+	struct fhandle_wrapper *argp = rqstp->rq_argp;
+	struct statfsres_wrapper *resp = rqstp->rq_resp;
+	struct kstatfs *stat = &resp->stats;
+	struct svc_fh *fhp = &argp->fh;
 
-	resp->status = nfsd_statfs(rqstp, &argp->fh, &resp->stats,
-				   NFSD_MAY_BYPASS_GSS_ON_ROOT);
-	fh_put(&argp->fh);
-	resp->status = nfsd_map_status(resp->status);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen);
+
+	resp->xdrgen.status = nfsd_statfs(rqstp, fhp, stat,
+					  NFSD_MAY_BYPASS_GSS_ON_ROOT);
+	if (resp->xdrgen.status == nfs_ok) {
+		struct info *resinfo = &resp->xdrgen.u.info;
+
+		resinfo->tsize = NFS_MAXDATA;
+		resinfo->bsize = stat->f_bsize;
+		resinfo->blocks = stat->f_blocks;
+		resinfo->bfree = stat->f_bfree;
+		resinfo->bavail = stat->f_bavail;
+	} else {
+		resp->xdrgen.status = nfsd_map_status(resp->xdrgen.status);
+	}
+
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1367,15 +1395,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name = "READDIR",
 	},
 	[NFSPROC_STATFS] = {
-		.pc_func = nfsd_proc_statfs,
-		.pc_decode = nfssvc_decode_fhandleargs,
-		.pc_encode = nfssvc_encode_statfsres,
-		.pc_argsize = sizeof(struct nfsd_fhandle),
-		.pc_argzero = sizeof(struct nfsd_fhandle),
-		.pc_ressize = sizeof(struct nfsd_statfsres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST+5,
-		.pc_name = "STATFS",
+		.pc_func	= nfsd_proc_statfs,
+		.pc_decode	= nfs_svc_decode_fhandle,
+		.pc_encode	= nfs_svc_encode_statfsres,
+		.pc_argsize	= sizeof(struct fhandle_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct statfsres_wrapper),
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= NFS2_statfsres_sz,
+		.pc_name	= "STATFS",
 	},
 };
 
@@ -1397,7 +1425,7 @@ union nfsd_xdrstore {
 	struct readlinkres	readlinkres;
 	struct readres		readres;
 	struct nfsd_readdirres	readdirres;
-	struct nfsd_statfsres	statfsres;
+	struct statfsres_wrapper	statfsres;
 };
 
 const struct svc_version nfsd_version2 = {
