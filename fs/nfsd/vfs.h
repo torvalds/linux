@@ -59,6 +59,41 @@ struct readdir_cd {
 	__be32			err;	/* nfs_ok, nfserr, or nfserr_eof */
 };
 
+/*
+ * One directory entry buffered out of the underlying filesystem.
+ * Buffering decouples the ->iterate_shared() call from the consumer,
+ * which may call ->lookup() and so must not run inside iterate_dir().
+ */
+struct buffered_dirent {
+	u64			ino;
+	loff_t			offset;
+	int			namlen;
+	unsigned int		d_type;
+	char			name[];
+};
+
+/*
+ * Streaming directory reader.  nfsd_readdir_open() opens the directory
+ * and seeks to the start cookie, nfsd_readdir_next() yields one entry
+ * at a time (refilling from the filesystem as needed), and
+ * nfsd_readdir_close() releases it.  The reader holds the open file, so
+ * a consumer can pull entries while a reply is being encoded.
+ */
+struct nfsd_readdir_iter {
+	struct dir_context	ctx;		/* drives iterate_dir() */
+	struct file		*file;		/* open directory */
+	struct svc_fh		*fhp;		/* directory file handle */
+	char			*page;		/* one batch of raw entries */
+	size_t			used;		/* bytes filled this batch */
+	int			full;		/* batch buffer filled up */
+	char			*pos;		/* next entry to yield */
+	int			remaining;	/* bytes left from @pos */
+	loff_t			offset;		/* resume cookie */
+	int			host_err;	/* set once iterate_dir() fails */
+	bool			batched;	/* a batch has been read */
+	bool			eof;		/* directory exhausted */
+};
+
 /* nfsd/vfs.c */
 struct nfsd_attrs {
 	struct iattr		*na_iattr;	/* input */
@@ -178,6 +213,11 @@ __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 				char *name, int len);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
 			     loff_t *, struct readdir_cd *, nfsd_filldir_t);
+__be32		nfsd_readdir_open(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				  loff_t *offsetp,
+				  struct nfsd_readdir_iter *iter);
+struct buffered_dirent *nfsd_readdir_next(struct nfsd_readdir_iter *iter);
+void		nfsd_readdir_close(struct nfsd_readdir_iter *iter);
 __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *, int access);
 int		nfsd_get_case_info(struct dentry *dentry,

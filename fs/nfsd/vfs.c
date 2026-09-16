@@ -2351,33 +2351,18 @@ out:
  *
  * This is based heavily on the implementation of same in XFS.
  */
-struct buffered_dirent {
-	u64		ino;
-	loff_t		offset;
-	int		namlen;
-	unsigned int	d_type;
-	char		name[];
-};
-
-struct readdir_data {
-	struct dir_context ctx;
-	char		*dirent;
-	size_t		used;
-	int		full;
-};
-
 static bool nfsd_buffered_filldir(struct dir_context *ctx, const char *name,
 				 int namlen, loff_t offset, u64 ino,
 				 unsigned int d_type)
 {
-	struct readdir_data *buf =
-		container_of(ctx, struct readdir_data, ctx);
-	struct buffered_dirent *de = (void *)(buf->dirent + buf->used);
+	struct nfsd_readdir_iter *iter =
+		container_of(ctx, struct nfsd_readdir_iter, ctx);
+	struct buffered_dirent *de = (void *)(iter->page + iter->used);
 	unsigned int reclen;
 
 	reclen = ALIGN(sizeof(struct buffered_dirent) + namlen, sizeof(u64));
-	if (buf->used + reclen > PAGE_SIZE) {
-		buf->full = 1;
+	if (iter->used + reclen > PAGE_SIZE) {
+		iter->full = 1;
 		return false;
 	}
 
@@ -2386,79 +2371,128 @@ static bool nfsd_buffered_filldir(struct dir_context *ctx, const char *name,
 	de->ino = ino;
 	de->d_type = d_type;
 	memcpy(de->name, name, namlen);
-	buf->used += reclen;
+	iter->used += reclen;
 
 	return true;
 }
 
-static __be32 nfsd_buffered_readdir(struct file *file, struct svc_fh *fhp,
-				    nfsd_filldir_t func, struct readdir_cd *cdp,
-				    loff_t *offsetp)
+/**
+ * nfsd_readdir_open - open a directory for streaming readdir
+ * @rqstp: RPC transaction context
+ * @fhp: NFS file handle of directory to be read
+ * @offsetp: seek offset at which to resume reading
+ * @iter: OUT: directory reader to initialize
+ *
+ * On success the directory is open and positioned at @offsetp, and
+ * @iter is ready for nfsd_readdir_next().  The caller must release
+ * @iter with nfsd_readdir_close() once done, including on error paths
+ * that follow a successful open.
+ *
+ * Return: nfs_ok on success, otherwise an nfsstat code.  On error @iter
+ * is left safe to pass to nfsd_readdir_close().
+ */
+__be32 nfsd_readdir_open(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			 loff_t *offsetp, struct nfsd_readdir_iter *iter)
 {
-	struct buffered_dirent *de;
-	int host_err;
-	int size;
-	loff_t offset;
-	struct readdir_data buf = {
-		.ctx.actor = nfsd_buffered_filldir,
-		.dirent = kmalloc(PAGE_SIZE, GFP_KERNEL)
-	};
+	struct file *file;
+	loff_t offset = *offsetp;
+	__be32 err;
 
-	if (!buf.dirent)
-		return nfserrno(-ENOMEM);
+	memset(iter, 0, sizeof(*iter));
+	iter->ctx.actor = nfsd_buffered_filldir;
 
-	offset = *offsetp;
+	err = nfsd_open(rqstp, fhp, S_IFDIR, NFSD_MAY_READ, &file);
+	if (err)
+		return err;
 
-	while (1) {
-		unsigned int reclen;
+	if (fhp->fh_64bit_cookies)
+		file->f_mode |= FMODE_64BITHASH;
+	else
+		file->f_mode |= FMODE_32BITHASH;
 
-		cdp->err = nfserr_eof; /* will be cleared on successful read */
-		buf.used = 0;
-		buf.full = 0;
-
-		host_err = iterate_dir(file, &buf.ctx);
-		if (buf.full)
-			host_err = 0;
-
-		if (host_err < 0)
-			break;
-
-		size = buf.used;
-
-		if (!size)
-			break;
-
-		de = (struct buffered_dirent *)buf.dirent;
-		while (size > 0) {
-			offset = de->offset;
-
-			if (func(cdp, de->name, de->namlen, de->offset,
-				 de->ino, de->d_type))
-				break;
-
-			if (cdp->err != nfs_ok)
-				break;
-
-			trace_nfsd_dirent(fhp, de->ino, de->name, de->namlen);
-
-			reclen = ALIGN(sizeof(*de) + de->namlen,
-				       sizeof(u64));
-			size -= reclen;
-			de = (struct buffered_dirent *)((char *)de + reclen);
-		}
-		if (size > 0) /* We bailed out early */
-			break;
-
-		offset = vfs_llseek(file, 0, SEEK_CUR);
+	offset = vfs_llseek(file, offset, SEEK_SET);
+	if (offset < 0) {
+		err = nfserrno((int)offset);
+		goto out_close;
 	}
 
-	kfree((buf.dirent));
+	iter->page = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!iter->page) {
+		err = nfserrno(-ENOMEM);
+		goto out_close;
+	}
 
-	if (host_err)
-		return nfserrno(host_err);
+	iter->file = file;
+	iter->fhp = fhp;
+	iter->offset = offset;
+	return nfs_ok;
 
-	*offsetp = offset;
-	return cdp->err;
+out_close:
+	nfsd_filp_close(file);
+	return err;
+}
+
+/**
+ * nfsd_readdir_next - yield the next buffered directory entry
+ * @iter: directory reader initialized by nfsd_readdir_open()
+ *
+ * Refill from the filesystem as needed and return the next entry.  The
+ * returned pointer is valid until the following nfsd_readdir_next() or
+ * nfsd_readdir_close() call.
+ *
+ * Return: the next entry, or NULL at end of directory or on a host
+ * error.  On NULL, @iter->eof marks a clean end and @iter->host_err a
+ * filesystem error; @iter->offset holds the resume cookie either way.
+ */
+struct buffered_dirent *nfsd_readdir_next(struct nfsd_readdir_iter *iter)
+{
+	struct buffered_dirent *de;
+	unsigned int reclen;
+
+	while (iter->remaining <= 0) {
+		/* Between batches the resume cookie advances past the last. */
+		if (iter->batched)
+			iter->offset = vfs_llseek(iter->file, 0, SEEK_CUR);
+
+		iter->used = 0;
+		iter->full = 0;
+		iter->host_err = iterate_dir(iter->file, &iter->ctx);
+		if (iter->full)
+			iter->host_err = 0;
+		if (iter->host_err < 0)
+			return NULL;
+		if (!iter->used) {
+			iter->eof = true;
+			return NULL;
+		}
+		iter->batched = true;
+		iter->pos = iter->page;
+		iter->remaining = iter->used;
+	}
+
+	de = (struct buffered_dirent *)iter->pos;
+	iter->offset = de->offset;
+	reclen = ALIGN(sizeof(*de) + de->namlen, sizeof(u64));
+	iter->pos += reclen;
+	iter->remaining -= reclen;
+	return de;
+}
+
+/**
+ * nfsd_readdir_close - release a directory reader
+ * @iter: directory reader to release
+ *
+ * Safe to call on an @iter that nfsd_readdir_open() left initialized,
+ * whether the open succeeded or failed, and safe to call more than once.
+ */
+void nfsd_readdir_close(struct nfsd_readdir_iter *iter)
+{
+	if (iter->file) {
+		nfsd_filp_close(iter->file);
+		iter->file = NULL;
+	}
+	kfree(iter->page);
+	iter->page = NULL;
 }
 
 /**
@@ -2480,37 +2514,36 @@ static __be32 nfsd_buffered_readdir(struct file *file, struct svc_fh *fhp,
  * returned.
  */
 __be32
-nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp, 
+nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp,
 	     struct readdir_cd *cdp, nfsd_filldir_t func)
 {
-	__be32		err;
-	struct file	*file;
-	loff_t		offset = *offsetp;
-	int             may_flags = NFSD_MAY_READ;
+	struct nfsd_readdir_iter iter;
+	struct buffered_dirent *de;
+	__be32 err;
 
-	err = nfsd_open(rqstp, fhp, S_IFDIR, may_flags, &file);
+	err = nfsd_readdir_open(rqstp, fhp, offsetp, &iter);
 	if (err)
-		goto out;
+		return err;
 
-	if (fhp->fh_64bit_cookies)
-		file->f_mode |= FMODE_64BITHASH;
-	else
-		file->f_mode |= FMODE_32BITHASH;
-
-	offset = vfs_llseek(file, offset, SEEK_SET);
-	if (offset < 0) {
-		err = nfserrno((int)offset);
-		goto out_close;
+	while ((de = nfsd_readdir_next(&iter)) != NULL) {
+		if (func(cdp, de->name, de->namlen, de->offset, de->ino,
+			 de->d_type))
+			break;
+		if (cdp->err != nfs_ok)
+			break;
+		trace_nfsd_dirent(fhp, de->ino, de->name, de->namlen);
 	}
+	if (!de)
+		cdp->err = nfserr_eof; /* clean end, or reported in host_err */
+	*offsetp = iter.offset;
 
-	err = nfsd_buffered_readdir(file, fhp, func, cdp, offsetp);
+	nfsd_readdir_close(&iter);
 
-	if (err == nfserr_eof || err == nfserr_toosmall)
-		err = nfs_ok; /* can still be found in ->err */
-out_close:
-	nfsd_filp_close(file);
-out:
-	return err;
+	if (iter.host_err)
+		return nfserrno(iter.host_err);
+	if (cdp->err == nfserr_eof || cdp->err == nfserr_toosmall)
+		return nfs_ok; /* can still be found in ->err */
+	return cdp->err;
 }
 
 /**
