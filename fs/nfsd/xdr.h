@@ -8,11 +8,6 @@
 
 #include "vfs.h"
 
-struct nfsd_sattrargs {
-	struct svc_fh		fh;
-	struct iattr		attrs;
-};
-
 struct nfsd_diropargs {
 	struct svc_fh		fh;
 	char *			name;
@@ -120,7 +115,6 @@ struct nfsd_statfsres {
 };
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);

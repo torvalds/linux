@@ -40,6 +40,14 @@ struct attrstat_wrapper {
 
 static_assert(offsetof(struct attrstat_wrapper, xdrgen) == 0);
 
+struct sattrargs_wrapper {
+	struct sattrargs	xdrgen;
+	struct svc_fh		fh;
+	struct iattr		iattrs;
+};
+
+static_assert(offsetof(struct sattrargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -79,6 +87,13 @@ nfsd_timespec64_to_timeval(struct timeval *dst,
 {
 	dst->seconds = src->tv_sec;
 	dst->useconds = src->tv_nsec / NSEC_PER_USEC;
+}
+
+static __always_inline void
+nfsd_timeval_to_timespec64(struct timespec64 *dst, const struct timeval *src)
+{
+	dst->tv_sec = src->seconds;
+	dst->tv_nsec = src->useconds * NSEC_PER_USEC;
 }
 
 static u32
@@ -163,6 +178,76 @@ static __be32 nfsd_map_io_status(__be32 status)
 }
 
 /*
+ * Sun convention: a sattr time-useconds field of one full second (an
+ * otherwise out-of-range value) means "set this time to the current
+ * server time." It's needed to make permissions checks for the "touch"
+ * program across NFSv2 mounts work correctly. See description of
+ * sattr in section 6.1 of "NFS Illustrated" by Brent Callaghan,
+ * Addison-Wesley, ISBN 0-201-32750-5
+ */
+#define NFS2_SATTR_SET_TO_SERVER_TIME	(1000000)
+
+static bool
+nfsd_sattr_to_iattr(struct svc_rqst *rqstp, struct iattr *iap,
+		    const struct sattr *sattr)
+{
+	static const unsigned int dont_set_it = (unsigned int)-1;
+
+	/* Consumers read ia_size, ia_uid, and ia_gid unguarded by ia_valid */
+	memset(iap, 0, sizeof(*iap));
+
+	/*
+	 * Some Sun NFS clients put 0xffff in the mode field when they
+	 * mean 0xffffffff.
+	 */
+	if (sattr->mode != dont_set_it && sattr->mode != 0xffff) {
+		iap->ia_valid |= ATTR_MODE;
+		iap->ia_mode = sattr->mode;
+	}
+	if (sattr->uid != dont_set_it) {
+		iap->ia_uid = make_kuid(nfsd_user_namespace(rqstp), sattr->uid);
+		if (uid_valid(iap->ia_uid))
+			iap->ia_valid |= ATTR_UID;
+	}
+	if (sattr->gid != dont_set_it) {
+		iap->ia_gid = make_kgid(nfsd_user_namespace(rqstp), sattr->gid);
+		if (gid_valid(iap->ia_gid))
+			iap->ia_valid |= ATTR_GID;
+	}
+	if (sattr->size != dont_set_it) {
+		iap->ia_valid |= ATTR_SIZE;
+		iap->ia_size = sattr->size;
+	}
+	if (sattr->atime.seconds != dont_set_it &&
+	    sattr->atime.useconds != dont_set_it) {
+		/*
+		 * Reject out-of-range useconds so the conversion to
+		 * nanoseconds cannot wrap to a valid but incorrect
+		 * value on 32-bit platforms.
+		 */
+		if (sattr->atime.useconds > NFS2_SATTR_SET_TO_SERVER_TIME)
+			return false;
+		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
+		nfsd_timeval_to_timespec64(&iap->ia_atime, &sattr->atime);
+
+		if (sattr->atime.useconds == NFS2_SATTR_SET_TO_SERVER_TIME)
+			iap->ia_valid &= ~ATTR_ATIME_SET;
+	}
+	if (sattr->mtime.seconds != dont_set_it &&
+	    sattr->mtime.useconds != dont_set_it) {
+		if (sattr->mtime.useconds > NFS2_SATTR_SET_TO_SERVER_TIME)
+			return false;
+		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
+		nfsd_timeval_to_timespec64(&iap->ia_mtime, &sattr->mtime);
+
+		if (sattr->mtime.useconds == NFS2_SATTR_SET_TO_SERVER_TIME)
+			iap->ia_valid &= ~(ATTR_ATIME_SET | ATTR_MTIME_SET);
+	}
+
+	return true;
+}
+
+/*
  * A full specification of each of the following NFSv2 procedures is
  * available in RFC 1094 Section 2.2.
  */
@@ -218,27 +303,32 @@ out:
 	return rpc_success;
 }
 
-/*
- * Set a file's attributes
- * N.B. After this call resp->fh needs an fh_put
+/**
+ * nfsd_proc_setattr - SETATTR: Set file attributes
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   attrstat NFSPROC_SETATTR(sattrargs) = 2;
  */
-static __be32
-nfsd_proc_setattr(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_setattr(struct svc_rqst *rqstp)
 {
-	struct nfsd_sattrargs *argp = rqstp->rq_argp;
-	struct nfsd_attrstat *resp = rqstp->rq_resp;
-	struct iattr *iap = &argp->attrs;
-	struct nfsd_attrs attrs = {
+	struct sattrargs_wrapper *argp = rqstp->rq_argp;
+	struct attrstat_wrapper *resp = rqstp->rq_resp;
+	struct kstat *statp = &resp->stat;
+	struct iattr *iap = &argp->iattrs;
+	struct nfsd_attrs nattrs = {
 		.na_iattr	= iap,
 	};
-	struct svc_fh *fhp;
-	int hosterr;
+	struct svc_fh *fhp = &argp->fh;
 
-	dprintk("nfsd: SETATTR  %s, valid=%x, size=%ld\n",
-		SVCFH_fmt(&argp->fh),
-		argp->attrs.ia_valid, (long) argp->attrs.ia_size);
-
-	fhp = fh_copy(&resp->fh, &argp->fh);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen.file);
+	if (!nfsd_sattr_to_iattr(rqstp, iap, &argp->xdrgen.attributes)) {
+		resp->xdrgen.status = nfserr_io;
+		goto out;
+	}
 
 	/*
 	 * NFSv2 does not differentiate between "set-[ac]time-to-now"
@@ -255,6 +345,8 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 #define	MAX_TOUCH_TIME_ERROR (30*60)
 	if ((iap->ia_valid & BOTH_TIME_SET) == BOTH_TIME_SET &&
 	    iap->ia_mtime.tv_sec == iap->ia_atime.tv_sec) {
+		int hosterr;
+
 		/*
 		 * Looks probable.
 		 *
@@ -264,13 +356,13 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		 */
 		time64_t delta = iap->ia_atime.tv_sec - ktime_get_real_seconds();
 
-		resp->status = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
-		if (resp->status != nfs_ok)
+		resp->xdrgen.status = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
+		if (resp->xdrgen.status != nfs_ok)
 			goto out;
 
 		hosterr = fh_want_write(fhp);
 		if (hosterr) {
-			resp->status = nfserrno(hosterr);
+			resp->xdrgen.status = nfserrno(hosterr);
 			goto out;
 		}
 
@@ -287,13 +379,19 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		}
 	}
 
-	resp->status = nfsd_setattr(rqstp, fhp, &attrs, NULL);
-	if (resp->status != nfs_ok)
+	resp->xdrgen.status = nfsd_setattr(rqstp, fhp, &nattrs, NULL);
+	if (resp->xdrgen.status != nfs_ok)
 		goto out;
 
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
+	resp->xdrgen.status = fh_getattr(fhp, statp);
+
 out:
-	resp->status = nfsd_map_status(resp->status);
+	if (resp->xdrgen.status == nfs_ok)
+		nfsd_stat_to_fattr(rqstp, &resp->xdrgen.u.attributes, statp, fhp);
+	else
+		resp->xdrgen.status = nfsd_map_status(resp->xdrgen.status);
+
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -827,16 +925,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "GETATTR",
 	},
 	[NFSPROC_SETATTR] = {
-		.pc_func = nfsd_proc_setattr,
-		.pc_decode = nfssvc_decode_sattrargs,
-		.pc_encode = nfssvc_encode_attrstatres,
-		.pc_release = nfssvc_release_attrstat,
-		.pc_argsize = sizeof(struct nfsd_sattrargs),
-		.pc_argzero = sizeof(struct nfsd_sattrargs),
-		.pc_ressize = sizeof(struct nfsd_attrstat),
-		.pc_cachetype = RC_REPLBUFF,
-		.pc_xdrressize = ST+AT,
-		.pc_name = "SETATTR",
+		.pc_func	= nfsd_proc_setattr,
+		.pc_decode	= nfs_svc_decode_sattrargs,
+		.pc_encode	= nfs_svc_encode_attrstat,
+		.pc_argsize	= sizeof(struct sattrargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct attrstat_wrapper),
+		.pc_cachetype	= RC_REPLBUFF,
+		.pc_xdrressize	= NFS2_attrstat_sz,
+		.pc_name	= "SETATTR",
 	},
 	[NFSPROC_ROOT] = {
 		.pc_func = nfsd_proc_root,
@@ -1014,7 +1111,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
  */
 union nfsd_xdrstore {
 	struct fhandle_wrapper		fhandle;
-	struct nfsd_sattrargs	sattr;
+	struct sattrargs_wrapper	sattrargs;
 	struct nfsd_diropargs	dirop;
 	struct nfsd_readargs	read;
 	struct nfsd_writeargs	write;

@@ -303,15 +303,6 @@ nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_sattrargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_fhandle(xdr, &args->fh) &&
-		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
-}
-
-bool
 nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_diropargs *args = rqstp->rq_argp;
