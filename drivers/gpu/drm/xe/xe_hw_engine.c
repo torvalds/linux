@@ -592,22 +592,37 @@ static void adjust_idledly(struct xe_hw_engine *hwe)
 	u32 idledly_units_ps = 8 * gt->info.timestamp_base;
 	u32 maxcnt_units_ns = 640;
 	bool inhibit_switch = 0;
+	bool wa_applied = false;
 
-	if (!IS_SRIOV_VF(gt_to_xe(hwe->gt)) && XE_GT_WA(gt, 16023105232)) {
+	if (!IS_SRIOV_VF(gt_to_xe(gt)) && XE_GT_WA(gt, 16023105232)) {
+		/* xe_gt_clock_init() warns and zeroes timestamp_base on unknown crystal clock. */
+		if (!idledly_units_ps)
+			return;
+
 		idledly = xe_mmio_read32(&gt->mmio, RING_IDLEDLY(hwe->mmio_base));
 		maxcnt = xe_mmio_read32(&gt->mmio, RING_PWRCTX_MAXCNT(hwe->mmio_base));
 
 		inhibit_switch = idledly & INHIBIT_SWITCH_UNTIL_PREEMPTED;
 		idledly = REG_FIELD_GET(IDLE_DELAY, idledly);
-		idledly = DIV_ROUND_CLOSEST(idledly * idledly_units_ps, 1000);
+		idledly = DIV_ROUND_CLOSEST_ULL((u64)idledly * idledly_units_ps, 1000);
 		maxcnt = REG_FIELD_GET(IDLE_WAIT_TIME, maxcnt);
 		maxcnt *= maxcnt_units_ns;
 
-		if (xe_gt_WARN_ON(gt, idledly >= maxcnt || inhibit_switch)) {
-			idledly = DIV_ROUND_CLOSEST(((maxcnt - 1) * 1000),
-						    idledly_units_ps);
-			xe_mmio_write32(&gt->mmio, RING_IDLEDLY(hwe->mmio_base), idledly);
+		/* Clear the inhibit switch without disturbing a valid delay. */
+		if (inhibit_switch)
+			wa_applied = true;
+
+		if (xe_gt_WARN_ON(gt, idledly >= maxcnt)) {
+			/* Floor below maxcnt; write 0 to still clear the inhibit bit. */
+			idledly = maxcnt ?
+				DIV_ROUND_DOWN_ULL((u64)(maxcnt - 1) * 1000,
+						   idledly_units_ps) : 0;
+			wa_applied = true;
 		}
+
+		if (wa_applied)
+			xe_mmio_write32(&gt->mmio, RING_IDLEDLY(hwe->mmio_base),
+					REG_FIELD_PREP(IDLE_DELAY, idledly));
 	}
 }
 
