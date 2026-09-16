@@ -1,0 +1,115 @@
+[
+    {
+        "id": "d710",
+        "name": "Release tail references after first action deletion fails",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC actions add action pass index 2",
+            "$TC actions add action pass index 3",
+            "$TC filter add dev $DEV1 protocol ip ingress u32 match u32 0 0 action gact index 1"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 1 action gact index 2 action gact index 3",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 3\\b.*index 1 ref 2 bind 1\\b.*index 2 ref 1 bind 0\\b.*index 3 ref 1 bind 0\\b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "d711",
+        "name": "Release tail references after middle action deletion fails",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC actions add action pass index 2",
+            "$TC actions add action pass index 3",
+            "$TC filter add dev $DEV1 protocol ip ingress u32 match u32 0 0 action gact index 2"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 1 action gact index 2 action gact index 3",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 2\\b.*index 2 ref 2 bind 1\\b.*index 3 ref 1 bind 0\\b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "d713",
+        "name": "Delete a tail action once after a failed batch",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC actions add action pass index 2",
+            "$TC filter add dev $DEV1 protocol ip ingress u32 match u32 0 0 action gact index 1"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 1 action gact index 2",
+        "expExitCode": "255",
+        "verifyCmd": "sh -c '$TC actions del action gact index 2 && $TC actions ls action gact'",
+        "matchPattern": "total acts 1\\b.*index 1 ref 2 bind 1\\b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ]
+    }
+]
