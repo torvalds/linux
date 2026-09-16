@@ -93,6 +93,14 @@ struct renameargs_wrapper {
 
 static_assert(offsetof(struct renameargs_wrapper, xdrgen) == 0);
 
+struct linkargs_wrapper {
+	struct linkargs		xdrgen;
+	struct svc_fh		ffh;
+	struct svc_fh		tfh;
+};
+
+static_assert(offsetof(struct linkargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -915,17 +923,33 @@ static __be32 nfsd_proc_rename(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-static __be32
-nfsd_proc_link(struct svc_rqst *rqstp)
+/**
+ * nfsd_proc_link - LINK: Create Link to an object
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   nfsstat NFSPROC_LINK(linkargs) = 12;
+ */
+static __be32 nfsd_proc_link(struct svc_rqst *rqstp)
 {
-	struct nfsd_linkargs *argp = rqstp->rq_argp;
-	struct nfsd_stat *resp = rqstp->rq_resp;
+	struct linkargs_wrapper *argp = rqstp->rq_argp;
+	struct diropargs *to = &argp->xdrgen.to;
+	nfsstat *resp = rqstp->rq_resp;
+	struct svc_fh *ffhp = &argp->ffh;
+	struct svc_fh *tfhp = &argp->tfh;
 
-	resp->status = nfsd_link(rqstp, &argp->tfh, argp->tname, argp->tlen,
-				 &argp->ffh);
-	fh_put(&argp->ffh);
-	fh_put(&argp->tfh);
-	resp->status = nfsd_map_status(resp->status);
+	nfsd_fhandle_to_svc_fh(ffhp, &argp->xdrgen.from);
+	nfsd_fhandle_to_svc_fh(tfhp, &to->dir);
+
+	*resp = nfsd_link(rqstp, tfhp, (char *)to->name.data, to->name.len,
+			  ffhp);
+	*resp = nfsd_map_status(*resp);
+
+	fh_put(ffhp);
+	fh_put(tfhp);
 	return rpc_success;
 }
 
@@ -1215,15 +1239,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "RENAME",
 	},
 	[NFSPROC_LINK] = {
-		.pc_func = nfsd_proc_link,
-		.pc_decode = nfssvc_decode_linkargs,
-		.pc_encode = nfssvc_encode_statres,
-		.pc_argsize = sizeof(struct nfsd_linkargs),
-		.pc_argzero = sizeof(struct nfsd_linkargs),
-		.pc_ressize = sizeof(struct nfsd_stat),
-		.pc_cachetype = RC_REPLSTAT,
-		.pc_xdrressize = ST,
-		.pc_name = "LINK",
+		.pc_func	= nfsd_proc_link,
+		.pc_decode	= nfs_svc_decode_linkargs,
+		.pc_encode	= nfs_svc_encode_nfsstat,
+		.pc_argsize	= sizeof(struct linkargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(nfsstat),
+		.pc_cachetype	= RC_REPLSTAT,
+		.pc_xdrressize	= NFS2_nfsstat_sz,
+		.pc_name	= "LINK",
 	},
 	[NFSPROC_SYMLINK] = {
 		.pc_func = nfsd_proc_symlink,
@@ -1293,7 +1317,7 @@ union nfsd_xdrstore {
 	struct writeargs_wrapper	writeargs;
 	struct createargs_wrapper	createargs;
 	struct renameargs_wrapper	renameargs;
-	struct nfsd_linkargs	link;
+	struct linkargs_wrapper		linkargs;
 	struct nfsd_symlinkargs	symlink;
 	struct nfsd_readdirargs	readdir;
 	struct attrstat_wrapper		attrstat;

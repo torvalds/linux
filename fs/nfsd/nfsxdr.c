@@ -322,16 +322,6 @@ nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_linkargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_fhandle(xdr, &args->ffh) &&
-		svcxdr_decode_diropargs(xdr, &args->tfh,
-					&args->tname, &args->tlen);
-}
-
-bool
 nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_symlinkargs *args = rqstp->rq_argp;
