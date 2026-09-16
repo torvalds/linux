@@ -2113,6 +2113,24 @@ inserted:
 			mb_cache_entry_touch(ea_block_cache, ce);
 			mb_cache_entry_put(ea_block_cache, ce);
 			ce = NULL;
+			if (ea_inode && !(bs->bh && s->base == bs->bh->b_data)) {
+				/*
+				 * The cached block already owns its EA inode
+				 * references.  For an in-place update the lookup
+				 * reference belongs to the old block and is
+				 * dropped when that block is released.
+				 */
+				error = ext4_xattr_inode_dec_ref(handle,
+								 ea_inode);
+				if (error) {
+					EXT4_ERROR_INODE(inode,
+							 "dec ref error=%d",
+							 error);
+					ext4_put_ea_inode(ea_inode);
+					ea_inode = NULL;
+					goto cleanup;
+				}
+			}
 		} else if (bs->bh && s->base == bs->bh->b_data) {
 			/* We were modifying this block in-place. */
 			ea_bdebug(bs->bh, "keeping this block");
