@@ -1082,19 +1082,31 @@ out:
 	return rpc_success;
 }
 
-/*
- * Remove a directory
+/**
+ * nfsd_proc_rmdir - RMDIR: Remove a directory
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   nfsstat NFSPROC_RMDIR(diropargs) = 15;
  */
-static __be32
-nfsd_proc_rmdir(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_rmdir(struct svc_rqst *rqstp)
 {
-	struct nfsd_diropargs *argp = rqstp->rq_argp;
-	struct nfsd_stat *resp = rqstp->rq_resp;
+	struct diropargs_wrapper *argp = rqstp->rq_argp;
+	struct diropargs *object = &argp->xdrgen;
+	nfsstat *resp = rqstp->rq_resp;
+	struct svc_fh *fhp = &argp->fh;
 
-	resp->status = nfsd_unlink(rqstp, &argp->fh, S_IFDIR,
-				   argp->name, argp->len);
-	fh_put(&argp->fh);
-	resp->status = nfsd_map_status(resp->status);
+	nfsd_fhandle_to_svc_fh(fhp, &object->dir);
+
+	/* Unlink. S_IFDIR means file must be a directory */
+	*resp = nfsd_unlink(rqstp, fhp, S_IFDIR,
+			    (char *)object->name.data, object->name.len);
+	*resp = nfsd_map_status(*resp);
+
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1334,15 +1346,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "MKDIR",
 	},
 	[NFSPROC_RMDIR] = {
-		.pc_func = nfsd_proc_rmdir,
-		.pc_decode = nfssvc_decode_diropargs,
-		.pc_encode = nfssvc_encode_statres,
-		.pc_argsize = sizeof(struct nfsd_diropargs),
-		.pc_argzero = sizeof(struct nfsd_diropargs),
-		.pc_ressize = sizeof(struct nfsd_stat),
-		.pc_cachetype = RC_REPLSTAT,
-		.pc_xdrressize = ST,
-		.pc_name = "RMDIR",
+		.pc_func	= nfsd_proc_rmdir,
+		.pc_decode	= nfs_svc_decode_diropargs,
+		.pc_encode	= nfs_svc_encode_nfsstat,
+		.pc_argsize	= sizeof(struct diropargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(nfsstat),
+		.pc_cachetype	= RC_REPLSTAT,
+		.pc_xdrressize	= NFS2_nfsstat_sz,
+		.pc_name	= "RMDIR",
 	},
 	[NFSPROC_READDIR] = {
 		.pc_func = nfsd_proc_readdir,

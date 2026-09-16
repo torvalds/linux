@@ -92,38 +92,6 @@ encode_timeval(__be32 *p, const struct timespec64 *time)
 	return p;
 }
 
-static bool
-svcxdr_decode_filename(struct xdr_stream *xdr, char **name, unsigned int *len)
-{
-	u32 size, i;
-	__be32 *p;
-	char *c;
-
-	if (xdr_stream_decode_u32(xdr, &size) < 0)
-		return false;
-	if (size == 0 || size > NFS_MAXNAMLEN)
-		return false;
-	p = xdr_inline_decode(xdr, size);
-	if (!p)
-		return false;
-
-	*len = size;
-	*name = (char *)p;
-	for (i = 0, c = *name; i < size; i++, c++)
-		if (*c == '\0' || *c == '/')
-			return false;
-
-	return true;
-}
-
-static bool
-svcxdr_decode_diropargs(struct xdr_stream *xdr, struct svc_fh *fhp,
-			char **name, unsigned int *len)
-{
-	return svcxdr_decode_fhandle(xdr, fhp) &&
-		svcxdr_decode_filename(xdr, name, len);
-}
-
 /**
  * svcxdr_encode_fattr - Encode NFSv2 file attributes
  * @rqstp: Context of a completed RPC transaction
@@ -206,14 +174,6 @@ nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_diropargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_diropargs(xdr, &args->fh, &args->name, &args->len);
-}
-
-bool
 nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_readdirargs *args = rqstp->rq_argp;
@@ -231,14 +191,6 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 /*
  * XDR encode functions
  */
-
-bool
-nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_stat *resp = rqstp->rq_resp;
-
-	return svcxdr_encode_stat(xdr, resp->status);
-}
 
 bool
 nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
