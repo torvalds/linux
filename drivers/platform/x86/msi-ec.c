@@ -122,6 +122,7 @@ static const char * const ALLOWED_FW_1[] __initconst = {
 	"17F2EMS1.104",
 	"17F2EMS1.106",
 	"17F2EMS1.107",
+	"16U8EMS2.100", // MSI GL65 Leopard 9SCXK
 	NULL
 };
 
