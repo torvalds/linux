@@ -48,6 +48,21 @@ struct sattrargs_wrapper {
 
 static_assert(offsetof(struct sattrargs_wrapper, xdrgen) == 0);
 
+struct diropargs_wrapper {
+	struct diropargs	xdrgen;
+	struct svc_fh		fh;
+};
+
+static_assert(offsetof(struct diropargs_wrapper, xdrgen) == 0);
+
+struct diropres_wrapper {
+	struct diropres		xdrgen;
+	struct svc_fh		fh;
+	struct kstat		stat;
+};
+
+static_assert(offsetof(struct diropres_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -79,6 +94,12 @@ nfsd_fhandle_to_svc_fh(struct svc_fh *fhp, const fhandle *fhandle)
 	fh_init(fhp, NFS_FHSIZE);
 	fhp->fh_handle.fh_size = NFS_FHSIZE;
 	memcpy(&fhp->fh_handle.fh_raw, fhandle, NFS_FHSIZE);
+}
+
+static __always_inline void
+nfsd_svc_fh_to_fhandle(fhandle *fhandle, const struct svc_fh *fhp)
+{
+	memcpy(fhandle, fhp->fh_handle.fh_raw, NFS_FHSIZE);
 }
 
 static __always_inline void
@@ -412,31 +433,46 @@ static __be32 nfsd_proc_root(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-/*
- * Look up a path name component
- * Note: the dentry in the resp->fh may be negative if the file
- * doesn't exist yet.
- * N.B. After this call resp->fh needs an fh_put
+/**
+ * nfsd_proc_lookup - LOOKUP: Look up file name
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   diropres NFSPROC_LOOKUP(diropargs) = 4;
  */
-static __be32
-nfsd_proc_lookup(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_lookup(struct svc_rqst *rqstp)
 {
-	struct nfsd_diropargs *argp = rqstp->rq_argp;
-	struct nfsd_diropres *resp = rqstp->rq_resp;
+	struct diropargs_wrapper *argp = rqstp->rq_argp;
+	struct diropres_wrapper *resp = rqstp->rq_resp;
+	struct diropargs *what = &argp->xdrgen;
+	struct kstat *statp = &resp->stat;
+	struct svc_fh *dirfhp = &argp->fh;
+	struct svc_fh *fhp = &resp->fh;
 
-	dprintk("nfsd: LOOKUP   %s %.*s\n",
-		SVCFH_fmt(&argp->fh), argp->len, argp->name);
+	nfsd_fhandle_to_svc_fh(dirfhp, &what->dir);
 
-	fh_init(&resp->fh, NFS_FHSIZE);
-	resp->status = nfsd_lookup(rqstp, &argp->fh, argp->name, argp->len,
-				   &resp->fh);
-	fh_put(&argp->fh);
-	if (resp->status != nfs_ok)
+	fh_init(fhp, NFS_FHSIZE);
+	resp->xdrgen.status = nfsd_lookup(rqstp, dirfhp,
+					  (char *)what->name.data,
+					  what->name.len, fhp);
+	if (resp->xdrgen.status != nfs_ok)
 		goto out;
+	resp->xdrgen.status = fh_getattr(fhp, statp);
 
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	resp->status = nfsd_map_status(resp->status);
+	if (resp->xdrgen.status == nfs_ok) {
+		nfsd_svc_fh_to_fhandle(&resp->xdrgen.u.diropok.file, fhp);
+		nfsd_stat_to_fattr(rqstp, &resp->xdrgen.u.diropok.attributes,
+				   statp, fhp);
+	} else {
+		resp->xdrgen.status = nfsd_map_status(resp->xdrgen.status);
+	}
+
+	fh_put(fhp);
+	fh_put(dirfhp);
 	return rpc_success;
 }
 
@@ -957,16 +993,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "ROOT",
 	},
 	[NFSPROC_LOOKUP] = {
-		.pc_func = nfsd_proc_lookup,
-		.pc_decode = nfssvc_decode_diropargs,
-		.pc_encode = nfssvc_encode_diropres,
-		.pc_release = nfssvc_release_diropres,
-		.pc_argsize = sizeof(struct nfsd_diropargs),
-		.pc_argzero = sizeof(struct nfsd_diropargs),
-		.pc_ressize = sizeof(struct nfsd_diropres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST+FH+AT,
-		.pc_name = "LOOKUP",
+		.pc_func	= nfsd_proc_lookup,
+		.pc_decode	= nfs_svc_decode_diropargs,
+		.pc_encode	= nfs_svc_encode_diropres,
+		.pc_argsize	= sizeof(struct diropargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct diropres_wrapper),
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= NFS2_diropres_sz,
+		.pc_name	= "LOOKUP",
 	},
 	[NFSPROC_READLINK] = {
 		.pc_func = nfsd_proc_readlink,
@@ -1122,7 +1157,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 union nfsd_xdrstore {
 	struct fhandle_wrapper		fhandle;
 	struct sattrargs_wrapper	sattrargs;
-	struct nfsd_diropargs	dirop;
+	struct diropargs_wrapper	diropargs;
 	struct nfsd_readargs	read;
 	struct nfsd_writeargs	write;
 	struct nfsd_createargs	create;
@@ -1131,7 +1166,7 @@ union nfsd_xdrstore {
 	struct nfsd_symlinkargs	symlink;
 	struct nfsd_readdirargs	readdir;
 	struct attrstat_wrapper		attrstat;
-	struct nfsd_diropres	diropres;
+	struct diropres_wrapper		diropres;
 	struct nfsd_readlinkres	readlinkres;
 	struct nfsd_readres	readres;
 	struct nfsd_readdirres	readdirres;
