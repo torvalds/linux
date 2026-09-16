@@ -4228,8 +4228,6 @@ int write_all_supers(struct btrfs_trans_handle *trans)
 			total_errors++;
 	}
 	if (unlikely(total_errors > max_errors)) {
-		btrfs_err(fs_info, "%d errors while writing supers",
-			  total_errors);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
