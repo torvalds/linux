@@ -63,6 +63,13 @@ struct diropres_wrapper {
 
 static_assert(offsetof(struct diropres_wrapper, xdrgen) == 0);
 
+struct readargs_wrapper {
+	struct readargs		xdrgen;
+	struct svc_fh		fh;
+};
+
+static_assert(offsetof(struct readargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -508,40 +515,52 @@ static __be32 nfsd_proc_readlink(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-/*
- * Read a portion of a file.
- * N.B. After this call resp->fh needs an fh_put
+/**
+ * nfsd_proc_read - READ: Read from file
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   readres NFSPROC_READ(readargs) = 6;
  */
-static __be32
-nfsd_proc_read(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_read(struct svc_rqst *rqstp)
 {
-	struct nfsd_readargs *argp = rqstp->rq_argp;
-	struct nfsd_readres *resp = rqstp->rq_resp;
+	struct readargs_wrapper *argp = rqstp->rq_argp;
+	struct readres *resp = rqstp->rq_resp;
+	unsigned long count = argp->xdrgen.count;
+	u32 offset = argp->xdrgen.offset;
+	struct svc_fh *fhp = &argp->fh;
+	struct kstat stat;
 	u32 eof;
 
-	dprintk("nfsd: READ    %s %d bytes at %d\n",
-		SVCFH_fmt(&argp->fh),
-		argp->count, argp->offset);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen.file);
+	count = min_t(u32, count, NFS_MAXDATA);
+	count = min_t(u32, count, rqstp->rq_res.buflen);
 
-	argp->count = min_t(u32, argp->count, NFS_MAXDATA);
-	argp->count = min_t(u32, argp->count, rqstp->rq_res.buflen);
-
-	resp->pages = rqstp->rq_next_page;
-
-	/* Obtain buffer pointer for payload. 19 is 1 word for
-	 * status, 17 words for fattr, and 1 word for the byte count.
+	/*
+	 * 19 is 1 word for status, 17 words for fattr, and 1 word
+	 * for the byte count.
 	 */
-	svc_reserve_auth(rqstp, (19<<2) + argp->count + 4);
+	svc_reserve_auth(rqstp, (19 << 2) + count + 4);
+	resp->status = nfsd_read(rqstp, fhp, offset, &count, &eof);
 
-	resp->count = argp->count;
-	fh_copy(&resp->fh, &argp->fh);
-	resp->status = nfsd_read(rqstp, &resp->fh, argp->offset,
-				 &resp->count, &eof);
-	if (resp->status == nfs_ok)
-		resp->status = fh_getattr(&resp->fh, &resp->stat);
-	else if (resp->status == nfserr_jukebox)
+	if (resp->status == nfs_ok) {
+		struct readresok *resok = &resp->u.readresok;
+
+		resok->data.len = count;
+		resp->status = fh_getattr(fhp, &stat);
+		if (resp->status == nfs_ok)
+			nfsd_stat_to_fattr(rqstp, &resok->attributes, &stat,
+					   fhp);
+	}
+	if (resp->status == nfserr_jukebox)
 		set_bit(RQ_DROPME, &rqstp->rq_flags);
-	resp->status = nfsd_map_io_status(resp->status);
+	if (resp->status != nfs_ok)
+		resp->status = nfsd_map_io_status(resp->status);
+
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1025,16 +1044,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "READLINK",
 	},
 	[NFSPROC_READ] = {
-		.pc_func = nfsd_proc_read,
-		.pc_decode = nfssvc_decode_readargs,
-		.pc_encode = nfssvc_encode_readres,
-		.pc_release = nfssvc_release_readres,
-		.pc_argsize = sizeof(struct nfsd_readargs),
-		.pc_argzero = sizeof(struct nfsd_readargs),
-		.pc_ressize = sizeof(struct nfsd_readres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST+AT+1+NFS_MAXDATA/4,
-		.pc_name = "READ",
+		.pc_func	= nfsd_proc_read,
+		.pc_decode	= nfs_svc_decode_readargs,
+		.pc_encode	= nfs_svc_encode_readres,
+		.pc_argsize	= sizeof(struct readargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct readres),
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= NFS2_readres_sz,
+		.pc_name	= "READ",
 	},
 	[NFSPROC_WRITECACHE] = {
 		.pc_func = nfsd_proc_writecache,
@@ -1168,7 +1186,7 @@ union nfsd_xdrstore {
 	struct fhandle_wrapper		fhandle;
 	struct sattrargs_wrapper	sattrargs;
 	struct diropargs_wrapper	diropargs;
-	struct nfsd_readargs	read;
+	struct readargs_wrapper		readargs;
 	struct nfsd_writeargs	write;
 	struct nfsd_createargs	create;
 	struct nfsd_renameargs	rename;
@@ -1178,7 +1196,7 @@ union nfsd_xdrstore {
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
 	struct readlinkres	readlinkres;
-	struct nfsd_readres	readres;
+	struct readres		readres;
 	struct nfsd_readdirres	readdirres;
 	struct nfsd_statfsres	statfsres;
 };

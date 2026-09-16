@@ -140,6 +140,7 @@ struct readresok {
 	fattr		attributes;
 	opaque		data<NFS_MAXDATA>;
 };
+pragma pages readresok data;
 
 union readres switch (nfsstat status) {
 	case NFS_OK:

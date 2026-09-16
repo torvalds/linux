@@ -14,12 +14,6 @@ struct nfsd_diropargs {
 	unsigned int		len;
 };
 
-struct nfsd_readargs {
-	struct svc_fh		fh;
-	__u32			offset;
-	__u32			count;
-};
-
 struct nfsd_writeargs {
 	svc_fh			fh;
 	__u32			offset;
@@ -82,14 +76,6 @@ struct nfsd_diropres  {
 	struct kstat		stat;
 };
 
-struct nfsd_readres {
-	__be32			status;
-	struct svc_fh		fh;
-	unsigned long		count;
-	struct kstat		stat;
-	struct page		**pages;
-};
-
 struct nfsd_readdirres {
 	/* Components of the reply */
 	__be32			status;
@@ -110,7 +96,6 @@ struct nfsd_statfsres {
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
@@ -121,7 +106,6 @@ bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
@@ -131,7 +115,6 @@ int nfssvc_encode_entry(void *data, const char *name, int namlen,
 
 void nfssvc_release_attrstat(struct svc_rqst *rqstp);
 void nfssvc_release_diropres(struct svc_rqst *rqstp);
-void nfssvc_release_readres(struct svc_rqst *rqstp);
 
 /* Helper functions for NFSv2 ACL code */
 bool svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp);

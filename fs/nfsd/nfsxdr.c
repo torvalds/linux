@@ -10,6 +10,7 @@
 #include "vfs.h"
 #include "nfserr.h"
 #include "xdr.h"
+#include "nfs2xdr_gen.h"
 #include "auth.h"
 
 /*
@@ -311,25 +312,6 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readargs *args = rqstp->rq_argp;
-	u32 totalcount;
-
-	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return false;
-	/* totalcount is ignored */
-	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return false;
-
-	return true;
-}
-
-bool
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_writeargs *args = rqstp->rq_argp;
@@ -462,31 +444,6 @@ nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		if (!svcxdr_encode_fhandle(xdr, &resp->fh))
 			return false;
 		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readres *resp = rqstp->rq_resp;
-	struct kvec *head = rqstp->rq_res.head;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
-			return false;
-		if (xdr_stream_encode_u32(xdr, resp->count) < 0)
-			return false;
-		svcxdr_encode_opaque_pages(rqstp, xdr, resp->pages,
-					   rqstp->rq_res.page_base,
-					   resp->count);
-		if (svc_encode_result_payload(rqstp, head->iov_len, resp->count) < 0)
 			return false;
 		break;
 	}
@@ -642,13 +599,6 @@ void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 void nfssvc_release_diropres(struct svc_rqst *rqstp)
 {
 	struct nfsd_diropres *resp = rqstp->rq_resp;
-
-	fh_put(&resp->fh);
-}
-
-void nfssvc_release_readres(struct svc_rqst *rqstp)
-{
-	struct nfsd_readres *resp = rqstp->rq_resp;
 
 	fh_put(&resp->fh);
 }
