@@ -395,9 +395,19 @@ out:
 	return rpc_success;
 }
 
-/* Obsolete, replaced by MNTPROC_MNT. */
-static __be32
-nfsd_proc_root(struct svc_rqst *rqstp)
+/**
+ * nfsd_proc_root - ROOT: Get filesystem root
+ * @rqstp: RPC transaction context
+ *
+ * Obsolete, replaced by MNTPROC_MNT.
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   void NFSPROC_ROOT(void) = 3;
+ */
+static __be32 nfsd_proc_root(struct svc_rqst *rqstp)
 {
 	return rpc_success;
 }
@@ -936,15 +946,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "SETATTR",
 	},
 	[NFSPROC_ROOT] = {
-		.pc_func = nfsd_proc_root,
-		.pc_decode = nfssvc_decode_voidarg,
-		.pc_encode = nfssvc_encode_voidres,
-		.pc_argsize = sizeof(struct nfsd_voidargs),
-		.pc_argzero = sizeof(struct nfsd_voidargs),
-		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = 0,
-		.pc_name = "ROOT",
+		.pc_func	= nfsd_proc_root,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
+		.pc_argsize	= XDR_void,
+		.pc_argzero	= 0,
+		.pc_ressize	= 0,
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= XDR_void,
+		.pc_name	= "ROOT",
 	},
 	[NFSPROC_LOOKUP] = {
 		.pc_func = nfsd_proc_lookup,
