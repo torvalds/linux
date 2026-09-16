@@ -297,8 +297,8 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev,
 		driver->err_handler->resume(pdev);
 	pci_uevent_ers(pdev, PCI_ERS_RESULT_RECOVERED);
 out_unlock:
-	device_unlock(&pdev->dev);
 	zpci_report_status(zdev, pdev, "recovery", status_str);
+	device_unlock(&pdev->dev);
 
 	return ers_res;
 }
