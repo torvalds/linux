@@ -933,20 +933,11 @@ static int svc_normal_to_secure_thread(void *data)
 		default:
 			pr_warn("Secure firmware doesn't support...\n");
 
-			/*
-			 * be compatible with older version firmware which
-			 * doesn't support newer RSU commands
-			 */
-			if ((pdata->command != COMMAND_RSU_UPDATE) &&
-				(pdata->command != COMMAND_RSU_STATUS)) {
-				cbdata->status =
-					BIT(SVC_STATUS_NO_SUPPORT);
-				cbdata->kaddr1 = NULL;
-				cbdata->kaddr2 = NULL;
-				cbdata->kaddr3 = NULL;
-				pdata->chan->scl->receive_cb(
-					pdata->chan->scl, cbdata);
-			}
+			cbdata->status = BIT(SVC_STATUS_NO_SUPPORT);
+			cbdata->kaddr1 = NULL;
+			cbdata->kaddr2 = NULL;
+			cbdata->kaddr3 = NULL;
+			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 
 		}
