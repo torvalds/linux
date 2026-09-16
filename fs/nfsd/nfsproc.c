@@ -57,8 +57,22 @@ static __be32 nfsd_map_io_status(__be32 status)
 	return nfsd_map_status(status);
 }
 
-static __be32
-nfsd_proc_null(struct svc_rqst *rqstp)
+/*
+ * A full specification of each of the following NFSv2 procedures is
+ * available in RFC 1094 Section 2.2.
+ */
+
+/**
+ * nfsd_proc_null - NULL: Do nothing
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   void NFSPROC_NULL(void) = 0;
+ */
+static __be32 nfsd_proc_null(struct svc_rqst *rqstp)
 {
 	return rpc_success;
 }
@@ -673,15 +687,15 @@ nfsd_proc_statfs(struct svc_rqst *rqstp)
 
 static const struct svc_procedure nfsd_procedures2[18] = {
 	[NFSPROC_NULL] = {
-		.pc_func = nfsd_proc_null,
-		.pc_decode = nfssvc_decode_voidarg,
-		.pc_encode = nfssvc_encode_voidres,
-		.pc_argsize = sizeof(struct nfsd_voidargs),
-		.pc_argzero = sizeof(struct nfsd_voidargs),
-		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = 0,
-		.pc_name = "NULL",
+		.pc_func	= nfsd_proc_null,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
+		.pc_argsize	= XDR_void,
+		.pc_argzero	= 0,
+		.pc_ressize	= 0,
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= XDR_void,
+		.pc_name	= "NULL",
 	},
 	[NFSPROC_GETATTR] = {
 		.pc_func = nfsd_proc_getattr,
