@@ -3030,6 +3030,7 @@ static void ublk_queue_reset_io_flags(struct ublk_queue *ubq)
 	ubq->canceling = false;
 	spin_unlock(&ubq->cancel_lock);
 	ubq->fail_io = false;
+	ubq->force_abort = false;
 }
 
 /* device can only be started after all IOs are ready */

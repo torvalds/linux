@@ -13,7 +13,8 @@ extern const struct attribute_group *qeth_l2_attr_groups[];
 
 int qeth_bridgeport_query_ports(struct qeth_card *card,
 				enum qeth_sbp_roles *role,
-				enum qeth_sbp_states *state);
+				enum qeth_sbp_states *state,
+				bool *os_mismatch);
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
 int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
 

@@ -1489,6 +1489,8 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 	/* Put back the colon to allow this to be called again */
 	if (buf)
 		*(buf - 1) = ':';
+	if (mod)
+		*(mod - 5) = ':';
 
 	return ret;
 }

@@ -67,6 +67,7 @@ struct pai_mapptr {
 
 static struct pai_root {		/* Anchor to per CPU data */
 	refcount_t refcnt;		/* Overall active events */
+	atomic_t tskctx;		/* Overall per-task events */
 	struct pai_mapptr __percpu *mapptr;
 } pai_root[PAI_PMU_MAX];
 
@@ -93,14 +94,15 @@ struct pai_pmu {			/* Define PAI PMU characteristics */
 static struct pai_pmu pai_pmu[];	/* Forward declaration */
 
 /* Free per CPU data when the last event is removed. */
-static void pai_root_free(int idx)
+static void pai_root_free(int idx, int tasks)
 {
-	if (refcount_dec_and_test(&pai_root[idx].refcnt)) {
+	if (refcount_sub_and_test(tasks, &pai_root[idx].refcnt)) {
 		free_percpu(pai_root[idx].mapptr);
 		pai_root[idx].mapptr = NULL;
 	}
-	debug_sprintf_event(paidbg, 5, "%s root[%d].refcount %d\n", __func__,
-			    idx, refcount_read(&pai_root[idx].refcnt));
+	debug_sprintf_event(paidbg, 5, "%s root[%d].refcount %d tskctx %d\n",
+			    __func__, idx, refcount_read(&pai_root[idx].refcnt),
+			    atomic_read(&pai_root[idx].tskctx));
 }
 
 /*
@@ -137,40 +139,54 @@ static void pai_free(struct pai_mapptr *mp)
 	mp->mapptr = NULL;
 }
 
-/* Adjust usage counters and remove allocated memory when all users are
- * gone.
- */
-static void pai_event_destroy_cpu(struct perf_event *event, int cpu)
+/* Called under mutex_lock */
+static void pai_event_destroy_cpu(int idx, int cpu, bool hotplug)
 {
-	int idx = PAI_PMU_IDX(event);
-	struct pai_mapptr *mp = per_cpu_ptr(pai_root[idx].mapptr, cpu);
-	struct pai_map *cpump = mp->mapptr;
+	struct pai_mapptr *mp;
+	struct pai_map *cpump;
+	int tasks = 1;
 
-	mutex_lock(&pai_reserve_mutex);
-	debug_sprintf_event(paidbg, 5, "%s event %#llx idx %d cpu %d users %d "
-			    "refcnt %u\n", __func__, event->attr.config, idx,
-			    event->cpu, cpump->active_events,
-			    refcount_read(&cpump->refcnt));
-	if (refcount_dec_and_test(&cpump->refcnt))
+	/* Check reference count and return when all gone.
+	 * 1. An event is installed on online CPU X.
+	 * 2. CPU x is offlined and the per-CPU data is removed.
+	 * 3. Event is destroyed via close system call.
+	 */
+	if (!refcount_read(&pai_root[idx].refcnt))
+		return;			/* No events at all */
+	mp = per_cpu_ptr(pai_root[idx].mapptr, cpu);
+	if (!mp || !mp->mapptr)		/* No events on that CPU */
+		return;
+
+	/* When hotplug is true, invocation is from CPU hotplug callback.
+	 * Delete per-CPU resource and adjust refcnt when per-task events
+	 * are currently active. This can be more than one.
+	 * In this case adjust counters.
+	 */
+	if (hotplug)
+		tasks = atomic_read(&pai_root[idx].tskctx);
+
+	cpump = mp->mapptr;
+	if (refcount_sub_and_test(tasks, &cpump->refcnt))
 		pai_free(mp);
-	pai_root_free(idx);
-	mutex_unlock(&pai_reserve_mutex);
+	pai_root_free(idx, tasks);
 }
 
 static void pai_event_destroy(struct perf_event *event)
 {
-	int cpu;
+	int cpu = 0, idx = PAI_PMU_IDX(event);
 
 	free_page(PAI_SAVE_AREA(event));
+	cpus_read_lock();
+	mutex_lock(&pai_reserve_mutex);
 	if (event->cpu == -1) {
-		struct cpumask *mask = PAI_CPU_MASK(event);
-
-		for_each_cpu(cpu, mask)
-			pai_event_destroy_cpu(event, cpu);
-		kfree(mask);
+		atomic_dec(&pai_root[idx].tskctx);
+		for_each_online_cpu(cpu)
+			pai_event_destroy_cpu(idx, cpu, false);
 	} else {
-		pai_event_destroy_cpu(event, event->cpu);
+		pai_event_destroy_cpu(idx, event->cpu, false);
 	}
+	mutex_unlock(&pai_reserve_mutex);
+	cpus_read_unlock();
 }
 
 static void paicrypt_event_destroy(struct perf_event *event)
@@ -234,25 +250,30 @@ static u64 paicrypt_getall(struct perf_event *event)
 	return sum;
 }
 
-/* Check concurrent access of counting and sampling for crypto events.
- * This function is called in process context and it is save to block.
- * When the event initialization functions fails, no other call back will
- * be invoked.
- *
- * Allocate the memory for the event.
- */
-static int pai_alloc_cpu(struct perf_event *event, int cpu)
+/* Called under mutex_lock */
+static int pai_alloc_cpu(int idx, int cpu, bool hotplug)
 {
-	int rc, idx = PAI_PMU_IDX(event);
 	struct pai_map *cpump = NULL;
 	bool need_paiext_cb = false;
 	struct pai_mapptr *mp;
+	int tasks = 1, rc = 0;
 
-	mutex_lock(&pai_reserve_mutex);
+	/* When hotplug is true, invocation is from CPU hotplug callback.
+	 * Allocate per-CPU resource when per-task events are currently active.
+	 * This can be more than one. In this case adjust all reference
+	 * counters. Otherwise return, this ensures memory is only allocated
+	 * when needed.
+	 */
+	if (hotplug) {
+		tasks = atomic_read(&pai_root[idx].tskctx);
+		if (!tasks)
+			goto out;
+	}
+
 	/* Allocate root node */
 	rc = pai_root_alloc(idx);
 	if (rc)
-		goto unlock;
+		goto out;
 
 	/* Allocate node for this event */
 	mp = per_cpu_ptr(pai_root[idx].mapptr, cpu);
@@ -296,28 +317,45 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 			goto undo;
 		}
 		INIT_LIST_HEAD(&cpump->syswide_list);
-		refcount_set(&cpump->refcnt, 1);
+		refcount_set(&cpump->refcnt, tasks);
 		rc = 0;
 	} else {
-		refcount_inc(&cpump->refcnt);
+		refcount_add(tasks, &cpump->refcnt);
 	}
+	/* If tasks is greater than 1, we are called from CPU hotplug path
+	 * and need to adjust the pai_root[idx].refcnt by the number of
+	 * per-process events. Function pai_root_alloc(idx) already
+	 * incremented by one. Adjust for the rest.
+	 */
+	if (tasks > 1)
+		refcount_add(tasks - 1, &pai_root[idx].refcnt);
 
 undo:
 	if (rc) {
 		/* Error in allocation of event, decrement anchor. Since
 		 * the event in not created, its destroy() function is never
 		 * invoked. Adjust the reference counter for the anchor.
+		 * The failure happened in the case of variable
+		 * cpump == NULL branch above. The pai_root[XXX].refcnt has
+		 * been incremented by one. Then the per-CPU allocation
+		 * failed, so decrement it by one, regardless of tasks.
 		 */
-		pai_root_free(idx);
+		pai_root_free(idx, 1);
 	}
-unlock:
-	mutex_unlock(&pai_reserve_mutex);
+out:
 	/* If rc is non-zero, no increment of counter/sampler was done. */
 	return rc;
 }
 
+/* Check concurrent access of counting and sampling for PAI events.
+ * This function is called in process context and it is safe to block.
+ * When the event initialization functions fails, no other call back will
+ * be invoked.
+ * Called under mutex_lock.
+ */
 static int pai_alloc(struct perf_event *event)
 {
+	int idx = PAI_PMU_IDX(event);
 	struct cpumask *maskptr;
 	int cpu, rc = -ENOMEM;
 
@@ -326,24 +364,20 @@ static int pai_alloc(struct perf_event *event)
 		goto out;
 
 	for_each_online_cpu(cpu) {
-		rc = pai_alloc_cpu(event, cpu);
+		rc = pai_alloc_cpu(idx, cpu, false);
 		if (rc) {
 			for_each_cpu(cpu, maskptr)
-				pai_event_destroy_cpu(event, cpu);
-			kfree(maskptr);
-			goto out;
+				pai_event_destroy_cpu(idx, cpu, false);
+			goto undo;
 		}
 		cpumask_set_cpu(cpu, maskptr);
 	}
 
-	/*
-	 * On error all cpumask are freed and all events have been destroyed.
-	 * Save of which CPUs data structures have been allocated for.
-	 * Release them in pai_event_destroy call back function
-	 * for this event.
-	 */
-	PAI_CPU_MASK(event) = maskptr;
 	rc = 0;
+	/* Trace per-task events for CPU hotplug. */
+	atomic_inc(&pai_root[idx].tskctx);
+undo:
+	kfree(maskptr);
 out:
 	return rc;
 }
@@ -391,10 +425,14 @@ static int pai_event_init(struct perf_event *event, int idx)
 		}
 	}
 
+	cpus_read_lock();
+	mutex_lock(&pai_reserve_mutex);
 	if (event->cpu >= 0)
-		rc = pai_alloc_cpu(event, event->cpu);
+		rc = pai_alloc_cpu(idx, event->cpu, false);
 	else
 		rc = pai_alloc(event);
+	mutex_unlock(&pai_reserve_mutex);
+	cpus_read_unlock();
 	if (rc) {
 		free_page(PAI_SAVE_AREA(event));
 		goto out;
@@ -1239,8 +1277,35 @@ static int __init paipmu_setup(void)
 	return install_ok;
 }
 
+static int pai_online_cpu(unsigned int cpu)
+{
+	int rc;
+
+	mutex_lock(&pai_reserve_mutex);
+	rc = pai_alloc_cpu(PAI_PMU_CRYPTO, cpu, true);
+	if (rc)
+		goto out;
+	rc = pai_alloc_cpu(PAI_PMU_EXT, cpu, true);
+	if (rc)
+		pai_event_destroy_cpu(PAI_PMU_CRYPTO, cpu, true);
+out:
+	mutex_unlock(&pai_reserve_mutex);
+	return rc;
+}
+
+static int pai_offline_cpu(unsigned int cpu)
+{
+	mutex_lock(&pai_reserve_mutex);
+	pai_event_destroy_cpu(PAI_PMU_CRYPTO, cpu, true);
+	pai_event_destroy_cpu(PAI_PMU_EXT, cpu, true);
+	mutex_unlock(&pai_reserve_mutex);
+	return 0;
+}
+
 static int __init pai_init(void)
 {
+	int state, rc;
+
 	/* Setup s390dbf facility */
 	paidbg = debug_register("pai", 1, 1, 128);
 	if (!paidbg) {
@@ -1249,13 +1314,24 @@ static int __init pai_init(void)
 	}
 	debug_register_view(paidbg, &debug_sprintf_view);
 
-	if (!paipmu_setup()) {
-		/* No PMU registration, no need for debug buffer */
-		debug_unregister_view(paidbg, &debug_sprintf_view);
-		debug_unregister(paidbg);
-		return -ENODEV;
-	}
+	/* CPUHP_BP_PREPARE_DYN --> before CPU is brought online */
+	state = cpuhp_setup_state(CPUHP_BP_PREPARE_DYN, "perf/pai:prepare",
+				  pai_online_cpu, pai_offline_cpu);
+	rc = state < 0 ? state : 0;
+	if (rc < 0)
+		goto out_debug;
+
+	rc = -ENODEV;
+	if (!paipmu_setup())
+		goto out_cpuhp;
 	return 0;
+
+out_cpuhp:
+	cpuhp_remove_state(state);
+out_debug:
+	debug_unregister_view(paidbg, &debug_sprintf_view);
+	debug_unregister(paidbg);
+	return rc;
 }
 
 device_initcall(pai_init);

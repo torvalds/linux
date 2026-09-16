@@ -156,7 +156,6 @@ static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static const struct software_node **gpio_button_swnodes;
 static const struct software_node **swnode_group;
-static const struct software_node **gpiochip_node_group;
 static void (*exit_handler)(void);
 
 static __init struct i2c_adapter *
@@ -362,11 +361,21 @@ static const struct software_node *cherryview_gpiochip_node_group[] = {
 	NULL
 };
 
+const struct software_node crystalcove_gpiochip_node = {
+	.name = "INT33FD:00",
+};
+
+static const struct software_node *crystalcove_gpiochip_node_group[] = {
+	&crystalcove_gpiochip_node,
+	NULL
+};
+
 static void gpio_secondary_unset(void *data)
 {
 	struct device *dev = data;
 
 	set_secondary_fwnode(dev, NULL);
+	put_device(dev);
 }
 
 static void gpio_secondary_unregister_node_group(void *data)
@@ -376,26 +385,28 @@ static void gpio_secondary_unregister_node_group(void *data)
 	software_node_unregister_node_group(nodes);
 }
 
-static int gpio_secondary_fwnode_init(struct device *parent)
+static int gpio_secondary_fwnode_init(struct device *parent,
+				      const struct software_node * const *node_group)
 {
 	const struct software_node *const *swnode;
 	struct fwnode_handle *fwnode;
+	struct device *phys_dev;
 	int ret;
 
-	if (!gpiochip_node_group)
+	if (!node_group)
 		return 0;
 
-	ret = software_node_register_node_group(gpiochip_node_group);
+	ret = software_node_register_node_group(node_group);
 	if (ret)
 		return ret;
 
 	ret = devm_add_action_or_reset(parent,
 				       gpio_secondary_unregister_node_group,
-				       gpiochip_node_group);
+				       (void *)node_group);
 	if (ret)
 		return ret;
 
-	for (swnode = gpiochip_node_group; *swnode; swnode++) {
+	for (swnode = node_group; *swnode; swnode++) {
 		struct device *dev __free(put_device) =
 				acpi_bus_find_device_by_name((*swnode)->name);
 		if (!dev)
@@ -407,9 +418,15 @@ static int gpio_secondary_fwnode_init(struct device *parent)
 		if (WARN_ON(!fwnode))
 			return -ENOENT;
 
-		set_secondary_fwnode(dev, fwnode);
+		phys_dev = acpi_get_first_physical_node(to_acpi_device(dev));
+		if (!phys_dev)
+			return dev_err_probe(parent, -ENODEV,
+					     "No physical device for ACPI GPIO dev: %pfwP\n",
+					     fwnode);
 
-		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, dev);
+		set_secondary_fwnode(phys_dev, fwnode);
+
+		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, get_device(phys_dev));
 		if (ret)
 			return ret;
 	}
@@ -452,6 +469,7 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 
 static __init int x86_android_tablet_probe(struct platform_device *pdev)
 {
+	const struct software_node * const *gpiochip_node_group;
 	const struct x86_dev_info *dev_info;
 	const struct dmi_system_id *id;
 	int i, ret = 0;
@@ -483,10 +501,18 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		break;
 	}
 
-	ret = gpio_secondary_fwnode_init(&pdev->dev);
+	ret = gpio_secondary_fwnode_init(&pdev->dev, gpiochip_node_group);
 	if (ret) {
 		x86_android_tablet_remove(pdev);
 		return ret;
+	}
+
+	if (dev_info->has_crystalcove) {
+		ret = gpio_secondary_fwnode_init(&pdev->dev, crystalcove_gpiochip_node_group);
+		if (ret) {
+			x86_android_tablet_remove(pdev);
+			return ret;
+		}
 	}
 
 	ret = software_node_register_node_group(dev_info->swnode_group);

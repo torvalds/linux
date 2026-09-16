@@ -74,6 +74,10 @@ struct ieee802154_local {
 	struct work_struct rx_beacon_work;
 	struct list_head rx_mac_cmd_list;
 	struct work_struct rx_mac_cmd_work;
+	/* Serializes rx_beacon_list and rx_mac_cmd_list against the RX
+	 * softirq producer, the mac_wq workers and the teardown flush.
+	 */
+	spinlock_t rx_lock;
 
 	/* Association */
 	/* assoc_lock protects assoc_dev_extended_addr, assoc_addr,
@@ -305,6 +309,10 @@ static inline bool mac802154_is_beaconing(struct ieee802154_local *local)
 }
 
 void mac802154_rx_mac_cmd_worker(struct work_struct *work);
+void mac802154_flush_list(struct list_head *list,
+			  struct ieee802154_sub_if_data *sdata);
+void mac802154_flush_queued_pkts(struct ieee802154_local *local,
+				 struct ieee802154_sub_if_data *sdata);
 
 int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 				  struct ieee802154_pan_device *coord,

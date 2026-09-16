@@ -416,6 +416,8 @@ int uni_reader_init(struct platform_device *pdev,
 	else
 		reader->hw = &uni_reader_pcm_hw;
 
+	spin_lock_init(&reader->irq_lock);
+
 	ret = devm_request_irq(&pdev->dev, reader->irq,
 			       uni_reader_irq_handler, IRQF_SHARED,
 			       dev_name(&pdev->dev), reader);
@@ -423,8 +425,6 @@ int uni_reader_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Failed to request IRQ\n");
 		return -EBUSY;
 	}
-
-	spin_lock_init(&reader->irq_lock);
 
 	return 0;
 }

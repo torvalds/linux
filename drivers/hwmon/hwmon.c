@@ -318,6 +318,11 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 	return 1;
 }
 
+static bool is_hwmon_device(struct device *dev)
+{
+	return dev->class == &hwmon_class;
+}
+
 #if IS_REACHABLE(CONFIG_I2C)
 
 /*
@@ -338,7 +343,7 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 
 static int hwmon_match_device(struct device *dev, const void *data)
 {
-	return dev->class == &hwmon_class;
+	return is_hwmon_device(dev);
 }
 
 static ssize_t pec_show(struct device *dev, const struct device_attribute *dummy,
@@ -371,18 +376,17 @@ static ssize_t pec_store(struct device *dev, const struct device_attribute *deva
 	 * handling is not required.
 	 */
 	hwdev = to_hwmon_device(hdev);
-	guard(mutex)(&hwdev->lock);
-	if (hwdev->chip->ops->write) {
-		err = hwdev->chip->ops->write(hdev, hwmon_chip, hwmon_chip_pec, 0, val);
-		if (err && err != -EOPNOTSUPP)
-			goto put;
+	scoped_guard(mutex, &hwdev->lock) {
+		if (hwdev->chip->ops->write) {
+			err = hwdev->chip->ops->write(hdev, hwmon_chip, hwmon_chip_pec, 0, val);
+			if (err && err != -EOPNOTSUPP)
+				goto put;
+		}
+		if (!val)
+			client->flags &= ~I2C_CLIENT_PEC;
+		else
+			client->flags |= I2C_CLIENT_PEC;
 	}
-
-	if (!val)
-		client->flags &= ~I2C_CLIENT_PEC;
-	else
-		client->flags |= I2C_CLIENT_PEC;
-
 	err = count;
 put:
 	put_device(hdev);
@@ -782,6 +786,9 @@ int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 	const char *template;
 	int base;
 
+	if (WARN(!is_hwmon_device(dev), "%s is not a hardware monitoring device\n",
+		 dev_name(dev)))
+		return -EINVAL;
 	if (type >= ARRAY_SIZE(__templates))
 		return -EINVAL;
 	if (attr >= __templates_size[type])

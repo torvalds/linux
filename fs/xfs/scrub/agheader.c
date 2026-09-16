@@ -418,6 +418,13 @@ xchk_superblock(
 			xchk_block_set_corrupt(sc, bp);
 	}
 
+	if (xfs_has_zoned(mp)) {
+		if (sb->sb_rtstart != cpu_to_be64(mp->m_sb.sb_rtstart))
+			xchk_block_set_corrupt(sc, bp);
+		if (sb->sb_rtreserved != cpu_to_be64(mp->m_sb.sb_rtreserved))
+			xchk_block_set_corrupt(sc, bp);
+	}
+
 	/* Everything else must be zero. */
 	sblen = xchk_superblock_ondisk_size(mp);
 	if (memchr_inv((char *)sb + sblen, 0, BBTOB(bp->b_length) - sblen))

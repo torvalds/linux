@@ -74,7 +74,6 @@ int xchk_setup_ag_rmapbt(struct xfs_scrub *sc);
 int xchk_setup_ag_refcountbt(struct xfs_scrub *sc);
 int xchk_setup_inode(struct xfs_scrub *sc);
 int xchk_setup_inode_bmap(struct xfs_scrub *sc);
-int xchk_setup_inode_bmap_data(struct xfs_scrub *sc);
 int xchk_setup_directory(struct xfs_scrub *sc);
 int xchk_setup_xattr(struct xfs_scrub *sc);
 int xchk_setup_symlink(struct xfs_scrub *sc);

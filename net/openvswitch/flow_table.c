@@ -257,10 +257,12 @@ static int tbl_mask_array_realloc(struct flow_table *tbl, int size)
 			if (ovsl_dereference(old->masks[i]))
 				new->masks[new->count++] = old->masks[i];
 		}
-		call_rcu(&old->rcu, mask_array_rcu_cb);
 	}
 
 	rcu_assign_pointer(tbl->mask_array, new);
+
+	if (old)
+		call_rcu(&old->rcu, mask_array_rcu_cb);
 
 	return 0;
 }

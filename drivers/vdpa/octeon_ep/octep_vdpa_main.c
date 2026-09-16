@@ -600,6 +600,8 @@ static int octep_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 		ret = dev_set_name(&vdpa_dev->dev, "%s", name);
 	else
 		ret = dev_set_name(&vdpa_dev->dev, "vdpa%u", vdpa_dev->index);
+	if (ret)
+		goto vdpa_dev_put;
 
 	ret = _vdpa_register_device(&oct_vdpa->vdpa, oct_hw->nr_vring);
 	if (ret) {
