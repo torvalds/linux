@@ -32,7 +32,8 @@ bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
+void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
+			     u32 cookie);
 int nfssvc_encode_entry(void *data, const char *name, int namlen,
 			loff_t offset, u64 ino, unsigned int d_type);
 

@@ -218,23 +218,22 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 /**
- * nfssvc_encode_nfscookie - Encode a directory offset cookie
- * @resp: readdir result context
- * @offset: offset cookie to encode
+ * nfssvc_encode_nfscookie - Encode a directory cookie
+ * @xdr: stream into which to encode the cookie
+ * @pos: byte position in the stream
+ * @cookie: cookie to be encoded
  *
  * The buffer space for the offset cookie has already been reserved
  * by svcxdr_encode_entry_common().
  */
-void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset)
+void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
+			     u32 cookie)
 {
-	__be32 cookie = cpu_to_be32(offset);
+	__be32 wire_cookie = cpu_to_be32(cookie);
 
-	if (!resp->cookie_offset)
+	if (!pos)
 		return;
-
-	write_bytes_to_xdr_buf(&resp->dirlist, resp->cookie_offset, &cookie,
-			       sizeof(cookie));
-	resp->cookie_offset = 0;
+	write_bytes_to_xdr_buf(xdr->buf, pos, &wire_cookie, XDR_UNIT);
 }
 
 static bool
@@ -288,7 +287,7 @@ int nfssvc_encode_entry(void *data, const char *name, int namlen,
 	unsigned int starting_length = resp->dirlist.len;
 
 	/* The offset cookie for the previous entry */
-	nfssvc_encode_nfscookie(resp, offset);
+	nfssvc_encode_nfscookie(&resp->xdr, resp->cookie_offset, offset);
 
 	if (!svcxdr_encode_entry_common(resp, name, namlen, offset, ino))
 		goto out_toosmall;

@@ -1168,7 +1168,7 @@ static __be32 nfsd_proc_readdir(struct svc_rqst *rqstp)
 	resp->cookie_offset = 0;
 	resp->status = nfsd_readdir(rqstp, fhp, &offset,
 				    &resp->common, nfssvc_encode_entry);
-	nfssvc_encode_nfscookie(resp, offset);
+	nfssvc_encode_nfscookie(&resp->xdr, resp->cookie_offset, offset);
 
 	fh_put(fhp);
 	resp->status = nfsd_map_status(resp->status);
