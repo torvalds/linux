@@ -8,7 +8,8 @@
 #ifndef _LINUX_NFSD_XDR3_H
 #define _LINUX_NFSD_XDR3_H
 
-#include "xdr.h"
+#include <linux/vfs.h>
+
 #include "vfs.h"
 
 struct nfsd3_sattrargs {

@@ -10,6 +10,8 @@
 #include <linux/namei.h>
 #include <linux/nfs3.h>
 #include <linux/sunrpc/svc_xprt.h>
+
+#include "nfsd.h"
 #include "xdr3.h"
 #include "auth.h"
 #include "netns.h"

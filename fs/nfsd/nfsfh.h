@@ -111,6 +111,11 @@ typedef struct svc_fh {
 	struct kstat		fh_post_attr;	/* full attrs after operation */
 	u64			fh_post_change; /* nfsv4 change; see above */
 } svc_fh;
+
+struct nfsd_fhandle {
+	struct svc_fh		fh;
+};
+
 #define NFSD4_FH_FOREIGN (1<<0)
 #define SET_FH_FLAG(c, f) ((c)->fh_flags |= (f))
 #define HAS_FH_FLAG(c, f) ((c)->fh_flags & (f))
