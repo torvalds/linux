@@ -127,7 +127,6 @@ module_param(fnlock_default, bool, 0444);
 #define NVIDIA_TEMP_MAX		87
 
 #define ASUS_SCREENPAD_BRIGHT_MAX 255
-#define ASUS_SCREENPAD_BRIGHT_DEFAULT 60
 
 #define ASUS_MINI_LED_MODE_MASK		0x03
 /* Standard modes for devices with only on/off */
@@ -4610,7 +4609,6 @@ static int asus_screenpad_init(struct asus_wmi *asus)
 	}
 
 	asus->screenpad_backlight_device = bd;
-	asus->driver->screenpad_brightness = brightness;
 	bd->props.brightness = brightness;
 	bd->props.power = power;
 	backlight_update_status(bd);

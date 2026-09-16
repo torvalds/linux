@@ -57,7 +57,6 @@ struct quirk_entry {
 struct asus_wmi_driver {
 	int			brightness;
 	int			panel_power;
-	int			screenpad_brightness;
 	int			wlan_ctrl_by_user;
 
 	const char		*name;
