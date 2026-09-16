@@ -2387,7 +2387,7 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 		}
 		ret = btrfs_check_chunk_valid(fs_info, NULL, chunk, key.offset,
 					      sectorsize);
-		if (ret < 0)
+		if (unlikely(ret < 0))
 			return ret;
 		cur += btrfs_chunk_item_size(num_stripes);
 	}

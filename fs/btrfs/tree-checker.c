@@ -1121,9 +1121,9 @@ int btrfs_check_chunk_valid(const struct btrfs_fs_info *fs_info,
 		return -EUCLEAN;
 	}
 
-	if (!remapped &&
-	    !valid_stripe_count(type & BTRFS_BLOCK_GROUP_PROFILE_MASK,
-				num_stripes, sub_stripes)) {
+	if (unlikely(!remapped &&
+		     !valid_stripe_count(type & BTRFS_BLOCK_GROUP_PROFILE_MASK,
+					 num_stripes, sub_stripes))) {
 		chunk_err(fs_info, leaf, chunk, logical,
 			"invalid num_stripes:sub_stripes %u:%u for profile %llu",
 			num_stripes, sub_stripes,
