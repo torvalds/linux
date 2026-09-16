@@ -1918,6 +1918,9 @@ static int qcom_pcie_reset_root_port(struct pci_host_bridge *bridge,
 	qcom_pcie_start_link(pci);
 
 	ret = dw_pcie_wait_for_link(pci);
+	/* This linkdown might have been a hot-unplug */
+	if (ret == -ENODEV)
+		ret = 0;
 	if (ret)
 		return ret;
 
