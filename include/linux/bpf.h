@@ -1651,8 +1651,9 @@ static inline void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags
 struct bpf_func_info_aux {
 	u16 linkage;
 	bool unreliable;
-	bool called : 1;
-	bool verified : 1;
+	/* Indexed by in_sleepable. */
+	bool called[2];
+	bool verified[2];
 };
 
 enum bpf_jit_poke_reason {
