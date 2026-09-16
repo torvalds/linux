@@ -70,6 +70,13 @@ struct readargs_wrapper {
 
 static_assert(offsetof(struct readargs_wrapper, xdrgen) == 0);
 
+struct writeargs_wrapper {
+	struct writeargs	xdrgen;
+	struct svc_fh		fh;
+};
+
+static_assert(offsetof(struct writeargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -581,29 +588,41 @@ static __be32 nfsd_proc_writecache(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-/*
- * Write data to a file
- * N.B. After this call resp->fh needs an fh_put
+/**
+ * nfsd_proc_write - WRITE: Write to file
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   attrstat NFSPROC_WRITE(writeargs) = 8;
  */
-static __be32
-nfsd_proc_write(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_write(struct svc_rqst *rqstp)
 {
-	struct nfsd_writeargs *argp = rqstp->rq_argp;
-	struct nfsd_attrstat *resp = rqstp->rq_resp;
-	unsigned long cnt = argp->len;
+	struct writeargs_wrapper *argp = rqstp->rq_argp;
+	struct attrstat_wrapper *resp = rqstp->rq_resp;
+	struct kstat *statp = &resp->stat;
+	unsigned long count = argp->xdrgen.data.len;
+	struct svc_fh *fhp = &argp->fh;
 
-	dprintk("nfsd: WRITE    %s %u bytes at %d\n",
-		SVCFH_fmt(&argp->fh),
-		argp->len, argp->offset);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen.file);
 
-	fh_copy(&resp->fh, &argp->fh);
-	resp->status = nfsd_write(rqstp, &resp->fh, argp->offset,
-				  &argp->payload, &cnt, IOCB_DSYNC, NULL);
-	if (resp->status == nfs_ok)
-		resp->status = fh_getattr(&resp->fh, &resp->stat);
-	else if (resp->status == nfserr_jukebox)
+	resp->xdrgen.status = nfsd_write(rqstp, fhp, argp->xdrgen.offset,
+					 &argp->xdrgen.data, &count,
+					 IOCB_DSYNC, NULL);
+	if (resp->xdrgen.status == nfs_ok) {
+		resp->xdrgen.status = fh_getattr(fhp, statp);
+		if (resp->xdrgen.status == nfs_ok)
+			nfsd_stat_to_fattr(rqstp, &resp->xdrgen.u.attributes,
+					   statp, fhp);
+	}
+	if (resp->xdrgen.status == nfserr_jukebox)
 		set_bit(RQ_DROPME, &rqstp->rq_flags);
-	resp->status = nfsd_map_io_status(resp->status);
+	if (resp->xdrgen.status != nfs_ok)
+		resp->xdrgen.status = nfsd_map_io_status(resp->xdrgen.status);
+
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1076,16 +1095,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "WRITECACHE",
 	},
 	[NFSPROC_WRITE] = {
-		.pc_func = nfsd_proc_write,
-		.pc_decode = nfssvc_decode_writeargs,
-		.pc_encode = nfssvc_encode_attrstatres,
-		.pc_release = nfssvc_release_attrstat,
-		.pc_argsize = sizeof(struct nfsd_writeargs),
-		.pc_argzero = sizeof(struct nfsd_writeargs),
-		.pc_ressize = sizeof(struct nfsd_attrstat),
-		.pc_cachetype = RC_REPLBUFF,
-		.pc_xdrressize = ST+AT,
-		.pc_name = "WRITE",
+		.pc_func	= nfsd_proc_write,
+		.pc_decode	= nfs_svc_decode_writeargs,
+		.pc_encode	= nfs_svc_encode_attrstat,
+		.pc_argsize	= sizeof(struct writeargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct attrstat_wrapper),
+		.pc_cachetype	= RC_REPLBUFF,
+		.pc_xdrressize	= NFS2_attrstat_sz,
+		.pc_name	= "WRITE",
 	},
 	[NFSPROC_CREATE] = {
 		.pc_func = nfsd_proc_create,
@@ -1197,7 +1215,7 @@ union nfsd_xdrstore {
 	struct sattrargs_wrapper	sattrargs;
 	struct diropargs_wrapper	diropargs;
 	struct readargs_wrapper		readargs;
-	struct nfsd_writeargs	write;
+	struct writeargs_wrapper	writeargs;
 	struct nfsd_createargs	create;
 	struct nfsd_renameargs	rename;
 	struct nfsd_linkargs	link;

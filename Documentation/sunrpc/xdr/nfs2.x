@@ -156,6 +156,7 @@ struct writeargs {
 	unsigned int	totalcount;
 	opaque		data<NFS_MAXDATA>;
 };
+pragma pages writeargs data;
 
 struct createargs {
 	diropargs	where;

@@ -14,13 +14,6 @@ struct nfsd_diropargs {
 	unsigned int		len;
 };
 
-struct nfsd_writeargs {
-	svc_fh			fh;
-	__u32			offset;
-	__u32			len;
-	struct xdr_buf		payload;
-};
-
 struct nfsd_createargs {
 	struct svc_fh		fh;
 	char *			name;
@@ -96,7 +89,6 @@ struct nfsd_statfsres {
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);

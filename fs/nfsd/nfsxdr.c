@@ -312,32 +312,6 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_writeargs *args = rqstp->rq_argp;
-	u32 beginoffset, totalcount;
-
-	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return false;
-	/* beginoffset is ignored */
-	if (xdr_stream_decode_u32(xdr, &beginoffset) < 0)
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return false;
-	/* totalcount is ignored */
-	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return false;
-
-	/* opaque data */
-	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
-		return false;
-	if (args->len > NFS_MAXDATA)
-		return false;
-
-	return xdr_stream_subsegment(xdr, &args->payload, args->len);
-}
-
-bool
 nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_createargs *args = rqstp->rq_argp;
