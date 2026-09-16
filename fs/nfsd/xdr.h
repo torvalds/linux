@@ -82,12 +82,6 @@ struct nfsd_diropres  {
 	struct kstat		stat;
 };
 
-struct nfsd_readlinkres {
-	__be32			status;
-	int			len;
-	struct page		*page;
-};
-
 struct nfsd_readres {
 	__be32			status;
 	struct svc_fh		fh;
@@ -127,7 +121,6 @@ bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);

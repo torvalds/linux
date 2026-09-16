@@ -476,25 +476,35 @@ out:
 	return rpc_success;
 }
 
-/*
- * Read a symlink.
+/**
+ * nfsd_proc_readlink - READLINK: Read symbolic link
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   readlinkres NFSPROC_READLINK(fhandle) = 5;
  */
-static __be32
-nfsd_proc_readlink(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_readlink(struct svc_rqst *rqstp)
 {
-	struct nfsd_fhandle *argp = rqstp->rq_argp;
-	struct nfsd_readlinkres *resp = rqstp->rq_resp;
+	struct fhandle_wrapper *argp = rqstp->rq_argp;
+	struct readlinkres *resp = rqstp->rq_resp;
+	struct svc_fh *fhp = &argp->fh;
+	struct page *page;
+	u32 len;
 
-	dprintk("nfsd: READLINK %s\n", SVCFH_fmt(&argp->fh));
+	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen);
 
-	/* Read the symlink. */
-	resp->len = NFS_MAXPATHLEN;
-	resp->page = *(rqstp->rq_next_page++);
-	resp->status = nfsd_readlink(rqstp, &argp->fh,
-				     page_address(resp->page), &resp->len);
+	len = NFS_MAXPATHLEN;
+	page = *(rqstp->rq_next_page++);
+	resp->status = nfsd_readlink(rqstp, fhp, page_address(page), &len);
+	if (resp->status == nfs_ok)
+		resp->u.data.len = len;
+	else
+		resp->status = nfsd_map_status(resp->status);
 
-	fh_put(&argp->fh);
-	resp->status = nfsd_map_status(resp->status);
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1004,15 +1014,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "LOOKUP",
 	},
 	[NFSPROC_READLINK] = {
-		.pc_func = nfsd_proc_readlink,
-		.pc_decode = nfssvc_decode_fhandleargs,
-		.pc_encode = nfssvc_encode_readlinkres,
-		.pc_argsize = sizeof(struct nfsd_fhandle),
-		.pc_argzero = sizeof(struct nfsd_fhandle),
-		.pc_ressize = sizeof(struct nfsd_readlinkres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST+1+NFS_MAXPATHLEN/4,
-		.pc_name = "READLINK",
+		.pc_func	= nfsd_proc_readlink,
+		.pc_decode	= nfs_svc_decode_fhandle,
+		.pc_encode	= nfs_svc_encode_readlinkres,
+		.pc_argsize	= sizeof(struct fhandle_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct readlinkres),
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= NFS2_readlinkres_sz,
+		.pc_name	= "READLINK",
 	},
 	[NFSPROC_READ] = {
 		.pc_func = nfsd_proc_read,
@@ -1167,7 +1177,7 @@ union nfsd_xdrstore {
 	struct nfsd_readdirargs	readdir;
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
-	struct nfsd_readlinkres	readlinkres;
+	struct readlinkres	readlinkres;
 	struct nfsd_readres	readres;
 	struct nfsd_readdirres	readdirres;
 	struct nfsd_statfsres	statfsres;

@@ -127,6 +127,7 @@ union readlinkres switch (nfsstat status) {
 	default:
 		void;
 };
+pragma pages readlinkres data;
 
 struct readargs {
 	fhandle		file;
