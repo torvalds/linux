@@ -24,6 +24,16 @@
 struct cfg80211_scan_request_int {
 	struct cfg80211_scan_info info;
 	bool notified;
+	/*
+	 * set while the request is handed to the driver, i.e. between
+	 * rdev_scan() and cfg80211_scan_done()
+	 */
+	bool driver_owns;
+	/*
+	 * set when cfg80211 is done with the request but the driver still
+	 * owns it, so that cfg80211_scan_done() knows to just free it
+	 */
+	bool stale;
 	/* must be last - variable members */
 	struct cfg80211_scan_request req;
 };
@@ -104,6 +114,8 @@ struct cfg80211_registered_device {
 	struct work_struct destroy_work;
 	struct wiphy_work sched_scan_stop_wk;
 	struct work_struct sched_scan_res_wk;
+	struct wiphy_work reg_check_chans_wk;
+	struct work_struct reg_leave_nan_wk;
 
 	struct cfg80211_chan_def radar_chandef;
 	struct work_struct propagate_radar_detect_wk;
@@ -280,8 +292,7 @@ struct cfg80211_event {
 			bool locally_generated;
 		} dc;
 		struct {
-			u8 bssid[ETH_ALEN];
-			struct ieee80211_channel *channel;
+			struct cfg80211_bss *bss;
 		} ij;
 		struct {
 			u8 peer_addr[ETH_ALEN];
@@ -344,8 +355,7 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
-void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
-			    struct ieee80211_channel *channel);
+void __cfg80211_ibss_joined(struct net_device *dev, struct cfg80211_bss *bss);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 

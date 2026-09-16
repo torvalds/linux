@@ -8322,6 +8322,15 @@ static void ipw_rx(struct ipw_priv *priv)
 					break;
 				}
 
+				if (unlikely(le16_to_cpu(pkt->u.frame.length) >
+					     IPW_RX_BUF_SIZE -
+					     IPW_RX_FRAME_SIZE)) {
+					IPW_DEBUG_DROP("Received oversized packet. Dropping.\n");
+					priv->net_dev->stats.rx_errors++;
+					priv->wstats.discard.misc++;
+					break;
+				}
+
 				switch (WLAN_FC_GET_TYPE
 					(le16_to_cpu(header->frame_ctl))) {
 

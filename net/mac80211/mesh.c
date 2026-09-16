@@ -1196,6 +1196,21 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
+static void ieee80211_mesh_reset_csa(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct mesh_csa_settings *csa;
+
+	/* Reset the TTL value and Initiator flag */
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
+	ifmsh->chsw_ttl = 0;
+
+	/* Remove the CSA and MCSP elements from the beacon */
+	csa = sdata_dereference(ifmsh->csa, sdata);
+	RCU_INIT_POINTER(ifmsh->csa, NULL);
+	kfree_rcu(csa, rcu_head);
+}
+
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -1203,6 +1218,11 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	struct beacon_data *bcn;
 
 	netif_carrier_off(sdata->dev);
+
+	/* abort any running channel switch */
+	sdata->vif.bss_conf.csa_active = false;
+	ieee80211_mesh_reset_csa(sdata);
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata, -1);
@@ -1510,19 +1530,10 @@ free:
 
 int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata, u64 *changed)
 {
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct mesh_csa_settings *tmp_csa_settings;
-	int ret = 0;
+	int ret;
 
-	/* Reset the TTL value and Initiator flag */
-	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
-	ifmsh->chsw_ttl = 0;
+	ieee80211_mesh_reset_csa(sdata);
 
-	/* Remove the CSA and MCSP elements from the beacon */
-	tmp_csa_settings = sdata_dereference(ifmsh->csa, sdata);
-	RCU_INIT_POINTER(ifmsh->csa, NULL);
-	if (tmp_csa_settings)
-		kfree_rcu(tmp_csa_settings, rcu_head);
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
 	if (ret)
 		return -EINVAL;
@@ -1555,7 +1566,6 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
 	if (ret) {
-		tmp_csa_settings = rcu_dereference(ifmsh->csa);
 		RCU_INIT_POINTER(ifmsh->csa, NULL);
 		kfree_rcu(tmp_csa_settings, rcu_head);
 		return ret;
