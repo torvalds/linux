@@ -23,6 +23,13 @@
 #define NFS2_SATTR_SET_TO_SERVER_TIME	(1000000)
 
 /*
+ * Linux-internal ftype values for socket and unknown inodes, not
+ * in RFC 1094's wire enum; values match enum nfs_ftype.
+ */
+#define NFBAD	(7)
+#define NFSOCK	(6)
+
+/*
  * Mapping of S_IF* types to NFS file types
  */
 static const u32 nfs_ftypes[] = {
@@ -599,7 +606,7 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
 	if (xdr_stream_encode_u32(xdr, (u32)ino) < 0)
 		return false;
 	/* name */
-	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS2_MAXNAMLEN)) < 0)
+	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS_MAXNAMLEN)) < 0)
 		return false;
 	/* cookie */
 	resp->cookie_offset = dirlist->len;

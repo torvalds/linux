@@ -12,8 +12,6 @@
 #include <linux/types.h>
 #include <linux/mount.h>
 
-#include <linux/nfs.h>
-#include <linux/nfs2.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svc_xprt.h>
 

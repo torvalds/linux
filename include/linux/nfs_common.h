@@ -6,11 +6,11 @@
 #define _LINUX_NFS_COMMON_H
 
 #include <linux/errno.h>
-#include <uapi/linux/nfs.h>
+#include <linux/types.h>
 
 /* Mapping from NFS error code to "errno" error code. */
 
-int nfs_stat_to_errno(enum nfs_stat status);
+int nfs_stat_to_errno(int status);
 int nfs4_stat_to_errno(int stat);
 
 __u32 nfs_localio_errno_to_nfs4_stat(int errno);

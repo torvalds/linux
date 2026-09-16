@@ -6,7 +6,9 @@
  */
 
 #include <linux/namei.h>
+#include <linux/sunrpc/svc.h>
 
+#include "nfs2xdr_gen.h"
 #include "cache.h"
 #include "xdr.h"
 #include "vfs.h"
