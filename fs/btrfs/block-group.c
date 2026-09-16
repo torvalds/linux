@@ -1612,7 +1612,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		space_info = block_group->space_info;
 
-		if (ret || btrfs_mixed_space_info(space_info)) {
+		if (btrfs_mixed_space_info(space_info)) {
 			btrfs_put_block_group(block_group);
 			continue;
 		}
@@ -1727,6 +1727,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		ret = inc_block_group_ro(block_group, false);
 		up_write(&space_info->groups_sem);
 		if (ret < 0) {
+			btrfs_link_bg_list(block_group, &retry_list);
 			ret = 0;
 			goto next;
 		}
@@ -1749,6 +1750,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 						     block_group->start);
 		if (IS_ERR(trans)) {
 			btrfs_dec_block_group_ro(block_group);
+			btrfs_link_bg_list(block_group, &retry_list);
 			ret = PTR_ERR(trans);
 			goto next;
 		}
@@ -1759,6 +1761,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 */
 		if (!clean_pinned_extents(trans, block_group)) {
 			btrfs_dec_block_group_ro(block_group);
+			btrfs_link_bg_list(block_group, &retry_list);
 			goto end_trans;
 		}
 
@@ -1845,6 +1848,8 @@ end_trans:
 next:
 		btrfs_put_block_group(block_group);
 		spin_lock(&fs_info->unused_bgs_lock);
+		if (ret)
+			break;
 	}
 	list_splice_tail(&retry_list, &fs_info->unused_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
