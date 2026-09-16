@@ -63,6 +63,14 @@ struct diropres_wrapper {
 
 static_assert(offsetof(struct diropres_wrapper, xdrgen) == 0);
 
+struct createargs_wrapper {
+	struct createargs	xdrgen;
+	struct svc_fh		fh;
+	struct iattr		iattrs;
+};
+
+static_assert(offsetof(struct createargs_wrapper, xdrgen) == 0);
+
 struct readargs_wrapper {
 	struct readargs		xdrgen;
 	struct svc_fh		fh;
@@ -634,9 +642,10 @@ static __be32 nfsd_proc_write(struct svc_rqst *rqstp)
  */
 static __be32
 nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		 struct svc_fh *resfhp, struct nfsd_createargs *argp)
+		 struct svc_fh *resfhp, struct createargs_wrapper *argp)
 {
-	struct iattr *attr = &argp->attrs;
+	struct diropargs *where = &argp->xdrgen.where;
+	struct iattr *attr = &argp->iattrs;
 	dev_t rdev = 0, wanted = new_decode_dev(attr->ia_size);
 	struct nfsd_attrs attrs = {
 		.na_iattr	= attr,
@@ -648,7 +657,7 @@ nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	__be32 status;
 	int host_err;
 
-	if (name_is_dot_dotdot(argp->name, argp->len))
+	if (name_is_dot_dotdot(where->name.data, where->name.len))
 		return nfserr_exist;
 
 	status = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
@@ -660,7 +669,7 @@ nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return nfserrno(host_err);
 
 	dchild = start_creating(&nop_mnt_idmap, fhp->fh_dentry,
-				&QSTR_LEN(argp->name, argp->len));
+				&QSTR_LEN(where->name.data, where->name.len));
 	if (IS_ERR(dchild)) {
 		status = nfserrno(PTR_ERR(dchild));
 		goto out_drop_write;
@@ -777,7 +786,7 @@ nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_drop_write;
 	} else if (type == S_IFREG) {
 		dprintk("nfsd:   existing %s, valid=%x, size=%ld\n",
-			argp->name, attr->ia_valid, (long)attr->ia_size);
+			where->name.data, attr->ia_valid, (long)attr->ia_size);
 		/* File already exists. We ignore all attributes except
 		 * size, so that creat() behaves exactly like
 		 * open(..., O_CREAT|O_TRUNC|O_WRONLY).
@@ -794,24 +803,47 @@ out_drop_write:
 	return status;
 }
 
-/*
- * N.B. After this call _both_ argp->fh and resp->fh need an fh_put
+/**
+ * nfsd_proc_create - CREATE: Create a file
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   diropres NFSPROC_CREATE(createargs) = 9;
  */
-static __be32
-nfsd_proc_create(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_create(struct svc_rqst *rqstp)
 {
-	struct nfsd_createargs *argp = rqstp->rq_argp;
-	struct nfsd_diropres *resp = rqstp->rq_resp;
-	svc_fh *dirfhp = &argp->fh;
-	svc_fh *newfhp = fh_init(&resp->fh, NFS_FHSIZE);
+	struct createargs_wrapper *argp = rqstp->rq_argp;
+	struct diropres_wrapper *resp = rqstp->rq_resp;
+	struct kstat *statp = &resp->stat;
+	struct svc_fh *dirfhp = &argp->fh;
+	struct svc_fh *fhp = &resp->fh;
 
-	resp->status = nfsd_create_file(rqstp, dirfhp, newfhp, argp);
-	fh_put(dirfhp);
-	if (resp->status != nfs_ok)
+	nfsd_fhandle_to_svc_fh(dirfhp, &argp->xdrgen.where.dir);
+	fh_init(fhp, NFS_FHSIZE);
+	if (!nfsd_sattr_to_iattr(rqstp, &argp->iattrs, &argp->xdrgen.attributes)) {
+		resp->xdrgen.status = nfserr_io;
 		goto out;
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
+	}
+
+	resp->xdrgen.status = nfsd_create_file(rqstp, dirfhp, fhp, argp);
+	if (resp->xdrgen.status != nfs_ok)
+		goto out;
+	resp->xdrgen.status = fh_getattr(fhp, statp);
+
 out:
-	resp->status = nfsd_map_status(resp->status);
+	if (resp->xdrgen.status == nfs_ok) {
+		nfsd_svc_fh_to_fhandle(&resp->xdrgen.u.diropok.file, fhp);
+		nfsd_stat_to_fattr(rqstp, &resp->xdrgen.u.diropok.attributes,
+				   statp, fhp);
+	} else {
+		resp->xdrgen.status = nfsd_map_status(resp->xdrgen.status);
+	}
+
+	fh_put(fhp);
+	fh_put(dirfhp);
 	return rpc_success;
 }
 
@@ -1110,16 +1142,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "WRITE",
 	},
 	[NFSPROC_CREATE] = {
-		.pc_func = nfsd_proc_create,
-		.pc_decode = nfssvc_decode_createargs,
-		.pc_encode = nfssvc_encode_diropres,
-		.pc_release = nfssvc_release_diropres,
-		.pc_argsize = sizeof(struct nfsd_createargs),
-		.pc_argzero = sizeof(struct nfsd_createargs),
-		.pc_ressize = sizeof(struct nfsd_diropres),
-		.pc_cachetype = RC_REPLBUFF,
-		.pc_xdrressize = ST+FH+AT,
-		.pc_name = "CREATE",
+		.pc_func	= nfsd_proc_create,
+		.pc_decode	= nfs_svc_decode_createargs,
+		.pc_encode	= nfs_svc_encode_diropres,
+		.pc_argsize	= sizeof(struct createargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct diropres_wrapper),
+		.pc_cachetype	= RC_REPLBUFF,
+		.pc_xdrressize	= NFS2_diropres_sz,
+		.pc_name	= "CREATE",
 	},
 	[NFSPROC_REMOVE] = {
 		.pc_func = nfsd_proc_remove,
@@ -1220,7 +1251,7 @@ union nfsd_xdrstore {
 	struct diropargs_wrapper	diropargs;
 	struct readargs_wrapper		readargs;
 	struct writeargs_wrapper	writeargs;
-	struct nfsd_createargs	create;
+	struct createargs_wrapper	createargs;
 	struct nfsd_renameargs	rename;
 	struct nfsd_linkargs	link;
 	struct nfsd_symlinkargs	symlink;
