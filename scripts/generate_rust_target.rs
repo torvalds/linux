@@ -224,6 +224,11 @@ fn main() {
             features += ",+harden-sls-ijmp";
             features += ",+harden-sls-ret";
         }
+        if cfg.has("X86_NATIVE_CPU") {
+            // Prevent the backend from generating APX instructions. The kernel is not yet prepared
+            // for general in-kernel EGPR use.
+            features += ",-apxf";
+        }
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
         ts.push("supported-sanitizers", ["kcfi", "kernel-address"]);
