@@ -33,7 +33,7 @@
 };
 
 &uart_a {
-	clocks = <&xtal>, <&xtal>, <&xtal>;
+	clocks = <&xtal>, <&clkc_periphs CLKID_SYS_UART_A>, <&xtal>;
 	clock-names = "xtal", "pclk", "baud";
 	status = "okay";
 };
