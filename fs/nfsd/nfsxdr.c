@@ -12,6 +12,7 @@
 #include "xdr.h"
 #include "nfs2xdr_gen.h"
 #include "auth.h"
+#include "trace.h"
 
 /*
  * Linux-internal ftype values for socket and unknown inodes, not
@@ -194,37 +195,26 @@ nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return true;
 }
 
-bool
-nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readdirres *resp = rqstp->rq_resp;
-	struct xdr_buf *dirlist = &resp->dirlist;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		svcxdr_encode_opaque_pages(rqstp, xdr, dirlist->pages, 0,
-					   dirlist->len);
-		/* no more entries */
-		if (xdr_stream_encode_item_absent(xdr) < 0)
-			return false;
-		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
-			return false;
-		break;
-	}
-
-	return true;
-}
+/*
+ * READDIR reply entry list (RFC 1094).  The entry list is the
+ * value-follows form of "entry *entries": each entry prefixed by TRUE,
+ * the sequence closed by FALSE.  xdrgen's aggregate codec owns that
+ * framing; the hooks below stream one entry at a time straight from the
+ * directory into the live reply, mirroring nfsd4_encode_dirlist4.  The
+ * directory was opened in nfsd_proc_readdir(), so reading and encoding
+ * happen together here during reply encoding.
+ */
 
 /**
- * nfssvc_encode_nfscookie - Encode a directory cookie
- * @xdr: stream into which to encode the cookie
- * @pos: byte position in the stream
- * @cookie: cookie to be encoded
+ * nfssvc_encode_nfscookie - Back-patch a directory entry cookie
+ * @xdr: stream holding the reserved cookie slot
+ * @pos: byte position of the cookie slot, or 0 when there is none
+ * @cookie: cookie value to write
  *
- * The buffer space for the offset cookie has already been reserved
- * by svcxdr_encode_entry_common().
+ * An NFSv2 entry's cookie is the offset at which the following entry is
+ * read.  That offset is not known until the following entry is pulled,
+ * so each entry is encoded with a placeholder cookie that a later call
+ * overwrites once the resume offset is known.
  */
 void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
 			     u32 cookie)
@@ -236,71 +226,146 @@ void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
 	write_bytes_to_xdr_buf(xdr->buf, pos, &wire_cookie, XDR_UNIT);
 }
 
-static bool
-svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
-			   int namlen, loff_t offset, u64 ino)
+/**
+ * nfs2_readdirok_encode_begin - size the streaming entry budget
+ * @c: aggregate cursor for the entry list
+ *
+ * Derive the entry byte budget from the space left in the live reply
+ * and the client's count hint, reserving room for the list terminator
+ * and the eof flag that follow the entries.
+ *
+ * Return: true.
+ */
+bool nfs2_readdirok_encode_begin(struct xdrgen_aggregate_cursor *c)
 {
-	struct xdr_buf *dirlist = &resp->dirlist;
-	struct xdr_stream *xdr = &resp->xdr;
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+	int bytes_left;
 
-	if (xdr_stream_encode_item_present(xdr) < 0)
-		return false;
-	/* fileid */
-	if (xdr_stream_encode_u32(xdr, (u32)ino) < 0)
-		return false;
-	/* name */
-	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS_MAXNAMLEN)) < 0)
-		return false;
-	/* cookie */
-	resp->cookie_offset = dirlist->len;
-	if (xdr_stream_encode_u32(xdr, ~0U) < 0)
-		return false;
-
+	/* Reserve the terminator FALSE and the eof bool (two words). */
+	bytes_left = xdr->buf->buflen - xdr->buf->len - XDR_UNIT * 2;
+	if (bytes_left < 0)
+		bytes_left = 0;
+	resp->space_left = min_t(u32, bytes_left,
+				 clamp(resp->count, (u32)(XDR_UNIT * 2),
+				       (u32)PAGE_SIZE) - XDR_UNIT * 2);
+	resp->cookie_offset = 0;
 	return true;
 }
 
 /**
- * nfssvc_encode_entry - encode one NFSv2 READDIR entry
- * @data: directory context
- * @name: name of the object to be encoded
- * @namlen: length of that name, in bytes
- * @offset: the offset of the previous entry
- * @ino: the fileid of this entry
- * @d_type: unused
+ * nfs2_readdirok_encode - stream the next READDIR entry
+ * @c: aggregate cursor for the entry list
+ * @out: OUT: entry the framing encodes when one is produced
  *
- * Return values:
- *   %0: Entry was successfully encoded.
- *   %-EINVAL: An encoding problem occurred, secondary status code in resp->common.err
+ * Back-patch the previous entry's placeholder cookie with this entry's
+ * resume offset, then, if the reply budget allows, project the next
+ * directory entry into @out for the generated per-entry encoder.
  *
- * On exit, the following fields are updated:
- *   - resp->xdr
- *   - resp->common.err
- *   - resp->cookie_offset
+ * Return: true when @out holds an entry to encode; false to end the
+ * list -- because the directory is exhausted, a host error struck, or
+ * the reply budget filled.  On budget exhaustion the previous entry's
+ * cookie already points at the rejected entry, the client's resume
+ * point.
  */
-int nfssvc_encode_entry(void *data, const char *name, int namlen,
-			loff_t offset, u64 ino, unsigned int d_type)
+bool nfs2_readdirok_encode(struct xdrgen_aggregate_cursor *c,
+			   struct entry *out)
 {
-	struct readdir_cd *ccd = data;
-	struct nfsd_readdirres *resp = container_of(ccd,
-						    struct nfsd_readdirres,
-						    common);
-	unsigned int starting_length = resp->dirlist.len;
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+	struct buffered_dirent *de;
+	int namlen;
+	u32 need;
 
-	/* The offset cookie for the previous entry */
-	nfssvc_encode_nfscookie(&resp->xdr, resp->cookie_offset, offset);
+	/*
+	 * The previous entry was just encoded; commit the stream and note
+	 * its cookie slot -- the entry's last XDR word -- so it can be
+	 * back-patched once this entry's resume offset is known.
+	 */
+	if (c->index) {
+		xdr_commit_encode(xdr);
+		resp->cookie_offset = xdr->buf->len - XDR_UNIT;
+	}
 
-	if (!svcxdr_encode_entry_common(resp, name, namlen, offset, ino))
-		goto out_toosmall;
+	de = nfsd_readdir_next(&resp->iter);
+	if (!de)
+		return false;
 
-	xdr_commit_encode(&resp->xdr);
-	resp->common.err = nfs_ok;
-	return 0;
+	/* The previous entry's cookie is this entry's resume offset. */
+	nfssvc_encode_nfscookie(xdr, resp->cookie_offset, (u32)de->offset);
 
-out_toosmall:
-	resp->cookie_offset = 0;
-	resp->common.err = nfserr_toosmall;
-	resp->dirlist.len = starting_length;
-	return -EINVAL;
+	namlen = min_t(int, de->namlen, NFS_MAXNAMLEN);
+
+	/* value-follows + fileid + name (length + data) + cookie */
+	need = XDR_UNIT * (4 + XDR_QUADLEN(namlen));
+	if (need > resp->space_left)
+		return false;
+	resp->space_left -= need;
+
+	out->fileid = (u32)de->ino;
+	out->name.len = namlen;
+	out->name.data = (unsigned char *)de->name;
+	memset(out->cookie, 0, sizeof(out->cookie));	/* back-patched later */
+
+	trace_nfsd_dirent(resp->iter.fhp, de->ino, de->name, namlen);
+	return true;
+}
+
+/**
+ * nfs2_readdirok_encode_end - finish the streamed entry list
+ * @c: aggregate cursor for the entry list
+ * @ok: false if the framing hit a wire error while encoding the list
+ *
+ * Back-patch the final entry's cookie with the directory's resume
+ * offset and report eof.  A list cut short by the reply budget or a
+ * host error reports eof false, so the client reads the rest with a
+ * follow-up request.
+ *
+ * Return: true.
+ */
+bool nfs2_readdirok_encode_end(struct xdrgen_aggregate_cursor *c, bool ok)
+{
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+
+	if (ok)
+		nfssvc_encode_nfscookie(xdr, resp->cookie_offset,
+					(u32)resp->iter.offset);
+	resp->xdrgen.u.readdirok.eof = resp->iter.eof;
+
+	/*
+	 * The xdr_stream primitives don't manage rq_next_page, and
+	 * svcrdma retains only the pages below it for Send completion.
+	 * The eof word that follows starts a new page when this one is
+	 * full.
+	 */
+	rqstp->rq_next_page = xdr->page_ptr + 1;
+	if (xdr->p == xdr->end)
+		rqstp->rq_next_page++;
+	return true;
+}
+
+/*
+ * A server never decodes a READDIR result; these satisfy the linkage
+ * of the generated (unused) decoder.
+ */
+bool nfs2_readdirok_decode_begin(struct xdrgen_aggregate_cursor *c)
+{
+	return false;
+}
+
+bool nfs2_readdirok_decode(struct xdrgen_aggregate_cursor *c,
+			   const struct entry *in)
+{
+	return false;
+}
+
+bool nfs2_readdirok_decode_end(struct xdrgen_aggregate_cursor *c, bool ok)
+{
+	return false;
 }
 
 /*
@@ -310,5 +375,13 @@ void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 {
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
+	fh_put(&resp->fh);
+}
+
+void nfssvc_release_readdirres(struct svc_rqst *rqstp)
+{
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+
+	nfsd_readdir_close(&resp->iter);
 	fh_put(&resp->fh);
 }

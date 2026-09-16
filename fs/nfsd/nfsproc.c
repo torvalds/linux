@@ -116,13 +116,6 @@ struct statfsres_wrapper {
 
 static_assert(offsetof(struct statfsres_wrapper, xdrgen) == 0);
 
-struct readdirargs_wrapper {
-	struct readdirargs	xdrgen;
-	struct svc_fh		fh;
-};
-
-static_assert(offsetof(struct readdirargs_wrapper, xdrgen) == 0);
-
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -1124,27 +1117,15 @@ static __be32 nfsd_proc_rmdir(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
-				    struct nfsd_readdirres *resp,
-				    u32 count)
-{
-	struct xdr_buf *buf = &resp->dirlist;
-	struct xdr_stream *xdr = &resp->xdr;
-
-	memset(buf, 0, sizeof(*buf));
-
-	/* Reserve room for the NULL ptr & eof flag (-2 words) */
-	buf->buflen = clamp(count, (u32)(XDR_UNIT * 2), (u32)PAGE_SIZE);
-	buf->buflen -= XDR_UNIT * 2;
-	buf->pages = rqstp->rq_next_page;
-	rqstp->rq_next_page++;
-
-	xdr_init_encode_pages(xdr, buf);
-}
-
 /**
  * nfsd_proc_readdir - READDIR: Read from directory
  * @rqstp: RPC transaction context
+ *
+ * The directory is opened here so the reply status reflects any open
+ * error before the generated encoder writes the status word.  The
+ * entry list is streamed from the reply wrapper's directory reader
+ * during encode; nfssvc_release_readdirres() closes the reader and
+ * releases the file handle.
  *
  * Return:
  *   %rpc_success:		RPC executed successfully
@@ -1154,24 +1135,19 @@ static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
  */
 static __be32 nfsd_proc_readdir(struct svc_rqst *rqstp)
 {
-	struct readdirargs_wrapper *argp = rqstp->rq_argp;
-	struct nfsd_readdirres *resp = rqstp->rq_resp;
-	loff_t offset = be32_to_cpup((__be32 *)argp->xdrgen.cookie);
-	struct svc_fh *fhp = &argp->fh;
+	struct readdirargs *argp = rqstp->rq_argp;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	loff_t offset = be32_to_cpup((__be32 *)argp->cookie);
+	struct svc_fh *fhp = &resp->fh;
+	__be32 status;
 
-	nfsd_fhandle_to_svc_fh(fhp, &argp->xdrgen.dir);
-	trace_nfsd_vfs_readdir(rqstp, fhp, argp->xdrgen.count, offset);
+	nfsd_fhandle_to_svc_fh(fhp, &argp->dir);
+	trace_nfsd_vfs_readdir(rqstp, fhp, argp->count, offset);
 
-	nfsd_init_dirlist_pages(rqstp, resp, argp->xdrgen.count);
+	resp->count = argp->count;
+	status = nfsd_readdir_open(rqstp, fhp, &offset, &resp->iter);
 
-	resp->common.err = nfs_ok;
-	resp->cookie_offset = 0;
-	resp->status = nfsd_readdir(rqstp, fhp, &offset,
-				    &resp->common, nfssvc_encode_entry);
-	nfssvc_encode_nfscookie(&resp->xdr, resp->cookie_offset, offset);
-
-	fh_put(fhp);
-	resp->status = nfsd_map_status(resp->status);
+	resp->xdrgen.status = nfsd_map_status(status);
 	return rpc_success;
 }
 
@@ -1401,10 +1377,11 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	[NFSPROC_READDIR] = {
 		.pc_func	= nfsd_proc_readdir,
 		.pc_decode	= nfs_svc_decode_readdirargs,
-		.pc_encode	= nfssvc_encode_readdirres,
-		.pc_argsize	= sizeof(struct readdirargs_wrapper),
+		.pc_encode	= nfs_svc_encode_readdirres,
+		.pc_release	= nfssvc_release_readdirres,
+		.pc_argsize	= sizeof(struct readdirargs),
 		.pc_argzero	= 0,
-		.pc_ressize	= sizeof(struct nfsd_readdirres),
+		.pc_ressize	= sizeof(struct readdirres_wrapper),
 		.pc_cachetype	= RC_NOCACHE,
 		.pc_name	= "READDIR",
 	},
@@ -1434,12 +1411,12 @@ union nfsd_xdrstore {
 	struct renameargs_wrapper	renameargs;
 	struct linkargs_wrapper		linkargs;
 	struct symlinkargs_wrapper	symlinkargs;
-	struct readdirargs_wrapper	readdirargs;
+	struct readdirargs	readdirargs;
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
 	struct readlinkres	readlinkres;
 	struct readres		readres;
-	struct nfsd_readdirres	readdirres;
+	struct readdirres_wrapper	readdirres;
 	struct statfsres_wrapper	statfsres;
 };
 

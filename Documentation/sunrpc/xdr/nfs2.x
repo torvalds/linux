@@ -198,6 +198,16 @@ struct readdirok {
 	bool		eof;
 };
 
+/*
+ * A spike encoding the entry list through the aggregate codec.  The
+ * list encodes as the value-follows form -- each entry prefixed by
+ * TRUE, the sequence closed by FALSE -- and the encode hooks stream it
+ * straight from the directory during reply encoding rather than from a
+ * materialized array.  The struct definitions above are the verbatim
+ * RFC 1094 types; only this pragma selects the hook-driven codec.
+ */
+pragma aggregate readdirok entries;
+
 union readdirres switch (nfsstat status) {
 	case NFS_OK:
 		readdirok	readdirok;

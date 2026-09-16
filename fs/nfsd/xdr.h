@@ -14,28 +14,37 @@ struct nfsd_attrstat {
 	struct kstat		stat;
 };
 
-struct nfsd_readdirres {
-	/* Components of the reply */
-	__be32			status;
+/*
+ * Declared here rather than in nfsproc.c with the other proc wrappers
+ * because READDIR's encode hooks in nfsxdr.c reference it. The xdrgen
+ * field must be first so the struct can be cast to its XDR type for the
+ * RPC dispatch layer.
+ *
+ * The file handle lives here rather than in an argument wrapper: the
+ * RPC layer zeroes the result before decode, so ->pc_release can run on
+ * a request that failed to decode.
+ */
+struct readdirres_wrapper {
+	struct readdirres	xdrgen;
+	struct svc_fh		fh;
 
-	int			count;
-
-	/* Used to encode the reply's entry list */
-	struct xdr_stream	xdr;
-	struct xdr_buf		dirlist;
-	struct readdir_cd	common;
-	unsigned int		cookie_offset;
+	/* Streaming state for encoding the reply's entry list */
+	struct nfsd_readdir_iter iter;		/* directory reader */
+	u32			count;		/* client's reply size hint */
+	u32			space_left;	/* remaining entry budget */
+	unsigned int		cookie_offset;	/* prev entry's cookie slot */
 };
+
+static_assert(offsetof(struct readdirres_wrapper, xdrgen) == 0);
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
 			     u32 cookie);
-int nfssvc_encode_entry(void *data, const char *name, int namlen,
-			loff_t offset, u64 ino, unsigned int d_type);
+
+void nfssvc_release_readdirres(struct svc_rqst *rqstp);
 
 void nfssvc_release_attrstat(struct svc_rqst *rqstp);
 
