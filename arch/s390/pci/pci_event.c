@@ -361,8 +361,10 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 
 	__zpci_event_print_error(pdev, ccdf);
 
-	if (!pdev)
+	if (!pdev) {
+		zpci_report_status(zdev, NULL, "error event", "no pdev bound");
 		goto no_pdev;
+	}
 
 	switch (ccdf->pec) {
 	case 0x002a: /* Error event concerns FMB */
