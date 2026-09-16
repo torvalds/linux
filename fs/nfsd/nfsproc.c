@@ -564,9 +564,19 @@ static __be32 nfsd_proc_read(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-/* Reserved */
-static __be32
-nfsd_proc_writecache(struct svc_rqst *rqstp)
+/**
+ * nfsd_proc_writecache - WRITECACHE: To-client write cache
+ * @rqstp: RPC transaction context
+ *
+ * Reserved.
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   void NFSPROC_WRITECACHE(void) = 7;
+ */
+static __be32 nfsd_proc_writecache(struct svc_rqst *rqstp)
 {
 	return rpc_success;
 }
@@ -1055,15 +1065,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "READ",
 	},
 	[NFSPROC_WRITECACHE] = {
-		.pc_func = nfsd_proc_writecache,
-		.pc_decode = nfssvc_decode_voidarg,
-		.pc_encode = nfssvc_encode_voidres,
-		.pc_argsize = sizeof(struct nfsd_voidargs),
-		.pc_argzero = sizeof(struct nfsd_voidargs),
-		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = 0,
-		.pc_name = "WRITECACHE",
+		.pc_func	= nfsd_proc_writecache,
+		.pc_decode	= xdrgen_svc_decode_void,
+		.pc_encode	= xdrgen_svc_encode_void,
+		.pc_argsize	= XDR_void,
+		.pc_argzero	= 0,
+		.pc_ressize	= 0,
+		.pc_cachetype	= RC_NOCACHE,
+		.pc_xdrressize	= XDR_void,
+		.pc_name	= "WRITECACHE",
 	},
 	[NFSPROC_WRITE] = {
 		.pc_func = nfsd_proc_write,
