@@ -89,7 +89,8 @@ static struct debug_view debug_log_view = {
 
 /**
  * zpci_report_status - Report the status of operations on a PCI device
- * @zdev:	The PCI device for which to report status
+ * @zdev:	The zPCI device for which to report status
+ * @pdev:	The PCI device associated with the zdev if any, NULL otherwise
  * @operation:	A string representing the operation reported
  * @status:	A string representing the status of the operation
  *
@@ -103,15 +104,15 @@ static struct debug_view debug_log_view = {
  *
  * Return: 0 on success an error code < 0 otherwise.
  */
-int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char *status)
+int zpci_report_status(struct zpci_dev *zdev, struct pci_dev *pdev,
+		       const char *operation, const char *status)
 {
 	struct zpci_report_error *report;
 	struct pci_driver *driver = NULL;
-	struct pci_dev *pdev = NULL;
 	char *buf, *end;
 	int ret;
 
-	if (!zdev || !zdev->zbus)
+	if (!zdev)
 		return -ENODEV;
 
 	/* Protected virtualization hosts get nothing from us */
@@ -121,8 +122,6 @@ int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char 
 	report = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!report)
 		return -ENOMEM;
-	if (zdev->zbus->bus)
-		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 	if (pdev)
 		driver = to_pci_driver(pdev->dev.driver);
 
