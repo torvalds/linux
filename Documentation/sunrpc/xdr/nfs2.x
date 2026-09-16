@@ -178,6 +178,7 @@ struct symlinkargs {
 	path		to;
 	sattr		attributes;
 };
+pragma pages symlinkargs to;
 
 struct readdirargs {
 	fhandle		dir;

@@ -101,6 +101,14 @@ struct linkargs_wrapper {
 
 static_assert(offsetof(struct linkargs_wrapper, xdrgen) == 0);
 
+struct symlinkargs_wrapper {
+	struct symlinkargs	xdrgen;
+	struct svc_fh		ffh;
+	struct iattr		iattrs;
+};
+
+static_assert(offsetof(struct symlinkargs_wrapper, xdrgen) == 0);
+
 static __be32 nfsd_map_status(__be32 status)
 {
 	switch (status) {
@@ -953,38 +961,72 @@ static __be32 nfsd_proc_link(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-static __be32
-nfsd_proc_symlink(struct svc_rqst *rqstp)
+static char *nfsd_symlink_target(const struct xdr_buf *to)
 {
-	struct nfsd_symlinkargs *argp = rqstp->rq_argp;
-	struct nfsd_stat *resp = rqstp->rq_resp;
-	struct nfsd_attrs attrs = {
-		.na_iattr	= &argp->attrs,
-	};
-	struct svc_fh	newfh;
+	char *result;
 
-	if (argp->tlen > NFS_MAXPATHLEN) {
-		resp->status = nfserr_nametoolong;
+	result = kmalloc(to->len + 1, GFP_KERNEL);
+	if (!result)
+		return ERR_PTR(-ESERVERFAULT);
+	/* The target can span the receive buffer's head, pages, and tail */
+	if (read_bytes_from_xdr_buf(to, 0, result, to->len)) {
+		kfree(result);
+		return ERR_PTR(-ESERVERFAULT);
+	}
+	result[to->len] = '\0';
+
+	/* The VFS rejects a pathname that contains a NUL byte */
+	if (strlen(result) != to->len) {
+		kfree(result);
+		return ERR_PTR(-EINVAL);
+	}
+	return result;
+}
+
+/**
+ * nfsd_proc_symlink - SYMLINK: Create a symbolic link
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   nfsstat NFSPROC_SYMLINK(symlinkargs) = 13;
+ */
+static __be32 nfsd_proc_symlink(struct svc_rqst *rqstp)
+{
+	struct symlinkargs_wrapper *argp = rqstp->rq_argp;
+	struct diropargs *from = &argp->xdrgen.from;
+	struct xdr_buf *to = &argp->xdrgen.to;
+	nfsstat *resp = rqstp->rq_resp;
+	struct svc_fh *fhp = &argp->ffh;
+	struct nfsd_attrs nattrs = {
+		.na_iattr	= &argp->iattrs,
+	};
+	struct svc_fh newfh;
+	char *tname;
+
+	nfsd_fhandle_to_svc_fh(fhp, &from->dir);
+	if (!nfsd_sattr_to_iattr(rqstp, &argp->iattrs, &argp->xdrgen.attributes)) {
+		*resp = nfserr_io;
 		goto out;
 	}
 
-	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
-						page_address(rqstp->rq_arg.pages[0]),
-						argp->tlen);
-	if (IS_ERR(argp->tname)) {
-		resp->status = nfserrno(PTR_ERR(argp->tname));
+	tname = nfsd_symlink_target(to);
+	if (IS_ERR(tname)) {
+		*resp = nfserrno(PTR_ERR(tname));
 		goto out;
 	}
 
 	fh_init(&newfh, NFS_FHSIZE);
-	resp->status = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
-				    argp->tname, &attrs, &newfh);
+	*resp = nfsd_symlink(rqstp, fhp, (char *)from->name.data, from->name.len,
+			     tname, &nattrs, &newfh);
+	kfree(tname);
+	*resp = nfsd_map_status(*resp);
 
-	kfree(argp->tname);
-	fh_put(&argp->ffh);
 	fh_put(&newfh);
 out:
-	resp->status = nfsd_map_status(resp->status);
+	fh_put(fhp);
 	return rpc_success;
 }
 
@@ -1250,15 +1292,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "LINK",
 	},
 	[NFSPROC_SYMLINK] = {
-		.pc_func = nfsd_proc_symlink,
-		.pc_decode = nfssvc_decode_symlinkargs,
-		.pc_encode = nfssvc_encode_statres,
-		.pc_argsize = sizeof(struct nfsd_symlinkargs),
-		.pc_argzero = sizeof(struct nfsd_symlinkargs),
-		.pc_ressize = sizeof(struct nfsd_stat),
-		.pc_cachetype = RC_REPLSTAT,
-		.pc_xdrressize = ST,
-		.pc_name = "SYMLINK",
+		.pc_func	= nfsd_proc_symlink,
+		.pc_decode	= nfs_svc_decode_symlinkargs,
+		.pc_encode	= nfs_svc_encode_nfsstat,
+		.pc_argsize	= sizeof(struct symlinkargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(nfsstat),
+		.pc_cachetype	= RC_REPLSTAT,
+		.pc_xdrressize	= NFS2_nfsstat_sz,
+		.pc_name	= "SYMLINK",
 	},
 	[NFSPROC_MKDIR] = {
 		.pc_func = nfsd_proc_mkdir,
@@ -1318,7 +1360,7 @@ union nfsd_xdrstore {
 	struct createargs_wrapper	createargs;
 	struct renameargs_wrapper	renameargs;
 	struct linkargs_wrapper		linkargs;
-	struct nfsd_symlinkargs	symlink;
+	struct symlinkargs_wrapper	symlinkargs;
 	struct nfsd_readdirargs	readdir;
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
