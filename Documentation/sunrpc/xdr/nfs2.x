@@ -10,6 +10,8 @@
  * or other IP ownership notice.
  */
 
+pragma header nfs2;
+
 const NFS_MAXDATA = 8192;
 const NFS_MAXPATHLEN = 1024;
 const NFS_MAXNAMLEN = 255;
