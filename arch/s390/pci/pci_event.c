@@ -226,6 +226,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev,
 	device_lock(&pdev->dev);
 	if (pdev->error_state == pci_channel_io_perm_failure) {
 		ers_res = PCI_ERS_RESULT_DISCONNECT;
+		status_str = "skipped (permanent failure)";
 		goto out_unlock;
 	}
 	pdev->error_state = pci_channel_io_frozen;
