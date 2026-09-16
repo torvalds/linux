@@ -1030,35 +1030,55 @@ out:
 	return rpc_success;
 }
 
-/*
- * Make directory. This operation is not idempotent.
- * N.B. After this call resp->fh needs an fh_put
+/**
+ * nfsd_proc_mkdir - MKDIR: Create a directory
+ * @rqstp: RPC transaction context
+ *
+ * Return:
+ *   %rpc_success:		RPC executed successfully
+ *
+ * RPC synopsis:
+ *   diropres NFSPROC_MKDIR(createargs) = 14;
  */
-static __be32
-nfsd_proc_mkdir(struct svc_rqst *rqstp)
+static __be32 nfsd_proc_mkdir(struct svc_rqst *rqstp)
 {
-	struct nfsd_createargs *argp = rqstp->rq_argp;
-	struct nfsd_diropres *resp = rqstp->rq_resp;
-	struct nfsd_attrs attrs = {
-		.na_iattr	= &argp->attrs,
+	struct createargs_wrapper *argp = rqstp->rq_argp;
+	struct diropargs *where = &argp->xdrgen.where;
+	struct diropres_wrapper *resp = rqstp->rq_resp;
+	struct kstat *statp = &resp->stat;
+	struct svc_fh *dirfhp = &argp->fh;
+	struct svc_fh *fhp = &resp->fh;
+	struct nfsd_attrs nattrs = {
+		.na_iattr	= &argp->iattrs,
 	};
 
-	if (resp->fh.fh_dentry) {
-		printk(KERN_WARNING
-			"nfsd_proc_mkdir: response already verified??\n");
+	nfsd_fhandle_to_svc_fh(dirfhp, &where->dir);
+	fh_init(fhp, NFS_FHSIZE);
+	if (!nfsd_sattr_to_iattr(rqstp, &argp->iattrs, &argp->xdrgen.attributes)) {
+		resp->xdrgen.status = nfserr_io;
+		goto out;
 	}
 
-	argp->attrs.ia_valid &= ~ATTR_SIZE;
-	fh_init(&resp->fh, NFS_FHSIZE);
-	resp->status = nfsd_create(rqstp, &argp->fh, argp->name, argp->len,
-				   &attrs, S_IFDIR, 0, &resp->fh);
-	fh_put(&argp->fh);
-	if (resp->status != nfs_ok)
+	argp->iattrs.ia_valid &= ~ATTR_SIZE;
+	resp->xdrgen.status = nfsd_create(rqstp, dirfhp,
+					  (char *)where->name.data,
+					  where->name.len, &nattrs,
+					  S_IFDIR, 0, fhp);
+	if (resp->xdrgen.status != nfs_ok)
 		goto out;
+	resp->xdrgen.status = fh_getattr(fhp, statp);
 
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	resp->status = nfsd_map_status(resp->status);
+	if (resp->xdrgen.status == nfs_ok) {
+		nfsd_svc_fh_to_fhandle(&resp->xdrgen.u.diropok.file, fhp);
+		nfsd_stat_to_fattr(rqstp, &resp->xdrgen.u.diropok.attributes,
+				   statp, fhp);
+	} else {
+		resp->xdrgen.status = nfsd_map_status(resp->xdrgen.status);
+	}
+
+	fh_put(fhp);
+	fh_put(dirfhp);
 	return rpc_success;
 }
 
@@ -1303,16 +1323,15 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_name	= "SYMLINK",
 	},
 	[NFSPROC_MKDIR] = {
-		.pc_func = nfsd_proc_mkdir,
-		.pc_decode = nfssvc_decode_createargs,
-		.pc_encode = nfssvc_encode_diropres,
-		.pc_release = nfssvc_release_diropres,
-		.pc_argsize = sizeof(struct nfsd_createargs),
-		.pc_argzero = sizeof(struct nfsd_createargs),
-		.pc_ressize = sizeof(struct nfsd_diropres),
-		.pc_cachetype = RC_REPLBUFF,
-		.pc_xdrressize = ST+FH+AT,
-		.pc_name = "MKDIR",
+		.pc_func	= nfsd_proc_mkdir,
+		.pc_decode	= nfs_svc_decode_createargs,
+		.pc_encode	= nfs_svc_encode_diropres,
+		.pc_argsize	= sizeof(struct createargs_wrapper),
+		.pc_argzero	= 0,
+		.pc_ressize	= sizeof(struct diropres_wrapper),
+		.pc_cachetype	= RC_REPLBUFF,
+		.pc_xdrressize	= NFS2_diropres_sz,
+		.pc_name	= "MKDIR",
 	},
 	[NFSPROC_RMDIR] = {
 		.pc_func = nfsd_proc_rmdir,
@@ -1361,7 +1380,6 @@ union nfsd_xdrstore {
 	struct renameargs_wrapper	renameargs;
 	struct linkargs_wrapper		linkargs;
 	struct symlinkargs_wrapper	symlinkargs;
-	struct nfsd_readdirargs	readdir;
 	struct attrstat_wrapper		attrstat;
 	struct diropres_wrapper		diropres;
 	struct readlinkres	readlinkres;

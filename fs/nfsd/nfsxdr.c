@@ -14,16 +14,6 @@
 #include "auth.h"
 
 /*
- * Sun convention: a sattr time-useconds field of one full second (an
- * otherwise out-of-range value) means "set this time to the current
- * server time." It's needed to make permissions checks for the "touch"
- * program across NFSv2 mounts work correctly. See description of
- * sattr in section 6.1 of "NFS Illustrated" by Brent Callaghan,
- * Addison-Wesley, ISBN 0-201-32750-5
- */
-#define NFS2_SATTR_SET_TO_SERVER_TIME	(1000000)
-
-/*
  * Linux-internal ftype values for socket and unknown inodes, not
  * in RFC 1094's wire enum; values match enum nfs_ftype.
  */
@@ -91,19 +81,6 @@ svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
 	return true;
 }
 
-static bool
-svcxdr_encode_fhandle(struct xdr_stream *xdr, const struct svc_fh *fhp)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, NFS_FHSIZE);
-	if (!p)
-		return false;
-	memcpy(p, &fhp->fh_handle.fh_raw, NFS_FHSIZE);
-
-	return true;
-}
-
 static __be32 *
 encode_timeval(__be32 *p, const struct timespec64 *time)
 {
@@ -145,81 +122,6 @@ svcxdr_decode_diropargs(struct xdr_stream *xdr, struct svc_fh *fhp,
 {
 	return svcxdr_decode_fhandle(xdr, fhp) &&
 		svcxdr_decode_filename(xdr, name, len);
-}
-
-static bool
-svcxdr_decode_sattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
-		    struct iattr *iap)
-{
-	u32 tmp1, tmp2;
-	__be32 *p;
-
-	p = xdr_inline_decode(xdr, XDR_UNIT * 8);
-	if (!p)
-		return false;
-
-	iap->ia_valid = 0;
-
-	/*
-	 * Some Sun clients put 0xffff in the mode field when they
-	 * mean 0xffffffff.
-	 */
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp1 != 0xffff) {
-		iap->ia_valid |= ATTR_MODE;
-		iap->ia_mode = tmp1;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_uid = make_kuid(nfsd_user_namespace(rqstp), tmp1);
-		if (uid_valid(iap->ia_uid))
-			iap->ia_valid |= ATTR_UID;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_gid = make_kgid(nfsd_user_namespace(rqstp), tmp1);
-		if (gid_valid(iap->ia_gid))
-			iap->ia_valid |= ATTR_GID;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_valid |= ATTR_SIZE;
-		iap->ia_size = tmp1;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	tmp2 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
-		/*
-		 * Range test here to prevent the multiplication from
-		 * wrapping to a valid (but incorrect) value on 32-bit
-		 * platforms.
-		 */
-		if (tmp2 > NFS2_SATTR_SET_TO_SERVER_TIME)
-			return false;
-		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
-		iap->ia_atime.tv_sec = tmp1;
-		iap->ia_atime.tv_nsec = tmp2 * NSEC_PER_USEC;
-		if (tmp2 == NFS2_SATTR_SET_TO_SERVER_TIME)
-			iap->ia_valid &= ~ATTR_ATIME_SET;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	tmp2 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
-		if (tmp2 > NFS2_SATTR_SET_TO_SERVER_TIME)
-			return false;
-		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
-		iap->ia_mtime.tv_sec = tmp1;
-		iap->ia_mtime.tv_nsec = tmp2 * NSEC_PER_USEC;
-		if (tmp2 == NFS2_SATTR_SET_TO_SERVER_TIME)
-			iap->ia_valid &= ~(ATTR_ATIME_SET|ATTR_MTIME_SET);
-	}
-
-	return true;
 }
 
 /**
@@ -312,16 +214,6 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_createargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_diropargs(xdr, &args->fh,
-				       &args->name, &args->len) &&
-		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
-}
-
-bool
 nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_readdirargs *args = rqstp->rq_argp;
@@ -357,25 +249,6 @@ nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		return false;
 	switch (resp->status) {
 	case nfs_ok:
-		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_diropres *resp = rqstp->rq_resp;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		if (!svcxdr_encode_fhandle(xdr, &resp->fh))
-			return false;
 		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
 			return false;
 		break;
@@ -525,13 +398,6 @@ out_toosmall:
 void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 {
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
-
-	fh_put(&resp->fh);
-}
-
-void nfssvc_release_diropres(struct svc_rqst *rqstp)
-{
-	struct nfsd_diropres *resp = rqstp->rq_resp;
 
 	fh_put(&resp->fh);
 }
