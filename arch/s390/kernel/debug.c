@@ -823,6 +823,9 @@ ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
 	file_private_info_t *p_info;
 	size_t size, offset = 0;
 
+	if (!id)
+		return -EINVAL;
+
 	/* Need space for '\0' byte */
 	if (buf_size < 1)
 		return 0;
