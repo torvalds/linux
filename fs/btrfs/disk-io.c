@@ -2357,6 +2357,10 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 				  key.type, cur);
 			return -EUCLEAN;
 		}
+
+		if (unlikely(cur + sizeof(*chunk) > sys_array_size))
+			goto short_read;
+
 		chunk = (struct btrfs_chunk *)(sb->sys_chunk_array + cur);
 		num_stripes = btrfs_stack_chunk_num_stripes(chunk);
 		if (unlikely(cur + btrfs_chunk_item_size(num_stripes) > sys_array_size))
