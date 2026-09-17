@@ -471,6 +471,8 @@ struct dw_pcie_rp {
 	bool			native_ecam;
 	bool                    skip_l23_ready;
 	bool			skip_pwrctrl_off;
+	/* Set if the RC loses power during suspend */
+	bool                    suspend_poweroff;
 };
 
 struct dw_pcie_ep_ops {
