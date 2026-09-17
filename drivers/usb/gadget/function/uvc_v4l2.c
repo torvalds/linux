@@ -368,6 +368,11 @@ static int uvc_v4l2_s_parm(struct file *file, void *fh,
 	video->interval = v4l2_fraction_to_interval(timeperframe.numerator,
 						    timeperframe.denominator);
 
+	if (!video->interval) {
+		uvcg_dbg(&uvc->func, "Invalid zero interval, rejecting\n");
+		return -EINVAL;
+	}
+
 	uvcg_dbg(&uvc->func, "Setting frame interval to %u/%u (%u)\n",
 		 timeperframe.numerator, timeperframe.denominator,
 		 video->interval);
