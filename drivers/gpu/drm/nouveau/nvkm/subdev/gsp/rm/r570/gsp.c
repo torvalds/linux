@@ -10,6 +10,7 @@
 #include "nvrm/gsp.h"
 #include "nvrm/rpcfn.h"
 #include "nvrm/msgfn.h"
+#include "nvif/cl0080.h"
 
 #include <core/pci.h>
 #include <subdev/pci/priv.h>
@@ -215,6 +216,32 @@ r570_gsp_set_rmargs(struct nvkm_gsp *gsp, bool resume)
 	args->bDmemStack = 1;
 }
 
+int
+r570_gsp_gcx_ready(struct nvkm_gsp *gsp)
+{
+	NV2080_CTRL_INTERNAL_GCX_ENTRY_PREREQUISITE_PARAMS *ctrl;
+	int ret = 0;
+
+	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+				   NV2080_CTRL_CMD_INTERNAL_GCX_ENTRY_PREREQUISITE,
+				   sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	if (ctrl->bIsGC6Satisfied)
+		ret |= NV_DEVICE_GC6_READY;
+	if (ctrl->bIsGCOFFSatisfied)
+		ret |= NV_DEVICE_GCOFF_READY;
+
+	nvkm_debug(&gsp->subdev,
+		   "GCX ready status: GC6=%s GCOFF=%s\n",
+		   str_yes_no(ctrl->bIsGC6Satisfied), str_yes_no(ctrl->bIsGCOFFSatisfied));
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+	return ret;
+}
+
+
 const struct nvkm_rm_api_gsp
 r570_gsp = {
 	.set_rmargs = r570_gsp_set_rmargs,
@@ -223,4 +250,5 @@ r570_gsp = {
 	.xlat_mc_engine_idx = r570_gsp_xlat_mc_engine_idx,
 	.drop_post_nocat_record = r570_gsp_drop_post_nocat_record,
 	.sr_data_size = r570_gsp_sr_data_size,
+	.gcx_ready = r570_gsp_gcx_ready,
 };

@@ -1148,10 +1148,23 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct nouveau_drm *drm = pci_get_drvdata(pdev);
+	struct nvif_device *nvif = &drm->client.device;
 	int ret;
 
 	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
+
+	// Check if the GPU itself is ready for runtime suspend, otherwise mark as busy and check
+	// again in a bit.
+	ret = nvif_device_gcx_ready(nvif);
+	if (ret < 0) {
+		NV_ERROR(drm, "Failed to query GCX readiness (returned %d)\n", ret);
+		return -EBUSY;
+	} else if (!(ret & NV_DEVICE_GCOFF_READY)) {
+		NV_DEBUG(drm, "GPU isn't ready for suspend yet, delaying...\n");
+		pm_runtime_mark_last_busy(dev);
 		return -EBUSY;
 	}
 
