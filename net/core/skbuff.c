@@ -6832,6 +6832,34 @@ failure:
 }
 EXPORT_SYMBOL(alloc_skb_with_frags);
 
+/* pskb_carve_inside_header() and pskb_carve_inside_nonlinear()
+ * remove the first bytes of a packet and reallocate skb->head.
+ *
+ * Whatever headers were present before the operation are gone,
+ * we must not leave stale offsets, otherwise users of this skb
+ * (skb_dump(), drop_monitor, taps, ...) would read or pull garbage.
+ */
+static void skb_carve_reset_headers(struct sk_buff *skb)
+{
+	skb_unset_mac_header(skb);
+	skb_unset_transport_header(skb);
+	skb_reset_network_header(skb);
+	skb->mac_len = 0;
+
+	/* Inner offsets have no "unset" marker, zero them so that
+	 * skb_inner_network_header_was_set() becomes false and no
+	 * consumer mistakes them for a real (and long gone) header.
+	 */
+	skb->inner_mac_header = 0;
+	skb->inner_network_header = 0;
+	skb->inner_transport_header = 0;
+	skb->inner_protocol = 0;
+	skb->encapsulation = 0;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_NONE;
+}
+
 /* carve out the first off bytes from skb when off < headlen */
 static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 				    const int headlen, gfp_t gfp_mask)
@@ -6887,7 +6915,7 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 	skb->head_frag = 0;
 	skb_set_end_offset(skb, size);
 	skb_set_tail_pointer(skb, skb_headlen(skb));
-	skb_headers_offset_update(skb, 0);
+	skb_carve_reset_headers(skb);
 	skb->cloned = 0;
 	skb->hdr_len = 0;
 	skb->nohdr = 0;
@@ -7027,7 +7055,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	skb->data = data;
 	skb_set_end_offset(skb, size);
 	skb_reset_tail_pointer(skb);
-	skb_headers_offset_update(skb, 0);
+	skb_carve_reset_headers(skb);
 	skb->cloned   = 0;
 	skb->hdr_len  = 0;
 	skb->nohdr    = 0;
