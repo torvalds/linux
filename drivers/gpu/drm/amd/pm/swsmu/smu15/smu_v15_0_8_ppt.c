@@ -25,6 +25,7 @@
 
 #include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_xgmi.h"
 #include "amdgpu_smu.h"
 #include "smu_v15_0_8_pmfw.h"
 #include "smu15_driver_if_v15_0_8.h"
@@ -138,6 +139,7 @@ static const struct cmn2asic_msg_mapping smu_v15_0_8_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetSoftMinFclk,                      PPSMC_MSG_SetSoftMinFclk,			0),
 	MSG_MAP(SetSoftMaxFclk,                      PPSMC_MSG_SetSoftMaxFclk,			0),
 	MSG_MAP(SetNpmLimit,                         PPSMC_MSG_SetNpmLimit,			0),
+	MSG_MAP(PrepareNodeForUnload,                PPSMC_MSG_PrepareNodeForUnload,		0),
 };
 
 /* TODO: Update the clk map once enum PPCLK is updated in smu15_driver_if_v15_0_8.h */
@@ -635,9 +637,22 @@ static void smu_v15_0_8_init_npm_cap(struct smu_context *smu)
 	smu_v15_0_8_cap_set(smu, SMU_15_0_8_CAP_NPM);
 }
 
+static void smu_v15_0_8_init_node_unload_cap(struct smu_context *smu)
+{
+	uint32_t fw_ver = smu->smc_fw_version;
+	uint32_t pgm = (fw_ver >> 24) & 0xFF;
+
+	if (smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NODE_UNLOAD))
+		return;
+
+	if (pgm == 2 && fw_ver >= SMU_15_0_8_NODE_UNLOAD_MIN_FW_VERSION)
+		smu_v15_0_8_cap_set(smu, SMU_15_0_8_CAP_NODE_UNLOAD);
+}
+
 static void smu_v15_0_8_init_caps(struct smu_context *smu)
 {
 	smu_v15_0_8_init_npm_cap(smu);
+	smu_v15_0_8_init_node_unload_cap(smu);
 }
 
 static u64 smu_v15_0_8_get_npm_cap(struct smu_context *smu)
@@ -1366,8 +1381,46 @@ static int smu_v15_0_8_register_irq_handler(struct smu_context *smu)
 	return ret;
 }
 
+static void smu_v15_0_8_notify_node_unload(struct smu_context *smu)
+{
+	if (!smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NODE_UNLOAD))
+		return;
+
+	smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PrepareNodeForUnload, 0, NULL);
+}
+
+static void smu_v15_0_8_mark_node_unload(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_hive_info *hive;
+	struct amdgpu_device *peer;
+	struct smu_context *peer_smu;
+	struct smu_15_0_dpm_context *dpm;
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive) {
+		dpm = smu->smu_dpm.dpm_context;
+		if (dpm)
+			dpm->node_unload = true;
+		return;
+	}
+
+	list_for_each_entry(peer, &hive->device_list, gmc.xgmi.head) {
+		peer_smu = peer->powerplay.pp_handle;
+		if (!peer_smu)
+			continue;
+		dpm = peer_smu->smu_dpm.dpm_context;
+		if (dpm)
+			dpm->node_unload = true;
+	}
+
+	amdgpu_put_xgmi_hive(hive);
+}
+
 static int smu_v15_0_8_notify_unload(struct smu_context *smu)
 {
+	struct smu_context *primary_smu;
+	struct smu_15_0_dpm_context *dpm = smu->smu_dpm.dpm_context;
 	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 	struct smu_msg_args args = {
 		.msg     = SMU_MSG_PrepareMp1ForUnload,
@@ -1376,6 +1429,13 @@ static int smu_v15_0_8_notify_unload(struct smu_context *smu)
 
 	if (amdgpu_in_reset(smu->adev))
 		return 0;
+
+	if (dpm && !dpm->node_unload) {
+		primary_smu = smu_get_primary_dev(smu);
+		if (primary_smu)
+			smu_v15_0_8_notify_node_unload(primary_smu);
+		smu_v15_0_8_mark_node_unload(smu);
+	}
 
 	dev_dbg(smu->adev->dev, "Notify PMFW about driver unload");
 	/* Ignore return, just intimate FW that driver is not going to be there */

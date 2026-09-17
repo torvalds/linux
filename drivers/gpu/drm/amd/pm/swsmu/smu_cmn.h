@@ -249,6 +249,8 @@ int smu_cmn_dpm_pcie_gen_idx(int gen);
 int smu_cmn_dpm_pcie_width_idx(int width);
 int smu_cmn_check_fw_version(struct smu_context *smu);
 
+struct smu_context *smu_get_primary_dev(struct smu_context *smu);
+
 int smu_cmn_get_pptable_from_firmware(struct smu_context *smu, void **table,
 				      uint32_t *size, uint32_t pptable_id);
 
