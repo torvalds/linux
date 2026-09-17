@@ -2211,8 +2211,10 @@ out:
 /**
  * DOC: cur_node_power_limit
  *
- * The amdgpu driver provides a sysfs API for retrieving current node power limit.
- * The file cur_node_power_limit is used for this.
+ * The amdgpu driver provides a sysfs API for reading and writing the current node
+ * power limit in watts. The file cur_node_power_limit is used for this. Writing a
+ * new limit sends SetNpmLimit to PMFW. The file is writable only when the ASIC
+ * reports the write capability bit for this attribute.
  */
 static ssize_t amdgpu_show_cur_node_power_limit(struct device *dev,
 						struct device_attribute *attr, char *buf)
@@ -2229,6 +2231,27 @@ static ssize_t amdgpu_show_cur_node_power_limit(struct device *dev,
 		return r;
 
 	return sysfs_emit(buf, "%u\n", nplimit);
+}
+
+static ssize_t amdgpu_store_cur_node_power_limit(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 limit;
+	int r;
+
+	r = amdgpu_pm_get_access_if_active(adev);
+	if (r)
+		return r;
+
+	r = kstrtou32(buf, 0, &limit);
+	if (!r)
+		r = amdgpu_dpm_set_npm_limit(adev, limit);
+
+	amdgpu_pm_put_access(adev);
+	return r ? r : count;
 }
 
 /**
@@ -2259,7 +2282,8 @@ static ssize_t amdgpu_show_node_power(struct device *dev,
  *
  * The amdgpu driver provides a sysfs API for retrieving current node power management status.
  * The file npm_status is used for this. It shows the status as enabled or disabled based on
- * current node power value. If node power is zero, status is disabled else enabled.
+ * current node power or npm status value. If node power or npm status is zero, status is
+ * disabled else enabled.
  */
 static ssize_t amdgpu_show_npm_status(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -2371,7 +2395,8 @@ static ssize_t amdgpu_show_baseboard_power_limit(struct device *dev,
 
 static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
 static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
-static DEVICE_ATTR(cur_node_power_limit, 0444, amdgpu_show_cur_node_power_limit, NULL);
+static DEVICE_ATTR(cur_node_power_limit, 0644, amdgpu_show_cur_node_power_limit,
+		   amdgpu_store_cur_node_power_limit);
 static DEVICE_ATTR(node_power, 0444, amdgpu_show_node_power, NULL);
 static DEVICE_ATTR(global_ppt_resid, 0444, amdgpu_show_global_ppt_resid, NULL);
 static DEVICE_ATTR(max_node_power_limit, 0444, amdgpu_show_max_node_power_limit, NULL);
