@@ -1368,7 +1368,8 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	type_c->type_c_cfg = devm_kzalloc(dev, sizeof(*type_c_cfg), GFP_KERNEL);
+	type_c->type_c_cfg = devm_kzalloc(dev, sizeof(*type_c->type_c_cfg),
+					  GFP_KERNEL);
 	if (!type_c->type_c_cfg)
 		return -ENOMEM;
 
