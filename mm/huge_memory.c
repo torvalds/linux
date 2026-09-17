@@ -2520,25 +2520,13 @@ static struct folio *normal_or_softleaf_folio_pmd(struct vm_area_struct *vma,
 	return pmd_to_softleaf_folio(pmdval);
 }
 
-static bool has_deposited_pgtable(struct vm_area_struct *vma, pmd_t pmdval,
-		struct folio *folio)
+static bool vma_has_deposited_pgtable(struct vm_area_struct *vma)
 {
-	/* Some architectures require unconditional depositing. */
-	if (arch_needs_pgtable_deposit())
-		return true;
-
 	/*
-	 * Huge zero always deposited except for DAX which handles itself, see
-	 * set_huge_zero_folio().
+	 * PMDs in anonymous VMAs always have a deposited page table. PMDs in
+	 * other VMAs only have one when required by the architecture.
 	 */
-	if (is_huge_zero_pmd(pmdval))
-		return !vma_is_dax(vma);
-
-	/*
-	 * Otherwise, only anonymous folios are deposited, see
-	 * __do_huge_pmd_anonymous_page().
-	 */
-	return folio && folio_test_anon(folio);
+	return arch_needs_pgtable_deposit() || vma_is_anonymous(vma);
 }
 
 /**
@@ -2578,7 +2566,7 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 	is_present = pmd_present(orig_pmd);
 	folio = normal_or_softleaf_folio_pmd(vma, addr, orig_pmd, is_present);
-	has_deposit = has_deposited_pgtable(vma, orig_pmd, folio);
+	has_deposit = vma_has_deposited_pgtable(vma);
 	if (folio)
 		zap_huge_pmd_folio(mm, vma, orig_pmd, folio, is_present);
 	if (has_deposit)
