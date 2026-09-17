@@ -555,7 +555,7 @@ static void dma_req_free(struct kref *ref)
 			refcount);
 	struct mport_cdev_priv *priv = req->priv;
 
-	dma_unmap_sg(req->dmach->device->dev,
+	dma_unmap_sg(dmaengine_get_dma_device(req->dmach),
 		     req->sgt.sgl, req->sgt.nents, req->dir);
 	sg_free_table(&req->sgt);
 	if (req->page_list) {
@@ -916,7 +916,7 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 				xfer->offset, xfer->length);
 	}
 
-	nents = dma_map_sg(chan->device->dev,
+	nents = dma_map_sg(dmaengine_get_dma_device(chan),
 			   req->sgt.sgl, req->sgt.nents, dir);
 	if (nents == 0) {
 		rmcd_error("Failed to map SG list");
