@@ -2068,12 +2068,12 @@ static int ext4_fc_replay_create(struct super_block *sb,
 		dir = ext4_iget(sb, darg.parent_ino, EXT4_IGET_NORMAL);
 		if (IS_ERR(dir)) {
 			ext4_debug("Dir %d not found.", darg.ino);
+			ret = PTR_ERR(dir);
 			goto out;
 		}
 		ret = ext4_init_new_dir(NULL, dir, inode);
 		iput(dir);
 		if (ret) {
-			ret = 0;
 			goto out;
 		}
 	}
@@ -2081,7 +2081,7 @@ static int ext4_fc_replay_create(struct super_block *sb,
 	if (ret)
 		goto out;
 	set_nlink(inode, 1);
-	ext4_mark_inode_dirty(NULL, inode);
+	ret = ext4_mark_inode_dirty(NULL, inode);
 out:
 	iput(inode);
 	return ret;
