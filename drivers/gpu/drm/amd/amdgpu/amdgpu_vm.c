@@ -2794,6 +2794,7 @@ int amdgpu_vm_make_npa(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		return r;
 
 	vm->is_npa = true;
+	vm->need_tlb_fence = false;
 
 	return 0;
 }
