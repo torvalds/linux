@@ -1132,7 +1132,7 @@ static int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
 	/* nr groups = dynamic + static + NULL terminator */
 	nr_groups = ctidev->nr_trig_con + CORESIGHT_CTI_STATIC_GROUPS_MAX;
 	ctidev->con_groups = devm_kcalloc(dev, nr_groups,
-					  sizeof(struct attribute_group *),
+					  sizeof(*ctidev->con_groups),
 					  GFP_KERNEL);
 	if (!ctidev->con_groups)
 		return -ENOMEM;
