@@ -6301,7 +6301,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 	guard(namespace_excl)();
 	emptied_ns = ns;
 	guard(mount_writer)();
-	umount_tree(ns->root, UMOUNT_CONNECTED);
+	umount_tree(ns->root, 0);
 }
 
 struct vfsmount *kern_mount(struct file_system_type *type)
