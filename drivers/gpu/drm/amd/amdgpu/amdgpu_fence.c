@@ -733,7 +733,9 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 	 * we are skipping it on purpose.
 	 */
 	if (!ring->ring_backup_entries_to_copy) {
-		amdgpu_fence_driver_force_completion(ring, &guilty_fence->base);
+		if (guilty_fence)
+			amdgpu_fence_driver_force_completion(ring,
+						     &guilty_fence->base);
 		return;
 	}
 	ring->reemit = true;
@@ -804,12 +806,11 @@ void amdgpu_ring_backup_unprocessed_commands(struct amdgpu_ring *ring,
 	seq = ring->fence_drv.sync_seq & ring->fence_drv.num_fences_mask;
 	ring->ring_backup_entries_to_copy = 0;
 
-	/* if we've already seen this fence, return early.
-	 * ring->ring_backup_entries_to_copy is set to 0 so
-	 * the reemit helper will return early as well to
-	 * avoid getting stuck in a reemit loop.
+	/*
+	 * Avoid replay loops for a repeated guilty fence. NULL identifies a
+	 * collateral ring, whose pending commands still need backup.
 	 */
-	if (ring->guilty_fence == guilty_fence) {
+	if (guilty_fence && ring->guilty_fence == guilty_fence) {
 		ring->guilty_fence = NULL;
 		return;
 	}
