@@ -1291,8 +1291,8 @@ again:
 	 * copy_pmd_range()'s prior pmd_none_or_clear_bad(src_pmd), and the
 	 * error handling here, assume that exclusive mmap_lock on dst and src
 	 * protects anon from unexpected THP transitions; with shmem and file
-	 * protected by mmap_lock-less collapse skipping areas with anon_vma
-	 * (whereas vma_needs_copy() skips areas without anon_vma).  A rework
+	 * protected by mmap_lock-less collapse skipping areas with an anon rmap
+	 * (whereas vma_needs_copy() skips areas without one).  A rework
 	 * can remove such assumptions later, but this is good enough for now.
 	 */
 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
@@ -1533,8 +1533,8 @@ vma_needs_copy(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	if (dst_vma->vm_flags & VM_COPY_ON_FORK)
 		return true;
 	/*
-	 * The presence of an anon_vma indicates an anonymous VMA has page
-	 * tables which naturally cannot be reconstituted on page fault.
+	 * The presence of an anon rmap indicates the VMA may map anonymous
+	 * folios which naturally cannot be reconstituted on page fault.
 	 */
 	if (vma_has_anon_rmap(src_vma))
 		return true;
@@ -4001,10 +4001,10 @@ static inline vm_fault_t vmf_can_call_fault(const struct vm_fault *vmf)
  *
  * When preparing to insert an anonymous page into a VMA from a
  * fault handler, call this function rather than anon_vma_prepare().
- * If this vma does not already have an associated anon_vma and we are
+ * If this vma does not already have an anon rmap and we are
  * only protected by the per-VMA lock, the caller must retry with the
  * mmap_lock held.  __anon_vma_prepare() will look at adjacent VMAs to
- * determine if this VMA can share its anon_vma, and that's not safe to
+ * determine if this VMA can share its anon rmap, and that's not safe to
  * do with only the per-VMA lock held for this VMA.
  *
  * Return: 0 if fault handling can proceed.  Any other value should be

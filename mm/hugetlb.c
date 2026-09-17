@@ -5692,7 +5692,7 @@ retry_avoidcopy:
 
 	/*
 	 * When the original hugepage is shared one, it does not have
-	 * anon_vma prepared.
+	 * an anon rmap prepared.
 	 */
 	ret = __vmf_anon_prepare(vmf);
 	if (unlikely(ret))

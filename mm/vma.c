@@ -97,7 +97,7 @@ static bool vma_is_fork_child(struct vm_area_struct *vma)
 {
 	/*
 	 * The list_is_singular() test is to avoid merging VMA cloned from
-	 * parents. This can improve scalability caused by the anon_vma root
+	 * parents. This can improve scalability caused by the anon rmap root
 	 * lock.
 	 */
 	return vma && vma_has_anon_rmap(vma) &&
@@ -135,7 +135,7 @@ static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 
 	/*
 	 * We _can_ have !src, vmg->anon_vma via copy_vma(). In this instance we
-	 * will remove the existing VMA's anon_vma's so there's no scalability
+	 * will remove the existing VMA's anon rmap so there's no scalability
 	 * concerns.
 	 */
 	VM_WARN_ON(src && src_anon != src->anon_vma);
@@ -151,10 +151,10 @@ static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 
 		return true;
 	}
-	/* Case 2 - we will simply use tgt's anon_vma. */
+	/* Case 2 - we will simply use tgt's anon rmap. */
 	if (vma_has_anon_rmap(tgt) && !src_anon)
 		return !vma_is_fork_child(tgt);
-	/* Case 3 - the anon_vma's are already shared. */
+	/* Case 3 - src and tgt already share an anon rmap. */
 	return src_anon == tgt_anon;
 }
 
@@ -228,8 +228,8 @@ static bool needs_adjacent_anon_pgoff(const struct vma_merge_struct *vmg)
  * Return true if we can merge this (vma_flags,anon_vma,file,vm_pgoff)
  * in front of (at a lower virtual address and file offset than) the vma.
  *
- * We cannot merge two vmas if they have differently assigned (non-NULL)
- * anon_vmas, nor if same anon_vma is assigned but offsets incompatible.
+ * We cannot merge two vmas if they have differently assigned anon rmaps,
+ * nor if the same anon rmap is assigned but offsets incompatible.
  *
  * We don't check here for the merged mmap wrapping around the end of pagecache
  * indices (16TB on ia32) because do_mmap() does not permit mmap's which
@@ -255,8 +255,8 @@ static bool can_vma_merge_before(struct vma_merge_struct *vmg)
  * Return true if we can merge this (vma_flags,anon_vma,file,vm_pgoff)
  * beyond (at a higher virtual address and file offset than) the vma.
  *
- * We cannot merge two vmas if they have differently assigned (non-NULL)
- * anon_vmas, nor if same anon_vma is assigned but offsets incompatible.
+ * We cannot merge two vmas if they have differently assigned anon rmaps,
+ * nor if the same anon rmap is assigned but offsets incompatible.
  *
  * We assume that vma is not removed as part of the merge.
  */
@@ -300,18 +300,18 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
 }
 
 /*
- * vma has some anon_vma assigned, and is already inserted on that
- * anon_vma's interval trees.
+ * vma has an anon rmap assigned, and is already inserted on its interval
+ * trees.
  *
  * Before updating the vma's vm_start / vm_end / vm_pgoff fields, the
- * vma must be removed from the anon_vma's interval trees using
+ * vma must be removed from the anon rmap's interval trees using
  * anon_rmap_tree_pre_update_vma().
  *
  * After the update, the vma will be reinserted using
  * anon_rmap_tree_post_update_vma().
  *
  * The entire update must be protected by exclusive mmap_lock and by
- * the root anon_vma's mutex.
+ * the anon rmap root lock.
  */
 static void
 anon_rmap_tree_pre_update_vma(struct vm_area_struct *vma)
@@ -479,7 +479,7 @@ static bool can_vma_merge_left(struct vma_merge_struct *vmg)
  * account the end position of the proposed range.
  *
  * In addition, if we can merge with the left VMA, ensure that left and right
- * anon_vma's are also compatible.
+ * anon rmaps are also compatible.
  */
 static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 				bool can_merge_left)
@@ -495,7 +495,7 @@ static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 
 	/*
 	 * If we can merge with prev (left) and next (right), indicating that
-	 * each VMA's anon_vma is compatible with the proposed anon_vma, this
+	 * each VMA's anon rmap is compatible with the proposed anon rmap, this
 	 * does not mean prev and next are compatible with EACH OTHER.
 	 *
 	 * We therefore check this in addition to mergeability to either side.
@@ -645,8 +645,8 @@ int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 }
 
 /*
- * dup_anon_vma() - Helper function to duplicate anon_vma on VMA merge in the
- * instance that the destination VMA has no anon_vma but the source does.
+ * dup_anon_vma() - Helper function to duplicate the anon rmap on VMA merge in
+ * the instance that the destination VMA has no anon rmap but the source does.
  *
  * @dst: The destination VMA
  * @src: The source VMA
@@ -659,17 +659,17 @@ static int dup_anon_vma(struct vm_area_struct *dst,
 {
 	/*
 	 * There are three cases to consider for correctly propagating
-	 * anon_vma's on merge.
+	 * anon rmaps on merge.
 	 *
-	 * The first is trivial - neither VMA has anon_vma, we need not do
+	 * The first is trivial - neither VMA has an anon rmap, we need not do
 	 * anything.
 	 *
-	 * The second where both have anon_vma is also a no-op, as they must
+	 * The second where both have an anon rmap is also a no-op, as they must
 	 * then be the same, so there is simply nothing to copy.
 	 *
-	 * Here we cover the third - if the destination VMA has no anon_vma,
+	 * Here we cover the third - if the destination VMA has no anon rmap,
 	 * that is it is unfaulted, we need to ensure that the newly merged
-	 * range is referenced by the anon_vma's of the source.
+	 * range is referenced by the anon rmap of the source.
 	 */
 	if (vma_has_anon_rmap(src) && !vma_has_anon_rmap(dst)) {
 		int ret;
@@ -1017,9 +1017,9 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 		vmg->anon_pgoff = vma_start_anon_pgoff(prev);
 
 		/*
-		 * We already ensured anon_vma compatibility above, so now it's
-		 * simply a case of, if prev has no anon_vma object, which of
-		 * next or middle contains the anon_vma we must duplicate.
+		 * We already ensured anon rmap compatibility above, so now it's
+		 * simply a case of, if prev has no anon rmap, which of next or
+		 * middle contains the anon rmap we must duplicate.
 		 */
 		err = dup_anon_vma(prev, vma_has_anon_rmap(next) ? next : middle,
 				   &anon_dup);
@@ -1085,7 +1085,7 @@ abort:
 		unlink_anon_vmas(anon_dup);
 
 	/*
-	 * This means we have failed to clone anon_vma's correctly, but no
+	 * This means we have failed to clone the anon rmap correctly, but no
 	 * actual changes to VMAs have occurred, so no harm no foul - if the
 	 * user doesn't want this reported and instead just wants to give up on
 	 * the merge, allow it.
@@ -1282,7 +1282,7 @@ int vma_expand(struct vma_merge_struct *vmg)
 
 	/*
 	 * If we are removing the next VMA or copying from a VMA
-	 * (e.g. mremap()'ing), we must propagate anon_vma state.
+	 * (e.g. mremap()'ing), we must propagate anon rmap state.
 	 *
 	 * Note that, by convention, callers ignore OOM for this case, so
 	 * we don't need to account for vmg->give_up_on_mm here.
@@ -2059,16 +2059,16 @@ out:
 
 /*
  * Rough compatibility check to quickly see if it's even worth looking
- * at sharing an anon_vma.
+ * at sharing an anon rmap.
  *
  * They need to have the same vm_file, and the flags can only differ
  * in things that mprotect may change.
  *
- * NOTE! The fact that we share an anon_vma doesn't _have_ to mean that
+ * NOTE! The fact that we share an anon rmap doesn't _have_ to mean that
  * we can merge the two vma's. For example, we refuse to merge a vma if
  * there is a vm_ops->close() function, because that indicates that the
  * driver is doing some kind of reference counting. But that doesn't
- * really matter for the anon_vma sharing case.
+ * really matter for the anon rmap sharing case.
  */
 static int anon_vma_compatible(struct vm_area_struct *a, struct vm_area_struct *b)
 {
@@ -2101,13 +2101,13 @@ static int anon_vma_compatible(struct vm_area_struct *a, struct vm_area_struct *
 }
 
 /*
- * Do some basic sanity checking to see if we can re-use the anon_vma
+ * Do some basic sanity checking to see if we can re-use the anon rmap
  * from 'old'. The 'a'/'b' vma's are in VM order - one of them will be
  * the same as 'old', the other will be the new one that is trying
- * to share the anon_vma.
+ * to share the anon rmap.
  *
  * NOTE! This runs with mmap_lock held for reading, so it is possible that
- * the anon_vma of 'old' is concurrently in the process of being set up
+ * the anon rmap of 'old' is concurrently in the process of being set up
  * by another page fault trying to merge _that_. But that's ok: if it
  * is being set up, that automatically means that it will be a singleton
  * acceptable for merging, so we can do all of this optimistically. But
@@ -2121,8 +2121,8 @@ static int anon_vma_compatible(struct vm_area_struct *a, struct vm_area_struct *
  * accessing an uninitialised anon_vma's fields may result in a UAF.
  *
  * IOW: that the "list_is_singular()" test on the anon_vma_chain only
- * matters for the 'stable anon_vma' case (ie the thing we want to avoid
- * is to return an anon_vma that is "complex" due to having gone through
+ * matters for the 'stable anon rmap' case (ie the thing we want to avoid
+ * is to return an anon rmap that is "complex" due to having gone through
  * a fork).
  *
  * We also make sure that the two vma's are compatible (adjacent,
@@ -2145,10 +2145,10 @@ static struct anon_vma *reusable_anon_vma(struct vm_area_struct *old,
 
 /*
  * find_mergeable_anon_vma is used by anon_vma_prepare, to check
- * neighbouring vmas for a suitable anon_vma, before it goes off
- * to allocate a new anon_vma.  It checks because a repetitive
+ * neighbouring vmas for a suitable anon rmap, before it goes off
+ * to allocate a new anon rmap.  It checks because a repetitive
  * sequence of mprotects and faults may otherwise lead to distinct
- * anon_vmas being allocated, preventing vma merge in subsequent
+ * anon rmaps being allocated, preventing vma merge in subsequent
  * mprotect.
  */
 struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *vma)
@@ -2174,13 +2174,13 @@ struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *vma)
 
 	/*
 	 * We might reach here with anon_vma == NULL if we can't find
-	 * any reusable anon_vma.
+	 * any reusable anon rmap.
 	 * There's no absolute need to look only at touching neighbours:
-	 * we could search further afield for "compatible" anon_vmas.
+	 * we could search further afield for "compatible" anon rmaps.
 	 * But it would probably just be a waste of time searching,
-	 * or lead to too many vmas hanging off the same anon_vma.
+	 * or lead to too many vmas hanging off the same anon rmap.
 	 * We're trying to allow mprotect remerging later on,
-	 * not trying to minimize memory used for anon_vmas.
+	 * not trying to minimize memory used for anon rmaps.
 	 */
 	return anon_vma;
 }
@@ -2276,7 +2276,7 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
 		/*
 		 * We can safely modify head.next after taking the
 		 * anon_vma->root->rwsem. If some other vma in this mm shares
-		 * the same anon_vma we won't take it again.
+		 * the same anon rmap we won't take it again.
 		 *
 		 * No need of atomic instructions here, head.next
 		 * can't change from under us thanks to the
@@ -2318,14 +2318,14 @@ static void vm_lock_mapping(struct mm_struct *mm, struct address_space *mapping)
  * mmap_lock in write mode is required in order to block all operations
  * that could modify pagetables and free pages without need of
  * altering the vma layout. It's also needed in write mode to avoid new
- * anon_vmas to be associated with existing vmas.
+ * anon rmaps being associated with existing vmas.
  *
  * A single task can't take more than one mm_take_all_locks() in a row
  * or it would deadlock.
  *
  * The LSB in anon_vma->rb_root.rb_node and the AS_MM_ALL_LOCKS bitflag in
  * mapping->flags avoid to take the same lock twice, if more than one
- * vma in this mm is backed by the same anon_vma or address_space.
+ * vma in this mm is backed by the same anon rmap or address_space.
  *
  * We take locks in following order, accordingly to comment at beginning
  * of mm/rmap.c:
@@ -3432,7 +3432,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 	if (next && vma_is_accessible(next)) {
 		if (!vma_test(next, VMA_GROWSUP_BIT))
 			return -ENOMEM;
-		/* Check that both stack segments have the same anon_vma? */
+		/* Check that both stack segments have the same anon rmap? */
 	}
 
 	if (next)
@@ -3442,7 +3442,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 	if (vma_iter_prealloc(&vmi, vma))
 		return -ENOMEM;
 
-	/* We must make sure the anon_vma is allocated. */
+	/* We must make sure the anon rmap is allocated. */
 	if (unlikely(anon_vma_prepare(vma))) {
 		vma_iter_free(&vmi);
 		return -ENOMEM;
@@ -3505,7 +3505,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 
 	/* Enforce stack_guard_gap */
 	prev = vma_prev(&vmi);
-	/* Check that both stack segments have the same anon_vma? */
+	/* Check that both stack segments have the same anon rmap? */
 	if (prev) {
 		if (!vma_test(prev, VMA_GROWSDOWN_BIT) &&
 		    vma_is_accessible(prev) &&
@@ -3520,7 +3520,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 	if (vma_iter_prealloc(&vmi, vma))
 		return -ENOMEM;
 
-	/* We must make sure the anon_vma is allocated. */
+	/* We must make sure the anon rmap is allocated. */
 	if (unlikely(anon_vma_prepare(vma))) {
 		vma_iter_free(&vmi);
 		return -ENOMEM;
@@ -3600,7 +3600,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 
 	/*
 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
-	 * until its first write fault, when page's anon_vma and index
+	 * until its first write fault, when page's anon rmap and index
 	 * are set.  But now set the vm_pgoff it will almost certainly
 	 * end up with (unless mremap moves it elsewhere before that
 	 * first wfault), so /proc/pid/maps tells a consistent story.

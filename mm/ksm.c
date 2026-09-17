@@ -796,7 +796,7 @@ static void break_cow(struct ksm_rmap_item *rmap_item)
 
 	/*
 	 * It is not an accident that whenever we want to break COW
-	 * to undo, we also need to drop a reference to the anon_vma.
+	 * to undo, we also need to drop a reference to the anon rmap.
 	 */
 	put_anon_vma(rmap_item->anon_vma);
 	/*
@@ -1416,7 +1416,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		goto out;
 	/*
 	 * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
-	 * without holding anon_vma lock for write.  So when looking for a
+	 * without holding the anon rmap lock for write.  So when looking for a
 	 * genuine pmde (in which to find pte), test present and !THP together.
 	 */
 	pmde = pmdp_get_lockless(pmd);
@@ -1620,7 +1620,7 @@ static int try_to_merge_with_ksm_page(struct ksm_rmap_item *rmap_item,
 
 	/*
 	 * We can consider the VMA only while still holding the mmap lock,
-	 * so lock, so reference the anon_vma and calculate the linear
+	 * so reference the anon rmap and calculate the linear
 	 * page index early, before stable_tree_append(). If anything goes
 	 * wrong that prevents the rmap_item from being added to the
 	 * stable_tree, break_cow() will clean it up.

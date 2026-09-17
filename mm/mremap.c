@@ -214,7 +214,7 @@ static int move_ptes(struct pagetable_move_control *pmc,
 	int err = 0;
 
 	/*
-	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
+	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon rmap
 	 * locks to ensure that rmap will always observe either the old or the
 	 * new ptes. This is the easiest way to avoid races with
 	 * truncate_pagecache(), page migration, etc...
@@ -1373,8 +1373,8 @@ static void dontunmap_complete(struct vma_remap_struct *vrm,
 	vma_clear_flags_mask(vma, VMA_LOCKED_MASK);
 
 	/*
-	 * anon_vma links of the old vma is no longer needed after its page
-	 * table has been moved.
+	 * The anon rmap links of the old vma are no longer needed after its
+	 * page table has been moved.
 	 */
 	if (start == old_start && end == old_end) {
 		const pgoff_t pgoff_unfaulted = vma->vm_start >> PAGE_SHIFT;

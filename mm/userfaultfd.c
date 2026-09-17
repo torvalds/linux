@@ -130,7 +130,7 @@ struct vm_area_struct *find_vma_and_prepare_anon(struct mm_struct *mm,
  * Should be called without holding mmap_lock.
  *
  * Return: A locked vma containing @address, -ENOENT if no vma is found,
- * -ENOMEM if anon_vma couldn't be allocated, or -EAGAIN if vma refcount
+ * -ENOMEM if the anon rmap couldn't be allocated, or -EAGAIN if vma refcount
  * overflow happened due to high number of readers and the caller should
  * retry later.
  */
@@ -142,8 +142,8 @@ static struct vm_area_struct *uffd_lock_vma(struct mm_struct *mm,
 	vma = lock_vma_under_rcu(mm, address);
 	if (vma) {
 		/*
-		 * We know we're going to need to use anon_vma, so check
-		 * that early.
+		 * We know we're going to need an anon rmap, so check that
+		 * early.
 		 */
 		if (!(vma->vm_flags & VM_SHARED) && unlikely(!vma_has_anon_rmap(vma)))
 			vma_end_read(vma);
@@ -1680,7 +1680,7 @@ retry:
 		/*
 		 * Verify the existence of the swapcache. If present, the folio's
 		 * index and mapping must be updated even when the PTE is a swap
-		 * entry. The anon_vma lock is not taken during this process since
+		 * entry. The anon rmap lock is not taken during this process since
 		 * the folio has already been unmapped, and the swap entry is
 		 * exclusive, preventing rmap walks.
 		 *
@@ -1915,7 +1915,7 @@ static void uffd_move_unlock(struct vm_area_struct *dst_vma,
  *
  * move_pages() remaps arbitrary anonymous pages atomically in zero
  * copy. It only works on non shared anonymous pages because those can
- * be relocated without generating non linear anon_vmas in the rmap
+ * be relocated without generating non linear anon rmaps in the rmap
  * code.
  *
  * It provides a zero copy mechanism to handle userspace page faults.

@@ -796,8 +796,8 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	/*
 	 * If we make a private mapping writable we increase our commit;
 	 * but (without finer accounting) cannot reduce our commit if we
-	 * make it unwritable again except in the anonymous case where no
-	 * anon_vma has yet to be assigned.
+	 * make it unwritable again except in the anonymous case where the
+	 * VMA's anon rmap has yet to be assigned.
 	 *
 	 * hugetlb mapping were accounted for even if read-only so there is
 	 * no need to account for them here.
