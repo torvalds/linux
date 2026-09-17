@@ -302,6 +302,10 @@ static inline void vma_assert_write_locked(struct vm_area_struct *vma)
 {
 }
 
+static inline void vma_assert_stabilised(const struct vm_area_struct *vma)
+{
+}
+
 static inline void ksm_add_vma(struct vm_area_struct *vma)
 {
 }

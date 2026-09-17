@@ -255,6 +255,33 @@ static inline pgoff_t vmg_end_pgoff(const struct vma_merge_struct *vmg)
 	return vmg_start_pgoff(vmg) + vmg_pages(vmg);
 }
 
+/**
+ * vma_has_anon_rmap() - does @vma possess an anonymous reverse mapping?
+ * @vma: The VMA to be checked.
+ *
+ * If the VMA is attached, a VMA or mmap lock must be held.
+ *
+ * This state is only possible for CoW mappings, see the comment for
+ * vma_flags_is_cow_mapping() for details.
+ *
+ * Importantly, a VMA which possesses an anonymous rmap may map anonymous
+ * folios.
+ *
+ * This function will not result in a false positive.
+ *
+ * However, if only a read lock is held, it may give a false negative, in which
+ * case it should be re-checked with mm->page_table_lock held.
+ *
+ * Returns: true if @vma has an anonymous reverse mapping, otherwise false.
+ */
+static inline bool vma_has_anon_rmap(const struct vm_area_struct *vma)
+{
+	if (vma_is_attached(vma))
+		vma_assert_stabilised(vma);
+	/* KCSAN gets confused about the optimistic check. Silence it. */
+	return data_race(vma->anon_vma);
+}
+
 static inline void assert_sane_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
 {
 	/* nommu doesn't set a virtual pgoff for anon VMAs. */
@@ -268,7 +295,7 @@ static inline void assert_sane_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
 	if (!vma_is_anonymous(vma))
 		return;
 	/* If faulted in, could have been remapped. */
-	if (vma->anon_vma)
+	if (vma_has_anon_rmap(vma))
 		return;
 	/* OK this is really an anon VMA - expect virtual page offset. */
 	VM_WARN_ON_ONCE(pgoff != vma->vm_start >> PAGE_SHIFT);

@@ -816,7 +816,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 			vma_flags_set(&new_vma_flags, VMA_ACCOUNT_BIT);
 		}
 	} else if (vma_flags_test(&old_vma_flags, VMA_ACCOUNT_BIT) &&
-		   vma_is_anonymous(vma) && !vma->anon_vma) {
+		   vma_is_anonymous(vma) && !vma_has_anon_rmap(vma)) {
 		vma_flags_clear(&new_vma_flags, VMA_ACCOUNT_BIT);
 	}
 

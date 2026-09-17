@@ -1536,7 +1536,7 @@ vma_needs_copy(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	 * The presence of an anon_vma indicates an anonymous VMA has page
 	 * tables which naturally cannot be reconstituted on page fault.
 	 */
-	if (src_vma->anon_vma)
+	if (vma_has_anon_rmap(src_vma))
 		return true;
 
 	/*
@@ -4015,7 +4015,7 @@ vm_fault_t __vmf_anon_prepare(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	vm_fault_t ret = 0;
 
-	if (likely(vma->anon_vma))
+	if (likely(vma_has_anon_rmap(vma)))
 		return 0;
 	if (vmf->flags & FAULT_FLAG_VMA_LOCK) {
 		if (!mmap_read_trylock(vma->vm_mm))

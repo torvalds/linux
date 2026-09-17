@@ -100,7 +100,8 @@ static bool vma_is_fork_child(struct vm_area_struct *vma)
 	 * parents. This can improve scalability caused by the anon_vma root
 	 * lock.
 	 */
-	return vma && vma->anon_vma && !list_is_singular(&vma->anon_vma_chain);
+	return vma && vma_has_anon_rmap(vma) &&
+		!list_is_singular(&vma->anon_vma_chain);
 }
 
 static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_next)
@@ -140,7 +141,7 @@ static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 	VM_WARN_ON(src && src_anon != src->anon_vma);
 
 	/* Case 1 - we will dup_anon_vma() from src into tgt. */
-	if (!tgt_anon && src_anon) {
+	if (!vma_has_anon_rmap(tgt) && src_anon) {
 		struct vm_area_struct *copied_from = vmg->copied_from;
 
 		if (vma_is_fork_child(src))
@@ -151,7 +152,7 @@ static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 		return true;
 	}
 	/* Case 2 - we will simply use tgt's anon_vma. */
-	if (tgt_anon && !src_anon)
+	if (vma_has_anon_rmap(tgt) && !src_anon)
 		return !vma_is_fork_child(tgt);
 	/* Case 3 - the anon_vma's are already shared. */
 	return src_anon == tgt_anon;
@@ -190,10 +191,10 @@ static void init_multi_vma_prep(struct vma_prepare *vp,
 		adjust = NULL;
 
 	vp->adj_next = adjust;
-	if (!vp->anon_vma && adjust)
+	if (!vma_has_anon_rmap(vma) && adjust)
 		vp->anon_vma = adjust->anon_vma;
 
-	VM_WARN_ON(vp->anon_vma && adjust && adjust->anon_vma &&
+	VM_WARN_ON(vma_has_anon_rmap(vma) && adjust && vma_has_anon_rmap(adjust) &&
 		   vp->anon_vma != adjust->anon_vma);
 
 	vp->file = vma->vm_file;
@@ -430,7 +431,7 @@ again:
 				      vp->remove->vm_end);
 			fput(vp->file);
 		}
-		if (vp->remove->anon_vma)
+		if (vma_has_anon_rmap(vp->remove))
 			unlink_anon_vmas(vp->remove);
 		mm->map_count--;
 		mpol_put(vma_policy(vp->remove));
@@ -500,7 +501,7 @@ static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 	 * We therefore check this in addition to mergeability to either side.
 	 */
 	prev = vmg->prev;
-	return !prev->anon_vma || !next->anon_vma ||
+	return !vma_has_anon_rmap(prev) || !vma_has_anon_rmap(next) ||
 		prev->anon_vma == next->anon_vma;
 }
 
@@ -670,7 +671,7 @@ static int dup_anon_vma(struct vm_area_struct *dst,
 	 * that is it is unfaulted, we need to ensure that the newly merged
 	 * range is referenced by the anon_vma's of the source.
 	 */
-	if (src->anon_vma && !dst->anon_vma) {
+	if (vma_has_anon_rmap(src) && !vma_has_anon_rmap(dst)) {
 		int ret;
 
 		vma_assert_write_locked(dst);
@@ -720,7 +721,7 @@ void validate_mm(struct mm_struct *mm)
 		}
 
 #ifdef CONFIG_DEBUG_VM_RB
-		if (anon_vma) {
+		if (vma_has_anon_rmap(vma)) {
 			anon_vma_lock_read(anon_vma);
 			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
 				anon_rmap_tree_verify(avc);
@@ -1020,7 +1021,7 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 		 * simply a case of, if prev has no anon_vma object, which of
 		 * next or middle contains the anon_vma we must duplicate.
 		 */
-		err = dup_anon_vma(prev, next->anon_vma ? next : middle,
+		err = dup_anon_vma(prev, vma_has_anon_rmap(next) ? next : middle,
 				   &anon_dup);
 	} else if (merge_left) {
 		/*
@@ -1960,7 +1961,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	 * If a vma has not yet been faulted, update its anonymous pgoff to
 	 * match the new location to increase its chance of merging.
 	 */
-	if (!vma->anon_vma) {
+	if (!vma_has_anon_rmap(vma)) {
 		anon_pgoff = addr >> PAGE_SHIFT;
 
 		if (vma_is_anonymous(vma)) {
@@ -2387,7 +2388,7 @@ int mm_take_all_locks(struct mm_struct *mm)
 	for_each_vma(vmi, vma) {
 		if (signal_pending(current))
 			goto out_unlock;
-		if (vma->anon_vma)
+		if (vma_has_anon_rmap(vma))
 			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
 				vm_lock_anon_vma(mm, avc->anon_vma);
 	}
@@ -2449,7 +2450,7 @@ void mm_drop_all_locks(struct mm_struct *mm)
 	BUG_ON(!mutex_is_locked(&mm_all_locks_mutex));
 
 	for_each_vma(vmi, vma) {
-		if (vma->anon_vma)
+		if (vma_has_anon_rmap(vma))
 			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
 				vm_unlock_anon_vma(avc->anon_vma);
 		if (vma->vm_file && vma->vm_file->f_mapping)
@@ -3610,7 +3611,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * Similarly in do_mmap and in do_brk_flags.
 	 */
 	if (vma_is_anonymous(vma)) {
-		WARN_ON_ONCE(vma->anon_vma);
+		WARN_ON_ONCE(vma_has_anon_rmap(vma));
 		vma_set_pgoff(vma, vma->vm_start >> PAGE_SHIFT);
 	}
 	vma_set_anon_pgoff(vma, vma->vm_start >> PAGE_SHIFT);

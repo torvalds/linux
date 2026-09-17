@@ -1164,7 +1164,7 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 	 * as part of the VMA lock logic.
 	 */
 	if (vma_is_anonymous(vma)) {
-		VM_WARN_ON_ONCE(!vma->anon_vma &&
+		VM_WARN_ON_ONCE(!vma_has_anon_rmap(vma) &&
 				madv_behavior->lock_mode != MADVISE_MMAP_READ_LOCK);
 
 		err = anon_vma_prepare(vma);
@@ -1630,7 +1630,7 @@ static bool is_vma_lock_sufficient(struct vm_area_struct *vma,
 	 * check overly paranoid which is safe.
 	 */
 	if (vma_is_anonymous(vma) &&
-	    prepares_anon_vma(madv_behavior->behavior) && !vma->anon_vma)
+	    prepares_anon_vma(madv_behavior->behavior) && !vma_has_anon_rmap(vma))
 		return false;
 
 	return true;
