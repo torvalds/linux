@@ -441,7 +441,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 			whence);
 
 	retval = (int)offset;
-	if (offset >= 0) {
+	if (offset >= 0 || (unsigned_offsets(fd_file(f)) && offset < -MAX_ERRNO)) {
 		retval = -EFAULT;
 		if (!copy_to_user(result, &offset, sizeof(offset)))
 			retval = 0;
