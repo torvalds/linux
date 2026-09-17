@@ -746,9 +746,11 @@ static int mtk_spmi_bus_probe(struct platform_device *pdev,
 	for (i = 0; i < pbus->nclks; i++) {
 		pbus->clks[i].id = pmif_clock_names[i];
 		pbus->clks[i].clk = of_clk_get_by_name(node, pbus->clks[i].id);
-		if (IS_ERR(pbus->clks[i].clk))
+		if (IS_ERR(pbus->clks[i].clk)) {
+			clk_bulk_put(i, pbus->clks);
 			return dev_err_probe(&pdev->dev, PTR_ERR(pbus->clks[i].clk),
 					     "Failed to get clocks\n");
+		}
 	}
 
 	err = clk_bulk_prepare_enable(pbus->nclks, pbus->clks);
