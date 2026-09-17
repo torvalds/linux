@@ -12,6 +12,7 @@
 
 #include <linux/i2c.h>
 #include <linux/crc-ccitt.h>
+#include <linux/reset.h>
 #include "tpm_tis_core.h"
 
 /* TPM registers */
@@ -330,6 +331,7 @@ static const struct tpm_tis_phy_ops tpm_i2c_phy_ops = {
 static int tpm_tis_i2c_probe(struct i2c_client *dev)
 {
 	struct tpm_tis_i2c_phy *phy;
+	struct reset_control *reset;
 	const u8 crc_enable = 1;
 	const u8 locality = 0;
 	int ret;
@@ -345,6 +347,16 @@ static int tpm_tis_i2c_probe(struct i2c_client *dev)
 
 	set_bit(TPM_TIS_DEFAULT_CANCELLATION, &phy->priv.flags);
 	phy->i2c_client = dev;
+
+	reset = devm_reset_control_get_optional_exclusive(&dev->dev, NULL);
+	if (IS_ERR(reset))
+		return dev_err_probe(&dev->dev, PTR_ERR(reset),
+				     "failed to get reset control\n");
+
+	ret = reset_control_deassert(reset);
+	if (ret)
+		return dev_err_probe(&dev->dev, ret,
+				     "failed to deassert reset\n");
 
 	/* must precede all communication with the tpm */
 	ret = tpm_tis_i2c_init_guard_time(phy);
