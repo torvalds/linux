@@ -137,6 +137,7 @@ static const struct cmn2asic_msg_mapping smu_v15_0_8_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetSoftMaxGl2clk,                    PPSMC_MSG_SetSoftMaxGl2clk,		0),
 	MSG_MAP(SetSoftMinFclk,                      PPSMC_MSG_SetSoftMinFclk,			0),
 	MSG_MAP(SetSoftMaxFclk,                      PPSMC_MSG_SetSoftMaxFclk,			0),
+	MSG_MAP(SetNpmLimit,                         PPSMC_MSG_SetNpmLimit,			0),
 };
 
 /* TODO: Update the clk map once enum PPCLK is updated in smu15_driver_if_v15_0_8.h */
@@ -588,19 +589,86 @@ static int smu_v15_0_8_get_system_metrics_table(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
-				    enum amd_pp_sensors sensor,
-				    uint32_t *value)
+static inline void smu_v15_0_8_cap_set(struct smu_context *smu, u32 cap)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+
+	dpm_context->caps |= BIT_ULL(cap);
+}
+
+static bool smu_v15_0_8_cap_supported(struct smu_context *smu, u32 cap)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+
+	return !!(dpm_context->caps & BIT_ULL(cap));
+}
+
+static void smu_v15_0_8_init_npm_cap(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
 	SystemMetricsTable_t *metrics;
 	struct smu_table *sys_table;
+	uint32_t table_version;
 	int ret;
 
+	if (smu->adev->gmc.xgmi.physical_node_id != 0)
+		return;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsVersion,
+				   &table_version);
+	if (ret)
+		return;
+
+	if (table_version < SMU_SYSTEM_METRICS_TABLE_VERSION)
+		return;
+
+	ret = smu_v15_0_8_get_system_metrics_table(smu);
+	if (ret)
+		return;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+	if (!metrics->NpmSupported)
+		return;
+
+	smu_v15_0_8_cap_set(smu, SMU_15_0_8_CAP_NPM);
+}
+
+static void smu_v15_0_8_init_caps(struct smu_context *smu)
+{
+	smu_v15_0_8_init_npm_cap(smu);
+}
+
+static u64 smu_v15_0_8_get_npm_cap(struct smu_context *smu)
+{
+	if (!smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NPM))
+		return 0;
+
+	return AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_CUR_NODE_POWER_LIMIT) |
+	       AMDGPU_NPM_CAP_W(AMDGPU_NPM_CAP_CUR_NODE_POWER_LIMIT) |
+	       AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_NODE_POWER)           |
+	       AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_GLOBAL_PPT_RESID)     |
+	       AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_MAX_NODE_POWER_LIMIT) |
+	       AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_NPM_STATUS);
+}
+
+static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
+				    enum amd_pp_sensors sensor,
+				    uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	int ret;
+
+	if (!smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NPM))
+		return -EOPNOTSUPP;
+
 	if (sensor == AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT) {
-		/*TBD as of now put 0 */
-		*value = 0;
+		*value = pptable->MaxNodePowerLimit;
 		return 0;
 	}
 
@@ -619,7 +687,7 @@ static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
 		*value = SMUQ10_ROUND(metrics->NodePower);
 		break;
 	case AMDGPU_PP_SENSOR_NPMSTATUS:
-		*value = !!SMUQ10_ROUND(metrics->NodePower);
+		*value = !!metrics->NpmEnabled;
 		break;
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
 		*value = SMUQ10_ROUND(metrics->NPMResidencyAcc);
@@ -629,6 +697,15 @@ static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
 	}
 
 	return 0;
+}
+
+static int smu_v15_0_8_set_npm_limit(struct smu_context *smu, uint32_t limit)
+{
+	if (!smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NPM))
+		return -EOPNOTSUPP;
+
+	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetNpmLimit,
+					       limit, NULL);
 }
 
 static int smu_v15_0_8_read_sensor(struct smu_context *smu,
@@ -1149,6 +1226,10 @@ static int smu_v15_0_8_set_driver_pptable(struct smu_context *smu)
 				static_metrics->pldmVersion[0];
 		dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
 		smu_v15_0_8_init_xgmi_data(smu, static_metrics);
+		smu_v15_0_8_init_caps(smu);
+		if (smu_v15_0_8_cap_supported(smu, SMU_15_0_8_CAP_NPM))
+			pptable->MaxNodePowerLimit =
+				static_metrics->MaxNodePowerLimit;
 		pptable->init = true;
 	}
 
@@ -2382,6 +2463,8 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_unique_id = smu_v15_0_8_get_unique_id,
 	.get_ppt_limit = smu_v15_0_8_get_ppt_limit,
 	.set_ppt_limit = smu_v15_0_8_set_ppt_limit,
+	.get_npm_cap = smu_v15_0_8_get_npm_cap,
+	.set_npm_limit = smu_v15_0_8_set_npm_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
 	.read_sensor = smu_v15_0_8_read_sensor,
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
