@@ -2117,6 +2117,12 @@ static int qcom_geni_serial_resume(struct device *dev)
 			return ret;
 	}
 
+	if (console_suspend_enabled && uart_console(uport)) {
+		ret = pm_runtime_resume(dev);
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = uart_resume_port(private_data->drv, uport);
 	if (uart_console(uport)) {
 		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ALWAYS);
