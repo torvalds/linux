@@ -1497,6 +1497,15 @@ int rt721_sdca_init(struct device *dev, struct regmap *regmap,
 			&soc_sdca_dev_rt721, rt721_sdca_dai, ARRAY_SIZE(rt721_sdca_dai));
 }
 
+static void rt721_sdca_reset(struct rt721_sdca_priv *rt721)
+{
+	rt_sdca_index_update_bits(rt721->mbq_regmap, RT721_VENDOR_REG,
+		RT721_VD_HIDDEN_CTRL, RT721_HIDDEN_REG_SW_RESET,
+		RT721_HIDDEN_REG_SW_RESET);
+	rt_sdca_index_update_bits(rt721->mbq_regmap, RT721_HDA_SDCA_FLOAT,
+		RT721_HDA_LEGACY_RESET_CTL, 0x1, 0x1);
+}
+
 int rt721_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt721_sdca_priv *rt721 = dev_get_drvdata(dev);
@@ -1530,9 +1539,17 @@ int rt721_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
+
+	if (!rt721->first_hw_init)
+		rt721_sdca_reset(rt721);
+
 	rt721_sdca_dmic_preset(rt721);
 	rt721_sdca_amp_preset(rt721);
 	rt721_sdca_jack_preset(rt721);
+
+	if (rt721->hs_jack && (!rt721->first_hw_init))
+		rt721_sdca_jack_init(rt721);
+
 	if (rt721->first_hw_init) {
 		regcache_cache_bypass(rt721->regmap, false);
 		regcache_mark_dirty(rt721->regmap);

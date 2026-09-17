@@ -2065,7 +2065,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 
 	ret = is_inode_existent(sctx, dir, dir_gen, NULL, &parent_root_dir_gen);
 	if (ret <= 0)
-		return 0;
+		return ret;
 
 	/*
 	 * If we have a parent root we need to verify that the parent dir was
@@ -6417,6 +6417,13 @@ static int process_extent(struct send_ctx *sctx,
 
 	if (S_ISLNK(sctx->cur_inode_mode))
 		return 0;
+	if (unlikely(!S_ISREG(sctx->cur_inode_mode))) {
+		btrfs_crit(sctx->send_root->fs_info,
+			   "send: extent for non-regular inode %llu root %llu mode 0%llo",
+			   key->objectid, btrfs_root_id(sctx->send_root),
+			   sctx->cur_inode_mode & S_IFMT);
+		return -EUCLEAN;
+	}
 
 	if (sctx->parent_root && !sctx->cur_inode_new) {
 		ret = is_extent_unchanged(sctx, path, key);

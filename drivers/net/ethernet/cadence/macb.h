@@ -968,6 +968,8 @@ struct macb_dma_desc_ptp {
  *       of the frame
  * @mapping: DMA address of the skb's fragment buffer
  * @size: size of the DMA mapped buffer
+ * @fcs_len: FCS bytes appended in software, 0 or ETH_FCS_LEN, only
+ *           set for the last buffer of the frame
  * @mapped_as_page: true when buffer was mapped with skb_frag_dma_map(),
  *                  false when buffer was mapped with dma_map_single()
  */
@@ -975,6 +977,7 @@ struct macb_tx_skb {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
 	size_t			size;
+	u8			fcs_len;
 	bool			mapped_as_page;
 };
 

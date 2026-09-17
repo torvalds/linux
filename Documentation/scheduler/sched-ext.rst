@@ -230,7 +230,7 @@ optional. The following modified excerpt is from
 
     void BPF_STRUCT_OPS(simple_exit, struct scx_exit_info *ei)
     {
-            exit_type = ei->type;
+            exit_type = ei->kind;
     }
 
     SEC(".struct_ops")
@@ -241,6 +241,21 @@ optional. The following modified excerpt is from
             .exit                   = (void *)simple_exit,
             .name                   = "simple",
     };
+
+Scheduler-Dependent Knobs
+-------------------------
+
+The fair-class scheduler enforces CPU controller settings such as
+``cpu.max``, ``cpu.weight`` and ``cpu.idle``. For sched_ext tasks, the
+scheduler core communicates these settings to the BPF scheduler
+through ``ops.cgroup_init()`` and reports subsequent changes through
+the corresponding ``ops.cgroup_set_*()`` callbacks. Similarly, per-task
+nice changes are converted to weights and reported through
+``ops.set_weight()``.
+
+Each BPF scheduler is responsible for implementing the scheduling
+semantics of these settings and may choose to ignore them. Consult the
+loaded scheduler's documentation before relying on these controls.
 
 Dispatch Queues
 ---------------

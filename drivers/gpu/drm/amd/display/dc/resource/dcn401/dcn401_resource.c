@@ -1322,7 +1322,7 @@ static struct hpo_frl_stream_encoder *dcn401_hpo_frl_stream_encoder_create(
 		return NULL;
 
 	/* allocate HPO stream encoder and create VPG, AFMT sub-blocks */
-	hpo_enc401 = kzalloc(sizeof(struct dcn401_hpo_frl_stream_encoder), GFP_KERNEL);
+	hpo_enc401 = kzalloc_obj(struct dcn401_hpo_frl_stream_encoder);
 	vpg = dcn401_vpg_create(ctx, vpg_inst);
 	afmt = dcn401_afmt_create(ctx, afmt_inst);
 
@@ -1353,7 +1353,7 @@ static struct hpo_frl_link_encoder *dcn401_hpo_frl_link_encoder_create(
 	hpo_frl_link_encoder_reg_list(0);
 
 	/* allocate HPO link encoder */
-	hpo_link_enc = kzalloc(sizeof(struct dcn30_hpo_frl_link_encoder), GFP_KERNEL);
+	hpo_link_enc = kzalloc_obj(struct dcn30_hpo_frl_link_encoder);
 	if (!hpo_link_enc)
 		return NULL; /* out of memory */
 

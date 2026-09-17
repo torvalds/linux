@@ -217,7 +217,7 @@ struct eea_ring *eea_ering_alloc(u32 index, u32 num, struct eea_device *edev,
 	if (!cq_desc_size || !is_power_of_2(cq_desc_size))
 		return NULL;
 
-	ering = kzalloc(sizeof(*ering), GFP_KERNEL);
+	ering = kzalloc_obj(*ering);
 	if (!ering)
 		return NULL;
 

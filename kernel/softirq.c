@@ -91,11 +91,11 @@ EXPORT_PER_CPU_SYMBOL_GPL(hardirq_context);
 
 DEFINE_PER_CPU(unsigned long, local_interrupt_disable_state);
 
-void _local_interrupt_disable(void)
+void _local_interrupt_save_state(unsigned long flags)
 {
-	__local_interrupt_disable();
+	__local_interrupt_save_state(flags);
 }
-EXPORT_SYMBOL(_local_interrupt_disable);
+EXPORT_SYMBOL(_local_interrupt_save_state);
 
 void _local_interrupt_enable(void)
 {
@@ -749,16 +749,7 @@ static inline void __irq_exit_rcu(void)
 #endif
 	account_hardirq_exit(current);
 	preempt_count_sub(HARDIRQ_OFFSET);
-	/*
-	 * Interrupts may happen between hardirq_disable_enter() and
-	 * local_irq_save() in local_interrupt_disable(), if irq_exit() invokes
-	 * softirq here, we may have a softirq handler calling
-	 * local_interrupt_disable() but it won't disable the IRQ because
-	 * hardirq disabling count is already 1, hence we need to prevent
-	 * invoking softirq when a local_interrupt_disable() is ongoing.
-	 */
-	if (!in_interrupt() && !hardirq_disable_count() &&
-	    local_softirq_pending()) {
+	if (!in_interrupt() && local_softirq_pending()) {
 		/*
 		 * If we left hrtimers unarmed, make sure to arm them now,
 		 * before enabling interrupts to run softirq.

@@ -58,7 +58,7 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 	new_ruleset->id = landlock_get_id_range(1);
 #endif /* CONFIG_TRACEPOINTS */
 
-	/* Should already be checked in landlock_create_ruleset(). */
+	/* The caller must only pass supported access rights and scopes. */
 	if (fs_access_mask) {
 		const access_mask_t mask = fs_access_mask &
 					   LANDLOCK_MASK_ACCESS_FS;

@@ -57,33 +57,6 @@ static void test_file_apis(int fd)
 		pass("file IO is blocked as expected\n");
 }
 
-static void test_mlock_limit(int fd)
-{
-	size_t len;
-	char *mem;
-
-	len = mlock_limit_cur;
-	if (len % page_size != 0)
-		len = (len/page_size) * page_size;
-
-	mem = mmap(NULL, len, prot, mode, fd, 0);
-	if (mem == MAP_FAILED) {
-		fail("unable to mmap secret memory\n");
-		return;
-	}
-	munmap(mem, len);
-
-	len = mlock_limit_max * 2;
-	mem = mmap(NULL, len, prot, mode, fd, 0);
-	if (mem != MAP_FAILED) {
-		fail("unexpected mlock limit violation\n");
-		munmap(mem, len);
-		return;
-	}
-
-	pass("mlock limit is respected\n");
-}
-
 static void test_vmsplice(int fd, const char *desc)
 {
 	ssize_t transferred;
@@ -297,7 +270,7 @@ static void prepare(void)
 				   strerror(errno));
 }
 
-#define NUM_TESTS 6
+#define NUM_TESTS 5
 
 int main(int argc, char *argv[])
 {
@@ -319,7 +292,6 @@ int main(int argc, char *argv[])
 	if (ftruncate(fd, page_size))
 		ksft_exit_fail_msg("ftruncate failed: %s\n", strerror(errno));
 
-	test_mlock_limit(fd);
 	test_file_apis(fd);
 	/*
 	 * We have to run the first vmsplice test before any secretmem page was

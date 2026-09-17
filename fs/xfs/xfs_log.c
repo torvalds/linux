@@ -422,6 +422,8 @@ out_error:
 static void
 xlog_state_shutdown_callbacks(
 	struct xlog		*log)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	struct xlog_in_core	*iclog;
 	LIST_HEAD(cb_list);
@@ -470,6 +472,8 @@ xlog_state_release_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	struct xlog_ticket	*ticket)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	bool			last_ref;
 
@@ -744,13 +748,16 @@ xfs_log_mount_cancel(
  */
 static inline int
 xlog_force_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	atomic_inc(&iclog->ic_refcnt);
 	iclog->ic_flags |= XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA;
 	if (iclog->ic_state == XLOG_STATE_ACTIVE)
-		xlog_state_switch_iclogs(iclog->ic_log, iclog, 0);
-	return xlog_state_release_iclog(iclog->ic_log, iclog, NULL);
+		xlog_state_switch_iclogs(log, iclog, 0);
+	return xlog_state_release_iclog(log, iclog, NULL);
 }
 
 /*
@@ -778,11 +785,10 @@ xlog_wait_iclog_completion(struct xlog *log)
  */
 int
 xlog_wait_on_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog)
-		__releases(iclog->ic_log->l_icloglock)
+		__releases(log->l_icloglock)
 {
-	struct xlog		*log = iclog->ic_log;
-
 	trace_xlog_iclog_wait_on(iclog, _RET_IP_);
 	if (!xlog_is_shutdown(log) &&
 	    iclog->ic_state != XLOG_STATE_ACTIVE &&
@@ -879,8 +885,8 @@ out_err:
 
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
-	error = xlog_force_iclog(iclog);
-	xlog_wait_on_iclog(iclog);
+	error = xlog_force_iclog(log, iclog);
+	xlog_wait_on_iclog(log, iclog);
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
@@ -1538,6 +1544,35 @@ xlog_bio_end_io(
 		   &iclog->ic_end_io_work);
 }
 
+/*
+ * When using multiple devices, we also need to flush the data and RT device
+ * caches first to ensure that all metadata writeback covered by the LSN in
+ * this iclog is on stable storage. This is slow, but it *must* complete
+ * before we issue the external log IO.
+ *
+ * If the flush fails, we cannot conclude that past metadata writeback from
+ * the log succeeded.  Repeating the flush is not possible, hence we must
+ * shut down with log IO error to avoid shutdown re-entering this path and
+ * erroring out again.
+ */
+static int
+xlog_flush_data_caches(
+	struct xlog		*log)
+{
+	struct xfs_mount	*mp = log->l_mp;
+
+	if (log->l_targ != mp->m_ddev_targp) {
+		if (blkdev_issue_flush(mp->m_ddev_targp->bt_bdev))
+			return -EIO;
+	}
+	if (mp->m_rtdev_targp && mp->m_rtdev_targp != mp->m_ddev_targp) {
+		if (blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 STATIC void
 xlog_write_iclog(
 	struct xlog		*log,
@@ -1582,21 +1617,9 @@ xlog_write_iclog(
 	iclog->ic_bio.bi_private = iclog;
 
 	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH) {
-		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
-		/*
-		 * For external log devices, we also need to flush the data
-		 * device cache first to ensure all metadata writeback covered
-		 * by the LSN in this iclog is on stable storage. This is slow,
-		 * but it *must* complete before we issue the external log IO.
-		 *
-		 * If the flush fails, we cannot conclude that past metadata
-		 * writeback from the log succeeded.  Repeating the flush is
-		 * not possible, hence we must shut down with log IO error to
-		 * avoid shutdown re-entering this path and erroring out again.
-		 */
-		if (log->l_targ != log->l_mp->m_ddev_targp &&
-		    blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev))
+		if (xlog_flush_data_caches(log))
 			goto shutdown;
+		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 	}
 	if (iclog->ic_flags & XLOG_ICL_NEED_FUA)
 		iclog->ic_bio.bi_opf |= REQ_FUA;
@@ -2741,14 +2764,17 @@ xlog_state_switch_iclogs(
  */
 static int
 xlog_force_and_check_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	bool			*completed)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header->h_lsn);
 	int			error;
 
 	*completed = false;
-	error = xlog_force_iclog(iclog);
+	error = xlog_force_iclog(log, iclog);
 	if (error)
 		return error;
 
@@ -2825,7 +2851,7 @@ xfs_log_force(
 			/* We have exclusive access to this iclog. */
 			bool	completed;
 
-			if (xlog_force_and_check_iclog(iclog, &completed))
+			if (xlog_force_and_check_iclog(log, iclog, &completed))
 				goto out_error;
 
 			if (completed)
@@ -2850,7 +2876,7 @@ xfs_log_force(
 		iclog->ic_flags |= XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA;
 
 	if (flags & XFS_LOG_SYNC)
-		return xlog_wait_on_iclog(iclog);
+		return xlog_wait_on_iclog(log, iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
@@ -2920,7 +2946,7 @@ xlog_force_lsn(
 					&log->l_icloglock);
 			return -EAGAIN;
 		}
-		if (xlog_force_and_check_iclog(iclog, &completed))
+		if (xlog_force_and_check_iclog(log, iclog, &completed))
 			goto out_error;
 		if (log_flushed)
 			*log_flushed = 1;
@@ -2948,7 +2974,7 @@ xlog_force_lsn(
 	}
 
 	if (flags & XFS_LOG_SYNC)
-		return xlog_wait_on_iclog(iclog);
+		return xlog_wait_on_iclog(log, iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;

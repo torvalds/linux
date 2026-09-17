@@ -2306,7 +2306,7 @@ int request_nmi(unsigned int irq, irq_handler_t handler,
 	    !irq_supports_nmi(desc))
 		return -EINVAL;
 
-	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc_obj(struct irqaction);
 	if (!action)
 		return -ENOMEM;
 

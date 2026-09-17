@@ -618,7 +618,7 @@ static int __init gicv5_irs_of_init_affinity(struct device_node *node,
 	if (niaffids != ncpus)
 		return -EINVAL;
 
-	u16 *iaffids __free(kfree) = kcalloc(niaffids, sizeof(*iaffids), GFP_KERNEL);
+	u16 *iaffids __free(kfree) = kzalloc_objs(*iaffids, niaffids);
 	if (!iaffids)
 		return -ENOMEM;
 

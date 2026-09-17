@@ -1624,7 +1624,7 @@ static struct freq_attr **get_freq_attrs(void)
 	/* amd_pstate_{max_freq, lowest_nonlinear_freq, highest_perf} should always be visible */
 	BUG_ON(!count);
 
-	attrs = kcalloc(count + 1, sizeof(struct freq_attr *), GFP_KERNEL);
+	attrs = kzalloc_objs(struct freq_attr *, count + 1);
 	if (!attrs)
 		return ERR_PTR(-ENOMEM);
 

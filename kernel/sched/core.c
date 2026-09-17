@@ -3742,11 +3742,17 @@ static inline void ttwu_do_wakeup(struct task_struct *p)
 
 void update_rq_avg_idle(struct rq *rq)
 {
-	u64 delta = rq_clock(rq) - rq->idle_stamp;
-	u64 max = 2*rq->max_idle_balance_cost;
+	u64 idle_stamp = rq->idle_stamp;
+	u64 delta, max;
+
+	if (!idle_stamp)
+		return;
+
+	delta = rq_clock(rq) - idle_stamp;
 
 	update_avg(&rq->avg_idle, delta);
 
+	max = 2 * rq->max_idle_balance_cost;
 	if (rq->avg_idle > max)
 		rq->avg_idle = max;
 	rq->idle_stamp = 0;
@@ -5770,8 +5776,8 @@ void sched_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
-	/* accounting goes to the donor task */
-	struct task_struct *donor;
+	/* scheduler accounting goes to the donor task */
+	struct task_struct *curr, *donor;
 	struct rq_flags rf;
 	unsigned long hw_pressure;
 	u64 resched_latency;
@@ -5782,6 +5788,7 @@ void sched_tick(void)
 	sched_clock_tick();
 
 	rq_lock(rq, &rf);
+	curr = rq->curr;
 	donor = rq->donor;
 
 	psi_account_irqtime(rq, donor, NULL);
@@ -5807,8 +5814,8 @@ void sched_tick(void)
 
 	perf_event_task_tick();
 
-	if (donor->flags & PF_WQ_WORKER)
-		wq_worker_tick(donor);
+	if (curr->flags & PF_WQ_WORKER)
+		wq_worker_tick(curr);
 
 	if (!scx_switched_all()) {
 		rq->idle_balance = idle_cpu(cpu);
@@ -7637,6 +7644,17 @@ void rt_mutex_pre_schedule(void)
 	sched_submit_work(current);
 }
 
+/*
+ * Used within the futex syscall context, skips sched_submit_work() because none
+ * its work will be done. Asserts ensure that it is indeed the case.
+ */
+void rt_mutex_futex_pre_schedule(void)
+{
+	lockdep_assert(!(current->flags & (PF_WQ_WORKER | PF_IO_WORKER)));
+	lockdep_assert(!current->plug);
+	lockdep_assert(!fetch_and_set(current->sched_rt_mutex, 1));
+}
+
 void rt_mutex_schedule(void)
 {
 	lockdep_assert(current->sched_rt_mutex);
@@ -7646,6 +7664,11 @@ void rt_mutex_schedule(void)
 void rt_mutex_post_schedule(void)
 {
 	sched_update_worker(current);
+	lockdep_assert(fetch_and_set(current->sched_rt_mutex, 0));
+}
+
+void rt_mutex_futex_post_schedule(void)
+{
 	lockdep_assert(fetch_and_set(current->sched_rt_mutex, 0));
 }
 

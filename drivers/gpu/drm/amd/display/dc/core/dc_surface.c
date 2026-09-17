@@ -290,7 +290,7 @@ static void dc_plane_cm_free(struct kref *kref)
 
 struct dc_plane_cm *dc_plane_cm_create(void)
 {
-	struct dc_plane_cm *cm = kvzalloc(sizeof(*cm), GFP_KERNEL);
+	struct dc_plane_cm *cm = kvzalloc_obj(*cm);
 
 	if (cm == NULL)
 		goto alloc_fail;

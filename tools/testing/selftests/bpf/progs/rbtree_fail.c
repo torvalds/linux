@@ -16,6 +16,7 @@ struct node_data {
 private(A) struct bpf_spin_lock glock;
 private(A) struct bpf_rb_root groot __contains(node_data, node);
 private(A) struct bpf_rb_root groot2 __contains(node_data, node);
+private(B) struct bpf_res_spin_lock res_glock;
 
 static bool less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
 {
@@ -265,6 +266,53 @@ static bool less__bad_fn_call_first_unlock_after(struct bpf_rb_node *a, const st
 	return node_a->key < node_b->key;
 }
 
+static bool less__bad_res_spin_unlock(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+{
+	bpf_res_spin_unlock(&res_glock);
+	return false;
+}
+
+static __noinline void rbtree_cb_unlock_relock(void)
+{
+	bpf_spin_unlock(&glock);
+	bpf_spin_lock(&glock);
+}
+
+static __noinline void rbtree_cb_nested_unlock(void)
+{
+	rbtree_cb_unlock_relock();
+	asm volatile ("");
+}
+
+static bool less__bad_subprog_unlock(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+{
+	struct node_data *node_a;
+	struct node_data *node_b;
+
+	node_a = container_of(a, struct node_data, node);
+	node_b = container_of(b, struct node_data, node);
+	rbtree_cb_nested_unlock();
+
+	return node_a->key < node_b->key;
+}
+
+static __noinline void rbtree_cb_noop(void)
+{
+	asm volatile ("");
+}
+
+static bool less__subprog_allowed(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+{
+	struct node_data *node_a;
+	struct node_data *node_b;
+
+	node_a = container_of(a, struct node_data, node);
+	node_b = container_of(b, struct node_data, node);
+	rbtree_cb_noop();
+
+	return node_a->key < node_b->key;
+}
+
 static __always_inline
 long add_with_cb(bool (cb)(struct bpf_rb_node *a, const struct bpf_rb_node *b))
 {
@@ -299,6 +347,42 @@ __failure __msg("can't spin_{lock,unlock} in rbtree cb")
 long rbtree_api_add_bad_cb_bad_fn_call_first_unlock_after(void *ctx)
 {
 	return add_with_cb(less__bad_fn_call_first_unlock_after);
+}
+
+SEC("?tc")
+__failure __msg("can't res_spin_{lock,unlock} in rbtree cb")
+long rbtree_api_add_bad_cb_res_spin_unlock(void *ctx)
+{
+	struct node_data *n;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 1;
+
+	bpf_spin_lock(&glock);
+	if (bpf_res_spin_lock(&res_glock)) {
+		bpf_spin_unlock(&glock);
+		bpf_obj_drop(n);
+		return 1;
+	}
+	bpf_rbtree_add(&groot, &n->node, less__bad_res_spin_unlock);
+	bpf_res_spin_unlock(&res_glock);
+	bpf_spin_unlock(&glock);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("can't spin_{lock,unlock} in rbtree cb")
+long rbtree_api_add_bad_cb_subprog_unlock(void *ctx)
+{
+	return add_with_cb(less__bad_subprog_unlock);
+}
+
+SEC("?tc")
+__success
+long rbtree_api_add_cb_subprog_allowed(void *ctx)
+{
+	return add_with_cb(less__subprog_allowed);
 }
 
 char _license[] SEC("license") = "GPL";

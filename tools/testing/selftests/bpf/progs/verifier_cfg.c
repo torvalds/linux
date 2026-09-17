@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 
 SEC("socket")
@@ -53,6 +54,19 @@ __naked void out_of_range_jump2(void)
 	goto -2;					\
 	exit;						\
 "	::: __clobber_all);
+}
+
+SEC("socket")
+__description("invalid DW LDSX instruction in diagnostics")
+__failure __msg("BUG_ldx_99")
+__log_level(2)
+__naked void invalid_dw_ldsx(void)
+{
+	asm volatile ("					\
+	.8byte %[ldsx_dw];				\
+"	:
+	: __imm_insn(ldsx_dw, BPF_RAW_INSN(BPF_LDX | BPF_MEMSX | BPF_DW, BPF_REG_0, BPF_REG_0, 0, 0))
+	: __clobber_all);
 }
 
 SEC("socket")

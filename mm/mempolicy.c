@@ -2679,7 +2679,7 @@ static unsigned long alloc_pages_bulk_weighted_interleave(gfp_t gfp,
 	prev_node = node;
 
 	/* create a local copy of node weights to operate on outside rcu */
-	weights = kzalloc(nr_node_ids, GFP_KERNEL);
+	weights = kmalloc(nr_node_ids, gfp & GFP_RECLAIM_MASK);
 	if (!weights)
 		return total_allocated;
 

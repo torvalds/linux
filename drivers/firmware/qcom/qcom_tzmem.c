@@ -169,7 +169,7 @@ static int qcom_tzmem_init_area(struct qcom_tzmem_area *area)
 {
 	int ret;
 
-	u64 *handle __free(kfree) = kzalloc(sizeof(*handle), GFP_KERNEL);
+	u64 *handle __free(kfree) = kzalloc_obj(*handle);
 	if (!handle)
 		return -ENOMEM;
 
@@ -197,8 +197,7 @@ static int qcom_tzmem_pool_add_memory(struct qcom_tzmem_pool *pool,
 {
 	int ret;
 
-	struct qcom_tzmem_area *area __free(kfree) = kzalloc(sizeof(*area),
-							     gfp);
+	struct qcom_tzmem_area *area __free(kfree) = kzalloc_obj(*area, gfp);
 	if (!area)
 		return -ENOMEM;
 
@@ -415,8 +414,7 @@ void *qcom_tzmem_alloc(struct qcom_tzmem_pool *pool, size_t size, gfp_t gfp)
 
 	size = PAGE_ALIGN(size);
 
-	struct qcom_tzmem_chunk *chunk __free(kfree) = kzalloc(sizeof(*chunk),
-							       gfp);
+	struct qcom_tzmem_chunk *chunk __free(kfree) = kzalloc_obj(*chunk, gfp);
 	if (!chunk)
 		return NULL;
 

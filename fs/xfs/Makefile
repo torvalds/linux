@@ -91,6 +91,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_healthmon.o \
 				   xfs_icache.o \
 				   xfs_ioctl.o \
+				   xfs_ioend.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
 				   xfs_inode.o \

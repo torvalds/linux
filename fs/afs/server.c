@@ -242,7 +242,6 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 out:
 	afs_put_addrlist(alist, afs_alist_trace_put_server_create);
 	if (candidate) {
-		kfree(rcu_access_pointer(server->endpoint_state));
 		kfree(candidate);
 		afs_dec_servers_outstanding(cell->net);
 	}

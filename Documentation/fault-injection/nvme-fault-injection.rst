@@ -176,3 +176,68 @@ Message from dmesg::
    secondary_startup_64+0xa4/0xb0
   nvme nvme0: Could not set queue count (16385)
   nvme nvme0: IO queues not created
+
+Example 4: Inject an error into the first write command
+-------------------------------------------------------
+
+::
+
+  echo 0x01 > /sys/kernel/debug/nvme0n1/fault_inject/opcode
+  echo 1 > /sys/kernel/debug/nvme0n1/fault_inject/times
+  echo 100 > /sys/kernel/debug/nvme0n1/fault_inject/probability
+  dd if=/dev/zero of=/dev/nvme0n1 oflag=direct bs=512 count=1
+
+Expected Result::
+
+  The first write command sent to nvme0n1 fails
+
+Message from dmesg::
+
+  FAULT_INJECTION: forcing a failure.
+  name fault_inject, interval 1, probability 100, space 0, times 1
+  CPU: 4 UID: 0 PID: 0 Comm: swapper/4 Not tainted 7.1.0+ #5 PREEMPT(full)
+  Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS 1.16.3-20240910_120124-localhost 04/01/2014
+  Call Trace:
+   <IRQ>
+   dump_stack_lvl+0x6e/0xa0
+   dump_stack+0x10/0x16
+   should_fail_ex+0x461/0x510
+   should_fail+0xb/0x20
+   nvme_should_fail+0x11b/0x240 [nvme_core]
+   nvme_poll_cq+0x6ad/0xb30 [nvme]
+   nvme_irq+0x84/0xe0 [nvme]
+   ? __pfx_nvme_irq+0x10/0x10 [nvme]
+   ? rcu_core+0xa40/0xa90
+   ? __pfx_sched_balance_softirq+0x10/0x10
+   ? debug_smp_processor_id+0x17/0x20
+   ? rcu_is_watching+0x13/0xa0
+   __handle_irq_event_percpu+0x396/0x610
+   handle_irq_event_percpu+0xf/0x90
+   handle_irq_event+0xab/0x110
+   handle_edge_irq+0x1a3/0x210
+   __common_interrupt+0xff/0x170
+   common_interrupt+0x90/0xc0
+   </IRQ>
+   <TASK>
+   asm_common_interrupt+0x27/0x40
+  RIP: 0010:pv_native_safe_halt+0x13/0x20
+  Code: 1f 84 00 00 00 00 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 8b 05 0a 2a 58 01 85 c0 7e 07 0f 00 2d ff cc 0d 00 fb f4 <c3> cc 0
+  RSP: 0018:ffff888100a67e40 EFLAGS: 00000242
+  RAX: 0000000000000001 RBX: ffff888100a49c40 RCX: ffffed102b6c645b
+  RDX: ffffed102b6c645b RSI: ffffffff82a0d3c0 RDI: ffffffff81428b9b
+  RBP: ffff888100a67e48 R08: ffffed102b6c645b R09: 0000000000000004
+  R10: ffffed102b6c645a R11: 0000000000000001 R12: 0000000000000000
+  R13: 0000000000000000 R14: ffffed1020149388 R15: dffffc0000000000
+   ? do_idle+0x19b/0x2c0
+   ? default_idle+0x9/0x20
+   arch_cpu_idle+0x9/0x10
+   default_idle_call+0x6b/0xa0
+   do_idle+0x19b/0x2c0
+   ? __pfx_do_idle+0x10/0x10
+   ? complete_with_flags+0x63/0x70
+   cpu_startup_entry+0x55/0x60
+   start_secondary+0x1df/0x1e0
+   common_startup_64+0x13e/0x158
+   </TASK>
+  nvme0n1: Write(0x1) @ LBA 0, 1 blocks, Invalid Command Opcode (sct 0x0 / sc 0x1) DNR
+  operation not supported error, dev nvme0n1, sector 0 op 0x1:(WRITE) flags 0x8800 phys_seg 1 prio class 2

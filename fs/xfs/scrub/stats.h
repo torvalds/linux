@@ -27,7 +27,7 @@ void xchk_stats_register(struct xchk_stats *cs, struct dentry *parent);
 void xchk_stats_unregister(struct xchk_stats *cs);
 
 void xchk_stats_merge(struct xfs_mount *mp, const struct xfs_scrub_metadata *sm,
-		const struct xchk_stats_run *run);
+		int error, const struct xchk_stats_run *run);
 
 static inline u64 xchk_stats_now(void) { return ktime_get_ns(); }
 static inline u64 xchk_stats_elapsed_ns(u64 since)
@@ -53,7 +53,7 @@ static inline u64 xchk_stats_elapsed_ns(u64 since)
 # define xchk_stats_unregister(cs)		((void)0)
 # define xchk_stats_now()			(0)
 # define xchk_stats_elapsed_ns(x)		(0 * (x))
-# define xchk_stats_merge(mp, sm, run)		((void)0)
+# define xchk_stats_merge(mp, sm, error, run)	((void)0)
 #endif /* CONFIG_XFS_ONLINE_SCRUB_STATS */
 
 #endif /* __XFS_SCRUB_STATS_H__ */

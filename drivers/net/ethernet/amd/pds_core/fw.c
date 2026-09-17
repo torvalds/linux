@@ -171,8 +171,10 @@ pdsc_legacy_firmware_update(struct pdsc *pdsc,
 
 	dev_info(pdsc->dev, "Installing firmware\n");
 
-	if (!pdsc->cmd_regs)
+	if (!pdsc->cmd_regs) {
+		NL_SET_ERR_MSG_MOD(extack, "BARs not mapped");
 		return -ENXIO;
+	}
 
 	dl = priv_to_devlink(pdsc);
 	devlink_flash_update_status_notify(dl, "Preparing to flash",
@@ -198,6 +200,12 @@ pdsc_legacy_firmware_update(struct pdsc *pdsc,
 
 		copy_sz = min_t(unsigned int, buf_sz, fw->size - offset);
 		mutex_lock(&pdsc->devcmd_lock);
+		if (!pdsc->cmd_regs) {
+			mutex_unlock(&pdsc->devcmd_lock);
+			err = -ENXIO;
+			NL_SET_ERR_MSG_MOD(extack, "Device reset during flash");
+			goto err_out;
+		}
 		memcpy_toio(&pdsc->cmd_regs->data, fw->data + offset, copy_sz);
 		err = pdsc_devcmd_fw_download_locked(pdsc, data_addr,
 						     offset, copy_sz);
@@ -382,7 +390,7 @@ static int pdsc_send_package_data(struct pldmfw *context, const u8 *data,
 	if (!length)
 		return 0;
 
-	deferred = kmalloc_obj(*deferred, GFP_KERNEL);
+	deferred = kmalloc_obj(*deferred);
 	if (!deferred)
 		return -ENOMEM;
 
@@ -505,7 +513,7 @@ static int pdsc_send_component_table(struct pldmfw *context,
 		component->version_string, component->index,
 		component->component_size, transfer_flag);
 
-	component_priv = kzalloc_obj(*component_priv, GFP_KERNEL);
+	component_priv = kzalloc_obj(*component_priv);
 	if (!component_priv)
 		return -ENOMEM;
 
@@ -710,7 +718,7 @@ static int pdsc_flash_component_chunk(struct pdsc *pdsc, struct device *dev,
 	u8 *component_data;
 	int err;
 
-	deferred = kmalloc_obj(*deferred, GFP_KERNEL);
+	deferred = kmalloc_obj(*deferred);
 	if (!deferred)
 		return -ENOMEM;
 

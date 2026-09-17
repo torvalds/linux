@@ -17,6 +17,8 @@ int pcpu_freelist_init(struct pcpu_freelist *s)
 		raw_res_spin_lock_init(&head->lock);
 		head->first = NULL;
 	}
+	raw_res_spin_lock_init(&s->extralist.lock);
+	s->extralist.first = NULL;
 	return 0;
 }
 
@@ -46,22 +48,28 @@ void __pcpu_freelist_push(struct pcpu_freelist *s,
 			struct pcpu_freelist_node *node)
 {
 	struct pcpu_freelist_head *head;
-	int cpu;
+	int cpu, this_cpu;
 
 	if (___pcpu_freelist_push(this_cpu_ptr(s->freelist), node))
 		return;
 
+	this_cpu = raw_smp_processor_id();
 	while (true) {
-		for_each_cpu_wrap(cpu, cpu_possible_mask, raw_smp_processor_id()) {
-			if (cpu == raw_smp_processor_id())
+		for_each_cpu_wrap(cpu, cpu_possible_mask, this_cpu) {
+			if (cpu == this_cpu)
 				continue;
+
 			head = per_cpu_ptr(s->freelist, cpu);
-			if (raw_res_spin_lock(&head->lock))
-				continue;
-			pcpu_freelist_push_node(head, node);
-			raw_res_spin_unlock(&head->lock);
-			return;
+			if (___pcpu_freelist_push(head, node))
+				return;
 		}
+
+		/*
+		 * Push cannot fail. Use the extra list when none of the
+		 * per-CPU freelists can accept the node.
+		 */
+		if (___pcpu_freelist_push(&s->extralist, node))
+			return;
 	}
 }
 
@@ -117,6 +125,17 @@ static struct pcpu_freelist_node *___pcpu_freelist_pop(struct pcpu_freelist *s)
 		}
 		raw_res_spin_unlock(&head->lock);
 	}
+
+	/* Per-CPU lists are empty or unavailable, try the extra list. */
+	head = &s->extralist;
+	if (!READ_ONCE(head->first))
+		return NULL;
+	if (raw_res_spin_lock(&head->lock))
+		return NULL;
+	node = head->first;
+	if (node)
+		WRITE_ONCE(head->first, node->next);
+	raw_res_spin_unlock(&head->lock);
 	return node;
 }
 

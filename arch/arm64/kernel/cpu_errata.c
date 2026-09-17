@@ -82,7 +82,7 @@ is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
 
 	for (i = 0; i < target_impl_cpu_num; i++) {
 		if (__is_affected_midr_range(entry, target_impl_cpus[i].midr,
-					     target_impl_cpus[i].midr))
+					     target_impl_cpus[i].revidr))
 			return true;
 	}
 	return false;

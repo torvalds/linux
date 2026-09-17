@@ -945,7 +945,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	if (num < 0)
 		return num;
 
-	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
+	addrs = kzalloc_objs(*addrs, num);
 	if (!addrs)
 		return -ENOMEM;
 

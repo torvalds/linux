@@ -1259,7 +1259,7 @@ static int z_erofs_decompress_pcluster(struct z_erofs_backend *be, bool eio)
 	const struct z_erofs_decompressor *alg =
 				z_erofs_decomp[pcl->algorithmformat];
 	bool try_free = true;
-	int i, j, jtop, err2, err = eio ? -EIO : 0;
+	int i, err2, err = eio ? -EIO : 0;
 	struct page *page;
 	bool overlapped;
 	const char *reason;
@@ -1348,7 +1348,6 @@ static int z_erofs_decompress_pcluster(struct z_erofs_backend *be, bool eio)
 	    be->compressed_pages >= be->onstack_pages + Z_EROFS_ONSTACK_PAGES)
 		kvfree(be->compressed_pages);
 
-	jtop = 0;
 	z_erofs_fill_other_copies(be, err);
 	for (i = 0; i < be->nr_pages; ++i) {
 		page = be->decompressed_pages[i];
@@ -1356,22 +1355,11 @@ static int z_erofs_decompress_pcluster(struct z_erofs_backend *be, bool eio)
 			continue;
 
 		DBG_BUGON(z_erofs_page_is_invalidated(page));
-		if (!z_erofs_is_shortlived_page(page)) {
+		if (!z_erofs_is_shortlived_page(page))
 			erofs_onlinefolio_end(page_folio(page), err, true);
-			continue;
-		}
-		if (pcl->algorithmformat != Z_EROFS_COMPRESSION_LZ4) {
+		else
 			erofs_pagepool_add(be->pagepool, page);
-			continue;
-		}
-		for (j = 0; j < jtop && be->decompressed_pages[j] != page; ++j)
-			;
-		if (j >= jtop)	/* this bounce page is newly detected */
-			be->decompressed_pages[jtop++] = page;
 	}
-	while (jtop)
-		erofs_pagepool_add(be->pagepool,
-				   be->decompressed_pages[--jtop]);
 	if (be->decompressed_pages != be->onstack_pages)
 		kvfree(be->decompressed_pages);
 

@@ -145,6 +145,7 @@ extern bool has_capability_noaudit(struct task_struct *t, int cap);
 extern bool has_ns_capability_noaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
+bool capable_noaudit(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
 extern bool ns_capable_noaudit(struct user_namespace *ns, int cap);
 extern bool ns_capable_setid(struct user_namespace *ns, int cap);
@@ -164,6 +165,10 @@ static inline bool has_ns_capability_noaudit(struct task_struct *t,
 	return true;
 }
 static inline bool capable(int cap)
+{
+	return true;
+}
+static inline bool capable_noaudit(int cap)
 {
 	return true;
 }

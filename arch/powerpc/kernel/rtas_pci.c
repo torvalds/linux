@@ -54,6 +54,10 @@ int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 #ifdef CONFIG_EEH
+	if (pdn->edev &&
+	    (pdn->edev->mode & EEH_DEV_REMOVED))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
 	if (pdn->edev && pdn->edev->pe &&
 	    (pdn->edev->pe->state & EEH_PE_CFG_BLOCKED))
 		return PCIBIOS_SET_FAILED;
@@ -105,6 +109,10 @@ int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 #ifdef CONFIG_EEH
+	if (pdn->edev &&
+	    (pdn->edev->mode & EEH_DEV_REMOVED))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
 	if (pdn->edev && pdn->edev->pe &&
 	    (pdn->edev->pe->state & EEH_PE_CFG_BLOCKED))
 		return PCIBIOS_SET_FAILED;

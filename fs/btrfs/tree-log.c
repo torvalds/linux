@@ -7286,6 +7286,22 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
+	/*
+	 * There can't be an inode ref key with offset 0 because inode numbers
+	 * start at BTRFS_FIRST_FREE_OBJECTID.
+	 */
+	if (WARN_ON_ONCE(ret == 0)) {
+		btrfs_err(trans->fs_info,
+		  "found inode ref key with offset 0 for root %llu inode %llu",
+			  btrfs_root_id(root), ino);
+		ret = BTRFS_LOG_FORCE_COMMIT;
+		goto out;
+	}
+	/*
+	 * Set to 0 so that in case we don't do any work below, we won't return
+	 * 1 and trigger an unnecessary transaction commit.
+	 */
+	ret = 0;
 
 	while (true) {
 		struct extent_buffer *leaf = path->nodes[0];

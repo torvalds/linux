@@ -20,7 +20,7 @@ static int nxpwifi_add_bss_prio_tbl(struct nxpwifi_private *priv)
 	struct nxpwifi_bss_prio_node *bss_prio;
 	struct nxpwifi_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 
-	bss_prio = kzalloc_obj(*bss_prio, GFP_KERNEL);
+	bss_prio = kzalloc_obj(*bss_prio);
 	if (!bss_prio)
 		return -ENOMEM;
 

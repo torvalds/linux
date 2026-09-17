@@ -361,6 +361,7 @@ struct ufs_qcom_host {
 	bool esi_enabled;
 
 	u32 saved_tx_eq_g1_setting;
+	u32 boot_spare_cfg;
 };
 
 struct ufs_qcom_drvdata {

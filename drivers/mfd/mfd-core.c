@@ -135,7 +135,7 @@ static int mfd_match_of_node_to_dev(struct platform_device *pdev,
 		return -EAGAIN;
 
 allocate_of_node:
-	of_entry = kzalloc(sizeof(*of_entry), GFP_KERNEL);
+	of_entry = kzalloc_obj(*of_entry);
 	if (!of_entry)
 		return -ENOMEM;
 
@@ -174,7 +174,7 @@ static int mfd_add_device(struct device *parent, int id,
 	if (!pdev->mfd_cell)
 		goto fail_device;
 
-	res = kcalloc(cell->num_resources, sizeof(*res), GFP_KERNEL);
+	res = kzalloc_objs(*res, cell->num_resources);
 	if (!res)
 		goto fail_device;
 

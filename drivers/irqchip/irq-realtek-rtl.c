@@ -188,7 +188,7 @@ static int __init realtek_setup_parents(struct device_node *node)
 	struct irq_domain *domain;
 
 	cnt = max(1, num_parents);
-	output = kcalloc(cnt, sizeof(*output), GFP_KERNEL);
+	output = kzalloc_objs(*output, cnt);
 	if (!output)
 		return -ENOMEM;
 

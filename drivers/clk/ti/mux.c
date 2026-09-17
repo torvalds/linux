@@ -181,7 +181,7 @@ static void of_mux_clk_setup(struct device_node *node)
 		pr_err("mux-clock %pOFn must have parents\n", node);
 		return;
 	}
-	parent_data = kcalloc(num_parents, sizeof(*parent_data), GFP_KERNEL);
+	parent_data = kzalloc_objs(*parent_data, num_parents);
 	if (!parent_data)
 		return;
 

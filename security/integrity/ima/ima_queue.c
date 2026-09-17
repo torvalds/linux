@@ -75,8 +75,7 @@ static struct hlist_head *ima_alloc_replace_htable(void)
 	struct hlist_head *old_htable, *new_htable;
 
 	/* Initializing to zeros is equivalent to call HLIST_HEAD_INIT. */
-	new_htable = kcalloc(IMA_MEASURE_HTABLE_SIZE, sizeof(struct hlist_head),
-			     GFP_KERNEL);
+	new_htable = kzalloc_objs(struct hlist_head, IMA_MEASURE_HTABLE_SIZE);
 	if (!new_htable)
 		return ERR_PTR(-ENOMEM);
 

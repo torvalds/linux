@@ -2943,7 +2943,7 @@ static int nldev_frmr_pools_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 aging_period;
 	int err;
 
-	tb = kzalloc_objs(*tb, RDMA_NLDEV_ATTR_MAX, GFP_KERNEL);
+	tb = kzalloc_objs(*tb, RDMA_NLDEV_ATTR_MAX);
 	if (!tb)
 		return -ENOMEM;
 

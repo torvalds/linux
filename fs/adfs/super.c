@@ -92,10 +92,7 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 
 static void adfs_put_super(struct super_block *sb)
 {
-	struct adfs_sb_info *asb = ADFS_SB(sb);
-
 	adfs_free_map(sb);
-	kfree_rcu(asb, rcu);
 }
 
 static int adfs_show_options(struct seq_file *seq, struct dentry *root)
@@ -365,7 +362,7 @@ static int adfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		ret = -EINVAL;
 	}
 	if (ret)
-		goto error;
+		return ret;
 
 	/* set up enough so that we can read an inode */
 	sb->s_op = &adfs_sops;
@@ -406,15 +403,9 @@ static int adfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!sb->s_root) {
 		adfs_free_map(sb);
 		adfs_error(sb, "get root inode failed\n");
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 	return 0;
-
-error:
-	sb->s_fs_info = NULL;
-	kfree(asb);
-	return ret;
 }
 
 static int adfs_get_tree(struct fs_context *fc)
@@ -465,10 +456,19 @@ static int adfs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
+static void adfs_kill_sb(struct super_block *sb)
+{
+	struct adfs_sb_info *asb = ADFS_SB(sb);
+
+	kill_block_super(sb);
+
+	kfree_rcu(asb, rcu);
+}
+
 static struct file_system_type adfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "adfs",
-	.kill_sb	= kill_block_super,
+	.kill_sb	= adfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 	.init_fs_context = adfs_init_fs_context,
 	.parameters	= adfs_param_spec,

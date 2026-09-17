@@ -2330,7 +2330,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 		return -EINVAL;
 
 	struct snd_pcm_group *group __free(kfree) =
-		kzalloc(sizeof(*group), GFP_KERNEL);
+		kzalloc_obj(*group);
 	if (!group)
 		return -ENOMEM;
 	snd_pcm_group_init(group);
