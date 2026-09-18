@@ -5,7 +5,6 @@
  */
 
 #include "kselftest_harness.h"
-#include "hugepage_settings.h"
 
 #include <string.h>
 #include <pthread.h>
@@ -16,6 +15,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
+
 #include "vm_util.h"
 
 #define TWOMEG		(2<<20)
