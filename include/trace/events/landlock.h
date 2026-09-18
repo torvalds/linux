@@ -928,12 +928,14 @@ TRACE_EVENT(landlock_deny_ptrace,
  *
  * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
  *             domain field.
- * @same_exec: Whether the current task entered the denying domain itself.
+ * @same_exec: Whether the policy subject entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
  * @target_domain_id: The target's Landlock domain ID, or 0 if the target
  *                    is unsandboxed.
  * @target: The task the signal was aimed at (never NULL).  target_pid is
  *          the init-namespace TGID (like audit's opid).
+ * @signal: The signal selected by the denied check.  Zero is a permission
+ *          probe, not an absent value.
  *
  * Emitted when a Landlock domain denies signal delivery to a scoped-out
  * target.
@@ -942,9 +944,9 @@ TRACE_EVENT(landlock_deny_scope_signal,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, u64 target_domain_id,
-		 const struct task_struct *target),
+		 const struct task_struct *target, int signal),
 
-	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target),
+	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target, signal),
 
 	TP_STRUCT__entry(
 		__field(	u64,		domain_id	)

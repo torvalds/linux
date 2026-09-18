@@ -201,10 +201,18 @@ void landlock_trace_denial(
 		}
 		break;
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
-		if (trace_landlock_deny_scope_signal_enabled())
+		if (trace_landlock_deny_scope_signal_enabled()) {
+			const struct landlock_signal_trace *const trace_signal =
+				request->trace_signal;
+
+			if (WARN_ON_ONCE(!trace_signal))
+				return;
+
 			trace_landlock_deny_scope_signal(
 				youngest_denied, same_exec, logged,
-				request->other_domain_id, request->audit.u.tsk);
+				trace_signal->target_domain_id,
+				request->audit.u.tsk, trace_signal->signal);
+		}
 		break;
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 		if (trace_landlock_deny_scope_abstract_unix_socket_enabled())

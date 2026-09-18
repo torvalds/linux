@@ -45,6 +45,11 @@ struct landlock_ptrace_trace {
 	const struct task_struct *tracer;
 };
 
+struct landlock_signal_trace {
+	u64 target_domain_id;
+	int signal;
+};
+
 #endif /* CONFIG_TRACEPOINTS */
 
 /*
@@ -74,22 +79,24 @@ struct landlock_request {
 	deny_masks_t deny_masks;
 	optional_access_t quiet_optional_accesses;
 
+#ifdef CONFIG_TRACEPOINTS
 	union {
 		/*
-		 * Other-party domain ID for a scope denial, or 0 if that party
-		 * is unsandboxed.  Store an ID, not a pointer: the other task
-		 * can replace its credential and free the domain it referenced.
-		 * Audit ignores this trace-only field.
+		 * Other-party domain ID for an abstract UNIX socket scope
+		 * denial, or 0 if that party is unsandboxed.  Store an ID, not
+		 * a pointer: the other task can replace its credential and free
+		 * the domain it referenced.
 		 */
 		u64 other_domain_id;
 
-#ifdef CONFIG_TRACEPOINTS
 		/* Synchronous context for a network denial. */
 		const struct landlock_net_trace *trace_net;
-		/* Consumed only by the synchronous trace dispatcher. */
+		/* Synchronous context for a ptrace denial. */
 		const struct landlock_ptrace_trace *trace_ptrace;
-#endif /* CONFIG_TRACEPOINTS */
+		/* Synchronous context for a signal denial. */
+		const struct landlock_signal_trace *trace_signal;
 	};
+#endif /* CONFIG_TRACEPOINTS */
 };
 
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG
