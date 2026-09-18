@@ -277,10 +277,8 @@ static void smsm_unmask_irq(struct irq_data *irqd)
 	u32 val;
 
 	/* Make sure our last cached state is up-to-date */
-	if (readl(entry->remote_state) & BIT(irq))
-		set_bit(irq, &entry->last_value);
-	else
-		clear_bit(irq, &entry->last_value);
+	assign_bit(irq, &entry->last_value,
+		   readl(entry->remote_state) & BIT(irq));
 
 	set_bit(irq, entry->irq_enabled);
 
@@ -304,15 +302,9 @@ static int smsm_set_irq_type(struct irq_data *irqd, unsigned int type)
 	if (!(type & IRQ_TYPE_EDGE_BOTH))
 		return -EINVAL;
 
-	if (type & IRQ_TYPE_EDGE_RISING)
-		set_bit(irq, entry->irq_rising);
-	else
-		clear_bit(irq, entry->irq_rising);
+	assign_bit(irq, entry->irq_rising, type & IRQ_TYPE_EDGE_RISING);
 
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		set_bit(irq, entry->irq_falling);
-	else
-		clear_bit(irq, entry->irq_falling);
+	assign_bit(irq, entry->irq_falling, type & IRQ_TYPE_EDGE_FALLING);
 
 	return 0;
 }
