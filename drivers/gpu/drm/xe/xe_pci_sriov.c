@@ -177,6 +177,7 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	return num_vfs;
 
 failed:
+	pf_resize_vf_vram_bar(xe, xe->sriov.pf.device_total_vfs);
 	xe_sriov_pf_unprovision_vfs(xe, num_vfs);
 	xe_pm_runtime_put(xe);
 	pf_finish_vfs_enabling(xe);
@@ -203,6 +204,8 @@ static int pf_disable_vfs(struct xe_device *xe)
 	xe_sriov_pf_sysfs_unlink_vfs(xe, num_vfs);
 
 	pci_disable_sriov(pdev);
+
+	pf_resize_vf_vram_bar(xe, xe->sriov.pf.device_total_vfs);
 
 	xe_sriov_pf_reprovision_default(xe);
 
