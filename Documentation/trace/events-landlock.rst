@@ -141,10 +141,10 @@ in some field formats:
   treated as untrusted input and escaped in the trace text output so it
   cannot inject field separators or control characters.
 
-- **Other party's domain**: A scope or ptrace denial compares the
-  subject's denying domain (``domain=``, always the enforcing domain and
-  never the current task) with the other party's domain, so these
-  tracepoints also report the other party's domain as a scalar ID:
+- **Other party's domain**: A scope or ptrace denial compares the subject's
+  denying domain (``domain=``), which is the enforcing domain and not
+  necessarily the current task's domain, with the other party's domain.
+  These tracepoints also report the other party's domain as a scalar ID:
   ``tracee_domain=`` (ptrace), ``target_domain=`` (signal), and
   ``peer_domain=`` (abstract unix socket).  It is ``0`` when the other
   party is unsandboxed, and otherwise a domain ID that a consumer resolves
@@ -231,9 +231,10 @@ contribution, not the final decision:
   through another matching rule, or the right is denied and appears in the
   ``blockers=`` field of the corresponding ``deny_access`` event.
 
-To reconstruct the decision for an object, aggregate the ``grants=``
-groups of all ``check_rule`` events emitted for that object during the
-check.
+For an access check that a consumer can delimit, aggregate the ``grants=``
+groups of all matching ``check_rule`` events.  These events do not carry a
+request ID; use their execution context and generic tracepoints to separate
+concurrent or successive checks of the same object.
 
 .. note::
 
@@ -264,9 +265,11 @@ layers, so ``grants=`` has one group per layer::
 eBPF access
 ===========
 
-eBPF programs attached via ``BPF_RAW_TRACEPOINT`` can access the
-tracepoint arguments directly through BTF.  The arguments include both
-standard kernel objects and Landlock-internal objects:
+BTF-enabled raw tracepoint programs attached through libbpf
+``SEC("tp_btf/...")`` sections receive typed callback arguments.  The
+event prototypes in `Event reference`_ document their argument layouts.
+The arguments include both standard kernel objects and Landlock-internal
+objects:
 
 - Standard kernel objects (``struct task_struct``, ``struct sock``,
   ``struct path``, ``struct dentry``) can be used with existing BPF
@@ -277,7 +280,7 @@ standard kernel objects and Landlock-internal objects:
   Internal struct layouts may change between kernel versions; use CO-RE
   for field relocation.
 
-A stateful eBPF program observes the full event stream and maintains
+A stateful eBPF program attached before sandbox construction can maintain
 per-domain state in BPF maps:
 
 1. On ``landlock_create_domain``: record the domain ID and parent (the
@@ -293,7 +296,10 @@ per-domain state in BPF maps:
    final statistics.
 
 This approach requires no kernel modification and no Landlock-specific
-BPF helpers.  The Landlock IDs serve as correlation keys across events.
+BPF helpers.  Landlock IDs serve as correlation keys within one boot.
+Records exported through tracing or BPF buffers can be lost, and records
+from different CPUs are not globally ordered, so consumers must detect and
+reconcile incomplete state.
 
 Audit filtering equivalence
 ===========================

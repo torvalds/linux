@@ -206,22 +206,22 @@ static inline const char *__trace_landlock_print_layers(
  * Decision context
  * ~~~~~~~~~~~~~~~~
  *
- * A denial event, together with the lifecycle events, exposes the full
- * set of inputs the verdict consumed, so a consumer that tracked domain
- * creation (landlock_create_ruleset, landlock_create_domain) can verify
- * or reproduce the Landlock decision rather than merely observe it
- * happened.  In who/what/why terms: who is the denying domain (the domain
- * field, always the subject that enforced the policy, never the current
- * task), what is the operation and its object, and why is every other
- * input the verdict weighed.
+ * A denial event identifies the domain whose policy denied the request, the
+ * Landlock operation and policy object that were checked, and the blocker or
+ * domain relationship responsible for the denial.  When tracing starts with
+ * sandbox construction, ruleset and domain events provide the policy history
+ * needed to interpret these identifiers.  The denying domain is the subject
+ * that enforced the policy, not necessarily current.  Generic tracepoints can
+ * provide additional operational context.
  *
  * Lifecycle consistency
  * ~~~~~~~~~~~~~~~~~~~~~~
  *
- * Lifecycle events are balanced: a creation event always has a matching
- * deallocation event and vice versa, so an eBPF program can model object
- * lifetimes from the trace stream without reconciliation logic.  A creation
- * event fires while the object is still private to the calling thread
+ * Lifecycle emission is balanced: a creation event always has a matching
+ * deallocation event and vice versa.  A consumer that observes an object's
+ * complete lifetime can model it from this pair; one that attaches late or
+ * loses exported records must reconcile incomplete state.  A creation event
+ * fires while the object is still private to the calling thread
  * (landlock_create_ruleset fires before the ruleset's file descriptor is
  * installed, so it cannot race a concurrent :manpage:`close(2)`); if fd
  * installation later fails and the ruleset is freed, free_ruleset still
@@ -295,7 +295,8 @@ static inline const char *__trace_landlock_print_layers(
  * the two parties without kernel-internal state.  The ID is a scalar
  * snapshot, not a live domain pointer that could dangle: an optional
  * relational referent is a scalar (0 sentinel), not a nullable pointer.
- * For ptrace, same_exec instead describes the tracer, even for
+ * Nonzero IDs are unique within one boot.  For ptrace, same_exec instead
+ * describes the tracer, even for
  * PTRACE_TRACEME, and may differ from the current task.
  *
  * Blocker fields
@@ -1031,11 +1032,10 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 		__entry->logged		= logged;
 		__entry->peer_domain_id	= peer_domain_id;
 		/*
-		 * Best-effort (0 for a datagram peer).  sk_peer_pid is
-		 * canonically guarded by sk->sk_peer_lock, but the target
-		 * peer's peercred is set once and not updated concurrently in
-		 * these hooks, so this READ_ONCE() is safe; sun_path is the
-		 * reliable identifier.
+		 * Best-effort (0 for a datagram peer).  The caller holds the
+		 * peer's AF_UNIX state lock, serializing published peercred
+		 * updates.  The peer socket keeps a reference to sk_peer_pid
+		 * through pid_nr(); sun_path is the reliable identifier.
 		 */
 		peer_pid		= READ_ONCE(peer->sk_peer_pid);
 		__entry->peer_pid	= peer_pid ? pid_nr(peer_pid) : 0;
