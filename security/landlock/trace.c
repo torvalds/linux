@@ -61,7 +61,7 @@ void landlock_trace_free_domain(const struct landlock_hierarchy *const hierarchy
  *
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
- * @missing: The set of denied access rights.
+ * @missing: The final missing access subset, when applicable.
  * @same_exec: Whether the current task is the same executable that called
  *             landlock_restrict_self() for the denying domain, as computed
  *             by landlock_log_denial().
@@ -83,6 +83,10 @@ void landlock_trace_denial(
 	case LANDLOCK_REQUEST_FS_ACCESS:
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 		if (trace_landlock_deny_access_fs_enabled()) {
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
 			char *buf __free(__putname) = __getname();
 			struct path dentry_path;
 			const char *pathname;
@@ -147,16 +151,23 @@ void landlock_trace_denial(
 
 			trace_landlock_deny_access_fs(youngest_denied,
 						      same_exec, logged,
-						      missing, path, pathname);
+						      &blockers, path,
+						      pathname);
 		}
 		break;
 	case LANDLOCK_REQUEST_NET_ACCESS:
-		if (trace_landlock_deny_access_net_enabled())
+		if (trace_landlock_deny_access_net_enabled()) {
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
+
 			trace_landlock_deny_access_net(
-				youngest_denied, same_exec, logged, missing,
+				youngest_denied, same_exec, logged, &blockers,
 				request->audit.u.net->sk,
 				ntohs(request->audit.u.net->sport),
 				ntohs(request->audit.u.net->dport));
+		}
 		break;
 	case LANDLOCK_REQUEST_PTRACE:
 		if (trace_landlock_deny_ptrace_enabled())

@@ -17,7 +17,9 @@
 #include <linux/trace_seq.h>
 #include <net/af_unix.h>
 
+enum landlock_request_type;
 struct dentry;
+struct landlock_blockers;
 struct landlock_domain;
 struct landlock_hierarchy;
 struct landlock_rule;
@@ -25,6 +27,10 @@ struct landlock_ruleset;
 struct path;
 struct sock;
 struct task_struct;
+
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
 
 #ifdef CREATE_TRACE_POINTS
 
@@ -182,6 +188,9 @@ static inline const char *__trace_landlock_print_layers(
 /* Maps a shared _LANDLOCK_*_NAMES entry to a __print_flags() pair. */
 #define _LANDLOCK_NAME_ENTRY(mask, name) { mask, name }
 
+#define _LANDLOCK_FS_BLOCKER_TYPE_NAMES \
+	{ LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY, "change_topology" }
+
 /**
  * DOC: Landlock trace events
  *
@@ -281,6 +290,13 @@ static inline const char *__trace_landlock_print_layers(
  * the two parties without kernel-internal state.  The ID is a scalar
  * snapshot, not a live domain pointer that could dangle: an optional
  * relational referent is a scalar (0 sentinel), not a nullable pointer.
+ *
+ * Blocker fields
+ * ~~~~~~~~~~~~~~
+ *
+ * The filesystem and network blocker arguments identify the request type
+ * and carry its final missing access subset when applicable.  The type
+ * determines how to interpret the access value.
  */
 
 /*
@@ -712,8 +728,7 @@ TRACE_EVENT(landlock_check_rule_net,
  *             domain field.
  * @same_exec: Whether the current task entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
- * @blockers: Access mask that was blocked (zero for a mount-topology
- *            change, whose only blocker is the operation itself).
+ * @blockers: Request type and final missing access subset (never NULL).
  * @path: Filesystem path that was denied (never NULL).
  * @pathname: Resolved path string (never NULL; an error placeholder on
  *            resolution failure).
@@ -723,8 +738,8 @@ TRACE_EVENT(landlock_check_rule_net,
 TRACE_EVENT(landlock_deny_access_fs,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
-		 bool logged, access_mask_t blockers, const struct path *path,
-		 const char *pathname),
+		 bool logged, const struct landlock_blockers *blockers,
+		 const struct path *path, const char *pathname),
 
 	TP_ARGS(hierarchy, same_exec, logged, blockers, path, pathname),
 
@@ -732,7 +747,8 @@ TRACE_EVENT(landlock_deny_access_fs,
 		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	access_mask_t,	blockers	)
+		__field(	enum landlock_request_type, blockers_type	)
+		__field(	access_mask_t,	blockers_access	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
 		__string(	pathname,	pathname	)
@@ -744,7 +760,8 @@ TRACE_EVENT(landlock_deny_access_fs,
 		__entry->domain_id	= hierarchy->id;
 		__entry->same_exec	= same_exec;
 		__entry->logged		= logged;
-		__entry->blockers	= blockers;
+		__entry->blockers_type	= blockers->type;
+		__entry->blockers_access = blockers->access;
 		__entry->dev		= path->dentry->d_sb->s_dev;
 		/*
 		 * A negative dentry has no backing inode, so mirror the
@@ -756,7 +773,10 @@ TRACE_EVENT(landlock_deny_access_fs,
 
 	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s dev=%u:%u ino=%lu path=%s",
 		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_FS_NAMES),
+		__entry->blockers_type == LANDLOCK_REQUEST_FS_ACCESS ?
+			__print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_FS_NAMES) :
+			__print_symbolic(__entry->blockers_type,
+					 _LANDLOCK_FS_BLOCKER_TYPE_NAMES),
 		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
 		__trace_print_untrusted_str(p, __get_str(pathname),
 					    __get_dynamic_array_len(pathname) - 1))
@@ -769,7 +789,7 @@ TRACE_EVENT(landlock_deny_access_fs,
  *             domain field.
  * @same_exec: Whether the current task entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
- * @blockers: Access mask that was blocked.
+ * @blockers: Request type and final missing access subset (never NULL).
  * @sk: Socket object (never NULL), read without a socket lock, so its
  *      fields are a best-effort snapshot.  The denied endpoint is not
  *      available: the hook runs before :manpage:`bind(2)` /
@@ -790,8 +810,8 @@ TRACE_EVENT(landlock_deny_access_fs,
 TRACE_EVENT(landlock_deny_access_net,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
-		 bool logged, access_mask_t blockers, const struct sock *sk,
-		 u64 sport, u64 dport),
+		 bool logged, const struct landlock_blockers *blockers,
+		 const struct sock *sk, u64 sport, u64 dport),
 
 	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, sport, dport),
 
@@ -799,7 +819,8 @@ TRACE_EVENT(landlock_deny_access_net,
 		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	access_mask_t,	blockers	)
+		__field(	enum landlock_request_type, blockers_type	)
+		__field(	access_mask_t,	blockers_access	)
 		__field(	u64,		sport		)
 		__field(	u64,		dport		)
 	),
@@ -808,14 +829,17 @@ TRACE_EVENT(landlock_deny_access_net,
 		__entry->domain_id	= hierarchy->id;
 		__entry->same_exec	= same_exec;
 		__entry->logged		= logged;
-		__entry->blockers	= blockers;
+		__entry->blockers_type	= blockers->type;
+		__entry->blockers_access = blockers->access;
 		__entry->sport		= sport;
 		__entry->dport		= dport;
 	),
 
 	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s sport=%llu dport=%llu",
 		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_NET_NAMES),
+		__entry->blockers_type == LANDLOCK_REQUEST_NET_ACCESS ?
+			__print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_NET_NAMES) :
+			"unknown",
 		__entry->sport, __entry->dport)
 );
 
@@ -991,6 +1015,7 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 					    __get_dynamic_array_len(sun_path) - 1))
 );
 
+#undef _LANDLOCK_FS_BLOCKER_TYPE_NAMES
 #undef _LANDLOCK_NAME_ENTRY
 
 #endif /* _TRACE_LANDLOCK_H */

@@ -25,6 +25,11 @@ enum landlock_request_type {
 	LANDLOCK_REQUEST_SCOPE_SIGNAL,
 };
 
+struct landlock_blockers {
+	access_mask_t access;
+	enum landlock_request_type type;
+};
+
 /*
  * We should be careful to only use a variable of this type for
  * landlock_log_denial().  This way, the compiler can remove it entirely if
