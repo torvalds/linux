@@ -17301,10 +17301,10 @@ F:	mm/numa_memblks.c
 MEMORY MANAGEMENT - NUMA PLACEMENT
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
+M:	Gregory Price <gourry@gourry.net>
 R:	Zi Yan <ziy@nvidia.com>
 R:	Joshua Hahn <joshua.hahnjy@gmail.com>
 R:	Rakie Kim <rakie.kim@sk.com>
-R:	Gregory Price <gourry@gourry.net>
 R:	Ying Huang <ying.huang@linux.alibaba.com>
 L:	linux-mm@kvack.org
 S:	Maintained
