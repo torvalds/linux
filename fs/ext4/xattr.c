@@ -1712,6 +1712,18 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 		}
 	}
 
+	if (!s->not_found && here->e_value_size && !here->e_value_inum) {
+		size_t offs = le16_to_cpu(here->e_value_offs);
+
+		if (offs < min_offs) {
+			EXT4_ERROR_INODE(inode,
+					 "corrupted xattr: value offset %zu < min_offs %zu",
+					 offs, min_offs);
+			ret = -EFSCORRUPTED;
+			goto out;
+		}
+	}
+
 	/*
 	 * Getting access to old and new ea inodes is subject to failures.
 	 * Finish that work before doing any modifications to the xattr data.

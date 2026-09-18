@@ -471,6 +471,12 @@ static int ext4_destroy_inline_data_nolock(handle_t *handle,
 	error = ext4_xattr_ibody_find(inode, &i, &is);
 	if (error)
 		goto out;
+	if (is.s.not_found) {
+		EXT4_ERROR_INODE(inode,
+				 "corrupted inline data without system.data xattr");
+		error = -EFSCORRUPTED;
+		goto out;
+	}
 
 	BUFFER_TRACE(is.iloc.bh, "get_write_access");
 	error = ext4_journal_get_write_access(handle, inode->i_sb, is.iloc.bh,
