@@ -85,8 +85,7 @@ static unsigned long orig_enable_soft_offline = -1UL;
 
 /*
  * Runs from an atexit handler, so it must not call anything that
- * exits on failure: write_num() would re-enter exit() through
- * ksft_exit_fail_msg().
+ * exits on failure.
  */
 static void restore_enable_soft_offline(void)
 {
@@ -152,7 +151,10 @@ static void test_soft_offline_common(int enable_soft_offline)
 	hugepagesize_kb = file_stat.f_bsize / 1024;
 	ksft_print_msg("Hugepagesize is %ldkB\n", hugepagesize_kb);
 
-	write_num(ENABLE_SOFT_OFFLINE_PATH, enable_soft_offline);
+	ret = write_num(ENABLE_SOFT_OFFLINE_PATH, enable_soft_offline);
+	if (ret)
+		ksft_exit_fail_msg("Failed to write to %s: %s\n",
+				   ENABLE_SOFT_OFFLINE_PATH, strerror(-ret));
 
 	nr_hugepages_before = hugetlb_nr_default_pages();
 
@@ -189,6 +191,8 @@ static void test_soft_offline_common(int enable_soft_offline)
 
 int main(int argc, char **argv)
 {
+	int ret;
+
 	ksft_print_header();
 
 	if (!hugetlb_setup_default(8))
@@ -196,7 +200,11 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(2);
 
-	orig_enable_soft_offline = read_num(ENABLE_SOFT_OFFLINE_PATH);
+	ret = read_num(ENABLE_SOFT_OFFLINE_PATH, &orig_enable_soft_offline);
+	if (ret)
+		ksft_exit_fail_msg("Failed to read %s: %s\n",
+				   ENABLE_SOFT_OFFLINE_PATH, strerror(-ret));
+
 	atexit(restore_enable_soft_offline);
 
 	test_soft_offline_common(1);
