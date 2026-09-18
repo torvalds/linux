@@ -517,8 +517,9 @@ static void amd_pmc_dbgfs_register(struct amd_pmc_dev *dev)
 			    &smu_fw_info_fops);
 	debugfs_create_file("s0ix_stats", 0644, dev->dbgfs_dir, dev,
 			    &s0ix_stats_fops);
-	debugfs_create_file("amd_pmc_idlemask", 0644, dev->dbgfs_dir, dev,
-			    &amd_pmc_idlemask_fops);
+	if (dev->cpu_info->scratch_reg)
+		debugfs_create_file("amd_pmc_idlemask", 0644, dev->dbgfs_dir, dev,
+					&amd_pmc_idlemask_fops);
 }
 
 static char *amd_pmc_get_msg_port(struct amd_pmc_dev *dev)
