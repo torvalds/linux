@@ -141,14 +141,21 @@ __bpf_kfunc int bpf_binprm_set_interp(struct linux_binprm *bprm,
 	len = strnlen(path, path__sz);
 	if (len == path__sz)
 		return -EINVAL;
-	if (path[0] != '/')
-		return -EINVAL;
 	if (len >= PATH_MAX)
 		return -ENAMETOOLONG;
 
 	interp = kmemdup_nul(path, len, GFP_KERNEL);
 	if (!interp)
 		return -ENOMEM;
+
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so check the private copy and not the buffer it was made from.
+	 */
+	if (interp[0] != '/') {
+		kfree(interp);
+		return -EINVAL;
+	}
 
 	bm_bpf_stage_selection(bprm, interp, NULL);
 	return 0;
@@ -240,6 +247,15 @@ __bpf_kfunc int bpf_binprm_set_interp_arg(struct linux_binprm *bprm,
 	val = kmemdup_nul(arg, len, GFP_KERNEL);
 	if (!val)
 		return -ENOMEM;
+
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so check the private copy and not the buffer it was made from.
+	 */
+	if (!val[0]) {
+		kfree(val);
+		return -EINVAL;
+	}
 
 	kfree(bprm->bpf_interp_arg);
 	bprm->bpf_interp_arg = val;
