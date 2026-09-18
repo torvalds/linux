@@ -332,7 +332,6 @@ struct asus_wmi {
 
 	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
-	struct mutex wmi_lock;
 	struct workqueue_struct *hotplug_workqueue;
 	struct work_struct hotplug_work;
 
@@ -2280,9 +2279,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 	bool absent;
 	u32 l;
 
-	mutex_lock(&asus->wmi_lock);
 	blocked = asus_wlan_rfkill_blocked(asus);
-	mutex_unlock(&asus->wmi_lock);
 
 	mutex_lock(&asus->hotplug_lock);
 	pci_lock_rescan_remove();
@@ -2484,30 +2481,6 @@ static void asus_rfkill_query(struct rfkill *rfkill, void *data)
 	rfkill_set_sw_state(priv->rfkill, !result);
 }
 
-static int asus_rfkill_wlan_set(void *data, bool blocked)
-{
-	struct asus_rfkill *priv = data;
-	struct asus_wmi *asus = priv->asus;
-	int ret;
-
-	/*
-	 * This handler is enabled only if hotplug is enabled.
-	 * In this case, the asus_wmi_set_devstate() will
-	 * trigger a wmi notification and we need to wait
-	 * this call to finish before being able to call
-	 * any wmi method
-	 */
-	mutex_lock(&asus->wmi_lock);
-	ret = asus_rfkill_set(data, blocked);
-	mutex_unlock(&asus->wmi_lock);
-	return ret;
-}
-
-static const struct rfkill_ops asus_rfkill_wlan_ops = {
-	.set_block = asus_rfkill_wlan_set,
-	.query = asus_rfkill_query,
-};
-
 static const struct rfkill_ops asus_rfkill_ops = {
 	.set_block = asus_rfkill_set,
 	.query = asus_rfkill_query,
@@ -2526,13 +2499,8 @@ static int asus_new_rfkill(struct asus_wmi *asus,
 	arfkill->dev_id = dev_id;
 	arfkill->asus = asus;
 
-	if (dev_id == ASUS_WMI_DEVID_WLAN &&
-	    asus->driver->quirks->hotplug_wireless)
-		*rfkill = rfkill_alloc(name, &asus->platform_device->dev, type,
-				       &asus_rfkill_wlan_ops, arfkill);
-	else
-		*rfkill = rfkill_alloc(name, &asus->platform_device->dev, type,
-				       &asus_rfkill_ops, arfkill);
+	*rfkill = rfkill_alloc(name, &asus->platform_device->dev, type,
+			       &asus_rfkill_ops, arfkill);
 
 	if (!*rfkill)
 		return -EINVAL;
@@ -2606,7 +2574,6 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
 	int result = 0;
 
 	mutex_init(&asus->hotplug_lock);
-	mutex_init(&asus->wmi_lock);
 
 	result = asus_new_rfkill(asus, &asus->wlan, "asus-wlan",
 				 RFKILL_TYPE_WLAN, ASUS_WMI_DEVID_WLAN);
