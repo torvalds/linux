@@ -58,15 +58,15 @@ MODULE_PARM_DESC(link_rate, "Enable link rate.\n"
 
 bool pm8001_use_msix = true;
 module_param_named(use_msix, pm8001_use_msix, bool, 0444);
-MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
+MODULE_PARM_DESC(use_msix, "Use MSIX interrupts. Default: true");
 
 static bool pm8001_use_tasklet = true;
 module_param_named(use_tasklet, pm8001_use_tasklet, bool, 0444);
-MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
+MODULE_PARM_DESC(use_tasklet, "Use tasklets for interrupt handling. Default: true");
 
 static bool pm8001_read_wwn = true;
 module_param_named(read_wwn, pm8001_read_wwn, bool, 0444);
-MODULE_PARM_DESC(zoned, "Get WWN from the controller. Default: true");
+MODULE_PARM_DESC(read_wwn, "Get WWN from the controller. Default: true");
 
 uint pcs_event_log_severity = 0x03;
 module_param(pcs_event_log_severity, int, 0644);
