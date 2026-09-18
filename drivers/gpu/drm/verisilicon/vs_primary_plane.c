@@ -168,8 +168,8 @@ struct drm_plane *vs_primary_plane_init(struct drm_device *drm_dev, struct vs_dc
 
 	plane = drmm_universal_plane_alloc(drm_dev, struct drm_plane, dev, 0,
 					   &vs_primary_plane_funcs,
-					   dc->identity.formats->array,
-					   dc->identity.formats->num,
+					   dc->identity.formats->primary_array,
+					   dc->identity.formats->primary_num,
 					   NULL,
 					   DRM_PLANE_TYPE_PRIMARY,
 					   NULL);
