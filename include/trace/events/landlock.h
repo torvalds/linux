@@ -295,6 +295,8 @@ static inline const char *__trace_landlock_print_layers(
  * the two parties without kernel-internal state.  The ID is a scalar
  * snapshot, not a live domain pointer that could dangle: an optional
  * relational referent is a scalar (0 sentinel), not a nullable pointer.
+ * For ptrace, same_exec instead describes the tracer, even for
+ * PTRACE_TRACEME, and may differ from the current task.
  *
  * Blocker fields
  * ~~~~~~~~~~~~~~
@@ -875,12 +877,14 @@ TRACE_EVENT(landlock_deny_access_net,
  *
  * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
  *             domain field.
- * @same_exec: Whether the current task entered the denying domain itself.
+ * @same_exec: Whether the tracer entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
  * @tracee_domain_id: The tracee's Landlock domain ID, or 0 if the tracee
  *                    is unsandboxed.
  * @tracee: The target task ptrace acted on (never NULL).  tracee_pid is
  *          the init-namespace TGID (like audit's opid).
+ * @tracer: The tracer or proposed tracer (never NULL); for PTRACE_TRACEME
+ *          this is the parent, not the syscall caller.
  *
  * Emitted when a Landlock domain denies a ptrace operation.
  */
@@ -888,9 +892,10 @@ TRACE_EVENT(landlock_deny_ptrace,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, u64 tracee_domain_id,
-		 const struct task_struct *tracee),
+		 const struct task_struct *tracee,
+		 const struct task_struct *tracer),
 
-	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee),
+	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee, tracer),
 
 	TP_STRUCT__entry(
 		__field(	u64,		domain_id	)

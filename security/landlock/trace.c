@@ -63,7 +63,7 @@ void landlock_trace_free_domain(const struct landlock_hierarchy *const hierarchy
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
  * @missing: The final missing access subset, when applicable.
- * @same_exec: Whether the current task is the same executable that called
+ * @same_exec: Whether the policy subject is the same executable that called
  *             landlock_restrict_self() for the denying domain, as computed
  *             by landlock_log_denial().
  * @logged: Whether the domain's policy selects this denial for logging, as
@@ -186,11 +186,19 @@ void landlock_trace_denial(
 		}
 		break;
 	case LANDLOCK_REQUEST_PTRACE:
-		if (trace_landlock_deny_ptrace_enabled())
-			trace_landlock_deny_ptrace(youngest_denied, same_exec,
-						   logged,
-						   request->other_domain_id,
-						   request->audit.u.tsk);
+		if (trace_landlock_deny_ptrace_enabled()) {
+			const struct landlock_ptrace_trace *const trace_ptrace =
+				request->trace_ptrace;
+
+			if (WARN_ON_ONCE(!trace_ptrace ||
+					 !trace_ptrace->tracer))
+				return;
+
+			trace_landlock_deny_ptrace(
+				youngest_denied, same_exec, logged,
+				trace_ptrace->tracee_domain_id,
+				request->audit.u.tsk, trace_ptrace->tracer);
+		}
 		break;
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
 		if (trace_landlock_deny_scope_signal_enabled())

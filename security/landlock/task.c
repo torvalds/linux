@@ -88,7 +88,9 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 				    const unsigned int mode)
 {
 	const struct landlock_cred_security *parent_subject;
+#ifdef CONFIG_TRACEPOINTS
 	u64 tracee_domain_id = 0;
+#endif /* CONFIG_TRACEPOINTS */
 	int err;
 
 	/* Quick return for non-landlocked tasks. */
@@ -100,10 +102,10 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 		const struct landlock_domain *const child_dom =
 			landlock_get_task_domain(child);
 		err = domain_ptrace(parent_subject->domain, child_dom);
-#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+#ifdef CONFIG_TRACEPOINTS
 		if (child_dom)
 			tracee_domain_id = child_dom->hierarchy->id;
-#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
+#endif /* CONFIG_TRACEPOINTS */
 	}
 
 	if (!err)
@@ -121,7 +123,12 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 				.u.tsk = child,
 			},
 			.layer_plus_one = parent_subject->domain->num_layers,
-			.other_domain_id = tracee_domain_id,
+#ifdef CONFIG_TRACEPOINTS
+			.trace_ptrace = &(struct landlock_ptrace_trace) {
+				.tracee_domain_id = tracee_domain_id,
+				.tracer = current,
+			},
+#endif /* CONFIG_TRACEPOINTS */
 		});
 
 	return err;
@@ -142,7 +149,6 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 {
 	const struct landlock_cred_security *parent_subject;
 	const struct landlock_domain *child_dom;
-	u64 tracee_domain_id = 0;
 	int err;
 
 	child_dom = landlock_get_current_domain();
@@ -153,12 +159,6 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 
 	if (!err)
 		return 0;
-
-#ifdef CONFIG_SECURITY_LANDLOCK_LOG
-	/* The tracee is the current task; its domain is stable here. */
-	if (child_dom)
-		tracee_domain_id = child_dom->hierarchy->id;
-#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	/*
 	 * For the ptrace_traceme case, we log the domain which is the cause of
@@ -174,7 +174,13 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 			.u.tsk = current,
 		},
 		.layer_plus_one = parent_subject->domain->num_layers,
-		.other_domain_id = tracee_domain_id,
+#ifdef CONFIG_TRACEPOINTS
+		.trace_ptrace = &(struct landlock_ptrace_trace) {
+			/* The current task's domain is stable here. */
+			.tracee_domain_id = child_dom ? child_dom->hierarchy->id : 0,
+			.tracer = parent,
+		},
+#endif /* CONFIG_TRACEPOINTS */
 	});
 	return err;
 }
