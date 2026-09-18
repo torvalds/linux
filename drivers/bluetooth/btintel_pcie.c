@@ -2291,6 +2291,7 @@ static void btintel_pcie_read_hwexp(struct btintel_pcie_data *data)
 		break;
 	case BTINTEL_CNVI_SCP:
 	case BTINTEL_CNVI_SCP2:
+	case BTINTEL_CNVI_SCP2_C0:
 	case BTINTEL_CNVI_SCP2F:
 	case BTINTEL_CNVI_DRACO:
 		break;
