@@ -1021,8 +1021,8 @@ view_index_meta:
 			ni->itype.index.vcn_size = vol->cluster_size;
 			ni->itype.index.vcn_size_bits = vol->cluster_size_bits;
 		} else {
-			ni->itype.index.vcn_size = vol->sector_size;
-			ni->itype.index.vcn_size_bits = vol->sector_size_bits;
+			ni->itype.index.vcn_size = NTFS_BLOCK_SIZE;
+			ni->itype.index.vcn_size_bits = NTFS_BLOCK_SIZE_BITS;
 		}
 
 		/* Setup the index allocation attribute, even if not present. */
@@ -1612,8 +1612,8 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 		ni->itype.index.vcn_size = vol->cluster_size;
 		ni->itype.index.vcn_size_bits = vol->cluster_size_bits;
 	} else {
-		ni->itype.index.vcn_size = vol->sector_size;
-		ni->itype.index.vcn_size_bits = vol->sector_size_bits;
+		ni->itype.index.vcn_size = NTFS_BLOCK_SIZE;
+		ni->itype.index.vcn_size_bits = NTFS_BLOCK_SIZE_BITS;
 	}
 
 	/* Find index allocation attribute. */

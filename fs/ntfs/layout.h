@@ -1880,8 +1880,8 @@ struct index_header {
  * @index_block_size:   Size of each index block in bytes
  *                      (in $INDEX_ALLOCATION).
  * @clusters_per_index_block:
- *                      Clusters per index block (or log2(bytes)
- *                      if < cluster).
+ *                      Clusters per index block, or 512-byte units when
+ *                      the index block is smaller than a cluster.
  *                      Power of 2; used for encoding block size.
  * @reserved:           3 bytes reserved/alignment (zero).
  * @index:              Index header for root entries (entries follow
@@ -1921,7 +1921,7 @@ struct index_root {
  * @lsn:                Log sequence number of last modification.
  * @index_block_vcn:    VCN of this index block.
  *                      Units: clusters if cluster_size <= index_block_size;
- *                      sectors otherwise.
+ *                      512-byte blocks otherwise.
  * @index:              Index header describing entries in this block.
  *
  * When creating the index block, we place the update sequence array at this

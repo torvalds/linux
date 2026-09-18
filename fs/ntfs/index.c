@@ -852,7 +852,7 @@ int ntfs_index_lookup(const void *key, const u32 key_len, struct ntfs_index_cont
 	if (ni->vol->cluster_size <= icx->block_size)
 		icx->vcn_size_bits = ni->vol->cluster_size_bits;
 	else
-		icx->vcn_size_bits = ni->vol->sector_size_bits;
+		icx->vcn_size_bits = NTFS_BLOCK_SIZE_BITS;
 
 	icx->cr = ir->collation_rule;
 	if (!ntfs_is_collation_rule_supported(icx->cr)) {
