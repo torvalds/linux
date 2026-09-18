@@ -1298,8 +1298,8 @@ static const struct geni_i2c_desc sa8255p_geni_i2c = {
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id geni_i2c_acpi_match[] = {
-	{ "QCOM0220", (kernel_ulong_t)&geni_i2c},
-	{ "QCOM0411", (kernel_ulong_t)&geni_i2c},
+	{ .id = "QCOM0220", .driver_data = (kernel_ulong_t)&geni_i2c },
+	{ .id = "QCOM0411", .driver_data = (kernel_ulong_t)&geni_i2c },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, geni_i2c_acpi_match);

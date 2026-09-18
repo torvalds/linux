@@ -345,7 +345,7 @@ static const struct dev_pm_ops zxi2c_pm = {
 };
 
 static const struct acpi_device_id zxi2c_acpi_match[] = {
-	{"IIC1D17", 0 },
+	{ .id = "IIC1D17" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, zxi2c_acpi_match);

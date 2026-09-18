@@ -349,7 +349,7 @@ static const struct of_device_id i2c_imx_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, i2c_imx_dt_ids);
 
 static const struct acpi_device_id i2c_imx_acpi_ids[] = {
-	{"NXP0001", .driver_data = (kernel_ulong_t)&vf610_i2c_hwdata},
+	{ .id = "NXP0001", .driver_data = (kernel_ulong_t)&vf610_i2c_hwdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_imx_acpi_ids);

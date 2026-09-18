@@ -356,7 +356,7 @@ static const struct of_device_id ls2x_i2c_id_table[] = {
 MODULE_DEVICE_TABLE(of, ls2x_i2c_id_table);
 
 static const struct acpi_device_id ls2x_i2c_acpi_match[] = {
-	{ "LOON0004" }, /* Loongson LS7A */
+	{ .id = "LOON0004" }, /* Loongson LS7A */
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ls2x_i2c_acpi_match);

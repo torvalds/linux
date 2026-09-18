@@ -42,10 +42,10 @@ static const struct smbus_methods_t ibm_smbus_methods = {
 };
 
 static const struct acpi_device_id acpi_smbus_cmi_ids[] = {
-	{"SMBUS01", (kernel_ulong_t)&smbus_methods},
-	{ACPI_SMBUS_IBM_HID, (kernel_ulong_t)&ibm_smbus_methods},
-	{ACPI_SMBUS_MS_HID, (kernel_ulong_t)&smbus_methods},
-	{"", 0}
+	{ .id = "SMBUS01", .driver_data = (kernel_ulong_t)&smbus_methods },
+	{ .id = ACPI_SMBUS_IBM_HID, .driver_data = (kernel_ulong_t)&ibm_smbus_methods },
+	{ .id = ACPI_SMBUS_MS_HID, .driver_data = (kernel_ulong_t)&smbus_methods },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, acpi_smbus_cmi_ids);
 

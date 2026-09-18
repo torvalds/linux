@@ -664,7 +664,7 @@ static const struct of_device_id i2c_gpio_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, i2c_gpio_dt_ids);
 
 static const struct acpi_device_id i2c_gpio_acpi_match[] = {
-	{ "LOON0005" }, /* LoongArch */
+	{ .id = "LOON0005" }, /* LoongArch */
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_gpio_acpi_match);

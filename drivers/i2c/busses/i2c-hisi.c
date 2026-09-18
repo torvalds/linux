@@ -516,7 +516,7 @@ static int hisi_i2c_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id hisi_i2c_acpi_ids[] = {
-	{ "HISI03D1", 0 },
+	{ .id = "HISI03D1" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, hisi_i2c_acpi_ids);
