@@ -187,6 +187,8 @@ static int ext4_read_inline_data(struct inode *inode, void *buffer,
 	struct ext4_xattr_ibody_header *header;
 	int cp_len = 0;
 	struct ext4_inode *raw_inode;
+	void *end, *p;
+	u16 offset;
 
 	if (!len)
 		return 0;
@@ -205,13 +207,21 @@ static int ext4_read_inline_data(struct inode *inode, void *buffer,
 		goto out;
 
 	header = IHDR(inode, raw_inode);
+	end = ITAIL(inode, raw_inode);
 	entry = (struct ext4_xattr_entry *)((void *)raw_inode +
 					    EXT4_I(inode)->i_inline_off);
 	len = min_t(unsigned int, len,
 		    (unsigned int)le32_to_cpu(entry->e_value_size));
 
-	memcpy(buffer,
-	       (void *)IFIRST(header) + le16_to_cpu(entry->e_value_offs), len);
+	offset = le16_to_cpu(entry->e_value_offs);
+	p = (void *)IFIRST(header) + offset;
+
+	if (unlikely(p + len > end)) {
+		EXT4_ERROR_INODE(inode, "corrupt inline xattr entry");
+		return -EFSCORRUPTED;
+	}
+
+	memcpy(buffer, p, len);
 	cp_len += len;
 
 out:
