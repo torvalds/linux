@@ -3482,8 +3482,8 @@ TEST_F(trace_net, deny_access_net_bind)
 
 /*
  * Anchors the denial fields shared by every deny_access_net event so a field
- * test proves more than sport/dport: the denying domain, the same-exec bit, the
- * audit-logging verdict, and the blocked access all stay populated.
+ * test proves more than the checked endpoint: the denying domain, the same-exec
+ * bit, the audit-logging verdict, and the blocked access all stay populated.
  */
 static void
 expect_net_deny_common_fields(struct __test_metadata *const _metadata,
@@ -3569,38 +3569,38 @@ FIXTURE_VARIANT(trace_net_connect) {
 	bool deny_connect;
 };
 
+/* Denied connect() to the next IPv4 port. */
 /* clang-format off */
-
-/* Denied connect(): sport=0, dport=<denied port>. */
 FIXTURE_VARIANT_ADD(trace_net_connect, connect_denied) {
+	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_NET_CONNECT_TCP,
 	.bind_base_first = false,
 	.deny_connect = true,
 };
 
-/* Denied bind(): sport=<denied port>, dport=0. */
+/* Denied bind() to the next IPv4 port. */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(trace_net_connect, bind_fields) {
+	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_NET_BIND_TCP,
 	.bind_base_first = false,
 	.deny_connect = false,
 };
 
-/* Denied connect() after an allowed bind(): the connect fields (sport=0). */
+/* Denied connect() after an allowed bind() uses the checked destination. */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(trace_net_connect, connect_after_bind) {
-	.handled = LANDLOCK_ACCESS_NET_BIND_TCP | LANDLOCK_ACCESS_NET_CONNECT_TCP,
+	/* clang-format on */
+	.handled = LANDLOCK_ACCESS_NET_BIND_TCP |
+		   LANDLOCK_ACCESS_NET_CONNECT_TCP,
 	.bind_base_first = true,
 	.deny_connect = true,
 };
 
-/* clang-format on */
-
 /*
- * A denied TCP bind(2) or connect(2) emits one deny_access_net event.  The port
- * is reported in the field matching the denied operation, in host endianness
- * (the UAPI landlock_net_port_attr.port convention): a connect denial reports
- * sport=0 dport=<port>, a bind denial reports sport=<port> dport=0, so a
- * byte-order or field-swap bug is caught.  A prior allowed bind
- * (connect_after_bind) does not change the connect denial's fields.
+ * A denied TCP bind(2) or connect(2) emits one deny_access_net event with the
+ * checked IPv4 port in host endianness (the UAPI landlock_net_port_attr.port
+ * convention).  A prior allowed bind does not change a connect denial's port.
  */
 TEST_F(trace_net_connect, deny_access_net)
 {
@@ -3693,21 +3693,13 @@ TEST_F(trace_net_connect, deny_access_net)
 
 	expect_net_deny_common_fields(_metadata, buf);
 
-	/*
-	 * The denied operation's port field carries the port; the other is 0.
-	 */
 	snprintf(expected, sizeof(expected), "%llu",
 		 (unsigned long long)(sock_port_start + 1));
 
 	ASSERT_EQ(0,
 		  tracefs_extract_field(buf, REGEX_DENY_ACCESS_NET(TRACE_TASK),
-					"sport", field, sizeof(field)));
-	EXPECT_STREQ(variant->deny_connect ? "0" : expected, field);
-
-	ASSERT_EQ(0,
-		  tracefs_extract_field(buf, REGEX_DENY_ACCESS_NET(TRACE_TASK),
-					"dport", field, sizeof(field)));
-	EXPECT_STREQ(variant->deny_connect ? expected : "0", field);
+					"port", field, sizeof(field)));
+	EXPECT_STREQ(expected, field);
 
 	free(buf);
 }
@@ -3866,12 +3858,5 @@ TEST_F(trace_net_check_rule, check_rule_net_fields)
 
 	free(buf);
 }
-
-/*
- * IPv6 network trace tests are intentionally elided.  IPv6 hook dispatch uses
- * the same current_check_access_socket() code path as IPv4, validated by the
- * audit tests in this file.  The trace events use the same blockers/sport/dport
- * fields regardless of address family.
- */
 
 TEST_HARNESS_MAIN

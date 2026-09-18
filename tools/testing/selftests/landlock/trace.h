@@ -145,8 +145,7 @@
 	"same_exec=[01] "            \
 	"logged=[01] "               \
 	"blockers=[a-z_|]* "         \
-	"sport=[0-9]\\+ "            \
-	"dport=[0-9]\\+$"
+	"port=-\\?[0-9]\\+$"
 
 #define REGEX_DENY_PTRACE(task)      \
 	TRACE_PREFIX(task)           \

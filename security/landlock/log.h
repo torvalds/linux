@@ -15,6 +15,7 @@
 
 struct landlock_cred_security;
 struct landlock_hierarchy;
+struct sockaddr;
 
 enum landlock_request_type {
 	LANDLOCK_REQUEST_PTRACE = 1,
@@ -29,6 +30,16 @@ struct landlock_blockers {
 	access_mask_t access;
 	enum landlock_request_type type;
 };
+
+#ifdef CONFIG_TRACEPOINTS
+
+struct landlock_net_trace {
+	const struct sockaddr *address;
+	int addrlen;
+	u16 socket_family;
+};
+
+#endif /* CONFIG_TRACEPOINTS */
 
 /*
  * We should be careful to only use a variable of this type for
@@ -57,13 +68,20 @@ struct landlock_request {
 	deny_masks_t deny_masks;
 	optional_access_t quiet_optional_accesses;
 
-	/*
-	 * Other-party domain ID for a relational (scope/ptrace) denial, or 0 if
-	 * that party is unsandboxed.  An ID, not a pointer: the other task can
-	 * replace its credential and free the domain it referenced.  Trace path
-	 * only; audit ignores it.
-	 */
-	u64 other_domain_id;
+	union {
+		/*
+		 * Other-party domain ID for a relational (scope/ptrace) denial,
+		 * or 0 if that party is unsandboxed.  Store an ID, not a
+		 * pointer: the other task can replace its credential and free
+		 * the domain it referenced.  Trace-only; audit ignores it.
+		 */
+		u64 other_domain_id;
+
+#ifdef CONFIG_TRACEPOINTS
+		/* Synchronous context for a network denial. */
+		const struct landlock_net_trace *trace_net;
+#endif /* CONFIG_TRACEPOINTS */
+	};
 };
 
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG

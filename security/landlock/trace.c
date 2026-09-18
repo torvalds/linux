@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/lsm_audit.h>
+#include <linux/socket.h>
 #include <net/sock.h>
 
 #include "access.h"
@@ -157,16 +158,31 @@ void landlock_trace_denial(
 		break;
 	case LANDLOCK_REQUEST_NET_ACCESS:
 		if (trace_landlock_deny_access_net_enabled()) {
+			const struct landlock_net_trace *const trace_net =
+				request->trace_net;
 			const struct landlock_blockers blockers = {
 				.access = missing,
 				.type = request->type,
 			};
+			struct sockaddr_storage address = {};
 
+			if (WARN_ON_ONCE(!trace_net || !trace_net->address))
+				return;
+
+			if (WARN_ON_ONCE(
+				    trace_net->addrlen <
+					    (int)offsetofend(struct sockaddr,
+							     sa_family) ||
+				    trace_net->addrlen > (int)sizeof(address)))
+				return;
+
+			memcpy(&address, trace_net->address,
+			       trace_net->addrlen);
 			trace_landlock_deny_access_net(
 				youngest_denied, same_exec, logged, &blockers,
 				request->audit.u.net->sk,
-				ntohs(request->audit.u.net->sport),
-				ntohs(request->audit.u.net->dport));
+				trace_net->socket_family, &address,
+				trace_net->addrlen);
 		}
 		break;
 	case LANDLOCK_REQUEST_PTRACE:

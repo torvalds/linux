@@ -10,7 +10,10 @@
 #if !defined(_TRACE_LANDLOCK_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_LANDLOCK_H
 
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/landlock.h>
+#include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/string_helpers.h>
 #include <linux/tracepoint.h>
@@ -790,6 +793,11 @@ TRACE_EVENT(landlock_deny_access_fs,
 					    __get_dynamic_array_len(pathname) - 1))
 );
 
+static_assert(offsetof(struct sockaddr_in, sin_port) ==
+	      offsetof(struct sockaddr_in6, sin6_port));
+static_assert(sizeof_field(struct sockaddr_in, sin_port) ==
+	      sizeof_field(struct sockaddr_in6, sin6_port));
+
 /**
  * landlock_deny_access_net - Network access denied
  *
@@ -798,30 +806,31 @@ TRACE_EVENT(landlock_deny_access_fs,
  * @same_exec: Whether the current task entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
  * @blockers: Request type and final missing access subset (never NULL).
- * @sk: Socket object (never NULL), read without a socket lock, so its
- *      fields are a best-effort snapshot.  The denied endpoint is not
- *      available: the hook runs before :manpage:`bind(2)` /
- *      :manpage:`connect(2)` sets the socket addresses.
- * @sport: Source port in host endianness, set for bind denials (zero for
- *         an autobind/ephemeral port); zero for connect and send denials.
- * @dport: Destination port in host endianness, set for connect and send
- *         denials; zero for bind denials, and also zero for a UDP send to
- *         an AF_UNSPEC address on an IPv6 socket (indistinguishable from a
- *         real destination port 0).  The bind-vs-connect direction is
- *         given by @blockers, not by which port is set.
+ * @sk: Socket object (never NULL), read without a socket lock, so its fields
+ *      are a best-effort snapshot.
+ * @socket_family: Socket-family snapshot used by the verdict.
+ * @address: Authoritative address checked by the verdict (never NULL).
+ *           The producer copies @addrlen bytes from the checked address and
+ *           zeroes the remaining storage before emission.  The
+ *           &sockaddr_in.sin_port or &sockaddr_in6.sin6_port member, when
+ *           present, remains in network endianness.
+ * @addrlen: Validated signed length of @address.
  *
- * Emitted when a Landlock domain denies a network operation.
- *
- * The port fields are converted from the socket's network byte order to
- * host endianness before emitting.
+ * Emitted when a Landlock domain denies a network operation.  The blocker
+ * identifies whether the address is a bind or connect/send policy object.
+ * The flattened port field is converted from the checked address to host
+ * endianness, or is -1 when no port was checked.  Zero is a valid checked
+ * port.
  */
 TRACE_EVENT(landlock_deny_access_net,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, const struct landlock_blockers *blockers,
-		 const struct sock *sk, u64 sport, u64 dport),
+		 const struct sock *sk, u16 socket_family,
+		 const struct sockaddr_storage *address, int addrlen),
 
-	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, sport, dport),
+	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, socket_family,
+		address, addrlen),
 
 	TP_STRUCT__entry(
 		__field(	u64,		domain_id	)
@@ -829,26 +838,36 @@ TRACE_EVENT(landlock_deny_access_net,
 		__field(	bool,		logged		)
 		__field(	enum landlock_request_type, blockers_type	)
 		__field(	access_mask_t,	blockers_access	)
-		__field(	u64,		sport		)
-		__field(	u64,		dport		)
+		__field(	s64,		port		)
 	),
 
 	TP_fast_assign(
+		const struct sockaddr *const addr =
+			(const struct sockaddr *)address;
+		const bool has_port =
+			addrlen >= (int)offsetofend(struct sockaddr_in, sin_port) &&
+			(addr->sa_family == AF_INET ||
+			 addr->sa_family == AF_INET6 ||
+			 (addr->sa_family == AF_UNSPEC &&
+			  socket_family == AF_INET));
+
 		__entry->domain_id	= hierarchy->id;
 		__entry->same_exec	= same_exec;
 		__entry->logged		= logged;
 		__entry->blockers_type	= blockers->type;
 		__entry->blockers_access = blockers->access;
-		__entry->sport		= sport;
-		__entry->dport		= dport;
+		__entry->port		=
+			has_port ?
+				ntohs(((const struct sockaddr_in *)addr)->sin_port) :
+				-1;
 	),
 
-	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s sport=%llu dport=%llu",
-		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__entry->blockers_type == LANDLOCK_REQUEST_NET_ACCESS ?
-			__print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_NET_NAMES) :
-			"unknown",
-		__entry->sport, __entry->dport)
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s port=%lld",
+		  __entry->domain_id, __entry->same_exec, __entry->logged,
+		  __entry->blockers_type == LANDLOCK_REQUEST_NET_ACCESS ?
+			  __print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_NET_NAMES) :
+			  "unknown",
+		  __entry->port)
 );
 
 /**
