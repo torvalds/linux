@@ -92,7 +92,7 @@ load_ruleset() {
 ip netns exec "$nsrouter" nft -f /dev/stdin <<EOF
 table $family $name {
 	chain nfq {
-		ip protocol icmp queue bypass
+		icmp type { "echo-request", "echo-reply" } queue bypass
 		icmpv6 type { "echo-request", "echo-reply" } queue num 1 bypass
 	}
 	chain pre {
