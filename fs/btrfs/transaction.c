@@ -413,6 +413,8 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
 
+	lockdep_assert_held(&fs_info->reloc_mutex);
+
 	if ((test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
 	    btrfs_get_root_last_trans(root) < trans->transid) || force) {
 		WARN_ON(!force && root->commit_root != root->node);
