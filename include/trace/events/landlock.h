@@ -243,8 +243,8 @@ static inline const char *__trace_landlock_print_layers(
  * Field encoding
  * ~~~~~~~~~~~~~~
  *
- * Fields that mirror the Landlock UAPI use the same C types and endianness
- * (e.g. network ports are __u64 in host endianness, like
+ * Fields that mirror the Landlock UAPI preserve their widths and endianness
+ * (e.g. network ports are u64 in host endianness, like
  * landlock_net_port_attr.port).  Per-event details, such as where a value
  * is byte-swapped, live in the field's own kdoc.
  *
@@ -319,8 +319,8 @@ TRACE_EVENT(landlock_create_ruleset,
 	TP_ARGS(ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u32,		ruleset_version	)
 		__field(	access_mask_t,	handled_fs	)
 		__field(	access_mask_t,	handled_net	)
 		__field(	access_mask_t,	scoped		)
@@ -359,8 +359,8 @@ TRACE_EVENT(landlock_free_ruleset,
 	TP_ARGS(ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u32,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -396,8 +396,8 @@ TRACE_EVENT(landlock_add_rule_fs,
 	TP_ARGS(ruleset, access_rights, path, pathname),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u32,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
@@ -443,15 +443,15 @@ TRACE_EVENT(landlock_add_rule_fs,
 TRACE_EVENT(landlock_add_rule_net,
 
 	TP_PROTO(const struct landlock_ruleset *ruleset,
-		 access_mask_t access_rights, __u64 port),
+		 access_mask_t access_rights, u64 port),
 
 	TP_ARGS(ruleset, access_rights, port),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u32,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
-		__field(	__u64,		port		)
+		__field(	u64,		port		)
 	),
 
 	TP_fast_assign(
@@ -495,10 +495,10 @@ TRACE_EVENT(landlock_create_domain,
 	TP_ARGS(domain, ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
-		__field(	__u64,		parent_id	)
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		domain_id	)
+		__field(	u64,		parent_id	)
+		__field(	u64,		ruleset_id	)
+		__field(	u32,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -557,7 +557,7 @@ TRACE_EVENT(landlock_enforce_domain,
 	TP_ARGS(domain, complete, process_wide, no_new_privs),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		complete	)
 		__field(	bool,		process_wide	)
 		__field(	bool,		no_new_privs	)
@@ -595,8 +595,8 @@ TRACE_EVENT(landlock_free_domain,
 	TP_ARGS(hierarchy),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
-		__field(	__u64,		denials		)
+		__field(	u64,		domain_id	)
+		__field(	u64,		denials		)
 	),
 
 	TP_fast_assign(
@@ -631,7 +631,7 @@ TRACE_EVENT(landlock_check_rule_fs,
 	TP_ARGS(domain, rule, access_request, dentry),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	access_mask_t,	access_request	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
@@ -675,14 +675,14 @@ TRACE_EVENT(landlock_check_rule_net,
 
 	TP_PROTO(const struct landlock_domain *domain,
 		 const struct landlock_rule *rule,
-		 access_mask_t access_request, __u64 port),
+		 access_mask_t access_request, u64 port),
 
 	TP_ARGS(domain, rule, access_request, port),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	access_mask_t,	access_request	)
-		__field(	__u64,		port		)
+		__field(	u64,		port		)
 		__dynamic_array(access_mask_t,	grants,
 				domain->num_layers)
 	),
@@ -729,7 +729,7 @@ TRACE_EVENT(landlock_deny_access_fs,
 	TP_ARGS(hierarchy, same_exec, logged, blockers, path, pathname),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
 		__field(	access_mask_t,	blockers	)
@@ -791,17 +791,17 @@ TRACE_EVENT(landlock_deny_access_net,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, access_mask_t blockers, const struct sock *sk,
-		 __u64 sport, __u64 dport),
+		 u64 sport, u64 dport),
 
 	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, sport, dport),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
 		__field(	access_mask_t,	blockers	)
-		__field(	__u64,		sport		)
-		__field(	__u64,		dport		)
+		__field(	u64,		sport		)
+		__field(	u64,		dport		)
 	),
 
 	TP_fast_assign(
@@ -842,10 +842,10 @@ TRACE_EVENT(landlock_deny_ptrace,
 	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		tracee_domain_id)
+		__field(	u64,		tracee_domain_id)
 		__field(	pid_t,		tracee_pid	)
 		__string(	tracee_comm,	tracee->comm	)
 	),
@@ -891,10 +891,10 @@ TRACE_EVENT(landlock_deny_scope_signal,
 	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		target_domain_id)
+		__field(	u64,		target_domain_id)
 		__field(	pid_t,		target_pid	)
 		__string(	target_comm,	target->comm	)
 	),
@@ -940,10 +940,10 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 	TP_ARGS(hierarchy, same_exec, logged, peer_domain_id, peer),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		peer_domain_id	)
+		__field(	u64,		peer_domain_id	)
 		__field(	pid_t,		peer_pid	)
 		/*
 		 * Abstract socket names are untrusted binary data from
