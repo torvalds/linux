@@ -562,7 +562,7 @@ err_out:
 		free_ext_block(handle, tmp_inode);
 	else {
 		retval = ext4_ext_swap_inode_data(handle, inode, tmp_inode);
-		if (retval)
+		if (retval && !ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 			/*
 			 * if we fail to swap inode data free the extent
 			 * details of the tmp inode
