@@ -182,7 +182,6 @@ static const struct amd_pmc_cpu_info amd_1ah_m80_cpu_info = {
 	.smu_arg	= AMD_PMC_REGISTER_ARG_1AH_80H,
 	.smu_rsp	= AMD_PMC_REGISTER_RSP_1AH_80H,
 	.num_ips	= ARRAY_SIZE(soc15_ip_blk_v3),
-	.scratch_reg	= AMD_PMC_SCRATCH_REG_1AH,
 	.ips_ptr	= soc15_ip_blk_v3,
 	.os_hint	= MSG_OS_HINT_RN,
 };
