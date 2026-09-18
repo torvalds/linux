@@ -267,6 +267,7 @@ Hardware Monitoring Kernel Drivers
    sy7636a-hwmon
    tc654
    tc74
+   tda38740
    thmc50
    tmp102
    tmp103
