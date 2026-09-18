@@ -396,10 +396,7 @@ config ECONET
 	bool "EcoNet MIPS family"
 	select BOOT_RAW
 	select DEBUG_ZBOOT if DEBUG_KERNEL
-	select EARLY_PRINTK_8250
 	select ECONET_EN751221_TIMER
-	select SERIAL_8250
-	select SERIAL_OF_PLATFORM
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -661,6 +658,7 @@ config EYEQ
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
 	select HOTPLUG_PARALLEL if HOTPLUG_CPU
+	select WEAK_REORDERING_BEYOND_LLSC
 	help
 	  Select this to build a kernel supporting EyeQ SoC from Mobileye.
 

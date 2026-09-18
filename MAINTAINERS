@@ -9324,6 +9324,7 @@ F:	Documentation/devicetree/bindings/interrupt-controller/econet,en751221-intc.y
 F:	Documentation/devicetree/bindings/mips/econet.yaml
 F:	Documentation/devicetree/bindings/timer/econet,en751221-timer.yaml
 F:	arch/mips/boot/dts/econet/
+F:	arch/mips/configs/econet_en751221_defconfig
 F:	arch/mips/econet/
 F:	drivers/clocksource/timer-econet-en751221.c
 F:	drivers/irqchip/irq-econet-en751221.c
