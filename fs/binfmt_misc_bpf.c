@@ -176,6 +176,7 @@ __bpf_kfunc int bpf_binprm_select_interp(struct linux_binprm *bprm,
 					 const char *name, size_t name__sz)
 {
 	const struct binfmt_misc_interp *interp;
+	char buf[BINFMT_MISC_INTERP_NAME_MAX + 1];
 	size_t len;
 	char *path;
 
@@ -184,8 +185,20 @@ __bpf_kfunc int bpf_binprm_select_interp(struct linux_binprm *bprm,
 	len = strnlen(name, name__sz);
 	if (len == name__sz || !len)
 		return -EINVAL;
+	/* No entry binds a longer name, so it cannot be found. */
+	if (len > BINFMT_MISC_INTERP_NAME_MAX)
+		return -ENOENT;
 
-	interp = binfmt_misc_find_interp(bprm->bpf_interps, name);
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so look the name up in a private copy and check that instead.
+	 */
+	memcpy(buf, name, len);
+	buf[len] = '\0';
+	if (!buf[0])
+		return -EINVAL;
+
+	interp = binfmt_misc_find_interp(bprm->bpf_interps, buf);
 	if (!interp)
 		return -ENOENT;
 
