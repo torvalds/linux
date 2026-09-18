@@ -6,7 +6,7 @@ Landlock Trace Events
 =====================
 
 :Author: Mickaël Salaün
-:Date: August 2026
+:Date: September 2026
 
 Landlock emits trace events for sandbox lifecycle operations and access
 denials.  These events can be consumed by ftrace (for human-readable
@@ -31,8 +31,8 @@ Landlock trace events are organized in four categories:
 **Syscall events** are emitted during Landlock system calls:
 
 - ``landlock_create_ruleset``: a new ruleset is created
-- ``landlock_add_rule_fs``: a filesystem rule is added to a ruleset
-- ``landlock_add_rule_net``: a network port rule is added to a ruleset
+- ``landlock_add_rule_path_beneath``: a filesystem rule is added to a ruleset
+- ``landlock_add_rule_net_port``: a network port rule is added to a ruleset
 - ``landlock_create_domain``: a new domain is created from a ruleset
 - ``landlock_enforce_domain``: a domain is enforced on a thread
 
@@ -47,8 +47,8 @@ Landlock trace events are organized in four categories:
 
 **Rule evaluation events** are emitted during rule matching:
 
-- ``landlock_check_rule_fs``: a filesystem rule is evaluated
-- ``landlock_check_rule_net``: a network port rule is evaluated
+- ``landlock_check_rule_inode``: an inode-keyed rule is evaluated
+- ``landlock_check_rule_net_port``: a network-port-keyed rule is evaluated
 
 **Lifecycle events**:
 
@@ -189,7 +189,7 @@ rather than the caller's, so correlate those to the syscall by domain ID.
 Interpreting check_rule events
 ==============================
 
-The ``check_rule_fs`` and ``check_rule_net`` events expose the per-layer
+The ``check_rule_inode`` and ``check_rule_net_port`` events expose the per-layer
 rule evaluation, which is useful for understanding *why* a specific
 access is allowed or denied.
 
@@ -244,22 +244,22 @@ check.
 
 For example, a program sandboxed with read and execute access to the
 whole filesystem reads ``/etc/passwd``; both the ``execve()`` and the
-read match the rule covering ``/`` (inode 2), so ``check_rule_fs`` fires
+read match the rule covering ``/`` (inode 2), so ``check_rule_inode`` fires
 with the requested rights intersected against what that rule grants.
 The ``access_request=`` mask includes ``truncate`` because the file-open hook
 evaluates that optional right alongside the required access, but the
 rule does not grant it, so ``truncate`` never appears in ``grants=``::
 
-  cat-127 [...] landlock_check_rule_fs: domain=1e40cb56f access_request=execute|read_file|truncate dev=0:17 ino=2 grants={execute|read_file}
-  cat-127 [...] landlock_check_rule_fs: domain=1e40cb56f access_request=read_file|truncate dev=0:17 ino=2 grants={read_file}
+  cat-127 [...] landlock_check_rule_inode: domain=1e40cb56f access_request=execute|read_file|truncate dev=0:17 ino=2 grants={execute|read_file}
+  cat-127 [...] landlock_check_rule_inode: domain=1e40cb56f access_request=read_file|truncate dev=0:17 ino=2 grants={read_file}
 
 The ``[...]`` replaces the ftrace CPU, flags, and timestamp columns.  A
 single ``grants=`` group means the enforcing domain has one layer.  With
 two nested sandboxes that each grant the same rights, the rule spans both
 layers, so ``grants=`` has one group per layer::
 
-  cat-128 [...] landlock_check_rule_fs: domain=184788b52 access_request=execute|read_file|truncate dev=0:17 ino=2 grants={execute|read_file,execute|read_file}
-  cat-128 [...] landlock_check_rule_fs: domain=184788b52 access_request=read_file|truncate dev=0:17 ino=2 grants={read_file,read_file}
+  cat-128 [...] landlock_check_rule_inode: domain=184788b52 access_request=execute|read_file|truncate dev=0:17 ino=2 grants={execute|read_file,execute|read_file}
+  cat-128 [...] landlock_check_rule_inode: domain=184788b52 access_request=read_file|truncate dev=0:17 ino=2 grants={read_file,read_file}
 
 eBPF access
 ===========

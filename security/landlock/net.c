@@ -47,7 +47,8 @@ int landlock_append_net_rule(struct landlock_ruleset *const ruleset,
 	 * TP_fast_assign).
 	 */
 	if (!err)
-		trace_landlock_add_rule_net(ruleset, access_rights, port);
+		trace_landlock_add_rule_net_port(ruleset, flags, access_rights,
+						 port);
 	mutex_unlock(&ruleset->lock);
 
 	return err;
@@ -63,7 +64,7 @@ static bool unmask_layers_net(const struct landlock_domain *const domain,
 
 	ret = landlock_unmask_layers(domain, id, masks, &rule);
 	if (rule)
-		trace_landlock_check_rule_net(
+		trace_landlock_check_rule_net_port(
 			domain, rule, access_request,
 			ntohs((__force __be16)id.key.data));
 	return ret;

@@ -28,6 +28,8 @@ struct path;
 struct sock;
 struct task_struct;
 
+static_assert(sizeof(access_mask_t) <= sizeof(u64));
+
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
@@ -114,7 +116,7 @@ __trace_print_untrusted_str(struct trace_seq *p, const char *src, size_t len)
  * Fills the dense per-domain-layer array layers (one access mask per layer,
  * indexed by level - 1) from rule's sparse layer stack, keeping only the
  * requested rights (access_request).  Layers with no matching rule entry get
- * a zero mask.  Shared by the check_rule_fs and check_rule_net events.
+ * a zero mask.  Shared by the check_rule_inode and check_rule_net_port events.
  *
  * rule->layers is sorted by ascending level, with levels in the domain's
  * [1, num_layers] range (see landlock_merge_ruleset()), so every entry maps
@@ -389,12 +391,14 @@ TRACE_EVENT(landlock_free_ruleset,
 );
 
 /**
- * landlock_add_rule_fs - Filesystem rule added to a ruleset
+ * landlock_add_rule_path_beneath - Path-beneath rule added to a ruleset
  *
  * @ruleset: Source ruleset (never NULL).
- * @access_rights: Effective access mask stored in the rule, not the raw
- *                 sys_landlock_add_rule() argument (unhandled rights
- *                 added).
+ * @flags: Complete validated landlock_add_rule_flags value supplied by this
+ *         successful call, not the rule's accumulated quiet state.
+ * @access_rights: Canonical per-call access mask passed to
+ *                 landlock_insert_rule() after normalization, not the raw
+ *                 sys_landlock_add_rule() argument or accumulated rule.
  * @path: Filesystem path for the rule (never NULL).
  * @pathname: Resolved absolute path string (never NULL; error placeholder
  *            on resolution failure).
@@ -403,13 +407,13 @@ TRACE_EVENT(landlock_free_ruleset,
  * the reported ruleset is a stable snapshot that no concurrent writer can
  * change.
  */
-TRACE_EVENT(landlock_add_rule_fs,
+TRACE_EVENT(landlock_add_rule_path_beneath,
 
-	TP_PROTO(const struct landlock_ruleset *ruleset,
-		 access_mask_t access_rights, const struct path *path,
+	TP_PROTO(const struct landlock_ruleset *ruleset, u32 flags,
+		 u64 access_rights, const struct path *path,
 		 const char *pathname),
 
-	TP_ARGS(ruleset, access_rights, path, pathname),
+	TP_ARGS(ruleset, flags, access_rights, path, pathname),
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
@@ -443,25 +447,27 @@ TRACE_EVENT(landlock_add_rule_fs,
 );
 
 /**
- * landlock_add_rule_net - Network port rule added to a ruleset
+ * landlock_add_rule_net_port - Network-port rule added to a ruleset
  *
  * @ruleset: Source ruleset (never NULL).
- * @access_rights: Effective access mask stored in the rule, not the raw
- *                 sys_landlock_add_rule() argument (unhandled rights
- *                 added).
- * @port: Network port, the landlock_net_port_attr.port UAPI value
- *        forwarded directly.
+ * @flags: Complete validated landlock_add_rule_flags value supplied by this
+ *         successful call, not the rule's accumulated quiet state.
+ * @access_rights: Canonical per-call access mask passed to
+ *                 landlock_insert_rule() after normalization, not the raw
+ *                 sys_landlock_add_rule() argument or accumulated rule.
+ * @port: Network port in host endianness, forwarded directly from
+ *        &landlock_net_port_attr.port.
  *
  * Emitted by sys_landlock_add_rule() under the modified ruleset's lock, so
  * the reported ruleset is a stable snapshot that no concurrent writer can
  * change.
  */
-TRACE_EVENT(landlock_add_rule_net,
+TRACE_EVENT(landlock_add_rule_net_port,
 
-	TP_PROTO(const struct landlock_ruleset *ruleset,
-		 access_mask_t access_rights, u64 port),
+	TP_PROTO(const struct landlock_ruleset *ruleset, u32 flags,
+		 u64 access_rights, u64 port),
 
-	TP_ARGS(ruleset, access_rights, port),
+	TP_ARGS(ruleset, flags, access_rights, port),
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
@@ -625,7 +631,7 @@ TRACE_EVENT(landlock_free_domain,
 );
 
 /**
- * landlock_check_rule_fs - Filesystem rule evaluated during access check
+ * landlock_check_rule_inode - Inode rule evaluated during access check
  *
  * @domain: Enforcing domain (never NULL).
  * @rule: Matching rule with per-layer access masks (never NULL).
@@ -638,11 +644,11 @@ TRACE_EVENT(landlock_free_domain,
  * domain layer.  See Documentation/trace/events-landlock.rst for how to
  * interpret it.
  */
-TRACE_EVENT(landlock_check_rule_fs,
+TRACE_EVENT(landlock_check_rule_inode,
 
 	TP_PROTO(const struct landlock_domain *domain,
 		 const struct landlock_rule *rule,
-		 access_mask_t access_request, const struct dentry *dentry),
+		 u64 access_request, const struct dentry *dentry),
 
 	TP_ARGS(domain, rule, access_request, dentry),
 
@@ -664,7 +670,8 @@ TRACE_EVENT(landlock_check_rule_fs,
 		__trace_landlock_fill_layers(__get_dynamic_array(grants),
 					     __get_dynamic_array_len(grants) /
 						     sizeof(access_mask_t),
-					     rule, access_request);
+					     rule,
+					     (access_mask_t)access_request);
 	),
 
 	TP_printk("domain=%llx access_request=%s dev=%u:%u ino=%lu grants=%s",
@@ -675,7 +682,7 @@ TRACE_EVENT(landlock_check_rule_fs,
 );
 
 /**
- * landlock_check_rule_net - Network port rule evaluated during access check
+ * landlock_check_rule_net_port - Network port rule evaluated
  *
  * @domain: Enforcing domain (never NULL).
  * @rule: Matching rule with per-layer access masks (never NULL).
@@ -687,11 +694,11 @@ TRACE_EVENT(landlock_check_rule_fs,
  * layer.  See Documentation/trace/events-landlock.rst for how to
  * interpret it.
  */
-TRACE_EVENT(landlock_check_rule_net,
+TRACE_EVENT(landlock_check_rule_net_port,
 
 	TP_PROTO(const struct landlock_domain *domain,
 		 const struct landlock_rule *rule,
-		 access_mask_t access_request, u64 port),
+		 u64 access_request, u64 port),
 
 	TP_ARGS(domain, rule, access_request, port),
 
@@ -711,7 +718,8 @@ TRACE_EVENT(landlock_check_rule_net,
 		__trace_landlock_fill_layers(__get_dynamic_array(grants),
 					     __get_dynamic_array_len(grants) /
 						     sizeof(access_mask_t),
-					     rule, access_request);
+					     rule,
+					     (access_mask_t)access_request);
 	),
 
 	TP_printk("domain=%llx access_request=%s port=%llu grants=%s",

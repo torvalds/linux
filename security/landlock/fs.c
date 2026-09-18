@@ -356,14 +356,14 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 	 * held for BTF consistency (enforced by lockdep_assert_held in
 	 * TP_fast_assign).
 	 */
-	if (!err && trace_landlock_add_rule_fs_enabled()) {
+	if (!err && trace_landlock_add_rule_path_beneath_enabled()) {
 		char *buffer __free(__putname) = __getname();
 		const char *pathname =
 			buffer ? resolve_path_for_trace(path, buffer) :
 				 "<no_mem>";
 
-		trace_landlock_add_rule_fs(ruleset, access_rights, path,
-					   pathname);
+		trace_landlock_add_rule_path_beneath(
+			ruleset, flags, access_rights, path, pathname);
 	}
 	mutex_unlock(&ruleset->lock);
 
@@ -423,8 +423,8 @@ static bool unmask_layers_fs(const struct landlock_domain *const domain,
 
 	ret = landlock_unmask_layers(domain, id, masks, &rule);
 	if (rule)
-		trace_landlock_check_rule_fs(domain, rule, access_request,
-					     dentry);
+		trace_landlock_check_rule_inode(domain, rule, access_request,
+						dentry);
 	return ret;
 }
 

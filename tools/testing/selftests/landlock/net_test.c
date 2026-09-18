@@ -3712,7 +3712,7 @@ TEST_F(trace_net_connect, deny_access_net)
 	free(buf);
 }
 
-/* Field verification for the check_rule_net event on an allowed access. */
+/* Field verification for the check_rule_net_port event on an allowed access. */
 
 /* clang-format off */
 FIXTURE(trace_net_check_rule) {
@@ -3757,10 +3757,11 @@ FIXTURE_TEARDOWN(trace_net_check_rule)
 
 /*
  * Verifies that an allowed bind matching a net-port rule emits exactly one
- * landlock_check_rule_net event with the enforcing domain, the requested
+ * landlock_check_rule_net_port event with the enforcing domain, the requested
  * access, the checked port (host endianness), and the per-layer grants.  The
- * whole event is anchored to exact values so a revert of the check_rule_net
- * emit (or a byte-order or field-plumbing regression) fails the test.
+ * whole event is anchored to exact values so removing the check_rule_net_port
+ * emission or introducing a byte-order or field-plumbing regression fails the
+ * test.
  */
 TEST_F(trace_net_check_rule, check_rule_net_fields)
 {
@@ -3832,7 +3833,7 @@ TEST_F(trace_net_check_rule, check_rule_net_fields)
 	EXPECT_EQ(1,
 		  tracefs_count_matches(buf, REGEX_CHECK_RULE_NET(TRACE_TASK)))
 	{
-		TH_LOG("Expected 1 check_rule_net event\n%s", buf);
+		TH_LOG("Expected 1 check_rule_net_port event\n%s", buf);
 	}
 
 	ASSERT_EQ(0,
