@@ -548,7 +548,8 @@ TEST_F(trace_fs, check_rule_nested)
  */
 TEST_F(trace_fs, deny_access_fs_denied)
 {
-	char *buf;
+	const char *const event_regex = REGEX_DENY_ACCESS_FS(TRACE_TASK);
+	char *buf, blockers[64];
 	int count;
 
 	ASSERT_EQ(0, tracefs_clear_buf());
@@ -564,8 +565,77 @@ TEST_F(trace_fs, deny_access_fs_denied)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	count = tracefs_count_matches(buf, REGEX_DENY_ACCESS_FS(TRACE_TASK));
-	EXPECT_LE(1, count);
+	count = tracefs_count_matches(buf, event_regex);
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 access denial, got %d\n%s", count, buf);
+	}
+	ASSERT_EQ(0, tracefs_extract_field(buf, event_regex, "blockers",
+					   blockers, sizeof(blockers)));
+	EXPECT_STREQ("read_dir", blockers);
+
+	free(buf);
+}
+
+/*
+ * Verifies that a denied mount reports the singleton topology blocker rather
+ * than an empty access mask.
+ */
+TEST_F(trace_fs, deny_change_topology)
+{
+	const char *const event_regex = REGEX_DENY_ACCESS_FS(TRACE_TASK);
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_REFER,
+	};
+	char *buf, blockers[64];
+	int count, ruleset_fd, status;
+	pid_t pid;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	ASSERT_EQ(0, tracefs_clear_buf());
+
+	/* Ensure that Landlock is the only expected mount denial. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	pid = fork();
+	ASSERT_LE(0, pid);
+	if (pid == 0) {
+		if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+			close(ruleset_fd);
+			_exit(1);
+		}
+		if (landlock_restrict_self(ruleset_fd, 0)) {
+			close(ruleset_fd);
+			_exit(2);
+		}
+		close(ruleset_fd);
+
+		if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, NULL) != -1)
+			_exit(3);
+
+		if (errno != EPERM)
+			_exit(4);
+
+		_exit(0);
+	}
+	close(ruleset_fd);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+	count = tracefs_count_matches(buf, event_regex);
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 topology denial, got %d\n%s", count, buf);
+	}
+	ASSERT_EQ(0, tracefs_extract_field(buf, event_regex, "blockers",
+					   blockers, sizeof(blockers)));
+	EXPECT_STREQ("change_topology", blockers);
 
 	free(buf);
 }
