@@ -164,6 +164,13 @@ struct at_context {
 	struct work_struct work;
 };
 
+// The local-to-local transaction is handled by the work item in the following structure.
+struct at_local {
+	struct list_head list;
+	spinlock_t lock;
+	struct work_struct work;
+};
+
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
@@ -215,6 +222,9 @@ struct fw_ohci {
 	struct ar_context ar_response_ctx;
 	struct at_context at_request_ctx;
 	struct at_context at_response_ctx;
+
+	struct at_local at_request_local;
+	struct at_local at_response_local;
 
 	u32 it_context_support;
 	u32 it_context_mask;     /* unoccupied IT contexts */
@@ -1579,6 +1589,51 @@ static void handle_local_at_response_packet(struct fw_ohci *ohci, struct fw_pack
 	packet->callback(packet, &ohci->card, packet->ack);
 }
 
+static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci)
+{
+	struct fw_packet *packet;
+
+	spin_lock(&local->lock);
+
+	while ((packet = list_first_entry_or_null(&local->list, typeof(*packet), link_for_local))) {
+		list_del(&packet->link_for_local);
+		spin_unlock(&local->lock);
+
+		if (unlikely(packet->ack != 0)) {
+			// This case is active when the call of at_context_queue_packet() returns
+			// error in at_context_transmit().
+			packet->callback(packet, &ohci->card, packet->ack);
+		}
+
+		spin_lock(&local->lock);
+	}
+
+	spin_unlock(&local->lock);
+}
+
+static void at_request_local_work(struct work_struct *work)
+{
+	struct at_local *local = from_work(local, work, work);
+	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_request_local);
+
+	handle_at_local_packets(local, ohci);
+}
+
+static void at_response_local_work(struct work_struct *work)
+{
+	struct at_local *local = from_work(local, work, work);
+	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_response_local);
+
+	handle_at_local_packets(local, ohci);
+}
+
+static void at_local_init(struct at_local *local, work_func_t func)
+{
+	spin_lock_init(&local->lock);
+	INIT_LIST_HEAD(&local->list);
+	INIT_WORK(&local->work, func);
+}
+
 static bool destination_is_local(const struct fw_packet *packet, const struct fw_ohci *ohci)
 __must_hold(&ohci->lock)
 {
@@ -1586,6 +1641,24 @@ __must_hold(&ohci->lock)
 
 	return (async_header_get_destination(packet->header) == ohci->node_id &&
 		ohci->generation == packet->generation);
+}
+
+static void queue_work_for_at_local_packet(struct at_context *ctx, struct fw_packet *packet,
+					   struct fw_ohci *ohci)
+{
+	struct at_local *local;
+
+	if (ctx == &ohci->at_request_ctx)
+		local = &ohci->at_request_local;
+	else
+		local = &ohci->at_response_local;
+
+	// Timestamping on behalf of the hardware.
+	packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+
+	scoped_guard(spinlock_irqsave, &local->lock)
+		list_add_tail(&packet->link_for_local, &local->list);
+	queue_work(ohci->card.async_wq, &local->work);
 }
 
 static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
@@ -1612,12 +1685,8 @@ static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet
 	ret = at_context_queue_packet(ctx, packet);
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
-	if (ret < 0) {
-		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+	if (ret < 0)
+		queue_work_for_at_local_packet(ctx, packet, ohci);
 }
 
 static void detect_dead_context(struct fw_ohci *ohci,
@@ -2474,6 +2543,9 @@ static void ohci_disable(struct fw_card *card)
 	flush_work(&ohci->at_request_ctx.work);
 	flush_work(&ohci->at_response_ctx.work);
 
+	flush_work(&ohci->at_request_local.work);
+	flush_work(&ohci->at_response_local.work);
+
 	for (i = 0; i < ohci->n_ir; ++i) {
 		if (!(ohci->ir_context_mask & BIT(i)))
 			flush_work(&ohci->ir_context_list[i].base.work);
@@ -2485,6 +2557,9 @@ static void ohci_disable(struct fw_card *card)
 
 	at_context_flush(&ohci->at_request_ctx);
 	at_context_flush(&ohci->at_response_ctx);
+
+	at_request_local_work(&ohci->at_request_local.work);
+	at_response_local_work(&ohci->at_response_local.work);
 }
 
 static int ohci_set_config_rom(struct fw_card *card,
@@ -3683,6 +3758,9 @@ static int pci_probe(struct pci_dev *dev,
 	if (err < 0)
 		return err;
 	INIT_WORK(&ohci->at_response_ctx.work, ohci_at_context_work);
+
+	at_local_init(&ohci->at_request_local, at_request_local_work);
+	at_local_init(&ohci->at_response_local, at_response_local_work);
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;

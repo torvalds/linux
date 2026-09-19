@@ -643,11 +643,12 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_FREEZABLE		The target device would not be available when being freezed.
 	//  * == WQ_HIGHPRI		High priority to process semi-realtime timestamped data.
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
-	//  * max_active == 4		A hardIRQ could notify events for a pair of requests and
-	//				response AR/AT contexts.
+	//  * max_active == 4 + 2	A hardIRQ could notify events for a pair of requests and
+	//				response AR/AT contexts. Additional 2 capacity are for the
+	//				internal handling of local AT request and response packets.
 	async_wq = alloc_workqueue("firewire-async-card%u",
 				   WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-				   4, card->index);
+				   6, card->index);
 	if (!async_wq)
 		return -ENOMEM;
 

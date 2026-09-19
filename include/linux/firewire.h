@@ -329,6 +329,9 @@ struct fw_packet {
 	bool payload_mapped;
 	u32 timestamp;
 
+	// Used to handle the local-to-local packets in the AT request/response contexts.
+	struct list_head link_for_local;
+
 	/*
 	 * This callback is called when the packet transmission has completed.
 	 * For successful transmission, the status code is the ack received
