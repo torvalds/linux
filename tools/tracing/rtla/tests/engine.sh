@@ -7,7 +7,7 @@ test_begin() {
 	# Set test directory to the directory of the script
 	scriptfile=$(realpath "$0")
 	testdir=$(dirname "$scriptfile")
-	[ -z "$RTLA" ] && RTLA="./rtla"
+	[ -z "$RTLA" ] && RTLA="$(pwd)/rtla"
 	[ -n "$TEST_COUNT" ] && echo "1..$TEST_COUNT"
 }
 
