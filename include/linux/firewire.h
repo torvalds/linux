@@ -337,7 +337,7 @@ struct fw_packet {
 	 * For successful transmission, the status code is the ack received
 	 * from the destination.  Otherwise it is one of the juju-specific
 	 * rcodes:  RCODE_SEND_ERROR, _CANCELLED, _BUSY, _GENERATION, _NO_ACK.
-	 * The callback can be called from workqueue and thus must never block.
+	 * The callback is called from a workqueue. It is not preferable to block it so long.
 	 */
 	fw_packet_callback_t callback;
 	int ack;

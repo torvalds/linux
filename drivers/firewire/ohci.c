@@ -1546,7 +1546,7 @@ static bool in_bus_management_csr_registers(u64 offset)
 	return in_range(offset, CSR_BUS_MANAGER_ID, 0x22c - CSR_BUS_MANAGER_ID);
 }
 
-static void handle_local_at_request_packet(struct fw_ohci *ohci, struct fw_packet *packet)
+static void handle_at_request_local_packet(struct fw_ohci *ohci, struct fw_packet *packet)
 {
 	// Emulate split transaction.
 	packet->ack = ACK_PENDING;
@@ -1574,7 +1574,7 @@ static void handle_local_at_request_packet(struct fw_ohci *ohci, struct fw_packe
 	}
 }
 
-static void handle_local_at_response_packet(struct fw_ohci *ohci, struct fw_packet *packet)
+static void handle_at_response_local_packet(struct fw_ohci *ohci, struct fw_packet *packet)
 {
 	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
 
@@ -1589,7 +1589,8 @@ static void handle_local_at_response_packet(struct fw_ohci *ohci, struct fw_pack
 	packet->callback(packet, &ohci->card, packet->ack);
 }
 
-static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci)
+static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci,
+			void (*handle_at_local_packet)(struct fw_ohci *, struct fw_packet *))
 {
 	struct fw_packet *packet;
 
@@ -1603,6 +1604,8 @@ static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci
 			// This case is active when the call of at_context_queue_packet() returns
 			// error in at_context_transmit().
 			packet->callback(packet, &ohci->card, packet->ack);
+		} else {
+			handle_at_local_packet(ohci, packet);
 		}
 
 		spin_lock(&local->lock);
@@ -1616,7 +1619,7 @@ static void at_request_local_work(struct work_struct *work)
 	struct at_local *local = from_work(local, work, work);
 	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_request_local);
 
-	handle_at_local_packets(local, ohci);
+	handle_at_local_packets(local, ohci, handle_at_request_local_packet);
 }
 
 static void at_response_local_work(struct work_struct *work)
@@ -1624,7 +1627,7 @@ static void at_response_local_work(struct work_struct *work)
 	struct at_local *local = from_work(local, work, work);
 	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_response_local);
 
-	handle_at_local_packets(local, ohci);
+	handle_at_local_packets(local, ohci, handle_at_response_local_packet);
 }
 
 static void at_local_init(struct at_local *local, work_func_t func)
@@ -1672,13 +1675,7 @@ static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet
 	if (destination_is_local(packet, ohci)) {
 		spin_unlock_irqrestore(&ohci->lock, flags);
 
-		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-
-		if (ctx == &ohci->at_request_ctx)
-			handle_local_at_request_packet(ohci, packet);
-		else
-			handle_local_at_response_packet(ohci, packet);
+		queue_work_for_at_local_packet(ctx, packet, ohci);
 		return;
 	}
 
