@@ -52,6 +52,15 @@ Virtually Contiguous Mappings
 .. kernel-doc:: mm/vmalloc.c
    :export:
 
+Kernel Page Table Permissions
+=============================
+
+.. kernel-doc:: include/linux/set_memory.h
+   :doc: Kernel page table permissions
+
+.. kernel-doc:: include/linux/set_memory.h
+   :internal:
+
 File Mapping and Page Cache
 ===========================
 
