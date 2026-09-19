@@ -795,7 +795,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 				     blk);
 			return -EINVAL;
 		}
-		if (++gdbackups > EXT4_ADDR_PER_BLOCK(sb))
+		if (++gdbackups >= EXT4_ADDR_PER_BLOCK(sb))
 			return -EFBIG;
 	}
 
