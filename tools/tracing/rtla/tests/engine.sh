@@ -86,6 +86,7 @@ check() {
 		else
 			# Add rtla output and exit code as comments in case of failure
 			echo "not ok $ctr - $1"
+			echo "# command: $RTLA" $2
 			echo -n "$failbuf"
 			echo "$result" | col -b | while read line; do echo "# $line"; done
 			printf "#\n# exit code %s\n" $exitcode
