@@ -447,37 +447,45 @@ static void switch_rq_lock(struct rq *from, struct rq *to)
 DEFINE_STATIC_KEY_FALSE(__scx_is_cid_type);
 
 /**
- * scx_call_op_set_cpumask - invoke ops.set_cpumask / ops_cid.set_cmask for @task
+ * scx_fill_cmask_scratch - Build this cpu's arena cmask from @cpumask
+ * @sch: scx_sched whose scratch to fill
+ * @cpumask: cpus to translate into cids
+ *
+ * The scratch lives in BPF-writable arena memory and its header can't be
+ * trusted, so it is rewritten from kernel geometry rather than read. Caller
+ * must hold an rq lock so this cpu is the sole kernel writer for as long as the
+ * returned address is in use.
+ */
+static struct scx_cmask *scx_fill_cmask_scratch(struct scx_sched *sch,
+						const struct cpumask *cpumask)
+{
+	struct scx_cmask *kern_va = *this_cpu_ptr(sch->set_cmask_scratch);
+	struct scx_cmask_ref ref;
+
+	scx_cmask_ref_init_kern(sch, kern_va, 0, num_possible_cpus(), &ref);
+	scx_cmask_ref_from_cpumask(&ref, cpumask);
+	return kern_va;
+}
+
+/**
+ * scx_call_op_set_cpumask - Invoke the set_cpumask or set_cmask op for @task
  * @sch: scx_sched being invoked
  * @rq: rq to update as the currently-locked rq, or NULL
  * @task: task whose affinity is changing
  * @cpumask: new cpumask
  *
- * For cid-form schedulers, translate @cpumask to a cmask via the per-cpu
- * scratch in cid.c and dispatch through the ops_cid union view. Caller
- * must hold @rq's rq lock so this_cpu_ptr is stable across the call.
+ * For cid-form schedulers, translate @cpumask to a cmask in the per-cpu scratch
+ * and dispatch through the ops_cid union view. Caller must hold @rq's rq lock.
  */
 static inline void scx_call_op_set_cpumask(struct scx_sched *sch, struct rq *rq,
 					   struct task_struct *task,
 					   const struct cpumask *cpumask)
 {
-	if (scx_is_cid_type()) {
-		struct scx_cmask *kern_va = *this_cpu_ptr(sch->set_cmask_scratch);
-		struct scx_cmask_ref ref;
-
-		/*
-		 * Build the per-cpu arena cmask from kernel geometry via @ref,
-		 * never reading its BPF-writable header. set_cmask()'s __arena
-		 * argument takes the kernel address and the struct_ops
-		 * trampoline rebases it into BPF's arena pointer form. The rq
-		 * lock makes this cpu the sole kernel writer.
-		 */
-		scx_cmask_ref_init_kern(sch, kern_va, 0, num_possible_cpus(), &ref);
-		scx_cmask_ref_from_cpumask(&ref, cpumask);
-		SCX_CALL_CID_OP_TASK(sch, set_cmask, rq, task, kern_va);
-	} else {
+	if (scx_is_cid_type())
+		SCX_CALL_CID_OP_TASK(sch, set_cmask, rq, task,
+				     scx_fill_cmask_scratch(sch, cpumask));
+	else
 		SCX_CALL_OP_TASK(sch, set_cpumask, rq, task, cpumask);
-	}
 }
 
 enum scx_dsq_iter_flags {
@@ -3634,8 +3642,12 @@ static void set_cpus_allowed_scx(struct task_struct *p,
 	 *
 	 * Fine-grained memory write control is enforced by BPF making the const
 	 * designation pointless. Cast it away when calling the operation.
+	 *
+	 * The cid form receives the initial mask when the task is enabled and
+	 * hears about changes only afterwards, see struct scx_enable_args.
 	 */
-	if (SCX_HAS_OP(sch, set_cpumask))
+	if (SCX_HAS_OP(sch, set_cpumask) &&
+	    (!scx_is_cid_type() || scx_get_task_state(p) == SCX_TASK_ENABLED))
 		scx_call_op_set_cpumask(sch, task_rq(p), p, (struct cpumask *)p->cpus_ptr);
 }
 
@@ -3944,8 +3956,27 @@ static void __scx_enable_task(struct scx_sched *sch, struct task_struct *p)
 
 	p->scx.weight = sched_weight_to_cgroup(weight);
 
-	if (SCX_HAS_OP(sch, enable))
-		SCX_CALL_OP_TASK(sch, enable, rq, p);
+	if (SCX_HAS_OP(sch, enable)) {
+		if (scx_is_cid_type()) {
+			struct scx_cmask *cmask = scx_fill_cmask_scratch(sch, p->cpus_ptr);
+			struct scx_enable_args args = {
+				.cmask_arena_addr = scx_kaddr_to_arena(sch, cmask),
+			};
+
+			SCX_CALL_CID_OP_TASK(sch, enable, rq, p, &args);
+		} else {
+			SCX_CALL_OP_TASK(sch, enable, rq, p);
+		}
+	}
+
+	/*
+	 * The initial mask also goes out through set_cmask() so a scheduler can
+	 * track affinity there alone, and before set_weight() so that the mask
+	 * is in place when weight-dependent state is derived, see struct
+	 * scx_enable_args.
+	 */
+	if (scx_is_cid_type() && SCX_HAS_OP(sch, set_cpumask))
+		scx_call_op_set_cpumask(sch, rq, p, p->cpus_ptr);
 
 	if (SCX_HAS_OP(sch, set_weight))
 		SCX_CALL_OP_TASK(sch, set_weight, rq, p, p->scx.weight);
@@ -4288,9 +4319,10 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
 
 	/*
 	 * set_cpus_allowed_scx() is not called while @p is associated with a
-	 * different scheduler class. Keep the BPF scheduler up-to-date.
+	 * different scheduler class. Keep the BPF scheduler up-to-date. The cid
+	 * form gets its mask from scx_enable_task().
 	 */
-	if (SCX_HAS_OP(sch, set_cpumask))
+	if (!scx_is_cid_type() && SCX_HAS_OP(sch, set_cpumask))
 		scx_call_op_set_cpumask(sch, rq, p, (struct cpumask *)p->cpus_ptr);
 }
 
@@ -8374,10 +8406,11 @@ static struct bpf_struct_ops bpf_sched_ext_ops = {
 /*
  * cid-form cfi stubs. Stubs whose signatures match the cpu-form (param types
  * identical, only param names differ across structs) are reused. Some need
- * fresh stubs, set_cmask due to an argument type difference and the sub-sched
- * notifiers because no cpu-form stub exists to reuse.
+ * fresh stubs, set_cmask and enable due to argument differences and the
+ * sub-sched notifiers because no cpu-form stub exists to reuse.
  */
 static void sched_ext_ops_cid__set_cmask(struct task_struct *p, const struct scx_cmask *cmask__arena) {}
+static void sched_ext_ops_cid__enable(struct task_struct *p, struct scx_enable_args *args) {}
 static void sched_ext_ops__sub_caps_updated(const struct scx_cmask *cmask__arena, u64 caps) {}
 static void sched_ext_ops__sub_ecaps_updated(s32 cid, u64 before, u64 after) {}
 
@@ -8398,7 +8431,7 @@ static struct sched_ext_ops_cid __bpf_ops_sched_ext_ops_cid = {
 	.update_idle		= sched_ext_ops__update_idle,
 	.init_task		= sched_ext_ops__init_task,
 	.exit_task		= sched_ext_ops__exit_task,
-	.enable			= sched_ext_ops__enable,
+	.enable			= sched_ext_ops_cid__enable,
 	.disable		= sched_ext_ops__disable,
 #ifdef CONFIG_EXT_GROUP_SCHED
 	.cpuctl_init		= sched_ext_ops__cgroup_init,
@@ -10421,8 +10454,7 @@ __bpf_kfunc const void *scx_bpf_online_cmask(const struct bpf_prog_aux *aux)
 	if (unlikely(!online))
 		return NULL;
 
-	/* BPF rebases by the low 32 bits, like __arena callback args */
-	return (void *)((unsigned long)online - sch->arena_kern_base);
+	return (void *)scx_kaddr_to_arena(sch, online);
 }
 
 /**
