@@ -1260,9 +1260,7 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 
 	start = (offset - topology_map_region.start) / 4;
 
-	// NOTE: This can be without irqsave when we can guarantee that fw_send_request() for local
-	// destination never runs in any type of IRQ context.
-	scoped_guard(spinlock_irqsave, &card->topology_map.lock)
+	scoped_guard(spinlock, &card->topology_map.lock)
 		memcpy(payload, &card->topology_map.buffer[start], length);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
