@@ -539,8 +539,8 @@ static void fbnic_dbg_fw_mbx_display(struct seq_file *s,
 	/* Generate header */
 	seq_puts(s, mbx_idx == FBNIC_IPC_MBX_RX_IDX ? "Rx\n" : "Tx\n");
 
-	seq_printf(s, "Rdy: %d Head: %d Tail: %d\n",
-		   mbx->ready, mbx->head, mbx->tail);
+	seq_printf(s, "Rdy: %d Head: %d Tail: %d resp_error: %llu\n",
+		   mbx->ready, mbx->head, mbx->tail, mbx->resp_error);
 
 	snprintf(hdr, sizeof(hdr), "%3s %-4s %s %-12s %s %-3s %-16s\n",
 		 "Idx", "Len", "E", "Addr", "F", "H", "Raw");
