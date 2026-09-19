@@ -1667,22 +1667,16 @@ static void queue_work_for_at_local_packet(struct at_context *ctx, struct fw_pac
 static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->context.ohci;
-	unsigned long flags;
-	int ret;
+	bool use_work = true;
 
-	spin_lock_irqsave(&ohci->lock, flags);
-
-	if (destination_is_local(packet, ohci)) {
-		spin_unlock_irqrestore(&ohci->lock, flags);
-
-		queue_work_for_at_local_packet(ctx, packet, ohci);
-		return;
+	scoped_guard(spinlock_irqsave, &ohci->lock) {
+		if (!destination_is_local(packet, ohci)) {
+			if (!at_context_queue_packet(ctx, packet))
+				use_work = false;
+		}
 	}
 
-	ret = at_context_queue_packet(ctx, packet);
-	spin_unlock_irqrestore(&ohci->lock, flags);
-
-	if (ret < 0)
+	if (use_work)
 		queue_work_for_at_local_packet(ctx, packet, ohci);
 }
 
