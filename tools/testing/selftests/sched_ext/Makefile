@@ -169,6 +169,7 @@ auto-test-targets :=			\
 	ddsp_bogus_dsq_fail		\
 	ddsp_vtimelocal_fail		\
 	dsp_local_on			\
+	enable_cmask			\
 	enq_select_cpu			\
 	exit				\
 	hotplug				\
