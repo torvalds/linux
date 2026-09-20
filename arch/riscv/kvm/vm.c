@@ -251,7 +251,8 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		mutex_lock(&kvm->lock);
 		mutex_lock(&kvm->slots_lock);
 
-		if (kvm->created_vcpus || !kvm_are_all_memslots_empty(kvm))
+		if (kvm->created_vcpus || !kvm_are_all_memslots_empty(kvm) ||
+		    kvm_riscv_aia_initialized(kvm))
 			r = -EBUSY;
 		else
 			kvm->arch.pgd_levels = new_levels;
