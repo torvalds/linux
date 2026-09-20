@@ -883,7 +883,7 @@ static int ntfs_ioctl_fitrim(struct ntfs_volume *vol, unsigned long arg)
 	if (range.len < vol->cluster_size)
 		return -EINVAL;
 
-	range.minlen = max_t(u32, range.minlen, bdev_discard_granularity(dev));
+	range.minlen = max_t(u64, range.minlen, bdev_discard_granularity(dev));
 
 	err = ntfs_trim_fs(vol, &range);
 	if (err < 0)
