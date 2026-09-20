@@ -1281,7 +1281,7 @@ static const struct kobj_type tlmi_pwd_setting_ktype = {
 static ssize_t pending_reboot_show(struct kobject *kobj, struct kobj_attribute *attr,
 				   char *buf)
 {
-	return sprintf(buf, "%d\n", tlmi_priv.pending_changes);
+	return sysfs_emit(buf, "%d\n", tlmi_priv.pending_changes);
 }
 
 static struct kobj_attribute pending_reboot = __ATTR_RO(pending_reboot);
