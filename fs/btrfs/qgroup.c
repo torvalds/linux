@@ -3177,10 +3177,8 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
 						 "qgroup limit item update error %d", ret);
 		spin_lock(&fs_info->qgroup_lock);
 	}
-	if (btrfs_qgroup_enabled(fs_info))
-		set_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags);
-	else
-		clear_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags);
+	assign_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags,
+		   btrfs_qgroup_enabled(fs_info));
 	spin_unlock(&fs_info->qgroup_lock);
 
 	ret = update_qgroup_status_item(trans);

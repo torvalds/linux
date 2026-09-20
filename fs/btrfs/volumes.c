@@ -698,10 +698,8 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 		fs_devices->seeding = true;
 	} else {
-		if (bdev_read_only(file_bdev(bdev_file)))
-			clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
-		else
-			set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
+		assign_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state,
+			   !bdev_read_only(file_bdev(bdev_file)));
 	}
 
 	if (bdev_rot(file_bdev(bdev_file)))

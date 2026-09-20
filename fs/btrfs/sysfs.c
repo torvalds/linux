@@ -1117,10 +1117,7 @@ static ssize_t quota_override_store(struct kobject *kobj,
 	if (knob > 1)
 		return -EINVAL;
 
-	if (knob)
-		set_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
-	else
-		clear_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+	assign_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags, knob);
 
 	return len;
 }
