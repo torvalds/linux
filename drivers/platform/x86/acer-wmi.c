@@ -474,6 +474,14 @@ static struct quirk_entry quirk_acer_predator_ph315_53 = {
 	.gpu_fans = 1,
 };
 
+static struct quirk_entry quirk_acer_nitro_anv15_51 = {
+	.cpu_fans = 1,
+	.gpu_fans = 1,
+	.hwmon = true,
+	.platform_profile = true,
+	.pwm = true,
+};
+
 static struct quirk_entry quirk_acer_predator_ph16_72 = {
 	.turbo = true,
 	.cpu_fans = 1,
@@ -681,6 +689,15 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN515-58"),
 		},
 		.driver_data = &quirk_acer_nitro_an515_58,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Nitro ANV15-51",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro ANV15-51"),
+		},
+		.driver_data = &quirk_acer_nitro_anv15_51,
 	},
 	{
 		.callback = dmi_matched,
