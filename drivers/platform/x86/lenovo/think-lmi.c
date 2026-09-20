@@ -487,16 +487,16 @@ static ssize_t new_password_store(struct kobject *kobj,
 		/* Special handling required for HDD and NVMe passwords */
 		if (setting == tlmi_priv.pwd_hdd) {
 			if (setting->level == TLMI_LEVEL_USER)
-				sprintf(pwd_type, "uhdp%d", setting->index);
+				scnprintf(pwd_type, sizeof(pwd_type), "uhdp%d", setting->index);
 			else
-				sprintf(pwd_type, "mhdp%d", setting->index);
+				scnprintf(pwd_type, sizeof(pwd_type), "mhdp%d", setting->index);
 		} else if (setting == tlmi_priv.pwd_nvme) {
 			if (setting->level == TLMI_LEVEL_USER)
-				sprintf(pwd_type, "udrp%d", setting->index);
+				scnprintf(pwd_type, sizeof(pwd_type), "udrp%d", setting->index);
 			else
-				sprintf(pwd_type, "adrp%d", setting->index);
+				scnprintf(pwd_type, sizeof(pwd_type), "adrp%d", setting->index);
 		} else {
-			sprintf(pwd_type, "%s", setting->pwd_type);
+			scnprintf(pwd_type, sizeof(pwd_type), "%s", setting->pwd_type);
 		}
 
 		ret = tlmi_opcode_setting("WmiOpcodePasswordType", pwd_type);
