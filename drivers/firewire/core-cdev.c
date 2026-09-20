@@ -491,7 +491,6 @@ union ioctl_arg {
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_get_info *a = &arg->get_info;
-	struct fw_cdev_event_bus_reset bus_reset;
 	unsigned long ret = 0;
 
 	client->version = a->version;
@@ -511,16 +510,21 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 		a->rom_length = client->device->config_rom_length * 4;
 	}
 
-	guard(mutex)(&client->device->client_list_mutex);
+	scoped_guard(mutex, &client->device->client_list_mutex) {
+		client->bus_reset_closure = a->bus_reset_closure;
 
-	client->bus_reset_closure = a->bus_reset_closure;
-	if (a->bus_reset != 0) {
-		fill_bus_reset_event(&bus_reset, client);
-		/* unaligned size of bus_reset is 36 bytes */
-		ret = copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36);
+		if (a->bus_reset != 0) {
+			struct fw_cdev_event_bus_reset bus_reset;
+
+			memset(&bus_reset, 0, sizeof(bus_reset));
+			fill_bus_reset_event(&bus_reset, client);
+
+			/* unaligned size of bus_reset is 36 bytes */
+			ret = copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36);
+		}
+		if (ret == 0 && list_empty(&client->link))
+			list_add_tail(&client->link, &client->device->client_list);
 	}
-	if (ret == 0 && list_empty(&client->link))
-		list_add_tail(&client->link, &client->device->client_list);
 
 	return ret ? -EFAULT : 0;
 }
