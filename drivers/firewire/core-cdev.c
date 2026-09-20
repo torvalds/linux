@@ -399,18 +399,21 @@ static ssize_t fw_device_op_read(struct file *file, char __user *buffer,
 static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 				 struct client *client)
 {
-	struct fw_card *card = client->device->card;
-
-	guard(spinlock_irq)(&card->lock);
-
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
+
 	event->generation    = client->device->generation;
+	smp_rmb();
 	event->node_id       = client->device->node_id;
-	event->local_node_id = card->local_node->node_id;
-	event->bm_node_id    = card->bm_node_id;
-	event->irm_node_id   = card->irm_node->node_id;
-	event->root_node_id  = card->root_node->node_id;
+
+	struct fw_card *card = client->device->card;
+
+	scoped_guard(spinlock_irq, &card->lock) {
+		event->local_node_id = card->local_node->node_id;
+		event->bm_node_id    = card->bm_node_id;
+		event->irm_node_id   = card->irm_node->node_id;
+		event->root_node_id  = card->root_node->node_id;
+	}
 }
 
 static void for_each_client(struct fw_device *device,
