@@ -491,7 +491,6 @@ union ioctl_arg {
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_get_info *a = &arg->get_info;
-	unsigned long ret = 0;
 
 	client->version = a->version;
 	a->version = FW_CDEV_KERNEL_VERSION;
@@ -499,12 +498,10 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 
 	scoped_guard(rwsem_read, &fw_device_rwsem) {
 		if (a->rom != 0) {
-			size_t want = a->rom_length;
-			size_t have = client->device->config_rom_length * 4;
+			size_t length = min_t(size_t, a->rom_length,
+					      client->device->config_rom_length * 4);
 
-			ret = copy_to_user(u64_to_uptr(a->rom), client->device->config_rom,
-					   min(want, have));
-			if (ret != 0)
+			if (copy_to_user(u64_to_uptr(a->rom), client->device->config_rom, length))
 				return -EFAULT;
 		}
 		a->rom_length = client->device->config_rom_length * 4;
@@ -520,13 +517,15 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 			fill_bus_reset_event(&bus_reset, client);
 
 			/* unaligned size of bus_reset is 36 bytes */
-			ret = copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36);
+			if (copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36))
+				return -EFAULT;
 		}
-		if (ret == 0 && list_empty(&client->link))
+
+		if (list_empty(&client->link))
 			list_add_tail(&client->link, &client->device->client_list);
 	}
 
-	return ret ? -EFAULT : 0;
+	return 0;
 }
 
 static int add_client_resource(struct client *client, struct client_resource *resource,
