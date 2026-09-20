@@ -47,7 +47,7 @@
 #define FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW	5
 #define FW_CDEV_VERSION_EVENT_ASYNC_TSTAMP	6
 
-static DEFINE_SPINLOCK(phy_receiver_list_lock);
+static DEFINE_MUTEX(phy_receiver_list_mutex);
 static LIST_HEAD(phy_receiver_list);
 
 struct client {
@@ -1761,9 +1761,7 @@ static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	// NOTE: This can be without irq when we can guarantee that __fw_send_request() for local
-	// destination never runs in any type of IRQ context.
-	scoped_guard(spinlock_irq, &phy_receiver_list_lock)
+	scoped_guard(mutex, &phy_receiver_list_mutex)
 		list_move_tail(&client->phy_receiver_link, &phy_receiver_list);
 
 	client->phy_receiver_closure = a->closure;
@@ -1775,18 +1773,14 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 {
 	struct client *client;
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for local
-	// destination never runs in any type of IRQ context.
-	guard(spinlock_irqsave)(&phy_receiver_list_lock);
+	guard(mutex)(&phy_receiver_list_mutex);
 
 	list_for_each_entry(client, &phy_receiver_list, phy_receiver_link) {
-		struct inbound_phy_packet_event *e;
-
 		if (client->device->card != card)
 			continue;
 
-		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
-		if (e == NULL)
+		struct inbound_phy_packet_event *e = kmalloc(sizeof(*e) + 8, GFP_KERNEL);
+		if (!e)
 			break;
 
 		if (client->version < FW_CDEV_VERSION_EVENT_ASYNC_TSTAMP) {
@@ -1953,9 +1947,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client_resource *resource;
 	unsigned long index;
 
-	// NOTE: This can be without irq when we can guarantee that __fw_send_request() for local
-	// destination never runs in any type of IRQ context.
-	scoped_guard(spinlock_irq, &phy_receiver_list_lock)
+	scoped_guard(mutex, &phy_receiver_list_mutex)
 		list_del(&client->phy_receiver_link);
 
 	scoped_guard(mutex, &client->device->client_list_mutex)
