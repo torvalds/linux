@@ -547,8 +547,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	return 0;
 }
 
-static int add_client_resource(struct client *client, struct client_resource *resource,
-			       gfp_t gfp_mask)
+static int add_client_resource(struct client *client, struct client_resource *resource)
 {
 	scoped_guard(spinlock_irqsave, &client->lock) {
 		u32 index;
@@ -557,13 +556,7 @@ static int add_client_resource(struct client *client, struct client_resource *re
 		if (client->in_shutdown)
 			return  -ECANCELED;
 
-		if (gfpflags_allow_blocking(gfp_mask)) {
-			ret = xa_alloc(&client->resource_xa, &index, resource, xa_limit_32b,
-				       GFP_NOWAIT);
-		} else {
-			ret = xa_alloc_bh(&client->resource_xa, &index, resource,
-					  xa_limit_32b, GFP_NOWAIT);
-		}
+		ret = xa_alloc(&client->resource_xa, &index, resource, xa_limit_32b, GFP_KERNEL);
 		if (ret < 0)
 			return ret;
 
@@ -713,7 +706,7 @@ static int init_request(struct client *client,
 	}
 
 	e->r.resource.release = release_transaction;
-	ret = add_client_resource(client, &e->r.resource, GFP_KERNEL);
+	ret = add_client_resource(client, &e->r.resource);
 	if (ret < 0)
 		goto failed;
 
@@ -797,7 +790,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	r->length  = length;
 
 	r->resource.release = release_request;
-	ret = add_client_resource(handler->client, &r->resource, GFP_KERNEL);
+	ret = add_client_resource(handler->client, &r->resource);
 	if (ret < 0)
 		goto failed;
 
@@ -901,7 +894,7 @@ static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 	a->offset = r->handler.offset;
 
 	r->resource.release = release_address_handler;
-	ret = add_client_resource(client, &r->resource, GFP_KERNEL);
+	ret = add_client_resource(client, &r->resource);
 	if (ret < 0) {
 		release_address_handler(client, &r->resource);
 		return ret;
@@ -1001,7 +994,7 @@ static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 		goto failed;
 
 	r->resource.release = release_descriptor;
-	ret = add_client_resource(client, &r->resource, GFP_KERNEL);
+	ret = add_client_resource(client, &r->resource);
 	if (ret < 0) {
 		fw_core_remove_descriptor(&r->descriptor);
 		goto failed;
@@ -1489,7 +1482,7 @@ static int ioctl_allocate_iso_resource(struct client *client, union ioctl_arg *a
 	e2->iso_resource.type = FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED;
 
 	r->resource.release = release_iso_resource_auto;
-	err = add_client_resource(client, &r->resource, GFP_KERNEL);
+	err = add_client_resource(client, &r->resource);
 	if (err < 0)
 		return err;
 	request->handle = r->resource.handle;
