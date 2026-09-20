@@ -641,16 +641,14 @@ static int put_address_handler(struct fw_address_handler *handler)
  *
  * When a request is received that falls within the specified address range, the specified callback
  * is invoked.  The parameters passed to the callback give the details of the particular request.
- * The callback is invoked in the workqueue context in most cases. However, if the request is
- * initiated by the local node, the callback is invoked in the initiator's context.
- *
- * To be called in process context.
- * Return value:  0 on success, non-zero otherwise.
  *
  * The start offset of the handler's address region is determined by
  * fw_core_add_address_handler() and is returned in handler->offset.
  *
  * Address allocations are exclusive, except for the FCP registers.
+ *
+ * Context: Process context.
+ * Returns: 0 on success, non-zero otherwise.
  */
 int fw_core_add_address_handler(struct fw_address_handler *handler,
 				const struct fw_address_region *region)
