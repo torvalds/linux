@@ -26,6 +26,7 @@ properties:
       - const: mediatek,mt6779-keypad
       - items:
           - enum:
+              - mediatek,mt6572-keypad
               - mediatek,mt6873-keypad
               - mediatek,mt8183-keypad
               - mediatek,mt8365-keypad
