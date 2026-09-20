@@ -108,7 +108,7 @@ static int plic_irq_set_type(struct irq_data *d, unsigned int type);
 static void __plic_toggle(struct plic_handler *handler, int hwirq, int enable)
 {
 	u32 __iomem *base = handler->enable_base;
-	u32 hwirq_mask = 1 << (hwirq % 32);
+	u32 hwirq_mask = BIT(hwirq % 32);
 	int group = hwirq / 32;
 	u32 value;
 
