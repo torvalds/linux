@@ -356,19 +356,27 @@ static int dequeue_event(struct client *client,
 	size_t size, total;
 	int i, ret;
 
-	ret = wait_event_interruptible(client->wait,
-			!list_empty(&client->event_list) ||
-			fw_device_is_shutdown(client->device));
-	if (ret < 0)
-		return ret;
+	// After the following block, the event pointer above is guaranteed to have a correct value.
+	{
+		spin_lock_irq(&client->lock);
 
-	if (list_empty(&client->event_list) &&
-		       fw_device_is_shutdown(client->device))
-		return -ENODEV;
+		int ret = wait_event_interruptible_lock_irq(client->wait,
+			!list_empty(&client->event_list) || fw_device_is_shutdown(client->device),
+			client->lock);
+		if (ret < 0) {
+			spin_unlock_irq(&client->lock);
+			return ret;
+		}
 
-	scoped_guard(spinlock_irq, &client->lock) {
+		if (fw_device_is_shutdown(client->device)) {
+			spin_unlock_irq(&client->lock);
+			return -ENODEV;
+		}
+
 		event = list_first_entry(&client->event_list, struct event, link);
 		list_del(&event->link);
+
+		spin_unlock_irq(&client->lock);
 	}
 
 	total = 0;
