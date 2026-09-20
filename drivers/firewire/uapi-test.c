@@ -72,11 +72,31 @@ static void structure_layout_event_phy_packet2(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 24, offsetof(struct fw_cdev_event_phy_packet2, data));
 }
 
+static void structure_layout_event_bus_reset(struct kunit *test)
+{
+#if defined(CONFIG_X86_32)
+       // 4 bytes alignment for aggregate type including 8 bytes storage types.
+       KUNIT_EXPECT_EQ(test, 36, sizeof(struct fw_cdev_event_bus_reset));
+#else
+       KUNIT_EXPECT_EQ(test, 40, sizeof(struct fw_cdev_event_bus_reset));
+#endif
+
+       KUNIT_EXPECT_EQ(test, 0, offsetof(struct fw_cdev_event_bus_reset, closure));
+       KUNIT_EXPECT_EQ(test, 8, offsetof(struct fw_cdev_event_bus_reset, type));
+       KUNIT_EXPECT_EQ(test, 12, offsetof(struct fw_cdev_event_bus_reset, node_id));
+       KUNIT_EXPECT_EQ(test, 16, offsetof(struct fw_cdev_event_bus_reset, local_node_id));
+       KUNIT_EXPECT_EQ(test, 20, offsetof(struct fw_cdev_event_bus_reset, bm_node_id));
+       KUNIT_EXPECT_EQ(test, 24, offsetof(struct fw_cdev_event_bus_reset, irm_node_id));
+       KUNIT_EXPECT_EQ(test, 28, offsetof(struct fw_cdev_event_bus_reset, root_node_id));
+       KUNIT_EXPECT_EQ(test, 32, offsetof(struct fw_cdev_event_bus_reset, generation));
+}
+
 static struct kunit_case structure_layout_test_cases[] = {
 	KUNIT_CASE(structure_layout_event_response),
 	KUNIT_CASE(structure_layout_event_request3),
 	KUNIT_CASE(structure_layout_event_response2),
 	KUNIT_CASE(structure_layout_event_phy_packet2),
+	KUNIT_CASE(structure_layout_event_bus_reset),
 	{}
 };
 

@@ -524,7 +524,10 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 			memset(&bus_reset, 0, sizeof(bus_reset));
 			fill_bus_reset_event(&bus_reset, client);
 
-			/* unaligned size of bus_reset is 36 bytes */
+			// This structure has 4 bytes of trailing padding under the System V ABI
+			// on most architectures (due to 8-byte alignment of the long long type),
+			// except for Intel386 (where long long type is aligned to 4 bytes). In
+			// either case, the effective length is 36 bytes.
 			if (copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36))
 				return -EFAULT;
 		}
