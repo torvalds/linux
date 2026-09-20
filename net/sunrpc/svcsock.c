@@ -352,10 +352,8 @@ static void svc_sock_setbufsize(struct svc_sock *svsk, unsigned int nreqs)
 
 static void svc_sock_secure_port(struct svc_rqst *rqstp)
 {
-	if (svc_port_is_privileged(svc_addr(rqstp)))
-		set_bit(RQ_SECURE, &rqstp->rq_flags);
-	else
-		clear_bit(RQ_SECURE, &rqstp->rq_flags);
+	assign_bit(RQ_SECURE, &rqstp->rq_flags,
+		   svc_port_is_privileged(svc_addr(rqstp)));
 }
 
 /*
@@ -942,10 +940,8 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 		slen = offsetof(struct sockaddr, sa_data);
 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
 
-	if (sock_is_loopback(newsock->sk))
-		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
-	else
-		clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+	assign_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags,
+		   sock_is_loopback(newsock->sk));
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
@@ -1291,10 +1287,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
-	if (test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags))
-		set_bit(RQ_LOCAL, &rqstp->rq_flags);
-	else
-		clear_bit(RQ_LOCAL, &rqstp->rq_flags);
+	assign_bit(RQ_LOCAL, &rqstp->rq_flags,
+		   test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags));
 
 	/* Completing one message stops ->read_sock with whatever
 	 * follows still queued, and no path from here re-arms XPT_DATA.
