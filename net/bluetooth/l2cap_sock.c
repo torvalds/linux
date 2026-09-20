@@ -867,15 +867,11 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 		if (opt & L2CAP_LM_SECURE)
 			chan->sec_level = BT_SECURITY_HIGH;
 
-		if (opt & L2CAP_LM_MASTER)
-			set_bit(FLAG_ROLE_SWITCH, &chan->flags);
-		else
-			clear_bit(FLAG_ROLE_SWITCH, &chan->flags);
+		assign_bit(FLAG_ROLE_SWITCH, &chan->flags,
+			   opt & L2CAP_LM_MASTER);
 
-		if (opt & L2CAP_LM_RELIABLE)
-			set_bit(FLAG_FORCE_RELIABLE, &chan->flags);
-		else
-			clear_bit(FLAG_FORCE_RELIABLE, &chan->flags);
+		assign_bit(FLAG_FORCE_RELIABLE, &chan->flags,
+			   opt & L2CAP_LM_RELIABLE);
 		break;
 
 	default:
@@ -1042,10 +1038,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			}
 		}
 
-		if (opt)
-			set_bit(FLAG_FLUSHABLE, &chan->flags);
-		else
-			clear_bit(FLAG_FLUSHABLE, &chan->flags);
+		assign_bit(FLAG_FLUSHABLE, &chan->flags, opt);
 		break;
 
 	case BT_POWER:
@@ -1061,10 +1054,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (err)
 			break;
 
-		if (pwr.force_active)
-			set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
-		else
-			clear_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+		assign_bit(FLAG_FORCE_ACTIVE, &chan->flags, pwr.force_active);
 		break;
 
 	case BT_CHANNEL_POLICY:
