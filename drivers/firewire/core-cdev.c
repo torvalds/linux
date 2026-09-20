@@ -398,7 +398,12 @@ static ssize_t fw_device_op_read(struct file *file, char __user *buffer,
 
 static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 				 struct client *client)
+__must_hold(&client->device->client_list_mutex)
 {
+	lockdep_assert_held(&client->device->client_list_mutex);
+
+	// This member is related to the above mutex. In detail, see 93b37905f70 ("firewire: cdev:
+	// prevent race between first get_info ioctl and bus reset event queuing").
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
 
@@ -508,6 +513,9 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	}
 
 	scoped_guard(mutex, &client->device->client_list_mutex) {
+		// Coordinate concurrent access to this member with bus reset event handling, see
+		// 93b37905f70 ("firewire: cdev: prevent race between first get_info ioctl and bus
+		// reset event queuing").
 		client->bus_reset_closure = a->bus_reset_closure;
 
 		if (a->bus_reset != 0) {
