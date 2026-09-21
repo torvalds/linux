@@ -1168,6 +1168,12 @@ netdev_find_netmem_tx_dev(struct net_device *dev)
 	return NULL;
 }
 
+/* Note: NETDEV_CMD_BIND_TX is intentionally unprivileged (no
+ * GENL_ADMIN_PERM / GENL_UNS_ADMIN_PERM). Unlike bind-rx, which configures
+ * shared NIC RX queues, bind-tx only DMA-maps the caller's dmabuf so they can
+ * transmit from it on their own sockets without affecting other traffic or
+ * device state.
+ */
 int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_devmem_dmabuf_binding *binding;
