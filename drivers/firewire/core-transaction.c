@@ -40,7 +40,7 @@
 static int try_cancel_split_timeout(struct fw_transaction *t)
 {
 	if (t->is_split_transaction)
-		return timer_delete(&t->split_timeout_timer);
+		return timer_delete(&t->split_timeout_timer) || disable_work(&t->error_work);
 	else
 		return 1;
 }
@@ -158,6 +158,21 @@ int fw_cancel_transaction(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
+static void error_callback_work(struct work_struct *work)
+{
+	struct fw_transaction *t = from_work(t, work, error_work);
+
+	invoke_callback(t, t->rcode, t->response_timestamp, NULL, 0);
+}
+
+static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 response_timestamp)
+{
+	t->rcode = rcode;
+	t->response_timestamp = response_timestamp;
+
+	queue_work(t->card->async_wq, &t->error_work);
+}
+
 static void split_transaction_timeout_callback(struct timer_list *timer)
 {
 	struct fw_transaction *t = timer_container_of(t, timer, split_timeout_timer);
@@ -169,7 +184,7 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 		remove_transaction_entry(card, t);
 	}
 
-	invoke_callback(t, RCODE_CANCELLED, t->split_timeout_cycle, NULL, 0);
+	schedule_error_callback(t, RCODE_CANCELLED, t->split_timeout_cycle);
 }
 
 // card->transactions.lock should be acquired in advance for the linked list.
@@ -387,6 +402,7 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	t->callback = callback;
 	t->with_tstamp = with_tstamp;
 	t->callback_data = callback_data;
+	INIT_WORK(&t->error_work, error_callback_work);
 
 	/*
 	 * Allocate tlabel from the bitmap and put the transaction on
@@ -406,7 +422,7 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 		tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 
 		t->packet.timestamp = tstamp;
-		invoke_callback(t, RCODE_SEND_ERROR, tstamp, NULL, 0);
+		schedule_error_callback(t, RCODE_SEND_ERROR, tstamp);
 
 		return;
 	}

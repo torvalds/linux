@@ -370,6 +370,11 @@ struct fw_transaction {
 	union fw_transaction_callback callback;
 	bool with_tstamp;
 	void *callback_data;
+
+	// For some error cases.
+	struct work_struct error_work;
+	int rcode;
+	u32 response_timestamp;
 };
 
 struct fw_address_handler {
