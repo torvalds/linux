@@ -140,20 +140,21 @@ const struct vdso_time_data *vdso_timens_data(const struct vdso_time_data *vd)
 }
 
 static __always_inline
+const struct vdso_clock *vdso_timens_clock(const struct vdso_clock *vc)
+{
+	return (void *)vc + PAGE_SIZE;
+}
+
+static __always_inline
 bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *vcns,
 		    clockid_t clk, struct __kernel_timespec *ts)
 {
 	const struct vdso_time_data *vd = vdso_timens_data(vdns);
+	const struct vdso_clock *vc = vdso_timens_clock(vcns);
 	const struct timens_offset *offs = &vcns->offset[clk];
-	const struct vdso_clock *vc = vd->clock_data;
 	u32 seq;
 	s64 sec;
 	u64 ns;
-
-	if (clk != CLOCK_MONOTONIC_RAW)
-		vc = &vc[CS_HRES_COARSE];
-	else
-		vc = &vc[CS_RAW];
 
 	do {
 		seq = vdso_read_begin(vc);
