@@ -246,7 +246,7 @@ create_ea_info:
 			goto out;
 
 		if (ntfs_attr_exist(ni, AT_EA, AT_UNNAMED, 0)) {
-			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0);
+			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0, NULL);
 			if (err)
 				goto out;
 		}
@@ -301,11 +301,12 @@ create_ea_info:
 		p_ea_info->ea_query_length = cpu_to_le32(ea_info_qsize);
 
 		if ((flags & XATTR_REPLACE) && !val_size && !ea_info_qsize) {
-			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0);
+			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0, NULL);
 			if (err)
 				goto out;
 
-			err = ntfs_attr_remove(ni, AT_EA_INFORMATION, AT_UNNAMED, 0);
+			err = ntfs_attr_remove(ni, AT_EA_INFORMATION, AT_UNNAMED,
+					0, NULL);
 			if (err) {
 				/* Restore the original $EA if $EA_INFORMATION removal failed. */
 				ntfs_attr_add(ni, AT_EA, AT_UNNAMED, 0, old_ea_buf,
@@ -610,6 +611,14 @@ static int ntfs_getxattr(const struct xattr_handler *handler,
 	struct ntfs_inode *ni = NTFS_I(inode);
 	int err;
 
+	/*
+	 * Stream permissions and privileges belong to the base inode. This
+	 * also lets VFS killpriv helpers find the base security attributes.
+	 */
+	if (ntfs_inode_is_named_stream(ni)) {
+		ni = ni->ext.base_ntfs_ino;
+		inode = VFS_I(ni);
+	}
 	if (NVolShutdown(ni->vol))
 		return -EIO;
 
@@ -716,8 +725,8 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 			goto err_out;
 
 		ntfs_attr_reinit_search_ctx(ctx);
-		err = ntfs_attr_lookup(ni->type, ni->name,
-				ni->name_len, CASE_SENSITIVE,
+		err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+				CASE_SENSITIVE,
 				0, NULL, 0, ctx);
 		if (err) {
 			err = -EINVAL;
@@ -883,6 +892,8 @@ static int ntfs_setxattr(const struct xattr_handler *handler,
 	int err;
 	__le32 fattr;
 
+	if (ntfs_inode_is_named_stream(ni))
+		return -EOPNOTSUPP;
 	if (NVolShutdown(ni->vol))
 		return -EIO;
 

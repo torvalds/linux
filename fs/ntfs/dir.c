@@ -8,6 +8,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/string.h>
 
 #include "dir.h"
 #include "mft.h"
@@ -624,7 +625,6 @@ static inline int ntfs_filldir(struct ntfs_volume *vol,
 		ntfs_debug("Skipping hidden file.");
 		return 0;
 	}
-
 	name_len = ntfs_ucstonls(vol, (__le16 *)&ie->key.file_name.file_name,
 			ie->key.file_name.file_name_length, &name,
 			NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1);
@@ -633,7 +633,10 @@ static inline int ntfs_filldir(struct ntfs_volume *vol,
 				(long long)MREF_LE(ie->data.dir.indexed_file));
 		return 0;
 	}
-
+	if (NVolStreamsWindows(vol) && strchr((char *)name, ':')) {
+		ntfs_debug("Skipping file name containing a stream separator.");
+		return 0;
+	}
 	mref = MREF_LE(ie->data.dir.indexed_file);
 	if (ie->key.file_name.file_attributes & FILE_ATTR_REPARSE_POINT)
 		dt_type = ntfs_reparse_tag_dt_types(vol, mref);

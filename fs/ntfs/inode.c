@@ -1547,6 +1547,10 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	else
 		vi->i_blocks = ni->allocated_size >> 9;
+	if (ni->type == AT_DATA && ni->name_len) {
+		vi->i_op = &ntfs_stream_inode_ops;
+		vi->i_fop = &ntfs_stream_file_ops;
+	}
 	/*
 	 * Make sure the base inode does not go away and attach it to the
 	 * attribute inode.
@@ -2537,6 +2541,10 @@ int ntfs_show_options(struct seq_file *sf, struct dentry *root)
 		seq_puts(sf, ",symlink=native");
 	else
 		seq_puts(sf, ",symlink=wsl");
+	if (NVolStreamsWindows(vol))
+		seq_puts(sf, ",streams_interface=windows");
+	else
+		seq_puts(sf, ",streams_interface=none");
 	if (vol->sb->s_flags & SB_POSIXACL)
 		seq_puts(sf, ",acl");
 	return 0;
@@ -2597,15 +2605,19 @@ out:
 int ntfs_truncate_vfs(struct inode *vi, loff_t new_size, loff_t i_size)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
+	struct ntfs_inode *mrec_ni = ntfs_base_inode(ni);
 	int err;
 
-	mutex_lock(&ni->mrec_lock);
+	mutex_lock(&mrec_ni->mrec_lock);
 	err = __ntfs_attr_truncate_vfs(ni, new_size, i_size);
-	mutex_unlock(&ni->mrec_lock);
+	mutex_unlock(&mrec_ni->mrec_lock);
 	if (err < 0)
 		return err;
 
-	inode_set_mtime_to_ts(vi, inode_set_ctime_current(vi));
+	if (ntfs_inode_is_named_stream(ni))
+		ntfs_stream_update_base_time(mrec_ni);
+	else
+		inode_set_mtime_to_ts(vi, inode_set_ctime_current(vi));
 	return 0;
 }
 

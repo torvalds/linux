@@ -197,6 +197,7 @@ struct ntfs_volume {
  * NV_DisableSparse		Disable creation of sparse regions.
  * NV_NativeSymlinkRel		Translate absolute Windows reparse targets (native_symlink=rel).
  * NV_MftBootstrap		Mount is still assembling $MFT's own runlist.
+ * NV_StreamsWindows		Interpret the final path component as file:stream.
  */
 enum {
 	NV_Errors,
@@ -218,6 +219,7 @@ enum {
 	NV_NativeSymlinkRel,
 	NV_SymlinkNative,
 	NV_MftBootstrap,
+	NV_StreamsWindows,
 };
 
 /*
@@ -258,6 +260,7 @@ DEFINE_NVOL_BIT_OPS(DisableSparse)
 DEFINE_NVOL_BIT_OPS(NativeSymlinkRel)
 DEFINE_NVOL_BIT_OPS(SymlinkNative)
 DEFINE_NVOL_BIT_OPS(MftBootstrap)
+DEFINE_NVOL_BIT_OPS(StreamsWindows)
 
 static inline void ntfs_inc_free_clusters(struct ntfs_volume *vol, s64 nr)
 {

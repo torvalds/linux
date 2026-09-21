@@ -17,8 +17,10 @@
 #include <linux/falloc.h>
 #include <linux/file.h>
 #include <linux/filelock.h>
+#include <linux/list.h>
 #include <linux/overflow.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include <uapi/linux/ntfs.h>
 
 #include "lcnalloc.h"
@@ -142,6 +144,11 @@ int ntfs_file_release(struct inode *vi, struct file *filp)
 	return 0;
 }
 
+struct ntfs_fsync_attr {
+	struct list_head list;
+	struct inode *inode;
+};
+
 /*
  * ntfs_file_fsync - sync a file to disk
  * @filp:	file to be synced
@@ -171,6 +178,8 @@ int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	int err, ret = 0;
 	struct inode *parent_vi, *ia_vi;
 	struct ntfs_attr_search_ctx *ctx;
+	struct ntfs_fsync_attr *attr, *next;
+	LIST_HEAD(attrs);
 	bool non_resident, stream;
 
 	ntfs_debug("Entering for inode 0x%llx.", ni->mft_no);
@@ -195,8 +204,7 @@ int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 
 	/*
 	 * file_write_and_wait_range() already flushed this stream mapping.
-	 * Do not walk sibling attribute mappings while holding the base MFT
-	 * lock; ordinary file fsync retains its existing behavior below.
+	 * A stream fsync does not need to flush sibling attribute mappings.
 	 */
 	if (stream)
 		goto sync_volume;
@@ -232,22 +240,53 @@ int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 			name = (__le16 *)((u8 *)ctx->attr + le16_to_cpu(ctx->attr->name_offset));
 			if (ctx->attr->type == AT_DATA && ctx->attr->name_length == 0)
 				continue;
+			if (ctx->attr->type == AT_DATA &&
+			    ntfs_stream_unlinked(ni, name, ctx->attr->name_length))
+				continue;
 
+			attr = kmalloc_obj(*attr, GFP_NOFS);
+			if (!attr) {
+				err = -ENOMEM;
+				break;
+			}
 			attr_vi = ntfs_attr_iget(vi, ctx->attr->type,
 						 name, ctx->attr->name_length);
-			if (IS_ERR(attr_vi))
+			if (IS_ERR(attr_vi)) {
+				kfree(attr);
 				continue;
-			spin_lock(&attr_vi->i_lock);
-			if (inode_state_read_once(attr_vi) & I_DIRTY_PAGES) {
-				spin_unlock(&attr_vi->i_lock);
-				filemap_write_and_wait(attr_vi->i_mapping);
-			} else
-				spin_unlock(&attr_vi->i_lock);
-			iput(attr_vi);
+			}
+			if (ntfs_inode_is_named_stream(NTFS_I(attr_vi)))
+				atomic_inc(&NTFS_I(attr_vi)->stream_open_count);
+			attr->inode = attr_vi;
+			list_add_tail(&attr->list, &attrs);
 		}
 	}
 	mutex_unlock(&ni->mrec_lock);
 	ntfs_attr_put_search_ctx(ctx);
+	if (err != -ENOENT && !ret)
+		ret = err;
+
+	/* Attribute writeback takes the base inode's MFT record lock. */
+	list_for_each_entry_safe(attr, next, &attrs, list) {
+		struct inode *attr_vi = attr->inode;
+
+		err = filemap_write_and_wait(attr_vi->i_mapping);
+		if (err && !ret)
+			ret = err;
+		if (ntfs_inode_is_named_stream(NTFS_I(attr_vi))) {
+			err = ntfs_stream_put(attr_vi);
+			if (err && !ret)
+				ret = err;
+		}
+		iput(attr_vi);
+		list_del(&attr->list);
+		kfree(attr);
+	}
+
+	/* Attribute writeback may have updated the base mapping pairs. */
+	err = write_inode_now(vi, 1);
+	if (err && !ret)
+		ret = err;
 
 sync_volume:
 	write_inode_now(vol->mftbmp_ino, 1);
@@ -295,7 +334,6 @@ int ntfs_setattr_size(struct inode *vi, struct iattr *attr)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct ntfs_inode *base_ni = ntfs_base_inode(ni);
-	struct inode *time_vi = vi;
 	bool stream = ntfs_inode_is_named_stream(ni);
 	int err;
 	loff_t old_size = vi->i_size;
@@ -333,7 +371,6 @@ int ntfs_setattr_size(struct inode *vi, struct iattr *attr)
 		mutex_unlock(&base_ni->mrec_lock);
 		if (err)
 			goto out_unlock_mapping;
-		time_vi = VFS_I(base_ni);
 	} else {
 		filemap_invalidate_lock(vi->i_mapping);
 	}
@@ -361,14 +398,10 @@ int ntfs_setattr_size(struct inode *vi, struct iattr *attr)
 		goto out_unlock_mapping;
 	}
 
-	if (stream) {
-		inode_set_mtime_to_ts(time_vi,
-				inode_set_ctime_current(time_vi));
-		mark_inode_dirty(time_vi);
-	}
-
 out_unlock_mapping:
 	filemap_invalidate_unlock(vi->i_mapping);
+	if (!err && stream)
+		ntfs_stream_update_base_time(base_ni);
 
 	return err;
 }
@@ -498,6 +531,24 @@ int ntfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 	}
 
 	return 0;
+}
+
+/*
+ * Validate a stream before VFS write handling removes privileges or updates
+ * timestamps on its base inode.
+ */
+static int ntfs_file_modified(struct kiocb *iocb)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	int err;
+
+	if (ntfs_inode_is_named_stream(NTFS_I(inode))) {
+		err = ntfs_stream_validate_for_mutation(inode,
+				iocb->ki_flags & IOCB_NOWAIT);
+		if (err)
+			return err;
+	}
+	return kiocb_modified(iocb);
 }
 
 loff_t ntfs_file_llseek(struct file *file, loff_t offset, int whence)
@@ -710,7 +761,7 @@ ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret <= 0)
 		goto out_lock;
 
-	err = file_modified(iocb->ki_filp);
+	err = ntfs_file_modified(iocb);
 	if (err) {
 		ret = err;
 		goto out_lock;
@@ -788,13 +839,24 @@ static vm_fault_t ntfs_filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct address_space *mapping = inode->i_mapping;
+	bool stream = ntfs_inode_is_named_stream(NTFS_I(inode));
+	int err;
 	vm_fault_t ret;
 
 	if (NInoWofCompressed(NTFS_I(inode)))
 		return VM_FAULT_SIGBUS;
 
 	sb_start_pagefault(inode->i_sb);
-	file_update_time(vmf->vma->vm_file);
+	if (stream) {
+		err = ntfs_stream_validate_for_mutation(inode, false);
+		if (err)
+			goto out_error;
+		err = file_update_time(vmf->vma->vm_file);
+		if (err)
+			goto out_error;
+	} else {
+		file_update_time(vmf->vma->vm_file);
+	}
 
 	/*
 	 * Serialize against truncate/fallocate which hold the lock
@@ -805,6 +867,10 @@ static vm_fault_t ntfs_filemap_page_mkwrite(struct vm_fault *vmf)
 	filemap_invalidate_unlock_shared(mapping);
 	sb_end_pagefault(inode->i_sb);
 	return ret;
+
+out_error:
+	sb_end_pagefault(inode->i_sb);
+	return vmf_error(err);
 }
 
 static const struct vm_operations_struct ntfs_file_vm_ops = {
@@ -1281,6 +1347,13 @@ long ntfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		inode_unlock(vi);
 		return -EOPNOTSUPP;
 	}
+	if (stream) {
+		err = ntfs_stream_validate_for_mutation(vi, false);
+		if (err) {
+			inode_unlock(vi);
+			return err;
+		}
+	}
 	old_size = i_size_read(vi);
 
 	inode_dio_wait(vi);
@@ -1322,9 +1395,7 @@ out:
 
 	if (!err) {
 		if (stream) {
-			inode_set_mtime_to_ts(VFS_I(base_ni),
-					inode_set_ctime_current(VFS_I(base_ni)));
-			mark_inode_dirty(VFS_I(base_ni));
+			ntfs_stream_update_base_time(base_ni);
 		} else {
 			NInoSetFileNameDirty(ni);
 			inode_set_mtime_to_ts(vi, inode_set_ctime_current(vi));

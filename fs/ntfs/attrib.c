@@ -5487,34 +5487,46 @@ int ntfs_attr_exist(struct ntfs_inode *ni, const __le32 type, __le16 *name,
 	return !ret;
 }
 
+/*
+ * If @attr_vi is non-NULL, the attribute inode reference is returned to the
+ * caller, which must release it after dropping ni->mrec_lock.
+ */
 int ntfs_attr_remove(struct ntfs_inode *ni, const __le32 type, __le16 *name,
-		u32 name_len)
+		u32 name_len, struct inode **attr_vi)
 {
 	int err;
-	struct inode *attr_vi;
+	struct inode *vi;
 	struct ntfs_inode *attr_ni;
 
 	ntfs_debug("Entering\n");
 
+	if (attr_vi)
+		*attr_vi = NULL;
 	if (!ni)
 		return -EINVAL;
 
-	attr_vi = ntfs_attr_iget(VFS_I(ni), type, name, name_len);
-	if (IS_ERR(attr_vi)) {
-		err = PTR_ERR(attr_vi);
-		ntfs_error(ni->vol->sb,
-			"Failed to open attribute 0x%02x of inode 0x%llx",
-			type, (unsigned long long)ni->mft_no);
+	vi = ntfs_attr_iget(VFS_I(ni), type, name, name_len);
+	if (IS_ERR(vi)) {
+		err = PTR_ERR(vi);
+		ntfs_error(ni->vol->sb, "Failed to open attribute 0x%02x of inode 0x%llx",
+				type, (unsigned long long)ni->mft_no);
 		return err;
 	}
-	attr_ni = NTFS_I(attr_vi);
+	attr_ni = NTFS_I(vi);
 
 	err = ntfs_attr_rm(attr_ni);
-	if (err)
-		ntfs_error(ni->vol->sb,
-			"Failed to remove attribute 0x%02x of inode 0x%llx",
-			type, (unsigned long long)ni->mft_no);
-	iput(attr_vi);
+	if (err) {
+		ntfs_error(ni->vol->sb, "Failed to remove attribute 0x%02x of inode 0x%llx",
+				type, (unsigned long long)ni->mft_no);
+	} else {
+		NInoClearDirty(attr_ni);
+		clear_nlink(vi);
+		remove_inode_hash(vi);
+	}
+	if (attr_vi)
+		*attr_vi = vi;
+	else
+		iput(vi);
 	return err;
 }
 

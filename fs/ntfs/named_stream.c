@@ -6,6 +6,7 @@
  */
 
 #include <linux/file.h>
+#include <linux/namei.h>
 #include <linux/overflow.h>
 
 #include <uapi/linux/ntfs.h>
@@ -177,6 +178,598 @@ bool ntfs_stream_unlinked(struct ntfs_inode *base_ni,
 }
 
 /*
+ * ntfs_stream_path_parse() - Split a pathname stream component
+ * @vol: NTFS volume
+ * @qname: final pathname component
+ * @path: receives slices of @qname on success
+ *
+ * Parse the ``file:stream`` form when the Windows pathname interface is
+ * enabled. This does not convert or validate the component names.
+ *
+ * Return: 1 if stream syntax was parsed, 0 if streams are disabled or no
+ * stream separator is present, or -EINVAL for malformed syntax.
+ */
+int ntfs_stream_path_parse(struct ntfs_volume *vol,
+		const struct qstr *qname, struct ntfs_stream_path *path)
+{
+	const unsigned char *colon;
+
+	if (!NVolStreamsWindows(vol))
+		return 0;
+
+	colon = memchr(qname->name, ':', qname->len);
+	if (!colon)
+		return 0;
+	if (colon == qname->name || colon + 1 == qname->name + qname->len)
+		return -EINVAL;
+	if (memchr(colon + 1, ':', qname->name + qname->len - colon - 1))
+		return -EINVAL;
+
+	path->base_name = (const char *)qname->name;
+	path->base_len = colon - qname->name;
+	path->stream_name = (const char *)colon + 1;
+	path->stream_len = qname->name + qname->len - colon - 1;
+	return 1;
+}
+
+/*
+ * ntfs_stream_path_has_colon() - Check for a pathname stream separator
+ * @vol: NTFS volume
+ * @qname: final pathname component
+ *
+ * Return: true if the Windows pathname interface is enabled and @qname
+ * contains a colon, or false otherwise.
+ */
+bool ntfs_stream_path_has_colon(struct ntfs_volume *vol,
+		const struct qstr *qname)
+{
+	return NVolStreamsWindows(vol) &&
+		memchr(qname->name, ':', qname->len);
+}
+
+/*
+ * ntfs_stream_path_check() - Reject stream syntax for unsupported operations
+ * @vol: NTFS volume
+ * @qname: final pathname component
+ *
+ * Return: 0 for an ordinary name or when streams are disabled,
+ * -EOPNOTSUPP for parsed stream syntax, or -EINVAL for malformed syntax.
+ */
+int ntfs_stream_path_check(struct ntfs_volume *vol,
+		const struct qstr *qname)
+{
+	struct ntfs_stream_path path;
+	int ret;
+
+	ret = ntfs_stream_path_parse(vol, qname, &path);
+	if (ret < 0)
+		return ret;
+	return ret ? -EOPNOTSUPP : 0;
+}
+
+/*
+ * ntfs_stream_lookup_inode_by_name() - Look up a base inode by name
+ * @dir_ino: directory containing the base file or directory
+ * @uname: UTF-16LE base name
+ * @uname_len: Length of @uname in UTF-16 code units
+ *
+ * Resolve the directory entry and verify its MFT reference before returning
+ * the inode.
+ *
+ * Return: Referenced inode on success, or ERR_PTR() on failure.
+ */
+struct inode *ntfs_stream_lookup_inode_by_name(struct inode *dir_ino,
+		__le16 *uname, int uname_len)
+{
+	struct ntfs_volume *vol = NTFS_SB(dir_ino->i_sb);
+	struct ntfs_name *name = NULL;
+	struct inode *inode;
+	u64 mref;
+
+	mutex_lock(&NTFS_I(dir_ino)->mrec_lock);
+	mref = ntfs_lookup_inode_by_name(NTFS_I(dir_ino), uname, uname_len,
+			&name);
+	mutex_unlock(&NTFS_I(dir_ino)->mrec_lock);
+	kfree(name);
+
+	if (IS_ERR_MREF(mref))
+		return ERR_PTR(MREF_ERR(mref));
+
+	inode = ntfs_iget(vol->sb, MREF(mref));
+	if (IS_ERR(inode))
+		return inode;
+	if (MSEQNO(mref) != NTFS_I(inode)->seq_no &&
+	    MREF(mref) != FILE_MFT) {
+		iput(inode);
+		return ERR_PTR(-EIO);
+	}
+	return inode;
+}
+
+/*
+ * Recheck that a stream dentry still names the same base inode and DATA
+ * attribute.
+ */
+static int ntfs_stream_d_revalidate(struct inode *dir,
+		const struct qstr *qname, struct dentry *dentry,
+		unsigned int flags)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni;
+	struct ntfs_stream_path path;
+	struct inode *base_vi;
+	__le16 *base_name = NULL, *stream_name = NULL;
+	int base_len, stream_len, err, ret = 0;
+
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+	if (!inode)
+		return 0;
+	if (!inode->i_nlink)
+		return 0;
+	if (NVolShutdown(NTFS_SB(dir->i_sb)))
+		return 0;
+
+	ni = NTFS_I(inode);
+	if (!ntfs_inode_is_named_stream(ni))
+		return 0;
+
+	err = ntfs_stream_path_parse(NTFS_SB(dir->i_sb), qname, &path);
+	if (err <= 0)
+		return 0;
+	base_len = ntfs_nlstoucs(NTFS_SB(dir->i_sb), path.base_name,
+			path.base_len, &base_name, NTFS_MAX_NAME_LEN);
+	if (base_len < 0)
+		goto out;
+	stream_len = ntfs_nlstoucs(NTFS_SB(dir->i_sb), path.stream_name,
+			path.stream_len, &stream_name, NTFS_MAX_NAME_LEN);
+	if (stream_len < 0)
+		goto out;
+	if (ntfs_check_stream_name(stream_name, stream_len))
+		goto out;
+	if (stream_len != ni->name_len ||
+	    !ntfs_names_are_equal(stream_name, stream_len, ni->name,
+			ni->name_len, IGNORE_CASE, ni->vol->upcase,
+			ni->vol->upcase_len))
+		goto out;
+
+	base_vi = ntfs_stream_lookup_inode_by_name(dir, base_name, base_len);
+	if (IS_ERR(base_vi))
+		goto out;
+	if (NTFS_I(base_vi) != ni->ext.base_ntfs_ino) {
+		iput(base_vi);
+		goto out;
+	}
+
+	mutex_lock(&NTFS_I(base_vi)->mrec_lock);
+	err = ntfs_stream_inode_validate(inode);
+	mutex_unlock(&NTFS_I(base_vi)->mrec_lock);
+	iput(base_vi);
+	if (!err)
+		ret = 1;
+out:
+	if (stream_name)
+		kmem_cache_free(ntfs_name_cache, stream_name);
+	if (base_name)
+		kmem_cache_free(ntfs_name_cache, base_name);
+	return ret;
+}
+
+/* Revalidate stream paths while leaving ordinary NTFS dentries cacheable. */
+static int ntfs_dentry_revalidate(struct inode *dir,
+		const struct qstr *qname, struct dentry *dentry,
+		unsigned int flags)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
+
+	if (ntfs_stream_path_has_colon(vol, qname))
+		return ntfs_stream_d_revalidate(dir, qname, dentry, flags);
+	if (inode && ntfs_inode_is_named_stream(NTFS_I(inode)))
+		return 0;
+	return 1;
+}
+
+/* Drop stream-path aliases so future lookups recheck their backing attribute. */
+static int ntfs_dentry_delete(const struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_volume *vol = NTFS_SB(dentry->d_sb);
+
+	if (ntfs_stream_path_has_colon(vol, &dentry->d_name) ||
+	    (inode && ntfs_inode_is_named_stream(NTFS_I(inode))))
+		return always_delete_dentry(dentry);
+	return 0;
+}
+
+static const struct dentry_operations ntfs_dentry_ops = {
+	.d_revalidate	= ntfs_dentry_revalidate,
+	.d_delete		= ntfs_dentry_delete,
+};
+
+/*
+ * ntfs_set_default_dentry_ops() - Install stream-aware dentry operations
+ * @sb: superblock on which to install the operations
+ *
+ * Ensure pathname stream dentries are revalidated and not kept as stale
+ * aliases.
+ */
+void ntfs_set_default_dentry_ops(struct super_block *sb)
+{
+	set_default_d_op(sb, &ntfs_dentry_ops);
+}
+
+/*
+ * ntfs_lookup_stream() - Look up a named stream by pathname
+ * @dir_ino: directory containing the base file or directory
+ * @dent: dentry for the pathname component
+ * @path: parsed base and stream name slices
+ *
+ * Find the existing base inode and its named DATA attribute, then splice the
+ * stream inode into @dent.
+ *
+ * Return: NULL if @dent was instantiated, an alternate dentry if a
+ * disconnected alias was spliced, or ERR_PTR() on failure.
+ */
+struct dentry *ntfs_lookup_stream(struct inode *dir_ino,
+		struct dentry *dent, const struct ntfs_stream_path *path)
+{
+	struct ntfs_volume *vol = NTFS_SB(dir_ino->i_sb);
+	struct inode *base_vi, *stream_vi;
+	__le16 *base_uname = NULL, *stream_uname = NULL;
+	int base_len, stream_len, err;
+
+	if (NVolShutdown(vol))
+		return ERR_PTR(-EIO);
+
+	base_len = ntfs_nlstoucs(vol, path->base_name, path->base_len,
+			&base_uname, NTFS_MAX_NAME_LEN);
+	if (base_len < 0)
+		return ERR_PTR(base_len);
+
+	stream_len = ntfs_nlstoucs(vol, path->stream_name, path->stream_len,
+			&stream_uname, NTFS_MAX_NAME_LEN);
+	if (stream_len < 0) {
+		kmem_cache_free(ntfs_name_cache, base_uname);
+		return ERR_PTR(stream_len);
+	}
+	err = ntfs_check_stream_name(stream_uname, stream_len);
+	if (err) {
+		kmem_cache_free(ntfs_name_cache, base_uname);
+		kmem_cache_free(ntfs_name_cache, stream_uname);
+		return ERR_PTR(err);
+	}
+
+	base_vi = ntfs_stream_lookup_inode_by_name(dir_ino, base_uname,
+			base_len);
+	kmem_cache_free(ntfs_name_cache, base_uname);
+	if (IS_ERR(base_vi)) {
+		err = PTR_ERR(base_vi);
+		kmem_cache_free(ntfs_name_cache, stream_uname);
+		if (err == -ENOENT)
+			return d_splice_alias(NULL, dent);
+		return ERR_PTR(err);
+	}
+
+	if (!S_ISREG(base_vi->i_mode) && !S_ISDIR(base_vi->i_mode)) {
+		iput(base_vi);
+		kmem_cache_free(ntfs_name_cache, stream_uname);
+		return ERR_PTR(-ENOTDIR);
+	}
+
+	mutex_lock(&NTFS_I(base_vi)->mrec_lock);
+	stream_vi = ntfs_attr_iget(base_vi, AT_DATA, stream_uname, stream_len);
+	if (!IS_ERR(stream_vi)) {
+		if (NInoStreamUnlinked(NTFS_I(stream_vi)))
+			err = -ENOENT;
+		else
+			err = ntfs_stream_inode_validate(stream_vi);
+	}
+	mutex_unlock(&NTFS_I(base_vi)->mrec_lock);
+	if (!IS_ERR(stream_vi) && err) {
+		iput(stream_vi);
+		stream_vi = ERR_PTR(err);
+	}
+	iput(base_vi);
+	kmem_cache_free(ntfs_name_cache, stream_uname);
+
+	if (IS_ERR(stream_vi)) {
+		err = PTR_ERR(stream_vi);
+		if (err == -ENOENT || err == -ESTALE)
+			return d_splice_alias(NULL, dent);
+		return ERR_PTR(err);
+	}
+
+	return d_splice_alias(stream_vi, dent);
+}
+
+/*
+ * ntfs_stream_path_names() - Convert and validate pathname stream names
+ * @vol: NTFS volume
+ * @qname: final pathname component
+ * @base_name: receives the allocated UTF-16LE base name
+ * @base_len: receives the base name length in UTF-16 code units
+ * @stream_name: receives the allocated UTF-16LE stream name
+ * @stream_len: receives the stream name length in UTF-16 code units
+ *
+ * Return: 1 if stream names were produced, 0 if @qname has no stream syntax,
+ * or a negative errno. The caller owns both name buffers on success.
+ */
+int ntfs_stream_path_names(struct ntfs_volume *vol,
+		const struct qstr *qname, __le16 **base_name, int *base_len,
+		__le16 **stream_name, int *stream_len)
+{
+	struct ntfs_stream_path path;
+	int err;
+
+	*base_name = NULL;
+	*stream_name = NULL;
+	err = ntfs_stream_path_parse(vol, qname, &path);
+	if (err <= 0)
+		return err;
+
+	*base_len = ntfs_nlstoucs(vol, path.base_name, path.base_len,
+			base_name, NTFS_MAX_NAME_LEN);
+	if (*base_len < 0)
+		return *base_len;
+
+	*stream_len = ntfs_nlstoucs(vol, path.stream_name, path.stream_len,
+			stream_name, NTFS_MAX_NAME_LEN);
+	if (*stream_len < 0) {
+		kmem_cache_free(ntfs_name_cache, *base_name);
+		*base_name = NULL;
+		return *stream_len;
+	}
+
+	err = ntfs_check_bad_windows_name(vol, *base_name, *base_len);
+	if (err)
+		goto out_free;
+	err = ntfs_check_stream_name(*stream_name, *stream_len);
+	if (err)
+		goto out_free;
+	err = ntfs_check_bad_windows_name(vol, *stream_name, *stream_len);
+	if (err)
+		goto out_free;
+	return 1;
+
+out_free:
+	kmem_cache_free(ntfs_name_cache, *stream_name);
+	kmem_cache_free(ntfs_name_cache, *base_name);
+	*stream_name = NULL;
+	*base_name = NULL;
+	return err;
+}
+
+/*
+ * ntfs_create_named_stream() - Create a named DATA stream
+ * @idmap: mount idmap used for permission checks
+ * @dir: directory containing the base object
+ * @base_name: UTF-16LE base name
+ * @base_len: length of @base_name in UTF-16 code units
+ * @stream_name: UTF-16LE stream name
+ * @stream_len: length of @stream_name in UTF-16 code units
+ *
+ * Create the stream on an existing regular file or directory.
+ *
+ * Return: Referenced stream inode on success, or ERR_PTR() on failure.
+ */
+struct inode *ntfs_create_named_stream(const struct mnt_idmap *idmap,
+		struct inode *dir, __le16 *base_name, int base_len,
+		__le16 *stream_name, int stream_len)
+{
+	struct ntfs_inode *base_ni;
+	struct inode *base_vi, *stream_vi;
+	struct inode *rollback_vi = NULL;
+	struct ntfs_attr_search_ctx *ctx;
+	bool stream_created = false;
+	int err, rollback_err;
+
+	base_vi = ntfs_stream_lookup_inode_by_name(dir, base_name, base_len);
+	if (IS_ERR(base_vi))
+		return base_vi;
+	if (!S_ISREG(base_vi->i_mode) && !S_ISDIR(base_vi->i_mode)) {
+		iput(base_vi);
+		return ERR_PTR(-ENOTDIR);
+	}
+	err = inode_permission(idmap, base_vi, MAY_OPEN | MAY_WRITE);
+	if (err)
+		goto out_iput;
+	if (IS_APPEND(base_vi) || IS_IMMUTABLE(base_vi)) {
+		err = -EPERM;
+		goto out_iput;
+	}
+	if (!(NTFS_SB(base_vi->i_sb)->vol_flags & VOLUME_IS_DIRTY)) {
+		err = ntfs_set_volume_flags(NTFS_SB(base_vi->i_sb),
+				VOLUME_IS_DIRTY);
+		if (err)
+			goto out_iput;
+	}
+
+	base_ni = NTFS_I(base_vi);
+	mutex_lock(&base_ni->mrec_lock);
+	if (NVolShutdown(base_ni->vol)) {
+		err = -EIO;
+		goto out_unlock;
+	}
+	if (NInoBeingDeleted(base_ni) || !base_vi->i_nlink) {
+		err = -ENOENT;
+		goto out_unlock;
+	}
+	if (IS_APPEND(base_vi) || IS_IMMUTABLE(base_vi)) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+	ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	err = ntfs_attr_lookup(AT_DATA, stream_name, stream_len,
+			IGNORE_CASE, 0, NULL, 0, ctx);
+	if (!err) {
+		if (ntfs_stream_unlinked(base_ni, stream_name, stream_len))
+			err = -EBUSY;
+		else
+			err = -EEXIST;
+	} else if (err == -ENOENT) {
+		if (NVolShutdown(base_ni->vol)) {
+			err = -EIO;
+			goto out_put_ctx;
+		}
+		err = ntfs_attr_add(base_ni, AT_DATA, stream_name, stream_len,
+				NULL, 0);
+		if (!err) {
+			stream_created = true;
+			mark_mft_record_dirty(base_ni);
+		}
+	}
+	ntfs_attr_put_search_ctx(ctx);
+	if (err)
+		goto out_unlock;
+
+	stream_vi = ntfs_attr_iget(base_vi, AT_DATA, stream_name, stream_len);
+	if (!IS_ERR(stream_vi))
+		err = ntfs_stream_inode_validate(stream_vi);
+	else
+		err = PTR_ERR(stream_vi);
+	if (err) {
+		if (stream_created) {
+			rollback_err = ntfs_attr_remove(base_ni, AT_DATA,
+					stream_name, stream_len, &rollback_vi);
+			if (rollback_err) {
+				ntfs_error(base_ni->vol->sb,
+					"Failed to roll back named stream creation.\n");
+				if (rollback_err == -ENOMEM ||
+				    rollback_err == -EINTR ||
+				    rollback_err == -ERESTARTSYS) {
+					err = rollback_err;
+				} else {
+					NVolSetErrors(base_ni->vol);
+					NVolSetShutdown(base_ni->vol);
+					err = -EIO;
+				}
+			}
+		}
+		mutex_unlock(&base_ni->mrec_lock);
+		if (stream_created)
+			ntfs_stream_update_base_time(base_ni);
+		if (!IS_ERR(stream_vi))
+			iput(stream_vi);
+		if (rollback_vi)
+			iput(rollback_vi);
+		iput(base_vi);
+		return ERR_PTR(err);
+	}
+	mutex_unlock(&base_ni->mrec_lock);
+	if (stream_created)
+		ntfs_stream_update_base_time(base_ni);
+	iput(base_vi);
+	return stream_vi;
+
+out_put_ctx:
+	ntfs_attr_put_search_ctx(ctx);
+out_unlock:
+	mutex_unlock(&base_ni->mrec_lock);
+out_iput:
+	iput(base_vi);
+	return ERR_PTR(err);
+}
+
+/*
+ * ntfs_unlink_named_stream() - Remove a pathname named stream
+ * @dir: directory containing the base object
+ * @dentry: dentry for the named stream
+ *
+ * Return: 0 on success, or a negative errno.
+ */
+int ntfs_unlink_named_stream(struct inode *dir, struct dentry *dentry)
+{
+	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
+	struct inode *base_vi;
+	__le16 *base_name = NULL, *stream_name = NULL;
+	int base_len, stream_len, path_result, err;
+
+	path_result = ntfs_stream_path_names(vol, &dentry->d_name, &base_name,
+			&base_len, &stream_name, &stream_len);
+	if (path_result < 0)
+		return path_result;
+	if (!path_result)
+		return -EINVAL;
+
+	base_vi = ntfs_stream_lookup_inode_by_name(dir, base_name, base_len);
+	if (IS_ERR(base_vi)) {
+		err = PTR_ERR(base_vi);
+		goto out_free;
+	}
+	if (!S_ISREG(base_vi->i_mode) && !S_ISDIR(base_vi->i_mode)) {
+		err = -ENOTDIR;
+		goto out_iput;
+	}
+	if (!ntfs_inode_is_named_stream(NTFS_I(dentry->d_inode))) {
+		err = -ESTALE;
+		goto out_iput;
+	}
+	if (NTFS_I(dentry->d_inode)->ext.base_ntfs_ino != NTFS_I(base_vi)) {
+		err = -ESTALE;
+		goto out_iput;
+	}
+
+	/*
+	 * VFS authorizes pathname removal via the parent directory, not base
+	 * file write access. The shared helper enforces NTFS delete restrictions.
+	 */
+	err = ntfs_remove_named_stream(NTFS_I(base_vi), stream_name,
+			stream_len, dentry->d_inode);
+
+out_iput:
+	iput(base_vi);
+out_free:
+	kmem_cache_free(ntfs_name_cache, stream_name);
+	kmem_cache_free(ntfs_name_cache, base_name);
+	return err;
+}
+
+/* Obtain a dentry for the base inode behind a stream inode. */
+static struct dentry *ntfs_stream_base_dentry(struct inode *inode)
+{
+	struct inode *base_vi =
+		VFS_I(NTFS_I(inode)->ext.base_ntfs_ino);
+	struct dentry *dentry;
+
+	dentry = d_find_alias(base_vi);
+	if (dentry)
+		return dentry;
+	if (!igrab(base_vi))
+		return ERR_PTR(-ESTALE);
+	return d_obtain_alias(base_vi);
+}
+
+/*
+ * ntfs_stream_validate_for_mutation() - Validate a stream before mutation
+ * @inode: stream inode to validate
+ * @nowait: do not wait for the base MFT-record lock
+ *
+ * Return: 0 if the backing DATA attribute is valid, -EAGAIN if a nonblocking
+ * lock attempt fails, or another negative errno.
+ */
+int ntfs_stream_validate_for_mutation(struct inode *inode, bool nowait)
+{
+	struct ntfs_inode *base_ni = NTFS_I(inode)->ext.base_ntfs_ino;
+	int err;
+
+	if (nowait) {
+		if (!mutex_trylock(&base_ni->mrec_lock))
+			return -EAGAIN;
+	} else {
+		mutex_lock(&base_ni->mrec_lock);
+	}
+	err = ntfs_stream_inode_validate(inode);
+	mutex_unlock(&base_ni->mrec_lock);
+	return err;
+}
+
+/*
  * Hold a temporary stream reference so unlink cannot remove its attribute
  * while an operation is using it.
  */
@@ -200,6 +793,213 @@ static int ntfs_stream_claim(struct inode *inode)
 	mutex_unlock(&base_ni->mrec_lock);
 	return err;
 }
+
+/* Stream permission checks use the base inode's permissions. */
+static int ntfs_stream_permission(const struct mnt_idmap *idmap,
+		struct inode *inode, int mask)
+{
+	return inode_permission(idmap,
+			VFS_I(NTFS_I(inode)->ext.base_ntfs_ino), mask);
+}
+
+/* Report base metadata with the stream's own size and allocation. */
+static int ntfs_stream_getattr(const struct mnt_idmap *idmap,
+		const struct path *path, struct kstat *stat,
+		unsigned int request_mask, unsigned int query_flags)
+{
+	struct inode *inode = d_backing_inode(path->dentry);
+	struct ntfs_inode *ni = NTFS_I(inode);
+	struct inode *base_vi = VFS_I(ni->ext.base_ntfs_ino);
+
+	generic_fillattr(idmap, request_mask, base_vi, stat);
+	stat->size = i_size_read(inode);
+	stat->blocks = (((u64)ni->i_dealloc_clusters <<
+			NTFS_SB(inode->i_sb)->cluster_size_bits) >> 9) +
+			inode->i_blocks;
+	stat->blksize = NTFS_SB(inode->i_sb)->cluster_size;
+	stat->result_mask |= STATX_BTIME;
+	stat->btime = NTFS_I(base_vi)->i_crtime;
+
+	if (NInoCompressed(ni))
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (NInoEncrypted(ni))
+		stat->attributes |= STATX_ATTR_ENCRYPTED;
+	if (base_vi->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (base_vi->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED |
+			STATX_ATTR_IMMUTABLE | STATX_ATTR_APPEND;
+	stat->mode = (stat->mode & ~S_IFMT) | S_IFREG;
+
+	if (request_mask & STATX_DIOALIGN) {
+		unsigned int align =
+			bdev_logical_block_size(inode->i_sb->s_bdev);
+
+		stat->result_mask |= STATX_DIOALIGN;
+		if (!NInoCompressed(ni) && !NInoEncrypted(ni)) {
+			stat->dio_mem_align = align;
+			stat->dio_offset_align = align;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Apply size changes to the stream and route shared inode metadata changes to
+ * its base inode.
+ */
+static int ntfs_stream_setattr_common(const struct mnt_idmap *idmap,
+		struct inode *inode, struct iattr *attr)
+{
+	struct ntfs_inode *ni = NTFS_I(inode);
+	struct inode *base_vi = VFS_I(ni->ext.base_ntfs_ino);
+	struct dentry *base_dentry = NULL;
+	struct iattr base_attr = *attr;
+	int err;
+
+	base_attr.ia_valid &= ~ATTR_FILE;
+	base_attr.ia_file = NULL;
+	if (base_attr.ia_valid & (ATTR_KILL_SUID | ATTR_KILL_SGID))
+		base_attr.ia_valid &= ~ATTR_MODE;
+	else if (base_attr.ia_valid & ATTR_MODE)
+		base_attr.ia_mode = (base_attr.ia_mode & ~S_IFMT) |
+				(base_vi->i_mode & S_IFMT);
+
+	if (attr->ia_valid & ATTR_SIZE) {
+		err = inode_permission(idmap, base_vi, MAY_WRITE);
+		if (err)
+			goto out;
+		if (IS_APPEND(base_vi) || IS_IMMUTABLE(base_vi)) {
+			err = -EPERM;
+			goto out;
+		}
+		if (!(ni->vol->vol_flags & VOLUME_IS_DIRTY)) {
+			err = ntfs_set_volume_flags(ni->vol, VOLUME_IS_DIRTY);
+			if (err)
+				goto out;
+		}
+		base_attr.ia_valid &= ~ATTR_SIZE;
+	}
+
+	if ((attr->ia_valid & ATTR_SIZE) || base_attr.ia_valid) {
+		base_dentry = ntfs_stream_base_dentry(inode);
+		if (IS_ERR(base_dentry)) {
+			err = PTR_ERR(base_dentry);
+			base_dentry = NULL;
+			goto out;
+		}
+		inode_lock_nested(base_vi, I_MUTEX_PARENT);
+		err = ntfs_stream_validate_for_mutation(inode, false);
+		if (err) {
+			inode_unlock(base_vi);
+			goto out;
+		}
+		if (base_attr.ia_valid)
+			err = notify_change(idmap, base_dentry, &base_attr,
+					NULL);
+		else
+			err = 0;
+		if (!err)
+			ntfs_stream_inode_refresh(inode);
+		inode_unlock(base_vi);
+		if (err)
+			goto out;
+	}
+
+	if (attr->ia_valid & ATTR_SIZE)
+		err = ntfs_setattr_size(inode, attr);
+	else
+		err = 0;
+out:
+	dput(base_dentry);
+	return err;
+}
+
+/* Hold the stream against unlink while applying VFS setattr operations. */
+static int ntfs_stream_setattr(const struct mnt_idmap *idmap,
+		struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni = NTFS_I(inode);
+	bool claimed = false;
+	int err;
+
+	if (NVolShutdown(ni->vol))
+		return -EIO;
+
+	if (!(attr->ia_valid & ATTR_FILE)) {
+		err = ntfs_stream_claim(inode);
+		if (err)
+			return err;
+		claimed = true;
+	}
+
+	err = ntfs_stream_setattr_common(idmap, inode, attr);
+	if (claimed)
+		ntfs_stream_put(inode);
+	return err;
+}
+
+/*
+ * Apply stream timestamp updates to the base inode after validating the
+ * backing attribute under its MFT-record lock. Nonblocking callers get
+ * -EAGAIN.
+ */
+static int ntfs_stream_update_time_common(struct inode *inode,
+		enum fs_update_time type, unsigned int flags)
+{
+	struct ntfs_inode *base_ni = NTFS_I(inode)->ext.base_ntfs_ino;
+	struct inode *base_vi = VFS_I(base_ni);
+	int err;
+
+	if (NVolShutdown(base_ni->vol))
+		return -EIO;
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	mutex_lock(&base_ni->mrec_lock);
+	if (NVolShutdown(base_ni->vol)) {
+		err = -EIO;
+		goto out_mrec;
+	}
+	err = ntfs_stream_inode_validate(inode);
+	if (!err) {
+		err = generic_update_time(base_vi, type, flags);
+		if (!err)
+			ntfs_stream_inode_refresh(inode);
+	}
+out_mrec:
+	mutex_unlock(&base_ni->mrec_lock);
+	return err;
+}
+
+static int ntfs_stream_update_time(struct inode *inode,
+		enum fs_update_time type, unsigned int flags)
+{
+	return ntfs_stream_update_time_common(inode, type, flags);
+}
+
+static ssize_t ntfs_stream_listxattr(struct dentry *dentry, char *buffer,
+		size_t size)
+{
+	return -EOPNOTSUPP;
+}
+
+#ifdef CONFIG_NTFS_FS_POSIX_ACL
+static struct posix_acl *ntfs_stream_get_acl(const struct mnt_idmap *idmap,
+		struct dentry *dentry, int type)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static int ntfs_stream_set_acl(const struct mnt_idmap *idmap,
+		struct dentry *dentry, struct posix_acl *acl, int type)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /*
  * Remove an unlinked stream's DATA attribute after its final active reference
@@ -335,8 +1135,9 @@ int ntfs_remove_named_stream(struct ntfs_inode *ni, __le16 *uname,
 	clear_nlink(attr_vi);
 	mutex_unlock(&ni->mrec_lock);
 
-	ntfs_stream_update_base_time(ni);
 	err = ntfs_stream_finish_remove(attr_vi);
+	if (!err)
+		ntfs_stream_update_base_time(ni);
 	iput(attr_vi);
 	return err;
 
@@ -346,6 +1147,80 @@ out_iput:
 	return err;
 out_unlock:
 	mutex_unlock(&ni->mrec_lock);
+	return err;
+}
+
+/*
+ * Validate access against the base inode and hold the stream against unlink
+ * until the file is released.
+ */
+static int ntfs_stream_file_open(struct inode *inode, struct file *file)
+{
+	struct ntfs_inode *ni = NTFS_I(inode);
+	struct ntfs_inode *base_ni = ni->ext.base_ntfs_ino;
+	struct inode *base_vi = VFS_I(base_ni);
+	int mask = MAY_OPEN;
+	int err;
+
+	if (file->f_mode & FMODE_READ)
+		mask |= MAY_READ;
+	if (file->f_mode & FMODE_WRITE)
+		mask |= MAY_WRITE;
+	err = inode_permission(file_mnt_idmap(file), base_vi, mask);
+	if (err)
+		return err;
+
+	mutex_lock(&base_ni->mrec_lock);
+	if (NInoStreamUnlinked(ni))
+		err = -ENOENT;
+	else
+		err = ntfs_stream_inode_validate(inode);
+	if (err)
+		goto out_unlock;
+	if ((file->f_mode & FMODE_WRITE) &&
+	    (IS_IMMUTABLE(base_vi) ||
+	     (IS_APPEND(base_vi) && !(file->f_flags & O_APPEND)))) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+	if ((file->f_flags & O_TRUNC) && IS_APPEND(base_vi)) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+	if ((file->f_flags & O_NOATIME) &&
+	    !inode_owner_or_capable(file_mnt_idmap(file), base_vi)) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+	err = ntfs_file_open(inode, file);
+	if (err)
+		goto out_unlock;
+	if (file->f_mode & FMODE_WRITE) {
+		err = get_write_access(base_vi);
+		if (err)
+			goto out_unlock;
+		file->private_data = base_vi;
+	}
+
+	atomic_inc(&ni->stream_open_count);
+out_unlock:
+	mutex_unlock(&base_ni->mrec_lock);
+	return err;
+}
+
+/* Drop open-time references and complete any deferred stream unlink. */
+static int ntfs_stream_file_release(struct inode *inode, struct file *file)
+{
+	int err, remove_err;
+
+	err = ntfs_file_release(inode, file);
+	if (file->private_data) {
+		put_write_access(file->private_data);
+		file->private_data = NULL;
+	}
+	remove_err = ntfs_stream_put(inode);
+	if (!err)
+		err = remove_err;
 	return err;
 }
 
@@ -618,6 +1493,9 @@ static long ntfs_ioctl_stream(struct file *filp, unsigned long arg,
 			file_accessed(filp);
 	} else {
 		inode_lock(stream_vi);
+		inode_dio_wait(stream_vi);
+		/* Exclude faults before taking MFT record and folio locks. */
+		filemap_invalidate_lock(stream_vi->i_mapping);
 		err = inode_newsize_ok(stream_vi, pos + data_size);
 		if (!err) {
 			ret = ntfs_inode_attr_pwrite(stream_vi, pos, data_size,
@@ -627,6 +1505,7 @@ static long ntfs_ioctl_stream(struct file *filp, unsigned long arg,
 			else
 				req->bytes_returned = ret;
 		}
+		filemap_invalidate_unlock(stream_vi->i_mapping);
 		inode_unlock(stream_vi);
 	}
 	if (claimed) {
@@ -914,3 +1793,29 @@ out_free:
 	kvfree(kbuf);
 	return ret;
 }
+
+const struct file_operations ntfs_stream_file_ops = {
+	.llseek		= ntfs_file_llseek,
+	.read_iter	= ntfs_file_read_iter,
+	.write_iter	= ntfs_file_write_iter,
+	.fsync		= ntfs_file_fsync,
+	.fallocate	= ntfs_fallocate,
+	.mmap_prepare	= ntfs_file_mmap_prepare,
+	.open		= ntfs_stream_file_open,
+	.release	= ntfs_stream_file_release,
+	.splice_read	= ntfs_file_splice_read,
+	.splice_write	= iter_file_splice_write,
+};
+
+const struct inode_operations ntfs_stream_inode_ops = {
+	.permission	= ntfs_stream_permission,
+	.setattr	= ntfs_stream_setattr,
+	.getattr	= ntfs_stream_getattr,
+	.listxattr	= ntfs_stream_listxattr,
+#ifdef CONFIG_NTFS_FS_POSIX_ACL
+	.get_acl	= ntfs_stream_get_acl,
+	.set_acl	= ntfs_stream_set_acl,
+#endif
+	.update_time	= ntfs_stream_update_time,
+	.fiemap		= ntfs_fiemap,
+};
