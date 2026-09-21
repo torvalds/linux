@@ -227,7 +227,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 										     pqm->process);
 			if (pdd) {
 				kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
-				kfd_queue_release_buffers(pdd, &pqn->q->properties);
+				kfd_queue_release_buffers(pdd, &pqn->q->properties, false);
 			} else {
 				WARN_ON(!pdd);
 			}
@@ -572,7 +572,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 				goto err_destroy_queue;
 		}
 		kfd_procfs_del_queue(pqn->q);
-		kfd_queue_release_buffers(pdd, &pqn->q->properties);
+		kfd_queue_release_buffers(pdd, &pqn->q->properties, false);
 		pqm_clean_queue_resource(pqm, pqn);
 		uninit_queue(pqn->q);
 	}
@@ -1095,9 +1095,17 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	print_queue_properties(&qp);
 
+	ret = kfd_queue_acquire_buffers(pdd, &qp, true);
+	if (ret) {
+		pr_err("Failed to acquire user queue buffers err:%d\n", ret);
+		goto exit;
+	}
+
 	ret = pqm_create_queue(&p->pqm, pdd->dev, &qp, &queue_id, q_data, mqd, ctl_stack, NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);
+		kfd_queue_unref_bo_vas(pdd, &qp);
+		kfd_queue_release_buffers(pdd, &qp, true);
 		goto exit;
 	}
 

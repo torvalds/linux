@@ -433,7 +433,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	err = kfd_queue_acquire_buffers(pdd, &q_properties);
+	err = kfd_queue_acquire_buffers(pdd, &q_properties, false);
 	if (err) {
 		pr_debug("failed to acquire user queue buffers\n");
 		goto err_acquire_queue_buf;
@@ -478,7 +478,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 err_create_queue:
 	kfd_queue_unref_bo_vas(pdd, &q_properties);
-	kfd_queue_release_buffers(pdd, &q_properties);
+	kfd_queue_release_buffers(pdd, &q_properties, false);
 err_acquire_queue_buf:
 err_sdma_engine_id:
 err_bind_process:
