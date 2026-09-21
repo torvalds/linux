@@ -868,8 +868,8 @@ struct iwl_sta_cfg_cmd_v1 {
  * @dps_pad_time: DPS (Dynamic Power Save) padding delay resolution to ensure
  *	proper timing alignment
  * @dps_trans_delay: DPS minimal time that takes the peer to return to low power
- * @mic_prep_pad_delay: MIC prep time padding
- * @mic_compute_pad_delay: MIC compute time padding
+ * @mic_prep_pad_delay: MIC prep time padding (4 us resolution)
+ * @mic_compute_pad_delay: MIC compute time padding (4 us resolution)
  * @reserved: Reserved for alignment
  */
 struct iwl_sta_cfg_cmd_v2 {
@@ -942,8 +942,8 @@ struct iwl_sta_cfg_cmd_v2 {
  *	proper timing alignment
  * @dps_trans_delay: DPS minimal time that takes the peer to return to low power
  * @dps_enabled: flag indicating whether or not DPS is enabled
- * @mic_prep_pad_delay: MIC prep time padding
- * @mic_compute_pad_delay: MIC compute time padding
+ * @mic_prep_pad_delay: MIC prep time padding (4 us resolution)
+ * @mic_compute_pad_delay: MIC compute time padding (4 us resolution)
  * @nmi_sta_id: for an NDI peer STA, the NMI peer STA ID it relates to
  * @ndi_local_addr: for an NDI peer STA or NAN multicast data station,
  *	the local NDI interface MAC address
