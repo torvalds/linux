@@ -1102,6 +1102,18 @@ do_nat:
 		}
 	}
 
+	if (commit) {
+		tcf_ct_act_set_mark(ct, p->mark, p->mark_mask);
+		tcf_ct_act_set_labels(ct, p->labels, p->labels_mask);
+
+		if (!nf_ct_is_confirmed(ct))
+			nf_conn_act_ct_ext_add(skb, ct, ctinfo);
+	}
+
+	/* Run helpers for the connection if nf_conntrack_in() was executed
+	 * or if we're about to commit.  This has to be done after all the
+	 * extensions are already added.
+	 */
 	if (nf_ct_is_confirmed(ct) ? (!cached && !skip_add) : commit) {
 		err = nf_ct_helper(skb, ct, ctinfo, family);
 		if (err != NF_ACCEPT)
@@ -1109,12 +1121,6 @@ do_nat:
 	}
 
 	if (commit) {
-		tcf_ct_act_set_mark(ct, p->mark, p->mark_mask);
-		tcf_ct_act_set_labels(ct, p->labels, p->labels_mask);
-
-		if (!nf_ct_is_confirmed(ct))
-			nf_conn_act_ct_ext_add(skb, ct, ctinfo);
-
 		/* This will take care of sending queued events
 		 * even if the connection is already confirmed.
 		 */
