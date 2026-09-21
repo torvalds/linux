@@ -322,7 +322,6 @@ struct asus_wmi {
 	struct fan_curve_data custom_fan_curves[3];
 
 	struct device *ppdev;
-	bool platform_profile_support;
 
 	// The RSOC controls the maximum charging percentage.
 	bool battery_rsoc_available;
@@ -4344,7 +4343,6 @@ static int platform_profile_setup(struct asus_wmi *asus)
 		return PTR_ERR(asus->ppdev);
 	}
 
-	asus->platform_profile_support = true;
 	return 0;
 }
 
