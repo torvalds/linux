@@ -3586,10 +3586,7 @@ static ssize_t recovery_start_store(struct md_rdev *rdev, const char *buf, size_
 		return -EBUSY;
 
 	rdev->recovery_offset = recovery_start;
-	if (recovery_start == MaxSector)
-		set_bit(In_sync, &rdev->flags);
-	else
-		clear_bit(In_sync, &rdev->flags);
+	assign_bit(In_sync, &rdev->flags, recovery_start == MaxSector);
 	return len;
 }
 
@@ -5915,10 +5912,7 @@ fail_last_dev_store(struct mddev *mddev, const char *buf, size_t len)
 	if (ret)
 		return ret;
 
-	if (value)
-		set_bit(MD_FAILLAST_DEV, &mddev->flags);
-	else
-		clear_bit(MD_FAILLAST_DEV, &mddev->flags);
+	assign_bit(MD_FAILLAST_DEV, &mddev->flags, value);
 
 	return len;
 }
@@ -7573,14 +7567,10 @@ int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info)
 		}
 
 		clear_bit(In_sync, &rdev->flags); /* just to be sure */
-		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
-			set_bit(WriteMostly, &rdev->flags);
-		else
-			clear_bit(WriteMostly, &rdev->flags);
-		if (info->state & (1<<MD_DISK_FAILFAST))
-			set_bit(FailFast, &rdev->flags);
-		else
-			clear_bit(FailFast, &rdev->flags);
+		assign_bit(WriteMostly, &rdev->flags,
+			   info->state & (1 << MD_DISK_WRITEMOSTLY));
+		assign_bit(FailFast, &rdev->flags,
+			   info->state & (1 << MD_DISK_FAILFAST));
 
 		if (info->state & (1<<MD_DISK_JOURNAL)) {
 			struct md_rdev *rdev2;

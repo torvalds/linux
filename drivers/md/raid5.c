@@ -4746,10 +4746,8 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 				       RAID5_STRIPE_SECTORS(conf)))
 			set_bit(R5_ReadRepl, &dev->flags);
 		else {
-			if (rdev && !test_bit(Faulty, &rdev->flags))
-				set_bit(R5_NeedReplace, &dev->flags);
-			else
-				clear_bit(R5_NeedReplace, &dev->flags);
+			assign_bit(R5_NeedReplace, &dev->flags,
+				   rdev && !test_bit(Faulty, &rdev->flags));
 			rdev = conf->disks[i].rdev;
 			clear_bit(R5_ReadRepl, &dev->flags);
 		}

@@ -432,10 +432,8 @@ static inline void r5c_update_log_state(struct r5l_log *log)
 			wake_reclaim = true;
 		clear_bit(R5C_LOG_CRITICAL, &conf->cache_state);
 	}
-	if (free_space < 3 * reclaim_space)
-		set_bit(R5C_LOG_TIGHT, &conf->cache_state);
-	else
-		clear_bit(R5C_LOG_TIGHT, &conf->cache_state);
+	assign_bit(R5C_LOG_TIGHT, &conf->cache_state,
+		   free_space < 3 * reclaim_space);
 
 	if (wake_reclaim)
 		r5l_wake_reclaim(log, 0);
