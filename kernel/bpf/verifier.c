@@ -567,7 +567,7 @@ static int stack_slot_obj_get_spi(struct bpf_verifier_env *env, struct bpf_reg_s
 	}
 
 	off = reg->var_off.value;
-	if (off % BPF_REG_SIZE) {
+	if (off >= 0 || off % BPF_REG_SIZE) {
 		verbose(env, "cannot pass in %s at an offset=%d\n", obj_kind, off);
 		return -EINVAL;
 	}
