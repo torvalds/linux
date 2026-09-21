@@ -169,4 +169,40 @@ symlink=wsl|native      Configure how symbolic links are created. Under
                         Linux) compatible symlinks are created. Under
                         "native", Windows native symbolic links are
                         created.
+
+streams_interface=      Select the named-stream pathname interface:
+                        "none" (default) treats ':' as an ordinary filename
+                        character, while "windows" interprets the final
+                        component of a path such as "file:stream" as a named
+                        $DATA stream. In "windows" mode, filenames containing
+                        ':' are hidden from directory listings and cannot be
+                        addressed through the pathname interface. Only the
+                        file:stream form is recognized. Typed forms such
+                        as file::$DATA and file:stream:$DATA are not
+                        supported. The ioctl interface is available in both
+                        modes. The base file or directory must already exist
+                        before a pathname stream can be created. Creating
+                        file:stream does not create file. Removing a stream
+                        while it is open fails with -EBUSY. Removing the base
+                        file while a stream is open detaches the stream from
+                        the namespace; NTFS has no orphan-stream list, so a
+                        crash can leave that stream's data unreachable on
+                        disk.
 ======================= ====================================================
+
+Named-stream ioctls
+===================
+
+The named-stream ioctl interface is available regardless of
+streams_interface. Open the base regular file or directory and use
+NTFS_IOC_STREAM_READ and NTFS_IOC_STREAM_WRITE with a
+struct ntfs_stream request. The request contains the stream name,
+byte offset, and transfer length. Write requests create the stream when it
+does not exist. Writes are not atomic. Error can leave partial data
+changes, an extended stream size, or a newly created stream. bytes_returned
+is valid only on success. Failed write does not report a completed byte
+count. Use NTFS_IOC_STREAM_REMOVE to remove a stream and NTFS_IOC_LIST_STREAMS
+to enumerate streams. Stream names are encoded with
+the mounted NLS by default. Set NTFS_STREAM_FL_UTF16 to pass or receive
+raw UTF-16LE names. These ioctls transfer stream data directly and do not
+return a separate stream file descriptor.
