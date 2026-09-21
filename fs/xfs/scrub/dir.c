@@ -492,7 +492,7 @@ xchk_directory_data_bestfree(
 		goto out;
 	xchk_buffer_recheck(sc, bp);
 
-	if (xfs_has_crc(sc->mp)) {
+	if (!is_block && xfs_has_crc(sc->mp)) {
 		struct xfs_dir3_data_hdr    *hdr3 = bp->b_addr;
 
 		if (hdr3->pad)
