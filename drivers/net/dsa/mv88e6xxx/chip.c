@@ -5639,6 +5639,68 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.pcs_ops = &mv88e6390_pcs_ops,
 };
 
+static const struct mv88e6xxx_ops mv88e6191x_ops = {
+	/* MV88E6XXX_FAMILY_6393 without AVB and PTP: 6191X and 6193X */
+	.irl_init_all = mv88e6390_g2_irl_init_all,
+	.get_eeprom = mv88e6xxx_g2_get_eeprom8,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom8,
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read_c22,
+	.phy_write = mv88e6xxx_g2_smi_phy_write_c22,
+	.phy_read_c45 = mv88e6xxx_g2_smi_phy_read_c45,
+	.phy_write_c45 = mv88e6xxx_g2_smi_phy_write_c45,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_sync_link = mv88e6xxx_port_sync_link,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed_duplex = mv88e6393x_port_set_speed_duplex,
+	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6393x_port_set_policy,
+	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
+	.port_set_ether_type = mv88e6393x_port_set_ether_type,
+	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
+	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
+	.port_pause_limit = mv88e6390_port_pause_limit,
+	.port_disable_learn_limit = mv88e6xxx_port_disable_learn_limit,
+	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
+	.port_get_cmode = mv88e6352_port_get_cmode,
+	.port_set_cmode = mv88e6393x_port_set_cmode,
+	.port_setup_message_port = mv88e6xxx_setup_message_port,
+	.port_set_upstream_port = mv88e6393x_port_set_upstream_port,
+	.port_enable_tcam = mv88e6xxx_port_enable_tcam,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
+	.stats_get_sset_count = mv88e6320_stats_get_sset_count,
+	.stats_get_strings = mv88e6320_stats_get_strings,
+	.stats_get_stat = mv88e6390_stats_get_stat,
+	/* .set_cpu_port is missing because this family does not support a global
+	 * CPU port, only per port CPU port which is set via
+	 * .port_set_upstream_port method.
+	 */
+	.set_egress_port = mv88e6393x_set_egress_port,
+	.watchdog_ops = &mv88e6393x_watchdog_ops,
+	.mgmt_rsvd2cpu = mv88e6393x_port_mgmt_rsvd2cpu,
+	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
+	.reset = mv88e6352_g1_reset,
+	.rmu_disable = mv88e6390_g1_rmu_disable,
+	.atu_get_hash = mv88e6165_g1_atu_get_hash,
+	.atu_set_hash = mv88e6165_g1_atu_set_hash,
+	.vtu_getnext = mv88e6390_g1_vtu_getnext,
+	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
+	.stu_getnext = mv88e6390_g1_stu_getnext,
+	.stu_loadpurge = mv88e6390_g1_stu_loadpurge,
+	.serdes_get_lane = mv88e6393x_serdes_get_lane,
+	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
+	/* TODO: serdes stats */
+	.gpio_ops = &mv88e6352_gpio_ops,
+	.phylink_get_caps = mv88e6393x_phylink_get_caps,
+	.pcs_ops = &mv88e6393x_pcs_ops,
+	.tcam_ops = &mv88e6393_tcam_ops,
+};
+
 static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	/* MV88E6XXX_FAMILY_6393 */
 	.irl_init_all = mv88e6390_g2_irl_init_all,
@@ -6163,8 +6225,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.multi_chip = true,
-		.ptp_support = true,
-		.ops = &mv88e6393x_ops,
+		.ops = &mv88e6191x_ops,
 	},
 
 	[MV88E6193X] = {
@@ -6190,8 +6251,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.multi_chip = true,
-		.ptp_support = true,
-		.ops = &mv88e6393x_ops,
+		.ops = &mv88e6191x_ops,
 	},
 
 	[MV88E6220] = {
