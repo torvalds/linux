@@ -26,6 +26,7 @@ static inline void sparse_init_one_section(struct mem_section *ms,
 	unsigned long coded_mem_map;
 
 	BUILD_BUG_ON(SECTION_MAP_LAST_BIT > PFN_SECTION_SHIFT);
+	VM_WARN_ON_ONCE(section_nr > __highest_used_section_nr);
 
 	/*
 	 * We encode the start PFN of the section into the mem_map such that
@@ -44,9 +45,6 @@ static inline void sparse_init_one_section(struct mem_section *ms,
 static inline void __section_mark_present(struct mem_section *ms,
 		unsigned long section_nr)
 {
-	if (section_nr > __highest_used_section_nr)
-		__highest_used_section_nr = section_nr;
-
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 }
 
