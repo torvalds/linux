@@ -7,6 +7,8 @@
 #ifndef __iwl_fw_api_mac_cfg_h__
 #define __iwl_fw_api_mac_cfg_h__
 
+#include <linux/ieee80211-p2p.h>
+
 #include "mac.h"
 #include "phy-ctxt.h"
 
