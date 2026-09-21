@@ -167,10 +167,12 @@ static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
 				  const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_hcmd_tlv *hcmd = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(hcmd->time_point);
+	u32 tp;
 
 	if (le32_to_cpu(tlv->length) <= sizeof(*hcmd))
 		return -EINVAL;
+
+	tp = le32_to_cpu(hcmd->time_point);
 
 	/* Host commands can not be sent in early time point since the FW
 	 * is not ready
@@ -194,9 +196,14 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 {
 	const struct iwl_fw_ini_region_tlv *reg = (const void *)tlv->data;
 	struct iwl_ucode_tlv **active_reg;
-	u32 id = le32_to_cpu(reg->id);
-	u8 type = reg->type;
 	u32 tlv_len = sizeof(*tlv) + le32_to_cpu(tlv->length);
+	u32 id;
+	u8 type;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*reg))
+		return -EINVAL;
+
+	id = le32_to_cpu(reg->id);
 
 	/*
 	 * The higher part of the ID from version 2 is debug policy.
@@ -204,9 +211,6 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	 */
 	if (le32_to_cpu(reg->hdr.version) >= 2)
 		id &= IWL_FW_INI_REGION_ID_MASK;
-
-	if (le32_to_cpu(tlv->length) < sizeof(*reg))
-		return -EINVAL;
 
 	/* for safe use of a string from FW, limit it to IWL_FW_INI_MAX_NAME */
 	IWL_DEBUG_FW(trans, "WRT: parsing region: %.*s\n",
@@ -216,6 +220,8 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		IWL_ERR(trans, "WRT: Invalid region id %u\n", id);
 		return -EINVAL;
 	}
+
+	type = reg->type;
 
 	if (type <= IWL_FW_INI_REGION_INVALID ||
 	    type >= IWL_FW_INI_REGION_NUM) {
@@ -251,12 +257,13 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 				     const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_trigger_tlv *trig = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(trig->time_point);
-	u32 rf = le32_to_cpu(trig->reset_fw);
+	u32 tp, rf;
 	struct iwl_ucode_tlv *new_tlv;
 
 	if (le32_to_cpu(tlv->length) < sizeof(*trig))
 		return -EINVAL;
+
+	tp = le32_to_cpu(trig->time_point);
 
 	if (tp <= IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp >= IWL_FW_INI_TIME_POINT_NUM) {
@@ -265,6 +272,8 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 			tp);
 		return -EINVAL;
 	}
+
+	rf = le32_to_cpu(trig->reset_fw);
 
 	IWL_DEBUG_FW(trans,
 		     "WRT: time point %u for trigger TLV with reset_fw %u\n",
@@ -288,8 +297,13 @@ static int iwl_dbg_tlv_config_set(struct iwl_trans *trans,
 				  const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_conf_set_tlv *conf_set = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(conf_set->time_point);
-	u32 type = le32_to_cpu(conf_set->set_type);
+	u32 tp, type;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*conf_set))
+		return -EINVAL;
+
+	tp = le32_to_cpu(conf_set->time_point);
+	type = le32_to_cpu(conf_set->set_type);
 
 	if (tp <= IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp >= IWL_FW_INI_TIME_POINT_NUM) {
