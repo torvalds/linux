@@ -1276,9 +1276,17 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 				bool configure_scd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 stts_addr = trans_pcie->scd_base_addr +
-			SCD_TX_STTS_QUEUE_OFFSET(txq_id);
 	static const u32 zero_val[4] = {};
+	u32 stts_addr;
+
+	if (WARN_ON(txq_id < 0 ||
+		    txq_id >= trans->mac_cfg->base->num_of_queues ||
+		    txq_id == trans->conf.cmd_queue ||
+		    !trans_pcie->txqs.txq[txq_id]))
+		return;
+
+	stts_addr = trans_pcie->scd_base_addr +
+		    SCD_TX_STTS_QUEUE_OFFSET(txq_id);
 
 	trans_pcie->txqs.txq[txq_id]->frozen_expiry_remainder = 0;
 	trans_pcie->txqs.txq[txq_id]->frozen = false;
