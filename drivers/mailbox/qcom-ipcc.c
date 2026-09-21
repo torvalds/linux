@@ -288,8 +288,6 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 {
 	struct qcom_ipcc *ipcc;
 	u32 config_value;
-	static int id;
-	char *name;
 	int ret;
 
 	ipcc = devm_kzalloc(&pdev->dev, sizeof(*ipcc), GFP_KERNEL);
@@ -319,10 +317,6 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 	if (ipcc->irq < 0)
 		return ipcc->irq;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "ipcc_%d", id++);
-	if (!name)
-		return -ENOMEM;
-
 	ipcc->irq_domain = irq_domain_create_tree(dev_fwnode(&pdev->dev), &qcom_ipcc_irq_ops, ipcc);
 	if (!ipcc->irq_domain)
 		return -ENOMEM;
@@ -333,7 +327,7 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, ipcc->irq, qcom_ipcc_irq_fn,
 			       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND |
-			       IRQF_NO_THREAD, name, ipcc);
+			       IRQF_NO_THREAD, dev_name(&pdev->dev), ipcc);
 	if (ret < 0)
 		goto err_mbox;
 
