@@ -896,7 +896,7 @@ config SENSORS_XDPE1A2G7B
 	tristate "Infineon XDPE1A2G7B"
 	help
 	  If you say yes here you get hardware monitoring support for Infineon
-	  XDPE1A2G5B and XDPE1A2G7B.
+	  XDPE1A2G5B,XDPE1A2G7B and XDPE1A2G7C.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called xdpe1a2g7b.
@@ -906,7 +906,7 @@ config SENSORS_XDPE1A2G7B_REGULATOR
 	depends on SENSORS_XDPE1A2G7B && REGULATOR
 	help
 	  If you say yes here you get regulator support for Infineon
-	  XDPE1A2G5B and XDPE1A2G7B multi-phase digital controllers.
+	  XDPE1A2G5B,XDPE1A2G7B and XDPE1A2G7C multi-phase digital controllers.
 
 	  This enables the controllers to be used as regulator devices,
 	  providing voltage control through the regulator framework.
