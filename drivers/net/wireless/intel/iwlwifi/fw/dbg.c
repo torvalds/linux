@@ -344,6 +344,9 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 	struct iwl_dram_data *frag;
 	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
 
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return -EINVAL;
+
 	frag = &fwrt->trans->dbg.fw_mon_ini[alloc_id].frags[idx];
 
 	range->dram_base_addr = cpu_to_le64(frag->physical);
@@ -957,6 +960,9 @@ iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
 	u32 ranges = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
 	int i;
 
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return 0;
+
 	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
 
 	for (i = 0; i < fw_mon->num_frags; i++) {
@@ -1084,6 +1090,9 @@ iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_mon *fw_mon;
 	u32 size = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
 	int i;
+
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return 0;
 
 	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
 

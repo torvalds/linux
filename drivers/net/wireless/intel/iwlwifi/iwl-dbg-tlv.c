@@ -229,6 +229,18 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
+	if (type == IWL_FW_INI_REGION_DRAM_BUFFER) {
+		u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
+
+		if (alloc_id <= IWL_FW_INI_ALLOCATION_INVALID ||
+		    alloc_id >= ARRAY_SIZE(trans->dbg.fw_mon_ini)) {
+			IWL_ERR(trans,
+				"WRT: Invalid dram_alloc_id %u for region %u\n",
+				alloc_id, id);
+			return -EINVAL;
+		}
+	}
+
 	if (type == IWL_FW_INI_REGION_INTERNAL_BUFFER) {
 		trans->dbg.imr_data.sram_addr =
 			le32_to_cpu(reg->internal_buffer.base_addr);
