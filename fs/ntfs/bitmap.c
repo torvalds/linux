@@ -20,7 +20,7 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 	struct folio *folio;
 	unsigned long *bitmap;
 	char *kaddr;
-	u64 end, trimmed = 0, start_buf, end_buf, end_cluster;
+	u64 end, trimmed = 0, start_buf, end_buf, end_cluster, page_cluster;
 	u64 start_cluster = ntfs_bytes_to_cluster(vol, range->start);
 	u32 dq = bdev_discard_granularity(vol->sb->s_bdev);
 	int ret = 0;
@@ -45,8 +45,8 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 		return -ENOMEM;
 
 	buf_clusters = PAGE_SIZE * 8;
-	start_index = start_cluster >> 15;
-	end_index = (end_cluster + buf_clusters - 1) >> 15;
+	start_index = start_cluster / buf_clusters;
+	end_index = DIV_ROUND_UP_ULL(end_cluster, buf_clusters);
 
 	for (index = start_index; index < end_index; index++) {
 		folio = ntfs_get_locked_folio(vol->lcnbmp_ino->i_mapping,
@@ -59,19 +59,20 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 		kaddr = kmap_local_folio(folio, 0);
 		bitmap = (unsigned long *)kaddr;
 
-		start_buf = max_t(u64, index * buf_clusters, start_cluster);
-		end_buf = min_t(u64, (index + 1) * buf_clusters, end_cluster);
+		page_cluster = (u64)index * buf_clusters;
+		start_buf = max_t(u64, page_cluster, start_cluster);
+		end_buf = min_t(u64, page_cluster + buf_clusters, end_cluster);
 
 		end = start_buf;
 		while (end < end_buf) {
 			u64 aligned_start, aligned_end, aligned_count;
-			u64 start = find_next_zero_bit(bitmap, end_buf - start_buf,
-					end - start_buf) + start_buf;
+			u64 start = find_next_zero_bit(bitmap, end_buf - page_cluster,
+					end - page_cluster) + page_cluster;
 			if (start >= end_buf)
 				break;
 
-			end = find_next_bit(bitmap, end_buf - start_buf,
-					start - start_buf) + start_buf;
+			end = find_next_bit(bitmap, end_buf - page_cluster,
+					start - page_cluster) + page_cluster;
 
 			aligned_start = ALIGN(ntfs_cluster_to_bytes(vol, start), dq);
 			aligned_end = ALIGN_DOWN(ntfs_cluster_to_bytes(vol, end), dq);
