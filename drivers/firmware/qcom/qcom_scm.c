@@ -854,12 +854,14 @@ static void *__qcom_scm_pas_get_rsc_table2(struct device *dev,
 	output_rt_tzm = __qcom_scm_pas_get_rsc_table(dev, ctx->pas_id,
 						     input_rt_tzm,
 						     input_rt_size, &size);
-	if (PTR_ERR(output_rt_tzm) == -EOVERFLOW)
-		/* Try again with the size requested by the TZ */
+	if (PTR_ERR(output_rt_tzm) == -EOVERFLOW) {
+		/* Try again with a page-aligned size requested by the TZ. */
+		size = PAGE_ALIGN(size);
 		output_rt_tzm = __qcom_scm_pas_get_rsc_table(dev, ctx->pas_id,
 							     input_rt_tzm,
 							     input_rt_size,
 							     &size);
+	}
 	if (IS_ERR(output_rt_tzm)) {
 		ret = PTR_ERR(output_rt_tzm);
 		goto free_input_rt;
