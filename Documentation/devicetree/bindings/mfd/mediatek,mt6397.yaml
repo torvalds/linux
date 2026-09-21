@@ -57,6 +57,9 @@ properties:
   "#interrupt-cells":
     const: 2
 
+  "#sound-dai-cells":
+    const: 1
+
   rtc:
     type: object
     $ref: /schemas/rtc/rtc.yaml#
