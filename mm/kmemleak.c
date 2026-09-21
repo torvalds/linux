@@ -1862,8 +1862,11 @@ static void dedup_flush(struct xarray *dedup)
  */
 static int scan_zone_pages(struct zone *zone)
 {
+	const unsigned int max_batch = MAX_SCAN_SIZE / sizeof(struct page);
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
+	struct page *first = NULL, *last = NULL;
+	unsigned int batch = 0;
 	unsigned long pfn;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
@@ -1872,18 +1875,28 @@ static int scan_zone_pages(struct zone *zone)
 		if (!(pfn & 63))
 			cond_resched_tasks_rcu_qs();
 
-		if (!page)
-			continue;
+		/* only scan in-use pages belonging to this zone */
+		if (page && (page_zone(page) != zone ||
+			     page_count(page) == 0))
+			page = NULL;
 
-		/* only scan pages belonging to this zone */
-		if (page_zone(page) != zone)
+		if (page && first && page == last + 1 &&
+		    batch < max_batch) {
+			last = page;
+			batch++;
 			continue;
-		/* only scan if page is in use */
-		if (page_count(page) == 0)
-			continue;
-		if (scan_block(page, page + 1, NULL))
+		}
+
+		if (first && scan_block(first, last + 1, NULL))
 			return 1;
+
+		first = page;
+		last = page;
+		batch = page ? 1 : 0;
 	}
+
+	if (first && scan_block(first, last + 1, NULL))
+		return 1;
 
 	return 0;
 }
