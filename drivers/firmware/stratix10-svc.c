@@ -43,14 +43,32 @@
  * from the secure world for FPGA manager to reuse, or to free the buffer(s)
  * when all bit-stream data had be send.
  *
- * FPGA_CONFIG_STATUS_TIMEOUT_SEC - poll the FPGA configuration status,
- * service layer will return error to FPGA manager when timeout occurs,
- * timeout is set to 30 seconds (30 * 1000) at Intel Stratix10 SoC.
+ * FPGA_CONFIG_STATUS_TIMEOUT_SEC - overall poll budget for FPGA
+ * configuration / service completion status. Service layer returns
+ * error to the client when this timeout expires (30 seconds).
+ *
+ * SVC_POLL_INTERVAL_MS_FAST / SVC_POLL_INTERVAL_MS_SLOW - sleep between
+ * SMC status polls for the fast and slow phases.
+ *
+ * SVC_POLL_FAST_WINDOW_MS - duration of the fast-poll phase before
+ * switching to the slower interval (1 second).
+ *
+ * SVC_POLL_COUNT_FAST / SVC_POLL_COUNT_SLOW - iteration budgets derived
+ * from the intervals and overall timeout so the two phases still sum to
+ * FPGA_CONFIG_STATUS_TIMEOUT_SEC.
  */
 #define SVC_NUM_DATA_IN_FIFO			8
 #define SVC_NUM_CHANNEL				4
 #define FPGA_CONFIG_DATA_CLAIM_TIMEOUT_MS	2000
 #define FPGA_CONFIG_STATUS_TIMEOUT_SEC		30
+#define SVC_POLL_INTERVAL_MS_FAST		20
+#define SVC_POLL_INTERVAL_MS_SLOW		500
+#define SVC_POLL_FAST_WINDOW_MS			1000
+#define SVC_POLL_COUNT_FAST			\
+	(SVC_POLL_FAST_WINDOW_MS / SVC_POLL_INTERVAL_MS_FAST)
+#define SVC_POLL_COUNT_SLOW			\
+	(((FPGA_CONFIG_STATUS_TIMEOUT_SEC * MSEC_PER_SEC) -	\
+	  SVC_POLL_FAST_WINDOW_MS) / SVC_POLL_INTERVAL_MS_SLOW)
 #define BYTE_TO_WORD_SIZE              4
 
 /*
@@ -449,6 +467,52 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 }
 
 /**
+ * svc_cmd_poll_status() - poll secure-world service completion status
+ * @p_data: pointer to service data structure
+ * @ctrl: pointer to service layer controller
+ * @res: pointer to store the latest SMC response
+ * @poll_count: maximum number of SMC polls for this phase
+ * @poll_interval_in_ms: sleep duration between polls while status is busy
+ *
+ * Invokes the appropriate ISDONE / SERVICE_COMPLETED SMC until the secure
+ * world returns a terminal status (OK, ERROR, or REJECTED), or until
+ * @poll_count attempts have been exhausted.
+ *
+ * Return: true if a terminal status was received, false on poll budget
+ * exhaustion.
+ */
+static bool svc_cmd_poll_status(struct stratix10_svc_data *p_data,
+				struct stratix10_svc_controller *ctrl,
+				struct arm_smccc_res *res,
+				int poll_count, int poll_interval_in_ms)
+{
+	unsigned long a0, a1, a2;
+
+	a0 = INTEL_SIP_SMC_FPGA_CONFIG_ISDONE;
+	a1 = (unsigned long)p_data->paddr;
+	a2 = (unsigned long)p_data->size;
+
+	if (p_data->command == COMMAND_POLL_SERVICE_STATUS)
+		a0 = INTEL_SIP_SMC_SERVICE_COMPLETED;
+
+	while (poll_count--) {
+		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, res);
+		if (res->a0 == INTEL_SIP_SMC_STATUS_OK ||
+		    res->a0 == INTEL_SIP_SMC_STATUS_ERROR ||
+		    res->a0 == INTEL_SIP_SMC_STATUS_REJECTED)
+			return true;
+
+		/*
+		 * request is still in progress, go to sleep then
+		 * poll again
+		 */
+		msleep(poll_interval_in_ms);
+	}
+
+	return false;
+}
+
+/**
  * svc_thread_cmd_config_status() - check configuration status
  * @ctrl: pointer to service layer controller
  * @p_data: pointer to service data structure
@@ -462,8 +526,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 					 struct stratix10_svc_cb_data *cb_data)
 {
 	struct arm_smccc_res res;
-	int count_in_sec;
-	unsigned long a0, a1, a2;
+	bool done;
 
 	cb_data->kaddr1 = NULL;
 	cb_data->kaddr2 = NULL;
@@ -472,30 +535,15 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 
 	pr_debug("%s: polling config status\n", __func__);
 
-	a0 = INTEL_SIP_SMC_FPGA_CONFIG_ISDONE;
-	a1 = (unsigned long)p_data->paddr;
-	a2 = (unsigned long)p_data->size;
+	done = svc_cmd_poll_status(p_data, ctrl, &res, SVC_POLL_COUNT_FAST,
+				   SVC_POLL_INTERVAL_MS_FAST);
+	/* Fall back to a longer interval if still busy after the fast window */
+	if (!done)
+		done = svc_cmd_poll_status(p_data, ctrl, &res,
+					   SVC_POLL_COUNT_SLOW,
+					   SVC_POLL_INTERVAL_MS_SLOW);
 
-	if (p_data->command == COMMAND_POLL_SERVICE_STATUS)
-		a0 = INTEL_SIP_SMC_SERVICE_COMPLETED;
-
-	count_in_sec = FPGA_CONFIG_STATUS_TIMEOUT_SEC;
-	while (count_in_sec) {
-		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, &res);
-		if ((res.a0 == INTEL_SIP_SMC_STATUS_OK) ||
-		    (res.a0 == INTEL_SIP_SMC_STATUS_ERROR) ||
-		    (res.a0 == INTEL_SIP_SMC_STATUS_REJECTED))
-			break;
-
-		/*
-		 * request is still in progress, wait one second then
-		 * poll again
-		 */
-		msleep(1000);
-		count_in_sec--;
-	}
-
-	if (!count_in_sec) {
+	if (!done) {
 		pr_err("%s: poll status timeout\n", __func__);
 		cb_data->status = BIT(SVC_STATUS_BUSY);
 	} else if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
