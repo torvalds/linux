@@ -39,8 +39,6 @@
 
 #define AMD_HETERO_CPUID_27	0x80000027
 
-static struct platform_device *device;
-
 /**
  * struct amd_shmem_info - Shared memory table for AMD HFI
  *
@@ -540,12 +538,6 @@ static int __init amd_hfi_init(void)
 	    !cpu_feature_enabled(X86_FEATURE_AMD_WORKLOAD_CLASS))
 		return -ENODEV;
 
-	device = platform_device_register_simple(AMD_HFI_DRIVER, -1, NULL, 0);
-	if (IS_ERR(device)) {
-		pr_err("unable to register HFI platform device\n");
-		return PTR_ERR(device);
-	}
-
 	ret = platform_driver_register(&amd_hfi_driver);
 	if (ret)
 		pr_err("failed to register HFI driver\n");
@@ -556,7 +548,6 @@ static int __init amd_hfi_init(void)
 static __exit void amd_hfi_exit(void)
 {
 	platform_driver_unregister(&amd_hfi_driver);
-	platform_device_unregister(device);
 }
 module_init(amd_hfi_init);
 module_exit(amd_hfi_exit);
