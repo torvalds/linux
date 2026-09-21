@@ -555,6 +555,17 @@ static int fuse_fsync(struct file *file, loff_t start, loff_t end,
 	if (fuse_is_bad(inode))
 		return -EIO;
 
+	if (IS_DAX(inode) && !fuse_inode_vdax(inode)) {
+		/*
+		 * Note: the DAX fault path calls this via dax_finish_sync_fault()
+		 * and taking inode lock in that context is prohibited.
+		 *
+		 * FIXME: need to flush CPU caches for the DAX memory range
+		 * FIXME: need to sync metadata to the server
+		 */
+		return 0;
+	}
+
 	inode_lock(inode);
 
 	/*
