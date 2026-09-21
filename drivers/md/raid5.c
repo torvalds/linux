@@ -7629,10 +7629,15 @@ static unsigned long raid5_cache_count(struct shrinker *shrink,
 	return max_stripes - min_stripes;
 }
 
+static int min_raid_disks(int level)
+{
+	return level == 6 ? 4 : 2;
+}
+
 static struct r5conf *setup_conf(struct mddev *mddev)
 {
 	struct r5conf *conf;
-	int raid_disk, memory, max_disks;
+	int raid_disk, memory, max_disks, min_disks;
 	struct md_rdev *rdev;
 	struct disk_info *disk;
 	char pers_name[6];
@@ -7656,11 +7661,11 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 			mdname(mddev), mddev->new_layout);
 		return ERR_PTR(-EIO);
 	}
-	if ((mddev->new_level != 6 && mddev->raid_disks < 2) ||
-	    (mddev->new_level == 6 && mddev->raid_disks < 4)) {
+	min_disks = min_raid_disks(mddev->new_level);
+	if (mddev->raid_disks < min_disks) {
 		pr_warn("md/raid:%s: not enough configured devices (%d, minimum %d)\n",
 			mdname(mddev), mddev->raid_disks,
-			mddev->new_level == 6 ? 4 : 2);
+			min_disks);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -8615,13 +8620,9 @@ static int check_reshape(struct mddev *mddev)
 	if (mddev->delta_disks < 0 && mddev->reshape_position == MaxSector) {
 		/* We might be able to shrink, but the devices must
 		 * be made bigger first.
-		 * For raid6, 4 is the minimum size.
-		 * Otherwise 2 is the minimum
 		 */
-		int min = 2;
-		if (mddev->level == 6)
-			min = 4;
-		if (mddev->raid_disks + mddev->delta_disks < min)
+		if (mddev->raid_disks + mddev->delta_disks <
+		    min_raid_disks(mddev->level))
 			return -EINVAL;
 	}
 
