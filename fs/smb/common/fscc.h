@@ -399,7 +399,7 @@ static_assert(offsetof(struct smb2_file_rename_info, FileName) == sizeof(struct 
 #define FS_OBJECT_ID_INFORMATION	8 /* Query, Set */
 #define FS_DRIVER_PATH_INFORMATION	9 /* Query */
 #define FS_SECTOR_SIZE_INFORMATION	11 /* SMB3 or later. Query */
-/* See POSIX Extensions to MS-FSCC 2.3.1.1 */
+/* See POSIX-FSCC 2.3 */
 #define FS_POSIX_INFORMATION		100 /* SMB3.1.1 POSIX. Query */
 
 /* See MS-FSCC 2.5.1 */
@@ -575,8 +575,7 @@ struct file_notify_information {
 } __packed;
 
 /*
- * See POSIX Extensions to MS-FSCC 2.3.2.1
- * Link: https://gitlab.com/samba-team/smb3-posix-spec/-/blob/master/fscc_posix_extensions.md
+ * See POSIX-FSCC 2.3.1
  */
 typedef struct {
 	/* For undefined recommended transfer size return -1 in that field */
