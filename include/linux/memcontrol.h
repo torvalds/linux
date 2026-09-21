@@ -180,6 +180,7 @@ struct obj_cgroup {
 	struct percpu_ref refcnt;
 	struct mem_cgroup *memcg;
 	atomic_t nr_charged_bytes;
+	refcount_t private_id_ref;
 	union {
 		struct list_head list; /* protected by objcg_lock */
 		struct rcu_head rcu;
@@ -224,9 +225,6 @@ struct mem_cgroup {
 
 	/* vmpressure notifications. Written on every reclaim iteration. */
 	struct vmpressure vmpressure;
-
-	/* Written on every swap charge and uncharge. */
-	refcount_t private_id_ref;
 
 #ifdef CONFIG_MEMCG_NMI_SAFETY_REQUIRES_ATOMIC
 	/* MEMCG_KMEM for nmi context */
@@ -323,6 +321,9 @@ struct mem_cgroup {
 #ifdef CONFIG_ZSWAP
 	unsigned long zswap_max;
 #endif
+
+	/* The objcg holding private memcg ID. */
+	struct obj_cgroup *private_id_objcg;
 
 	/* Private memcg ID. Used to ID objects that outlive the cgroup */
 	int private_id;
