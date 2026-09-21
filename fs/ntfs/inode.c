@@ -3719,7 +3719,7 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 
 	index = pos >> PAGE_SHIFT;
 	while (count) {
-		if (count == PAGE_SIZE) {
+		if (count == PAGE_SIZE && !offset_in_page(pos)) {
 			folio = __filemap_get_folio(vi->i_mapping, index,
 					FGP_CREAT | FGP_LOCK,
 					mapping_gfp_mask(mapping));
@@ -3741,7 +3741,7 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 
 		folio_wait_writeback(folio);
 
-		if (count == PAGE_SIZE) {
+		if (count == PAGE_SIZE && !offset_in_page(pos)) {
 			offset = 0;
 			attr_len = count;
 		} else {
