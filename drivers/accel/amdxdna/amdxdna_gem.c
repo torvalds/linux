@@ -1246,6 +1246,9 @@ static int amdxdna_flush_bo(struct amdxdna_gem_obj *abo, u64 offset, u64 size)
 {
 	u64 end;
 
+	if (is_import_bo(abo))
+		return -EOPNOTSUPP;
+
 	if (offset >= abo->mem.size)
 		return -EINVAL;
 
@@ -1253,9 +1256,10 @@ static int amdxdna_flush_bo(struct amdxdna_gem_obj *abo, u64 offset, u64 size)
 		return -EINVAL;
 
 	size = min(abo->mem.size, end) - offset;
-	if (is_import_bo(abo))
-		drm_clflush_sg(abo->base.sgt);
-	else if (amdxdna_gem_vmap(abo))
+	if (!size)
+		return 0;
+
+	if (amdxdna_gem_vmap(abo))
 		drm_clflush_virt_range(amdxdna_gem_vmap(abo) + offset, size);
 	else if (abo->base.pages)
 		drm_clflush_pages(abo->base.pages, abo->mem.size >> PAGE_SHIFT);

@@ -523,6 +523,9 @@ static void pe_test_child_iteration(struct kunit *test)
 	struct fwnode_handle *child;
 	int error, i, num;
 
+	if (!IS_ENABLED(CONFIG_OF))
+		kunit_skip(test, "requires CONFIG_OF");
+
 	static const struct software_node node = { .name = "sw" };
 	static const struct software_node node1 = { .name = "sw-1", .parent = &node};
 	static const struct software_node node2 = { .name = "sw-2", .parent = &node};

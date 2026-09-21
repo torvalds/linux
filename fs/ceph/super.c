@@ -1420,6 +1420,11 @@ static int ceph_reconfigure_fc(struct fs_context *fc)
 	else
 		ceph_clear_mount_opt(fsc, SPARSEREAD);
 
+	if (fsopt->flags & CEPH_MOUNT_OPT_NEARFULL_SYNC)
+		ceph_set_mount_opt(fsc, NEARFULL_SYNC);
+	else
+		ceph_clear_mount_opt(fsc, NEARFULL_SYNC);
+
 	if (strcmp_null(fsc->mount_options->mon_addr, fsopt->mon_addr)) {
 		kfree(fsc->mount_options->mon_addr);
 		fsc->mount_options->mon_addr = fsopt->mon_addr;

@@ -82,7 +82,7 @@ struct ksmbd_work {
 	/* Contiguous SMB2 compression transform owned by this work item. */
 	void				*compress_buf;
 
-	unsigned char			state;
+	unsigned int			state;
 	/* No response for cancelled request */
 	bool                            send_no_response:1;
 	/* Request is encrypted */

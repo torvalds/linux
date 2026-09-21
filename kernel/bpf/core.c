@@ -1128,11 +1128,6 @@ void *bpf_jit_alloc_exec(unsigned long size)
 	return execmem_alloc(EXECMEM_BPF, size);
 }
 
-void *bpf_jit_alloc_exec_rw(unsigned long size)
-{
-	return execmem_alloc_rw(EXECMEM_BPF, size);
-}
-
 void bpf_jit_free_exec(void *addr)
 {
 	execmem_free(addr);

@@ -102,7 +102,14 @@ static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned l
 	if (unlikely(work & SYSCALL_WORK_SYSCALL_TRACEPOINT))
 		trace_syscall_enter(regs);
 
-	if (unlikely(audit_context()))
+	/*
+	 * The config check works around broken compilers which fail to
+	 * eliminate the dead code in case of CONFIG_AUDITSYSCALL=n as they
+	 * insist on creating a always false runtime condition based on
+	 * audit_context() which returns NULL in that case. The explicit
+	 * IS_ENABLED() check makes that madness go away.
+	 */
+	if (IS_ENABLED(CONFIG_AUDITSYSCALL) && unlikely(audit_context()))
 		syscall_enter_audit(regs);
 
 	return true;

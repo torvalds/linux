@@ -5820,36 +5820,31 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 	}
 
 	descr->in_info = kmalloc_objs(*descr->in_info,
-				      descr->num_stage,
-				      GFP_KERNEL);
+				      descr->num_stage);
 	if (!descr->in_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->internal_out_info = kmalloc_objs(*descr->internal_out_info,
-						descr->num_stage,
-						GFP_KERNEL);
+						descr->num_stage);
 	if (!descr->internal_out_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->out_info = kmalloc_objs(*descr->out_info,
-				       descr->num_stage,
-				       GFP_KERNEL);
+				       descr->num_stage);
 	if (!descr->out_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->vf_info = kmalloc_objs(*descr->vf_info,
-				      descr->num_stage,
-				      GFP_KERNEL);
+				      descr->num_stage);
 	if (!descr->vf_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->is_output_stage = kmalloc_objs(*descr->is_output_stage,
-					      descr->num_stage,
-					      GFP_KERNEL);
+					      descr->num_stage);
 	if (!descr->is_output_stage) {
 		err = -ENOMEM;
 		goto ERR;
@@ -5970,36 +5965,31 @@ ia_css_pipe_create_cas_scaler_desc(struct ia_css_pipe *pipe,
 	descr->num_stage = num_stages;
 
 	descr->in_info = kmalloc_objs(*descr->in_info,
-				      descr->num_stage,
-				      GFP_KERNEL);
+				      descr->num_stage);
 	if (!descr->in_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->internal_out_info = kmalloc_objs(*descr->internal_out_info,
-						descr->num_stage,
-						GFP_KERNEL);
+						descr->num_stage);
 	if (!descr->internal_out_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->out_info = kmalloc_objs(*descr->out_info,
-				       descr->num_stage,
-				       GFP_KERNEL);
+				       descr->num_stage);
 	if (!descr->out_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->vf_info = kmalloc_objs(*descr->vf_info,
-				      descr->num_stage,
-				      GFP_KERNEL);
+				      descr->num_stage);
 	if (!descr->vf_info) {
 		err = -ENOMEM;
 		goto ERR;
 	}
 	descr->is_output_stage = kmalloc_objs(*descr->is_output_stage,
-					      descr->num_stage,
-					      GFP_KERNEL);
+					      descr->num_stage);
 	if (!descr->is_output_stage) {
 		err = -ENOMEM;
 		goto ERR;

@@ -358,12 +358,14 @@ static void dm_test_parse_edid_caps_hdmi_frl(struct kunit *test)
 
 	/* Drive the HDMI/FRL branch */
 	connector->display_info.is_hdmi = true;
+	connector->display_info.rgb_quant_range_selectable = true;
 	connector->display_info.hdmi.scdc.supported = true;
 	connector->display_info.hdmi.max_lanes = 4;
 	connector->display_info.hdmi.max_frl_rate_per_lane = 12;
 
 	KUNIT_EXPECT_EQ(test, dm_helpers_parse_edid_caps(link, dc_edid, edid_caps), EDID_OK);
 	KUNIT_EXPECT_TRUE(test, edid_caps->edid_hdmi);
+	KUNIT_EXPECT_EQ(test, edid_caps->qs_bit, 1);
 	KUNIT_EXPECT_TRUE(test, edid_caps->scdc_present);
 	/* max_lanes 4 + max_frl_rate_per_lane 12 -> rate index 6 */
 	KUNIT_EXPECT_EQ(test, edid_caps->max_frl_rate, 6);
@@ -909,7 +911,7 @@ static void dm_test_populate_hdmi_frl_dsc_12bpc(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, caps->max_frl_rate, 2);
 	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_support);
-	KUNIT_EXPECT_FALSE(test, caps->frl_dsc_10bpc);
+	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_10bpc);
 	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_12bpc);
 	KUNIT_EXPECT_EQ(test, caps->frl_dsc_max_slices, 7);
 	KUNIT_EXPECT_EQ(test, caps->frl_dsc_max_frl_rate, 1);
@@ -2440,17 +2442,21 @@ static void dm_test_is_dp_sink_present_null_priv(struct kunit *test)
  * dm_test_dmub_outbox_interrupt_control_null_dc - Test outbox irq control with NULL dc
  * @test: The KUnit test context
  *
- * dc_interrupt_set() is NULL-safe and returns false when dc is NULL, so the
+ * amdgpu_dm_irq_set() is NULL-safe and returns false when dc is NULL, so the
  * helper returns false without touching real interrupt hardware.
  */
 static void dm_test_dmub_outbox_interrupt_control_null_dc(struct kunit *test)
 {
+	struct amdgpu_device *adev;
 	struct dc_context *ctx;
 
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	ctx->driver_context = adev;
 
-	/* ctx->dc is NULL → dc_interrupt_set returns false */
+	/* adev->dm.dc is NULL → amdgpu_dm_irq_set returns false */
 	KUNIT_EXPECT_FALSE(test, dm_helpers_dmub_outbox_interrupt_control(ctx, true));
 	KUNIT_EXPECT_FALSE(test, dm_helpers_dmub_outbox_interrupt_control(ctx, false));
 }

@@ -1056,7 +1056,7 @@ static int switchtec_dma_chan_init(struct switchtec_dma_dev *swdma_dev,
 	int se_buf_len, irq, rc;
 	struct dma_chan *chan;
 
-	swdma_chan = kzalloc_obj(*swdma_chan, GFP_KERNEL);
+	swdma_chan = kzalloc_obj(*swdma_chan);
 	if (!swdma_chan)
 		return -ENOMEM;
 
@@ -1162,8 +1162,7 @@ static int switchtec_dma_chans_enumerate(struct switchtec_dma_dev *swdma_dev,
 	struct dma_device *dma = &swdma_dev->dma_dev;
 	int base, cnt, rc, i;
 
-	swdma_dev->swdma_chans = kcalloc(chan_cnt, sizeof(*swdma_dev->swdma_chans),
-					 GFP_KERNEL);
+	swdma_dev->swdma_chans = kzalloc_objs(*swdma_dev->swdma_chans, chan_cnt);
 
 	if (!swdma_dev->swdma_chans)
 		return -ENOMEM;
@@ -1222,7 +1221,7 @@ static int switchtec_dma_create(struct pci_dev *pdev)
 	/*
 	 * Create the switchtec dma device
 	 */
-	swdma_dev = kzalloc_obj(*swdma_dev, GFP_KERNEL);
+	swdma_dev = kzalloc_obj(*swdma_dev);
 	if (!swdma_dev)
 		return -ENOMEM;
 

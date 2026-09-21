@@ -104,6 +104,9 @@ static int sdio_uart_add_port(struct sdio_uart_port *port)
 	}
 	spin_unlock(&sdio_uart_table_lock);
 
+	if (ret)
+		kfifo_free(&port->xmit_fifo);
+
 	return ret;
 }
 

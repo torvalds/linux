@@ -26,7 +26,18 @@ static void tcp6_check_fraglist_gro(struct list_head *head, struct sk_buff *skb,
 
 	p = tcp_gro_lookup(head, th);
 	if (p) {
-		NAPI_GRO_CB(skb)->is_flist = NAPI_GRO_CB(p)->is_flist;
+		/* flist GRO applies to consecutive non-GSO skbs */
+		if (!skb_is_gso(skb) || !NAPI_GRO_CB(p)->is_flist) {
+			NAPI_GRO_CB(skb)->is_flist = NAPI_GRO_CB(p)->is_flist;
+			return;
+		}
+
+		/* Fall back to the regular GRO path */
+		if (NAPI_GRO_CB(p)->count == 1)
+			NAPI_GRO_CB(p)->is_flist = 0;
+
+		NAPI_GRO_CB(skb)->is_flist = 0;
+
 		return;
 	}
 
@@ -36,7 +47,7 @@ static void tcp6_check_fraglist_gro(struct list_head *head, struct sk_buff *skb,
 	sk = __inet6_lookup_established(net, &hdr->saddr, th->source,
 					&hdr->daddr, ntohs(th->dest),
 					iif, sdif);
-	NAPI_GRO_CB(skb)->is_flist = !sk;
+	NAPI_GRO_CB(skb)->is_flist = !sk && !skb_is_gso(skb);
 	if (sk)
 		sock_gen_put(sk);
 #endif /* IS_ENABLED(CONFIG_IPV6) */

@@ -172,7 +172,7 @@ static void avs_dsp_exception_caught(struct avs_dev *adev, union avs_notify_msg 
 
 	/* Avoid deadlock as the exception may be the response to SET_D0IX. */
 	if (current_work() != &ipc->d0ix_work.work)
-		cancel_delayed_work_sync(&ipc->d0ix_work);
+		cancel_delayed_work(&ipc->d0ix_work);
 	ipc->in_d0ix = false;
 	/* Re-enabled on recovery completion. */
 	pm_runtime_disable(adev->dev);
@@ -395,10 +395,10 @@ static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request
 	struct avs_ipc *ipc = adev->ipc;
 	int ret;
 
+	guard(mutex)(&ipc->msg_mutex);
+
 	if (!ipc->ready)
 		return -EPERM;
-
-	guard(mutex)(&ipc->msg_mutex);
 
 	spin_lock(&ipc->rx_lock);
 	avs_ipc_msg_init(ipc, reply);

@@ -694,12 +694,11 @@ void *vmbus_alloc_buffer(struct vmbus_channel *channel,
 		return vzalloc(nr_pages << PAGE_SHIFT);
 
 	/* Worst case: every chunk is a single page. */
-	chunks = kvmalloc_array(nr_pages, sizeof(*chunks),
-				GFP_KERNEL | __GFP_ZERO);
+	chunks = kvmalloc_objs(*chunks, nr_pages, GFP_KERNEL | __GFP_ZERO);
 	if (!chunks)
 		goto err;
 
-	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, nr_pages);
 	if (!pages)
 		goto err;
 

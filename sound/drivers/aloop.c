@@ -1365,7 +1365,7 @@ static int loopback_open(struct snd_pcm_substream *substream)
 	int dev = get_cable_index(substream);
 
 	guard(mutex)(&loopback->cable_lock);
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc_obj(*dpcm);
 	if (!dpcm)
 		return -ENOMEM;
 	dpcm->loopback = loopback;
@@ -1373,7 +1373,7 @@ static int loopback_open(struct snd_pcm_substream *substream)
 
 	cable = loopback->cables[substream->number][dev];
 	if (!cable) {
-		cable = kzalloc(sizeof(*cable), GFP_KERNEL);
+		cable = kzalloc_obj(*cable);
 		if (!cable) {
 			err = -ENOMEM;
 			goto unlock;

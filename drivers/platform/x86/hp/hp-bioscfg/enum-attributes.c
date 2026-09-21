@@ -96,8 +96,8 @@ int hp_alloc_enumeration_data(void)
 
 	if (!bioscfg_drv.enumeration_instances_count)
 		return -EINVAL;
-	bioscfg_drv.enumeration_data = kvcalloc(bioscfg_drv.enumeration_instances_count,
-						sizeof(*bioscfg_drv.enumeration_data), GFP_KERNEL);
+	bioscfg_drv.enumeration_data = kvzalloc_objs(*bioscfg_drv.enumeration_data,
+						     bioscfg_drv.enumeration_instances_count);
 
 	if (!bioscfg_drv.enumeration_data) {
 		bioscfg_drv.enumeration_instances_count = 0;

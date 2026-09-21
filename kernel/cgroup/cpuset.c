@@ -1259,6 +1259,28 @@ static void reset_partition_data(struct cpuset *cs)
 		cpumask_copy(cs->effective_cpus, parent->effective_cpus);
 }
 
+/* Return true if isolated_cpus changes. */
+static bool isolated_cpu_update(int new_prs, int cpu)
+{
+	lockdep_assert_held(&callback_lock);
+	lockdep_assert_held(&cpuset_mutex);
+
+	if (new_prs == PRS_ISOLATED) {
+		if (cpumask_test_cpu(cpu, isolated_cpus))
+			return false;
+		cpumask_set_cpu(cpu, isolated_cpus);
+		return true;
+	}
+
+	/* CPUs isolated at boot must remain isolated. */
+	if (!cpumask_test_cpu(cpu,
+			      housekeeping_cpumask(HK_TYPE_DOMAIN_BOOT)) ||
+	    !cpumask_test_cpu(cpu, isolated_cpus))
+		return false;
+	cpumask_clear_cpu(cpu, isolated_cpus);
+	return true;
+}
+
 /*
  * isolated_cpus_update - Update the isolated_cpus mask
  * @old_prs: old partition_root_state
@@ -1267,19 +1289,16 @@ static void reset_partition_data(struct cpuset *cs)
  */
 static void isolated_cpus_update(int old_prs, int new_prs, struct cpumask *xcpus)
 {
+	bool updated = false;
+	int cpu;
+
 	WARN_ON_ONCE(old_prs == new_prs);
 	lockdep_assert_held(&callback_lock);
 	lockdep_assert_held(&cpuset_mutex);
-	if (new_prs == PRS_ISOLATED) {
-		if (cpumask_subset(xcpus, isolated_cpus))
-			return;
-		cpumask_or(isolated_cpus, isolated_cpus, xcpus);
-	} else {
-		if (!cpumask_intersects(xcpus, isolated_cpus))
-			return;
-		cpumask_andnot(isolated_cpus, isolated_cpus, xcpus);
-	}
-	update_housekeeping = true;
+	for_each_cpu(cpu, xcpus)
+		updated |= isolated_cpu_update(new_prs, cpu);
+	if (updated)
+		update_housekeeping = true;
 }
 
 /*

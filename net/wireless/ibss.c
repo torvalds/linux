@@ -16,26 +16,18 @@
 #include "rdev-ops.h"
 
 
-void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
-			    struct ieee80211_channel *channel)
+void __cfg80211_ibss_joined(struct net_device *dev, struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_bss *bss;
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_ADHOC))
-		return;
+		goto put_bss;
 
 	if (!wdev->u.ibss.ssid_len)
-		return;
-
-	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, NULL, 0,
-			       IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
-
-	if (WARN_ON(!bss))
-		return;
+		goto put_bss;
 
 	if (wdev->u.ibss.current_bss) {
 		cfg80211_unhold_bss(wdev->u.ibss.current_bss);
@@ -43,17 +35,22 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	}
 
 	cfg80211_hold_bss(bss_from_pub(bss));
+	/* the reference from the event is transferred to current_bss */
 	wdev->u.ibss.current_bss = bss_from_pub(bss);
 
 	cfg80211_upload_connect_keys(wdev);
 
-	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
+	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bss->bssid,
 				GFP_KERNEL);
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
-	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
+	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 #endif
+	return;
+
+put_bss:
+	cfg80211_put_bss(wdev->wiphy, bss);
 }
 
 void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
@@ -62,6 +59,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
+	struct cfg80211_bss *bss;
 	unsigned long flags;
 
 	trace_cfg80211_ibss_joined(dev, bssid, channel);
@@ -69,13 +67,19 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(!channel))
 		return;
 
-	ev = kzalloc_obj(*ev, gfp);
-	if (!ev)
+	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
+	if (WARN_ON(!bss))
 		return;
 
+	ev = kzalloc_obj(*ev, gfp);
+	if (!ev) {
+		cfg80211_put_bss(wdev->wiphy, bss);
+		return;
+	}
+
 	ev->type = EVENT_IBSS_JOINED;
-	memcpy(ev->ij.bssid, bssid, ETH_ALEN);
-	ev->ij.channel = channel;
+	ev->ij.bss = bss;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);

@@ -39,18 +39,6 @@
 #define MMIO_RANGE_OFFSET	0x0c
 #define MMIO_MISC_OFFSET	0x10
 
-/* Masks, shifts and macros to parse the device range capability */
-#define MMIO_RANGE_LD_MASK	0xff000000
-#define MMIO_RANGE_FD_MASK	0x00ff0000
-#define MMIO_RANGE_BUS_MASK	0x0000ff00
-#define MMIO_RANGE_LD_SHIFT	24
-#define MMIO_RANGE_FD_SHIFT	16
-#define MMIO_RANGE_BUS_SHIFT	8
-#define MMIO_GET_LD(x)  (((x) & MMIO_RANGE_LD_MASK) >> MMIO_RANGE_LD_SHIFT)
-#define MMIO_GET_FD(x)  (((x) & MMIO_RANGE_FD_MASK) >> MMIO_RANGE_FD_SHIFT)
-#define MMIO_GET_BUS(x) (((x) & MMIO_RANGE_BUS_MASK) >> MMIO_RANGE_BUS_SHIFT)
-#define MMIO_MSI_NUM(x)	((x) & 0x1f)
-
 /* Used offsets into the MMIO space */
 #define MMIO_DEV_TABLE_OFFSET   0x0000
 #define MMIO_CMD_BUF_OFFSET     0x0008
@@ -247,7 +235,6 @@
 
 /* constants to configure the command buffer */
 #define CMD_BUFFER_SIZE    8192
-#define CMD_BUFFER_UNINITIALIZED 1
 #define CMD_BUFFER_ENTRIES 512
 #define MMIO_CMD_SIZE_SHIFT 56
 #define MMIO_CMD_SIZE_512 (0x9ULL << MMIO_CMD_SIZE_SHIFT)
@@ -433,9 +420,6 @@ struct irq_remap_table {
 	unsigned min_index;
 	u32 *table;
 };
-
-/* Interrupt remapping feature used? */
-extern bool amd_iommu_irq_remap;
 
 extern const struct iommu_ops amd_iommu_ops;
 

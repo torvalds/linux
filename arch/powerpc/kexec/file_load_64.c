@@ -57,7 +57,7 @@ int arch_check_excluded_range(struct kimage *image, unsigned long start,
 
 	emem = image->arch.exclude_ranges;
 	for (i = 0; i < emem->nr_ranges; i++)
-		if (start < emem->ranges[i].end && end > emem->ranges[i].start)
+		if (start <= emem->ranges[i].end && end >= emem->ranges[i].start)
 			return 1;
 
 	return 0;
@@ -113,7 +113,7 @@ static int add_usable_mem(struct umem_info *um_info, u64 base, u64 end)
 		loc_end = um_info->ranges[i].end;
 		if (loc_base >= base && loc_end <= end)
 			add = true;
-		else if (base < loc_end && end > loc_base) {
+		else if (base <= loc_end && end >= loc_base) {
 			if (loc_base < base)
 				loc_base = base;
 			if (loc_end > end)
@@ -377,16 +377,12 @@ static int load_backup_segment(struct kimage *image, struct kexec_buf *kbuf)
 static unsigned int kdump_extra_elfcorehdr_size(struct crash_mem *cmem)
 {
 #if defined(CONFIG_CRASH_HOTPLUG) && defined(CONFIG_MEMORY_HOTPLUG)
-	unsigned int extra_sz = 0;
-
 	if (CONFIG_CRASH_MAX_MEMORY_RANGES > (unsigned int)PN_XNUM)
 		pr_warn("Number of Phdrs %u exceeds max\n", CONFIG_CRASH_MAX_MEMORY_RANGES);
 	else if (cmem->nr_ranges >= CONFIG_CRASH_MAX_MEMORY_RANGES)
 		pr_warn("Configured crash mem ranges may not be enough\n");
 	else
-		extra_sz = (CONFIG_CRASH_MAX_MEMORY_RANGES - cmem->nr_ranges) * sizeof(Elf64_Phdr);
-
-	return extra_sz;
+		return (CONFIG_CRASH_MAX_MEMORY_RANGES - cmem->nr_ranges) * sizeof(Elf64_Phdr);
 #endif
 	return 0;
 }

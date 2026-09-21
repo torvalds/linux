@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/magic.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/fs_context.h>
@@ -18,9 +19,6 @@
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
-
-/* Random magic number */
-#define CONFIGFS_MAGIC 0x62656570
 
 static struct vfsmount *configfs_mount = NULL;
 struct kmem_cache *configfs_dir_cachep;

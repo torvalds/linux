@@ -1038,15 +1038,20 @@ static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 
 static void srp_remove_target(struct srp_target_port *target)
 {
+	struct scsi_device *sdev;
 	struct srp_rdma_ch *ch;
 	int i;
 
 	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
 	srp_del_scsi_host_attr(target->scsi_host);
-	srp_rport_get(target->rport);
-	srp_remove_host(target->scsi_host);
-	scsi_remove_host(target->scsi_host);
+	/*
+	 * Remove all logical units. This must happen before the
+	 * srp_disconnect_target() call because scsi_remove_device() may trigger
+	 * submission of SCSI commands. See also sd_shutdown().
+	 */
+	shost_for_each_device(sdev, target->scsi_host)
+		scsi_remove_device(sdev);
 	srp_stop_rport_timers(target->rport);
 	srp_disconnect_target(target);
 	kobj_ns_drop(KOBJ_NS_TYPE_NET, to_ns_common(target->net));
@@ -1055,7 +1060,8 @@ static void srp_remove_target(struct srp_target_port *target)
 		srp_free_ch_ib(target, ch);
 	}
 	cancel_work_sync(&target->tl_err_work);
-	srp_rport_put(target->rport);
+	srp_remove_host(target->scsi_host);
+	scsi_remove_host(target->scsi_host);
 	kfree(target->ch);
 	target->ch = NULL;
 

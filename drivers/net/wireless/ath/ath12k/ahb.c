@@ -870,7 +870,7 @@ static struct ath12k_ahb_rproc_info *ath12k_ahb_rproc_info_alloc(struct ath12k_b
 
 	lockdep_assert_held(&ath12k_rproc_info_lock);
 
-	rproc_info = kzalloc_obj(*rproc_info, GFP_KERNEL);
+	rproc_info = kzalloc_obj(*rproc_info);
 	if (!rproc_info)
 		return NULL;
 

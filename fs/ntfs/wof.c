@@ -39,8 +39,6 @@ struct ntfs_wof_workspace {
 	struct mutex *lock;
 	const struct ntfs_codec_ops *codec;
 	u32 comp_unit;
-	void *input;
-	size_t input_size;
 	void *output;
 	void *scratch;
 };
@@ -97,30 +95,36 @@ static struct ntfs_wof_workspace *ntfs_wof_workspace(u8 block_size_bits)
 	}
 }
 
+/*
+ * Size of the buffer a chunk is read into.  A chunk is read straight off the
+ * device, so the buffer has to hold @comp_unit bytes plus the leading partial
+ * sector.
+ */
+static size_t ntfs_wof_input_size(const struct ntfs_wof_workspace *ws)
+{
+	return round_up((size_t)ws->comp_unit + 511, 512);
+}
+
 static int ntfs_wof_workspace_prepare(struct ntfs_wof_workspace *ws)
 {
-	void *input, *output, *scratch;
+	void *output, *scratch;
 	size_t scratch_size;
 
-	if (ws->input)
+	if (ws->output)
 		return 0;
 
-	ws->input_size = round_up((size_t)ws->comp_unit + 511, 512);
 	scratch_size = ws->codec->scratch_size(ws->comp_unit);
 	if (!scratch_size)
 		return -EINVAL;
 
-	input = kvmalloc(ws->input_size, GFP_NOFS);
 	output = kvmalloc(ws->comp_unit, GFP_NOFS);
 	scratch = kvzalloc(scratch_size, GFP_NOFS);
-	if (!input || !output || !scratch) {
-		kvfree(input);
+	if (!output || !scratch) {
 		kvfree(output);
 		kvfree(scratch);
 		return -ENOMEM;
 	}
 
-	ws->input = input;
 	ws->output = output;
 	ws->scratch = scratch;
 	return 0;
@@ -134,10 +138,8 @@ void ntfs_wof_free_workspaces(void)
 		struct ntfs_wof_workspace *ws = ntfs_wof_workspaces[i];
 
 		mutex_lock(ws->lock);
-		kvfree(ws->input);
 		kvfree(ws->output);
 		kvfree(ws->scratch);
-		ws->input = NULL;
 		ws->output = NULL;
 		ws->scratch = NULL;
 		mutex_unlock(ws->lock);
@@ -602,6 +604,51 @@ static int ntfs_wof_try_direct(struct ntfs_wof_workspace *ws,
 					     chunk_end, src, src_len, dst_len);
 }
 
+/*
+ * Decompress one chunk into @folio.  Only this step needs the workspace, so it
+ * is the only step that takes the workspace lock.
+ */
+static int ntfs_wof_decompress_chunk(struct ntfs_wof_workspace *ws,
+				     struct ntfs_volume *vol,
+				     struct address_space *mapping,
+				     struct folio *folio, loff_t folio_start,
+				     loff_t folio_end, u64 chunk_file_offset,
+				     char *chunk_mem, u32 chunk_size,
+				     u32 decomp_size)
+{
+	loff_t chunk_end = chunk_file_offset + decomp_size;
+	loff_t copy_start, copy_end;
+	int err;
+
+	mutex_lock(ws->lock);
+	err = ntfs_wof_workspace_prepare(ws);
+	if (err)
+		goto out_unlock;
+
+	err = ntfs_wof_try_direct(ws, mapping, folio, chunk_file_offset,
+				  chunk_end, chunk_mem, chunk_size,
+				  decomp_size);
+	if (err != -EAGAIN)
+		goto out_unlock;
+
+	err = ntfs_wof_decode(ws, chunk_mem, chunk_size, ws->output,
+			      decomp_size);
+	if (err) {
+		ntfs_error(vol->sb, "Decompression failed: %d", err);
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	copy_start = max_t(loff_t, folio_start, chunk_file_offset);
+	copy_end = min_t(loff_t, folio_end, chunk_file_offset + decomp_size);
+	memcpy_to_folio(folio, copy_start - folio_start,
+			ws->output + copy_start - chunk_file_offset,
+			copy_end - copy_start);
+out_unlock:
+	mutex_unlock(ws->lock);
+	return err;
+}
+
 int ntfs_read_wof_compressed_block(struct folio *folio)
 {
 	struct address_space *mapping = folio->mapping;
@@ -613,6 +660,8 @@ int ntfs_read_wof_compressed_block(struct folio *folio)
 	loff_t folio_start = folio_pos(folio);
 	loff_t folio_end = folio_next_pos(folio);
 	char *chunk_mem;
+	void *input;
+	size_t input_size;
 	u32 decomp_size;
 	u64 chunk_count, chunk_idx, last_chunk, chunk_offset;
 	int err = 0;
@@ -652,10 +701,12 @@ int ntfs_read_wof_compressed_block(struct folio *folio)
 			goto out_iput;
 	}
 
-	mutex_lock(ws->lock);
-	err = ntfs_wof_workspace_prepare(ws);
-	if (err)
-		goto out_unlock_ws;
+	input_size = ntfs_wof_input_size(ws);
+	input = kvmalloc(input_size, GFP_NOFS);
+	if (!input) {
+		err = -ENOMEM;
+		goto out_iput;
+	}
 
 	chunk_idx = div_u64(folio_start, ws->comp_unit);
 	last_chunk =
@@ -663,55 +714,35 @@ int ntfs_read_wof_compressed_block(struct folio *folio)
 	chunk_count = DIV_ROUND_UP_ULL(i_size, ws->comp_unit);
 	for (; chunk_idx <= last_chunk; chunk_idx++) {
 		u32 chunk_size;
-		u64 chunk_file_offset;
-		loff_t chunk_end, copy_start, copy_end;
 
 		decomp_size = chunk_idx + 1 == chunk_count ?
 				      i_size - chunk_idx * ws->comp_unit :
 				      ws->comp_unit;
 		err = parse_wof_chunk_table(ni, wof_ni, chunk_idx, chunk_count,
 					    decomp_size, &chunk_offset,
-					    &chunk_size, ws->input,
-					    ws->input_size);
+					    &chunk_size, input, input_size);
 		if (err)
-			goto out_unlock_ws;
+			goto out_free_input;
 
 		err = ntfs_read_wof_chunk(vol, wof_ni, chunk_offset, chunk_size,
-					  ws->input, ws->input_size,
-					  &chunk_mem);
+					  input, input_size, &chunk_mem);
 		if (err)
-			goto out_unlock_ws;
+			goto out_free_input;
 
-		chunk_file_offset = chunk_idx * ws->comp_unit;
-		chunk_end = chunk_file_offset + decomp_size;
-		err = ntfs_wof_try_direct(ws, mapping, folio, chunk_file_offset,
-					  chunk_end, chunk_mem, chunk_size,
-					  decomp_size);
-		if (!err)
-			continue;
-		if (err != -EAGAIN)
-			goto out_unlock_ws;
-
-		err = ntfs_wof_decode(ws, chunk_mem, chunk_size, ws->output,
-				      decomp_size);
-		if (err) {
-			ntfs_error(vol->sb, "Decompression failed: %d", err);
-			err = -EINVAL;
-			goto out_unlock_ws;
-		}
-		copy_start = max_t(loff_t, folio_start, chunk_file_offset);
-		copy_end = min_t(loff_t, folio_end,
-				 chunk_file_offset + decomp_size);
-		memcpy_to_folio(folio, copy_start - folio_start,
-				ws->output + copy_start - chunk_file_offset,
-				copy_end - copy_start);
+		err = ntfs_wof_decompress_chunk(ws, vol, mapping, folio,
+						folio_start, folio_end,
+						chunk_idx * ws->comp_unit,
+						chunk_mem, chunk_size,
+						decomp_size);
+		if (err)
+			goto out_free_input;
 	}
 
 	if (folio_end > i_size)
 		folio_zero_segment(folio, i_size - folio_start,
 				   folio_size(folio));
-out_unlock_ws:
-	mutex_unlock(ws->lock);
+out_free_input:
+	kvfree(input);
 out_iput:
 	iput(wof_inode);
 out:

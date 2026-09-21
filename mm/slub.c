@@ -5680,10 +5680,12 @@ static noinline void free_to_partial_list(
  *
  * Fail if the slab isn't full anymore due to a concurrent free.
  */
-static bool __slab_try_return_freelist(struct kmem_cache *s, struct slab *slab,
-				       void *head, int cnt)
+static bool __slab_try_return_freelist(struct kmem_cache *s,
+				       struct kmem_cache_node *n,
+				       struct slab *slab, void *head, int cnt)
 {
 	struct freelist_counters old, new;
+	unsigned long flags;
 
 	old.freelist = slab->freelist;
 	old.counters = slab->counters;
@@ -5695,9 +5697,15 @@ static bool __slab_try_return_freelist(struct kmem_cache *s, struct slab *slab,
 	new.counters = old.counters;
 	new.inuse -= cnt;
 
-	if (!slab_update_freelist(s, slab, &old, &new, "__slab_try_return_freelist"))
-		return false;
+	spin_lock_irqsave(&n->list_lock, flags);
 
+	if (!slab_update_freelist(s, slab, &old, &new, "__slab_try_return_freelist")) {
+		spin_unlock_irqrestore(&n->list_lock, flags);
+		return false;
+	}
+
+	add_partial(n, slab, ADD_TO_TAIL);
+	spin_unlock_irqrestore(&n->list_lock, flags);
 	return true;
 }
 
@@ -6088,8 +6096,9 @@ empty:
 /*
  * kvfree_call_rcu() can be called while holding a raw_spinlock_t. Since
  * __kfree_rcu_sheaf() may acquire a spinlock_t (sleeping lock on PREEMPT_RT),
- * this would violate lock nesting rules. Therefore, kvfree_call_rcu() avoids
- * this problem by passing SLAB_FREE_NOLOCK on PREEMPT_RT.
+ * this would violate lock nesting rules. Therefore, kfree_call_rcu_nolock()
+ * avoids this problem by passing SLAB_FREE_NOLOCK. kvfree_call_rcu() is
+ * bypassing the sheaves layer completely on PREEMPT_RT.
  *
  * However, lockdep still complains that it is invalid to acquire spinlock_t
  * while holding raw_spinlock_t, even on !PREEMPT_RT where spinlock_t is a
@@ -7296,10 +7305,8 @@ __refill_objects_node(struct kmem_cache *s, void **p, gfp_t gfp, unsigned int mi
 			void *head = object;
 			void *tail;
 
-			if (__slab_try_return_freelist(s, slab, head, count)) {
-				list_add(&slab->slab_list, &pc.slabs);
+			if (__slab_try_return_freelist(s, n, slab, head, count))
 				break;
-			}
 
 			do {
 				tail = object;
@@ -7312,7 +7319,7 @@ __refill_objects_node(struct kmem_cache *s, void **p, gfp_t gfp, unsigned int mi
 			break;
 	}
 
-	if (!list_empty(&pc.slabs)) {
+	if (unlikely(!list_empty(&pc.slabs))) {
 		spin_lock_irqsave(&n->list_lock, flags);
 
 		list_for_each_entry(slab, &pc.slabs, slab_list)

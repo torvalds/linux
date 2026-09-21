@@ -278,7 +278,14 @@ void __drm_atomic_helper_plane_state_init(struct drm_plane_state *plane_state,
 	plane_state->rotation = DRM_MODE_ROTATE_0;
 
 	plane_state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+
 	plane_state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
+	if (plane->blend_mode_property) {
+		if (!drm_object_property_get_default_value(&plane->base,
+							   plane->blend_mode_property,
+							   &val))
+			plane_state->pixel_blend_mode = val;
+	}
 
 	if (plane->color_encoding_property) {
 		if (!drm_object_property_get_default_value(&plane->base,

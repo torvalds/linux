@@ -520,7 +520,7 @@ xfs_mru_cache_lookup(
 	if (elem) {
 		list_del(&elem->list_node);
 		_xfs_mru_cache_list_insert(mru, elem);
-		__release(mru_lock); /* help sparse not be stupid */
+		__release(&mru->lock);
 	} else
 		spin_unlock(&mru->lock);
 

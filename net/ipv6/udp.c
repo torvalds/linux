@@ -690,6 +690,17 @@ out:
 	return sk;
 }
 
+static void udpv6_err_update_exception(struct net *net, struct sk_buff *skb,
+				       u8 type, __be32 info)
+{
+	if (type == ICMPV6_PKT_TOOBIG)
+		ip6_update_pmtu(skb, net, info, skb->dev->ifindex, 0,
+				sock_net_uid(net, NULL));
+	else if (type == NDISC_REDIRECT)
+		ip6_redirect(skb, net, skb->dev->ifindex, 0,
+			     sock_net_uid(net, NULL));
+}
+
 static int udpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		     u8 type, u8 code, int offset, __be32 info)
 {
@@ -702,6 +713,8 @@ static int udpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct sock *sk;
 	int harderr;
 	int err;
+
+	udpv6_err_update_exception(net, skb, type, info);
 
 	daddr = seg6_get_daddr(skb, opt) ? : &hdr->daddr;
 	saddr = &hdr->saddr;

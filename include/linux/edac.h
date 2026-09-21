@@ -598,9 +598,6 @@ struct mem_ctl_info {
 	int op_state;
 
 	struct dentry *debugfs;
-	u8 fake_inject_layer[EDAC_MAX_LAYERS];
-	bool fake_inject_ue;
-	u16 fake_inject_count;
 
 	/*
 	 * Memory Controller hierarchy

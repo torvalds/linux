@@ -10,6 +10,5 @@ extern const struct address_space_operations xfs_address_space_operations;
 extern const struct address_space_operations xfs_dax_aops;
 
 int xfs_setfilesize(struct xfs_inode *ip, xfs_off_t offset, size_t size);
-void xfs_end_bio(struct bio *bio);
 
 #endif /* __XFS_AOPS_H__ */

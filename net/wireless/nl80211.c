@@ -8966,10 +8966,12 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_check_station_change);
 
 /*
- * Get vlan interface making sure it is running and on the right wiphy.
+ * Get vlan interface making sure it is running, on the right wiphy
+ * and actually belongs to the given AP/P2P_GO interface.
  */
 static struct net_device *get_vlan(struct genl_info *info,
-				   struct cfg80211_registered_device *rdev)
+				   struct cfg80211_registered_device *rdev,
+				   struct net_device *dev)
 {
 	struct nlattr *vlanattr = info->attrs[NL80211_ATTR_STA_VLAN];
 	struct net_device *v;
@@ -8996,6 +8998,12 @@ static struct net_device *get_vlan(struct genl_info *info,
 
 	if (!netif_running(v)) {
 		ret = -ENETDOWN;
+		goto error;
+	}
+
+	/* Check if the VLAN interface belongs to the AP interface */
+	if (!dev || !ether_addr_equal(v->dev_addr, dev->dev_addr)) {
+		ret = -EINVAL;
 		goto error;
 	}
 
@@ -9296,7 +9304,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	params.vlan = get_vlan(info, rdev);
+	params.vlan = get_vlan(info, rdev, dev);
 	if (IS_ERR(params.vlan))
 		return PTR_ERR(params.vlan);
 
@@ -9328,7 +9336,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	int err;
+	int err, link_id;
 	struct wireless_dev *wdev = info->user_ptr[1];
 	struct net_device *dev = wdev->netdev;
 	struct station_parameters params;
@@ -9375,6 +9383,16 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	params.link_sta_params.link_id =
 		nl80211_link_id_or_invalid(info->attrs);
+
+	if (wdev->valid_links) {
+		if (params.link_sta_params.link_id < 0)
+			return -EINVAL;
+		if (!(wdev->valid_links & BIT(params.link_sta_params.link_id)))
+			return -ENOLINK;
+	} else {
+		if (params.link_sta_params.link_id >= 0)
+			return -EINVAL;
+	}
 
 	if (info->attrs[NL80211_ATTR_MLD_ADDR]) {
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
@@ -9556,8 +9574,12 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_GO:
+		/* Add a new station only after the AP and link has been started */
+		link_id = wdev->valid_links ? params.link_sta_params.link_id : 0;
+		if (!wdev->links[link_id].ap.beacon_interval)
+			return -ENETDOWN;
+
 		/* ignore WME attributes if iface/sta is not capable */
 		if (!(rdev->wiphy.flags & WIPHY_FLAG_AP_UAPSD) ||
 		    !(params.sta_flags_set & BIT(NL80211_STA_FLAG_WME)))
@@ -9597,11 +9619,24 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		/* must be last in here for error handling */
-		params.vlan = get_vlan(info, rdev);
+		params.vlan = get_vlan(info, rdev, dev);
 		if (IS_ERR(params.vlan))
 			return PTR_ERR(params.vlan);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
+		/*
+		 * Add a new station only after the mesh has been started.
+		 * libertas doesn't implement join_mesh(); it configures the
+		 * mesh via sysfs and joins it when the channel is set, so
+		 * use that as the started indication instead.
+		 */
+		if (rdev->ops->libertas_set_mesh_channel) {
+			if (!wdev->u.mesh.chandef.chan)
+				return -ENETDOWN;
+		} else if (!wdev->u.mesh.beacon_interval) {
+			return -ENETDOWN;
+		}
+
 		/* ignore uAPSD data */
 		params.sta_modify_mask &= ~STATION_PARAM_APPLY_UAPSD;
 
@@ -9649,27 +9684,10 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	/* be aware of params.vlan when changing code here */
 
-	if (wdev->valid_links) {
-		if (params.link_sta_params.link_id < 0) {
-			err = -EINVAL;
-			goto out;
-		}
-		if (!(wdev->valid_links & BIT(params.link_sta_params.link_id))) {
-			err = -ENOLINK;
-			goto out;
-		}
-	} else {
-		if (params.link_sta_params.link_id >= 0) {
-			err = -EINVAL;
-			goto out;
-		}
-	}
-
 	params.epp_peer =
 		nla_get_flag(info->attrs[NL80211_ATTR_EPP_PEER]);
 
 	err = rdev_add_station(rdev, wdev, mac_addr, &params);
-out:
 	dev_put(params.vlan);
 	return err;
 }
@@ -17330,8 +17348,7 @@ static int nl80211_parse_nan_channel(struct cfg80211_registered_device *rdev,
 	u8 n_rx_nss;
 	int ret;
 
-	channel_parsed = kcalloc(NL80211_ATTR_MAX + 1, sizeof(*channel_parsed),
-				 GFP_KERNEL);
+	channel_parsed = kzalloc_objs(*channel_parsed, NL80211_ATTR_MAX + 1);
 	if (!channel_parsed)
 		return -ENOMEM;
 
@@ -17554,8 +17571,7 @@ static int nl80211_nan_set_peer_sched(struct sk_buff *skb,
 	}
 
 	if (n_channels) {
-		nan_channels = kcalloc(n_channels, sizeof(*nan_channels),
-				       GFP_KERNEL);
+		nan_channels = kzalloc_objs(*nan_channels, n_channels);
 		if (!nan_channels)
 			return -ENOMEM;
 	}
@@ -17693,8 +17709,7 @@ static int nl80211_nan_set_local_sched(struct sk_buff *skb,
 				 info->nlhdr, GENL_HDRLEN, rem)
 		n_channels++;
 
-	sched = kzalloc(struct_size(sched, nan_channels, n_channels),
-			GFP_KERNEL);
+	sched = kzalloc_flex(*sched, nan_channels, n_channels);
 	if (!sched)
 		return -ENOMEM;
 

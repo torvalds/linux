@@ -894,6 +894,7 @@ enum bpf_arg_type {
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
+	ARG_SCALAR,		/* scalar argument */
 	ARG_PTR_TO_SPIN_LOCK,	/* pointer to bpf_spin_lock */
 	ARG_PTR_TO_SOCK_COMMON,	/* pointer to sock_common */
 	ARG_PTR_TO_SOCKET,	/* pointer to bpf_sock (fullsock) */
@@ -4209,7 +4210,7 @@ static inline int bpf_map_check_op_flags(struct bpf_map *map, u64 flags, u64 all
 			return -EINVAL;
 
 		cpu = flags >> 32;
-		if ((flags & BPF_F_CPU) && cpu >= num_possible_cpus())
+		if ((flags & BPF_F_CPU) && (cpu >= nr_cpu_ids || !cpu_possible(cpu)))
 			return -ERANGE;
 	}
 

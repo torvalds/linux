@@ -89,6 +89,34 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 					enum dc_irq_source irq_source,
 					void *ih_index);
 
+/**
+ * amdgpu_dm_irq_set - enable or disable a DC interrupt source.
+ *
+ * @adev: AMD DRM device
+ * @src: DC interrupt source to toggle
+ * @enable: true to enable the source, false to disable it
+ *
+ * DM-wide replacement for dc_interrupt_set(). As locking is DM's
+ * responsibility, this is a thin wrapper serializes the underlying
+ * read-modify-write against the other interrupt sources sharing HW control
+ * registers with @src, so DM must never call dc_interrupt_set() directly.
+ *
+ * Returns: true if the source was toggled.
+ */
+bool amdgpu_dm_irq_set(struct amdgpu_device *adev, enum dc_irq_source src,
+		       bool enable);
+
+/**
+ * amdgpu_dm_irq_ack - acknowledge a DC interrupt source.
+ *
+ * @adev: AMD DRM device
+ * @src: DC interrupt source to acknowledge
+ *
+ * DM-wide replacement for dc_interrupt_ack(), serialized the same way as
+ * amdgpu_dm_irq_set().
+ */
+void amdgpu_dm_irq_ack(struct amdgpu_device *adev, enum dc_irq_source src);
+
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev);
 
 void amdgpu_dm_outbox_init(struct amdgpu_device *adev);

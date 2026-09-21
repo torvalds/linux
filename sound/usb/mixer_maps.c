@@ -519,6 +519,28 @@ static const struct usbmix_name_map audient_id14_map[] = {
 };
 
 /*
+ * Audient iD24: feature unit 12 ("Speaker Playback Volume") sits in the
+ * monitor-mixer branch and does not apply volume to all of its channels;
+ * when userspace adopts it as the master playback volume, the left main
+ * output stays at 0 dB while the right one is attenuated, producing a
+ * stereo imbalance.  Rename it so that it is not picked up as the
+ * stream's master volume control.
+ */
+static const struct usbmix_name_map audient_id24_map[] = {
+	{ 12, "Monitor Mix Playback" },	/* FU, partial channel coverage */
+	{}
+};
+
+/*
+ * The GC553Pro returns no data for GET_CUR on its advertised mute control.
+ * SET_CUR succeeds but does not mute capture, so skip the control entirely.
+ */
+static const struct usbmix_name_map avermedia_gc553pro_map[] = {
+	{ 3, NULL, UAC_FU_MUTE },
+	{}
+};
+
+/*
  * Control map entries
  */
 
@@ -563,6 +585,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x0763, 0x2031),
 		.selector_map = c400_selectors,
+	},
+	{
+		.id = USB_ID(0x07ca, 0x1553),
+		.map = avermedia_gc553pro_map,
 	},
 	{
 		.id = USB_ID(0x08bb, 0x2702),
@@ -610,6 +636,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Audient iD14 MkII */
 		.id = USB_ID(0x2708, 0x0008),
 		.map = audient_id14_map,
+	},
+	{
+		/* Audient iD24 */
+		.id = USB_ID(0x2708, 0x000d),
+		.map = audient_id24_map,
 	},
 	{
 		/* KEF X300A */

@@ -250,7 +250,7 @@ struct bnxt_re_query_device_ex_resp {
 struct bnxt_re_db_region {
 	__u32 dpi;
 	__u32 reserved;
-	__aligned_u64 umdbr;
+	__aligned_u64 reserved2;
 };
 
 enum bnxt_re_obj_dbr_alloc_attrs {

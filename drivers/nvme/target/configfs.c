@@ -814,7 +814,7 @@ static ssize_t nvmet_ns_resv_enable_store(struct config_item *item,
 
 	mutex_lock(&ns->subsys->lock);
 	if (ns->enabled) {
-		pr_err("the ns:%d is already enabled.\n", ns->nsid);
+		pr_err("the ns:%u is already enabled.\n", ns->nsid);
 		mutex_unlock(&ns->subsys->lock);
 		return -EINVAL;
 	}
@@ -880,7 +880,7 @@ static struct config_group *nvmet_ns_make(struct config_group *group,
 		goto out;
 	config_group_init_type_name(&ns->group, name, &nvmet_ns_type);
 
-	pr_info("adding nsid %d to subsystem %s\n", nsid, subsys->subsysnqn);
+	pr_info("adding nsid %u to subsystem %s\n", nsid, subsys->subsysnqn);
 
 	return &ns->group;
 out:

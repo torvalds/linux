@@ -317,6 +317,8 @@ static void *cs_amp_alloc_get_efi_variable(efi_char16_t *name,
 	unsigned long size = 0;
 
 	status = cs_amp_get_efi_variable(name, guid, NULL, &size, NULL);
+	if (status == EFI_SUCCESS)
+		return ERR_PTR(-ENOENT);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return ERR_PTR(cs_amp_convert_efi_status(status));
 

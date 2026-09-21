@@ -134,7 +134,7 @@ DECLARE_EVENT_CLASS(dma_alloc_class,
 	TP_fast_assign(
 		__assign_str(device);
 		__entry->virt_addr = virt_addr;
-		__entry->dma_addr = dma_addr;
+		__entry->dma_addr = virt_addr ? dma_addr : 0;
 		__entry->size = size;
 		__entry->flags = flags;
 		__entry->dir = dir;

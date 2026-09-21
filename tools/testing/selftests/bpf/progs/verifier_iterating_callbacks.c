@@ -169,6 +169,23 @@ static int iter_limit_cb(__u32 idx, struct num_context *ctx)
 }
 
 SEC("?raw_tp")
+__failure __msg("R1 type=ctx expected=scalar")
+__naked void bpf_loop_reject_pointer(void)
+{
+	asm volatile (
+		"r2 = %[iter_limit_cb];"
+		"r3 = 0;"
+		"r4 = 0;"
+		"call %[bpf_loop];"
+		"exit;"
+		:
+		: __imm_ptr(iter_limit_cb),
+		  __imm(bpf_loop)
+		: __clobber_common
+	);
+}
+
+SEC("?raw_tp")
 __success
 int bpf_loop_iter_limit_ok(void *unused)
 {

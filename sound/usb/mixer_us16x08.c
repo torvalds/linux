@@ -151,6 +151,9 @@ static const char *const route_names[] = {
 static int snd_us16x08_recv_urb(struct snd_usb_audio *chip,
 	unsigned char *buf, int size)
 {
+	CLASS(snd_usb_lock, pm)(chip);
+	if (pm.err < 0)
+		return -EIO;
 
 	guard(mutex)(&chip->mutex);
 	snd_usb_ctl_msg(chip->dev,
@@ -165,6 +168,10 @@ static int snd_us16x08_recv_urb(struct snd_usb_audio *chip,
  */
 static int snd_us16x08_send_urb(struct snd_usb_audio *chip, char *buf, int size)
 {
+	CLASS(snd_usb_lock, pm)(chip);
+	if (pm.err < 0)
+		return -EIO;
+
 	return snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0),
 			SND_US16X08_URB_REQUEST, SND_US16X08_URB_REQUESTTYPE,
 			0, 0, buf, size);

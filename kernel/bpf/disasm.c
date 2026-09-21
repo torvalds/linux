@@ -7,6 +7,9 @@
 
 #include "disasm.h"
 
+/* Only defined by the non-UAPI linux/filter.h, which this file cannot use. */
+#define BPF_PROBE_ATOMIC 0xe0
+
 #define __BPF_FUNC_STR_FN(x) [BPF_FUNC_ ## x] = __stringify(bpf_ ## x)
 static const char * const func_id_str[] = {
 	__BPF_FUNC_MAPPER(__BPF_FUNC_STR_FN)
@@ -226,57 +229,57 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->imm);
 		}
 	} else if (class == BPF_STX) {
+		const char *probe_pfx = BPF_MODE(insn->code) == BPF_PROBE_ATOMIC ? "probe " : "";
+		bool atomic = BPF_MODE(insn->code) == BPF_ATOMIC ||
+			      BPF_MODE(insn->code) == BPF_PROBE_ATOMIC;
+
 		if (BPF_MODE(insn->code) == BPF_MEM)
 			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = r%d",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg,
 				insn->off, insn->src_reg);
-		else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
+		else if (atomic &&
 			 (insn->imm == BPF_ADD || insn->imm == BPF_AND ||
 			  insn->imm == BPF_OR || insn->imm == BPF_XOR)) {
-			verbose(cbs->private_data, "(%02x) lock *(%s *)(r%d %+d) %s r%d",
-				insn->code,
+			verbose(cbs->private_data, "(%02x) %slock *(%s *)(r%d %+d) %s r%d",
+				insn->code, probe_pfx,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off,
 				bpf_alu_string[BPF_OP(insn->imm) >> 4],
 				insn->src_reg);
-		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
+		} else if (atomic &&
 			   (insn->imm == (BPF_ADD | BPF_FETCH) ||
 			    insn->imm == (BPF_AND | BPF_FETCH) ||
 			    insn->imm == (BPF_OR | BPF_FETCH) ||
 			    insn->imm == (BPF_XOR | BPF_FETCH))) {
-			verbose(cbs->private_data, "(%02x) r%d = atomic%s_fetch_%s((%s *)(r%d %+d), r%d)",
-				insn->code, insn->src_reg,
+			verbose(cbs->private_data, "(%02x) %sr%d = atomic%s_fetch_%s((%s *)(r%d %+d), r%d)",
+				insn->code, probe_pfx, insn->src_reg,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_atomic_alu_string[BPF_OP(insn->imm) >> 4],
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off, insn->src_reg);
-		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
-			   insn->imm == BPF_CMPXCHG) {
-			verbose(cbs->private_data, "(%02x) r0 = atomic%s_cmpxchg((%s *)(r%d %+d), r0, r%d)",
-				insn->code,
+		} else if (atomic && insn->imm == BPF_CMPXCHG) {
+			verbose(cbs->private_data, "(%02x) %sr0 = atomic%s_cmpxchg((%s *)(r%d %+d), r0, r%d)",
+				insn->code, probe_pfx,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off,
 				insn->src_reg);
-		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
-			   insn->imm == BPF_XCHG) {
-			verbose(cbs->private_data, "(%02x) r%d = atomic%s_xchg((%s *)(r%d %+d), r%d)",
-				insn->code, insn->src_reg,
+		} else if (atomic && insn->imm == BPF_XCHG) {
+			verbose(cbs->private_data, "(%02x) %sr%d = atomic%s_xchg((%s *)(r%d %+d), r%d)",
+				insn->code, probe_pfx, insn->src_reg,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off, insn->src_reg);
-		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
-			   insn->imm == BPF_LOAD_ACQ) {
-			verbose(cbs->private_data, "(%02x) r%d = load_acquire((%s *)(r%d %+d))",
-				insn->code, insn->dst_reg,
+		} else if (atomic && insn->imm == BPF_LOAD_ACQ) {
+			verbose(cbs->private_data, "(%02x) %sr%d = load_acquire((%s *)(r%d %+d))",
+				insn->code, probe_pfx, insn->dst_reg,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->src_reg, insn->off);
-		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
-			   insn->imm == BPF_STORE_REL) {
-			verbose(cbs->private_data, "(%02x) store_release((%s *)(r%d %+d), r%d)",
-				insn->code,
+		} else if (atomic && insn->imm == BPF_STORE_REL) {
+			verbose(cbs->private_data, "(%02x) %sstore_release((%s *)(r%d %+d), r%d)",
+				insn->code, probe_pfx,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off, insn->src_reg);
 		} else {
@@ -295,7 +298,8 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			verbose(cbs->private_data, "BUG_st_%02x", insn->code);
 		}
 	} else if (class == BPF_LDX) {
-		if (BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) {
+		if ((BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) ||
+		    (BPF_MODE(insn->code) == BPF_MEMSX && BPF_SIZE(insn->code) == BPF_DW)) {
 			verbose(cbs->private_data, "BUG_ldx_%02x", insn->code);
 			return;
 		}

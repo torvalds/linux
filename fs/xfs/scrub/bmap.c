@@ -274,7 +274,7 @@ xchk_bmap_xref_rmap_cow(
 	unsigned long long	rmap_end;
 	uint64_t		owner = XFS_RMAP_OWN_COW;
 
-	if (!info->sc->sa.rmap_cur || xchk_skip_xref(info->sc->sm))
+	if (xchk_skip_xref(info->sc->sm))
 		return;
 
 	/* Find the rmap record for this irec. */
@@ -1103,8 +1103,9 @@ xchk_bmap(
 	 * the rmap must match the combined mapping exactly.
 	 */
 	while (xchk_bmap_iext_iter(&info, &irec)) {
-		if (xchk_should_terminate(sc, &error) ||
-		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		if (xchk_should_terminate(sc, &error))
+			return error;
+		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			return 0;
 
 		if (irec.br_startoff >= endoff) {

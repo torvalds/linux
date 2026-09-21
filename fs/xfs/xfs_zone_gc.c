@@ -869,6 +869,11 @@ xfs_zone_gc_write_chunk(
 	WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 	list_move_tail(&chunk->entry, &data->writing);
 
+	/*
+	 * If we run on top of stacked block device, the read I/O might have
+	 * reset bi_bdev, restore it to the one we want.
+	 */
+	bio_set_dev(&chunk->bio, mp->m_rtdev_targp->bt_bdev);
 	bio_reuse(&chunk->bio, REQ_OP_WRITE);
 	while ((split_chunk = xfs_zone_gc_split_write(data, chunk)))
 		xfs_zone_gc_submit_write(data, split_chunk);

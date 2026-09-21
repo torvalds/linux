@@ -1414,7 +1414,7 @@ static bool find_shift_for_valid_cache_id_assignment(const int *mcache_boundarie
 		success = true;
 		for (pipe_index = 0; pipe_index < pipe_count; pipe_index++) {
 			if (!calculate_first_second_splitting(mcache_boundaries, num_boundaries, *shift,
-				pipe_vp_startx[pipe_index], pipe_vp_endx[pipe_index], 0, 0)) {
+				pipe_vp_startx[pipe_index], pipe_vp_endx[pipe_index], NULL, NULL)) {
 				success = false;
 				break;
 			}

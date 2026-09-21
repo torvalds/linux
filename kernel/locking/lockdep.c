@@ -963,6 +963,34 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 	return NULL;
 }
 
+static __always_inline bool lock_class_cache_is_valid(const struct lockdep_map *lock,
+						      const struct lock_class *class,
+						      unsigned int subclass)
+{
+	unsigned int class_subclass;
+
+	if (!class)
+		return false;
+
+	if (unlikely(class < lock_classes || class >= lock_classes + MAX_LOCKDEP_KEYS))
+		return false;
+
+	if (unlikely(!arch_test_bit(class - lock_classes, lock_classes_in_use)))
+		return false;
+
+	if (unlikely(!lock->key))
+		return false;
+
+	class_subclass = subclass ? subclass : class->subclass;
+	if (unlikely(class_subclass >= MAX_LOCKDEP_SUBCLASSES))
+		return false;
+
+	if (unlikely(READ_ONCE(class->key) != lock->key->subkeys + class_subclass))
+		return false;
+
+	return true;
+}
+
 /*
  * Static locks do not have their class-keys yet - for them the key is
  * the lock object itself. If the lock is in the per cpu area, the
@@ -1395,9 +1423,9 @@ out_unlock_set:
 
 out_set_class_cache:
 	if (!subclass || force)
-		lock->class_cache[0] = class;
+		WRITE_ONCE(lock->class_cache[0], class);
 	else if (subclass < NR_LOCKDEP_CACHING_CLASSES)
-		lock->class_cache[subclass] = class;
+		WRITE_ONCE(lock->class_cache[subclass], class);
 
 	/*
 	 * Hash collision, did we smoke some? We found a class with a matching
@@ -4957,7 +4985,7 @@ void lockdep_init_map_type(struct lockdep_map *lock, const char *name,
 	int i;
 
 	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
-		lock->class_cache[i] = NULL;
+		WRITE_ONCE(lock->class_cache[i], NULL);
 
 #ifdef CONFIG_LOCK_STAT
 	lock->cpu = raw_smp_processor_id();
@@ -5022,11 +5050,14 @@ EXPORT_SYMBOL_GPL(__lockdep_no_track__);
 void lockdep_set_lock_cmp_fn(struct lockdep_map *lock, lock_cmp_fn cmp_fn,
 			     lock_print_fn print_fn)
 {
-	struct lock_class *class = lock->class_cache[0];
+	struct lock_class *class = READ_ONCE(lock->class_cache[0]);
 	unsigned long flags;
 
 	raw_local_irq_save(flags);
 	lockdep_recursion_inc();
+
+	if (!lock_class_cache_is_valid(lock, class, 0))
+		class = NULL;
 
 	if (!class)
 		class = register_lock_class(lock, 0, 0);
@@ -5119,8 +5150,11 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(subclass >= MAX_LOCKDEP_SUBCLASSES))
 		return 0;
 
-	if (subclass < NR_LOCKDEP_CACHING_CLASSES)
-		class = lock->class_cache[subclass];
+	if (subclass < NR_LOCKDEP_CACHING_CLASSES) {
+		class = READ_ONCE(lock->class_cache[subclass]);
+		if (!lock_class_cache_is_valid(lock, class, subclass))
+			class = NULL;
+	}
 	/*
 	 * Not cached?
 	 */
@@ -5324,9 +5358,9 @@ static noinstr int match_held_lock(const struct held_lock *hlock,
 		return 1;
 
 	if (hlock->references) {
-		const struct lock_class *class = lock->class_cache[0];
+		const struct lock_class *class = READ_ONCE(lock->class_cache[0]);
 
-		if (!class)
+		if (!lock_class_cache_is_valid(lock, class, 0))
 			class = look_up_lock_class(lock, 0);
 
 		/*
