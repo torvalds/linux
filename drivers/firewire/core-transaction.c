@@ -52,6 +52,17 @@ static void remove_transaction_entry(struct fw_card *card, struct fw_transaction
 	card->transactions.tlabel_mask &= ~(1ULL << entry->tlabel);
 }
 
+static void invoke_callback(struct fw_transaction *t, int rcode, u32 response_tstamp, void *data,
+			    size_t data_length)
+{
+	if (!t->with_tstamp) {
+		t->callback.without_tstamp(t->card, rcode, data, data_length, t->callback_data);
+	} else {
+		t->callback.with_tstamp(t->card, rcode, t->packet.timestamp, response_tstamp,
+					data, data_length, t->callback_data);
+	}
+}
+
 // Must be called without holding card->transactions.lock.
 void fw_cancel_pending_transactions(struct fw_card *card)
 {
@@ -69,14 +80,7 @@ void fw_cancel_pending_transactions(struct fw_card *card)
 
 	list_for_each_entry_safe(t, tmp, &pending_list, link) {
 		list_del(&t->link);
-
-		if (!t->with_tstamp) {
-			t->callback.without_tstamp(card, RCODE_CANCELLED, NULL, 0,
-						   t->callback_data);
-		} else {
-			t->callback.with_tstamp(card, RCODE_CANCELLED, t->packet.timestamp, 0,
-						NULL, 0, t->callback_data);
-		}
+		invoke_callback(t, RCODE_CANCELLED, 0, NULL, 0);
 	}
 }
 
@@ -112,12 +116,7 @@ static int close_transaction(struct fw_transaction *transaction, struct fw_card 
 			return -ENOENT;
 	}
 
-	if (!t->with_tstamp) {
-		t->callback.without_tstamp(card, rcode, NULL, 0, t->callback_data);
-	} else {
-		t->callback.with_tstamp(card, rcode, t->packet.timestamp, response_tstamp, NULL, 0,
-					t->callback_data);
-	}
+	invoke_callback(t, rcode, response_tstamp, NULL, 0);
 
 	return 0;
 }
@@ -170,12 +169,7 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 		remove_transaction_entry(card, t);
 	}
 
-	if (!t->with_tstamp) {
-		t->callback.without_tstamp(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
-	} else {
-		t->callback.with_tstamp(card, RCODE_CANCELLED, t->packet.timestamp,
-					t->split_timeout_cycle, NULL, 0, t->callback_data);
-	}
+	invoke_callback(t, RCODE_CANCELLED, t->split_timeout_cycle, NULL, 0);
 }
 
 // card->transactions.lock should be acquired in advance for the linked list.
@@ -389,6 +383,11 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 {
 	int tlabel;
 
+	t->card = card;
+	t->callback = callback;
+	t->with_tstamp = with_tstamp;
+	t->callback_data = callback_data;
+
 	/*
 	 * Allocate tlabel from the bitmap and put the transaction on
 	 * the list while holding the card spinlock.
@@ -399,30 +398,23 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	scoped_guard(spinlock_irqsave, &card->transactions.lock)
 		tlabel = allocate_tlabel(card);
 	if (tlabel < 0) {
-		if (!with_tstamp) {
-			callback.without_tstamp(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
-		} else {
-			// Timestamping on behalf of hardware.
-			u32 curr_cycle_time = 0;
-			u32 tstamp;
+		// Timestamping on behalf of hardware.
+		u32 curr_cycle_time = 0;
+		u32 tstamp;
 
-			(void)fw_card_read_cycle_time(card, &curr_cycle_time);
-			tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
+		(void)fw_card_read_cycle_time(card, &curr_cycle_time);
+		tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 
-			callback.with_tstamp(card, RCODE_SEND_ERROR, tstamp, tstamp, NULL, 0,
-					     callback_data);
-		}
+		t->packet.timestamp = tstamp;
+		invoke_callback(t, RCODE_SEND_ERROR, tstamp, NULL, 0);
+
 		return;
 	}
 
 	t->node_id = destination_id;
 	t->tlabel = tlabel;
-	t->card = card;
 	t->is_split_transaction = false;
 	timer_setup(&t->split_timeout_timer, split_transaction_timeout_callback, 0);
-	t->callback = callback;
-	t->with_tstamp = with_tstamp;
-	t->callback_data = callback_data;
 	t->packet.callback = transmit_complete_callback;
 
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
@@ -1200,12 +1192,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	 */
 	card->driver->cancel_packet(card, &t->packet);
 
-	if (!t->with_tstamp) {
-		t->callback.without_tstamp(card, rcode, data, data_length, t->callback_data);
-	} else {
-		t->callback.with_tstamp(card, rcode, t->packet.timestamp, p->timestamp, data,
-					data_length, t->callback_data);
-	}
+	invoke_callback(t, rcode, p->timestamp, data, data_length);
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
