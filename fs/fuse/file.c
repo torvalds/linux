@@ -265,6 +265,10 @@ static int fuse_open(struct inode *inode, struct file *file)
 	if (fuse_is_bad(inode))
 		return -EIO;
 
+	/* No truncate for DAX yet */
+	if ((file->f_flags & O_TRUNC) && IS_DAX(inode) && !FUSE_IS_VDAX(inode))
+		return -EINVAL;
+
 	err = generic_file_open(inode, file);
 	if (err)
 		return err;
@@ -297,7 +301,7 @@ static int fuse_open(struct inode *inode, struct file *file)
 	if (!err) {
 		if (is_truncate)
 			truncate_pagecache(inode, 0);
-		else if (!(ff->open_flags & FOPEN_KEEP_CACHE))
+		else if (!(ff->open_flags & FOPEN_KEEP_CACHE) && !IS_DAX(inode))
 			invalidate_inode_pages2(inode->i_mapping);
 	}
 out_unlock:
@@ -2882,6 +2886,10 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 		return -EOPNOTSUPP;
 
 	if (fm->fc->no_fallocate)
+		return -EOPNOTSUPP;
+
+	/* No size extend/hole punch for DAX yet */
+	if (IS_DAX(inode) && !FUSE_IS_VDAX(inode))
 		return -EOPNOTSUPP;
 
 	inode_lock(inode);

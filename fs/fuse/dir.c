@@ -2180,6 +2180,9 @@ int fuse_do_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		err = fuse_vdax_break_layouts(inode, 0, -1);
 		if (err)
 			goto unlock;
+	} else if (IS_DAX(inode) && is_truncate) {
+		/* No truncate for DAX yet */
+		return -EINVAL;
 	}
 
 	if (attr->ia_valid & ATTR_OPEN) {
