@@ -8052,6 +8052,7 @@ static int raid5_run(struct mddev *mddev)
 		sector_t here_new, here_old;
 		int old_disks;
 		int max_degraded = (mddev->level == 6 ? 2 : 1);
+		int min_disks = min_raid_disks(mddev->level);
 		int chunk_sectors;
 		int new_data_disks;
 
@@ -8067,6 +8068,12 @@ static int raid5_run(struct mddev *mddev)
 			return -EINVAL;
 		}
 		old_disks = mddev->raid_disks - mddev->delta_disks;
+		if (mddev->raid_disks < min_disks || old_disks < min_disks) {
+			pr_warn("md/raid:%s: invalid reshape disks (%d -> %d, min %d)\n",
+				mdname(mddev), old_disks, mddev->raid_disks,
+				min_disks);
+			return -EINVAL;
+		}
 		/* reshape_position must be on a new-stripe boundary, and one
 		 * further up in new geometry must map after here in old
 		 * geometry.
