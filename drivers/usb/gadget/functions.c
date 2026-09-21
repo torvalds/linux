@@ -70,7 +70,7 @@ void usb_put_function_instance(struct usb_function_instance *fi)
 {
 	struct module *mod;
 
-	if (!fi)
+	if (!fi || !fi->fd)
 		return;
 
 	mod = fi->fd->mod;

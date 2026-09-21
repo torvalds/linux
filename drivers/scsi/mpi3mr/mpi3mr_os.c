@@ -1094,10 +1094,13 @@ static void mpi3mr_refresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
 	struct mpi3mr_stgt_priv_data *tgt_priv;
+	struct scsi_target *starget;
+	unsigned long flags;
 
 	dprint_reset(mrioc, "refresh target devices: check for removals\n");
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
+		spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
 		if (((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) ||
 		     tgtdev->is_hidden) &&
 		     tgtdev->host_exposed && tgtdev->starget &&
@@ -1106,6 +1109,7 @@ static void mpi3mr_refresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 			tgt_priv->dev_removed = 1;
 			atomic_set(&tgt_priv->block_io, 0);
 		}
+		spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 	}
 
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
@@ -1127,15 +1131,25 @@ static void mpi3mr_refresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 	tgtdev = NULL;
 	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
 		if ((tgtdev->dev_handle != MPI3MR_INVALID_DEV_HANDLE) &&
-		    !tgtdev->is_hidden) {
-			if (!tgtdev->host_exposed)
+				!tgtdev->is_hidden) {
+			if (!tgtdev->host_exposed) {
 				mpi3mr_report_tgtdev_to_host(mrioc,
-							     tgtdev->perst_id);
-			else if (tgtdev->starget)
-				starget_for_each_device(tgtdev->starget,
-							(void *)tgtdev, mpi3mr_update_sdev);
+				     tgtdev->perst_id);
+				continue;
+			}
+			spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+			starget = tgtdev->starget;
+			if (starget)
+				get_device(&starget->dev);
+			spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+			if (starget) {
+				starget_for_each_device(starget, (void *)tgtdev,
+							mpi3mr_update_sdev);
+				put_device(&starget->dev);
+			}
+		}
 	}
-	}
+	dprint_reset(mrioc, "refresh target devices: done\n");
 }
 
 /**
@@ -1515,6 +1529,8 @@ static void mpi3mr_devinfochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	struct mpi3_device_page0 *dev_pg0)
 {
 	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	struct scsi_target *starget;
+	unsigned long flags;
 	u16 dev_handle = 0, perst_id = 0;
 
 	perst_id = le16_to_cpu(dev_pg0->persistent_id);
@@ -1535,9 +1551,18 @@ static void mpi3mr_devinfochg_evt_bh(struct mpi3mr_ioc *mrioc,
 		mpi3mr_report_tgtdev_to_host(mrioc, perst_id);
 	if (tgtdev->is_hidden && tgtdev->host_exposed)
 		mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-	if (!tgtdev->is_hidden && tgtdev->host_exposed && tgtdev->starget)
-		starget_for_each_device(tgtdev->starget, (void *)tgtdev,
-		    mpi3mr_update_sdev);
+	if (!tgtdev->is_hidden && tgtdev->host_exposed) {
+		spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+		starget = tgtdev->starget;
+		if (starget)
+			get_device(&starget->dev);
+		spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+		if (starget) {
+			starget_for_each_device(starget, (void *)tgtdev,
+						mpi3mr_update_sdev);
+			put_device(&starget->dev);
+		}
+	}
 out:
 	if (tgtdev)
 		mpi3mr_tgtdev_put(tgtdev);

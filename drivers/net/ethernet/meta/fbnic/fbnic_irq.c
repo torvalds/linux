@@ -282,7 +282,7 @@ enum fbnic_msix_self_test_codes fbnic_msix_test(struct fbnic_dev *fbd)
 	int i;
 
 	/* Allocate bitmap and IRQ vector table */
-	test_data = kzalloc_obj(*test_data, GFP_KERNEL);
+	test_data = kzalloc_obj(*test_data);
 
 	/* memory allocation failure */
 	if (!test_data)

@@ -2632,10 +2632,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (error)
 		BT_WARN("register suspend notifier failed error:%d\n", error);
 
-	queue_work(hdev->req_workqueue, &hdev->power_on);
-
 	idr_init(&hdev->adv_monitors_idr);
 	msft_register(hdev);
+
+	queue_work(hdev->req_workqueue, &hdev->power_on);
 
 	return id;
 

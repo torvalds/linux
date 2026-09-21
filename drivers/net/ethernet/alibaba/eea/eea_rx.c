@@ -764,7 +764,7 @@ struct eea_net_rx *eea_alloc_rx(struct eea_net_init_ctx *ctx, u32 idx)
 	struct eea_net_rx *rx;
 	int err;
 
-	rx = kzalloc(sizeof(*rx), GFP_KERNEL);
+	rx = kzalloc_obj(*rx);
 	if (!rx)
 		return rx;
 
@@ -786,8 +786,7 @@ struct eea_net_rx *eea_alloc_rx(struct eea_net_init_ctx *ctx, u32 idx)
 	rx->dma_dev = ctx->edev->dma_dev;
 
 	/* meta */
-	rx->meta = kvcalloc(ctx->cfg.rx_ring_depth,
-			    sizeof(*rx->meta), GFP_KERNEL);
+	rx->meta = kvzalloc_objs(*rx->meta, ctx->cfg.rx_ring_depth);
 	if (!rx->meta)
 		goto err_free_rx;
 

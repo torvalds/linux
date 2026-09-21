@@ -12,8 +12,6 @@
 
 #include <linux/platform_device.h>
 
-#define MSP_INPUT_FREQ_APB 48000000
-
 /*** Stereo mode. Used for APB data accesses as 16 bits accesses (mono),
  *   32 bits accesses (stereo).
  ***/
@@ -64,6 +62,7 @@ enum msp_direction {
 #define MSP_SRG		0x10
 #define MSP_FLR		0x14
 #define MSP_DMACR	0x18
+#define MSP_WMRK	0x1c
 
 #define MSP_IMSC	0x20
 #define MSP_RIS		0x24
@@ -229,6 +228,10 @@ enum msp_direction {
 
 #define RDMAE_SHIFT		0
 #define TDMAE_SHIFT		1
+
+/* FIFO watermark register */
+#define MSP_WMRK_RX_4_ELEMENTS	BIT(0)
+#define MSP_WMRK_TX_4_ELEMENTS	BIT(3)
 
 /* Interrupt Register */
 #define RX_SERVICE_INT		BIT(0)
@@ -460,6 +463,8 @@ struct ux500_msp_config {
 	enum msp_data_size data_size;
 	unsigned int def_elem_len;
 	unsigned int iodelay;
+	bool clock_provider;
+	bool bclk_inverted;
 };
 
 struct ux500_msp {
@@ -470,8 +475,11 @@ struct ux500_msp {
 	enum msp_state msp_state;
 	int def_elem_len;
 	unsigned int dir_busy;
+	unsigned int dir_running;
 	int loopback_enable;
 	unsigned int f_bitclk;
+	bool clock_provider;
+	struct ux500_msp_config config;
 };
 
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,

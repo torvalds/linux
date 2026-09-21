@@ -4986,8 +4986,8 @@ static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 	if (!vc->vc_sw->con_font_set)
 		return -ENOSYS;
 
-	if (vc_is_sel(vc))
-		clear_selection();
+	/* hide selection and cursor prior font changes */
+	hide_cursor(vc);
 
 	return vc->vc_sw->con_font_set(vc, &font, vpitch, op->flags);
 }
@@ -5011,8 +5011,9 @@ static int con_font_default(struct vc_data *vc, struct console_font_op *op)
 		if (!vc->vc_sw->con_font_default)
 			return -ENOSYS;
 
-		if (vc_is_sel(vc))
-			clear_selection();
+		/* hide selection and cursor prior font changes */
+		hide_cursor(vc);
+
 		int ret = vc->vc_sw->con_font_default(vc, &font, s);
 		if (ret)
 			return ret;

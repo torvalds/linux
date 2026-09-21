@@ -15,6 +15,7 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	enum qeth_sbp_states state = QETH_SBP_STATE_INACTIVE;
+	bool os_mismatch = false;
 	int rc = 0;
 	char *word;
 
@@ -25,7 +26,7 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 	if (qeth_card_hw_is_reachable(card) &&
 					card->options.sbp.supported_funcs)
 		rc = qeth_bridgeport_query_ports(card,
-			&card->options.sbp.role, &state);
+			&card->options.sbp.role, &state, &os_mismatch);
 	if (!rc) {
 		if (show_state)
 			switch (state) {
@@ -52,6 +53,10 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 		if (rc)
 			QETH_CARD_TEXT_(card, 2, "SBP%02x:%02x",
 				card->options.sbp.role, state);
+		else if (!show_state &&
+			 card->options.sbp.role == QETH_SBP_ROLE_NONE &&
+			 os_mismatch)
+			rc = sysfs_emit(buf, "%s (OS family mismatch)\n", word);
 		else
 			rc = sysfs_emit(buf, "%s\n", word);
 	}

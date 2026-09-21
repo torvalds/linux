@@ -147,7 +147,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			cpumask_set_cpu(cpu, &book->mask);
 			cpumask_set_cpu(cpu, &socket->mask);
 			smp_cpu_set_polarization(cpu, tl_core->pp);
-			smp_cpu_set_capacity(cpu, CPU_CAPACITY_HIGH);
+			topology_set_cpu_scale(cpu, CPU_CAPACITY_HIGH);
 		}
 	}
 }

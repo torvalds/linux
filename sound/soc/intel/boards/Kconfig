@@ -533,12 +533,14 @@ config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	select SND_SOC_CS35L56_SPI
 	select SND_SOC_CS35L56_SDW
 	select SND_SOC_ES9356
+	imply SND_SOC_TAC5XX2_SDW
 	select SND_SOC_DMIC
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 	imply SND_SOC_SDW_MOCKUP
 	help
 	  Add support for Intel SoundWire-based platforms connected to
-	  MAX98373, RT700, RT711, RT1308 and RT715
+	  MAX98373, RT700, RT711, RT1308, RT715, TAC5XX2_SDW family (including
+	  TAC5572, TAC5682).
 	  If unsure select "N".
 
 endif

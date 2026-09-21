@@ -266,7 +266,7 @@ static char *diag_fmt_alloc(struct bpf_verifier_env *env, size_t size)
 	}
 
 	capacity = max_t(size_t, BPF_DIAG_FMT_CHUNK_SIZE, size);
-	chunk = kmalloc(struct_size(chunk, data, capacity), GFP_KERNEL_ACCOUNT);
+	chunk = kmalloc_flex(*chunk, data, capacity, GFP_KERNEL_ACCOUNT);
 	if (!chunk)
 		return NULL;
 

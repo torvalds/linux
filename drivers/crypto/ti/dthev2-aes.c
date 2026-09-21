@@ -387,7 +387,7 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 		src_nents++;
 		dst_nents++;
 
-		src = kmalloc_array(src_nents, sizeof(*src), GFP_ATOMIC);
+		src = kmalloc_objs(*src, src_nents, GFP_ATOMIC);
 		if (!src) {
 			ret = -ENOMEM;
 			goto aes_ctr_src_alloc_err;
@@ -399,7 +399,7 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 		sg_set_buf(sg, pad_buf, pad_size);
 
 		if (diff_dst) {
-			dst = kmalloc_array(dst_nents, sizeof(*dst), GFP_ATOMIC);
+			dst = kmalloc_objs(*dst, dst_nents, GFP_ATOMIC);
 			if (!dst) {
 				ret = -ENOMEM;
 				goto aes_ctr_dst_alloc_err;
@@ -624,7 +624,7 @@ static struct scatterlist *dthe_aead_prep_aad(struct scatterlist *sg,
 	if (assoclen % AES_BLOCK_SIZE)
 		aad_nents++;
 
-	aad_sg = kmalloc_array(aad_nents, sizeof(struct scatterlist), GFP_ATOMIC);
+	aad_sg = kmalloc_objs(struct scatterlist, aad_nents, GFP_ATOMIC);
 	if (!aad_sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -680,7 +680,7 @@ static struct scatterlist *dthe_aead_prep_crypt(struct scatterlist *sg,
 	if (cryptlen % AES_BLOCK_SIZE)
 		crypt_nents++;
 
-	crypt_sg = kmalloc_array(crypt_nents, sizeof(struct scatterlist), GFP_ATOMIC);
+	crypt_sg = kmalloc_objs(struct scatterlist, crypt_nents, GFP_ATOMIC);
 	if (!crypt_sg) {
 		err = -ENOMEM;
 		goto dthe_aead_prep_crypt_mem_err;

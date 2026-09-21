@@ -33,7 +33,7 @@ STATIC void
 xfs_ail_check(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip)
-	__must_hold(&ailp->ail_lock)
+		__must_hold(&ailp->ail_lock)
 {
 	struct xfs_log_item	*prev_lip;
 	struct xfs_log_item	*next_lip;
@@ -321,6 +321,7 @@ static void
 xfs_ail_delete(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip)
+		__must_hold(&ailp->ail_lock)
 {
 	xfs_ail_check(ailp, lip);
 	list_del(&lip->li_ail);
@@ -899,6 +900,7 @@ xfs_lsn_t
 xfs_ail_delete_one(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip)
+		__must_hold(&ailp->ail_lock)
 {
 	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
 	xfs_lsn_t		lsn = lip->li_lsn;

@@ -666,10 +666,21 @@ void destroy_previous_session(struct ksmbd_conn *conn,
 	    memcmp(user->passkey, prev_user->passkey, user->passkey_sz))
 		goto out;
 
+	down_write(&prev_sess->chann_lock);
+	if (prev_sess->tearing_down) {
+		up_write(&prev_sess->chann_lock);
+		goto out;
+	}
+	prev_sess->tearing_down = true;
+	up_write(&prev_sess->chann_lock);
+
 	ksmbd_all_conn_set_status(prev_sess, KSMBD_SESS_NEED_RECONNECT);
 	err = ksmbd_conn_wait_idle_sess(conn, prev_sess);
 	if (err) {
-		ksmbd_all_conn_set_status(prev_sess, KSMBD_SESS_NEED_SETUP);
+		down_write(&prev_sess->chann_lock);
+		prev_sess->tearing_down = false;
+		up_write(&prev_sess->chann_lock);
+		ksmbd_all_conn_set_status(prev_sess, KSMBD_SESS_GOOD);
 		goto out;
 	}
 

@@ -783,7 +783,7 @@ static int mpxy_mbox_populate_channels(struct mpxy_mbox *mbox)
 		return dev_err_probe(mbox->dev, -ENODEV, "no MPXY channels available\n");
 
 	/* Allocate and fetch all channel IDs */
-	channel_ids = kcalloc(mbox->channel_count, sizeof(*channel_ids), GFP_KERNEL);
+	channel_ids = kzalloc_objs(*channel_ids, mbox->channel_count);
 	if (!channel_ids)
 		return -ENOMEM;
 	rc = mpxy_get_channel_ids(mbox->channel_count, channel_ids);

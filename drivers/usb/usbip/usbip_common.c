@@ -696,7 +696,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	size = np * sizeof(*iso);
 
-	buff = kcalloc(np, sizeof(*iso), GFP_KERNEL);
+	buff = kzalloc_objs(*iso, np);
 	if (!buff)
 		return -ENOMEM;
 

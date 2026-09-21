@@ -90,10 +90,6 @@ irq_domain映射的类型
 映射的优点是固定时间查找IRQ号，而且irq_descs只分配给在用的IRQ。 缺点是该表
 必须尽可能大的hwirq号。
 
-irq_domain_add_linear()和irq_domain_create_linear()在功能上是等价的，
-除了第一个参数不同--前者接受一个Open Firmware特定的 'struct device_node' 而
-后者接受一个更通用的抽象 'struct fwnode_handle' 。
-
 大多数驱动应该使用线性映射
 
 树状映射

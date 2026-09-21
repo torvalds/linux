@@ -194,7 +194,7 @@ s32 scx_alloc_pshards(struct scx_sched *sch)
 	shard_node = rcu_dereference_protected(scx_shard_node,
 					       lockdep_is_held(&scx_enable_mutex));
 
-	pshard = kzalloc_objs(pshard[0], scx_nr_cid_shards, GFP_KERNEL);
+	pshard = kzalloc_objs(pshard[0], scx_nr_cid_shards);
 	if (!pshard)
 		return -ENOMEM;
 

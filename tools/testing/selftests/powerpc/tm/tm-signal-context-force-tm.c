@@ -60,7 +60,7 @@ void usr_signal_handler(int signo, siginfo_t *si, void *uc)
 	ucp->uc_link = mmap(NULL, sizeof(ucontext_t),
 			    PROT_READ | PROT_WRITE,
 			    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	if (ucp->uc_link == (void *)-1) {
+	if (ucp->uc_link == MAP_FAILED) {
 		perror("Mmap failed");
 		exit(-1);
 	}
@@ -129,7 +129,7 @@ void tm_trap_test(void)
 		ss.ss_size = SIGSTKSZ;
 		ss.ss_flags = 0;
 
-		if (ss.ss_sp == (void *)-1) {
+		if (ss.ss_sp == MAP_FAILED) {
 			perror("mmap error\n");
 			exit(-1);
 		}

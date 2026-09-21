@@ -237,7 +237,7 @@ replay_again:
 	num_rqst = 0;
 	server = cifs_pick_channel(ses);
 
-	vars = kzalloc_obj(*vars, GFP_KERNEL);
+	vars = kzalloc_obj(*vars);
 	if (vars == NULL) {
 		rc = -ENOMEM;
 		goto out;

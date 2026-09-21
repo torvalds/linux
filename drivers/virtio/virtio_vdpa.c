@@ -352,7 +352,7 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 			continue;
 		}
 
-		vqs[i] = virtio_vdpa_setup_vq(vdev, queue_idx++, vqi->callback,
+		vqs[i] = virtio_vdpa_setup_vq(vdev, queue_idx, vqi->callback,
 					      vqi->name, vqi->ctx);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
@@ -360,7 +360,8 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		}
 
 		if (has_affinity)
-			ops->set_vq_affinity(vdpa, i, &masks[i]);
+			ops->set_vq_affinity(vdpa, queue_idx, &masks[i]);
+		queue_idx++;
 	}
 
 	cb.callback = virtio_vdpa_config_cb;

@@ -149,7 +149,7 @@ static int kvm_dmsintc_create(struct kvm_device *dev, u32 type)
 		return -EINVAL;
 	}
 
-	s = kzalloc(sizeof(struct loongarch_dmsintc), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_dmsintc);
 	if (!s)
 		return -ENOMEM;
 
@@ -179,4 +179,9 @@ static struct kvm_device_ops kvm_dmsintc_dev_ops = {
 int kvm_loongarch_register_dmsintc_device(void)
 {
 	return kvm_register_device_ops(&kvm_dmsintc_dev_ops, KVM_DEV_TYPE_LOONGARCH_DMSINTC);
+}
+
+void kvm_loongarch_unregister_dmsintc_device(void)
+{
+	kvm_unregister_device_ops(KVM_DEV_TYPE_LOONGARCH_DMSINTC);
 }

@@ -175,7 +175,7 @@ again:
 	current_thread_info()->exit_flags &= ~_TIF_RESTOREALL;
 	regs->exit_result |= ret;
 
-	return ret;
+	return regs->exit_result;
 }
 #endif
 

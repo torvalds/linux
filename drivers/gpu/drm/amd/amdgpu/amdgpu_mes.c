@@ -879,7 +879,7 @@ bool amdgpu_mes_queue_reset_by_mes_supported(struct amdgpu_device *adev)
 
 	return (ip_maj == 11 && mes_sched >= 0x8c) ||
 		((ip_maj == 12 && ip_min == 0) && mes_sched >= 0x8d) ||
-		((ip_maj == 12 && ip_min == 1) && mes_sched >= 0x73);
+		((ip_maj == 12 && ip_min == 1) && mes_sched >= 0x7b);
 }
 
 /* Fix me -- node_id is used to identify the correct MES instances in the future */

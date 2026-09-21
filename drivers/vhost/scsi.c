@@ -210,7 +210,37 @@ static const int vhost_scsi_bits[] = {
 #define VHOST_SCSI_MAX_EVENT	128
 
 static unsigned vhost_scsi_max_io_vqs = 128;
-module_param_named(max_io_vqs, vhost_scsi_max_io_vqs, uint, 0644);
+
+static int vhost_scsi_set_max_io_vqs(const char *val,
+				     const struct kernel_param *kp)
+{
+	unsigned int max_io_vqs;
+	int ret;
+
+	ret = kstrtouint(val, 0, &max_io_vqs);
+	if (ret)
+		return ret;
+
+	if (max_io_vqs > VHOST_SCSI_MAX_IO_VQ) {
+		pr_err("Invalid max_io_vqs of %u. Using %u.\n",
+		       max_io_vqs, VHOST_SCSI_MAX_IO_VQ);
+		max_io_vqs = VHOST_SCSI_MAX_IO_VQ;
+	} else if (!max_io_vqs) {
+		pr_err("Invalid max_io_vqs of 0. Using 1.\n");
+		max_io_vqs = 1;
+	}
+
+	WRITE_ONCE(vhost_scsi_max_io_vqs, max_io_vqs);
+	return 0;
+}
+
+static const struct kernel_param_ops vhost_scsi_max_io_vqs_op = {
+	.set = vhost_scsi_set_max_io_vqs,
+	.get = param_get_uint,
+};
+
+module_param_cb(max_io_vqs, &vhost_scsi_max_io_vqs_op,
+		&vhost_scsi_max_io_vqs, 0644);
 MODULE_PARM_DESC(max_io_vqs, "Set the max number of IO virtqueues a vhost scsi device can support. The default is 128. The max is 1024.");
 
 struct vhost_scsi_virtqueue {
@@ -2290,21 +2320,14 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	struct vhost_scsi_virtqueue *svq;
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
-	int r = -ENOMEM, i, nvqs = vhost_scsi_max_io_vqs;
+	int r = -ENOMEM, i, nvqs;
 
 	vs = kvzalloc_obj(*vs);
 	if (!vs)
 		goto err_vs;
 	vs->inline_sg_cnt = vhost_scsi_inline_sg_cnt;
 
-	if (nvqs > VHOST_SCSI_MAX_IO_VQ) {
-		pr_err("Invalid max_io_vqs of %d. Using %d.\n", nvqs,
-		       VHOST_SCSI_MAX_IO_VQ);
-		nvqs = VHOST_SCSI_MAX_IO_VQ;
-	} else if (nvqs == 0) {
-		pr_err("Invalid max_io_vqs of %d. Using 1.\n", nvqs);
-		nvqs = 1;
-	}
+	nvqs = READ_ONCE(vhost_scsi_max_io_vqs);
 	nvqs += VHOST_SCSI_VQ_IO;
 
 	vs->old_inflight = kmalloc_objs(*vs->old_inflight, nvqs,
@@ -2312,7 +2335,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	if (!vs->old_inflight)
 		goto err_inflight;
 
-	vs->vqs = kmalloc_objs(*vs->vqs, nvqs, GFP_KERNEL | __GFP_ZERO);
+	vs->vqs = kvzalloc_objs(*vs->vqs, nvqs);
 	if (!vs->vqs)
 		goto err_vqs;
 
@@ -2348,7 +2371,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	return 0;
 
 err_local_vqs:
-	kfree(vs->vqs);
+	kvfree(vs->vqs);
 err_vqs:
 	kfree(vs->old_inflight);
 err_inflight:
@@ -2369,7 +2392,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	vhost_dev_stop(&vs->dev);
 	vhost_dev_cleanup(&vs->dev);
 	kfree(vs->dev.vqs);
-	kfree(vs->vqs);
+	kvfree(vs->vqs);
 	kfree(vs->old_inflight);
 	kvfree(vs);
 	return 0;

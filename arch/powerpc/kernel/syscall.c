@@ -18,8 +18,10 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 	long ret;
 	syscall_fn f;
 
-	if (unlikely(!syscall_enter_from_user_mode_randomize_stack(regs, &r0)))
+	if (unlikely(!syscall_enter_from_user_mode_randomize_stack(regs, &r0))) {
+		clear_thread_flag(TIF_SYSCALL_RET);
 		return syscall_get_error(current, regs);
+	}
 
 	if (unlikely(test_and_clear_thread_flag(TIF_SYSCALL_RET)))
 		return syscall_get_error(current, regs);

@@ -258,6 +258,7 @@ int afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 					lockdep_is_held(&server->fs_lock));
 	if (old) {
 		estate->responsive_set = old->responsive_set;
+		old_alist = old->addresses;
 		if (!new_alist)
 			new_alist = old->addresses;
 	}

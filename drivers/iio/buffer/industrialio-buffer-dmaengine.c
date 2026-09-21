@@ -109,7 +109,7 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 		if (nents < 0)
 			return nents;
 
-		vecs = kmalloc_array(nents, sizeof(*vecs), GFP_ATOMIC);
+		vecs = kmalloc_objs(*vecs, nents, GFP_ATOMIC);
 		if (!vecs)
 			return -ENOMEM;
 

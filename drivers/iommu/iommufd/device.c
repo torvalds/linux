@@ -76,7 +76,7 @@ static struct iommufd_group *iommufd_alloc_group(struct iommufd_ctx *ictx,
 {
 	struct iommufd_group *new_igroup;
 
-	new_igroup = kzalloc_obj(*new_igroup, GFP_KERNEL);
+	new_igroup = kzalloc_obj(*new_igroup);
 	if (!new_igroup)
 		return ERR_PTR(-ENOMEM);
 

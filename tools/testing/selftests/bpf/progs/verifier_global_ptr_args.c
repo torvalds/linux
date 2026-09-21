@@ -56,6 +56,30 @@ int trusted_task_arg_nullable(void *ctx)
 	return res;
 }
 
+/*
+ * Check that the verifier does not use checkpoints created
+ * on path with r1 == 0 to prune path with r1 != 0.
+ */
+SEC("?tp_btf/task_newtask")
+__failure
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("R1 type=scalar expected=ptr_, trusted_ptr_, rcu_ptr_")
+__naked int null_btf_id_arg_global_subprog(void)
+{
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"r1 = 42;"
+		"if r0 > 42 goto 1f;"
+		"r1 = 0;"
+	"1:"
+		"call subprog_trusted_task_nullable;"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_get_prandom_u32)
+		: __clobber_all);
+}
+
 __weak int subprog_trusted_task_nonnull(struct task_struct *task __arg_trusted)
 {
 	return task->pid + task->tgid;
