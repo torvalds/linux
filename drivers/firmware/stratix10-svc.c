@@ -11,6 +11,7 @@
 #include <linux/genalloc.h>
 #include <linux/hashtable.h>
 #include <linux/idr.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/kfifo.h>
@@ -18,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -30,6 +32,7 @@
 #include <linux/cpumask.h>
 #include <linux/of_device.h>
 #include <linux/reboot.h>
+#include <linux/workqueue.h>
 
 /**
  * SVC_NUM_DATA_IN_FIFO - number of struct stratix10_svc_data in the FIFO
@@ -262,6 +265,7 @@ struct stratix10_async_chan {
  * @supported: Flag indicating whether the system supports async operations
  * @initialized: Flag indicating whether the control structure has
  *               been initialized
+ * @irq: Interrupt request number associated with the asynchronous control
  * @invoke_fn: Function pointer for invoking Stratix10 service calls
  *             to EL3 secure firmware
  * @async_id_pool: Pointer to the ID pool used for asynchronous
@@ -272,12 +276,14 @@ struct stratix10_async_chan {
  *                     structure
  * @trx_list_lock: Spinlock for protecting the transaction list
  *                     operations
+ * @async_work: Work structure for scheduling asynchronous work
  * @trx_list: Hash table for managing asynchronous transactions
  */
 
 struct stratix10_async_ctrl {
 	bool supported;
 	bool initialized;
+	int irq;
 	void (*invoke_fn)(struct stratix10_async_ctrl *actrl,
 			  const struct arm_smccc_1_2_regs *args,
 			  struct arm_smccc_1_2_regs *res);
@@ -286,6 +292,7 @@ struct stratix10_async_ctrl {
 	struct stratix10_async_chan *common_async_chan;
 	/* spinlock to protect trx_list hash table */
 	spinlock_t trx_list_lock;
+	struct work_struct async_work;
 	DECLARE_HASHTABLE(trx_list, ASYNC_TRX_HASH_BITS);
 };
 
@@ -1683,7 +1690,7 @@ int stratix10_svc_async_poll(struct stratix10_svc_chan *chan,
 		return -EAGAIN;
 	}
 
-	dev_err(ctrl->dev,
+	dev_dbg(ctrl->dev,
 		"Failed to poll async message ,got status as %ld\n",
 		handle->res.a0);
 	return -EINVAL;
@@ -1746,14 +1753,96 @@ static inline void stratix10_smc_1_2(struct stratix10_async_ctrl *actrl,
 	arm_smccc_1_2_smc(args, res);
 }
 
+static irqreturn_t stratix10_svc_async_irq_handler(int irq, void *dev_id)
+{
+	struct stratix10_svc_controller *ctrl = dev_id;
+	struct stratix10_async_ctrl *actrl = &ctrl->actrl;
+
+	/*
+	 * Only disable the IRQ when work is newly queued. If the work is
+	 * already pending/running, queue_work() returns false; an extra
+	 * disable_irq_nosync() would leave the IRQ disabled permanently
+	 * after enable_irq() in the work handler.
+	 */
+	if (queue_work(system_bh_wq, &actrl->async_work))
+		disable_irq_nosync(irq);
+	return IRQ_HANDLED;
+}
+
+/**
+ * stratix10_async_workqueue_handler - Handler for the asynchronous
+ * workqueue in Stratix10 service controller.
+ * @work: Pointer to the work structure that contains the asynchronous
+ *        workqueue handler.
+ *
+ * This function is the handler for the asynchronous workqueue. It performs
+ * the following tasks:
+ * - Invokes the asynchronous polling on interrupt supervisory call.
+ * - On success, it retrieves the bitmap of pending transactions from mailbox
+ *   fifo in ATF.
+ * - It processes each pending transaction by calling the corresponding
+ *   callback function.
+ *
+ * The function ensures that the IRQ is enabled after processing the
+ * transactions.
+ */
+static void stratix10_async_workqueue_handler(struct work_struct *work)
+{
+	struct stratix10_async_ctrl *actrl =
+		container_of(work, struct stratix10_async_ctrl, async_work);
+	struct arm_smccc_1_2_regs
+		args = { .a0 = INTEL_SIP_SMC_ASYNC_POLL_ON_IRQ }, res;
+	DECLARE_BITMAP(pend_on_irq, TOTAL_TRANSACTION_IDS);
+	struct stratix10_svc_async_handler *handler;
+	unsigned long transaction_id = 0;
+	u64 bitmap_array[4];
+	async_callback_t cb;
+	void *cb_arg;
+
+	actrl->invoke_fn(actrl, &args, &res);
+	if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
+		bitmap_array[0] = res.a1;
+		bitmap_array[1] = res.a2;
+		bitmap_array[2] = res.a3;
+		bitmap_array[3] = res.a4;
+		bitmap_from_arr64(pend_on_irq, bitmap_array, TOTAL_TRANSACTION_IDS);
+		do {
+			transaction_id = find_next_bit(pend_on_irq,
+						       TOTAL_TRANSACTION_IDS,
+						       transaction_id);
+			if (transaction_id >= TOTAL_TRANSACTION_IDS)
+				break;
+
+			cb = NULL;
+			cb_arg = NULL;
+			spin_lock(&actrl->trx_list_lock);
+			hash_for_each_possible(actrl->trx_list, handler,
+					       next, transaction_id) {
+				if (handler->transaction_id == transaction_id) {
+					cb = handler->cb;
+					cb_arg = handler->cb_arg;
+					break;
+				}
+			}
+			spin_unlock(&actrl->trx_list_lock);
+			if (cb)
+				cb(cb_arg);
+
+			transaction_id++;
+		} while (transaction_id < TOTAL_TRANSACTION_IDS);
+	}
+	enable_irq(actrl->irq);
+}
+
 /**
  * stratix10_svc_async_init - Initialize the Stratix10 service
  *                            controller for asynchronous operations.
  * @controller: Pointer to the Stratix10 service controller structure.
  *
  * This function initializes the asynchronous service controller by
- * setting up the necessary data structures and initializing the
- * transaction list.
+ * setting up the necessary data structures ,initializing the
+ * transaction list and registering the IRQ handler for asynchronous
+ * transactions.
  *
  * Return: 0 on success, -EINVAL if the controller is NULL or already
  *         initialized, -ENOMEM if memory allocation fails,
@@ -1766,7 +1855,7 @@ static int stratix10_svc_async_init(struct stratix10_svc_controller *controller)
 	struct stratix10_async_ctrl *actrl;
 	struct arm_smccc_res res;
 	struct device *dev;
-	int ret;
+	int ret, irq;
 
 	if (!controller)
 		return -EINVAL;
@@ -1814,6 +1903,22 @@ static int stratix10_svc_async_init(struct stratix10_svc_controller *controller)
 	hash_init(actrl->trx_list);
 	atomic_set(&actrl->common_achan_refcount, 0);
 
+	irq = of_irq_get(dev_of_node(dev), 0);
+	if (irq <= 0) {
+		dev_warn(dev, "Failed to get IRQ, falling back to polling mode\n");
+	} else {
+		ret = devm_request_any_context_irq(dev, irq, stratix10_svc_async_irq_handler,
+						   IRQF_NO_AUTOEN, "stratix10_svc", controller);
+		if (ret == 0) {
+			dev_info(dev,
+				 "Registered IRQ %d for sip async operations\n",
+				 irq);
+			actrl->irq = irq;
+			INIT_WORK(&actrl->async_work, stratix10_async_workqueue_handler);
+			enable_irq(actrl->irq);
+		}
+	}
+
 	actrl->initialized = true;
 	return 0;
 }
@@ -1823,13 +1928,14 @@ static int stratix10_svc_async_init(struct stratix10_svc_controller *controller)
  *                            service controller
  * @ctrl: Pointer to the stratix10_svc_controller structure
  *
- * This function performs the necessary cleanup for the asynchronous
- * service controller. It checks if the controller is valid and if it
- * has been initialized. It then locks the transaction list and safely
- * removes and deallocates each handler in the list. The function also
- * removes any asynchronous clients associated with the controller's
- * channels and destroys the asynchronous ID pool. Finally, it resets
- * the asynchronous ID pool and invoke function pointers to NULL.
+ * This function performs the necessary cleanup for the asynchronous service
+ * controller. It checks if the controller is valid and if it has been
+ * initialized. Also If the controller has an IRQ assigned, it frees the IRQ
+ * and flushes any pending asynchronous work. It then locks the transaction
+ * list and safely removes and deallocates each handler in the list.
+ * The function also removes any asynchronous clients associated with the
+ * controller's channels and destroys the asynchronous ID pool. Finally, it
+ * resets the asynchronous ID pool and invoke function pointers to NULL.
  *
  * Return: 0 on success, -EINVAL if the controller is invalid or not
  *         initialized.
@@ -1850,6 +1956,13 @@ static int stratix10_svc_async_exit(struct stratix10_svc_controller *ctrl)
 		return -EINVAL;
 
 	actrl->initialized = false;
+
+	if (actrl->irq > 0) {
+		disable_irq(actrl->irq);
+		flush_work(&actrl->async_work);
+		devm_free_irq(ctrl->dev, actrl->irq, ctrl);
+		actrl->irq = 0;
+	}
 
 	scoped_guard(spinlock_bh, &actrl->trx_list_lock) {
 		hash_for_each_safe(actrl->trx_list, i, tmp, handler, next) {
