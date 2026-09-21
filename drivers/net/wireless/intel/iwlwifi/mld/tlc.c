@@ -824,8 +824,13 @@ iwl_mld_get_amsdu_size_of_tid(struct iwl_mld *mld,
 
 	txf = iwl_mld_mac80211_ac_to_fw_tx_fifo(ac);
 
-	/* Only one link: take the lmac according to the band */
-	if (hweight16(sta->valid_links) <= 1) {
+	/*
+	 * Only one link: take the lmac according to the band
+	 * In NAN, we don't have a link_conf.
+	 * TODO: once we have a TLC object, we can know better the band.
+	 */
+	if (hweight16(sta->valid_links) <= 1 &&
+	    vif->type != NL80211_IFTYPE_NAN_DATA) {
 		enum nl80211_band band;
 		struct ieee80211_bss_conf *link =
 			wiphy_dereference(mld->wiphy,
