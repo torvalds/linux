@@ -553,7 +553,6 @@ static struct platform_device *hp_wmi_platform_dev;
 static struct device *platform_profile_device;
 static struct notifier_block platform_power_source_nb;
 static enum platform_profile_option active_platform_profile;
-static bool platform_profile_support;
 static bool zero_insize_support;
 
 static struct rfkill *wifi_rfkill;
@@ -2529,7 +2528,6 @@ static int thermal_profile_setup(struct platform_device *device)
 		return PTR_ERR(platform_profile_device);
 
 	pr_info("Registered as platform profile handler\n");
-	platform_profile_support = true;
 
 	return 0;
 }
