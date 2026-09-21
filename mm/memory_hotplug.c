@@ -345,18 +345,13 @@ struct page *pfn_to_online_page(unsigned long pfn)
 	struct dev_pagemap *pgmap;
 	struct mem_section *ms;
 
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_HAVE_ARCH_PFN_VALID));
+
 	if (nr >= NR_MEM_SECTIONS)
 		return NULL;
 
 	ms = __nr_to_section(nr);
 	if (!online_section(ms))
-		return NULL;
-
-	/*
-	 * Save some code text when online_section() +
-	 * pfn_section_valid() are sufficient.
-	 */
-	if (IS_ENABLED(CONFIG_HAVE_ARCH_PFN_VALID) && !pfn_valid(pfn))
 		return NULL;
 
 	if (!pfn_section_valid(ms, pfn))
