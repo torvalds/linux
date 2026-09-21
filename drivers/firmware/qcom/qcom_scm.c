@@ -865,6 +865,14 @@ static void *__qcom_scm_pas_get_rsc_table2(struct device *dev,
 		goto free_input_rt;
 	}
 
+	*output_rt_size = size;
+
+	/* A zero-sized table means that TrustZone has no resource table. */
+	if (!size) {
+		tbl_ptr = NULL;
+		goto free_output_rt;
+	}
+
 	tbl_ptr = kmemdup(output_rt_tzm, size, GFP_KERNEL);
 	if (!tbl_ptr) {
 		qcom_tzmem_free(output_rt_tzm);
@@ -872,7 +880,7 @@ static void *__qcom_scm_pas_get_rsc_table2(struct device *dev,
 		goto free_input_rt;
 	}
 
-	*output_rt_size = size;
+free_output_rt:
 	qcom_tzmem_free(output_rt_tzm);
 
 free_input_rt:
