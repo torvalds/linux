@@ -156,8 +156,7 @@ struct create_durable_rsp {
 } __packed;
 
 /*
- * See POSIX-SMB2 2.2.14.2.16
- * Link: https://gitlab.com/samba-team/smb3-posix-spec/-/blob/master/smb3_posix_extensions.md
+ * See POSIX-SMB2 2.1.3.2.1
  */
 struct create_posix_rsp {
 	struct create_context_hdr ccontext;
@@ -349,6 +348,7 @@ struct create_sd_buf_req {
 	struct smb_ntsd ntsd;
 } __packed;
 
+/* See POSIX-FSCC 2.2.1 */
 struct smb2_posix_info {
 	__le32 NextEntryOffset;
 	__u32 Ignored;
@@ -362,20 +362,18 @@ struct smb2_posix_info {
 	__le64 Inode;
 	__le32 DeviceId;
 	__le32 Zero;
-	/* beginning of POSIX Create Context Response */
+	/*
+	 * Beginning of POSIX Create Context Response
+	 * See POSIX-SMB2 2.1.3.2.1
+	 */
 	__le32 HardLinks;
 	__le32 ReparseTag;
 	__le32 Mode;
 	/* SidBuffer contain two sids (UNIX user sid(16), UNIX group sid(16)) */
 	u8 SidBuffer[32];
+	/* End of POSIX Create Context Response */
 	__le32 name_len;
 	u8 name[];
-	/*
-	 * var sized owner SID
-	 * var sized group SID
-	 * le32 filenamelength
-	 * u8  filename[]
-	 */
 } __packed;
 
 /* functions */
