@@ -378,8 +378,8 @@ __must_hold(&card->transactions.lock)
  *
  * In case of request types without payload, @data is NULL and @length is 0.
  *
- * After the transaction is completed successfully or unsuccessfully, the
- * @callback will be called.  Among its parameters is the response code which
+ * After the transaction is completed successfully or unsuccessfully, the @callback will be called
+ * in process context.  Among its parameters is the response code which
  * is either one of the rcodes per IEEE 1394 or, in case of internal errors,
  * the firewire-core specific %RCODE_SEND_ERROR.  The other firewire-core
  * specific rcodes (%RCODE_CANCELLED, %RCODE_BUSY, %RCODE_GENERATION,

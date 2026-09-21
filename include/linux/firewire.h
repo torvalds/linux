@@ -427,9 +427,8 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
  * A variation of __fw_send_request() to generate callback for response subaction without time
  * stamp.
  *
- * The callback is invoked in the workqueue context in most cases. However, if an error is detected
- * before queueing or the destination address refers to the local node, it is invoked in the
- * current context instead.
+ * After the transaction is completed successfully or unsuccessfully, the @callback will be called
+ * in process context.
  */
 static inline void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 				   int destination_id, int generation, int speed,
@@ -460,9 +459,8 @@ static inline void fw_send_request(struct fw_card *card, struct fw_transaction *
  *
  * A variation of __fw_send_request() to generate callback for response subaction with time stamp.
  *
- * The callback is invoked in the workqueue context in most cases. However, if an error is detected
- * before queueing or the destination address refers to the local node, it is invoked in the current
- * context instead.
+ * After the transaction is completed successfully or unsuccessfully, the @callback will be called
+ * in process context.
  */
 static inline void fw_send_request_with_tstamp(struct fw_card *card, struct fw_transaction *t,
 	int tcode, int destination_id, int generation, int speed, unsigned long long offset,
