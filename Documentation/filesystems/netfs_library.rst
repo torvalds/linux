@@ -451,6 +451,32 @@ one.
 The inode should be marked ``NETFS_ICTX_SINGLE_NO_UPLOAD`` if this API is to be
 used.  The writeback function requires the buffer to be of ITER_FOLIOQ type.
 
+Clearing Stale Post-EOF Pagecache
+---------------------------------
+
+When a file is extended, data left in the pagecache past the old EOF by a write
+through an mmap must not be exposed as file content.  Netfslib clears this on
+its own write paths, and exports a helper so a filesystem can do the same from
+a resize path (truncate, setattr, fallocate and the like) that holds the
+inode's ``i_rwsem`` exclusively across the whole resize::
+
+	void netfs_clear_stale_post_isize(struct inode *inode, uoff_t from,
+					  uoff_t to);
+
+This zeroes any such data within the ``[from, to)`` hole to be made, where
+@from is the old EOF and @to is the new one, and the caller must have already
+updated ``i_size`` to @to before calling it.  Only the folio straddling @from
+can hold data written past the EOF through an mmap, as pages wholly beyond the
+EOF can't be faulted in, so the zeroing is limited to that folio.  The folio is
+zeroed rather than dropped so that a concurrent extending write can't lose
+data.
+
+This overlaps with ``pagecache_isize_extended()`` but can't reuse it: that
+helper is keyed on a sub-page block size and is a no-op when the block size is
+``>= PAGE_SIZE`` (as on network filesystems), and it doesn't wait for
+writeback.  As both address the same problem, a change to one should probably
+be reflected in the other to keep them in sync.
+
 High-Level VM API
 ==================
 

@@ -469,6 +469,7 @@ ssize_t netfs_buffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *fr
 					 struct netfs_group *netfs_group)
 {
 	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
 	ssize_t ret;
 
 	trace_netfs_write_iter(iocb, from);
@@ -480,6 +481,14 @@ ssize_t netfs_buffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *fr
 	ret = file_update_time(file);
 	if (ret)
 		return ret;
+
+	if (iocb->ki_pos > i_size_read(inode)) {
+		ret = netfs_clear_stale_pre_isize(inode, i_size_read(inode),
+						  iocb->ki_pos,
+						  iocb->ki_flags & IOCB_NOWAIT);
+		if (ret)
+			return ret;
+	}
 
 	return netfs_perform_write(iocb, from, netfs_group);
 }
