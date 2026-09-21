@@ -5,6 +5,7 @@
 
 #include "mld.h"
 #include "iface.h"
+#include "key.h"
 #include "link.h"
 #include "mlo.h"
 #include "tlc.h"
@@ -105,6 +106,20 @@ static void iwl_mld_nan_flush(struct iwl_mld *mld, struct ieee80211_vif *vif)
 		       sta->sta_id);
 
 	iwl_mld_flush_link_sta_txqs(mld, sta->sta_id);
+}
+
+static void iwl_mld_remove_nan_keys_iter(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_sta *sta,
+					 struct ieee80211_key_conf *key,
+					 void *data)
+{
+	struct iwl_mld *mld = data;
+
+	if (sta || key->hw_key_idx == STA_KEY_IDX_INVALID)
+		return;
+
+	iwl_mld_remove_key(mld, vif, NULL, key);
 }
 
 static void iwl_mld_nan_remove_stations(struct iwl_mld *mld,
@@ -295,6 +310,8 @@ int iwl_mld_stop_nan(struct ieee80211_hw *hw,
 				   &cmd);
 	if (ret)
 		IWL_ERR(mld, "NAN: Failed to stop NAN. ret=%d\n", ret);
+
+	ieee80211_iter_keys(mld->hw, vif, iwl_mld_remove_nan_keys_iter, mld);
 
 	/* assume that higher layer guarantees that no additional frames are
 	 * added before calling this callback
