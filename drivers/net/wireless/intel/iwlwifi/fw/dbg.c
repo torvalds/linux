@@ -1016,8 +1016,16 @@ static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
 	if (!size || !ranges)
 		return 0;
 
-	return sizeof(struct iwl_fw_ini_error_dump) + ranges *
-		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+	if (check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &size) ||
+	    check_mul_overflow(ranges, size, &size) ||
+	    check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump),
+			       &size))
+		return 0;
+
+	return size;
 }
 
 static u32
@@ -1028,15 +1036,24 @@ iwl_dump_ini_mem_block_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
 	u32 ranges = iwl_dump_ini_mem_block_ranges(fwrt, reg_data);
 	u32 size = sizeof(struct iwl_fw_ini_error_dump);
+	u32 range_hdrs;
 	int range;
 
 	if (!ranges)
 		return 0;
 
 	for (range = 0; range < ranges; range++)
-		size += le32_to_cpu(pairs[range].size);
+		if (check_add_overflow(size, le32_to_cpu(pairs[range].size),
+				       &size))
+			return 0;
 
-	return size + ranges * sizeof(struct iwl_fw_ini_error_dump_range);
+	if (check_mul_overflow(ranges,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &range_hdrs) ||
+	    check_add_overflow(size, range_hdrs, &size))
+		return 0;
+
+	return size;
 }
 
 static u32
@@ -1112,8 +1129,16 @@ static u32 iwl_dump_ini_mon_dbgi_get_size(struct iwl_fw_runtime *fwrt,
 	if (!size || !ranges)
 		return 0;
 
-	return sizeof(struct iwl_fw_ini_monitor_dump) + ranges *
-		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+	if (check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &size) ||
+	    check_mul_overflow(ranges, size, &size) ||
+	    check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_monitor_dump),
+			       &size))
+		return 0;
+
+	return size;
 }
 
 static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
