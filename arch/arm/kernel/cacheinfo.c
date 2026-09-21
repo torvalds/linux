@@ -111,13 +111,6 @@ static int detect_cache_level(unsigned int *level_p, unsigned int *leaves_p)
 	return 0;
 }
 
-int early_cache_level(unsigned int cpu)
-{
-	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
-
-	return detect_cache_level(&this_cpu_ci->num_levels, &this_cpu_ci->num_leaves);
-}
-
 int init_cache_level(unsigned int cpu)
 {
 	unsigned int level, leaves;
@@ -144,6 +137,11 @@ int init_cache_level(unsigned int cpu)
 	this_cpu_ci->num_levels = level;
 	this_cpu_ci->num_leaves = leaves;
 	return 0;
+}
+
+int early_cache_level(unsigned int cpu)
+{
+	return init_cache_level(cpu);
 }
 
 int populate_cache_leaves(unsigned int cpu)
