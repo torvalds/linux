@@ -737,6 +737,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 		u8 *curr_data;
 		u16 mtype;
 		u16 dlen;
+		int ret;
 
 		curr_data = ife_tlv_meta_decode(tlv_data, ifehdr_end, &mtype,
 						&dlen, NULL);
@@ -745,13 +746,19 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			return TC_ACT_SHOT;
 		}
 
-		if (find_decode_metaid(skb, p, mtype, dlen, curr_data)) {
-			/* abuse overlimits to count when we receive metadata
-			 * but dont have an ops for it
+		ret = find_decode_metaid(skb, p, mtype, dlen, curr_data);
+		if (ret < 0) {
+			/* abuse overlimits to count metadata we cannot
+			 * decode: no ops for it, or the decoder rejected it
 			 */
-			pr_info_ratelimited("Unknown metaid %d dlen %d\n",
-					    mtype, dlen);
 			qstats_cpu_overlimit_inc(ife->common.cpu_qstats);
+
+			if (ret == -ENOENT)
+				pr_info_ratelimited("Unknown metaid %d dlen %d\n",
+						    mtype, dlen);
+			else
+				pr_info_ratelimited("Failed to decode metaid %d dlen %d err %d\n",
+						    mtype, dlen, ret);
 		}
 	}
 
