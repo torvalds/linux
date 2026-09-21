@@ -159,6 +159,23 @@ properties:
     required:
       - compatible
 
+  efuse:
+    type: object
+    unevaluatedProperties: false
+    description:
+      The efuse is responsible for storing calibration data, such as thermal
+      sensor calibration.
+
+    properties:
+      compatible:
+        const: mediatek,mt6323-efuse
+
+      nvmem-layout:
+        $ref: /schemas/nvmem/layouts/nvmem-layout.yaml#
+
+    required:
+      - compatible
+
   leds:
     type: object
     additionalProperties: false
@@ -306,6 +323,10 @@ examples:
         interrupts = <150 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-controller;
         #interrupt-cells = <2>;
+
+        efuse {
+          compatible = "mediatek,mt6323-efuse";
+        };
 
         leds {
             compatible = "mediatek,mt6323-led";
