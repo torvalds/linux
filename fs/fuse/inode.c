@@ -1408,13 +1408,17 @@ static void process_init_reply(struct fuse_args *args, int error)
 			 * them together.
 			 */
 			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) &&
-			    (flags & FUSE_PASSTHROUGH) &&
+			    (flags & (FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2)) &&
 			    arg->max_stack_depth > 0 &&
 			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH &&
 			    !(flags & FUSE_WRITEBACK_CACHE))  {
 				fc->passthrough = 1;
 				fc->max_stack_depth = arg->max_stack_depth;
 				fm->sb->s_stack_depth = arg->max_stack_depth;
+				if (flags & FUSE_PASSTHROUGH_V2) {
+					fc->backing_id_64 = true;
+					fuse_backing_files_init_64(fc);
+				}
 			}
 			if (flags & FUSE_NO_EXPORT_SUPPORT)
 				fm->sb->s_export_op = &fuse_export_fid_operations;
@@ -1500,7 +1504,7 @@ static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 	if (fm->fc->auto_submounts)
 		flags |= FUSE_SUBMOUNTS;
 	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		flags |= FUSE_PASSTHROUGH;
+		flags |= FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2;
 	/* Only offered to sufficiently privileged servers; see
 	 * fuse_syncfs_enable().
 	 */

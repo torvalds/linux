@@ -2324,39 +2324,64 @@ static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 	return 0;
 }
 
+static struct fuse_conn *fuse_get_conn_for_passthrough(struct file *file)
+{
+	struct fuse_dev *fud = fuse_get_dev(file);
+
+	if (IS_ERR(fud))
+		return ERR_CAST(fud);
+
+	if (!smp_load_acquire(&fud->chan->initialized))
+		return ERR_PTR(-ENOTCONN);
+
+	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return fud->chan->conn;
+}
+
 static long fuse_dev_ioctl_backing_open(struct file *file,
 					struct fuse_backing_map __user *argp)
 {
-	struct fuse_dev *fud = fuse_get_dev(file);
+	struct fuse_conn *fc = fuse_get_conn_for_passthrough(file);
 	struct fuse_backing_map map;
 
-	if (IS_ERR(fud))
-		return PTR_ERR(fud);
-
-	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		return -EOPNOTSUPP;
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
 
 	if (copy_from_user(&map, argp, sizeof(map)))
 		return -EFAULT;
 
-	return fuse_backing_open(fud->chan->conn, &map);
+	return fuse_backing_open(fc, &map);
+}
+
+static long fuse_dev_ioctl_backing_create(struct file *file,
+					  struct fuse_backing_create_in __user *argp)
+{
+	struct fuse_conn *fc = fuse_get_conn_for_passthrough(file);
+	struct fuse_backing_create_in map;
+
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
+
+	if (copy_from_user(&map, argp, sizeof(map)))
+		return -EFAULT;
+
+	return fuse_backing_open_64(fc, &map);
 }
 
 static long fuse_dev_ioctl_backing_close(struct file *file, __u32 __user *argp)
 {
-	struct fuse_dev *fud = fuse_get_dev(file);
+	struct fuse_conn *fc = fuse_get_conn_for_passthrough(file);
 	int backing_id;
 
-	if (IS_ERR(fud))
-		return PTR_ERR(fud);
-
-	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		return -EOPNOTSUPP;
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
 
 	if (get_user(backing_id, argp))
 		return -EFAULT;
 
-	return fuse_backing_close(fud->chan->conn, backing_id);
+	return fuse_backing_close(fc, backing_id);
 }
 
 static long fuse_dev_ioctl_sync_init(struct file *file)
@@ -2381,6 +2406,9 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 
 	case FUSE_DEV_IOC_BACKING_OPEN:
 		return fuse_dev_ioctl_backing_open(file, argp);
+
+	case FUSE_DEV_IOC_BACKING_CREATE:
+		return fuse_dev_ioctl_backing_create(file, argp);
 
 	case FUSE_DEV_IOC_BACKING_CLOSE:
 		return fuse_dev_ioctl_backing_close(file, argp);

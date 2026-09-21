@@ -173,6 +173,9 @@ struct fuse_backing *fuse_passthrough_open(struct file *file, int backing_id)
 	struct fuse_backing *fb = NULL;
 	struct file *backing_file;
 
+	if (fc->backing_id_64)
+		return ERR_PTR(fuse_EIO("incompatible backing version"));
+
 	if (backing_id <= 0)
 		return ERR_PTR(fuse_EIO("invalid backing_id"));
 

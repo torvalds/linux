@@ -251,6 +251,9 @@
  *
  *  7.47
  *  - add FUSE_HAS_SYNCFS opt-in flag for privileged userspace servers
+ *  - add FUSE_PASSTHROUGH_V2
+ *  - add FUSE_DEV_IOC_BACKING_CREATE, struct fuse_backing_create_in
+ *  - add FUSE_NOTIFY_BACKING_REMOVE, struct fuse_notify_backing_remove_out
  */
 
 #ifndef _LINUX_FUSE_H
@@ -473,6 +476,7 @@ struct fuse_file_lock {
  *		with CAP_SYS_ADMIN in the initial user namespace (the same
  *		privilege that mounting virtiofs or fuseblk requires).
  *		Insufficiently privileged servers ignore it.
+ * FUSE_PASSTHROUGH_V2: use 64 bit server allocated backing ID
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -522,6 +526,7 @@ struct fuse_file_lock {
 #define FUSE_REQUEST_TIMEOUT	(1ULL << 42)
 #define FUSE_HAS_IO_URING_BUFPOOL (1ULL << 43)
 #define FUSE_HAS_SYNCFS		(1ULL << 44)
+#define FUSE_PASSTHROUGH_V2	(1ULL << 45)
 
 /*
  * CUSE INIT request/reply flags
@@ -709,6 +714,7 @@ enum fuse_notify_code {
 	FUSE_NOTIFY_RESEND = 7,
 	FUSE_NOTIFY_INC_EPOCH = 8,
 	FUSE_NOTIFY_PRUNE = 9,
+	FUSE_NOTIFY_BACKING_REMOVE = 10,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
@@ -1159,13 +1165,20 @@ struct fuse_backing_map {
 	uint64_t	padding;
 };
 
+struct fuse_backing_create_in {
+	int32_t		fd;
+	uint32_t	padding;
+	uint64_t	backing_id;	/* Zero value is reserved */
+	uint64_t	spare[2];
+};
+
 /* Device ioctls: */
 #define FUSE_DEV_IOC_MAGIC		229
 #define FUSE_DEV_IOC_CLONE		_IOR(FUSE_DEV_IOC_MAGIC, 0, uint32_t)
-#define FUSE_DEV_IOC_BACKING_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 1, \
-					     struct fuse_backing_map)
+#define FUSE_DEV_IOC_BACKING_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 1, struct fuse_backing_map)
 #define FUSE_DEV_IOC_BACKING_CLOSE	_IOW(FUSE_DEV_IOC_MAGIC, 2, uint32_t)
 #define FUSE_DEV_IOC_SYNC_INIT		_IO(FUSE_DEV_IOC_MAGIC, 3)
+#define FUSE_DEV_IOC_BACKING_CREATE	_IOW(FUSE_DEV_IOC_MAGIC, 4, struct fuse_backing_create_in)
 
 struct fuse_lseek_in {
 	uint64_t	fh;
@@ -1191,6 +1204,11 @@ struct fuse_copy_file_range_in {
 /* For FUSE_COPY_FILE_RANGE_64 */
 struct fuse_copy_file_range_out {
 	uint64_t	bytes_copied;
+};
+
+struct fuse_notify_backing_remove_out {
+	uint64_t	backing_id;
+	uint64_t	reserved;
 };
 
 #define FUSE_SETUPMAPPING_FLAG_WRITE (1ull << 0)

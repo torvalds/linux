@@ -32,6 +32,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/refcount.h>
 #include <linux/user_namespace.h>
+#include <linux/rhashtable-types.h>
 
 /** Default max number of pages that can be used in a single read request */
 #define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
@@ -92,7 +93,8 @@ struct fuse_submount_lookup {
 struct fuse_backing {
 	struct file *file;
 	const struct cred *cred;
-
+	u64 backing_id;
+	struct rhash_head hash_node;
 	/* refcount */
 	refcount_t count;
 	struct rcu_head rcu;
@@ -713,6 +715,9 @@ struct fuse_conn {
 	/** @passthrough: Passthrough support for read/write IO */
 	unsigned int passthrough:1;
 
+	/** @backing_id_64: Backing ID is 64 bit and allocated by the server */
+	bool backing_id_64:1;
+
 	/** @use_pages_for_kvec_io: Use pages instead of pointer for kernel I/O */
 	unsigned int use_pages_for_kvec_io:1;
 
@@ -770,8 +775,14 @@ struct fuse_conn {
 	struct fuse_sync_bucket __rcu *curr_bucket;
 
 #ifdef CONFIG_FUSE_PASSTHROUGH
-	/** @backing_files_map: IDR for backing files ids */
-	struct idr backing_files_map;
+	/* Selected by backing_id_64 */
+	union {
+		/** @backing_files_map: IDR for backing files ids */
+		struct idr backing_files_map;
+
+		/** @backing_64_ht: 64 bit ID lookup hash table */
+		struct rhashtable backing_64_ht;
+	};
 #endif
 };
 
@@ -1270,7 +1281,7 @@ void fuse_file_release(struct inode *inode, struct fuse_file *ff,
 /* backing.c */
 #ifdef CONFIG_FUSE_PASSTHROUGH
 void fuse_backing_put(struct fuse_backing *fb);
-struct fuse_backing *fuse_backing_lookup(struct fuse_conn *fc, int backing_id);
+
 #else
 
 static inline void fuse_backing_put(struct fuse_backing *fb)
@@ -1278,7 +1289,9 @@ static inline void fuse_backing_put(struct fuse_backing *fb)
 }
 #endif
 
+struct fuse_backing *fuse_backing_lookup(struct fuse_conn *fc, u64 backing_id);
 void fuse_backing_files_init(struct fuse_conn *fc);
+void fuse_backing_files_init_64(struct fuse_conn *fc);
 void fuse_backing_files_free(struct fuse_conn *fc);
 
 /* passthrough.c */
