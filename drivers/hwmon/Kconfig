@@ -311,6 +311,18 @@ config SENSORS_AXI_FAN_CONTROL
 	  This driver can also be built as a module. If so, the module
 	  will be called axi-fan-control
 
+config SENSORS_AXIADO_PWM_FAN
+	tristate "Axiado PWM fan controller"
+	depends on ARCH_AXIADO || COMPILE_TEST
+	depends on PWM
+	help
+	  This driver supports the Axiado PWM fan controller. It uses a PWM
+	  output to control fan speed and a tachometer interrupt to report fan
+	  speed as RPM through the hardware monitoring sysfs interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axiado-pwm-fan.
+
 config SENSORS_AXIADO_TSADC
 	tristate "Axiado AX3000 TSADC temperature sensor"
 	depends on ARCH_AXIADO || COMPILE_TEST
