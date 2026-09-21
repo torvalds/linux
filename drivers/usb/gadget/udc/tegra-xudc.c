@@ -3923,6 +3923,12 @@ static void tegra_xudc_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(xudc->dev);
 
+	for (i = 0; i < xudc->soc->num_phys; i++) {
+		if (xudc->usbphy[i])
+			usb_unregister_notifier(xudc->usbphy[i],
+						&xudc->vbus_nb);
+	}
+
 	cancel_delayed_work_sync(&xudc->plc_reset_work);
 	cancel_work_sync(&xudc->usb_role_sw_work);
 
