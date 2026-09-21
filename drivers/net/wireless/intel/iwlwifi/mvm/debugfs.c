@@ -153,72 +153,6 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	const struct fw_img *img;
-	unsigned int ofs, len;
-	size_t ret;
-	u8 *ptr;
-
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EINVAL;
-
-	/* default is to dump the entire data segment */
-	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
-	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	if (mvm->dbgfs_sram_len) {
-		ofs = mvm->dbgfs_sram_offset;
-		len = mvm->dbgfs_sram_len;
-	}
-
-	ptr = kzalloc(len, GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, ptr, len);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, ptr, len);
-
-	kfree(ptr);
-
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
-				    size_t count, loff_t *ppos)
-{
-	const struct fw_img *img;
-	u32 offset, len;
-	u32 img_offset, img_len;
-
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EINVAL;
-
-	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
-	img_offset = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	img_len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	if (sscanf(buf, "%x,%x", &offset, &len) == 2) {
-		if ((offset & 0x3) || (len & 0x3))
-			return -EINVAL;
-
-		if (offset + len > img_offset + img_len)
-			return -EINVAL;
-
-		mvm->dbgfs_sram_offset = offset;
-		mvm->dbgfs_sram_len = len;
-	} else {
-		mvm->dbgfs_sram_offset = 0;
-		mvm->dbgfs_sram_len = 0;
-	}
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
 						  char __user *user_buf,
 						  size_t count, loff_t *ppos)
@@ -1916,7 +1850,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(start_ctdp, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(force_ctkill, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(send_echo_cmd, 8);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
@@ -2114,7 +2047,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	spin_lock_init(&mvm->drv_stats_lock);
 
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(ctdp_budget, mvm->debugfs_dir, 0400);
