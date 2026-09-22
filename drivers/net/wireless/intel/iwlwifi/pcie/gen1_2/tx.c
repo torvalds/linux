@@ -1902,18 +1902,27 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	/* Only map the data, not the header (it is copied to the TSO page) */
 	orig_nents = skb_to_sgvec(skb, sgt->sgl, offset, skb->len - offset);
 	if (WARN_ON_ONCE(orig_nents <= 0))
-		return NULL;
+		goto err_cleanup;
 
 	sgt->orig_nents = orig_nents;
 
 	/* And map the entire SKB */
 	if (dma_map_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0) < 0)
-		return NULL;
+		goto err_cleanup;
 
 	/* Store non-zero (i.e. valid) offset for unmapping */
 	cmd_meta->sg_offset = (unsigned long) sgt & ~PAGE_MASK;
 
 	return sgt;
+
+err_cleanup:
+	/*
+	 * Since cmd_meta->sg_offset is not set yet, iwl_pcie_free_tso_pages
+	 * will only free the page without unmapping the SG table (which hasn't
+	 * been successfully mapped yet anyway).
+	 */
+	iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
+	return NULL;
 }
 
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
