@@ -57,6 +57,7 @@ static const struct pci_device_id btintel_pcie_table[] = {
 	{ BTINTEL_PCI_DEVICE(0x6E74, PCI_ANY_ID) },
 	 /* Draco */
 	{ BTINTEL_PCI_DEVICE(0x2731, PCI_ANY_ID) },
+	{ BTINTEL_PCI_DEVICE(0x2732, PCI_ANY_ID) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, btintel_pcie_table);
