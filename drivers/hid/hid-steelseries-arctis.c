@@ -101,6 +101,19 @@ static int steelseries_arctis_1_request_status(struct hid_device *hdev)
 	return steelseries_send_output_report(hdev, data, sizeof(data));
 }
 
+static int steelseries_arctis_7_2018_request_status(struct hid_device *hdev)
+{
+	const u8 connection[] = { 0x06, 0x14 };
+	const u8 battery[] = { 0x06, 0x18 };
+	int ret;
+
+	ret = steelseries_send_output_report(hdev, connection, sizeof(connection));
+	if (ret)
+		return ret;
+
+	return steelseries_send_output_report(hdev, battery, sizeof(battery));
+}
+
 static int steelseries_arctis_9_request_status(struct hid_device *hdev)
 {
 	const u8 data[] = { 0x00, 0x20 };
@@ -150,6 +163,27 @@ static void steelseries_arctis_1_parse_status(struct steelseries_device *sd,
 
 	sd->headset_connected = (data[2] != 0x01);
 	sd->battery_capacity = data[3];
+}
+
+static void steelseries_arctis_7_2018_parse_status(struct steelseries_device *sd,
+						      u8 *data, int size)
+{
+	if (size < 3 || data[0] != 0x06)
+		return;
+
+	switch (data[1]) {
+	case 0x14:
+		/* 0x03 means that the headset is connected to the transmitter. */
+		sd->headset_connected = data[2] == 0x03;
+		break;
+	case 0x18:
+		if (!sd->headset_connected)
+			break;
+
+		/* The Arctis 7 sometimes overreports battery. Cap to 100. */
+		sd->battery_capacity = steelseries_map_capacity(data[2], 0, 100);
+		break;
+	}
 }
 
 static void steelseries_arctis_9_parse_status(struct steelseries_device *sd,
@@ -230,6 +264,13 @@ static const struct steelseries_device_info arctis_1_info = {
 	.capabilities = SS_CAP_BATTERY,
 	.request_status = steelseries_arctis_1_request_status,
 	.parse_status = steelseries_arctis_1_parse_status,
+};
+
+static const struct steelseries_device_info arctis_7_2018_info = {
+	.sync_interface = 5,
+	.capabilities = SS_CAP_BATTERY,
+	.request_status = steelseries_arctis_7_2018_request_status,
+	.parse_status = steelseries_arctis_7_2018_parse_status,
 };
 
 static const struct steelseries_device_info arctis_9_info = {
@@ -653,6 +694,9 @@ static const struct hid_device_id steelseries_arctis_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES,
 			 USB_DEVICE_ID_STEELSERIES_ARCTIS_1_X),
 	  .driver_data = (unsigned long)&arctis_1_info },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES,
+			 USB_DEVICE_ID_STEELSERIES_ARCTIS_7_2018),
+	  .driver_data = (unsigned long)&arctis_7_2018_info },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES,
 			 USB_DEVICE_ID_STEELSERIES_ARCTIS_9),
 	  .driver_data = (unsigned long)&arctis_9_info },

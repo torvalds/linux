@@ -51,20 +51,23 @@
 /* Receiver report information: (ID 102)                                      */
 /* -------------------------------------------------------------------------- */
 /*
- * When queried, the recevier responds with 4 bytes to describe the firmware
- * The first 2 bytes are for the receiver, the second 2 are the headset
+ * When queried, the receiver responds with 5 bytes to describe the firmware
+ * The first byte is the ID, then 2 bytes for the receiver, then 2 for the headset
  * The headset firmware version will be 0 if no headset is connected
  *
- * 0: Recevier firmware major version
+ * 0: Report ID
+ *  102 for the firmware packet
+ *
+ * 1: Receiver firmware major version
  *  Major version of the receiver's firmware
  *
- * 1: Recevier firmware minor version
+ * 2: Receiver firmware minor version
  *  Minor version of the receiver's firmware
  *
- * 2: Headset firmware major version
+ * 3: Headset firmware major version
  *  Major version of the headset's firmware
  *
- * 3: Headset firmware minor version
+ * 4: Headset firmware minor version
  *  Minor version of the headset's firmware
  */
 /* -------------------------------------------------------------------------- */
