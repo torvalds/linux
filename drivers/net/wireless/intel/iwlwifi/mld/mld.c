@@ -621,6 +621,13 @@ static void iwl_mld_read_error_recovery_buffer(struct iwl_mld *mld)
 	if (!src_size)
 		return;
 
+	/*
+	 * If we have a the recovery buffer from a previous (failing) recovery -
+	 * free it here
+	 */
+	kfree(mld->error_recovery_buf);
+	mld->error_recovery_buf = NULL;
+
 	recovery_buf = kzalloc(src_size, GFP_ATOMIC);
 	if (!recovery_buf)
 		return;
