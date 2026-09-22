@@ -3282,7 +3282,7 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
+	struct iwl_umac_scan_iter_complete_notif_v2 *notif = (void *)pkt->data;
 
 	mvm->scan_start = le64_to_cpu(notif->start_tsf);
 

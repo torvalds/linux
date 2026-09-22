@@ -292,7 +292,8 @@ CMD_VERSIONS(scan_start_notif,
 CMD_VERSIONS(scan_complete_notif,
 	     CMD_VER_ENTRY(1, iwl_umac_scan_complete))
 CMD_VERSIONS(scan_iter_complete_notif,
-	     CMD_VER_ENTRY(2, iwl_umac_scan_iter_complete_notif))
+	     CMD_VER_ENTRY(2, iwl_umac_scan_iter_complete_notif_v2)
+	     CMD_VER_ENTRY(3, iwl_umac_scan_iter_complete_notif))
 CMD_VERSIONS(channel_survey_notif,
 	     CMD_VER_ENTRY(1, iwl_umac_scan_channel_survey_notif))
 CMD_VERSIONS(mfuart_notif,

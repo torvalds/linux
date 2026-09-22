@@ -374,7 +374,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   struct iwl_umac_scan_complete),
 	RX_HANDLER(SCAN_ITERATION_COMPLETE_UMAC,
 		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC,
-		   struct iwl_umac_scan_iter_complete_notif),
+		   struct iwl_umac_scan_iter_complete_notif_v2),
 
 	RX_HANDLER(MISSED_BEACONS_NOTIFICATION,
 		   iwl_mvm_rx_missed_beacons_notif_legacy,
