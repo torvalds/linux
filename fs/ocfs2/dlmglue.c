@@ -18,6 +18,7 @@
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/quotaops.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/string_choices.h>
 
@@ -2861,21 +2862,34 @@ void ocfs2_rename_unlock(struct ocfs2_super *osb)
 		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 }
 
-int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex)
+int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex, unsigned int *nofs_flag)
 {
 	int status;
+	unsigned int flags;
 	struct ocfs2_lock_res *lockres = &osb->osb_nfs_sync_lockres;
 
 	if (ocfs2_is_hard_readonly(osb))
 		return -EROFS;
+
+	/*
+	 * ocfs2_delete_inode() takes this lock from ->evict_inode(), which the
+	 * dentry shrinker reaches while holding fs_reclaim.  Anything allocated
+	 * under the lock must therefore stay out of filesystem reclaim, or
+	 * reclaim recurses back into the shrinker and tries to take this lock
+	 * again.  Cover the whole critical section, including the cluster lock
+	 * and the sysfile inode locks the callers take below it.
+	 */
+	flags = memalloc_nofs_save();
 
 	if (ex)
 		down_write(&osb->nfs_sync_rwlock);
 	else
 		down_read(&osb->nfs_sync_rwlock);
 
-	if (ocfs2_mount_local(osb))
+	if (ocfs2_mount_local(osb)) {
+		*nofs_flag = flags;
 		return 0;
+	}
 
 	status = ocfs2_cluster_lock(osb, lockres, ex ? LKM_EXMODE : LKM_PRMODE,
 				    0, 0);
@@ -2886,12 +2900,17 @@ int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex)
 			up_write(&osb->nfs_sync_rwlock);
 		else
 			up_read(&osb->nfs_sync_rwlock);
+		memalloc_nofs_restore(flags);
+		return status;
 	}
 
-	return status;
+	*nofs_flag = flags;
+
+	return 0;
 }
 
-void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex)
+void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex,
+			   unsigned int nofs_flag)
 {
 	struct ocfs2_lock_res *lockres = &osb->osb_nfs_sync_lockres;
 
@@ -2902,6 +2921,8 @@ void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex)
 		up_write(&osb->nfs_sync_rwlock);
 	else
 		up_read(&osb->nfs_sync_rwlock);
+
+	memalloc_nofs_restore(nofs_flag);
 }
 
 int ocfs2_trim_fs_lock(struct ocfs2_super *osb,

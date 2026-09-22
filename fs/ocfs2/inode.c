@@ -1109,6 +1109,7 @@ static void ocfs2_delete_inode(struct inode *inode)
 {
 	int wipe, status;
 	sigset_t oldset;
+	unsigned int nofs_flag = 0;
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dinode *di = NULL;
 
@@ -1143,7 +1144,7 @@ static void ocfs2_delete_inode(struct inode *inode)
 	 * shared mode so that all nodes can still concurrently
 	 * process deletes.
 	 */
-	status = ocfs2_nfs_sync_lock(OCFS2_SB(inode->i_sb), 0);
+	status = ocfs2_nfs_sync_lock(OCFS2_SB(inode->i_sb), 0, &nofs_flag);
 	if (status < 0) {
 		mlog(ML_ERROR, "getting nfs sync lock(PR) failed %d\n", status);
 		ocfs2_cleanup_delete_inode(inode, 0);
@@ -1215,7 +1216,7 @@ bail_unlock_inode:
 	brelse(di_bh);
 
 bail_unlock_nfs_sync:
-	ocfs2_nfs_sync_unlock(OCFS2_SB(inode->i_sb), 0);
+	ocfs2_nfs_sync_unlock(OCFS2_SB(inode->i_sb), 0, nofs_flag);
 
 bail_unblock:
 	ocfs2_unblock_signals(&oldset);
