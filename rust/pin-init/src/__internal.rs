@@ -473,6 +473,35 @@ where
 #[repr(transparent)]
 pub struct Borrowed<T: ?Sized>(PhantomPinned, T);
 
+// Lifetimes not needed by drop glue are considered by Rust's drop check to be considered
+// `#[may_dangle]`. In case for a self-referential struct, we may have fields which need lifetime of
+// borrowed fields in their drop glue, so compiler's automatic check is insufficient.
+//
+// Code like this:
+// ```
+// #[pin_data]
+// struct SelfRef<'a> {
+//     borrow: PrintOnDrop<&'owner str>,
+//     owner: &'a str,
+// }
+// ```
+// may access `owner` during the drop, however Rust will determine that since `'a` only is used in
+// `owner`, the `'a` lifetime may dangle during drop.
+//
+// This is undesirable for pin-init self references, because `&'a str` could be coerecd to
+// `&'owner str` and this could further coerce if there're implied outlives, e.g.
+// `&'earlier_field &'owner ()` would allow `&'owner str` to further coerce to `&'earlier_field`.
+//
+// Thus, if any self-referential field require field lifetime access in `Drop` impl, we would need
+// to ensure that the all generic parameters visible by self-referential fields would strictly
+// outlive the struct. And this can be done by a simple `Drop` impl that does nothing. Without a
+// dropck eye patch, presence of `Drop` impl, albeit empty, tells the drop check that the strict
+// outlive relation is needed.
+impl<T: ?Sized> Drop for Borrowed<T> {
+    #[inline(always)]
+    fn drop(&mut self) {}
+}
+
 impl<T: ?Sized> Deref for Borrowed<T> {
     type Target = T;
 
