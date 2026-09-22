@@ -517,6 +517,7 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 	case 0x20:	/* Scorpious Peak2 */
 	case 0x21:	/* Scorpious Peak2 F */
 	case 0x22:	/* BlazarIW (BzrIW) */
+	case 0x23:	/* Draco */
 		break;
 	default:
 		bt_dev_err(hdev, "Unsupported Intel hardware variant (0x%x)",
@@ -3617,6 +3618,7 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x20:
 	case 0x21:
 	case 0x22:
+	case 0x23:
 		hci_set_msft_opcode(hdev, 0xFC1E);
 		break;
 	default:
@@ -3960,6 +3962,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	case 0x20:
 	case 0x21:
 	case 0x22:
+	case 0x23:
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);
 

@@ -2292,6 +2292,7 @@ static void btintel_pcie_read_hwexp(struct btintel_pcie_data *data)
 	case BTINTEL_CNVI_SCP:
 	case BTINTEL_CNVI_SCP2:
 	case BTINTEL_CNVI_SCP2F:
+	case BTINTEL_CNVI_DRACO:
 		break;
 	default:
 		bt_dev_err(data->hdev, "Unsupported cnvi 0x%8.8x", data->dmp_hdr.cnvi_top);
@@ -3471,6 +3472,7 @@ static int btintel_pcie_setup_internal(struct hci_dev *hdev)
 	case 0x20:	/* ScP2 */
 	case 0x21:	/* ScP2 F */
 	case 0x22:	/* BzrIW */
+	case 0x23:	/* DrC */
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);
 
