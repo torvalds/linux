@@ -32,10 +32,13 @@ struct dell_wmi_aio_data {
 	struct mutex input_lock;
 };
 
+/* A hot key was pressed or an event occurred */
+#define DELL_AIO_EVENT_TYPE_SINGLE	0x0000
+/* A sequence of hot keys was pressed */
+#define DELL_AIO_EVENT_TYPE_SEQUENCE	0x000F
+
 struct dell_wmi_event {
 	__le16	length;
-	/* 0x000: A hot key pressed or an event occurred
-	 * 0x00F: A sequence of hot keys are pressed */
 	__le16	type;
 	__le16	event[];
 } __packed;
@@ -68,10 +71,14 @@ static bool dell_wmi_aio_event_check(const struct wmi_buffer *buffer)
 	event = buffer->data;
 	length = le16_to_cpu(event->length);
 	type = le16_to_cpu(event->type);
-	if ((type == 0 || type == 0xf) && length >= 2)
-		return true;
 
-	return false;
+	if (type != DELL_AIO_EVENT_TYPE_SINGLE && type != DELL_AIO_EVENT_TYPE_SEQUENCE)
+		return false;
+
+	if (length < 2)
+		return false;
+
+	return true;
 }
 
 static void dell_wmi_aio_notify(struct wmi_device *wdev, const struct wmi_buffer *data)
