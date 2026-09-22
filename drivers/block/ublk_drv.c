@@ -5633,6 +5633,8 @@ static bool ublk_try_buf_match(struct ublk_device *ub,
 	unsigned long expected_offset = 0;
 	bool first = true;
 
+	guard(rcu)();
+
 	rq_for_each_bvec(bv, rq, iter) {
 		unsigned long pfn = page_to_pfn(bv.bv_page);
 		unsigned long end_pfn = pfn +
