@@ -150,7 +150,10 @@ static int hash_data(const u8 *in, unsigned int inlen,
 
 #undef PARAM_INIT
 
-	cpacf_klmd(func, &param, in, inlen);
+	if (final)
+		cpacf_klmd(func, &param, in, inlen);
+	else
+		cpacf_kimd(func, &param, in, inlen);
 
 	memcpy(digest, &param, digestsize);
 
