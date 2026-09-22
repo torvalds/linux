@@ -396,8 +396,10 @@ void iwl_mld_send_recovery_cmd(struct iwl_mld *mld, u32 flags)
 
 	if (flags & ERROR_RECOVERY_UPDATE_DB) {
 		/* no buf was allocated upon NIC error */
-		if (!mld->error_recovery_buf)
+		if (!mld->error_recovery_buf) {
+			IWL_ERR(mld, "Recovering without recovery buffer. Expect bugs\n");
 			return;
+		}
 
 		cmd.data[1] = mld->error_recovery_buf;
 		cmd.len[1] =  error_log_size;
