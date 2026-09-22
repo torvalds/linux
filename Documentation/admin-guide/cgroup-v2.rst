@@ -2127,12 +2127,19 @@ IO Interface Files
 	  [r|w]bps	The maximum sequential IO throughput
 	  [r|w]seqiops	The maximum 4k sequential IOs per second
 	  [r|w]randiops	The maximum 4k random IOs per second
+	  flushiops	The maximum flushes per second
 	  =============	========================================
 
 	From the above, the builtin linear model determines the base
 	costs of a sequential and random IO and the cost coefficient
 	for the IO size.  While simple, this model can cover most
 	common device classes acceptably.
+
+	"flushiops" determines the cost of a cache flush: a write with
+	a preceding cache flush is charged one flush on top of its data
+	cost, and a FUA write one more flush on devices without native
+	FUA support.  It is zero in the builtin profiles, so flushes
+	stay free until it is configured.
 
 	The IO cost model isn't expected to be accurate in absolute
 	sense and is scaled to the device behavior dynamically.
