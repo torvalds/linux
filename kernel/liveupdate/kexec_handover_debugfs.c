@@ -77,23 +77,23 @@ void kho_debugfs_blob_remove(struct kho_debugfs *dbg, void *blob)
 	}
 }
 
-static int scratch_phys_show(struct seq_file *m, void *v)
+static int bootmem_phys_show(struct seq_file *m, void *v)
 {
-	for (int i = 0; i < kho_scratch_cnt; i++)
-		seq_printf(m, "0x%llx\n", kho_scratch[i].addr);
+	for (int i = 0; i < kho_bootmem_cnt; i++)
+		seq_printf(m, "0x%llx\n", kho_bootmem[i].addr);
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(scratch_phys);
+DEFINE_SHOW_ATTRIBUTE(bootmem_phys);
 
-static int scratch_len_show(struct seq_file *m, void *v)
+static int bootmem_len_show(struct seq_file *m, void *v)
 {
-	for (int i = 0; i < kho_scratch_cnt; i++)
-		seq_printf(m, "0x%llx\n", kho_scratch[i].size);
+	for (int i = 0; i < kho_bootmem_cnt; i++)
+		seq_printf(m, "0x%llx\n", kho_bootmem[i].size);
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(scratch_len);
+DEFINE_SHOW_ATTRIBUTE(bootmem_len);
 
 __init void kho_in_debugfs_init(struct kho_debugfs *dbg, const void *fdt)
 {
@@ -186,13 +186,13 @@ __init int kho_out_debugfs_init(struct kho_debugfs *dbg)
 	if (IS_ERR(sub_fdt_dir))
 		goto err_rmdir;
 
-	f = debugfs_create_file("scratch_phys", 0400, dir, NULL,
-				&scratch_phys_fops);
+	f = debugfs_create_file("bootmem_phys", 0400, dir, NULL,
+				&bootmem_phys_fops);
 	if (IS_ERR(f))
 		goto err_rmdir;
 
-	f = debugfs_create_file("scratch_len", 0400, dir, NULL,
-				&scratch_len_fops);
+	f = debugfs_create_file("bootmem_len", 0400, dir, NULL,
+				&bootmem_len_fops);
 	if (IS_ERR(f))
 		goto err_rmdir;
 

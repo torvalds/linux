@@ -43,12 +43,12 @@
 /*
  * This is the minimal alignment required by deferred struct page init.
  * deferred_init_memmap_chunk frees memory to the buddy allocator, which looks
- * at the neighboring pages (up to MAX_PAGE_ORDER) to merge them.
- * If KHO scratch is not aligned to that value, buddy can access uninitialized
- * struct pages, which can cause a crash.
+ * at the neighboring pages (up to MAX_PAGE_ORDER) to merge them. If KHO bootmem
+ * is not aligned to that value, buddy can access uninitialized struct pages,
+ * which can cause a crash.
  */
-#define SCRATCH_ALIGNMENT_BYTES (PAGE_SIZE * MAX_ORDER_NR_PAGES)
-static_assert(SCRATCH_ALIGNMENT_BYTES >= CMA_MIN_ALIGNMENT_BYTES);
+#define BOOTMEM_ALIGNMENT_BYTES (PAGE_SIZE * MAX_ORDER_NR_PAGES)
+static_assert(BOOTMEM_ALIGNMENT_BYTES >= CMA_MIN_ALIGNMENT_BYTES);
 
 /* The magic token for preserved pages */
 #define KHO_PAGE_MAGIC 0x4b484f50U /* ASCII for 'KHOP' */
@@ -98,7 +98,7 @@ static struct kho_out kho_out = {
 
 struct kho_in {
 	phys_addr_t fdt_phys;
-	phys_addr_t scratch_phys;
+	phys_addr_t bootmem_phys;
 	char previous_release[__NEW_UTS_LEN + 1];
 	u32 kexec_count;
 	struct kho_debugfs dbg;
@@ -658,34 +658,34 @@ static void __init *kho_get_mem_map(const void *fdt)
 
 /*
  * With KHO enabled, memory can become fragmented because KHO regions may
- * be anywhere in physical address space. The scratch regions give us a
+ * be anywhere in physical address space. The bootmem regions give us a
  * safe zones that we will never see KHO allocations from. This is where we
- * can later safely load our new kexec images into and then use the scratch
+ * can later safely load our new kexec images into and then use the bootmem
  * area for early allocations that happen before page allocator is
  * initialized.
  */
-struct kho_scratch *kho_scratch;
-unsigned int kho_scratch_cnt;
+struct kho_bootmem *kho_bootmem;
+unsigned int kho_bootmem_cnt;
 
 /*
- * The scratch areas are scaled by default as percent of memory allocated from
+ * The bootmem areas are scaled by default as percent of memory allocated from
  * memblock. A user can override the scale with command line parameter:
  *
  * kho_scratch=N%
  *
  * It is also possible to explicitly define size for a lowmem, a global and
- * per-node scratch areas:
+ * per-node bootmem areas:
  *
  * kho_scratch=l[KMG],n[KMG],m[KMG]
  *
  * The explicit size definition takes precedence over scale definition.
  */
-static unsigned int scratch_scale __initdata = 200;
-static phys_addr_t scratch_size_global __initdata;
-static phys_addr_t scratch_size_pernode __initdata;
-static phys_addr_t scratch_size_lowmem __initdata;
+static unsigned int bootmem_scale __initdata = 200;
+static phys_addr_t bootmem_size_global __initdata;
+static phys_addr_t bootmem_size_pernode __initdata;
+static phys_addr_t bootmem_size_lowmem __initdata;
 
-static int __init kho_parse_scratch_size(char *p)
+static int __init kho_parse_bootmem_size(char *p)
 {
 	size_t len;
 	unsigned long sizes[3];
@@ -709,9 +709,9 @@ static int __init kho_parse_scratch_size(char *p)
 			return -EINVAL;
 
 		memcpy(s_scale, p, len - 1);
-		ret = kstrtouint(s_scale, 10, &scratch_scale);
+		ret = kstrtouint(s_scale, 10, &bootmem_scale);
 		if (!ret)
-			pr_notice("scratch scale is %d%%\n", scratch_scale);
+			pr_notice("bootmem scale is %d%%\n", bootmem_scale);
 		return ret;
 	}
 
@@ -739,81 +739,81 @@ static int __init kho_parse_scratch_size(char *p)
 	if (*p)
 		return -EINVAL;
 
-	scratch_size_lowmem = sizes[0];
-	scratch_size_global = sizes[1];
-	scratch_size_pernode = sizes[2];
-	scratch_scale = 0;
+	bootmem_size_lowmem = sizes[0];
+	bootmem_size_global = sizes[1];
+	bootmem_size_pernode = sizes[2];
+	bootmem_scale = 0;
 
-	pr_notice("scratch areas: lowmem: %lluMiB global: %lluMiB pernode: %lldMiB\n",
-		  (u64)(scratch_size_lowmem >> 20),
-		  (u64)(scratch_size_global >> 20),
-		  (u64)(scratch_size_pernode >> 20));
+	pr_notice("bootmem areas: lowmem: %lluMiB global: %lluMiB pernode: %lldMiB\n",
+		  (u64)(bootmem_size_lowmem >> 20),
+		  (u64)(bootmem_size_global >> 20),
+		  (u64)(bootmem_size_pernode >> 20));
 
 	return 0;
 }
-early_param("kho_scratch", kho_parse_scratch_size);
+early_param("kho_scratch", kho_parse_bootmem_size);
 
-static void __init scratch_size_update(void)
+static void __init bootmem_size_update(void)
 {
 	/*
 	 * If fixed sizes are not provided via command line, calculate them now.
 	 * Remove HugeTLB allocations from it because they never get allocated
-	 * from scratch.
+	 * from bootmem.
 	 */
-	if (scratch_scale) {
+	if (bootmem_scale) {
 		phys_addr_t size;
 
 		size = memblock_reserved_kern_size(ARCH_LOW_ADDRESS_LIMIT,
 						   NUMA_NO_NODE);
 		size -= memblock_reserved_hugetlb_size(ARCH_LOW_ADDRESS_LIMIT,
 						       NUMA_NO_NODE);
-		size = size * scratch_scale / 100;
-		scratch_size_lowmem = size;
+		size = size * bootmem_scale / 100;
+		bootmem_size_lowmem = size;
 
 		size = memblock_reserved_kern_size(MEMBLOCK_ALLOC_ANYWHERE,
 						   NUMA_NO_NODE);
 		size -= memblock_reserved_hugetlb_size(MEMBLOCK_ALLOC_ANYWHERE,
 						       NUMA_NO_NODE);
-		size = size * scratch_scale / 100 - scratch_size_lowmem;
-		scratch_size_global = size;
+		size = size * bootmem_scale / 100 - bootmem_size_lowmem;
+		bootmem_size_global = size;
 	}
 
 	/*
-	 * Scratch areas are released as MIGRATE_CMA. Round them up to the right
+	 * bootmem areas are released as MIGRATE_CMA. Round them up to the right
 	 * size.
 	 */
-	scratch_size_lowmem = round_up(scratch_size_lowmem, SCRATCH_ALIGNMENT_BYTES);
-	scratch_size_global = round_up(scratch_size_global, SCRATCH_ALIGNMENT_BYTES);
+	bootmem_size_lowmem = round_up(bootmem_size_lowmem, BOOTMEM_ALIGNMENT_BYTES);
+	bootmem_size_global = round_up(bootmem_size_global, BOOTMEM_ALIGNMENT_BYTES);
 }
 
-static phys_addr_t __init scratch_size_node(int nid)
+static phys_addr_t __init bootmem_size_node(int nid)
 {
 	phys_addr_t size;
 
-	if (scratch_scale) {
+	if (bootmem_scale) {
 		size = memblock_reserved_kern_size(MEMBLOCK_ALLOC_ANYWHERE,
 						   nid);
 		/* Do not count HugeTLB pages. */
 		size -= memblock_reserved_hugetlb_size(MEMBLOCK_ALLOC_ANYWHERE,
 						       nid);
-		size = size * scratch_scale / 100;
+		size = size * bootmem_scale / 100;
 	} else {
-		size = scratch_size_pernode;
+		size = bootmem_size_pernode;
 	}
 
-	return round_up(size, SCRATCH_ALIGNMENT_BYTES);
+	return round_up(size, BOOTMEM_ALIGNMENT_BYTES);
 }
 
-bool kho_scratch_overlap(phys_addr_t phys, size_t size)
+bool kho_bootmem_overlap(phys_addr_t phys, size_t size)
 {
-	phys_addr_t scratch_start, scratch_end;
+	phys_addr_t bootmem_start, bootmem_end;
 	unsigned int i;
 
-	for (i = 0; i < kho_scratch_cnt; i++) {
-		scratch_start = kho_scratch[i].addr;
-		scratch_end = kho_scratch[i].addr + kho_scratch[i].size;
+	for (i = 0; i < kho_bootmem_cnt; i++) {
+		bootmem_start = kho_bootmem[i].addr;
+		bootmem_end = kho_bootmem[i].addr + kho_bootmem[i].size;
 
-		if (phys < scratch_end && (phys + size) > scratch_start)
+		if (phys < bootmem_end && (phys + size) > bootmem_start)
 			return true;
 	}
 
@@ -821,7 +821,7 @@ bool kho_scratch_overlap(phys_addr_t phys, size_t size)
 }
 
 /**
- * kho_reserve_scratch - Reserve a contiguous chunk of memory for kexec
+ * kho_reserve_bootmem - Reserve a contiguous chunk of memory for kexec
  *
  * With KHO we can preserve arbitrary pages in the system. To ensure we still
  * have a large contiguous region of memory when we search the physical address
@@ -829,7 +829,7 @@ bool kho_scratch_overlap(phys_addr_t phys, size_t size)
  * active. This CMA region will only be used for movable pages which are not a
  * problem for us during KHO because we can just move them somewhere else.
  */
-static void __init kho_reserve_scratch(void)
+static void __init kho_reserve_bootmem(void)
 {
 	phys_addr_t addr, size;
 	int nid, i = 0;
@@ -837,73 +837,73 @@ static void __init kho_reserve_scratch(void)
 	if (!kho_enable)
 		return;
 
-	scratch_size_update();
+	bootmem_size_update();
 
 	/* FIXME: deal with node hot-plug/remove */
-	kho_scratch_cnt = nodes_weight(node_states[N_MEMORY]) + 2;
-	size = kho_scratch_cnt * sizeof(*kho_scratch);
-	kho_scratch = memblock_alloc(size, PAGE_SIZE);
-	if (!kho_scratch) {
-		pr_err("Failed to reserve scratch array\n");
+	kho_bootmem_cnt = nodes_weight(node_states[N_MEMORY]) + 2;
+	size = kho_bootmem_cnt * sizeof(*kho_bootmem);
+	kho_bootmem = memblock_alloc(size, PAGE_SIZE);
+	if (!kho_bootmem) {
+		pr_err("Failed to reserve bootmem array\n");
 		goto err_disable_kho;
 	}
 
 	/*
-	 * reserve scratch area in low memory for lowmem allocations in the
+	 * reserve bootmem area in low memory for lowmem allocations in the
 	 * next kernel
 	 */
-	size = scratch_size_lowmem;
-	addr = memblock_phys_alloc_range(size, SCRATCH_ALIGNMENT_BYTES, 0,
+	size = bootmem_size_lowmem;
+	addr = memblock_phys_alloc_range(size, BOOTMEM_ALIGNMENT_BYTES, 0,
 					 ARCH_LOW_ADDRESS_LIMIT);
 	if (!addr) {
-		pr_err("Failed to reserve lowmem scratch buffer\n");
-		goto err_free_scratch_desc;
+		pr_err("Failed to reserve lowmem bootmem\n");
+		goto err_free_bootmem_desc;
 	}
 
-	kho_scratch[i].addr = addr;
-	kho_scratch[i].size = size;
+	kho_bootmem[i].addr = addr;
+	kho_bootmem[i].size = size;
 	i++;
 
 	/* reserve large contiguous area for allocations without nid */
-	size = scratch_size_global;
-	addr = memblock_phys_alloc(size, SCRATCH_ALIGNMENT_BYTES);
+	size = bootmem_size_global;
+	addr = memblock_phys_alloc(size, BOOTMEM_ALIGNMENT_BYTES);
 	if (!addr) {
-		pr_err("Failed to reserve global scratch buffer\n");
-		goto err_free_scratch_areas;
+		pr_err("Failed to reserve global bootmem\n");
+		goto err_free_bootmem_areas;
 	}
 
-	kho_scratch[i].addr = addr;
-	kho_scratch[i].size = size;
+	kho_bootmem[i].addr = addr;
+	kho_bootmem[i].size = size;
 	i++;
 
 	/*
 	 * Loop over nodes that have both memory and are online. Skip
-	 * memoryless nodes, as we can not allocate scratch areas there.
+	 * memoryless nodes, as we can not allocate bootmem areas there.
 	 */
 	for_each_node_state(nid, N_MEMORY) {
-		size = scratch_size_node(nid);
-		addr = memblock_alloc_range_nid(size, SCRATCH_ALIGNMENT_BYTES,
+		size = bootmem_size_node(nid);
+		addr = memblock_alloc_range_nid(size, BOOTMEM_ALIGNMENT_BYTES,
 						0, MEMBLOCK_ALLOC_ACCESSIBLE,
 						nid, true);
 		if (!addr) {
-			pr_err("Failed to reserve nid %d scratch buffer\n", nid);
-			goto err_free_scratch_areas;
+			pr_err("Failed to reserve nid %d bootmem\n", nid);
+			goto err_free_bootmem_areas;
 		}
 
-		kho_scratch[i].addr = addr;
-		kho_scratch[i].size = size;
+		kho_bootmem[i].addr = addr;
+		kho_bootmem[i].size = size;
 		i++;
 	}
 
 	return;
 
-err_free_scratch_areas:
+err_free_bootmem_areas:
 	for (i--; i >= 0; i--)
-		memblock_phys_free(kho_scratch[i].addr, kho_scratch[i].size);
-err_free_scratch_desc:
-	memblock_free(kho_scratch, kho_scratch_cnt * sizeof(*kho_scratch));
+		memblock_phys_free(kho_bootmem[i].addr, kho_bootmem[i].size);
+err_free_bootmem_desc:
+	memblock_free(kho_bootmem, kho_bootmem_cnt * sizeof(*kho_bootmem));
 err_disable_kho:
-	pr_warn("Failed to reserve scratch area, disabling kexec handover\n");
+	pr_warn("Failed to reserve bootmem, disabling kexec handover\n");
 	kho_enable = false;
 }
 
@@ -913,11 +913,11 @@ err_disable_kho:
  * on smaller systems. The algorithm itself doesn't depend on the actual value,
  * so it can be changed to a different heuristic later if needed.
  */
-#define KHO_SCRATCH_EXT_BLKSIZE		SZ_1G
-#define KHO_SCRATCH_EXT_BLKSHIFT	const_ilog2(KHO_SCRATCH_EXT_BLKSIZE)
+#define KHO_DISCOVER_BLKSIZE		SZ_1G
+#define KHO_DISCOVER_BLKSHIFT	const_ilog2(KHO_DISCOVER_BLKSIZE)
 
 /* Called for the KHO preserved memory radix tree. */
-static int __init kho_ext_walk_leaf(unsigned long key, void *data)
+static int __init kho_discover_walk_leaf(unsigned long key, void *data)
 {
 	struct kho_radix_tree *busy_blocks = data;
 	phys_addr_t start, end;
@@ -932,29 +932,29 @@ static int __init kho_ext_walk_leaf(unsigned long key, void *data)
 	end = start + (1UL << (order + PAGE_SHIFT));
 
 	while (start < end) {
-		err = kho_radix_add_key(busy_blocks, start >> KHO_SCRATCH_EXT_BLKSHIFT);
+		err = kho_radix_add_key(busy_blocks, start >> KHO_DISCOVER_BLKSHIFT);
 		if (err)
 			return err;
 
-		start += (1UL << KHO_SCRATCH_EXT_BLKSHIFT);
+		start += (1UL << KHO_DISCOVER_BLKSHIFT);
 	}
 
 	return 0;
 }
 
 /* Called for the KHO preserved memory radix tree. */
-static int __init kho_ext_walk_node(phys_addr_t phys, void *data)
+static int __init kho_discover_walk_node(phys_addr_t phys, void *data)
 {
 	struct kho_radix_tree *busy_blocks = data;
 
-	return kho_radix_add_key(busy_blocks, phys >> KHO_SCRATCH_EXT_BLKSHIFT);
+	return kho_radix_add_key(busy_blocks, phys >> KHO_DISCOVER_BLKSHIFT);
 }
 
 /* Called for the busy block radix tree. */
-static int __init kho_ext_mark_scratch(unsigned long key, void *data)
+static int __init kho_discover_mark_noprsrv(unsigned long key, void *data)
 {
 	phys_addr_t *prev_end = data;
-	phys_addr_t start = key << KHO_SCRATCH_EXT_BLKSHIFT;
+	phys_addr_t start = key << KHO_DISCOVER_BLKSHIFT;
 	int err;
 
 	if (start > *prev_end) {
@@ -963,23 +963,26 @@ static int __init kho_ext_mark_scratch(unsigned long key, void *data)
 			return err;
 	}
 
-	*prev_end = start + (1UL << KHO_SCRATCH_EXT_BLKSHIFT);
+	*prev_end = start + (1UL << KHO_DISCOVER_BLKSHIFT);
 	return 0;
 }
 
 /*
- * kho_extend_scratch - Extend the scratch regions
+ * kho_discover_noprsrv - Discover memory with no preservations
+ *
+ * Discovers memory ranges with no preserved memory and marks it as NOPRSRV.
+ * This lets memblock allocate memory from areas outside KHO bootmem.
  *
  * The KHO preserved memory radix tree mixes both physical address and order
  * into a single key. This makes it hard to look for free ranges directly. This
  * function first walks the radix tree and digests it down into another radix
- * tree, whose keys identify blocks of size KHO_SCRATCH_EXT_BLKSIZE which
- * contain preserved memory.
+ * tree, whose keys identify blocks of size KHO_DISCOVER_BLKSIZE which contain
+ * preserved memory.
  *
  * Then it walks the digested radix tree and marks everything that doesn't have
- * preserved memory as scratch.
+ * preserved memory as NOPRSRV.
  *
- * NOTE: This function allocates memory so it should be called when scratch has
+ * NOTE: This function allocates memory so it should be called when bootmem has
  * available space.
  *
  * NOTE: The pages of the KHO preserved memory radix tree tables are not marked
@@ -988,18 +991,18 @@ static int __init kho_ext_mark_scratch(unsigned long key, void *data)
  * them to be "preserved memory" and marks their blocks as busy.
  *
  * NOTE: efi_init()::reserve_regions() removes all regions except
- * MEMBLOCK_KHO_SCRATCH. This function adds such regions but they are not KHO
- * scratch memory, so they should not be removed. This function should always be
+ * MEMBLOCK_KHO_NOPRSRV. This function adds such regions but they are not KHO
+ * boot memory, so they should not be removed. This function should always be
  * called after reserve_regions().
  */
-static void __init kho_extend_scratch(void)
+static void __init kho_discover_noprsrv(void)
 {
 	const struct kho_radix_walk_cb kho_cb = {
-		.leaf = kho_ext_walk_leaf,
-		.node = kho_ext_walk_node,
+		.leaf = kho_discover_walk_leaf,
+		.node = kho_discover_walk_node,
 	};
 	const struct kho_radix_walk_cb ext_cb = {
-		.leaf = kho_ext_mark_scratch,
+		.leaf = kho_discover_mark_noprsrv,
 	};
 	static struct lock_class_key busy_radix_class;
 	struct kho_radix_tree busy_blocks;
@@ -1024,7 +1027,7 @@ static void __init kho_extend_scratch(void)
 	if (err)
 		goto out;
 
-	/* Walk the busy blocks and mark everything between keys as scratch. */
+	/* Walk the busy blocks and mark everything between keys as noprsrv. */
 	err = kho_radix_walk_tree(&busy_blocks, &ext_cb, &prev_end);
 	if (err)
 		goto out;
@@ -1038,7 +1041,7 @@ out:
 	kho_radix_destroy_tree(&busy_blocks);
 print:
 	if (err)
-		pr_err("Failed to extend scratch: %pe\n", ERR_PTR(err));
+		pr_err("Failed to discover extra allocatable memory: %pe\n", ERR_PTR(err));
 }
 
 /**
@@ -1152,7 +1155,7 @@ int kho_preserve_folio(struct folio *folio)
 	const unsigned int order = folio_order(folio);
 
 	if (IS_ENABLED(CONFIG_KEXEC_HANDOVER_DEBUG) &&
-	    WARN_ON(kho_scratch_overlap(pfn << PAGE_SHIFT, PAGE_SIZE << order)))
+	    WARN_ON(kho_bootmem_overlap(pfn << PAGE_SHIFT, PAGE_SIZE << order)))
 		return -EINVAL;
 
 	return kho_radix_add_key(tree, kho_encode_radix_key(PFN_PHYS(pfn),
@@ -1230,7 +1233,7 @@ int kho_preserve_pages(struct page *page, unsigned long nr_pages)
 	int err = 0;
 
 	if (IS_ENABLED(CONFIG_KEXEC_HANDOVER_DEBUG) &&
-	    WARN_ON(kho_scratch_overlap(start_pfn << PAGE_SHIFT,
+	    WARN_ON(kho_bootmem_overlap(start_pfn << PAGE_SHIFT,
 					nr_pages << PAGE_SHIFT))) {
 		return -EINVAL;
 	}
@@ -1827,7 +1830,7 @@ static __init int kho_init(void)
 
 	err = kho_radix_init_tree(tree, NULL);
 	if (err)
-		goto err_free_scratch;
+		goto err_free_bootmem;
 
 	kho_out.fdt = kho_alloc_preserve(PAGE_SIZE);
 	if (IS_ERR(kho_out.fdt)) {
@@ -1856,9 +1859,9 @@ static __init int kho_init(void)
 		return 0;
 	}
 
-	for (int i = 0; i < kho_scratch_cnt; i++) {
-		unsigned long base_pfn = PHYS_PFN(kho_scratch[i].addr);
-		unsigned long count = kho_scratch[i].size >> PAGE_SHIFT;
+	for (int i = 0; i < kho_bootmem_cnt; i++) {
+		unsigned long base_pfn = PHYS_PFN(kho_bootmem[i].addr);
+		unsigned long count = kho_bootmem[i].size >> PAGE_SHIFT;
 		unsigned long pfn;
 
 		/*
@@ -1866,10 +1869,10 @@ static __init int kho_init(void)
 		 * corresponding PRESENT bit in the kernel page table.
 		 * Subsequent kmemleak scans of these pages cause the
 		 * non-PRESENT page faults.
-		 * Mark scratch areas with kmemleak_ignore_phys() to exclude
+		 * Mark bootmem areas with kmemleak_ignore_phys() to exclude
 		 * them from kmemleak scanning.
 		 */
-		kmemleak_ignore_phys(kho_scratch[i].addr);
+		kmemleak_ignore_phys(kho_bootmem[i].addr);
 		for (pfn = base_pfn; pfn < base_pfn + count;
 		     pfn += pageblock_nr_pages)
 			init_cma_reserved_pageblock(pfn_to_page(pfn));
@@ -1885,11 +1888,11 @@ err_free_fdt:
 	kho_unpreserve_free(kho_out.fdt);
 err_free_kho_radix_tree:
 	kho_radix_destroy_tree(tree);
-err_free_scratch:
+err_free_bootmem:
 	kho_out.fdt = NULL;
-	for (int i = 0; i < kho_scratch_cnt; i++) {
-		void *start = __va(kho_scratch[i].addr);
-		void *end = start + kho_scratch[i].size;
+	for (int i = 0; i < kho_bootmem_cnt; i++) {
+		void *start = __va(kho_bootmem[i].addr);
+		void *end = start + kho_bootmem[i].size;
 
 		free_reserved_area(start, end, -1, "");
 	}
@@ -1908,7 +1911,7 @@ void __init kho_memory_init_early(void)
 
 	/*
 	 * kho_get_mem_map() should always succeed. If it fails, kho_populate()
-	 * catches that and never sets kho_in.scratch_phys, which stops memory
+	 * catches that and never sets kho_in.bootmem_phys, which stops memory
 	 * retrieval.
 	 */
 	mem_map = kho_get_mem_map(fdt);
@@ -1916,26 +1919,25 @@ void __init kho_memory_init_early(void)
 		goto err;
 
 	/*
-	 * kho_scratch_overlap() needs kho_scratch to be initialized. It
-	 * is used by free_area_init() on KHO boots, so initialize it
-	 * early.
+	 * kho_bootmem_overlap() needs kho_bootmem to be initialized. It is used
+	 * by free_area_init() on KHO boots, so initialize it early.
 	 */
-	kho_scratch = phys_to_virt(kho_in.scratch_phys);
+	kho_bootmem = phys_to_virt(kho_in.bootmem_phys);
 
 	if (kho_radix_init_tree(&kho_in.radix_tree, mem_map))
 		goto err;
 
-	kho_extend_scratch();
+	kho_discover_noprsrv();
 
 	return;
 
 err:
 	/*
 	 * Failed to initialize preserved memory radix tree. Clear FDT
-	 * and scratch so KHO users don't treat it as a KHO boot.
+	 * and bootmem so KHO users don't treat it as a KHO boot.
 	 */
 	kho_in.fdt_phys = 0;
-	kho_in.scratch_phys = 0;
+	kho_in.bootmem_phys = 0;
 }
 
 void __init kho_memory_init(void)
@@ -1946,17 +1948,17 @@ void __init kho_memory_init(void)
 		return;
 	}
 
-	if (kho_in.scratch_phys)
+	if (kho_in.bootmem_phys)
 		kho_mem_retrieve();
 	else
-		kho_reserve_scratch();
+		kho_reserve_bootmem();
 }
 
 void __init kho_populate(phys_addr_t fdt_phys, u64 fdt_len,
-			 phys_addr_t scratch_phys, u64 scratch_len)
+			 phys_addr_t bootmem_phys, u64 bootmem_len)
 {
-	unsigned int scratch_cnt = scratch_len / sizeof(*kho_scratch);
-	struct kho_scratch *scratch = NULL;
+	unsigned int bootmem_cnt = bootmem_len / sizeof(*kho_bootmem);
+	struct kho_bootmem *bootmem = NULL;
 	phys_addr_t mem_map_phys;
 	void *fdt = NULL;
 	bool populated = false;
@@ -1985,36 +1987,36 @@ void __init kho_populate(phys_addr_t fdt_phys, u64 fdt_len,
 	if (!mem_map_phys)
 		goto unmap_fdt;
 
-	scratch = early_memremap(scratch_phys, scratch_len);
-	if (!scratch) {
-		pr_warn("setup: failed to memremap scratch (phys=0x%llx, len=%lld)\n",
-			scratch_phys, scratch_len);
+	bootmem = early_memremap(bootmem_phys, bootmem_len);
+	if (!bootmem) {
+		pr_warn("setup: failed to memremap bootmem (phys=0x%llx, len=%lld)\n",
+			bootmem_phys, bootmem_len);
 		goto unmap_fdt;
 	}
 
 	/*
-	 * We pass a safe contiguous blocks of memory to use for early boot
-	 * purporses from the previous kernel so that we can resize the
-	 * memblock array as needed.
+	 * We pass a safe contiguous blocks of memory with no preservations to
+	 * use for early boot purporses from the previous kernel so that we can
+	 * resize the memblock array as needed.
 	 */
-	for (int i = 0; i < scratch_cnt; i++) {
-		struct kho_scratch *area = &scratch[i];
+	for (int i = 0; i < bootmem_cnt; i++) {
+		struct kho_bootmem *area = &bootmem[i];
 		u64 size = area->size;
 
 		memblock_add(area->addr, size);
 		err = memblock_mark_kho_noprsrv(area->addr, size);
 		if (err) {
-			pr_warn("failed to mark the scratch region 0x%pa+0x%pa: %pe",
+			pr_warn("failed to mark the bootmem region 0x%pa+0x%pa: %pe",
 				&area->addr, &size, ERR_PTR(err));
-			goto unmap_scratch;
+			goto unmap_bootmem;
 		}
-		pr_debug("Marked 0x%pa+0x%pa as scratch", &area->addr, &size);
+		pr_debug("Marked 0x%pa+0x%pa as bootmem", &area->addr, &size);
 	}
 
-	memblock_reserve(scratch_phys, scratch_len);
+	memblock_reserve(bootmem_phys, bootmem_len);
 
 	/*
-	 * Now that we have a viable region of scratch memory, let's tell
+	 * Now that we have a viable region of boot memory, let's tell
 	 * the memblocks allocator to only use that for any allocations.
 	 * That way we ensure that nothing scribbles over in use data while
 	 * we initialize the page tables which we will need to ingest all
@@ -2023,14 +2025,14 @@ void __init kho_populate(phys_addr_t fdt_phys, u64 fdt_len,
 	memblock_set_kho_noprsrv_only();
 
 	kho_in.fdt_phys = fdt_phys;
-	kho_in.scratch_phys = scratch_phys;
-	kho_scratch_cnt = scratch_cnt;
+	kho_in.bootmem_phys = bootmem_phys;
+	kho_bootmem_cnt = bootmem_cnt;
 
 	populated = true;
 	pr_info("found kexec handover data.\n");
 
-unmap_scratch:
-	early_memunmap(scratch, scratch_len);
+unmap_bootmem:
+	early_memunmap(bootmem, bootmem_len);
 unmap_fdt:
 	early_memunmap(fdt, fdt_len);
 report:
@@ -2042,47 +2044,47 @@ report:
 
 int kho_fill_kimage(struct kimage *image)
 {
-	ssize_t scratch_size;
+	ssize_t bootmem_size;
 	int err = 0;
-	struct kexec_buf scratch;
+	struct kexec_buf bootmem;
 
 	if (!kho_enable || image->type == KEXEC_TYPE_CRASH)
 		return 0;
 
 	image->kho.fdt = virt_to_phys(kho_out.fdt);
 
-	scratch_size = sizeof(*kho_scratch) * kho_scratch_cnt;
-	scratch = (struct kexec_buf){
+	bootmem_size = sizeof(*kho_bootmem) * kho_bootmem_cnt;
+	bootmem = (struct kexec_buf){
 		.image = image,
-		.buffer = kho_scratch,
-		.bufsz = scratch_size,
+		.buffer = kho_bootmem,
+		.bufsz = bootmem_size,
 		.mem = KEXEC_BUF_MEM_UNKNOWN,
-		.memsz = scratch_size,
+		.memsz = bootmem_size,
 		.buf_align = SZ_64K, /* Makes it easier to map */
 		.buf_max = ULONG_MAX,
 		.top_down = true,
 	};
-	err = kexec_add_buffer(&scratch);
+	err = kexec_add_buffer(&bootmem);
 	if (err)
 		return err;
-	image->kho.scratch = &image->segment[image->nr_segments - 1];
+	image->kho.bootmem = &image->segment[image->nr_segments - 1];
 
 	return 0;
 }
 
-static int kho_walk_scratch(struct kexec_buf *kbuf,
+static int kho_walk_bootmem(struct kexec_buf *kbuf,
 			    int (*func)(struct resource *, void *))
 {
 	int ret = 0;
 	int i;
 
-	for (i = 0; i < kho_scratch_cnt; i++) {
+	for (i = 0; i < kho_bootmem_cnt; i++) {
 		struct resource res = {
-			.start = kho_scratch[i].addr,
-			.end = kho_scratch[i].addr + kho_scratch[i].size - 1,
+			.start = kho_bootmem[i].addr,
+			.end = kho_bootmem[i].addr + kho_bootmem[i].size - 1,
 		};
 
-		/* Try to fit the kimage into our KHO scratch region */
+		/* Try to fit the kimage into our KHO bootmem region */
 		ret = func(&res, kbuf);
 		if (ret)
 			break;
@@ -2099,7 +2101,7 @@ int kho_locate_mem_hole(struct kexec_buf *kbuf,
 	if (!kho_enable || kbuf->image->type == KEXEC_TYPE_CRASH)
 		return 1;
 
-	ret = kho_walk_scratch(kbuf, func);
+	ret = kho_walk_bootmem(kbuf, func);
 
 	return ret == 1 ? 0 : -EADDRNOTAVAIL;
 }

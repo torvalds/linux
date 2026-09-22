@@ -1794,7 +1794,7 @@ retry:
 	if (numa_valid_node(nid) && !exact_nid) {
 		nid = NUMA_NO_NODE;
 		/*
-		 * If a previous candidate overlapped with KHO scratch, it would
+		 * If a previous candidate overlapped with KHO bootmem, it would
 		 * update start or end. Now that the search is opening to all
 		 * nodes, reset them.
 		 */
@@ -1810,12 +1810,12 @@ retry:
 found:
 	/*
 	 * HugeTLB pages can be preserved with KHO and no preserved memory can
-	 * be in scratch. So retry if found address overlaps with scratch.
+	 * be in bootmem. So retry if found address overlaps with bootmem.
 	 *
-	 * Scratch areas are normally not very large, so this shouldn't take too
+	 * Bootmem areas are normally not very large, so this shouldn't take too
 	 * many retries.
 	 */
-	if (kho_scratch_overlap(addr, size)) {
+	if (kho_bootmem_overlap(addr, size)) {
 		if (memblock_bottom_up())
 			start = addr + size;
 		else

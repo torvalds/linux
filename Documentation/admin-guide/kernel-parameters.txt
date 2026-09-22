@@ -3033,9 +3033,10 @@ Kernel parameters
 
 	kho_scratch=	[KEXEC,EARLY]
 			Format: ll[KMG],mm[KMG],nn[KMG] | nn%
-			Defines the size of the KHO scratch region. The KHO
-			scratch regions are physically contiguous memory
-			ranges that can only be used for non-kernel
+
+			Defines the size of the KHO boot memory region. The
+			KHO boot memory regions are physically contiguous
+			memory ranges that can only be used for non-kernel
 			allocations. That way, even when memory is heavily
 			fragmented with handed over memory, the kexeced
 			kernel will always have enough contiguous ranges to
@@ -3044,10 +3045,10 @@ Kernel parameters
 			It is possible to specify the exact amount of
 			memory in the form of "ll[KMG],mm[KMG],nn[KMG]"
 			where the first parameter defines the size of a low
-			memory scratch area, the second parameter defines
-			the size of a global scratch area and the third
+			memory bootmem area, the second parameter defines
+			the size of a global bootmem area and the third
 			parameter defines the size of additional per-node
-			scratch areas.  The form "nn%" defines scale factor
+			bootmem areas.  The form "nn%" defines scale factor
 			(in percents) of memory that was used during boot.
 
 	kmac=		[MIPS] Korina ethernet MAC address.

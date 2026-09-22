@@ -165,10 +165,10 @@ static __init void reserve_regions(void)
 		pr_info("Processing EFI memory map:\n");
 
 	/*
-	 * Discard memblocks discovered so far except for KHO scratch
+	 * Discard memblocks discovered so far except for KHO bootmem
 	 * regions. Most memblocks at this point originate from memory nodes
 	 * in the DT and UEFI uses its own memory map instead. However, if
-	 * KHO is enabled, scratch regions, which are good known memory
+	 * KHO is enabled, bootmem regions, which are good known memory
 	 * must be preserved.
 	 */
 	memblock_dump_all();

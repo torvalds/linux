@@ -418,7 +418,7 @@ struct kimage {
 #endif
 
 	struct {
-		struct kexec_segment *scratch;
+		struct kexec_segment *bootmem;
 		phys_addr_t fdt;
 	} kho;
 
