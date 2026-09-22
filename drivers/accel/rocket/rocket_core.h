@@ -30,6 +30,10 @@
 struct rocket_core {
 	struct device *dev;
 	struct rocket_device *rdev;
+	/*
+	 * Hardware number of the core: its position among the core nodes in
+	 * the devicetree.
+	 */
 	unsigned int index;
 
 	int irq;
