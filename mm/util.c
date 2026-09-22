@@ -1240,7 +1240,7 @@ EXPORT_SYMBOL(__compat_vma_mmap);
 /**
  * compat_vma_mmap() - Apply the file's .mmap_prepare() hook to an
  * existing VMA and execute any requested actions.
- * @file: The file which possesss an f_op->mmap_prepare() hook.
+ * @file: The file which possesses an f_op->mmap_prepare() hook.
  * @vma: The VMA to apply the .mmap_prepare() hook to.
  *
  * Ordinarily, .mmap_prepare() is invoked directly upon mmap(). However, certain

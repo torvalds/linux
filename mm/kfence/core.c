@@ -156,7 +156,7 @@ atomic_t kfence_allocation_gate = ATOMIC_INIT(1);
  * allocations of the same source filling up the pool.
  *
  * Assuming a range of 15%-85% unique allocations in the pool at any point in
- * time, the below parameters provide a probablity of 0.02-0.33 for false
+ * time, the below parameters provide a probability of 0.02-0.33 for false
  * positive hits respectively:
  *
  *	P(alloc_traces) = (1 - e^(-HNUM * (alloc_traces / SIZE)) ^ HNUM

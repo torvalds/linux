@@ -741,7 +741,7 @@ static unsigned long *memcg_events_local_array(struct mem_cgroup *memcg)
  *
  * 2) Flush the stats synchronously on reader side only when there are more than
  *    (MEMCG_CHARGE_BATCH * nr_cpus) update events. Though this optimization
- *    will let stats be out of sync by atmost (MEMCG_CHARGE_BATCH * nr_cpus) but
+ *    will let stats be out of sync by at most (MEMCG_CHARGE_BATCH * nr_cpus) but
  *    only for 2 seconds due to (1).
  */
 static void flush_memcg_stats_dwork(struct work_struct *w);

@@ -3685,7 +3685,7 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 	/*
 	 * Initially, attempt to have the page allocator give us large order
 	 * pages. Do not attempt allocating smaller than order chunks since
-	 * __vmap_pages_range() expects physically contigous pages of exactly
+	 * __vmap_pages_range() expects physically contiguous pages of exactly
 	 * order long chunks.
 	 */
 	while (large_order > order && nr_remaining) {

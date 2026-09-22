@@ -2560,7 +2560,7 @@ try_again:
 	/*
 	 * We're only intended to deal with the non-Compound page here.
 	 * The page cannot become compound pages again as folio has been
-	 * splited and extra refcnt is held.
+	 * split and extra refcnt is held.
 	 */
 	WARN_ON(folio_test_large(folio));
 

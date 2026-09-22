@@ -587,7 +587,7 @@ static int __memcg_list_lru_alloc(struct mem_cgroup *memcg,
 	 */
 	do {
 		/*
-		 * Keep finding the farest parent that wasn't populated
+		 * Keep finding the farthest parent that wasn't populated
 		 * until found memcg itself.
 		 */
 		pos = memcg;
