@@ -215,10 +215,6 @@ static bool __init obsolete_checksetup(char *line)
 				 * params and __setups of same names 8( */
 				if (line[n] == '\0' || line[n] == '=')
 					had_early_param = true;
-			} else if (!p->setup_func) {
-				pr_warn("Parameter %s is obsolete, ignored\n",
-					p->str);
-				return true;
 			} else if (p->setup_func(line + n))
 				return true;
 		}
