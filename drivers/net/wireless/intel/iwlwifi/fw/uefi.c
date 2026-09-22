@@ -915,6 +915,12 @@ static int iwl_uefi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 				data->revision);
 		goto out;
 	}
+	if (!data->functions[DSM_FUNC_QUERY]) {
+		IWL_DEBUG_RADIO(fwrt,
+				"UEFI DSM query bitmap is empty, revision:%d\n",
+				data->revision);
+		goto out;
+	}
 	fwrt->dsm_revision = data->revision;
 	fwrt->dsm_source = BIOS_SOURCE_UEFI;
 
