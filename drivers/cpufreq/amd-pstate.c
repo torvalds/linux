@@ -1886,6 +1886,7 @@ EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_status);
 
 int amd_pstate_update_status(const char *buf, size_t size)
 {
+	cppc_mode_transition_fn fn;
 	int mode_idx;
 
 	if (size > strlen("passive") || size < strlen("active"))
@@ -1895,10 +1896,12 @@ int amd_pstate_update_status(const char *buf, size_t size)
 	if (mode_idx < 0)
 		return mode_idx;
 
-	if (mode_state_machine[cppc_state][mode_idx]) {
-		guard(mutex)(&amd_pstate_driver_lock);
-		return mode_state_machine[cppc_state][mode_idx](mode_idx);
-	}
+	guard(mutex)(&amd_pstate_driver_lock);
+
+	/* Resolve the transition under the lock; cppc_state is only stable while held. */
+	fn = mode_state_machine[cppc_state][mode_idx];
+	if (fn)
+		return fn(mode_idx);
 
 	return 0;
 }
