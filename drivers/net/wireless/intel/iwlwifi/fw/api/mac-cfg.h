@@ -665,7 +665,13 @@ struct iwl_npca_params {
  * @puncture_mask: puncture mask for EHT (removed in VER_3)
  * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
  * @flags: a combination from &enum iwl_link_ctx_flags
- * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags
+ * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags.
+ *	Removed in _VER_6, reused as @reserved4 / @max_bssid_indicator
+ *	in _VER_9.
+ * @reserved4: reserved
+ * @max_bssid_indicator: N where 2**N is the max number of BSSIDs the physical
+ *	AP can support (multi-BSS or EMCCA set). 0 disables the feature.
+ *	Since _VER_9.
  * Below fields are for multi-bssid:
  * @ref_bssid_addr: reference BSSID used by the AP
  * @reserved_for_ref_bssid_addr: reserved
@@ -706,17 +712,23 @@ struct iwl_link_config_cmd {
 	/* MAC_QOS_PARAM_API_S_VER_1 */
 	__le32 qos_flags;
 	struct iwl_ac_qos ac[AC_NUM + 1];
-	u8 htc_trig_based_pkt_ext;
-	u8 rand_alloc_ecwmin;
-	u8 rand_alloc_ecwmax;
+	u8 htc_trig_based_pkt_ext; /* removed in _VER_9 */
+	u8 rand_alloc_ecwmin;      /* removed in _VER_9 */
+	u8 rand_alloc_ecwmax;      /* removed in _VER_9 */
 	u8 ndp_fdbk_buff_th_exp;
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
 	__le32 bi;
 	__le32 dtim_interval;
 	__le16 puncture_mask; /* removed in _VER_3 */
-	__le16 frame_time_rts_th;
+	__le16 frame_time_rts_th; /* removed in _VER_9 */
 	__le32 flags;
-	__le32 flags_mask; /* removed in _VER_6 */
+	union {
+		__le32 flags_mask; /* removed in _VER_6 */
+		struct {
+			u8 reserved4[3];
+			u8 max_bssid_indicator; /* since _VER_9 */
+		};
+	};
 	/* The below fields are for multi-bssid */
 	u8 ref_bssid_addr[6];
 	__le16 reserved_for_ref_bssid_addr;
@@ -730,7 +742,9 @@ struct iwl_link_config_cmd {
 	struct iwl_ac_qos prio_edca_params; /* since _VER_7 */
 	__le32 reserved3[4];
 } __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4,
-	     *				    _VER_5, _VER_6, _VER_7, _VER_8 */
+	     *				    _VER_5, _VER_6, _VER_7, _VER_8,
+	     *				    _VER_9
+	     */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.

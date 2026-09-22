@@ -378,6 +378,11 @@ iwl_mld_change_link_in_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 		cmd.bssid_index = link->bssid_index;
 	}
 
+	if (iwl_fw_lookup_cmd_ver(mld->fw,
+				  WIDE_ID(MAC_CONF_GROUP, LINK_CONFIG_CMD),
+				  0) >= 9)
+		cmd.max_bssid_indicator = link->bssid_indicator;
+
 	/* The only EHT parameter is puncturing, and starting from PHY cmd
 	 * version 6 - it is sent there. For older versions of the PHY cmd,
 	 * puncturing is not needed at all.
