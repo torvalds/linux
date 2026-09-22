@@ -3073,137 +3073,6 @@ static ssize_t iwl_dbgfs_rfkill_write(struct file *file,
 	return count;
 }
 
-static int iwl_dbgfs_monitor_data_open(struct inode *inode,
-				       struct file *file)
-{
-	struct iwl_trans *trans = inode->i_private;
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	if (!trans->dbg.dest_tlv ||
-	    trans->dbg.dest_tlv->monitor_mode != EXTERNAL_MODE) {
-		IWL_ERR(trans, "Debug destination is not set to DRAM\n");
-		return -ENOENT;
-	}
-
-	if (trans_pcie->fw_mon_data.state != IWL_FW_MON_DBGFS_STATE_CLOSED)
-		return -EBUSY;
-
-	trans_pcie->fw_mon_data.state = IWL_FW_MON_DBGFS_STATE_OPEN;
-	return simple_open(inode, file);
-}
-
-static int iwl_dbgfs_monitor_data_release(struct inode *inode,
-					  struct file *file)
-{
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(inode->i_private);
-
-	if (trans_pcie->fw_mon_data.state == IWL_FW_MON_DBGFS_STATE_OPEN)
-		trans_pcie->fw_mon_data.state = IWL_FW_MON_DBGFS_STATE_CLOSED;
-	return 0;
-}
-
-static bool iwl_write_to_user_buf(char __user *user_buf, ssize_t count,
-				  void *buf, ssize_t *size,
-				  ssize_t *bytes_copied)
-{
-	ssize_t buf_size_left = count - *bytes_copied;
-
-	buf_size_left = buf_size_left - (buf_size_left % sizeof(u32));
-	if (*size > buf_size_left)
-		*size = buf_size_left;
-
-	*size -= copy_to_user(user_buf, buf, *size);
-	*bytes_copied += *size;
-
-	if (buf_size_left == *size)
-		return true;
-	return false;
-}
-
-static ssize_t iwl_dbgfs_monitor_data_read(struct file *file,
-					   char __user *user_buf,
-					   size_t count, loff_t *ppos)
-{
-	struct iwl_trans *trans = file->private_data;
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u8 *cpu_addr = (void *)trans->dbg.fw_mon.block, *curr_buf;
-	struct cont_rec *data = &trans_pcie->fw_mon_data;
-	u32 write_ptr_addr, wrap_cnt_addr, write_ptr, wrap_cnt;
-	ssize_t size, bytes_copied = 0;
-	bool b_full;
-
-	if (trans->dbg.dest_tlv) {
-		write_ptr_addr =
-			le32_to_cpu(trans->dbg.dest_tlv->write_ptr_reg);
-		wrap_cnt_addr = le32_to_cpu(trans->dbg.dest_tlv->wrap_count);
-	} else {
-		write_ptr_addr = MON_BUFF_WRPTR;
-		wrap_cnt_addr = MON_BUFF_CYCLE_CNT;
-	}
-
-	if (unlikely(!trans->dbg.rec_on))
-		return 0;
-
-	mutex_lock(&data->mutex);
-	if (data->state ==
-	    IWL_FW_MON_DBGFS_STATE_DISABLED) {
-		mutex_unlock(&data->mutex);
-		return 0;
-	}
-
-	/* write_ptr position in bytes rather then DW */
-	write_ptr = iwl_read_prph(trans, write_ptr_addr) * sizeof(u32);
-	wrap_cnt = iwl_read_prph(trans, wrap_cnt_addr);
-
-	if (data->prev_wrap_cnt == wrap_cnt) {
-		size = write_ptr - data->prev_wr_ptr;
-		curr_buf = cpu_addr + data->prev_wr_ptr;
-		b_full = iwl_write_to_user_buf(user_buf, count,
-					       curr_buf, &size,
-					       &bytes_copied);
-		data->prev_wr_ptr += size;
-
-	} else if (data->prev_wrap_cnt == wrap_cnt - 1 &&
-		   write_ptr < data->prev_wr_ptr) {
-		size = trans->dbg.fw_mon.size - data->prev_wr_ptr;
-		curr_buf = cpu_addr + data->prev_wr_ptr;
-		b_full = iwl_write_to_user_buf(user_buf, count,
-					       curr_buf, &size,
-					       &bytes_copied);
-		data->prev_wr_ptr += size;
-
-		if (!b_full) {
-			size = write_ptr;
-			b_full = iwl_write_to_user_buf(user_buf, count,
-						       cpu_addr, &size,
-						       &bytes_copied);
-			data->prev_wr_ptr = size;
-			data->prev_wrap_cnt++;
-		}
-	} else {
-		if (data->prev_wrap_cnt == wrap_cnt - 1 &&
-		    write_ptr > data->prev_wr_ptr)
-			IWL_WARN(trans,
-				 "write pointer passed previous write pointer, start copying from the beginning\n");
-		else if (!unlikely(data->prev_wrap_cnt == 0 &&
-				   data->prev_wr_ptr == 0))
-			IWL_WARN(trans,
-				 "monitor data is out of sync, start copying from the beginning\n");
-
-		size = write_ptr;
-		b_full = iwl_write_to_user_buf(user_buf, count,
-					       cpu_addr, &size,
-					       &bytes_copied);
-		data->prev_wr_ptr = size;
-		data->prev_wrap_cnt = wrap_cnt;
-	}
-
-	mutex_unlock(&data->mutex);
-
-	return bytes_copied;
-}
-
 static ssize_t iwl_dbgfs_rf_read(struct file *file,
 				 char __user *user_buf,
 				 size_t count, loff_t *ppos)
@@ -3279,12 +3148,6 @@ static const struct file_operations iwl_dbgfs_tx_queue_ops = {
 	.release = seq_release_private,
 };
 
-static const struct file_operations iwl_dbgfs_monitor_data_ops = {
-	.read = iwl_dbgfs_monitor_data_read,
-	.open = iwl_dbgfs_monitor_data_open,
-	.release = iwl_dbgfs_monitor_data_release,
-};
-
 /* Create the debugfs files and directories */
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 {
@@ -3296,19 +3159,8 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(csr, dir, 0200);
 	DEBUGFS_ADD_FILE(fh_reg, dir, 0400);
 	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
-	DEBUGFS_ADD_FILE(monitor_data, dir, 0400);
 	DEBUGFS_ADD_FILE(rf, dir, 0400);
 	DEBUGFS_ADD_FILE(reset, dir, 0200);
-}
-
-void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct cont_rec *data = &trans_pcie->fw_mon_data;
-
-	mutex_lock(&data->mutex);
-	data->state = IWL_FW_MON_DBGFS_STATE_DISABLED;
-	mutex_unlock(&data->mutex);
 }
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
@@ -3973,11 +3825,6 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			goto out_free_ict;
 		}
 	 }
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	trans_pcie->fw_mon_data.state = IWL_FW_MON_DBGFS_STATE_CLOSED;
-	mutex_init(&trans_pcie->fw_mon_data.mutex);
-#endif
 
 	iwl_dbg_tlv_init(trans);
 

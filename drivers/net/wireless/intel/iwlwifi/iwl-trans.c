@@ -746,13 +746,6 @@ void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_set_shared_mode);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_trans_debugfs_cleanup(struct iwl_trans *trans)
-{
-	iwl_trans_pcie_debugfs_cleanup(trans);
-}
-#endif
-
 void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue, int ptr)
 {
 	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
