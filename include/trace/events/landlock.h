@@ -344,7 +344,7 @@ TRACE_EVENT(landlock_create_ruleset,
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
-		__field(	u32,		ruleset_version	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	handled_fs	)
 		__field(	access_mask_t,	handled_net	)
 		__field(	access_mask_t,	scoped		)
@@ -358,7 +358,7 @@ TRACE_EVENT(landlock_create_ruleset,
 		__entry->scoped		= ruleset->handled_masks.scope;
 	),
 
-	TP_printk("ruleset=%llx.%u handled_fs=%s handled_net=%s scoped=%s",
+	TP_printk("ruleset=%llx.%llu handled_fs=%s handled_net=%s scoped=%s",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->handled_fs, "|", _LANDLOCK_ACCESS_FS_NAMES),
 		__print_flags(__entry->handled_net, "|", _LANDLOCK_ACCESS_NET_NAMES),
@@ -384,7 +384,7 @@ TRACE_EVENT(landlock_free_ruleset,
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
-		__field(	u32,		ruleset_version	)
+		__field(	u64,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -392,7 +392,7 @@ TRACE_EVENT(landlock_free_ruleset,
 		__entry->ruleset_version = ruleset->version;
 	),
 
-	TP_printk("ruleset=%llx.%u",
+	TP_printk("ruleset=%llx.%llu",
 		__entry->ruleset_id, __entry->ruleset_version)
 );
 
@@ -423,7 +423,7 @@ TRACE_EVENT(landlock_add_rule_path_beneath,
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
-		__field(	u32,		ruleset_version	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
@@ -444,7 +444,7 @@ TRACE_EVENT(landlock_add_rule_path_beneath,
 		__assign_str(pathname);
 	),
 
-	TP_printk("ruleset=%llx.%u access_rights=%s dev=%u:%u ino=%lu path=%s",
+	TP_printk("ruleset=%llx.%llu access_rights=%s dev=%u:%u ino=%lu path=%s",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_FS_NAMES),
 		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
@@ -477,7 +477,7 @@ TRACE_EVENT(landlock_add_rule_net_port,
 
 	TP_STRUCT__entry(
 		__field(	u64,		ruleset_id	)
-		__field(	u32,		ruleset_version	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
 		__field(	u64,		port		)
 	),
@@ -490,7 +490,7 @@ TRACE_EVENT(landlock_add_rule_net_port,
 		__entry->port		= port;
 	),
 
-	TP_printk("ruleset=%llx.%u access_rights=%s port=%llu",
+	TP_printk("ruleset=%llx.%llu access_rights=%s port=%llu",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->port)
@@ -526,7 +526,7 @@ TRACE_EVENT(landlock_create_domain,
 		__field(	u64,		domain_id	)
 		__field(	u64,		parent_id	)
 		__field(	u64,		ruleset_id	)
-		__field(	u32,		ruleset_version	)
+		__field(	u64,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -538,7 +538,7 @@ TRACE_EVENT(landlock_create_domain,
 		__entry->ruleset_version = ruleset->version;
 	),
 
-	TP_printk("domain=%llx parent=%llx ruleset=%llx.%u",
+	TP_printk("domain=%llx parent=%llx ruleset=%llx.%llu",
 		__entry->domain_id, __entry->parent_id,
 		__entry->ruleset_id, __entry->ruleset_version)
 );
