@@ -5,6 +5,9 @@
 //! These items must not be used outside of this crate and the pin-init-internal crate located at
 //! `../internal`.
 
+use core::marker::PhantomPinned;
+use core::ops::Deref;
+
 use super::*;
 
 /// Zero-sized type used to mark a type as invariant.
@@ -461,4 +464,20 @@ where
     F: for<'a> FnOutput<(&'a (),), Output: EraseLt>,
     for<'a> Erase<<F as FnOutput<(&'a (),)>>::Output>: Sync,
 {
+}
+
+/// Wrapper for borrowed fields.
+///
+/// This should be switched to `UnsafePinned` when it is stable.
+/// NOTE: This type needs to be covariant; Rust's 1.89+'s `UnsafePinned` is invariant.
+#[repr(transparent)]
+pub struct Borrowed<T: ?Sized>(PhantomPinned, T);
+
+impl<T: ?Sized> Deref for Borrowed<T> {
+    type Target = T;
+
+    #[inline(always)]
+    fn deref(&self) -> &T {
+        &self.1
+    }
 }

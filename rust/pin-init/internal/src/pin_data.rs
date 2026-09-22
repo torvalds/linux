@@ -433,6 +433,10 @@ fn generate_struct_def(info: &StructInfo) -> TokenStream {
             ty = quote!(::pin_init::__internal::Erase<#ty>);
         };
 
+        if field.borrowed.is_some() {
+            ty = quote!(::pin_init::__internal::Borrowed<#ty>);
+        }
+
         quote! {
            #(#attrs)* #vis #ident #colon_token #ty
         }
@@ -468,6 +472,20 @@ fn generate_unpin_impl(info: &StructInfo) -> TokenStream {
         .map(|x| &x.predicates)
         .unwrap_or(const { &Punctuated::new() });
 
+    if info.self_referential {
+        // Self-referential structs must always be pinned.
+        return quote! {
+            #[doc(hidden)]
+            impl #impl_generics ::core::marker::Unpin for #ident #ty_generics
+            where
+                // the `for<'__dummy>` HRTB makes this not error without the `trivial_bounds`
+                // feature <https://github.com/rust-lang/rust/issues/48214#issuecomment-2557829956>.
+                for<'__dummy> ::core::marker::PhantomPinned: ::core::marker::Unpin,
+                #predicates
+            {}
+        };
+    }
+
     let pinned_fields = info.fields.iter().filter(|f| f.pinned).map(|f| {
         let ident = f.member.as_ident();
         let ty = &f.field.ty;
@@ -475,6 +493,7 @@ fn generate_unpin_impl(info: &StructInfo) -> TokenStream {
             #ident: #ty
         )
     });
+
     quote! {
         // This struct will be used for the unpin analysis. It is needed, because only structurally
         // pinned fields are relevant whether the struct should implement `Unpin`.
