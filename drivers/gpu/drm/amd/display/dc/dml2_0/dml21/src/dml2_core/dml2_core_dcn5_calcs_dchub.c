@@ -836,7 +836,7 @@ void dcn5_calculate_swath_and_det_configuration(struct dml2_core_internal_scratc
 			p->SwathHeightC[k] = MaximumSwathHeightC[k];
 			RoundedUpSwathSizeBytesY[k] = p->full_swath_bytes_l[k] / 2;
 			RoundedUpSwathSizeBytesC[k] = p->full_swath_bytes_c[k];
-			p->request_size_bytes_luma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->BytePerPixY[k], p->display_cfg->plane_descriptors[k].surface.tiling)
+			p->request_size_bytes_luma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->display_cfg->plane_descriptors[k].surface.tiling, p->BytePerPixY[k])
 				== dml2_core_utils_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle) ? 64 : 128;
 			p->request_size_bytes_chroma[k] = 256;
 
@@ -846,7 +846,7 @@ void dcn5_calculate_swath_and_det_configuration(struct dml2_core_internal_scratc
 			RoundedUpSwathSizeBytesY[k] = p->full_swath_bytes_l[k];
 			RoundedUpSwathSizeBytesC[k] = p->full_swath_bytes_c[k] / 2;
 			p->request_size_bytes_luma[k] = 256;
-			p->request_size_bytes_chroma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->BytePerPixC[k], p->display_cfg->plane_descriptors[k].surface.tiling)
+			p->request_size_bytes_chroma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->display_cfg->plane_descriptors[k].surface.tiling, p->BytePerPixC[k])
 				== dml2_core_utils_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle) ? 64 : 128;
 
 		} else {
@@ -854,9 +854,9 @@ void dcn5_calculate_swath_and_det_configuration(struct dml2_core_internal_scratc
 			p->SwathHeightC[k] = MaximumSwathHeightC[k] / 2;
 			RoundedUpSwathSizeBytesY[k] = p->full_swath_bytes_l[k] / 2;
 			RoundedUpSwathSizeBytesC[k] = p->full_swath_bytes_c[k] / 2;
-			p->request_size_bytes_luma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->BytePerPixY[k], p->display_cfg->plane_descriptors[k].surface.tiling)
+			p->request_size_bytes_luma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->display_cfg->plane_descriptors[k].surface.tiling, p->BytePerPixY[k])
 				== dml2_core_utils_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle) ? 64 : 128;
-			p->request_size_bytes_chroma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->BytePerPixC[k], p->display_cfg->plane_descriptors[k].surface.tiling)
+			p->request_size_bytes_chroma[k] = dml2_core_utils_get_segment_horizontal_contiguous(p->display_cfg->plane_descriptors[k].surface.tiling, p->BytePerPixC[k])
 				== dml2_core_utils_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle) ? 64 : 128;
 		}
 
