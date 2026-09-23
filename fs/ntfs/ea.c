@@ -32,7 +32,7 @@ static int ntfs_write_ea(struct ntfs_inode *ni, __le32 type, char *value, s64 ea
 
 	written = ntfs_inode_attr_pwrite(ea_vi, ea_off, ea_size, value, false);
 	if (written != ea_size)
-		err = -EIO;
+		err = written < 0 ? written : -EIO;
 	else {
 		struct ntfs_inode *ea_ni = NTFS_I(ea_vi);
 
