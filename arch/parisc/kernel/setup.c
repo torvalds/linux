@@ -132,6 +132,18 @@ void __init setup_arch(char **cmdline_p)
 	parisc_cache_init();
 	paging_init();
 
+	/*
+	 * Parse early parameters before mm_core_init_early() runs.
+	 * Several early_param() handlers only record data that is consumed
+	 * from there - for example hugepages=, hugepagesz=,
+	 * default_hugepagesz=, hugetlb_cma= and hugetlb_free_vmemmap= - so
+	 * the generic parse_early_param() call in start_kernel() is too late
+	 * for them.  jump_label_init() must come first, since early param
+	 * handlers may enable or disable static keys.
+	 */
+	jump_label_init();
+	parse_early_param();
+
 #ifdef CONFIG_PA11
 	dma_ops_init();
 #endif
