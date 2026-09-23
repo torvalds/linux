@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/device.h>
+#include <linux/cleanup.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -54,8 +55,7 @@
 #define GETHER_MAX_ETH_FRAME_LEN (GETHER_MAX_MTU_SIZE + ETH_HLEN)
 
 struct eth_dev {
-	/* lock is held while accessing port_usb
-	 */
+	/* lock is held while accessing port_usb and gadget */
 	spinlock_t		lock;
 	struct gether		*port_usb;
 
@@ -113,6 +113,8 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 
 	strscpy(p->driver, "g_ether", sizeof(p->driver));
 	strscpy(p->version, UETH__VERSION, sizeof(p->version));
+
+	guard(spinlock_irqsave)(&dev->lock);
 	if (dev->gadget) {
 		strscpy(p->fw_version, dev->gadget->name, sizeof(p->fw_version));
 		strscpy(p->bus_info, dev_name(&dev->gadget->dev), sizeof(p->bus_info));
@@ -145,7 +147,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req);
 static int
 rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 {
-	struct usb_gadget *g = dev->gadget;
+	struct usb_gadget *g;
 	struct sk_buff	*skb;
 	int		retval = -ENOMEM;
 	size_t		size = 0;
@@ -153,6 +155,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
+	g = dev->gadget;
 	if (dev->port_usb)
 		out = dev->port_usb->out_ep;
 	else
@@ -788,8 +791,7 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 	net->min_mtu = ETH_HLEN;
 	net->max_mtu = GETHER_MAX_MTU_SIZE;
 
-	dev->gadget = g;
-	SET_NETDEV_DEV(net, &g->dev);
+	gether_set_gadget(net, g);
 	SET_NETDEV_DEVTYPE(net, &gadget_type);
 
 	status = register_netdev(net);
@@ -890,10 +892,11 @@ EXPORT_SYMBOL_GPL(gether_register_netdev);
 
 void gether_set_gadget(struct net_device *net, struct usb_gadget *g)
 {
-	struct eth_dev *dev;
+	struct eth_dev *dev = netdev_priv(net);
 
-	dev = netdev_priv(net);
-	dev->gadget = g;
+	scoped_guard(spinlock_irqsave, &dev->lock)
+		dev->gadget = g;
+
 	SET_NETDEV_DEV(net, &g->dev);
 }
 EXPORT_SYMBOL_GPL(gether_set_gadget);
@@ -915,8 +918,10 @@ void gether_detach_gadget(struct net_device *net)
 {
 	struct eth_dev *dev = netdev_priv(net);
 
+	scoped_guard(spinlock_irqsave, &dev->lock)
+		dev->gadget = NULL;
+
 	device_move(&net->dev, NULL, DPM_ORDER_NONE);
-	dev->gadget = NULL;
 }
 EXPORT_SYMBOL_GPL(gether_detach_gadget);
 
