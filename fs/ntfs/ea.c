@@ -53,10 +53,13 @@ static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
 	loff_t offset, p_ea_size;
 	unsigned int next;
 
+	if (!ea_buf_size)
+		return -ENOENT;
+
 	offset = 0;
 	do {
 		if (ea_buf_size - offset < sizeof(struct ea_attr))
-			break;
+			return -EUCLEAN;
 
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
@@ -64,31 +67,31 @@ static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
 
 		if (p_ea_size < sizeof(struct ea_attr) ||
 		    offset + p_ea_size > ea_buf_size)
-			break;
+			return -EUCLEAN;
 
 		if ((s64)p_ea->ea_name_length + 1 >
 		    p_ea_size - offsetof(struct ea_attr, ea_name))
-			break;
+			return -EUCLEAN;
 
 		actual_size = ALIGN(struct_size(p_ea, ea_name, 1 + p_ea->ea_name_length +
 					le16_to_cpu(p_ea->ea_value_length)), 4);
-		if (actual_size > p_ea_size)
-			break;
+		if (actual_size > p_ea_size ||
+		    p_ea->ea_name[p_ea->ea_name_length])
+			return -EUCLEAN;
 
-		if (p_ea->ea_name_length == name_len &&
+		if (name && p_ea->ea_name_length == name_len &&
 		    !memcmp(p_ea->ea_name, name, name_len)) {
 			*ea_offset = offset;
-			*ea_size = next ? next : actual_size;
+			*ea_size = p_ea_size;
 
 			if (ea_buf_size < *ea_offset + *ea_size)
-				goto out;
+				return -EUCLEAN;
 
 			return 0;
 		}
 		offset += next;
 	} while (next > 0 && offset < ea_buf_size);
 
-out:
 	return -ENOENT;
 }
 
@@ -126,7 +129,7 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 		return PTR_ERR(p_ea_info);
 	if (ea_info_size != sizeof(struct ea_information)) {
 		kvfree(p_ea_info);
-		return -EIO;
+		return -EUCLEAN;
 	}
 
 	ea_info_qlen = le32_to_cpu(p_ea_info->ea_query_length);
@@ -137,7 +140,7 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 		return PTR_ERR(ea_buf);
 
 	if (ea_info_qlen > all_ea_size) {
-		err = -EIO;
+		err = -EUCLEAN;
 		goto free_ea_buf;
 	}
 
@@ -162,7 +165,8 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 		return ea_value_len;
 	}
 
-	err = -ENODATA;
+	if (err == -ENOENT)
+		err = -ENODATA;
 free_ea_buf:
 	kvfree(ea_buf);
 	return err;
@@ -216,7 +220,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 			goto out;
 		}
 		if (ea_info_size != sizeof(struct ea_information)) {
-			err = -EIO;
+			err = -EUCLEAN;
 			goto out;
 		}
 
@@ -255,12 +259,29 @@ create_ea_info:
 	}
 
 	if (ea_info_qsize > all_ea_size) {
-		err = -EIO;
+		err = -EUCLEAN;
 		goto out;
+	}
+
+	/* Validate the whole chain before modifying it, including its tail. */
+	err = ntfs_ea_lookup(ea_buf, ea_info_qsize, NULL, 0, &ea_off,
+			     &ea_size);
+	if (err != -ENOENT)
+		goto out;
+	/* A zero tail offset must be linked before appending another EA. */
+	for (ea_off = 0; ea_off < ea_info_qsize; ea_off += ea_size) {
+		p_ea = (struct ea_attr *)(ea_buf + ea_off);
+		ea_size = le32_to_cpu(p_ea->next_entry_offset);
+		if (!ea_size) {
+			ea_size = ea_info_qsize - ea_off;
+			p_ea->next_entry_offset = cpu_to_le32(ea_size);
+		}
 	}
 
 	err = ntfs_ea_lookup(ea_buf, ea_info_qsize, name, name_len, &ea_off,
 			&ea_size);
+	if (err && err != -ENOENT)
+		goto out;
 	if (ea_info_qsize && !err) {
 		if (flags & XATTR_CREATE) {
 			err = -EEXIST;
@@ -538,7 +559,7 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		goto out;
 	}
 	if (ea_info_size != sizeof(struct ea_information)) {
-		err = -EIO;
+		err = -EUCLEAN;
 		goto out;
 	}
 
@@ -551,31 +572,25 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		goto out;
 	}
 
-	if (ea_info_qsize > ea_buf_size || ea_info_qsize == 0)
+	if (ea_info_qsize > ea_buf_size) {
+		err = -EUCLEAN;
+		goto out;
+	}
+
+	/* Validate the entire chain, including size-only queries. */
+	err = ntfs_ea_lookup(ea_buf, ea_info_qsize, NULL, 0, &offset,
+			     &ea_size);
+	if (err != -ENOENT)
+		goto out;
+	err = 0;
+	if (!ea_info_qsize)
 		goto out;
 
 	offset = 0;
 	do {
-		if (ea_info_qsize - offset < sizeof(struct ea_attr)) {
-			err = -EIO;
-			goto out;
-		}
-
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
 		ea_size = next ? next : (ea_info_qsize - offset);
-
-		if (ea_size < sizeof(struct ea_attr) ||
-		    offset + ea_size > ea_info_qsize) {
-			err = -EIO;
-			goto out;
-		}
-
-		if ((int)p_ea->ea_name_length + 1 >
-			ea_size - offsetof(struct ea_attr, ea_name)) {
-			err = -EIO;
-			goto out;
-		}
 
 		if (buffer) {
 			if (ret + p_ea->ea_name_length + 1 > size) {
