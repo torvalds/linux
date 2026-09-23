@@ -196,9 +196,7 @@ static int is_outbound_transaction_resource(const struct client_resource *resour
 
 static void schedule_iso_resource_auto(struct iso_resource_auto *r, unsigned long delay)
 {
-	client_get(r->client);
-	if (!queue_delayed_work(fw_workqueue, &r->work, delay))
-		client_put(r->client);
+	queue_delayed_work(fw_workqueue, &r->work, delay);
 }
 
 /*
@@ -1360,13 +1358,13 @@ static void iso_resource_auto_work(struct work_struct *work)
 		// Allow 1000ms grace period for other reallocations.
 		if (time_is_after_jiffies64(reset_jiffies + secs_to_jiffies(1))) {
 			schedule_iso_resource_auto(r, msecs_to_jiffies(333));
-			goto out;
+			return;
 		}
 		break;
 	case ISO_RES_AUTO_REALLOC:
 		// We could be called twice within the same generation.
 		if (resource_generation == current_generation)
-			goto out;
+			return;
 		break;
 	case ISO_RES_AUTO_DEALLOC:
 	default:
@@ -1388,7 +1386,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 		// Is this generation outdated already?  As long as this resource sticks in the
 		// xarray, it will be scheduled again for a newer generation or at shutdown.
 		if (channel == -EAGAIN)
-			goto out;
+			return;
 
 		bool success = channel >= 0 || bandwidth > 0;
 
@@ -1406,7 +1404,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 
 		if (todo == ISO_RES_AUTO_REALLOC) {
 			if (success)
-				goto out;
+				return;
 
 			// Notify the userspace client of the failure through a deallocation event.
 			e = r->e_dealloc;
@@ -1443,8 +1441,6 @@ static void iso_resource_auto_work(struct work_struct *work)
 		// For the incrementation by ioctl_allocate_iso_resource().
 		client_put(client);
 	}
- out:
-	client_put(client);
 }
 
 static void release_iso_resource_auto(struct client *client, struct client_resource *resource)
