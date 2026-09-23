@@ -185,6 +185,8 @@ extern const struct inode_operations ntfs_dir_inode_ops;
 extern const struct  file_operations ntfs_empty_file_ops;
 extern const struct inode_operations ntfs_empty_inode_ops;
 
+int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
+
 extern const struct export_operations ntfs_export_ops;
 
 /*

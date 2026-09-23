@@ -9,6 +9,7 @@ The Linux NTFS filesystem driver
 
    - Overview
    - Utilities support
+   - Linux file attributes
    - Supported mount options
 
 
@@ -33,6 +34,13 @@ The project is available at:
 
   https://github.com/ntfsprogs-plus/ntfsprogs-plus
 
+
+Linux file attributes
+=====================
+
+The driver supports querying compression, encryption, immutable, append-only
+and mount-wide case folding through lsattr(1). Case folding is reported
+according to the mount options.
 
 Supported mount options
 =======================
