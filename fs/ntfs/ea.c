@@ -181,6 +181,29 @@ static inline int ea_packed_size(const struct ea_attr *p_ea)
 	return 5 + p_ea->ea_name_length + le16_to_cpu(p_ea->ea_value_length);
 }
 
+/* Unlike ntfs_attr_exist(), preserve lookup errors. */
+static int ntfs_ea_attr_lookup(struct ntfs_inode *ni, __le32 type)
+{
+	struct ntfs_attr_search_ctx *ctx;
+	struct mft_record *mrec;
+	int err;
+
+	mrec = map_mft_record(ni);
+	if (IS_ERR(mrec))
+		return PTR_ERR(mrec);
+	ctx = ntfs_attr_get_search_ctx(ni, mrec);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto out;
+	}
+	err = ntfs_attr_lookup(type, AT_UNNAMED, 0, CASE_SENSITIVE,
+			       0, NULL, 0, ctx);
+	ntfs_attr_put_search_ctx(ctx);
+out:
+	unmap_mft_record(ni);
+	return err;
+}
+
 /*
  * Set a new EA, and set EA_INFORMATION accordingly
  *
@@ -198,7 +221,8 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 {
 	struct ntfs_inode *ni = NTFS_I(inode);
 	struct ea_information *p_ea_info = NULL;
-	int ea_packed, err = 0;
+	int ea_packed, err = 0, ea_err;
+	bool has_ea;
 	struct ea_attr *p_ea;
 	u32 ea_info_qsize = 0;
 	char *ea_buf = NULL;
@@ -211,7 +235,16 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 	if (name_len > 255)
 		return -ENAMETOOLONG;
 
-	if (ntfs_attr_exist(ni, AT_EA_INFORMATION, AT_UNNAMED, 0)) {
+	err = ntfs_ea_attr_lookup(ni, AT_EA_INFORMATION);
+	if (err && err != -ENOENT)
+		return err;
+	ea_err = ntfs_ea_attr_lookup(ni, AT_EA);
+	if (ea_err && ea_err != -ENOENT)
+		return ea_err;
+	if (!err != !ea_err)
+		return -EUCLEAN;
+	has_ea = !err;
+	if (has_ea) {
 		p_ea_info = ntfs_attr_readall(ni, AT_EA_INFORMATION, NULL, 0,
 						&ea_info_size);
 		if (IS_ERR(p_ea_info)) {
@@ -230,15 +263,8 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 			ea_buf = NULL;
 			goto out;
 		}
-		if (!ea_buf) {
-			ea_info_qsize = 0;
-			kvfree(p_ea_info);
-			goto create_ea_info;
-		}
-
 		ea_info_qsize = le32_to_cpu(p_ea_info->ea_query_length);
 	} else {
-create_ea_info:
 		p_ea_info = kzalloc_obj(struct ea_information, GFP_NOFS);
 		if (!p_ea_info)
 			return -ENOMEM;
@@ -248,12 +274,6 @@ create_ea_info:
 				(char *)p_ea_info, sizeof(struct ea_information));
 		if (err)
 			goto out;
-
-		if (ntfs_attr_exist(ni, AT_EA, AT_UNNAMED, 0)) {
-			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0, NULL);
-			if (err)
-				goto out;
-		}
 
 		goto alloc_new_ea;
 	}
@@ -405,7 +425,7 @@ alloc_new_ea:
 	/*
 	 * no EA or EA_INFORMATION : add them
 	 */
-	if (!ntfs_attr_exist(ni, AT_EA, AT_UNNAMED, 0)) {
+	if (!has_ea) {
 		err = ntfs_attr_add(ni, AT_EA, AT_UNNAMED, 0, ea_buf,
 				ea_info_qsize + new_ea_size);
 		if (err)
