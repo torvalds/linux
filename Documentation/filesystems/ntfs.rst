@@ -38,21 +38,25 @@ The project is available at:
 Linux file attributes
 =====================
 
-The driver supports lsattr(1) and setting immutable and append-only with chattr(1).
-Immutable is stored in bit 0 and append-only in bit 1 of a private ``$LINUXFLAGS`` extended attribute
-within the standard NTFS ``$EA``/``$EA_INFORMATION`` attributes. Its value
-is a 32-bit little-endian bitmask. Unknown bits are preserved; the entry
-is removed when the entire value becomes zero. These settings survive
-inode eviction, unmount and reboot. Direct writes or removal through
-xattr interfaces are rejected; use chattr(1) instead.
+The driver supports lsattr(1) and chattr(1). Immutable, append-only and
+nodump are stored in a private ``$LINUXFLAGS`` extended attribute within the
+standard NTFS ``$EA``/``$EA_INFORMATION`` attributes. Its value is a
+32-bit little-endian bitmask: bit 0 is immutable, bit 1 is append-only,
+and bit 2 is nodump. Unknown bits are preserved when updating the flags;
+the entry is removed when the entire value becomes zero. These settings
+survive inode eviction, unmount and reboot. Direct writes to this EA
+through setxattr(2) or removexattr(2) are rejected; use chattr(1) instead.
 
-System metadata files and files protected by ``sys_immutable`` cannot
-have their immutable protection cleared. Protection derived solely from
-that policy is not stored in the EA. Compression, encryption
-and mount-wide case folding are reported but cannot be changed through
-chattr(1).
+System metadata files and files protected by the ``sys_immutable`` mount
+option cannot have their immutable protection cleared with chattr(1).
+Protection derived solely from the mount option is not stored in the EA.
+Case folding is reported according to the mount options and cannot be
+configured per file. Compression and encryption are reported but cannot
+be changed through chattr(1).
 
-Windows does not enforce the Linux immutable and append-only flags stored in this EA.
+These Linux flags are enforced by Linux. Storing them in an NTFS EA does
+not make Windows enforce immutable, append-only or nodump semantics.
+
 
 Supported mount options
 =======================

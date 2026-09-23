@@ -167,6 +167,8 @@ int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 		flags |= FS_IMMUTABLE_FL;
 	if (vi->i_flags & S_APPEND)
 		flags |= FS_APPEND_FL;
+	if (ni->linuxflags & NTFS_LINUXFLAGS_NODUMP)
+		flags |= FS_NODUMP_FL;
 	if (!NVolCaseSensitive(ni->vol))
 		flags |= FS_CASEFOLD_FL;
 
@@ -198,7 +200,7 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	struct inode *vi = d_inode(dentry);
 	struct ntfs_inode *ni = NTFS_I(vi);
-	u32 allowed = FS_IMMUTABLE_FL | FS_APPEND_FL;
+	u32 allowed = FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL;
 	u32 readonly = 0;
 	u32 linuxflags = ni->linuxflags & ~NTFS_LINUXFLAGS_MASK;
 	unsigned int new_fl = 0;
@@ -241,6 +243,8 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		new_fl |= S_APPEND;
 		linuxflags |= NTFS_LINUXFLAGS_APPEND;
 	}
+	if (fa->flags & FS_NODUMP_FL)
+		linuxflags |= NTFS_LINUXFLAGS_NODUMP;
 
 	mutex_lock(&ni->mrec_lock);
 	err = ntfs_ea_set_linuxflags(vi, linuxflags);
@@ -619,9 +623,12 @@ int ntfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 
 	if (inode->i_flags & S_APPEND)
 		stat->attributes |= STATX_ATTR_APPEND;
+	if (ni->linuxflags & NTFS_LINUXFLAGS_NODUMP)
+		stat->attributes |= STATX_ATTR_NODUMP;
 
 	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED |
-				 STATX_ATTR_IMMUTABLE | STATX_ATTR_APPEND;
+				 STATX_ATTR_IMMUTABLE | STATX_ATTR_APPEND |
+				 STATX_ATTR_NODUMP;
 
 	/*
 	 * If it's a compressed or encrypted file, NTFS currently

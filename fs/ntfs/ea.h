@@ -10,8 +10,9 @@
 /* $LINUXFLAGS stores these bits in a single little-endian 32-bit value. */
 #define NTFS_LINUXFLAGS_IMMUTABLE	BIT(0)
 #define NTFS_LINUXFLAGS_APPEND	BIT(1)
+#define NTFS_LINUXFLAGS_NODUMP	BIT(2)
 #define NTFS_LINUXFLAGS_MASK	(NTFS_LINUXFLAGS_IMMUTABLE | \
-				 NTFS_LINUXFLAGS_APPEND)
+				 NTFS_LINUXFLAGS_APPEND | NTFS_LINUXFLAGS_NODUMP)
 
 extern const struct xattr_handler *const ntfs_xattr_handlers[];
 
