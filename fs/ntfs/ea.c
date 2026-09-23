@@ -244,6 +244,8 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 	if (!err != !ea_err)
 		return -EUCLEAN;
 	has_ea = !err;
+	if (!has_ea && (!value || (flags & XATTR_REPLACE)))
+		return -ENODATA;
 	if (has_ea) {
 		p_ea_info = ntfs_attr_readall(ni, AT_EA_INFORMATION, NULL, 0,
 						&ea_info_size);
@@ -307,7 +309,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 			err = -EEXIST;
 			goto out;
 		}
-		if ((flags & XATTR_REPLACE) && !val_size) {
+		if (!value) {
 			old_ea_info = *p_ea_info;
 			old_ea_buf = kvmemdup(ea_buf, all_ea_size, GFP_NOFS);
 			if (!old_ea_buf) {
@@ -317,7 +319,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 		}
 
 		/* Check the final $EA size before removing the old entry. */
-		if (val_size &&
+		if (value &&
 		    ntfs_attr_size_bounds_check(ni->vol, AT_EA,
 					ea_info_qsize - ea_size + new_ea_size)) {
 			err = -EFBIG;
@@ -326,7 +328,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 
 		p_ea = (struct ea_attr *)(ea_buf + ea_off);
 
-		if (val_size &&
+		if (value &&
 		    le16_to_cpu(p_ea->ea_value_length) == val_size &&
 		    !memcmp(p_ea->ea_name + p_ea->ea_name_length + 1, value,
 			    val_size))
@@ -341,7 +343,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 		ea_info_qsize -= ea_size;
 		p_ea_info->ea_query_length = cpu_to_le32(ea_info_qsize);
 
-		if ((flags & XATTR_REPLACE) && !val_size && !ea_info_qsize) {
+		if (!value && !ea_info_qsize) {
 			err = ntfs_attr_remove(ni, AT_EA, AT_UNNAMED, 0, NULL);
 			if (err)
 				goto out;
@@ -357,7 +359,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 			goto out;
 		}
 
-		if ((flags & XATTR_REPLACE) && !val_size) {
+		if (!value) {
 			err = ntfs_write_ea(ni, AT_EA, ea_buf, 0, ea_info_qsize,
 					true);
 			if (err) {
@@ -378,7 +380,7 @@ static int ntfs_set_ea(struct inode *inode, const char *name, size_t name_len,
 			goto out;
 		}
 	} else {
-		if (flags & XATTR_REPLACE) {
+		if (!value || (flags & XATTR_REPLACE)) {
 			err = -ENODATA;
 			goto out;
 		}
