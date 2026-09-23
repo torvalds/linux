@@ -110,7 +110,7 @@ struct iwl_txf_iter_data {
  * @ap_type_cmd_valid: if &ap_type_cmd is valid
  * @uefi_tables_lock_status: the status of the WIFI GUID UEFI variables lock,
  *	see &enum iwl_uefi_cnv_guid_status.
- *	Only read the UEFI variables if locked.
+ *	Trust the UEFI variables if locked or in test mode.
  * @sar_profiles: sar profiles as read from WRDS/EWRD BIOS tables
  * @geo_profiles: geographic profiles as read from WGDS BIOS table
  * @geo_bios_source: see &enum bios_source

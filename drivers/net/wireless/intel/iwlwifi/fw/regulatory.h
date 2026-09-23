@@ -53,11 +53,14 @@
  * @UEFI_CNV_GUID_UNLOCKED: the tables are unlocked
  * @UEFI_CNV_GUID_LOCKED: the tables are locked
  * @UEFI_CNV_GUID_TEST_MODE: the tables are locked in test mode
+ * @UEFI_CNV_GUID_UNKNOWN: the lock status could not be determined.
+ *	This value is a driver internal, not a possible BIOS reported one
  */
 enum iwl_uefi_cnv_guid_status {
 	UEFI_CNV_GUID_UNLOCKED = 0,
 	UEFI_CNV_GUID_LOCKED = 1,
 	UEFI_CNV_GUID_TEST_MODE = 2,
+	UEFI_CNV_GUID_UNKNOWN = 3,
 };
 
 struct iwl_tas_selection_data {
