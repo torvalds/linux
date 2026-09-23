@@ -46,7 +46,7 @@
 	__typeof__(*(ptr)) _n_ = (new);					\
 	__typeof__(*(ptr)) _prev_;					\
 									\
-	switch(sizeof((_p_))) {						\
+	switch (sizeof(*(_p_))) {						\
 	case 1:								\
 		_prev_ = (__typeof__(*(ptr)))cmpxchg_emu_u8((volatile u8 *__force)_p_, (uintptr_t)_o_, (uintptr_t)_n_);	\
 		break;							\
@@ -102,7 +102,7 @@
 	__typeof__(ptr) _p_ = (ptr);					\
 	__typeof__(*(ptr)) _val_ = (val);				\
 									\
-	switch(sizeof(*(_p_))) {					\
+	switch (sizeof(*(_p_))) {					\
 	case 4:								\
 		_val_ = __arch_xchg(_p_, _val_);			\
 		break;							\
