@@ -135,9 +135,9 @@ static void defer_kevent(struct eth_dev *dev, int flag)
 	if (test_and_set_bit(flag, &dev->todo))
 		return;
 	if (!schedule_work(&dev->work))
-		ERROR(dev, "kevent %d may have been dropped\n", flag);
+		netdev_err(dev->net, "kevent %d may have been dropped\n", flag);
 	else
-		DBG(dev, "kevent %d scheduled\n", flag);
+		netdev_dbg(dev->net, "kevent %d scheduled\n", flag);
 }
 
 static void rx_complete(struct usb_ep *ep, struct usb_request *req);
@@ -190,7 +190,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 
 	skb = __netdev_alloc_skb(dev->net, size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
-		DBG(dev, "no rx skb\n");
+		netdev_dbg(dev->net, "no rx skb\n");
 		goto enomem;
 	}
 
@@ -211,7 +211,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 enomem:
 		defer_kevent(dev, WORK_RX_MEMORY);
 	if (retval) {
-		DBG(dev, "rx submit --> %d\n", retval);
+		netdev_dbg(dev->net, "rx submit --> %d\n", retval);
 		if (skb)
 			dev_kfree_skb_any(skb);
 		spin_lock_irqsave(&dev->req_lock, flags);
@@ -258,7 +258,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 					|| skb2->len > GETHER_MAX_ETH_FRAME_LEN) {
 				dev->net->stats.rx_errors++;
 				dev->net->stats.rx_length_errors++;
-				DBG(dev, "rx length %d\n", skb2->len);
+				netdev_dbg(dev->net, "rx length %d\n", skb2->len);
 				dev_kfree_skb_any(skb2);
 				goto next_frame;
 			}
@@ -278,12 +278,12 @@ next_frame:
 	/* software-driven interface shutdown */
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
-		VDBG(dev, "rx shutdown, code %d\n", status);
+		netdev_vdbg(dev->net, "rx shutdown, code %d\n", status);
 		goto quiesce;
 
 	/* for hardware automagic (such as pxa) */
 	case -ECONNABORTED:		/* endpoint reset */
-		DBG(dev, "rx %s reset\n", ep->name);
+		netdev_dbg(dev->net, "rx %s reset\n", ep->name);
 		defer_kevent(dev, WORK_RX_MEMORY);
 quiesce:
 		dev_kfree_skb_any(skb);
@@ -296,7 +296,7 @@ quiesce:
 
 	default:
 		dev->net->stats.rx_errors++;
-		DBG(dev, "rx status %d\n", status);
+		netdev_dbg(dev->net, "rx status %d\n", status);
 		break;
 	}
 
@@ -365,7 +365,7 @@ static int alloc_requests(struct eth_dev *dev, struct gether *link, unsigned n)
 		goto fail;
 	goto done;
 fail:
-	DBG(dev, "can't alloc requests\n");
+	netdev_dbg(dev->net, "can't alloc requests\n");
 done:
 	spin_unlock(&dev->req_lock);
 	return status;
@@ -403,7 +403,7 @@ static void eth_work(struct work_struct *work)
 	}
 
 	if (dev->todo)
-		DBG(dev, "work done, flags = 0x%lx\n", dev->todo);
+		netdev_dbg(dev->net, "work done, flags = 0x%lx\n", dev->todo);
 }
 
 static void tx_complete(struct usb_ep *ep, struct usb_request *req)
@@ -414,7 +414,7 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	switch (req->status) {
 	default:
 		dev->net->stats.tx_errors++;
-		VDBG(dev, "tx err %d\n", req->status);
+		netdev_vdbg(dev->net, "tx err %d\n", req->status);
 		fallthrough;
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
@@ -475,7 +475,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	}
 
 	if (dev->port_usb && dev->port_usb->is_suspend) {
-		DBG(dev, "Port suspended. Triggering wakeup\n");
+		netdev_dbg(dev->net, "Port suspended. Triggering wakeup\n");
 		netif_stop_queue(net);
 		spin_unlock_irqrestore(&dev->lock, flags);
 		ether_wakeup_host(dev->port_usb);
@@ -579,7 +579,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	retval = usb_ep_queue(in, req, GFP_ATOMIC);
 	switch (retval) {
 	default:
-		DBG(dev, "tx queue err %d\n", retval);
+		netdev_dbg(dev->net, "tx queue err %d\n", retval);
 		break;
 	case 0:
 		netif_trans_update(net);
@@ -604,7 +604,7 @@ multiframe:
 
 static void eth_start(struct eth_dev *dev, gfp_t gfp_flags)
 {
-	DBG(dev, "%s\n", __func__);
+	netdev_dbg(dev->net, "%s\n", __func__);
 
 	/* fill the rx queue */
 	rx_fill(dev, gfp_flags);
@@ -619,7 +619,7 @@ static int eth_open(struct net_device *net)
 	struct eth_dev	*dev = netdev_priv(net);
 	struct gether	*link;
 
-	DBG(dev, "%s\n", __func__);
+	netdev_dbg(dev->net, "%s\n", __func__);
 	if (netif_carrier_ok(dev->net))
 		eth_start(dev, GFP_KERNEL);
 
@@ -637,13 +637,12 @@ static int eth_stop(struct net_device *net)
 	struct eth_dev	*dev = netdev_priv(net);
 	unsigned long	flags;
 
-	VDBG(dev, "%s\n", __func__);
+	netdev_vdbg(dev->net, "%s\n", __func__);
 	netif_stop_queue(net);
 
-	DBG(dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld\n",
-		dev->net->stats.rx_packets, dev->net->stats.tx_packets,
-		dev->net->stats.rx_errors, dev->net->stats.tx_errors
-		);
+	netdev_dbg(dev->net, "stop stats: rx/tx %ld/%ld, errs %ld/%ld\n",
+		   dev->net->stats.rx_packets, dev->net->stats.tx_packets,
+		   dev->net->stats.rx_errors, dev->net->stats.tx_errors);
 
 	/* ensure there are no more active requests */
 	spin_lock_irqsave(&dev->lock, flags);
@@ -669,7 +668,7 @@ static int eth_stop(struct net_device *net)
 		usb_ep_disable(link->in_ep);
 		usb_ep_disable(link->out_ep);
 		if (netif_carrier_ok(net)) {
-			DBG(dev, "host still using in/out endpoints\n");
+			netdev_dbg(dev->net, "host still using in/out endpoints\n");
 			link->in_ep->desc = in;
 			link->out_ep->desc = out;
 			usb_ep_enable(link->in_ep);
@@ -799,8 +798,8 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 		free_netdev(net);
 		dev = ERR_PTR(status);
 	} else {
-		INFO(dev, "MAC %pM\n", net->dev_addr);
-		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
+		netdev_info(net, "MAC %pM\n", net->dev_addr);
+		netdev_info(net, "HOST MAC %pM\n", dev->host_mac);
 
 		/*
 		 * two kinds of host-initiated state changes:
@@ -875,8 +874,8 @@ int gether_register_netdev(struct net_device *net)
 		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
 		return status;
 	} else {
-		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
-		INFO(dev, "MAC %pM\n", dev->dev_mac);
+		netdev_info(net, "HOST MAC %pM\n", dev->host_mac);
+		netdev_info(net, "MAC %pM\n", dev->dev_mac);
 
 		/* two kinds of host-initiated state changes:
 		 *  - iff DATA transfer is active, carrier is "on"
@@ -1147,16 +1146,16 @@ struct net_device *gether_connect(struct gether *link)
 	link->in_ep->driver_data = dev;
 	result = usb_ep_enable(link->in_ep);
 	if (result != 0) {
-		DBG(dev, "enable %s --> %d\n",
-			link->in_ep->name, result);
+		netdev_dbg(dev->net, "enable %s --> %d\n",
+			   link->in_ep->name, result);
 		goto fail0;
 	}
 
 	link->out_ep->driver_data = dev;
 	result = usb_ep_enable(link->out_ep);
 	if (result != 0) {
-		DBG(dev, "enable %s --> %d\n",
-			link->out_ep->name, result);
+		netdev_dbg(dev->net, "enable %s --> %d\n",
+			   link->out_ep->name, result);
 		goto fail1;
 	}
 
@@ -1167,7 +1166,7 @@ struct net_device *gether_connect(struct gether *link)
 	if (result == 0) {
 		dev->zlp = link->is_zlp_ok;
 		dev->no_skb_reserve = gadget_avoids_skb_reserve(dev->gadget);
-		DBG(dev, "qlen %d\n", qlen(dev->gadget, dev->qmult));
+		netdev_dbg(dev->net, "qlen %d\n", qlen(dev->gadget, dev->qmult));
 
 		dev->header_len = link->header_len;
 		dev->unwrap = link->unwrap;
@@ -1223,7 +1222,7 @@ void gether_disconnect(struct gether *link)
 	if (!dev)
 		return;
 
-	DBG(dev, "%s\n", __func__);
+	netdev_dbg(dev->net, "%s\n", __func__);
 
 	spin_lock(&dev->lock);
 	dev->port_usb = NULL;
