@@ -270,6 +270,7 @@ struct nvmet_ctrl {
 	u16			cntlid;
 	u16			max_qid;
 	u32			kato;
+	bool			tbkas;
 
 	struct nvmet_port	*port;
 
@@ -343,6 +344,7 @@ struct nvmet_subsys {
 	bool			subsys_discovered;
 	char			*subsysnqn;
 	bool			pi_support;
+	bool			tbkas;
 
 	struct config_group	group;
 
