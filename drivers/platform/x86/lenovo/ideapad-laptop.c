@@ -1369,6 +1369,18 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,   0x29 | IDEAPAD_WMI_KEY, { KEY_TOUCHPAD_TOGGLE } },
 	{ KE_KEY,   0x2a | IDEAPAD_WMI_KEY, { KEY_ROOT_MENU } },
 
+	/*
+	 * WMI switches
+	 *
+	 * Some devices come with physical switches. Whenever a switch is
+	 * toggled, an WMI event is emitted to inform the software about the
+	 * switch's latest state.
+	 */
+
+	/* Camera switch */
+	{ KE_SW,	0x0c | IDEAPAD_WMI_KEY, .sw = { SW_CAMERA_LENS_COVER, 0 } },
+	{ KE_SW,	0x0d | IDEAPAD_WMI_KEY, .sw = { SW_CAMERA_LENS_COVER, 1 } },
+
 	{ KE_END },
 };
 
