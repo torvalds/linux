@@ -2366,6 +2366,10 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x0a73, 0x003a, /* Mackie DLZ Creator XS */
 		   QUIRK_FLAG_ALWAYS_SET_RATE),
+	DEVICE_FLG(0x0b05, 0x1826, /* ASUS SupremeFX Hi-Fi */
+		   QUIRK_FLAG_DISABLE_AUTOSUSPEND),
+	DEVICE_FLG(0x0b05, 0x1827, /* ASUS SupremeFX Hi-Fi */
+		   QUIRK_FLAG_DISABLE_AUTOSUSPEND),
 	DEVICE_FLG(0x0b05, 0x18a6, /* ASUSTek Computer, Inc. */
 		   QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE),
 	DEVICE_FLG(0x0b0e, 0x0349, /* Jabra 550a */
