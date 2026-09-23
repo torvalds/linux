@@ -818,7 +818,8 @@ static void iwl_mld_decode_eht_usig_tb(struct iwl_mld_rx_phy_data *phy_data,
 	__le32 usig_a2 = phy_data->ntfy->sigs.eht_tb.usig_a2_eht;
 
 	IWL_MLD_ENC_USIG_VALUE_MASK(usig, usig_a1,
-				    OFDM_RX_FRAME_EHT_USIG1_DISREGARD,
+				    OFDM_RX_FRAME_EHT_USIG1_DISREGARD |
+				    OFDM_RX_FRAME_EHT_USIG1_VALIDATE,
 				    IEEE80211_RADIOTAP_EHT_USIG1_TB_B20_B25_DISREGARD);
 	IWL_MLD_ENC_USIG_VALUE_MASK(usig, usig_a2,
 				    OFDM_RX_FRAME_EHT_PPDU_TYPE,
