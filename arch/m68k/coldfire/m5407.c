@@ -22,6 +22,11 @@
 
 /***************************************************************************/
 
+/*
+ *	Some platforms need software versions of the GPIO data registers.
+ */
+unsigned short ppdata;
+
 DEFINE_CLK(pll, "pll.0", MCF_CLK);
 DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
 
