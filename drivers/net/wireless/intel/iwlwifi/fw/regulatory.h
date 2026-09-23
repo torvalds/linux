@@ -47,6 +47,19 @@
 #define IWL_WTAS_CANADA_UHB_MSK		BIT(15)
 #define IWL_WTAS_USA_UHB_MSK		BIT(16)
 
+/**
+ * enum iwl_uefi_cnv_guid_status - lock status of the connectivity
+ * UEFI tables
+ * @UEFI_CNV_GUID_UNLOCKED: the tables are unlocked
+ * @UEFI_CNV_GUID_LOCKED: the tables are locked
+ * @UEFI_CNV_GUID_TEST_MODE: the tables are locked in test mode
+ */
+enum iwl_uefi_cnv_guid_status {
+	UEFI_CNV_GUID_UNLOCKED = 0,
+	UEFI_CNV_GUID_LOCKED = 1,
+	UEFI_CNV_GUID_TEST_MODE = 2,
+};
+
 struct iwl_tas_selection_data {
 	u8 override_tas_iec:1,
 	   enable_tas_iec:1,

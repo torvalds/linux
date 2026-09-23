@@ -1153,7 +1153,8 @@ void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 	}
 
 	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
-	    wifi_pkg->package.elements[1].integer.value > ACPI_GLAI_MAX_STATUS)
+	    wifi_pkg->package.elements[1].integer.value >
+	    UEFI_CNV_GUID_TEST_MODE)
 		goto out_free;
 
 	fwrt->uefi_tables_lock_status =

@@ -89,7 +89,6 @@
  * and one for the status
  */
 #define ACPI_GLAI_WIFI_DATA_SIZE	2
-#define ACPI_GLAI_MAX_STATUS		2
 /*
  * TAS size: 1 elelment for type,
  *	     1 element for enabled field,
@@ -110,9 +109,6 @@
 /* used for ACPI PPAG table rev 5 */
 #define ACPI_PPAG_WIFI_DATA_SIZE_V3	((ACPI_PPAG_NUM_CHAINS * \
 					  ACPI_PPAG_NUM_BANDS_V3) + 2)
-
-/* The Inidcator whether UEFI WIFI GUID tables are locked is read from ACPI */
-#define UEFI_WIFI_GUID_UNLOCKED		0
 
 #define ACPI_DSM_REV 0
 

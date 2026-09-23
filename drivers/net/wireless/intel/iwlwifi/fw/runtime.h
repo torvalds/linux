@@ -108,8 +108,8 @@ struct iwl_txf_iter_data {
  * @dump: debug dump data
  * @ap_type_cmd: AP type tables (for enablement on 6 GHz)
  * @ap_type_cmd_valid: if &ap_type_cmd is valid
- * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
- *	0: Unlocked, 1 and 2: Locked.
+ * @uefi_tables_lock_status: the status of the WIFI GUID UEFI variables lock,
+ *	see &enum iwl_uefi_cnv_guid_status.
  *	Only read the UEFI variables if locked.
  * @sar_profiles: sar profiles as read from WRDS/EWRD BIOS tables
  * @geo_profiles: geographic profiles as read from WGDS BIOS table

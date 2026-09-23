@@ -20,6 +20,10 @@
 					 0x8d, 0x03, 0x77, 0x2e,	\
 					 0xcc, 0x3d, 0xa5, 0x31)
 
+#define IWL_EFI_GLUI_GUID	EFI_GUID(0x6c5bed75, 0x0ee8, 0x4d45,	\
+					 0x98, 0x0b, 0x4d, 0x81,	\
+					 0x31, 0xba, 0x84, 0xb5)
+
 struct iwl_uefi_pnvm_mem_desc {
 	__le32 addr;
 	__le32 size;
@@ -1062,4 +1066,34 @@ int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
 
 	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC config from UEFI\n");
 	return 0;
+}
+
+void iwl_uefi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_glui *data __free(kfree) =
+		iwl_uefi_get_verified_variable_guid(fwrt->trans,
+						    &IWL_EFI_GLUI_GUID,
+						    IWL_UEFI_GLUI_NAME, "GLUI",
+						    sizeof(*data), NULL);
+
+	if (IS_ERR(data))
+		return;
+
+	if (data->revision != IWL_UEFI_GLUI_REVISION) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI GLUI revision:%d\n",
+				data->revision);
+		return;
+	}
+
+	/* UEFI_CNV_GUID_TEST_MODE is the max value */
+	if (data->guid_lock_status > UEFI_CNV_GUID_TEST_MODE) {
+		IWL_DEBUG_RADIO(fwrt, "Invalid UEFI GUID lock status:%d\n",
+				data->guid_lock_status);
+		return;
+	}
+
+	fwrt->uefi_tables_lock_status = data->guid_lock_status;
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded UEFI WIFI GUID lock status: %d\n",
+			fwrt->uefi_tables_lock_status);
 }

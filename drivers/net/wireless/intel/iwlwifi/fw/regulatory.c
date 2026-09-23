@@ -12,7 +12,7 @@
 #define GET_BIOS_TABLE(__name, ...)					\
 do {									\
 	int ret = -ENOENT;						\
-	if (fwrt->uefi_tables_lock_status > UEFI_WIFI_GUID_UNLOCKED)	\
+	if (fwrt->uefi_tables_lock_status > UEFI_CNV_GUID_UNLOCKED)	\
 		ret = iwl_uefi_get_ ## __name(__VA_ARGS__);		\
 	if (ret < 0)							\
 		ret = iwl_acpi_get_ ## __name(__VA_ARGS__);		\
