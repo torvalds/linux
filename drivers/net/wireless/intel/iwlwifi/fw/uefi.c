@@ -547,11 +547,11 @@ out:
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uneb_table);
 
-static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
+static void iwl_uefi_set_sar_profile(struct iwl_sar_profile *profiles,
 				     const u8 *vals, u8 prof_index,
 				     u8 num_subbands, bool enabled)
 {
-	struct iwl_sar_profile *sar_prof = &fwrt->sar_profiles[prof_index];
+	struct iwl_sar_profile *sar_prof = &profiles[prof_index];
 
 	/*
 	 * Make sure fwrt has enough room to hold the data
@@ -573,7 +573,7 @@ static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
 				vals[chain * num_subbands + subband];
 	}
 
-	fwrt->sar_profiles[prof_index].enabled = enabled & IWL_SAR_ENABLE_MSK;
+	sar_prof->enabled = enabled & IWL_SAR_ENABLE_MSK;
 }
 
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
@@ -617,8 +617,9 @@ int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	iwl_uefi_set_sar_profile(fwrt, data->vals, 0,
+	iwl_uefi_set_sar_profile(fwrt->sar_profiles, data->vals, 0,
 				 num_subbands, data->mode);
+	fwrt->wrds_table_revision = data->revision;
 out:
 	kfree(data);
 	return ret;
@@ -670,12 +671,134 @@ int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
 		 */
-		iwl_uefi_set_sar_profile(fwrt, &data->vals[i * profile_size],
+		iwl_uefi_set_sar_profile(fwrt->sar_profiles,
+					 &data->vals[i * profile_size],
 					 i + 1, num_subbands, data->mode);
+
+	fwrt->ewrd_table_revision = data->revision;
 
 out:
 	kfree(data);
 	return ret;
+}
+
+int iwl_uefi_get_wsss_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_wrds *data __free(kfree) = NULL;
+	unsigned long expected_size;
+	unsigned long size;
+	int num_subbands;
+
+	if (fwrt->wrds_table_revision == IWL_BIOS_REVISION_UNSET) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: WRDS table was not read\n");
+		return -EINVAL;
+	}
+
+	data = iwl_uefi_get_verified_wifi_var(fwrt,
+					      IWL_UEFI_WSSS_NAME,
+					      "WSSS",
+					      UEFI_SAR_WRDS_TABLE_SIZE_REV2,
+					      &size);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	switch (data->revision) {
+	case 2:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		break;
+	case 3:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI WSSS revision:%d\n",
+				data->revision);
+		return -EINVAL;
+	}
+
+	if (size != expected_size)
+		return -EINVAL;
+
+	if (fwrt->wrds_table_revision != data->revision) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: WRDS/WSSS revision mismatch (WRDS rev %d, WSSS rev %d)\n",
+				fwrt->wrds_table_revision,
+				data->revision);
+		return -EINVAL;
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Reading WSSS (WRDS Standalone) tbl_rev=%d\n",
+			data->revision);
+	iwl_uefi_set_sar_profile(fwrt->sar_standalone_profiles,
+				 data->vals, 0,
+				 num_subbands,
+				 data->mode);
+	return 0;
+}
+
+int iwl_uefi_get_ewss_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_ewrd *data __free(kfree) = NULL;
+	unsigned long expected_size;
+	unsigned long size;
+	int num_subbands;
+	int profile_size;
+	int i;
+
+	if (fwrt->ewrd_table_revision == IWL_BIOS_REVISION_UNSET) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: EWRD table was not read\n");
+		return -EINVAL;
+	}
+
+	data = iwl_uefi_get_verified_wifi_var(fwrt,
+					      IWL_UEFI_EWSS_NAME,
+					      "EWSS",
+					      UEFI_SAR_EWRD_TABLE_SIZE_REV2,
+					      &size);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	switch (data->revision) {
+	case 3:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV3;
+		break;
+	case 2:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV2;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI EWSS revision:%d\n",
+				data->revision);
+		return -EINVAL;
+	}
+
+	if (size != expected_size ||
+	    data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM)
+		return -EINVAL;
+
+	if (fwrt->ewrd_table_revision != data->revision) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: EWRD/EWSS revision mismatch (EWRD rev %d, EWSS rev %d)\n",
+				fwrt->ewrd_table_revision,
+				data->revision);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < data->num_profiles; i++)
+		iwl_uefi_set_sar_profile(fwrt->sar_standalone_profiles,
+					 &data->vals[i * profile_size],
+					 i + 1, num_subbands,
+					 data->mode);
+
+	return 0;
 }
 
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)

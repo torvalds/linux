@@ -31,6 +31,7 @@
 
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 #define IWL_REDUCE_POWER_FLAGS_POS	1
+#define IWL_BIOS_REVISION_UNSET		0xFF
 
 /* PPAG gain value bounds in 1/8 dBm */
 #define IWL_PPAG_MIN_LB	-16
@@ -222,6 +223,10 @@ iwl_parse_tas_selection(const u32 tas_selection, const u8 tbl_rev);
 int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_wsss_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_ewss_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_wgds_table(struct iwl_fw_runtime *fwrt);
 

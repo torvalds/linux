@@ -30,6 +30,8 @@ IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name)
 
 IWL_BIOS_TABLE_LOADER(wrds_table);
 IWL_BIOS_TABLE_LOADER(ewrd_table);
+IWL_BIOS_TABLE_LOADER(wsss_table);
+IWL_BIOS_TABLE_LOADER(ewss_table);
 IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
 IWL_BIOS_TABLE_LOADER(phy_filters);

@@ -23,6 +23,8 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 	int i;
 
 	memset(fwrt, 0, sizeof(*fwrt));
+	fwrt->wrds_table_revision = IWL_BIOS_REVISION_UNSET;
+	fwrt->ewrd_table_revision = IWL_BIOS_REVISION_UNSET;
 	fwrt->trans = trans;
 	fwrt->fw = fw;
 	fwrt->dev = trans->dev;

@@ -14,6 +14,8 @@
 
 #define ACPI_WRDS_METHOD	"WRDS"
 #define ACPI_EWRD_METHOD	"EWRD"
+#define ACPI_WSSS_METHOD	"WSSS"
+#define ACPI_EWSS_METHOD	"EWSS"
 #define ACPI_WGDS_METHOD	"WGDS"
 #define ACPI_WRDD_METHOD	"WRDD"
 #define ACPI_SPLC_METHOD	"SPLC"
@@ -175,6 +177,10 @@ int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 
+int iwl_acpi_get_wsss_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_acpi_get_ewss_table(struct iwl_fw_runtime *fwrt);
+
 int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
@@ -225,6 +231,16 @@ static inline int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_wsss_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_ewss_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }
