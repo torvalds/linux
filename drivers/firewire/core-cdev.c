@@ -1397,6 +1397,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 			// xarray and prepare for deletion, unless the client is shutting down.
 			scoped_guard(spinlock_irq,  &client->lock) {
 				if (!client->in_shutdown && xa_erase(&client->resource_xa, index)) {
+					// For the incrementation by add_client_resource().
 					client_put(client);
 					free = true;
 				}
@@ -1438,6 +1439,9 @@ static void iso_resource_auto_work(struct work_struct *work)
 		kfree(r->e_alloc);
 		kfree(r->e_dealloc);
 		kfree(r);
+
+		// For the incrementation by ioctl_allocate_iso_resource().
+		client_put(client);
 	}
  out:
 	client_put(client);
@@ -1483,6 +1487,7 @@ static int ioctl_allocate_iso_resource(struct client *client, union ioctl_arg *a
 	if (err < 0)
 		return err;
 	request->handle = r->resource.handle;
+	client_get(client);
 
 	retain_and_null_ptr(e1);
 	retain_and_null_ptr(e2);
