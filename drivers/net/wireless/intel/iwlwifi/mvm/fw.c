@@ -1576,7 +1576,7 @@ void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	iwl_acpi_get_guid_lock_status(&mvm->fwrt);
+	iwl_bios_get_guid_lock_status(&mvm->fwrt);
 
 	/* read PPAG table */
 	ret = iwl_bios_get_ppag_table(&mvm->fwrt);

@@ -1166,7 +1166,6 @@ void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 out_free:
 	kfree(data);
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_guid_lock_status);
 
 int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 {

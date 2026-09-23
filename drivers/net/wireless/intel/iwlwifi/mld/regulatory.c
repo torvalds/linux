@@ -6,7 +6,6 @@
 #include <linux/dmi.h>
 
 #include "fw/regulatory.h"
-#include "fw/acpi.h"
 #include "fw/uefi.h"
 
 #include "regulatory.h"
@@ -37,7 +36,7 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 {
 	int ret;
 
-	iwl_acpi_get_guid_lock_status(&mld->fwrt);
+	iwl_bios_get_guid_lock_status(&mld->fwrt);
 
 	ret = iwl_bios_get_ppag_table(&mld->fwrt);
 	if (ret < 0) {
