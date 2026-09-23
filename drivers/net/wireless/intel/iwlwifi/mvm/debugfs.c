@@ -1145,53 +1145,6 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	return count;
 }
 
-static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
-					       char *buf, size_t count,
-					       loff_t *ppos)
-{
-	struct iwl_rss_config_cmd cmd = {
-		.flags = cpu_to_le32(IWL_RSS_ENABLE),
-		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
-			     IWL_RSS_HASH_TYPE_IPV4_UDP |
-			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
-			     IWL_RSS_HASH_TYPE_IPV6_TCP |
-			     IWL_RSS_HASH_TYPE_IPV6_UDP |
-			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
-	};
-	int ret, i, num_repeats, nbytes = count / 2;
-
-	ret = hex2bin(cmd.indirection_table, buf, nbytes);
-	if (ret)
-		return ret;
-
-	/*
-	 * The input is the redirection table, partial or full.
-	 * Repeat the pattern if needed.
-	 * For example, input of 01020F will be repeated 42 times,
-	 * indirecting RSS hash results to queues 1, 2, 15 (skipping
-	 * queues 3 - 14).
-	 */
-	num_repeats = ARRAY_SIZE(cmd.indirection_table) / nbytes;
-	for (i = 1; i < num_repeats; i++)
-		memcpy(&cmd.indirection_table[i * nbytes],
-		       cmd.indirection_table, nbytes);
-	/* handle cut in the middle pattern for the last places */
-	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
-	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
-
-	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
-
-	mutex_lock(&mvm->mutex);
-	if (iwl_mvm_firmware_running(mvm))
-		ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0,
-					   sizeof(cmd), &cmd);
-	else
-		ret = 0;
-	mutex_unlock(&mvm->mutex);
-
-	return ret ?: count;
-}
-
 static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 					     char *buf, size_t count,
 					     loff_t *ppos)
@@ -1866,8 +1819,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_clear, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
-MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
-			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie_restore, 512);
@@ -2066,7 +2017,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_clear, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(dbg_time_point, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie_restore, mvm->debugfs_dir, 0200);
