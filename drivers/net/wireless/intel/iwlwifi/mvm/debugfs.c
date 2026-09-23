@@ -525,16 +525,24 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 	if (ret < 0)
 		return ret;
 
+	if (iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp)) {
+		iwl_free_resp(&hcmd);
+		return -EIO;
+	}
+
 	buff = kzalloc(bufsz, GFP_KERNEL);
-	if (!buff)
+	if (!buff) {
+		iwl_free_resp(&hcmd);
 		return -ENOMEM;
+	}
 	pos = buff;
 	endpos = pos + bufsz;
 
 	rsp = (void *)hcmd.resp_pkt->data;
 
 	pos += scnprintf(pos, endpos - pos, "TAS Conclusion:\n");
-	for (i = 0; i < rsp->in_dual_radio + 1; i++) {
+	for (i = 0; i < min_t(int, rsp->in_dual_radio + 1,
+			      ARRAY_SIZE(rsp->tas_status_mac)); i++) {
 		if (rsp->tas_status_mac[i].dynamic_status &
 		    BIT(TAS_DYNA_ACTIVE)) {
 			pos += scnprintf(pos, endpos - pos, "\tON for ");
@@ -589,7 +597,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 "\tDo TAS Support Dual Radio?: %s\n",
 			 rsp->in_dual_radio ? "TRUE" : "FALSE");
 
-	for (i = 0; i < rsp->in_dual_radio + 1; i++) {
+	for (i = 0; i < min_t(int, rsp->in_dual_radio + 1,
+			      ARRAY_SIZE(rsp->tas_status_mac)); i++) {
 		if (rsp->tas_status_mac[i].static_status == 0) {
 			pos += scnprintf(pos, endpos - pos,
 					 "Static status: disabled\n");
