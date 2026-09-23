@@ -38,21 +38,21 @@ The project is available at:
 Linux file attributes
 =====================
 
-The driver supports lsattr(1) and setting immutable with chattr(1).
-Immutable is stored in bit 0 of a private ``$LINUXFLAGS`` extended attribute
+The driver supports lsattr(1) and setting immutable and append-only with chattr(1).
+Immutable is stored in bit 0 and append-only in bit 1 of a private ``$LINUXFLAGS`` extended attribute
 within the standard NTFS ``$EA``/``$EA_INFORMATION`` attributes. Its value
 is a 32-bit little-endian bitmask. Unknown bits are preserved; the entry
-is removed when the entire value becomes zero. The setting survives
+is removed when the entire value becomes zero. These settings survive
 inode eviction, unmount and reboot. Direct writes or removal through
 xattr interfaces are rejected; use chattr(1) instead.
 
 System metadata files and files protected by ``sys_immutable`` cannot
 have their immutable protection cleared. Protection derived solely from
-that policy is not stored in the EA. Compression, encryption, append-only
+that policy is not stored in the EA. Compression, encryption
 and mount-wide case folding are reported but cannot be changed through
 chattr(1).
 
-Windows does not enforce the Linux immutable flag stored in this EA.
+Windows does not enforce the Linux immutable and append-only flags stored in this EA.
 
 Supported mount options
 =======================

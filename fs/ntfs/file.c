@@ -198,7 +198,7 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	struct inode *vi = d_inode(dentry);
 	struct ntfs_inode *ni = NTFS_I(vi);
-	u32 allowed = FS_IMMUTABLE_FL;
+	u32 allowed = FS_IMMUTABLE_FL | FS_APPEND_FL;
 	u32 readonly = 0;
 	u32 linuxflags = ni->linuxflags & ~NTFS_LINUXFLAGS_MASK;
 	unsigned int new_fl = 0;
@@ -210,11 +210,6 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 
 	if (fileattr_has_fsx(fa))
 		return -EOPNOTSUPP;
-
-	if ((fa->flags & FS_APPEND_FL) !=
-	    (IS_APPEND(vi) ? FS_APPEND_FL : 0))
-		return -EOPNOTSUPP;
-	allowed |= fa->flags & FS_APPEND_FL;
 
 	/* chattr passes the unchanged read-only flags back to us too. */
 	if (NInoCompressed(ni) || NInoWofCompressed(ni))
@@ -242,6 +237,10 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		    (ni->linuxflags & NTFS_LINUXFLAGS_IMMUTABLE))
 			linuxflags |= NTFS_LINUXFLAGS_IMMUTABLE;
 	}
+	if (fa->flags & FS_APPEND_FL) {
+		new_fl |= S_APPEND;
+		linuxflags |= NTFS_LINUXFLAGS_APPEND;
+	}
 
 	mutex_lock(&ni->mrec_lock);
 	err = ntfs_ea_set_linuxflags(vi, linuxflags);
@@ -249,7 +248,7 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 	if (err)
 		return err;
 
-	inode_set_flags(vi, new_fl, S_IMMUTABLE);
+	inode_set_flags(vi, new_fl, S_IMMUTABLE | S_APPEND);
 	inode_set_ctime_current(vi);
 	mark_inode_dirty(vi);
 	return 0;

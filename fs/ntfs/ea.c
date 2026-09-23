@@ -499,6 +499,8 @@ int ntfs_ea_get_linuxflags(struct inode *inode)
 	ni->linuxflags = le32_to_cpu(value);
 	if (ni->linuxflags & NTFS_LINUXFLAGS_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
+	if (ni->linuxflags & NTFS_LINUXFLAGS_APPEND)
+		inode->i_flags |= S_APPEND;
 	return 0;
 }
 
