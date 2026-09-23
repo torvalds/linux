@@ -403,6 +403,7 @@ alloc_new_ea:
 
 	if (packed_ea_size)
 		*packed_ea_size = p_ea_info->ea_length;
+	ea_info_qsize += new_ea_size;
 	mark_mft_record_dirty(ni);
 out:
 	if (!err) {
