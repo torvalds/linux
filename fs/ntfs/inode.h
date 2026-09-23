@@ -95,6 +95,7 @@ enum ntfs_inode_mutex_lock_class {
  *   belongs.
  * @i_dealloc_clusters: delayed allocated clusters.
  * @target: symlink buffer.
+ * @linuxflags: Linux-specific file attributes loaded from the $LINUXFLAGS EA.
  */
 struct ntfs_inode {
 	rwlock_t size_lock;
@@ -146,6 +147,7 @@ struct ntfs_inode {
 	__le32 reparse_tag;
 	__le32 reparse_flags;
 	char *target;
+	u32 linuxflags;
 };
 
 /*

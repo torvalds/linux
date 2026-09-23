@@ -174,6 +174,87 @@ int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
+static bool ntfs_is_forced_immutable(struct inode *vi)
+{
+	struct ntfs_inode *ni = NTFS_I(vi);
+
+	if (ni->mft_no < FILE_first_user && S_ISREG(vi->i_mode))
+		return true;
+
+	return NVolSysImmutable(ni->vol) &&
+	       (ni->flags & FILE_ATTR_SYSTEM) &&
+	       !S_ISFIFO(vi->i_mode) && !S_ISSOCK(vi->i_mode) &&
+	       !S_ISLNK(vi->i_mode);
+}
+
+/*
+ * ntfs_fileattr_set - inode_operations::fileattr_set
+ * @idmap:	idmap of the mount @dentry was found from
+ * @dentry:	dentry to set the flags of
+ * @fa:		flags to set
+ */
+int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct file_kattr *fa)
+{
+	struct inode *vi = d_inode(dentry);
+	struct ntfs_inode *ni = NTFS_I(vi);
+	u32 allowed = FS_IMMUTABLE_FL;
+	u32 readonly = 0;
+	u32 linuxflags = ni->linuxflags & ~NTFS_LINUXFLAGS_MASK;
+	unsigned int new_fl = 0;
+	bool forced_immutable;
+	int err;
+
+	if (NVolShutdown(ni->vol))
+		return -EIO;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	if ((fa->flags & FS_APPEND_FL) !=
+	    (IS_APPEND(vi) ? FS_APPEND_FL : 0))
+		return -EOPNOTSUPP;
+	allowed |= fa->flags & FS_APPEND_FL;
+
+	/* chattr passes the unchanged read-only flags back to us too. */
+	if (NInoCompressed(ni) || NInoWofCompressed(ni))
+		readonly |= FS_COMPR_FL;
+	if (NInoEncrypted(ni))
+		readonly |= FS_ENCRYPT_FL;
+	if ((fa->flags ^ readonly) & (FS_COMPR_FL | FS_ENCRYPT_FL))
+		return -EOPNOTSUPP;
+	allowed |= readonly;
+
+	/* Case folding is a read-only, mount-wide property. */
+	if (!NVolCaseSensitive(ni->vol))
+		allowed |= FS_CASEFOLD_FL;
+	if (fa->flags & ~allowed)
+		return -EOPNOTSUPP;
+
+	forced_immutable = ntfs_is_forced_immutable(vi);
+	if (!(fa->flags & FS_IMMUTABLE_FL) && forced_immutable)
+		return -EPERM;
+
+	if (fa->flags & FS_IMMUTABLE_FL) {
+		new_fl |= S_IMMUTABLE;
+		/* Do not persist an immutable bit derived from the mount. */
+		if (!forced_immutable ||
+		    (ni->linuxflags & NTFS_LINUXFLAGS_IMMUTABLE))
+			linuxflags |= NTFS_LINUXFLAGS_IMMUTABLE;
+	}
+
+	mutex_lock(&ni->mrec_lock);
+	err = ntfs_ea_set_linuxflags(vi, linuxflags);
+	mutex_unlock(&ni->mrec_lock);
+	if (err)
+		return err;
+
+	inode_set_flags(vi, new_fl, S_IMMUTABLE);
+	inode_set_ctime_current(vi);
+	mark_inode_dirty(vi);
+	return 0;
+}
+
 struct ntfs_fsync_attr {
 	struct list_head list;
 	struct inode *inode;
@@ -1456,9 +1537,10 @@ const struct file_operations ntfs_file_ops = {
 };
 
 const struct inode_operations ntfs_file_inode_ops = {
-	.fileattr_get	= ntfs_fileattr_get,
 	.setattr	= ntfs_setattr,
 	.getattr	= ntfs_getattr,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 	.listxattr	= ntfs_listxattr,
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
@@ -1466,17 +1548,19 @@ const struct inode_operations ntfs_file_inode_ops = {
 };
 
 const struct inode_operations ntfs_symlink_inode_operations = {
-	.fileattr_get	= ntfs_fileattr_get,
 	.get_link	= ntfs_get_link,
 	.setattr	= ntfs_setattr,
 	.listxattr	= ntfs_listxattr,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 };
 
 const struct inode_operations ntfs_special_inode_operations = {
-	.fileattr_get	= ntfs_fileattr_get,
 	.setattr	= ntfs_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 };

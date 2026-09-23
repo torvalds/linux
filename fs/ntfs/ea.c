@@ -481,6 +481,51 @@ int ntfs_ea_set_wsl_inode(struct inode *inode, dev_t rdev, __le16 *ea_size,
 	return err;
 }
 
+int ntfs_ea_get_linuxflags(struct inode *inode)
+{
+	struct ntfs_inode *ni = NTFS_I(inode);
+	__le32 value;
+	int err;
+
+	err = ntfs_get_ea(inode, "$LINUXFLAGS", sizeof("$LINUXFLAGS") - 1,
+			  &value, sizeof(value));
+	if (err == -ENODATA)
+		return 0;
+	if (err < 0)
+		return err == -ERANGE ? -EUCLEAN : err;
+	if (err != sizeof(value))
+		return -EUCLEAN;
+
+	ni->linuxflags = le32_to_cpu(value);
+	if (ni->linuxflags & NTFS_LINUXFLAGS_IMMUTABLE)
+		inode->i_flags |= S_IMMUTABLE;
+	return 0;
+}
+
+int ntfs_ea_set_linuxflags(struct inode *inode, u32 linuxflags)
+{
+	struct ntfs_inode *ni = NTFS_I(inode);
+	__le32 value;
+	int err;
+
+	if (linuxflags) {
+		value = cpu_to_le32(linuxflags);
+		err = ntfs_set_ea(inode, "$LINUXFLAGS", sizeof("$LINUXFLAGS") - 1,
+				  &value, sizeof(value), 0, NULL);
+	} else if (NInoHasEA(ni)) {
+		err = ntfs_set_ea(inode, "$LINUXFLAGS", sizeof("$LINUXFLAGS") - 1,
+				  NULL, 0, XATTR_REPLACE, NULL);
+		if (err == -ENODATA)
+			err = 0;
+	} else {
+		err = 0;
+	}
+
+	if (!err)
+		ni->linuxflags = linuxflags;
+	return err;
+}
+
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct inode *inode = d_inode(dentry);
@@ -860,6 +905,10 @@ static int ntfs_setxattr(const struct xattr_handler *handler,
 		return -EOPNOTSUPP;
 	if (NVolShutdown(ni->vol))
 		return -EIO;
+
+	/* Only fileattr_set may change the flags and their cached state. */
+	if (!strcmp(name, "$LINUXFLAGS"))
+		return -EPERM;
 
 	if (ntfs_is_reserved_lxattr(name) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;

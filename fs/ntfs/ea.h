@@ -7,6 +7,10 @@
 #define NTFS_EA_GID	BIT(2)
 #define NTFS_EA_MODE	BIT(3)
 
+/* $LINUXFLAGS stores these bits in a single little-endian 32-bit value. */
+#define NTFS_LINUXFLAGS_IMMUTABLE	BIT(0)
+#define NTFS_LINUXFLAGS_MASK	NTFS_LINUXFLAGS_IMMUTABLE
+
 extern const struct xattr_handler *const ntfs_xattr_handlers[];
 
 int ntfs_ea_set_wsl_not_symlink(struct ntfs_inode *ni, mode_t mode, dev_t dev);
@@ -14,6 +18,8 @@ int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags,
 			  bool *has_lxmod);
 int ntfs_ea_set_wsl_inode(struct inode *inode, dev_t rdev, __le16 *ea_size,
 		unsigned int flags);
+int ntfs_ea_get_linuxflags(struct inode *inode);
+int ntfs_ea_set_linuxflags(struct inode *inode, u32 linuxflags);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 #ifdef CONFIG_NTFS_FS_POSIX_ACL
