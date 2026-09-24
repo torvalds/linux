@@ -577,6 +577,20 @@ static int gve_prep_tso(struct sk_buff *skb)
 	int header_len;
 	int err;
 
+	/* Note: HW requires the total length of the TSO to be <= 262143,
+	 * this is enforced by netif_set_tso_max_size().
+	 *
+	 * MSS (gso_size) can not be trusted: packets forwarded from a tap or
+	 * injected by a packet socket can carry an arbitrary value, while the
+	 * mss field of the TSO context descriptor is only 14 bits wide.
+	 *
+	 * A too big MSS is dropped here instead of being rejected from
+	 * gve_features_check_dqo(), because software segmentation would
+	 * produce packets larger than the device can send.
+	 */
+	if (unlikely(shinfo->gso_size > GVE_TX_MAX_TSO_MSS_DQO))
+		return -1;
+
 	/* Needed because we will modify header. */
 	err = skb_cow_head(skb, 0);
 	if (err < 0)
@@ -964,7 +978,17 @@ netdev_features_t gve_features_check_dqo(struct sk_buff *skb,
 					 struct net_device *dev,
 					 netdev_features_t features)
 {
-	if (skb_is_gso(skb) && !gve_can_send_tso(skb))
+	if (!skb_is_gso(skb))
+		return features;
+
+	/* Keep the GSO bits for a too big MSS, so that gve_prep_tso() drops
+	 * the packet: software segmentation would give packets larger than
+	 * the device can send.
+	 */
+	if (skb_shinfo(skb)->gso_size > GVE_TX_MAX_TSO_MSS_DQO)
+		return features;
+
+	if (!gve_can_send_tso(skb))
 		return features & ~NETIF_F_GSO_MASK;
 
 	return features;
