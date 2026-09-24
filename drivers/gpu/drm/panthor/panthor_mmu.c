@@ -627,12 +627,6 @@ static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr)
 	panthor_irq_disable_events(&ptdev->mmu->irq,
 				   panthor_mmu_as_fault_mask(ptdev, as_nr));
 
-	/* Flush+invalidate RW caches, invalidate RO ones. */
-	ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
-				       CACHE_CLEAN | CACHE_INV, 0);
-	if (ret)
-		return ret;
-
 	if (vm && vm->locked_region.size) {
 		/* Unlock the region if there's a lock pending. */
 		ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_UNLOCK);
@@ -644,7 +638,18 @@ static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr)
 	gpu_write64(mmu->iomem, AS_MEMATTR(as_nr), 0);
 	gpu_write64(mmu->iomem, AS_TRANSCFG(as_nr), AS_TRANSCFG_ADRMODE_UNMAPPED);
 
-	return as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_UPDATE);
+	ret = as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_UPDATE);
+	if (ret)
+		return ret;
+
+	/* Flush+invalidate RW caches after we've unmapped, to make sure any
+	 * cacheline eviction is effective before we potentially return
+	 * memory pointed by this VM to the system. This needs to be done
+	 * after the UPDATE(UNMAPPED) operation to guarantee that not further
+	 * PT-walk can pull VM data into the cache.
+	 */
+	return panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
+					CACHE_CLEAN | CACHE_INV, 0);
 }
 
 static u32 panthor_mmu_fault_mask(struct panthor_device *ptdev, u32 value)
