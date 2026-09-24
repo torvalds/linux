@@ -7707,6 +7707,11 @@ static int ftrace_process_locs(struct module *mod,
 		}
 
 		addr = ftrace_call_adjust(addr);
+		/* The architecture may return 0 to reject a patch site */
+		if (!addr) {
+			skipped++;
+			continue;
+		}
 
 		end_offset = (pg->index+1) * sizeof(pg->records[0]);
 		if (end_offset > PAGE_SIZE << pg->order) {
