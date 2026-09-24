@@ -48,7 +48,7 @@
 #define EXT_DATA_LBLK 10
 #define EXT_DATA_LEN 3
 
-struct kunit_ctx {
+static struct kunit_ctx {
 	/*
 	 * Ext4 inode which has only 1 unwrit extent
 	 */
