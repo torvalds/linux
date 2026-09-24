@@ -250,6 +250,31 @@ struct scx_exit_task_args {
 	bool cancelled;
 };
 
+/**
+ * struct scx_enable_args - Argument container for cid-form ops.enable()
+ * @cmask_arena_addr: BPF arena address of the cmask of cids the task may run on
+ *
+ * @cmask_arena_addr is the task's affinity as it enters the scheduler.
+ * set_cmask() delivers the same mask right after enable(), before set_weight()
+ * and the first enqueue, then every affinity change afterwards, and is never
+ * called before enable(). A scheduler may therefore track affinity in
+ * set_cmask() alone.
+ *
+ * The kernel builds the mask in the scheduler arena from its own geometry, so
+ * the header is valid regardless of what the scheduler last wrote there. The
+ * memory is per-cpu scratch reused once the callback returns: copy the bits
+ * out, don't keep the address. The set_cmask() argument follows the same rules.
+ *
+ * The address is a plain value rather than a typed pointer because BTF can't
+ * mark a struct member as an arena pointer yet and a pointer member would reach
+ * the program typed as a kernel pointer. Cast it to struct scx_cmask __arena *
+ * before use. Once arena members can be typed, a typed alias will join this
+ * field in an anonymous union at the same offset.
+ */
+struct scx_enable_args {
+	u64	cmask_arena_addr;
+};
+
 /* argument container for ops.cgroup_init() */
 struct scx_cgroup_init_args {
 	/* the weight of the cgroup [1..10000] */
@@ -1037,6 +1062,7 @@ struct sched_ext_ops {
  *   - dispatch         -> dispatch (cpu arg is now cid)
  *   - update_idle      -> update_idle (cpu arg is now cid)
  *   - set_cpumask      -> set_cmask (cmask instead of cpumask)
+ *   - enable           -> enable (takes struct scx_enable_args)
  *   - cpu_online       -> cid_online
  *   - cpu_offline      -> cid_offline
  *   - dump_cpu         -> dump_cid
@@ -1070,7 +1096,7 @@ struct sched_ext_ops_cid {
 			  struct scx_init_task_args *args);
 	void (*exit_task)(struct task_struct *p,
 			   struct scx_exit_task_args *args);
-	void (*enable)(struct task_struct *p);
+	void (*enable)(struct task_struct *p, struct scx_enable_args *args);
 	void (*disable)(struct task_struct *p);
 	void (*dump)(struct scx_dump_ctx *ctx);
 	void (*dump_cid)(struct scx_dump_ctx *ctx, s32 cid, bool idle);
@@ -1533,7 +1559,8 @@ struct scx_sched {
 	 * by BUILD_BUG_ON in scx_init()). The anonymous union lets the kernel
 	 * access either view of the same storage without function-pointer
 	 * casts: use .ops for cpu-form and shared fields, .ops_cid for the
-	 * cid-renamed callbacks (set_cmask, select_cid, cid_online, ...).
+	 * callbacks whose cid-form signature differs (set_cmask, enable,
+	 * select_cid, cid_online, ...).
 	 */
 	union {
 		struct sched_ext_ops		ops;
@@ -1556,9 +1583,9 @@ struct scx_sched {
 	uintptr_t		arena_kern_base;
 
 	/*
-	 * Per-CPU arena cmask used by scx_call_op_set_cpumask() to hand a cmask
-	 * to ops_cid.set_cmask(). The kernel writes through the stored kern_va
-	 * and passes it to the callback's __arena argument.
+	 * Per-CPU arena cmask the kernel fills from a task's cpumask and hands
+	 * to ops_cid.enable() and ops_cid.set_cmask(). The stored pointers are
+	 * the kernel addresses.
 	 */
 	struct scx_cmask * __percpu *set_cmask_scratch;
 	struct scx_cmask *online_cmask;
@@ -1667,6 +1694,19 @@ struct scx_sched {
 static inline void *scx_arena_to_kaddr(struct scx_sched *sch, const void *bpf_ptr)
 {
 	return (void *)(sch->arena_kern_base + (u32)(uintptr_t)bpf_ptr);
+}
+
+/**
+ * scx_kaddr_to_arena - Translate a kernel arena address to the BPF form
+ * @sch: scheduler whose arena hosts @kaddr
+ * @kaddr: kernel address inside @sch's arena
+ *
+ * __arena callback arguments need no translation. Addresses handed to BPF any
+ * other way, such as struct fields and kfunc return values, go through this.
+ */
+static inline uintptr_t scx_kaddr_to_arena(struct scx_sched *sch, const void *kaddr)
+{
+	return (uintptr_t)kaddr - sch->arena_kern_base;
 }
 
 enum scx_wake_flags {
@@ -2065,8 +2105,7 @@ void scx_dispatch_dequeue(struct rq *rq, struct task_struct *p);
 void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 			 int sticky_cpu);
 void scx_move_local_task_to_local_dsq(struct scx_sched *sch, struct task_struct *p,
-				      u64 enq_flags, struct scx_dispatch_q *src_dsq,
-				      struct rq *dst_rq);
+				      u64 enq_flags, struct rq *dst_rq);
 bool scx_consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
 			    struct scx_dispatch_q *dsq, u64 enq_flags);
 bool scx_consume_global_dsq(struct scx_sched *sch, struct rq *rq);
@@ -2078,6 +2117,7 @@ void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags);
 u64 __scx_bpf_now(struct rq *rq);
 void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 			u64 reenq_flags, struct rq *locked_rq);
+void scx_reenq_wait_dispatching(struct task_struct *p);
 int __scx_init_task(struct scx_sched *sch, struct task_struct *p,
 		    struct cgroup *cgrp, bool fork);
 void scx_enable_task(struct scx_sched *sch, struct task_struct *p);
@@ -2302,9 +2342,9 @@ do {										\
 } while (0)
 
 /*
- * Dispatch a task op through the cid-form ops_cid table. Only set_cmask() needs
- * this: it takes an arena cmask address instead of a cpumask, so it cannot be
- * invoked via its cpu-form set_cpumask() slot.
+ * Dispatch a task op through the cid-form ops_cid table, for the ops whose
+ * cid-form signature differs from the cpu-form slot: set_cmask() takes an arena
+ * cmask instead of a cpumask and enable() takes scx_enable_args.
  */
 #define SCX_CALL_CID_OP_TASK(sch, op, locked_rq, task, args...)			\
 	__SCX_CALL_OP_TASK(sch, ops_cid, op, locked_rq, task, ##args)
