@@ -56,6 +56,76 @@ ovpn_prepare_network() {
 	done
 }
 
+ovpn_new_test_peer() {
+	local peer_id="$1"
+
+	shift
+	ip netns exec ovpn_peer0 "${OVPN_CLI}" new_peer tun0 \
+		"${peer_id}" none 65000 10.10.1.2 1 "$@"
+}
+
+ovpn_set_peer_vpn_addr() {
+	ip netns exec ovpn_peer0 "${OVPN_CLI}" set_peer tun0 \
+		"$1" 60 120 "$2"
+}
+
+ovpn_run_vpn_addr_validation() {
+	local addr
+	local peer1_addr4
+	local test_peer_id=$((OVPN_NUM_PEERS + 1))
+	local test_peer_addr6="2001:db8::2"
+	# Do not include 0.0.0.0 or :: here. They are invalid on creation, but
+	# clear one address family on update and are valid if the other remains.
+	local -a invalid_addrs=(
+		"127.0.0.1"
+		"224.0.0.1"
+		"255.255.255.255"
+		"::1"
+		"::192.0.2.1"
+		"::ffff:192.0.2.1"
+		"ff02::1"
+	)
+
+	peer1_addr4=$(ovpn_peer_vpn_addr 1)
+
+	ovpn_cmd_fail "reject peer without VPN address" \
+		ovpn_new_test_peer "${test_peer_id}"
+
+	for addr in "0.0.0.0" "::" "${invalid_addrs[@]}"; do
+		ovpn_cmd_fail "reject new peer VPN address ${addr}" \
+			ovpn_new_test_peer "${test_peer_id}" "${addr}"
+	done
+
+	ovpn_cmd_fail "reject duplicate IPv4 address on peer creation" \
+		ovpn_new_test_peer "${test_peer_id}" "${peer1_addr4}"
+	ovpn_cmd_fail "reject clearing the last peer VPN address" \
+		ovpn_set_peer_vpn_addr 1 0.0.0.0
+
+	for addr in "${invalid_addrs[@]}"; do
+		ovpn_cmd_fail "reject updated peer VPN address ${addr}" \
+			ovpn_set_peer_vpn_addr 1 "${addr}"
+	done
+
+	ovpn_cmd_fail "reject duplicate IPv4 address on peer update" \
+		ovpn_set_peer_vpn_addr 2 "${peer1_addr4}"
+
+	ovpn_cmd_ok "add peer IPv6 address" \
+		ovpn_set_peer_vpn_addr 1 "${test_peer_addr6}"
+	ovpn_cmd_fail "reject duplicate IPv6 address on peer creation" \
+		ovpn_new_test_peer "${test_peer_id}" "${test_peer_addr6}"
+	ovpn_cmd_fail "reject duplicate IPv6 address on peer update" \
+		ovpn_set_peer_vpn_addr 2 "${test_peer_addr6}"
+
+	ovpn_cmd_ok "clear peer IPv4 address" \
+		ovpn_set_peer_vpn_addr 1 0.0.0.0
+	ovpn_cmd_fail "reject clearing the remaining peer IPv6 address" \
+		ovpn_set_peer_vpn_addr 1 ::
+	ovpn_cmd_ok "restore peer IPv4 address" \
+		ovpn_set_peer_vpn_addr 1 "${peer1_addr4}"
+	ovpn_cmd_ok "clear peer IPv6 address" \
+		ovpn_set_peer_vpn_addr 1 ::
+}
+
 ovpn_run_basic_traffic() {
 	local p
 	local header1
@@ -293,15 +363,16 @@ trap ovpn_stage_err ERR
 
 ktap_print_header
 if [ "${OVPN_FLOAT}" == "1" ]; then
-	ktap_set_plan 13
+	ktap_set_plan 14
 else
-	ktap_set_plan 12
+	ktap_set_plan 13
 fi
 
 ovpn_cleanup
 modprobe -q ovpn || true
 
 ovpn_run_stage "setup network topology" ovpn_prepare_network
+ovpn_run_stage "validate peer VPN addresses" ovpn_run_vpn_addr_validation
 ovpn_run_stage "run baseline data traffic" ovpn_run_basic_traffic
 ovpn_run_stage "run LAN traffic behind peer1" ovpn_run_lan_traffic
 [ "${OVPN_FLOAT}" == "1" ] && ovpn_run_stage "run floating peer checks" \
