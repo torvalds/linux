@@ -139,6 +139,13 @@ cpumask_t *tpmi_get_power_domain_mask(int cpu_no)
 	cpumask_t *mask;
 	int index;
 
+	/*
+	 * When built in, this stays callable after tpmi_init() failed
+	 * before allocating the array.
+	 */
+	if (!tpmi_power_domain_mask)
+		return NULL;
+
 	if (cpu_no >= num_possible_cpus())
 		return NULL;
 
@@ -256,6 +263,7 @@ free_domain_map:
 
 free_domain_mask:
 	kfree(tpmi_power_domain_mask);
+	tpmi_power_domain_mask = NULL;
 
 	return ret;
 }
@@ -265,6 +273,7 @@ static void __exit tpmi_exit(void)
 {
 	cpuhp_remove_state(tpmi_hp_state);
 	kfree(tpmi_power_domain_mask);
+	tpmi_power_domain_mask = NULL;
 	kfree(domain_die_map);
 	domain_die_map = NULL;
 }
