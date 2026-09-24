@@ -5787,7 +5787,21 @@ sub process {
 			my ($s, $c) = ($stat, $cond);
 			my $fixed_assign_in_if = 0;
 
+			# ACQUIRE_ERR() and its wrappers, e.g. PM_RUNTIME_ACQUIRE_ERR()
+			# and IIO_DEV_ACQUIRE_FAILED(), are meant to be evaluated in an
+			# if condition, with the error assigned in the condition:
+			#	if ((rc = ACQUIRE_ERR(name, &lock)))
+			# Allow that only when every assignment in the condition assigns
+			# the result of such a call, so that a mixed condition keeps
+			# getting flagged:
+			#	if ((rc = regular_function()) || (ret = ACQUIRE_ERR(name, &lock)))
+			my $assign_in_if = 0;
 			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/s) {
+				my $has_assignment = $c =~ /\b$Lval\s*=\s*[^,)&|=]+/;
+				my $has_other_assignment = $c =~ /\b$Lval\s*=\s*(?!\s*\w*ACQUIRE_(?:ERR|FAILED)\s*\()[^,)&|=]+/;
+				$assign_in_if = !$has_assignment || $has_other_assignment;
+			}
+			if ($assign_in_if) {
 				if (ERROR("ASSIGN_IN_IF",
 					  "do not use assignment in if condition\n" . $herecurr) &&
 				    $fix && $perl_version_ok) {
