@@ -1428,6 +1428,8 @@ alloc_cluster:
 					"Failed to allocate a cluster for the mft bitmap.");
 			return PTR_ERR(rl2);
 		}
+		/* The adjacent cluster may have become available while unlocked. */
+		status.added_cluster = rl2->lcn == lcn;
 		rl = ntfs_runlists_merge(&mftbmp_ni->runlist, rl2, 0, &new_rl_count);
 		if (IS_ERR(rl)) {
 			up_write(&mftbmp_ni->runlist.lock);
@@ -1442,8 +1444,8 @@ alloc_cluster:
 		}
 		mftbmp_ni->runlist.rl = rl;
 		mftbmp_ni->runlist.count = new_rl_count;
-		status.added_run = 1;
-		ntfs_debug("Adding one run to mft bitmap.");
+		status.added_run = !status.added_cluster;
+		ntfs_debug("Allocated one cluster for mft bitmap.");
 		/* Find the last run in the new runlist. */
 		for (; rl[1].length; rl++)
 			;
