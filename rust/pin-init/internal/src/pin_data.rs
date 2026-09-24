@@ -21,6 +21,9 @@ use crate::{
 };
 
 pub(crate) mod kw {
+    syn::custom_keyword!(covariant);
+    syn::custom_keyword!(invariant);
+    syn::custom_keyword!(contravariant);
     syn::custom_keyword!(PinnedDrop);
 }
 
@@ -93,9 +96,37 @@ struct BorrowedInfo {
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Variance {
-    /// Implicitly inferred variance.
+    /// `covariant` annotation, or implicitly inferred.
     #[default]
     Covariant,
+    // `invariant` annotation.
+    Invariant,
+}
+
+impl Parse for Variance {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let lh = input.lookahead1();
+        Ok(if lh.peek(kw::covariant) {
+            let _: kw::covariant = input.parse()?;
+            Variance::Covariant
+        } else if lh.peek(kw::invariant) {
+            let _: kw::invariant = input.parse()?;
+            Variance::Invariant
+        } else if lh.peek(kw::contravariant) {
+            // Field lifetimes are inherently covariant, so combining with contravariance,
+            // we would constrain it to be invariant.
+            let token: kw::contravariant = input.parse()?;
+            DiagCtxt::current(|dcx| {
+                dcx.error(
+                    token,
+                    "field lifetimes cannot be `contravariant`; use `invariant` instead",
+                )
+            });
+            Variance::Invariant
+        } else {
+            Err(lh.error())?
+        })
+    }
 }
 
 /// Information about field lifetimes captured in a type.
@@ -131,7 +162,65 @@ impl Ord for Capture {
     }
 }
 
-#[expect(unused)]
+impl Parse for Capture {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let lifetime = input.parse()?;
+        let variance = if input.peek(Token![:]) {
+            let _: Token![:] = input.parse()?;
+            input.parse()?
+        } else {
+            // If variance is not explicitly specified, infer covariance by default.
+            Variance::Covariant
+        };
+        Ok(Capture { variance, lifetime })
+    }
+}
+
+impl Capture {
+    fn parse_list(
+        dcx: &mut DiagCtxt,
+        attrs: &mut Vec<Attribute>,
+        bound_lifetimes: &BTreeSet<&Lifetime>,
+        field_idx_map: &BTreeMap<Ident, usize>,
+    ) -> Option<(BTreeSet<Capture>, Variance)> {
+        let attr = attrs.extract_single_attr(dcx, "uses")?;
+        let punctuated: Punctuated<Capture, Token![,]> = attr
+            .parse_args_with(Punctuated::parse_terminated)
+            .map_err(ErrorGuaranteed::from)
+            .ok()?;
+
+        // Check for misuses inside attribute.
+        let mut set = BTreeSet::new();
+        for borrow in punctuated {
+            let lt = &borrow.lifetime;
+            if set.contains(&borrow) {
+                dcx.error(lt, format!("lifetime `{lt}` is mentioned more than once"));
+                continue;
+            }
+
+            if bound_lifetimes.contains(lt) {
+                dcx.error(
+                    lt,
+                    format!("`{lt}` is a struct generics and cannot be used in `#[uses]`"),
+                );
+                continue;
+            }
+
+            if lt.ident != "_" && !field_idx_map.contains_key(&lt.ident) {
+                dcx.error(lt, format!("`{lt}` is not a field name"));
+                continue;
+            }
+
+            set.insert(borrow);
+        }
+
+        let wildcard = Lifetime::new("'_", Span::mixed_site());
+        let wildcard_variance = set.take(&wildcard).map(|b| b.variance).unwrap_or_default();
+        Some((set, wildcard_variance))
+    }
+}
+
+#[allow(unused)]
 struct FieldInfo {
     field: Field,
     member: Member,
@@ -275,8 +364,10 @@ fn expand(
                 }),
             };
 
-            let mut captures = BTreeSet::new();
-            let wildcard_variance = Variance::default();
+            // Parse `#[uses]` attribute.
+            let (mut captures, wildcard_variance) =
+                Capture::parse_list(dcx, &mut field.attrs, &bound_lifetimes, &field_idx_map)
+                    .unwrap_or_default();
 
             let mut generic_lt_captures = BTreeSet::new();
             let mut generic_ty_captures = BTreeSet::new();
