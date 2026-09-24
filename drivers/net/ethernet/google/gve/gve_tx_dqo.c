@@ -577,17 +577,6 @@ static int gve_prep_tso(struct sk_buff *skb)
 	int header_len;
 	int err;
 
-	/* Note: HW requires MSS (gso_size) to be <= 9728 and the total length
-	 * of the TSO to be <= 262143.
-	 *
-	 * However, we don't validate these because:
-	 * - Hypervisor enforces a limit of 9K MTU
-	 * - Kernel will not produce a TSO larger than 64k
-	 */
-
-	if (unlikely(shinfo->gso_size < GVE_TX_MIN_TSO_MSS_DQO))
-		return -1;
-
 	/* Needed because we will modify header. */
 	err = skb_cow_head(skb, 0);
 	if (err < 0)
@@ -924,6 +913,9 @@ static bool gve_can_send_tso(const struct sk_buff *skb)
 	int cur_seg_size;
 	int header_len;
 	int i;
+
+	if (unlikely(gso_size < GVE_TX_MIN_TSO_MSS_DQO))
+		return false;
 
 	/* Must match the header length programmed by gve_prep_tso(). */
 	if (skb_is_gso_tcp(skb))
