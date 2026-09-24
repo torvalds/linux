@@ -39,26 +39,20 @@
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
 enum {
-	ENUM_BIT(__TRANS_START),
-	ENUM_BIT(__TRANS_ATTACH),
-	ENUM_BIT(__TRANS_JOIN),
-	ENUM_BIT(__TRANS_JOIN_NOLOCK),
+	ENUM_BIT(TRANS_START),
+	ENUM_BIT(TRANS_ATTACH),
+	ENUM_BIT(TRANS_JOIN),
+	ENUM_BIT(TRANS_JOIN_NOLOCK),
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	ENUM_BIT(__TRANS_DUMMY),
+	ENUM_BIT(TRANS_DUMMY),
 #endif
-	ENUM_BIT(__TRANS_JOIN_NOSTART),
+	ENUM_BIT(TRANS_JOIN_NOSTART),
 };
 
-#define TRANS_START		(__TRANS_START)
-#define TRANS_ATTACH		(__TRANS_ATTACH)
-#define TRANS_JOIN		(__TRANS_JOIN)
-#define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
-#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
-
 /* Those types need to hold sb intwrite lock. */
-#define TRANS_SB_INTWRITER_MASK (__TRANS_START | __TRANS_JOIN)
+#define TRANS_SB_INTWRITER_MASK (TRANS_START | TRANS_JOIN)
 
-#define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
+#define TRANS_EXTWRITERS_MASK	(TRANS_START | TRANS_ATTACH)
 
 /*
  * Transaction states and transitions
@@ -139,32 +133,32 @@ enum {
 static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 	[TRANS_STATE_RUNNING]		= 0U,
 	[TRANS_STATE_COMMIT_PREP]	= 0U,
-	[TRANS_STATE_COMMIT_START]	= (__TRANS_START | __TRANS_ATTACH),
-	[TRANS_STATE_COMMIT_DOING]	= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_UNBLOCKED]		= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_SUPER_COMMITTED]	= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_COMPLETED]		= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
+	[TRANS_STATE_COMMIT_START]	= (TRANS_START | TRANS_ATTACH),
+	[TRANS_STATE_COMMIT_DOING]	= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_UNBLOCKED]		= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_SUPER_COMMITTED]	= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_COMPLETED]		= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
 };
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool btrfs_is_dummy_transaction(const struct btrfs_trans_handle *trans)
 {
-	return trans->type == __TRANS_DUMMY;
+	return trans->type == TRANS_DUMMY;
 }
 
 void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
@@ -172,7 +166,7 @@ void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 {
 	memset(trans, 0, sizeof(*trans));
 	trans->transid = 1;
-	trans->type = __TRANS_DUMMY;
+	trans->type = TRANS_DUMMY;
 	trans->fs_info = fs_info;
 }
 #endif
@@ -261,21 +255,21 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 static inline void extwriter_counter_inc(struct btrfs_transaction *trans,
 					 unsigned int type)
 {
-	if (type & TRANS_EXTWRITERS)
+	if (type & TRANS_EXTWRITERS_MASK)
 		atomic_inc(&trans->num_extwriters);
 }
 
 static inline void extwriter_counter_dec(struct btrfs_transaction *trans,
 					 unsigned int type)
 {
-	if (type & TRANS_EXTWRITERS)
+	if (type & TRANS_EXTWRITERS_MASK)
 		atomic_dec(&trans->num_extwriters);
 }
 
 static inline void extwriter_counter_init(struct btrfs_transaction *trans,
 					  unsigned int type)
 {
-	atomic_set(&trans->num_extwriters, ((type & TRANS_EXTWRITERS) ? 1 : 0));
+	atomic_set(&trans->num_extwriters, ((type & TRANS_EXTWRITERS_MASK) ? 1 : 0));
 }
 
 static inline int extwriter_counter_read(struct btrfs_transaction *trans)
@@ -666,11 +660,14 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	bool do_chunk_alloc = false;
 	int ret;
 
+	/* The type must be a single TRANS_* bit set. */
+	ASSERT(has_single_bit_set(type));
+
 	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return ERR_PTR(-EROFS);
 
 	if (current->journal_info) {
-		WARN_ON(type & TRANS_EXTWRITERS);
+		WARN_ON(type & TRANS_EXTWRITERS_MASK);
 		h = current->journal_info;
 		refcount_inc(&h->use_count);
 		WARN_ON(refcount_read(&h->use_count) > 2);
