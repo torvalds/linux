@@ -7,6 +7,8 @@
 #include "bpf_tracing_net.h"
 
 __be16 serv_port = 0;
+int tw_found = 0;
+int tw_destroy_err = 0;
 
 int bpf_sock_destroy(struct sock_common *sk) __ksym;
 
@@ -100,6 +102,34 @@ int iter_tcp6_server(struct bpf_iter__tcp *ctx)
 	return 0;
 }
 
+SEC("iter/tcp")
+int iter_tcp6_timewait(struct bpf_iter__tcp *ctx)
+{
+	struct sock_common *sk_common = ctx->sk_common;
+	__u64 *val;
+	int key = 0;
+
+	if (!sk_common)
+		return 0;
+
+	if (sk_common->skc_family != AF_INET6)
+		return 0;
+
+	if (!bpf_skc_to_tcp_timewait_sock(sk_common))
+		return 0;
+
+	val = bpf_map_lookup_elem(&tcp_conn_sockets, &key);
+	if (!val)
+		return 0;
+	/* The timewait sock inherits the cookie of the closed client sock. */
+	if (bpf_get_socket_cookie(sk_common) != *val)
+		return 0;
+
+	tw_found++;
+	tw_destroy_err = bpf_sock_destroy(sk_common);
+
+	return 0;
+}
 
 SEC("iter/udp")
 int iter_udp6_client(struct bpf_iter__udp *ctx)

@@ -205,8 +205,8 @@ static void xdp_test_run_teardown(struct xdp_test_data *xdp)
 {
 	xdp_unreg_mem_model(&xdp->mem);
 	page_pool_destroy(xdp->pp);
-	kfree(xdp->frames);
-	kfree(xdp->skbs);
+	kvfree(xdp->frames);
+	kvfree(xdp->skbs);
 }
 
 static bool frame_was_changed(const struct xdp_page_head *head)

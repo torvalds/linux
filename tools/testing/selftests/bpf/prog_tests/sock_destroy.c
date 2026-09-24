@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <poll.h>
 #include <test_progs.h>
 #include <bpf/bpf_endian.h>
 
@@ -110,6 +111,122 @@ cleanup:
 		close(serv);
 }
 
+static void test_tcp_listen_pending(struct sock_destroy_prog *skel)
+{
+	int serv = -1, clien = -1, accept_serv = -1, n, serv_port;
+	struct pollfd pfd = { .events = POLLIN };
+	char buf[1];
+
+	serv = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
+	if (!ASSERT_GE(serv, 0, "start_server"))
+		goto cleanup;
+	serv_port = get_socket_local_port(serv);
+	if (!ASSERT_GE(serv_port, 0, "get_sock_local_port"))
+		goto cleanup;
+	skel->bss->serv_port = (__be16)serv_port;
+
+	/*
+	 * Connect but never accept, so the child sits in the accept queue
+	 * of the listener. Wait until it's actually there.
+	 */
+	clien = connect_to_fd(serv, 0);
+	if (!ASSERT_GE(clien, 0, "connect_to_fd"))
+		goto cleanup;
+	pfd.fd = serv;
+	if (!ASSERT_EQ(poll(&pfd, 1, -1), 1, "poll listener"))
+		goto cleanup;
+
+	/* Run iterator program that destroys server sockets. */
+	start_iter_sockets(skel->progs.iter_tcp6_server);
+
+	accept_serv = accept(serv, NULL, NULL);
+	if (!ASSERT_LT(accept_serv, 0, "accept on destroyed listener"))
+		goto cleanup;
+	ASSERT_EQ(errno, EINVAL, "error code on destroyed listener");
+
+	/* The unaccepted child was reset along with the listener. */
+	n = recv(clien, buf, sizeof(buf), 0);
+	if (!ASSERT_LT(n, 0, "client recv on reset child"))
+		goto cleanup;
+	ASSERT_EQ(errno, ECONNRESET, "error code on reset child");
+
+cleanup:
+	if (clien != -1)
+		close(clien);
+	if (accept_serv != -1)
+		close(accept_serv);
+	if (serv != -1)
+		close(serv);
+}
+
+static void test_tcp_timewait(struct sock_destroy_prog *skel)
+{
+	int serv = -1, clien = -1, accept_serv = -1, n;
+	struct timeval tv = {};
+	char buf[1];
+
+	serv = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
+	if (!ASSERT_GE(serv, 0, "start_server"))
+		goto cleanup;
+
+	clien = connect_to_fd(serv, 0);
+	if (!ASSERT_GE(clien, 0, "connect_to_fd"))
+		goto cleanup;
+
+	accept_serv = accept(serv, NULL, NULL);
+	if (!ASSERT_GE(accept_serv, 0, "serv accept"))
+		goto cleanup;
+
+	/*
+	 * Active close from the client, then close the server side. Once
+	 * recv() sees EOF the server FIN has been processed and the client
+	 * sock is in TIME_WAIT. Block without timeout so a loaded CI box
+	 * can't race us.
+	 */
+	if (!ASSERT_OK(setsockopt(clien, SOL_SOCKET, SO_RCVTIMEO, &tv,
+				  sizeof(tv)), "clear rcvtimeo"))
+		goto cleanup;
+	if (!ASSERT_OK(shutdown(clien, SHUT_WR), "client shutdown"))
+		goto cleanup;
+
+	/*
+	 * Make sure the server has seen the client FIN before it closes,
+	 * so the two FINs never cross.
+	 */
+	n = recv(accept_serv, buf, sizeof(buf), 0);
+	if (!ASSERT_EQ(n, 0, "server recv EOF"))
+		goto cleanup;
+
+	close(accept_serv);
+	accept_serv = -1;
+
+	/* block until return EOF */
+	n = recv(clien, buf, sizeof(buf), 0);
+	if (!ASSERT_EQ(n, 0, "client recv EOF"))
+		goto cleanup;
+
+	/* Run iterator program that destroys the timewait client sock. */
+	skel->bss->tw_found = 0;
+	start_iter_sockets(skel->progs.iter_tcp6_timewait);
+	if (!ASSERT_EQ(skel->bss->tw_found, 1, "timewait sock found"))
+		goto cleanup;
+
+	ASSERT_OK(skel->bss->tw_destroy_err, "destroy timewait sock");
+
+	/* The destroyed timewait sock must be gone. */
+	skel->bss->tw_found = 0;
+	start_iter_sockets(skel->progs.iter_tcp6_timewait);
+	ASSERT_EQ(skel->bss->tw_found, 0, "timewait sock destroyed");
+
+cleanup:
+	if (clien != -1)
+		close(clien);
+	if (accept_serv != -1)
+		close(accept_serv);
+	if (serv != -1)
+		close(serv);
+}
+
 static void test_udp_client(struct sock_destroy_prog *skel)
 {
 	int serv = -1, clien = -1, n = 0;
@@ -204,6 +321,10 @@ void test_sock_destroy(void)
 		test_tcp_client(skel);
 	if (test__start_subtest("tcp_server"))
 		test_tcp_server(skel);
+	if (test__start_subtest("tcp_listen_pending"))
+		test_tcp_listen_pending(skel);
+	if (test__start_subtest("tcp_timewait"))
+		test_tcp_timewait(skel);
 	if (test__start_subtest("udp_client"))
 		test_udp_client(skel);
 	if (test__start_subtest("udp_server"))
