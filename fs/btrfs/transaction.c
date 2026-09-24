@@ -38,6 +38,26 @@
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
+enum {
+	ENUM_BIT(__TRANS_FREEZABLE),
+	ENUM_BIT(__TRANS_START),
+	ENUM_BIT(__TRANS_ATTACH),
+	ENUM_BIT(__TRANS_JOIN),
+	ENUM_BIT(__TRANS_JOIN_NOLOCK),
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	ENUM_BIT(__TRANS_DUMMY),
+#endif
+	ENUM_BIT(__TRANS_JOIN_NOSTART),
+};
+
+#define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
+#define TRANS_ATTACH		(__TRANS_ATTACH)
+#define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
+#define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
+#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
+
+#define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
+
 /*
  * Transaction states and transitions
  *
@@ -138,6 +158,22 @@ static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 					   __TRANS_JOIN_NOLOCK |
 					   __TRANS_JOIN_NOSTART),
 };
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+bool btrfs_is_dummy_transaction(const struct btrfs_trans_handle *trans)
+{
+	return trans->type == __TRANS_DUMMY;
+}
+
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info)
+{
+	memset(trans, 0, sizeof(*trans));
+	trans->transid = 1;
+	trans->type = __TRANS_DUMMY;
+	trans->fs_info = fs_info;
+}
+#endif
 
 void btrfs_put_transaction(struct btrfs_transaction *transaction)
 {
