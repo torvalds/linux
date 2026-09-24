@@ -38,6 +38,7 @@ static DEFINE_RWLOCK(inode_hash_lock);
 static struct ksmbd_file_table global_ft;
 static atomic_long_t fd_limit;
 static struct kmem_cache *filp_cache;
+DECLARE_WAIT_QUEUE_HEAD(ksmbd_lock_wait);
 
 /* Both the inode hash and each open's lock_list use this lock. */
 static DEFINE_SPINLOCK(file_locks_lock);
@@ -618,6 +619,109 @@ static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp
 	write_unlock(&ft->lock);
 }
 
+/* file_locks_lock protects both committed locks and pending reservations. */
+static bool __ksmbd_file_lock_conflict(struct ksmbd_lock *lock)
+{
+	struct inode *inode = file_inode(lock->fl->c.flc_file);
+	struct ksmbd_lock *cmp;
+
+	hash_for_each_possible(file_locks, cmp, hlist, (unsigned long)inode) {
+		if (cmp == lock || file_inode(cmp->fl->c.flc_file) != inode)
+			continue;
+		if ((cmp->flags & SMB2_LOCKFLAG_SHARED) &&
+		    (lock->flags & SMB2_LOCKFLAG_SHARED))
+			continue;
+		if ((cmp->zero_len && !lock->zero_len &&
+		     cmp->start > lock->start && cmp->start <= lock->end) ||
+		    (lock->zero_len && !cmp->zero_len &&
+		     lock->start > cmp->start && lock->start <= cmp->end) ||
+		    (!cmp->zero_len && !lock->zero_len &&
+		     cmp->start <= lock->end && lock->start <= cmp->end))
+			return true;
+	}
+	return false;
+}
+
+bool ksmbd_file_lock_conflict(struct ksmbd_lock *lock)
+{
+	bool conflict;
+
+	spin_lock(&file_locks_lock);
+	conflict = __ksmbd_file_lock_conflict(lock);
+	spin_unlock(&file_locks_lock);
+	return conflict;
+}
+
+int ksmbd_file_lock_reserve(struct ksmbd_file *fp, struct ksmbd_lock *lock)
+{
+	int ret = 0;
+
+	spin_lock(&file_locks_lock);
+	if (__ksmbd_file_lock_conflict(lock)) {
+		ret = -EAGAIN;
+	} else {
+		/* Reserve the range until the whole LOCK request commits. */
+		lock->pending = true;
+		hash_add(file_locks, &lock->hlist,
+			 (unsigned long)file_inode(fp->filp));
+		list_add_tail(&lock->flist, &fp->lock_list);
+	}
+	spin_unlock(&file_locks_lock);
+	return ret;
+}
+
+void ksmbd_file_lock_remove(struct ksmbd_lock *lock)
+{
+	spin_lock(&file_locks_lock);
+	if (!hlist_unhashed(&lock->hlist)) {
+		hash_del(&lock->hlist);
+		list_del_init(&lock->flist);
+	}
+	spin_unlock(&file_locks_lock);
+	wake_up_all(&ksmbd_lock_wait);
+}
+
+/* Unlock a large range, including any portion represented by a VFS lock. */
+int ksmbd_file_lock_unlock(struct ksmbd_lock *lock)
+{
+	struct inode *inode = file_inode(lock->fl->c.flc_file);
+	struct ksmbd_lock *cmp, *match = NULL;
+	int ret = 0;
+
+	spin_lock(&file_locks_lock);
+	hash_for_each_possible(file_locks, cmp, hlist, (unsigned long)inode) {
+		if (cmp->fl->c.flc_file != lock->fl->c.flc_file ||
+		    cmp->start != lock->start || cmp->end != lock->end ||
+		    cmp->pending)
+			continue;
+		if (waitqueue_active(&cmp->fl->c.flc_wait)) /* VFS waiters */
+			continue;
+		match = cmp;
+		if (cmp->flags & SMB2_LOCKFLAG_EXCLUSIVE)
+			break;
+	}
+	if (match)
+		match->pending = true;
+	spin_unlock(&file_locks_lock);
+	if (!match)
+		return -ENOENT;
+
+	if (match->vfs_locked)
+		ret = vfs_lock_file(lock->fl->c.flc_file, F_SETLK, lock->fl, NULL);
+	if (ret) {
+		spin_lock(&file_locks_lock);
+		match->pending = false;
+		spin_unlock(&file_locks_lock);
+		return ret;
+	}
+	ksmbd_file_lock_remove(match);
+	if (match->vfs_locked)
+		ksmbd_vfs_posix_lock_unblock(match->fl);
+	locks_free_lock(match->fl);
+	kfree(match);
+	return 0;
+}
+
 /**
  * ksmbd_file_lock_check() - check conflicts or remove an exact unlock match
  * @lock: unregistered lock from the current request
@@ -637,7 +741,8 @@ int ksmbd_file_lock_check(struct ksmbd_lock *lock)
 
 		if (lock_is_unlock(lock->fl)) {
 			if (cmp->fl->c.flc_file != lock->fl->c.flc_file ||
-			    cmp->start != lock->start || cmp->end != lock->end)
+			    cmp->start != lock->start || cmp->end != lock->end ||
+			    cmp->pending)
 				continue;
 			if (waitqueue_active(&cmp->fl->c.flc_wait)) /* VFS waiters */
 				continue;
@@ -673,9 +778,11 @@ int ksmbd_file_lock_check(struct ksmbd_lock *lock)
 	}
 	spin_unlock(&file_locks_lock);
 	if (lock_to_remove) {
-		ksmbd_vfs_posix_lock_unblock(lock_to_remove->fl);
+		if (lock_to_remove->vfs_locked)
+			ksmbd_vfs_posix_lock_unblock(lock_to_remove->fl);
 		locks_free_lock(lock_to_remove->fl);
 		kfree(lock_to_remove);
+		wake_up_all(&ksmbd_lock_wait);
 	}
 	return ret;
 }
@@ -692,6 +799,10 @@ void ksmbd_file_lock_add(struct ksmbd_file *fp, struct list_head *locks)
 	spin_lock(&file_locks_lock);
 	list_for_each_entry_safe(lock, tmp, locks, llist) {
 		list_del_init(&lock->llist);
+		if (!hlist_unhashed(&lock->hlist)) {
+			lock->pending = false;
+			continue;
+		}
 		hash_add(file_locks, &lock->hlist,
 			 (unsigned long)file_inode(fp->filp));
 		list_add_tail(&lock->flist, &fp->lock_list);
@@ -712,10 +823,12 @@ static void ksmbd_file_lock_clear(struct ksmbd_file *fp)
 
 	list_for_each_entry_safe(lock, tmp, &dispose, flist) {
 		list_del_init(&lock->flist);
-		ksmbd_vfs_posix_lock_unblock(lock->fl);
+		if (lock->vfs_locked)
+			ksmbd_vfs_posix_lock_unblock(lock->fl);
 		locks_free_lock(lock->fl);
 		kfree(lock);
 	}
+	wake_up_all(&ksmbd_lock_wait);
 }
 
 static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)

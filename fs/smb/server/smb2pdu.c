@@ -10226,8 +10226,10 @@ static int smb2_set_flock_flags(struct file_lock *flock, int flags)
 	return cmd;
 }
 
+/* Track SMB locks that cannot be represented by a signed loff_t. */
 static struct ksmbd_lock *smb2_lock_init(struct file_lock *flock,
 					 unsigned int cmd, int flags, bool zero_len,
+					 u64 start, u64 end, bool virtual_lock,
 					 struct list_head *lock_list)
 {
 	struct ksmbd_lock *lock;
@@ -10238,10 +10240,11 @@ static struct ksmbd_lock *smb2_lock_init(struct file_lock *flock,
 
 	lock->cmd = cmd;
 	lock->fl = flock;
-	lock->start = flock->fl_start;
-	lock->end = flock->fl_end;
+	lock->start = start;
+	lock->end = end;
 	lock->flags = flags;
 	lock->zero_len = zero_len;
+	lock->virtual_lock = virtual_lock;
 	INIT_HLIST_NODE(&lock->hlist);
 	INIT_LIST_HEAD(&lock->flist);
 	INIT_LIST_HEAD(&lock->llist);
@@ -10250,18 +10253,112 @@ static struct ksmbd_lock *smb2_lock_init(struct file_lock *flock,
 	return lock;
 }
 
+static void smb2_virtual_lock_cancel(void **argv)
+{
+	(void)argv;
+	wake_up_all(&ksmbd_lock_wait);
+}
+
+static int smb2_virtual_lock_wait(struct ksmbd_work *work,
+				  struct ksmbd_file *fp,
+				  struct ksmbd_lock *smb_lock,
+				  struct smb2_lock_rsp *rsp)
+{
+	void **argv = NULL;
+	bool async = false;
+	int ret;
+
+	for (;;) {
+		ret = ksmbd_file_lock_reserve(fp, smb_lock);
+		if (ret != -EAGAIN ||
+		    (smb_lock->flags & SMB2_LOCKFLAG_FAIL_IMMEDIATELY))
+			break;
+
+		if (!async) {
+			argv = kmalloc_obj(*argv, KSMBD_DEFAULT_GFP);
+			if (!argv)
+				return -ENOMEM;
+			argv[0] = NULL;
+			ret = setup_async_work(work, smb2_virtual_lock_cancel, argv);
+			if (ret) {
+				kfree(argv);
+				return ret;
+			}
+			async = true;
+
+			read_lock(&work->sess->file_table.lock);
+			if (fp->f_state != FP_INITED) {
+				read_unlock(&work->sess->file_table.lock);
+				release_async_work(work);
+				return -ENOENT;
+			}
+			spin_lock(&fp->f_lock);
+			list_add(&work->fp_entry, &fp->blocked_works);
+			spin_unlock(&fp->f_lock);
+			read_unlock(&work->sess->file_table.lock);
+			smb2_send_interim_resp(work, STATUS_PENDING);
+		}
+
+		wait_event(ksmbd_lock_wait,
+			   READ_ONCE(work->state) != KSMBD_WORK_ACTIVE ||
+			   !ksmbd_file_lock_conflict(smb_lock));
+
+		if (READ_ONCE(work->state) != KSMBD_WORK_ACTIVE) {
+			spin_lock(&fp->f_lock);
+			list_del_init(&work->fp_entry);
+			spin_unlock(&fp->f_lock);
+			if (work->state == KSMBD_WORK_CANCELLED) {
+				rsp->hdr.Status = STATUS_CANCELLED;
+				smb2_send_interim_resp(work, STATUS_CANCELLED);
+				work->send_no_response = 1;
+				ret = -ECANCELED;
+			} else {
+				rsp->hdr.Status = STATUS_RANGE_NOT_LOCKED;
+				ret = -EIO;
+			}
+			release_async_work(work);
+			return ret;
+		}
+	}
+
+	if (async) {
+		bool cancelled;
+
+		spin_lock(&fp->f_lock);
+		list_del_init(&work->fp_entry);
+		cancelled = READ_ONCE(work->state) != KSMBD_WORK_ACTIVE;
+		spin_unlock(&fp->f_lock);
+		release_async_work(work);
+		if (cancelled) {
+			ksmbd_file_lock_remove(smb_lock);
+			if (work->state == KSMBD_WORK_CANCELLED) {
+				rsp->hdr.Status = STATUS_CANCELLED;
+				smb2_send_interim_resp(work, STATUS_CANCELLED);
+				work->send_no_response = 1;
+				return -ECANCELED;
+			}
+			rsp->hdr.Status = STATUS_RANGE_NOT_LOCKED;
+			return -EIO;
+		}
+	}
+
+	return ret;
+}
+
+static void smb2_free_ksmbd_lock(struct ksmbd_lock *smb_lock)
+{
+	if (smb_lock->vfs_locked)
+		ksmbd_vfs_posix_lock_unblock(smb_lock->fl);
+	locks_free_lock(smb_lock->fl);
+	kfree(smb_lock);
+}
+
 static void smb2_remove_blocked_lock(void **argv)
 {
 	struct file_lock *flock = (struct file_lock *)argv[0];
 
 	ksmbd_vfs_posix_lock_unblock(flock);
 	locks_wake_up(flock);
-}
-
-static void smb2_free_lock(struct file_lock *flock)
-{
-	ksmbd_vfs_posix_lock_unblock(flock);
-	locks_free_lock(flock);
 }
 
 static void smb2_free_blocked_lock(struct file_lock *flock)
@@ -10289,13 +10386,14 @@ int smb2_lock(struct ksmbd_work *work)
 	int flags = 0;
 	int cmd = 0;
 	int err = -EIO, i, rc = 0;
-	u64 lock_start, lock_length;
+	u64 lock_start, lock_length, lock_end;
 	struct ksmbd_lock *smb_lock = NULL, *cmp_lock, *tmp;
 	LIST_HEAD(lock_list);
 	LIST_HEAD(rollback_list);
 	int prior_lock = 0;
 	unsigned int id = KSMBD_NO_FID, pid = KSMBD_NO_FID;
 	bool lock_replayed;
+	bool virtual_lock;
 
 	WORK_BUFFERS(work, req, rsp);
 
@@ -10358,23 +10456,29 @@ int smb2_lock(struct ksmbd_work *work)
 
 		lock_start = le64_to_cpu(lock_ele[i].Offset);
 		lock_length = le64_to_cpu(lock_ele[i].Length);
-		if (lock_start > OFFSET_MAX ||
-		    (lock_length &&
-		     lock_length - 1 > OFFSET_MAX - lock_start)) {
+		if (lock_length && lock_length - 1 > U64_MAX - lock_start) {
 			pr_err("Invalid lock range requested\n");
 			rsp->hdr.Status = STATUS_INVALID_LOCK_RANGE;
 			locks_free_lock(flock);
 			goto out;
 		}
 
-		flock->fl_start = lock_start;
-		flock->fl_end = lock_length ?
-			flock->fl_start + lock_length - 1 : flock->fl_start;
+		lock_end = lock_length ? lock_start + lock_length - 1 : lock_start;
+		virtual_lock = lock_end > OFFSET_MAX;
+
+		/* Lock the representable portion in VFS as well. */
+		if (lock_start > OFFSET_MAX) {
+			flock->fl_start = 0;
+			flock->fl_end = 0;
+		} else {
+			flock->fl_start = lock_start;
+			flock->fl_end = min_t(u64, lock_end, OFFSET_MAX);
+		}
 
 		/* Check conflict locks in one request */
 		list_for_each_entry(cmp_lock, &lock_list, llist) {
-			if (cmp_lock->fl->fl_start <= flock->fl_start &&
-			    cmp_lock->fl->fl_end >= flock->fl_end) {
+			if (cmp_lock->start <= lock_start &&
+			    cmp_lock->end >= lock_end) {
 				if (cmp_lock->fl->c.flc_type != F_UNLCK &&
 				    flock->c.flc_type != F_UNLCK) {
 					pr_err("conflict two locks in one request\n");
@@ -10386,6 +10490,7 @@ int smb2_lock(struct ksmbd_work *work)
 		}
 
 		smb_lock = smb2_lock_init(flock, cmd, flags, !lock_length,
+					   lock_start, lock_end, virtual_lock,
 					   &lock_list);
 		if (!smb_lock) {
 			err = -EINVAL;
@@ -10422,6 +10527,22 @@ int smb2_lock(struct ksmbd_work *work)
 
 		prior_lock = smb_lock->flags;
 
+		/* The SMB lock table stores ranges that file_lock cannot express. */
+		if (smb_lock->virtual_lock &&
+		    !(smb_lock->flags & SMB2_LOCKFLAG_UNLOCK))
+			goto no_check_cl;
+		if (smb_lock->virtual_lock &&
+		    (smb_lock->flags & SMB2_LOCKFLAG_UNLOCK)) {
+			err = ksmbd_file_lock_unlock(smb_lock);
+			if (err) {
+				rsp->hdr.Status = STATUS_RANGE_NOT_LOCKED;
+				goto out;
+			}
+			list_del(&smb_lock->llist);
+			smb2_free_ksmbd_lock(smb_lock);
+			continue;
+		}
+
 		if (!(smb_lock->flags & SMB2_LOCKFLAG_UNLOCK) &&
 		    !(smb_lock->flags & SMB2_LOCKFLAG_FAIL_IMMEDIATELY))
 			goto no_check_cl;
@@ -10437,7 +10558,21 @@ no_check_cl:
 		flock = smb_lock->fl;
 		list_del(&smb_lock->llist);
 
+		if (smb_lock->virtual_lock &&
+		    !(smb_lock->flags & SMB2_LOCKFLAG_UNLOCK)) {
+			rc = smb2_virtual_lock_wait(work, fp, smb_lock, rsp);
+			if (rc) {
+				err = rc;
+				smb2_free_ksmbd_lock(smb_lock);
+				goto out;
+			}
+			list_add(&smb_lock->llist, &rollback_list);
+			if (smb_lock->start > OFFSET_MAX)
+				continue;
+		}
+
 		if (smb_lock->zero_len) {
+			rc = 0;
 			err = 0;
 			goto skip;
 		}
@@ -10464,6 +10599,11 @@ skip:
 				argv = kmalloc(sizeof(void *), KSMBD_DEFAULT_GFP);
 				if (!argv) {
 					err = -ENOMEM;
+					if (smb_lock->virtual_lock) {
+						ksmbd_vfs_posix_lock_unblock(flock);
+						locks_wake_up(flock);
+						goto out;
+					}
 					smb2_free_blocked_lock(flock);
 					kfree(smb_lock);
 					goto out;
@@ -10476,11 +10616,17 @@ skip:
 				if (rc) {
 					kfree(argv);
 					err = -ENOMEM;
+					if (smb_lock->virtual_lock) {
+						ksmbd_vfs_posix_lock_unblock(flock);
+						locks_wake_up(flock);
+						goto out;
+					}
 					smb2_free_blocked_lock(flock);
 					kfree(smb_lock);
 					goto out;
 				}
-				list_add(&smb_lock->llist, &rollback_list);
+				if (!smb_lock->virtual_lock)
+					list_add(&smb_lock->llist, &rollback_list);
 				spin_lock(&fp->f_lock);
 				list_add(&work->fp_entry, &fp->blocked_works);
 				spin_unlock(&fp->f_lock);
@@ -10493,16 +10639,19 @@ skip:
 				list_del(&work->fp_entry);
 				spin_unlock(&fp->f_lock);
 
-				list_del(&smb_lock->llist);
+				if (!smb_lock->virtual_lock)
+					list_del(&smb_lock->llist);
 
 				if (work->state == KSMBD_WORK_CANCELLED) {
 					rsp->hdr.Status = STATUS_CANCELLED;
-					kfree(smb_lock);
 					smb2_send_interim_resp(work,
 							STATUS_CANCELLED);
 					release_async_work(work);
-					locks_free_lock(flock);
 					work->send_no_response = 1;
+					if (!smb_lock->virtual_lock) {
+						kfree(smb_lock);
+						locks_free_lock(flock);
+					}
 					goto out;
 				}
 
@@ -10511,20 +10660,25 @@ skip:
 				if (work->state == KSMBD_WORK_ACTIVE)
 					goto retry;
 
-				locks_free_lock(flock);
-
 				rsp->hdr.Status =
 					STATUS_RANGE_NOT_LOCKED;
-				kfree(smb_lock);
+				if (!smb_lock->virtual_lock) {
+					locks_free_lock(flock);
+					kfree(smb_lock);
+				}
 				/* rollback_list may still hold earlier grants */
 				goto out;
 			} else if (!rc) {
-				list_add(&smb_lock->llist, &rollback_list);
+				smb_lock->vfs_locked = !smb_lock->zero_len;
+				if (!smb_lock->virtual_lock)
+					list_add(&smb_lock->llist, &rollback_list);
 				ksmbd_debug(SMB, "successful in taking lock\n");
 			} else {
-				locks_free_lock(flock);
-				kfree(smb_lock);
 				err = rc;
+				if (!smb_lock->virtual_lock) {
+					locks_free_lock(flock);
+					kfree(smb_lock);
+				}
 				goto out;
 			}
 		}
@@ -10561,24 +10715,27 @@ out:
 	list_for_each_entry_safe(smb_lock, tmp, &rollback_list, llist) {
 		struct file_lock *rlock = NULL;
 
-		rlock = smb_flock_init(filp);
-		if (rlock) {
-			rlock->c.flc_type = F_UNLCK;
-			rlock->fl_start = smb_lock->start;
-			rlock->fl_end = smb_lock->end;
+		if (smb_lock->vfs_locked) {
+			rlock = smb_flock_init(filp);
+			if (rlock) {
+				rlock->c.flc_type = F_UNLCK;
+				rlock->fl_start = smb_lock->fl->fl_start;
+				rlock->fl_end = smb_lock->fl->fl_end;
 
-			rc = vfs_lock_file(filp, F_SETLK, rlock, NULL);
-			if (rc)
-				pr_err("rollback unlock fail : %d\n", rc);
-		} else {
-			pr_err("rollback unlock alloc failed\n");
+				rc = vfs_lock_file(filp, F_SETLK, rlock, NULL);
+				if (rc)
+					pr_err("rollback unlock fail : %d\n", rc);
+			} else {
+				pr_err("rollback unlock alloc failed\n");
+			}
 		}
+		if (smb_lock->virtual_lock)
+			ksmbd_file_lock_remove(smb_lock);
 
 		list_del(&smb_lock->llist);
-		smb2_free_lock(smb_lock->fl);
 		if (rlock)
 			locks_free_lock(rlock);
-		kfree(smb_lock);
+		smb2_free_ksmbd_lock(smb_lock);
 	}
 out2:
 	ksmbd_debug(SMB, "failed in taking lock(flags : %x), err : %d\n", flags, err);

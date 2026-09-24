@@ -12,6 +12,7 @@
 #include <linux/rwsem.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 #include "vfs.h"
@@ -44,12 +45,20 @@ struct ksmbd_lock {
 	unsigned int flags;
 	int cmd;
 	int zero_len;
+	bool virtual_lock;
+	bool vfs_locked;
+	bool pending;
 	unsigned long long start;
 	unsigned long long end;
 };
 
 int ksmbd_file_lock_check(struct ksmbd_lock *lock);
 void ksmbd_file_lock_add(struct ksmbd_file *fp, struct list_head *locks);
+bool ksmbd_file_lock_conflict(struct ksmbd_lock *lock);
+int ksmbd_file_lock_reserve(struct ksmbd_file *fp, struct ksmbd_lock *lock);
+void ksmbd_file_lock_remove(struct ksmbd_lock *lock);
+int ksmbd_file_lock_unlock(struct ksmbd_lock *lock);
+extern wait_queue_head_t ksmbd_lock_wait;
 
 struct stream {
 	char *name;
