@@ -7720,6 +7720,20 @@ static int ftrace_process_locs(struct module *mod,
 		rec->ip = addr;
 	}
 
+	/*
+	 * ftrace_release_mod() finds a module's page groups by their first
+	 * record. If every entry was skipped there is none, so unlink the
+	 * new page groups and free them now.
+	 */
+	if (mod && !start_pg->index) {
+		ftrace_pages->next = NULL;
+		mutex_unlock(&ftrace_lock);
+		/* Need to synchronize with ftrace_location_range() */
+		synchronize_rcu();
+		ftrace_free_pages(start_pg);
+		return 0;
+	}
+
 	if (pg->next) {
 		pg_unuse = pg->next;
 		pg->next = NULL;
