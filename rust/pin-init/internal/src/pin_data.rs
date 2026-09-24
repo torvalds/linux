@@ -11,8 +11,8 @@ use syn::{
     spanned::Spanned,
     visit::Visit,
     visit_mut::VisitMut,
-    Field, Fields, GenericParam, Generics, Ident, Index, Item, ItemStruct, Lifetime, LifetimeParam,
-    Member, PathSegment, Token, Type, TypePath,
+    Attribute, Field, Fields, GenericParam, Generics, Ident, Index, Item, ItemStruct, Lifetime,
+    LifetimeParam, Member, Meta, PathSegment, Token, Type, TypePath,
 };
 
 use crate::{
@@ -55,9 +55,23 @@ impl ToTokens for Args {
 /// Description of how a field is borrowed.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum BorrowedKind {
-    /// Implicitly inferreed.
+    /// `#[borrowed]`, or implicitly inferreed.
     #[default]
     Shared,
+}
+
+impl BorrowedKind {
+    fn parse(dcx: &mut DiagCtxt, attrs: &mut Vec<Attribute>) -> Option<Self> {
+        let attr = attrs.extract_single_attr(dcx, "borrowed")?;
+
+        Some(if let Meta::Path(_) = attr.meta {
+            BorrowedKind::Shared
+        } else {
+            // Swallow the error and recover by inferring shared.
+            dcx.error(attr.path(), "unexpected `#[borrowed]` attribute");
+            BorrowedKind::Shared
+        })
+    }
 }
 
 /// Information about a borrowed field.
@@ -305,11 +319,25 @@ fn expand(
             })
             .visit_type(&field.ty);
 
+            let borrowed = BorrowedKind::parse(dcx, &mut field.attrs).and_then(|kind| {
+                let lifetime = Lifetime::from_ident(&member.as_ident());
+
+                if bound_lifetimes.contains(&lifetime) {
+                    dcx.error(
+                        &lifetime,
+                        format!("`{lifetime}` appear in generics and would conflict with field lifetime"),
+                    );
+                    return None;
+                }
+
+                Some(BorrowedInfo { kind, lifetime })
+            });
+
             FieldInfo {
                 field,
                 member,
                 pinned,
-                borrowed: None,
+                borrowed,
                 captures,
                 generic_lt_captures,
                 generic_ty_captures,
