@@ -182,7 +182,7 @@ void audit_log_lsm_data(struct audit_buffer *ab,
 	 * start making this union too large!  See struct lsm_network_audit
 	 * as an example of how to deal with large data.
 	 */
-	BUILD_BUG_ON(sizeof(a->u) > sizeof(void *)*2);
+	BUILD_BUG_ON(sizeof(a->u) > (sizeof(u64) * 2));
 
 	switch (a->type) {
 	case LSM_AUDIT_DATA_NONE:
@@ -402,6 +402,10 @@ void audit_log_lsm_data(struct audit_buffer *ab,
 		break;
 	case LSM_AUDIT_DATA_NLMSGTYPE:
 		audit_log_format(ab, " nl-msgtype=%hu", a->u.nlmsg_type);
+		break;
+	case LSM_AUDIT_DATA_NS:
+		audit_log_format(ab, " namespace_type=0x%x namespace_id=%llu",
+				 a->u.ns.ns_type, a->u.ns.ns_id);
 		break;
 	} /* switch (a->type) */
 }

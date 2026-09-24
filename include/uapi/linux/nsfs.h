@@ -55,6 +55,7 @@ enum init_ns_ino {
 	MNT_NS_INIT_INO		= 0xEFFFFFF8U,
 #ifdef __KERNEL__
 	MNT_NS_ANON_INO		= 0xEFFFFFF7U,
+	MNT_NS_INO_SPECIAL_MAX	= MNT_NS_ANON_INO,
 #endif
 };
 

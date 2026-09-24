@@ -180,12 +180,18 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 
 static inline const struct cred *override_creds(const struct cred *override_cred)
 {
-	return rcu_replace_pointer(current->cred, override_cred, 1);
+	const struct cred *old = current->cred;
+
+	current->cred = override_cred;
+	return old;
 }
 
 static inline const struct cred *revert_creds(const struct cred *revert_cred)
 {
-	return rcu_replace_pointer(current->cred, revert_cred, 1);
+	const struct cred *override_cred = current->cred;
+
+	current->cred = revert_cred;
+	return override_cred;
 }
 
 DEFINE_CLASS(override_creds,
@@ -293,11 +299,10 @@ DEFINE_FREE(put_cred, struct cred *, if (!IS_ERR_OR_NULL(_T)) put_cred(_T))
 /**
  * current_cred - Access the current task's subjective credentials
  *
- * Access the subjective credentials of the current task.  RCU-safe,
- * since nobody else can modify it.
+ * Access the subjective credentials of the current task.
+ * Nobody else can modify it.
  */
-#define current_cred() \
-	rcu_dereference_protected(current->cred, 1)
+#define current_cred() (current->cred)
 
 /**
  * current_real_cred - Access the current task's objective credentials

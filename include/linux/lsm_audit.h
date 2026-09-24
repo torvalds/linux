@@ -78,6 +78,7 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_NOTIFICATION 16
 #define LSM_AUDIT_DATA_ANONINODE	17
 #define LSM_AUDIT_DATA_NLMSGTYPE	18
+#define LSM_AUDIT_DATA_NS		19
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -100,6 +101,10 @@ struct common_audit_data {
 		int reason;
 		const char *anonclass;
 		u16 nlmsg_type;
+		struct {
+			u32 ns_type;
+			u64 ns_id;
+		} ns;
 	} u;
 	/* this union contains LSM specific data */
 	union {

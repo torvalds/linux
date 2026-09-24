@@ -303,6 +303,7 @@ static void __init lsm_prepare(struct lsm_info *lsm)
 	lsm_blob_size_update(&blobs->lbs_ipc, &blob_sizes.lbs_ipc);
 	lsm_blob_size_update(&blobs->lbs_key, &blob_sizes.lbs_key);
 	lsm_blob_size_update(&blobs->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
+	lsm_blob_size_update(&blobs->lbs_ns, &blob_sizes.lbs_ns);
 	lsm_blob_size_update(&blobs->lbs_perf_event,
 			     &blob_sizes.lbs_perf_event);
 	lsm_blob_size_update(&blobs->lbs_sock, &blob_sizes.lbs_sock);
@@ -450,6 +451,7 @@ int __init security_init(void)
 		lsm_pr("blob(ipc) size %d\n", blob_sizes.lbs_ipc);
 		lsm_pr("blob(key) size %d\n", blob_sizes.lbs_key);
 		lsm_pr("blob(msg_msg)_size %d\n", blob_sizes.lbs_msg_msg);
+		lsm_pr("blob(ns) size %d\n", blob_sizes.lbs_ns);
 		lsm_pr("blob(sock) size %d\n", blob_sizes.lbs_sock);
 		lsm_pr("blob(superblock) size %d\n", blob_sizes.lbs_superblock);
 		lsm_pr("blob(perf_event) size %d\n", blob_sizes.lbs_perf_event);
@@ -476,8 +478,7 @@ int __init security_init(void)
 						    blob_sizes.lbs_inode, 0,
 						    SLAB_PANIC, NULL);
 
-	if (lsm_cred_alloc((struct cred *)unrcu_pointer(current->cred),
-			   GFP_KERNEL))
+	if (lsm_cred_alloc((struct cred *)current->cred, GFP_KERNEL))
 		panic("early LSM cred alloc failed\n");
 	if (lsm_task_alloc(current))
 		panic("early LSM task alloc failed\n");

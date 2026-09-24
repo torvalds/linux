@@ -26,6 +26,7 @@
 #include <linux/string.h>
 #include <linux/xattr.h>
 #include <linux/msg.h>
+#include <linux/ns_common.h>
 #include <linux/overflow.h>
 #include <linux/perf_event.h>
 #include <linux/fs.h>
@@ -379,6 +380,19 @@ static int lsm_superblock_alloc(struct super_block *sb)
 {
 	return lsm_blob_alloc(&sb->s_security, blob_sizes.lbs_superblock,
 			      GFP_KERNEL);
+}
+
+/**
+ * lsm_ns_alloc - allocate a composite namespace blob
+ * @ns: the namespace that needs a blob
+ *
+ * Allocate the namespace blob for all the modules
+ *
+ * Returns 0, or -ENOMEM if memory can't be allocated.
+ */
+static int lsm_ns_alloc(struct ns_common *ns)
+{
+	return lsm_blob_alloc(&ns->ns_security, blob_sizes.lbs_ns, GFP_KERNEL);
 }
 
 /**
@@ -3355,6 +3369,64 @@ void security_task_to_inode(struct task_struct *p, struct inode *inode)
 int security_create_user_ns(const struct cred *cred)
 {
 	return call_int_hook(userns_create, cred);
+}
+
+/**
+ * security_namespace_init() - Initialize LSM security data for a namespace
+ * @ns: the namespace being initialized
+ *
+ * Initialize the LSM security blob attached to the namespace. The namespace type
+ * is available via ns->ns_type, and the owning user namespace (if any)
+ * via ns->ops->owner(ns).
+ *
+ * Return: Returns 0 if successful, otherwise < 0 error code.
+ */
+int security_namespace_init(struct ns_common *ns)
+{
+	int rc;
+
+	rc = lsm_ns_alloc(ns);
+	if (unlikely(rc))
+		return rc;
+
+	rc = call_int_hook(namespace_init, ns);
+	if (unlikely(rc))
+		security_namespace_free(ns);
+
+	return rc;
+}
+
+/**
+ * security_namespace_free() - Release LSM security data from a namespace
+ * @ns: the namespace being freed
+ *
+ * Release security data attached to the namespace. Called before the
+ * namespace structure is freed.
+ */
+void security_namespace_free(struct ns_common *ns)
+{
+	if (!ns->ns_security)
+		return;
+
+	call_void_hook(namespace_free, ns);
+
+	kfree(ns->ns_security);
+	ns->ns_security = NULL;
+}
+
+/**
+ * security_namespace_install() - Check permission to install a namespace
+ * @nsset: the target nsset being configured
+ * @ns: the namespace being installed
+ *
+ * Check permission before allowing a namespace to be installed into the
+ * process's set of namespaces via setns(2).
+ *
+ * Return: Returns 0 if permission is granted, otherwise < 0 error code.
+ */
+int security_namespace_install(const struct nsset *nsset, struct ns_common *ns)
+{
+	return call_int_hook(namespace_install, nsset, ns);
 }
 
 /**
