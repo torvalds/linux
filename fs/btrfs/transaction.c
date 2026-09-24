@@ -39,7 +39,6 @@
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
 enum {
-	ENUM_BIT(__TRANS_FREEZABLE),
 	ENUM_BIT(__TRANS_START),
 	ENUM_BIT(__TRANS_ATTACH),
 	ENUM_BIT(__TRANS_JOIN),
@@ -50,11 +49,14 @@ enum {
 	ENUM_BIT(__TRANS_JOIN_NOSTART),
 };
 
-#define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
+#define TRANS_START		(__TRANS_START)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
-#define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
+#define TRANS_JOIN		(__TRANS_JOIN)
 #define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
 #define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
+
+/* Those types need to hold sb intwrite lock. */
+#define TRANS_SB_INTWRITER_MASK (__TRANS_START | __TRANS_JOIN)
 
 #define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
@@ -750,6 +752,8 @@ again:
 	}
 
 	/*
+	 * Only TRANS_START and TRANS_JOIN require sb intwrite lock.
+	 *
 	 * If we are JOIN_NOLOCK we're already committing a transaction and
 	 * waiting on this guy, so we don't need to do the sb_start_intwrite
 	 * because we're already holding a ref.  We need this because we could
@@ -759,7 +763,7 @@ again:
 	 * If we are ATTACH, it means we just want to catch the current
 	 * transaction and commit it, so we needn't do sb_start_intwrite(). 
 	 */
-	if (type & __TRANS_FREEZABLE)
+	if (type & TRANS_SB_INTWRITER_MASK)
 		sb_start_intwrite(fs_info->sb);
 
 	if (may_wait_transaction(fs_info, type))
@@ -861,7 +865,7 @@ got_it:
 	return h;
 
 join_fail:
-	if (type & __TRANS_FREEZABLE)
+	if (type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 	kmem_cache_free(btrfs_trans_handle_cachep, h);
 alloc_fail:
@@ -1142,7 +1146,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_chunk_metadata(trans);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(info->sb);
 
 	/*
@@ -2154,7 +2158,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 		fs_info->running_transaction = NULL;
 	spin_unlock(&fs_info->trans_lock);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 	btrfs_put_transaction(cur_trans);
 	btrfs_put_transaction(cur_trans);
@@ -2686,7 +2690,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	btrfs_put_transaction(cur_trans);
 	btrfs_put_transaction(cur_trans);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 
 	btrfs_scrub_continue(fs_info);
