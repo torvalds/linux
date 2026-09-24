@@ -47,7 +47,8 @@ int landlock_append_net_rule(struct landlock_ruleset *const ruleset,
 	 * TP_fast_assign).
 	 */
 	if (!err)
-		trace_landlock_add_rule_net(ruleset, access_rights, port);
+		trace_landlock_add_rule_net_port(ruleset, flags, access_rights,
+						 port);
 	mutex_unlock(&ruleset->lock);
 
 	return err;
@@ -63,7 +64,7 @@ static bool unmask_layers_net(const struct landlock_domain *const domain,
 
 	ret = landlock_unmask_layers(domain, id, masks, &rule);
 	if (rule)
-		trace_landlock_check_rule_net(
+		trace_landlock_check_rule_net_port(
 			domain, rule, access_request,
 			ntohs((__force __be16)id.key.data));
 	return ret;
@@ -92,7 +93,7 @@ static int current_check_access_socket(struct socket *const sock,
 		return 0;
 
 	/* Checks for minimal header length to safely read sa_family. */
-	if (addrlen < offsetofend(typeof(*address), sa_family))
+	if (addrlen < (int)offsetofend(typeof(*address), sa_family))
 		return -EINVAL;
 
 	/*
@@ -144,6 +145,17 @@ static int current_check_access_socket(struct socket *const sock,
 						.audit.u.net = &audit_net,
 						.access = access_request,
 						.layer_masks = &layer_masks,
+#ifdef CONFIG_TRACEPOINTS
+						.trace_net =
+							&(struct landlock_net_trace){
+								.address =
+									address,
+								.addrlen =
+									addrlen,
+								.socket_family =
+									sock_family,
+							},
+#endif /* CONFIG_TRACEPOINTS */
 					});
 				return -EACCES;
 			}
@@ -275,14 +287,22 @@ static int current_check_access_socket(struct socket *const sock,
 
 	audit_net.family = address->sa_family;
 	audit_net.sk = sock->sk;
-	landlock_log_denial(subject,
-			    &(struct landlock_request){
-				    .type = LANDLOCK_REQUEST_NET_ACCESS,
-				    .audit.type = LSM_AUDIT_DATA_NET,
-				    .audit.u.net = &audit_net,
-				    .access = access_request,
-				    .layer_masks = &layer_masks,
-			    });
+	landlock_log_denial(
+		subject, &(struct landlock_request){
+				 .type = LANDLOCK_REQUEST_NET_ACCESS,
+				 .audit.type = LSM_AUDIT_DATA_NET,
+				 .audit.u.net = &audit_net,
+				 .access = access_request,
+				 .layer_masks = &layer_masks,
+#ifdef CONFIG_TRACEPOINTS
+				 .trace_net =
+					 &(struct landlock_net_trace){
+						 .address = address,
+						 .addrlen = addrlen,
+						 .socket_family = sock_family,
+					 },
+#endif /* CONFIG_TRACEPOINTS */
+			 });
 	return -EACCES;
 }
 

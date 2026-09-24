@@ -27,14 +27,14 @@
 	TRACEFS_LANDLOCK_DIR "/landlock_create_domain/enable"
 #define TRACEFS_ENFORCE_DOMAIN_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_enforce_domain/enable"
-#define TRACEFS_ADD_RULE_FS_ENABLE \
-	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_fs/enable"
-#define TRACEFS_ADD_RULE_NET_ENABLE \
-	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_net/enable"
+#define TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE \
+	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_path_beneath/enable"
+#define TRACEFS_ADD_RULE_NET_PORT_ENABLE \
+	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_net_port/enable"
 #define TRACEFS_CHECK_RULE_FS_ENABLE \
-	TRACEFS_LANDLOCK_DIR "/landlock_check_rule_fs/enable"
+	TRACEFS_LANDLOCK_DIR "/landlock_check_rule_inode/enable"
 #define TRACEFS_CHECK_RULE_NET_ENABLE \
-	TRACEFS_LANDLOCK_DIR "/landlock_check_rule_net/enable"
+	TRACEFS_LANDLOCK_DIR "/landlock_check_rule_net_port/enable"
 #define TRACEFS_DENY_ACCESS_FS_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_deny_access_fs/enable"
 #define TRACEFS_DENY_ACCESS_NET_ENABLE \
@@ -79,18 +79,18 @@
  */
 #define KWORKER_TASK "kworker/[0-9]\\+:[0-9]\\+"
 
-#define REGEX_ADD_RULE_FS(task)           \
-	TRACE_PREFIX(task)                \
-	"landlock_add_rule_fs: "          \
-	"ruleset=[0-9a-f]\\+\\.[0-9]\\+ " \
-	"access_rights=[a-z_|]* "         \
-	"dev=[0-9]\\+:[0-9]\\+ "          \
-	"ino=[0-9]\\+ "                   \
+#define REGEX_ADD_RULE_PATH_BENEATH(task)  \
+	TRACE_PREFIX(task)                 \
+	"landlock_add_rule_path_beneath: " \
+	"ruleset=[0-9a-f]\\+\\.[0-9]\\+ "  \
+	"access_rights=[a-z_|]* "          \
+	"dev=[0-9]\\+:[0-9]\\+ "           \
+	"ino=[0-9]\\+ "                    \
 	"path=[^ ]\\+$"
 
-#define REGEX_ADD_RULE_NET(task)          \
+#define REGEX_ADD_RULE_NET_PORT(task)     \
 	TRACE_PREFIX(task)                \
-	"landlock_add_rule_net: "         \
+	"landlock_add_rule_net_port: "    \
 	"ruleset=[0-9a-f]\\+\\.[0-9]\\+ " \
 	"access_rights=[a-z_|]* "         \
 	"port=[0-9]\\+$"
@@ -110,21 +110,21 @@
 	"parent=[0-9a-f]\\+ "      \
 	"ruleset=[0-9a-f]\\+\\.[0-9]\\+$"
 
-#define REGEX_CHECK_RULE_FS(task)  \
-	TRACE_PREFIX(task)         \
-	"landlock_check_rule_fs: " \
-	"domain=[0-9a-f]\\+ "      \
-	"access_request=[a-z_|]* " \
-	"dev=[0-9]\\+:[0-9]\\+ "   \
-	"ino=[0-9]\\+ "            \
+#define REGEX_CHECK_RULE_FS(task)     \
+	TRACE_PREFIX(task)            \
+	"landlock_check_rule_inode: " \
+	"domain=[0-9a-f]\\+ "         \
+	"access_request=[a-z_|]* "    \
+	"dev=[0-9]\\+:[0-9]\\+ "      \
+	"ino=[0-9]\\+ "               \
 	"grants={[a-z_|,]*}$"
 
-#define REGEX_CHECK_RULE_NET(task)  \
-	TRACE_PREFIX(task)          \
-	"landlock_check_rule_net: " \
-	"domain=[0-9a-f]\\+ "       \
-	"access_request=[a-z_|]* "  \
-	"port=[0-9]\\+ "            \
+#define REGEX_CHECK_RULE_NET(task)       \
+	TRACE_PREFIX(task)               \
+	"landlock_check_rule_net_port: " \
+	"domain=[0-9a-f]\\+ "            \
+	"access_request=[a-z_|]* "       \
+	"port=[0-9]\\+ "                 \
 	"grants={[a-z_|,]*}$"
 
 #define REGEX_DENY_ACCESS_FS(task)  \
@@ -145,8 +145,7 @@
 	"same_exec=[01] "            \
 	"logged=[01] "               \
 	"blockers=[a-z_|]* "         \
-	"sport=[0-9]\\+ "            \
-	"dport=[0-9]\\+$"
+	"port=-\\?[0-9]\\+$"
 
 #define REGEX_DENY_PTRACE(task)      \
 	TRACE_PREFIX(task)           \
