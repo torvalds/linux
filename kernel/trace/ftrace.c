@@ -428,6 +428,7 @@ struct ftrace_profile {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	unsigned long long		time;
 	unsigned long long		time_squared;
+	unsigned long long		time_max;
 #endif
 };
 
@@ -530,9 +531,9 @@ static int function_stat_headers(struct seq_file *m)
 {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	seq_puts(m, "  Function                               "
-		 "Hit    Time            Avg             s^2\n"
+		 "Hit    Time            Avg             s^2             max\n"
 		    "  --------                               "
-		 "---    ----            ---             ---\n");
+		 "---    ----            ---             ---             ---\n");
 #else
 	seq_puts(m, "  Function                               Hit\n"
 		    "  --------                               ---\n");
@@ -613,6 +614,8 @@ static int function_stat_show(struct seq_file *m, void *v)
 	trace_print_graph_duration(avg, &s);
 	trace_seq_puts(&s, "    ");
 	trace_print_graph_duration(stddev, &s);
+	trace_seq_puts(&s, "    ");
+	trace_print_graph_duration(rec->time_max, &s);
 	trace_print_seq(m, &s);
 #endif
 	seq_putc(m, '\n');
@@ -920,6 +923,8 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 	if (rec) {
 		rec->time += calltime;
 		rec->time_squared += calltime * calltime;
+		if (calltime > rec->time_max)
+			rec->time_max = calltime;
 	}
 }
 
