@@ -85,8 +85,8 @@ struct ima_setup_data {
 struct kho_data {
 	__u64 fdt_addr;
 	__u64 fdt_size;
-	__u64 scratch_addr;
-	__u64 scratch_size;
+	__u64 bootmem_addr;
+	__u64 bootmem_size;
 } __attribute__((packed));
 
 #endif /* __ASSEMBLER__ */
