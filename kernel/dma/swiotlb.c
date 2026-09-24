@@ -117,27 +117,20 @@ struct io_tlb_area {
 	spinlock_t lock;
 };
 
-/*
- * Round up number of slabs to the next power of 2. The last area is going
- * be smaller than the rest if default_nslabs is not power of two.
- * The number of slot in an area should be a multiple of IO_TLB_SEGSIZE,
- * otherwise a segment may span two or more areas. It conflicts with free
- * contiguous slots tracking: free slots are treated contiguous no matter
- * whether they cross an area boundary.
- *
- * Return true if default_nslabs is rounded up.
- */
-static bool round_up_default_nslabs(void)
+/* Return a power-of-two number of slabs that can be split between areas. */
+static unsigned long swiotlb_calc_nslabs(unsigned long size,
+		unsigned long nareas)
 {
-	if (!default_nareas)
-		return false;
+	unsigned long nslabs;
 
-	if (default_nslabs < IO_TLB_SEGSIZE * default_nareas)
-		default_nslabs = IO_TLB_SEGSIZE * default_nareas;
-	else if (is_power_of_2(default_nslabs))
-		return false;
-	default_nslabs = roundup_pow_of_two(default_nslabs);
-	return true;
+	nslabs = ALIGN(DIV_ROUND_UP(size, IO_TLB_SIZE), IO_TLB_SEGSIZE);
+	if (nareas && nslabs < IO_TLB_SEGSIZE * nareas)
+		nslabs = IO_TLB_SEGSIZE * nareas;
+
+	if (!is_power_of_2(nslabs))
+		nslabs = roundup_pow_of_two(nslabs);
+
+	return nslabs;
 }
 
 /**
@@ -150,6 +143,8 @@ static bool round_up_default_nslabs(void)
  */
 static void swiotlb_adjust_nareas(unsigned int nareas)
 {
+	unsigned long nslabs;
+
 	if (!nareas)
 		nareas = 1;
 	else if (!is_power_of_2(nareas))
@@ -158,9 +153,12 @@ static void swiotlb_adjust_nareas(unsigned int nareas)
 	default_nareas = nareas;
 
 	pr_info("area num %d.\n", nareas);
-	if (round_up_default_nslabs())
+	nslabs = swiotlb_calc_nslabs(default_nslabs << IO_TLB_SHIFT, nareas);
+	if (nslabs != default_nslabs) {
+		default_nslabs = nslabs;
 		pr_info("SWIOTLB bounce buffer size roundup to %luMB",
 			(default_nslabs << IO_TLB_SHIFT) >> 20);
+	}
 }
 
 /**
@@ -300,10 +298,8 @@ void __init swiotlb_adjust_size(unsigned long size)
 	if (default_nslabs != IO_TLB_DEFAULT_SIZE >> IO_TLB_SHIFT)
 		return;
 
-	size = ALIGN(size, IO_TLB_SIZE);
-	default_nslabs = ALIGN(size >> IO_TLB_SHIFT, IO_TLB_SEGSIZE);
-	if (round_up_default_nslabs())
-		size = default_nslabs << IO_TLB_SHIFT;
+	default_nslabs = swiotlb_calc_nslabs(size, default_nareas);
+	size = default_nslabs << IO_TLB_SHIFT;
 	pr_info("SWIOTLB bounce buffer size adjusted to %luMB", size >> 20);
 }
 
