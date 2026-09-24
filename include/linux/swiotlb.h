@@ -38,7 +38,7 @@ struct scatterlist;
 #define IO_TLB_DEFAULT_SIZE (64UL << 20)
 #endif
 
-unsigned long swiotlb_size_or_default(void);
+unsigned long swiotlb_default_pool_size(void);
 void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 	int (*remap)(void *tlb, unsigned long nslabs));
 int swiotlb_init_late(size_t size, gfp_t gfp_mask,
