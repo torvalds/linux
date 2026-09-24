@@ -1404,10 +1404,18 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(struct ntfs_volume *vol)
 	folio_lock(folio);
 	b = (u8 *)kmap_local_folio(folio, 0) + (ll & ~PAGE_MASK);
 	tb = 1 << (lcn & 7ull);
-	if (*b != 0xff && !(*b & tb)) {
+	/*
+	 * A page skipped by the initial scan has no free bits recorded.
+	 * Honor that and the space reserved for delayed allocation.
+	 */
+	if (*b != 0xff && !(*b & tb) &&
+	    vol->lcn_empty_bits_per_page[ll >> PAGE_SHIFT] &&
+	    ntfs_available_clusters_count(vol, 1) > 0) {
 		/* Next cluster is free, allocate it. */
 		*b |= tb;
 		folio_mark_dirty(folio);
+		ntfs_dec_free_clusters(vol, 1);
+		ntfs_set_lcn_empty_bits(vol, ll >> PAGE_SHIFT, 1, 1);
 		folio_unlock(folio);
 		kunmap_local(b);
 		folio_put(folio);
