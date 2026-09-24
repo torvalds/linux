@@ -630,7 +630,7 @@ static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr,
 
 	/* Flush+invalidate RW caches, invalidate RO ones. */
 	ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
-				       CACHE_CLEAN | CACHE_INV, CACHE_INV);
+				       CACHE_CLEAN | CACHE_INV, 0);
 	if (ret)
 		return ret;
 
@@ -1832,13 +1832,12 @@ static void panthor_vm_unlock_region(struct panthor_vm *vm)
 	if (vm->as.id >= 0) {
 		int ret;
 
-		/* flush+invalidate RW caches and invalidate RO ones.
+		/* flush+invalidate RW caches.
 		 * TODO: See if we can use FLUSH_PA_RANGE when the physical
 		 * range is narrow enough and the HW supports it.
 		 */
 		ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
-					       CACHE_CLEAN | CACHE_INV,
-					       CACHE_INV);
+					       CACHE_CLEAN | CACHE_INV, 0);
 
 		/* Unlock the region if the flush is effective. */
 		if (!ret)
