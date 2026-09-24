@@ -156,6 +156,13 @@ EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_mask, "INTEL_TPMI_POWER_DOMAIN");
 
 int tpmi_get_linux_die_id(int pkg_id, int domain_id)
 {
+	/*
+	 * When built in, this stays callable after tpmi_init() failed
+	 * before allocating the map.
+	 */
+	if (!domain_die_map)
+		return -ENODEV;
+
 	if (pkg_id >= topology_max_packages() || domain_id >= MAX_POWER_DOMAINS)
 		return -EINVAL;
 
@@ -245,6 +252,7 @@ static int __init tpmi_init(void)
 
 free_domain_map:
 	kfree(domain_die_map);
+	domain_die_map = NULL;
 
 free_domain_mask:
 	kfree(tpmi_power_domain_mask);
@@ -258,6 +266,7 @@ static void __exit tpmi_exit(void)
 	cpuhp_remove_state(tpmi_hp_state);
 	kfree(tpmi_power_domain_mask);
 	kfree(domain_die_map);
+	domain_die_map = NULL;
 }
 module_exit(tpmi_exit)
 
