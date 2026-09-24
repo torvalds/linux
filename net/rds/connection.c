@@ -276,6 +276,12 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 
 	conn->c_trans = trans;
 
+	/* The transport may just have been swapped for loopback; size the
+	 * set of paths - which is also what rds_conn_destroy() tears down
+	 * again - by the transport the connection actually uses.
+	 */
+	npaths = (trans->t_mp_capable ? RDS_MPATH_WORKERS : 1);
+
 	init_waitqueue_head(&conn->c_hs_waitq);
 	for (i = 0; i < npaths; i++) {
 		__rds_conn_path_init(conn, &conn->c_path[i],

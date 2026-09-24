@@ -6344,6 +6344,7 @@ static int lanphy_write_reg_data(struct phy_device *phydev,
 					    data->val);
 		if (ret)
 			break;
+		data++;
 	}
 
 	return ret;
