@@ -747,12 +747,8 @@ static int imx_pcie_attach_pd(struct device *dev)
 
 static int imx6q_pcie_enable_ref_clk(struct imx_pcie *imx_pcie, bool enable)
 {
-	if (enable)
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				IMX6Q_GPR1_PCIE_REF_CLK_EN);
-	else
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				  IMX6Q_GPR1_PCIE_REF_CLK_EN);
+	regmap_assign_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
+			   IMX6Q_GPR1_PCIE_REF_CLK_EN, enable);
 
 	return 0;
 }
@@ -868,12 +864,8 @@ static void imx_pcie_clk_disable(struct imx_pcie *imx_pcie)
 
 static int imx6sx_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 {
-	if (assert)
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR12,
-				IMX6SX_GPR12_PCIE_TEST_POWERDOWN);
-	else
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR12,
-				  IMX6SX_GPR12_PCIE_TEST_POWERDOWN);
+	regmap_assign_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			   IMX6SX_GPR12_PCIE_TEST_POWERDOWN, assert);
 
 	/* Force PCIe PHY reset */
 	regmap_update_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR5, IMX6SX_GPR5_PCIE_BTNRST_RESET,
@@ -883,12 +875,8 @@ static int imx6sx_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 
 static int imx6qp_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 {
-	if (assert)
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				IMX6Q_GPR1_PCIE_TEST_PD);
-	else
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				  IMX6Q_GPR1_PCIE_TEST_PD);
+	regmap_assign_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
+			   IMX6Q_GPR1_PCIE_TEST_PD, assert);
 
 	regmap_update_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1, IMX6Q_GPR1_PCIE_SW_RST,
 			   assert ? IMX6Q_GPR1_PCIE_SW_RST : 0);
@@ -901,12 +889,8 @@ static int imx6qp_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 
 static int imx6q_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 {
-	if (assert)
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				IMX6Q_GPR1_PCIE_TEST_PD);
-	else
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
-				  IMX6Q_GPR1_PCIE_TEST_PD);
+	regmap_assign_bits(imx_pcie->iomuxc_gpr, IOMUXC_GPR1,
+			   IMX6Q_GPR1_PCIE_TEST_PD, assert);
 
 	if (!assert)
 		usleep_range(200, 500);
