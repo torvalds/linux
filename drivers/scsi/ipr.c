@@ -1006,6 +1006,7 @@ static void ipr_init_ioadl(struct ipr_cmnd *ipr_cmd, dma_addr_t dma_addr,
 
 /**
  * ipr_send_blocking_cmd - Send command and sleep on its completion.
+ * @host:	SCSI host
  * @ipr_cmd:	ipr command struct
  * @timeout_func:	function to invoke if command times out
  * @timeout:	timeout
@@ -1013,18 +1014,17 @@ static void ipr_init_ioadl(struct ipr_cmnd *ipr_cmd, dma_addr_t dma_addr,
  * Return value:
  * 	none
  **/
-static void ipr_send_blocking_cmd(struct ipr_cmnd *ipr_cmd,
+static void ipr_send_blocking_cmd(struct Scsi_Host *host, struct ipr_cmnd *ipr_cmd,
 				  void (*timeout_func) (struct timer_list *),
 				  u32 timeout)
+	__must_hold(&host->host_lock)
 {
-	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
-
 	init_completion(&ipr_cmd->completion);
 	ipr_do_req(ipr_cmd, ipr_internal_cmd_done, timeout_func, timeout);
 
-	spin_unlock_irq(&ioa_cfg->host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	wait_for_completion(&ipr_cmd->completion);
-	spin_lock_irq(&ioa_cfg->host->host_lock);
+	spin_lock_irq(&host->host_lock);
 }
 
 static int ipr_get_hrrq_index(struct ipr_ioa_cfg *ioa_cfg)
@@ -5011,7 +5011,9 @@ static int ipr_eh_host_reset(struct scsi_cmnd *cmd)
  *	0 on success / non-zero on failure
  **/
 static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
+			    struct Scsi_Host *host,
 			    struct ipr_resource_entry *res)
+	__must_hold(&host->host_lock)
 {
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioarcb *ioarcb;
@@ -5030,7 +5032,8 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
 	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
 	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
 
-	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
+	ipr_send_blocking_cmd(host, ipr_cmd, ipr_timeout,
+			      IPR_DEVICE_RESET_TIMEOUT);
 	ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 
@@ -5049,14 +5052,15 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  *	SUCCESS / FAILED
  **/
-static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
+static int __ipr_eh_dev_reset(struct Scsi_Host *host, struct scsi_cmnd *scsi_cmd)
+	__must_hold(&host->host_lock)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
 	int rc = 0;
 
 	ENTER;
-	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
+	ioa_cfg = (struct ipr_ioa_cfg *) host->hostdata;
 	res = scsi_cmd->device->hostdata;
 
 	/*
@@ -5072,7 +5076,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 	res->resetting_device = 1;
 	scmd_printk(KERN_ERR, scsi_cmd, "Resetting device\n");
 
-	rc = ipr_device_reset(ioa_cfg, res);
+	rc = ipr_device_reset(ioa_cfg, host, res);
 	res->resetting_device = 0;
 	res->reset_occurred = 1;
 
@@ -5085,16 +5089,17 @@ static int ipr_eh_dev_reset(struct scsi_cmnd *cmd)
 	int rc;
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
+	struct Scsi_Host *host = cmd->device->host;
 
-	ioa_cfg = (struct ipr_ioa_cfg *) cmd->device->host->hostdata;
+	ioa_cfg = (struct ipr_ioa_cfg *) host->hostdata;
 	res = cmd->device->hostdata;
 
 	if (!res)
 		return FAILED;
 
-	spin_lock_irq(&cmd->device->host->host_lock);
-	rc = __ipr_eh_dev_reset(cmd);
-	spin_unlock_irq(&cmd->device->host->host_lock);
+	spin_lock_irq(&host->host_lock);
+	rc = __ipr_eh_dev_reset(host, cmd);
+	spin_unlock_irq(&host->host_lock);
 
 	if (rc == SUCCESS)
 		rc = ipr_wait_for_ops(ioa_cfg, cmd->device, ipr_match_lun);
@@ -5190,6 +5195,7 @@ static void ipr_abort_timeout(struct timer_list *t)
  **/
 static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 {
+	struct Scsi_Host *host = scsi_cmd->device->host;
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
@@ -5199,7 +5205,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 	struct ipr_hrr_queue *hrrq;
 
 	ENTER;
-	ioa_cfg = (struct ipr_ioa_cfg *)scsi_cmd->device->host->hostdata;
+	ioa_cfg = (struct ipr_ioa_cfg *)host->hostdata;
 	res = scsi_cmd->device->hostdata;
 
 	/* If we are currently going through reset/reload, return failed.
@@ -5247,7 +5253,8 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 
 	scmd_printk(KERN_ERR, scsi_cmd, "Aborting command: %02X\n",
 		    scsi_cmd->cmnd[0]);
-	ipr_send_blocking_cmd(ipr_cmd, ipr_abort_timeout, IPR_CANCEL_ALL_TIMEOUT);
+	ipr_send_blocking_cmd(host, ipr_cmd, ipr_abort_timeout,
+			      IPR_CANCEL_ALL_TIMEOUT);
 	ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
 
 	/*
