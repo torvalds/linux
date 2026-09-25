@@ -1137,6 +1137,7 @@ int qedi_send_iscsi_logout(struct qedi_conn *qedi_conn,
 
 int qedi_cleanup_all_io(struct qedi_ctx *qedi, struct qedi_conn *qedi_conn,
 			struct iscsi_task *task, bool in_recovery)
+	__context_unsafe(/*conditional locking*/)
 {
 	int rval;
 	struct iscsi_task *ctask;
