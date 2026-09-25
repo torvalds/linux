@@ -236,9 +236,9 @@ static void msi_wmi_notify(union acpi_object *obj, void *context)
 	}
 
 	/* Brightness is served via acpi video driver */
-	if (key->type == KE_KEY &&
-	    (backlight || (key->code == MSI_KEY_BRIGHTNESSUP ||
-			   key->code == MSI_KEY_BRIGHTNESSDOWN)))
+	if (key->type == KE_KEY && !backlight &&
+	    (key->code == MSI_KEY_BRIGHTNESSUP ||
+	     key->code == MSI_KEY_BRIGHTNESSDOWN))
 		return;
 
 	pr_debug("Send key: 0x%X - Input layer keycode: %d\n", key->code, key->keycode);
