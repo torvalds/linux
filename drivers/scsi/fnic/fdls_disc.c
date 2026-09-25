@@ -87,7 +87,8 @@ static void fnic_fdls_start_flogi(struct fnic_iport_s *iport);
 static struct fnic_tport_s *fdls_create_tport(struct fnic_iport_s *iport,
 					  uint32_t fcid,
 					  uint64_t wwpn);
-static void fdls_target_restart_nexus(struct fnic_tport_s *tport);
+static void fdls_target_restart_nexus(struct fnic_iport_s *iport,
+				      struct fnic_tport_s *tport);
 static void fdls_start_tport_timer(struct fnic_iport_s *iport,
 					struct fnic_tport_s *tport, int timeout);
 static void fdls_tport_timer_callback(struct timer_list *t);
@@ -1810,9 +1811,9 @@ static void fdls_tgt_discovery_start(struct fnic_iport_s *iport)
  * safely since the memory it is
  * pointing to it will be freed later
  */
-static void fdls_target_restart_nexus(struct fnic_tport_s *tport)
+static void fdls_target_restart_nexus(struct fnic_iport_s *iport,
+				      struct fnic_tport_s *tport)
 {
-	struct fnic_iport_s *iport = tport->iport;
 	struct fnic_tport_s *new_tport = NULL;
 	uint32_t fcid;
 	uint64_t wwpn;
@@ -2767,7 +2768,7 @@ fdls_process_tgt_plogi_rsp(struct fnic_iport_s *iport,
 	if (tport->state != FDLS_TGT_STATE_PLOGI) {
 		FNIC_FCS_DBG(KERN_INFO, fnic,
 			     "PLOGI rsp recvd in wrong state. Drop the frame and restart nexus");
-		fdls_target_restart_nexus(tport);
+		fdls_target_restart_nexus(iport, tport);
 		return;
 	}
 
@@ -2893,7 +2894,7 @@ fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 	if (tport->state != FDLS_TGT_STATE_PRLI) {
 		FNIC_FCS_DBG(KERN_INFO, fnic,
 			     "PRLI rsp recvd in wrong state. Drop frame. Restarting nexus");
-		fdls_target_restart_nexus(tport);
+		fdls_target_restart_nexus(iport, tport);
 		return;
 	}
 

@@ -942,10 +942,9 @@ void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
 }
 
 void
-fnic_fdls_add_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport,
-					unsigned long flags)
+fnic_fdls_add_tport(struct fnic *fnic, struct fnic_tport_s *tport,
+		    unsigned long flags)
 {
-	struct fnic *fnic = iport->fnic;
 	struct fc_rport *rport;
 	struct fc_rport_identifiers ids;
 	struct rport_dd_data_s *rdd_data;
@@ -975,18 +974,16 @@ fnic_fdls_add_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport,
 	rport->supported_classes = FC_COS_CLASS3 | FC_RPORT_ROLE_FCP_TARGET;
 	rdd_data = rport->dd_data;
 	rdd_data->tport = tport;
-	rdd_data->iport = iport;
+	rdd_data->iport = &fnic->iport;
 	tport->rport = rport;
 	tport->flags |= FNIC_FDLS_SCSI_REGISTERED;
 }
 
 void
-fnic_fdls_remove_tport(struct fnic_iport_s *iport,
-					   struct fnic_tport_s *tport, unsigned long flags)
+fnic_fdls_remove_tport(struct fnic *fnic, struct fnic_tport_s *tport,
+		       unsigned long flags)
 {
-	struct fnic *fnic = iport->fnic;
 	struct rport_dd_data_s *rdd_data;
-
 	struct fc_rport *rport;
 
 	if (!tport)
@@ -1038,7 +1035,7 @@ void fnic_delete_fcp_tports(struct fnic *fnic)
 		fdls_set_tport_state(tport, FDLS_TGT_STATE_OFFLINING);
 		fnic_del_tport_timer_sync(fnic, tport);
 		if (IS_FNIC_FCP_INITIATOR(fnic))
-			fnic_fdls_remove_tport(&fnic->iport, tport, flags);
+			fnic_fdls_remove_tport(fnic, tport, flags);
 		else if (IS_FNIC_NVME_INITIATOR(fnic))
 			nvfnic_delete_tport(&fnic->iport, tport, flags);
 	}
@@ -1067,7 +1064,7 @@ void fnic_tport_event_handler(struct work_struct *work)
 						 "Add rport event");
 			if (tport->state == FDLS_TGT_STATE_READY) {
 				if (IS_FNIC_FCP_INITIATOR(fnic))
-					fnic_fdls_add_tport(&fnic->iport, tport, flags);
+					fnic_fdls_add_tport(fnic, tport, flags);
 				else if (IS_FNIC_NVME_INITIATOR(fnic))
 					nvfnic_add_tport(fnic, tport, flags);
 			} else {
@@ -1081,7 +1078,7 @@ void fnic_tport_event_handler(struct work_struct *work)
 						 "Remove rport event");
 			if (tport->state == FDLS_TGT_STATE_OFFLINING) {
 				if (IS_FNIC_FCP_INITIATOR(fnic))
-					fnic_fdls_remove_tport(&fnic->iport, tport, flags);
+					fnic_fdls_remove_tport(fnic, tport, flags);
 				else if (IS_FNIC_NVME_INITIATOR(fnic))
 					nvfnic_delete_tport(&fnic->iport, tport, flags);
 			} else {
