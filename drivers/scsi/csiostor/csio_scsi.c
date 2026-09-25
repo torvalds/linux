@@ -1156,6 +1156,7 @@ csio_scsi_cmpl_handler(struct csio_hw *hw, void *wr, uint32_t len,
  * Called with lock held. Has to exit with lock held.
  */
 void csio_scsi_cleanup_io_q(struct csio_hw *hw, struct list_head *q)
+	__must_hold(&hw->lock)
 {
 	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	struct csio_ioreq *ioreq;
@@ -1230,6 +1231,7 @@ csio_abrt_cls(struct csio_ioreq *ioreq, struct scsi_cmnd *scmnd)
  */
 static int csio_scsi_abort_io_q(struct csio_hw *hw, struct list_head *q,
 				uint32_t tmo)
+	__must_hold(&hw->lock)
 {
 	struct list_head *tmp, *next;
 	int count = DIV_ROUND_UP(tmo, CSIO_SCSI_ABORT_Q_POLL_MS);
@@ -1268,6 +1270,7 @@ static int csio_scsi_abort_io_q(struct csio_hw *hw, struct list_head *q,
  * Can sleep when waiting for I/Os to complete.
  */
 int csio_scsim_cleanup_io(struct csio_hw *hw, bool abort)
+	__must_hold(&hw->lock)
 {
 	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	int rv = 0;
@@ -1312,6 +1315,7 @@ int csio_scsim_cleanup_io(struct csio_hw *hw, bool abort)
  * Can sleep (with dropped lock) when waiting for I/Os to complete.
  */
 int csio_scsim_cleanup_io_lnode(struct csio_hw *hw, struct csio_lnode *ln)
+	__must_hold(&hw->lock)
 {
 	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	struct csio_scsi_level_data sld;
