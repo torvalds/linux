@@ -111,6 +111,8 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 		goto nomem;
 
 	wreq->cleaned_to = wreq->start;
+	if (wreq->cache_resources.dio_size > 1)
+		wreq->cache_coll_to = round_down(wreq->start, wreq->cache_resources.dio_size);
 
 	wreq->io_streams[0].stream_nr		= 0;
 	wreq->io_streams[0].source		= NETFS_UPLOAD_TO_SERVER;
@@ -231,6 +233,21 @@ static void netfs_do_issue_write(struct netfs_io_stream *stream,
 
 	_enter("R=%x[%x],%zx", wreq->debug_id, subreq->debug_index, subreq->len);
 
+	if (stream->source == NETFS_WRITE_TO_CACHE &&
+	    unlikely(test_bit(NETFS_RREQ_CACHE_STOP, &wreq->flags))) {
+		size_t dio_size = wreq->cache_resources.dio_size;
+		size_t len, disp;
+
+		disp = subreq->start & (dio_size - 1);
+		len = round_up(subreq->len + disp, dio_size);
+
+		subreq->start -= disp;
+		subreq->len = len;
+
+		__set_bit(NETFS_SREQ_CANCELLED, &subreq->flags);
+		return netfs_write_subrequest_terminated(subreq, subreq->len);
+	}
+
 	if (test_bit(NETFS_SREQ_FAILED, &subreq->flags))
 		return netfs_write_subrequest_terminated(subreq, subreq->error);
 
@@ -264,6 +281,7 @@ void netfs_issue_write(struct netfs_io_request *wreq,
 
 	if (!subreq)
 		return;
+
 	stream->construct = NULL;
 	subreq->io_iter.count = subreq->len;
 	netfs_do_issue_write(stream, subreq);

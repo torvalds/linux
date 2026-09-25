@@ -189,6 +189,26 @@ done:
 }
 
 /*
+ * Collect cache results.
+ */
+static void netfs_cache_collect(struct netfs_io_request *wreq,
+				struct netfs_io_stream *stream,
+				enum netfs_cache_collect block_type)
+{
+	struct netfs_cache_resources *cres = &wreq->cache_resources;
+
+	if (stream->source != NETFS_WRITE_TO_CACHE ||
+	    wreq->cache_coll_to >= stream->collected_to)
+		return;
+
+	if (cres->ops && cres->ops->collect_write)
+		cres->ops->collect_write(wreq, wreq->cache_coll_to,
+					 stream->collected_to - wreq->cache_coll_to,
+					 block_type);
+	wreq->cache_coll_to = stream->collected_to;
+}
+
+/*
  * Collect and assess the results of various write subrequests.  We may need to
  * retry some of the results - or even do an RMW cycle for content crypto.
  *
@@ -235,13 +255,19 @@ reassess_streams:
 		/* Read first subreq pointer before IN_PROGRESS flag. */
 
 		while (front) {
+			enum netfs_cache_collect cache_collect;
+
 			trace_netfs_collect_sreq(wreq, front);
 			//_debug("sreq [%x] %llx %zx/%zx",
 			//       front->debug_index, front->start, front->transferred, front->len);
 
 			if (stream->collected_to < front->start) {
 				trace_netfs_collect_gap(wreq, stream, issued_to, 'F');
+				if (stream->cache_collect != NETFS_CACHE_COLLECT_WRITE_GAP)
+					netfs_cache_collect(wreq, stream, stream->cache_collect);
 				stream->collected_to = front->start;
+				netfs_cache_collect(wreq, stream, NETFS_CACHE_COLLECT_WRITE_GAP);
+				stream->cache_collect = NETFS_CACHE_COLLECT_WRITE_GAP;
 			}
 
 			/* Stall if the front is still undergoing I/O. */
@@ -249,7 +275,6 @@ reassess_streams:
 				notes |= HIT_PENDING;
 				break;
 			}
-			smp_rmb(); /* Read counters after I-P flag. */
 
 			if (stream->failed) {
 				stream->collected_to = front->start + front->len;
@@ -262,15 +287,44 @@ reassess_streams:
 				stream->transferred_valid = true;
 				notes |= MADE_PROGRESS;
 			}
-			if (test_bit(NETFS_SREQ_FAILED, &front->flags)) {
-				stream->failed = true;
-				stream->error = front->error;
-				if (stream->source == NETFS_UPLOAD_TO_SERVER)
-					mapping_set_error(wreq->mapping, front->error);
-				notes |= NEED_REASSESS | SAW_FAILURE;
+
+			/* Handle failed or cancelled subreqs.  Failure of
+			 * cache writes are handled differently to upload
+			 * failures.  Cache writes aren't fatal, provided we're
+			 * not doing disconnected operation, and so we can kind
+			 * of treat them as if they had succeeded - except that
+			 * we need to log any holes they cause.
+			 */
+			switch (stream->source) {
+			case NETFS_UPLOAD_TO_SERVER:
+				if (test_bit(NETFS_SREQ_FAILED, &front->flags)) {
+					if (!stream->failed) {
+						stream->failed = true;
+						stream->error = front->error;
+						mapping_set_error(wreq->mapping, front->error);
+						break;
+					}
+					notes |= NEED_REASSESS | SAW_FAILURE;
+				}
+				break;
+
+			case NETFS_WRITE_TO_CACHE:
+				cache_collect = test_bit(NETFS_SREQ_CANCELLED, &front->flags) ?
+					NETFS_CACHE_COLLECT_WRITE_CANCEL :
+					NETFS_CACHE_COLLECT_WRITE_DATA;
+				if (cache_collect != stream->cache_collect &&
+				    stream->cache_collect != NETFS_CACHE_COLLECT_WRITE_GAP) {
+					trace_netfs_rreq(wreq, netfs_rreq_trace_cache_fail_collect);
+					netfs_cache_collect(wreq, stream, stream->cache_collect);
+				}
+				stream->cache_collect = cache_collect;
+				break;
+
+			default:
+				WARN_ON(1);
 				break;
 			}
-			if (front->transferred < front->len) {
+			if (test_bit(NETFS_SREQ_NEED_RETRY, &front->flags)) {
 				stream->need_retry = true;
 				notes |= NEED_RETRY | MADE_PROGRESS;
 				break;
@@ -359,6 +413,7 @@ need_retry:
  */
 bool netfs_write_collection(struct netfs_io_request *wreq)
 {
+	struct netfs_io_stream *cstream = &wreq->io_streams[1];
 	struct netfs_inode *ictx = netfs_inode(wreq->inode);
 	size_t transferred;
 	bool transferred_valid = false;
@@ -393,13 +448,19 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 		wreq->transferred = transferred;
 	trace_netfs_rreq(wreq, netfs_rreq_trace_write_done);
 
-	if (wreq->io_streams[1].active &&
-	    wreq->io_streams[1].failed &&
-	    ictx->ops->invalidate_cache) {
-		/* Cache write failure doesn't prevent writeback completion
-		 * unless we're in disconnected mode.
-		 */
-		ictx->ops->invalidate_cache(wreq);
+	if (cstream->active) {
+		if (test_bit(NETFS_RREQ_CACHE_ERROR, &wreq->flags)) {
+			if (ictx->ops->invalidate_cache) {
+				/* Cache write failure doesn't prevent
+				 * writeback completion unless we're in
+				 * disconnected mode.
+				 */
+				trace_netfs_rreq(wreq, netfs_rreq_trace_inval_cache);
+				ictx->ops->invalidate_cache(wreq);
+			}
+		} else if (!cstream->failed) {
+			netfs_cache_collect(wreq, cstream, cstream->cache_collect);
+		}
 	}
 
 	_debug("finished");
@@ -483,24 +544,51 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error)
 
 	if (IS_ERR_VALUE(transferred_or_error)) {
 		subreq->error = transferred_or_error;
-		/* if need retry is set, error should not matter */
-		if (!test_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags)) {
-			set_bit(NETFS_SREQ_FAILED, &subreq->flags);
-			trace_netfs_failure(wreq, subreq, transferred_or_error, netfs_fail_write);
-		}
 
 		switch (subreq->source) {
 		case NETFS_WRITE_TO_CACHE:
+			/* We don't mark a cache-write subreq as failed.
+			 * Instead we tell the issuer to produce dummy subreqs
+			 * instead and make a note if we need to invalidate the
+			 * cache at the end.  We also don't pause the loop that
+			 * grabs pages and launches upload subreqs.
+			 *
+			 * Note that we need to distinguish between -ENOBUFS
+			 * (no space available in the cache) and other errors.
+			 * In the former case, we can keep the data we have,
+			 * though we might have to change the way the on-disk
+			 * data is tracked.
+			 */
 			netfs_stat(&netfs_n_wh_write_failed);
+			if (test_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags))
+				break;
+
+			trace_netfs_failure(wreq, subreq, transferred_or_error, netfs_fail_write);
+			__set_bit(NETFS_SREQ_CANCELLED, &subreq->flags);
+			set_bit(NETFS_RREQ_CACHE_STOP, &wreq->flags);
+			if (transferred_or_error == -ENOBUFS)
+				trace_netfs_rreq(wreq, netfs_rreq_trace_cache_no_space);
+			else if (!test_and_set_bit(NETFS_RREQ_CACHE_ERROR, &wreq->flags))
+				trace_netfs_rreq(wreq, netfs_rreq_trace_cache_failed);
+			subreq->transferred = subreq->len;
 			break;
+
 		case NETFS_UPLOAD_TO_SERVER:
+			/* If need_retry is set, error should not matter */
+			if (!test_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags)) {
+				set_bit(NETFS_SREQ_FAILED, &subreq->flags);
+				trace_netfs_failure(wreq, subreq, transferred_or_error,
+						    netfs_fail_upload);
+			}
+
+			set_bit(NETFS_RREQ_PAUSE, &wreq->flags);
+			trace_netfs_rreq(wreq, netfs_rreq_trace_set_pause);
 			netfs_stat(&netfs_n_wh_upload_failed);
 			break;
+
 		default:
 			break;
 		}
-		trace_netfs_rreq(wreq, netfs_rreq_trace_set_pause);
-		set_bit(NETFS_RREQ_PAUSE, &wreq->flags);
 	} else {
 		if (WARN(transferred_or_error > subreq->len - subreq->transferred,
 			 "Subreq excess write: R=%x[%x] %zd > %zu - %zu",

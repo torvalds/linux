@@ -210,6 +210,7 @@ void netfs_retry_writes(struct netfs_io_request *wreq)
 	int s;
 
 	netfs_stat(&netfs_n_wh_retry_write_req);
+	trace_netfs_rreq(wreq, netfs_rreq_trace_retry_begin);
 
 	/* Wait for all outstanding I/O to quiesce before performing retries as
 	 * we may need to renegotiate the I/O sizes.
@@ -234,4 +235,6 @@ void netfs_retry_writes(struct netfs_io_request *wreq)
 			netfs_retry_write_stream(wreq, stream);
 		}
 	}
+
+	trace_netfs_rreq(wreq, netfs_rreq_trace_retry_end);
 }

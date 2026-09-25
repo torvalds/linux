@@ -271,6 +271,7 @@ void netfs_retry_reads(struct netfs_io_request *rreq)
 	struct netfs_io_stream *stream = &rreq->io_streams[0];
 
 	netfs_stat(&netfs_n_rh_retry_read_req);
+	trace_netfs_rreq(rreq, netfs_rreq_trace_retry_begin);
 
 	/* Wait for all outstanding I/O to quiesce before performing retries as
 	 * we may need to renegotiate the I/O sizes.
@@ -281,6 +282,7 @@ void netfs_retry_reads(struct netfs_io_request *rreq)
 
 	trace_netfs_rreq(rreq, netfs_rreq_trace_resubmit);
 	netfs_retry_read_subrequests(rreq);
+	trace_netfs_rreq(rreq, netfs_rreq_trace_retry_end);
 }
 
 /*

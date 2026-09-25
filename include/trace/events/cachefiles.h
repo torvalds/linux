@@ -52,6 +52,8 @@ enum cachefiles_coherency_trace {
 	cachefiles_coherency_check_ok,
 	cachefiles_coherency_check_type,
 	cachefiles_coherency_check_xattr,
+	cachefiles_coherency_discontiguous,
+	cachefiles_coherency_remove,
 	cachefiles_coherency_set_fail,
 	cachefiles_coherency_set_ok,
 	cachefiles_coherency_vol_check_cmp,
@@ -63,9 +65,11 @@ enum cachefiles_coherency_trace {
 };
 
 enum cachefiles_trunc_trace {
+	cachefiles_trunc_clear_padding,
 	cachefiles_trunc_dio_adjust,
 	cachefiles_trunc_expand_tmpfile,
 	cachefiles_trunc_shrink,
+	cachefiles_trunc_zap,
 };
 
 enum cachefiles_prepare_read_trace {
@@ -80,11 +84,14 @@ enum cachefiles_prepare_read_trace {
 };
 
 enum cachefiles_error_trace {
+	cachefiles_trace_alignment_error,
+	cachefiles_trace_create_nospace,
 	cachefiles_trace_fallocate_error,
 	cachefiles_trace_getxattr_error,
 	cachefiles_trace_link_error,
 	cachefiles_trace_lookup_error,
 	cachefiles_trace_mkdir_error,
+	cachefiles_trace_mkdir_nospace,
 	cachefiles_trace_notify_change_error,
 	cachefiles_trace_open_error,
 	cachefiles_trace_read_error,
@@ -97,6 +104,8 @@ enum cachefiles_error_trace {
 	cachefiles_trace_trunc_error,
 	cachefiles_trace_unlink_error,
 	cachefiles_trace_write_error,
+	cachefiles_trace_write_nospace,
+	cachefiles_trace_write_nospace_2,
 };
 
 #endif
@@ -136,6 +145,8 @@ enum cachefiles_error_trace {
 	EM(cachefiles_coherency_check_ok,	"OK      ")		\
 	EM(cachefiles_coherency_check_type,	"BAD type")		\
 	EM(cachefiles_coherency_check_xattr,	"BAD xatt")		\
+	EM(cachefiles_coherency_discontiguous,	"--- gap ")		\
+	EM(cachefiles_coherency_remove,		"REMOVE  ")		\
 	EM(cachefiles_coherency_set_fail,	"SET fail")		\
 	EM(cachefiles_coherency_set_ok,		"SET ok  ")		\
 	EM(cachefiles_coherency_vol_check_cmp,	"VOL BAD cmp ")		\
@@ -146,9 +157,11 @@ enum cachefiles_error_trace {
 	E_(cachefiles_coherency_vol_set_ok,	"VOL SET ok  ")
 
 #define cachefiles_trunc_traces						\
+	EM(cachefiles_trunc_clear_padding,	"CLRPAD")		\
 	EM(cachefiles_trunc_dio_adjust,		"DIOADJ")		\
 	EM(cachefiles_trunc_expand_tmpfile,	"EXPTMP")		\
-	E_(cachefiles_trunc_shrink,		"SHRINK")
+	EM(cachefiles_trunc_shrink,		"SHRINK")		\
+	E_(cachefiles_trunc_zap,		"ZAP   ")
 
 #define cachefiles_prepare_read_traces					\
 	EM(cachefiles_trace_read_after_eof,	"after-eof ")		\
@@ -161,11 +174,14 @@ enum cachefiles_error_trace {
 	E_(cachefiles_trace_read_seek_nxio,	"seek-enxio")
 
 #define cachefiles_error_traces						\
+	EM(cachefiles_trace_alignment_error,	"align")		\
+	EM(cachefiles_trace_create_nospace,	"create-nospace")	\
 	EM(cachefiles_trace_fallocate_error,	"fallocate")		\
 	EM(cachefiles_trace_getxattr_error,	"getxattr")		\
 	EM(cachefiles_trace_link_error,		"link")			\
 	EM(cachefiles_trace_lookup_error,	"lookup")		\
 	EM(cachefiles_trace_mkdir_error,	"mkdir")		\
+	EM(cachefiles_trace_mkdir_nospace,	"mkdir-nospace")	\
 	EM(cachefiles_trace_notify_change_error, "notify_change")	\
 	EM(cachefiles_trace_open_error,		"open")			\
 	EM(cachefiles_trace_read_error,		"read")			\
@@ -177,7 +193,9 @@ enum cachefiles_error_trace {
 	EM(cachefiles_trace_tmpfile_error,	"tmpfile")		\
 	EM(cachefiles_trace_trunc_error,	"trunc")		\
 	EM(cachefiles_trace_unlink_error,	"unlink")		\
-	E_(cachefiles_trace_write_error,	"write")
+	EM(cachefiles_trace_write_error,	"write")		\
+	EM(cachefiles_trace_write_nospace,	"write-nospace")	\
+	E_(cachefiles_trace_write_nospace_2,	"write-nospace-2")
 
 
 /*
@@ -371,12 +389,12 @@ TRACE_EVENT(cachefiles_rename,
 
 TRACE_EVENT(cachefiles_coherency,
 	    TP_PROTO(struct cachefiles_object *obj,
-		     ino_t ino,
+		     ino_t ino, uoff_t obj_size,
 		     const void *disk_aux,
 		     enum cachefiles_content content,
 		     enum cachefiles_coherency_trace why),
 
-	    TP_ARGS(obj, ino, disk_aux, content, why),
+	    TP_ARGS(obj, ino, obj_size, disk_aux, content, why),
 
 	    /* Note that obj may be NULL */
 	    TP_STRUCT__entry(
@@ -384,6 +402,7 @@ TRACE_EVENT(cachefiles_coherency,
 		    __field(enum cachefiles_coherency_trace,	why)
 		    __field(enum cachefiles_content,		content)
 		    __field(u64,				ino)
+		    __field(u64,				obj_size)
 		    __field(u64,				aux)
 		    __field(u64,				disk_aux)
 			     ),
@@ -398,6 +417,7 @@ TRACE_EVENT(cachefiles_coherency,
 		    __entry->why	= why;
 		    __entry->content	= content;
 		    __entry->ino	= ino;
+		    __entry->obj_size	= obj_size;
 		    __entry->aux	= be64_to_cpup((__be64 *)obj->cookie->inline_aux);
 
 		    /* cachefiles_xattr::data is 2-byte aligned but not 8-byte aligned. */
@@ -412,10 +432,11 @@ TRACE_EVENT(cachefiles_coherency,
 		    }
 			   ),
 
-	    TP_printk("o=%08x %s B=%llx c=%u aux=%llx dsk=%llx",
+	    TP_printk("o=%08x %s B=%llx oz=%llx c=%u aux=%llx dsk=%llx",
 		      __entry->obj,
 		      __print_symbolic(__entry->why, cachefiles_coherency_traces),
 		      __entry->ino,
+		      __entry->obj_size,
 		      __entry->content,
 		      __entry->aux,
 		      __entry->disk_aux)
@@ -692,6 +713,26 @@ TRACE_EVENT(cachefiles_io_error,
 		      __entry->backer,
 		      __print_symbolic(__entry->where, cachefiles_error_traces),
 		      __entry->error)
+	    );
+
+TRACE_EVENT(cachefiles_no_space,
+	    TP_PROTO(struct cachefiles_object *obj, enum cachefiles_error_trace trace),
+
+	    TP_ARGS(obj, trace),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			obj)
+		    __field(enum cachefiles_error_trace,	trace)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->obj	= obj ? obj->debug_id : 0;
+		    __entry->trace	= trace;
+			   ),
+
+	    TP_printk("o=%08x %s",
+		      __entry->obj,
+		      __print_symbolic(__entry->trace, cachefiles_error_traces))
 	    );
 
 #endif /* _TRACE_CACHEFILES_H */

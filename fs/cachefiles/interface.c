@@ -100,73 +100,6 @@ void cachefiles_put_object(struct cachefiles_object *object,
 }
 
 /*
- * Adjust the size of a cache file if necessary to match the DIO size.  We keep
- * the EOF marker a multiple of DIO blocks so that we don't fall back to doing
- * non-DIO for a partial block straddling the EOF, but we also have to be
- * careful of someone expanding the file and accidentally accreting the
- * padding.
- */
-static int cachefiles_adjust_size(struct cachefiles_object *object)
-{
-	struct iattr newattrs;
-	struct file *file = object->file;
-	uint64_t ni_size;
-	uoff_t oi_size;
-	int ret;
-
-	ni_size = object->cookie->object_size;
-	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
-
-	_enter("{OBJ%x},[%llu]",
-	       object->debug_id, (unsigned long long) ni_size);
-
-	if (!file)
-		return -ENOBUFS;
-
-	oi_size = i_size_read(file_inode(file));
-	if (oi_size == ni_size)
-		return 0;
-
-	inode_lock(file_inode(file));
-
-	/* if there's an extension to a partial page at the end of the backing
-	 * file, we need to discard the partial page so that we pick up new
-	 * data after it */
-	if (oi_size & ~PAGE_MASK && ni_size > oi_size) {
-		_debug("discard tail %llx", oi_size);
-		newattrs.ia_valid = ATTR_SIZE;
-		newattrs.ia_size = oi_size & PAGE_MASK;
-		ret = cachefiles_inject_remove_error();
-		if (ret == 0)
-			ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
-					    &newattrs, NULL);
-		if (ret < 0)
-			goto truncate_failed;
-	}
-
-	newattrs.ia_valid = ATTR_SIZE;
-	newattrs.ia_size = ni_size;
-	ret = cachefiles_inject_write_error();
-	if (ret == 0)
-		ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
-				    &newattrs, NULL);
-
-truncate_failed:
-	inode_unlock(file_inode(file));
-
-	if (ret < 0)
-		trace_cachefiles_io_error(NULL, file_inode(file), ret,
-					  cachefiles_trace_notify_change_error);
-	if (ret == -EIO) {
-		cachefiles_io_error_obj(object, "Size set failed");
-		ret = -ENOBUFS;
-	}
-
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
  * Attempt to look up the nominated node in this cache
  */
 static bool cachefiles_lookup_cookie(struct fscache_cookie *cookie)
@@ -198,7 +131,6 @@ static bool cachefiles_lookup_cookie(struct fscache_cookie *cookie)
 	spin_lock(&cache->object_list_lock);
 	list_add(&object->cache_link, &cache->object_list);
 	spin_unlock(&cache->object_list_lock);
-	cachefiles_adjust_size(object);
 
 	cachefiles_end_secure(cache, saved_cred);
 	_leave(" = t");
@@ -232,7 +164,7 @@ static bool cachefiles_shorten_object(struct cachefiles_object *object,
 	uoff_t i_size, dio_size;
 	int ret;
 
-	dio_size = round_up(new_size, CACHEFILES_DIO_BLOCK_SIZE);
+	dio_size = round_up(new_size, cache->bsize);
 	i_size = i_size_read(inode);
 
 	trace_cachefiles_trunc(object, inode, i_size, dio_size,
@@ -264,6 +196,7 @@ static bool cachefiles_shorten_object(struct cachefiles_object *object,
 		}
 	}
 
+	object->object_size = new_size;
 	return true;
 }
 
@@ -278,22 +211,31 @@ static void cachefiles_resize_cookie(struct netfs_cache_resources *cres,
 	struct fscache_cookie *cookie = object->cookie;
 	const struct cred *saved_cred;
 	struct file *file = cachefiles_cres_file(cres);
-	uoff_t old_size = cookie->object_size;
+	uoff_t i_size = i_size_read(file_inode(file));
 
-	_enter("%llu->%llu", old_size, new_size);
+	_enter("%llu->%llu", object->object_size, new_size);
 
-	if (new_size < old_size) {
+	/* If the file is being shrunk, we need to downsize the backing file
+	 * and clear the end of the final block.
+	 */
+	if (new_size < object->object_size) {
+		if (new_size >= i_size)
+			goto out;
 		cachefiles_begin_secure(cache, &saved_cred);
 		cachefiles_shorten_object(object, file, new_size);
 		cachefiles_end_secure(cache, saved_cred);
 		object->cookie->object_size = new_size;
+		if (new_size == 0)
+			object->content_info = CACHEFILES_CONTENT_NO_DATA;
 		return;
 	}
 
 	/* The file is being expanded.  We don't need to do anything
-	 * particularly.  cookie->initial_size doesn't change and so the point
-	 * at which we have to download before doesn't change.
+	 * particularly.  The tail of the last block should have been cleared
+	 * both when it is written and when it is shrunk.
 	 */
+out:
+	object->object_size = new_size;
 	cookie->object_size = new_size;
 }
 

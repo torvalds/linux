@@ -23,6 +23,8 @@
 /*
  * buffered_read.c
  */
+int netfs_read_query_cache(struct netfs_io_request *rreq,
+			   struct fscache_occupancy *occ);
 void netfs_queue_read(struct netfs_io_request *rreq,
 		      struct netfs_io_subrequest *subreq);
 void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error);

@@ -54,9 +54,6 @@ void netfs_update_i_size(struct netfs_inode *ctx, struct inode *inode,
 	i_size = i_size_read(inode);
 	if (end > i_size) {
 		i_size_write(inode, end);
-#if IS_ENABLED(CONFIG_FSCACHE)
-		fscache_update_cookie(ctx->cache, NULL, &end);
-#endif
 
 		gap = SECTOR_SIZE - (i_size & (SECTOR_SIZE - 1));
 		if (copied > gap) {
