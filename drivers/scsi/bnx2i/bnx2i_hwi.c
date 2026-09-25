@@ -405,6 +405,11 @@ int bnx2i_send_iscsi_tmf(struct bnx2i_conn *bnx2i_conn,
 	switch (tmfabort_hdr->flags & ISCSI_FLAG_TM_FUNC_MASK) {
 	case ISCSI_TM_FUNC_ABORT_TASK:
 	case ISCSI_TM_FUNC_TASK_REASSIGN:
+		/*
+		 * TODO: hold session->back_lock around the iscsi_itt_to_task()
+		 * call below.
+		 */
+		__assume_ctx_lock(&session->back_lock);
 		ctask = iscsi_itt_to_task(session, conn, tmfabort_hdr->rtt);
 		if (!ctask || !ctask->sc)
 			/*
