@@ -9,4 +9,4 @@ const struct btf_member *btf_find_struct_member(struct btf *btf,
 						const struct btf_type *type,
 						const char *member_name,
 						u32 *anon_offset,
-						const struct btf_type **member_type);
+						const struct btf_type **container_type);

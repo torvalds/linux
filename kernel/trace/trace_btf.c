@@ -59,19 +59,33 @@ struct btf_anon_stack {
 	u32 offset;
 };
 
-/*
- * Find a member of data structure/union by name and return it.
- * Return NULL if not found, or ERR_PTR(-EINVAL) if parameter is invalid.
- * If the member is a member of an anonymous union/structure, the bit offset
- * of that anonymous union/structure is stored into @anon_offset.
- * If @member_type is non-NULL, the actual containing structure/union type
- * of the found member is stored into @member_type.
+/**
+ * btf_find_struct_member() - Find a member of data structure/union by name
+ * @btf: Pointer to BTF object.
+ * @type: Pointer to the struct/union BTF type to search within.
+ * @member_name: Name of the member to find.
+ * @anon_offset: Pointer to store bit offset of enclosing anonymous union/struct.
+ * @container_type: Pointer to store the actual containing struct/union type.
+ *
+ * Find a member of data structure/union by name, traversing into anonymous
+ * unions and structures if necessary.
+ *
+ * If the member is inside an anonymous union/structure, the bit offset
+ * of that anonymous union/structure from @type is stored into @anon_offset.
+ * If @container_type is non-NULL, the actual struct/union BTF type that
+ * directly contains the found member is stored into @container_type.
+ *
+ * Return:
+ * * Pointer to &struct btf_member on success.
+ * * %NULL if the member was not found.
+ * * %ERR_PTR(-EINVAL) if @type is not a struct/union.
+ * * %ERR_PTR(-ENOMEM) if memory allocation failed.
  */
 const struct btf_member *btf_find_struct_member(struct btf *btf,
 						const struct btf_type *type,
 						const char *member_name,
 						u32 *anon_offset,
-						const struct btf_type **member_type)
+						const struct btf_type **container_type)
 {
 	struct btf_anon_stack *anon_stack;
 	const struct btf_member *member;
@@ -103,8 +117,8 @@ retry:
 			if (name && !strcmp(member_name, name)) {
 				if (anon_offset)
 					*anon_offset = cur_offset;
-				if (member_type)
-					*member_type = type;
+				if (container_type)
+					*container_type = type;
 				goto out;
 			}
 		}
