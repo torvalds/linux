@@ -87,9 +87,23 @@ static struct debug_view debug_log_view = {
 	NULL
 };
 
+static ssize_t zpci_report_pdev(struct pci_dev *pdev, char *buf, size_t size)
+{
+	struct pci_driver *driver;
+	const char *start = buf;
+	char *end = buf + size;
+
+	device_lock_assert(&pdev->dev);
+	buf += scnprintf(buf, end - buf, "state: %s\n", zpci_state_str(pdev->error_state));
+	driver = to_pci_driver(pdev->dev.driver);
+	buf += scnprintf(buf, end - buf, "driver: %s\n", (driver) ? driver->name : "n/a");
+	return buf - start;
+}
+
 /**
  * zpci_report_status - Report the status of operations on a PCI device
- * @zdev:	The PCI device for which to report status
+ * @zdev:	The zPCI device for which to report status
+ * @pdev:	The PCI device associated with the zdev if any, NULL otherwise
  * @operation:	A string representing the operation reported
  * @status:	A string representing the status of the operation
  *
@@ -103,15 +117,14 @@ static struct debug_view debug_log_view = {
  *
  * Return: 0 on success an error code < 0 otherwise.
  */
-int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char *status)
+int zpci_report_status(struct zpci_dev *zdev, struct pci_dev *pdev,
+		       const char *operation, const char *status)
 {
 	struct zpci_report_error *report;
-	struct pci_driver *driver = NULL;
-	struct pci_dev *pdev = NULL;
 	char *buf, *end;
 	int ret;
 
-	if (!zdev || !zdev->zbus)
+	if (!zdev)
 		return -ENODEV;
 
 	/* Protected virtualization hosts get nothing from us */
@@ -121,18 +134,13 @@ int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char 
 	report = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!report)
 		return -ENOMEM;
-	if (zdev->zbus->bus)
-		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
-	if (pdev)
-		driver = to_pci_driver(pdev->dev.driver);
 
 	buf = report->data.log_data;
 	end = report->data.log_data + ZPCI_REPORT_DATA_SIZE;
 	buf += scnprintf(buf, end - buf, "report: %s\n", operation);
 	buf += scnprintf(buf, end - buf, "status: %s\n", status);
-	buf += scnprintf(buf, end - buf, "state: %s\n",
-			 (pdev) ? zpci_state_str(pdev->error_state) : "n/a");
-	buf += scnprintf(buf, end - buf, "driver: %s\n", (driver) ? driver->name : "n/a");
+	if (pdev)
+		buf += zpci_report_pdev(pdev, buf, end - buf);
 	ret = debug_dump(pci_debug_msg_id, &debug_log_view, buf, end - buf, true);
 	if (ret < 0)
 		pr_err("Reading PCI debug messages failed with code %d\n", ret);
