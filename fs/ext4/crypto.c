@@ -156,6 +156,15 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	if (ext4_test_inode_flag(inode, EXT4_INODE_DAX))
 		return -EOPNOTSUPP;
 
+	/*
+	 * Encryption is not supported when the block size is larger
+	 * than the page size.  This is rejected at mount time by
+	 * ext4_check_large_folio(), and this check here is for the case
+	 * when the 'encrypt' feature is enabled on a mounted filesystem.
+	 */
+	if (inode->i_sb->s_blocksize > PAGE_SIZE)
+		return -EOPNOTSUPP;
+
 	res = ext4_convert_inline_data(inode);
 	if (res)
 		return res;
