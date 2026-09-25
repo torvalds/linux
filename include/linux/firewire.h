@@ -331,7 +331,7 @@ struct fw_packet {
 	int generation;
 	u32 header[4];
 	size_t header_length;
-	void *payload;
+	void *payload __counted_by_ptr(payload_length);
 	size_t payload_length;
 	dma_addr_t payload_bus;
 	bool payload_mapped;
