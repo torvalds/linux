@@ -1034,6 +1034,7 @@ qla27xx_fwdt_template_valid(void *p)
 
 void
 qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
+	__context_unsafe(/*conditional locking*/)
 {
 	ulong flags = 0;
 
