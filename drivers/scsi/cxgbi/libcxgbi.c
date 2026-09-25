@@ -1540,6 +1540,11 @@ skb_read_pdu_bhs(struct cxgbi_sock *csk, struct iscsi_conn *conn,
 		struct iscsi_task *task;
 		u32 data_sn;
 
+		/*
+		 * TODO: hold session->back_lock around the iscsi_itt_to_task()
+		 * call below.
+		 */
+		__assume_ctx_lock(&conn->session->back_lock);
 		task = iscsi_itt_to_ctask(conn->session, conn, itt);
 		data_sn = be32_to_cpu(((struct iscsi_data *)skb->data)->datasn);
 		if (task && task->sc) {
