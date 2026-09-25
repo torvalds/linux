@@ -950,6 +950,8 @@ static int asus_fw_attr_add(void)
 	asus_armoury.dgpu_disable_dev_id = 0;
 	if (armoury_has_devstate(ASUS_WMI_DEVID_DGPU))
 		asus_armoury.dgpu_disable_dev_id = ASUS_WMI_DEVID_DGPU;
+	else if (armoury_has_devstate(ASUS_WMI_DEVID_GPU_MODE))
+		asus_armoury.dgpu_disable_dev_id = ASUS_WMI_DEVID_GPU_MODE;
 
 	for (i = 0; i < ARRAY_SIZE(armoury_attr_groups); i++) {
 		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
