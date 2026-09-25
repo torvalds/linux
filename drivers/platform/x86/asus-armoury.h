@@ -100,6 +100,43 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 	static struct kobj_attribute attr_##_attrname##_##_prop =		\
 		__ASUS_ATTR_RO(_attrname, _prop)
 
+/*
+ * Every attribute group decides its own visibility through .is_visible():
+ * sysfs hides a named group entirely when its first attribute reports
+ * SYSFS_GROUP_INVISIBLE, so groups are always created and never leave
+ * empty directories behind.
+ */
+#define __ASUS_DEVSTATE_GROUP_VISIBLE(_attrname, _wmi)			\
+	static bool _attrname##_group_visible(struct kobject *kobj)	\
+	{								\
+		return armoury_has_devstate(_wmi);			\
+	}								\
+	DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(_attrname)
+
+/*
+ * Power tunables are additionally gated on the platform limits actually
+ * defining a max value for them. Only the AC limits are checked: if not
+ * present then DC won't be either.
+ */
+#define __ASUS_POWER_TUNABLE_GROUP_VISIBLE(_attrname, _fsname, _wmi)	\
+	static bool _attrname##_group_visible(struct kobject *kobj)	\
+	{								\
+		const struct rog_tunables *tunables =			\
+			asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC];	\
+									\
+		if (!tunables || !tunables->power_limits)		\
+			return armoury_has_devstate(_wmi);		\
+									\
+		if (!has_valid_limit(_fsname, tunables->power_limits)) {\
+			pr_debug("Missing max value for tunable %s\n",	\
+				 _fsname);				\
+			return false;					\
+		}							\
+									\
+		return armoury_has_devstate(_wmi);			\
+	}								\
+	DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(_attrname)
+
 #define __ATTR_RO_INT_GROUP_ENUM(_attrname, _wmi, _fsname, _possible, _dispname)\
 	ASUS_WMI_SHOW_INT(_attrname##_current_value, _wmi);		\
 	static struct kobj_attribute attr_##_attrname##_current_value =		\
@@ -108,6 +145,7 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible);		\
 	static struct kobj_attribute attr_##_attrname##_type =			\
 		__ASUS_ATTR_RO_AS(type, enum_type_show);			\
+	__ASUS_DEVSTATE_GROUP_VISIBLE(_attrname, _wmi);				\
 	static struct attribute *_attrname##_attrs[] = {			\
 		&attr_##_attrname##_current_value.attr,				\
 		&attr_##_attrname##_display_name.attr,				\
@@ -116,7 +154,9 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 		NULL								\
 	};									\
 	static const struct attribute_group _attrname##_attr_group = {		\
-		.name = _fsname, .attrs = _attrname##_attrs			\
+		.name = _fsname,						\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),			\
+		.attrs = _attrname##_attrs					\
 	}
 
 #define __ATTR_RW_INT_GROUP_ENUM(_attrname, _minv, _maxv, _wmi, _fsname,\
@@ -129,6 +169,7 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible);	\
 	static struct kobj_attribute attr_##_attrname##_type =		\
 		__ASUS_ATTR_RO_AS(type, enum_type_show);		\
+	__ASUS_DEVSTATE_GROUP_VISIBLE(_attrname, _wmi);			\
 	static struct attribute *_attrname##_attrs[] = {		\
 		&attr_##_attrname##_current_value.attr,			\
 		&attr_##_attrname##_display_name.attr,			\
@@ -137,7 +178,9 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 		NULL							\
 	};								\
 	static const struct attribute_group _attrname##_attr_group = {	\
-		.name = _fsname, .attrs = _attrname##_attrs		\
+		.name = _fsname,					\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),		\
+		.attrs = _attrname##_attrs				\
 	}
 
 /* Boolean style enumeration, base macro. Requires adding show/store */
@@ -168,37 +211,63 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 	__ATTR_RO_INT_GROUP_ENUM(_attrname, _wmi, _fsname, _possible, _dispname)
 
 /*
- * Requires <name>_current_value_show(), <name>_current_value_show()
+ * Boolean style group whose whole visibility is decided by
+ * <name>_group_visible(), for attributes backed by a device ID resolved
+ * at probe time.
+ * Requires <name>_current_value_show(), <name>_current_value_store()
+ * and <name>_group_visible()
  */
 #define ASUS_ATTR_GROUP_BOOL(_attrname, _fsname, _dispname)		\
+	DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(_attrname)			\
 	static struct kobj_attribute attr_##_attrname##_current_value =	\
 		__ASUS_ATTR_RW(_attrname, current_value);		\
-	__ATTR_GROUP_ENUM(_attrname, _fsname, "0;1", _dispname)
+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
+	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", "0;1");	\
+	static struct kobj_attribute attr_##_attrname##_type =		\
+		__ASUS_ATTR_RO_AS(type, enum_type_show);		\
+	static struct attribute *_attrname##_attrs[] = {		\
+		&attr_##_attrname##_current_value.attr,			\
+		&attr_##_attrname##_display_name.attr,			\
+		&attr_##_attrname##_possible_values.attr,		\
+		&attr_##_attrname##_type.attr,				\
+		NULL							\
+	};								\
+	static const struct attribute_group _attrname##_attr_group = {	\
+		.name = _fsname,					\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),		\
+		.attrs = _attrname##_attrs				\
+	}
 
 /*
- * Requires <name>_current_value_show(), <name>_current_value_show()
- * and <name>_possible_values_show()
+ * Group whose whole visibility is decided by <name>_group_visible(),
+ * for attributes backed by a device ID resolved at probe time.
+ * Requires <name>_current_value_show(), <name>_current_value_store(),
+ * <name>_possible_values_show() and <name>_group_visible()
  */
-#define ASUS_ATTR_GROUP_ENUM(_attrname, _fsname, _dispname)			\
-	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);		\
-	static struct kobj_attribute attr_##_attrname##_current_value =		\
-		__ASUS_ATTR_RW(_attrname, current_value);			\
-	static struct kobj_attribute attr_##_attrname##_possible_values =	\
-		__ASUS_ATTR_RO(_attrname, possible_values);			\
-	static struct kobj_attribute attr_##_attrname##_type =			\
-		__ASUS_ATTR_RO_AS(type, enum_type_show);			\
-	static struct attribute *_attrname##_attrs[] = {			\
-		&attr_##_attrname##_current_value.attr,				\
-		&attr_##_attrname##_display_name.attr,				\
-		&attr_##_attrname##_possible_values.attr,			\
-		&attr_##_attrname##_type.attr,					\
-		NULL								\
-	};									\
-	static const struct attribute_group _attrname##_attr_group = {		\
-		.name = _fsname, .attrs = _attrname##_attrs			\
+#define ASUS_ATTR_GROUP_ENUM(_attrname, _fsname, _dispname)		\
+	DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(_attrname)			\
+	static struct kobj_attribute attr_##_attrname##_current_value =	\
+		__ASUS_ATTR_RW(_attrname, current_value);		\
+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
+	static struct kobj_attribute attr_##_attrname##_possible_values =\
+		__ASUS_ATTR_RO(_attrname, possible_values);		\
+	static struct kobj_attribute attr_##_attrname##_type =		\
+		__ASUS_ATTR_RO_AS(type, enum_type_show);		\
+	static struct attribute *_attrname##_attrs[] = {		\
+		&attr_##_attrname##_current_value.attr,			\
+		&attr_##_attrname##_display_name.attr,			\
+		&attr_##_attrname##_possible_values.attr,		\
+		&attr_##_attrname##_type.attr,				\
+		NULL							\
+	};								\
+	static const struct attribute_group _attrname##_attr_group = {	\
+		.name = _fsname,					\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),		\
+		.attrs = _attrname##_attrs				\
 	}
 
 #define ASUS_ATTR_GROUP_INT_VALUE_ONLY_RO(_attrname, _fsname, _wmi, _dispname)	\
+	__ASUS_POWER_TUNABLE_GROUP_VISIBLE(_attrname, _fsname, _wmi);		\
 	ASUS_WMI_SHOW_INT(_attrname##_current_value, _wmi);		\
 	static struct kobj_attribute attr_##_attrname##_current_value =		\
 		__ASUS_ATTR_RO(_attrname, current_value);			\
@@ -211,7 +280,9 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 		&attr_##_attrname##_type.attr, NULL				\
 	};									\
 	static const struct attribute_group _attrname##_attr_group = {		\
-		.name = _fsname, .attrs = _attrname##_attrs			\
+		.name = _fsname,						\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),			\
+		.attrs = _attrname##_attrs					\
 	}
 
 /*
@@ -284,6 +355,7 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 		__ASUS_ATTR_RW(_attr, current_value)
 
 #define ASUS_ATTR_GROUP_ROG_TUNABLE(_attrname, _fsname, _wmi, _dispname)	\
+	__ASUS_POWER_TUNABLE_GROUP_VISIBLE(_attrname, _fsname, _wmi);	\
 	__ROG_TUNABLE_RW(_attrname, _wmi);				\
 	__ROG_TUNABLE_SHOW_DEFAULT(_attrname);				\
 	__ROG_TUNABLE_SHOW(min_value, _attrname, _attrname##_min);	\
@@ -303,7 +375,9 @@ ssize_t armoury_attr_uint_show(struct kobject *kobj, struct kobj_attribute *attr
 		NULL							\
 	};								\
 	static const struct attribute_group _attrname##_attr_group = {	\
-		.name = _fsname, .attrs = _attrname##_attrs		\
+		.name = _fsname,					\
+		.is_visible = SYSFS_GROUP_VISIBLE(_attrname),		\
+		.attrs = _attrname##_attrs				\
 	}
 
 /* Default is always the maximum value unless *_def is specified */
