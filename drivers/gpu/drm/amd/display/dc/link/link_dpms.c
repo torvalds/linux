@@ -2038,6 +2038,8 @@ static enum dc_status enable_link_hdmi_frl(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.hpo_frl_stream_enc->funcs->hdmi_frl_enable(
 			pipe_ctx->stream_res.hpo_frl_stream_enc,
 			pipe_ctx->stream_res.tg->inst);
+	} else if (link_stat == LINK_RESULT_NO_TIMEOUT) {
+		return status;
 	} else {
 		status = DC_FAIL_HDMI_FRL_LINK_TRAINING;
 		stream->link->frl_link_settings.frl_link_rate = 0;
