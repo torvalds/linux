@@ -909,11 +909,12 @@ static const struct attribute_group *armoury_attr_groups[] = {
 	&panel_od_attr_group,
 	&panel_hd_mode_attr_group,
 	&screen_auto_brightness_attr_group,
+	NULL
 };
 
 static int asus_fw_attr_add(void)
 {
-	int err, i;
+	int err;
 
 	asus_armoury.fw_attr_dev = device_create(&firmware_attributes_class, NULL, MKDEV(0, 0),
 						NULL, "%s", DRIVER_NAME);
@@ -953,22 +954,16 @@ static int asus_fw_attr_add(void)
 	else if (armoury_has_devstate(ASUS_WMI_DEVID_GPU_MODE))
 		asus_armoury.dgpu_disable_dev_id = ASUS_WMI_DEVID_GPU_MODE;
 
-	for (i = 0; i < ARRAY_SIZE(armoury_attr_groups); i++) {
-		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-					 armoury_attr_groups[i]);
-		if (err) {
-			pr_err("Failed to create sysfs-group for %s\n",
-			       armoury_attr_groups[i]->name);
-			goto err_remove_groups;
-		}
+	err = sysfs_create_groups(&asus_armoury.fw_attr_kset->kobj,
+				  armoury_attr_groups);
+	if (err) {
+		pr_err("Failed to create firmware attributes groups\n");
+		goto err_remove_file;
 	}
 
 	return 0;
 
-err_remove_groups:
-	while (i--)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj,
-				   armoury_attr_groups[i]);
+err_remove_file:
 	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 err_destroy_kset:
 	kset_unregister(asus_armoury.fw_attr_kset);
@@ -1138,11 +1133,8 @@ err_free_tunables:
 
 static void __exit asus_fw_exit(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(armoury_attr_groups) - 1; i >= 0; i--)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj,
-				   armoury_attr_groups[i]);
+	sysfs_remove_groups(&asus_armoury.fw_attr_kset->kobj,
+			    armoury_attr_groups);
 
 	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 	kset_unregister(asus_armoury.fw_attr_kset);
