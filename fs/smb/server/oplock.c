@@ -551,9 +551,10 @@ void close_id_del_oplock(struct ksmbd_file *fp)
 	 * takes the same lock before it acquires pending_break or sets ACK_WAIT.
 	 */
 	opinfo->op_state = OPLOCK_CLOSING;
+	opinfo->oplock_timeout_set = false;
 	clear_bit_unlock(0, &opinfo->pending_break);
 	spin_unlock(&opinfo->state_lock);
-	wake_up_interruptible_all(&opinfo->oplock_q);
+	wake_up_all(&opinfo->oplock_q);
 	if (opinfo->is_lease)
 		wake_up_interruptible_all(&opinfo->oplock_brk);
 	/* memory barrier is needed for wake_up_bit() */
@@ -744,6 +745,8 @@ static bool oplock_break_set_ack_wait(struct oplock_info *opinfo)
 	spin_lock(&opinfo->state_lock);
 	if (opinfo->op_state != OPLOCK_CLOSING) {
 		opinfo->op_state = OPLOCK_ACK_WAIT;
+		opinfo->oplock_timeout_set = false;
+		opinfo->oplock_timed_out = false;
 		ret = true;
 	}
 	spin_unlock(&opinfo->state_lock);
@@ -816,6 +819,23 @@ static bool lease_break_needed(struct oplock_info *opinfo, int req_op_level,
 	return opinfo->level > req_op_level;
 }
 
+static void smb2_break_start_timer(struct oplock_info *opinfo,
+				   unsigned long timeout)
+{
+	bool start = false;
+
+	spin_lock(&opinfo->state_lock);
+	if (!opinfo->is_lease && opinfo->op_state == OPLOCK_ACK_WAIT &&
+	    !opinfo->oplock_timeout_set) {
+		opinfo->oplock_timeout = timeout;
+		opinfo->oplock_timeout_set = true;
+		start = true;
+	}
+	spin_unlock(&opinfo->state_lock);
+	if (start)
+		ksmbd_schedule_oplock_break_timer(timeout);
+}
+
 struct smb2_break_channel {
 	struct list_head list;
 	struct ksmbd_conn *conn;
@@ -853,8 +873,10 @@ static int smb2_break_failed(struct oplock_info *opinfo, bool expect_ack)
 	}
 	opinfo->level = SMB2_OPLOCK_LEVEL_NONE;
 	opinfo->op_state = OPLOCK_STATE_NONE;
+	opinfo->oplock_timeout_set = false;
+	opinfo->oplock_timed_out = true;
 	spin_unlock(&opinfo->state_lock);
-	wake_up_interruptible_all(&opinfo->oplock_q);
+	wake_up_all(&opinfo->oplock_q);
 	wake_up_interruptible_all(&opinfo->oplock_brk);
 	return ksmbd_invalidate_durable_fd(opinfo->fid);
 }
@@ -1169,6 +1191,8 @@ retry:
 			continue;
 		}
 		channel->queued = true;
+		if (expect_ack)
+			smb2_break_start_timer(opinfo, deadline);
 		if (interim_work) {
 			ksmbd_queue_io_work(interim_work);
 			interim_work = NULL;
@@ -1209,6 +1233,8 @@ done:
 failed:
 	ret = smb2_break_failed(opinfo, expect_ack);
 out:
+	if (expect_ack && READ_ONCE(opinfo->oplock_timed_out))
+		ret = ksmbd_invalidate_durable_fd(opinfo->fid);
 	ksmbd_free_work_struct(work);
 	list_for_each_entry_safe(channel, tmp, &channels, list) {
 		list_del(&channel->list);

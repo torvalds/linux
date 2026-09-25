@@ -242,6 +242,7 @@ void ksmbd_wake_session_blocked_works(struct ksmbd_session *sess);
 int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);
+void ksmbd_schedule_oplock_break_timer(unsigned long timeout);
 void ksmbd_set_fd_limit(unsigned long limit);
 int ksmbd_update_fstate(struct ksmbd_file_table *ft, struct ksmbd_file *fp,
 			unsigned int state);

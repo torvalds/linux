@@ -12,6 +12,7 @@
 #include <linux/freezer.h>
 #include <linux/dcache.h>
 #include <linux/hashtable.h>
+#include <linux/jiffies.h>
 
 #include "glob.h"
 #include "vfs_cache.h"
@@ -36,6 +37,75 @@ static struct hlist_head *inode_hashtable __read_mostly;
 static DEFINE_RWLOCK(inode_hash_lock);
 
 static struct ksmbd_file_table global_ft;
+static DEFINE_MUTEX(oplock_break_timer_lock);
+static struct delayed_work oplock_break_timer_work;
+static unsigned long oplock_break_timer_next;
+static bool oplock_break_timer_pending;
+
+static void ksmbd_oplock_break_timer(struct work_struct *work)
+{
+	struct ksmbd_file *fp;
+	struct oplock_info *opinfo;
+	unsigned long next = 0, now;
+	unsigned int id;
+	bool pending = false;
+	bool expired;
+
+	mutex_lock(&oplock_break_timer_lock);
+	now = jiffies;
+	read_lock(&global_ft.lock);
+	idr_for_each_entry(global_ft.idr, fp, id) {
+		opinfo = opinfo_get(fp);
+		if (!opinfo)
+			continue;
+
+		expired = false;
+		spin_lock(&opinfo->state_lock);
+		if (!opinfo->is_lease &&
+		    opinfo->op_state == OPLOCK_ACK_WAIT &&
+		    opinfo->oplock_timeout_set) {
+			if (time_after_eq(now, opinfo->oplock_timeout)) {
+				/* ksmbd owns the oplock state for the local file. */
+				opinfo->level = SMB2_OPLOCK_LEVEL_NONE;
+				opinfo->op_state = OPLOCK_STATE_NONE;
+				opinfo->oplock_timeout_set = false;
+				opinfo->oplock_timed_out = true;
+				expired = true;
+			} else if (!pending ||
+				   time_before(opinfo->oplock_timeout, next)) {
+				next = opinfo->oplock_timeout;
+				pending = true;
+			}
+		}
+		spin_unlock(&opinfo->state_lock);
+		if (expired)
+			wake_up_all(&opinfo->oplock_q);
+		opinfo_put(opinfo);
+	}
+	read_unlock(&global_ft.lock);
+
+	oplock_break_timer_pending = pending;
+	if (pending) {
+		oplock_break_timer_next = next;
+		mod_delayed_work(system_wq, &oplock_break_timer_work,
+				 time_after_eq(jiffies, next) ? 0 : next - jiffies);
+	}
+	mutex_unlock(&oplock_break_timer_lock);
+}
+
+void ksmbd_schedule_oplock_break_timer(unsigned long timeout)
+{
+	mutex_lock(&oplock_break_timer_lock);
+	if (!oplock_break_timer_pending ||
+	    time_before(timeout, oplock_break_timer_next)) {
+		oplock_break_timer_pending = true;
+		oplock_break_timer_next = timeout;
+		mod_delayed_work(system_wq, &oplock_break_timer_work,
+				 time_after_eq(jiffies, timeout) ? 0 : timeout - jiffies);
+	}
+	mutex_unlock(&oplock_break_timer_lock);
+}
+
 static atomic_long_t fd_limit;
 static struct kmem_cache *filp_cache;
 DECLARE_WAIT_QUEUE_HEAD(ksmbd_lock_wait);
@@ -1965,6 +2035,8 @@ void ksmbd_close_session_fds(struct ksmbd_work *work)
 
 int ksmbd_init_global_file_table(void)
 {
+	INIT_DELAYED_WORK(&oplock_break_timer_work, ksmbd_oplock_break_timer);
+	oplock_break_timer_pending = false;
 	if (create_proc_files())
 		pr_warn("Unable to create files procfs entry\n");
 	return ksmbd_init_file_table(&global_ft);
@@ -1974,6 +2046,8 @@ void ksmbd_free_global_file_table(void)
 {
 	struct ksmbd_file	*fp = NULL;
 	unsigned int		id;
+
+	cancel_delayed_work_sync(&oplock_break_timer_work);
 
 	idr_for_each_entry(global_ft.idr, fp, id) {
 		ksmbd_remove_durable_fd(fp);

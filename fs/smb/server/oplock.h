@@ -67,6 +67,9 @@ struct oplock_info {
 	int                     level;
 	int                     op_state;
 	spinlock_t		state_lock;
+	unsigned long		oplock_timeout;
+	bool			oplock_timeout_set;
+	bool			oplock_timed_out;
 	unsigned long		pending_break;
 	u64			fid;
 	atomic_t		breaking_cnt;
