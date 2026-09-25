@@ -5194,6 +5194,7 @@ static void ipr_abort_timeout(struct timer_list *t)
  *	SUCCESS / FAILED
  **/
 static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
+	__must_hold(&scsi_cmd->device->host->host_lock)
 {
 	struct Scsi_Host *host = scsi_cmd->device->host;
 	struct ipr_cmnd *ipr_cmd;
