@@ -596,7 +596,8 @@ int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl);
 void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_rport *tgt,
 				      struct bnx2fc_cmd *seq_clnp_req,
 				      struct fcoe_task_ctx_entry *task,
-				      u8 rx_state);
+				      u8 rx_state)
+	__must_hold(&tgt->tgt_lock);
 int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 				enum fc_rctl r_ctl);
 

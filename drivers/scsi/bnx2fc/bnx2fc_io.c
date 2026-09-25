@@ -1286,6 +1286,7 @@ void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_rport *tgt,
 				      struct bnx2fc_cmd *seq_clnp_req,
 				      struct fcoe_task_ctx_entry *task,
 				      u8 rx_state)
+	__must_hold(&tgt->tgt_lock)
 {
 	struct bnx2fc_els_cb_arg *cb_arg = seq_clnp_req->cb_arg;
 	struct bnx2fc_cmd *orig_io_req = cb_arg->aborted_io_req;
