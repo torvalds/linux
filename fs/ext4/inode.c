@@ -5671,6 +5671,12 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	}
+	if (IS_ENCRYPTED(inode) && sb->s_blocksize > PAGE_SIZE) {
+		ext4_error_inode(inode, function, line, 0,
+				 "encrypted inode with block size larger than page size");
+		ret = -EFSCORRUPTED;
+		goto bad_inode;
+	}
 
 	ext4_set_inode_mapping_order(inode);
 
