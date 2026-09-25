@@ -826,6 +826,7 @@ static struct msi_ec_conf CONF9 __initdata = {
 static const char * const ALLOWED_FW_10[] __initconst = {
 	"1582EMS1.107", // GF66 11UC
 	"1583EMS1.109", // Pulse GL66 12UEK
+	"1585EMS1.115", // Katana 15 B13VFK
 	NULL
 };
 
