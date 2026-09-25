@@ -846,6 +846,9 @@ op_map(struct nouveau_uvma *uvma)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(uvma->va.gem.obj);
 
+	if (drm_gpuva_invalidated(&uvma->va))
+		return;
+
 	nouveau_uvma_map(uvma, nouveau_mem(nvbo->bo.resource));
 }
 
@@ -1232,6 +1235,7 @@ bind_lock_validate(struct nouveau_job *job, struct drm_exec *exec,
 
 		drm_gpuva_for_each_op(va_op, op->ops) {
 			struct drm_gem_object *obj = op_gem_obj(va_op);
+			struct nouveau_bo *nvbo;
 
 			if (unlikely(!obj))
 				continue;
@@ -1246,8 +1250,13 @@ bind_lock_validate(struct nouveau_job *job, struct drm_exec *exec,
 			if (va_op->op == DRM_GPUVA_OP_UNMAP)
 				continue;
 
-			ret = nouveau_bo_validate(nouveau_gem_object(obj),
-						  true, false);
+			nvbo = nouveau_gem_object(obj);
+			if (!(nvbo->valid_domains &
+			      (NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART)))
+				return -EINVAL;
+
+			nouveau_bo_placement_set(nvbo, nvbo->valid_domains, 0);
+			ret = nouveau_bo_validate(nvbo, true, false);
 			if (ret)
 				return ret;
 		}

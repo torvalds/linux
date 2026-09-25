@@ -589,6 +589,7 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 	struct drm_plane *plane;
 	const uint32_t *formats;
 	int nformats;
+	int ret;
 
 	if (type == DRM_PLANE_TYPE_CURSOR) {
 		formats = virtio_gpu_cursor_formats;
@@ -613,6 +614,18 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 	else if (type == DRM_PLANE_TYPE_CURSOR)
 		drm_plane_create_blend_mode_property(plane,
 						     BIT(DRM_MODE_BLEND_PREMULTI));
+
+	if (type == DRM_PLANE_TYPE_CURSOR) {
+		/*
+		 * The cursor plane exposes a format with an alpha channel,
+		 * which requires a blend mode property. The host blends
+		 * premultiplied alpha, matching the property's default.
+		 */
+		ret = drm_plane_create_blend_mode_property(plane,
+							   BIT(DRM_MODE_BLEND_PREMULTI));
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	return plane;
 }
