@@ -735,15 +735,15 @@ static void qla1280_mailbox_timeout(struct timer_list *t)
 }
 
 static int
-_qla1280_wait_for_single_command(struct scsi_qla_host *ha, struct srb *sp,
+_qla1280_wait_for_single_command(struct Scsi_Host *host, struct srb *sp,
 				 struct completion *wait)
 {
 	int	status = FAILED;
 	struct scsi_cmnd *cmd = sp->cmd;
 
-	spin_unlock_irq(&ha->host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	wait_for_completion_timeout(wait, 4*HZ);
-	spin_lock_irq(&ha->host->host_lock);
+	spin_lock_irq(&host->host_lock);
 	sp->wait = NULL;
 	if(CMD_HANDLE(cmd) == COMPLETED_HANDLE) {
 		status = SUCCESS;
@@ -753,16 +753,17 @@ _qla1280_wait_for_single_command(struct scsi_qla_host *ha, struct srb *sp,
 }
 
 static int
-qla1280_wait_for_single_command(struct scsi_qla_host *ha, struct srb *sp)
+qla1280_wait_for_single_command(struct Scsi_Host *host, struct srb *sp)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	sp->wait = &wait;
-	return _qla1280_wait_for_single_command(ha, sp, &wait);
+	return _qla1280_wait_for_single_command(host, sp, &wait);
 }
 
 static int
-qla1280_wait_for_pending_commands(struct scsi_qla_host *ha, int bus, int target)
+qla1280_wait_for_pending_commands(struct scsi_qla_host *ha, struct Scsi_Host *host,
+				  int bus, int target)
 {
 	int		cnt;
 	int		status;
@@ -785,7 +786,7 @@ qla1280_wait_for_pending_commands(struct scsi_qla_host *ha, int bus, int target)
 			if (target >= 0 && SCSI_TCN_32(cmd) != target)
 				continue;
 
-			status = qla1280_wait_for_single_command(ha, sp);
+			status = qla1280_wait_for_single_command(host, sp);
 			if (status == FAILED)
 				break;
 		}
@@ -808,7 +809,8 @@ qla1280_wait_for_pending_commands(struct scsi_qla_host *ha, int bus, int target)
  *
  **************************************************************************/
 static int
-qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
+qla1280_error_action(struct Scsi_Host *host, struct scsi_cmnd *cmd,
+		     enum action action)
 {
 	struct scsi_qla_host *ha;
 	int bus, target, lun;
@@ -914,7 +916,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	 */
 
 	if (found >= 0)
-		result = _qla1280_wait_for_single_command(ha, sp, &wait);
+		result = _qla1280_wait_for_single_command(host, sp, &wait);
 
 	if (action == ABORT_COMMAND && result != SUCCESS) {
 		printk(KERN_WARNING
@@ -934,7 +936,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	 * to wait for them.
 	 */
 	if (result == SUCCESS && wait_for_bus >= 0) {
-		result = qla1280_wait_for_pending_commands(ha,
+		result = qla1280_wait_for_pending_commands(ha, host,
 					wait_for_bus, wait_for_target);
 	}
 
@@ -951,11 +953,12 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 static int
 qla1280_eh_abort(struct scsi_cmnd * cmd)
 {
+	struct Scsi_Host *host = cmd->device->host;
 	int rc;
 
-	spin_lock_irq(&cmd->device->host->host_lock);
-	rc = qla1280_error_action(cmd, ABORT_COMMAND);
-	spin_unlock_irq(&cmd->device->host->host_lock);
+	spin_lock_irq(&host->host_lock);
+	rc = qla1280_error_action(host, cmd, ABORT_COMMAND);
+	spin_unlock_irq(&host->host_lock);
 
 	return rc;
 }
@@ -967,11 +970,12 @@ qla1280_eh_abort(struct scsi_cmnd * cmd)
 static int
 qla1280_eh_device_reset(struct scsi_cmnd *cmd)
 {
+	struct Scsi_Host *host = cmd->device->host;
 	int rc;
 
-	spin_lock_irq(&cmd->device->host->host_lock);
-	rc = qla1280_error_action(cmd, DEVICE_RESET);
-	spin_unlock_irq(&cmd->device->host->host_lock);
+	spin_lock_irq(&host->host_lock);
+	rc = qla1280_error_action(host, cmd, DEVICE_RESET);
+	spin_unlock_irq(&host->host_lock);
 
 	return rc;
 }
@@ -983,11 +987,12 @@ qla1280_eh_device_reset(struct scsi_cmnd *cmd)
 static int
 qla1280_eh_bus_reset(struct scsi_cmnd *cmd)
 {
+	struct Scsi_Host *host = cmd->device->host;
 	int rc;
 
-	spin_lock_irq(&cmd->device->host->host_lock);
-	rc = qla1280_error_action(cmd, BUS_RESET);
-	spin_unlock_irq(&cmd->device->host->host_lock);
+	spin_lock_irq(&host->host_lock);
+	rc = qla1280_error_action(host, cmd, BUS_RESET);
+	spin_unlock_irq(&host->host_lock);
 
 	return rc;
 }
