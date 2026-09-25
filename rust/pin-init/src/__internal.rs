@@ -5,6 +5,8 @@
 //! These items must not be used outside of this crate and the pin-init-internal crate located at
 //! `../internal`.
 
+#![expect(clippy::new_without_default, reason = "private API")]
+
 use core::marker::PhantomPinned;
 use core::ops::Deref;
 
@@ -675,5 +677,15 @@ impl<T: ?Sized> Deref for Borrowed<T> {
     #[inline(always)]
     fn deref(&self) -> &T {
         &self.1
+    }
+}
+
+/// An alias of `PhantomData` but with a name to aid user in case of misuse.
+pub struct NotVisible<T: ?Sized>(PhantomData<T>);
+
+impl<T: ?Sized> NotVisible<T> {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self(PhantomData)
     }
 }

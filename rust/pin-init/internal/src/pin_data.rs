@@ -12,7 +12,7 @@ use syn::{
     visit::Visit,
     visit_mut::VisitMut,
     Field, Fields, GenericParam, Generics, Ident, Index, Item, ItemStruct, Lifetime, LifetimeParam,
-    Member, PathSegment, Type, TypePath,
+    Member, PathSegment, Token, Type, TypePath,
 };
 
 use crate::{
@@ -844,7 +844,8 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
         generics,
         ..
     } = &info.struct_;
-    let this_lt_generics: Generics = parse_quote!(<'__this>);
+    let this_lt = Lifetime::new("'__this", Span::mixed_site());
+    let this_lt_generics: Generics = parse_quote!(<#this_lt>);
     let generics_with_this_lt = CombinedGenerics(vec![&this_lt_generics, generics]);
 
     let (impl_generics, ty_generics, whr) = generics.split_for_impl();
@@ -855,33 +856,68 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
     let (fields_decl, fields_proj): (Vec<_>, Vec<_>) = info
         .fields
         .iter()
-        .map(|field| {
-            let Field { vis, ty, .. } = &field.field;
-            let member = &field.member;
+        .map(|f| {
+            let vis = &f.field.vis;
+            let ident = f.member.as_ident();
+            let member = &f.member;
             // The projection of a tuple struct is a tuple struct itself, so its fields are
             // positional and must not be named.
-            let name = (!info.is_tuple_struct).then(|| {
-                let ident = field.member.as_ident();
-                quote!(#ident:)
-            });
+            let name = (!info.is_tuple_struct).then(|| quote!(#ident:));
 
-            if field.pinned {
+            // if `f.ty` contains field lifetimes, which we need to replace them with shorter
+            // `'__this` lifetime as field lifetimes are not available in this context.
+            let all_lifetimes: Vec<_> = f.captures.iter().map(|b| &b.lifetime).collect();
+            let ty = f
+                .field
+                .ty
+                .replace_lifetimes(&all_lifetimes, &vec![&this_lt; all_lifetimes.len()]);
+
+            // Fields sharedly borrowed by other fields can only be shared accessed. Fields that
+            // references other field and are covariant can also only be given shared reference
+            // as mutable reference is invariant.
+            let mut_token: Option<Token![mut]> = if f.borrowed.is_none() && f.captures.is_empty() {
+                Some(Default::default())
+            } else {
+                None
+            };
+
+            let mut accessor = quote!(&#mut_token #this.#member);
+            if !f.captures.is_empty() || f.borrowed.is_some() {
+                accessor = quote!(
+                    // SAFETY: we have `Erase<..>` which we know is layout compatible with `f.ty`.
+                    // Field lifetimes in `f.ty` can be shortened to `#ty` due to covariance.
+                    unsafe { ::core::mem::transmute::<_, &#mut_token #ty>(#accessor) }
+                )
+            }
+
+            if !f.captures.iter().all(|b| b.variance == Variance::Covariant) {
+                // If the type is not covariant, it must omitted, as projection shortens the
+                // lifetime to `'__this`.
                 (
                     quote!(
-                        #vis #name ::core::pin::Pin<&'__this mut #ty>,
+                        #vis #name ::pin_init::__internal::NotVisible<&'__this #mut_token #ty>,
+                    ),
+                    quote!(
+                        #name ::pin_init::__internal::NotVisible::new(),
+                    ),
+                )
+            } else if f.pinned {
+                (
+                    quote!(
+                        #vis #name ::core::pin::Pin<&'__this #mut_token #ty>,
                     ),
                     quote!(
                         // SAFETY: this field is structurally pinned.
-                        #name unsafe { ::core::pin::Pin::new_unchecked(&mut #this.#member) },
+                        #name unsafe { ::core::pin::Pin::new_unchecked(#accessor) },
                     ),
                 )
             } else {
                 (
                     quote!(
-                        #vis #name &'__this mut #ty,
+                        #vis #name &'__this #mut_token #ty,
                     ),
                     quote!(
-                        #name &mut #this.#member,
+                        #name #accessor,
                     ),
                 )
             }
@@ -931,6 +967,49 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
             },
         )
     };
+
+    // For fields that references other fields, field access syntax stops working as they're wrapped
+    // behind `Erase` because their actual lifetime is not on the struct.
+    //
+    // Generate an accessor method for them.
+    let mut accessors = Vec::new();
+    for f in info.fields.iter() {
+        let ident = f.member.as_ident();
+        let member = &f.member;
+
+        if f.captures.is_empty() {
+            // They can be accessed normally, no accessor to be generated.
+            continue;
+        }
+
+        if f.captures.iter().all(|b| b.variance == Variance::Covariant) {
+            let f_doc = format!("Access the `{ident}` field on a shared reference of `Self`.");
+            let vis = &f.field.vis;
+
+            // Use the span of type for better error message.
+            let span = f.field.ty.span().resolved_at(Span::mixed_site());
+
+            let all_lifetimes: Vec<_> = f.captures.iter().map(|b| &b.lifetime).collect();
+            let ty = f
+                .field
+                .ty
+                .replace_lifetimes(&all_lifetimes, &vec![&this_lt; all_lifetimes.len()]);
+
+            accessors.push(quote_spanned!(span =>
+                #[doc = #f_doc]
+                #[inline]
+                #[allow(clippy::mut_from_ref)] // false positive when `&&mut` is returned.
+                #vis fn #ident<#this_lt>(&#this_lt self) -> &#this_lt #ty {
+                    // SAFETY: we have `Erased<..>` which we know is layout compatible with `f.ty`.
+                    // Field lifetimes in `f.ty` can be shortened to `#ty` due to covariance.
+                    unsafe { ::core::mem::transmute(&self.#member) }
+                }
+            ))
+        } else {
+            continue;
+        }
+    }
+
     quote! {
         #[doc = #docs]
         // Allow `non_snake_case` since the same warning will be emitted on
@@ -957,6 +1036,8 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
                 let #this = unsafe { ::core::pin::Pin::get_unchecked_mut(self) };
                 #projection_init
             }
+
+            #(#accessors)*
         }
     }
 }
