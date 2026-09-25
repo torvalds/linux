@@ -586,8 +586,7 @@ __csio_unreg_rnode(struct csio_rnode *rn)
 
 	/* Cleanup I/Os that were waiting for rnode to unregister */
 	if (cmpl)
-		csio_scsi_cleanup_io_q(csio_hw_to_scsim(hw), &tmp_q);
-
+		csio_scsi_cleanup_io_q(hw, &tmp_q);
 }
 
 /*****************************************************************************/

@@ -1150,15 +1150,14 @@ csio_scsi_cmpl_handler(struct csio_hw *hw, void *wr, uint32_t len,
 
 /*
  * csio_scsi_cleanup_io_q - Cleanup the given queue.
- * @scm: SCSI module.
+ * @hw: HW module.
  * @q: Queue to be cleaned up.
  *
  * Called with lock held. Has to exit with lock held.
  */
-void
-csio_scsi_cleanup_io_q(struct csio_scsim *scm, struct list_head *q)
+void csio_scsi_cleanup_io_q(struct csio_hw *hw, struct list_head *q)
 {
-	struct csio_hw *hw = scm->hw;
+	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	struct csio_ioreq *ioreq;
 	struct list_head *tmp, *next;
 	struct scsi_cmnd *scmnd;
@@ -1215,7 +1214,7 @@ csio_abrt_cls(struct csio_ioreq *ioreq, struct scsi_cmnd *scmnd)
 
 /*
  * csio_scsi_abort_io_q - Abort all I/Os on given queue
- * @scm: SCSI module.
+ * @hw: HW module.
  * @q: Queue to abort.
  * @tmo: Timeout in ms
  *
@@ -1229,10 +1228,9 @@ csio_abrt_cls(struct csio_ioreq *ioreq, struct scsi_cmnd *scmnd)
  * of this function has to ensure that the number of I/os to be aborted
  * is finite enough to not cause lock-held-for-too-long issues.
  */
-static int
-csio_scsi_abort_io_q(struct csio_scsim *scm, struct list_head *q, uint32_t tmo)
+static int csio_scsi_abort_io_q(struct csio_hw *hw, struct list_head *q,
+				uint32_t tmo)
 {
-	struct csio_hw *hw = scm->hw;
 	struct list_head *tmp, *next;
 	int count = DIV_ROUND_UP(tmo, CSIO_SCSI_ABORT_Q_POLL_MS);
 	struct scsi_cmnd *scmnd;
@@ -1264,15 +1262,14 @@ csio_scsi_abort_io_q(struct csio_scsim *scm, struct list_head *q, uint32_t tmo)
 
 /*
  * csio_scsim_cleanup_io - Cleanup all I/Os in SCSI module.
- * @scm: SCSI module.
+ * @hw: HW module.
  * @abort: abort required.
  * Called with lock held, should exit with lock held.
  * Can sleep when waiting for I/Os to complete.
  */
-int
-csio_scsim_cleanup_io(struct csio_scsim *scm, bool abort)
+int csio_scsim_cleanup_io(struct csio_hw *hw, bool abort)
 {
-	struct csio_hw *hw = scm->hw;
+	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	int rv = 0;
 	int count = DIV_ROUND_UP(60 * 1000, CSIO_SCSI_ABORT_Q_POLL_MS);
 
@@ -1293,13 +1290,13 @@ csio_scsim_cleanup_io(struct csio_scsim *scm, bool abort)
 
 	/* Else abort */
 	if (abort) {
-		rv = csio_scsi_abort_io_q(scm, &scm->active_q, 30000);
+		rv = csio_scsi_abort_io_q(hw, &scm->active_q, 30000);
 		if (rv == 0)
 			return rv;
 		csio_dbg(hw, "Some I/O aborts timed out, cleaning up..\n");
 	}
 
-	csio_scsi_cleanup_io_q(scm, &scm->active_q);
+	csio_scsi_cleanup_io_q(hw, &scm->active_q);
 
 	CSIO_DB_ASSERT(list_empty(&scm->active_q));
 
@@ -1308,16 +1305,15 @@ csio_scsim_cleanup_io(struct csio_scsim *scm, bool abort)
 
 /*
  * csio_scsim_cleanup_io_lnode - Cleanup all I/Os of given lnode.
- * @scm: SCSI module.
+ * @hw: HW module
  * @lnode: lnode
  *
  * Called with lock held, should exit with lock held.
  * Can sleep (with dropped lock) when waiting for I/Os to complete.
  */
-int
-csio_scsim_cleanup_io_lnode(struct csio_scsim *scm, struct csio_lnode *ln)
+int csio_scsim_cleanup_io_lnode(struct csio_hw *hw, struct csio_lnode *ln)
 {
-	struct csio_hw *hw = scm->hw;
+	struct csio_scsim *scm = csio_hw_to_scsim(hw);
 	struct csio_scsi_level_data sld;
 	int rv;
 	int count = DIV_ROUND_UP(60 * 1000, CSIO_SCSI_ABORT_Q_POLL_MS);
@@ -1347,10 +1343,10 @@ csio_scsim_cleanup_io_lnode(struct csio_scsim *scm, struct csio_lnode *ln)
 	csio_dbg(hw, "Some I/Os pending on ln:%p, aborting them..\n", ln);
 
 	/* I/Os are pending, abort them */
-	rv = csio_scsi_abort_io_q(scm, &ln->cmpl_q, 30000);
+	rv = csio_scsi_abort_io_q(hw, &ln->cmpl_q, 30000);
 	if (rv != 0) {
 		csio_dbg(hw, "Some I/O aborts timed out, cleaning up..\n");
-		csio_scsi_cleanup_io_q(scm, &ln->cmpl_q);
+		csio_scsi_cleanup_io_q(hw, &ln->cmpl_q);
 	}
 
 	CSIO_DB_ASSERT(list_empty(&ln->cmpl_q));
@@ -2194,7 +2190,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	spin_lock_irq(&hw->lock);
 	csio_scsi_gather_active_ios(scsim, &sld, &local_q);
 
-	retval = csio_scsi_abort_io_q(scsim, &local_q, 30000);
+	retval = csio_scsi_abort_io_q(hw, &local_q, 30000);
 	spin_unlock_irq(&hw->lock);
 
 	/* Aborts may have timed out */

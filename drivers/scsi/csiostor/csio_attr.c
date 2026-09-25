@@ -630,7 +630,7 @@ csio_vport_delete(struct fc_vport *fc_vport)
 	/* Quiesce ios and send remove event to lnode */
 	scsi_block_requests(shost);
 	spin_lock_irq(&hw->lock);
-	csio_scsim_cleanup_io_lnode(csio_hw_to_scsim(hw), ln);
+	csio_scsim_cleanup_io_lnode(hw, ln);
 	csio_lnode_close(ln);
 	spin_unlock_irq(&hw->lock);
 	scsi_unblock_requests(shost);
@@ -655,7 +655,7 @@ csio_vport_disable(struct fc_vport *fc_vport, bool disable)
 		/* Quiesce ios and send stop event to lnode */
 		scsi_block_requests(shost);
 		spin_lock_irq(&hw->lock);
-		csio_scsim_cleanup_io_lnode(csio_hw_to_scsim(hw), ln);
+		csio_scsim_cleanup_io_lnode(hw, ln);
 		csio_lnode_stop(ln);
 		spin_unlock_irq(&hw->lock);
 		scsi_unblock_requests(shost);
