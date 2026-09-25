@@ -718,7 +718,7 @@ static void NCR5380_main(struct work_struct *work)
 			 * entire unit.
 			 */
 
-			if (!NCR5380_select(instance, cmd)) {
+			if (!NCR5380_select(hostdata, cmd)) {
 				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
 			} else {
 				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
@@ -728,7 +728,7 @@ static void NCR5380_main(struct work_struct *work)
 		}
 		if (hostdata->connected && !hostdata->dma_len) {
 			dsprintk(NDEBUG_MAIN, instance, "main: performing information transfer\n");
-			NCR5380_information_transfer(instance);
+			NCR5380_information_transfer(hostdata);
 			done = 0;
 		}
 		if (!hostdata->connected) {
@@ -937,7 +937,7 @@ static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 
 /**
  * NCR5380_select - attempt arbitration and selection for a given command
- * @instance: the Scsi_Host instance
+ * @hostdata: host private data
  * @cmd: the scsi_cmnd to execute
  *
  * This routine establishes an I_T_L nexus for a SCSI command. This involves
@@ -960,10 +960,11 @@ static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
  * cmd->result host byte set to DID_BAD_TARGET.
  */
 
-static bool NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
+static bool NCR5380_select(struct NCR5380_hostdata *hostdata,
+			   struct scsi_cmnd *cmd)
 	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	struct Scsi_Host *instance = hostdata->host;
 	unsigned char tmp[3], phase;
 	unsigned char *data;
 	int len;
@@ -1643,23 +1644,23 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 }
 
 /*
- * Function : NCR5380_information_transfer (struct Scsi_Host *instance)
+ * Function : NCR5380_information_transfer(struct NCR5380_hostdata *hostdata)
  *
  * Purpose : run through the various SCSI phases and do as the target
  * directs us to.  Operates on the currently connected command,
  * instance->connected.
  *
- * Inputs : instance, instance for which we are doing commands
+ * Inputs : hostdata, the private host data
  *
  * Side effects : SCSI things happen, the disconnected queue will be
  * modified if a command disconnects, *instance->connected will
  * change.
  */
 
-static void NCR5380_information_transfer(struct Scsi_Host *instance)
+static void NCR5380_information_transfer(struct NCR5380_hostdata *hostdata)
 	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	struct Scsi_Host *instance = hostdata->host;
 	unsigned char msgout = NOP;
 	int sink = 0;
 	int len;
