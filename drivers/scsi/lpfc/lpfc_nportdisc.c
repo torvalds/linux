@@ -220,6 +220,7 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  */
 void
 lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+	__context_unsafe(/*conditional locking*/)
 {
 	LIST_HEAD(abort_list);
 	LIST_HEAD(drv_cmpl_list);
