@@ -1537,9 +1537,11 @@ skb_read_pdu_bhs(struct cxgbi_sock *csk, struct iscsi_conn *conn,
 		 * for the last pdu of a sequence.
 		 */
 		itt_t itt = ((struct iscsi_data *)skb->data)->itt;
-		struct iscsi_task *task = iscsi_itt_to_ctask(conn, itt);
-		u32 data_sn = be32_to_cpu(((struct iscsi_data *)
-							skb->data)->datasn);
+		struct iscsi_task *task;
+		u32 data_sn;
+
+		task = iscsi_itt_to_ctask(conn->session, conn, itt);
+		data_sn = be32_to_cpu(((struct iscsi_data *)skb->data)->datasn);
 		if (task && task->sc) {
 			struct iscsi_tcp_task *tcp_task = task->dd_data;
 

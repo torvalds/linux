@@ -367,6 +367,7 @@ static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
 	struct ddb_entry *ddb_entry;
 	struct ql4_task_data *task_data;
 	struct iscsi_cls_conn *cls_conn;
+	struct iscsi_session *session;
 	struct iscsi_conn *conn;
 	itt_t itt;
 	uint32_t fw_ddb_index;
@@ -384,9 +385,10 @@ static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
 
 	cls_conn = ddb_entry->conn;
 	conn = cls_conn->dd_data;
-	spin_lock(&conn->session->back_lock);
-	task = iscsi_itt_to_task(conn, itt);
-	spin_unlock(&conn->session->back_lock);
+	session = conn->session;
+	spin_lock(&session->back_lock);
+	task = iscsi_itt_to_task(session, conn, itt);
+	spin_unlock(&session->back_lock);
 
 	if (task == NULL) {
 		ql4_printk(KERN_ERR, ha, "%s: Task is NULL\n", __func__);
