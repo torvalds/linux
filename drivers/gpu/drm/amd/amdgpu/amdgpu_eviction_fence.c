@@ -68,6 +68,9 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 
 	mutex_lock(&uq_mgr->userq_mutex);
 
+	/* Fence waits are not allowed in a fence signalling critical section. */
+	amdgpu_userq_wait_for_signal(uq_mgr);
+
 	/*
 	 * This is intentionally after taking the userq_mutex since we do
 	 * allocate memory while holding this lock, but only after ensuring that

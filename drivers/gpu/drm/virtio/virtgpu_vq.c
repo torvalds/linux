@@ -256,6 +256,33 @@ void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
 	} while (!virtqueue_enable_cb(vgdev->ctrlq.vq));
 	spin_unlock(&vgdev->ctrlq.qlock);
 
+	/*
+	 * Sync guest-bound transfers before signalling anything, so that a
+	 * waiter cannot read the backing pages while what the device wrote is
+	 * still in a bounce buffer. This cannot be folded into the loop below:
+	 * virtio_gpu_fence_event_process() also signals every earlier fence in
+	 * the same context, so any entry there may signal this entry's fence.
+	 */
+	list_for_each_entry(entry, &reclaim_list, list) {
+		if (entry->sync_for_cpu) {
+			struct virtio_gpu_object *bo =
+				gem_to_virtio_gpu_obj(entry->objs->objs[0]);
+
+			dma_sync_sgtable_for_cpu(vgdev->vdev->dev.parent,
+						 bo->base.sgt, DMA_FROM_DEVICE);
+			/*
+			 * Release, so a transfer the other way that skips its
+			 * wait on the strength of this cannot go on to read
+			 * the backing pages before the sync above is visible.
+			 * Nothing orders the two otherwise: where the mapping
+			 * bounces on a coherent device the sync is a plain
+			 * copy, and dma_direct_sync_sg_for_cpu() emits its
+			 * barrier only for the non-coherent case.
+			 */
+			smp_store_release(&bo->from_host_pending, false);
+		}
+	}
+
 	list_for_each_entry(entry, &reclaim_list, list) {
 		resp = (struct virtio_gpu_ctrl_hdr *)entry->resp_buf;
 
@@ -1278,11 +1305,30 @@ void virtio_gpu_cmd_transfer_from_host_3d(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(objs->objs[0]);
 	struct virtio_gpu_transfer_host_3d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
+	bool use_dma_api = virtio_gpu_use_dma_api(vgdev->vdev);
 
 	cmd_p = virtio_gpu_alloc_cmd(vgdev, &vbuf, sizeof(*cmd_p));
 	memset(cmd_p, 0, sizeof(*cmd_p));
 
 	vbuf->objs = objs;
+
+	if (virtio_gpu_is_shmem(bo) && use_dma_api) {
+		/*
+		 * The device writes only the requested box, so prime the
+		 * mapping with the current contents: otherwise the sync on
+		 * completion would hand back whatever a bounce buffer held for
+		 * the regions the device does not touch.
+		 */
+		dma_sync_sgtable_for_device(vgdev->vdev->dev.parent,
+					    bo->base.sgt, DMA_TO_DEVICE);
+		vbuf->sync_for_cpu = true;
+		/*
+		 * Set under the reservation the caller holds, so a transfer
+		 * the other way cannot miss it and push the guest pages into
+		 * the mapping while the device still owns it.
+		 */
+		WRITE_ONCE(bo->from_host_pending, true);
+	}
 
 	cmd_p->hdr.type = cpu_to_le32(VIRTIO_GPU_CMD_TRANSFER_FROM_HOST_3D);
 	cmd_p->hdr.ctx_id = cpu_to_le32(ctx_id);
