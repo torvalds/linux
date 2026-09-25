@@ -5299,17 +5299,17 @@ static int ipr_scan_finished(struct Scsi_Host *shost, unsigned long elapsed_time
  **/
 static int ipr_eh_abort(struct scsi_cmnd *scsi_cmd)
 {
+	struct Scsi_Host *host = scsi_cmd->device->host;
+	struct ipr_ioa_cfg *ioa_cfg = (void *)host->hostdata;
 	unsigned long flags;
 	int rc;
-	struct ipr_ioa_cfg *ioa_cfg;
 
 	ENTER;
 
-	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
 
-	spin_lock_irqsave(&scsi_cmd->device->host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	rc = ipr_cancel_op(scsi_cmd);
-	spin_unlock_irqrestore(&scsi_cmd->device->host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 
 	if (rc == SUCCESS)
 		rc = ipr_wait_for_ops(ioa_cfg, scsi_cmd->device, ipr_match_lun);
