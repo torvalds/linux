@@ -782,6 +782,44 @@ static inline struct rog_tunables *get_current_tunables(void)
 	return asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_DC];
 }
 
+/**
+ * has_valid_limit - Checks if a power-related attribute has a valid limit value
+ * @name: The name of the attribute to check
+ * @limits: Pointer to the power_limits structure containing limit values
+ *
+ * This function checks if a power-related attribute has a valid limit value.
+ * It returns false if limits is NULL or if the corresponding limit value is zero.
+ *
+ * Return: true if the attribute has a valid limit value, false otherwise
+ */
+static bool has_valid_limit(const char *name, const struct power_limits *limits)
+{
+	u32 limit_value = 0;
+
+	if (!limits)
+		return false;
+
+	if (!strcmp(name, ATTR_PPT_PL1_SPL))
+		limit_value = limits->ppt_pl1_spl_max;
+	else if (!strcmp(name, ATTR_PPT_PL2_SPPT))
+		limit_value = limits->ppt_pl2_sppt_max;
+	else if (!strcmp(name, ATTR_PPT_PL3_FPPT))
+		limit_value = limits->ppt_pl3_fppt_max;
+	else if (!strcmp(name, ATTR_PPT_APU_SPPT))
+		limit_value = limits->ppt_apu_sppt_max;
+	else if (!strcmp(name, ATTR_PPT_PLATFORM_SPPT))
+		limit_value = limits->ppt_platform_sppt_max;
+	else if (!strcmp(name, ATTR_NV_DYNAMIC_BOOST))
+		limit_value = limits->nv_dynamic_boost_max;
+	else if (!strcmp(name, ATTR_NV_TEMP_TARGET))
+		limit_value = limits->nv_temp_target_max;
+	else if (!strcmp(name, ATTR_NV_BASE_TGP) ||
+		 !strcmp(name, ATTR_NV_TGP))
+		limit_value = limits->nv_tgp_max;
+
+	return limit_value > 0;
+}
+
 /* Simple attribute creation */
 ASUS_ATTR_GROUP_ENUM_INT_RO(charge_mode, "charge_mode", ASUS_WMI_DEVID_CHARGE_MODE, "0;1;2\n",
 			    "Show the current mode of charging");
@@ -869,44 +907,6 @@ static bool is_power_tunable_attr(const char *name)
 	}
 
 	return false;
-}
-
-/**
- * has_valid_limit - Checks if a power-related attribute has a valid limit value
- * @name: The name of the attribute to check
- * @limits: Pointer to the power_limits structure containing limit values
- *
- * This function checks if a power-related attribute has a valid limit value.
- * It returns false if limits is NULL or if the corresponding limit value is zero.
- *
- * Return: true if the attribute has a valid limit value, false otherwise
- */
-static bool has_valid_limit(const char *name, const struct power_limits *limits)
-{
-	u32 limit_value = 0;
-
-	if (!limits)
-		return false;
-
-	if (!strcmp(name, ATTR_PPT_PL1_SPL))
-		limit_value = limits->ppt_pl1_spl_max;
-	else if (!strcmp(name, ATTR_PPT_PL2_SPPT))
-		limit_value = limits->ppt_pl2_sppt_max;
-	else if (!strcmp(name, ATTR_PPT_PL3_FPPT))
-		limit_value = limits->ppt_pl3_fppt_max;
-	else if (!strcmp(name, ATTR_PPT_APU_SPPT))
-		limit_value = limits->ppt_apu_sppt_max;
-	else if (!strcmp(name, ATTR_PPT_PLATFORM_SPPT))
-		limit_value = limits->ppt_platform_sppt_max;
-	else if (!strcmp(name, ATTR_NV_DYNAMIC_BOOST))
-		limit_value = limits->nv_dynamic_boost_max;
-	else if (!strcmp(name, ATTR_NV_TEMP_TARGET))
-		limit_value = limits->nv_temp_target_max;
-	else if (!strcmp(name, ATTR_NV_BASE_TGP) ||
-		 !strcmp(name, ATTR_NV_TGP))
-		limit_value = limits->nv_tgp_max;
-
-	return limit_value > 0;
 }
 
 static int asus_fw_attr_add(void)
