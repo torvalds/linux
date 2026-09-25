@@ -224,7 +224,7 @@ struct fw_device {
 	struct mutex client_list_mutex;
 	struct list_head client_list;
 
-	const u32 *config_rom;
+	const u32 *config_rom __counted_by_ptr(config_rom_length);
 	size_t config_rom_length;
 	int config_rom_retries;
 	unsigned is_local:1;
