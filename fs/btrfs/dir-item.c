@@ -62,8 +62,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	struct btrfs_dir_item *dir_item;
 	unsigned long name_ptr, data_ptr;
-	struct btrfs_key key, location;
-	struct btrfs_disk_key disk_key;
+	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	u32 data_size;
 
@@ -79,11 +78,11 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 					name, name_len);
 	if (IS_ERR(dir_item))
 		return PTR_ERR(dir_item);
-	memset(&location, 0, sizeof(location));
 
 	leaf = path->nodes[0];
-	btrfs_cpu_key_to_disk(&disk_key, &location);
-	btrfs_set_dir_item_key(leaf, dir_item, &disk_key);
+	memzero_extent_buffer(leaf, (unsigned long)dir_item +
+			      offsetof(struct btrfs_dir_item, location),
+			      sizeof(struct btrfs_disk_key));
 	btrfs_set_dir_flags(leaf, dir_item, BTRFS_FT_XATTR);
 	btrfs_set_dir_name_len(leaf, dir_item, name_len);
 	btrfs_set_dir_transid(leaf, dir_item, trans->transid);
