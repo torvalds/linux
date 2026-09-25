@@ -142,7 +142,7 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 			set_bit(BNX2FC_FLAG_ELS_TIMEOUT, &io_req->req_flags);
 
 			if ((io_req->cb_func) && (io_req->cb_arg)) {
-				io_req->cb_func(io_req->cb_arg);
+				io_req->cb_func(tgt, io_req->cb_arg);
 				io_req->cb_arg = NULL;
 			}
 		}
@@ -1079,10 +1079,10 @@ int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 				   FCP_TMF_LUN_RESET);
 }
 
-static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
+static int bnx2fc_abts_cleanup(struct bnx2fc_rport *tgt,
+			       struct bnx2fc_cmd *io_req)
 	__must_hold(&tgt->tgt_lock)
 {
-	struct bnx2fc_rport *tgt = io_req->tgt;
 	unsigned int time_left;
 
 	init_completion(&io_req->cleanup_done);
@@ -1212,7 +1212,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		 * cleanup the command and return that I/O was successfully
 		 * aborted.
 		 */
-		bnx2fc_abts_cleanup(io_req);
+		bnx2fc_abts_cleanup(tgt, io_req);
 		/* This only occurs when an task abort was requested while ABTS
 		   is in progress.  Setting the IO_CLEANUP flag will skip the
 		   RRQ process in the case when the fw generated SCSI_CMD cmpl
@@ -1262,7 +1262,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		 * Cleanup firmware residuals before returning control back
 		 * to SCSI ML.
 		 */
-		rc = bnx2fc_abts_cleanup(io_req);
+		rc = bnx2fc_abts_cleanup(tgt, io_req);
 		goto done;
 	} else {
 		/*
@@ -1282,7 +1282,8 @@ done:
 	return rc;
 }
 
-void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
+void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_rport *tgt,
+				      struct bnx2fc_cmd *seq_clnp_req,
 				      struct fcoe_task_ctx_entry *task,
 				      u8 rx_state)
 {
@@ -1291,7 +1292,6 @@ void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
 	u32 offset = cb_arg->offset;
 	enum fc_rctl r_ctl = cb_arg->r_ctl;
 	int rc = 0;
-	struct bnx2fc_rport *tgt = orig_io_req->tgt;
 
 	BNX2FC_IO_DBG(orig_io_req, "Entered process_cleanup_compl xid = 0x%x"
 			      "cmd_type = %d\n",
