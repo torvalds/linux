@@ -50,6 +50,9 @@ struct lease {
 	unsigned short		epoch;
 	bool			is_dir;
 	bool			reuse_epoch;
+	bool			breaking;
+	bool			break_timeout_set;
+	unsigned long		break_timeout;
 	struct ksmbd_inode	*ci;
 	struct lease_table	*l_lb;
 	struct list_head	l_entry;

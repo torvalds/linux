@@ -12086,10 +12086,12 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 	struct smb2_lease_ack *req;
 	struct smb2_lease_ack *rsp;
-	struct oplock_info *opinfo;
+	struct oplock_info *opinfo, *open;
 	int ret;
 	__le32 lease_state;
 	struct lease *lease;
+	u8 level;
+	bool wake;
 
 	WORK_BUFFERS(work, req, rsp);
 
@@ -12105,6 +12107,7 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	lease = opinfo->o_lease;
 
 	/* Publish NONE only after the lease state and all open levels are updated. */
+	spin_lock(&lease->lock);
 	spin_lock(&opinfo->state_lock);
 	if (opinfo->op_state != OPLOCK_ACK_WAIT) {
 		if (opinfo->op_state == OPLOCK_STATE_NONE &&
@@ -12132,17 +12135,31 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	lease_state = req->LeaseState;
 	lease->state = lease_state;
 	lease->new_state = SMB2_LEASE_NONE_LE;
-	lease_update_oplock_levels(lease);
-	opinfo->op_state = OPLOCK_STATE_NONE;
-	atomic_dec_if_positive(&opinfo->breaking_cnt);
+	lease->breaking = false;
+	lease->break_timeout_set = false;
+	level = smb2_map_lease_to_oplock(lease_state);
 	spin_unlock(&opinfo->state_lock);
-	wake_up_interruptible_all(&opinfo->oplock_q);
-	wake_up_interruptible_all(&opinfo->oplock_brk);
+	list_for_each_entry(open, &lease->open_list, lease_entry) {
+		spin_lock(&open->state_lock);
+		open->level = level;
+		wake = open->op_state == OPLOCK_ACK_WAIT;
+		if (wake) {
+			open->op_state = OPLOCK_STATE_NONE;
+			atomic_set(&open->breaking_cnt, 0);
+		}
+		spin_unlock(&open->state_lock);
+		if (wake) {
+			wake_up_all(&open->oplock_q);
+			wake_up_interruptible_all(&open->oplock_brk);
+		}
+	}
+	spin_unlock(&lease->lock);
 	goto response;
 
 replay_rsp:
 	lease_state = lease->state;
 	spin_unlock(&opinfo->state_lock);
+	spin_unlock(&lease->lock);
 response:
 	rsp->StructureSize = cpu_to_le16(36);
 	rsp->Reserved = 0;
@@ -12158,6 +12175,7 @@ response:
 
 err_unlock:
 	spin_unlock(&opinfo->state_lock);
+	spin_unlock(&lease->lock);
 err_out:
 	smb2_set_err_rsp(work);
 	opinfo_put(opinfo);
