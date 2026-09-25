@@ -475,6 +475,7 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		int priority, int wait, int reply, fib_callback callback,
 		void *callback_data)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct aac_dev * dev = fibptr->dev;
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
@@ -698,6 +699,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 
 int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		void *callback_data)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct aac_dev *dev = fibptr->dev;
 	int wait;
@@ -1466,6 +1468,7 @@ static void aac_schedule_bus_scan(struct aac_dev *aac)
 }
 
 static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
+	__context_unsafe(/*conditional locking*/)
 {
 	int index, quirks;
 	int retval;
