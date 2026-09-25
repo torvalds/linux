@@ -27,7 +27,7 @@ struct ipe_bdev {
 #ifdef CONFIG_IPE_PROP_DM_VERITY_SIGNATURE
 	bool dm_verity_signed;
 #endif /* CONFIG_IPE_PROP_DM_VERITY_SIGNATURE */
-	struct digest_info *root_hash;
+	struct digest_info __rcu *root_hash;
 };
 #endif /* CONFIG_IPE_PROP_DM_VERITY */
 
