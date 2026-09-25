@@ -944,6 +944,7 @@ void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
 void
 fnic_fdls_add_tport(struct fnic *fnic, struct fnic_tport_s *tport,
 		    unsigned long flags)
+	__must_hold(&fnic->fnic_lock)
 {
 	struct fc_rport *rport;
 	struct fc_rport_identifiers ids;
@@ -982,6 +983,7 @@ fnic_fdls_add_tport(struct fnic *fnic, struct fnic_tport_s *tport,
 void
 fnic_fdls_remove_tport(struct fnic *fnic, struct fnic_tport_s *tport,
 		       unsigned long flags)
+	__must_hold(&fnic->fnic_lock)
 {
 	struct rport_dd_data_s *rdd_data;
 	struct fc_rport *rport;
