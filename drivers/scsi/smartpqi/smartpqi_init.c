@@ -97,8 +97,12 @@ static int pqi_aio_submit_r56_write_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
 	struct pqi_scsi_dev_raid_map_data *rmd);
-static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info);
-static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info);
+static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info)
+	__acquires(&ctrl_info->scan_mutex)
+	__acquires(&ctrl_info->lun_reset_mutex);
+static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info)
+	__releases(&ctrl_info->lun_reset_mutex)
+	__releases(&ctrl_info->scan_mutex);
 static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info, unsigned int delay_secs);
 static void pqi_host_setup_buffer(struct pqi_ctrl_info *ctrl_info, struct pqi_host_memory_descriptor *host_memory_descriptor, u32 total_size, u32 min_size);
 static void pqi_host_free_buffer(struct pqi_ctrl_info *ctrl_info, struct pqi_host_memory_descriptor *host_memory_descriptor);
@@ -312,12 +316,14 @@ static inline void pqi_save_fw_triage_setting(struct pqi_ctrl_info *ctrl_info, b
 }
 
 static inline void pqi_ctrl_block_scan(struct pqi_ctrl_info *ctrl_info)
+	__acquires(&ctrl_info->scan_mutex)
 {
 	ctrl_info->scan_blocked = true;
 	mutex_lock(&ctrl_info->scan_mutex);
 }
 
 static inline void pqi_ctrl_unblock_scan(struct pqi_ctrl_info *ctrl_info)
+	__releases(&ctrl_info->scan_mutex)
 {
 	ctrl_info->scan_blocked = false;
 	mutex_unlock(&ctrl_info->scan_mutex);
@@ -329,11 +335,13 @@ static inline bool pqi_ctrl_scan_blocked(struct pqi_ctrl_info *ctrl_info)
 }
 
 static inline void pqi_ctrl_block_device_reset(struct pqi_ctrl_info *ctrl_info)
+	__acquires(&ctrl_info->lun_reset_mutex)
 {
 	mutex_lock(&ctrl_info->lun_reset_mutex);
 }
 
 static inline void pqi_ctrl_unblock_device_reset(struct pqi_ctrl_info *ctrl_info)
+	__releases(&ctrl_info->lun_reset_mutex)
 {
 	mutex_unlock(&ctrl_info->lun_reset_mutex);
 }
@@ -436,11 +444,13 @@ static inline bool pqi_device_offline(struct pqi_scsi_dev *device)
 }
 
 static inline void pqi_ctrl_ofa_start(struct pqi_ctrl_info *ctrl_info)
+	__acquires(&ctrl_info->ofa_mutex)
 {
 	mutex_lock(&ctrl_info->ofa_mutex);
 }
 
 static inline void pqi_ctrl_ofa_done(struct pqi_ctrl_info *ctrl_info)
+	__releases(&ctrl_info->ofa_mutex)
 {
 	mutex_unlock(&ctrl_info->ofa_mutex);
 }
@@ -2305,6 +2315,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	 * requests before removal.
 	 */
 	if (pqi_ofa_in_progress(ctrl_info)) {
+		/* What guarantees that &ctrl_info->lun_reset_mutex is held here? */
+		__acquire(&ctrl_info->lun_reset_mutex);
 		list_for_each_entry_safe(device, next, &delete_list, delete_list_entry)
 			if (pqi_is_device_added(device))
 				pqi_device_remove_start(device);
@@ -3672,6 +3684,8 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 		pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
 		rc = pqi_ofa_ctrl_restart(ctrl_info, delay_secs);
 		pqi_host_free_buffer(ctrl_info, &ctrl_info->ofa_memory);
+		/* What guarantees that &ctrl_info->ofa_mutex is held here? */
+		__acquire(&ctrl_info->ofa_mutex);
 		pqi_ctrl_ofa_done(ctrl_info);
 		dev_info(&ctrl_info->pci_dev->dev,
 				"Online Firmware Activation: %s\n",
@@ -3683,6 +3697,10 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 		if (ctrl_info->soft_reset_handshake_supported)
 			pqi_clear_soft_reset_status(ctrl_info);
 		pqi_host_free_buffer(ctrl_info, &ctrl_info->ofa_memory);
+		/* What guarantees that these mutexes are held here? */
+		__acquire(&ctrl_info->lun_reset_mutex);
+		__acquire(&ctrl_info->ofa_mutex);
+		__acquire(&ctrl_info->scan_mutex);
 		pqi_ctrl_ofa_done(ctrl_info);
 		pqi_ofa_ctrl_unquiesce(ctrl_info);
 		break;
@@ -3693,6 +3711,10 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 			"unexpected Online Firmware Activation reset status: 0x%x\n",
 			reset_status);
 		pqi_host_free_buffer(ctrl_info, &ctrl_info->ofa_memory);
+		/* What guarantees that these mutexes are held here? */
+		__acquire(&ctrl_info->lun_reset_mutex);
+		__acquire(&ctrl_info->ofa_mutex);
+		__acquire(&ctrl_info->scan_mutex);
 		pqi_ctrl_ofa_done(ctrl_info);
 		pqi_ofa_ctrl_unquiesce(ctrl_info);
 		pqi_take_ctrl_offline(ctrl_info, PQI_OFA_RESPONSE_TIMEOUT);
@@ -3700,25 +3722,32 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 	}
 }
 
-static void pqi_ofa_memory_alloc_worker(struct work_struct *work)
+static inline struct pqi_ctrl_info *alloc_work_to_ctrl_info(struct work_struct *work)
 {
-	struct pqi_ctrl_info *ctrl_info;
+	return container_of(work, struct pqi_ctrl_info, ofa_memory_alloc_work);
+}
 
-	ctrl_info = container_of(work, struct pqi_ctrl_info, ofa_memory_alloc_work);
+static void pqi_ofa_memory_alloc_worker(struct work_struct *work)
+	__acquires(&alloc_work_to_ctrl_info(work)->ofa_mutex)
+{
+	struct pqi_ctrl_info *ctrl_info = alloc_work_to_ctrl_info(work);
 
 	pqi_ctrl_ofa_start(ctrl_info);
 	pqi_host_setup_buffer(ctrl_info, &ctrl_info->ofa_memory, ctrl_info->ofa_bytes_requested, ctrl_info->ofa_bytes_requested);
 	pqi_host_memory_update(ctrl_info, &ctrl_info->ofa_memory, PQI_VENDOR_GENERAL_OFA_MEMORY_UPDATE);
 }
 
-static void pqi_ofa_quiesce_worker(struct work_struct *work)
+static inline struct pqi_ctrl_info *quiesce_work_to_ctrl_info(struct work_struct *work)
 {
-	struct pqi_ctrl_info *ctrl_info;
-	struct pqi_event *event;
+	return container_of(work, struct pqi_ctrl_info, ofa_quiesce_work);
+}
 
-	ctrl_info = container_of(work, struct pqi_ctrl_info, ofa_quiesce_work);
-
-	event = &ctrl_info->events[pqi_event_type_to_event_index(PQI_EVENT_TYPE_OFA)];
+static void pqi_ofa_quiesce_worker(struct work_struct *work)
+	__acquires(&quiesce_work_to_ctrl_info(work)->scan_mutex)
+	__acquires(&quiesce_work_to_ctrl_info(work)->lun_reset_mutex)
+{
+	struct pqi_ctrl_info *ctrl_info = quiesce_work_to_ctrl_info(work);
+	struct pqi_event *event = &ctrl_info->events[pqi_event_type_to_event_index(PQI_EVENT_TYPE_OFA)];
 
 	pqi_ofa_ctrl_quiesce(ctrl_info);
 	pqi_acknowledge_event(ctrl_info, event);
@@ -3749,6 +3778,8 @@ static bool pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
 			"received Online Firmware Activation cancel request: reason: %u\n",
 			ctrl_info->ofa_cancel_reason);
 		pqi_host_free_buffer(ctrl_info, &ctrl_info->ofa_memory);
+		/* What guarantees that &ctrl_info->ofa_mutex is held here? */
+		__acquire(&ctrl_info->ofa_mutex);
 		pqi_ctrl_ofa_done(ctrl_info);
 		break;
 	default:
@@ -8893,6 +8924,8 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 	}
 
 	if (pqi_ofa_in_progress(ctrl_info)) {
+		/* What guarantees that &ctrl_info->scan_mutex is held here? */
+		__acquire(&ctrl_info->scan_mutex);
 		pqi_ctrl_unblock_scan(ctrl_info);
 		if (ctrl_info->ctrl_logging_supported) {
 			if (!ctrl_info->ctrl_log_memory.host_memory)
@@ -9653,7 +9686,11 @@ static inline enum bmic_flush_cache_shutdown_event pqi_get_flush_cache_shutdown_
 	return SUSPEND;
 }
 
+#define TO_CTRL_INFO(dev) ((struct pqi_ctrl_info *)pci_get_drvdata(to_pci_dev(dev)))
+
 static int pqi_suspend_or_freeze(struct device *dev, bool suspend)
+	__acquires(&TO_CTRL_INFO(dev)->scan_mutex)
+	__acquires(&TO_CTRL_INFO(dev)->lun_reset_mutex)
 {
 	struct pci_dev *pci_dev;
 	struct pqi_ctrl_info *ctrl_info;
@@ -9687,11 +9724,15 @@ static int pqi_suspend_or_freeze(struct device *dev, bool suspend)
 }
 
 static __maybe_unused int pqi_suspend(struct device *dev)
+	__acquires(&TO_CTRL_INFO(dev)->scan_mutex)
+	__acquires(&TO_CTRL_INFO(dev)->lun_reset_mutex)
 {
 	return pqi_suspend_or_freeze(dev, true);
 }
 
 static int pqi_resume_or_restore(struct device *dev)
+	__cond_releases(0, &TO_CTRL_INFO(dev)->lun_reset_mutex)
+	__cond_releases(0, &TO_CTRL_INFO(dev)->scan_mutex)
 {
 	int rc;
 	struct pci_dev *pci_dev;
@@ -9715,11 +9756,15 @@ static int pqi_resume_or_restore(struct device *dev)
 }
 
 static int pqi_freeze(struct device *dev)
+	__acquires(&TO_CTRL_INFO(dev)->scan_mutex)
+	__acquires(&TO_CTRL_INFO(dev)->lun_reset_mutex)
 {
 	return pqi_suspend_or_freeze(dev, false);
 }
 
 static int pqi_thaw(struct device *dev)
+	__cond_releases(0, &TO_CTRL_INFO(dev)->lun_reset_mutex)
+	__cond_releases(0, &TO_CTRL_INFO(dev)->scan_mutex)
 {
 	int rc;
 	struct pci_dev *pci_dev;
