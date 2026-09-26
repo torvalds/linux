@@ -549,7 +549,7 @@ IWL_EXPORT_SYMBOL(iwl_uefi_get_uneb_table);
 
 static void iwl_uefi_set_sar_profile(struct iwl_sar_profile *profiles,
 				     const u8 *vals, u8 prof_index,
-				     u8 num_subbands, bool enabled)
+				     u8 num_subbands, u32 mode)
 {
 	struct iwl_sar_profile *sar_prof = &profiles[prof_index];
 
@@ -573,7 +573,7 @@ static void iwl_uefi_set_sar_profile(struct iwl_sar_profile *profiles,
 				vals[chain * num_subbands + subband];
 	}
 
-	sar_prof->enabled = enabled & IWL_SAR_ENABLE_MSK;
+	sar_prof->enabled = mode & IWL_SAR_ENABLE_MSK;
 }
 
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
