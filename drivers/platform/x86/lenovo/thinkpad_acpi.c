@@ -2106,7 +2106,7 @@ static int hotkey_mask_set(u32 mask)
 	}
 
 	/*
-	 * We *must* make an inconditional call to hotkey_mask_get to
+	 * We *must* make an unconditional call to hotkey_mask_get to
 	 * refresh hotkey_acpi_mask and update hotkey_user_mask
 	 *
 	 * Take the opportunity to also log when we cannot _enable_
@@ -3769,7 +3769,7 @@ static bool hotkey_notify_dockevent(const u32 hkey, bool *send_acpi_ev)
 		return true;
 
 	/*
-	 * Deliberately ignore attaching and detaching the keybord cover to avoid
+	 * Deliberately ignore attaching and detaching the keyboard cover to avoid
 	 * duplicates from intel-vbtn, which already emits SW_TABLET_MODE events
 	 * to userspace.
 	 *
@@ -4046,7 +4046,7 @@ static void hotkey_resume(void)
 	hotkey_wakeup_hotunplug_complete_notify_change();
 	hotkey_poll_setup_safe(false);
 
-	/* restore previous mode of adapive keyboard of X1 Carbon */
+	/* restore previous mode of adaptive keyboard of X1 Carbon */
 	if (tp_features.has_adaptive_kbd) {
 		if (!acpi_evalf(hkey_handle, NULL, "STRW", "vd",
 					adaptive_keyboard_prev_mode)) {
@@ -7116,7 +7116,7 @@ static bool software_mute_active;
 static int software_mute_orig_mode;
 
 /*
- * Used to syncronize writers to TP_EC_AUDIO and
+ * Used to synchronize writers to TP_EC_AUDIO and
  * TP_NVRAM_ADDR_MIXER, as we need to do read-modify-write
  */
 static struct mutex volume_mutex;
@@ -7307,7 +7307,7 @@ static int volume_set_software_mute(bool startup)
 
 	/*
 	 * In software mute mode, the standard codec controls take
-	 * precendence, so we unmute the ThinkPad HW switch at
+	 * precedence, so we unmute the ThinkPad HW switch at
 	 * startup.  Just on case there are SAUM-capable ThinkPads
 	 * with level controls, set max HW volume as well.
 	 */
@@ -8026,7 +8026,7 @@ TPACPI_HANDLE(fanw, ec, "FANW",	/* E531 */
 	   );			/* all others */
 
 /*
- * Unitialized HFSP quirk: ACPI DSDT and EC fail to initialize the
+ * Uninitialized HFSP quirk: ACPI DSDT and EC fail to initialize the
  * HFSP register at boot, so it contains 0x07 but the Thinkpad could
  * be in auto mode (0x80).
  *
@@ -10612,7 +10612,7 @@ static int dytc_profile_set(struct device *dev,
 			 * To get back to balanced mode we need to issue a reset command.
 			 * Note we still need to disable CQL mode before hand and re-enable
 			 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
-			 * stuck at 0 for aprox. 30 minutes.
+			 * stuck at 0 for approx. 30 minutes.
 			 */
 			err = dytc_cql_command(DYTC_CMD_RESET, &output);
 			if (err)
@@ -11665,7 +11665,7 @@ static bool tpacpi_driver_event(const unsigned int hkey_event)
 static struct proc_dir_entry *proc_dir;
 
 /*
- * Module and infrastructure proble, init and exit handling
+ * Module and infrastructure probe, init and exit handling
  */
 
 static bool force_load;
