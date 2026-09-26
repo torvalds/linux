@@ -74,6 +74,21 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 					"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
 					ret);
 
+		ret = iwl_bios_get_wsss_table(&mld->fwrt);
+		if (ret < 0)
+			IWL_DEBUG_RADIO(mld,
+					"WSSS (WRDS Standalone) SAR BIOS table invalid or unavailable. (%d)\n",
+					ret);
+
+		if (!ret) {
+			/* EWSS only extends the standalone SAR profiles from WSSS. */
+			ret = iwl_bios_get_ewss_table(&mld->fwrt);
+			if (ret < 0)
+				IWL_DEBUG_RADIO(mld,
+						"EWSS (EWRD Standalone) SAR BIOS table invalid or unavailable. (%d)\n",
+						ret);
+		}
+
 		ret = iwl_bios_get_wgds_table(&mld->fwrt);
 		if (ret < 0)
 			IWL_DEBUG_RADIO(mld,
@@ -135,7 +150,9 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, cmd_size);
 }
 
-int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
+static int
+iwl_mld_config_sar_concurrent_profile(struct iwl_mld *mld, int prof_a,
+				      int prof_b)
 {
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
@@ -152,8 +169,9 @@ int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
 		num_subbands = IWL_NUM_SUB_BANDS_V2;
 		break;
 	case 11:
-		cmd.v11.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
-		cmd_size = sizeof(cmd.common) + sizeof(cmd.v11);
+	case 12:
+		cmd.v12.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
+		cmd_size = sizeof(cmd.common) + sizeof(cmd.v12);
 		num_subbands = IWL_NUM_SUB_BANDS_V3;
 		break;
 	default:
@@ -163,17 +181,63 @@ int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
 	}
 
 	/* TODO: CDB - support IWL_NUM_CHAIN_TABLES_V2 */
-	/* v10 and v11 have the same position for per_chain */
-	BUILD_BUG_ON(offsetof(typeof(cmd), v11.per_chain) !=
+	/* v10 and v12 have the same position for per_chain */
+	BUILD_BUG_ON(offsetof(typeof(cmd), v12.per_chain) !=
 		     offsetof(typeof(cmd), v10.per_chain));
-	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v11.per_chain[0][0][0],
+	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v12.per_chain[0][0][0],
 				   IWL_NUM_CHAIN_TABLES, num_subbands,
-				   prof_a, prof_b);
+				   prof_a, prof_b,
+				   mld->fwrt.sar_profiles, false);
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)
 		return ret;
 
 	return iwl_mld_send_cmd_pdu(mld, REDUCE_TX_POWER_CMD, &cmd, cmd_size);
+}
+
+static int iwl_mld_config_sar_standalone_profile(struct iwl_mld *mld,
+						 int prof_a, int prof_b)
+{
+	struct iwl_dev_tx_power_cmd cmd = {
+		.common.set_mode =
+			cpu_to_le32(IWL_TX_POWER_MODE_SET_STANDALONE_CHAINS),
+	};
+	int ret;
+
+	/* standalone per-chain SAR limits require cmd version 12 */
+	if (iwl_fw_lookup_cmd_ver(mld->fw, REDUCE_TX_POWER_CMD, 10) != 12)
+		return 0;
+
+	ret = iwl_sar_fill_profile(&mld->fwrt,
+				   &cmd.v12.per_chain[0][0][0],
+				   IWL_NUM_CHAIN_TABLES,
+				   IWL_NUM_SUB_BANDS_V3,
+				   prof_a, prof_b,
+				   mld->fwrt.sar_standalone_profiles,
+				   true);
+	/* return on error or if the standalone profile is disabled */
+	if (ret)
+		return ret;
+
+	return iwl_mld_send_cmd_pdu(mld, REDUCE_TX_POWER_CMD, &cmd,
+				    sizeof(cmd.common) + sizeof(cmd.v12));
+}
+
+int iwl_mld_config_sar_profiles(struct iwl_mld *mld, int prof_a, int prof_b)
+{
+	int ret;
+
+	ret = iwl_mld_config_sar_concurrent_profile(mld, prof_a, prof_b);
+	/* return on error or if the profile is disabled (positive number) */
+	if (ret)
+		return ret;
+
+	ret = iwl_mld_config_sar_standalone_profile(mld, prof_a, prof_b);
+	/* standalone profile is optional and may be disabled (positive number) */
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 int iwl_mld_init_sar(struct iwl_mld *mld)
@@ -190,7 +254,7 @@ int iwl_mld_init_sar(struct iwl_mld *mld)
 		chain_b_prof = mld->fwrt.sar_chain_b_profile;
 	}
 
-	ret = iwl_mld_config_sar_profile(mld, chain_a_prof, chain_b_prof);
+	ret = iwl_mld_config_sar_profiles(mld, chain_a_prof, chain_b_prof);
 	if (ret < 0)
 		return ret;
 

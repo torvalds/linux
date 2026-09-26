@@ -911,7 +911,8 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 
 	ret = iwl_sar_fill_profile(&mvm->fwrt, per_chain,
 				   IWL_NUM_CHAIN_TABLES,
-				   n_subbands, prof_a, prof_b);
+				   n_subbands, prof_a, prof_b,
+				   mvm->fwrt.sar_profiles, false);
 
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)

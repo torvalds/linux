@@ -210,7 +210,9 @@ int iwl_sar_geo_fill_table(struct iwl_fw_runtime *fwrt,
 
 int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			 int prof_a, int prof_b);
+			 int prof_a, int prof_b,
+			 const struct iwl_sar_profile *profiles,
+			 bool is_standalone);
 
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
