@@ -1188,7 +1188,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EIO;
 	}
 
-	return iwl_pci_gen1_2_probe(pdev, ent, mac_cfg, hw_base, hw_rev);
+	return _iwl_pci_probe(pdev, ent, mac_cfg, hw_base, hw_rev);
 }
 
 static void iwl_pci_remove(struct pci_dev *pdev)
