@@ -477,10 +477,12 @@ static int parse_dacl(const struct mnt_idmap *idmap,
 		ppace[i]->access_req =
 			smb_map_generic_desired_access(ppace[i]->access_req);
 
-		if (ppace[i]->sid.num_subauth >= 3 &&
+		if (ppace[i]->type == ACCESS_ALLOWED &&
+		    ppace[i]->sid.num_subauth >= 3 &&
 		    !(compare_sids(&ppace[i]->sid, &sid_unix_NFS_mode))) {
 			fattr->cf_mode =
 				le32_to_cpu(ppace[i]->sid.sub_auth[2]);
+			fattr->cf_posix_mode = true;
 			break;
 		} else if (!compare_sids(&ppace[i]->sid, pownersid)) {
 			acl_mode = access_flags_to_mode(fattr,
@@ -545,6 +547,10 @@ static int parse_dacl(const struct mnt_idmap *idmap,
 			default_acl_state.users->aces[default_acl_state.users->n++].perms.allow =
 				((acl_mode & 0700) >> 6) | 0004;
 		}
+	}
+	if (fattr->cf_posix_mode) {
+		ret = 0;
+		goto out;
 	}
 
 	if (owner_found) {
@@ -1675,7 +1681,8 @@ EXPORT_SYMBOL_IF_KUNIT(smb_check_perm_dacl);
 
 int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 		 const struct path *path, struct smb_ntsd *pntsd, int ntsd_len,
-		 bool type_check, bool get_write)
+		 bool type_check, bool get_write, bool posix_open,
+		 bool dacl_requested)
 {
 	int rc;
 	struct smb_fattr fattr = {{0}};
@@ -1690,6 +1697,14 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	rc = parse_sec_desc(idmap, pntsd, ntsd_len, &fattr);
 	if (rc)
 		goto out;
+	if (fattr.cf_posix_mode && !dacl_requested) {
+		fattr.cf_posix_mode = false;
+		fattr.cf_mode = inode->i_mode;
+	}
+	if (fattr.cf_posix_mode && !posix_open) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
 
 	newattrs.ia_valid = ATTR_CTIME;
 	if (!uid_eq(fattr.cf_uid, INVALID_UID)) {
@@ -1701,7 +1716,12 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 		newattrs.ia_gid = fattr.cf_gid;
 	}
 	newattrs.ia_valid |= ATTR_MODE;
-	newattrs.ia_mode = (inode->i_mode & ~0777) | (fattr.cf_mode & 0777);
+	if (fattr.cf_posix_mode)
+		newattrs.ia_mode = (inode->i_mode & ~07777) |
+				   (fattr.cf_mode & 07777);
+	else
+		newattrs.ia_mode = (inode->i_mode & ~0777) |
+				   (fattr.cf_mode & 0777);
 
 	ksmbd_vfs_remove_acl_xattrs(idmap, path);
 	/* Update posix acls */
