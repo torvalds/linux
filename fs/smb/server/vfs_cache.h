@@ -171,6 +171,7 @@ struct ksmbd_file {
 	bool				durable_replay_consumed;
 
 	bool                            is_posix_ctxt;
+	bool				posix_append;
 	struct durable_owner		owner;
 	__le16				channel_sequence;
 	unsigned int			outstanding_requests;

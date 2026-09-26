@@ -526,7 +526,6 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 		    ssize_t *written)
 {
 	struct file *filp;
-	loff_t	offset = *pos;
 	int err = 0;
 
 	if (work->conn->connection_type) {
@@ -573,7 +572,7 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 	*written = err;
 	err = 0;
 	if (sync) {
-		err = vfs_fsync_range(filp, offset, offset + *written, 0);
+		err = vfs_fsync_range(filp, *pos - *written, *pos, 0);
 		if (err < 0)
 			pr_err("fsync failed for filename = %pD, err = %d\n",
 			       fp->filp, err);
