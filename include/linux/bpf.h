@@ -1258,11 +1258,15 @@ struct btf_func_model {
 #define BPF_TRAMP_F_INDIRECT		BIT(8)
 
 /* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
- * bytes on x86.
+ * bytes on x86. The trampoline image has to fit in PAGE_SIZE.
  */
 enum {
-#if defined(__s390x__)
+#if defined(__s390x__) || defined(__powerpc64__)
 	BPF_MAX_TRAMP_LINKS = 27,
+#elif defined(__x86_64__)
+	BPF_MAX_TRAMP_LINKS = 36,
+#elif defined(__aarch64__)
+	BPF_MAX_TRAMP_LINKS = 37,
 #else
 	BPF_MAX_TRAMP_LINKS = 38,
 #endif
@@ -1315,6 +1319,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 void *arch_alloc_bpf_trampoline(unsigned int size);
 void arch_free_bpf_trampoline(void *image, unsigned int size);
 int __must_check arch_protect_bpf_trampoline(void *image, unsigned int size);
+int arch_bpf_trampoline_skip(void *nop, void *target);
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 			     struct bpf_tramp_nodes *tnodes, void *func_addr);
 
@@ -1363,18 +1368,47 @@ enum bpf_tramp_prog_type {
 	BPF_TRAMP_FSESSION,
 };
 
+/*
+ * Each prog call in a trampoline image is preceded by a nop. When the prog is
+ * detached, the nop is patched to a jump to target, right after the call, so
+ * that tasks still running in the image skip the prog.
+ */
+struct bpf_tramp_skip {
+	struct bpf_prog *prog;
+	void *nop;
+	void *target;
+};
+
 struct bpf_tramp_image {
 	void *image;
 	int size;
 	struct bpf_ksym ksym;
 	struct percpu_ref pcref;
-	void *ip_after_call;
-	void *ip_epilogue;
+	bool call_orig;
+	/* entry in tr->images, the image holds a reference on tr */
+	struct bpf_trampoline *tr;
+	struct list_head list;
+	int nr_skips;
+	struct bpf_tramp_skip *skips;
 	union {
 		struct rcu_head rcu;
 		struct work_struct work;
 	};
 };
+
+static inline void bpf_tramp_image_add_skip(struct bpf_tramp_image *im, struct bpf_prog *prog,
+					    void *nop, void *target)
+{
+	struct bpf_tramp_skip *skip;
+
+	/* struct_ops trampolines and arch_bpf_trampoline_size() have no image */
+	if (!im || !im->skips)
+		return;
+	skip = &im->skips[im->nr_skips++];
+	skip->prog = prog;
+	skip->nop = nop;
+	skip->target = target;
+}
 
 struct bpf_trampoline {
 	/* hlist for trampoline_key_table */
@@ -1402,6 +1436,8 @@ struct bpf_trampoline {
 	int progs_cnt[BPF_TRAMP_MAX];
 	/* Executable image of trampoline */
 	struct bpf_tramp_image *cur_image;
+	/* Images not freed yet, cur_image and older ones still in use */
+	struct list_head images;
 	/* Used as temporary old image storage for multi_attach */
 	struct {
 		struct bpf_tramp_image *old_image;
