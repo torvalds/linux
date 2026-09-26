@@ -7746,20 +7746,47 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_share_config *share = work->tcon->share_conf;
+	struct ksmbd_file *fp;
 	int fsinfoclass = 0;
 	struct kstatfs stfs;
 	struct path path;
 	int rc = 0, len;
 	unsigned int fixed_len = 0;
+	u64 id, pid;
 
-	if (!share->path)
-		return -EIO;
+	if (req->FileInfoClass == FS_POSIX_INFORMATION) {
+		if (conn->dialect != SMB311_PROT_ID ||
+		    !work->tcon->posix_extensions) {
+			rsp->hdr.Status = STATUS_INVALID_INFO_CLASS;
+			return -EOPNOTSUPP;
+		}
+		id = req->VolatileFileId;
+		pid = req->PersistentFileId;
+		if (work->next_smb2_rcv_hdr_off && !has_file_id(id)) {
+			id = work->compound_fid;
+			pid = work->compound_pfid;
+		}
+		fp = ksmbd_lookup_fd_slow(work, id, pid);
+		if (!fp)
+			return -ENOENT;
+		if (!fp->is_posix_ctxt) {
+			ksmbd_fd_put(work, fp);
+			rsp->hdr.Status = STATUS_INVALID_INFO_CLASS;
+			return -EOPNOTSUPP;
+		}
+		path = fp->filp->f_path;
+		path_get(&path);
+		ksmbd_fd_put(work, fp);
+	} else {
+		if (!share->path)
+			return -EIO;
 
-	scoped_with_init_fs()
-		rc = kern_path(share->path, LOOKUP_NO_SYMLINKS, &path);
-	if (rc) {
-		pr_err("cannot create vfs path\n");
-		return -EIO;
+		scoped_with_init_fs()
+			rc = kern_path(share->path, LOOKUP_NO_SYMLINKS, &path);
+		if (rc) {
+			pr_err("cannot create vfs path\n");
+			return -EIO;
+		}
 	}
 
 	rc = vfs_statfs(&path, &stfs);
@@ -7972,25 +7999,19 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	{
 		FILE_SYSTEM_POSIX_INFO *info;
 
-		if (!work->tcon->posix_extensions) {
-			pr_err("client doesn't negotiate with SMB3.1.1 POSIX Extensions\n");
-			path_put(&path);
-			return -EOPNOTSUPP;
-		} else {
-			info = (FILE_SYSTEM_POSIX_INFO *)(rsp->Buffer);
-			info->OptimalTransferSize = cpu_to_le32(stfs.f_bsize);
-			info->BlockSize = cpu_to_le32(stfs.f_bsize);
-			info->TotalBlocks = cpu_to_le64(stfs.f_blocks);
-			info->BlocksAvail = cpu_to_le64(stfs.f_bfree);
-			info->UserBlocksAvail = cpu_to_le64(stfs.f_bavail);
-			info->TotalFileNodes = cpu_to_le64(stfs.f_files);
-			info->FreeFileNodes = cpu_to_le64(stfs.f_ffree);
-			info->FileSysIdentifier =
-				cpu_to_le64((u64)(u32)stfs.f_fsid.val[1] << 32 |
-					    (u32)stfs.f_fsid.val[0]);
-			rsp->OutputBufferLength = cpu_to_le32(56);
-			fixed_len = 56;
-		}
+		info = (FILE_SYSTEM_POSIX_INFO *)(rsp->Buffer);
+		info->OptimalTransferSize = cpu_to_le32(stfs.f_bsize);
+		info->BlockSize = cpu_to_le32(stfs.f_bsize);
+		info->TotalBlocks = cpu_to_le64(stfs.f_blocks);
+		info->BlocksAvail = cpu_to_le64(stfs.f_bfree);
+		info->UserBlocksAvail = cpu_to_le64(stfs.f_bavail);
+		info->TotalFileNodes = cpu_to_le64(stfs.f_files);
+		info->FreeFileNodes = cpu_to_le64(stfs.f_ffree);
+		info->FileSysIdentifier =
+			cpu_to_le64((u64)(u32)stfs.f_fsid.val[1] << 32 |
+				    (u32)stfs.f_fsid.val[0]);
+		rsp->OutputBufferLength = cpu_to_le32(56);
+		fixed_len = 56;
 		break;
 	}
 	default:
