@@ -8001,7 +8001,7 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 
 		info = (FILE_SYSTEM_POSIX_INFO *)(rsp->Buffer);
 		info->OptimalTransferSize = cpu_to_le32(stfs.f_bsize);
-		info->BlockSize = cpu_to_le32(stfs.f_bsize);
+		info->BlockSize = cpu_to_le32(stfs.f_frsize ?: stfs.f_bsize);
 		info->TotalBlocks = cpu_to_le64(stfs.f_blocks);
 		info->BlocksAvail = cpu_to_le64(stfs.f_bfree);
 		info->UserBlocksAvail = cpu_to_le64(stfs.f_bavail);
@@ -8010,8 +8010,8 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 		info->FileSysIdentifier =
 			cpu_to_le64((u64)(u32)stfs.f_fsid.val[1] << 32 |
 				    (u32)stfs.f_fsid.val[0]);
-		rsp->OutputBufferLength = cpu_to_le32(56);
-		fixed_len = 56;
+		rsp->OutputBufferLength = cpu_to_le32(sizeof(*info));
+		fixed_len = sizeof(*info);
 		break;
 	}
 	default:
