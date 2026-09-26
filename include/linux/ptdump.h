@@ -31,9 +31,9 @@ bool ptdump_walk_pgd_level_core(struct seq_file *m,
 void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm, pgd_t *pgd);
 bool ptdump_check_wx(void);
 
-static inline void debug_checkwx(void)
+static inline void pgtable_checkwx(void)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_WX))
+	if (IS_ENABLED(CONFIG_CHECK_WX))
 		ptdump_check_wx();
 }
 

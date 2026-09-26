@@ -1494,6 +1494,47 @@ config LAZY_MMU_MODE_KUNIT_TEST
 
 	  If unsure, say N.
 
+config ARCH_HAS_CHECK_WX
+	bool
+
+config CHECK_WX
+	bool "Warn on W+X mappings at boot"
+	default STRICT_KERNEL_RWX
+	depends on ARCH_HAS_CHECK_WX
+	depends on ARCH_HAS_PTDUMP
+	depends on MMU
+	select PTDUMP
+	help
+	  Generate a warning if any W+X mappings are found at boot.
+
+	  This is useful for discovering cases where the kernel is leaving W+X
+	  mappings after applying NX, as such mappings are a security risk.
+
+	  Look for a message in dmesg output like this:
+
+	    <arch>/mm: Checked W+X mappings: passed, no W+X pages found.
+
+	  or like this, if the check failed:
+
+	    <arch>/mm: Checked W+X mappings: failed, <N> W+X pages found.
+
+	  Note that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are not a security hole in
+	  themselves, what they do is that they make the exploitation
+	  of other unfixed kernel bugs easier.
+
+	  There is no runtime or memory usage effect of this option
+	  once the kernel has booted up - it's a one time check.
+
+	  If in doubt, say "Y".
+
+config ARCH_HAS_PTDUMP
+	bool
+
+config PTDUMP
+	bool
+
+
 source "mm/damon/Kconfig"
 
 endmenu

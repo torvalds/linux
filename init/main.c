@@ -1535,7 +1535,7 @@ static void mark_readonly(void)
 		flush_module_init_free_work();
 		jump_label_init_ro();
 		mark_rodata_ro();
-		debug_checkwx();
+		pgtable_checkwx();
 		rodata_test();
 	} else if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
 		pr_info("Kernel memory protection disabled.\n");
