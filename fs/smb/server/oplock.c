@@ -2569,8 +2569,27 @@ void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp)
 	buf->Name[15] = 0x7C;
 
 	buf->nlink = cpu_to_le32(inode->i_nlink);
-	buf->reparse_tag = cpu_to_le32(fp->volatile_id);
-	buf->mode = cpu_to_le32(inode->i_mode & 0777);
+	buf->reparse_tag = smb2_get_reparse_tag_special_file(inode->i_mode);
+	buf->mode = cpu_to_le32(inode->i_mode & 07777);
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFDIR:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_DIR << POSIX_FILETYPE_SHIFT);
+		break;
+	case S_IFLNK:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_SYMLINK << POSIX_FILETYPE_SHIFT);
+		break;
+	case S_IFCHR:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_CHARDEV << POSIX_FILETYPE_SHIFT);
+		break;
+	case S_IFBLK:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_BLKDEV << POSIX_FILETYPE_SHIFT);
+		break;
+	case S_IFIFO:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_FIFO << POSIX_FILETYPE_SHIFT);
+		break;
+	case S_IFSOCK:
+		buf->mode |= cpu_to_le32(POSIX_TYPE_SOCKET << POSIX_FILETYPE_SHIFT);
+	}
 	/*
 	 * SidBuffer(44) contain two sids(Domain sid(28), UNIX group sid(16)).
 	 * Domain sid(28) = revision(1) + num_subauth(1) + authority(6) +

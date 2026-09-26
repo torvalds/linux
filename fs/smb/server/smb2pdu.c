@@ -1293,7 +1293,7 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 	ksmbd_free_work_struct(in_work);
 }
 
-static __le32 smb2_get_reparse_tag_special_file(umode_t mode)
+__le32 smb2_get_reparse_tag_special_file(umode_t mode)
 {
 	if (S_ISDIR(mode) || S_ISREG(mode))
 		return 0;
@@ -6019,6 +6019,7 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 		posix_info = (struct smb2_posix_info *)kstat;
 		posix_info->Ignored = 0;
+		posix_info->Zero = 0;
 		posix_info->CreationTime = cpu_to_le64(ksmbd_kstat->create_time);
 		time = ksmbd_UnixTimeToNT(ksmbd_kstat->kstat->ctime);
 		posix_info->ChangeTime = cpu_to_le64(time);
@@ -6028,9 +6029,11 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 		posix_info->LastWriteTime = cpu_to_le64(time);
 		posix_info->EndOfFile = cpu_to_le64(ksmbd_kstat->kstat->size);
 		posix_info->AllocationSize = cpu_to_le64(ksmbd_kstat->kstat->blocks << 9);
-		posix_info->DeviceId = cpu_to_le32(ksmbd_kstat->kstat->rdev);
+		posix_info->DeviceId = cpu_to_le32(ksmbd_kstat->kstat->dev);
 		posix_info->HardLinks = cpu_to_le32(ksmbd_kstat->kstat->nlink);
-		posix_info->Mode = cpu_to_le32(ksmbd_kstat->kstat->mode & 0777);
+		posix_info->ReparseTag =
+			smb2_get_reparse_tag_special_file(ksmbd_kstat->kstat->mode);
+		posix_info->Mode = cpu_to_le32(ksmbd_kstat->kstat->mode & 07777);
 		switch (ksmbd_kstat->kstat->mode & S_IFMT) {
 		case S_IFDIR:
 			posix_info->Mode |= cpu_to_le32(POSIX_TYPE_DIR << POSIX_FILETYPE_SHIFT);
@@ -6055,6 +6058,8 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 		posix_info->DosAttributes =
 			S_ISDIR(ksmbd_kstat->kstat->mode) ?
 				FILE_ATTRIBUTE_DIRECTORY_LE : FILE_ATTRIBUTE_ARCHIVE_LE;
+		if (posix_info->ReparseTag)
+			posix_info->DosAttributes |= FILE_ATTRIBUTE_REPARSE_POINT_LE;
 		if (d_info->hide_dot_file && d_info->name[0] == '.')
 			posix_info->DosAttributes |= FILE_ATTRIBUTE_HIDDEN_LE;
 		/*
@@ -7499,7 +7504,7 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 		file_info->AllocationSize = cpu_to_le64((u64)seof);
 	}
 	file_info->HardLinks = cpu_to_le32(stat.nlink);
-	file_info->Mode = cpu_to_le32(stat.mode & 0777);
+	file_info->Mode = cpu_to_le32(stat.mode & 07777);
 	switch (stat.mode & S_IFMT) {
 	case S_IFDIR:
 		file_info->Mode |= cpu_to_le32(POSIX_TYPE_DIR << POSIX_FILETYPE_SHIFT);
@@ -7520,7 +7525,11 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 		file_info->Mode |= cpu_to_le32(POSIX_TYPE_SOCKET << POSIX_FILETYPE_SHIFT);
 	}
 
-	file_info->DeviceId = cpu_to_le32(stat.rdev);
+	file_info->DeviceId = cpu_to_le32(stat.dev);
+	file_info->Zero = 0;
+	file_info->ReparseTag = smb2_get_reparse_tag_special_file(stat.mode);
+	if (file_info->ReparseTag)
+		file_info->DosAttributes |= FILE_ATTRIBUTE_REPARSE_POINT_LE;
 
 	/*
 	 * Sids(32) contain two sids(Domain sid(16), UNIX group sid(16)).
