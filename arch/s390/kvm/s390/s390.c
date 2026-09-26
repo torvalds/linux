@@ -5766,7 +5766,7 @@ static long cmma_d_count_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_
 	return 0;
 }
 
-void kvm_s390_update_cmma_dirty(struct kvm *kvm, struct kvm_memory_slot *old)
+void kvm_s390_update_cmma_dirty(struct kvm *kvm, const struct kvm_memory_slot *old)
 {
 	const struct dat_walk_ops ops = { .pte_entry = cmma_d_count_pte, };
 
@@ -5781,7 +5781,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm, struct kvm_memory_slot *old,
 				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
-	s390_kvm_mmu_commit_memory_region(kvm, old, new, change);
 }
 
 /**
