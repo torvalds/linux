@@ -522,16 +522,33 @@ struct iwl_rx_baid_cfg_cmd_alloc {
 } __packed; /* RX_BAID_ALLOCATION_ADD_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
+ * struct iwl_rx_baid_cfg_cmd_modify_v2 - BAID modification data
  * @old_sta_id_mask: old station ID mask
  * @new_sta_id_mask: new station ID mask
  * @tid: TID of the BAID
  */
-struct iwl_rx_baid_cfg_cmd_modify {
+struct iwl_rx_baid_cfg_cmd_modify_v2 {
 	__le32 old_sta_id_mask;
 	__le32 new_sta_id_mask;
 	__le32 tid;
 } __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
+ * @old_sta_id_mask: old station ID mask
+ * @new_sta_id_mask: new station ID mask
+ * @tid: TID of the BAID
+ * @reserved: reserved
+ * @win_size: RX BA session window size to apply to the modified BAID,
+ *	0 means keep the current one
+ */
+struct iwl_rx_baid_cfg_cmd_modify {
+	__le32 old_sta_id_mask;
+	__le32 new_sta_id_mask;
+	u8 tid;
+	u8 reserved;
+	__le16 win_size;
+} __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_rx_baid_cfg_cmd_remove_v1 - BAID removal data
@@ -555,7 +572,8 @@ struct iwl_rx_baid_cfg_cmd_remove {
  * struct iwl_rx_baid_cfg_cmd - BAID allocation/config command
  * @action: the action, from &enum iwl_rx_baid_action
  * @alloc: allocation data
- * @modify: modify data
+ * @modify_v2: modify data (version 2)
+ * @modify: modify data (version 3)
  * @remove_v1: remove data (version 1)
  * @remove: remove data
  */
@@ -563,11 +581,12 @@ struct iwl_rx_baid_cfg_cmd {
 	__le32 action;
 	union {
 		struct iwl_rx_baid_cfg_cmd_alloc alloc;
+		struct iwl_rx_baid_cfg_cmd_modify_v2 modify_v2;
 		struct iwl_rx_baid_cfg_cmd_modify modify;
 		struct iwl_rx_baid_cfg_cmd_remove_v1 remove_v1;
 		struct iwl_rx_baid_cfg_cmd_remove remove;
-	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_2 */
-} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_2 */
+	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_3 */
+} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_rx_baid_cfg_resp - BAID allocation response
