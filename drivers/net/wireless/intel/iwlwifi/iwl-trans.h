@@ -992,8 +992,7 @@ bool iwl_trans_grab_nic_access(struct iwl_trans *trans);
  */
 void iwl_trans_resched_with_nic_access(struct iwl_trans *trans);
 
-void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans);
+void iwl_trans_release_nic_access(struct iwl_trans *trans);
 
 static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
 					    enum iwl_fw_error_type type)

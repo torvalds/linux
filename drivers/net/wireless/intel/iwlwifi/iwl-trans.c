@@ -576,8 +576,7 @@ void iwl_trans_resched_with_nic_access(struct iwl_trans *trans)
 	iwl_trans_pcie_resched_with_nic_access(trans);
 }
 
-void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans)
+void iwl_trans_release_nic_access(struct iwl_trans *trans)
 {
 	iwl_trans_pcie_release_nic_access(trans);
 }
