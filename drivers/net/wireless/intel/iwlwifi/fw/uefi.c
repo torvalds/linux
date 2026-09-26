@@ -251,15 +251,24 @@ static int iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 	memset(pnvm_data, 0, sizeof(*pnvm_data));
 
 	while (len >= sizeof(*tlv)) {
-		u32 tlv_len, tlv_type;
+		u32 tlv_len, tlv_type, tlv_len_aligned;
 
 		len -= sizeof(*tlv);
 		tlv = (const void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
 		tlv_type = le32_to_cpu(tlv->type);
+		tlv_len_aligned = ALIGN(tlv_len, 4);
 
-		if (len < tlv_len) {
+		/* Make sure ALIGN() did not overflow for a malformed TLV length. */
+		if (tlv_len_aligned < tlv_len) {
+			IWL_ERR(trans,
+				"TLV len overflows on alignment: %u\n",
+				tlv_len);
+			return -EINVAL;
+		}
+
+		if (len < tlv_len_aligned) {
 			IWL_ERR(trans, "invalid TLV len: %zd/%u\n",
 				len, tlv_len);
 			return -EINVAL;
@@ -278,13 +287,13 @@ static int iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 				     "New REDUCE_POWER section started, stop parsing.\n");
 			goto done;
 		default:
-			IWL_DEBUG_FW(trans, "Found TLV 0x%0x, len %d\n",
+			IWL_DEBUG_FW(trans, "Found TLV 0x%0x, len %u\n",
 				     tlv_type, tlv_len);
 			break;
 		}
 
-		len -= ALIGN(tlv_len, 4);
-		data += ALIGN(tlv_len, 4);
+		len -= tlv_len_aligned;
+		data += tlv_len_aligned;
 	}
 
 done:
@@ -305,15 +314,24 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 	IWL_DEBUG_FW(trans, "Parsing REDUCE_POWER data\n");
 
 	while (len >= sizeof(*tlv)) {
-		u32 tlv_len, tlv_type;
+		u32 tlv_len, tlv_type, tlv_len_aligned;
 
 		len -= sizeof(*tlv);
 		tlv = (const void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
 		tlv_type = le32_to_cpu(tlv->type);
+		tlv_len_aligned = ALIGN(tlv_len, 4);
 
-		if (len < tlv_len) {
+		/* Make sure ALIGN() did not overflow for a malformed TLV length. */
+		if (tlv_len_aligned < tlv_len) {
+			IWL_ERR(trans,
+				"TLV len overflows on alignment: %u\n",
+				tlv_len);
+			return -EINVAL;
+		}
+
+		if (len < tlv_len_aligned) {
 			IWL_ERR(trans, "invalid TLV len: %zd/%u\n",
 				len, tlv_len);
 			return -EINVAL;
@@ -323,22 +341,23 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 			const struct iwl_sku_id *tlv_sku_id =
 				(const void *)(data + sizeof(*tlv));
 
-			IWL_DEBUG_FW(trans,
-				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
-				     tlv_len);
 			if (tlv_len < sizeof(*tlv_sku_id)) {
 				IWL_ERR(trans, "invalid PNVM SKU TLV len: %u\n",
 					tlv_len);
 				return -EINVAL;
 			}
 
+			IWL_DEBUG_FW(trans,
+				     "Got IWL_UCODE_TLV_PNVM_SKU len %u\n",
+				     tlv_len);
+
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
 				     le32_to_cpu(tlv_sku_id->data[0]),
 				     le32_to_cpu(tlv_sku_id->data[1]),
 				     le32_to_cpu(tlv_sku_id->data[2]));
 
-			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-			len -= ALIGN(tlv_len, 4);
+			data += sizeof(*tlv) + tlv_len_aligned;
+			len -= tlv_len_aligned;
 
 			if (sku_id[0] == tlv_sku_id->data[0] &&
 			    sku_id[1] == tlv_sku_id->data[1] &&
@@ -352,8 +371,8 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 				IWL_DEBUG_FW(trans, "SKU ID didn't match!\n");
 			}
 		} else {
-			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-			len -= ALIGN(tlv_len, 4);
+			data += sizeof(*tlv) + tlv_len_aligned;
+			len -= tlv_len_aligned;
 		}
 	}
 
