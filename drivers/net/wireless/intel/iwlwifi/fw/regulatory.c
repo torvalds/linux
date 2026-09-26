@@ -49,9 +49,14 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 		},
 	},
-	{ .ident = "SAMSUNG",
+	{ .ident = "SAMSUNG_ELECTRONICS",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Samsung"),
 		},
 	},
 	{ .ident = "MSFT",
@@ -126,9 +131,14 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 		},
 	},
-	{ .ident = "SAMSUNG",
+	{ .ident = "SAMSUNG_ELECTRONICS",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Samsung"),
 		},
 	},
 		{ .ident = "LENOVO",
