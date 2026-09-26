@@ -95,9 +95,13 @@ static int of_pci_prop_bus_range(struct pci_dev *pdev,
 				 struct of_changeset *ocs,
 				 struct device_node *np)
 {
-	u32 bus_range[] = { pdev->subordinate->busn_res.start,
-			    pdev->subordinate->busn_res.end };
+	u32 bus_range[2];
 
+	if (!pdev->subordinate)
+		return 0;
+
+	bus_range[0] = pdev->subordinate->busn_res.start;
+	bus_range[1] = pdev->subordinate->busn_res.end;
 	return of_changeset_add_prop_u32_array(ocs, np, "bus-range", bus_range,
 					       ARRAY_SIZE(bus_range));
 }
@@ -219,6 +223,9 @@ static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 	u32 *int_map, *mapp;
 	int ret;
 	u8 pin;
+
+	if (!pdev->subordinate)
+		return 0;
 
 	pnode = pci_device_to_OF_node(pdev->bus->self);
 	if (!pnode)
