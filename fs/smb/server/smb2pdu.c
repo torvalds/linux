@@ -6469,6 +6469,12 @@ int smb2_query_dir(struct ksmbd_work *work)
 		rc = -EBADF;
 		goto err_out2;
 	}
+	if (req->FileInformationClass == SMB_FIND_FILE_POSIX_INFO &&
+	    (conn->dialect != SMB311_PROT_ID ||
+	     !work->tcon->posix_extensions || !dir_fp->is_posix_ctxt)) {
+		rc = -EFAULT;
+		goto err_out2;
+	}
 
 	if (!(dir_fp->daccess & FILE_LIST_DIRECTORY_LE) ||
 	    inode_permission(file_mnt_idmap(dir_fp->filp),
@@ -7691,8 +7697,9 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 		rc = get_file_attribute_tag_info(rsp, fp, work->response_buf);
 		break;
 	case SMB_FIND_FILE_POSIX_INFO:
-		if (!work->tcon->posix_extensions) {
-			pr_err("client doesn't negotiate with SMB3.1.1 POSIX Extensions\n");
+		if (work->conn->dialect != SMB311_PROT_ID ||
+		    !work->tcon->posix_extensions || !fp->is_posix_ctxt) {
+			rsp->hdr.Status = STATUS_INVALID_INFO_CLASS;
 			rc = -EOPNOTSUPP;
 		} else {
 			rc = find_file_posix_info(work, req, rsp, fp);
