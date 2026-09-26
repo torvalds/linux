@@ -3494,7 +3494,7 @@ Kernel parameters
 
 			* SATA link speed limit: 1.5Gbps or 3.0Gbps.
 
-			* Transfer mode: pio[0-7], mwdma[0-4] and udma[0-7].
+			* Transfer mode: pio[0-6], mwdma[0-4] and udma[0-7].
 			  udma[/][16,25,33,44,66,100,133] notation is also
 			  allowed.
 
@@ -3512,7 +3512,7 @@ Kernel parameters
 
 			* [no]ncqtrim: Enable or disable queued DSM TRIM.
 
-			* [no]ncqati: Enable or disable NCQ trim on ATI chipset.
+			* [no]ncqati: Enable or disable NCQ on ATI chipsets.
 
 			* [no]trim: Enable or disable (unqueued) TRIM.
 
@@ -3543,11 +3543,9 @@ Kernel parameters
 
 			* max_sec_128: Set transfer size limit to 128 sectors.
 
-			* max_sec_1024: Set or clear transfer size limit to
-			  1024 sectors.
+			* max_sec_1024: Set transfer size limit to 1024 sectors.
 
-			* max_sec_lba48: Set or clear transfer size limit to
-			  65535 sectors.
+			* max_sec_lba48: Set transfer size limit to 65535 sectors.
 
 			* external: Mark port as external (hotplug-capable).
 
