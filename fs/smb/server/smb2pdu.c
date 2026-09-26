@@ -7462,8 +7462,10 @@ static int get_file_attribute_tag_info(struct smb2_query_info_rsp *rsp,
 	return 0;
 }
 
-static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
-				struct ksmbd_file *fp, void *rsp_org)
+static int find_file_posix_info(struct ksmbd_work *work,
+				struct smb2_query_info_req *req,
+				struct smb2_query_info_rsp *rsp,
+				struct ksmbd_file *fp)
 {
 	struct smb311_posix_qinfo *file_info;
 	struct inode *inode = file_inode(fp->filp);
@@ -7471,9 +7473,13 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 	struct kstat stat;
+	char *filename;
+	__le16 *utf16_name;
+	__le32 *filename_len;
+	size_t name_bytes;
 	u64 time;
-	int out_buf_len = sizeof(struct smb311_posix_qinfo) + 32;
-	int ret;
+	int fixed_len = sizeof(struct smb311_posix_qinfo) + 32 + sizeof(__le32);
+	int max_len, conv_len, ret;
 
 	if (!(fp->daccess & FILE_READ_ATTRIBUTES_LE)) {
 		pr_err("no right to read the attributes : 0x%x\n",
@@ -7484,6 +7490,38 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 	ret = get_file_allocation_stat(fp, &stat);
 	if (ret)
 		return ret;
+	max_len = smb2_calc_max_out_buf_len(work,
+			offsetof(struct smb2_query_info_rsp, Buffer),
+			le32_to_cpu(req->OutputBufferLength));
+	if (max_len < fixed_len) {
+		rsp->hdr.Status = STATUS_INFO_LENGTH_MISMATCH;
+		return -EINVAL;
+	}
+	filename = convert_to_nt_pathname(work->tcon->share_conf,
+					   &fp->filp->f_path);
+	if (IS_ERR(filename))
+		return PTR_ERR(filename);
+	if (filename[0] == '\\')
+		memmove(filename, filename + 1, strlen(filename));
+	name_bytes = strlen(filename);
+	utf16_name = kmalloc_array(name_bytes + 1, sizeof(*utf16_name),
+				    KSMBD_DEFAULT_GFP);
+	if (!utf16_name) {
+		kfree(filename);
+		return -ENOMEM;
+	}
+	conv_len = smbConvertToUTF16(utf16_name, filename, name_bytes,
+				      work->conn->local_nls, 0);
+	kfree(filename);
+	if (conv_len < 0) {
+		kfree(utf16_name);
+		return conv_len;
+	}
+	if (conv_len > (max_len - fixed_len) / sizeof(*utf16_name)) {
+		kfree(utf16_name);
+		rsp->hdr.Status = STATUS_INFO_LENGTH_MISMATCH;
+		return -EINVAL;
+	}
 
 	file_info = (struct smb311_posix_qinfo *)rsp->Buffer;
 	file_info->CreationTime = cpu_to_le64(fp->create_time);
@@ -7540,8 +7578,14 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 		  SIDUNIX_USER, (struct smb_sid *)&file_info->Sids[0]);
 	id_to_sid(from_kgid_munged(&init_user_ns, vfsgid_into_kgid(vfsgid)),
 		  SIDUNIX_GROUP, (struct smb_sid *)&file_info->Sids[16]);
+	filename_len = (__le32 *)&file_info->Sids[32];
+	memcpy(&file_info->Sids[36], utf16_name,
+	       conv_len * sizeof(*utf16_name));
+	kfree(utf16_name);
+	*filename_len = cpu_to_le32(conv_len * sizeof(__le16));
 
-	rsp->OutputBufferLength = cpu_to_le32(out_buf_len);
+	rsp->OutputBufferLength = cpu_to_le32(fixed_len +
+					       conv_len * sizeof(__le16));
 
 	return 0;
 }
@@ -7651,7 +7695,7 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 			pr_err("client doesn't negotiate with SMB3.1.1 POSIX Extensions\n");
 			rc = -EOPNOTSUPP;
 		} else {
-			rc = find_file_posix_info(rsp, fp, work->response_buf);
+			rc = find_file_posix_info(work, req, rsp, fp);
 		}
 		break;
 	default:
