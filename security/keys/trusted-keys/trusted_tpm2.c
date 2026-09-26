@@ -25,23 +25,35 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 {
 	struct trusted_key_tpm *private = options->private;
 	const int SCRATCH_SIZE = PAGE_SIZE;
-	u8 *scratch = kmalloc(SCRATCH_SIZE, GFP_KERNEL);
-	u8 *work = scratch, *work1;
-	u8 *end_work = scratch + SCRATCH_SIZE;
+	u8 *scratch __free(kfree) = NULL;
+	u8 *work, *work1;
+	u8 *end_work;
 	u8 *priv, *pub;
-	u16 priv_len, pub_len;
+	u32 priv_len, pub_len;
 	int ret;
 
-	priv_len = get_unaligned_be16(src) + 2;
-	priv = src;
+	if (len < 4)
+		return -EINVAL;
 
+	priv_len = get_unaligned_be16(src) + 2;
+	if (priv_len + 2 > len)
+		return -EIO;
+
+	priv = src;
 	src += priv_len;
 
 	pub_len = get_unaligned_be16(src) + 2;
+	if (pub_len + priv_len > len)
+		return -EIO;
+
 	pub = src;
 
+	scratch = kmalloc(SCRATCH_SIZE, GFP_KERNEL);
 	if (!scratch)
 		return -ENOMEM;
+
+	work = scratch;
+	end_work = scratch + SCRATCH_SIZE;
 
 	work = asn1_encode_oid(work, end_work, tpm2key_oid,
 			       asn1_oid_len(tpm2key_oid));
@@ -50,10 +62,9 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 		unsigned char bool[3], *w = bool;
 		/* tag 0 is emptyAuth */
 		w = asn1_encode_boolean(w, w + sizeof(bool), true);
-		if (WARN(IS_ERR(w), "BUG: Boolean failed to encode")) {
-			ret = PTR_ERR(w);
-			goto err;
-		}
+		if (WARN(IS_ERR(w), "BUG: Boolean failed to encode"))
+			return PTR_ERR(w);
+
 		work = asn1_encode_tag(work, end_work, 0, bool, w - bool);
 	}
 
@@ -65,8 +76,7 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 	 */
 	if (WARN(work - scratch + pub_len + priv_len + 14 > SCRATCH_SIZE,
 		 "BUG: scratch buffer is too small")) {
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	work = asn1_encode_integer(work, end_work, private->keyhandle);
@@ -79,15 +89,10 @@ static int tpm2_key_encode(struct trusted_key_payload *payload,
 	if (IS_ERR(work1)) {
 		ret = PTR_ERR(work1);
 		pr_err("BUG: ASN.1 encoder failed with %d\n", ret);
-		goto err;
+		return ret;
 	}
 
-	kfree(scratch);
 	return work1 - payload->blob;
-
-err:
-	kfree(scratch);
-	return ret;
 }
 
 struct tpm2_key_context {
@@ -340,10 +345,11 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 		goto out;
 
 	blob_len = tpm_buf_read_u32(buf, &offset);
-	if (blob_len > MAX_BLOB_SIZE || buf->flags & TPM_BUF_INVALID) {
+	if (buf->flags & TPM_BUF_INVALID) {
 		rc = -E2BIG;
 		goto out;
 	}
+
 	if (buf->length - offset < blob_len) {
 		rc = -EFAULT;
 		goto out;
