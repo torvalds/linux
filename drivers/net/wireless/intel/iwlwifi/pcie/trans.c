@@ -28,7 +28,7 @@
 #include "mei/iwl-mei.h"
 #include "internal.h"
 #include "iwl-fh.h"
-#include "pcie/iwl-context-info-v2.h"
+#include "iwl-context-info-v2.h"
 #include "pcie/utils.h"
 
 #define IWL_HOST_MON_BLOCK_PEMON	0x00
