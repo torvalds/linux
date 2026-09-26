@@ -2371,6 +2371,9 @@ struct create_context *smb2_find_context_vals(void *open_req, const char *tag, i
 	struct create_context *cc;
 	unsigned int next = 0;
 	char *name;
+	struct create_context *found = NULL;
+	bool posix_tag = tag_len == POSIX_CTXT_DATA_LEN &&
+			 !memcmp(tag, SMB2_CREATE_TAG_POSIX, POSIX_CTXT_DATA_LEN);
 	struct smb2_create_req *req = (struct smb2_create_req *)open_req;
 	unsigned int remain_len, name_off, name_len, value_off, value_len,
 		     cc_len;
@@ -2408,13 +2411,18 @@ struct create_context *smb2_find_context_vals(void *open_req, const char *tag, i
 			return ERR_PTR(-EINVAL);
 
 		name = (char *)cc + name_off;
-		if (name_len == tag_len && !memcmp(name, tag, name_len))
-			return cc;
+		if (name_len == tag_len && !memcmp(name, tag, name_len)) {
+			if (!posix_tag)
+				return cc;
+			if (found)
+				return ERR_PTR(-EINVAL);
+			found = cc;
+		}
 
 		remain_len -= next;
 	} while (next != 0);
 
-	return NULL;
+	return found;
 }
 
 /**

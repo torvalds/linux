@@ -4263,12 +4263,7 @@ int smb2_open(struct ksmbd_work *work)
 		return -EINVAL;
 	}
 
-	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
-		ksmbd_debug(SMB, "IPC pipe create request\n");
-		return create_smb2_pipe(work);
-	}
-
-	if (req->CreateContextsOffset && tcon->posix_extensions) {
+	if (req->CreateContextsOffset) {
 		context = smb2_find_context_vals(req, SMB2_CREATE_TAG_POSIX, 16);
 		if (IS_ERR(context)) {
 			rc = PTR_ERR(context);
@@ -4276,6 +4271,19 @@ int smb2_open(struct ksmbd_work *work)
 		} else if (context) {
 			struct create_posix *posix = (struct create_posix *)context;
 
+			if (conn->dialect != SMB311_PROT_ID) {
+				rsp->hdr.Status = STATUS_INVALID_INFO_CLASS;
+				rc = -ENOTTY;
+				goto err_out2;
+			}
+			if (!tcon->posix_extensions) {
+				rc = -EOPNOTSUPP;
+				goto err_out2;
+			}
+			if (test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
+				rc = -EOPNOTSUPP;
+				goto err_out2;
+			}
 			if (le16_to_cpu(context->DataOffset) +
 				le32_to_cpu(context->DataLength) <
 			    sizeof(struct create_posix) - 4) {
@@ -4287,6 +4295,10 @@ int smb2_open(struct ksmbd_work *work)
 			posix_mode = le32_to_cpu(posix->Mode);
 			posix_ctxt = true;
 		}
+	}
+	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
+		ksmbd_debug(SMB, "IPC pipe create request\n");
+		return create_smb2_pipe(work);
 	}
 
 	if (req->NameLength) {
