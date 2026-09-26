@@ -3016,24 +3016,6 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct iwl_trans *trans = file->private_data;
-	char *buf = NULL;
-	ssize_t ret;
-
-	ret = iwl_dump_fh(trans, &buf);
-	if (ret < 0)
-		return ret;
-	if (!buf)
-		return -EINVAL;
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
-	kfree(buf);
-	return ret;
-}
-
 static ssize_t iwl_dbgfs_rfkill_read(struct file *file,
 				     char __user *user_buf,
 				     size_t count, loff_t *ppos)
@@ -3133,7 +3115,6 @@ static ssize_t iwl_dbgfs_reset_write(struct file *file,
 }
 
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
-DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(rfkill);
@@ -3157,7 +3138,6 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(tx_queue, dir, 0400);
 	DEBUGFS_ADD_FILE(interrupt, dir, 0600);
 	DEBUGFS_ADD_FILE(csr, dir, 0200);
-	DEBUGFS_ADD_FILE(fh_reg, dir, 0400);
 	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
 	DEBUGFS_ADD_FILE(rf, dir, 0400);
 	DEBUGFS_ADD_FILE(reset, dir, 0200);
