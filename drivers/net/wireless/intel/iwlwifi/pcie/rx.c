@@ -1519,6 +1519,11 @@ restart:
 	r = iwl_get_closed_rb_stts(trans, rxq);
 	i = rxq->read;
 
+	/* Order the read of the write pointer before any read of the
+	 * completion descriptors and of the RB contents it makes visible.
+	 */
+	dma_rmb();
+
 	/* W/A 9000 device step A0 wrap-around bug */
 	r &= (rxq->queue_size - 1);
 
