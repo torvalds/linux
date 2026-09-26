@@ -1102,7 +1102,7 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 	if (count == 6 && !strcmp(buf, "nolog\n"))
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 
-	iwl_force_nmi(mvm->trans);
+	iwl_trans_force_nmi(mvm->trans);
 
 	return count;
 }

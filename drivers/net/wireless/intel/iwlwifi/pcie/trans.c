@@ -3596,7 +3596,7 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	if (interrupts_enabled)
 		iwl_trans_pci_interrupts(trans, false);
 
-	iwl_force_nmi(trans);
+	iwl_trans_force_nmi(trans);
 	while (time_after(timeout, jiffies)) {
 		u32 inta_hw = iwl_read32(trans, inta_addr);
 

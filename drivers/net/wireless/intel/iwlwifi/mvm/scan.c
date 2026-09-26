@@ -2703,7 +2703,7 @@ void iwl_mvm_scan_timeout_wk(struct work_struct *work)
 
 	IWL_ERR(mvm, "regular scan timed out\n");
 
-	iwl_force_nmi(mvm->trans);
+	iwl_trans_force_nmi(mvm->trans);
 }
 
 static void iwl_mvm_fill_scan_type(struct iwl_mvm *mvm,

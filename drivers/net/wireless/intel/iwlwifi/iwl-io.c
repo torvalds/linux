@@ -10,7 +10,6 @@
 #include "iwl-io.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
-#include "iwl-prph.h"
 
 void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
@@ -216,20 +215,3 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
-
-void iwl_force_nmi(struct iwl_trans *trans)
-{
-	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
-		iwl_write_prph_delay(trans, DEVICE_SET_NMI_REG,
-				     DEVICE_SET_NMI_VAL_DRV, 1);
-	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
-		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
-				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
-	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
-	else
-		iwl_write32(trans, CSR_DOORBELL_VECTOR,
-			    UREG_DOORBELL_TO_ISR6_NMI_BIT);
-}
-IWL_EXPORT_SYMBOL(iwl_force_nmi);

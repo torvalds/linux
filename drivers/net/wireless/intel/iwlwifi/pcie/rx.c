@@ -1493,7 +1493,7 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 
 out_err:
 	WARN(1, "Invalid rxb from HW %u\n", (u32)vid);
-	iwl_force_nmi(trans);
+	iwl_trans_force_nmi(trans);
 	return NULL;
 }
 

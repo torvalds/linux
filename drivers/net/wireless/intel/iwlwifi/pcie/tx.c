@@ -715,7 +715,7 @@ static void iwl_txq_stuck_timer(struct timer_list *t)
 
 	iwl_txq_log_scd_error(trans, txq);
 
-	iwl_force_nmi(trans);
+	iwl_trans_force_nmi(trans);
 }
 
 int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
@@ -1105,7 +1105,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, txq->write_ptr, r);
-			iwl_force_nmi(trans);
+			iwl_trans_force_nmi(trans);
 		}
 	}
 
