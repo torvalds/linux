@@ -583,7 +583,11 @@ struct iwl_rx_mpdu_desc_v3 {
 	/**
 	 * @reserved_xsum: reserved high bits in the raw checksum
 	 */
-	__le16 reserved_xsum;
+	u8 reserved_xsum;
+	/**
+	 * @mac_context: MAC context mask, in this DW only from API version 10
+	 */
+	u8 mac_context;
 	/* DW11 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
@@ -603,9 +607,10 @@ struct iwl_rx_mpdu_desc_v3 {
 	 */
 	u8 channel;
 	/**
-	 * @mac_context: MAC context mask
+	 * @ru: RU/MRU/DRU used for the frame, in trigger-like format;
+	 *	only from API version 10, this byte held @mac_context before
 	 */
-	u8 mac_context;
+	u8 ru;
 	/* DW13 */
 	/**
 	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
@@ -647,7 +652,11 @@ struct iwl_rx_mpdu_desc_v3 {
 	__le32 reserved[1];
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,
 	     * RX_MPDU_RES_START_API_S_VER_5,
-	     * RX_MPDU_RES_START_API_S_VER_6
+	     * RX_MPDU_RES_START_API_S_VER_6,
+	     * RX_MPDU_RES_START_API_S_VER_7,
+	     * RX_MPDU_RES_START_API_S_VER_8,
+	     * RX_MPDU_RES_START_API_S_VER_9,
+	     * RX_MPDU_RES_START_API_S_VER_10
 	     */
 
 /**
@@ -737,6 +746,8 @@ struct iwl_rx_mpdu_desc {
 	     * RX_MPDU_RES_START_API_S_VER_6
 	     * RX_MPDU_RES_START_API_S_VER_7
 	     * RX_MPDU_RES_START_API_S_VER_8
+	     * RX_MPDU_RES_START_API_S_VER_9
+	     * RX_MPDU_RES_START_API_S_VER_10
 	     */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
