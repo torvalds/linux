@@ -756,10 +756,10 @@ void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 
 		rdmsrq(x86_pmu.lbr_from + lbr_idx, msr_lastbranch.lbr);
 
-		perf_clear_branch_entry_bitfields(br);
-
-		br->from	= msr_lastbranch.from;
-		br->to		= msr_lastbranch.to;
+		*br = (struct perf_branch_entry){
+			.from	= msr_lastbranch.from,
+			.to	= msr_lastbranch.to,
+		};
 		br++;
 	}
 	cpuc->lbr_stack.nr = i;
@@ -847,14 +847,15 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		if (abort && x86_pmu.lbr_double_abort && out > 0)
 			out--;
 
-		perf_clear_branch_entry_bitfields(br+out);
-		br[out].from	 = from;
-		br[out].to	 = to;
-		br[out].mispred	 = mis;
-		br[out].predicted = pred;
-		br[out].in_tx	 = in_tx;
-		br[out].abort	 = abort;
-		br[out].cycles	 = cycles;
+		br[out] = (struct perf_branch_entry){
+			.from		= from,
+			.to		= to,
+			.mispred	= mis,
+			.predicted	= pred,
+			.in_tx		= in_tx,
+			.abort		= abort,
+			.cycles		= cycles,
+		};
 		out++;
 	}
 	cpuc->lbr_stack.nr = out;
@@ -905,6 +906,7 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 	struct perf_branch_entry *e;
 	struct lbr_entry *lbr;
 	u64 from, to, info;
+	bool mispred;
 	int i;
 
 	for (i = 0; i < x86_pmu.lbr_nr; i++) {
@@ -921,24 +923,27 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 		to = rdlbr_to(i, lbr);
 		info = rdlbr_info(i, lbr);
 
-		perf_clear_branch_entry_bitfields(e);
+		mispred = get_lbr_mispred(info);
 
-		e->from		= from;
-		e->to		= to;
-		e->mispred	= get_lbr_mispred(info);
-		e->predicted	= !e->mispred;
-		e->in_tx	= !!(info & LBR_INFO_IN_TX);
-		e->abort	= !!(info & LBR_INFO_ABORT);
-		e->cycles	= get_lbr_cycles(info);
-		e->type		= get_lbr_br_type(info);
-
-		/*
-		 * Leverage the reserved field of cpuc->lbr_entries[i] to
-		 * temporarily store the branch counters information.
-		 * The later code will decide what content can be disclosed
-		 * to the perf tool. Pleae see intel_pmu_lbr_counters_reorder().
-		 */
-		e->reserved	= (info >> LBR_INFO_BR_CNTR_OFFSET) & LBR_INFO_BR_CNTR_FULL_MASK;
+		*e = (struct perf_branch_entry){
+			.from		= from,
+			.to		= to,
+			.mispred	= mispred,
+			.predicted	= !mispred,
+			.in_tx		= !!(info & LBR_INFO_IN_TX),
+			.abort		= !!(info & LBR_INFO_ABORT),
+			.cycles		= get_lbr_cycles(info),
+			.type		= get_lbr_br_type(info),
+			/*
+			 * Leverage the reserved field of
+			 * cpuc->lbr_entries[i] to temporarily store the
+			 * branch counters information. The later code will
+			 * decide what content can be disclosed to the perf
+			 * tool. Pleae see intel_pmu_lbr_counters_reorder().
+			 */
+			.reserved	= (info >> LBR_INFO_BR_CNTR_OFFSET) &
+					  LBR_INFO_BR_CNTR_FULL_MASK,
+		};
 	}
 
 	cpuc->lbr_stack.nr = i;
