@@ -133,16 +133,17 @@ struct iso_resource_params {
 	s32 bandwidth;
 };
 
+enum {
+	ISO_RES_AUTO_ALLOC,
+	ISO_RES_AUTO_REALLOC,
+	ISO_RES_AUTO_DEALLOC,
+};
+
 struct iso_resource_auto {
 	struct client_resource resource;
 	struct client *client;
-	/* Schedule work and access todo only with client->lock held. */
 	struct delayed_work work;
-	enum {
-		ISO_RES_AUTO_ALLOC,
-		ISO_RES_AUTO_REALLOC,
-		ISO_RES_AUTO_DEALLOC,
-	} todo;
+	atomic_t todo; // one of ISO_RES_AUTO_XXX.
 	int generation;
 	struct iso_resource_params params;
 	struct iso_resource_event *e_alloc, *e_dealloc;
@@ -1338,16 +1339,14 @@ static void iso_resource_auto_work(struct work_struct *work)
 	struct iso_resource_auto *r = from_work(r, work, work.work);
 	struct client *client = r->client;
 	unsigned long index = r->resource.handle;
-	int channel, bandwidth, todo;
+	int channel, bandwidth;
 	bool free;
 
 	u64 reset_jiffies = client->device->card->reset_jiffies;
 	int current_generation = client->device->generation;
 
 	int resource_generation = xchg(&r->generation, current_generation); // But no need to be atomic.
-
-	scoped_guard(spinlock_irq, &client->lock)
-		todo = r->todo;
+	int todo = atomic_read(&r->todo);
 
 	switch (todo) {
 	case ISO_RES_AUTO_ALLOC:
@@ -1404,12 +1403,10 @@ static void iso_resource_auto_work(struct work_struct *work)
 			// Notify the userspace client of the failure through a deallocation event.
 			e = xchg(&r->e_dealloc, NULL); // But no need to be atomic.
 		} else {
-			// Transit from allocation to reallocation, except if the client requested
-			// deallocation in the meantime.
-			scoped_guard(spinlock_irq,  &client->lock) {
-				if (r->todo == ISO_RES_AUTO_ALLOC)
-					r->todo = ISO_RES_AUTO_REALLOC;
-			}
+			// Transit from allocation to reallocation. Use compare-and-swap atomic
+			// operation because the todo member can be set with ISO_RES_AUTO_DEALLOC
+			// by release_iso_resource_auto() in parallel.
+			atomic_cmpxchg_relaxed(&r->todo, ISO_RES_AUTO_ALLOC, ISO_RES_AUTO_REALLOC);
 
 			if (channel >= 0)
 				r->params.channels_mask = BIT_ULL(channel);
@@ -1440,9 +1437,7 @@ static void release_iso_resource_auto(struct client *client, struct client_resou
 {
 	struct iso_resource_auto *r = to_iso_resource_auto(resource);
 
-	guard(spinlock_irq)(&client->lock);
-
-	r->todo = ISO_RES_AUTO_DEALLOC;
+	atomic_set(&r->todo, ISO_RES_AUTO_DEALLOC);
 	schedule_iso_resource_auto(r, 0);
 }
 
@@ -1463,7 +1458,7 @@ static int ioctl_allocate_iso_resource(struct client *client, union ioctl_arg *a
 
 	INIT_DELAYED_WORK(&r->work, iso_resource_auto_work);
 	r->client	= client;
-	r->todo		= ISO_RES_AUTO_ALLOC;
+	atomic_set(&r->todo, ISO_RES_AUTO_ALLOC);
 	r->e_alloc	= e1;
 	r->e_dealloc	= e2;
 
