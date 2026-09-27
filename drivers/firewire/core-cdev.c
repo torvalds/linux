@@ -338,13 +338,14 @@ static void queue_event(struct client *client, struct event *event,
 	event->v[1].size = size1;
 
 	scoped_guard(spinlock_irqsave, &client->lock) {
-		if (client->in_shutdown)
+		if (client->in_shutdown) {
 			kfree(event);
-		else
+		} else {
 			list_add_tail(&event->link, &client->event_list);
-	}
 
-	wake_up_interruptible(&client->wait);
+			wake_up_interruptible(&client->wait);
+		}
+	}
 }
 
 static int dequeue_event(struct client *client,
