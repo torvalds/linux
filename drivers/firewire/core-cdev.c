@@ -1341,17 +1341,17 @@ static void iso_resource_auto_work(struct work_struct *work)
 	struct iso_resource_auto *r = from_work(r, work, work.work);
 	struct client *client = r->client;
 	unsigned long index = r->resource.handle;
-	int current_generation, resource_generation, channel, bandwidth, todo;
-	u64 reset_jiffies;
+	int channel, bandwidth, todo;
 	bool free;
 
-	scoped_guard(spinlock_irq, &client->lock) {
-		reset_jiffies = client->device->card->reset_jiffies;
-		current_generation = client->device->generation;
-		resource_generation = r->generation;
-		r->generation = current_generation;
+	u64 reset_jiffies = client->device->card->reset_jiffies;
+	int current_generation = client->device->generation;
+
+	int resource_generation = r->generation;
+	r->generation = current_generation;
+
+	scoped_guard(spinlock_irq, &client->lock)
 		todo = r->todo;
-	}
 
 	switch (todo) {
 	case ISO_RES_AUTO_ALLOC:
@@ -1506,12 +1506,10 @@ static void iso_resource_once_work(struct work_struct *work)
 	struct iso_resource_once *r = from_work(r, work, work);
 	struct client *client = r->client;
 	struct iso_resource_event *e = r->event;
-	int generation, channel, bandwidth;
+	int channel;
 
-	scoped_guard(spinlock_irq, &client->lock)
-		generation = client->device->generation;
-
-	bandwidth = r->params.bandwidth;
+	int generation = client->device->generation;
+	int bandwidth = r->params.bandwidth;
 
 	fw_iso_resource_manage(client->device->card, generation, r->params.channels_mask, &channel,
 			       &bandwidth, r->todo == ISO_RES_ONCE_ALLOC);
