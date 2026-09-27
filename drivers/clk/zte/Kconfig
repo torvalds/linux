@@ -15,3 +15,14 @@ config COMMON_CLK_ZTE
 	  of this.
 
 	  Enable this if you are building a kernel for a ZTE designed board.
+
+config CLK_ZTE_ZX297520V3
+	tristate "Clock driver for ZTE zx297520v3 based SoCs"
+	depends on COMMON_CLK_ZTE && (MFD_ZTE_ZX297520V3_CRM || COMPILE_TEST)
+	default SOC_ZX297520V3
+	help
+	  This driver supports ZTE zx297520v3 basic clocks.
+
+	  Enable this if you want to build a kernel that is able to run on
+	  boards based on this SoC. You can safely enable multiple clock
+	  drivers. The one(s) matching the device tree will be used.
