@@ -2676,7 +2676,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	packet->callback(packet, &ohci->card, packet->ack);
 	ret = 0;
  out:
-	enable_work(&ctx->work);
+	enable_and_queue_work(card->async_wq, &ctx->work);
 
 	return ret;
 }
