@@ -10,22 +10,22 @@ virtual context
 virtual org
 virtual report
 
-@depends on context@
+@depends on context disable zero_multiple_format@
 type T;
 T[] a;
 expression b;
 @@
 (
-* (a + ARRAY_SIZE(a))
+* a + ARRAY_SIZE(a)
 |
-* (&a[0] + ARRAY_SIZE(a))
+* &a[0] + ARRAY_SIZE(a)
 |
-* (&a[ARRAY_SIZE(a)])
+* &a[ARRAY_SIZE(a)]
 |
-* (&a[ARRAY_SIZE(a) - b])
+* &a[ARRAY_SIZE(a) - b]
 )
 
-@depends on patch@
+@depends on patch disable zero_multiple_format@
 type T;
 T[] a;
 expression b;
@@ -44,20 +44,20 @@ expression b;
 + ARRAY_END(a) - b
 )
 
-@r depends on org || report@
+@r depends on org || report disable zero_multiple_format@
 type T;
 T[] a;
 expression b;
 position p;
 @@
 (
- (a@p + ARRAY_SIZE(a))
+ a@p + ARRAY_SIZE(a)
 |
- (&a[0]@p + ARRAY_SIZE(a))
+ &a[0]@p + ARRAY_SIZE(a)
 |
- (&a[ARRAY_SIZE(a)]@p)
+ &a[ARRAY_SIZE(a)]@p
 |
- (&a[ARRAY_SIZE(a)@p - b])
+ &a[ARRAY_SIZE(a)@p - b]
 )
 
 @script:python depends on org@
