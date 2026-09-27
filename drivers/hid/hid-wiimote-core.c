@@ -1741,6 +1741,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	wdata->player_id = 0; // min 1, u8 0 is unassigned id
 
 	INIT_WORK(&wdata->init_worker, wiimote_init_worker);
+	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
 	timer_setup(&wdata->timer, wiimote_init_timeout, 0);
 
 	return wdata;
