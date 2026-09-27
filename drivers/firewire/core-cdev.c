@@ -348,12 +348,9 @@ static void queue_event(struct client *client, struct event *event,
 	}
 }
 
-static int dequeue_event(struct client *client,
-			 char __user *buffer, size_t count)
+static ssize_t dequeue_event(struct client *client, char __user *buffer, size_t count)
 {
 	struct event *event;
-	size_t size, total;
-	int i, ret;
 
 	// After the following block, the event pointer above is guaranteed to have a correct value.
 	{
@@ -378,18 +375,17 @@ static int dequeue_event(struct client *client,
 		spin_unlock_irq(&client->lock);
 	}
 
-	total = 0;
-	for (i = 0; i < ARRAY_SIZE(event->v) && total < count; i++) {
-		size = min(event->v[i].size, count - total);
-		if (copy_to_user(buffer + total, event->v[i].data, size)) {
-			ret = -EFAULT;
-			goto out;
-		}
-		total += size;
-	}
-	ret = total;
+	ssize_t ret = 0;
 
- out:
+	for (int i = 0; i < ARRAY_SIZE(event->v) && ret < count; i++) {
+		size_t size = min(event->v[i].size, count - ret);
+		if (copy_to_user(buffer + ret, event->v[i].data, size)) {
+			ret = -EFAULT;
+			break;
+		}
+		ret += size;
+	}
+
 	kfree(event);
 
 	return ret;
