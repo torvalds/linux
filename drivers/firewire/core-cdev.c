@@ -54,7 +54,7 @@ struct client {
 	u32 version;
 	struct fw_device *device;
 
-	spinlock_t lock;
+	struct mutex mutex;
 	bool in_shutdown;
 	struct xarray resource_xa;
 	struct list_head event_list;
@@ -315,7 +315,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	}
 
 	client->device = device;
-	spin_lock_init(&client->lock);
+	mutex_init(&client->mutex);
 	xa_init_flags(&client->resource_xa, XA_FLAGS_ALLOC1 | XA_FLAGS_LOCK_BH);
 	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
@@ -338,7 +338,7 @@ static void queue_event(struct client *client, struct event *event,
 	event->v[1].data = data1;
 	event->v[1].size = size1;
 
-	scoped_guard(spinlock_irqsave, &client->lock) {
+	scoped_guard(mutex, &client->mutex) {
 		if (client->in_shutdown) {
 			kfree(event);
 		} else {
@@ -355,25 +355,31 @@ static ssize_t dequeue_event(struct client *client, char __user *buffer, size_t 
 
 	// After the following block, the event pointer above is guaranteed to have a correct value.
 	{
-		spin_lock_irq(&client->lock);
+		mutex_lock(&client->mutex);
 
-		int ret = wait_event_interruptible_lock_irq(client->wait,
+		// This could be replaced with wait_var_event_any_lock() if poll_wait() alternative
+		// would be introduced.
+		int ret = ___wait_event(client->wait,
 			!list_empty(&client->event_list) || fw_device_is_shutdown(client->device),
-			client->lock);
+			TASK_INTERRUPTIBLE, 0, 0,
+			mutex_unlock(&client->mutex);
+			schedule();
+			mutex_lock(&client->mutex)
+		);
 		if (ret < 0) {
-			spin_unlock_irq(&client->lock);
+			mutex_unlock(&client->mutex);
 			return ret;
 		}
 
 		if (fw_device_is_shutdown(client->device)) {
-			spin_unlock_irq(&client->lock);
+			mutex_unlock(&client->mutex);
 			return -ENODEV;
 		}
 
 		event = list_first_entry(&client->event_list, struct event, link);
 		list_del(&event->link);
 
-		spin_unlock_irq(&client->lock);
+		mutex_unlock(&client->mutex);
 	}
 
 	ssize_t ret = 0;
@@ -451,11 +457,11 @@ static void queue_bus_reset_event(struct client *client)
 	queue_event(client, &e->event,
 		    &e->reset, sizeof(e->reset), NULL, 0);
 
-	guard(spinlock_irq)(&client->lock);
-
-	xa_for_each(&client->resource_xa, index, resource) {
-		if (is_iso_resource_auto(resource))
-			schedule_iso_resource_auto(to_iso_resource_auto(resource), 0);
+	scoped_guard(mutex, &client->mutex) {
+		xa_for_each(&client->resource_xa, index, resource) {
+			if (is_iso_resource_auto(resource))
+				schedule_iso_resource_auto(to_iso_resource_auto(resource), 0);
+		}
 	}
 }
 
@@ -546,7 +552,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 static int add_client_resource(struct client *client, struct client_resource *resource,
 			       client_resource_release_fn_t release)
 {
-	scoped_guard(spinlock_irqsave, &client->lock) {
+	scoped_guard(mutex, &client->mutex) {
 		u32 index;
 		int ret;
 
@@ -572,7 +578,7 @@ static int release_client_resource(struct client *client, u32 handle,
 	unsigned long index = handle;
 	struct client_resource *resource;
 
-	scoped_guard(spinlock_irq, &client->lock) {
+	scoped_guard(mutex, &client->mutex) {
 		if (client->in_shutdown)
 			return -EINVAL;
 
@@ -605,7 +611,7 @@ static void complete_transaction(struct fw_card *card, int rcode, u32 request_ts
 	struct client *client = e->client;
 	unsigned long index = e->r.resource.handle;
 
-	scoped_guard(spinlock_irqsave, &client->lock) {
+	scoped_guard(mutex, &client->mutex) {
 		xa_erase(&client->resource_xa, index);
 		if (client->in_shutdown)
 			wake_up(&client->tx_flush_wait);
@@ -1387,7 +1393,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 		if (!success) {
 			// Allocation or reallocation failure?  Pull this resource out of the
 			// xarray and prepare for deletion, unless the client is shutting down.
-			scoped_guard(spinlock_irq,  &client->lock) {
+			scoped_guard(mutex,  &client->mutex) {
 				if (!client->in_shutdown && xa_erase(&client->resource_xa, index)) {
 					// For the incrementation by add_client_resource().
 					client_put(client);
@@ -1907,11 +1913,11 @@ static bool has_outbound_transactions(struct client *client)
 	struct client_resource *resource;
 	unsigned long index;
 
-	guard(spinlock_irq)(&client->lock);
-
-	xa_for_each(&client->resource_xa, index, resource) {
-		if (is_outbound_transaction_resource(resource))
-			return true;
+	scoped_guard(mutex, &client->mutex) {
+		xa_for_each(&client->resource_xa, index, resource) {
+			if (is_outbound_transaction_resource(resource))
+				return true;
+		}
 	}
 
 	return false;
@@ -1938,7 +1944,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
 
 	// Freeze client->resource_xa and client->event_list.
-	scoped_guard(spinlock_irq, &client->lock)
+	scoped_guard(mutex, &client->mutex)
 		client->in_shutdown = true;
 
 	wait_event(client->tx_flush_wait, !has_outbound_transactions(client));
