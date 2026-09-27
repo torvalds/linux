@@ -1348,8 +1348,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 	u64 reset_jiffies = client->device->card->reset_jiffies;
 	int current_generation = client->device->generation;
 
-	int resource_generation = r->generation;
-	r->generation = current_generation;
+	int resource_generation = xchg(&r->generation, current_generation); // But no need to be atomic.
 
 	scoped_guard(spinlock_irq, &client->lock)
 		todo = r->todo;
@@ -1379,8 +1378,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 
 	if (todo == ISO_RES_AUTO_DEALLOC) {
 		free = true;
-		e = r->e_dealloc;
-		r->e_dealloc = NULL;
+		e = xchg(&r->e_dealloc, NULL); // But no need to be atomic.
 	} else {
 		free = false;
 
@@ -1408,8 +1406,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 				return;
 
 			// Notify the userspace client of the failure through a deallocation event.
-			e = r->e_dealloc;
-			r->e_dealloc = NULL;
+			e = xchg(&r->e_dealloc, NULL); // But no need to be atomic.
 		} else {
 			// Transit from allocation to reallocation, except if the client requested
 			// deallocation in the meantime.
@@ -1421,8 +1418,7 @@ static void iso_resource_auto_work(struct work_struct *work)
 			if (channel >= 0)
 				r->params.channels_mask = BIT_ULL(channel);
 
-			e = r->e_alloc;
-			r->e_alloc = NULL;
+			e = xchg(&r->e_alloc, NULL); // But no need to be atomic.
 		}
 	}
 
