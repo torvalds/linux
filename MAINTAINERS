@@ -10341,7 +10341,7 @@ L:	linux-fbdev@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/deller/linux-fbdev.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/deller/linux-fbdev.git for-next
 F:	Documentation/fb/
 F:	drivers/video/
 F:	include/linux/fb.h
