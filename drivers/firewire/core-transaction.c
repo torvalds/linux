@@ -139,21 +139,16 @@ int fw_cancel_transaction(struct fw_card *card,
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
+	u32 curr_cycle_time = 0;
+
+	// Timestamping on behalf of hardware.
+	(void)fw_card_read_cycle_time(card, &curr_cycle_time);
+	tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
+
 	/*
 	 * If the request packet has already been sent, we need to see
 	 * if the transaction is still pending and remove it in that case.
 	 */
-
-	if (transaction->packet.ack == 0) {
-		// The timestamp is reused since it was just read now.
-		tstamp = transaction->packet.timestamp;
-	} else {
-		u32 curr_cycle_time = 0;
-
-		(void)fw_card_read_cycle_time(card, &curr_cycle_time);
-		tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
-	}
-
 	return close_transaction(transaction, card, RCODE_CANCELLED, tstamp);
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
