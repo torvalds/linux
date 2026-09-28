@@ -529,7 +529,7 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 	if (!p)
 		return;
 
-	nf_queue_nf_hook_drop(net);
+	nf_queue_nf_hook_drop(net, reg);
 	nf_hook_entries_free(p);
 }
 

@@ -2410,7 +2410,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 
 		if (atomic_read(&cnet->count) == 0)
 			continue;
-		nf_queue_nf_hook_drop(net);
+		nf_queue_nf_hook_drop(net, NULL);
 	}
 	up_read(&net_rwsem);
 
