@@ -71,6 +71,13 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* ASUS Zenbook S14 UM5406GA (Strix Point, ACP 7.0) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Zenbook S14 UM5406GA"),
+		},
+	},
+	{
 		/* HP OmniBook X Flip 14-kc0xxx (Strix Point, ACP 7.2) */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
