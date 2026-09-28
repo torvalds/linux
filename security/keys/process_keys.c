@@ -528,7 +528,7 @@ found:
 
 /*
  * Search the process keyrings attached to the supplied cred for the first
- * matching key in the manner of search_my_process_keyrings(), but also search
+ * matching key in the manner of search_cred_keyrings_rcu(), but also search
  * the keys attached to the assumed authorisation key using its credentials if
  * one is available.
  *
