@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
+#include <linux/suspend.h>
 
 #include <linux/unaligned.h>
 #include <linux/devcoredump.h>
@@ -4211,7 +4212,8 @@ static void btintel_pcie_coredump(struct device *dev)
 
 static int btintel_pcie_set_dxstate(struct btintel_pcie_data *data, u32 dxstate)
 {
-	int retry = 0, status;
+	int retry = 0;
+	long status;
 	u32 dx_intr_timeout_ms = 200;
 
 	do {
@@ -4263,18 +4265,23 @@ static int btintel_pcie_suspend_late(struct device *dev, pm_message_t mesg)
 
 	data = pci_get_drvdata(pdev);
 
-	dxstate = (mesg.event == PM_EVENT_SUSPEND ?
-		   BTINTEL_PCIE_STATE_D3_HOT : BTINTEL_PCIE_STATE_D3_COLD);
-
-	data->pm_sx_event = mesg.event;
+	/* S0ix (s2idle) uses D3_HOT; S3, freeze and hibernate use D3_COLD. */
+	if (mesg.event == PM_EVENT_SUSPEND &&
+	    pm_suspend_target_state == PM_SUSPEND_TO_IDLE)
+		dxstate = BTINTEL_PCIE_STATE_D3_HOT;
+	else
+		dxstate = BTINTEL_PCIE_STATE_D3_COLD;
 
 	start = ktime_get();
 
 	/* Refer: 6.4.11.7 -> Platform power management */
 	err = btintel_pcie_set_dxstate(data, dxstate);
 
-	if (err)
+	if (err) {
+		bt_dev_err(data->hdev, "Failed to set dxstate:%u (%d)",
+			   dxstate, err);
 		return err;
+	}
 
 	bt_dev_dbg(data->hdev,
 		   "device entered into d3 state from d0 in %lld us",
@@ -4297,7 +4304,7 @@ static int btintel_pcie_freeze(struct device *dev)
 	return btintel_pcie_suspend_late(dev, PMSG_FREEZE);
 }
 
-static int btintel_pcie_resume(struct device *dev)
+static int btintel_pcie_resume_event(struct device *dev, pm_message_t mesg)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct btintel_pcie_data *data;
@@ -4305,19 +4312,15 @@ static int btintel_pcie_resume(struct device *dev)
 	int err;
 
 	data = pci_get_drvdata(pdev);
-	data->gp0_received = false;
 
 	start = ktime_get();
 
-	/* When the system enters S4 (hibernate) mode, bluetooth device loses
-	 * power, which results in the erasure of its loaded firmware.
-	 * Consequently, function level reset (flr) is required on system
-	 * resume to bring the controller back into an operational state by
-	 * initiating a new firmware download.
+	/* S3 and S4 may cut power, erasing the firmware. Force FLR to recover
+	 * instead of a normal D0 transition.
 	 */
-
-	if (data->pm_sx_event == PM_EVENT_FREEZE ||
-	    data->pm_sx_event == PM_EVENT_HIBERNATE) {
+	if (mesg.event == PM_EVENT_RESTORE ||
+	    (mesg.event == PM_EVENT_RESUME &&
+	     pm_suspend_target_state == PM_SUSPEND_MEM)) {
 		set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
 		btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_FLR);
 		return 0;
@@ -4326,7 +4329,9 @@ static int btintel_pcie_resume(struct device *dev)
 	/* Refer: 6.4.11.7 -> Platform power management */
 	err = btintel_pcie_set_dxstate(data, BTINTEL_PCIE_STATE_D0);
 
-	if (err == 0) {
+	if (err) {
+		bt_dev_err(data->hdev, "Failed to set D0 state (%d)", err);
+	} else {
 		bt_dev_dbg(data->hdev,
 			   "device entered into d0 state from d3 in %lld us",
 			   ktime_to_us(ktime_get() - start));
@@ -4351,13 +4356,28 @@ static int btintel_pcie_resume(struct device *dev)
 	return err;
 }
 
+static int btintel_pcie_resume(struct device *dev)
+{
+	return btintel_pcie_resume_event(dev, PMSG_RESUME);
+}
+
+static int btintel_pcie_restore(struct device *dev)
+{
+	return btintel_pcie_resume_event(dev, PMSG_RESTORE);
+}
+
+static int btintel_pcie_thaw(struct device *dev)
+{
+	return btintel_pcie_resume_event(dev, PMSG_THAW);
+}
+
 static const struct dev_pm_ops btintel_pcie_pm_ops = {
 	.suspend = btintel_pcie_suspend,
 	.resume = btintel_pcie_resume,
 	.freeze = btintel_pcie_freeze,
-	.thaw = btintel_pcie_resume,
+	.thaw = btintel_pcie_thaw,
 	.poweroff = btintel_pcie_hibernate,
-	.restore = btintel_pcie_resume,
+	.restore = btintel_pcie_restore,
 };
 
 static struct pci_driver btintel_pcie_driver = {
