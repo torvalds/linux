@@ -53,6 +53,22 @@ bool snd_soc_acpi_intel_no_function_topology(void *arg)
 }
 EXPORT_SYMBOL_NS(snd_soc_acpi_intel_no_function_topology, "SND_SOC_ACPI_INTEL_SDCA_QUIRKS");
 
+static const struct dmi_system_id force_function_topology_quirk_table[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83R0"),
+		},
+	},
+	{}
+};
+
+bool snd_soc_acpi_intel_force_function_topology(void *arg)
+{
+	return !dmi_check_system(force_function_topology_quirk_table);
+}
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_force_function_topology, "SND_SOC_ACPI_INTEL_SDCA_QUIRKS");
+
 bool snd_soc_acpi_intel_rt712_vb_no_function_topology(void *arg)
 {
 	return snd_soc_acpi_intel_sdca_is_device_rt712_vb(arg) &&
