@@ -635,11 +635,11 @@ static inline int ntfs_filldir(struct ntfs_volume *vol,
 	}
 
 	mref = MREF_LE(ie->data.dir.indexed_file);
-	if (ie->key.file_name.file_attributes &
+	if (ie->key.file_name.file_attributes & FILE_ATTR_REPARSE_POINT)
+		dt_type = ntfs_reparse_tag_dt_types(vol, mref);
+	else if (ie->key.file_name.file_attributes &
 			FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT)
 		dt_type = DT_DIR;
-	else if (ie->key.file_name.file_attributes & FILE_ATTR_REPARSE_POINT)
-		dt_type = ntfs_reparse_tag_dt_types(vol, mref);
 	else
 		dt_type = DT_REG;
 
