@@ -2096,7 +2096,10 @@ int jbd2_journal_load(journal_t *journal)
 		return err;
 	}
 
+	/* kjournald2 is already running, see journal_reset(). */
+	write_lock(&journal->j_state_lock);
 	journal->j_flags |= JBD2_LOADED;
+	write_unlock(&journal->j_state_lock);
 	return 0;
 }
 
