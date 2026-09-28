@@ -50,6 +50,7 @@ static const struct rog_ryujin_device_info rog_ryujin_iii_info = {
 #define MAX_REPORT_LENGTH	65
 
 /* Cooler duty report offsets */
+#define RYUJIN_PUMP_SOURCE		3
 #define RYUJIN_PUMP_DUTY		4
 #define RYUJIN_INTERNAL_FAN_DUTY	5
 
@@ -70,9 +71,14 @@ static const u8 get_cooler_duty_cmd[] = { RYUJIN_CMD_PREFIX, 0x9A };
 static const u8 get_controller_speed_cmd[] = { RYUJIN_CMD_PREFIX, 0xA0 };
 static const u8 get_controller_duty_cmd[] = { RYUJIN_CMD_PREFIX, 0xA1 };
 
+#define RYUJIN_SET_COOLER_CHANNEL_OFFSET	2
 #define RYUJIN_SET_COOLER_PUMP_DUTY_OFFSET	3
 #define RYUJIN_SET_COOLER_FAN_DUTY_OFFSET	4
 static const u8 set_cooler_duty_cmd[] = { RYUJIN_CMD_PREFIX, 0x1A, 0x00, 0x00, 0x00 };
+
+/* Pump control sources in the set cooler duty command and the cooler duty report */
+#define RYUJIN_SOURCE_HEADER	0
+#define RYUJIN_SOURCE_USB	1
 
 #define RYUJIN_SET_CONTROLLER_FAN_DUTY_OFFSET	4
 static const u8 set_controller_duty_cmd[] = { RYUJIN_CMD_PREFIX, 0x21, 0x00, 0x00, 0x00 };
@@ -117,6 +123,7 @@ struct rog_ryujin_data {
 	s32 temp_input[1];
 	u16 speed_input[6];	/* Pump, internal fan and four controller fan speeds in RPM */
 	u8 duty_input[3];	/* Pump, internal fan and controller fan duty in PWM */
+	u8 pump_source;		/* Pump control source from the cooler duty report */
 
 	u8 *buffer;
 	unsigned long updated;	/* jiffies */
@@ -306,6 +313,44 @@ static int rog_ryujin_read_string(struct device *dev, enum hwmon_sensor_types ty
 	return 0;
 }
 
+/*
+ * On devices with a non-zero duty_channel (the RYUJIN III), the channel byte of
+ * the set cooler duty command selects the pump control source.
+ * RYUJIN_SOURCE_HEADER hands the pump to its internal controller, which follows
+ * the PWM of the header its 4-pin cable is plugged into. RYUJIN_SOURCE_USB
+ * makes the pump follow the pump duty in the command. The cooler duty report
+ * returns the current source.
+ *
+ * A fan duty write sends the reported source back, so that it leaves the pump
+ * control source as it is. A pump duty write selects USB. The cooler does not
+ * pass on a pump duty equal to the one it reports, and after power-on it
+ * reports 40% while a pump handed over at that duty runs at full speed. So
+ * when a pump duty write asks for the reported duty, write a duty 1% away
+ * first.
+ */
+static int rog_ryujin_select_pump_source(struct rog_ryujin_data *priv, u8 *set_cmd,
+					 int channel)
+{
+	u8 duty = set_cmd[RYUJIN_SET_COOLER_PUMP_DUTY_OFFSET];
+	int ret;
+
+	if (channel == 1) {
+		set_cmd[RYUJIN_SET_COOLER_CHANNEL_OFFSET] = priv->pump_source;
+		return 0;
+	}
+
+	set_cmd[RYUJIN_SET_COOLER_CHANNEL_OFFSET] = RYUJIN_SOURCE_USB;
+
+	if (duty != rog_ryujin_pwm_to_percent(priv->duty_input[0]))
+		return 0;
+
+	set_cmd[RYUJIN_SET_COOLER_PUMP_DUTY_OFFSET] = duty < 100 ? duty + 1 : duty - 1;
+	ret = rog_ryujin_execute_cmd(priv, set_cmd, SET_CMD_LENGTH, &priv->cooler_duty_set);
+	set_cmd[RYUJIN_SET_COOLER_PUMP_DUTY_OFFSET] = duty;
+
+	return ret;
+}
+
 static int rog_ryujin_write_fixed_duty(struct rog_ryujin_data *priv, int channel, int val)
 {
 	u8 set_cmd[SET_CMD_LENGTH];
@@ -323,7 +368,7 @@ static int rog_ryujin_write_fixed_duty(struct rog_ryujin_data *priv, int channel
 			return ret;
 
 		memcpy(set_cmd, set_cooler_duty_cmd, SET_CMD_LENGTH);
-		set_cmd[2] = priv->info->duty_channel;
+		set_cmd[RYUJIN_SET_COOLER_CHANNEL_OFFSET] = priv->info->duty_channel;
 
 		/* Cooler duties are set as 0-100% */
 		val = rog_ryujin_pwm_to_percent(val);
@@ -338,6 +383,12 @@ static int rog_ryujin_write_fixed_duty(struct rog_ryujin_data *priv, int channel
 			set_cmd[RYUJIN_SET_COOLER_PUMP_DUTY_OFFSET] =
 			    rog_ryujin_pwm_to_percent(priv->duty_input[0]);
 			set_cmd[RYUJIN_SET_COOLER_FAN_DUTY_OFFSET] = val;
+		}
+
+		if (priv->info->duty_channel) {
+			ret = rog_ryujin_select_pump_source(priv, set_cmd, channel);
+			if (ret < 0)
+				return ret;
 		}
 
 		return rog_ryujin_execute_cmd(priv, set_cmd, SET_CMD_LENGTH, &priv->cooler_duty_set);
@@ -482,6 +533,7 @@ static int rog_ryujin_raw_event(struct hid_device *hdev, struct hid_report *repo
 			goto unlock;
 		}
 read_cooler_duty:
+		priv->pump_source = data[RYUJIN_PUMP_SOURCE];
 		priv->duty_input[0] = rog_ryujin_percent_to_pwm(data[RYUJIN_PUMP_DUTY]);
 		priv->duty_input[1] = rog_ryujin_percent_to_pwm(data[RYUJIN_INTERNAL_FAN_DUTY]);
 
