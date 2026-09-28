@@ -4414,6 +4414,18 @@ W: ftp://ftp.uk.linux.org/pub/linux/people/willy/
 D: Linux/PARISC hacker.  Filesystem hacker.  Random other hacking.  Custom
 D: PPC port hacking.
 
+N: Dan J Williams
+D: Technical Advisory Board member
+D: Asynchronous Transfers/Transforms (IOAT) API, Compute Express Link (CXL),
+D: Device Direct Access (DAX), Filesystem Direct Access (DAX),
+D: Intel I/OAT DMA driver, libnvdimm BTT: block translation table,
+D: libnvdimm PMEM: persistent memory driver,
+D: libnvdimm: non-volatile memory device subsystem,
+D: Trusted Execution Environment Security Manager (TSM)
+D: Intel C600 SAS driver (ISCI)
+D: Intel XScale IOP SOC
+D: MDRAID IMSM external metadata format
+
 N: G\"unter Windau
 E: gunter@mbfys.kun.nl
 D: Some bug fixes in the polling printer driver (lp.c)
