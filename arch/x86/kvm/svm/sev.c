@@ -2045,6 +2045,13 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 	struct kvm_sev_info *mirror;
 	unsigned long i;
 
+	/*
+	 * Do cache maintenance on the source VM *before* clearing "SEV active",
+	 * as memory reclaim flows won't trigger cache maintenance on the VM
+	 * once it's no longer an SEV VM.
+	 */
+	sev_writeback_caches(src_kvm);
+
 	dst->active = true;
 	dst->asid = src->asid;
 	dst->handle = src->handle;
@@ -2057,12 +2064,6 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 	src->handle = 0;
 	src->pages_locked = 0;
 	src->es_active = false;
-
-	/*
-	 * Do cache maintenance on the source VM as it is no longer an SEV VM,
-	 * i.e. memory reclaim flows won't trigger cache maintenance on the VM.
-	 */
-	sev_writeback_caches(src_kvm);
 
 	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
 
