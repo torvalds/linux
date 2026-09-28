@@ -18650,7 +18650,7 @@ MULTIFUNCTION DEVICES (MFD)
 M:	Lee Jones <lee@kernel.org>
 L:	mfd@lists.linux.dev
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git for-mfd-next
 F:	Documentation/devicetree/bindings/mfd/
 F:	drivers/mfd/
 F:	include/dt-bindings/mfd/
@@ -26592,7 +26592,7 @@ SYSTEM CONFIGURATION (SYSCON)
 M:	Lee Jones <lee@kernel.org>
 M:	Arnd Bergmann <arnd@arndb.de>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git for-mfd-next
 F:	drivers/mfd/syscon.c
 
 SYSTEM CONTROL & POWER/MANAGEMENT INTERFACE (SCPI/SCMI) Message Protocol drivers
