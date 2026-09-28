@@ -1020,7 +1020,7 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct client *client = data;
 	struct iso_interrupt_event *e;
 
-	e = kmalloc(sizeof(*e) + header_length, GFP_KERNEL);
+	e = kzalloc_flex(*e, interrupt.header, header_length);
 	if (e == NULL)
 		return;
 
