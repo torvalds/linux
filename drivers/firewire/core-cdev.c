@@ -683,8 +683,8 @@ static int init_request(struct client *client,
 	    request->length < 4)
 		return -EINVAL;
 
-	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
-	if (e == NULL)
+	e = kzalloc_flex(*e, rsp.with_tstamp.data, DIV_ROUND_UP(request->length, sizeof(u32)));
+	if (!e)
 		return -ENOMEM;
 	e->client = client;
 
@@ -1696,7 +1696,7 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	e = kzalloc(sizeof(*e) + sizeof(a->data), GFP_KERNEL);
+	e = kzalloc_flex(*e, phy_packet.with_tstamp.data, ARRAY_SIZE(a->data));
 	if (e == NULL)
 		return -ENOMEM;
 
@@ -1762,7 +1762,8 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 		if (client->device->card != card)
 			continue;
 
-		struct inbound_phy_packet_event *e = kmalloc(sizeof(*e) + 8, GFP_KERNEL);
+		struct inbound_phy_packet_event *e =
+			kzalloc_flex(*e, phy_packet.with_tstamp.data, 2);
 		if (!e)
 			break;
 
