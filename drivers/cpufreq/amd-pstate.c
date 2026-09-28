@@ -211,7 +211,7 @@ static const struct amd_pstate_epp_soc epp_soc_zen6_client __initconst = {
 		.performance		= 25,
 		.balance_performance	= 51,
 		.balance_power		= 64,
-		.power			= 64,
+		.power			= 115,
 	},
 	.efficiency_core = {
 		.performance		= 25,
@@ -221,9 +221,9 @@ static const struct amd_pstate_epp_soc epp_soc_zen6_client __initconst = {
 	},
 	.low_power_core = {
 		.performance		= 25,
-		.balance_performance	= 51,
+		.balance_performance	= 64,
 		.balance_power		= 64,
-		.power			= 115,
+		.power			= 64,
 	},
 };
 
