@@ -1148,14 +1148,21 @@ view_index_meta:
 					goto unm_err_out;
 				}
 
+				/*
+				 * Windows stores the standard compression unit in
+				 * sparse attributes even when the data is not compressed.
+				 */
 				if (NInoSparse(ni) &&
 				    a->data.non_resident.compression_unit &&
 				    a->data.non_resident.compression_unit !=
-				     vol->sparse_compression_unit) {
+				     vol->sparse_compression_unit &&
+				    a->data.non_resident.compression_unit !=
+				     STANDARD_COMPRESSION_UNIT) {
 					ntfs_error(vi->i_sb,
-						   "Found non-standard compression unit (%u instead of 0 or %d).  Cannot handle this.",
+						   "Found non-standard compression unit (%u instead of 0, %d, or %d).  Cannot handle this.",
 						   a->data.non_resident.compression_unit,
-						   vol->sparse_compression_unit);
+						   vol->sparse_compression_unit,
+						   STANDARD_COMPRESSION_UNIT);
 					err = -EOPNOTSUPP;
 					goto unm_err_out;
 				}
