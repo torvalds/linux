@@ -1020,7 +1020,7 @@ struct sk_buff {
 #ifdef CONFIG_NET_REDIRECT
 	__u8			from_ingress:1;
 #endif
-#ifdef CONFIG_NETFILTER_SKIP_EGRESS
+#ifdef CONFIG_NET_EGRESS
 	__u8			nf_skip_egress:1;
 #endif
 #ifdef CONFIG_SKB_DECRYPTED

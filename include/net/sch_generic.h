@@ -810,6 +810,15 @@ static inline bool skb_at_tc_ingress(const struct sk_buff *skb)
 #endif
 }
 
+static inline bool skb_at_tc_egress(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_EGRESS
+	return skb->nf_skip_egress && !skb_at_tc_ingress(skb);
+#else
+	return false;
+#endif
+}
+
 static inline bool skb_skip_tc_classify(struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT

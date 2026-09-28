@@ -133,7 +133,7 @@ static inline struct sk_buff *nf_hook_egress(struct sk_buff *skb, int *rc,
 
 static inline void nf_skip_egress(struct sk_buff *skb, bool skip)
 {
-#ifdef CONFIG_NETFILTER_SKIP_EGRESS
+#ifdef CONFIG_NET_EGRESS
 	skb->nf_skip_egress = skip;
 #endif
 }
