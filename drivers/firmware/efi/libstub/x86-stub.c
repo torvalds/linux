@@ -158,10 +158,10 @@ static void setup_efi_pci(struct boot_params *params)
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
 {
 	static efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
-	struct setup_data *data, *new;
-	efi_status_t status;
-	u32 size = 0;
 	apple_properties_protocol_t *p;
+	struct setup_data *data, *new;
+	unsigned long size = 0;
+	efi_status_t status;
 
 	status = efi_bs_call(locate_protocol, &guid, NULL, (void **)&p);
 	if (status != EFI_SUCCESS)

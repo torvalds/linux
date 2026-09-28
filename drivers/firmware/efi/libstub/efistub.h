@@ -838,15 +838,17 @@ union apple_properties_protocol {
 		unsigned long version;
 		efi_status_t (__efiapi *get)(apple_properties_protocol_t *,
 					     struct efi_dev_path *,
-					     efi_char16_t *, void *, u32 *);
+					     efi_char16_t *, void *,
+					     unsigned long *);
 		efi_status_t (__efiapi *set)(apple_properties_protocol_t *,
 					     struct efi_dev_path *,
-					     efi_char16_t *, void *, u32);
+					     efi_char16_t *, void *,
+					     unsigned long);
 		efi_status_t (__efiapi *del)(apple_properties_protocol_t *,
 					     struct efi_dev_path *,
 					     efi_char16_t *);
 		efi_status_t (__efiapi *get_all)(apple_properties_protocol_t *,
-						 void *buffer, u32 *);
+						 void *buffer, unsigned long *);
 	};
 	struct {
 		u32 version;
