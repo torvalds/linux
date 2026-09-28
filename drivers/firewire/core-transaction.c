@@ -898,8 +898,8 @@ static struct fw_request *allocate_request(struct fw_card *card,
 		return NULL;
 	}
 
-	request = kmalloc(sizeof(*request) + length, GFP_ATOMIC);
-	if (request == NULL)
+	request = kzalloc_flex(*request, data, DIV_ROUND_UP(length, sizeof(u32)));
+	if (!request)
 		return NULL;
 	kref_init(&request->kref);
 
