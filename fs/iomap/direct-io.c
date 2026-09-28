@@ -919,7 +919,6 @@ struct iomap_dio_simple {
 	struct kiocb		*iocb;
 	size_t			size;
 	unsigned int		dio_flags;
-	struct work_struct	work;
 	/*
 	 * Align @bio to a cacheline boundary so that, combined with the
 	 * front_pad passed to bioset_init(), the bio sits at the start of
@@ -961,30 +960,14 @@ static ssize_t iomap_dio_simple_complete(struct iomap_dio_simple *sr)
 	return ret;
 }
 
-static void iomap_dio_simple_complete_work(struct work_struct *work)
-{
-	struct iomap_dio_simple *sr =
-		container_of(work, struct iomap_dio_simple, work);
-	struct kiocb *iocb = sr->iocb;
-
-	WRITE_ONCE(iocb->private, NULL);
-	iocb->ki_complete(iocb, iomap_dio_simple_complete(sr));
-}
-
 static void iomap_dio_simple_end_io(struct bio *bio)
 {
 	struct iomap_dio_simple *sr =
 		container_of(bio, struct iomap_dio_simple, bio);
 	struct kiocb *iocb = sr->iocb;
 
-	if (unlikely(sr->bio.bi_status)) {
-		struct inode *inode = file_inode(iocb->ki_filp);
-
-		INIT_WORK(&sr->work, iomap_dio_simple_complete_work);
-		queue_work(inode->i_sb->s_dio_done_wq, &sr->work);
+	if (unlikely(bio->bi_status) && bio_complete_in_task(bio))
 		return;
-	}
-
 	WRITE_ONCE(iocb->private, NULL);
 	iocb->ki_complete(iocb, iomap_dio_simple_complete(sr));
 }
