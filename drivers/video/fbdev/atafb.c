@@ -2454,7 +2454,7 @@ static void svblit_fillrect(struct fb_info *info,
 		((u32 *)info->pseudo_palette)[rect->color] : rect->color;
 
 	/* draw the first line with the CPU ... */
-	line = (u8 *)info->screen_base + rect->dy * pitch +
+	line = info->screen_buffer + rect->dy * pitch +
 	       rect->dx * bytespp;
 	switch (bytespp) {
 	case 1:
