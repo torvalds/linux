@@ -1596,6 +1596,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 	LIST_HEAD(retry_list);
 	struct btrfs_block_group *block_group;
 	struct btrfs_space_info *space_info;
+	struct btrfs_space_info *system_info;
 	struct btrfs_trans_handle *trans;
 	const bool async_trim_enabled = btrfs_test_opt(fs_info, DISCARD_ASYNC);
 	int ret = 0;
@@ -1613,10 +1614,13 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 	if (!mutex_trylock(&fs_info->reclaim_bgs_lock))
 		return;
 
+	system_info = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
+
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->unused_bgs)) {
 		u64 used;
 		int trimming;
+		bool low;
 
 		block_group = list_first_entry(&fs_info->unused_bgs,
 					       struct btrfs_block_group,
@@ -1864,7 +1868,18 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 			btrfs_get_block_group(block_group);
 		}
 end_trans:
-		btrfs_end_transaction(trans);
+		/*
+		 * If we are low on system space, commit immediately to get back
+		 * unallocated space to greatly improve the chances of
+		 * successfully allocating a system chunk.
+		 */
+		spin_lock(&system_info->lock);
+		low = system_info->total_bytes < system_space_target(system_info);
+		spin_unlock(&system_info->lock);
+		if (unlikely(!ret && low))
+			ret = btrfs_commit_transaction(trans);
+		else
+			btrfs_end_transaction(trans);
 next:
 		btrfs_put_block_group(block_group);
 		spin_lock(&fs_info->unused_bgs_lock);
