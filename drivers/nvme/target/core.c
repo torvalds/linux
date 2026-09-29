@@ -811,6 +811,8 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 		nvmet_pr_put_ns_pc_ref(pc_ref);
 	if (ns)
 		nvmet_put_namespace(ns);
+
+	nvmet_put_passthru_ref(req);
 }
 
 void nvmet_req_complete(struct nvmet_req *req, u16 status)
@@ -1187,6 +1189,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
 	req->error_loc = NVMET_NO_ERROR_LOC;
 	req->error_slba = 0;
 	req->pc_ref = NULL;
+	req->p.ref_held = false;
 
 	/* no support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
