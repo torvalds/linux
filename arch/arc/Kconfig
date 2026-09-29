@@ -331,13 +331,9 @@ config ARC_FPU_SAVE_RESTORE
 	  for floating point exceptions and rounding modes. These are
 	  preserved across task context switch when enabled.
 
-config ARC_CANT_LLSC
-	def_bool n
-
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on !ARC_CANT_LLSC
 
 if ISA_ARCV2
 
