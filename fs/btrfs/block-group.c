@@ -1575,6 +1575,19 @@ static bool btrfs_link_bg_list(struct btrfs_block_group *bg, struct list_head *l
 }
 
 /*
+ * Compute a rough bound on the bytes needed to modify every leaf in the chunk
+ * tree. Normally, we could just allocate a new system chunk then, but that can
+ * fail if there is no free space for a new dev extent. This can happen when
+ * we fill up a large filesystem then rapidly delete a large portion of it.
+ */
+static u64 system_space_target(struct btrfs_space_info *sinfo)
+{
+	lockdep_assert_held(&sinfo->lock);
+
+	return btrfs_space_info_used(sinfo, true) + sinfo->bytes_used;
+}
+
+/*
  * Process the unused_bgs list and remove any that don't have any allocated
  * space inside of them.
  */
@@ -1661,6 +1674,9 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		if (btrfs_is_block_group_used(block_group) ||
 		    (block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) ||
 		    list_is_singular(&block_group->list) ||
+		    ((block_group->flags & BTRFS_BLOCK_GROUP_SYSTEM) &&
+		     space_info->total_bytes - block_group->length <
+		     system_space_target(space_info)) ||
 		    test_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &block_group->runtime_flags)) {
 			/*
 			 * We want to bail if we made new allocations or have
@@ -1674,6 +1690,10 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 			 * next block group of this type would be created with a
 			 * "single" profile (even if we're in a raid fs) because
 			 * fs_info->avail_*_alloc_bits would be 0.
+			 *
+			 * Also bail out if this is a system block group that
+			 * system_space_target() relies on to ensure head room for
+			 * mass deletion.
 			 */
 			trace_btrfs_skip_unused_block_group(block_group);
 			spin_unlock(&block_group->lock);
@@ -4509,6 +4529,7 @@ static void reserve_chunk_space(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_space_info *info;
 	u64 left;
+	bool want_system_chunk, need_system_chunk;
 	int ret = 0;
 
 	/*
@@ -4520,15 +4541,17 @@ static void reserve_chunk_space(struct btrfs_trans_handle *trans,
 	info = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
 	spin_lock(&info->lock);
 	left = info->total_bytes - btrfs_space_info_used(info, true);
+	want_system_chunk = info->total_bytes < system_space_target(info);
+	need_system_chunk = left < bytes;
 	spin_unlock(&info->lock);
 
-	if (left < bytes && btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
+	if (need_system_chunk && btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
 		btrfs_info(fs_info, "left=%llu, need=%llu, flags=%llu",
 			   left, bytes, type);
 		btrfs_dump_space_info(info, 0, false);
 	}
 
-	if (left < bytes) {
+	if (want_system_chunk || need_system_chunk) {
 		u64 flags = btrfs_system_alloc_profile(fs_info);
 		struct btrfs_block_group *bg;
 		struct btrfs_space_info *space_info;
@@ -4572,13 +4595,14 @@ static void reserve_chunk_space(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	if (!ret) {
-		ret = btrfs_block_rsv_add(fs_info,
-					  &fs_info->chunk_block_rsv,
-					  bytes, BTRFS_RESERVE_NO_FLUSH);
-		if (!ret)
-			trans->chunk_bytes_reserved += bytes;
-	}
+	if (ret && need_system_chunk)
+		return;
+
+	ret = btrfs_block_rsv_add(fs_info,
+				    &fs_info->chunk_block_rsv,
+				    bytes, BTRFS_RESERVE_NO_FLUSH);
+	if (!ret)
+		trans->chunk_bytes_reserved += bytes;
 }
 
 /*
