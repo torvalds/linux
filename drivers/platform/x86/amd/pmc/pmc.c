@@ -198,6 +198,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_DEVICE_DATA(AMD, 1AH_M20H_ROOT, NULL) },
 	{ PCI_DEVICE_DATA(AMD, 1AH_M60H_ROOT, NULL) },
 	{ PCI_DEVICE_DATA(AMD, 1AH_M80H_ROOT, &amd_1ah_m80_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_MDCH_ROOT, &amd_1ah_m80_cpu_info) },
 	{ }
 };
 
