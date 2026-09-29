@@ -1022,17 +1022,6 @@ static int cifs_filldir(char *find_entry, struct file *file,
 	if (rc)
 		return rc;
 
-	if (de.namelen > max_len) {
-		cifs_dbg(VFS, "bad search response length %zd past smb end\n",
-			 de.namelen);
-		return -EINVAL;
-	}
-
-	if (de.name + de.namelen > end_of_smb) {
-		cifs_dbg(VFS, "search entry name extends past end of SMB\n");
-		return -EINVAL;
-	}
-
 	/* skip . and .. since we added them first */
 	if (cifs_entry_is_dot(&de, file_info->srch_inf.unicode))
 		return 0;
