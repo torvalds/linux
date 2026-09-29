@@ -1716,12 +1716,24 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 }
 
 
+/*
+ * Keep noinline: inlined, the map_word temporaries put do_write_buffer() over
+ * the frame-size limit with MTD_MAP_BANK_WIDTH_32 and KASAN_STACK.
+ */
+static noinline void __xipram cfi_write_cmd(struct map_info *map,
+					    unsigned long cmd, unsigned long adr)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+
+	map_write(map, CMD(cmd), adr);
+}
+
 static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 				    unsigned long adr, const struct kvec **pvec,
 				    unsigned long *pvec_seek, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	map_word status, write_cmd, datum;
+	map_word status, datum;
 	unsigned long cmd_adr;
 	int ret, wbufsize, word_gap, words;
 	const struct kvec *vec;
@@ -1740,9 +1752,6 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	if (is_LH28F640BF(cfi))
 		cmd_adr = adr;
 
-	/* Let's determine this according to the interleave only once */
-	write_cmd = (cfi->cfiq->P_ID != P_ID_INTEL_PERFORMANCE) ? CMD(0xe8) : CMD(0xe9);
-
 	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, cmd_adr, FL_WRITING);
 	if (ret) {
@@ -1759,7 +1768,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	   So we must check here and reset those bits if they're set. Otherwise
 	   we're just pissing in the wind */
 	if (chip->state != FL_STATUS) {
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 		chip->state = FL_STATUS;
 	}
 	status = map_read(map, cmd_adr);
@@ -1767,21 +1776,22 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		xip_enable(map, chip, cmd_adr);
 		printk(KERN_WARNING "SR.4 or SR.5 bits set in buffer write (status %lx). Clearing.\n", status.x[0]);
 		xip_disable(map, chip, cmd_adr);
-		map_write(map, CMD(0x50), cmd_adr);
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x50, cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 	}
 
 	chip->state = FL_WRITING_TO_BUFFER;
-	map_write(map, write_cmd, cmd_adr);
+	cfi_write_cmd(map, (cfi->cfiq->P_ID != P_ID_INTEL_PERFORMANCE) ? 0xe8 : 0xe9,
+		      cmd_adr);
 	ret = WAIT_TIMEOUT(map, chip, cmd_adr, 0, 0);
 	if (ret) {
 		/* Argh. Not ready for write to buffer */
 		map_word Xstatus = map_read(map, cmd_adr);
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 		chip->state = FL_STATUS;
 		status = map_read(map, cmd_adr);
-		map_write(map, CMD(0x50), cmd_adr);
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x50, cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 		xip_enable(map, chip, cmd_adr);
 		printk(KERN_ERR "%s: Chip not ready for buffer write. Xstatus = %lx, status = %lx\n",
 				map->name, Xstatus.x[0], status.x[0]);
@@ -1800,7 +1810,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	}
 
 	/* Write length of data to come */
-	map_write(map, CMD(words), cmd_adr );
+	cfi_write_cmd(map, words, cmd_adr);
 
 	/* Write data */
 	vec = *pvec;
@@ -1837,7 +1847,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	*pvec_seek = vec_seek;
 
 	/* GO GO GO */
-	map_write(map, CMD(0xd0), cmd_adr);
+	cfi_write_cmd(map, 0xd0, cmd_adr);
 	chip->state = FL_WRITING;
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, cmd_adr,
@@ -1845,7 +1855,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 				   chip->buffer_write_time,
 				   chip->buffer_write_time_max);
 	if (ret) {
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 		chip->state = FL_STATUS;
 		xip_enable(map, chip, cmd_adr);
 		printk(KERN_ERR "%s: buffer write error (status timeout)\n", map->name);
@@ -1858,8 +1868,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		unsigned long chipstatus = MERGESTATUS(status);
 
 		/* reset status */
-		map_write(map, CMD(0x50), cmd_adr);
-		map_write(map, CMD(0x70), cmd_adr);
+		cfi_write_cmd(map, 0x50, cmd_adr);
+		cfi_write_cmd(map, 0x70, cmd_adr);
 		xip_enable(map, chip, cmd_adr);
 
 		if (chipstatus & 0x02) {
