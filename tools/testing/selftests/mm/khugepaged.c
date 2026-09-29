@@ -618,6 +618,16 @@ static bool wait_for_scan(const char *msg, char *p, size_t len,
 		usleep(TICK);
 	}
 
+	/*
+	 * The file and shmem tests rely on refaults to install PMD mappings
+	 * after collapse. MADV_NOHUGEPAGE would prevent those mappings.
+	 *
+	 * Apply MADV_NOHUGEPAGE only to anonymous VMAs to prevent khugepaged
+	 * from unexpectedly collapsing pages during the test.
+	 */
+	if (is_anon(ops))
+		madvise(p, len, MADV_NOHUGEPAGE);
+
 	return timeout == -1;
 }
 
