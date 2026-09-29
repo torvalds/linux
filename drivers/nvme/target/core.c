@@ -1637,8 +1637,16 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 	/* By default, set loop targets to clear IDS by default */
-	if (ctrl->port->disc_addr.trtype == NVMF_TRTYPE_LOOP)
-		subsys->clear_ids = 1;
+	if (ctrl->port->disc_addr.trtype == NVMF_TRTYPE_LOOP) {
+		mutex_lock(&subsys->lock);
+		subsys->passthru = nvmet_subsys_passthru(subsys);
+		if (!subsys->passthru) {
+			mutex_unlock(&subsys->lock);
+			goto out_free_ctrl;
+		}
+		subsys->passthru->clear_ids = 1;
+		mutex_unlock(&subsys->lock);
+	}
 #endif
 
 	INIT_WORK(&ctrl->async_event_work, nvmet_async_event_work);

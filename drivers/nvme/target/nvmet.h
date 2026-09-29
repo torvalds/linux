@@ -318,6 +318,14 @@ struct nvmet_ctrl {
 	struct nvmet_pr_log_mgr pr_log_mgr;
 };
 
+struct nvmet_passthru {
+	struct nvme_ctrl	*ctrl;
+	char			*ctrl_path;
+	unsigned int		admin_timeout;
+	unsigned int		io_timeout;
+	unsigned int		clear_ids;
+};
+
 struct nvmet_subsys {
 	enum nvme_subsys_type	type;
 
@@ -358,12 +366,8 @@ struct nvmet_subsys {
 	char			*firmware_rev;
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
-	struct nvme_ctrl	*passthru_ctrl;
-	char			*passthru_ctrl_path;
+	struct nvmet_passthru	*passthru;
 	struct config_group	passthru_group;
-	unsigned int		admin_timeout;
-	unsigned int		io_timeout;
-	unsigned int		clear_ids;
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -793,7 +797,20 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req);
 static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
 {
-	return subsys->passthru_ctrl;
+	return subsys->passthru && subsys->passthru->ctrl;
+}
+
+static inline struct nvmet_passthru *nvmet_subsys_passthru(
+		struct nvmet_subsys *subsys)
+{
+	lockdep_assert_held(&subsys->lock);
+
+	if (!subsys->passthru) {
+		subsys->passthru = kzalloc_obj(*subsys->passthru);
+		if (!subsys->passthru)
+			return NULL;
+	}
+	return subsys->passthru;
 }
 #else /* CONFIG_NVME_TARGET_PASSTHRU */
 static inline void nvmet_passthru_subsys_free(struct nvmet_subsys *subsys)
@@ -811,6 +828,11 @@ static inline u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 	return 0;
 }
 static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
+{
+	return NULL;
+}
+static inline struct nvmet_passthru *nvmet_subsys_passthru(
+		struct nvmet_subsys *subsys)
 {
 	return NULL;
 }
