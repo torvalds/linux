@@ -52,18 +52,13 @@ static u64 notrace gic_read_count(void)
 
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
-	int cpu = cpumask_first(evt->cpumask);
 	u64 cnt;
 	int res;
 
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	if (cpu == raw_smp_processor_id()) {
-		write_gic_vl_compare(cnt);
-	} else {
-		write_gic_vl_other(mips_cm_vp_id(cpu));
-		write_gic_vo_compare(cnt);
-	}
+	write_gic_vl_compare(cnt);
+
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
@@ -82,6 +77,7 @@ static void gic_clockevent_cpu_init(unsigned int cpu,
 {
 	cd->name		= "MIPS GIC";
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERCPU |
 				  CLOCK_EVT_FEAT_C3STOP;
 
 	cd->rating		= 350;
