@@ -422,13 +422,6 @@ fn expand(
         }
     }
 
-    if info.self_referential {
-        dcx.error(
-            &info.struct_.ident,
-            "self-referential support is not fully implemented",
-        );
-    }
-
     let struct_def = generate_struct_def(&info);
     let unpin_impl = generate_unpin_impl(&info);
     let drop_impl = generate_drop_impl(&info);
