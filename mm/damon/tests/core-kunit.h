@@ -1014,6 +1014,7 @@ static void damos_test_commit_quota_goals_for(struct kunit *test,
 		 * Make it kfree()-able.
 		 */
 		goal = damos_new_quota_goal(dst_goals[i].metric,
+				dst_goals[i].complement,
 				dst_goals[i].target_value);
 		if (!goal)
 			goto out;
@@ -2411,7 +2412,7 @@ static void damos_test_esz_goal_temporal(struct kunit *test)
 	}
 	damon_add_scheme(ctx, s);
 
-	goal = damos_new_quota_goal(DAMOS_QUOTA_USER_INPUT, 10000);
+	goal = damos_new_quota_goal(DAMOS_QUOTA_USER_INPUT, false, 10000);
 	if (!goal) {
 		damon_destroy_ctx(ctx);
 		kunit_skip(test, "quota goal alloc fail");
