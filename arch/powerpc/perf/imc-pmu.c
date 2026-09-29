@@ -1275,6 +1275,8 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 				    struct perf_event_header *header,
 				    struct perf_event *event)
 {
+	u16 misc = 0;
+
 	/* Sanity checks for a valid record */
 	if (be64_to_cpu(READ_ONCE(mem->tb1)) > *prev_tb)
 		*prev_tb = be64_to_cpu(READ_ONCE(mem->tb1));
@@ -1289,23 +1291,19 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 	data->ip =  be64_to_cpu(READ_ONCE(mem->ip));
 	data->period = event->hw.last_period;
 
-	header->type = PERF_RECORD_SAMPLE;
-	header->size = sizeof(*header) + event->header_size;
-	header->misc = 0;
-
 	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
 		switch (IMC_TRACE_RECORD_VAL_HVPR(be64_to_cpu(READ_ONCE(mem->val)))) {
 		case 0:/* when MSR HV and PR not set in the trace-record */
-			header->misc |= PERF_RECORD_MISC_GUEST_KERNEL;
+			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
 			break;
 		case 1: /* MSR HV is 0 and PR is 1 */
-			header->misc |= PERF_RECORD_MISC_GUEST_USER;
+			misc |= PERF_RECORD_MISC_GUEST_USER;
 			break;
 		case 2: /* MSR HV is 1 and PR is 0 */
-			header->misc |= PERF_RECORD_MISC_KERNEL;
+			misc |= PERF_RECORD_MISC_KERNEL;
 			break;
 		case 3: /* MSR HV is 1 and PR is 1 */
-			header->misc |= PERF_RECORD_MISC_USER;
+			misc |= PERF_RECORD_MISC_USER;
 			break;
 		default:
 			pr_info("IMC: Unable to set the flag based on MSR bits\n");
@@ -1313,11 +1311,14 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 		}
 	} else {
 		if (is_kernel_addr(data->ip))
-			header->misc |= PERF_RECORD_MISC_KERNEL;
+			misc |= PERF_RECORD_MISC_KERNEL;
 		else
-			header->misc |= PERF_RECORD_MISC_USER;
+			misc |= PERF_RECORD_MISC_USER;
 	}
-	perf_event_header__init_id(header, data, event);
+	perf_event_header__init(header, data,
+				PERF_RECORD_SAMPLE, misc,
+				sizeof(*header) + event->header_size,
+				event);
 
 	return 0;
 }

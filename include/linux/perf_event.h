@@ -1506,9 +1506,10 @@ is_default_overflow_handler(struct perf_event *event)
 }
 
 extern void
-perf_event_header__init_id(struct perf_event_header *header,
-			   struct perf_sample_data *data,
-			   struct perf_event *event);
+perf_event_header__init(struct perf_event_header *header,
+			struct perf_sample_data *data,
+			u32 type, u16 misc, u16 size,
+			struct perf_event *event);
 extern void
 perf_event__output_id_sample(struct perf_event *event,
 			     struct perf_output_handle *handle,
