@@ -6,6 +6,7 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
@@ -21,6 +22,9 @@ static int gic_timer_irq;
 static unsigned int gic_frequency;
 static unsigned int gic_count_width;
 static bool __read_mostly gic_clock_unstable;
+static bool __read_mostly gic_use_local_counter = true;
+static unsigned long *gic_synced_cl_map;
+static struct work_struct gic_promote_work;
 
 static void gic_clocksource_unstable(char *reason);
 
@@ -102,10 +106,71 @@ static void gic_update_frequency(void *data)
 	clockevents_update_freq(this_cpu_ptr(&gic_clockevent_device), rate);
 }
 
+/* Number of iterations to synchronize the local GIC counter */
+#define GIC_SYNC_ITERATIONS 4
+
+/* Delay in us to check if the local GIC counter is still in sync with cluster 0 */
+#define GIC_SYNC_CHECK_DELAY 100
+
+static void gic_sync_counter_64(unsigned int cluster)
+{
+	unsigned int config = read_gic_config();
+	u64 t0, t1, t2;
+	s64 offset = 0;
+
+	mips_cm_lock_other(0, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+
+	for (int i = 0; i < GIC_SYNC_ITERATIONS; i++) {
+		write_gic_config(config | GIC_CONFIG_COUNTSTOP);
+		write_gic_counter(read_gic_redir_counter() + offset);
+		write_gic_config(config & ~GIC_CONFIG_COUNTSTOP);
+
+		t0 = read_gic_counter();
+		t1 = read_gic_redir_counter();
+		t2 = read_gic_counter();
+
+		if (time_in_range64(t1, t0, t2))
+			break;
+
+		/*
+		 * Compute the offset to apply to the local counter
+		 * so that (t1 - t0) equals (t2 - t1).
+		 */
+		offset += (s64)(2 * t1 - t0 - t2) / 2;
+	}
+
+	mips_cm_unlock_other();
+
+	if (!time_in_range64(t1, t0, t2))
+		return;
+
+	udelay(GIC_SYNC_CHECK_DELAY);
+
+	mips_cm_lock_other(0, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+	t0 = read_gic_counter();
+	t1 = read_gic_redir_counter();
+	t2 = read_gic_counter();
+	mips_cm_unlock_other();
+
+	/* If so, mark the cluster as synchronized */
+	if (time_in_range64(t1, t0, t2) && gic_synced_cl_map)
+		bitmap_set(gic_synced_cl_map, cluster, 1);
+}
+
 static int gic_starting_cpu(unsigned int cpu)
 {
-	/* Ensure the GIC counter is running */
-	clear_gic_config(GIC_CONFIG_COUNTSTOP);
+	unsigned int cluster = cpu_cluster(&cpu_data[cpu]);
+
+	if (read_gic_config() & GIC_CONFIG_COUNTSTOP) {
+		clear_gic_config(GIC_CONFIG_COUNTSTOP);
+
+		if (cluster && mips_cm_is64 && !gic_clock_unstable)
+			gic_sync_counter_64(cluster);
+
+		if (gic_synced_cl_map &&
+		    bitmap_full(gic_synced_cl_map, mips_cps_numclusters()))
+			schedule_work(&gic_promote_work);
+	}
 
 	gic_clockevent_cpu_init(cpu, this_cpu_ptr(&gic_clockevent_device));
 	return 0;
@@ -154,11 +219,6 @@ static int gic_clockevent_init(void)
 	return 0;
 }
 
-static u64 gic_hpt_read(struct clocksource *cs)
-{
-	return gic_read_count();
-}
-
 static u64 gic_hpt_read_multicluster(struct clocksource *cs)
 {
 	unsigned int hi, hi2, lo;
@@ -190,6 +250,14 @@ out:
 	return count;
 }
 
+static u64 gic_hpt_read(struct clocksource *cs)
+{
+	if (unlikely(!READ_ONCE(gic_use_local_counter)))
+		return gic_hpt_read_multicluster(cs);
+
+	return gic_read_count();
+}
+
 static struct clocksource gic_clocksource = {
 	.name			= "GIC",
 	.read			= gic_hpt_read,
@@ -209,8 +277,28 @@ static void gic_clocksource_unstable(char *reason)
 	clocksource_mark_unstable(&gic_clocksource);
 }
 
+static void gic_clocksource_promote(struct work_struct *work)
+{
+	if (gic_clock_unstable || READ_ONCE(gic_use_local_counter))
+		return;
+
+	WRITE_ONCE(gic_use_local_counter, true);
+
+#ifdef CONFIG_GENERIC_GETTIMEOFDAY
+	gic_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_GIC;
+#endif
+
+	if (mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ)) {
+		sched_clock_register(mips_cm_is64 ?
+				     gic_read_count_64 : gic_read_count_2x32,
+				     gic_count_width, gic_frequency);
+	}
+}
+
 static int __init __gic_clocksource_init(void)
 {
+	unsigned int numclusters;
+	bool synced = false;
 	int ret;
 
 	/* Set clocksource mask. */
@@ -222,14 +310,32 @@ static int __init __gic_clocksource_init(void)
 
 	/* Calculate a somewhat reasonable rating value. */
 	if (mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ))
-		gic_clocksource.rating = 300; /* Good when frequecy is stable */
+		gic_clocksource.rating = 300; /* Good when frequency is stable */
 	else
 		gic_clocksource.rating = 200;
 	gic_clocksource.rating += clamp(gic_frequency / 10000000, 0, 99);
 
-	if (mips_cps_multicluster_cpus()) {
-		gic_clocksource.read = &gic_hpt_read_multicluster;
+	numclusters = mips_cps_numclusters();
+	if (numclusters > 1)
+		gic_synced_cl_map = bitmap_zalloc(numclusters, GFP_KERNEL);
+
+	/*
+	 * Mark cluster 0 as synchronized (with itself), and all clusters
+	 * without cores since there is no local GIC counter access on those.
+	 */
+	if (gic_synced_cl_map) {
+		bitmap_set(gic_synced_cl_map, 0, 1);
+		for (unsigned int cl = 0; cl < numclusters; cl++) {
+			if (!mips_cps_numcores(cl))
+				bitmap_set(gic_synced_cl_map, cl, 1);
+		}
+		synced = bitmap_full(gic_synced_cl_map, numclusters);
+	}
+
+	if (numclusters > 1 && !synced) {
+		WRITE_ONCE(gic_use_local_counter, false);
 		gic_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_NONE;
+		INIT_WORK(&gic_promote_work, gic_clocksource_promote);
 	}
 
 	ret = clocksource_register_hz(&gic_clocksource, gic_frequency);
@@ -288,7 +394,7 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 	 * change performed by the CPC core clocks divider.
 	 */
 	if ((mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ)) &&
-	     !mips_cps_multicluster_cpus()) {
+	     READ_ONCE(gic_use_local_counter)) {
 		sched_clock_register(mips_cm_is64 ?
 				     gic_read_count_64 : gic_read_count_2x32,
 				     gic_count_width, gic_frequency);
