@@ -2477,12 +2477,6 @@
 						reg = <6>;
 						iommus = <&apps_smmu 0x0206 0x0000>;
 					};
-
-					compute-cb@9 {
-						compatible = "qcom,fastrpc-compute-cb";
-						reg = <9>;
-						iommus = <&apps_smmu 0x0209 0x0000>;
-					};
 				};
 			};
 		};
