@@ -1893,10 +1893,13 @@ static u32 iwl_trans_pcie_prph_msk(struct iwl_trans *trans)
 u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg)
 {
 	u32 mask = iwl_trans_pcie_prph_msk(trans);
+	u32 val;
 
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_RADDR,
 			       ((reg & mask) | (3 << 24)));
-	return iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
+	val = iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
+	trace_iwlwifi_dev_ioread_prph32(trans->dev, reg, val);
+	return val;
 }
 
 void iwl_pcie_write_prph_no_grab(struct iwl_trans *trans, u32 addr, u32 val)
@@ -3938,10 +3941,10 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	iwl_pcie_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
 
 	/* Read crf info */
-	info->hw_crf_id = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
+	info->hw_crf_id = iwl_trans_pcie_read_prph(iwl_trans, sd_reg_ver_addr);
 
 	/* Read cnv info */
-	info->hw_cnv_id = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
+	info->hw_cnv_id = iwl_trans_pcie_read_prph(iwl_trans, CNVI_AUX_MISC_CHIP);
 
 	/* For BZ-W, take B step also when A step is indicated */
 	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W)

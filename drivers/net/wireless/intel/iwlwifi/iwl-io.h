@@ -29,7 +29,6 @@ static inline int iwl_poll_bits(struct iwl_trans *trans, u32 addr, u32 bits,
 void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
 
 
-u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
 void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs,
 			  u32 val, u32 delay_ms);
@@ -55,8 +54,8 @@ static inline u32 iwl_umac_prph(struct iwl_trans *trans, u32 ofs)
 
 static inline u32 iwl_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_read_prph_no_grab(trans, ofs +
-				     trans->mac_cfg->umac_prph_offset);
+	return iwl_trans_read_prph_no_grab(trans, ofs +
+					   trans->mac_cfg->umac_prph_offset);
 }
 
 static inline u32 iwl_read_umac_prph(struct iwl_trans *trans, u32 ofs)

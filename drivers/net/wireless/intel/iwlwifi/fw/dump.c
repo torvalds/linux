@@ -360,7 +360,7 @@ static void iwl_fwrt_dump_fseq_regs(struct iwl_fw_runtime *fwrt)
 
 	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
 		IWL_ERR(fwrt, "0x%08X | %s\n",
-			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
+			iwl_trans_read_prph_no_grab(trans, fseq_regs[i].addr),
 			fseq_regs[i].str);
 
 	iwl_trans_release_nic_access(trans);
@@ -398,8 +398,8 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		     count++, pc_data++)
 			IWL_ERR(fwrt, "%s: 0x%x\n",
 				pc_data->pc_name,
-				iwl_read_prph_no_grab(fwrt->trans,
-						      pc_data->pc_address));
+				iwl_trans_read_prph_no_grab(fwrt->trans,
+							    pc_data->pc_address));
 		iwl_trans_release_nic_access(fwrt->trans);
 	}
 
