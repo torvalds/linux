@@ -45,6 +45,10 @@
 #include <asm/kvm_host.h>
 #include <linux/kvm_dirty_ring.h>
 
+#define __KVM_DEV_STRING(name, x) __stringify(name ## _ ## x)
+#define _KVM_DEV_STRING(name, x) __KVM_DEV_STRING(name, x)
+#define KVM_DEV_STRING(x) _KVM_DEV_STRING(KVM_DEV_NAME, x)
+
 #ifndef KVM_MAX_VCPU_IDS
 #define KVM_MAX_VCPU_IDS KVM_MAX_VCPUS
 #endif

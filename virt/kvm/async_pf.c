@@ -21,7 +21,10 @@ static struct kmem_cache *async_pf_cache;
 
 int kvm_async_pf_init(void)
 {
-	async_pf_cache = KMEM_CACHE(kvm_async_pf, 0);
+	async_pf_cache = kmem_cache_create(KVM_DEV_STRING(async_pf),
+					   sizeof(struct kvm_async_pf),
+					   __alignof__(struct kvm_async_pf),
+					   0, NULL);
 
 	if (!async_pf_cache)
 		return -ENOMEM;

@@ -10,6 +10,8 @@
  *   Yaniv Kamay  <yaniv@qumranet.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <kvm/iodev.h>
 
 #include <linux/kvm_host.h>
@@ -1023,7 +1025,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 	mutex_lock(&kvm_debugfs_lock);
 	dent = debugfs_lookup(dir_name, kvm_debugfs_dir);
 	if (dent) {
-		pr_warn_ratelimited("KVM: debugfs: duplicate directory %s\n", dir_name);
+		pr_warn_ratelimited("debugfs: duplicate directory %s\n", dir_name);
 		dput(dent);
 		mutex_unlock(&kvm_debugfs_lock);
 		return 0;
@@ -4125,9 +4127,9 @@ static struct file_operations kvm_vcpu_fops = {
  */
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
-	char name[8 + 1 + ITOA_MAX_LEN + 1];
+	char name[sizeof(__stringify(KVM_DEV_NAME) "-vcpu:") + ITOA_MAX_LEN + 1];
 
-	snprintf(name, sizeof(name), "kvm-vcpu:%d", vcpu->vcpu_id);
+	snprintf(name, sizeof(name), __stringify(KVM_DEV_NAME) "-vcpu:%d", vcpu->vcpu_id);
 	return anon_inode_getfd(name, &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
 }
 
@@ -4340,9 +4342,9 @@ static int kvm_vcpu_ioctl_get_stats_fd(struct kvm_vcpu *vcpu)
 {
 	int fd;
 	struct file *file;
-	char name[15 + ITOA_MAX_LEN + 1];
+	char name[sizeof(__stringify(KVM_DEV_NAME) "-vcpu-stats:") + ITOA_MAX_LEN + 1];
 
-	snprintf(name, sizeof(name), "kvm-vcpu-stats:%d", vcpu->vcpu_id);
+	snprintf(name, sizeof(name), __stringify(KVM_DEV_NAME) "-vcpu-stats:%d", vcpu->vcpu_id);
 
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
@@ -5155,7 +5157,7 @@ static int kvm_vm_ioctl_get_stats_fd(struct kvm *kvm)
 	if (fd < 0)
 		return fd;
 
-	file = anon_inode_getfile_fmode("kvm-vm-stats",
+	file = anon_inode_getfile_fmode(__stringify(KVM_DEV_NAME) "-vm-stats",
 			&kvm_vm_stats_fops, kvm, O_RDONLY, FMODE_PREAD);
 	if (IS_ERR(file)) {
 		put_unused_fd(fd);
@@ -5532,7 +5534,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		goto put_fd;
 	}
 
-	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
+	file = anon_inode_getfile(__stringify(KVM_DEV_NAME) "-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (IS_ERR(file)) {
 		r = PTR_ERR(file);
 		goto put_kvm;
@@ -5600,8 +5602,8 @@ static struct file_operations kvm_chardev_ops = {
 };
 
 static struct miscdevice kvm_dev = {
-	KVM_MINOR,
-	"kvm",
+	KVM_DEV_MINOR,
+	__stringify(KVM_DEV_NAME),
 	&kvm_chardev_ops,
 };
 
@@ -5635,7 +5637,7 @@ static int kvm_enable_virtualization_cpu(void)
 		return 0;
 
 	if (kvm_arch_enable_virtualization_cpu()) {
-		pr_info("kvm: enabling virtualization on CPU%d failed\n",
+		pr_info("enabling virtualization on CPU%d failed\n",
 			raw_smp_processor_id());
 		return -EIO;
 	}
@@ -5682,7 +5684,7 @@ static void kvm_shutdown(void *data)
 	 * is used for both shutdown and reboot scenarios, i.e. neither name is
 	 * 100% comprehensive.
 	 */
-	pr_info("kvm: exiting hardware virtualization\n");
+	pr_info("exiting hardware virtualization\n");
 	on_each_cpu(kvm_disable_virtualization_cpu, NULL, 1);
 }
 
@@ -6093,7 +6095,7 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	 * attached devices. Otherwise, destroy the caller's device only.
 	 */
 	if (!new_bus) {
-		pr_err("kvm: failed to shrink bus, removing it completely\n");
+		pr_err("failed to shrink bus, removing it completely\n");
 		kvm_io_bus_destroy(bus);
 		return -ENOMEM;
 	}
@@ -6380,7 +6382,7 @@ static void kvm_init_debug(void)
 	const struct kvm_stats_desc *pdesc;
 	int i;
 
-	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
+	kvm_debugfs_dir = debugfs_create_dir(__stringify(KVM_DEV_NAME), NULL);
 
 	for (i = 0; i < kvm_vm_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vm_stats_desc[i];
@@ -6525,7 +6527,7 @@ int kvm_init(unsigned vcpu_size, unsigned vcpu_align, struct module *module)
 	if (!vcpu_align)
 		vcpu_align = __alignof__(struct kvm_vcpu);
 	kvm_vcpu_cache =
-		kmem_cache_create_usercopy("kvm_vcpu", vcpu_size, vcpu_align,
+		kmem_cache_create_usercopy(KVM_DEV_STRING(vcpu), vcpu_size, vcpu_align,
 					   SLAB_ACCOUNT,
 					   offsetof(struct kvm_vcpu, arch),
 					   offsetofend(struct kvm_vcpu, stats_id)
@@ -6578,7 +6580,7 @@ int kvm_init(unsigned vcpu_size, unsigned vcpu_align, struct module *module)
 	 */
 	r = misc_register(&kvm_dev);
 	if (r) {
-		pr_err("kvm: misc device register failed\n");
+		pr_err("misc device register failed\n");
 		goto err_register;
 	}
 

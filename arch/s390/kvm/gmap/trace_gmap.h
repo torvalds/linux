@@ -4,8 +4,10 @@
 
 #include <linux/tracepoint.h>
 
+#undef UNPACK_KVM
+#define UNPACK_KVM(name) name
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM kvm
+#define TRACE_SYSTEM UNPACK_KVM(KVM_DEV_NAME)
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ../gmap
 #undef TRACE_INCLUDE_FILE

@@ -4,8 +4,14 @@
 
 #include <linux/tracepoint.h>
 
+#undef UNPACK_KVM
+#define UNPACK_KVM(name) name
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM kvm
+#define TRACE_SYSTEM UNPACK_KVM(KVM_DEV_NAME)
+#undef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR kvm
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE kvm
 
 #define ERSN(x) { KVM_EXIT_##x, "KVM_EXIT_" #x }
 

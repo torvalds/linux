@@ -5,6 +5,11 @@
 
 KVM ?= ../../../virt/kvm
 
+KVM_DEV_NAME ?= kvm
+KVM_DEV_MINOR ?= KVM_MINOR
+
+ccflags-y +=-DKVM_DEV_NAME=$(KVM_DEV_NAME) -DKVM_DEV_MINOR=$(KVM_DEV_MINOR)
+
 kvm-y := $(KVM)/kvm_main.o $(KVM)/eventfd.o $(KVM)/binary_stats.o
 kvm-$(CONFIG_KVM_VFIO) += $(KVM)/vfio.o
 kvm-$(CONFIG_KVM_MMIO) += $(KVM)/coalesced_mmio.o
