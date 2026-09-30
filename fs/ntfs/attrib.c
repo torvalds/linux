@@ -317,7 +317,7 @@ int ntfs_map_runlist(struct ntfs_inode *ni, s64 vcn)
 struct runlist_element *ntfs_attr_vcn_to_rl(struct ntfs_inode *ni, s64 vcn, s64 *lcn)
 {
 	struct runlist_element *rl = ni->runlist.rl;
-	int err;
+	int err = 0;
 	bool is_retry = false;
 
 	if (!rl) {
@@ -335,10 +335,30 @@ remap_rl:
 
 	if (*lcn <= LCN_RL_NOT_MAPPED && is_retry == false) {
 		is_retry = true;
-		if (!ntfs_map_runlist_nolock(ni, vcn, NULL)) {
+		err = ntfs_map_runlist_nolock(ni, vcn, NULL);
+		if (!err) {
 			rl = ni->runlist.rl;
 			goto remap_rl;
 		}
+	}
+
+	/*
+	 * The runlist fragment containing @vcn could not be mapped, e.g.
+	 * because the extent mft record holding it is corrupt.  Do not hand
+	 * LCN_RL_NOT_MAPPED back to callers, which would treat it as a hole.
+	 * At or beyond the allocated size nothing is mapped, and the runlist
+	 * ends there with LCN_RL_NOT_MAPPED if only a later extent has been
+	 * mapped, so return that end as it is.
+	 */
+	if (*lcn == LCN_RL_NOT_MAPPED) {
+		unsigned long flags;
+		s64 allocated_size;
+
+		read_lock_irqsave(&ni->size_lock, flags);
+		allocated_size = ni->allocated_size;
+		read_unlock_irqrestore(&ni->size_lock, flags);
+		if ((s64)ntfs_cluster_to_bytes(ni->vol, vcn) < allocated_size)
+			return ERR_PTR(err == -ENOMEM ? -ENOMEM : -EIO);
 	}
 
 	return rl;
