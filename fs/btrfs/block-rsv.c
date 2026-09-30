@@ -238,8 +238,7 @@ int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_percent)
 	return ret;
 }
 
-int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+int btrfs_block_rsv_refill(struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			   enum btrfs_reserve_flush_enum flush)
 {
 	int ret = -ENOSPC;
