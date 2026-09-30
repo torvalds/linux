@@ -465,8 +465,8 @@ int iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
 	struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(sta);
 	struct iwl_sta_cfg_cmd cmd = {};
 	int fw_id = iwl_mld_fw_sta_id_from_link_sta(mld, link_sta);
-	bool is_6ghz, uora_exists;
 	u32 link_mask;
+	bool is_6ghz;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -479,7 +479,6 @@ int iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
 			return -EINVAL;
 
 		is_6ghz = false;
-		uora_exists = false;
 
 		link_mask = iwl_mld_get_nan_link_mask(mld);
 	} else {
@@ -495,7 +494,6 @@ int iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
 
 		link_mask = BIT(mld_link->fw_id);
 		is_6ghz = link->chanreq.oper.chan->band == NL80211_BAND_6GHZ;
-		uora_exists = link->uora_exists;
 	}
 
 	cmd.sta_id = cpu_to_le32(fw_id);
@@ -554,9 +552,6 @@ int iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
 	}
 
 	if (link_sta->he_cap.has_he) {
-		cmd.trig_rnd_alloc =
-			cpu_to_le32(uora_exists ? 1 : 0);
-
 		/* PPE Thresholds */
 		iwl_mld_fill_pkt_ext(mld, link_sta, &cmd.pkt_ext);
 
