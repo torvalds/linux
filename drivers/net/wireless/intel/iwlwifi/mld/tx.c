@@ -29,7 +29,7 @@ static u32 iwl_mld_tx_gp2_host_us(void)
 /* Returns the gp2 for the TX command, or 0 to leave the frame unstamped.
  * Sets @refresh when the estimate expired or is about to.
  */
-static u32
+VISIBLE_IF_IWLWIFI_KUNIT u32
 iwl_mld_tx_gp2_from_est(u32 delta_us, unsigned long valid_until, u32 host_us,
 			unsigned long now, bool *refresh)
 {
@@ -46,6 +46,7 @@ iwl_mld_tx_gp2_from_est(u32 delta_us, unsigned long valid_until, u32 host_us,
 	/* 0 means no timestamp; use 1 for a valid wrapped value. */
 	return gp2 ?: 1;
 }
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_tx_gp2_from_est);
 
 static u32
 iwl_mld_tx_gp2_timestamp(struct iwl_mld *mld)

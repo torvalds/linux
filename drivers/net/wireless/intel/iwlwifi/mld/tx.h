@@ -106,4 +106,9 @@ void iwl_mld_tx_gp2_init(struct iwl_mld *mld);
 void iwl_mld_tx_gp2_start(struct iwl_mld *mld);
 void iwl_mld_tx_gp2_stop(struct iwl_mld *mld);
 
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+u32 iwl_mld_tx_gp2_from_est(u32 delta_us, unsigned long valid_until,
+			    u32 host_us, unsigned long now, bool *refresh);
+#endif
+
 #endif /* __iwl_mld_tx_h__ */
