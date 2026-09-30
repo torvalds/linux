@@ -36,8 +36,8 @@ static inline void iwl_pcie_write_umac_prph_no_grab(struct iwl_trans *trans,
 				    val);
 }
 
-static inline void _iwl_trans_set_bits_mask(struct iwl_trans *trans,
-					    u32 reg, u32 mask, u32 value)
+static inline void iwl_pcie_set_bits_mask(struct iwl_trans *trans,
+					  u32 reg, u32 mask, u32 value)
 {
 	u32 v;
 
@@ -51,16 +51,16 @@ static inline void _iwl_trans_set_bits_mask(struct iwl_trans *trans,
 	iwl_trans_pcie_write32(trans, reg, v);
 }
 
-static inline void iwl_trans_clear_bit(struct iwl_trans *trans,
+static inline void iwl_pcie_clear_bit(struct iwl_trans *trans,
 				       u32 reg, u32 mask)
 {
-	_iwl_trans_set_bits_mask(trans, reg, mask, 0);
+	iwl_pcie_set_bits_mask(trans, reg, mask, 0);
 }
 
-static inline void iwl_trans_set_bit(struct iwl_trans *trans,
+static inline void iwl_pcie_set_bit(struct iwl_trans *trans,
 				     u32 reg, u32 mask)
 {
-	_iwl_trans_set_bits_mask(trans, reg, mask, mask);
+	iwl_pcie_set_bits_mask(trans, reg, mask, mask);
 }
 
 #endif /* __iwl_pcie_utils_h__ */
