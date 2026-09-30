@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020, 2023-2025 Intel Corporation
+ * Copyright (C) 2018-2020, 2023-2026 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -711,7 +711,7 @@ static void iwl_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	 * if not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx).
 	 */
-	iwl_write32(trans, HBUS_TARG_WRPTR, txq->write_ptr | (txq->id << 16));
+	iwl_trans_pcie_write32(trans, HBUS_TARG_WRPTR, txq->write_ptr | (txq->id << 16));
 }
 
 int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,

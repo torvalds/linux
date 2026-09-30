@@ -931,7 +931,7 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 			for (count = 0; count < len; count++) {
 				address = le32_to_cpu(config_list->addr_val[count].address);
 				value = le32_to_cpu(config_list->addr_val[count].value);
-				iwl_write32(fwrt->trans, address + offset, value);
+				iwl_trans_write32(fwrt->trans, address + offset, value);
 				IWL_DEBUG_FW(fwrt, "WRT: CSR: count %u, add: %u val: %u\n",
 					     count, address, value);
 			}

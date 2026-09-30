@@ -7,6 +7,7 @@
 #define __iwl_pcie_utils_h__
 
 #include "iwl-io.h"
+#include "internal.h"
 
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans, struct pci_dev *pdev);
 
@@ -24,16 +25,15 @@ void iwl_pcie_write_direct64(struct iwl_trans *trans, u64 reg, u64 value);
 
 static inline void iwl_pcie_write64(struct iwl_trans *trans, u64 ofs, u64 val)
 {
-	trace_iwlwifi_dev_iowrite64(trans->dev, ofs, val);
-	iwl_trans_write32(trans, ofs, lower_32_bits(val));
-	iwl_trans_write32(trans, ofs + 4, upper_32_bits(val));
+	iwl_trans_pcie_write32(trans, ofs, lower_32_bits(val));
+	iwl_trans_pcie_write32(trans, ofs + 4, upper_32_bits(val));
 }
 
 static inline void iwl_pcie_write_umac_prph_no_grab(struct iwl_trans *trans,
 						    u32 ofs, u32 val)
 {
-	iwl_write_prph_no_grab(trans, ofs + trans->mac_cfg->umac_prph_offset,
-			       val);
+	iwl_pcie_write_prph_no_grab(trans, ofs + trans->mac_cfg->umac_prph_offset,
+				    val);
 }
 
 static inline void _iwl_trans_set_bits_mask(struct iwl_trans *trans,
@@ -45,10 +45,10 @@ static inline void _iwl_trans_set_bits_mask(struct iwl_trans *trans,
 	WARN_ON_ONCE(value & ~mask);
 #endif
 
-	v = iwl_read32(trans, reg);
+	v = iwl_trans_pcie_read32(trans, reg);
 	v &= ~mask;
 	v |= value;
-	iwl_write32(trans, reg, v);
+	iwl_trans_pcie_write32(trans, reg, v);
 }
 
 static inline void iwl_trans_clear_bit(struct iwl_trans *trans,

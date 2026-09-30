@@ -8,9 +8,6 @@
 #include "iwl-devtrace.h"
 #include "iwl-trans.h"
 
-void iwl_write32(struct iwl_trans *trans, u32 ofs, u32 val);
-u32 iwl_read32(struct iwl_trans *trans, u32 ofs);
-
 static inline void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 {
 	iwl_trans_set_bits_mask(trans, reg, mask, mask);
@@ -34,7 +31,6 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
 
 u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
-void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs,
 			  u32 val, u32 delay_ms);
 static inline void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)

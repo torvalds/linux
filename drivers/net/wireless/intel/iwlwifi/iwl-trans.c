@@ -432,11 +432,13 @@ void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	iwl_trans_pcie_write32(trans, ofs, val);
 }
+IWL_EXPORT_SYMBOL(iwl_trans_write32);
 
 u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
 	return iwl_trans_pcie_read32(trans, ofs);
 }
+IWL_EXPORT_SYMBOL(iwl_trans_read32);
 
 u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
 {
@@ -460,8 +462,8 @@ void iwl_trans_force_nmi(struct iwl_trans *trans)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
 	else
-		iwl_write32(trans, CSR_DOORBELL_VECTOR,
-			    UREG_DOORBELL_TO_ISR6_NMI_BIT);
+		iwl_trans_write32(trans, CSR_DOORBELL_VECTOR,
+				  UREG_DOORBELL_TO_ISR6_NMI_BIT);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_force_nmi);
 
@@ -485,10 +487,10 @@ int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
 	const u32 *vals = buf;
 
 	if (iwl_trans_grab_nic_access(trans)) {
-		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
+		iwl_trans_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
-			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
-				    vals ? vals[offs] : 0);
+			iwl_trans_write32(trans, HBUS_TARG_MEM_WDAT,
+					  vals ? vals[offs] : 0);
 		iwl_trans_release_nic_access(trans);
 	} else {
 		ret = -EBUSY;

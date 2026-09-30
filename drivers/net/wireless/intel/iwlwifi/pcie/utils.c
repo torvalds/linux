@@ -51,7 +51,7 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans, struct pci_dev *pdev)
 
 	IWL_ERR(trans, "iwlwifi device memory mapped registers:\n");
 	for (i = 0, ptr = buf; i < PCI_MEM_DUMP_SIZE; i += 4, ptr++)
-		*ptr = iwl_read32(trans, i);
+		*ptr = iwl_trans_pcie_read32(trans, i);
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
@@ -106,7 +106,7 @@ out:
 u32 iwl_pcie_read_direct32(struct iwl_trans *trans, u32 reg)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
-		u32 value = iwl_read32(trans, reg);
+		u32 value = iwl_trans_pcie_read32(trans, reg);
 
 		iwl_trans_release_nic_access(trans);
 		return value;
@@ -176,8 +176,8 @@ int iwl_pcie_poll_umac_prph_bits_no_grab(struct iwl_trans *trans, u32 addr,
 void iwl_pcie_write_prph64_no_grab(struct iwl_trans *trans, u32 ofs, u64 val)
 {
 	trace_iwlwifi_dev_iowrite_prph64(trans->dev, ofs, val);
-	iwl_write_prph_no_grab(trans, ofs, val & 0xffffffff);
-	iwl_write_prph_no_grab(trans, ofs + 4, val >> 32);
+	iwl_pcie_write_prph_no_grab(trans, ofs, val & 0xffffffff);
+	iwl_pcie_write_prph_no_grab(trans, ofs + 4, val >> 32);
 }
 
 void iwl_pcie_write_direct64(struct iwl_trans *trans, u64 reg, u64 value)

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014, 2018 - 2022 Intel Corporation. All rights reserved.
- * Copyright(c) 2024-2025 Intel Corporation. All rights reserved.
+ * Copyright(c) 2024-2026 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
@@ -413,7 +413,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		return;
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, ptr);
+	iwl_trans_write32(priv->trans, HBUS_TARG_MEM_RADDR, ptr);
 
 	/*
 	 * Refuse to read more than would have fit into the log from
@@ -429,13 +429,13 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+		ev = iwl_trans_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+		time = iwl_trans_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			trace_iwlwifi_dev_ucode_cont_event(
 					priv->trans->dev, 0, time, ev);
 		} else {
-			data = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+			data = iwl_trans_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 			trace_iwlwifi_dev_ucode_cont_event(
 					priv->trans->dev, time, data, ev);
 		}
@@ -661,8 +661,8 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	struct iwl_ct_kill_throttling_config adv_cmd;
 	int ret = 0;
 
-	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
-		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
+	iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+			  CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 
 	priv->thermal_throttle.ct_kill_toggle = false;
 
@@ -1731,13 +1731,13 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		return pos;
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
+	iwl_trans_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
 
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	* place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
+		ev = iwl_trans_read32(trans, HBUS_TARG_MEM_RDAT);
+		time = iwl_trans_read32(trans, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
 			if (bufsz) {
@@ -1751,7 +1751,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 					time, ev);
 			}
 		} else {
-			data = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
+			data = iwl_trans_read32(trans, HBUS_TARG_MEM_RDAT);
 			if (bufsz) {
 				pos += scnprintf(*buf + pos, bufsz - pos,
 						"EVT_LOGT:%010u:0x%08x:%04u\n",

@@ -404,7 +404,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 	}
 
 	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		u32 scratch = iwl_read32(fwrt->trans, CSR_FUNC_SCRATCH);
+		u32 scratch = iwl_trans_read32(fwrt->trans, CSR_FUNC_SCRATCH);
 
 		IWL_ERR(fwrt, "Function Scratch status:\n");
 		IWL_ERR(fwrt, "0x%08X | Func Scratch\n", scratch);

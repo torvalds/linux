@@ -317,7 +317,7 @@ void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans)
 	/* kick FW self load */
 	iwl_pcie_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
 	iwl_pcie_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
-	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
+	iwl_trans_pcie_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
 
 	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
 		    CSR_AUTO_FUNC_BOOT_ENA);

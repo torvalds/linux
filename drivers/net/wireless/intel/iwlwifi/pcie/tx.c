@@ -99,7 +99,7 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part.
 		 */
-		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
+		reg = iwl_trans_pcie_read32(trans, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			IWL_DEBUG_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
@@ -117,8 +117,8 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->write_ptr);
 	if (!txq->block)
-		iwl_write32(trans, HBUS_TARG_WRPTR,
-			    txq->write_ptr | (txq_id << 8));
+		iwl_trans_pcie_write32(trans, HBUS_TARG_WRPTR,
+				       txq->write_ptr | (txq_id << 8));
 }
 
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
@@ -586,7 +586,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 
 	/* Stop each Tx DMA channel */
 	for (ch = 0; ch < FH_TCSR_CHNL_NUM; ch++) {
-		iwl_write32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
+		iwl_trans_pcie_write32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
 		mask |= FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch);
 	}
 
@@ -595,7 +595,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 	if (ret)
 		IWL_ERR(trans,
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
-			ch, iwl_read32(trans, FH_TSSR_TX_STATUS_REG));
+			ch, iwl_trans_pcie_read32(trans, FH_TSSR_TX_STATUS_REG));
 
 	iwl_trans_release_nic_access(trans);
 
@@ -1335,8 +1335,8 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 		if (!block && !(WARN_ON_ONCE(!txq->block))) {
 			txq->block--;
 			if (!txq->block) {
-				iwl_write32(trans, HBUS_TARG_WRPTR,
-					    txq->write_ptr | (i << 8));
+				iwl_trans_pcie_write32(trans, HBUS_TARG_WRPTR,
+						       txq->write_ptr | (i << 8));
 			}
 		} else if (block) {
 			txq->block++;

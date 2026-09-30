@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2019, 2025 Intel Corporation
+ * Copyright (C) 2019, 2025-2026 Intel Corporation
  *****************************************************************************/
 
 
@@ -49,7 +49,7 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 /* Set led register off */
 void iwlagn_led_enable(struct iwl_priv *priv)
 {
-	iwl_write32(priv->trans, CSR_LED_REG, CSR_LED_REG_TURN_ON);
+	iwl_trans_write32(priv->trans, CSR_LED_REG, CSR_LED_REG_TURN_ON);
 }
 
 /*
@@ -85,10 +85,10 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	};
 	u32 reg;
 
-	reg = iwl_read32(priv->trans, CSR_LED_REG);
+	reg = iwl_trans_read32(priv->trans, CSR_LED_REG);
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
-		iwl_write32(priv->trans, CSR_LED_REG,
-			    reg & CSR_LED_BSM_CTRL_MSK);
+		iwl_trans_write32(priv->trans, CSR_LED_REG,
+				  reg & CSR_LED_BSM_CTRL_MSK);
 
 	return iwl_dvm_send_cmd(priv, &cmd);
 }

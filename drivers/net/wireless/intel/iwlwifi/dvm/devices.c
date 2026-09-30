@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2019, 2025 Intel Corporation
+ * Copyright (C) 2019, 2025-2026 Intel Corporation
  *****************************************************************************/
 
 #include <linux/units.h>
@@ -490,8 +490,8 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		break;
 	case IWL_DEVICE_FAMILY_6000i:
 		/* 2x2 IPA phy type */
-		iwl_write32(priv->trans, CSR_GP_DRIVER_REG,
-			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
+		iwl_trans_write32(priv->trans, CSR_GP_DRIVER_REG,
+				  CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 		break;
 	case IWL_DEVICE_FAMILY_6050:
 		/* Indicate calibration version to uCode. */

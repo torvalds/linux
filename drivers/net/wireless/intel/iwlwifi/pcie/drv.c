@@ -1252,7 +1252,7 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 		 * For older devices, just try silently to grab the NIC.
 		 */
 		if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-			u32 scratch = iwl_read32(trans, CSR_FUNC_SCRATCH);
+			u32 scratch = iwl_trans_pcie_read32(trans, CSR_FUNC_SCRATCH);
 
 			if (!(scratch & CSR_FUNC_SCRATCH_POWER_OFF_MASK) ||
 			    scratch == ~0U) {

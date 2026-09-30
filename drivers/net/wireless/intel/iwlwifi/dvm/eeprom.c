@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021, 2024-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021, 2024-2026 Intel Corporation
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -698,7 +698,7 @@ static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 
 static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
 {
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = iwl_trans_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 
 	IWL_DEBUG_EEPROM(trans->dev, "EEPROM signature=0x%08x\n", gp);
 
@@ -734,7 +734,7 @@ static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
 
 static void iwl_set_otp_access_absolute(struct iwl_trans *trans)
 {
-	iwl_read32(trans, CSR_OTP_GP_REG);
+	iwl_trans_read32(trans, CSR_OTP_GP_REG);
 
 	iwl_clear_bit(trans, CSR_OTP_GP_REG,
 		      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
@@ -755,7 +755,7 @@ static int iwl_nvm_is_otp(struct iwl_trans *trans)
 	case CSR_HW_REV_TYPE_5150:
 		return 0;
 	default:
-		otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+		otpgp = iwl_trans_read32(trans, CSR_OTP_GP_REG);
 		if (otpgp & CSR_OTP_GP_REG_DEVICE_SELECT)
 			return 1;
 		return 0;
@@ -794,8 +794,8 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 	u32 r;
 	u32 otpgp;
 
-	iwl_write32(trans, CSR_EEPROM_REG,
-		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	iwl_trans_write32(trans, CSR_EEPROM_REG,
+			  CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 	ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
 			    CSR_EEPROM_REG_READ_VALID_MSK,
 			    IWL_EEPROM_ACCESS_TIMEOUT);
@@ -803,9 +803,9 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 		IWL_ERR(trans, "Time out reading OTP[%d]\n", addr);
 		return ret;
 	}
-	r = iwl_read32(trans, CSR_EEPROM_REG);
+	r = iwl_trans_read32(trans, CSR_EEPROM_REG);
 	/* check for ECC errors: */
-	otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+	otpgp = iwl_trans_read32(trans, CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
 		/* stop in this case */
 		/* set the uncorrectable OTP ECC bit for acknowledgment */
@@ -918,7 +918,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 {
 	__le16 *e;
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP);
+	u32 gp = iwl_trans_read32(trans, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
@@ -960,9 +960,9 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 			goto err_unlock;
 		}
 
-		iwl_write32(trans, CSR_EEPROM_GP,
-			    iwl_read32(trans, CSR_EEPROM_GP) &
-			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
+		iwl_trans_write32(trans, CSR_EEPROM_GP,
+				  iwl_trans_read32(trans, CSR_EEPROM_GP) &
+				  ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
 		iwl_set_bit(trans, CSR_OTP_GP_REG,
 			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
@@ -988,8 +988,8 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			iwl_write32(trans, CSR_EEPROM_REG,
-				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+			iwl_trans_write32(trans, CSR_EEPROM_REG,
+					  CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
 			ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
 					    CSR_EEPROM_REG_READ_VALID_MSK,
@@ -999,7 +999,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 					"Time out reading EEPROM[%d]\n", addr);
 				goto err_unlock;
 			}
-			r = iwl_read32(trans, CSR_EEPROM_REG);
+			r = iwl_trans_read32(trans, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}
