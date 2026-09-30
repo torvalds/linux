@@ -29,6 +29,10 @@
 
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
 
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE) && !defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+#define __KVM_NO_MMIO
+#endif
+
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
 
