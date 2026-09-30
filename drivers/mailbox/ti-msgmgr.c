@@ -445,12 +445,24 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 		data_reg += sizeof(u32);
 	}
 
-	/* If we are in polled mode, wait for a response before proceeding */
-	if (ti_msgmgr_chan_has_polled_queue_rx(message->chan_rx))
+	/*
+	 * If we are in polled mode, wait for a response before proceeding.
+	 *
+	 * The message has already been transmitted at this point, so do not
+	 * report a missing response as a send failure. Doing so would make
+	 * the mailbox core keep the message queued and submit it again later,
+	 * after the client has possibly given up on it. The client detects the
+	 * missing response by itself timing out.
+	 */
+	if (ti_msgmgr_chan_has_polled_queue_rx(message->chan_rx)) {
 		ret = ti_msgmgr_queue_rx_poll_timeout(message->chan_rx,
 						      message->timeout_rx_ms * 1000);
+		if (ret)
+			dev_err(dev, "Queue %s timed out waiting for response: %d\n",
+				qinst->name, ret);
+	}
 
-	return ret;
+	return 0;
 }
 
 /**
