@@ -2676,16 +2676,16 @@ static ssize_t hotkey_mask_store(struct device *dev,
 	if (parse_strtoul(buf, 0xffffffffUL, &t))
 		return -EINVAL;
 
-	if (mutex_lock_killable(&hotkey_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&hotkey_mutex);
+	res = ACQUIRE_ERR(mutex_kill, &guard);
+	if (res)
+		return res;
 
 	res = hotkey_user_mask_set(t);
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	hotkey_poll_setup(true);
 #endif
-
-	mutex_unlock(&hotkey_mutex);
 
 	tpacpi_disclose_usertask("hotkey_mask", "set to 0x%08lx\n", t);
 
@@ -2772,8 +2772,10 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 		((t & ~TPACPI_HKEY_NVRAM_KNOWN_MASK) != 0))
 		return -EINVAL;
 
-	if (mutex_lock_killable(&hotkey_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&hotkey_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	HOTKEY_CONFIG_CRITICAL_START
 	hotkey_source_mask = t;
@@ -2786,8 +2788,6 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 	/* check if events needed by the driver got disabled */
 	r_ev = hotkey_driver_mask & ~(hotkey_acpi_mask & hotkey_all_mask)
 		& ~hotkey_source_mask & TPACPI_HKEY_NVRAM_KNOWN_MASK;
-
-	mutex_unlock(&hotkey_mutex);
 
 	if (rc < 0)
 		pr_err("hotkey_source_mask: failed to update the firmware event mask!\n");
@@ -2816,17 +2816,18 @@ static ssize_t hotkey_poll_freq_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
+	int err;
 
 	if (parse_strtoul(buf, 25, &t))
 		return -EINVAL;
 
-	if (mutex_lock_killable(&hotkey_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&hotkey_mutex);
+	err = ACQUIRE_ERR(mutex_kill, &guard);
+	if (err)
+		return err;
 
 	hotkey_poll_set_freq(t);
 	hotkey_poll_setup(true);
-
-	mutex_unlock(&hotkey_mutex);
 
 	tpacpi_disclose_usertask("hotkey_poll_freq", "set to %lu\n", t);
 
@@ -4066,12 +4067,13 @@ static int hotkey_read(struct seq_file *m)
 		return 0;
 	}
 
-	if (mutex_lock_killable(&hotkey_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&hotkey_mutex);
+	res = ACQUIRE_ERR(mutex_kill, &guard);
+	if (res)
+		return res;
 	res = hotkey_status_get(&status);
 	if (!res)
 		res = hotkey_mask_get();
-	mutex_unlock(&hotkey_mutex);
 	if (res)
 		return res;
 
@@ -4104,8 +4106,10 @@ static int hotkey_write(char *buf)
 	if (!tp_features.hotkey)
 		return -ENODEV;
 
-	if (mutex_lock_killable(&hotkey_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&hotkey_mutex);
+	res = ACQUIRE_ERR(mutex_kill, &guard);
+	if (res)
+		return res;
 
 	mask = hotkey_user_mask;
 
@@ -4124,8 +4128,7 @@ static int hotkey_write(char *buf)
 		} else if (sscanf(cmd, "%x", &mask) == 1) {
 			/* mask set */
 		} else {
-			res = -EINVAL;
-			goto errexit;
+			return -EINVAL;
 		}
 	}
 
@@ -4135,8 +4138,6 @@ static int hotkey_write(char *buf)
 		res = hotkey_user_mask_set(mask);
 	}
 
-errexit:
-	mutex_unlock(&hotkey_mutex);
 	return res;
 }
 
@@ -6540,11 +6541,12 @@ static void tpacpi_brightness_checkpoint_nvram(void)
 	vdbg_printk(TPACPI_DBG_BRGHT,
 		"trying to checkpoint backlight level to NVRAM...\n");
 
-	if (mutex_lock_killable(&brightness_mutex) < 0)
+	ACQUIRE(mutex_kill, guard)(&brightness_mutex);
+	if (ACQUIRE_ERR(mutex_kill, &guard))
 		return;
 
 	if (unlikely(!acpi_ec_read(TP_EC_BACKLIGHT, &lec)))
-		goto unlock;
+		return;
 	lec &= TP_EC_BACKLIGHT_LVLMSK;
 	b_nvram = nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS);
 
@@ -6562,9 +6564,6 @@ static void tpacpi_brightness_checkpoint_nvram(void)
 		vdbg_printk(TPACPI_DBG_BRGHT,
 			   "NVRAM backlight level already is %u (0x%02x)\n",
 			   (unsigned int) lec, (unsigned int) b_nvram);
-
-unlock:
-	mutex_unlock(&brightness_mutex);
 }
 
 
@@ -6642,8 +6641,9 @@ static int brightness_set(unsigned int value)
 	vdbg_printk(TPACPI_DBG_BRGHT,
 			"set backlight level to %d\n", value);
 
-	res = mutex_lock_killable(&brightness_mutex);
-	if (res < 0)
+	ACQUIRE(mutex_kill, guard)(&brightness_mutex);
+	res = ACQUIRE_ERR(mutex_kill, &guard);
+	if (res)
 		return res;
 
 	switch (brightness_mode) {
@@ -6658,7 +6658,6 @@ static int brightness_set(unsigned int value)
 		res = -ENXIO;
 	}
 
-	mutex_unlock(&brightness_mutex);
 	return res;
 }
 
@@ -6681,14 +6680,11 @@ static int brightness_get(struct backlight_device *bd)
 {
 	int status, res;
 
-	res = mutex_lock_killable(&brightness_mutex);
-	if (res < 0)
+	ACQUIRE(mutex_kill, guard)(&brightness_mutex);
+	if (ACQUIRE_ERR(mutex_kill, &guard))
 		return 0;
 
 	res = tpacpi_brightness_get_raw(&status);
-
-	mutex_unlock(&brightness_mutex);
-
 	if (res < 0)
 		return 0;
 
@@ -7153,11 +7149,12 @@ static void tpacpi_volume_checkpoint_nvram(void)
 	else
 		ec_mask = TP_EC_AUDIO_MUTESW_MSK | TP_EC_AUDIO_LVL_MSK;
 
-	if (mutex_lock_killable(&volume_mutex) < 0)
+	ACQUIRE(mutex_kill, guard)(&volume_mutex);
+	if (ACQUIRE_ERR(mutex_kill, &guard))
 		return;
 
 	if (unlikely(!acpi_ec_read(TP_EC_AUDIO, &lec)))
-		goto unlock;
+		return;
 	lec &= ec_mask;
 	b_nvram = nvram_read_byte(TP_NVRAM_ADDR_MIXER);
 
@@ -7174,9 +7171,6 @@ static void tpacpi_volume_checkpoint_nvram(void)
 			   "NVRAM mixer status already is 0x%02x (0x%02x)\n",
 			   (unsigned int) lec, (unsigned int) b_nvram);
 	}
-
-unlock:
-	mutex_unlock(&volume_mutex);
 }
 
 static int volume_get_status_ec(u8 *status)
@@ -7225,12 +7219,14 @@ static int __volume_set_mute_ec(const bool mute)
 	int rc;
 	u8 s, n;
 
-	if (mutex_lock_killable(&volume_mutex) < 0)
-		return -EINTR;
+	ACQUIRE(mutex_kill, guard)(&volume_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	rc = volume_get_status_ec(&s);
 	if (rc)
-		goto unlock;
+		return rc;
 
 	n = (mute) ? s | TP_EC_AUDIO_MUTESW_MSK :
 		     s & ~TP_EC_AUDIO_MUTESW_MSK;
@@ -7241,8 +7237,6 @@ static int __volume_set_mute_ec(const bool mute)
 			rc = 1;
 	}
 
-unlock:
-	mutex_unlock(&volume_mutex);
 	return rc;
 }
 
@@ -7273,12 +7267,14 @@ static int __volume_set_volume_ec(const u8 vol)
 	if (vol > TP_EC_VOLUME_MAX)
 		return -EINVAL;
 
-	if (mutex_lock_killable(&volume_mutex) < 0)
-		return -EINTR;
+	ACQUIRE(mutex_kill, guard)(&volume_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	rc = volume_get_status_ec(&s);
 	if (rc)
-		goto unlock;
+		return rc;
 
 	n = (s & ~TP_EC_AUDIO_LVL_MSK) | vol;
 
@@ -7288,8 +7284,6 @@ static int __volume_set_volume_ec(const u8 vol)
 			rc = 1;
 	}
 
-unlock:
-	mutex_unlock(&volume_mutex);
 	return rc;
 }
 
@@ -8193,13 +8187,14 @@ static int fan_get_status_safe(u8 *status)
 	int rc;
 	u8 s;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 	rc = fan_get_status(&s);
 	/* NS EC doesn't have register with level settings */
 	if (!rc && !fan_with_ns_addr)
 		fan_update_desired_level(s);
-	mutex_unlock(&fan_mutex);
 
 	if (rc)
 		return rc;
@@ -8392,8 +8387,10 @@ static int fan_set_level_safe(int level)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	if (level == TPACPI_FAN_LAST_LEVEL)
 		level = fan_control_desired_level;
@@ -8402,7 +8399,6 @@ static int fan_set_level_safe(int level)
 	if (!rc)
 		fan_update_desired_level(level);
 
-	mutex_unlock(&fan_mutex);
 	return rc;
 }
 
@@ -8414,8 +8410,10 @@ static int fan_set_enable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
@@ -8471,8 +8469,6 @@ static int fan_set_enable(void)
 		rc = -ENXIO;
 	}
 
-	mutex_unlock(&fan_mutex);
-
 	if (!rc)
 		vdbg_printk(TPACPI_DBG_FAN,
 			"fan control: set fan control register to 0x%02x\n",
@@ -8487,8 +8483,10 @@ static int fan_set_disable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
@@ -8533,7 +8531,6 @@ static int fan_set_disable(void)
 		vdbg_printk(TPACPI_DBG_FAN,
 			"fan control: set fan control register to 0\n");
 
-	mutex_unlock(&fan_mutex);
 	return rc;
 }
 
@@ -8544,8 +8541,10 @@ static int fan_set_speed(int speed)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
@@ -8579,7 +8578,6 @@ static int fan_set_speed(int speed)
 		rc = -ENXIO;
 	}
 
-	mutex_unlock(&fan_mutex);
 	return rc;
 }
 
@@ -8739,8 +8737,10 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	/* scale down from 0-255 to 0-7 */
 	newlevel = (s >> 5) & 0x07;
 
-	if (mutex_lock_killable(&fan_mutex))
-		return -ERESTARTSYS;
+	ACQUIRE(mutex_kill, guard)(&fan_mutex);
+	rc = ACQUIRE_ERR(mutex_kill, &guard);
+	if (rc)
+		return rc;
 
 	rc = fan_get_status(&status);
 	if (!rc && (status &
@@ -8754,7 +8754,6 @@ static ssize_t fan_pwm1_store(struct device *dev,
 		}
 	}
 
-	mutex_unlock(&fan_mutex);
 	return (rc) ? rc : count;
 }
 
@@ -10605,13 +10604,14 @@ static int dytc_profile_set(struct device *dev,
 	int output;
 	int err;
 
-	err = mutex_lock_interruptible(&dytc_mutex);
+	ACQUIRE(mutex_intr, guard)(&dytc_mutex);
+	err = ACQUIRE_ERR(mutex_intr, &guard);
 	if (err)
 		return err;
 
 	err = convert_profile_to_dytc(profile, &perfmode);
 	if (err)
-		goto unlock;
+		return err;
 
 	if (dytc_capabilities & BIT(DYTC_FC_MMC)) {
 		if (profile == PLATFORM_PROFILE_BALANCED) {
@@ -10623,18 +10623,18 @@ static int dytc_profile_set(struct device *dev,
 			 */
 			err = dytc_cql_command(DYTC_CMD_RESET, &output);
 			if (err)
-				goto unlock;
+				return err;
 		} else {
 			/* Determine if we are in CQL mode. This alters the commands we do */
 			err = dytc_cql_command(DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
 						&output);
 			if (err)
-				goto unlock;
+				return err;
 		}
 	} else if (dytc_capabilities & BIT(DYTC_FC_PSC)) {
 		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
-			goto unlock;
+			return err;
 
 		/* system supports AMT, activate it when on balanced */
 		if (dytc_capabilities & BIT(DYTC_FC_AMT))
@@ -10642,8 +10642,6 @@ static int dytc_profile_set(struct device *dev,
 	}
 	/* Success - update current profile */
 	dytc_current_profile = profile;
-unlock:
-	mutex_unlock(&dytc_mutex);
 	return err;
 }
 
