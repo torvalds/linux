@@ -13,6 +13,8 @@
 /*
  * Characters to print to indicate error conditions or uncommon filesystem state.
  * RO is not an error.
+ * Don't use 'E' because that's used to signal that there's an error stored in
+ * fs_info->fs_error (see btrfs_state_to_string() below).
  */
 static const char fs_state_chars[] = {
 	[BTRFS_FS_STATE_REMOUNTING]		= 'M',
@@ -24,7 +26,7 @@ static const char fs_state_chars[] = {
 	[BTRFS_FS_STATE_NO_DATA_CSUMS]		= 'C',
 	[BTRFS_FS_STATE_SKIP_META_CSUMS]	= 'S',
 	[BTRFS_FS_STATE_LOG_CLEANUP_ERROR]	= 'L',
-	[BTRFS_FS_STATE_EMERGENCY_SHUTDOWN]	= 'E',
+	[BTRFS_FS_STATE_EMERGENCY_SHUTDOWN]	= 'H',
 };
 
 static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
