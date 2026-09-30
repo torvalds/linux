@@ -13,7 +13,8 @@ TEST_GEN_PROGS := nsid_test \
 		  cred_change_test \
 		  stress_test \
 		  listns_pagination_bug \
-		  regression_pidfd_setns_test
+		  regression_pidfd_setns_test \
+		  uid_map_range_test
 
 include ../lib.mk
 
