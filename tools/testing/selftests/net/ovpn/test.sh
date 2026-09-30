@@ -45,6 +45,8 @@ ovpn_prepare_network() {
 		ovpn_cmd_ok "register peer${p} in overlay" ovpn_add_peer "${p}"
 	done
 
+	ovpn_cmd_ok "wait for server-side key setup" ovpn_wait_tcp_keys
+
 	for p in $(seq 1 ${OVPN_NUM_PEERS}); do
 		peer_ns="ovpn_peer${p}"
 		ovpn_cmd_ok "set peer0 timeout for peer ${p}" \

@@ -256,14 +256,19 @@ ovpn_add_peer() {
 		fi
 	else
 		if [ ${1} -eq 0 ]; then
+			OVPN_TCP_KEYS_LOG=$(mktemp)
 			(ip netns exec "${server_ns}" ${OVPN_CLI} listen tun0 \
 				1 ${M_ID} ${OVPN_TCP_PEERS_FILE} && {
+				rc=0
 				for p in $(seq 1 ${OVPN_NUM_PEERS}); do
 					ip netns exec "${server_ns}" \
 						${OVPN_CLI} new_key tun0 ${p} \
-						1 0 ${OVPN_ALG} 0 data64.key
+						1 0 ${OVPN_ALG} 0 data64.key \
+						|| rc=1
 				done
-			}) &
+				exit ${rc}
+			}) >"${OVPN_TCP_KEYS_LOG}" 2>&1 &
+			OVPN_TCP_KEYS_PID=$!
 			sleep 5
 		else
 			peer_ns="ovpn_peer${1}"
@@ -279,6 +284,58 @@ ovpn_add_peer() {
 				${PEER_ID} ${TX_ID} 10.10.${1}.1 1 data64.key
 		fi
 	fi
+}
+
+# In TCP mode the server accepts the peers and installs their data keys from a
+# background subshell. "listen" returns once a connection has been accepted for
+# every entry of the peers file, so the key installation runs after the last
+# ovpn_add_peer() call. Wait for that subshell before generating any traffic,
+# otherwise the first packets may race the key installation and get dropped for
+# lack of a key.
+#
+# The wait is bounded: both the accept loop and the subsequent receive in
+# ovpn-cli are unbounded, so a peer that never connects (for instance when
+# OVPN_NUM_PEERS is smaller than the number of entries in the peers file) would
+# otherwise hang the whole test instead of failing.
+OVPN_TCP_KEYS_TIMEOUT=${OVPN_TCP_KEYS_TIMEOUT:-30}
+
+ovpn_wait_tcp_keys() {
+	local deadline rc
+
+	[ -n "${OVPN_TCP_KEYS_PID:-}" ] || return 0
+
+	deadline=$((SECONDS + OVPN_TCP_KEYS_TIMEOUT))
+	while kill -0 "${OVPN_TCP_KEYS_PID}" 2>/dev/null; do
+		if [ "${SECONDS}" -ge "${deadline}" ]; then
+			printf '%s\n' \
+				"server-side key setup still running after ${OVPN_TCP_KEYS_TIMEOUT}s"
+			kill "${OVPN_TCP_KEYS_PID}" 2>/dev/null
+			wait "${OVPN_TCP_KEYS_PID}" 2>/dev/null
+			ovpn_dump_tcp_keys_log
+			return 1
+		fi
+		sleep 0.2
+	done
+
+	wait "${OVPN_TCP_KEYS_PID}"
+	rc=$?
+
+	# ovpn_cmd_run() has already removed the temporary file this subshell
+	# inherited, so without this its output would be lost and a failed
+	# new_key would only show up later as a ping failure.
+	if [ "${rc}" -ne 0 ]; then
+		ovpn_dump_tcp_keys_log
+	fi
+	rm -f "${OVPN_TCP_KEYS_LOG}"
+
+	return "${rc}"
+}
+
+ovpn_dump_tcp_keys_log() {
+	[ -s "${OVPN_TCP_KEYS_LOG:-}" ] || return 0
+
+	printf '%s\n' "--- server-side key setup output ---"
+	cat "${OVPN_TCP_KEYS_LOG}"
 }
 
 ovpn_compare_ntfs() {
