@@ -85,9 +85,7 @@
 /* Common Clock N_FTS */
 #define  PORT_AFAC_CC_N_FTS(n)		FIELD_PREP(PORT_AFAC_CC_N_FTS_MASK, n)
 #define  PORT_AFAC_ENTER_ASPM		BIT(30)		/* ASPM L1 Entry Control */
-#define  PORT_AFAC_L0S_ELS		24		/* L0s Entrance Latency shift */
 #define  PORT_AFAC_L0S_ELM		GENMASK(26, 24)	/* L0s Entrance Latency mask */
-#define  PORT_AFAC_L1_ELS		27		/* L1 Entrance Latency shift */
 #define  PORT_AFAC_L1_ELM		GENMASK(29, 27)	/* L1 Entrance Latency mask */
 
 #define PORT_LINK_CTRL			0x710		/* Port Link Control Register */
@@ -161,7 +159,6 @@
 #define  GEN3_CTRL_EQ_PHASE_2_3		BIT(9)		/* Equalization Phase 2 and Phase 3 */
 #define  GEN3_CTRL_RXEQ_RGRDLESS_RXTS	BIT(13)
 #define  GEN3_CTRL_GEN3_EQ_DISABLE	BIT(16)		/* Equalization Disable */
-#define  GEN3_CTRL_RATE_SHADOW_SEL_SHIFT 24		/* Rate Shadow Select shift */
 #define  GEN3_CTRL_RATE_SHADOW_SEL_MASK	GENMASK(25, 24)	/* Rate Shadow Select mask */
 
 #define GEN3_EQ_CTRL			0x8A8		/* Gen3 EQ Control */
@@ -231,7 +228,7 @@
 #define ATU_UPPER_LIMIT			0x020
 
 #define MSIX_DOORBELL			0x948
-#define  MSIX_DOORBELL_PF_SHIFT		24
+#define  MSIX_DOORBELL_PF_MASK		GENMASK(28, 24)
 
 /*
  * eDMA CSRs. DW PCIe IP-core v4.70a and older had the eDMA registers accessible
@@ -279,15 +276,14 @@
 #define RAS_DES_EVENT_COUNTER_CONTROL	0x8
 #define EVENT_COUNTER_ALL_CLEAR		0x3
 #define EVENT_COUNTER_ENABLE_ALL	0x7
-#define EVENT_COUNTER_ENABLE_SHIFT	2
-#define EVENT_COUNTER_EVENT_SEL_MASK	GENMASK(7, 0)
-#define EVENT_COUNTER_EVENT_SEL_SHIFT	16
+#define EVENT_COUNTER_ENABLE_MASK	GENMASK(4, 2)
+#define EVENT_COUNTER_EVENT_SEL_MASK	GENMASK(23, 16)
+#define EVENT_COUNTER_GROUP_SEL_MASK	GENMASK(27, 24)
 #define EVENT_COUNTER_EVENT_Tx_L0S	0x2
 #define EVENT_COUNTER_EVENT_Rx_L0S	0x3
 #define EVENT_COUNTER_EVENT_L1		0x5
 #define EVENT_COUNTER_EVENT_L1_1	0x7
 #define EVENT_COUNTER_EVENT_L1_2	0x8
-#define EVENT_COUNTER_GROUP_SEL_SHIFT	24
 #define EVENT_COUNTER_GROUP_5		0x5
 
 #define RAS_DES_EVENT_COUNTER_DATA	0xc

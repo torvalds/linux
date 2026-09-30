@@ -622,10 +622,10 @@ static inline u32 event_counter_prog(struct tegra_pcie_dw *pcie, u32 event)
 
 	val = dw_pcie_readl_dbi(&pcie->pci, pcie->ras_des_cap +
 				RAS_DES_EVENT_COUNTER_CONTROL);
-	val &= ~(EVENT_COUNTER_EVENT_SEL_MASK << EVENT_COUNTER_EVENT_SEL_SHIFT);
-	val |= EVENT_COUNTER_GROUP_5 << EVENT_COUNTER_GROUP_SEL_SHIFT;
-	val |= event << EVENT_COUNTER_EVENT_SEL_SHIFT;
-	val |= EVENT_COUNTER_ENABLE_ALL << EVENT_COUNTER_ENABLE_SHIFT;
+	val &= ~EVENT_COUNTER_EVENT_SEL_MASK;
+	val |= FIELD_PREP(EVENT_COUNTER_GROUP_SEL_MASK, EVENT_COUNTER_GROUP_5);
+	val |= FIELD_PREP(EVENT_COUNTER_EVENT_SEL_MASK, event);
+	val |= FIELD_PREP(EVENT_COUNTER_ENABLE_MASK, EVENT_COUNTER_ENABLE_ALL);
 	dw_pcie_writel_dbi(&pcie->pci, pcie->ras_des_cap +
 			   RAS_DES_EVENT_COUNTER_CONTROL, val);
 	val = dw_pcie_readl_dbi(&pcie->pci, pcie->ras_des_cap +
@@ -661,8 +661,8 @@ static int aspm_state_cnt(struct seq_file *s, void *data)
 			   EVENT_COUNTER_ALL_CLEAR);
 
 	/* Re-enable counting */
-	val = EVENT_COUNTER_ENABLE_ALL << EVENT_COUNTER_ENABLE_SHIFT;
-	val |= EVENT_COUNTER_GROUP_5 << EVENT_COUNTER_GROUP_SEL_SHIFT;
+	val = FIELD_PREP(EVENT_COUNTER_ENABLE_MASK, EVENT_COUNTER_ENABLE_ALL);
+	val |= FIELD_PREP(EVENT_COUNTER_GROUP_SEL_MASK, EVENT_COUNTER_GROUP_5);
 	dw_pcie_writel_dbi(&pcie->pci, pcie->ras_des_cap +
 			   RAS_DES_EVENT_COUNTER_CONTROL, val);
 
@@ -680,8 +680,8 @@ static void init_host_aspm(struct tegra_pcie_dw *pcie)
 							PCI_EXT_CAP_ID_VNDR);
 
 	/* Enable ASPM counters */
-	val = EVENT_COUNTER_ENABLE_ALL << EVENT_COUNTER_ENABLE_SHIFT;
-	val |= EVENT_COUNTER_GROUP_5 << EVENT_COUNTER_GROUP_SEL_SHIFT;
+	val = FIELD_PREP(EVENT_COUNTER_ENABLE_MASK, EVENT_COUNTER_ENABLE_ALL);
+	val |= FIELD_PREP(EVENT_COUNTER_GROUP_SEL_MASK, EVENT_COUNTER_GROUP_5);
 	dw_pcie_writel_dbi(pci, pcie->ras_des_cap +
 			   RAS_DES_EVENT_COUNTER_CONTROL, val);
 
@@ -715,9 +715,9 @@ static void init_host_aspm(struct tegra_pcie_dw *pcie)
 	/* Program L0s and L1 entrance latencies */
 	val = dw_pcie_readl_dbi(pci, PORT_AFAC);
 	val &= ~PORT_AFAC_L0S_ELM;
-	val |= (pcie->aspm_l0s_enter_lat << PORT_AFAC_L0S_ELS);
+	val |= FIELD_PREP(PORT_AFAC_L0S_ELM, pcie->aspm_l0s_enter_lat);
 	val &= ~PORT_AFAC_L1_ELM;
-	val |= (pcie->aspm_l1_enter_lat << PORT_AFAC_L1_ELS);
+	val |= FIELD_PREP(PORT_AFAC_L1_ELM, pcie->aspm_l1_enter_lat);
 	val |= PORT_AFAC_ENTER_ASPM;
 	dw_pcie_writel_dbi(pci, PORT_AFAC, val);
 }
@@ -881,7 +881,7 @@ static void config_gen3_gen4_eq_presets(struct tegra_pcie_dw *pcie)
 
 	val = dw_pcie_readl_dbi(pci, GEN3_CTRL);
 	val &= ~GEN3_CTRL_RATE_SHADOW_SEL_MASK;
-	val |= (0x1 << GEN3_CTRL_RATE_SHADOW_SEL_SHIFT);
+	val |= FIELD_PREP(GEN3_CTRL_RATE_SHADOW_SEL_MASK, 0x1);
 	dw_pcie_writel_dbi(pci, GEN3_CTRL, val);
 
 	val = dw_pcie_readl_dbi(pci, GEN3_EQ_CTRL);

@@ -1077,7 +1077,7 @@ int dw_pcie_ep_raise_msix_irq_doorbell(struct dw_pcie_ep *ep, u8 func_no,
 	if (!ep_func || !ep_func->msix_cap)
 		return -EINVAL;
 
-	msg_data = (func_no << MSIX_DOORBELL_PF_SHIFT) |
+	msg_data = FIELD_PREP(MSIX_DOORBELL_PF_MASK, func_no) |
 		   (interrupt_num - 1);
 
 	dw_pcie_writel_dbi(pci, MSIX_DOORBELL, msg_data);
