@@ -2273,6 +2273,7 @@ void iwl_mld_handle_channel_survey_notif(struct iwl_mld *mld,
 	/* Times are all in ms */
 	info->time = le32_to_cpu(notif->active_time);
 	info->time_busy = le32_to_cpu(notif->busy_time);
+	info->time_rx = le32_to_cpu(notif->rx_time);
 	info->noise =
 		iwl_average_neg_dbm(notif->noise, ARRAY_SIZE(notif->noise));
 }
@@ -2321,9 +2322,11 @@ int iwl_mld_mac80211_get_survey(struct ieee80211_hw *hw, int idx,
 			/* Found (the next) channel to report */
 			survey->channel = &sband->channels[per_band_idx];
 			survey->filled = SURVEY_INFO_TIME |
-					 SURVEY_INFO_TIME_BUSY;
+					 SURVEY_INFO_TIME_BUSY |
+					 SURVEY_INFO_TIME_RX;
 			survey->time = info->time;
 			survey->time_busy = info->time_busy;
+			survey->time_rx = info->time_rx;
 			survey->noise = info->noise;
 			if (survey->noise < 0)
 				survey->filled |= SURVEY_INFO_NOISE_DBM;
