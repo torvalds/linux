@@ -261,7 +261,7 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 		iwl_trans_schedule_reprobe(trans, 0);
 		break;
 	default:
-		iwl_trans_pcie_reset(trans, mode);
+		iwl_trans_reset(trans, mode);
 		break;
 	}
 }
@@ -928,4 +928,11 @@ int iwl_trans_activate_nic(struct iwl_trans *trans)
 	return iwl_pcie_activate_nic(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_activate_nic);
+
+
+void iwl_trans_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
+{
+	iwl_trans_pcie_reset(trans, mode);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_reset);
 

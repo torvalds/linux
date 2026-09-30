@@ -1216,7 +1216,7 @@ enum iwl_reset_mode {
 	IWL_RESET_MODE_BACKOFF,
 };
 
-void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode);
+void iwl_trans_reset(struct iwl_trans *trans, enum iwl_reset_mode mode);
 void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
 
 /* Internal helper */
