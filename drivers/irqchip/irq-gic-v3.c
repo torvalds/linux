@@ -164,6 +164,7 @@ static inline bool gic_dist_security_disabled(void)
 
 static bool cpus_have_security_disabled __ro_after_init;
 static bool cpus_have_group0 __ro_after_init;
+static void gic_dist_wait_for_rwp(void);
 
 static void __init gic_prio_init(void)
 {
@@ -179,6 +180,7 @@ static void __init gic_prio_init(void)
 			val = readl_relaxed(gic_data.dist_base + GICD_CTLR);
 			val |= GICD_CTLR_DS;
 			writel_relaxed(val, gic_data.dist_base + GICD_CTLR);
+			gic_dist_wait_for_rwp();
 
 			ds = gic_dist_security_disabled();
 			if (ds)
