@@ -1054,6 +1054,10 @@ static ssize_t nvme_subsys_iopolicy_show(struct device *dev,
 	struct nvme_subsystem *subsys =
 		container_of(dev, struct nvme_subsystem, dev);
 
+	/* A discovery subsystem has no namespaces and hence no I/O paths */
+	if (subsys->subtype == NVME_NQN_DISC)
+		return sysfs_emit(buf, "none\n");
+
 	return sysfs_emit(buf, "%s\n",
 			  nvme_iopolicy_names[READ_ONCE(subsys->iopolicy)]);
 }
@@ -1088,6 +1092,9 @@ static ssize_t nvme_subsys_iopolicy_store(struct device *dev,
 		container_of(dev, struct nvme_subsystem, dev);
 	int policy;
 
+	if (subsys->subtype == NVME_NQN_DISC)
+		return -EOPNOTSUPP;
+
 	policy = nvme_iopolicy_parse(buf);
 	if (policy < 0)
 		return policy;
@@ -1101,7 +1108,12 @@ SUBSYS_ATTR_RW(iopolicy, S_IRUGO | S_IWUSR,
 static ssize_t iopolicies_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
+	struct nvme_subsystem *subsys =
+		container_of(dev, struct nvme_subsystem, dev);
 	int i, len = 0;
+
+	if (subsys->subtype == NVME_NQN_DISC)
+		return sysfs_emit(buf, "none\n");
 
 	for (i = 0; i < ARRAY_SIZE(nvme_iopolicy_names); i++)
 		len += sysfs_emit_at(buf, len, "%s%s", i ? " " : "",

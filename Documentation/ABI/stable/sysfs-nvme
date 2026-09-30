@@ -465,6 +465,21 @@ Description:
 		selections. Only available when CONFIG_NVME_MULTIPATH is
 		enabled.
 
+		A discovery subsystem has no namespaces and hence no I/O
+		paths to select from: reading returns "none" and writing
+		fails with EOPNOTSUPP.
+
+What:		/sys/class/nvme-subsystem/nvme-subsysX/iopolicies
+Date:		September 2026
+KernelVersion:	7.4
+Contact:	Laurence Oberman <loberman@redhat.com>
+Description:
+		Shows the I/O path selection policies that may be written
+		to the iopolicy attribute of this subsystem, separated by
+		spaces: "numa round-robin queue-depth". A discovery
+		subsystem accepts no policy at all and reports "none".
+		Only available when CONFIG_NVME_MULTIPATH is enabled.
+
 What:		/sys/class/nvme-subsystem/nvme-subsysX/subsystype
 Date:		September 2021
 KernelVersion:	5.16
