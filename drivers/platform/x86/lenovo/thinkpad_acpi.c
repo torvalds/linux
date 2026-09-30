@@ -891,7 +891,6 @@ static ssize_t dispatch_proc_write(struct file *file,
 			size_t count, loff_t *pos)
 {
 	struct ibm_struct *ibm = pde_data(file_inode(file));
-	char *kernbuf;
 	int ret;
 
 	if (!ibm || !ibm->write)
@@ -899,16 +898,15 @@ static ssize_t dispatch_proc_write(struct file *file,
 	if (count > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	kernbuf = memdup_user_nul(userbuf, count);
+	char *kernbuf __free(kfree) = memdup_user_nul(userbuf, count);
 	if (IS_ERR(kernbuf))
 		return PTR_ERR(kernbuf);
+
 	ret = ibm->write(kernbuf);
-	if (ret == 0)
-		ret = count;
+	if (ret)
+		return ret;
 
-	kfree(kernbuf);
-
-	return ret;
+	return count;
 }
 
 static const struct proc_ops dispatch_proc_ops = {
@@ -6707,26 +6705,21 @@ static const struct backlight_ops ibm_backlight_data = {
 static int __init tpacpi_evaluate_bcl(struct acpi_device *adev, void *not_used)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
 	acpi_status status;
-	int rc;
 
 	status = acpi_evaluate_object(adev->handle, "_BCL", NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		return 0;
 
-	obj = buffer.pointer;
+	union acpi_object *obj __free(kfree) = buffer.pointer;
 	if (!obj || obj->type != ACPI_TYPE_PACKAGE) {
 		acpi_handle_info(adev->handle,
 				 "Unknown _BCL data, please report this to %s\n",
 				 TPACPI_MAIL);
-		rc = 0;
-	} else {
-		rc = obj->package.count;
+		return 0;
 	}
-	kfree(obj);
 
-	return rc;
+	return obj->package.count;
 }
 
 /*
@@ -11071,24 +11064,23 @@ static int auxmac_init(struct ibm_init_struct *iibm)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
 
 	status = acpi_evaluate_object(NULL, "\\MACA", NULL, &buffer);
-
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	obj = buffer.pointer;
-
-	if (obj->type != ACPI_TYPE_STRING || obj->string.length != AUXMAC_STRLEN) {
+	union acpi_object *obj __free(kfree) = buffer.pointer;
+	if (!obj || obj->type != ACPI_TYPE_STRING || obj->string.length != AUXMAC_STRLEN) {
 		pr_info("Invalid buffer for MAC address pass-through.\n");
-		goto auxmacinvalid;
+		strscpy(auxmac, "unavailable", sizeof(auxmac));
+		return 0;
 	}
 
 	if (obj->string.pointer[AUXMAC_BEGIN_MARKER] != '#' ||
 	    obj->string.pointer[AUXMAC_END_MARKER] != '#') {
 		pr_info("Invalid header for MAC address pass-through.\n");
-		goto auxmacinvalid;
+		strscpy(auxmac, "unavailable", sizeof(auxmac));
+		return 0;
 	}
 
 	if (strncmp(obj->string.pointer + AUXMAC_START, "XXXXXXXXXXXX", AUXMAC_LEN) != 0)
@@ -11096,13 +11088,7 @@ static int auxmac_init(struct ibm_init_struct *iibm)
 	else
 		strscpy(auxmac, "disabled", sizeof(auxmac));
 
-free:
-	kfree(obj);
 	return 0;
-
-auxmacinvalid:
-	strscpy(auxmac, "unavailable", sizeof(auxmac));
-	goto free;
 }
 
 static struct ibm_struct auxmac_data = {
