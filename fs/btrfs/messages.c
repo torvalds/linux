@@ -56,7 +56,7 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
 	if (!states_printed)
 		curr = buf;
 
-	*curr++ = 0;
+	*curr = 0;
 }
 #endif
 
