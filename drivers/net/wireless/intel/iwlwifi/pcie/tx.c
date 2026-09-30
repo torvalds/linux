@@ -2147,6 +2147,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	u16 wifi_seq;
 	bool amsdu;
 
+	if (trans->mac_cfg->gen2)
+		return iwl_txq_gen2_tx(trans, skb, dev_cmd, txq_id);
+
 	txq = trans_pcie->txqs.txq[txq_id];
 
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->txqs.queue_used),

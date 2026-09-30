@@ -1820,14 +1820,14 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(IWL_FW_INI_APPLY_POLICY_SPLIT_DUMP_RESET)) {
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_EARLY_REGIONS);
-		iwl_trans_pcie_fw_reset_handshake(fwrt->trans);
+		iwl_trans_fw_reset_handshake(fwrt->trans);
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_LATE_REGIONS);
 	} else {
 		if (fw_has_capa(&fwrt->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT) &&
 		    iwl_dump_due_to_error(tp_id))
-			iwl_trans_pcie_fw_reset_handshake(fwrt->trans);
+			iwl_trans_fw_reset_handshake(fwrt->trans);
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_ALL_REGIONS);
 	}
