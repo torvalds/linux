@@ -918,7 +918,7 @@ u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs);
 
 u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
 
-void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 
 int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 		       void *buf, int dwords);

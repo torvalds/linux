@@ -115,7 +115,7 @@ u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs)
 void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite_prph32(trans->dev, ofs, val);
-	iwl_trans_write_prph(trans, ofs, val);
+	iwl_trans_write_prph_no_grab(trans, ofs, val);
 }
 
 void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val)

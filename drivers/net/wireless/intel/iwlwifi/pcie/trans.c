@@ -1894,7 +1894,7 @@ u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg)
 	return iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
 }
 
-void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr, u32 val)
+void iwl_pcie_write_prph_no_grab(struct iwl_trans *trans, u32 addr, u32 val)
 {
 	u32 mask = iwl_trans_pcie_prph_msk(trans);
 

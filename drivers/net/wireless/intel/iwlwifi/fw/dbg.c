@@ -169,8 +169,8 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 			continue;
 		}
 
-		iwl_trans_write_prph(fwrt->trans, indirect_wr_addr,
-				     WMAL_INDRCT_CMD(addr + i));
+		iwl_trans_write_prph_no_grab(fwrt->trans, indirect_wr_addr,
+					     WMAL_INDRCT_CMD(addr + i));
 
 		if (fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF1 &&
 		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF2 &&
@@ -446,7 +446,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	range->fifo_hdr.num_of_registers = cpu_to_le32(registers_num);
 	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
 
-	iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
 
 	/*
 	 * read txf registers. for each register, write to the dump the
@@ -468,8 +468,8 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-	iwl_trans_write_prph(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
-			     TXF_WR_PTR + offs);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
+				     TXF_WR_PTR + offs);
 
 	/* Dummy-read to advance the read pointer to the head */
 	iwl_trans_read_prph(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
@@ -518,8 +518,8 @@ iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
 			continue;
 		}
 
-		iwl_trans_write_prph(fwrt->trans, indirect_rd_wr_addr,
-				     addr + i);
+		iwl_trans_write_prph_no_grab(fwrt->trans, indirect_rd_wr_addr,
+					     addr + i);
 		/* wait a bit for value to be ready in register */
 		udelay(1);
 		prph_val = iwl_trans_read_prph(fwrt->trans,
@@ -642,11 +642,11 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	offs = rxf_data.offset;
 
 	/* Lock fence */
-	iwl_trans_write_prph(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
 	/* Set fence pointer to the same place like WR pointer */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
 	/* Set fence offset */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs, 0x0);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs, 0x0);
 
 	/* Read FIFO */
 	addr =  RXF_FIFO_RD_FENCE_INC + offs;

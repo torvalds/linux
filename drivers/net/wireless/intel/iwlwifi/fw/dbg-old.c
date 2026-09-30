@@ -47,7 +47,7 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 		u32 rd_cmd = RADIO_RSP_RD_CMD;
 
 		rd_cmd |= i << RADIO_RSP_ADDR_POS;
-		iwl_trans_write_prph(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
+		iwl_trans_write_prph_no_grab(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
 		*pos = (u8)iwl_trans_read_prph(fwrt->trans, RSP_RADIO_RDDAT);
 
 		pos++;
@@ -97,12 +97,12 @@ static void iwl_fwrt_dump_rxf(struct iwl_fw_runtime *fwrt,
 						RXF_SET_FENCE_MODE + offset));
 
 	/* Lock fence */
-	iwl_trans_write_prph(fwrt->trans, RXF_SET_FENCE_MODE + offset, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offset, 0x1);
 	/* Set fence pointer to the same place like WR pointer */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_WR2FENCE + offset, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offset, 0x1);
 	/* Set fence offset */
-	iwl_trans_write_prph(fwrt->trans,
-			     RXF_LD_FENCE_OFFSET_ADDR + offset, 0x0);
+	iwl_trans_write_prph_no_grab(fwrt->trans,
+				     RXF_LD_FENCE_OFFSET_ADDR + offset, 0x0);
 
 	/* Read FIFO */
 	fifo_len /= sizeof(u32); /* Size in DWORDS */
@@ -152,8 +152,8 @@ static void iwl_fwrt_dump_txf(struct iwl_fw_runtime *fwrt,
 						TXF_LOCK_FENCE + offset));
 
 	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-	iwl_trans_write_prph(fwrt->trans, TXF_READ_MODIFY_ADDR + offset,
-			     TXF_WR_PTR + offset);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offset,
+				     TXF_WR_PTR + offset);
 
 	/* Dummy-read to advance the read pointer to the head */
 	iwl_trans_read_prph(fwrt->trans, TXF_READ_MODIFY_DATA + offset);
@@ -217,7 +217,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 		/* Pull TXF data from LMAC1 */
 		for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM, i);
+			iwl_trans_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM, i);
 			iwl_fwrt_dump_txf(fwrt, dump_data,
 					  cfg->lmac[0].txfifo_size[i], 0, i);
 		}
@@ -227,9 +227,9 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 			for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries;
 			     i++) {
 				/* Mark the number of TXF we're pulling now */
-				iwl_trans_write_prph(fwrt->trans,
-						     TXF_LARC_NUM +
-						     LMAC2_PRPH_OFFSET, i);
+				iwl_trans_write_prph_no_grab(fwrt->trans,
+							     TXF_LARC_NUM +
+							     LMAC2_PRPH_OFFSET, i);
 				iwl_fwrt_dump_txf(fwrt, dump_data,
 						  cfg->lmac[1].txfifo_size[i],
 						  LMAC2_PRPH_OFFSET,
@@ -262,8 +262,8 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 			fifo_hdr->fifo_num = cpu_to_le32(i);
 
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(fwrt->trans, TXF_CPU2_NUM, i +
-				fwrt->smem_cfg.num_txfifo_entries);
+			iwl_trans_write_prph_no_grab(fwrt->trans, TXF_CPU2_NUM, i +
+						     fwrt->smem_cfg.num_txfifo_entries);
 
 			fifo_hdr->available_bytes =
 				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
@@ -282,9 +282,9 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 								TXF_CPU2_LOCK_FENCE));
 
 			/* Set TXF_CPU2_READ_MODIFY_ADDR to TXF_CPU2_WR_PTR */
-			iwl_trans_write_prph(fwrt->trans,
-					     TXF_CPU2_READ_MODIFY_ADDR,
-					     TXF_CPU2_WR_PTR);
+			iwl_trans_write_prph_no_grab(fwrt->trans,
+						     TXF_CPU2_READ_MODIFY_ADDR,
+						     TXF_CPU2_WR_PTR);
 
 			/* Dummy-read to advance the read pointer to head */
 			iwl_trans_read_prph(fwrt->trans,

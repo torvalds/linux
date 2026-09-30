@@ -912,7 +912,7 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 			for (count = 0; count < len; count++) {
 				address = le32_to_cpu(config_list->addr_val[count].address);
 				value = le32_to_cpu(config_list->addr_val[count].value);
-				iwl_trans_write_prph(fwrt->trans, address + offset, value);
+				iwl_trans_write_prph_no_grab(fwrt->trans, address + offset, value);
 			}
 			iwl_trans_release_nic_access(fwrt->trans);
 		break;

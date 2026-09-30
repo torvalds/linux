@@ -448,9 +448,9 @@ u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
 	return iwl_trans_pcie_read_prph(trans, ofs);
 }
 
-void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
 {
-	return iwl_trans_pcie_write_prph(trans, ofs, val);
+	return iwl_pcie_write_prph_no_grab(trans, ofs, val);
 }
 
 void iwl_trans_force_nmi(struct iwl_trans *trans)
