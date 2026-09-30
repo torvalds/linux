@@ -137,6 +137,8 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	struct ps_data *ps;
 
+	cancel_work_sync(&sta->drv_deliver_wk);
+
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
 	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
 	    test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
@@ -165,8 +167,6 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_sta_cleanup(sta);
-
-	cancel_work_sync(&sta->drv_deliver_wk);
 
 	/*
 	 * Destroy aggregation state here. It would be nice to wait for the
@@ -1581,6 +1581,8 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 	__sta_info_recalc_tim(sta, true);
 
 	sta->dead = true;
+
+	cancel_work_sync(&sta->drv_deliver_wk);
 
 	local->num_sta--;
 	local->sta_generation++;
