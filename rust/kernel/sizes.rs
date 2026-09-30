@@ -13,6 +13,11 @@
 //! these constants as [`u64`] (or [`u32`]) rather than [`usize`], because
 //! device address spaces are sized independently of the CPU pointer width.
 //!
+//! The trait is also implemented for [`Alignment`], providing each size as a
+//! compile-time validated alignment.
+//!
+//! [`Alignment`]: crate::ptr::Alignment
+//!
 //! # Examples
 //!
 //! ```
@@ -105,6 +110,7 @@ macro_rules! define_sizes {
     (@internal [$($type:ty),*] $($names_and_metas:tt)*) => {
         define_sizes!(@consts_and_trait $($names_and_metas)*);
         define_sizes!(@impls [$($type),*] $($names_and_metas)*);
+        define_sizes!(@impl_alignment $($names_and_metas)*);
     };
 
     (@consts_and_trait $($(#[$meta:meta])* $name:ident,)*) => {
@@ -119,13 +125,22 @@ macro_rules! define_sizes {
         /// choose the width that matches their hardware. All `SZ_*` values fit
         /// in a [`u32`], so all implementations are lossless.
         ///
+        /// Also implemented for [`Alignment`], providing each size as a
+        /// compile-time validated alignment.
+        ///
+        /// [`Alignment`]: crate::ptr::Alignment
+        ///
         /// # Examples
         ///
         /// ```
-        /// use kernel::sizes::SizeConstants;
+        /// use kernel::{
+        ///     ptr::Alignment,
+        ///     sizes::SizeConstants, //
+        /// };
         ///
         /// let gpu_heap = 14 * u64::SZ_1M;
         /// let mmio_window = u32::SZ_16M;
+        /// let page_align = Alignment::SZ_4K;
         /// ```
         pub trait SizeConstants {
             $(
@@ -136,6 +151,16 @@ macro_rules! define_sizes {
     };
 
     (@impls [] $($(#[$meta:meta])* $name:ident,)*) => {};
+
+    (@impl_alignment $($(#[$meta:meta])* $name:ident,)*) => {
+        impl SizeConstants for crate::ptr::Alignment {
+            $(
+                $(#[$meta])*
+                // A non-power-of-two constant will fail the build here if used.
+                const $name: Self = crate::ptr::Alignment::new::<{ self::$name }>();
+            )*
+        }
+    };
 
     (@impls [$first:ty $(, $rest:ty)*] $($(#[$meta:meta])* $name:ident,)*) => {
         impl SizeConstants for $first {
