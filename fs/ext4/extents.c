@@ -3830,6 +3830,7 @@ static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 	ext4_lblk_t eof_block;
 	ext4_lblk_t ee_block;
 	struct ext4_extent *ex;
+	struct ext4_extent converted_ex;
 	unsigned int ee_len;
 	int split_flag = 0, depth, err = 0;
 	bool did_zeroout = false;
@@ -3887,6 +3888,9 @@ convert:
 		else if (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN)
 			ext4_ext_mark_unwritten(ex);
 
+		/* Merging can move ex or release the leaf containing it. */
+		converted_ex = *ex;
+
 		if (!(flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE))
 		       /*
 			* note: ext4_ext_correct_indexes() isn't needed here because
@@ -3897,6 +3901,7 @@ convert:
 		err = ext4_ext_dirty(handle, inode, path + depth);
 		if (err)
 			goto err;
+		ex = &converted_ex;
 	}
 
 	/* Lets update the extent status tree after conversion */
