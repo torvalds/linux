@@ -44,8 +44,8 @@
  * @is_tx:	Is this a receive path?
  */
 struct ti_msgmgr_valid_queue_desc {
-	u8 queue_id;
-	u8 proxy_id;
+	u16 queue_id;
+	u16 proxy_id;
 	bool is_tx;
 };
 
@@ -71,7 +71,7 @@ struct ti_msgmgr_valid_queue_desc {
  * for a specific compatible SoC is done.
  */
 struct ti_msgmgr_desc {
-	u8 queue_count;
+	u16 queue_count;
 	u8 max_message_size;
 	u8 max_messages;
 	u8 data_first_reg;
@@ -105,8 +105,8 @@ struct ti_msgmgr_desc {
  */
 struct ti_queue_inst {
 	char name[30];
-	u8 queue_id;
-	u8 proxy_id;
+	u16 queue_id;
+	u16 proxy_id;
 	int irq;
 	bool is_tx;
 	void __iomem *queue_buff_start;
@@ -138,7 +138,7 @@ struct ti_msgmgr_inst {
 	void __iomem *queue_proxy_region;
 	void __iomem *queue_state_debug_region;
 	void __iomem *queue_ctrl_region;
-	u8 num_valid_queues;
+	u16 num_valid_queues;
 	struct ti_queue_inst *qinsts;
 	struct mbox_controller mbox;
 	struct mbox_chan *chans;
@@ -466,7 +466,11 @@ static int ti_msgmgr_queue_rx_irq_req(struct device *dev,
 				      struct mbox_chan *chan)
 {
 	int ret = 0;
-	char of_rx_irq_name[7];
+	/*
+	 * To keep compiler happy about u16 proxy_id:
+	 * "rx_" + up to 5 digits of u16 id + NULL
+	 */
+	char of_rx_irq_name[9];
 	struct device_node *np;
 
 	snprintf(of_rx_irq_name, sizeof(of_rx_irq_name),
@@ -799,9 +803,24 @@ static const struct ti_msgmgr_desc am654_desc = {
 	.is_sproxy = true,
 };
 
+static const struct ti_msgmgr_desc tda54_main_desc = {
+	.queue_count = 444,
+	.num_valid_queues = 444,
+	.max_message_size = 60,
+	.data_region_name = "target_data",
+	.status_region_name = "rt",
+	.ctrl_region_name = "scfg",
+	.data_first_reg = 0,
+	.data_last_reg = 14,
+	.status_cnt_mask = SPROXY_THREAD_STATUS_COUNT_MASK,
+	.tx_polled = false,
+	.is_sproxy = true,
+};
+
 static const struct of_device_id ti_msgmgr_of_match[] = {
 	{.compatible = "ti,k2g-message-manager", .data = &k2g_desc},
 	{.compatible = "ti,am654-secure-proxy", .data = &am654_desc},
+	{.compatible = "ti,tda54-main-secure-proxy", .data = &tda54_main_desc},
 	{ /* Sentinel */ }
 };
 
