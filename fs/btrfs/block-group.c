@@ -4613,9 +4613,8 @@ static void reserve_chunk_space(struct btrfs_trans_handle *trans,
 	if (ret && need_system_chunk)
 		return;
 
-	ret = btrfs_block_rsv_add(fs_info,
-				    &fs_info->chunk_block_rsv,
-				    bytes, BTRFS_RESERVE_NO_FLUSH);
+	ret = btrfs_block_rsv_add(&fs_info->chunk_block_rsv, bytes,
+				  BTRFS_RESERVE_NO_FLUSH);
 	if (!ret)
 		trans->chunk_bytes_reserved += bytes;
 }

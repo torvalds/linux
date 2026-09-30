@@ -600,8 +600,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 		ret = btrfs_qgroup_reserve_meta_prealloc(root, num_bytes, true, true);
 		if (ret < 0)
 			return ret;
-		ret = btrfs_block_rsv_add(fs_info, dst_rsv, num_bytes,
-					  BTRFS_RESERVE_NO_FLUSH);
+		ret = btrfs_block_rsv_add(dst_rsv, num_bytes, BTRFS_RESERVE_NO_FLUSH);
 		/* NO_FLUSH could only fail with -ENOSPC */
 		ASSERT(ret == 0 || ret == -ENOSPC);
 		if (ret)

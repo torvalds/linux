@@ -1767,8 +1767,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		pending->error = btrfs_block_rsv_add(fs_info,
-						     &pending->block_rsv,
+		pending->error = btrfs_block_rsv_add(&pending->block_rsv,
 						     to_reserve,
 						     BTRFS_RESERVE_NO_FLUSH);
 		if (unlikely(pending->error))

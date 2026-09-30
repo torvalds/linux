@@ -510,8 +510,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 	num_bytes = btrfs_calc_insert_metadata_size(fs_info, items);
 	rsv->space_info = btrfs_find_space_info(fs_info,
 					    BTRFS_BLOCK_GROUP_METADATA);
-	ret = btrfs_block_rsv_add(fs_info, rsv, num_bytes,
-				  BTRFS_RESERVE_FLUSH_ALL);
+	ret = btrfs_block_rsv_add(rsv, num_bytes, BTRFS_RESERVE_FLUSH_ALL);
 
 	if (ret == -ENOSPC && use_global_rsv)
 		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, true);

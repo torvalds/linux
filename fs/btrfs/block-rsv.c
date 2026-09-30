@@ -209,8 +209,7 @@ void btrfs_free_block_rsv(struct btrfs_fs_info *fs_info,
 	kfree(rsv);
 }
 
-int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
-			struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+int btrfs_block_rsv_add(struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			enum btrfs_reserve_flush_enum flush)
 {
 	int ret;

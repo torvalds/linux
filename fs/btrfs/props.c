@@ -440,8 +440,7 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 		 */
 		if (need_reserve) {
 			num_bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
-			ret = btrfs_block_rsv_add(fs_info, trans->block_rsv,
-						  num_bytes,
+			ret = btrfs_block_rsv_add(trans->block_rsv, num_bytes,
 						  BTRFS_RESERVE_NO_FLUSH);
 			if (ret)
 				return ret;
