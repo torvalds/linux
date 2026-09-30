@@ -528,10 +528,12 @@ static void cachefiles_prepare_write_subreq(struct netfs_io_subrequest *subreq)
 
 	if (!cachefiles_cres_file(cres)) {
 		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE)) {
+			subreq->error = -ENOBUFS;
 			trace_netfs_sreq(subreq, netfs_sreq_trace_cache_waitfail);
 			return netfs_prepare_write_failed(subreq);
 		}
 		if (!cachefiles_cres_file(cres)) {
+			subreq->error = -ENOBUFS;
 			trace_netfs_sreq(subreq, netfs_sreq_trace_cache_nofile);
 			return netfs_prepare_write_failed(subreq);
 		}

@@ -146,6 +146,7 @@ nomem:
  */
 void netfs_prepare_write_failed(struct netfs_io_subrequest *subreq)
 {
+	WARN_ON_ONCE(!subreq->error);
 	__set_bit(NETFS_SREQ_FAILED, &subreq->flags);
 	trace_netfs_sreq(subreq, netfs_sreq_trace_prep_failed);
 }
