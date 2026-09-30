@@ -553,7 +553,10 @@ iwl_mld_decode_he_tb_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 
 	nsts = le32_get_bits(phy_data->ntfy->sigs.he_tb.tb_rx1,
 			     OFDM_UCODE_TRIG_BASE_RX_NSTS) + 1;
-	rx_status->nss = nsts >> !!(rate_n_flags & RATE_MCS_STBC_MSK);
+
+	rx_status->nss = nsts;
+	if (rate_n_flags & RATE_MCS_STBC_MSK)
+		rx_status->nss = 1;
 }
 
 static void
@@ -589,7 +592,9 @@ iwl_mld_decode_he_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 		break;
 	}
 
-	rx_status->nss = nsts >> !!(rate_n_flags & RATE_MCS_STBC_MSK);
+	rx_status->nss = nsts;
+	if (rate_n_flags & RATE_MCS_STBC_MSK)
+		rx_status->nss = 1;
 
 	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
 				 IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN);
