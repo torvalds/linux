@@ -64,6 +64,51 @@ void mapping_rmap_tree_remove(struct vm_area_struct *vma,
 	__mapping_rmap_tree_remove(vma, &mapping->i_mmap);
 }
 
+static void mapping_rmap_tree_update_inplace(struct vm_area_struct *vma)
+{
+	/* Propagate all the way up the tree. */
+	__mapping_rmap_tree_augment.propagate(&vma->shared.rb, NULL);
+}
+
+/**
+ * mapping_rmap_tree_pre_update() - Prepare the file rmap tree for a change to
+ * be made to @vma.
+ * @vma: The VMA about to be updated.
+ * @mapping: The file rmap to which @vma belongs.
+ * @pgoff_unchanged: Whether @vma's page offset will remain unchanged.
+ *
+ * The file rmap lock must be held across the entire update.
+ */
+void mapping_rmap_tree_pre_update(struct vm_area_struct *vma,
+				  struct address_space *mapping,
+				  bool pgoff_unchanged)
+{
+	/* If the pgoff has changed, then remove and reinsert afterwards. */
+	if (!pgoff_unchanged)
+		mapping_rmap_tree_remove(vma, mapping);
+}
+
+/**
+ * mapping_rmap_tree_post_update() - Update the file rmap tree to reflect a
+ * change that has been made to @vma.
+ * @vma: The VMA that has been updated.
+ * @mapping: The file rmap to which @vma belongs.
+ * @pgoff_unchanged: Whether @vma's page offset remained unchanged.
+ *
+ * mapping_rmap_tree_pre_update() must have been called prior to this.
+ *
+ * The file rmap lock must be held across the entire update.
+ */
+void mapping_rmap_tree_post_update(struct vm_area_struct *vma,
+				   struct address_space *mapping,
+				   bool pgoff_unchanged)
+{
+	if (pgoff_unchanged)
+		mapping_rmap_tree_update_inplace(vma);
+	else
+		mapping_rmap_tree_insert(vma, mapping);
+}
+
 struct vm_area_struct *
 mapping_rmap_tree_iter_first(struct address_space *mapping,
 			     pgoff_t pgoff_start, pgoff_t pgoff_last)
@@ -109,6 +154,62 @@ void anon_rmap_tree_remove(struct anon_vma_chain *avc,
 			   struct anon_vma *anon_vma)
 {
 	__anon_rmap_tree_remove(avc, &anon_vma->rb_root);
+}
+
+static void anon_rmap_tree_update_inplace(struct anon_vma_chain *avc)
+{
+#ifdef CONFIG_DEBUG_VM_RB
+	avc->cached_vma_last = avc_last_pgoff(avc);
+#endif
+	/* Propagate all the way up the tree. */
+	__anon_rmap_tree_augment.propagate(&avc->rb, NULL);
+}
+
+/**
+ * anon_rmap_tree_pre_update_vma() - Prepare the anon rmap trees for a change
+ * to be made to @vma.
+ * @vma: The VMA about to be updated, which has an anon rmap assigned and is
+ *       already inserted on its interval trees.
+ * @anon_pgoff_unchanged: Whether @vma's anonymous page offset will remain
+ *                        unchanged.
+ *
+ * The anon rmap lock must be held across the entire update.
+ */
+void anon_rmap_tree_pre_update_vma(struct vm_area_struct *vma,
+				   bool anon_pgoff_unchanged)
+{
+	struct anon_vma_chain *avc;
+
+	if (anon_pgoff_unchanged)
+		return;
+
+	/* If the pgoff has changed, then remove and reinsert afterwards. */
+	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+		anon_rmap_tree_remove(avc, avc->anon_vma);
+}
+
+/**
+ * anon_rmap_tree_post_update_vma() - Update the anon rmap trees to reflect a
+ * change that has been made to @vma.
+ * @vma: The VMA that has been updated.
+ * @anon_pgoff_unchanged: Whether @vma's anonymous page offset remained
+ *                        unchanged.
+ *
+ * anon_rmap_tree_pre_update_vma() must have been called prior to this.
+ *
+ * The anon rmap lock must be held across the entire update.
+ */
+void anon_rmap_tree_post_update_vma(struct vm_area_struct *vma,
+				    bool anon_pgoff_unchanged)
+{
+	struct anon_vma_chain *avc;
+
+	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
+		if (anon_pgoff_unchanged)
+			anon_rmap_tree_update_inplace(avc);
+		else
+			anon_rmap_tree_insert(avc, avc->anon_vma);
+	}
 }
 
 struct anon_vma_chain *
