@@ -935,6 +935,26 @@ static bool verify_root_map(const struct file *file,
 	return true;
 }
 
+/*
+ * Parse the decimal u32 at *pos, up to the next whitespace or NUL, and
+ * leave *pos pointing at that character.
+ */
+static int map_parse_u32(char **pos, u32 *res)
+{
+	char *end = *pos;
+	char c;
+	int ret;
+
+	while (*end && !isspace(*end))
+		end++;
+	c = *end;
+	*end = '\0';
+	ret = kstrtou32(*pos, 10, res);
+	*end = c;
+	*pos = end;
+	return ret;
+}
+
 static ssize_t map_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos,
 			 int cap_setid,
@@ -1007,17 +1027,20 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		}
 
 		pos = skip_spaces(pos);
-		extent.first = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.first))
+			goto out;
 		if (!isspace(*pos))
 			goto out;
 
 		pos = skip_spaces(pos);
-		extent.lower_first = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.lower_first))
+			goto out;
 		if (!isspace(*pos))
 			goto out;
 
 		pos = skip_spaces(pos);
-		extent.count = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.count))
+			goto out;
 		if (*pos && !isspace(*pos))
 			goto out;
 
