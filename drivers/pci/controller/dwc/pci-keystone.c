@@ -309,7 +309,7 @@ static int ks_pcie_msi_host_init(struct dw_pcie_rp *pp)
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, ks_pcie->app.start);
 
 	pp->msi_irq_chip = &ks_pcie_msi_irq_chip;
-	return dw_pcie_allocate_domains(pp);
+	return dw_pcie_allocate_msi_domains(pp);
 }
 
 static void ks_pcie_handle_intx_irq(struct keystone_pcie *ks_pcie,

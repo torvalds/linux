@@ -207,7 +207,7 @@ static const struct irq_domain_ops dw_pcie_msi_domain_ops = {
 	.free	= dw_pcie_irq_domain_free,
 };
 
-int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
+int dw_pcie_allocate_msi_domains(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct irq_domain_info info = {
@@ -225,7 +225,7 @@ int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dw_pcie_allocate_domains);
+EXPORT_SYMBOL_GPL(dw_pcie_allocate_msi_domains);
 
 void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 {
@@ -342,7 +342,7 @@ int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 
 	pp->msi_irq_chip = &dw_pci_msi_bottom_irq_chip;
 
-	ret = dw_pcie_allocate_domains(pp);
+	ret = dw_pcie_allocate_msi_domains(pp);
 	if (ret)
 		return ret;
 
