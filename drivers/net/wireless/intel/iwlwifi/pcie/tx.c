@@ -523,7 +523,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 				   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
 
 	/* Update FH chicken bits */
-	reg_val = iwl_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
+	reg_val = iwl_pcie_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
 	iwl_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
@@ -549,9 +549,9 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	     txq_id++) {
 		struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 		if (trans->mac_cfg->gen2)
-			iwl_write_direct64(trans,
-					   FH_MEM_CBBC_QUEUE(trans, txq_id),
-					   txq->dma_addr);
+			iwl_pcie_write_direct64(trans,
+						FH_MEM_CBBC_QUEUE(trans, txq_id),
+						txq->dma_addr);
 		else
 			iwl_write_direct32(trans,
 					   FH_MEM_CBBC_QUEUE(trans, txq_id),
@@ -697,7 +697,7 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 			(trans->mac_cfg->base->max_tfd_queue_size - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
 			(trans->mac_cfg->base->max_tfd_queue_size - 1),
-			iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
+			iwl_pcie_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
 static void iwl_txq_stuck_timer(struct timer_list *t)

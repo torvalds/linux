@@ -7,6 +7,7 @@
 #include "iwl-fh.h"
 #include "iwl-context-info-v2.h"
 #include "internal.h"
+#include "pcie/utils.h"
 #include "iwl-prph.h"
 
 static const struct dmi_system_id dmi_force_scu_active_approved_list[] = {
@@ -314,8 +315,8 @@ void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans)
 	iwl_enable_fw_load_int_ctx_info(trans, trans->do_top_reset);
 
 	/* kick FW self load */
-	iwl_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
-	iwl_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
+	iwl_pcie_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
+	iwl_pcie_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
 	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
 
 	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,

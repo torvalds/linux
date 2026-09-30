@@ -428,11 +428,6 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 }
 IWL_EXPORT_SYMBOL(iwl_trans_op_mode_leave);
 
-void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
-{
-	iwl_trans_pcie_write8(trans, ofs, val);
-}
-
 void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	iwl_trans_pcie_write32(trans, ofs, val);

@@ -501,7 +501,8 @@ enum {
  * to indirectly access device's internal memory or registers that
  * may be powered-down.
  *
- * Use iwl_write_direct32()/iwl_read_direct32() family for these registers;
+ * Use iwl_write_direct32() family for writing to these registers;
+ * A read operation doesn't exist, can be added if needed.
  * host must "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.

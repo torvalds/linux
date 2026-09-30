@@ -11,6 +11,7 @@
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "internal.h"
+#include "pcie/utils.h"
 #include "iwl-op-mode.h"
 #include "iwl-context-info-v2.h"
 #include "fw/dbg.h"
@@ -147,17 +148,17 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		/* TODO: remove this once fw does it */
 		iwl_write_umac_prph(trans, RFH_RXF_DMA_CFG_AX210, 0);
-		return iwl_poll_umac_prph_bit(trans, RFH_GEN_STATUS_AX210,
-					      RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+		return iwl_pcie_poll_umac_prph_bit(trans, RFH_GEN_STATUS_AX210,
+						   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
 	} else if (trans->mac_cfg->mq_rx_supported) {
 		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
-		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,
-					   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+		return iwl_pcie_poll_prph_bit(trans, RFH_GEN_STATUS,
+					      RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
 	} else {
 		iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-		return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
-					   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-					   1000);
+		return iwl_pcie_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
+						FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+						1000);
 	}
 }
 
@@ -890,7 +891,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	iwl_trans_release_nic_access(trans);
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
-	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+	iwl_trans_pcie_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 
 	/* W/A for interrupt coalescing bug in 7260 and 3160 */
 	if (trans->cfg->host_interrupt_operation_mode)
@@ -931,17 +932,17 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	for (i = 0; i < trans->info.num_rxqs; i++) {
 		/* Tell device where to find RBD free table in DRAM */
-		iwl_write_prph64_no_grab(trans,
-					 RFH_Q_FRBDCB_BA_LSB(i),
-					 trans_pcie->rxq[i].bd_dma);
+		iwl_pcie_write_prph64_no_grab(trans,
+					      RFH_Q_FRBDCB_BA_LSB(i),
+					      trans_pcie->rxq[i].bd_dma);
 		/* Tell device where to find RBD used table in DRAM */
-		iwl_write_prph64_no_grab(trans,
-					 RFH_Q_URBDCB_BA_LSB(i),
-					 trans_pcie->rxq[i].used_bd_dma);
+		iwl_pcie_write_prph64_no_grab(trans,
+					      RFH_Q_URBDCB_BA_LSB(i),
+					      trans_pcie->rxq[i].used_bd_dma);
 		/* Tell device where in DRAM to update its Rx status */
-		iwl_write_prph64_no_grab(trans,
-					 RFH_Q_URBD_STTS_WPTR_LSB(i),
-					 trans_pcie->rxq[i].rb_stts_dma);
+		iwl_pcie_write_prph64_no_grab(trans,
+					      RFH_Q_URBD_STTS_WPTR_LSB(i),
+					      trans_pcie->rxq[i].rb_stts_dma);
 		/* Reset device indice tables */
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_WIDX(i), 0);
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_RIDX(i), 0);
@@ -982,7 +983,7 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	iwl_trans_release_nic_access(trans);
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
-	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+	iwl_trans_pcie_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 }
 
 void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
@@ -1189,7 +1190,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
 {
 	/* Set interrupt coalescing timer to default (2048 usecs) */
-	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+	iwl_trans_pcie_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 
 	/*
 	 * We don't configure the RFH.
@@ -2090,8 +2091,8 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		 */
 
 		/* Disable periodic interrupt; we use it as just a one-shot. */
-		iwl_write8(trans, CSR_INT_PERIODIC_REG,
-			    CSR_INT_PERIODIC_DIS);
+		iwl_trans_pcie_write8(trans, CSR_INT_PERIODIC_REG,
+				      CSR_INT_PERIODIC_DIS);
 
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received
@@ -2101,8 +2102,8 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		 * to extend the periodic interrupt; one-shot is enough.
 		 */
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
-			iwl_write8(trans, CSR_INT_PERIODIC_REG,
-				   CSR_INT_PERIODIC_ENA);
+			iwl_trans_pcie_write8(trans, CSR_INT_PERIODIC_REG,
+					      CSR_INT_PERIODIC_ENA);
 
 		isr_stats->rx++;
 

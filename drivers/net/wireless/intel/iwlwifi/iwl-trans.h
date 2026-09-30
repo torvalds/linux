@@ -910,8 +910,6 @@ int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans, u32 txqs);
 
 int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue);
 
-void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val);
-
 void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val);
 
 u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs);

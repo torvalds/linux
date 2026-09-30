@@ -751,7 +751,7 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 			return ret;
 
 		/* Notify ucode of loaded section number and status */
-		val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
+		val = iwl_pcie_read_direct32(trans, FH_UCODE_LOAD_STATUS);
 		val = val | (sec_num << shift_param);
 		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
 
@@ -1079,7 +1079,7 @@ static void iwl_pcie_map_list(struct iwl_trans *trans,
 	int i;
 
 	for (i = 0; i < arr_size; i++) {
-		iwl_write8(trans, CSR_MSIX_IVAR(causes[i].addr), val);
+		iwl_trans_pcie_write8(trans, CSR_MSIX_IVAR(causes[i].addr), val);
 		iwl_clear_bit(trans, causes[i].mask_reg,
 			      BIT(causes[i].bit));
 	}
@@ -1119,8 +1119,8 @@ static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
 	 */
 	val = BIT(MSIX_FH_INT_CAUSES_Q(0));
 	for (idx = 1; idx < trans->info.num_rxqs; idx++) {
-		iwl_write8(trans, CSR_MSIX_RX_IVAR(idx),
-			   MSIX_FH_INT_CAUSES_Q(idx - offset));
+		iwl_trans_pcie_write8(trans, CSR_MSIX_RX_IVAR(idx),
+				      MSIX_FH_INT_CAUSES_Q(idx - offset));
 		val |= BIT(MSIX_FH_INT_CAUSES_Q(idx));
 	}
 	iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~val);
@@ -1128,10 +1128,10 @@ static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
 	val = MSIX_FH_INT_CAUSES_Q(0);
 	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX)
 		val |= MSIX_NON_AUTO_CLEAR_CAUSE;
-	iwl_write8(trans, CSR_MSIX_RX_IVAR(0), val);
+	iwl_trans_pcie_write8(trans, CSR_MSIX_RX_IVAR(0), val);
 
 	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS)
-		iwl_write8(trans, CSR_MSIX_RX_IVAR(1), val);
+		iwl_trans_pcie_write8(trans, CSR_MSIX_RX_IVAR(1), val);
 }
 
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie)
@@ -1754,8 +1754,8 @@ static int iwl_trans_pcie_clear_persistence_bit(struct iwl_trans *trans)
 				"Error, can not clear persistence bit\n");
 			return -EPERM;
 		}
-		iwl_write_umac_prph_no_grab(trans, HPM_DEBUG,
-					    hpm & ~PERSISTENCE_BIT);
+		iwl_pcie_write_umac_prph_no_grab(trans, HPM_DEBUG,
+						 hpm & ~PERSISTENCE_BIT);
 	}
 
 	return 0;
@@ -1864,6 +1864,7 @@ void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 
 void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
+	trace_iwlwifi_dev_iowrite8(trans->dev, ofs, val);
 	writeb(val, IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
 }
 
@@ -3253,11 +3254,11 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 	if (!iwl_trans_grab_nic_access(trans))
 		return 0;
 
-	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
+	iwl_pcie_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
 	for (i = 0; i < buf_size_in_dwords; i++)
 		buffer[i] = iwl_read_umac_prph_no_grab(trans,
 						       MON_DMARB_RD_DATA_ADDR);
-	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
+	iwl_pcie_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
 	iwl_trans_release_nic_access(trans);
 
@@ -3916,11 +3917,11 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 			return;
 		}
 
-		ret = iwl_poll_umac_prph_bits_no_grab(iwl_trans,
-						      WFPM_RSRCS_4PHS_ACK_STTS,
-						      RSRC_ACK_CNVR_TOP,
-						      RSRC_ACK_CNVR_TOP,
-						      50 * 1000);
+		ret = iwl_pcie_poll_umac_prph_bits_no_grab(iwl_trans,
+							   WFPM_RSRCS_4PHS_ACK_STTS,
+							   RSRC_ACK_CNVR_TOP,
+							   RSRC_ACK_CNVR_TOP,
+							   50 * 1000);
 		if (ret < 0)
 			IWL_ERR(iwl_trans,
 				"WFPM_RSRCS_4PHS_ACK_STTS bit 6 is clear\n");
@@ -3929,7 +3930,7 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	/* Enable access to peripheral registers */
 	val = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
 	val |= WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK;
-	iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
+	iwl_pcie_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
 
 	/* Read crf info */
 	info->hw_crf_id = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);

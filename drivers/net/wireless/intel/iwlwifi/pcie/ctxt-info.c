@@ -7,6 +7,7 @@
 #include "iwl-fh.h"
 #include "iwl-context-info.h"
 #include "internal.h"
+#include "utils.h"
 #include "iwl-prph.h"
 
 static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
@@ -245,7 +246,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		iwl_pcie_apply_destination(trans);
 
 	/* kick FW self load */
-	iwl_write64(trans, CSR_CTXT_INFO_BA, trans_pcie->ctxt_info_dma_addr);
+	iwl_pcie_write64(trans, CSR_CTXT_INFO_BA, trans_pcie->ctxt_info_dma_addr);
 
 	/* Context info will be released upon alive or failure to get one */
 
