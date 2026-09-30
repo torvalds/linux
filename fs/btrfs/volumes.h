@@ -24,9 +24,6 @@
 #include "extent-io-tree.h"
 #include "fs.h"
 
-struct block_device;
-struct bdev_handle;
-struct btrfs_fs_info;
 struct btrfs_block_group;
 struct btrfs_trans_handle;
 struct btrfs_transaction;
