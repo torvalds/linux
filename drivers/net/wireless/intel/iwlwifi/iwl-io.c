@@ -40,7 +40,7 @@ IWL_EXPORT_SYMBOL(iwl_write_direct32);
 
 u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs)
 {
-	u32 val = iwl_trans_read_prph(trans, ofs);
+	u32 val = iwl_trans_read_prph_no_grab(trans, ofs);
 	trace_iwlwifi_dev_ioread_prph32(trans->dev, ofs, val);
 	return val;
 }

@@ -914,7 +914,7 @@ void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val);
 
 u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs);
 
-u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
+u32 iwl_trans_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 
 void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 
