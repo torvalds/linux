@@ -8,7 +8,7 @@
 
 #include "iwl-debug.h"
 #include "iwl-csr.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "internal.h"
 #include "fw/api/tx.h"
 #include "fw/api/commands.h"

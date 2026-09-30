@@ -16,7 +16,6 @@
 #include <linux/unaligned.h>
 
 #include "iwl-trans.h"
-#include "iwl-io.h"
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"

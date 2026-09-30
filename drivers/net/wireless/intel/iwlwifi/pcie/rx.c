@@ -9,7 +9,7 @@
 #include <linux/gfp.h>
 
 #include "iwl-prph.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "internal.h"
 #include "pcie/utils.h"
 #include "iwl-op-mode.h"

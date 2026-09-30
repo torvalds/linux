@@ -27,8 +27,8 @@
 #include <asm/div64.h>
 
 #include "iwl-nvm-utils.h"
-#include "iwl-io.h"
 #include "iwl-trans.h"
+#include "iwl-devtrace.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"

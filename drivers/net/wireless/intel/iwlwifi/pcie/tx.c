@@ -20,7 +20,7 @@
 #include "iwl-debug.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-scd.h"
 #include "iwl-op-mode.h"
 #include "internal.h"

@@ -5,7 +5,7 @@
 
 #include "mld.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "hcmd.h"
 #include "iface.h"
 #include "sta.h"

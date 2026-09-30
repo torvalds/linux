@@ -6,7 +6,7 @@
 #include "iwl-drv.h"
 #include "pnvm.h"
 #include "iwl-prph.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "fw/api/commands.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"

@@ -10,7 +10,7 @@
 /*
  * DVM device-specific data & functions
  */
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-nvm-utils.h"
 

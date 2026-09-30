@@ -2,12 +2,12 @@
 /*
  * Copyright (C) 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020, 2022-2025 Intel Corporation
+ * Copyright (C) 2018-2020, 2022-2026 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include "mvm.h"
 #include "time-event.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 
 #define TU_TO_US(x) (x * 1024)

@@ -6,7 +6,7 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "pcie/utils.h"
 
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans, struct pci_dev *pdev)

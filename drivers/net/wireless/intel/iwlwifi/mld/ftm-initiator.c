@@ -8,7 +8,7 @@
 #include "mld.h"
 #include "iface.h"
 #include "phy.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "constants.h"
 #include "fw/api/location.h"

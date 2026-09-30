@@ -977,6 +977,66 @@ int iwl_trans_sw_reset(struct iwl_trans *trans);
 void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
 			     u32 mask, u32 value);
 
+static inline void iwl_trans_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, mask);
+}
+
+static inline void iwl_trans_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, 0);
+}
+
+int iwl_trans_poll_bits_mask(struct iwl_trans *trans, u32 addr,
+			     u32 bits, u32 mask, int timeout);
+static inline int iwl_trans_poll_bits(struct iwl_trans *trans, u32 addr, u32 bits,
+				      int timeout)
+{
+	return iwl_trans_poll_bits_mask(trans, addr, bits, bits, timeout);
+}
+
+void iwl_trans_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
+
+u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
+void iwl_trans_write_prph_delay(struct iwl_trans *trans, u32 ofs,
+				u32 val, u32 delay_ms);
+static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	iwl_trans_write_prph_delay(trans, ofs, val, 0);
+}
+
+void iwl_trans_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
+void iwl_trans_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
+				  u32 bits, u32 mask);
+void iwl_trans_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
+
+/*
+ * UMAC periphery address space changed from 0xA00000 to 0xD00000 starting from
+ * device family AX200. So peripheries used in families above and below AX200
+ * should go through iwl_trans_..._umac_..._prph.
+ */
+static inline u32 iwl_trans_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return ofs + trans->mac_cfg->umac_prph_offset;
+}
+
+static inline u32 iwl_trans_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_trans_read_prph_no_grab(trans, ofs +
+					   trans->mac_cfg->umac_prph_offset);
+}
+
+static inline u32 iwl_trans_read_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_trans_read_prph(trans, ofs + trans->mac_cfg->umac_prph_offset);
+}
+
+static inline void iwl_trans_write_umac_prph(struct iwl_trans *trans, u32 ofs,
+					     u32 val)
+{
+	iwl_trans_write_prph(trans, ofs + trans->mac_cfg->umac_prph_offset, val);
+}
+
 bool iwl_trans_grab_nic_access(struct iwl_trans *trans);
 
 /**

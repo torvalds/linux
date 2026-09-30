@@ -7,7 +7,6 @@
 #define __iwl_scd_h__
 
 #include "iwl-trans.h"
-#include "iwl-io.h"
 #include "iwl-prph.h"
 
 

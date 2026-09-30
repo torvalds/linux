@@ -20,7 +20,6 @@
 #include "iwl-phy-db.h"
 #include "iwl-nvm-utils.h"
 #include "iwl-csr.h"
-#include "iwl-io.h"
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw/api/scan.h"

@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-modparams.h"
 #include "iwl-debug.h"
 #include "agn.h"

@@ -16,7 +16,7 @@
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/commands.h"

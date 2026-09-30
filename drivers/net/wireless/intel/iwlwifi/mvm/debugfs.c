@@ -13,7 +13,7 @@
 
 #include "mvm.h"
 #include "sta.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "debugfs.h"
 #include "iwl-modparams.h"
 #include "iwl-drv.h"

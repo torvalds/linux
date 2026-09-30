@@ -14,7 +14,6 @@
 
 #include "iwl-debug.h"
 #include "iwl-trans.h"
-#include "iwl-io.h"
 #include "dev.h"
 #include "agn.h"
 

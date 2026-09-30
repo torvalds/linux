@@ -7,7 +7,7 @@
 #include <linux/math64.h>
 #include <net/cfg80211.h>
 #include "mvm.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "constants.h"
 

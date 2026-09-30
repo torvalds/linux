@@ -23,7 +23,6 @@
 
 #include <asm/div64.h>
 
-#include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-modparams.h"

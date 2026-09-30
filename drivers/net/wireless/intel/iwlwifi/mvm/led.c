@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #include <linux/leds.h>
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "mvm.h"
 

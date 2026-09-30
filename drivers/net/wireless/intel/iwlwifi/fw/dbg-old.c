@@ -9,7 +9,7 @@
 #include "runtime.h"
 #include "dbg.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "iwl-fh.h"

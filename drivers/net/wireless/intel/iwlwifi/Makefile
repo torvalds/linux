@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # common
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
-iwlwifi-objs		+= iwl-io.o
 iwlwifi-objs		+= iwl-drv.o
 iwlwifi-objs		+= iwl-debug.o
 iwlwifi-objs		+= iwl-nvm-utils.o

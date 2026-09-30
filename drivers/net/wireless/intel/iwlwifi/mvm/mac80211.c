@@ -19,7 +19,7 @@
 
 #include "iwl-drv.h"
 #include "iwl-op-mode.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "mvm.h"
 #include "sta.h"
 #include "time-event.h"

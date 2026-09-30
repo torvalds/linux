@@ -6,7 +6,7 @@
 #ifndef __iwl_pcie_utils_h__
 #define __iwl_pcie_utils_h__
 
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "internal.h"
 
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans, struct pci_dev *pdev);
