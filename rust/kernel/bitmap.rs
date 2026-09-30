@@ -10,7 +10,11 @@ use crate::alloc::{AllocError, Flags};
 use crate::bindings;
 #[cfg(not(CONFIG_RUST_BITMAP_HARDENED))]
 use crate::pr_err;
-use core::ptr::NonNull;
+use crate::ptr::Alignment;
+use core::{
+    num::NonZero,
+    ptr::NonNull, //
+};
 
 /// Represents a C bitmap. Wraps underlying C bitmap API.
 ///
@@ -525,13 +529,159 @@ impl Bitmap {
             Some(index)
         }
     }
+
+    /// Finds a contiguous area of `nbits` zero bits at or after `start`, where the area plus
+    /// `align_offset` is aligned to `align`.
+    ///
+    /// Returns the bit index of the start of the area, or [`None`] if no such area fitting in
+    /// the bitmap exists.
+    ///
+    /// The returned index plus `align_offset` is a multiple of `align`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if CONFIG_RUST_BITMAP_HARDENED is enabled and `start` is out of bounds.
+    #[inline]
+    pub fn next_zero_area_off(
+        &self,
+        start: usize,
+        nbits: NonZero<usize>,
+        align: Alignment,
+        align_offset: usize,
+    ) -> Option<usize> {
+        bitmap_assert!(
+            start < self.len(),
+            "`start` must be < {}, was {}",
+            self.len(),
+            start
+        );
+
+        let nr = u32::try_from(nbits.get()).ok()?;
+        let align_mask = align.as_usize() - 1;
+
+        // The C alignment and end arithmetic must not overflow, or it can read out of bounds.
+        // Overflow is only possible on 32-bit.
+        #[cfg(not(CONFIG_64BIT))]
+        align_mask
+            .checked_add(self.len())?
+            .checked_add(nbits.get())?;
+
+        // SAFETY: `bitmap_find_next_zero_area_off` is safe to use with an out of bounds `start`
+        // value and, given the overflow check above, never reads beyond `self.len()` bits.
+        let index = unsafe {
+            bindings::bitmap_find_next_zero_area_off(
+                self.as_ptr().cast_mut(),
+                self.len(),
+                start,
+                nr,
+                align_mask,
+                align_offset,
+            )
+        };
+
+        (index < self.len()).then_some(index)
+    }
+
+    /// Finds a contiguous area of `nbits` zero bits at or after `start`, aligned to `align`.
+    ///
+    /// Returns the bit index of the start of the area, or [`None`] if no such area fitting in
+    /// the bitmap exists.
+    ///
+    /// The returned index is a multiple of `align`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if CONFIG_RUST_BITMAP_HARDENED is enabled and `start` is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::{
+    ///     alloc::{AllocError, flags::GFP_KERNEL},
+    ///     bitmap::BitmapVec,
+    ///     ptr::Alignment,
+    ///     sizes::SizeConstants, //
+    /// };
+    ///
+    /// let mut b = BitmapVec::new(64, GFP_KERNEL)?;
+    ///
+    /// assert_eq!(Some(0), b.next_zero_area(0, cv!(8), Alignment::SZ_1));
+    /// b.set(0, cv!(5));
+    /// assert_eq!(Some(5), b.next_zero_area(0, cv!(8), Alignment::SZ_1));
+    /// assert_eq!(Some(8), b.next_zero_area(0, cv!(8), Alignment::SZ_8));
+    /// assert_eq!(None, b.next_zero_area(0, cv!(65), Alignment::SZ_1));
+    /// # Ok::<(), AllocError>(())
+    /// ```
+    #[inline]
+    pub fn next_zero_area(
+        &self,
+        start: usize,
+        nbits: NonZero<usize>,
+        align: Alignment,
+    ) -> Option<usize> {
+        self.next_zero_area_off(start, nbits, align, 0)
+    }
+
+    /// Sets a contiguous area of `nbits` bits starting at `start`.
+    ///
+    /// If CONFIG_RUST_BITMAP_HARDENED is not enabled and the area `start..start + nbits` is out of
+    /// bounds, does nothing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if CONFIG_RUST_BITMAP_HARDENED is enabled and the area `start..start + nbits` is out
+    /// of bounds.
+    #[inline]
+    pub fn set(&mut self, start: usize, nbits: NonZero<usize>) {
+        bitmap_assert_return!(
+            start
+                .checked_add(nbits.get())
+                .is_some_and(|end| end <= self.len()),
+            "Area `start..start + nbits` ({}..{}) must be within bounds {}",
+            start,
+            start.saturating_add(nbits.get()),
+            self.len()
+        );
+        // SAFETY: The area `start..start + nbits` is within bounds and a `Bitmap` is at most
+        // `i32::MAX` bits, so the casts are lossless.
+        unsafe { bindings::__bitmap_set(self.as_mut_ptr(), start as u32, nbits.get() as i32) };
+    }
+
+    /// Clears a contiguous area of `nbits` bits starting at `start`.
+    ///
+    /// If CONFIG_RUST_BITMAP_HARDENED is not enabled and the area `start..start + nbits` is out of
+    /// bounds, does nothing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if CONFIG_RUST_BITMAP_HARDENED is enabled and the area `start..start + nbits` is out
+    /// of bounds.
+    #[inline]
+    pub fn clear(&mut self, start: usize, nbits: NonZero<usize>) {
+        bitmap_assert_return!(
+            start
+                .checked_add(nbits.get())
+                .is_some_and(|end| end <= self.len()),
+            "Area `start..start + nbits` ({}..{}) must be within bounds {}",
+            start,
+            start.saturating_add(nbits.get()),
+            self.len()
+        );
+        // SAFETY: The area `start..start + nbits` is within bounds and a `Bitmap` is at most
+        // `i32::MAX` bits, so the casts are lossless.
+        unsafe { bindings::__bitmap_clear(self.as_mut_ptr(), start as u32, nbits.get() as i32) };
+    }
 }
 
 #[cfg(CONFIG_RUST_BITMAP_KUNIT_TEST)]
 #[macros::kunit_tests(rust_kernel_bitmap)]
 mod tests {
     use super::*;
-    use kernel::alloc::flags::GFP_KERNEL;
+    use kernel::{
+        alloc::flags::GFP_KERNEL,
+        num::cv,
+        sizes::SizeConstants, //
+    };
 
     #[test]
     fn bitmap_borrow() {
@@ -640,6 +790,93 @@ mod tests {
         // Previous bits have been cleared.
         assert_eq!(Some(17), long_bitmap.next_bit(0));
         assert_eq!(Some(17), long_bitmap.last_bit());
+        Ok(())
+    }
+
+    #[test]
+    fn bitmap_area_set_clear_find() -> Result<(), AllocError> {
+        let mut b = BitmapVec::new(128, GFP_KERNEL)?;
+
+        assert_eq!(Some(0), b.next_zero_area(0, cv!(5), Alignment::SZ_1));
+        b.set(0, cv!(5)); // Now contains {[0, 5)}.
+
+        assert_eq!(Some(0), b.next_bit(0));
+        assert_eq!(Some(4), b.next_bit(4));
+        assert_eq!(Some(5), b.next_zero_bit(0));
+        assert_eq!(Some(5), b.next_zero_area(0, cv!(5), Alignment::SZ_1));
+        assert_eq!(Some(8), b.next_zero_area(0, cv!(5), Alignment::SZ_8));
+
+        b.set(8, cv!(8)); // Now contains {[0, 5), [8, 16)}.
+        assert_eq!(Some(16), b.next_zero_area(0, cv!(4), Alignment::SZ_16));
+        assert_eq!(Some(16), b.next_zero_area(0, cv!(4), Alignment::SZ_1));
+
+        b.clear(0, cv!(5)); // Now contains {[8, 16)}.
+        assert_eq!(Some(0), b.next_zero_area(0, cv!(5), Alignment::SZ_1));
+        assert_eq!(Some(8), b.next_bit(0));
+        assert_eq!(Some(15), b.last_bit());
+
+        b.set(60, cv!(10)); // Now contains {[8, 16), [60, 70)}.
+        assert_eq!(Some(60), b.next_bit(16));
+        assert_eq!(Some(69), b.last_bit());
+        assert_eq!(Some(16), b.next_zero_area(9, cv!(40), Alignment::SZ_1));
+        assert_eq!(Some(70), b.next_zero_area(0, cv!(45), Alignment::SZ_1));
+
+        b.clear(62, cv!(6)); // Now contains {[8, 16), [60, 62), [68, 70)}.
+        assert_eq!(Some(62), b.next_zero_area(60, cv!(6), Alignment::SZ_1));
+        assert_eq!(Some(61), b.next_bit(61));
+        assert_eq!(Some(69), b.last_bit());
+        Ok(())
+    }
+
+    #[test]
+    fn bitmap_area_exhaustion() -> Result<(), AllocError> {
+        let mut b = BitmapVec::new(64, GFP_KERNEL)?;
+
+        assert_eq!(None, b.next_zero_area(0, cv!(65), Alignment::SZ_1));
+        assert_eq!(None, b.next_zero_area(0, cv!(usize::MAX), Alignment::SZ_1));
+        assert_eq!(None, b.next_zero_area(1, cv!(usize::MAX), Alignment::SZ_1));
+
+        b.set_bit(0); // Now contains {[0, 1)}.
+        assert_eq!(None, b.next_zero_area(0, cv!(usize::MAX), Alignment::SZ_1));
+
+        b.set(0, cv!(61)); // Now contains {[0, 61)}.
+        assert_eq!(None, b.next_zero_area(0, cv!(4), Alignment::SZ_1));
+        assert_eq!(Some(61), b.next_zero_area(0, cv!(3), Alignment::SZ_1));
+        assert_eq!(None, b.next_zero_area(0, cv!(1), Alignment::SZ_64));
+        Ok(())
+    }
+
+    #[test]
+    fn bitmap_area_off() -> Result<(), AllocError> {
+        let mut b = BitmapVec::new(64, GFP_KERNEL)?;
+
+        b.set(0, cv!(5)); // Now contains {[0, 5)}.
+
+        // The area plus align_offset starts at a multiple of the alignment.
+        assert_eq!(Some(7), b.next_zero_area_off(0, cv!(8), Alignment::SZ_8, 1));
+        assert_eq!(Some(5), b.next_zero_area_off(0, cv!(8), Alignment::SZ_8, 3));
+
+        // A zero offset behaves like next_zero_area().
+        assert_eq!(
+            b.next_zero_area(0, cv!(8), Alignment::SZ_8),
+            b.next_zero_area_off(0, cv!(8), Alignment::SZ_8, 0)
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(not(CONFIG_RUST_BITMAP_HARDENED))]
+    fn owned_bitmap_area_out_of_bounds() -> Result<(), AllocError> {
+        let mut b = BitmapVec::new(64, GFP_KERNEL)?;
+
+        // Should be ignored since out of bounds.
+        b.set(64, cv!(4));
+        b.set(62, cv!(8));
+        b.set(usize::MAX, cv!(1));
+        b.clear(usize::MAX, cv!(1));
+        b.clear(2048, cv!(8));
+        assert_eq!(None, b.next_bit(0));
+        assert_eq!(None, b.next_zero_area(64, cv!(1), Alignment::SZ_1));
         Ok(())
     }
 }
