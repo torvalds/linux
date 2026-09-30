@@ -111,10 +111,8 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 	u64 ret;
 
 	spin_lock(&block_rsv->lock);
-	if (num_bytes == (u64)-1) {
+	if (num_bytes == (u64)-1)
 		num_bytes = block_rsv->size;
-		qgroup_to_release = block_rsv->qgroup_rsv_size;
-	}
 	block_rsv->size -= num_bytes;
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
@@ -128,8 +126,6 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 		qgroup_to_release = block_rsv->qgroup_rsv_reserved -
 				    block_rsv->qgroup_rsv_size;
 		block_rsv->qgroup_rsv_reserved = block_rsv->qgroup_rsv_size;
-	} else {
-		qgroup_to_release = 0;
 	}
 	spin_unlock(&block_rsv->lock);
 
