@@ -38,6 +38,7 @@
 
 static const uint32_t virtio_gpu_formats[] = {
 	DRM_FORMAT_HOST_XRGB8888,
+	DRM_FORMAT_HOST_ARGB8888,
 };
 
 static const uint32_t virtio_gpu_cursor_formats[] = {
