@@ -633,7 +633,7 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 
 		vector = offset + (pos << 3);
 		dev_dbg(dev, "irq: bit %d, vector %d\n", pos, vector);
-		generic_handle_domain_irq(pp->irq_domain, vector);
+		generic_handle_domain_irq(pp->msi_irq_domain, vector);
 	}
 
 	chained_irq_exit(chip, desc);

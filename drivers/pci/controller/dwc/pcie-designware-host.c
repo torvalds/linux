@@ -82,7 +82,7 @@ void dw_handle_msi_irq(struct dw_pcie_rp *pp)
 			continue;
 
 		for_each_set_bit(pos, &status, MAX_MSI_IRQS_PER_CTRL)
-			generic_handle_demux_domain_irq(pp->irq_domain, irq_off + pos);
+			generic_handle_demux_domain_irq(pp->msi_irq_domain, irq_off + pos);
 	}
 }
 
@@ -217,8 +217,8 @@ int dw_pcie_allocate_msi_domains(struct dw_pcie_rp *pp)
 		.host_data	= pp,
 	};
 
-	pp->irq_domain = msi_create_parent_irq_domain(&info, &dw_pcie_msi_parent_ops);
-	if (!pp->irq_domain) {
+	pp->msi_irq_domain = msi_create_parent_irq_domain(&info, &dw_pcie_msi_parent_ops);
+	if (!pp->msi_irq_domain) {
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
@@ -236,7 +236,7 @@ void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 			irq_set_chained_handler_and_data(pp->msi_irq[ctrl], NULL, NULL);
 	}
 
-	irq_domain_remove(pp->irq_domain);
+	irq_domain_remove(pp->msi_irq_domain);
 }
 EXPORT_SYMBOL_GPL(dw_pcie_free_msi);
 
