@@ -924,7 +924,7 @@ void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 }
 EXPORT_SYMBOL_GPL(geni_se_rx_dma_unprep);
 
-int geni_icc_get(struct geni_se *se, const char *icc_ddr)
+int geni_icc_get(struct geni_se *se)
 {
 	struct geni_icc_path *icc_paths = se->icc_paths;
 
@@ -1221,7 +1221,7 @@ int geni_se_resources_init(struct geni_se *se)
 
 	se->has_opp = (ret == 0);
 
-	ret = geni_icc_get(se, "qup-memory");
+	ret = geni_icc_get(se);
 	if (ret)
 		return ret;
 
