@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2024 - 2026 Intel Corporation
  */
+#include <linux/timekeeping.h>
 #include <net/ip.h>
 
 #include "tx.h"
@@ -19,6 +20,132 @@
 #include "fw/api/time-event.h"
 
 #define MAX_ANT_NUM 2
+
+static u32 iwl_mld_tx_gp2_host_us(void)
+{
+	return div_u64(ktime_get_boottime_ns(), NSEC_PER_USEC);
+}
+
+/* Returns the gp2 for the TX command, or 0 to leave the frame unstamped.
+ * Sets @refresh when the estimate expired or is about to.
+ */
+static u32
+iwl_mld_tx_gp2_from_est(u32 delta_us, unsigned long valid_until, u32 host_us,
+			unsigned long now, bool *refresh)
+{
+	u32 gp2;
+
+	*refresh = time_after_eq(now, valid_until -
+				 IWL_MLD_TX_GP2_REFRESH_MARGIN);
+
+	if (time_after_eq(now, valid_until))
+		return 0;
+
+	gp2 = host_us + delta_us;
+
+	/* 0 means no timestamp; use 1 for a valid wrapped value. */
+	return gp2 ?: 1;
+}
+
+static u32
+iwl_mld_tx_gp2_timestamp(struct iwl_mld *mld)
+{
+	unsigned long valid_until =
+		atomic_long_read_acquire(&mld->tx_gp2.valid_until);
+	bool refresh = false;
+	u32 gp2;
+
+	if (!valid_until)
+		return 0;
+
+	gp2 = iwl_mld_tx_gp2_from_est(atomic_read(&mld->tx_gp2.delta_us),
+				      valid_until, iwl_mld_tx_gp2_host_us(),
+				      jiffies, &refresh);
+
+	if (refresh)
+		wiphy_delayed_work_queue(mld->wiphy, &mld->tx_gp2.wk, 0);
+
+	return gp2;
+}
+
+static void iwl_mld_tx_gp2_refresh(struct iwl_mld *mld)
+{
+	unsigned long valid_until, delay;
+	u32 gp2, host_us;
+
+	lockdep_assert_wiphy(mld->wiphy);
+
+	if (!mld->fw_status.running)
+		return;
+
+#ifdef CONFIG_PM_SLEEP
+	if (mld->fw_status.in_d3)
+		return;
+#endif
+
+	if (iwl_mld_get_systime(mld, &gp2))
+		goto retry;
+
+	host_us = iwl_mld_tx_gp2_host_us();
+	valid_until = jiffies + IWL_MLD_TX_GP2_VALID_PERIOD;
+
+	/* Keep arithmetic in u32 to match firmware wraparound semantics. */
+	atomic_set(&mld->tx_gp2.delta_us, gp2 - host_us);
+	atomic_long_set_release(&mld->tx_gp2.valid_until, valid_until ?: 1);
+
+	IWL_DEBUG_TX(mld, "gp2 sync: gp2=%u host_us=%u delta_us=%u\n",
+		     gp2, host_us, gp2 - host_us);
+	return;
+
+retry:
+	/* Stop new TX readers from requesting immediate retries. */
+	atomic_long_set(&mld->tx_gp2.valid_until, 0);
+	delay = round_jiffies_relative(IWL_MLD_TX_GP2_RETRY_PERIOD);
+	wiphy_delayed_work_queue(mld->wiphy, &mld->tx_gp2.wk, delay);
+}
+
+static void iwl_mld_tx_gp2_wk(struct wiphy *wiphy, struct wiphy_work *wk)
+{
+	struct iwl_mld *mld = container_of(wk, struct iwl_mld, tx_gp2.wk.work);
+	unsigned long valid_until = atomic_long_read(&mld->tx_gp2.valid_until);
+
+	/* TX may have queued this work using an older estimate. */
+	if (valid_until &&
+	    time_before(jiffies, valid_until - IWL_MLD_TX_GP2_REFRESH_MARGIN))
+		return;
+
+	iwl_mld_tx_gp2_refresh(mld);
+}
+
+void iwl_mld_tx_gp2_init(struct iwl_mld *mld)
+{
+	atomic_set(&mld->tx_gp2.delta_us, 0);
+	atomic_long_set(&mld->tx_gp2.valid_until, 0);
+	wiphy_delayed_work_init(&mld->tx_gp2.wk, iwl_mld_tx_gp2_wk);
+}
+
+void iwl_mld_tx_gp2_start(struct iwl_mld *mld)
+{
+	lockdep_assert_wiphy(mld->wiphy);
+
+	if (iwl_fw_lookup_cmd_ver(mld->fw, TX_CMD, 0) < 12)
+		return;
+
+	iwl_mld_tx_gp2_refresh(mld);
+}
+
+/* TX is quiesced before stopping the refresh work. */
+void iwl_mld_tx_gp2_stop(struct iwl_mld *mld)
+{
+	lockdep_assert_wiphy(mld->wiphy);
+
+	if (iwl_fw_lookup_cmd_ver(mld->fw, TX_CMD, 0) < 12)
+		return;
+
+	wiphy_delayed_work_cancel(mld->wiphy, &mld->tx_gp2.wk);
+
+	atomic_long_set(&mld->tx_gp2.valid_until, 0);
+}
 
 /* Toggles between TX antennas. Receives the bitmask of valid TX antennas and
  * the *index* used for the last TX, and returns the next valid *index* to use.
@@ -588,6 +715,9 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 	tx_cmd->flags = cpu_to_le16(flags);
 
 	tx_cmd->rate_n_flags = rate_n_flags;
+
+	tx_cmd->driver_timestamp =
+		cpu_to_le32(iwl_mld_tx_gp2_timestamp(mld));
 }
 
 /* Caller of this need to check that info->control.vif is not NULL */

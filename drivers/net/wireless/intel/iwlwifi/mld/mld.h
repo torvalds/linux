@@ -29,6 +29,7 @@
 #include "notif.h"
 #include "scan.h"
 #include "rx.h"
+#include "tx.h"
 #include "thermal.h"
 #include "low_latency.h"
 #include "constants.h"
@@ -196,6 +197,7 @@
  *	being IBSS manager for that time and needing to respond to probe
  *	requests
  * @ptp_data: data of the PTP clock
+ * @tx_gp2: gp2 timestamping state for TX commands
  * @time_sync: time sync data.
  * @ftm_initiator: FTM initiator data
  * @nan_device_vif: points to the NAN device vif if exists
@@ -305,6 +307,8 @@ struct iwl_mld {
 #endif
 
 	struct ptp_data ptp_data;
+
+	struct iwl_mld_tx_gp2 tx_gp2;
 
 	struct iwl_mld_time_sync_data __rcu *time_sync;
 
@@ -571,6 +575,8 @@ iwl_mld_fw_id_to_link_conf(struct iwl_mld *mld, u8 fw_link_id)
 }
 
 #define MSEC_TO_TU(_msec)	((_msec) * 1000 / 1024)
+
+int iwl_mld_get_systime(struct iwl_mld *mld, u32 *gp2);
 
 void iwl_mld_add_vif_debugfs(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);

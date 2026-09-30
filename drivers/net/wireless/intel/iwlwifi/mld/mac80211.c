@@ -2168,6 +2168,8 @@ static int iwl_mld_resume(struct ieee80211_hw *hw)
 
 	iwl_mld_low_latency_restart(mld);
 
+	iwl_mld_tx_gp2_start(mld);
+
 	return 0;
 }
 #endif

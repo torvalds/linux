@@ -5,6 +5,7 @@
 #include "mld.h"
 
 #include "d3.h"
+#include "tx.h"
 #include "power.h"
 #include "hcmd.h"
 #include "iface.h"
@@ -1610,6 +1611,8 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 
 	iwl_mld_low_latency_stop(mld);
 
+	iwl_mld_tx_gp2_stop(mld);
+
 	ret = iwl_mld_update_device_power(mld, true);
 	if (ret) {
 		IWL_ERR(mld,
@@ -1662,6 +1665,8 @@ int iwl_mld_no_wowlan_resume(struct iwl_mld *mld)
 		return -ENODEV;
 
 	iwl_mld_low_latency_restart(mld);
+
+	iwl_mld_tx_gp2_start(mld);
 
 	return iwl_mld_update_device_power(mld, false);
 }

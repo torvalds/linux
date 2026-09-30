@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include "mld.h"
+#include "tx.h"
 
 #include "fw/api/alive.h"
 #include "fw/api/scan.h"
@@ -355,6 +356,8 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 {
 	lockdep_assert_wiphy(mld->wiphy);
 
+	iwl_mld_tx_gp2_stop(mld);
+
 	iwl_abort_notification_waits(&mld->notif_wait);
 
 	iwl_fw_dbg_stop_sync(&mld->fwrt);
@@ -541,6 +544,8 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	ret = iwl_mld_init_mcc(mld);
 	if (ret)
 		goto error;
+
+	iwl_mld_tx_gp2_start(mld);
 
 	return 0;
 
