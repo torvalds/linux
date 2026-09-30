@@ -159,7 +159,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	indirect_rd_addr += le32_to_cpu(offset);
 
 	dphy_addr = (offset) ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
-	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+	dphy_state = iwl_trans_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
 
 	for (i = 0; i < le32_to_cpu(size); i += 4) {
 		if (dphy_state == HBUS_TIMEOUT ||
@@ -508,7 +508,7 @@ iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
 	indirect_rd_wr_addr += le32_to_cpu(offset);
 
 	dphy_addr = offset ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
-	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+	dphy_state = iwl_trans_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
 
 	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
 		if (dphy_state == HBUS_TIMEOUT ||
@@ -586,13 +586,13 @@ static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
 		switch (fifo_idx) {
 		case 0:
 			data->size = fwrt->smem_cfg.rxfifo2_size;
-			data->offset = iwl_umac_prph(fwrt->trans,
-						     RXF_DIFF_FROM_PREV);
+			data->offset = iwl_trans_umac_prph(fwrt->trans,
+							   RXF_DIFF_FROM_PREV);
 			break;
 		case 1:
 			data->size = fwrt->smem_cfg.rxfifo2_control_size;
-			data->offset = iwl_umac_prph(fwrt->trans,
-						     RXF2C_DIFF_FROM_PREV);
+			data->offset = iwl_trans_umac_prph(fwrt->trans,
+							   RXF2C_DIFF_FROM_PREV);
 			break;
 		}
 	}
@@ -2381,21 +2381,21 @@ static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 				      struct iwl_fw_dbg_params *params)
 {
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_trans_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		return;
 	}
 
 	if (params) {
-		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
-		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
+		params->in_sample = iwl_trans_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_trans_read_umac_prph(trans, DBGC_OUT_CTRL);
 	}
 
-	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
+	iwl_trans_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
 	/* wait for the DBGC to finish writing the internal buffer to DRAM to
 	 * avoid halting the HW while writing
 	 */
 	usleep_range(700, 1000);
-	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
+	iwl_trans_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
 }
 
 static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
@@ -2405,12 +2405,12 @@ static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 		return -EIO;
 
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_trans_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_trans_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_trans_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 	} else {
-		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
-		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+		iwl_trans_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		iwl_trans_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
 
 	return 0;

@@ -263,7 +263,7 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 static void iwl_mvm_print_pd_notification(struct iwl_mvm *mvm)
 {
 #define IWL_FW_PRINT_REG_INFO(reg_name) \
-	IWL_ERR(mvm, #reg_name ": 0x%x\n", iwl_read_umac_prph(trans, reg_name))
+	IWL_ERR(mvm, #reg_name ": 0x%x\n", iwl_trans_read_umac_prph(trans, reg_name))
 
 	struct iwl_trans *trans = mvm->trans;
 	enum iwl_device_family device_family = trans->mac_cfg->device_family;
@@ -332,13 +332,13 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	    IWL_DEVICE_FAMILY_AX210) {
 		/* print these registers regardless of alive fail/success */
 		IWL_INFO(mvm, "WFPM_UMAC_PD_NOTIFICATION: 0x%x\n",
-			 iwl_read_umac_prph(mvm->trans, WFPM_ARC1_PD_NOTIFICATION));
+			 iwl_trans_read_umac_prph(mvm->trans, WFPM_ARC1_PD_NOTIFICATION));
 		IWL_INFO(mvm, "WFPM_LMAC2_PD_NOTIFICATION: 0x%x\n",
-			 iwl_read_umac_prph(mvm->trans, WFPM_LMAC2_PD_NOTIFICATION));
+			 iwl_trans_read_umac_prph(mvm->trans, WFPM_LMAC2_PD_NOTIFICATION));
 		IWL_INFO(mvm, "WFPM_AUTH_KEY_0: 0x%x\n",
-			 iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG));
+			 iwl_trans_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG));
 		IWL_INFO(mvm, "CNVI_SCU_SEQ_DATA_DW9: 0x%x\n",
-			 iwl_read_prph(mvm->trans, CNVI_SCU_SEQ_DATA_DW9));
+			 iwl_trans_read_prph(mvm->trans, CNVI_SCU_SEQ_DATA_DW9));
 	}
 
 	if (ret) {
@@ -349,15 +349,15 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					IWL_DEVICE_FAMILY_22000) {
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
-				iwl_read_umac_prph(trans,
-						   UMAG_SB_CPU_2_STATUS));
+				iwl_trans_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
+				iwl_trans_read_umac_prph(trans,
+							 UMAG_SB_CPU_2_STATUS));
 		} else if (trans->mac_cfg->device_family >=
 			   IWL_DEVICE_FAMILY_8000) {
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_prph(trans, SB_CPU_1_STATUS),
-				iwl_read_prph(trans, SB_CPU_2_STATUS));
+				iwl_trans_read_prph(trans, SB_CPU_1_STATUS),
+				iwl_trans_read_prph(trans, SB_CPU_2_STATUS));
 		}
 
 		iwl_mvm_print_pd_notification(mvm);
@@ -374,15 +374,15 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		} else if (trans->mac_cfg->device_family >=
 					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
-				iwl_read_umac_prph(trans,
-						   UREG_UMAC_CURRENT_PC));
+				iwl_trans_read_umac_prph(trans,
+							 UREG_UMAC_CURRENT_PC));
 			IWL_ERR(mvm, "LMAC PC: 0x%x\n",
-				iwl_read_umac_prph(trans,
-						   UREG_LMAC1_CURRENT_PC));
+				iwl_trans_read_umac_prph(trans,
+							 UREG_LMAC1_CURRENT_PC));
 			if (iwl_mvm_is_cdb_supported(mvm))
 				IWL_ERR(mvm, "LMAC2 PC: 0x%x\n",
-					iwl_read_umac_prph(trans,
-						UREG_LMAC2_CURRENT_PC));
+					iwl_trans_read_umac_prph(trans,
+								 UREG_LMAC2_CURRENT_PC));
 		}
 
 		if (ret == -ETIMEDOUT && !mvm->fw_product_reset)
@@ -616,7 +616,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	mvm->rfkill_safe_init_done = false;
 
 	if (mvm->trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
-		sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+		sb_cfg = iwl_trans_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
 		/* if needed, we'll reset this on our way out later */
 		mvm->fw_product_reset = sb_cfg == SB_CFG_RESIDES_IN_ROM;
 		if (mvm->fw_product_reset && iwl_mei_pldr_req())

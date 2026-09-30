@@ -16,7 +16,7 @@
  *
  * Use iwl_trans_write32() and iwl_trans_read32() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
- * Do not use iwl_write_direct32() family for these registers;
+ * Do not use iwl_trans_write_direct32() family for these registers;
  * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
  * The MAC (uCode processor, etc.) does not need to be powered up for accessing
  * the CSR registers.
@@ -501,7 +501,7 @@ enum {
  * to indirectly access device's internal memory or registers that
  * may be powered-down.
  *
- * Use iwl_write_direct32() family for writing to these registers;
+ * Use iwl_trans_write_direct32() family for writing to these registers;
  * A read operation doesn't exist, can be added if needed.
  * host must "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing

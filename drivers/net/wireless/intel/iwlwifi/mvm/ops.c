@@ -138,9 +138,9 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	 * to lose ownership and not being able to obtain it back.
 	 */
 	if (!mvm->trans->mac_cfg->base->apmg_not_supported)
-		iwl_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+		iwl_trans_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
+					     APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+					     ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,

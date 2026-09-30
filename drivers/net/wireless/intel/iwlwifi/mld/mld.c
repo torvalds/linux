@@ -37,7 +37,7 @@ static const struct iwl_op_mode_ops iwl_mld_ops;
 
 int iwl_mld_get_systime(struct iwl_mld *mld, u32 *gp2)
 {
-	*gp2 = iwl_read_prph(mld->trans,
+	*gp2 = iwl_trans_read_prph(mld->trans,
 			     mld->trans->mac_cfg->base->gp2_reg_addr);
 
 	if (*gp2 == 0x5a5a5a5a)

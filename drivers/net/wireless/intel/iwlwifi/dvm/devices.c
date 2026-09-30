@@ -45,10 +45,10 @@ static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
 static void iwl1000_nic_config(struct iwl_priv *priv)
 {
 	/* Setting digital SVR for 1000 card to 1.32V */
-	/* locking is acquired in iwl_set_bits_mask_prph() function */
-	iwl_set_bits_mask_prph(priv->trans, APMG_DIGITAL_SVR_REG,
-				APMG_SVR_DIGITAL_VOLTAGE_1_32,
-				~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
+	/* locking is acquired in iwl_trans_set_bits_mask_prph() function */
+	iwl_trans_set_bits_mask_prph(priv->trans, APMG_DIGITAL_SVR_REG,
+				     APMG_SVR_DIGITAL_VOLTAGE_1_32,
+				     ~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
 }
 
 /**
@@ -184,8 +184,8 @@ static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 /* NIC configuration for 2000 series */
 static void iwl2000_nic_config(struct iwl_priv *priv)
 {
-	iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
-		    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
+	iwl_trans_set_bit(priv->trans, CSR_GP_DRIVER_REG,
+			  CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 
 static const struct iwl_sensitivity_ranges iwl2000_sensitivity = {
@@ -496,16 +496,16 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 	case IWL_DEVICE_FAMILY_6050:
 		/* Indicate calibration version to uCode. */
 		if (priv->nvm_data->calib_version >= 6)
-			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
-					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+			iwl_trans_set_bit(priv->trans, CSR_GP_DRIVER_REG,
+					  CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		break;
 	case IWL_DEVICE_FAMILY_6150:
 		/* Indicate calibration version to uCode. */
 		if (priv->nvm_data->calib_version >= 6)
-			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
-					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
-		iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
-			    CSR_GP_DRIVER_REG_BIT_6050_1x2);
+			iwl_trans_set_bit(priv->trans, CSR_GP_DRIVER_REG,
+					  CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+		iwl_trans_set_bit(priv->trans, CSR_GP_DRIVER_REG,
+				  CSR_GP_DRIVER_REG_BIT_6050_1x2);
 		break;
 	default:
 		WARN_ON(1);

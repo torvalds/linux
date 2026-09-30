@@ -104,8 +104,8 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			IWL_DEBUG_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
 				       txq_id, reg);
-			iwl_set_bit(trans, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+					  CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			txq->need_update = true;
 			return;
 		}
@@ -493,21 +493,21 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 	       sizeof(trans_pcie->txqs.queue_used));
 
 	trans_pcie->scd_base_addr =
-		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
+		iwl_trans_read_prph(trans, SCD_SRAM_BASE_ADDR);
 
 	/* reset context data, TX status and translation data */
 	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
 				   SCD_CONTEXT_MEM_LOWER_BOUND,
 			    NULL, clear_dwords);
 
-	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
-		       trans_pcie->txqs.scd_bc_tbls.dma >> 10);
+	iwl_trans_write_prph(trans, SCD_DRAM_BASE_ADDR,
+			     trans_pcie->txqs.scd_bc_tbls.dma >> 10);
 
 	/* The chain extension of the SCD doesn't work well. This feature is
 	 * enabled by default by the HW, so we need to disable it manually.
 	 */
 	if (trans->mac_cfg->base->scd_chain_ext_wa)
-		iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
+		iwl_trans_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
 	iwl_trans_ac_txq_enable(trans, trans->conf.cmd_queue,
 				trans->conf.cmd_fifo,
@@ -518,19 +518,19 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH_TCSR_CHNL_NUM; chan++)
-		iwl_write_direct32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
-				   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-				   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+		iwl_trans_write_direct32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+					 FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+					 FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
 
 	/* Update FH chicken bits */
 	reg_val = iwl_pcie_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
-	iwl_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
-			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
+	iwl_trans_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
+				 reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Enable L1-Active */
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_8000)
-		iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
-				    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+		iwl_trans_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
+					  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 }
 
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
@@ -553,17 +553,17 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 						FH_MEM_CBBC_QUEUE(trans, txq_id),
 						txq->dma_addr);
 		else
-			iwl_write_direct32(trans,
-					   FH_MEM_CBBC_QUEUE(trans, txq_id),
-					   txq->dma_addr >> 8);
+			iwl_trans_write_direct32(trans,
+						 FH_MEM_CBBC_QUEUE(trans, txq_id),
+						 txq->dma_addr >> 8);
 		iwl_pcie_txq_unmap(trans, txq_id);
 		txq->read_ptr = 0;
 		txq->write_ptr = 0;
 	}
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
-			   trans_pcie->kw.dma >> 4);
+	iwl_trans_write_direct32(trans, FH_KW_MEM_ADDR_REG,
+				 trans_pcie->kw.dma >> 4);
 
 	/*
 	 * Send 0 as the scd_base_addr since the device may have be reset
@@ -591,7 +591,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 	}
 
 	/* Wait for DMA channels to be idle */
-	ret = iwl_poll_bits(trans, FH_TSSR_TX_STATUS_REG, mask, 5000);
+	ret = iwl_trans_poll_bits(trans, FH_TSSR_TX_STATUS_REG, mask, 5000);
 	if (ret)
 		IWL_ERR(trans,
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
@@ -684,7 +684,7 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		return;
 	}
 
-	status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id));
+	status = iwl_trans_read_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id));
 	fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
 	active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
 
@@ -693,9 +693,9 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		txq_id, active ? "" : "in", fifo,
 		jiffies_to_msecs(txq->wd_timeout),
 		txq->read_ptr, txq->write_ptr,
-		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
+		iwl_trans_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
 			(trans->mac_cfg->base->max_tfd_queue_size - 1),
-			iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
+			iwl_trans_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
 			(trans->mac_cfg->base->max_tfd_queue_size - 1),
 			iwl_pcie_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
@@ -955,8 +955,8 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	iwl_scd_deactivate_fifos(trans);
 
 	/* Tell NIC where to find the "keep warm" buffer */
-	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
-			   trans_pcie->kw.dma >> 4);
+	iwl_trans_write_direct32(trans, FH_KW_MEM_ADDR_REG,
+				 trans_pcie->kw.dma >> 4);
 
 	spin_unlock_bh(&trans_pcie->irq_lock);
 
@@ -984,14 +984,14 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		 * queue.
 		 * Circular buffer (TFD queue in DRAM) physical base address
 		 */
-		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(trans, txq_id),
-				   trans_pcie->txqs.txq[txq_id]->dma_addr >> 8);
+		iwl_trans_write_direct32(trans, FH_MEM_CBBC_QUEUE(trans, txq_id),
+					 trans_pcie->txqs.txq[txq_id]->dma_addr >> 8);
 	}
 
-	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
+	iwl_trans_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
 	if (trans->mac_cfg->base->num_of_queues > 20)
-		iwl_set_bits_prph(trans, SCD_GP_CTRL,
-				  SCD_GP_CTRL_ENABLE_31_QUEUES);
+		iwl_trans_set_bits_prph(trans, SCD_GP_CTRL,
+					SCD_GP_CTRL_ENABLE_31_QUEUES);
 
 	return 0;
 error:
@@ -1222,13 +1222,13 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
 	txq->read_ptr = (ssn & 0xff);
 	txq->write_ptr = (ssn & 0xff);
-	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (ssn & 0xff) | (txq_id << 8));
+	iwl_trans_write_direct32(trans, HBUS_TARG_WRPTR,
+				 (ssn & 0xff) | (txq_id << 8));
 
 	if (cfg) {
 		u8 frame_limit = cfg->frame_limit;
 
-		iwl_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), ssn);
+		iwl_trans_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), ssn);
 
 		/* Set up Tx window size and frame limit for this queue */
 		iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
@@ -1240,11 +1240,11 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			SCD_QUEUE_CTX_REG2_VAL(FRAME_LIMIT, frame_limit));
 
 		/* Set up status area in SRAM, map to Tx DMA/FIFO, activate */
-		iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
-			       (1 << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-			       (cfg->fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
-			       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
-			       SCD_QUEUE_STTS_REG_MSK);
+		iwl_trans_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
+				     (1 << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+				     (cfg->fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
+				     (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
+				     SCD_QUEUE_STTS_REG_MSK);
 
 		/* enable the scheduler for this queue (only) */
 		if (txq_id == trans->conf.cmd_queue &&

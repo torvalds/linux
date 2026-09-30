@@ -309,7 +309,7 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 		return;
 	}
 
-	error = iwl_read_umac_prph(trans, error);
+	error = iwl_trans_read_umac_prph(trans, error);
 
 	IWL_ERR(trans, "IML/ROM dump:\n");
 
@@ -318,11 +318,11 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 
 	IWL_ERR(fwrt, "0x%08X | IML/ROM error/state\n", error);
 	IWL_ERR(fwrt, "0x%08X | IML/ROM data1\n",
-		iwl_read_umac_prph(trans, data1));
+		iwl_trans_read_umac_prph(trans, data1));
 
 	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 		IWL_ERR(fwrt, "0x%08X | IML/ROM WFPM_AUTH_KEY_0\n",
-			iwl_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
+			iwl_trans_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
 }
 
 #define FSEQ_REG(x) { .addr = (x), .str = #x, }

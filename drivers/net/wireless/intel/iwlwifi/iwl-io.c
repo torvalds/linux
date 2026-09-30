@@ -13,8 +13,8 @@
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
-int iwl_poll_bits_mask(struct iwl_trans *trans, u32 addr,
-		       u32 bits, u32 mask, int timeout)
+int iwl_trans_poll_bits_mask(struct iwl_trans *trans, u32 addr,
+			     u32 bits, u32 mask, int timeout)
 {
 	int t = 0;
 
@@ -27,18 +27,18 @@ int iwl_poll_bits_mask(struct iwl_trans *trans, u32 addr,
 
 	return -ETIMEDOUT;
 }
-IWL_EXPORT_SYMBOL(iwl_poll_bits_mask);
+IWL_EXPORT_SYMBOL(iwl_trans_poll_bits_mask);
 
-void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
+void iwl_trans_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		iwl_trans_write32(trans, reg, value);
 		iwl_trans_release_nic_access(trans);
 	}
 }
-IWL_EXPORT_SYMBOL(iwl_write_direct32);
+IWL_EXPORT_SYMBOL(iwl_trans_write_direct32);
 
-u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
+u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		u32 val = iwl_trans_read_prph_no_grab(trans, ofs);
@@ -51,9 +51,9 @@ u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 	/* return as if we have a HW timeout/failure */
 	return 0x5a5a5a5a;
 }
-IWL_EXPORT_SYMBOL(iwl_read_prph);
+IWL_EXPORT_SYMBOL(iwl_trans_read_prph);
 
-void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs, u32 val, u32 delay_ms)
+void iwl_trans_write_prph_delay(struct iwl_trans *trans, u32 ofs, u32 val, u32 delay_ms)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		mdelay(delay_ms);
@@ -61,9 +61,9 @@ void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs, u32 val, u32 delay_m
 		iwl_trans_release_nic_access(trans);
 	}
 }
-IWL_EXPORT_SYMBOL(iwl_write_prph_delay);
+IWL_EXPORT_SYMBOL(iwl_trans_write_prph_delay);
 
-void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
+void iwl_trans_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		iwl_trans_write_prph_no_grab(trans, ofs,
@@ -72,10 +72,10 @@ void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 		iwl_trans_release_nic_access(trans);
 	}
 }
-IWL_EXPORT_SYMBOL(iwl_set_bits_prph);
+IWL_EXPORT_SYMBOL(iwl_trans_set_bits_prph);
 
-void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
-			    u32 bits, u32 mask)
+void iwl_trans_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
+				  u32 bits, u32 mask)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		iwl_trans_write_prph_no_grab(trans, ofs,
@@ -84,9 +84,9 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 		iwl_trans_release_nic_access(trans);
 	}
 }
-IWL_EXPORT_SYMBOL(iwl_set_bits_mask_prph);
+IWL_EXPORT_SYMBOL(iwl_trans_set_bits_mask_prph);
 
-void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
+void iwl_trans_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	u32 val;
 
@@ -96,4 +96,4 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 		iwl_trans_release_nic_access(trans);
 	}
 }
-IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
+IWL_EXPORT_SYMBOL(iwl_trans_clear_bits_prph);

@@ -485,8 +485,8 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 				   iwl_pnvm_complete_fn, trans);
 
 	/* kick the doorbell */
-	iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-			    UREG_DOORBELL_TO_ISR6_PNVM);
+	iwl_trans_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				  UREG_DOORBELL_TO_ISR6_PNVM);
 
 	return iwl_wait_notification(notif_wait, &pnvm_wait,
 				     MVM_UCODE_PNVM_TIMEOUT);

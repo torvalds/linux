@@ -139,7 +139,7 @@ int iwl_pcie_poll_prph_bit(struct iwl_trans *trans, u32 addr,
 	int t = 0;
 
 	do {
-		if ((iwl_read_prph(trans, addr) & mask) == (bits & mask))
+		if ((iwl_trans_read_prph(trans, addr) & mask) == (bits & mask))
 			return 0;
 		udelay(IWL_PCIE_POLL_INTERVAL);
 		t += IWL_PCIE_POLL_INTERVAL;
@@ -163,7 +163,7 @@ int iwl_pcie_poll_umac_prph_bits_no_grab(struct iwl_trans *trans, u32 addr,
 	int t = 0;
 
 	do {
-		if ((iwl_read_umac_prph_no_grab(trans, addr) & mask) ==
+		if ((iwl_trans_read_umac_prph_no_grab(trans, addr) & mask) ==
 		    (bits & mask))
 			return 0;
 		udelay(IWL_PCIE_POLL_INTERVAL);

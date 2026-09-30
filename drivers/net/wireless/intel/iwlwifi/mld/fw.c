@@ -207,11 +207,11 @@ static void iwl_mld_print_alive_notif_timeout(struct iwl_mld *mld)
 
 	IWL_ERR(mld,
 		"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-		iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
-		iwl_read_umac_prph(trans,
-				   UMAG_SB_CPU_2_STATUS));
+		iwl_trans_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
+		iwl_trans_read_umac_prph(trans,
+					 UMAG_SB_CPU_2_STATUS));
 #define IWL_FW_PRINT_REG_INFO(reg_name) \
-	IWL_ERR(mld, #reg_name ": 0x%x\n", iwl_read_umac_prph(trans, reg_name))
+	IWL_ERR(mld, #reg_name ": 0x%x\n", iwl_trans_read_umac_prph(trans, reg_name))
 
 	IWL_FW_PRINT_REG_INFO(WFPM_LMAC1_PD_NOTIFICATION);
 

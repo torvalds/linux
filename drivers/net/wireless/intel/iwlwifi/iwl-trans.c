@@ -453,14 +453,14 @@ void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
 void iwl_trans_force_nmi(struct iwl_trans *trans)
 {
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
-		iwl_write_prph_delay(trans, DEVICE_SET_NMI_REG,
-				     DEVICE_SET_NMI_VAL_DRV, 1);
+		iwl_trans_write_prph_delay(trans, DEVICE_SET_NMI_REG,
+					   DEVICE_SET_NMI_VAL_DRV, 1);
 	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
-		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
-				    UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
+		iwl_trans_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
+					  UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
 	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
+		iwl_trans_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+					  UREG_DOORBELL_TO_ISR6_NMI_BIT);
 	else
 		iwl_trans_write32(trans, CSR_DOORBELL_VECTOR,
 				  UREG_DOORBELL_TO_ISR6_NMI_BIT);

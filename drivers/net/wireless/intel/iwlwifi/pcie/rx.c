@@ -147,15 +147,15 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		/* TODO: remove this once fw does it */
-		iwl_write_umac_prph(trans, RFH_RXF_DMA_CFG_AX210, 0);
+		iwl_trans_write_umac_prph(trans, RFH_RXF_DMA_CFG_AX210, 0);
 		return iwl_pcie_poll_umac_prph_bit(trans, RFH_GEN_STATUS_AX210,
 						   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
 	} else if (trans->mac_cfg->mq_rx_supported) {
-		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
+		iwl_trans_write_prph(trans, RFH_RXF_DMA_CFG, 0);
 		return iwl_pcie_poll_prph_bit(trans, RFH_GEN_STATUS,
 					      RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
 	} else {
-		iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+		iwl_trans_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 		return iwl_pcie_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
 						FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
 						1000);
@@ -184,8 +184,8 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			IWL_DEBUG_INFO(trans, "Rx queue requesting wakeup, GP1 = 0x%x\n",
 				       reg);
-			iwl_set_bit(trans, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+					  CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			rxq->need_update = true;
 			return;
 		}
@@ -895,7 +895,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 
 	/* W/A for interrupt coalescing bug in 7260 and 3160 */
 	if (trans->cfg->host_interrupt_operation_mode)
-		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
+		iwl_trans_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
 
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
@@ -1692,9 +1692,9 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
 	    !trans->mac_cfg->base->apmg_not_supported &&
-	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
+	    (!(iwl_trans_read_prph(trans, APMG_CLK_CTRL_REG) &
 			     APMS_CLK_VAL_MRB_FUNC_MODE) ||
-	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
+	     (iwl_trans_read_prph(trans, APMG_PS_CTRL_REG) &
 			    APMG_PS_CTRL_VAL_RESET_REQ))) {
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		iwl_op_mode_wimax_active(trans->op_mode);

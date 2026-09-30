@@ -1159,7 +1159,7 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 	    mvm->trans->mac_cfg->base->gp2_reg_addr)
 		reg_addr = mvm->trans->mac_cfg->base->gp2_reg_addr;
 
-	return iwl_read_prph(mvm->trans, reg_addr);
+	return iwl_trans_read_prph(mvm->trans, reg_addr);
 }
 
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type,

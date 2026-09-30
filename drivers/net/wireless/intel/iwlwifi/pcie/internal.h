@@ -1103,8 +1103,8 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 		 * when we power down the device we need set the bit to allow it
 		 * to wake up the PCI-E bus for RF-kill interrupts.
 		 */
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
 	}
 }
 

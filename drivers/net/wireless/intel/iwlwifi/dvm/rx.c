@@ -485,14 +485,14 @@ static void iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 				  CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
+		iwl_trans_write_direct32(priv->trans, HBUS_TARG_MBX_C,
+					 HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
 			iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 					  CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
+			iwl_trans_write_direct32(priv->trans, HBUS_TARG_MBX_C,
+						 HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 		if (flags & CT_CARD_DISABLED)
 			iwl_tt_enter_ct_kill(priv);

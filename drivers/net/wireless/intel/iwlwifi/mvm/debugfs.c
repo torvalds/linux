@@ -1548,7 +1548,7 @@ iwl_dbgfs_prph_reg_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
 		mvm->dbgfs_prph_reg_addr,
-		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
+		iwl_trans_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1569,7 +1569,7 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	if (args != 2)
 		return -EINVAL;
 
-	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
+	iwl_trans_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
 
 out:
 	return count;

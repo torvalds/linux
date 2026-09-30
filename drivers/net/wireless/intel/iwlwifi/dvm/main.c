@@ -2028,17 +2028,17 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	}
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+	iwl_trans_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
+			  CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+			  CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
 	 * causing ME FW to lose ownership and not being able to obtain it back.
 	 */
-	iwl_set_bits_mask_prph(priv->trans, APMG_PS_CTRL_REG,
-			       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-			       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+	iwl_trans_set_bits_mask_prph(priv->trans, APMG_PS_CTRL_REG,
+				     APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+				     ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 
 	if (priv->lib->nic_config)
 		priv->lib->nic_config(priv);

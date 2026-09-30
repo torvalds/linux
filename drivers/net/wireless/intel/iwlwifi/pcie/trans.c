@@ -79,12 +79,12 @@ int iwl_trans_pcie_sw_reset(struct iwl_trans *trans, bool retake_ownership)
 {
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_SW_RESET);
 		usleep_range(10000, 20000);
 	} else {
-		iwl_set_bit(trans, CSR_RESET,
-			    CSR_RESET_REG_FLAG_SW_RESET);
+		iwl_trans_set_bit(trans, CSR_RESET,
+				  CSR_RESET_REG_FLAG_SW_RESET);
 		usleep_range(5000, 6000);
 	}
 
@@ -188,13 +188,13 @@ static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 		return;
 
 	if (vaux && pci_pme_capable(to_pci_dev(trans->dev), PCI_D3cold))
-		iwl_set_bits_mask_prph(trans, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
-				       ~APMG_PS_CTRL_MSK_PWR_SRC);
+		iwl_trans_set_bits_mask_prph(trans, APMG_PS_CTRL_REG,
+					     APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
+					     ~APMG_PS_CTRL_MSK_PWR_SRC);
 	else
-		iwl_set_bits_mask_prph(trans, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-				       ~APMG_PS_CTRL_MSK_PWR_SRC);
+		iwl_trans_set_bits_mask_prph(trans, APMG_PS_CTRL_REG,
+					     APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+					     ~APMG_PS_CTRL_MSK_PWR_SRC);
 }
 
 /* PCI registers */
@@ -211,7 +211,7 @@ void iwl_pcie_apm_config(struct iwl_trans *trans)
 	 * and in newer hardware they are not officially supported at
 	 * all, so we must always set the L0S_DISABLED bit.
 	 */
-	iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_DISABLED);
+	iwl_trans_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_DISABLED);
 
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
 	trans_pcie->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
@@ -241,31 +241,31 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 
 	/* Disable L0S exit timer (platform NMI Work/Around) */
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_8000)
-		iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
-			    CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
+		iwl_trans_set_bit(trans, CSR_GIO_CHICKEN_BITS,
+				  CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 
 	/*
 	 * Disable L0s without affecting L1;
 	 *  don't wait for ICH L0s (ICH bug W/A)
 	 */
-	iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
-		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
+	iwl_trans_set_bit(trans, CSR_GIO_CHICKEN_BITS,
+			  CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
 
 	/* Set FH wait threshold to maximum (HW error during stress W/A) */
-	iwl_set_bit(trans, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
+	iwl_trans_set_bit(trans, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
 
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
 	 */
-	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_HAP_WAKE);
+	iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			  CSR_HW_IF_CONFIG_REG_HAP_WAKE);
 
 	iwl_pcie_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (trans->mac_cfg->base->pll_cfg)
-		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
+		iwl_trans_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	ret = iwl_trans_activate_nic(trans);
 	if (ret)
@@ -286,11 +286,11 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 		 * just to discard the value. But that's the way the hardware
 		 * seems to like it.
 		 */
-		iwl_read_prph(trans, OSC_CLK);
-		iwl_read_prph(trans, OSC_CLK);
-		iwl_set_bits_prph(trans, OSC_CLK, OSC_CLK_FORCE_CONTROL);
-		iwl_read_prph(trans, OSC_CLK);
-		iwl_read_prph(trans, OSC_CLK);
+		iwl_trans_read_prph(trans, OSC_CLK);
+		iwl_trans_read_prph(trans, OSC_CLK);
+		iwl_trans_set_bits_prph(trans, OSC_CLK, OSC_CLK_FORCE_CONTROL);
+		iwl_trans_read_prph(trans, OSC_CLK);
+		iwl_trans_read_prph(trans, OSC_CLK);
 	}
 
 	/*
@@ -301,17 +301,17 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * bits already set by default in "CLK_CTRL_REG" after reset.
 	 */
 	if (!trans->mac_cfg->base->apmg_not_supported) {
-		iwl_write_prph(trans, APMG_CLK_EN_REG,
-			       APMG_CLK_VAL_DMA_CLK_RQT);
+		iwl_trans_write_prph(trans, APMG_CLK_EN_REG,
+				     APMG_CLK_VAL_DMA_CLK_RQT);
 		udelay(20);
 
 		/* Disable L1-Active */
-		iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
-				  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+		iwl_trans_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
+					APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 		/* Clear the interrupt in APMG if the NIC is in RFKILL */
-		iwl_write_prph(trans, APMG_RTC_INT_STT_REG,
-			       APMG_RTC_INT_STT_RFKILL);
+		iwl_trans_write_prph(trans, APMG_RTC_INT_STT_REG,
+				     APMG_RTC_INT_STT_RFKILL);
 	}
 
 	set_bit(STATUS_DEVICE_ENABLED, &trans->status);
@@ -353,8 +353,8 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * Clear "disable persistence" to avoid LP XTAL resetting when
 	 * SHRD_HW_RST is applied in S3.
 	 */
-	iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
-				    APMG_PCIDEV_STT_VAL_PERSIST_DIS);
+	iwl_trans_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
+				  APMG_PCIDEV_STT_VAL_PERSIST_DIS);
 
 	/*
 	 * Force APMG XTAL to be active to prevent its disabling by HW
@@ -386,14 +386,14 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * Enable persistence mode to avoid LP XTAL resetting when
 	 * SHRD_HW_RST is applied in S3.
 	 */
-	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
+	iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			  CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* Activates XTAL resources monitor */
 	iwl_pcie_set_bit(trans, CSR_MONITOR_CFG_REG,
@@ -417,18 +417,18 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	/* stop device's busmaster DMA activity */
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
 
-		ret = iwl_poll_bits(trans, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
-				    100);
+		ret = iwl_trans_poll_bits(trans, CSR_GP_CNTRL,
+					  CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+					  100);
 		usleep_range(10000, 20000);
 	} else {
-		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+		iwl_trans_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-		ret = iwl_poll_bits(trans, CSR_RESET,
-				    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+		ret = iwl_trans_poll_bits(trans, CSR_RESET,
+					  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	}
 
 	if (ret)
@@ -447,18 +447,18 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 
 		/* inform ME that we are leaving */
 		if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000)
-			iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
-					  APMG_PCIDEV_STT_VAL_WAKE_ME);
+			iwl_trans_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
+						APMG_PCIDEV_STT_VAL_WAKE_ME);
 		else if (trans->mac_cfg->device_family >=
 			 IWL_DEVICE_FAMILY_8000) {
-			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
-			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_WAKE_ME |
-				    CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
+			iwl_trans_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+					  CSR_RESET_LINK_PWR_MGMT_DISABLED);
+			iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+					  CSR_HW_IF_CONFIG_REG_WAKE_ME |
+					  CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
 			mdelay(1);
-			iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-				      CSR_RESET_LINK_PWR_MGMT_DISABLED);
+			iwl_trans_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+					    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 		}
 		mdelay(5);
 	}
@@ -479,7 +479,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
 static int iwl_pcie_nic_init(struct iwl_trans *trans)
@@ -512,7 +512,7 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 
 	if (trans->mac_cfg->base->shadow_reg_enable) {
 		/* enable shadow regs in HW */
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
+		iwl_trans_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
 		IWL_DEBUG_INFO(trans, "Enabling shadow registers in device\n");
 	}
 
@@ -525,16 +525,16 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 {
 	int ret;
 
-	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
+	iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			  CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
 
 	/* See if we got it */
-	ret = iwl_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
-			    HW_READY_TIMEOUT);
+	ret = iwl_trans_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
+				  HW_READY_TIMEOUT);
 
 	if (!ret)
-		iwl_set_bit(trans, CSR_MBOX_SET_REG, CSR_MBOX_SET_REG_OS_ALIVE);
+		iwl_trans_set_bit(trans, CSR_MBOX_SET_REG, CSR_MBOX_SET_REG_OS_ALIVE);
 
 	IWL_DEBUG_INFO(trans, "hardware%s ready\n", ret ? " not" : "");
 	return ret;
@@ -555,16 +555,16 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 		return 0;
 	}
 
-	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	iwl_trans_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+			  CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	usleep_range(1000, 2000);
 
 	for (iter = 0; iter < 10; iter++) {
 		int t = 0;
 
 		/* If HW is not ready, prepare the conditions to check again */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_WAKE_ME);
+		iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_WAKE_ME);
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
@@ -688,16 +688,16 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 			extended_addr = true;
 
 		if (extended_addr)
-			iwl_set_bits_prph(trans, LMPM_CHICK,
-					  LMPM_CHICK_EXTENDED_ADDR_SPACE);
+			iwl_trans_set_bits_prph(trans, LMPM_CHICK,
+						LMPM_CHICK_EXTENDED_ADDR_SPACE);
 
 		memcpy(v_addr, (const u8 *)section->data + offset, copy_size);
 		ret = iwl_pcie_load_firmware_chunk(trans, dst_addr, p_addr,
 						   copy_size);
 
 		if (extended_addr)
-			iwl_clear_bits_prph(trans, LMPM_CHICK,
-					    LMPM_CHICK_EXTENDED_ADDR_SPACE);
+			iwl_trans_clear_bits_prph(trans, LMPM_CHICK,
+						  LMPM_CHICK_EXTENDED_ADDR_SPACE);
 
 		if (ret) {
 			IWL_ERR(trans,
@@ -753,7 +753,7 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 		/* Notify ucode of loaded section number and status */
 		val = iwl_pcie_read_direct32(trans, FH_UCODE_LOAD_STATUS);
 		val = val | (sec_num << shift_param);
-		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
+		iwl_trans_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
 
 		sec_num = (sec_num << 1) | 0x1;
 	}
@@ -764,18 +764,18 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 
 	if (trans->mac_cfg->gen2) {
 		if (cpu == 1)
-			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS,
-				       0xFFFF);
+			iwl_trans_write_prph(trans, UREG_UCODE_LOAD_STATUS,
+					     0xFFFF);
 		else
-			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS,
-				       0xFFFFFFFF);
+			iwl_trans_write_prph(trans, UREG_UCODE_LOAD_STATUS,
+					     0xFFFFFFFF);
 	} else {
 		if (cpu == 1)
-			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS,
-					   0xFFFF);
+			iwl_trans_write_direct32(trans, FH_UCODE_LOAD_STATUS,
+						 0xFFFF);
 		else
-			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS,
-					   0xFFFFFFFF);
+			iwl_trans_write_direct32(trans, FH_UCODE_LOAD_STATUS,
+						 0xFFFFFFFF);
 	}
 
 	return 0;
@@ -836,8 +836,8 @@ static void iwl_pcie_apply_destination_ini(struct iwl_trans *trans)
 	    IWL_FW_INI_LOCATION_SRAM_PATH) {
 		IWL_DEBUG_FW(trans, "WRT: Applying SMEM buffer destination\n");
 		/* set sram monitor by enabling bit 7 */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
+		iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
 
 		return;
 	}
@@ -852,11 +852,11 @@ static void iwl_pcie_apply_destination_ini(struct iwl_trans *trans)
 	IWL_DEBUG_FW(trans, "WRT: Applying DRAM destination (alloc_id=%u)\n",
 		     alloc_id);
 
-	iwl_write_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2,
-			    frag->physical >> MON_BUFF_SHIFT_VER2);
-	iwl_write_umac_prph(trans, MON_BUFF_END_ADDR_VER2,
-			    (frag->physical + frag->size - 256) >>
-			    MON_BUFF_SHIFT_VER2);
+	iwl_trans_write_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2,
+				  frag->physical >> MON_BUFF_SHIFT_VER2);
+	iwl_trans_write_umac_prph(trans, MON_BUFF_END_ADDR_VER2,
+				  (frag->physical + frag->size - 256) >>
+				  MON_BUFF_SHIFT_VER2);
 }
 
 void iwl_pcie_apply_destination(struct iwl_trans *trans)
@@ -887,22 +887,22 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 			iwl_trans_pcie_write32(trans, addr, val);
 			break;
 		case CSR_SETBIT:
-			iwl_set_bit(trans, addr, BIT(val));
+			iwl_trans_set_bit(trans, addr, BIT(val));
 			break;
 		case CSR_CLEARBIT:
-			iwl_clear_bit(trans, addr, BIT(val));
+			iwl_trans_clear_bit(trans, addr, BIT(val));
 			break;
 		case PRPH_ASSIGN:
-			iwl_write_prph(trans, addr, val);
+			iwl_trans_write_prph(trans, addr, val);
 			break;
 		case PRPH_SETBIT:
-			iwl_set_bits_prph(trans, addr, BIT(val));
+			iwl_trans_set_bits_prph(trans, addr, BIT(val));
 			break;
 		case PRPH_CLEARBIT:
-			iwl_clear_bits_prph(trans, addr, BIT(val));
+			iwl_trans_clear_bits_prph(trans, addr, BIT(val));
 			break;
 		case PRPH_BLOCKBIT:
-			if (iwl_read_prph(trans, addr) & BIT(val)) {
+			if (iwl_trans_read_prph(trans, addr) & BIT(val)) {
 				IWL_ERR(trans,
 					"BIT(%u) in address 0x%x is 1, stopping FW configuration\n",
 					val, addr);
@@ -918,16 +918,16 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 
 monitor:
 	if (dest->monitor_mode == EXTERNAL_MODE && fw_mon->size) {
-		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
-			       fw_mon->physical >> dest->base_shift);
+		iwl_trans_write_prph(trans, le32_to_cpu(dest->base_reg),
+				     fw_mon->physical >> dest->base_shift);
 		if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
-			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (fw_mon->physical + fw_mon->size -
-					256) >> dest->end_shift);
+			iwl_trans_write_prph(trans, le32_to_cpu(dest->end_reg),
+					     (fw_mon->physical + fw_mon->size -
+					      256) >> dest->end_shift);
 		else
-			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (fw_mon->physical + fw_mon->size) >>
-				       dest->end_shift);
+			iwl_trans_write_prph(trans, le32_to_cpu(dest->end_reg),
+					     (fw_mon->physical + fw_mon->size) >>
+					     dest->end_shift);
 	}
 }
 
@@ -947,9 +947,9 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 
 	if (image->is_dual_cpus) {
 		/* set CPU2 header address */
-		iwl_write_prph(trans,
-			       LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
-			       LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+		iwl_trans_write_prph(trans,
+				     LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
+				     LMPM_SECURE_CPU2_HDR_MEM_SPACE);
 
 		/* load to FW the binary sections of CPU2 */
 		ret = iwl_pcie_load_cpu_sections(trans, image, 2,
@@ -982,18 +982,18 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 		iwl_pcie_apply_destination(trans);
 
 	IWL_DEBUG_POWER(trans, "Original WFPM value = 0x%08X\n",
-			iwl_read_prph(trans, WFPM_GP2));
+			iwl_trans_read_prph(trans, WFPM_GP2));
 
 	/*
 	 * Set default value. On resume reading the values that were
 	 * zeored can provide debug data on the resume flow.
 	 * This is for debugging only and has no functional impact.
 	 */
-	iwl_write_prph(trans, WFPM_GP2, 0x01010101);
+	iwl_trans_write_prph(trans, WFPM_GP2, 0x01010101);
 
 	/* configure the ucode to be ready to get the secured image */
 	/* release CPU reset */
-	iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
+	iwl_trans_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
 
 	/* load to FW the binary Secured sections of CPU1 */
 	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 1,
@@ -1080,8 +1080,8 @@ static void iwl_pcie_map_list(struct iwl_trans *trans,
 
 	for (i = 0; i < arr_size; i++) {
 		iwl_trans_pcie_write8(trans, CSR_MSIX_IVAR(causes[i].addr), val);
-		iwl_clear_bit(trans, causes[i].mask_reg,
-			      BIT(causes[i].bit));
+		iwl_trans_clear_bit(trans, causes[i].mask_reg,
+				    BIT(causes[i].bit));
 	}
 }
 
@@ -1141,8 +1141,8 @@ void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie)
 	if (!trans_pcie->msix_enabled) {
 		if (trans->mac_cfg->mq_rx_supported &&
 		    test_bit(STATUS_DEVICE_ENABLED, &trans->status))
-			iwl_write_umac_prph(trans, UREG_CHICK,
-					    UREG_CHICK_MSI_ENABLE);
+			iwl_trans_write_umac_prph(trans, UREG_CHICK,
+						  UREG_CHICK_MSI_ENABLE);
 		return;
 	}
 	/*
@@ -1151,7 +1151,7 @@ void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie)
 	 * prph.
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
-		iwl_write_umac_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
+		iwl_trans_write_umac_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
 
 	/*
 	 * Each cause from the causes list above and the RX causes is
@@ -1215,19 +1215,19 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool from_irq)
 
 		/* Power-down device's busmaster DMA clocks */
 		if (!trans->mac_cfg->base->apmg_not_supported) {
-			iwl_write_prph(trans, APMG_CLK_DIS_REG,
-				       APMG_CLK_VAL_DMA_CLK_RQT);
+			iwl_trans_write_prph(trans, APMG_CLK_DIS_REG,
+					     APMG_CLK_VAL_DMA_CLK_RQT);
 			udelay(5);
 		}
 	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
 	else
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
@@ -1444,15 +1444,15 @@ static void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 	iwl_pcie_synchronize_irqs(trans);
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
 	} else {
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 	}
 
 	if (reset) {
@@ -1478,9 +1478,9 @@ static int iwl_pcie_d3_handshake(struct iwl_trans *trans, bool suspend)
 	trans_pcie->sx_state = IWL_SX_WAITING;
 
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    suspend ? UREG_DOORBELL_TO_ISR6_SUSPEND :
-					      UREG_DOORBELL_TO_ISR6_RESUME);
+		iwl_trans_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+					  suspend ? UREG_DOORBELL_TO_ISR6_SUSPEND :
+					  UREG_DOORBELL_TO_ISR6_RESUME);
 	else
 		iwl_trans_pcie_write32(trans, CSR_IPC_SLEEP_CONTROL,
 				       suspend ? CSR_IPC_SLEEP_CONTROL_SUSPEND :
@@ -1515,8 +1515,8 @@ int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool reset)
 
 	if (!reset)
 		/* Enable persistence mode to avoid reset */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
+		iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	ret = iwl_pcie_d3_handshake(trans, true);
 	if (ret)
@@ -1535,11 +1535,11 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	int ret;
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
 	else
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	ret = iwl_trans_activate_nic(trans);
 	if (ret) {
@@ -1563,8 +1563,8 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	iwl_pcie_set_pwr(trans, false);
 
 	if (!reset) {
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	} else {
 		iwl_trans_pcie_tx_reset(trans);
 
@@ -1577,7 +1577,7 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	}
 
 	IWL_DEBUG_POWER(trans, "WFPM value upon resume = 0x%08X\n",
-			iwl_read_umac_prph(trans, WFPM_GP2));
+			iwl_trans_read_umac_prph(trans, WFPM_GP2));
 
 	val = iwl_trans_pcie_read32(trans, CSR_RESET);
 	if (val & CSR_RESET_REG_FLAG_NEVO_RESET) {
@@ -1745,9 +1745,9 @@ static int iwl_trans_pcie_clear_persistence_bit(struct iwl_trans *trans)
 		return 0;
 	}
 
-	hpm = iwl_read_umac_prph_no_grab(trans, HPM_DEBUG);
+	hpm = iwl_trans_read_umac_prph_no_grab(trans, HPM_DEBUG);
 	if (!iwl_trans_is_hw_error_value(hpm) && (hpm & PERSISTENCE_BIT)) {
-		u32 wprot_val = iwl_read_umac_prph_no_grab(trans, wprot);
+		u32 wprot_val = iwl_trans_read_umac_prph_no_grab(trans, wprot);
 
 		if (wprot_val & PREG_WFPM_ACCESS) {
 			IWL_ERR(trans,
@@ -1769,15 +1769,15 @@ static int iwl_pcie_gen2_force_power_gating(struct iwl_trans *trans)
 	if (ret < 0)
 		return ret;
 
-	iwl_set_bits_prph(trans, HPM_HIPM_GEN_CFG,
-			  HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE);
+	iwl_trans_set_bits_prph(trans, HPM_HIPM_GEN_CFG,
+				HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE);
 	udelay(20);
-	iwl_set_bits_prph(trans, HPM_HIPM_GEN_CFG,
-			  HPM_HIPM_GEN_CFG_CR_PG_EN |
-			  HPM_HIPM_GEN_CFG_CR_SLP_EN);
+	iwl_trans_set_bits_prph(trans, HPM_HIPM_GEN_CFG,
+				HPM_HIPM_GEN_CFG_CR_PG_EN |
+				HPM_HIPM_GEN_CFG_CR_SLP_EN);
 	udelay(20);
-	iwl_clear_bits_prph(trans, HPM_HIPM_GEN_CFG,
-			    HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE);
+	iwl_trans_clear_bits_prph(trans, HPM_HIPM_GEN_CFG,
+				  HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE);
 
 	return iwl_trans_pcie_sw_reset(trans, true);
 }
@@ -2383,7 +2383,7 @@ bool _iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
 	 * and do not save/restore SRAM when power cycling.
 	 */
-	ret = iwl_poll_bits_mask(trans, CSR_GP_CNTRL, poll, mask, 15000);
+	ret = iwl_trans_poll_bits_mask(trans, CSR_GP_CNTRL, poll, mask, 15000);
 	if (unlikely(ret)) {
 		u32 cntrl = iwl_trans_pcie_read32(trans, CSR_GP_CNTRL);
 
@@ -3237,8 +3237,8 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 		     i += sizeof(u32))
 			*val++ = cpu_to_le32(iwl_trans_pcie_read32(trans, i));
 	else
-		for (i = iwl_umac_prph(trans, FH_MEM_LOWER_BOUND_GEN2);
-		     i < iwl_umac_prph(trans, FH_MEM_UPPER_BOUND_GEN2);
+		for (i = iwl_trans_umac_prph(trans, FH_MEM_LOWER_BOUND_GEN2);
+		     i < iwl_trans_umac_prph(trans, FH_MEM_UPPER_BOUND_GEN2);
 		     i += sizeof(u32))
 			*val++ = cpu_to_le32(iwl_trans_pcie_read_prph(trans,
 								      i));
@@ -3264,8 +3264,8 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 
 	iwl_pcie_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
 	for (i = 0; i < buf_size_in_dwords; i++)
-		buffer[i] = iwl_read_umac_prph_no_grab(trans,
-						       MON_DMARB_RD_DATA_ADDR);
+		buffer[i] = iwl_trans_read_umac_prph_no_grab(trans,
+							     MON_DMARB_RD_DATA_ADDR);
 	iwl_pcie_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
 	iwl_trans_release_nic_access(trans);
@@ -3294,14 +3294,14 @@ iwl_trans_pcie_dump_pointers(struct iwl_trans *trans,
 		wrap_cnt = MON_BUFF_CYCLE_CNT;
 	}
 
-	write_ptr_val = iwl_read_prph(trans, write_ptr);
+	write_ptr_val = iwl_trans_read_prph(trans, write_ptr);
 	fw_mon_data->fw_mon_cycle_cnt =
-		cpu_to_le32(iwl_read_prph(trans, wrap_cnt));
+		cpu_to_le32(iwl_trans_read_prph(trans, wrap_cnt));
 	fw_mon_data->fw_mon_base_ptr =
-		cpu_to_le32(iwl_read_prph(trans, base));
+		cpu_to_le32(iwl_trans_read_prph(trans, base));
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		fw_mon_data->fw_mon_base_high_ptr =
-			cpu_to_le32(iwl_read_prph(trans, base_high));
+			cpu_to_le32(iwl_trans_read_prph(trans, base_high));
 		write_ptr_val &= DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK;
 		/* convert wrtPtr to DWs, to align with all HWs */
 		write_ptr_val >>= 2;
@@ -3339,13 +3339,13 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			 * shifting
 			 */
 			if (trans->dbg.dest_tlv->version) {
-				base = (iwl_read_prph(trans, base) &
+				base = (iwl_trans_read_prph(trans, base) &
 					IWL_LDBG_M2S_BUF_BA_MSK) <<
 				       trans->dbg.dest_tlv->base_shift;
 				base *= IWL_M2S_UNIT_SIZE;
 				base += trans->mac_cfg->base->smem_offset;
 			} else {
-				base = iwl_read_prph(trans, base) <<
+				base = iwl_trans_read_prph(trans, base) <<
 				       trans->dbg.dest_tlv->base_shift;
 			}
 
@@ -3380,7 +3380,7 @@ static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 
 		if (trans->dbg.dest_tlv->version == 1) {
 			cfg_reg = le32_to_cpu(trans->dbg.dest_tlv->base_reg);
-			cfg_reg = iwl_read_prph(trans, cfg_reg);
+			cfg_reg = iwl_trans_read_prph(trans, cfg_reg);
 			base = (cfg_reg & IWL_LDBG_M2S_BUF_BA_MSK) <<
 				trans->dbg.dest_tlv->base_shift;
 			base *= IWL_M2S_UNIT_SIZE;
@@ -3394,9 +3394,9 @@ static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 			base = le32_to_cpu(trans->dbg.dest_tlv->base_reg);
 			end = le32_to_cpu(trans->dbg.dest_tlv->end_reg);
 
-			base = iwl_read_prph(trans, base) <<
+			base = iwl_trans_read_prph(trans, base) <<
 			       trans->dbg.dest_tlv->base_shift;
-			end = iwl_read_prph(trans, end) <<
+			end = iwl_trans_read_prph(trans, end) <<
 			      trans->dbg.dest_tlv->end_shift;
 
 			/* Make "end" point to the actual end */
@@ -3454,8 +3454,8 @@ iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
 	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_FH_REGS)) {
 		if (trans->mac_cfg->gen2)
 			len += sizeof(*data) +
-			       (iwl_umac_prph(trans, FH_MEM_UPPER_BOUND_GEN2) -
-				iwl_umac_prph(trans, FH_MEM_LOWER_BOUND_GEN2));
+			       (iwl_trans_umac_prph(trans, FH_MEM_UPPER_BOUND_GEN2) -
+				iwl_trans_umac_prph(trans, FH_MEM_LOWER_BOUND_GEN2));
 		else
 			len += sizeof(*data) +
 			       (FH_MEM_UPPER_BOUND -
@@ -3860,19 +3860,19 @@ out_free_trans:
 void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
 				u32 dst_addr, u64 src_addr, u32 byte_cnt)
 {
-	iwl_write_prph(trans, IMR_UREG_CHICK,
-		       iwl_read_prph(trans, IMR_UREG_CHICK) |
-		       IMR_UREG_CHICK_HALT_UMAC_PERMANENTLY_MSK);
-	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_SRAM_ADDR, dst_addr);
-	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_LSB,
-		       (u32)(src_addr & 0xFFFFFFFF));
-	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_MSB,
-		       iwl_get_dma_hi_addr(src_addr));
-	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_BC, byte_cnt);
-	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_CTRL,
-		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_IRQ_TARGET_POS |
-		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_DMA_EN_POS |
-		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_RS_MSK);
+	iwl_trans_write_prph(trans, IMR_UREG_CHICK,
+			     iwl_trans_read_prph(trans, IMR_UREG_CHICK) |
+			     IMR_UREG_CHICK_HALT_UMAC_PERMANENTLY_MSK);
+	iwl_trans_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_SRAM_ADDR, dst_addr);
+	iwl_trans_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_LSB,
+			     (u32)(src_addr & 0xFFFFFFFF));
+	iwl_trans_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_MSB,
+			     iwl_get_dma_hi_addr(src_addr));
+	iwl_trans_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_BC, byte_cnt);
+	iwl_trans_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_CTRL,
+			     IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_IRQ_TARGET_POS |
+			     IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_DMA_EN_POS |
+			     IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_RS_MSK);
 }
 
 int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
@@ -3914,8 +3914,8 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	/* wait until the device is ready to access the prph registers */
 	if (iwl_trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_DR ||
 	    iwl_trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_SC) {
-		u32 req = iwl_read_umac_prph_no_grab(iwl_trans,
-						     WFPM_RSRCS_4PHS_REQ_STTS);
+		u32 req = iwl_trans_read_umac_prph_no_grab(iwl_trans,
+							   WFPM_RSRCS_4PHS_REQ_STTS);
 		int ret;
 
 		if (!(req & RSRC_REQ_CNVR_TOP)) {
@@ -3936,7 +3936,7 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	}
 
 	/* Enable access to peripheral registers */
-	val = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
+	val = iwl_trans_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
 	val |= WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK;
 	iwl_pcie_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
 
@@ -3968,7 +3968,7 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	}
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
-	hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
+	hw_wfpm_id = iwl_trans_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
 
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
 		 info->hw_crf_id, info->hw_cnv_id, hw_wfpm_id);
@@ -3985,8 +3985,8 @@ static int map_crf_id(struct iwl_trans *iwl_trans,
 	u32 val = info->hw_crf_id;
 	u32 step_id = REG_CRF_ID_STEP(val);
 	u32 slave_id = REG_CRF_ID_SLAVE(val);
-	u32 hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans,
-						    WFPM_OTP_CFG1_ADDR);
+	u32 hw_wfpm_id = iwl_trans_read_umac_prph_no_grab(iwl_trans,
+							  WFPM_OTP_CFG1_ADDR);
 	u32 cdb_id_wfpm = WFPM_OTP_CFG1_IS_CDB(hw_wfpm_id);
 
 	/* Map between crf id to rf id */
@@ -4256,13 +4256,13 @@ int iwl_pcie_activate_nic(struct iwl_trans *trans)
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
 	if (mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ |
-			    CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ |
+				  CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
 		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_STATUS;
 	} else {
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY;
 	}
 
@@ -4271,10 +4271,10 @@ int iwl_pcie_activate_nic(struct iwl_trans *trans)
 
 	/*
 	 * Wait for clock stabilization; once stabilized, access to
-	 * device-internal resources is supported, e.g. iwl_write_prph()
+	 * device-internal resources is supported, e.g. iwl_trans_write_prph()
 	 * and accesses to uCode SRAM.
 	 */
-	err = iwl_poll_bits(trans, CSR_GP_CNTRL, poll_ready, 25000);
+	err = iwl_trans_poll_bits(trans, CSR_GP_CNTRL, poll_ready, 25000);
 	if (err < 0) {
 		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
 
