@@ -33,27 +33,27 @@ static const char fs_state_chars[] = {
 static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
 {
 	unsigned int bit;
-	bool states_printed = false;
 	unsigned long fs_state = READ_ONCE(info->fs_state);
 	char *curr = buf;
+
+	if (likely(BTRFS_FS_ERROR(info) == 0 && fs_state == 0)) {
+		*curr = 0;
+		return;
+	}
 
 	memcpy(curr, STATE_STRING_PREFACE, sizeof(STATE_STRING_PREFACE));
 	curr += sizeof(STATE_STRING_PREFACE) - 1;
 
-	if (unlikely(BTRFS_FS_ERROR(info))) {
+	if (BTRFS_FS_ERROR(info))
 		*curr++ = 'E';
-		states_printed = true;
-	}
 
 	for_each_set_bit(bit, &fs_state, BTRFS_FS_STATE_COUNT) {
-		if (fs_state_chars[bit]) {
+		if (fs_state_chars[bit])
 			*curr++ = fs_state_chars[bit];
-			states_printed = true;
-		}
 	}
 
-	/* If no states were printed, reset the buffer */
-	if (!states_printed)
+	/* If nothing printed, ensure we return an empty string. */
+	if (curr == (buf + sizeof(STATE_STRING_PREFACE) - 1))
 		curr = buf;
 
 	*curr = 0;
