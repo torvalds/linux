@@ -10,17 +10,17 @@ PHONY += kapi
 
 kapi:	$(kapi-hdrs-y)
 
-hostprogs		    += gen_facilities
+hostprogs		    += gen_bitmaps
 hostprogs		    += gen_opcode_table
 
-HOSTCFLAGS_gen_facilities.o += $(LINUXINCLUDE)
+HOSTCFLAGS_gen_bitmaps.o += $(LINUXINCLUDE)
 
-filechk_facility-defs.h = $(obj)/gen_facilities
+filechk_facility-defs.h = $(obj)/gen_bitmaps --facility
 
 filechk_dis-defs.h = \
 	$(obj)/gen_opcode_table < $(srctree)/arch/$(ARCH)/tools/opcodes.txt
 
-$(kapi)/facility-defs.h: $(obj)/gen_facilities FORCE
+$(kapi)/facility-defs.h: $(obj)/gen_bitmaps FORCE
 	$(call filechk,facility-defs.h)
 
 $(kapi)/dis-defs.h: $(obj)/gen_opcode_table FORCE
