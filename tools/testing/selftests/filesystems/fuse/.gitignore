@@ -5,3 +5,4 @@ test_syncfs
 write_extend_eof_test
 fuse_acl_cache_test
 fuse_symlink_cache_test
+fuse_readdir_cache_test

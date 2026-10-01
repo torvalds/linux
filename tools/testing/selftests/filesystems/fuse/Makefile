@@ -6,6 +6,7 @@ TEST_GEN_PROGS := fusectl_test test_syncfs
 TEST_GEN_PROGS += write_extend_eof_test
 TEST_GEN_PROGS += fuse_acl_cache_test
 TEST_GEN_PROGS += fuse_symlink_cache_test
+TEST_GEN_PROGS += fuse_readdir_cache_test
 TEST_GEN_FILES := fuse_mnt
 
 include ../../lib.mk
@@ -30,5 +31,6 @@ $(OUTPUT)/fuse_mnt: LDLIBS += $(VAR_LDLIBS)
 
 $(OUTPUT)/fuse_acl_cache_test: fuse_common.c fuse_acl_cache_test.c
 $(OUTPUT)/fuse_symlink_cache_test: fuse_common.c fuse_symlink_cache_test.c
+$(OUTPUT)/fuse_readdir_cache_test: fuse_common.c fuse_readdir_cache_test.c
 
 EXTRA_CLEAN := fuse_common.o
