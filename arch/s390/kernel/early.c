@@ -159,6 +159,7 @@ void __init __do_early_pgm_check(struct pt_regs *regs)
 	regs->int_parm_long = lc->trans_exc_code;
 	regs->last_break = lc->pgm_last_break;
 	regs->monitor_code = lc->monitor_code;
+	set_pt_regs_flag(regs, PIF_PGM_CHECK);
 
 	/* Monitor Event? Might be a warning */
 	if ((regs->int_code & PGM_INT_CODE_MASK) == 0x40) {

@@ -42,7 +42,7 @@ struct pgm_stat {
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct pgm_stat, pgm_stat);
 
-static inline unsigned long get_trap_ip(struct pt_regs *regs)
+unsigned long get_trap_ip(struct pt_regs *regs)
 {
 	static const unsigned long nullified[2] = { PGM_CHECKS_NULLIFIED };
 	psw_t psw = regs->psw;
@@ -56,6 +56,7 @@ static inline unsigned long get_trap_ip(struct pt_regs *regs)
 	psw.addr = __rewind_psw(psw, regs->int_code >> 16);
 	return psw.addr;
 }
+NOKPROBE_SYMBOL(get_trap_ip);
 
 #ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long addr)
@@ -353,6 +354,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs, unsigned long flags)
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = teid.val;
 	regs->monitor_code = lc->monitor_code;
+	set_pt_regs_flag(regs, PIF_PGM_CHECK);
 
 	trapnr = regs->int_code & PGM_INT_CODE_MASK;
 	stat = this_cpu_ptr(&pgm_stat);

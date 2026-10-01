@@ -503,7 +503,8 @@ static int copy_from_regs(struct pt_regs *regs, void *dst, void *src, int len)
 void show_code(struct pt_regs *regs)
 {
 	char *mode = user_mode(regs) ? "User" : "Krnl";
-	unsigned long addr, pswaddr;
+	unsigned long addr, pswaddr, trapaddr;
+	bool pgm_check;
 	unsigned char code[64];
 	char buffer[128], *ptr;
 	int start, end, opsize, hops, i;
@@ -511,6 +512,9 @@ void show_code(struct pt_regs *regs)
 	pswaddr = regs->psw.addr;
 	if (test_pt_regs_flag(regs, PIF_PSW_ADDR_ADJUSTED))
 		pswaddr = __forward_psw(regs->psw, regs->int_code >> 16);
+	pgm_check = test_pt_regs_flag(regs, PIF_PGM_CHECK);
+	if (pgm_check)
+		trapaddr = get_trap_ip(regs);
 	/* Get a snapshot of the 64 bytes surrounding the fault address. */
 	for (start = 32; start && pswaddr >= 34 - start; start -= 2) {
 		addr = pswaddr - 34 + start;
@@ -545,15 +549,17 @@ void show_code(struct pt_regs *regs)
 	while (start < end && hops < 8) {
 		ptr = buffer;
 		opsize = insn_length(code[start]);
+		addr = pswaddr + start - 32;
 		if (start == 32 && test_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED))
 			ptr += sprintf(ptr, " WARN RET >");
-		else if (start + opsize == 32 && !test_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED))
-			ptr += sprintf(ptr, "          *");
+		else if (pgm_check && addr == trapaddr && start == 32)
+			ptr += sprintf(ptr, "  PGM+PSW >");
+		else if (pgm_check && addr == trapaddr)
+			ptr += sprintf(ptr, "      PGM >");
 		else if (start == 32)
-			ptr += sprintf(ptr, "          >");
+			ptr += sprintf(ptr, "      PSW >");
 		else
 			ptr += sprintf(ptr, "           ");
-		addr = pswaddr + start - 32;
 		ptr += sprintf(ptr, "%px: ", (void *)addr);
 		if (start + opsize >= end)
 			break;
@@ -562,7 +568,7 @@ void show_code(struct pt_regs *regs)
 		ptr += sprintf(ptr, "%*s", 13 - 2 * opsize, " ");
 		ptr += print_insn(ptr, code + start, addr);
 		start += opsize;
-		pr_cont("%s\n", buffer);
+		printk("%s\n", buffer);
 		hops++;
 	}
 }
