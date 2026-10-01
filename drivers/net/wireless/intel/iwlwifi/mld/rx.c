@@ -816,6 +816,14 @@ iwl_mld_radiotap_put_tlv(struct sk_buff *skb, u16 type, u16 len)
 	(_usig)->value |= LE32_DEC_ENC(in_value, dec_bits, _enc_bits); \
 } while (0)
 
+static void
+iwl_mld_check_bad_usig_crc(struct ieee80211_rx_status *rx_status,
+			   struct ieee80211_radiotap_eht_usig *usig)
+{
+	if (usig->common & cpu_to_le32(IEEE80211_RADIOTAP_EHT_USIG_COMMON_BAD_USIG_CRC))
+		rx_status->flag |= RX_FLAG_FAILED_PLCP_CRC;
+}
+
 static void iwl_mld_decode_eht_usig_tb(struct iwl_mld_rx_phy_data *phy_data,
 				       struct ieee80211_radiotap_eht_usig *usig)
 {
@@ -878,6 +886,7 @@ static void iwl_mld_decode_eht_usig_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 static void iwl_mld_decode_eht_usig(struct iwl_mld_rx_phy_data *phy_data,
 				    struct sk_buff *skb)
 {
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	u32 he_type = phy_data->rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	__le32 usig_a1 = phy_data->ntfy->sigs.eht.usig_a1;
 	__le32 usig_a2 = phy_data->ntfy->sigs.eht.usig_a2_eht;
@@ -941,6 +950,8 @@ static void iwl_mld_decode_eht_usig(struct iwl_mld_rx_phy_data *phy_data,
 		iwl_mld_decode_eht_usig_tb(phy_data, usig);
 	else
 		iwl_mld_decode_eht_usig_non_tb(phy_data, usig);
+
+	iwl_mld_check_bad_usig_crc(rx_status, usig);
 }
 
 static void
@@ -1448,6 +1459,7 @@ static void iwl_mld_decode_uhr_usig_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 static void iwl_mld_decode_uhr_usig(struct iwl_mld_rx_phy_data *phy_data,
 				    struct sk_buff *skb)
 {
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	u32 he_type = phy_data->rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	struct ieee80211_radiotap_eht_usig *usig;
 	__le32 usig_a1 = phy_data->ntfy->sigs.uhr.usig_a1;
@@ -1507,6 +1519,8 @@ static void iwl_mld_decode_uhr_usig(struct iwl_mld_rx_phy_data *phy_data,
 		iwl_mld_decode_uhr_usig_non_tb(phy_data, usig);
 		break;
 	}
+
+	iwl_mld_check_bad_usig_crc(rx_status, usig);
 }
 
 static void iwl_mld_decode_uhr_tb(struct iwl_mld_rx_phy_data *phy_data,
