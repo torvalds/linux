@@ -648,7 +648,7 @@ static bool intel_vsec_get_features(struct pci_dev *pdev,
 		found = true;
 
 	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
-	    intel_vsec_walk_header(&pdev->dev, info))
+	    !intel_vsec_walk_header(&pdev->dev, info))
 		found = true;
 
 	return found;
