@@ -2996,6 +2996,13 @@ void iwl_mld_handle_phy_air_sniffer_notif(struct iwl_mld *mld,
 			 !le32_get_bits(ntfy->sigs.eht.sig2,
 					OFDM_RX_FRAME_EHT_NUM_OF_DATA_SYM);
 		break;
+	case RATE_MCS_MOD_TYPE_UHR:
+		if (he_type == RATE_MCS_HE_TYPE_TRIG ||
+		    he_type == RATE_MCS_HE_TYPE_UHR_ELR)
+			break;
+		is_ndp = !le32_get_bits(ntfy->sigs.uhr.sig2,
+					OFDM_RX_UHR_NUM_OF_DATA_SYM);
+		break;
 	}
 
 	if (ntfy->status != IWL_SNIF_STAT_PLCP_RX_OK || is_ndp) {
