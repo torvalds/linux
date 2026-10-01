@@ -621,6 +621,7 @@ SYM_CODE_START(stack_invalid)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_R8(64,%r11),0(%r14)
+	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	GET_LC	%r2
 	mvc	__PT_ORIG_GPR2(8,%r11),__LC_PGM_LAST_BREAK(%r2)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
