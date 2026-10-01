@@ -1247,6 +1247,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_ARROWLAKE, &adl_features },
 	{ INTEL_LUNARLAKE_M, &lnl_features },
 	{ INTEL_PANTHERLAKE_L, &lnl_features },
+	{ INTEL_PANTHERLAKE_R, &lnl_features },
 	{ INTEL_NOVALAKE, &lnl_features },
 	{ INTEL_NOVALAKE_L, &lnl_features },
 	{ INTEL_WILDCATLAKE_L, &lnl_features },
@@ -1344,6 +1345,7 @@ static struct perf_model_support turbostat_perf_model_support[] = {
 	{ INTEL_ARROWLAKE, { PCE(0x00, 0xFF), PCE(0x00, 0x5F)}, { PCE(0x00, 0x07), PCE(0x00, 0x02)}, {} },
 
 	{ INTEL_PANTHERLAKE_L, { PCE(0x00, 0xFF), PCE(0x00, 0x5F)}, { PCE(0x01, 0xFF), PCE(0x01, 0xBF)}, {} },
+	{ INTEL_PANTHERLAKE_R, { PCE(0x00, 0xFF), PCE(0x00, 0x5F)}, { PCE(0x01, 0xFF), PCE(0x01, 0xBF)}, {} },
 	{ INTEL_WILDCATLAKE_L, { PCE(0x00, 0xFF), PCE(0x00, 0x5F)}, { PCE(0x01, 0xFF), PCE(0x01, 0xBF)}, {} },
 
 	{ INTEL_NOVALAKE, { PCE(0x00, 0xFF), PCE(0x00, 0x5F)}, { PCE(0x01, 0xFF), PCE(0x01, 0xBF)}, {} },
