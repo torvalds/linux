@@ -1184,11 +1184,11 @@ CFLAGS_GCOV	+= -fno-tree-loop-im
 # undefined symbols (e.g. libatomic calls that the kernel cannot link).
 CFLAGS_GCOV	+= $(call try-run,\
 	echo 'long long x; void f(void){x++;}' | \
-	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w -fprofile-arcs \
-	-ftest-coverage -x c - -c -o "$$TMP.base" && \
+	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w $(CFLAGS_GCOV) \
+	-x c - -c -o "$$TMP.base" && \
 	echo 'long long x; void f(void){x++;}' | \
-	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w -fprofile-arcs \
-	-ftest-coverage -fprofile-update=prefer-atomic \
+	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w $(CFLAGS_GCOV) \
+	-fprofile-update=prefer-atomic \
 	-x c - -c -o "$$TMP" && \
 	$(NM) "$$TMP.base" | grep ' U ' > "$$TMP.ubase" || true ; \
 	$(NM) "$$TMP" | grep ' U ' > "$$TMP.utest" || true ; \
