@@ -778,7 +778,10 @@ static void amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	struct amd_cpudata *cpudata = policy->driver_data;
 	union perf_cached perf = READ_ONCE(cpudata->perf);
 
-	perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
+	if (policy->max >= READ_ONCE(cpudata->max_freq))
+		perf.max_limit_perf = perf.highest_perf;
+	else
+		perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
@@ -1104,8 +1107,10 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
 
 	WRITE_ONCE(cpudata->nominal_freq, nominal_freq);
 
-	/* max_freq is calculated according to (nominal_freq * highest_perf)/nominal_perf */
-	max_freq = perf_to_freq(perf, nominal_freq, perf.highest_perf);
+	/* try to look up from BIOS/quirk first, fall back to (nominal_freq * highest_perf)/nominal_perf */
+	max_freq = amd_get_max_frequency(cpudata->cpu) * 1000;
+	if (!max_freq)
+		max_freq = perf_to_freq(perf, nominal_freq, perf.highest_perf);
 	WRITE_ONCE(cpudata->max_freq, max_freq);
 
 	lowest_nonlinear_freq = perf_to_freq(perf, nominal_freq, perf.lowest_nonlinear_perf);
