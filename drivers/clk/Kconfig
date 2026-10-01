@@ -456,11 +456,12 @@ config COMMON_CLK_MMP2
 	  Support for Marvell MMP2 and MMP3 SoC clocks
 
 config COMMON_CLK_MMP2_AUDIO
-        tristate "Clock driver for MMP2 Audio subsystem"
-        depends on COMMON_CLK_MMP2 || COMPILE_TEST
-        select COMMON_CLK_MMP
-        help
-          This driver supports clocks for Audio subsystem on MMP2 SoC.
+	tristate "Clock driver for MMP2 Audio subsystem"
+	depends on COMMON_CLK_MMP2 || COMPILE_TEST
+	depends on PM_CLK
+	select COMMON_CLK_MMP
+	help
+	  This driver supports clocks for Audio subsystem on MMP2 SoC.
 
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for 32K clk gates on ROHM PMICs"
