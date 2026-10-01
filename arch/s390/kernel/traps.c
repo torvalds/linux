@@ -312,10 +312,10 @@ static void __init test_monitor_call(void)
 	if (!IS_ENABLED(CONFIG_BUG))
 		return;
 	asm_inline volatile(
-		"	mc	%[monc](%%r0),0\n"
-		"0:	lhi	%[val],0\n"
+		"0:	mc	%[monc](%%r0),0\n"
+		"	lhi	%[val],0\n"
 		"1:\n"
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [val] "+d" (val)
 		: [monc] "i" (MONCODE_BUG));
 	if (!val)
