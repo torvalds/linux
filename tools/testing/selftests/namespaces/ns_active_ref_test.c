@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/nsfs.h>
+#include <poll.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -19,6 +20,10 @@
 #include "../kselftest_harness.h"
 #include "../filesystems/utils.h"
 #include "wrappers.h"
+
+#ifndef PIDFD_THREAD
+#define PIDFD_THREAD O_EXCL
+#endif
 
 #ifndef FD_NSFS_ROOT
 #define FD_NSFS_ROOT -10003 /* Root of the nsfs filesystem */
@@ -2120,6 +2125,7 @@ TEST(ns_mixed_types_same_owner)
 /* Thread test helpers and structures */
 struct thread_ns_info {
 	__u64 ns_id;
+	int pidfd;
 	int pipefd;
 	int syncfd_read;
 	int syncfd_write;
@@ -2152,6 +2158,13 @@ static void *thread_create_namespace(void *arg)
 		return NULL;
 	}
 
+	/* Open a pidfd so the main thread can later poll it to detect actual thread exit. */
+	info->pidfd = syscall(__NR_pidfd_open, gettid(), PIDFD_THREAD);
+	if (info->pidfd < 0) {
+		info->exit_code = 6;
+		return NULL;
+	}
+
 	/* Send namespace ID to main thread */
 	if (write(info->pipefd, &info->ns_id, sizeof(info->ns_id)) != sizeof(info->ns_id)) {
 		info->exit_code = 4;
@@ -2167,6 +2180,20 @@ static void *thread_create_namespace(void *arg)
 
 	info->exit_code = 0;
 	return NULL;
+}
+
+/*
+ * pthread_join() returns once exit_mm() wakes the CLEARTID futex, before
+ * exit_nsproxy_namespaces() drops the namespace reference. A pidfd becomes
+ * readable only from exit_notify(), after that point.
+ */
+static int wait_thread_exited(int pidfd)
+{
+	struct pollfd pfd = { .fd = pidfd, .events = POLLIN };
+	int ret = poll(&pfd, 1, -1);
+
+	close(pidfd);
+	return ret;
 }
 
 /*
@@ -2234,6 +2261,7 @@ TEST(thread_ns_inactive_after_exit)
 	close(syncpipe[1]);
 
 	/* Wait for thread to exit */
+	ASSERT_EQ(wait_thread_exited(info.pidfd), 1);
 	ASSERT_EQ(pthread_join(thread, NULL), 0);
 	close(pipefd[0]);
 	close(pipefd[1]);
@@ -2317,6 +2345,7 @@ TEST(thread_ns_fd_keeps_active)
 	close(syncpipe[1]);
 
 	/* Wait for thread to exit */
+	ASSERT_EQ(wait_thread_exited(info.pidfd), 1);
 	pthread_join(thread, NULL);
 	close(pipefd[0]);
 	close(pipefd[1]);
