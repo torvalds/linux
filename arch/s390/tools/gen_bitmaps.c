@@ -17,6 +17,8 @@
 struct bitmap_def {
 	char *name;
 	int *bits;
+	int inverted;
+	int maxbit;
 };
 
 static struct bitmap_def facility_defs[] = {
@@ -27,6 +29,7 @@ static struct bitmap_def facility_defs[] = {
 		 * -march=<machine>.
 		 */
 		.name = "FACILITIES_ALS",
+		.inverted = 1,
 		.bits = (int[]){
 			0,  /* N3 instructions */
 			1,  /* z/Arch mode installed */
@@ -71,6 +74,7 @@ static struct bitmap_def facility_defs[] = {
 		 * guest facilities supported by KVM.
 		 */
 		.name = "FACILITIES_KVM",
+		.inverted = 1,
 		.bits = (int[]){
 			0,  /* N3 instructions */
 			1,  /* z/Arch mode installed */
@@ -116,10 +120,50 @@ static struct bitmap_def facility_defs[] = {
 		 */
 
 		.name = "FACILITIES_KVM_CPUMODEL",
+		.inverted = 1,
 		.bits = (int[]){
 			12, /* AP Query Configuration Information */
 			15, /* AP Facilities Test */
 			156, /* etoken facility */
+			-1  /* END */
+		}
+	},
+};
+
+static struct bitmap_def pgm_check_defs[] = {
+	{
+		.name = "PGM_CHECKS_NULLIFIED",
+		.inverted = 0,
+		.maxbit = 127,
+		.bits = (int[]){
+			0x10, /* Segment Translation */
+			0x11, /* Page Translation */
+			0x16, /* Trace Table */
+			0x20, /* AFX Translation */
+			0x21, /* ASX Translation */
+			0x22, /* LX Translation */
+			0x23, /* EX Translation */
+			0x24, /* Primary Authority */
+			0x25, /* Secondary Authority */
+			0x26, /* LFX Translation */
+			0x27, /* LSX Translation */
+			0x29, /* ALEN Translation */
+			0x2a, /* ALE Sequence */
+			0x2b, /* ASTE Validity */
+			0x2c, /* ASTE Sequence */
+			0x2d, /* Extended Authority */
+			0x2e, /* LSTE Sequence */
+			0x2f, /* ASTE Instance */
+			0x30, /* Stack Full */
+			0x31, /* Stack Empty */
+			0x32, /* Stack Specification */
+			0x33, /* Stack Type */
+			0x34, /* Stack Operation */
+			0x38, /* ASCE Type */
+			0x39, /* Region First Translation */
+			0x3a, /* Region Second Translation */
+			0x3b, /* Region Third Translation */
+			0x3d, /* Secure Storage Access */
 			-1  /* END */
 		}
 	},
@@ -130,12 +174,12 @@ static void print_bitmap(struct bitmap_def *def)
 	unsigned int high, bit, dword, i;
 	unsigned long long *array;
 
-	array = calloc(1, 8);
+	high = def->maxbit ? def->maxbit / 64 : 0;
+	array = calloc(high + 1, 8);
 	if (!array)
 		exit(EXIT_FAILURE);
-	high = 0;
 	for (i = 0; def->bits[i] != -1; i++) {
-		bit = 63 - (def->bits[i] & 63);
+		bit = def->inverted ? 63 - (def->bits[i] & 63) : (def->bits[i] & 63);
 		dword = def->bits[i] / 64;
 		if (dword > high) {
 			array = realloc(array, (dword + 1) * 8);
@@ -171,6 +215,7 @@ static void print_header(const char *guard, struct bitmap_def *defs, size_t num)
 
 static const struct option long_options[] = {
 	{ "facility", no_argument, NULL, 'f' },
+	{ "pgmcheck", no_argument, NULL, 'p' },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -184,6 +229,9 @@ int main(int argc, char **argv)
 	switch (opt) {
 	case 'f':
 		print_header("FACILITY", facility_defs, ARRAY_SIZE(facility_defs));
+		break;
+	case 'p':
+		print_header("PGMCHECK", pgm_check_defs, ARRAY_SIZE(pgm_check_defs));
 		break;
 	default:
 		return 1;

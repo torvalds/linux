@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 generated-y += dis-defs.h
 generated-y += facility-defs.h
+generated-y += pgmcheck-defs.h
 generated-y += syscall_table.h
 generated-y += unistd_nr.h
 
