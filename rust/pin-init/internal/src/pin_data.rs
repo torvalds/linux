@@ -107,6 +107,7 @@ impl Ord for Capture {
     }
 }
 
+#[expect(unused)]
 struct FieldInfo {
     field: Field,
     member: Member,
@@ -124,8 +125,8 @@ struct StructInfo {
     field_idx_map: BTreeMap<Ident, usize>,
     is_tuple_struct: bool,
     self_referential: bool,
-    /// Field lifetime generics.
-    field_lts: Generics,
+    /// Field lifetime generics with outlive chain.
+    field_lts_outlive_chain: Generics,
 }
 
 pub(crate) fn expand_with_cfg(
@@ -346,16 +347,20 @@ fn expand(
 
     // Create a lifetime parameter for each field.
     let borrowed_fields: Vec<_> = fields.iter().filter_map(|f| f.borrowed.as_ref()).collect();
-    let mut field_lts = Generics {
+    let mut field_lts_outlive_chain = Generics {
         lt_token: None,
         params: borrowed_fields
             .iter()
-            .map(|borrowed| {
+            .zip(std::iter::once(None).chain(borrowed_fields.iter().map(Some)))
+            .map(|(borrowed, prev)| {
                 GenericParam::Lifetime(LifetimeParam {
                     attrs: Vec::new(),
                     lifetime: borrowed.lifetime.clone(),
                     colon_token: None,
-                    bounds: Default::default(),
+                    bounds: prev
+                        .iter()
+                        .map(|borrowed| borrowed.lifetime.clone())
+                        .collect(),
                 })
             })
             .collect(),
@@ -363,36 +368,26 @@ fn expand(
         where_clause: None,
     };
 
-    // Insert necessary bounds to make types well-formed.
-    for field in fields.iter() {
-        let Some(borrowed) = &field.borrowed else {
-            continue;
-        };
-        let field_lt = &borrowed.lifetime;
-
-        // For each borrowed field that borrows from other fields, we need to insert outlive bounds.
-        for capture in &field.captures {
-            let lt = &capture.lifetime;
-            field_lts
-                .make_where_clause()
-                .predicates
-                .push(parse_quote!(#lt: #field_lt));
-        }
-
-        // For each borrowed field that references a generic, we also need to insert their outlive
-        // bounds so they can refer to generics.
-        for lt in field.generic_lt_captures.iter() {
-            field_lts
-                .make_where_clause()
-                .predicates
-                .push(parse_quote!(#lt: #field_lt));
-        }
-
-        for ty in field.generic_ty_captures.iter() {
-            field_lts
-                .make_where_clause()
-                .predicates
-                .push(parse_quote!(#ty: #field_lt));
+    if let Some(last_borrowed_field) = borrowed_fields.last() {
+        let field_lt = &last_borrowed_field.lifetime;
+        for param in struct_.generics.params.iter() {
+            match param {
+                GenericParam::Lifetime(param) => {
+                    let lt = &param.lifetime;
+                    field_lts_outlive_chain
+                        .make_where_clause()
+                        .predicates
+                        .push(parse_quote!(#lt: #field_lt));
+                }
+                GenericParam::Type(param) => {
+                    let ty = &param.ident;
+                    field_lts_outlive_chain
+                        .make_where_clause()
+                        .predicates
+                        .push(parse_quote!(#ty: #field_lt));
+                }
+                GenericParam::Const(_) => (),
+            }
         }
     }
 
@@ -406,7 +401,7 @@ fn expand(
         fields,
         field_idx_map,
         is_tuple_struct,
-        field_lts,
+        field_lts_outlive_chain,
     };
 
     for field in &info.fields {
@@ -703,7 +698,7 @@ fn generate_drop_order_check(dcx: &mut DiagCtxt, info: &StructInfo) -> TokenStre
     // with known lifetime bounds as bounds on the function, and asks Rust to *prove* that the types
     // are wellformed, given the bounds that we understand.
 
-    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts, generics]);
+    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts_outlive_chain, generics]);
 
     let (_, ty_generics, _) = generics.split_for_impl();
     let (impl_generics_with_field_lt, _, whr_with_field_lt) =
@@ -842,10 +837,13 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
 
     // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
     // used with `for`.
-    let field_lts = CombinedGenerics(vec![&info.field_lts]);
+    let field_lts = CombinedGenerics(vec![&info.field_lts_outlive_chain]);
     let generics_with_this_lt = CombinedGenerics(vec![&this_lt_generics, generics]);
-    let generics_with_this_field_lt =
-        CombinedGenerics(vec![&this_lt_generics, &info.field_lts, generics]);
+    let generics_with_this_field_lt = CombinedGenerics(vec![
+        &this_lt_generics,
+        &info.field_lts_outlive_chain,
+        generics,
+    ]);
     let (impl_generics, ty_generics, whr) = generics.split_for_impl();
     let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
     let (_, ty_generics_with_this_lt, _) = generics_with_this_lt.split_for_impl();
@@ -1176,8 +1174,8 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
 
     // Wrap in `CombinedGenerics` because it's ty generics will always output `<>`, so it can be
     // used with `for`.
-    let field_lts = CombinedGenerics(vec![&info.field_lts]);
-    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts, generics]);
+    let field_lts = CombinedGenerics(vec![&info.field_lts_outlive_chain]);
+    let generics_with_field_lt = CombinedGenerics(vec![&info.field_lts_outlive_chain, generics]);
 
     let (impl_generics, ty_generics, whr) = generics.split_for_impl();
     let (_, field_lt_ty_generics, _) = field_lts.split_for_impl();
