@@ -2864,7 +2864,7 @@ void iwl_mld_handle_rsc_notif(struct iwl_mld *mld,
 #endif /* CONFIG_PM_SLEEP */
 
 static void iwl_mld_no_data_rx(struct iwl_mld *mld,
-			       struct napi_struct *napi, u8 status,
+			       struct napi_struct *napi, bool no_mpdu,
 			       struct iwl_rx_phy_air_sniffer_ntfy *ntfy)
 {
 	struct ieee80211_rx_status *rx_status;
@@ -2889,11 +2889,26 @@ static void iwl_mld_no_data_rx(struct iwl_mld *mld,
 	/* 0-length PSDU */
 	rx_status->flag |= RX_FLAG_NO_PSDU;
 
-	switch (status) {
+	switch (ntfy->status) {
 	case IWL_SNIF_STAT_PLCP_RX_OK:
-		/* we only get here with sounding PPDUs */
-		rx_status->zero_length_psdu_type =
-			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
+		/*
+		 * For trigger-based PPDUs, the firmware decodes the PHY header
+		 * and releases with a good status only if the frame was for the
+		 * configured AID (the bad status depends on the version), and
+		 * also only sets IWL_SNIF_FLAG_VALID_TB_RX if receiving for the
+		 * configured AID.
+		 *
+		 * So trigger-based PHY notifications without MPDU are sounding
+		 * PPDUs, while other releases without MPDU are some kind of
+		 * error after a good PHY header - don't flag failed PLCP in
+		 * this case, but release as unspecified zero-len reason.
+		 */
+		if (no_mpdu && !(ntfy->flags & IWL_SNIF_FLAG_VALID_TB_RX))
+			rx_status->zero_length_psdu_type =
+				IEEE80211_RADIOTAP_ZERO_LEN_PSDU_VENDOR;
+		else
+			rx_status->zero_length_psdu_type =
+				IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
 		break;
 	case IWL_SNIF_STAT_AID_NOT_FOR_US:
 		rx_status->zero_length_psdu_type =
@@ -2904,6 +2919,7 @@ static void iwl_mld_no_data_rx(struct iwl_mld *mld,
 	case IWL_SNIF_STAT_PLCP_RX_SIGB_ERR:
 	case IWL_SNIF_STAT_UNKNOWN_ERROR:
 	default:
+		/* some kind of PLCP error - no details from FW */
 		rx_status->flag |= RX_FLAG_FAILED_PLCP_CRC;
 		fallthrough;
 	case IWL_SNIF_STAT_UNEXPECTED_TB:
@@ -2947,10 +2963,9 @@ void iwl_mld_handle_phy_air_sniffer_notif(struct iwl_mld *mld,
 			 "invalid air sniffer notification size\n"))
 		return;
 
-	/* check if there's an old one to release as errored */
+	/* check if there's an old one to release */
 	if (mld->monitor.phy.valid && !mld->monitor.phy.used)
-		iwl_mld_no_data_rx(mld, napi, IWL_SNIF_STAT_AID_NOT_FOR_US,
-				   &mld->monitor.phy.data);
+		iwl_mld_no_data_rx(mld, napi, true, &mld->monitor.phy.data);
 
 	/* old data is no longer valid now */
 	mld->monitor.phy.valid = false;
@@ -2987,7 +3002,7 @@ void iwl_mld_handle_phy_air_sniffer_notif(struct iwl_mld *mld,
 	}
 
 	if (ntfy->status != IWL_SNIF_STAT_PLCP_RX_OK || is_ndp) {
-		iwl_mld_no_data_rx(mld, napi, ntfy->status, ntfy);
+		iwl_mld_no_data_rx(mld, napi, false, ntfy);
 		return;
 	}
 
