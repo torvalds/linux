@@ -17,11 +17,13 @@
 #define PIF_PSW_ADDR_ADJUSTED		1	/* psw address has been adjusted */
 #define PIF_SYSCALL_RET_SET		2	/* return value was set via ptrace */
 #define PIF_FTRACE_FULL_REGS		3	/* all register contents valid (ftrace) */
+#define PIF_WARN_TRAP_SKIPPED		4	/* __WARN_trap() was skipped */
 
 #define _PIF_SYSCALL			BIT(PIF_SYSCALL)
 #define _PIF_ADDR_PSW_ADJUSTED		BIT(PIF_PSW_ADDR_ADJUSTED)
 #define _PIF_SYSCALL_RET_SET		BIT(PIF_SYSCALL_RET_SET)
 #define _PIF_FTRACE_FULL_REGS		BIT(PIF_FTRACE_FULL_REGS)
+#define _PIF_WARN_TRAP_SKIPPED		BIT(PIF_WARN_TRAP_SKIPPED)
 
 #define PSW32_MASK_PER		_AC(0x40000000, UL)
 #define PSW32_MASK_DAT		_AC(0x04000000, UL)

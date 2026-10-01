@@ -267,6 +267,7 @@ static void monitor_event_exception(struct pt_regs *regs)
 		return;
 	if (regs->monitor_code == MONCODE_BUG_ARG) {
 		regs->psw.addr = regs->gprs[14];
+		set_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED);
 		btt = report_bug_entry((struct bug_entry *)regs->gprs[2], regs);
 	} else {
 		btt = report_bug(regs->psw.addr - (regs->int_code >> 16), regs);

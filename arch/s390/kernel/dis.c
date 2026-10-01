@@ -540,34 +540,31 @@ void show_code(struct pt_regs *regs)
 		start += 2;
 	}
 	/* Decode the instructions. */
-	ptr = buffer;
-	ptr += sprintf(ptr, "%s Code:", mode);
+	printk("%s Code:\n", mode);
 	hops = 0;
 	while (start < end && hops < 8) {
+		ptr = buffer;
 		opsize = insn_length(code[start]);
-		if  (start + opsize == 32)
-			*ptr++ = '*';
+		if (start == 32 && test_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED))
+			ptr += sprintf(ptr, " WARN RET >");
+		else if (start + opsize == 32 && !test_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED))
+			ptr += sprintf(ptr, "          *");
 		else if (start == 32)
-			*ptr++ = '>';
+			ptr += sprintf(ptr, "          >");
 		else
-			*ptr++ = ' ';
+			ptr += sprintf(ptr, "           ");
 		addr = pswaddr + start - 32;
 		ptr += sprintf(ptr, "%px: ", (void *)addr);
 		if (start + opsize >= end)
 			break;
 		for (i = 0; i < opsize; i++)
 			ptr += sprintf(ptr, "%02x", code[start + i]);
-		*ptr++ = '\t';
-		if (i < 6)
-			*ptr++ = '\t';
+		ptr += sprintf(ptr, "%*s", 13 - 2 * opsize, " ");
 		ptr += print_insn(ptr, code + start, addr);
 		start += opsize;
-		pr_cont("%s", buffer);
-		ptr = buffer;
-		ptr += sprintf(ptr, "\n          ");
+		pr_cont("%s\n", buffer);
 		hops++;
 	}
-	pr_cont("\n");
 }
 
 void print_fn_code(unsigned char *code, unsigned long len)
