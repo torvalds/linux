@@ -3818,20 +3818,36 @@ static netdev_features_t dflt_features_check(struct sk_buff *skb,
 	return vlan_features_check(skb, features);
 }
 
-static bool skb_gso_has_extension_hdr(const struct sk_buff *skb)
+static bool __skb_has_ipv6_ext_hdr(const struct sk_buff *skb, int nhoff)
 {
-	if (!skb->encapsulation)
-		return ((skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6 ||
-			 (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4 &&
-			  vlan_get_protocol(skb) == htons(ETH_P_IPV6))) &&
-			skb_transport_header_was_set(skb) &&
-			skb_network_header_len(skb) != sizeof(struct ipv6hdr));
-	else
-		return (!skb_inner_network_header_was_set(skb) ||
-			((skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6 ||
-			  (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4 &&
-			   inner_ip_hdr(skb)->version == 6)) &&
-			 skb_inner_network_header_len(skb) != sizeof(struct ipv6hdr)));
+	const struct ipv6hdr *ip6h;
+	struct ipv6hdr _ip6h;
+
+	ip6h = skb_header_pointer(skb, nhoff, sizeof(_ip6h), &_ip6h);
+	return ip6h && ip6h->version == 6 && ipv6_ext_hdr(ip6h->nexthdr);
+}
+
+static bool skb_has_ipv6_extension_hdr(const struct sk_buff *skb)
+{
+	if (vlan_get_protocol(skb) == htons(ETH_P_IPV6)) {
+		if (__skb_has_ipv6_ext_hdr(skb, skb_network_offset(skb)))
+			return true;
+
+		/* Catch tunnels without skb->encapsulation (e.g., virtio). */
+		if (!skb->encapsulation &&
+		    skb_transport_header_was_set(skb) &&
+		    skb_network_header_len(skb) != sizeof(struct ipv6hdr))
+			return true;
+	}
+
+	/* Tunnels without an inner network header, such as SCTP-in-UDP or
+	 * PSP, have no inner IP header and thus no inner extension header.
+	 */
+	if (skb->encapsulation && skb_inner_network_header_was_set(skb) &&
+	    __skb_has_ipv6_ext_hdr(skb, skb_inner_network_offset(skb)))
+		return true;
+
+	return false;
 }
 
 static netdev_features_t gso_features_check(const struct sk_buff *skb,
@@ -3886,7 +3902,7 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 	 * so neither does TSO that depends on it.
 	 */
 	if (features & NETIF_F_IPV6_CSUM &&
-	    skb_gso_has_extension_hdr(skb))
+	    skb_has_ipv6_extension_hdr(skb))
 		features &= ~(NETIF_F_IPV6_CSUM | NETIF_F_TSO6 | NETIF_F_GSO_UDP_L4);
 
 	return features;
@@ -3988,8 +4004,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 		return 0;
 
 	if (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) {
-		if (vlan_get_protocol(skb) == htons(ETH_P_IPV6) &&
-		    skb_network_header_len(skb) != sizeof(struct ipv6hdr))
+		if (skb_has_ipv6_extension_hdr(skb))
 			goto sw_checksum;
 
 		switch (skb->csum_offset) {
@@ -4404,9 +4419,14 @@ EXPORT_SYMBOL(dev_loopback_xmit);
 static struct netdev_queue *
 netdev_tx_queue_mapping(struct net_device *dev, struct sk_buff *skb)
 {
-	int qm = skb_get_queue_mapping(skb);
+	int queue = skb_get_queue_mapping(skb);
+	int capped;
 
-	return netdev_get_tx_queue(dev, netdev_cap_txqueue(dev, qm));
+	capped = netdev_cap_txqueue(dev, queue);
+	if (unlikely(capped != queue))
+		skb_set_queue_mapping(skb, capped);
+
+	return netdev_get_tx_queue(dev, capped);
 }
 
 #ifndef CONFIG_PREEMPT_RT
@@ -4415,9 +4435,13 @@ static bool netdev_xmit_txqueue_skipped(void)
 	return __this_cpu_read(softnet_data.xmit.skip_txqueue);
 }
 
-void netdev_xmit_skip_txqueue(bool skip)
+bool netdev_xmit_skip_txqueue(bool skip)
 {
+	bool prev = netdev_xmit_txqueue_skipped();
+
 	__this_cpu_write(softnet_data.xmit.skip_txqueue, skip);
+
+	return prev;
 }
 EXPORT_SYMBOL_GPL(netdev_xmit_skip_txqueue);
 
@@ -4427,9 +4451,13 @@ static bool netdev_xmit_txqueue_skipped(void)
 	return current->net_xmit.skip_txqueue;
 }
 
-void netdev_xmit_skip_txqueue(bool skip)
+bool netdev_xmit_skip_txqueue(bool skip)
 {
+	bool prev = netdev_xmit_txqueue_skipped();
+
 	current->net_xmit.skip_txqueue = skip;
+
+	return prev;
 }
 EXPORT_SYMBOL_GPL(netdev_xmit_skip_txqueue);
 #endif
@@ -4848,21 +4876,25 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	tcx_set_ingress(skb, false);
 #ifdef CONFIG_NET_EGRESS
 	if (static_branch_unlikely(&egress_needed_key)) {
+		bool skip_txq;
+
 		if (nf_hook_egress_active()) {
 			skb = nf_hook_egress(skb, &rc, dev);
 			if (!skb)
 				goto out;
 		}
 
-		netdev_xmit_skip_txqueue(false);
+		skip_txq = netdev_xmit_skip_txqueue(false);
 
 		nf_skip_egress(skb, true);
 		skb = sch_handle_egress(skb, &rc, dev);
-		if (!skb)
+		if (!skb) {
+			netdev_xmit_skip_txqueue(skip_txq);
 			goto out;
+		}
 		nf_skip_egress(skb, false);
 
-		if (netdev_xmit_txqueue_skipped())
+		if (netdev_xmit_skip_txqueue(skip_txq))
 			txq = netdev_tx_queue_mapping(dev, skb);
 	}
 #endif

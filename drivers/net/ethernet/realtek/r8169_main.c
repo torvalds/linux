@@ -5484,6 +5484,12 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 		phy_disable_eee_mode(tp->phydev,
 				     ETHTOOL_LINK_MODE_2500baseT_Full_BIT);
 
+	/* Keep EEE off but the version stays EEE-capable so that link-up
+	 * still clears the MAC TX-LPI bits.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_46)
+		phy_disable_eee(tp->phydev);
+
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);
 

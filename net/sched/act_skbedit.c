@@ -72,9 +72,8 @@ TC_INDIRECT_SCOPE int tcf_skbedit_act(struct sk_buff *skb,
 	}
 	if (params->flags & SKBEDIT_F_QUEUE_MAPPING &&
 	    skb->dev->real_num_tx_queues > params->queue_mapping) {
-#ifdef CONFIG_NET_EGRESS
-		netdev_xmit_skip_txqueue(true);
-#endif
+		if (skb_at_tc_egress(skb))
+			netdev_xmit_skip_txqueue(true);
 		skb_set_queue_mapping(skb, tcf_skbedit_hash(params, skb));
 	}
 	if (params->flags & SKBEDIT_F_MARK) {

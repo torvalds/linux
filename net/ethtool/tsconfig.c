@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/net_tstamp.h>
+#include <linux/phy.h>
 #include <linux/ptp_clock_kernel.h>
 #include <net/netdev_lock.h>
 
@@ -42,7 +43,9 @@ static int tsconfig_prepare_data(const struct ethnl_req_info *req_base,
 	struct kernel_hwtstamp_config cfg = {};
 	int ret;
 
-	if (!dev->netdev_ops->ndo_hwtstamp_get)
+	if (!dev->netdev_ops->ndo_hwtstamp_get &&
+	    !phy_is_default_hwtstamp(dev->phydev) &&
+	    !netdev_ops_lock_dereference(dev->hwprov, dev))
 		return -EOPNOTSUPP;
 
 	ret = ethnl_ops_begin(dev);
@@ -248,17 +251,6 @@ err_cleanup:
 	return ret;
 }
 
-static int ethnl_set_tsconfig_validate(struct ethnl_req_info *req_base,
-				       struct genl_info *info)
-{
-	const struct net_device_ops *ops = req_base->dev->netdev_ops;
-
-	if (!ops->ndo_hwtstamp_set || !ops->ndo_hwtstamp_get)
-		return -EOPNOTSUPP;
-
-	return 1;
-}
-
 static struct hwtstamp_provider *
 tsconfig_set_hwprov_from_desc(struct net_device *dev,
 			      struct genl_info *info,
@@ -272,7 +264,7 @@ tsconfig_set_hwprov_from_desc(struct net_device *dev,
 	int ret;
 
 	ret = ethtool_net_get_ts_info_by_phc(dev, &ts_info, hwprov_desc);
-	if (!ret) {
+	if (!ret && dev->netdev_ops->ndo_hwtstamp_set) {
 		/* Found */
 		source = HWTSTAMP_SOURCE_NETDEV;
 	} else {
@@ -312,6 +304,11 @@ static int ethnl_set_tsconfig(struct ethnl_req_info *req_base,
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
+
+	if (!dev->netdev_ops->ndo_hwtstamp_set &&
+	    !phy_is_default_hwtstamp(dev->phydev) &&
+	    !netdev_ops_lock_dereference(dev->hwprov, dev))
+		return -EOPNOTSUPP;
 
 	if (tb[ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER]) {
 		struct hwtstamp_provider_desc __hwprov_desc = {.index = -1};
@@ -459,6 +456,5 @@ const struct ethnl_request_ops ethnl_tsconfig_request_ops = {
 	.reply_size		= tsconfig_reply_size,
 	.fill_reply		= tsconfig_fill_reply,
 
-	.set_validate		= ethnl_set_tsconfig_validate,
 	.set			= ethnl_set_tsconfig,
 };

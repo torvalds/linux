@@ -5143,6 +5143,7 @@ L:	netdev@vger.kernel.org
 L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Supported
 F:	Documentation/devicetree/bindings/net/dsa/brcm,b53.yaml
+F:	Documentation/networking/dsa/b53.rst
 F:	drivers/net/dsa/b53/*
 F:	drivers/net/dsa/bcm_sf2*
 F:	include/linux/dsa/brcm.h
@@ -18897,7 +18898,7 @@ F:	net/core/drop_monitor.c
 NETWORKING DRIVERS
 M:	Andrew Lunn <andrew+netdev@lunn.ch>
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
 L:	netdev@vger.kernel.org
@@ -19014,7 +19015,7 @@ K:	struct\s+phy_port|phy_port_
 
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
 R:	Simon Horman <horms@kernel.org>
@@ -19240,7 +19241,7 @@ F:	net/ipv6/seg6*
 F:	tools/testing/selftests/net/srv6*
 
 NETWORKING [TCP]
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Neal Cardwell <ncardwell@google.com>
 R:	Kuniyuki Iwashima <kuniyu@google.com>
 L:	netdev@vger.kernel.org
@@ -19273,7 +19274,7 @@ F:	net/tls/
 F:	tools/testing/selftests/net/tls.c
 
 NETWORKING [SOCKETS]
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Kuniyuki Iwashima <kuniyu@google.com>
 M:	Paolo Abeni <pabeni@redhat.com>
 M:	Willem de Bruijn <willemb@google.com>

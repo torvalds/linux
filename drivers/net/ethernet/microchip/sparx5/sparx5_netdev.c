@@ -294,6 +294,7 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	ndev->ethtool_ops = &sparx5_ethtool_ops;
 
 	eth_hw_addr_gen(ndev, sparx5->base_mac, portno + 1);
+	ndev->addr_assign_type = sparx5->base_mac_assign_type;
 
 	return ndev;
 }

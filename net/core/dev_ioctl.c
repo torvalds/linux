@@ -267,7 +267,8 @@ int dev_get_hwtstamp_phylib(struct net_device *dev,
 		    hwprov->phydev)
 			return phy_hwtstamp_get(hwprov->phydev, cfg);
 
-		if (hwprov->source == HWTSTAMP_SOURCE_NETDEV)
+		if (hwprov->source == HWTSTAMP_SOURCE_NETDEV &&
+		    dev->netdev_ops->ndo_hwtstamp_get)
 			return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
 
 		return -EOPNOTSUPP;

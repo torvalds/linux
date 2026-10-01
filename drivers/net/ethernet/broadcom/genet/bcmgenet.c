@@ -57,6 +57,9 @@
  */
 #define GENET_RSB_PAD		(sizeof(struct status_64) + 2)
 
+/* RX buffer plus the skb_shared_info napi_build_skb() places behind it */
+#define GENET_RX_BUF_SIZE	SKB_HEAD_ALIGN(RX_BUF_LENGTH)
+
 /* Tx/Rx DMA register offset, skip 256 descriptors */
 #define WORDS_PER_BD(p)		(p->hw_params->words_per_bd)
 #define DMA_DESC_SIZE		(WORDS_PER_BD(priv) * sizeof(u32))
@@ -2254,11 +2257,12 @@ static int bcmgenet_rx_refill(struct bcmgenet_rx_ring *ring,
 			      struct enet_cb *cb)
 {
 	struct bcmgenet_priv *priv = ring->priv;
+	unsigned int size = GENET_RX_BUF_SIZE;
+	unsigned int offset;
 	dma_addr_t mapping;
 	struct page *page;
 
-	page = page_pool_alloc_pages(ring->page_pool,
-				     GFP_ATOMIC);
+	page = page_pool_dev_alloc(ring->page_pool, &offset, &size);
 	if (!page) {
 		priv->mib.alloc_rx_buff_failed++;
 		netif_err(priv, rx_err, priv->dev,
@@ -2267,9 +2271,13 @@ static int bcmgenet_rx_refill(struct bcmgenet_rx_ring *ring,
 	}
 
 	/* page_pool handles DMA mapping via PP_FLAG_DMA_MAP */
-	mapping = page_pool_get_dma_addr(page);
+	mapping = page_pool_get_dma_addr(page) + offset;
+	dma_sync_single_for_device(&priv->pdev->dev, mapping, RX_BUF_LENGTH,
+				   DMA_FROM_DEVICE);
 
 	cb->rx_page = page;
+	cb->rx_offset = offset;
+	cb->rx_size = size;
 	dmadesc_set_addr(priv, cb->bd_addr, mapping);
 
 	return 0;
@@ -2323,6 +2331,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 
 	while ((rxpktprocessed < rxpkttoprocess) &&
 	       (rxpktprocessed < budget)) {
+		unsigned int rx_offset, rx_size;
 		struct status_64 *status;
 		struct page *rx_page;
 		void *hard_start;
@@ -2332,6 +2341,8 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 
 		/* Save the received page before refilling */
 		rx_page = cb->rx_page;
+		rx_offset = cb->rx_offset;
+		rx_size = cb->rx_size;
 
 		if (bcmgenet_rx_refill(ring, cb)) {
 			BCMGENET_STATS64_INC(stats, dropped);
@@ -2341,10 +2352,10 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		/* Sync the full buffer; the HW may have written anywhere
 		 * up to RX_BUF_LENGTH.
 		 */
-		page_pool_dma_sync_for_cpu(ring->page_pool, rx_page, 0,
+		page_pool_dma_sync_for_cpu(ring->page_pool, rx_page, rx_offset,
 					   RX_BUF_LENGTH);
 
-		hard_start = page_address(rx_page);
+		hard_start = page_address(rx_page) + rx_offset;
 		status = (struct status_64 *)hard_start;
 		dma_length_status = status->length_status;
 
@@ -2410,7 +2421,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		/* Build SKB from the page - data starts at hard_start,
 		 * frame begins after RSB(64) + pad(2) = 66 bytes.
 		 */
-		skb = napi_build_skb(hard_start, PAGE_SIZE);
+		skb = napi_build_skb(hard_start, rx_size);
 		if (unlikely(!skb)) {
 			BCMGENET_STATS64_INC(stats, dropped);
 			page_pool_put_full_page(ring->page_pool, rx_page,
@@ -2762,14 +2773,16 @@ static void bcmgenet_init_tx_ring(struct bcmgenet_priv *priv,
 static int bcmgenet_rx_ring_create_pool(struct bcmgenet_priv *priv,
 					struct bcmgenet_rx_ring *ring)
 {
+	/* Buffers share a page. bcmgenet_rx_refill() syncs each one for the
+	 * device, PP_FLAG_DMA_SYNC_DEV would sync the whole page.
+	 */
 	struct page_pool_params pp_params = {
 		.order = 0,
-		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.flags = PP_FLAG_DMA_MAP,
 		.pool_size = ring->size,
 		.nid = NUMA_NO_NODE,
 		.dev = &priv->pdev->dev,
 		.dma_dir = DMA_FROM_DEVICE,
-		.max_len = RX_BUF_LENGTH,
 	};
 	int err;
 
@@ -4138,8 +4151,11 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	netif_set_real_num_rx_queues(priv->dev, priv->hw_params->rx_queues + 1);
 
 	/* Set default coalescing parameters */
-	for (i = 0; i <= priv->hw_params->rx_queues; i++)
+	for (i = 0; i <= priv->hw_params->rx_queues; i++) {
+		priv->rx_rings[i].priv = priv;
+		priv->rx_rings[i].index = i;
 		priv->rx_rings[i].rx_max_coalesced_frames = 1;
+	}
 
 	/* Initialize u64 stats seq counter for 32bit machines */
 	for (i = 0; i <= GENET_MAX_MQ_CNT; i++) {

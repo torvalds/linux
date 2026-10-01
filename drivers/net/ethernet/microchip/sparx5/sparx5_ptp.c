@@ -673,6 +673,9 @@ void sparx5_ptp_deinit(struct sparx5 *sparx5)
 	struct sparx5_port *port;
 	int i;
 
+	if (!sparx5->ptp)
+		return;
+
 	if (sparx5->ptp_irq >= 0) {
 		disable_irq(sparx5->ptp_irq);
 		sparx5->ptp_irq = -ENXIO;

@@ -270,6 +270,9 @@ static struct miic_port *phylink_pcs_to_miic_port(struct phylink_pcs *pcs)
 
 static void miic_unlock_regs(struct miic *miic)
 {
+	/* Clear protection state */
+	writel(0x0000, miic->base + MIIC_PRCMD);
+
 	/* Unprotect register writes */
 	writel(0x00A5, miic->base + MIIC_PRCMD);
 	writel(0x0001, miic->base + MIIC_PRCMD);

@@ -900,6 +900,8 @@ static void nft_rbtree_gc_scan(struct nft_set *set)
 		next = rb_next(node);
 
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
+		if (!nft_set_elem_active(&rbe->ext, NFT_GENMASK_ANY))
+			continue;
 
 		/* elements are reversed in the rbtree for historical reasons,
 		 * from highest to lowest value, that is why end element is

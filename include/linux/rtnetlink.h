@@ -186,7 +186,12 @@ void net_dec_ingress_queue(void);
 #ifdef CONFIG_NET_EGRESS
 void net_inc_egress_queue(void);
 void net_dec_egress_queue(void);
-void netdev_xmit_skip_txqueue(bool skip);
+bool netdev_xmit_skip_txqueue(bool skip);
+#else
+static inline bool netdev_xmit_skip_txqueue(bool skip)
+{
+	return false;
+}
 #endif
 
 void rtnetlink_init(void);
