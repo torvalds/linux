@@ -139,7 +139,7 @@ static int cxl_mem_probe(struct device *dev)
 		return rc;
 
 	struct cxl_port *parent_port __free(put_cxl_port) =
-		cxl_mem_find_port(cxlmd, &dport);
+		cxl_mem_find_port(cxlmd);
 	if (!parent_port) {
 		dev_err(dev, "CXL port topology not found\n");
 		return -ENXIO;
@@ -154,15 +154,19 @@ static int cxl_mem_probe(struct device *dev)
 		}
 	}
 
-	if (dport->rch)
-		endpoint_parent = parent_port->uport_dev;
-	else
-		endpoint_parent = &parent_port->dev;
+	endpoint_parent = cxl_port_dport_host(parent_port);
 
 	scoped_guard(device, endpoint_parent) {
 		if (!endpoint_parent->driver) {
 			dev_err(dev, "CXL port topology %s not enabled\n",
 				dev_name(endpoint_parent));
+			return -ENXIO;
+		}
+
+		/* @dport is only valid while @endpoint_parent stays bound */
+		dport = cxl_mem_find_dport(cxlmd, parent_port);
+		if (!dport) {
+			dev_err(dev, "CXL topology dport not found\n");
 			return -ENXIO;
 		}
 

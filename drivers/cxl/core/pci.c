@@ -743,8 +743,14 @@ int cxl_pci_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 	if (rc && type == CXL_REGLOC_RBI_COMPONENT && is_cxl_restricted(pdev)) {
 		struct cxl_dport *dport;
 		struct cxl_port *port __free(put_cxl_port) =
-			cxl_pci_find_port(pdev, &dport);
+			cxl_pci_find_port(pdev);
 		if (!port)
+			return -EPROBE_DEFER;
+
+		guard(device)(cxl_port_dport_host(port));
+
+		dport = cxl_pci_find_dport(pdev, port);
+		if (!dport)
 			return -EPROBE_DEFER;
 
 		rc = cxl_rcrb_get_comp_regs(pdev, map, dport);

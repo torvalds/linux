@@ -1395,13 +1395,11 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 struct cxl_find_port_ctx {
 	const struct device *dport_dev;
 	const struct cxl_port *parent_port;
-	struct cxl_dport **dport;
 };
 
 static int match_port_by_dport(struct device *dev, const void *data)
 {
 	const struct cxl_find_port_ctx *ctx = data;
-	struct cxl_dport *dport;
 	struct cxl_port *port;
 
 	if (!is_cxl_port(dev))
@@ -1410,10 +1408,7 @@ static int match_port_by_dport(struct device *dev, const void *data)
 		return 0;
 
 	port = to_cxl_port(dev);
-	dport = cxl_find_dport_by_dev(port, ctx->dport_dev);
-	if (ctx->dport)
-		*ctx->dport = dport;
-	return dport != NULL;
+	return !!cxl_find_dport_by_dev(port, ctx->dport_dev);
 }
 
 static struct cxl_port *__find_cxl_port_by_dport(struct cxl_find_port_ctx *ctx)
@@ -1432,22 +1427,21 @@ static struct cxl_port *__find_cxl_port_by_dport(struct cxl_find_port_ctx *ctx)
 /**
  * find_cxl_port_by_dport - find a cxl_port by one of its targets
  * @dport_dev: device representing the dport target
- * @dport: optional output of the 'struct cxl_dport' companion of the @dport_dev
  *
  * Return a 'struct cxl_port' with an elevated reference if found. Use
  * __free(put_cxl_port) to release.
+ *
+ * The port reference does not pin the dport, which is a devm allocation of
+ * cxl_port_dport_host(). Use cxl_pci_find_dport() or cxl_mem_find_dport()
+ * under that device's lock to get it.
  */
-static struct cxl_port *find_cxl_port_by_dport(struct device *dport_dev,
-					       struct cxl_dport **dport)
+static struct cxl_port *find_cxl_port_by_dport(struct device *dport_dev)
 {
 	struct cxl_find_port_ctx ctx = {
 		.dport_dev = dport_dev,
-		.dport = dport,
 	};
-	struct cxl_port *port;
 
-	port = __find_cxl_port_by_dport(&ctx);
-	return port;
+	return __find_cxl_port_by_dport(&ctx);
 }
 
 /*
@@ -1937,19 +1931,49 @@ retry:
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_ports, "CXL");
 
-struct cxl_port *cxl_pci_find_port(struct pci_dev *pdev,
-				   struct cxl_dport **dport)
+struct cxl_port *cxl_pci_find_port(struct pci_dev *pdev)
 {
-	return find_cxl_port_by_dport(pdev->dev.parent, dport);
+	return find_cxl_port_by_dport(pdev->dev.parent);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_pci_find_port, "CXL");
 
-struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
-				   struct cxl_dport **dport)
+struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd)
 {
-	return find_cxl_port_by_dport(grandparent(&cxlmd->dev), dport);
+	return find_cxl_port_by_dport(grandparent(&cxlmd->dev));
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, "CXL");
+
+/**
+ * cxl_pci_find_dport - find the dport of @port that @pdev is below
+ * @pdev: PCI device below the dport
+ * @port: port to search, typically from cxl_pci_find_port()
+ *
+ * Context: Caller must hold the cxl_port_dport_host() lock of @port, and
+ *	    must not use the result after dropping it.
+ */
+struct cxl_dport *cxl_pci_find_dport(struct pci_dev *pdev,
+				     struct cxl_port *port)
+{
+	device_lock_assert(cxl_port_dport_host(port));
+	return cxl_find_dport_by_dev(port, pdev->dev.parent);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_pci_find_dport, "CXL");
+
+/**
+ * cxl_mem_find_dport - find the dport of @port that @cxlmd is below
+ * @cxlmd: memdev below the dport
+ * @port: port to search, typically from cxl_mem_find_port()
+ *
+ * Context: Caller must hold the cxl_port_dport_host() lock of @port, and
+ *	    must not use the result after dropping it.
+ */
+struct cxl_dport *cxl_mem_find_dport(struct cxl_memdev *cxlmd,
+				     struct cxl_port *port)
+{
+	device_lock_assert(cxl_port_dport_host(port));
+	return cxl_find_dport_by_dev(port, grandparent(&cxlmd->dev));
+}
+EXPORT_SYMBOL_NS_GPL(cxl_mem_find_dport, "CXL");
 
 static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 				    struct cxl_port *port)
