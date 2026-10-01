@@ -614,7 +614,7 @@ static void blk_mq_free_tags_callback(struct rcu_head *head)
 	kfree(tags);
 }
 
-void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags)
+void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
 	sbitmap_queue_free(&tags->bitmap_tags);
 	sbitmap_queue_free(&tags->breserved_tags);
