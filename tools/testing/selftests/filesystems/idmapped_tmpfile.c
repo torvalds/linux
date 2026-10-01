@@ -91,6 +91,13 @@ FIXTURE_SETUP(idmapped_tmpfile)
 	ASSERT_EQ(mkdir(self->dir, 0777), 0);
 	/* World-writable so an unmapped caller still passes permission(). */
 	ASSERT_EQ(chmod(self->dir, 0777), 0);
+	/*
+	 * The directory itself must be inside the range the mount maps.
+	 * Left owned by 0 it has no mapping in the mount, and
+	 * inode_permission() then fails MAY_WRITE via HAS_UNMAPPED_ID()
+	 * before any of the tmpfile logic is reached, regardless of mode.
+	 */
+	ASSERT_EQ(chown(self->dir, MAP_HOST, MAP_HOST), 0);
 }
 
 FIXTURE_TEARDOWN(idmapped_tmpfile)
