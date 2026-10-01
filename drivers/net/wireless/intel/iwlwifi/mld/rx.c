@@ -1669,17 +1669,43 @@ static void iwl_mld_decode_uhr_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 {
 	__le32 usig_a1 = phy_data->ntfy->sigs.uhr.usig_a1;
 	__le32 usig_a2 = phy_data->ntfy->sigs.uhr.usig_a2_uhr;
+	bool ofdma;
 
 	uhr->known |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_KNOWN_SPATIAL_REUSE |
 				  IEEE80211_RADIOTAP_UHR_KNOWN_NUMBER_OF_UHR_LTF_SYMBOLS |
-				  /* All RU allocating size/index is in TB format */
-				  IEEE80211_RADIOTAP_UHR_KNOWN_DRU_RRU_ALLOC_TB_FMT |
 				  IEEE80211_RADIOTAP_UHR_KNOWN_LDPC_EXTRA_SYMBOL_SEGMENT |
 				  IEEE80211_RADIOTAP_UHR_KNOWN_PRE_FEC_PADDING_FACTOR |
 				  IEEE80211_RADIOTAP_UHR_KNOWN_PE_DISAMBIGUITY |
-				  IEEE80211_RADIOTAP_UHR_KNOWN_PRI80_CHAN_POS |
-				  IEEE80211_RADIOTAP_UHR_KNOWN_NUMBER_OF_NON_OFDMA_USERS |
-				  IEEE80211_RADIOTAP_UHR_KNOWN_INTERFERENCE_MITIGATION);
+				  IEEE80211_RADIOTAP_UHR_KNOWN_PRI80_CHAN_POS);
+
+	/*
+	 * TB isn't handled here, so uplink can't be OFDMA.
+	 * Downlink OFDMA is PPDU type 0.
+	 */
+	ofdma = !(usig_a1 & cpu_to_le32(OFDM_RX_FRAME_ENHANCED_WIFI_UL_FLAG)) &&
+		le32_get_bits(usig_a2, OFDM_RX_FRAME_UHR_PPDU_TYPE) == 0;
+
+	if (ofdma) {
+		/* All RU allocation size/index is in TB format */
+		uhr->known |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_KNOWN_DRU_RRU_ALLOC_TB_FMT);
+		/* downlink is never DRU */
+		uhr->data[8] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
+					     OFDM_RX_FRAME_UHR_STA_RU_PS160,
+					     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_PS_160);
+		uhr->data[8] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
+					     OFDM_RX_FRAME_UHR_STA_RU,
+					     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_B0 |
+					     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_B7_B1);
+		uhr->data[8] |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_INDICATION);
+	} else {
+		uhr->known |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_KNOWN_NUMBER_OF_NON_OFDMA_USERS |
+					  IEEE80211_RADIOTAP_UHR_KNOWN_INTERFERENCE_MITIGATION);
+		uhr->data[7] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
+					     OFDM_RX_FRAME_UHR_NUM_OF_USERS,
+					     IEEE80211_RADIOTAP_UHR_DATA7_NUMBER_OF_NON_OFDMA_USERS);
+		if (!(phy_data->ntfy->sigs.uhr.b1 & cpu_to_le32(OFDM_RX_FRAME_UHR_IM_DISABLE)))
+			uhr->data[7] |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_DATA7_INTERFERENCE_MITIGATION);
+	}
 
 	uhr->data[0] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
 				     OFDM_RX_FRAME_UHR_SPATIAL_REUSE,
@@ -1687,15 +1713,6 @@ static void iwl_mld_decode_uhr_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 	uhr->data[0] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
 				     OFDM_RX_FRAME_UHR_NUM_OF_LTF_SYM,
 				     IEEE80211_RADIOTAP_UHR_DATA0_NUMBER_OF_LTF_SYMBOLS);
-	uhr->data[8] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
-				     OFDM_RX_FRAME_UHR_STA_RU_PS160,
-				     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_PS_160);
-	uhr->data[8] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
-				     OFDM_RX_FRAME_UHR_STA_RU,
-				     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_B0 |
-				     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_B7_B1);
-	/* downlink is never DRU */
-	uhr->data[8] |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_INDICATION);
 
 	uhr->data[0] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
 				     OFDM_RX_FRAME_UHR_CODING_EXTRA_SYM,
@@ -1709,13 +1726,6 @@ static void iwl_mld_decode_uhr_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 	uhr->data[1] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
 				     OFDM_RX_FRAME_UHR_STA_RU_P80,
 				     IEEE80211_RADIOTAP_UHR_DATA1_PRI80_CHAN_POS);
-	uhr->data[7] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
-				     OFDM_RX_FRAME_UHR_NUM_OF_USERS,
-				     IEEE80211_RADIOTAP_UHR_DATA7_NUMBER_OF_NON_OFDMA_USERS);
-
-	uhr->data[7] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
-				     OFDM_RX_FRAME_UHR_IM_DISABLE,
-				     IEEE80211_RADIOTAP_UHR_DATA7_INTERFERENCE_MITIGATION);
 
 	iwl_mld_uhr_decode_user_ru(phy_data, uhr);
 
