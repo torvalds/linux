@@ -33,22 +33,14 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
-#include <pthread.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <sys/xattr.h>
-#include <unistd.h>
-
-#define FUSE_USE_VERSION 31
-#include <fuse_lowlevel.h>
 
 #include "kselftest_harness.h"
+
+#include "fuse_common.h"
 
 /* ---- ACL binary encoding ------------------------------------------------ */
 /*
@@ -176,69 +168,33 @@ static const struct fuse_lowlevel_ops fs_ops = {
 	.getxattr = fs_getxattr,
 };
 
-/* ---- Daemon thread ------------------------------------------------------- */
-
-static void *run_daemon(void *arg)
-{
-	fuse_session_loop((struct fuse_session *)arg);
-	return NULL;
-}
-
 /* ---- kselftest harness --------------------------------------------------- */
 
 FIXTURE(acl_cache) {
-	struct fuse_session *se;
-	char                 mountpoint[PATH_MAX];
-	char                 file_path[PATH_MAX];
-	pthread_t            thread;
+	struct fuse_common_ctx ctx;
+	char file_path[PATH_MAX];
 };
 
 FIXTURE_SETUP(acl_cache)
 {
-	char *fuse_argv[] = { "fuse_acl_cache_test", NULL };
-	struct fuse_args args = FUSE_ARGS_INIT(1, fuse_argv);
+	char err[MAX_ERR_MSG];
 
-	g_ds.acl            = acl_a;
-	g_ds.acl_size       = sizeof(acl_a);
+	pthread_mutex_lock(&g_ds.lock);
+	g_ds.acl = acl_a;
+	g_ds.acl_size = sizeof(acl_a);
 	g_ds.getxattr_count = 0;
+	pthread_mutex_unlock(&g_ds.lock);
 
-	strcpy(self->mountpoint, "/tmp/acl_cache_test_XXXXXX");
-	if (!mkdtemp(self->mountpoint))
-		SKIP(return, "mkdtemp: %s", strerror(errno));
+	if (fs_setup(&fs_ops, &self->ctx, err))
+		SKIP(return, err);
 
 	snprintf(self->file_path, sizeof(self->file_path),
-		 "%s/" FILE_NAME, self->mountpoint);
-
-	self->se = fuse_session_new(&args, &fs_ops, sizeof(fs_ops), NULL);
-	if (!self->se) {
-		rmdir(self->mountpoint);
-		SKIP(return, "fuse_session_new failed");
-	}
-
-	if (fuse_session_mount(self->se, self->mountpoint)) {
-		fuse_session_destroy(self->se);
-		rmdir(self->mountpoint);
-		SKIP(return, "fuse_session_mount failed "
-			     "(missing fusermount3 or insufficient privileges)");
-	}
-
-	if (pthread_create(&self->thread, NULL, run_daemon, self->se)) {
-		fuse_session_unmount(self->se);
-		fuse_session_destroy(self->se);
-		rmdir(self->mountpoint);
-		SKIP(return, "pthread_create: %s", strerror(errno));
-	}
-
-	fuse_opt_free_args(&args);
+		 "%s/" FILE_NAME, self->ctx.mountpoint);
 }
 
 FIXTURE_TEARDOWN(acl_cache)
 {
-	fuse_session_exit(self->se);
-	fuse_session_unmount(self->se);
-	pthread_join(self->thread, NULL);
-	fuse_session_destroy(self->se);
-	rmdir(self->mountpoint);
+	fs_teardown(&self->ctx);
 }
 
 static int do_force_statx(const char *path)

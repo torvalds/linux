@@ -21,8 +21,12 @@ ifeq ($(VAR_LDLIBS),)
 VAR_LDLIBS := -lfuse3 -pthread
 endif
 
+CFLAGS += $(VAR_CFLAGS)
+LDLIBS += $(VAR_LDLIBS)
+
 $(OUTPUT)/fuse_mnt: CFLAGS += $(VAR_CFLAGS)
 $(OUTPUT)/fuse_mnt: LDLIBS += $(VAR_LDLIBS)
 
-$(OUTPUT)/fuse_acl_cache_test: CFLAGS += $(VAR_CFLAGS)
-$(OUTPUT)/fuse_acl_cache_test: LDLIBS += $(VAR_LDLIBS)
+$(OUTPUT)/fuse_acl_cache_test: fuse_common.c fuse_acl_cache_test.c
+
+EXTRA_CLEAN := fuse_common.o
