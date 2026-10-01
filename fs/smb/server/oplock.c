@@ -763,14 +763,6 @@ static bool wait_for_break_ack(struct oplock_info *opinfo)
 	return false;
 }
 
-static void wake_up_oplock_break(struct oplock_info *opinfo)
-{
-	clear_bit_unlock(0, &opinfo->pending_break);
-	/* memory barrier is needed for wake_up_bit() */
-	smp_mb__after_atomic();
-	wake_up_bit(&opinfo->pending_break, 0);
-}
-
 static bool oplock_break_set_ack_wait(struct oplock_info *opinfo)
 {
 	bool ret = false;
@@ -826,13 +818,13 @@ static int oplock_break_pending(struct oplock_info *opinfo, int req_op_level)
 
 	if (opinfo->level <= req_op_level) {
 		if (opinfo->is_lease == false) {
-			wake_up_oplock_break(opinfo);
+			clear_and_wake_up_bit(0, &opinfo->pending_break);
 			return 1;
 		}
 		if (opinfo->o_lease->state !=
 		    (SMB2_LEASE_HANDLE_CACHING_LE |
 		     SMB2_LEASE_READ_CACHING_LE)) {
-			wake_up_oplock_break(opinfo);
+			clear_and_wake_up_bit(0, &opinfo->pending_break);
 			return 1;
 		}
 	}
@@ -1260,7 +1252,7 @@ again:
 				SMB2_LEASE_HANDLE_CACHING_LE)) {
 			if (!oplock_break_set_ack_wait(brk_opinfo)) {
 				atomic_dec_if_positive(&brk_opinfo->breaking_cnt);
-				wake_up_oplock_break(brk_opinfo);
+				clear_and_wake_up_bit(0, &brk_opinfo->pending_break);
 				return -ENOENT;
 			}
 		} else
@@ -1309,7 +1301,7 @@ again:
 		      lease->state != SMB2_LEASE_NONE_LE)))
 			goto again;
 
-		wake_up_oplock_break(brk_opinfo);
+		clear_and_wake_up_bit(0, &brk_opinfo->pending_break);
 		return err;
 	} else {
 		err = oplock_break_pending(brk_opinfo, req_op_level);
@@ -1319,7 +1311,7 @@ again:
 		if (brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
 		    brk_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
 			if (!oplock_break_set_ack_wait(brk_opinfo)) {
-				wake_up_oplock_break(brk_opinfo);
+				clear_and_wake_up_bit(0, &brk_opinfo->pending_break);
 				return -ENOENT;
 			}
 		}
@@ -1342,7 +1334,7 @@ again:
 	ksmbd_debug(OPLOCK, "oplock granted = %d\n", brk_opinfo->level);
 	if (brk_opinfo->op_state == OPLOCK_CLOSING)
 		err = -EAGAIN;
-	wake_up_oplock_break(brk_opinfo);
+	clear_and_wake_up_bit(0, &brk_opinfo->pending_break);
 
 	return err;
 }
