@@ -26,6 +26,7 @@
 #include <linux/entry-common.h>
 #include <linux/kmsan.h>
 #include <linux/bug.h>
+#include <asm/pgmcheck-defs.h>
 #include <asm/entry-percpu.h>
 #include <asm/asm-extable.h>
 #include <asm/irqflags.h>
@@ -41,15 +42,19 @@ struct pgm_stat {
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct pgm_stat, pgm_stat);
 
-static inline void __user *get_trap_ip(struct pt_regs *regs)
+static inline unsigned long get_trap_ip(struct pt_regs *regs)
 {
-	unsigned long address;
+	static const unsigned long nullified[2] = { PGM_CHECKS_NULLIFIED };
+	psw_t psw = regs->psw;
 
+	if (test_pt_regs_flag(regs, PIF_PSW_ADDR_ADJUSTED))
+		return psw.addr;
 	if (regs->int_code & 0x200)
-		address = current->thread.trap_tdb.data[3];
-	else
-		address = regs->psw.addr;
-	return (void __user *)(address - (regs->int_code >> 16));
+		psw.addr = current->thread.trap_tdb.data[3];
+	if (test_bit(regs->int_code & PGM_INT_CODE_MASK, nullified))
+		return psw.addr;
+	psw.addr = __rewind_psw(psw, regs->int_code >> 16);
+	return psw.addr;
 }
 
 #ifdef CONFIG_GENERIC_BUG
@@ -62,7 +67,7 @@ int is_valid_bugaddr(unsigned long addr)
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
 	if (user_mode(regs)) {
-		force_sig_fault(si_signo, si_code, get_trap_ip(regs));
+		force_sig_fault(si_signo, si_code, (void __user *)get_trap_ip(regs));
 		report_user_fault(regs, si_signo, 0);
 	} else {
 		if (!fixup_exception(regs))
@@ -148,12 +153,12 @@ static void translation_specification_exception(struct pt_regs *regs)
 static void illegal_op(struct pt_regs *regs)
 {
 	int is_uprobe_insn = 0;
-	u16 __user *location;
 	int signal = 0;
 	u16 opcode;
 
-	location = get_trap_ip(regs);
 	if (user_mode(regs)) {
+		u16 __user *location = (void __user *)get_trap_ip(regs);
+
 		if (get_user(opcode, location))
 			return;
 		if (opcode == S390_BREAKPOINT_U16) {
