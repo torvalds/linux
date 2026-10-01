@@ -940,8 +940,13 @@ struct iwl_sta_cfg_cmd_v2 {
  * @mimo_protection: indicates whether the sta uses mimo protection or not
  * @ack_enabled: indicates that the AP supports receiving ACK-
  *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
- * @trig_rnd_alloc: indicates that trigger based random allocation
- *	is enabled according to UORA element existence
+ * @cip_defer: delay the usage of the unicast control frame protection until
+ *	after association.
+ *	Only supported from command version 4, must be left cleared otherwise.
+ * @epp_robust: indicates that EPP robust individually addressed management
+ *	frame support was negotiated during association.
+ *	Only supported from command version 4, must be left cleared otherwise.
+ * @reserved1: Reserved for alignment
  * @tx_ampdu_spacing: minimum A-MPDU spacing:
  *	4 - 2us density, 5 - 4us density, 6 - 8us density, 7 - 16us density
  * @tx_ampdu_max_size: maximum A-MPDU length: 0 - 8K, 1 - 16K, 2 - 32K,
@@ -979,7 +984,9 @@ struct iwl_sta_cfg_cmd {
 	__le32 mimo;
 	__le32 mimo_protection;
 	__le32 ack_enabled;
-	__le32 trig_rnd_alloc;
+	u8 cip_defer;
+	u8 epp_robust;
+	__le16 reserved1;
 	__le32 tx_ampdu_spacing;
 	__le32 tx_ampdu_max_size;
 	__le32 sp_length;
@@ -996,7 +1003,7 @@ struct iwl_sta_cfg_cmd {
 	u8 nmi_sta_id;
 	u8 ndi_local_addr[ETH_ALEN];
 	u8 reserved[2];
-} __packed; /* STA_CMD_API_S_VER_3 */
+} __packed; /* STA_CMD_API_S_VER_3, STA_CMD_API_S_VER_4 */
 
 /**
  * struct iwl_aux_sta_cmd - command for AUX STA configuration
