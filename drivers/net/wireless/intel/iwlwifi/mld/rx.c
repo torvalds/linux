@@ -1243,48 +1243,30 @@ static void iwl_mld_decode_eht_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 		iwl_mld_decode_eht_non_tb(phy_data, rx_status, eht);
 }
 
-static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
-			   struct iwl_mld_rx_phy_data *phy_data)
+static u8 iwl_mld_decode_eht_uhr_gi_ltf(u32 rate_n_flags, u8 *gi)
 {
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_radiotap_eht *eht;
-	size_t eht_len = sizeof(*eht);
-	u32 rate_n_flags = phy_data->rate_n_flags;
 	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
-	/* EHT and HE have the same values for LTF */
-	u8 ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_UNKNOWN;
 
-	/* u32 for 1 user_info */
-	if (phy_data->with_data)
-		eht_len += sizeof(u32);
-
-	eht = iwl_mld_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT, eht_len);
+	*gi = NL80211_RATE_INFO_EHT_GI_0_8;
 
 	switch (u32_get_bits(rate_n_flags, RATE_MCS_HE_GI_LTF_MSK)) {
 	case 0:
 		if (he_type == RATE_MCS_HE_TYPE_TRIG) {
-			rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_1_6;
-			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_1X;
-		} else {
-			rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_0_8;
-			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
+			*gi = NL80211_RATE_INFO_EHT_GI_1_6;
+			return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_1X;
 		}
-		break;
+		return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 	case 1:
-		rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_1_6;
-		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
-		break;
+		*gi = NL80211_RATE_INFO_EHT_GI_1_6;
+		return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 	case 2:
-		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		if (he_type == RATE_MCS_HE_TYPE_TRIG)
-			rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_3_2;
-		else
-			rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_0_8;
-		break;
+			*gi = NL80211_RATE_INFO_EHT_GI_3_2;
+		return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 	case 3:
 		if (he_type != RATE_MCS_HE_TYPE_TRIG) {
-			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
-			rx_status->eht.gi = NL80211_RATE_INFO_EHT_GI_3_2;
+			*gi = NL80211_RATE_INFO_EHT_GI_3_2;
+			return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		}
 		break;
 	default:
@@ -1292,7 +1274,29 @@ static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
 		break;
 	}
 
+	return IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_UNKNOWN;
+}
+
+static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
+			   struct iwl_mld_rx_phy_data *phy_data)
+{
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_radiotap_eht *eht;
+	size_t eht_len = sizeof(*eht);
+	u32 rate_n_flags = phy_data->rate_n_flags;
+	u8 gi, ltf;
+
+	/* u32 for 1 user_info */
+	if (phy_data->with_data)
+		eht_len += sizeof(u32);
+
+	eht = iwl_mld_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT, eht_len);
+
+	ltf = iwl_mld_decode_eht_uhr_gi_ltf(rate_n_flags, &gi);
+
 	if (ltf != IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_UNKNOWN) {
+		rx_status->eht.gi = gi;
+
 		eht->known |= cpu_to_le32(IEEE80211_RADIOTAP_EHT_KNOWN_GI);
 		eht->data[0] |= le32_encode_bits(ltf,
 						 IEEE80211_RADIOTAP_EHT_DATA0_LTF) |
@@ -1875,6 +1879,14 @@ static void iwl_mld_decode_uhr_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 static void iwl_mld_rx_uhr(struct iwl_mld *mld, struct sk_buff *skb,
 			   struct iwl_mld_rx_phy_data *phy_data)
 {
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+	u8 gi, ltf;
+
+	/* the LTF size is reported from the PHY data, only the GI is needed */
+	ltf = iwl_mld_decode_eht_uhr_gi_ltf(phy_data->rate_n_flags, &gi);
+	if (ltf != IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_UNKNOWN)
+		rx_status->uhr.gi = gi;
+
 	if (likely(!phy_data->ntfy))
 		return;
 
