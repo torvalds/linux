@@ -545,21 +545,37 @@ static void kill_rules(struct audit_context *context, struct audit_tree *tree)
 {
 	struct audit_krule *rule, *next;
 	struct audit_entry *entry;
+	bool need_sync = false;
+
+	list_for_each_entry_safe(rule, next, &tree->rules, rlist) {
+		entry = container_of(rule, struct audit_entry, rule);
+
+		if (rule->tree) {
+			/* not a half-baked one */
+			audit_tree_log_remove_rule(context, rule);
+			rule->tree = NULL;
+			list_del_rcu(&entry->list);
+			list_del(&entry->rule.list);
+			if (entry->rule.exe)
+				need_sync = true;
+		} else {
+			list_del_init(&rule->rlist);
+		}
+	}
+
+	if (list_empty(&tree->rules))
+		return;
+
+	if (need_sync)
+		synchronize_rcu();
 
 	list_for_each_entry_safe(rule, next, &tree->rules, rlist) {
 		entry = container_of(rule, struct audit_entry, rule);
 
 		list_del_init(&rule->rlist);
-		if (rule->tree) {
-			/* not a half-baked one */
-			audit_tree_log_remove_rule(context, rule);
-			if (entry->rule.exe)
-				audit_remove_mark(entry->rule.exe);
-			rule->tree = NULL;
-			list_del_rcu(&entry->list);
-			list_del(&entry->rule.list);
-			call_rcu(&entry->rcu, audit_free_rule_rcu);
-		}
+		if (entry->rule.exe)
+			audit_remove_mark(entry->rule.exe);
+		call_rcu(&entry->rcu, audit_free_rule_rcu);
 	}
 }
 
