@@ -54,9 +54,8 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 
 	asm_inline volatile(
 		"0:	lg	%[data],0(%[addr])\n"
-		"1:	nopr	%%r7\n"
-		EX_TABLE_ZEROPAD(0b, 1b, %[data], %[addr])
-		EX_TABLE_ZEROPAD(1b, 1b, %[data], %[addr])
+		"1:\n"
+		EX_TABLE_INSN_ZEROPAD(0b, 1b, %[data], %[addr])
 		: [data] "=d" (data)
 		: [addr] "a" (addr), "m" (*(unsigned long *)addr));
 	return data;
