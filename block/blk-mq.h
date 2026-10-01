@@ -178,6 +178,8 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
 		unsigned int reserved_tags, unsigned int flags, int node);
 void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags);
 
+extern struct srcu_struct blk_mq_tags_srcu;
+
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
 		unsigned int *offset);
