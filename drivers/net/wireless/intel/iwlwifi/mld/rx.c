@@ -1841,6 +1841,7 @@ static void iwl_mld_decode_uhr_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 	if (phy_data->with_data) {
 		uhr->user[0].known |=
 			cpu_to_le32(IEEE80211_RADIOTAP_UHR_USER_KNOWN_MCS |
+				    IEEE80211_RADIOTAP_UHR_USER_KNOWN_NSS |
 				    IEEE80211_RADIOTAP_UHR_USER_KNOWN_2X_LDPC |
 				    IEEE80211_RADIOTAP_UHR_USER_KNOWN_CODING |
 				    IEEE80211_RADIOTAP_UHR_USER_KNOWN_USER_CAPTURED);
@@ -1849,6 +1850,10 @@ static void iwl_mld_decode_uhr_phy_data(struct iwl_mld_rx_phy_data *phy_data,
 			le32_encode_bits(u32_get_bits(rate_n_flags,
 						      RATE_MCS_CODE_MSK),
 					 IEEE80211_RADIOTAP_UHR_USER_INFO_MCS);
+		uhr->user[0].info |=
+			le32_encode_bits(u32_get_bits(rate_n_flags,
+						      RATE_MCS_NSS_MSK),
+					 IEEE80211_RADIOTAP_UHR_USER_INFO_NSS);
 
 		if (phy_data->phy_info & IWL_RX_MPDU_PHY_2X_LDPC)
 			uhr->user[0].info |=
