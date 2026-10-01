@@ -13,6 +13,15 @@
 #include <nvhe/spinlock.h>
 
 /*
+ * HCR_EL2 bits EL2 takes from the host on each entry, per VM type. The rest
+ * are EL2's own and nothing the host sets there reaches the guest.
+ */
+#define PKVM_HCR_EL2_HOST_PVM	(HCR_EL2_TWI | HCR_EL2_TWE | HCR_EL2_VSE)
+#define PKVM_HCR_EL2_HOST_NPVM	(PKVM_HCR_EL2_HOST_PVM | HCR_EL2_VI | HCR_EL2_VF |	\
+				 HCR_EL2_TVM | HCR_EL2_TID2 | HCR_EL2_TID4 |		\
+				 HCR_EL2_TID5 | HCR_EL2_TTLBOS)
+
+/*
  * Holds the relevant data for maintaining the vcpu state completely at hyp.
  */
 struct pkvm_hyp_vcpu {
