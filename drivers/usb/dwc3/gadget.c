@@ -4929,7 +4929,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 
 	init_completion(&dwc->ep0_in_setup);
 	INIT_WORK(&dwc->err_recovery_work, dwc3_err_recovery_work);
-	mutex_init(&dwc->connect_mutex);
 	dwc->gadget = kzalloc_obj(struct usb_gadget);
 	if (!dwc->gadget) {
 		ret = -ENOMEM;
@@ -5027,7 +5026,6 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 		return;
 
 	cancel_work_sync(&dwc->err_recovery_work);
-	mutex_destroy(&dwc->connect_mutex);
 	dwc3_enable_susphy(dwc, true);
 	usb_del_gadget(dwc->gadget);
 	dwc3_gadget_free_endpoints(dwc);

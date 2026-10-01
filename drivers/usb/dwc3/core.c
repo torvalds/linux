@@ -2373,6 +2373,7 @@ int dwc3_core_probe(const struct dwc3_probe_data *data)
 	}
 
 	mutex_init(&dwc->mutex);
+	mutex_init(&dwc->connect_mutex);
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_set_active(dev);
