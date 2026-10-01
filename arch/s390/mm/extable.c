@@ -122,8 +122,6 @@ bool fixup_exception(struct pt_regs *regs)
 
 	ex = s390_search_extables(get_trap_ip(regs));
 	if (!ex)
-		ex = s390_search_extables(instruction_pointer(regs));
-	if (!ex)
 		return false;
 	switch (ex->type) {
 	case EX_TYPE_FIXUP:

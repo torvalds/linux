@@ -51,31 +51,20 @@ static unsigned long boot_get_trap_ip(struct pt_regs *regs)
 	return __rewind_psw(regs->psw, regs->int_code >> 16);
 }
 
-static const struct exception_table_entry *search_boot_extable(unsigned long ip)
+static bool ex_handler(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
+	unsigned long ip = boot_get_trap_ip(regs);
 
 	for (ex = __start___ex_table; ex < __stop___ex_table; ex++) {
 		if (extable_insn(ex) != ip)
 			continue;
 		if (ex->type != EX_TYPE_FIXUP)
-			return NULL;
-		return ex;
+			return false;
+		regs->psw.addr = extable_fixup(ex);
+		return true;
 	}
-	return NULL;
-}
-
-static bool ex_handler(struct pt_regs *regs)
-{
-	const struct exception_table_entry *ex;
-
-	ex = search_boot_extable(boot_get_trap_ip(regs));
-	if (!ex)
-		ex = search_boot_extable(instruction_pointer(regs));
-	if (!ex)
-		return false;
-	regs->psw.addr = extable_fixup(ex);
-	return true;
+	return false;
 }
 
 void do_pgm_check(struct pt_regs *regs)
