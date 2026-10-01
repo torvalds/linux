@@ -2255,6 +2255,8 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 		conn->security_cfm_cb(conn, status);
 }
 
+void mgmt_security_level_changed(struct hci_conn *conn);
+
 static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status)
 {
 	struct hci_cb *cb;
@@ -2277,11 +2279,19 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status)
 		encrypt = 0x01;
 
 	if (!status) {
-		if (conn->sec_level == BT_SECURITY_SDP)
+		/* Callers either set conn->sec_level = conn->pending_sec_level
+		 * unconditionally before calling this function, or never
+		 * reach here with status == 0 (e.g. conn->state == BT_CONFIG
+		 * returns early above, or status is actually an error).  So
+		 * conn->pending_sec_level is never greater than
+		 * conn->sec_level at this point; only the initial
+		 * BT_SECURITY_SDP -> BT_SECURITY_LOW bump can still happen
+		 * here.
+		 */
+		if (conn->sec_level == BT_SECURITY_SDP) {
 			conn->sec_level = BT_SECURITY_LOW;
-
-		if (conn->pending_sec_level > conn->sec_level)
-			conn->sec_level = conn->pending_sec_level;
+			mgmt_security_level_changed(conn);
+		}
 	}
 
 	mutex_lock(&hci_cb_list_lock);
