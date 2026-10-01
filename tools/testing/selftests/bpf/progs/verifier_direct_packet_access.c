@@ -920,4 +920,182 @@ l1_%=:	r0 = *(u8*)(r9 + 0);				\
 	: __clobber_all);
 }
 
+SEC("tc")
+__description("direct packet access: 8-aligned offset, check p + 8, load 8 bytes at p")
+__success __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
+__naked void pkt_same_id_check_copy_load_base(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r4 &= 0x38;					\
+	if r4 > 50 goto l0_%=;				\
+	/* r4 is a multiple of 8, at most 48 */		\
+	r5 = r2;					\
+	r5 += r4;					\
+	r6 = r5;					\
+	r6 += 8;					\
+	if r6 > r3 goto l0_%=;				\
+	/* [r5, r5 + 8) is in the packet */		\
+	r0 = *(u64*)(r5 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: 8-aligned offset, check p, load past it via p + 8")
+__failure __msg("invalid access to packet, off=51 size=1")
+__naked void pkt_same_id_check_base_load_via_copy(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r4 &= 0x38;					\
+	if r4 > 50 goto l0_%=;				\
+	/* r4 is a multiple of 8, at most 48 */		\
+	r5 = r2;					\
+	r5 += r4;					\
+	r6 = r5;					\
+	r6 += 8;					\
+	if r5 > r3 goto l0_%=;				\
+	/* r6 - 7 is r5 + 1 */				\
+	r0 = *(u8*)(r6 - 7);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: 8-aligned offset, check p + 4, 4-byte load at p + 2")
+__failure __msg("invalid access to packet, off=52 size=4")
+__naked void pkt_same_id_check_base_4_load_via_copy(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r4 &= 0x38;					\
+	if r4 > 50 goto l0_%=;				\
+	/* r4 is a multiple of 8, at most 48 */		\
+	r5 = r2;					\
+	r5 += r4;					\
+	r6 = r5;					\
+	r6 += 8;					\
+	r7 = r5;					\
+	r7 += 4;					\
+	if r7 > r3 goto l0_%=;				\
+	/* [r5, r5 + 4) is in the packet, [r5 + 2, r5 + 6) may not be */ \
+	r0 = *(u32*)(r6 - 6);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: checked pointer minus non-negative unknown keeps range")
+__success __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
+__naked void pkt_sub_unknown_keeps_range(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r4 &= 0x1f;					\
+	r4 += 8;					\
+	r5 = r2;					\
+	r5 += 40;					\
+	if r5 > r3 goto l0_%=;				\
+	/* r5 is 8 to 39 bytes below the checked pointer */	\
+	r5 -= r4;					\
+	r0 = *(u64*)(r5 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: no pruning of a path whose checks prove fewer bytes")
+__failure __msg("invalid access to packet, off=255 size=8")
+__flag(BPF_F_ANY_ALIGNMENT) __flag(BPF_F_TEST_STATE_FREQ)
+__naked void pkt_same_id_pruning(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r0 = *(u32*)(r1 + %[__sk_buff_priority]);	\
+	r4 &= 0xff;					\
+	r5 = r2;					\
+	r5 += r4;					\
+	if r0 != 0 goto l1_%=;				\
+	/* this path proves [r5, r5 + 8) */		\
+	r6 = r5;					\
+	r6 += 8;					\
+	if r6 > r3 goto l0_%=;				\
+	goto l2_%=;					\
+l1_%=:	/* this path proves [r5, r5 + 7) */		\
+	if r5 > r3 goto l0_%=;				\
+	r6 = r5;					\
+	r6 += 7;					\
+	if r6 > r3 goto l0_%=;				\
+l2_%=:	r0 = *(u64*)(r5 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark)),
+	  __imm_const(__sk_buff_priority, offsetof(struct __sk_buff, priority))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: spilled copy of checked pointer, load past range")
+__failure __msg("invalid access to packet, off=262 size=1, R7(id={{[0-9]+}},off=262,r=262)")
+__naked void pkt_spilled_copy_gets_range(void)
+{
+	asm volatile ("					\
+	r2 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r4 = *(u32*)(r1 + %[__sk_buff_mark]);		\
+	r4 &= 0xff;					\
+	r5 = r2;					\
+	r5 += r4;					\
+	*(u64*)(r10 - 8) = r5;				\
+	/* proves only bytes before r5 */		\
+	if r5 > r3 goto l0_%=;				\
+	r6 = r5;					\
+	r6 += 7;					\
+	if r6 > r3 goto l0_%=;				\
+	/* [r5, r5 + 7) is in the packet */		\
+	r7 = *(u64*)(r10 - 8);				\
+	r0 = *(u8*)(r7 + 7);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end)),
+	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
