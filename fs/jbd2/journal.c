@@ -1268,9 +1268,21 @@ static unsigned long jbd2_journal_shrink_scan(struct shrinker *shrink,
 	trace_jbd2_shrink_scan_enter(journal, sc->nr_to_scan, count);
 
 	nr_shrunk = jbd2_journal_shrink_checkpoint_list(journal, &nr_to_scan);
+	sc->nr_scanned = sc->nr_to_scan - nr_to_scan;
 
 	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
 	trace_jbd2_shrink_scan_exit(journal, nr_to_scan, nr_shrunk, count);
+
+	/*
+	 * Key SHRINK_STOP off sc->nr_scanned (buffers actually examined),
+	 * not nr_shrunk (buffers actually freed): a batch can find every
+	 * buffer in its transactions busy and free none, while later
+	 * transactions may still hold buffers whose writeback has
+	 * completed. sc->nr_scanned only comes back 0 when the checkpoint
+	 * list had nothing left to walk.
+	 */
+	if (sc->nr_scanned == 0)
+		return SHRINK_STOP;
 
 	return nr_shrunk;
 }
