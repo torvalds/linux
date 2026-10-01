@@ -1562,7 +1562,10 @@ static int quick_update_accounting(struct btrfs_fs_info *fs_info,
 	}
 out:
 	if (ret)
-		set_bit(BTRFS_QGROUP_STATUS_BIT_INCONSISTENT, &fs_info->qgroup_flags);
+		qgroup_mark_inconsistent(fs_info,
+	"unable to do quick excl updating for qgroup %hu/%llu, ret=%d",
+					 btrfs_qgroup_level(src),
+					 btrfs_qgroup_subvolid(src), ret);
 	return ret;
 }
 
