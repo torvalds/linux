@@ -213,10 +213,12 @@ static bool __futex_pivot_hash(struct mm_struct *mm, struct futex_private_hash *
 		futex_rehash_private(fph, new);
 	}
 	new->state = FR_PERCPU;
-	scoped_guard(rcu) {
-		mmph->batches = get_state_synchronize_rcu();
-		rcu_assign_pointer(mmph->hash, new);
-	}
+	rcu_assign_pointer(mmph->hash, new);
+	/*
+	 * mmph->batches must reference a grace period which started after
+	 * mmph->hash was assigned. See futex_ref_drop().
+	 */
+	mmph->batches = get_state_synchronize_rcu();
 	kvfree_rcu(fph, rcu);
 	return true;
 }
