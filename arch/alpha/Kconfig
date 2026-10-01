@@ -483,8 +483,8 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32" if ALPHA_GENERIC || ALPHA_MARVEL
-	default "4" if !ALPHA_GENERIC && !ALPHA_MARVEL
+	default "32" if ALPHA_GENERIC || ALPHA_MARVEL || ALPHA_WILDFIRE
+	default "4"
 	help
 	  The kernel supports at most 32 CPUs. Only Marvel and Wildfire
 	  systems have more than 4.
