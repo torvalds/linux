@@ -3,3 +3,4 @@ fuse_mnt
 fusectl_test
 test_syncfs
 write_extend_eof_test
+fuse_acl_cache_test
