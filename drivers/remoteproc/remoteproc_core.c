@@ -1662,49 +1662,21 @@ disable_iommu:
 }
 
 /*
- * take a firmware and boot it up.
+ * Boot or attach the remote processor in the background: rproc_add()
+ * runs in probe context and must not block while the firmware image is
+ * read from storage.  rproc_boot() dispatches on the processor state,
+ * so this covers both a firmware boot and an attach to a processor
+ * started by another entity.
  *
- * Note: this function is called asynchronously upon registration of the
- * remote processor (so we must wait until it completes before we try
- * to unregister the device. one other option is just to use kref here,
- * that might be cleaner).
+ * Note: rproc_del() waits for this work to complete with
+ * cancel_work_sync(), so the rproc instance remains valid for the
+ * entire lifetime of this function.
  */
-static void rproc_auto_boot_callback(const struct firmware *fw, void *context)
+static void rproc_boot_work(struct work_struct *work)
 {
-	struct rproc *rproc = context;
+	struct rproc *rproc = container_of(work, struct rproc, boot_work);
 
 	rproc_boot(rproc);
-
-	release_firmware(fw);
-}
-
-static void rproc_attach_work(struct work_struct *work)
-{
-	struct rproc *rproc = container_of(work, struct rproc, attach_work);
-
-	rproc_boot(rproc);
-}
-
-static int rproc_trigger_auto_boot(struct rproc *rproc)
-{
-	int ret;
-
-	if (rproc->state == RPROC_DETACHED) {
-		schedule_work(&rproc->attach_work);
-		return 0;
-	}
-
-	/*
-	 * We're initiating an asynchronous firmware loading, so we can
-	 * be built-in kernel code, without hanging the boot process.
-	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
-				      rproc->firmware, &rproc->dev, GFP_KERNEL,
-				      rproc, rproc_auto_boot_callback);
-	if (ret < 0)
-		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
-
-	return ret;
 }
 
 static int rproc_stop(struct rproc *rproc, bool crashed)
@@ -2348,11 +2320,8 @@ int rproc_add(struct rproc *rproc)
 	rproc_create_debug_dir(rproc);
 
 	/* if rproc is marked always-on, request it to boot */
-	if (rproc->auto_boot) {
-		ret = rproc_trigger_auto_boot(rproc);
-		if (ret < 0)
-			goto rproc_remove_dev;
-	}
+	if (rproc->auto_boot)
+		schedule_work(&rproc->boot_work);
 
 	/* expose to rproc_get_by_phandle users */
 	mutex_lock(&rproc_list_mutex);
@@ -2361,10 +2330,6 @@ int rproc_add(struct rproc *rproc)
 
 	return 0;
 
-rproc_remove_dev:
-	cancel_work_sync(&rproc->crash_handler);
-	rproc_delete_debug_dir(rproc);
-	device_del(dev);
 rproc_remove_cdev:
 	rproc_char_device_remove(rproc);
 	return ret;
@@ -2552,7 +2517,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->subdevs);
 	INIT_LIST_HEAD(&rproc->dump_segments);
 
-	INIT_WORK(&rproc->attach_work, rproc_attach_work);
+	INIT_WORK(&rproc->boot_work, rproc_boot_work);
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
 	spin_lock_init(&rproc->crash_handler_lock);
 
@@ -2629,6 +2594,9 @@ int rproc_del(struct rproc *rproc)
 
 	if (cancel_work_sync(&rproc->crash_handler))
 		pm_relax(rproc->dev.parent);
+
+	/* auto-boot may still be fetching firmware: wait for it here */
+	cancel_work_sync(&rproc->boot_work);
 
 	__rproc_shutdown(rproc, true);
 
