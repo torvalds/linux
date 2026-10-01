@@ -18,6 +18,7 @@
 #include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/compiler_attributes.h>
+#include <linux/devm-helpers.h>
 #include <linux/dmi.h>
 #include <linux/fixp-arith.h>
 #include <linux/hwmon.h>
@@ -2571,7 +2572,6 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 static void __exit hp_wmi_bios_remove(struct platform_device *device)
 {
 	int i;
-	struct hp_wmi_hwmon_priv *priv;
 
 	for (i = 0; i < rfkill2_count; i++) {
 		rfkill_unregister(rfkill2[i].rfkill);
@@ -2590,10 +2590,6 @@ static void __exit hp_wmi_bios_remove(struct platform_device *device)
 		rfkill_unregister(wwan_rfkill);
 		rfkill_destroy(wwan_rfkill);
 	}
-
-	priv = platform_get_drvdata(device);
-	if (priv)
-		cancel_delayed_work_sync(&priv->keep_alive_dwork);
 }
 
 static int hp_wmi_resume_handler(struct device *device)
@@ -2941,6 +2937,17 @@ static int hp_wmi_hwmon_init(void)
 	ret = hp_wmi_setup_fan_settings(priv);
 	if (ret)
 		return ret;
+
+	/*
+	 * Set up the work before registering hwmon so that, on teardown,
+	 * it is cancelled only after the sysfs writers that schedule it
+	 * are gone.
+	 */
+	ret = devm_delayed_work_autocancel(dev, &priv->keep_alive_dwork,
+					   hp_wmi_hwmon_keep_alive_handler);
+	if (ret)
+		return ret;
+
 	hwmon = devm_hwmon_device_register_with_info(dev, "hp", priv,
 						     &chip_info, NULL);
 
@@ -2949,8 +2956,6 @@ static int hp_wmi_hwmon_init(void)
 		return PTR_ERR(hwmon);
 	}
 
-	INIT_DELAYED_WORK(&priv->keep_alive_dwork, hp_wmi_hwmon_keep_alive_handler);
-	platform_set_drvdata(hp_wmi_platform_dev, priv);
 	ret = hp_wmi_apply_fan_settings(priv);
 	if (ret)
 		dev_warn(dev, "Failed to apply initial fan settings: %d\n", ret);
