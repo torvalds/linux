@@ -127,9 +127,10 @@ choice
 	  run on any supported Alpha system. However, if you configure a
 	  kernel for your specific system, it will be faster and smaller.
 
-	  To find out what type of Alpha system you have, you may want to
-	  check out the Linux/Alpha FAQ, accessible on the WWW from
-	  <http://www.alphalinux.org/>. In summary:
+	  To find out what type of Alpha system you have, see the system and
+	  motherboard lists at
+	  <https://alphalinux.org/wiki/hardware:systems> and
+	  <https://alphalinux.org/wiki/hardware:motherboards>. In summary:
 
 	  Alcor/Alpha-XLT     AS 600, AS 500, XL-300, XL-366
 	  DP264               DP264 / DS20 / ES40 / DS10 / DS10L
@@ -184,8 +185,8 @@ config ALPHA_EIGER
 config ALPHA_LX164
 	bool "LX164"
 	help
-	  A technical overview of this board is available at
-	  <http://www.unix-ag.org/Linux-Alpha/Architectures/LX164.html>.
+	  AlphaPC164-LX, a 21164A-based single-board computer using the
+	  Pyxis chipset.
 
 config ALPHA_MARVEL
 	bool "Marvel"
@@ -224,14 +225,11 @@ config ALPHA_RAWHIDE
 	select HAVE_EISA
 	help
 	  AlphaServer 1200, AlphaServer 4000 and AlphaServer 4100 machines.
-	  See HOWTO at
-	  <http://www.alphalinux.org/docs/rawhide/4100_install.shtml>.
 
 config ALPHA_RUFFIAN
 	bool "Ruffian"
 	help
-	  Samsung APC164UX.  There is a page on known problems and workarounds
-	  at <http://www.alphalinux.org/faq/FAQ-11.html>.
+	  Samsung APC164UX.
 
 config ALPHA_RX164
 	bool "RX164"
@@ -372,9 +370,7 @@ config ALPHA_SRM
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
-	  keys. Details about the Linux/Alpha booting process are contained in
-	  the Linux/Alpha FAQ, accessible on the WWW from
-	  <http://www.alphalinux.org/>.
+	  keys.
 
 	  The usual way to load Linux on an Alpha machine is to use MILO
 	  (a bootloader that lets you pass command line parameters to the
