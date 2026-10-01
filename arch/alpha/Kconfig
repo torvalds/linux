@@ -177,6 +177,8 @@ config ALPHA_ALCOR
 	  memory coherence when a PCI device DMAs into (or out of) memory.
 	  It is used by the AlphaStation 500 and the Alpha XL 366 and 433.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:alcor>.
+
 config ALPHA_DP264
 	bool "DP264"
 	help
@@ -184,11 +186,21 @@ config ALPHA_DP264
 	  API NetWorks: 264DP, UP2000(+);
 	  Compaq: DS10, DS10L, XP900, XP1000, DS20, DS20E, ES40.
 
+	  See:
+	  <https://alphalinux.org/wiki/hardware:systems:webbrick>
+	  <https://alphalinux.org/wiki/hardware:systems:goldrush>
+	  <https://alphalinux.org/wiki/hardware:systems:clipper>
+	  <https://alphalinux.org/wiki/hardware:systems:monet>
+	  <https://alphalinux.org/wiki/hardware:motherboards:pc264dp>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up2000>
+
 config ALPHA_EIGER
 	bool "Eiger"
 	help
 	  Apparently an obscure OEM single-board computer based on the
 	  Typhoon/Tsunami chipset family. Information on it is scanty.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:eiger>.
 
 config ALPHA_LX164
 	bool "LX164"
@@ -196,10 +208,14 @@ config ALPHA_LX164
 	  AlphaPC164-LX, a 21164A-based single-board computer using the
 	  Pyxis chipset.
 
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164lx>.
+
 config ALPHA_MARVEL
 	bool "Marvel"
 	help
 	  AlphaServer ES47 / ES80 / GS1280 based on EV7.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:marvel>.
 
 config ALPHA_MIATA
 	bool "Miata"
@@ -208,16 +224,25 @@ config ALPHA_MIATA
 	  The Digital Personal Workstation (PWS 433a, 433au, 500a, 500au,
 	  600a, or 600au).
 
+	  See <https://alphalinux.org/wiki/hardware:systems:miata>.
+
 config ALPHA_MIKASA
 	bool "Mikasa"
 	help
 	  AlphaServer 1000-based Alpha systems.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:mikasa>.
 
 config ALPHA_NAUTILUS
 	bool "Nautilus"
 	help
 	  UP1000, UP1100 and UP1500 systems based on the AMD 751 or 761
 	  chipset.
+
+	  See:
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1000>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1100>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1500>
 
 config ALPHA_NORITAKE
 	bool "Noritake"
@@ -226,11 +251,15 @@ config ALPHA_NORITAKE
 	  AlphaServer 1000A, AlphaServer 800, AlphaStation 600A and
 	  Digital Server 3300 systems.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:noritake>.
+
 config ALPHA_PC164
 	bool "PC164"
 	help
 	  AlphaPC164, a 21164A-based single-board computer using the CIA
 	  chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164>.
 
 config ALPHA_RAWHIDE
 	bool "Rawhide"
@@ -239,11 +268,15 @@ config ALPHA_RAWHIDE
 	  AlphaServer 1200, 4000 and 4100 and Digital Server 5300 and 7300
 	  machines.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:rawhide>.
+
 config ALPHA_RUFFIAN
 	bool "Ruffian"
 	help
 	  DeskStation RPX164-2, AlphaPC164-UX and AlphaPC164-BX boards.
 	  They have no SRM console and can only boot Linux through MILO.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164ux>.
 
 config ALPHA_RX164
 	bool "RX164"
@@ -252,11 +285,15 @@ config ALPHA_RX164
 	  Polaris chipset. It has no SRM console and can only boot Linux
 	  through MILO.
 
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164rx>.
+
 config ALPHA_SX164
 	bool "SX164"
 	help
 	  AlphaPC164-SX, a 21164PC-based single-board computer using the
 	  Pyxis chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164sx>.
 
 config ALPHA_SABLE
 	bool "Sable"
@@ -264,16 +301,22 @@ config ALPHA_SABLE
 	help
 	  Digital AlphaServer 2000 and 2100-based systems.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:sable>.
+
 config ALPHA_SHARK
 	bool "Shark"
 	help
 	  AlphaServer DS20L and API NetWorks CS20 systems based on the
 	  Tsunami chipset.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:shark>.
+
 config ALPHA_TAKARA
 	bool "Takara"
 	help
 	  Alpha 21164-based OEM single-board computer.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:takara>.
 
 config ALPHA_TITAN
 	bool "Titan"
@@ -281,11 +324,15 @@ config ALPHA_TITAN
 	  AlphaServer DS15, DS25, ES45 and TS202c based on EV68 and the
 	  Titan chipset.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:titan>.
+
 config ALPHA_WILDFIRE
 	bool "Wildfire"
 	help
 	  AlphaServer GS80, GS160 and GS320 SMP based on the EV67 or EV68
 	  core.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:wildfire>.
 
 endchoice
 
