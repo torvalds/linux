@@ -1671,6 +1671,7 @@ static void iwl_mld_decode_uhr_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 	__le32 usig_a2 = phy_data->ntfy->sigs.uhr.usig_a2_uhr;
 
 	uhr->known |= cpu_to_le32(IEEE80211_RADIOTAP_UHR_KNOWN_SPATIAL_REUSE |
+				  IEEE80211_RADIOTAP_UHR_KNOWN_NUMBER_OF_UHR_LTF_SYMBOLS |
 				  /* All RU allocating size/index is in TB format */
 				  IEEE80211_RADIOTAP_UHR_KNOWN_DRU_RRU_ALLOC_TB_FMT |
 				  IEEE80211_RADIOTAP_UHR_KNOWN_LDPC_EXTRA_SYMBOL_SEGMENT |
@@ -1683,6 +1684,9 @@ static void iwl_mld_decode_uhr_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 	uhr->data[0] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
 				     OFDM_RX_FRAME_UHR_SPATIAL_REUSE,
 				     IEEE80211_RADIOTAP_UHR_DATA0_SPATIAL_REUSE);
+	uhr->data[0] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b1,
+				     OFDM_RX_FRAME_UHR_NUM_OF_LTF_SYM,
+				     IEEE80211_RADIOTAP_UHR_DATA0_NUMBER_OF_LTF_SYMBOLS);
 	uhr->data[8] |= LE32_DEC_ENC(phy_data->ntfy->sigs.uhr.b2,
 				     OFDM_RX_FRAME_UHR_STA_RU_PS160,
 				     IEEE80211_RADIOTAP_UHR_DATA8_DRU_RRU_ALLOC_TB_FMT_PS_160);
