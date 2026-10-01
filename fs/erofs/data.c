@@ -33,7 +33,10 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset, bool need_kmap)
 
 	if (buf->page) {
 		folio = page_folio(buf->page);
-		if (folio_file_page(folio, index) != buf->page)
+		if (folio->mapping != buf->mapping)
+			/* the cached folio belongs to another address_space */
+			folio = NULL;
+		else if (folio_file_page(folio, index) != buf->page)
 			erofs_unmap_metabuf(buf);
 	}
 	if (!folio || !folio_contains(folio, index)) {
