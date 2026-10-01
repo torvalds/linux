@@ -1357,7 +1357,7 @@ static int add_ep(struct cxl_ep *new)
 {
 	struct cxl_port *port = new->dport->port;
 
-	guard(device)(&port->dev);
+	device_lock_assert(&port->dev);
 	if (port->dead)
 		return -ENXIO;
 
@@ -1373,6 +1373,11 @@ static int add_ep(struct cxl_ep *new)
  * Intermediate CXL ports are scanned based on the arrival of endpoints.
  * When those endpoints depart the port can be destroyed once all
  * endpoints that care about that port have been removed.
+ *
+ * Context: Caller must hold the device lock of @dport->port, which pins
+ *          @dport, across the lookup of @dport and this call. @dport->port
+ *          is never the CXL root port, whose dports are pinned by its
+ *          uport_dev instead.
  */
 static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 {
@@ -1703,13 +1708,15 @@ static struct cxl_dport *probe_dport(struct cxl_port *port,
 	return drv->add_dport(port, dport_dev);
 }
 
-static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
-					      struct cxl_port *parent_port,
-					      struct cxl_dport *parent_dport,
-					      struct device *uport_dev,
-					      struct device *dport_dev)
+static int devm_cxl_create_port(struct device *ep_dev,
+				struct cxl_port *parent_port,
+				struct cxl_dport *parent_dport,
+				struct device *uport_dev,
+				struct device *dport_dev)
 {
 	resource_size_t component_reg_phys;
+	struct cxl_dport *dport;
+	int rc;
 
 	device_lock_assert(&parent_port->dev);
 	if (!parent_port->dev.driver) {
@@ -1726,7 +1733,7 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		port = devm_cxl_add_port(&parent_port->dev, uport_dev,
 					 component_reg_phys, parent_dport);
 		if (IS_ERR(port))
-			return ERR_CAST(port);
+			return PTR_ERR(port);
 
 		/*
 		 * retry to make sure a port is found. a port device
@@ -1734,7 +1741,7 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		 */
 		port = find_cxl_port_by_uport(uport_dev);
 		if (!port)
-			return ERR_PTR(-ENODEV);
+			return -ENODEV;
 
 		dev_dbg(ep_dev, "created port %s:%s\n",
 			dev_name(&port->dev), dev_name(port->uport_dev));
@@ -1743,11 +1750,25 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		 * Port was created before right before this function is
 		 * called. Signal the caller to deal with it.
 		 */
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 
+	/* @dport is only valid while @port's lock is held */
 	guard(device)(&port->dev);
-	return probe_dport(port, dport_dev);
+	dport = probe_dport(port, dport_dev);
+	if (IS_ERR(dport))
+		return PTR_ERR(dport);
+
+	rc = cxl_add_ep(dport, ep_dev);
+	if (rc == -EBUSY) {
+		/*
+		 * "can't" happen, but this error code means
+		 * something to the caller, so translate it.
+		 */
+		rc = -ENXIO;
+	}
+
+	return rc;
 }
 
 static int add_port_attach_ep(struct cxl_memdev *cxlmd,
@@ -1755,7 +1776,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 			      struct device *dport_dev)
 {
 	struct device *dparent = grandparent(dport_dev);
-	struct cxl_dport *dport, *parent_dport;
+	struct cxl_dport *parent_dport;
 	int rc;
 
 	if (is_cxl_host_bridge(dparent)) {
@@ -1784,33 +1805,23 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 				return PTR_ERR(parent_dport);
 		}
 
-		dport = devm_cxl_create_port(&cxlmd->dev, parent_port,
-					     parent_dport, uport_dev,
-					     dport_dev);
-		if (IS_ERR(dport)) {
-			/* Port or dport already exists, restart iteration */
-			if (PTR_ERR(dport) == -EAGAIN || PTR_ERR(dport) == -EBUSY)
-				return 0;
-			return PTR_ERR(dport);
-		}
+		rc = devm_cxl_create_port(&cxlmd->dev, parent_port,
+					  parent_dport, uport_dev, dport_dev);
 	}
 
-	rc = cxl_add_ep(dport, &cxlmd->dev);
-	if (rc == -EBUSY) {
-		/*
-		 * "can't" happen, but this error code means
-		 * something to the caller, so translate it.
-		 */
-		rc = -ENXIO;
-	}
+	/* Port or dport already exists, restart iteration */
+	if (rc == -EAGAIN || rc == -EBUSY)
+		return 0;
 
 	return rc;
 }
 
-static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
-					   struct device *dport_dev)
+static int find_or_add_dport_attach_ep(struct cxl_memdev *cxlmd,
+				       struct cxl_port *port,
+				       struct device *dport_dev)
 {
 	struct cxl_dport *dport;
+	int rc;
 
 	/*
 	 * The port is already visible in CXL hierarchy, but it may still
@@ -1826,13 +1837,28 @@ static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
 	if (!dport) {
 		dport = probe_dport(port, dport_dev);
 		if (IS_ERR(dport))
-			return dport;
+			return PTR_ERR(dport);
 
 		/* New dport added, restart iteration */
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 
-	return dport;
+	/* @dport is only valid while @port's lock is held */
+	rc = cxl_add_ep(dport, &cxlmd->dev);
+
+	/*
+	 * If the endpoint already exists in the port's list,
+	 * that's ok, it was added on a previous pass.
+	 * Otherwise, retry in add_port_attach_ep() after taking
+	 * the parent_port lock as the current port may be being
+	 * reaped.
+	 */
+	if (rc && rc != -EBUSY)
+		return rc;
+
+	cxl_gpf_port_setup(dport);
+
+	return 0;
 }
 
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
@@ -1861,7 +1887,6 @@ retry:
 	for (iter = dev; iter; iter = grandparent(iter)) {
 		struct device *dport_dev = grandparent(iter);
 		struct device *uport_dev;
-		struct cxl_dport *dport;
 
 		if (is_cxl_host_bridge(dport_dev))
 			return 0;
@@ -1888,26 +1913,12 @@ retry:
 			 * RP port enumerated by cxl_acpi without dport will
 			 * have the dport added here.
 			 */
-			dport = find_or_add_dport(port, dport_dev);
-			if (IS_ERR(dport)) {
-				if (PTR_ERR(dport) == -EAGAIN)
-					goto retry;
-				return PTR_ERR(dport);
-			}
-
-			rc = cxl_add_ep(dport, &cxlmd->dev);
-
-			/*
-			 * If the endpoint already exists in the port's list,
-			 * that's ok, it was added on a previous pass.
-			 * Otherwise, retry in add_port_attach_ep() after taking
-			 * the parent_port lock as the current port may be being
-			 * reaped.
-			 */
-			if (rc && rc != -EBUSY)
+			rc = find_or_add_dport_attach_ep(cxlmd, port,
+							 dport_dev);
+			if (rc == -EAGAIN)
+				goto retry;
+			if (rc)
 				return rc;
-
-			cxl_gpf_port_setup(dport);
 
 			/* Any more ports to add between this one and the root? */
 			if (!dev_is_cxl_root_child(&port->dev))
