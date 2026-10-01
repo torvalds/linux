@@ -138,9 +138,16 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 		return _SUCCESS;
 
 	ret = rtw_register_tx_alive(padapter);
-	if (ret != _SUCCESS) {
+	if (ret == -EAGAIN) {
+		/*
+		 * Leave the buffers queued and XMIT_ALIVE registered so
+		 * cpwm_int_hdl() can wake this thread for another attempt.
+		 * Return success to keep the TX thread running.
+		 */
 		return _SUCCESS;
 	}
+	if (ret)
+		return _FAIL;
 
 	do {
 		queue_empty = rtl8723_dequeue_writeport(padapter);
