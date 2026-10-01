@@ -24,11 +24,11 @@ static inline int __stsch(struct subchannel_id schid, struct schib *addr)
 	exception = 1;
 	asm_inline volatile(
 		"	lgr	1,%[r1]\n"
-		"	stsch	%[addr]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	stsch	%[addr]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, ccode), [addr] "=Q" (*addr), [exc] "+d" (exception)
 		: [r1] "d" (r1)
 		: CC_CLOBBER_LIST("1"));
@@ -54,11 +54,11 @@ static inline int __msch(struct subchannel_id schid, struct schib *addr)
 	exception = 1;
 	asm_inline volatile(
 		"	lgr	1,%[r1]\n"
-		"	msch	%[addr]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	msch	%[addr]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, ccode), [exc] "+d" (exception)
 		: [r1] "d" (r1), [addr] "Q" (*addr)
 		: CC_CLOBBER_LIST("1"));
@@ -108,11 +108,11 @@ static inline int __ssch(struct subchannel_id schid, union orb *addr)
 	exception = 1;
 	asm_inline volatile(
 		"	lgr	1,%[r1]\n"
-		"	ssch	%[addr]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	ssch	%[addr]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, ccode), [exc] "+d" (exception)
 		: [r1] "d" (r1), [addr] "Q" (*addr)
 		: CC_CLOBBER_LIST("memory", "1"));
@@ -179,11 +179,11 @@ int chsc(void *chsc_area)
 
 	exception = 1;
 	asm_inline volatile(
-		"	.insn	rre,0xb25f0000,%[chsc_area],0\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rre,0xb25f0000,%[chsc_area],0\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), "+m" (*(addr_type *)chsc_area), [exc] "+d" (exception)
 		: [chsc_area] "d" (chsc_area)
 		: CC_CLOBBER);
