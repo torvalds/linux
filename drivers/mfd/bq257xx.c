@@ -52,8 +52,18 @@ static const struct regmap_access_table bq25792_writeable_regs = {
 };
 
 static const struct regmap_range bq25792_volatile_reg_ranges[] = {
+	regmap_reg_range(BQ25792_REG05_INPUT_VOLTAGE_LIMIT,
+			 BQ25792_REG06_INPUT_CURRENT_LIMIT + 1),
+	regmap_reg_range(BQ25792_REG0F_CHARGER_CONTROL_0,
+			 BQ25792_REG0F_CHARGER_CONTROL_0),
+	regmap_reg_range(BQ25792_REG11_CHARGER_CONTROL_2,
+			 BQ25792_REG11_CHARGER_CONTROL_2),
+	regmap_reg_range(BQ25792_REG13_CHARGER_CONTROL_4,
+			 BQ25792_REG13_CHARGER_CONTROL_4),
 	regmap_reg_range(BQ25792_REG19_ICO_CURRENT_LIMIT,
 			 BQ25792_REG27_FAULT_FLAG_1),
+	regmap_reg_range(BQ25792_REG2E_ADC_CONTROL,
+			 BQ25792_REG2E_ADC_CONTROL),
 	regmap_reg_range(BQ25792_REG31_IBUS_ADC,
 			 BQ25792_REG47_DPDM_DRIVER),
 };
