@@ -80,7 +80,7 @@ static const uint8_t acl_b[] = {
 
 struct daemon_state {
 	pthread_mutex_t lock;
-	const uint8_t  *acl;
+	uint8_t		*acl;
 	size_t          acl_size;
 	int             getxattr_count;
 };
@@ -142,15 +142,26 @@ static void fs_getattr(fuse_req_t req, fuse_ino_t ino,
 static void fs_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
 			size_t size)
 {
+	uint8_t *acl = NULL;
+	size_t acl_size;
+
 	if (ino != FILE_INO ||
 	    strcmp(name, "system.posix_acl_access") != 0) {
 		fuse_reply_err(req, ENODATA);
 		return;
 	}
 
+	if (size) {
+		acl = malloc(size);
+		if (!acl) {
+			fuse_reply_err(req, ENOMEM);
+			return;
+		}
+	}
 	pthread_mutex_lock(&g_ds.lock);
-	const uint8_t *acl      = g_ds.acl;
-	size_t         acl_size = g_ds.acl_size;
+	acl_size = g_ds.acl_size;
+	if (acl && (size >= acl_size))
+		memcpy(acl, g_ds.acl, acl_size);
 	g_ds.getxattr_count++;
 	pthread_mutex_unlock(&g_ds.lock);
 
@@ -160,6 +171,8 @@ static void fs_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
 		fuse_reply_err(req, ERANGE);
 	else
 		fuse_reply_buf(req, (const char *)acl, acl_size);
+
+	free(acl);
 }
 
 static const struct fuse_lowlevel_ops fs_ops = {
@@ -180,8 +193,10 @@ FIXTURE_SETUP(acl_cache)
 	char err[MAX_ERR_MSG];
 
 	pthread_mutex_lock(&g_ds.lock);
-	g_ds.acl = acl_a;
 	g_ds.acl_size = sizeof(acl_a);
+	g_ds.acl = malloc(g_ds.acl_size);
+	ASSERT_NE(g_ds.acl, NULL);
+	memcpy(g_ds.acl, acl_a, g_ds.acl_size);
 	g_ds.getxattr_count = 0;
 	pthread_mutex_unlock(&g_ds.lock);
 
@@ -195,6 +210,7 @@ FIXTURE_SETUP(acl_cache)
 FIXTURE_TEARDOWN(acl_cache)
 {
 	fs_teardown(&self->ctx);
+	free(g_ds.acl);
 }
 
 static int do_force_statx(const char *path)
@@ -210,6 +226,7 @@ TEST_F(acl_cache, stale_after_force_sync)
 	char    buf[512];
 	ssize_t sz;
 	int     count;
+	uint8_t *acl;
 
 	/*
 	 * Step 1: two getxattr calls before any statx(FORCE_SYNC).
@@ -270,8 +287,13 @@ TEST_F(acl_cache, stale_after_force_sync)
 	 * !fc->posix_acl mounts (it skips forget_all_cached_acls in that case).
 	 * On a fixed kernel the ACL was never cached, so this is moot.
 	 */
+	acl = malloc(sizeof(acl_b));
+	ASSERT_NE(acl, NULL);
+	memcpy(acl, acl_b, sizeof(acl_b));
+
 	pthread_mutex_lock(&g_ds.lock);
-	g_ds.acl      = acl_b;
+	free(g_ds.acl);
+	g_ds.acl      = acl;
 	g_ds.acl_size = sizeof(acl_b);
 	pthread_mutex_unlock(&g_ds.lock);
 	TH_LOG("step 4: daemon switched to ACL_B (%zu bytes)", sizeof(acl_b));
