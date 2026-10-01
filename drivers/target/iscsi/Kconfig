@@ -3,8 +3,11 @@ config ISCSI_TARGET
 	tristate "SCSI Target Mode Stack"
 	depends on INET
 	select CRC32
-	select CRYPTO
-	select CRYPTO_HASH
+	select CRYPTO_LIB_MD5
+	select CRYPTO_LIB_SHA1
+	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_SHA3
+	select CRYPTO_LIB_UTILS
 	help
 	Say M to enable the SCSI target mode stack. A SCSI target mode stack
 	is software that makes local storage available over a storage network
