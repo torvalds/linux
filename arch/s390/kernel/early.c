@@ -153,16 +153,25 @@ static __init void setup_topology(void)
 void __init __do_early_pgm_check(struct pt_regs *regs)
 {
 	struct lowcore *lc = get_lowcore();
-	unsigned long ip;
 
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = lc->trans_exc_code;
 	regs->last_break = lc->pgm_last_break;
-	ip = __rewind_psw(regs->psw, regs->int_code >> 16);
+	regs->monitor_code = lc->monitor_code;
 
 	/* Monitor Event? Might be a warning */
 	if ((regs->int_code & PGM_INT_CODE_MASK) == 0x40) {
-		if (report_bug(ip, regs) == BUG_TRAP_TYPE_WARN)
+		enum bug_trap_type btt;
+		unsigned long ip;
+
+		if (regs->monitor_code == MONCODE_BUG_ARG) {
+			regs->psw.addr = regs->gprs[14];
+			btt = report_bug_entry((struct bug_entry *)regs->gprs[2], regs);
+		} else {
+			ip = __rewind_psw(regs->psw, regs->int_code >> 16);
+			btt = report_bug(ip, regs);
+		}
+		if (btt == BUG_TRAP_TYPE_WARN)
 			return;
 	}
 	if (fixup_exception(regs))
