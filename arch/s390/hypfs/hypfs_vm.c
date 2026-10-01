@@ -42,9 +42,9 @@ static int diag2fc(int size, char* query, void *addr)
 
 	diag_stat_inc(DIAG_STAT_X2FC);
 	asm volatile(
-		"	diag    %0,%1,0x2fc\n"
-		"0:	nopr	%%r7\n"
-		EX_TABLE(0b,0b)
+		"0:	diag    %0,%1,0x2fc\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: "=d" (residual_cnt), "+d" (rc) : "0" (&parm_list) : "memory");
 
 	if ((rc != 0 ) && (rc != -2))
