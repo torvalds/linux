@@ -106,9 +106,9 @@ static bool ex_handler_ua_mvcos(const struct exception_table_entry *ex,
 	regs->psw.addr = extable_fixup(ex);
 	insn = (struct insn_ssf *)regs->psw.addr;
 	if (from)
-		uaddr = regs->gprs[insn->b2] + insn->d2;
+		uaddr = (insn->b2 ? regs->gprs[insn->b2] : 0) + insn->d2;
 	else
-		uaddr = regs->gprs[insn->b1] + insn->d1;
+		uaddr = (insn->b1 ? regs->gprs[insn->b1] : 0) + insn->d1;
 	remainder = PAGE_SIZE - (uaddr & (PAGE_SIZE - 1));
 	if (regs->gprs[insn->r3] <= remainder)
 		remainder = 0;
