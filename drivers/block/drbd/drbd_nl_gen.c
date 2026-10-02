@@ -638,10 +638,6 @@ const struct genl_split_ops drbd_nl_ops[32] = {
 	},
 };
 
-static const struct genl_multicast_group drbd_nl_mcgrps[] = {
-	[DRBD_NLGRP_EVENTS] = { "events", },
-};
-
 static int __drbd_cfg_context_from_attrs(struct drbd_cfg_context *s,
 		struct nlattr ***ret_nested_attribute_table,
 		struct genl_info *info)
