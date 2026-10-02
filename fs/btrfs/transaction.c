@@ -1920,14 +1920,21 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * To co-operate with that hack, we do hack again.
 	 * Or snapshot will be greatly slowed down by a subtree qgroup rescan
 	 */
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL)
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL) {
 		ret = qgroup_account_snapshot(trans, root, parent_root,
 					      pending->inherit, objectid);
-	else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
+	} else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE) {
 		ret = btrfs_qgroup_inherit(trans, btrfs_root_id(root), objectid,
 					   btrfs_root_id(parent_root), pending->inherit);
-	if (unlikely(ret < 0))
-		goto fail;
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
+	}
 
 	ret = btrfs_insert_dir_item(trans, &fname.disk_name,
 				    parent_inode, &key, BTRFS_FT_DIR, index, NULL);
