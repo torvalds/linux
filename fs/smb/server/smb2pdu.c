@@ -5444,6 +5444,8 @@ static int readdir_info_level_struct_sz(int info_level)
 		return sizeof(FILE_ID_FULL_DIR_INFO);
 	case FILEID_BOTH_DIRECTORY_INFORMATION:
 		return sizeof(struct file_id_both_directory_info);
+	case FILE_ID_EXTD_DIRECTORY_INFORMATION:
+		return sizeof(struct file_id_extd_directory_info);
 	case FileIdAllExtdBothDirectoryInformation:
 		return sizeof(struct file_id_all_extd_both_directory_info);
 	case SMB_FIND_FILE_POSIX_INFO:
@@ -5514,6 +5516,16 @@ static int dentry_name(struct ksmbd_dir_info *d_info, int info_level)
 		d_info->rptr += le32_to_cpu(fibdinfo->NextEntryOffset);
 		d_info->name = fibdinfo->FileName;
 		d_info->name_len = le32_to_cpu(fibdinfo->FileNameLength);
+		return 0;
+	}
+	case FILE_ID_EXTD_DIRECTORY_INFORMATION:
+	{
+		struct file_id_extd_directory_info *info;
+
+		info = (struct file_id_extd_directory_info *)d_info->rptr;
+		d_info->rptr += le32_to_cpu(info->NextEntryOffset);
+		d_info->name = info->FileName;
+		d_info->name_len = le32_to_cpu(info->FileNameLength);
 		return 0;
 	}
 	case FileIdAllExtdBothDirectoryInformation:
@@ -5761,6 +5773,26 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			fibdinfo->ExtFileAttributes |= FILE_ATTRIBUTE_HIDDEN_LE;
 		memcpy(fibdinfo->FileName, conv_name, conv_len);
 		fibdinfo->NextEntryOffset = cpu_to_le32(next_entry_offset);
+		break;
+	}
+	case FILE_ID_EXTD_DIRECTORY_INFORMATION:
+	{
+		struct file_id_extd_directory_info *info;
+
+		info = (struct file_id_extd_directory_info *)kstat;
+		info->FileNameLength = cpu_to_le32(conv_len);
+		info->EaSize = 0;
+		info->ReparsePointTag =
+			smb2_get_reparse_tag_special_file(ksmbd_kstat->kstat->mode);
+		if (info->ReparsePointTag)
+			info->ExtFileAttributes |= FILE_ATTRIBUTE_REPARSE_POINT_LE;
+		/* The VFS does not provide a 128-bit file ID. */
+		memset(info->FileId, 0, sizeof(info->FileId));
+		if (d_info->hide_dot_file && d_info->name[0] == '.')
+			info->ExtFileAttributes |= FILE_ATTRIBUTE_HIDDEN_LE;
+		memcpy(info->FileName, conv_name, conv_len);
+		memset(info->FileName + conv_len, 0, d_info->last_entry_off_align);
+		info->NextEntryOffset = cpu_to_le32(next_entry_offset);
 		break;
 	}
 	case FileIdAllExtdBothDirectoryInformation:
@@ -6036,6 +6068,17 @@ static int reserve_populate_dentry(struct ksmbd_dir_info *d_info,
 		fibdinfo->NextEntryOffset = cpu_to_le32(next_entry_offset);
 		break;
 	}
+	case FILE_ID_EXTD_DIRECTORY_INFORMATION:
+	{
+		struct file_id_extd_directory_info *info;
+
+		info = (struct file_id_extd_directory_info *)d_info->wptr;
+		memcpy(info->FileName, d_info->name, d_info->name_len);
+		info->FileName[d_info->name_len] = 0x00;
+		info->FileNameLength = cpu_to_le32(d_info->name_len);
+		info->NextEntryOffset = cpu_to_le32(next_entry_offset);
+		break;
+	}
 	case FileIdAllExtdBothDirectoryInformation:
 	{
 		struct file_id_all_extd_both_directory_info *info;
@@ -6108,6 +6151,7 @@ static int verify_info_level(int info_level)
 	case FILEID_FULL_DIRECTORY_INFORMATION:
 	case FILEID_BOTH_DIRECTORY_INFORMATION:
 	case SMB_FIND_FILE_POSIX_INFO:
+	case FILE_ID_EXTD_DIRECTORY_INFORMATION:
 	case FileIdAllExtdBothDirectoryInformation:
 		break;
 	default:
