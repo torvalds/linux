@@ -548,6 +548,37 @@ TEST_F(hid_bpf, test_hid_user_raw_request_call)
 
 /*
  * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is called and does the expected.
+ */
+TEST_F(hid_bpf, test_hid_user_raw_request_call_eio)
+{
+	struct hid_hw_request_syscall_args args = {
+		.retval = -1,
+		.type = HID_FEATURE_REPORT,
+		.request_type = HID_REQ_GET_PROTOCOL,
+		.size = MAX_BUF_SIZE,
+	};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
+			    .ctx_in = &args,
+			    .ctx_size_in = sizeof(args),
+	);
+	int err, prog_fd;
+
+	LOAD_BPF;
+
+	args.hid = self->hid.hid_id;
+	args.data[0] = 1; /* report ID */
+
+	prog_fd = bpf_program__fd(self->skel->progs.hid_user_raw_request);
+
+	err = bpf_prog_test_run_opts(prog_fd, &tattrs);
+	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
+
+	ASSERT_EQ(args.retval, -EIO);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
  * check that the program is called and prevents the
  * call to uhid.
  */
