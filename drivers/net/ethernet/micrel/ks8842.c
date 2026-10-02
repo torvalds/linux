@@ -455,7 +455,7 @@ static int ks8842_tx_frame_dma(struct sk_buff *skb, struct net_device *netdev)
 
 	ctl->adesc->callback_param = netdev;
 	ctl->adesc->callback = ks8842_dma_tx_cb;
-	ctl->adesc->tx_submit(ctl->adesc);
+	dmaengine_submit(ctl->adesc);
 
 	netdev->stats.tx_bytes += skb->len;
 
@@ -569,7 +569,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 
 		ctl->adesc->callback_param = netdev;
 		ctl->adesc->callback = ks8842_dma_rx_cb;
-		ctl->adesc->tx_submit(ctl->adesc);
+		dmaengine_submit(ctl->adesc);
 	} else {
 		err = -ENOMEM;
 		sg_dma_address(sg) = 0;
