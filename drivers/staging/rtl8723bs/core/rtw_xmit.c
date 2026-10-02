@@ -2464,37 +2464,35 @@ struct xmit_buf *dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpri
 	return pxmitbuf;
 }
 
-signed int check_pending_xmitbuf(struct xmit_priv *pxmitpriv)
+bool has_pending_xmitbuf(struct xmit_priv *pxmitpriv)
 {
 	struct __queue *pqueue;
-	signed int	ret = false;
+	bool xmitbuf_pending;
 
 	pqueue = &pxmitpriv->pending_xmitbuf_queue;
 
 	spin_lock_bh(&pqueue->lock);
 
-	if (!list_empty(&pqueue->queue))
-		ret = true;
+	xmitbuf_pending = !list_empty(&pqueue->queue);
 
 	spin_unlock_bh(&pqueue->lock);
 
-	return ret;
+	return xmitbuf_pending;
 }
 
 int rtw_xmit_thread(void *context)
 {
-	s32 err;
+	bool xmit_status;
 	struct adapter *padapter;
 
-	err = _SUCCESS;
 	padapter = context;
 
 	allow_signal(SIGTERM);
 
 	do {
-		err = rtw_hal_xmit_thread_handler(padapter);
+		xmit_status  = rtw_hal_xmit_thread_handler(padapter);
 		flush_signals_thread();
-	} while (err == _SUCCESS);
+	} while (xmit_status == _SUCCESS);
 
 	complete(&padapter->xmitpriv.terminate_xmitthread_comp);
 
