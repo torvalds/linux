@@ -290,6 +290,12 @@ static void monitor_event_exception(struct pt_regs *regs)
 	}
 }
 
+/*
+ * Content of the faulting CPU's lowcore, copied by stack_invalid().
+ */
+struct lowcore stack_invalid_lowcore;
+int stack_invalid_lowcore_used;
+
 void kernel_stack_invalid(struct pt_regs *regs)
 {
 	/*
