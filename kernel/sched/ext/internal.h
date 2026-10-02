@@ -259,6 +259,9 @@ struct scx_cgroup_init_args {
 	u64			bw_period_us;
 	u64			bw_quota_us;
 	u64			bw_burst_us;
+
+	/* whether the cgroup is configured SCHED_IDLE via cpu.idle */
+	bool			sched_idle;
 };
 
 enum scx_cpu_preempt_reason {
@@ -569,6 +572,12 @@ struct sched_ext_ops {
 	 *
 	 * Specify the %SCX_OPS_KEEP_BUILTIN_IDLE flag to keep the built-in idle
 	 * tracking.
+	 *
+	 * Only actual transitions are reported. A CPU that is claimed with an
+	 * idle pick and kicked but dispatches no task returns to idle without a
+	 * transition. A scheduler tracking idle CPUs itself must restore the
+	 * idle state from ops.dispatch() when it returns without the next task
+	 * to run.
 	 */
 	void (*update_idle)(s32 cpu, bool idle);
 
@@ -1552,6 +1561,7 @@ struct scx_sched {
 	 * and passes it to the callback's __arena argument.
 	 */
 	struct scx_cmask * __percpu *set_cmask_scratch;
+	struct scx_cmask *online_cmask;
 
 	DECLARE_BITMAP(has_op, SCX_OPI_END);
 
@@ -2078,7 +2088,7 @@ void scx_disable_and_exit_task(struct scx_sched *sch, struct task_struct *p);
 void scx_cgroup_lock(void);
 void scx_cgroup_unlock(void);
 #endif
-s32 scx_set_cmask_scratch_alloc(struct scx_sched *sch);
+s32 scx_alloc_kern_arena_objs(struct scx_sched *sch);
 void scx_disable_bypass_dsp(struct scx_sched *sch);
 void scx_bypass(struct scx_sched *sch, bool bypass);
 s32 scx_link_sched(struct scx_sched *sch);

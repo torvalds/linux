@@ -213,5 +213,77 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1p target 5ms interval 100ms",
         "matchCount": "1",
         "teardown": ["$TC qdisc del dev $DEV1 handle 1: root"]
+    },
+    {
+        "id": "6e44",
+        "name": "Create CODEL with 1us interval, accepted (sub-tick, uAPI locked)",
+        "category": [
+            "qdisc",
+            "codel"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel interval 1us",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 0us",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DUMMY handle 1: root"]
+    },
+    {
+        "id": "a8c3",
+        "name": "Create CODEL with 3us interval, accepted (two ticks)",
+        "category": [
+            "qdisc",
+            "codel"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel interval 3us",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 2us",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DUMMY handle 1: root"]
+    },
+    {
+        "id": "a695",
+        "name": "Create CODEL with 1024us interval boundary accepted",
+        "category": [
+            "qdisc",
+            "codel"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel interval 1024us",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 1.02ms",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DUMMY handle 1: root"]
+    },
+    {
+        "id": "9793",
+        "name": "Create CODEL with 1us target, accepted (target not in control law)",
+        "category": [
+            "qdisc",
+            "codel"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel target 1us",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 0us interval 100ms",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DUMMY handle 1: root"]
     }
 ]

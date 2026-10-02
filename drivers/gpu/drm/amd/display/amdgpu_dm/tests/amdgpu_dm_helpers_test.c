@@ -2442,17 +2442,21 @@ static void dm_test_is_dp_sink_present_null_priv(struct kunit *test)
  * dm_test_dmub_outbox_interrupt_control_null_dc - Test outbox irq control with NULL dc
  * @test: The KUnit test context
  *
- * dc_interrupt_set() is NULL-safe and returns false when dc is NULL, so the
+ * amdgpu_dm_irq_set() is NULL-safe and returns false when dc is NULL, so the
  * helper returns false without touching real interrupt hardware.
  */
 static void dm_test_dmub_outbox_interrupt_control_null_dc(struct kunit *test)
 {
+	struct amdgpu_device *adev;
 	struct dc_context *ctx;
 
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	ctx->driver_context = adev;
 
-	/* ctx->dc is NULL → dc_interrupt_set returns false */
+	/* adev->dm.dc is NULL → amdgpu_dm_irq_set returns false */
 	KUNIT_EXPECT_FALSE(test, dm_helpers_dmub_outbox_interrupt_control(ctx, true));
 	KUNIT_EXPECT_FALSE(test, dm_helpers_dmub_outbox_interrupt_control(ctx, false));
 }

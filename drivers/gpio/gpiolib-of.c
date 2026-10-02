@@ -788,12 +788,12 @@ static int of_gpio_notify(struct notifier_block *nb, unsigned long action,
 		if (!of_property_read_bool(rd->dn, "gpio-hog"))
 			return NOTIFY_DONE;	/* not for us */
 
-		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_DONE;
-
 		gdev = of_find_gpio_device_by_node(rd->dn->parent);
 		if (!gdev)
 			return NOTIFY_DONE;	/* not for us */
+
+		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_DONE;
 
 		ret = gpiochip_add_hog(gpio_device_get_chip(gdev), of_fwnode_handle(rd->dn));
 		if (ret < 0) {

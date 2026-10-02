@@ -181,6 +181,7 @@ config SND_SOC_AMD_LEGACY_SDW_MACH
 	select SND_SOC_RT715_SDW
 	select SND_SOC_RT715_SDCA_SDW
 	select SND_SOC_RT722_SDCA_SDW
+	select SND_SOC_TAS2783_SDW
 	help
 	  This option enables Legacy(No DSP) sound card support for SoundWire
 	  enabled AMD platforms along with ACP PDM controller.

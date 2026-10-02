@@ -180,8 +180,6 @@ struct ib_uverbs_file {
 	struct page *disassociate_page;
 
 	struct xarray		idr;
-
-	struct mutex disassociation_lock;
 };
 
 extern const struct uverbs_obj_type_class uverbs_idr_class;

@@ -753,6 +753,7 @@ config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
 	depends on PPC_PSERIES && SCSI
 	depends on SCSI_FC_ATTRS
+	depends on NVME_FC || NVME_FC=n
 	help
 	  This is the IBM POWER Virtual FC Client
 

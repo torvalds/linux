@@ -1,0 +1,128 @@
+[
+    {
+        "id": "e3cc",
+        "name": "HHF hh_limit rejects value above 2*HH_FLOWS_CNT cap (4294967295)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hhf"
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root hhf hh_limit 4294967295",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+.*hh_limit 2048",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "f681",
+        "name": "HHF hh_limit rejects 65536 (above 2*HH_FLOWS_CNT cap)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hhf"
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root hhf hh_limit 65536",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+.*hh_limit 2048",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "223d",
+        "name": "HHF hh_limit accepts boundary value 2048 (2*HH_FLOWS_CNT)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hhf hh_limit 100"
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root hhf hh_limit 2048",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+.*hh_limit 2048",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "147f",
+        "name": "HHF hh_limit rejects first value above cap (2049)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hhf"
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root hhf hh_limit 2049",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+.*hh_limit 2048",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "4d4f",
+        "name": "HHF add-time hh_limit 500 is preserved (init does not clobber user value)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hhf hh_limit 500",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+.*hh_limit 500",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "ca99",
+        "name": "HHF add-time hh_limit 4294967295 is rejected (no qdisc installed)",
+        "category": [
+            "qdisc",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hhf hh_limit 4294967295",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hhf 1: root",
+        "matchCount": "0",
+        "teardown": []
+    }
+]

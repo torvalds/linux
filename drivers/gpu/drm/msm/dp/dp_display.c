@@ -756,6 +756,7 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
 	struct msm_dp_link_info *link_info;
 	u32 mode_rate_khz = 0, supported_rate_khz = 0, mode_bpp = 0;
 	int mode_pclk_khz = mode->clock;
+	int link_pclk_khz;
 	bool is_yuv_420;
 
 	if (!dp || !mode_pclk_khz || !dp->connector) {
@@ -775,6 +776,8 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
 	if (is_yuv_420 && !msm_dp_display->panel->vsc_sdp_supported)
 		return MODE_NO_420;
 
+	link_pclk_khz = is_yuv_420 ? mode_pclk_khz / 2 : mode_pclk_khz;
+
 	if (is_yuv_420 || msm_dp_display->wide_bus_supported)
 		mode_pclk_khz /= 2;
 
@@ -786,9 +789,9 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
 		mode_bpp = default_bpp;
 
 	mode_bpp = msm_dp_panel_get_mode_bpp(msm_dp_display->panel,
-			mode_bpp, mode_pclk_khz);
+			mode_bpp, link_pclk_khz);
 
-	mode_rate_khz = mode_pclk_khz * mode_bpp;
+	mode_rate_khz = link_pclk_khz * mode_bpp;
 	supported_rate_khz = link_info->num_lanes * link_info->rate * 8;
 
 	if (mode_rate_khz > supported_rate_khz)
@@ -1457,6 +1460,20 @@ void msm_dp_display_atomic_disable(struct msm_dp *dp)
 	struct msm_dp_display_private *msm_dp_display;
 
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
+
+	/*
+	 * If .atomic_enable() bailed out - link training failure is the common
+	 * case - the mainlink was never brought up and ->power_on stayed false.
+	 * Driving the PUSH_IDLE pattern into a controller that was never
+	 * enabled times out, and .atomic_post_disable() then drops the
+	 * controller's runtime-PM reference without tearing the PHY back down,
+	 * because msm_dp_display_disable() returns early on !power_on.  On
+	 * glymur (Snapdragon X2 Elite) that combination is answered by a
+	 * TrustZone-level SOCCP/ADSP force-stop and a silent SoC reset.
+	 * There is nothing to push idle, so leave it alone.
+	 */
+	if (!dp->power_on)
+		return;
 
 	msm_dp_ctrl_push_idle(msm_dp_display->ctrl);
 }

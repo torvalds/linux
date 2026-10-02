@@ -770,10 +770,12 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto deallocate_vmid;
 	}
+
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		retval = allocate_hqd(dqm, q);
 		if (retval)
@@ -2250,7 +2252,8 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto out_deallocate_doorbell;
 	}

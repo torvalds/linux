@@ -414,7 +414,7 @@ static int ksmbd_server_process_request(struct ksmbd_conn *conn)
 
 static int ksmbd_server_terminate_conn(struct ksmbd_conn *conn)
 {
-	ksmbd_sessions_deregister(conn);
+	ksmbd_conn_sessions_cleanup(conn);
 	destroy_lease_table(conn);
 	return 0;
 }

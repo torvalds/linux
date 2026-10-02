@@ -745,6 +745,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.links = lnl_cs42l43_l0,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-cs42l43-l0.tplg",
+		.machine_check = snd_soc_acpi_intel_force_function_topology,
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{

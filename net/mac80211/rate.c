@@ -372,6 +372,14 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	u32 rate_flags = 0;
 	int i;
 
+	/*
+	 * Frames that shouldn't use the rate mask could be anything,
+	 * even on a different band, so don't take the sta into account
+	 * to avoid ending up without rates.
+	 */
+	if (info->control.flags & IEEE80211_TX_CTRL_DONT_USE_RATE_MASK)
+		sta = NULL;
+
 	if (sband->band == NL80211_BAND_S1GHZ) {
 		info->control.rates[0].flags |= IEEE80211_TX_RC_S1G_MCS;
 		info->control.rates[0].idx = 0;

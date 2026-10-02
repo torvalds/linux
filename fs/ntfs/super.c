@@ -2064,8 +2064,7 @@ static unsigned long __get_nr_free_mft_records(struct ntfs_volume *vol,
 	/* If errors occurred we may well have gone below zero, fix this. */
 	if (nr_free < 0)
 		nr_free = 0;
-	else
-		atomic64_set(&vol->free_mft_records, nr_free);
+	atomic64_set(&vol->free_mft_records, nr_free);
 
 	ntfs_debug("Exiting.");
 	return nr_free;
@@ -2131,7 +2130,14 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 
 	/* Free inodes in fs (based on current total count). */
-	sfs->f_ffree = atomic64_read(&vol->free_mft_records);
+	size = atomic64_read(&vol->free_mft_records);
+	if (unlikely(size < 0 || size > (s64)sfs->f_files))
+		ntfs_warning(vol->sb, "Invalid free MFT record count %lld.", size);
+	if (size < 0)
+		size = 0;
+	else if (size > (s64)sfs->f_files)
+		size = sfs->f_files;
+	sfs->f_ffree = size;
 
 	/*
 	 * File system id. This is extremely *nix flavour dependent and even

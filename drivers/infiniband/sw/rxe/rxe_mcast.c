@@ -175,7 +175,9 @@ struct rxe_mcg *rxe_lookup_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
  * @mgid: multicast address as a gid
  * @mcg: new mcg object
  *
- * Context: caller should hold rxe->mcg lock
+ * Initializes the mcg fields. The mcg is private and not yet visible in
+ * mcg_tree, so this may run without rxe->mcg_lock; __rxe_publish_mcg()
+ * makes it visible under the lock once it is ready.
  */
 static void __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 			   struct rxe_mcg *mcg)
@@ -184,13 +186,22 @@ static void __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 	memcpy(&mcg->mgid, mgid, sizeof(mcg->mgid));
 	INIT_LIST_HEAD(&mcg->qp_list);
 	mcg->rxe = rxe;
+}
 
-	/* caller holds a ref on mcg but that will be
-	 * dropped when mcg goes out of scope. We need to take a ref
-	 * on the pointer that will be saved in the red-black tree
-	 * by __rxe_insert_mcg and used to lookup mcg from mgid later.
-	 * Inserting mcg makes it visible to outside so this should
-	 * be done last after the object is ready.
+/**
+ * __rxe_publish_mcg - make a fully initialized mcg visible in mcg_tree
+ * @mcg: the mcg object
+ *
+ * Context: caller must hold rxe->mcg_lock and a reference on mcg
+ */
+static void __rxe_publish_mcg(struct rxe_mcg *mcg)
+{
+	/* caller holds a ref on mcg but that will be dropped when mcg goes
+	 * out of scope. We need to take a ref on the pointer that will be
+	 * saved in the red-black tree by __rxe_insert_mcg and used to lookup
+	 * mcg from mgid later. Inserting mcg makes it visible to outside so
+	 * this is done last after the object is ready and the multicast
+	 * address has been programmed.
 	 */
 	kref_get(&mcg->ref_cnt);
 	__rxe_insert_mcg(mcg);
@@ -228,26 +239,37 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 		err = -ENOMEM;
 		goto err_dec;
 	}
+	__rxe_init_mcg(rxe, mgid, mcg);
+
+	/* program the multicast address while mcg is still private, before
+	 * it is inserted into mcg_tree. dev_mc_add() may sleep so this must
+	 * run outside mcg_lock. On failure mcg was never published, so a
+	 * plain free is correct and the tree is untouched.
+	 */
+	err = rxe_mcast_add(rxe, mgid);
+	if (err) {
+		kfree(mcg);
+		goto err_dec;
+	}
 
 	spin_lock_bh(&rxe->mcg_lock);
-	/* re-check to see if someone else just added it */
+	/* re-check to see if someone else just added it while we were adding
+	 * the multicast address; if so use theirs and drop ours
+	 */
 	tmp = __rxe_lookup_mcg(rxe, mgid);
 	if (tmp) {
 		spin_unlock_bh(&rxe->mcg_lock);
+		rxe_mcast_del(rxe, mgid);
 		atomic_dec(&rxe->mcg_num);
 		kfree(mcg);
 		return tmp;
 	}
 
-	__rxe_init_mcg(rxe, mgid, mcg);
+	__rxe_publish_mcg(mcg);
 	spin_unlock_bh(&rxe->mcg_lock);
 
-	/* add mcast address outside of lock */
-	err = rxe_mcast_add(rxe, mgid);
-	if (!err)
-		return mcg;
+	return mcg;
 
-	kfree(mcg);
 err_dec:
 	atomic_dec(&rxe->mcg_num);
 	return ERR_PTR(err);

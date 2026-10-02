@@ -2339,12 +2339,27 @@ static int run_delalloc_inline(struct btrfs_inode *inode, struct folio *locked_f
 		} else if (inode->prop_compress) {
 			compress_type = inode->prop_compress;
 		}
+		/*
+		 * We need to pass blocksize and not i_size, otherwise we can't
+		 * create compressed inline extents for data smaller than sector
+		 * size with lzo.
+		 */
 		cb = btrfs_compress_bio(inode, 0, blocksize, compress_type, compress_level, 0);
 		if (IS_ERR(cb)) {
 			cb = NULL;
 			/* Just fall back to non-compressed case. */
 		} else {
 			compressed_size = cb->bbio.bio.bi_iter.bi_size;
+			/*
+			 * If we did not save space, it's pointless and wasteful
+			 * to have an inline compressed extent, so fallback to
+			 * an uncompressed inline extent.
+			 */
+			if (compressed_size >= i_size) {
+				cleanup_compressed_bio(cb);
+				cb = NULL;
+				compressed_size = 0;
+			}
 		}
 	}
 	if (!can_cow_file_range_inline(inode, 0, i_size, compressed_size)) {
@@ -3877,7 +3892,8 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				if (ret)
 					goto out;
 			}
-			trans = btrfs_start_transaction(root, 1);
+			/* Only deletes the orphan. */
+			trans = btrfs_start_transaction_fallback_global_rsv(root, 1);
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
 				goto out;

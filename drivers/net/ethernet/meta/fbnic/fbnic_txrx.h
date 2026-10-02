@@ -128,9 +128,14 @@ struct fbnic_ring {
 		/* Rx BDQs only */
 		struct page_pool *page_pool;
 
-		/* Deferred_head is used to cache the head for TWQ1 if
+		/* TWQ0 only, index of the meta descriptor of the last packet
+		 * placed in the ring without ringing the doorbell, -1 if the
+		 * doorbell is in sync with the tail.
+		 */
+		s32 deferred_meta;
+
+		/* TCQ only, used to cache the head for TWQ1 if
 		 * an attempt is made to clean TWQ1 with zero napi_budget.
-		 * We do not use it for any other ring.
 		 */
 		s32 deferred_head;
 	};

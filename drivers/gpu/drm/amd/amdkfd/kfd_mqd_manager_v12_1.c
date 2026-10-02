@@ -295,7 +295,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	 * is safe, giving a maximum field value of 0xA.
 	 */
 	m->cp_hqd_eop_control = q->eop_ring_buffer_size ? min(0xA,
-		ffs(q->eop_ring_buffer_size / sizeof(unsigned int)) - 1 - 1) : 0;
+		ffs(q->eop_ring_buffer_size / sizeof(unsigned int) / 4)) : 0;
 	m->cp_hqd_eop_base_addr_lo =
 			lower_32_bits(q->eop_ring_buffer_address >> 8);
 	m->cp_hqd_eop_base_addr_hi =
@@ -641,6 +641,72 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 
 #endif
 
+static void restore_mqd_v12_1(struct mqd_manager *mm, void **mqd,
+			       struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
+			       struct queue_properties *qp, const void *mqd_src,
+			       const void *ctl_stack_src, const u32 ctl_stack_size)
+{
+	u64 addr;
+	struct v12_1_compute_mqd *m;
+
+	/*
+	 * GFX12.1 is multi-XCC capable but this restore handles XCC0 only.
+	 * Multi-XCC CRIU restore is currently unreachable because
+	 * kfd_criu_restore_queue() validates against unscaled mqd_size.
+	 */
+	if (NUM_XCC(mm->dev->xcc_mask) > 1)
+		pr_warn_once("GFX12.1 multi-XCC CRIU restore not fully supported\n");
+
+	m = (struct v12_1_compute_mqd *)mqd_mem_obj->cpu_ptr;
+	addr = mqd_mem_obj->gpu_addr;
+
+	memset(m, 0, AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size) *
+		     NUM_XCC(mm->dev->xcc_mask));
+	memcpy(m, mqd_src, sizeof(*m));
+
+	/* Update MQD base address to the newly allocated location */
+	m->cp_mqd_base_addr_lo = lower_32_bits(addr);
+	m->cp_mqd_base_addr_hi = upper_32_bits(addr);
+
+	m->cp_hqd_pq_doorbell_control &=
+		~CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET_MASK;
+	m->cp_hqd_pq_doorbell_control |=
+		qp->doorbell_off << CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+	pr_debug("cp_hqd_pq_doorbell_control 0x%x\n", m->cp_hqd_pq_doorbell_control);
+
+	*mqd = m;
+	if (gart_addr)
+		*gart_addr = addr;
+
+	qp->is_active = 0;
+}
+
+static void restore_mqd_sdma_v12_1(struct mqd_manager *mm, void **mqd,
+				    struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
+				    struct queue_properties *qp,
+				    const void *mqd_src,
+				    const void *ctl_stack_src,
+				    const u32 ctl_stack_size)
+{
+	u64 addr;
+	struct v12_sdma_mqd *m;
+
+	m = (struct v12_sdma_mqd *)mqd_mem_obj->cpu_ptr;
+	addr = mqd_mem_obj->gpu_addr;
+
+	memset(m, 0, AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size));
+	memcpy(m, mqd_src, sizeof(*m));
+
+	m->sdmax_rlcx_doorbell_offset =
+		qp->doorbell_off << SDMA0_SDMA_QUEUE0_DOORBELL_OFFSET__OFFSET__SHIFT;
+
+	*mqd = m;
+	if (gart_addr)
+		*gart_addr = addr;
+
+	qp->is_active = 0;
+}
+
 struct mqd_manager *mqd_manager_init_v12_1(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev)
 {
@@ -668,6 +734,7 @@ struct mqd_manager *mqd_manager_init_v12_1(enum KFD_MQD_TYPE type,
 		mqd->mqd_size = sizeof(struct v12_1_compute_mqd);
 		mqd->get_wave_state = get_wave_state_v12_1;
 		mqd->mqd_stride = kfd_mqd_stride;
+		mqd->restore_mqd = restore_mqd_v12_1;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
@@ -714,6 +781,7 @@ struct mqd_manager *mqd_manager_init_v12_1(enum KFD_MQD_TYPE type,
 		mqd->is_occupied = kfd_is_occupied_sdma;
 		mqd->mqd_size = sizeof(struct v12_sdma_mqd);
 		mqd->mqd_stride = kfd_mqd_stride;
+		mqd->restore_mqd = restore_mqd_sdma_v12_1;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif

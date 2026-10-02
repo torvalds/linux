@@ -643,7 +643,8 @@ void dcn60_init_hw(struct dc *dc)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 				!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 
-		dcn401_initialize_min_clocks(dc);
+		if (dc->clk_mgr && dc->clk_mgr->funcs)
+			dcn401_initialize_min_clocks(dc);
 
 		/* On HW init, allow idle optimizations after pipes have been turned off.
 		 *
@@ -1001,6 +1002,7 @@ static void dcn60_build_hubbub_perfmon_sequence(
 /**
  * dcn60_update_probe_status - Set the valid flag on a latched probe result.
  * @status: result sink whose u was written by the GET BLS step during execute
+ * @probe: current probe state used to determine measurement type and validity
  */
 static void dcn60_update_probe_status(struct dc_probe_status *status)
 {
@@ -1024,6 +1026,7 @@ static void dcn60_update_probe_status(struct dc_probe_status *status)
 /**
  * is_probe_measurement_type_for_hubbub - Returns true if the probe type is
  * served by the hubbub perfmon block on DCN60.
+ * @type: the probe measurement type to classify
  */
 static bool is_probe_measurement_type_for_hubbub(enum dc_probe_type type)
 {

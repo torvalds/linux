@@ -1209,6 +1209,9 @@ static int libipw_handle_assoc_resp(struct libipw_device *ieee, struct libipw_as
 	struct libipw_network *network = &network_resp;
 	struct net_device *dev = ieee->dev;
 
+	if (stats->len < sizeof(*frame))
+		return 1;
+
 	network->flags = 0;
 	network->qos_data.active = 0;
 	network->qos_data.supported = 0;
@@ -1420,6 +1423,9 @@ static void libipw_process_probe_response(struct libipw_device
 	struct libipw_info_element *info_element = (void *)beacon->variable;
 #endif
 	unsigned long flags;
+
+	if (stats->len < sizeof(*beacon))
+		return;
 
 	LIBIPW_DEBUG_SCAN("'%*pE' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		     info_element->len, info_element->data,

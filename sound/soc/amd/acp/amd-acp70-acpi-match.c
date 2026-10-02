@@ -748,7 +748,27 @@ static const struct snd_soc_acpi_link_adr acp70_rt721_only[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr acp70_tas2783a_l0_rt712_vb_l1[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(tas2783_2_adr),
+		.adr_d = tas2783_2_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt712_vb_1_group1_adr),
+		.adr_d = rt712_vb_1_group1_adr,
+	},
+	{}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = acp70_tas2783a_l0_rt712_vb_l1,
+		.machine_check = snd_soc_acpi_amd_sdca_is_device_rt712_vb,
+		.drv_name = "amd_sdw",
+	},
 	{
 		.link_mask = BIT(0),
 		.links = acp70_tas2783_2,

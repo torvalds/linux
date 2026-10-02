@@ -408,6 +408,7 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
 
 	new_timer->kclock = &clock_posix_cpu;
 	timerqueue_init(&new_timer->it.cpu.node);
+	INIT_LIST_HEAD(&new_timer->it.cpu.elist);
 	new_timer->it.cpu.pid = get_pid(pid);
 	rcu_read_unlock();
 	return 0;
@@ -566,6 +567,24 @@ static struct task_struct *timer_lock_sighand(struct k_itimer *timer, unsigned l
 }
 
 /*
+ * If the timer is queued on the expiry list, then it cannot be dequeued because
+ * the firing list is not protected by sighand->lock. The delivery path is
+ * waiting for the timer lock. So go back, unlock and retry.
+ */
+static bool posix_cpu_timer_on_expiry_list(struct k_itimer *timer)
+{
+	if (list_empty(&timer->it.cpu.elist))
+		return false;
+
+	/*
+	 * Prevent signal delivery as there is no point in delivering a signal
+	 * which is made obsolete right away.
+	 */
+	timer->it.cpu.firing = false;
+	return true;
+}
+
+/*
  * Clean up a CPU-clock timer that is about to be destroyed.
  * This is called from timer deletion with the timer already locked.
  * If we return TIMER_RETRY, it's necessary to release the timer's lock
@@ -580,18 +599,10 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 	p = timer_lock_sighand(timer, &flags);
 
 	if (likely(p)) {
-		if (timer->it.cpu.firing) {
-			/*
-			 * Prevent signal delivery. The timer cannot be dequeued
-			 * because it is on the firing list which is not protected
-			 * by sighand->lock. The delivery path is waiting for
-			 * the timer lock. So go back, unlock and retry.
-			 */
-			timer->it.cpu.firing = false;
+		if (posix_cpu_timer_on_expiry_list(timer))
 			ret = TIMER_RETRY;
-		} else {
+		else
 			disarm_timer(timer, p);
-		}
 		unlock_task_sighand(p, &flags);
 	}
 
@@ -731,14 +742,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	/* Retrieve the current expiry time before disarming the timer */
 	old_expires = cpu_timer_getexpires(ctmr);
 
-	if (unlikely(timer->it.cpu.firing)) {
-		/*
-		 * Prevent signal delivery. The timer cannot be dequeued
-		 * because it is on the firing list which is not protected
-		 * by sighand->lock. The delivery path is waiting for
-		 * the timer lock. So go back, unlock and retry.
-		 */
-		timer->it.cpu.firing = false;
+	if (posix_cpu_timer_on_expiry_list(timer)) {
 		ret = TIMER_RETRY;
 	} else {
 		cpu_timer_dequeue(ctmr);

@@ -1361,6 +1361,7 @@ static s32 scx_cgroup_claim_subtree(struct scx_sched *sch)
 			.bw_period_us = tg->scx.bw_period_us,
 			.bw_quota_us = tg->scx.bw_quota_us,
 			.bw_burst_us = tg->scx.bw_burst_us,
+			.sched_idle = tg->scx.idle,
 		};
 
 		if (tg->scx.sched != parent ||
@@ -1464,6 +1465,7 @@ static void scx_cgroup_return_subtree(struct scx_sched *sch)
 			.bw_period_us = tg->scx.bw_period_us,
 			.bw_quota_us = tg->scx.bw_quota_us,
 			.bw_burst_us = tg->scx.bw_burst_us,
+			.sched_idle = tg->scx.idle,
 		};
 
 		/* the first pass must have transferred everything */
@@ -1803,6 +1805,12 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 		goto err_disable;
 	}
 
+	scoped_guard(cpus_read_lock) {
+		ret = scx_alloc_kern_arena_objs(sch);
+		if (ret)
+			goto err_disable;
+	}
+
 	if (sch->ops.init) {
 		ret = SCX_CALL_OP_RET(sch, init, NULL);
 		if (ret) {
@@ -1812,10 +1820,6 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 		}
 		sch->exit_info->flags |= SCX_EFLAG_INITIALIZED;
 	}
-
-	ret = scx_set_cmask_scratch_alloc(sch);
-	if (ret)
-		goto err_disable;
 
 	struct scx_sub_attach_args sub_attach_args = {
 		.ops = &sch->ops,

@@ -178,6 +178,22 @@ int reg_reload_regdb(void);
  */
 void reg_check_channels(void);
 
+/**
+ * reg_leave_invalid_chans_wk - check if channels are no longer usable and leave
+ * @wiphy: the wiphy to check
+ * @work: the work struct
+ */
+void reg_leave_invalid_chans_wk(struct wiphy *wiphy, struct wiphy_work *work);
+
+/**
+ * reg_leave_invalid_nan_wk - check channels and tear down NAN when unusable
+ * @work: the work struct
+ *
+ * Stopping a NAN interface needs the RTNL, so it cannot be done from
+ * reg_leave_invalid_chans_wk() which runs with the wiphy mutex held.
+ */
+void reg_leave_invalid_nan_wk(struct work_struct *work);
+
 extern const u8 shipped_regdb_certs[];
 extern unsigned int shipped_regdb_certs_len;
 extern const u8 extra_regdb_certs[];

@@ -1005,7 +1005,8 @@ static int nfsd_nl_parse_one_export(struct cache_detail *cd,
 			goto out_uuid;
 		err = 0;
 
-		nfsd4_setup_layout_type(&exp);
+		if (exp.ex_flags & NFSEXP_PNFS)
+			nfsd4_setup_layout_type(&exp);
 	}
 
 	expp = svc_export_lookup(&exp);

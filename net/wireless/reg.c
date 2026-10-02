@@ -2345,7 +2345,7 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 	iftype = wdev->iftype;
 
 	/* make sure the interface is active */
-	if (!wdev->netdev || !netif_running(wdev->netdev))
+	if (!wdev_running(wdev))
 		return true;
 
 	/* NAN doesn't have links, handle it separately */
@@ -2446,18 +2446,51 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 	return true;
 }
 
-static void reg_leave_invalid_chans(struct wiphy *wiphy)
+void reg_leave_invalid_nan_wk(struct work_struct *work)
 {
+	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    reg_leave_nan_wk);
+
+	/* stopping NAN closes its data interfaces, which needs the RTNL */
+	rtnl_lock();
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		bool valid;
 
-		scoped_guard(wiphy, wiphy)
-			valid = reg_wdev_chan_valid(wiphy, wdev);
+		if (wdev->iftype != NL80211_IFTYPE_NAN)
+			continue;
+
+		scoped_guard(wiphy, &rdev->wiphy)
+			valid = reg_wdev_chan_valid(&rdev->wiphy, wdev);
 		if (!valid)
 			cfg80211_leave(rdev, wdev, -1);
+	}
+
+	rtnl_unlock();
+}
+
+void reg_leave_invalid_chans_wk(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct wireless_dev *wdev;
+
+	lockdep_assert_held(&wiphy->mtx);
+
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		if (reg_wdev_chan_valid(wiphy, wdev))
+			continue;
+
+		/*
+		 * Tearing down NAN needs the RTNL for closing NAN_DATA
+		 * interfaces, handle that separately.
+		 */
+		if (wdev->iftype == NL80211_IFTYPE_NAN)
+			schedule_work(&rdev->reg_leave_nan_wk);
+		else
+			cfg80211_leave_locked(rdev, wdev, -1);
 	}
 }
 
@@ -2466,12 +2499,13 @@ static void reg_check_chans_work(struct work_struct *work)
 	struct cfg80211_registered_device *rdev;
 
 	pr_debug("Verifying active interfaces after reg change\n");
-	rtnl_lock();
 
-	for_each_rdev(rdev)
-		reg_leave_invalid_chans(&rdev->wiphy);
+	rcu_read_lock();
 
-	rtnl_unlock();
+	list_for_each_entry_rcu(rdev, &cfg80211_rdev_list, list)
+		wiphy_work_queue(&rdev->wiphy, &rdev->reg_check_chans_wk);
+
+	rcu_read_unlock();
 }
 
 void reg_check_channels(void)

@@ -11,6 +11,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -267,6 +268,7 @@ struct drm_plane *vs_cursor_plane_init(struct drm_device *drm_dev,
 		return plane;
 
 	drm_plane_helper_add(plane, &vs_cursor_plane_helper_funcs);
+	drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_COVERAGE));
 
 	return plane;
 }
