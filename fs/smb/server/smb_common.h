@@ -190,6 +190,25 @@ struct file_id_64_extd_both_directory_info {
 	char FileName[];
 } __packed;
 
+/* MS-FSCC 2.4.21 FileIdAllExtdDirectoryInformation */
+struct file_id_all_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__le64 FileId;
+	__u8 FileId128[16];
+	char FileName[];
+} __packed;
+
 /* MS-FSCC 2.4.20 FileIdAllExtdBothDirectoryInformation */
 struct file_id_all_extd_both_directory_info {
 	__le32 NextEntryOffset;
