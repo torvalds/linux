@@ -17,15 +17,17 @@ properties:
     maxItems: 1
 
   clocks:
-    items:
-      - description: Main oscillator
-      - description: External CAN clock
-      - description: External WDT clock
+    minItems: 1
+    maxItems: 3
+    description:
+      The main oscillator is always required. Either or both of the external CAN
+      and WDT clocks may also be provided if the board routes them to the SoC.
 
   clock-names:
+    minItems: 1
     items:
       - const: osc
-      - const: can_ext
+      - enum: [can_ext, wdt_ext]
       - const: wdt_ext
 
   "#clock-cells":
