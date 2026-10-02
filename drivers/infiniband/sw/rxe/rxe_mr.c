@@ -418,13 +418,13 @@ int copy_data(
 	int			access,
 	struct rxe_dma_info	*dma,
 	void			*addr,
-	int			length,
+	u32			length,
 	enum rxe_mr_copy_dir	dir)
 {
-	int			bytes;
+	u32			bytes;
 	struct rxe_sge		*sge	= &dma->sge[dma->cur_sge];
-	int			offset	= dma->sge_offset;
-	int			resid	= dma->resid;
+	u32			offset	= dma->sge_offset;
+	u32			resid	= dma->resid;
 	struct rxe_mr		*mr	= NULL;
 	u64			iova;
 	int			err;
