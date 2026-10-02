@@ -43,9 +43,6 @@ struct imsic_local_priv {
 };
 
 struct imsic_priv {
-	/* Device details */
-	struct fwnode_handle			*fwnode;
-
 	/* Global configuration common for all HARTs */
 	struct imsic_global_config		global;
 

@@ -822,9 +822,9 @@ int __init imsic_setup_state(struct fwnode_handle *fwnode, void *opaque)
 	imsic = kzalloc_obj(*imsic);
 	if (!imsic)
 		return -ENOMEM;
-	imsic->fwnode = fwnode;
 	global = &imsic->global;
 
+	global->fwnode = fwnode;
 	global->local = alloc_percpu(typeof(*global->local));
 	if (!global->local) {
 		rc = -ENOMEM;
