@@ -868,7 +868,7 @@ void user_event_mm_remove(struct task_struct *t)
 	queue_rcu_work(system_percpu_wq, &mm->put_rwork);
 }
 
-void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
+int user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 {
 	struct user_event_mm *mm = user_event_mm_alloc(t);
 	struct user_event_enabler *enabler;
@@ -877,7 +877,7 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 	t->user_event_mm = NULL;
 
 	if (!mm)
-		return;
+		return -ENOMEM;
 
 	rcu_read_lock();
 
@@ -889,10 +889,12 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 	rcu_read_unlock();
 
 	user_event_mm_attach(mm, t);
-	return;
+	return 0;
 error:
 	rcu_read_unlock();
 	user_event_mm_destroy(mm);
+
+	return -ENOMEM;
 }
 
 static bool current_user_event_enabler_exists(unsigned long uaddr,
