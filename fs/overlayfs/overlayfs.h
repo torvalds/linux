@@ -16,6 +16,8 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "overlayfs: " fmt
 
+#define OVL_MAX_NESTING FILESYSTEM_MAX_STACK_DEPTH
+
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
