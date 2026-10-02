@@ -817,9 +817,10 @@ EXPORT_SYMBOL_GPL(is_vmalloc_or_module_addr);
 /*
  * Walk a vmap address to the struct page it maps. Huge vmap mappings will
  * return the tail page that corresponds to the base page address, which
- * matches small vmap mappings.
+ * matches small vmap mappings. Unlike vmalloc_to_page(), this also accepts
+ * addresses outside the vmalloc and module ranges, such as KMSAN metadata.
  */
-struct page *vmalloc_to_page(const void *vmalloc_addr)
+__always_inline struct page *__vmalloc_to_page(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
@@ -828,12 +829,6 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
-
-	/*
-	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
-	 * architectures that do not vmalloc module space
-	 */
-	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
 
 	if (pgd_none(*pgd))
 		return NULL;
@@ -872,6 +867,16 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 		page = pte_page(pte);
 
 	return page;
+}
+
+struct page *vmalloc_to_page(const void *vmalloc_addr)
+{
+	/*
+	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
+	 * architectures that do not vmalloc module space
+	 */
+	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
+	return __vmalloc_to_page(vmalloc_addr);
 }
 EXPORT_SYMBOL(vmalloc_to_page);
 
