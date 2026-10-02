@@ -64,7 +64,7 @@ extern void __arch_chacha20_blocks_nostack(u8 *dst_bytes, const u32 *key, u32 *c
  * @opaque_state:	Passed to __cvdso_getrandom().
  * @opaque_len:		Passed to __cvdso_getrandom();
  *
- * This function is implemented by making a single call to to __cvdso_getrandom(), whose
+ * This function is implemented by making a single call to __cvdso_getrandom(), whose
  * documentation may be consulted for more information.
  *
  * Returns:	The return value of __cvdso_getrandom().
