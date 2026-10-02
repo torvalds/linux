@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
+#include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -283,8 +284,9 @@ static struct timer_of to = {
 	},
 };
 
-static int mtk_syst_init(struct device_node *node)
+static int mtk_syst_init(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 
 	to.clkevt.features = CLOCK_EVT_FEAT_DYNIRQ | CLOCK_EVT_FEAT_ONESHOT;
@@ -305,9 +307,13 @@ static int mtk_syst_init(struct device_node *node)
 	return 0;
 }
 
-static int __init mtk_gpt_init(struct device_node *node)
+static int mtk_gpt_init(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
+	struct clk *clk_bus;
 	int ret;
+
+	clk_bus = devm_clk_get_optional_enabled(&pdev->dev, "bus");
 
 	to.clkevt.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	to.clkevt.set_state_shutdown = mtk_gpt_clkevt_shutdown;
@@ -344,11 +350,10 @@ static int __init mtk_gpt_init(struct device_node *node)
 
 static int mtk_timer_probe(struct platform_device *pdev)
 {
-	int (*timer_init)(struct device_node *node);
-	struct device_node *np = pdev->dev.of_node;
+	int (*timer_init)(struct platform_device *pdev);
 
 	timer_init = of_device_get_match_data(&pdev->dev);
-	return timer_init(np);
+	return timer_init(pdev);
 }
 
 static const struct of_device_id mtk_timer_match_table[] = {
