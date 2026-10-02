@@ -2852,13 +2852,7 @@ void f2fs_update_meta_block(struct f2fs_sb_info *sbi,
 {
 	struct f2fs_cached_block *entry;
 
-	if (!f2fs_sb_has_packed_ssa(sbi))
-		entry = f2fs_grab_meta_cache(sbi, blk_addr);
-	else
-		entry = f2fs_get_meta_cache_retry(sbi, blk_addr);
-
-	if (IS_ERR(entry))
-		return;
+	entry = f2fs_grab_meta_cache(sbi, blk_addr);
 
 	memcpy(cache_address(entry), src, F2FS_BLKSIZE(sbi));
 	f2fs_mark_cache_dirty(entry);
