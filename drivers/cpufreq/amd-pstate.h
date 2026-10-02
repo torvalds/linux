@@ -146,6 +146,8 @@ struct amd_cpudata {
 	enum platform_profile_option current_profile;
 	struct device *ppdev;
 	char *profile_name;
+
+	enum x86_topology_cpu_type cpu_type;
 };
 
 /*
@@ -159,6 +161,20 @@ enum amd_pstate_mode {
 	AMD_PSTATE_GUIDED,
 	AMD_PSTATE_MAX,
 };
+
+static inline u8 freq_to_perf(union perf_cached perf, u32 nominal_freq, unsigned int freq_val)
+{
+	u32 perf_val = DIV_ROUND_UP_ULL((u64)freq_val * perf.nominal_perf, nominal_freq);
+
+	return (u8)clamp(perf_val, perf.lowest_perf, perf.highest_perf);
+}
+
+static inline u32 perf_to_freq(union perf_cached perf, u32 nominal_freq, u8 perf_val)
+{
+	return DIV_ROUND_UP_ULL((u64)nominal_freq * perf_val,
+				perf.nominal_perf);
+}
+
 const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode);
 int amd_pstate_get_status(void);
 int amd_pstate_update_status(const char *buf, size_t size);

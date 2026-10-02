@@ -95,6 +95,8 @@ struct policy_dbs_info {
 	/* Multiplier for increasing sample delay temporarily. */
 	unsigned int rate_mult;
 	unsigned int idle_periods;	/* For conservative */
+	/* Maximum load from the current policy sample. */
+	unsigned int max_sample_load;
 	/* Status indicators */
 	bool is_shared;		/* This object is used by multiple CPUs */
 	bool work_in_progress;	/* Work is being queued up or in progress */

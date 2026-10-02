@@ -226,11 +226,14 @@ static int amd_pstate_ut_check_freq(u32 index)
 	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
 		struct amd_cpudata *cpudata;
+		union perf_cached perf;
 
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
+
 		cpudata = policy->driver_data;
+		perf = READ_ONCE(cpudata->perf);
 
 		if (!((policy->cpuinfo.max_freq >= cpudata->nominal_freq) &&
 			(cpudata->nominal_freq > cpudata->lowest_nonlinear_freq) &&
@@ -242,7 +245,25 @@ static int amd_pstate_ut_check_freq(u32 index)
 			return -EINVAL;
 		}
 
-		if (cpudata->lowest_nonlinear_freq != policy->min) {
+		if (perf.bios_min_perf) {
+			u32 bios_min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+							 perf.bios_min_perf);
+
+			/*
+			 * User set bios_min_freq cannot be trusted to
+			 * be within the driver limits. Clamp it similar
+			 * to cpufreq_verify_within_cpu_limits().
+			 */
+			bios_min_freq = clamp_t(u32, bios_min_freq,
+						     policy->cpuinfo.min_freq,
+						     policy->cpuinfo.max_freq);
+
+			if (bios_min_freq != policy->min) {
+				pr_err("%s cpu%d bios_min_freq=%d policy_min=%d, they should be equal!\n",
+					__func__, cpu, bios_min_freq, policy->min);
+				return -EINVAL;
+			}
+		} else if (cpudata->lowest_nonlinear_freq != policy->min) {
 			pr_err("%s cpu%d cpudata_lowest_nonlinear_freq=%d policy_min=%d, they should be equal!\n",
 				__func__, cpu, cpudata->lowest_nonlinear_freq, policy->min);
 			return -EINVAL;

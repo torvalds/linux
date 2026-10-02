@@ -481,12 +481,6 @@ For systems that support ``amd-pstate`` preferred core, the core rankings will
 always be advertised by the platform. But OS can choose to ignore that via the
 kernel parameter ``amd_prefcore=disable``.
 
-``amd_dynamic_epp``
-
-When AMD pstate is in auto mode, dynamic EPP will control whether the kernel
-autonomously changes the EPP mode. The default is disabled. It can be enabled
-with the kernel parameter ``amd_dynamic_epp=enable``.
-
 User Space Interface in ``sysfs`` - General
 ===========================================
 
