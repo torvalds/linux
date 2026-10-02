@@ -576,6 +576,7 @@ int ext4_init_orphan_info(struct super_block *sb)
 	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
 	struct ext4_orphan_block_tail *ot;
 	ino_t orphan_ino = le32_to_cpu(EXT4_SB(sb)->s_es->s_orphan_file_inum);
+	loff_t max_size;
 
 	if (!ext4_has_feature_orphan_file(sb))
 		return 0;
@@ -589,8 +590,13 @@ int ext4_init_orphan_info(struct super_block *sb)
 	 * This is just an artificial limit to prevent corrupted fs from
 	 * consuming absurd amounts of memory when pinning blocks of orphan
 	 * file in memory.
+	 *
+	 * e2fsprogs 1.47.4 produces 2MB orphan files by default regardless
+	 * of the number of blocks so that's where the second limit comes from.
 	 */
-	if (inode->i_size > (EXT4_MAX_ORPHAN_FILE_BLOCKS << inode->i_blkbits)) {
+	max_size = max(EXT4_MAX_ORPHAN_FILE_BLOCKS << inode->i_blkbits,
+		       2 << 20);
+	if (inode->i_size > max_size) {
 		ext4_msg(sb, KERN_ERR, "orphan file too big: %llu",
 			 (unsigned long long)inode->i_size);
 		ret = -EFSCORRUPTED;
