@@ -363,6 +363,27 @@ impl Delta<Jiffy> {
     pub const fn as_jiffies(self) -> isize {
         self.value
     }
+
+    /// Return the number of jiffies in the [`Delta`] as an unsigned value.
+    ///
+    /// If the number of jiffies is negative, zero is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::time::Delta;
+    ///
+    /// // A negative span returns zero.
+    /// assert_eq!(Delta::from_jiffies(-1).as_jiffies_unsigned(), 0);
+    ///
+    /// // A positive span returns its value.
+    /// assert_eq!(Delta::from_jiffies(1).as_jiffies_unsigned(), 1);
+    /// ```
+    #[inline]
+    pub fn as_jiffies_unsigned(self) -> usize {
+        // CAST: `isize::max()` makes the value non-negative, so the cast keeps it.
+        isize::max(self.value, 0) as usize
+    }
 }
 
 impl ops::Add for Delta {
