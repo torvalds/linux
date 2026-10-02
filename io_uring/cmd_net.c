@@ -69,8 +69,8 @@ static inline int io_uring_cmd_setsockopt(struct socket *sock,
 				  optlen);
 }
 
-static bool io_process_timestamp_skb(struct io_uring_cmd *cmd, struct sock *sk,
-				     struct sk_buff *skb, unsigned issue_flags)
+static int io_process_timestamp_skb(struct io_uring_cmd *cmd, struct sock *sk,
+				    struct sk_buff *skb, unsigned int issue_flags)
 {
 	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
 	struct io_uring_cqe cqe[2];
@@ -83,7 +83,7 @@ static bool io_process_timestamp_skb(struct io_uring_cmd *cmd, struct sock *sk,
 
 	ret = skb_get_tx_timestamp(skb, sk, &ts);
 	if (ret < 0)
-		return false;
+		return ret;
 
 	tskey = serr->ee.ee_data;
 	tstype = serr->ee.ee_info;
@@ -98,7 +98,9 @@ static bool io_process_timestamp_skb(struct io_uring_cmd *cmd, struct sock *sk,
 	iots = (struct io_timespec *)&cqe[1];
 	iots->tv_sec = ts.tv_sec;
 	iots->tv_nsec = ts.tv_nsec;
-	return io_uring_cmd_post_mshot_cqe32(cmd, issue_flags, cqe);
+	if (!io_uring_cmd_post_mshot_cqe32(cmd, issue_flags, cqe))
+		return -ENOBUFS;
+	return 0;
 }
 
 static int io_uring_cmd_timestamp(struct socket *sock,
@@ -135,7 +137,8 @@ static int io_uring_cmd_timestamp(struct socket *sock,
 		skb = skb_peek(&list);
 		if (!skb)
 			break;
-		if (!io_process_timestamp_skb(cmd, sk, skb, issue_flags))
+		ret = io_process_timestamp_skb(cmd, sk, skb, issue_flags);
+		if (ret)
 			break;
 		__skb_dequeue(&list);
 		consume_skb(skb);
@@ -145,6 +148,12 @@ static int io_uring_cmd_timestamp(struct socket *sock,
 		scoped_guard(spinlock_irqsave, &q->lock)
 			skb_queue_splice(&list, q);
 	}
+	/*
+	 * Aux CQEs cannot overflow and the poll is edge triggered, so nothing
+	 * re-runs the command once the CQ drains. End the multishot instead.
+	 */
+	if (ret == -ENOBUFS)
+		return -ENOBUFS;
 	return -EAGAIN;
 }
 
