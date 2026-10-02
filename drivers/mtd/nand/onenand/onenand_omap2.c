@@ -340,9 +340,9 @@ static inline int omap2_onenand_dma_transfer(struct omap2_onenand *c,
 	tx->callback = omap2_onenand_dma_complete_func;
 	tx->callback_param = &c->dma_done;
 
-	cookie = tx->tx_submit(tx);
+	cookie = dmaengine_submit(tx);
 	if (dma_submit_error(cookie)) {
-		dev_err(&c->pdev->dev, "Failed to do DMA tx_submit\n");
+		dev_err(&c->pdev->dev, "Failed to do dmaengine_submit\n");
 		return -EIO;
 	}
 
