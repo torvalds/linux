@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/hisilicon,hix5hd2-ir.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon HIX5HD2 IR controller
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+allOf:
+  - $ref: rc.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - hisilicon,hix5hd2-ir
+          - hisilicon,hi3796cv300-ir
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  hisilicon,power-syscon:
+    description: Provide correct clocks instead.
+    $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ir@f8001000 {
+        compatible = "hisilicon,hix5hd2-ir";
+        reg = <0xf8001000 0x1000>;
+        interrupts = <0 47 4>;
+        clocks = <&clock 0>;
+        linux,rc-map-name = "rc-tivo";
+    };
