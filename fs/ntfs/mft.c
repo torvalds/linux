@@ -1791,7 +1791,7 @@ static int ntfs_mft_data_extend_allocation_nolock(struct ntfs_volume *vol)
 	s64 min_nr, nr, ll;
 	unsigned long flags;
 	struct ntfs_inode *mft_ni;
-	struct runlist_element *rl, *rl2;
+	struct runlist_element *rl, *rl2, *alloc_rl;
 	struct ntfs_attr_search_ctx *ctx = NULL;
 	struct mft_record *mrec;
 	struct attr_record *a = NULL;
@@ -1859,15 +1859,15 @@ static int ntfs_mft_data_extend_allocation_nolock(struct ntfs_volume *vol)
 	up_write(&mft_ni->runlist.lock);
 
 	do {
-		rl2 = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn, MFT_ZONE,
-				true, false, false);
-		if (!IS_ERR(rl2))
+		alloc_rl = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn,
+				MFT_ZONE, true, false, false);
+		if (!IS_ERR(alloc_rl))
 			break;
-		if (PTR_ERR(rl2) != -ENOSPC || nr == min_nr) {
+		if (PTR_ERR(alloc_rl) != -ENOSPC || nr == min_nr) {
 			ntfs_error(vol->sb,
 				"Failed to allocate the minimal number of clusters (%lli) for the mft data attribute.",
 				nr);
-			return PTR_ERR(rl2);
+			return PTR_ERR(alloc_rl);
 		}
 		/*
 		 * There is not enough space to do the allocation, but there
@@ -1878,17 +1878,22 @@ static int ntfs_mft_data_extend_allocation_nolock(struct ntfs_volume *vol)
 		ntfs_debug("Retrying mft data allocation with minimal cluster count %lli.", nr);
 	} while (1);
 
+	/*
+	 * Keep @alloc_rl until the extension is complete: it describes exactly
+	 * the new clusters, which undo_alloc frees if a later step fails.
+	 */
 	down_write(&mft_ni->runlist.lock);
-	rl = ntfs_runlists_merge(&mft_ni->runlist, rl2, 0, &new_rl_count);
+	rl = ntfs_runlists_merge_keep_src(&mft_ni->runlist, alloc_rl, 0,
+			&new_rl_count);
 	if (IS_ERR(rl)) {
 		up_write(&mft_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to merge runlists for mft data attribute.");
-		if (ntfs_cluster_free_from_rl(vol, rl2)) {
+		if (ntfs_cluster_free_from_rl(vol, alloc_rl)) {
 			ntfs_error(vol->sb,
 				"Failed to deallocate clusters from the mft data attribute.%s", es);
 			NVolSetErrors(vol);
 		}
-		kvfree(rl2);
+		kvfree(alloc_rl);
 		return PTR_ERR(rl);
 	}
 	mft_ni->runlist.rl = rl;
@@ -1904,7 +1909,6 @@ static int ntfs_mft_data_extend_allocation_nolock(struct ntfs_volume *vol)
 	if (IS_ERR(mrec)) {
 		ntfs_error(vol->sb, "Failed to map mft record.");
 		ret = PTR_ERR(mrec);
-		down_write(&mft_ni->runlist.lock);
 		goto undo_alloc;
 	}
 	ctx = ntfs_attr_get_search_ctx(mft_ni, mrec);
@@ -2002,6 +2006,7 @@ extended_ok:
 	mark_mft_record_dirty(ctx->ntfs_ino);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(mft_ni);
+	kvfree(alloc_rl);
 	ntfs_debug("Done.");
 	return 0;
 restore_undo_alloc:
@@ -2015,7 +2020,7 @@ restore_undo_alloc:
 		write_unlock_irqrestore(&mft_ni->size_lock, flags);
 		ntfs_attr_put_search_ctx(ctx);
 		unmap_mft_record(mft_ni);
-		up_write(&mft_ni->runlist.lock);
+		kvfree(alloc_rl);
 		/*
 		 * The only thing that is now wrong is ->allocated_size of the
 		 * base attribute extent which chkdsk should be able to fix.
@@ -2026,15 +2031,28 @@ restore_undo_alloc:
 	ctx->attr->data.non_resident.highest_vcn =
 			cpu_to_le64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1, ctx) < 0) {
-		ntfs_error(vol->sb, "Failed to free clusters from mft data attribute.%s", es);
-		NVolSetErrors(vol);
-	}
-
+	/*
+	 * Entered without the runlist lock.  Take the new runs off the
+	 * runlist under it, and free their clusters from @alloc_rl once it
+	 * is dropped, as lcnbmp_lock nests outside it (see above).
+	 */
+	down_write(&mft_ni->runlist.lock);
 	if (ntfs_rl_truncate_nolock(vol, &mft_ni->runlist, old_last_vcn)) {
 		ntfs_error(vol->sb, "Failed to truncate mft data attribute runlist.%s", es);
 		NVolSetErrors(vol);
+		/*
+		 * The runlist may still reference the clusters, so leave them
+		 * allocated until chkdsk.
+		 */
+		kvfree(alloc_rl);
+		alloc_rl = NULL;
 	}
+	up_write(&mft_ni->runlist.lock);
+	if (ntfs_cluster_free_from_rl(vol, alloc_rl)) {
+		ntfs_error(vol->sb, "Failed to free clusters from mft data attribute.%s", es);
+		NVolSetErrors(vol);
+	}
+	kvfree(alloc_rl);
 	if (mp_extended && ntfs_attr_update_mapping_pairs(mft_ni, 0)) {
 		ntfs_error(vol->sb, "Failed to restore mapping pairs.%s",
 			   es);
