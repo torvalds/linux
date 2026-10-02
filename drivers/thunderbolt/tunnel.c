@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/ktime.h>
 #include <linux/string_helpers.h>
+#include <linux/stringify.h>
 
 #include "tunnel.h"
 #include "tb.h"
@@ -89,12 +90,12 @@ static int dprx_timeout = TB_DPRX_TIMEOUT;
 module_param(dprx_timeout, int, 0444);
 MODULE_PARM_DESC(dprx_timeout,
 		 "DPRX capability read timeout in ms, -1 waits forever (default: "
-		 __MODULE_STRING(TB_DPRX_TIMEOUT) ")");
+		 __stringify(TB_DPRX_TIMEOUT) ")");
 
 static unsigned int dma_credits = TB_DMA_CREDITS;
 module_param(dma_credits, uint, 0444);
 MODULE_PARM_DESC(dma_credits, "specify custom credits for DMA tunnels (default: "
-                __MODULE_STRING(TB_DMA_CREDITS) ")");
+		 __stringify(TB_DMA_CREDITS) ")");
 
 static bool bw_alloc_mode = true;
 module_param(bw_alloc_mode, bool, 0444);

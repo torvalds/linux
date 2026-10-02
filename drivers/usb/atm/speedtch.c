@@ -19,6 +19,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/stringify.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/usb/ch9.h>
@@ -77,31 +78,31 @@ static unsigned int num_ModemOption;
 module_param(altsetting, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(altsetting,
 		"Alternative setting for data interface (bulk_default: "
-		__MODULE_STRING(DEFAULT_BULK_ALTSETTING) "; isoc_default: "
-		__MODULE_STRING(DEFAULT_ISOC_ALTSETTING) ")");
+		__stringify(DEFAULT_BULK_ALTSETTING) "; isoc_default: "
+		__stringify(DEFAULT_ISOC_ALTSETTING) ")");
 
 module_param(dl_512_first, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dl_512_first,
 		 "Read 512 bytes before sending firmware (default: "
-		 __MODULE_STRING(DEFAULT_DL_512_FIRST) ")");
+		 __stringify(DEFAULT_DL_512_FIRST) ")");
 
 module_param(enable_isoc, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_isoc,
 		"Use isochronous transfers if available (default: "
-		__MODULE_STRING(DEFAULT_ENABLE_ISOC) ")");
+		__stringify(DEFAULT_ENABLE_ISOC) ")");
 
 module_param(sw_buffering, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sw_buffering,
 		 "Enable software buffering (default: "
-		 __MODULE_STRING(DEFAULT_SW_BUFFERING) ")");
+		 __stringify(DEFAULT_SW_BUFFERING) ")");
 
 module_param(BMaxDSL, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(BMaxDSL,
-		"default: " __MODULE_STRING(DEFAULT_B_MAX_DSL));
+		"default: " __stringify(DEFAULT_B_MAX_DSL));
 
 module_param(ModemMode, byte, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ModemMode,
-		"default: " __MODULE_STRING(DEFAULT_MODEM_MODE));
+		"default: " __stringify(DEFAULT_MODEM_MODE));
 
 module_param_array(ModemOption, byte, &num_ModemOption, S_IRUGO);
 MODULE_PARM_DESC(ModemOption, "default: 0x10,0x00,0x00,0x00,0x20");

@@ -7,7 +7,8 @@
  */
 
 #include "pch_gbe.h"
-#include <linux/module.h>	/* for __MODULE_STRING */
+#include <linux/module.h>
+#include <linux/stringify.h>
 
 #define OPTION_UNSET   -1
 #define OPTION_DISABLED 0
@@ -440,7 +441,7 @@ void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 			.type = range_option,
 			.name = "Transmit Descriptors",
 			.err  = "using default of "
-				__MODULE_STRING(PCH_GBE_DEFAULT_TXD),
+				__stringify(PCH_GBE_DEFAULT_TXD),
 			.def  = PCH_GBE_DEFAULT_TXD,
 			.arg  = { .r = { .min = PCH_GBE_MIN_TXD,
 					 .max = PCH_GBE_MAX_TXD } }
@@ -456,7 +457,7 @@ void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 			.type = range_option,
 			.name = "Receive Descriptors",
 			.err  = "using default of "
-				__MODULE_STRING(PCH_GBE_DEFAULT_RXD),
+				__stringify(PCH_GBE_DEFAULT_RXD),
 			.def  = PCH_GBE_DEFAULT_RXD,
 			.arg  = { .r = { .min = PCH_GBE_MIN_RXD,
 					 .max = PCH_GBE_MAX_RXD } }

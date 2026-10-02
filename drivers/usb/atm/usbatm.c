@@ -64,6 +64,7 @@
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/stringify.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/kthread.h>
@@ -103,26 +104,26 @@ static unsigned int snd_buf_bytes = UDSL_DEFAULT_SND_BUF_SIZE;
 module_param(num_rcv_urbs, uint, S_IRUGO);
 MODULE_PARM_DESC(num_rcv_urbs,
 		 "Number of urbs used for reception (range: 0-"
-		 __MODULE_STRING(UDSL_MAX_RCV_URBS) ", default: "
-		 __MODULE_STRING(UDSL_DEFAULT_RCV_URBS) ")");
+		 __stringify(UDSL_MAX_RCV_URBS) ", default: "
+		 __stringify(UDSL_DEFAULT_RCV_URBS) ")");
 
 module_param(num_snd_urbs, uint, S_IRUGO);
 MODULE_PARM_DESC(num_snd_urbs,
 		 "Number of urbs used for transmission (range: 0-"
-		 __MODULE_STRING(UDSL_MAX_SND_URBS) ", default: "
-		 __MODULE_STRING(UDSL_DEFAULT_SND_URBS) ")");
+		 __stringify(UDSL_MAX_SND_URBS) ", default: "
+		 __stringify(UDSL_DEFAULT_SND_URBS) ")");
 
 module_param(rcv_buf_bytes, uint, S_IRUGO);
 MODULE_PARM_DESC(rcv_buf_bytes,
 		 "Size of the buffers used for reception, in bytes (range: 1-"
-		 __MODULE_STRING(UDSL_MAX_BUF_SIZE) ", default: "
-		 __MODULE_STRING(UDSL_DEFAULT_RCV_BUF_SIZE) ")");
+		 __stringify(UDSL_MAX_BUF_SIZE) ", default: "
+		 __stringify(UDSL_DEFAULT_RCV_BUF_SIZE) ")");
 
 module_param(snd_buf_bytes, uint, S_IRUGO);
 MODULE_PARM_DESC(snd_buf_bytes,
 		 "Size of the buffers used for transmission, in bytes (range: 1-"
-		 __MODULE_STRING(UDSL_MAX_BUF_SIZE) ", default: "
-		 __MODULE_STRING(UDSL_DEFAULT_SND_BUF_SIZE) ")");
+		 __stringify(UDSL_MAX_BUF_SIZE) ", default: "
+		 __stringify(UDSL_DEFAULT_SND_BUF_SIZE) ")");
 
 
 /* receive */

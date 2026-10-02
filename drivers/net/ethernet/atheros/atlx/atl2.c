@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/stringify.h>
 #include <linux/tcp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
@@ -2921,7 +2922,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	/* Bytes of Transmit Memory */
 	opt.type = range_option;
 	opt.name = "Bytes of Transmit Memory";
-	opt.err = "using default of " __MODULE_STRING(ATL2_DEFAULT_TX_MEMSIZE);
+	opt.err = "using default of " __stringify(ATL2_DEFAULT_TX_MEMSIZE);
 	opt.def = ATL2_DEFAULT_TX_MEMSIZE;
 	opt.arg.r.min = ATL2_MIN_TX_MEMSIZE;
 	opt.arg.r.max = ATL2_MAX_TX_MEMSIZE;
@@ -2939,7 +2940,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	/* Receive Memory Block Count */
 	opt.type = range_option;
 	opt.name = "Number of receive memory block";
-	opt.err = "using default of " __MODULE_STRING(ATL2_DEFAULT_RXD_COUNT);
+	opt.err = "using default of " __stringify(ATL2_DEFAULT_RXD_COUNT);
 	opt.def = ATL2_DEFAULT_RXD_COUNT;
 	opt.arg.r.min = ATL2_MIN_RXD_COUNT;
 	opt.arg.r.max = ATL2_MAX_RXD_COUNT;
@@ -2960,7 +2961,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	/* Interrupt Moderate Timer */
 	opt.type = range_option;
 	opt.name = "Interrupt Moderate Timer";
-	opt.err = "using default of " __MODULE_STRING(INT_MOD_DEFAULT_CNT);
+	opt.err = "using default of " __stringify(INT_MOD_DEFAULT_CNT);
 	opt.def = INT_MOD_DEFAULT_CNT;
 	opt.arg.r.min = INT_MOD_MIN_CNT;
 	opt.arg.r.max = INT_MOD_MAX_CNT;
@@ -2973,7 +2974,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	/* Flash Vendor */
 	opt.type = range_option;
 	opt.name = "SPI Flash Vendor";
-	opt.err = "using default of " __MODULE_STRING(FLASH_VENDOR_DEFAULT);
+	opt.err = "using default of " __stringify(FLASH_VENDOR_DEFAULT);
 	opt.def = FLASH_VENDOR_DEFAULT;
 	opt.arg.r.min = FLASH_VENDOR_MIN;
 	opt.arg.r.max = FLASH_VENDOR_MAX;
@@ -2986,7 +2987,7 @@ static void atl2_check_options(struct atl2_adapter *adapter)
 	/* MediaType */
 	opt.type = range_option;
 	opt.name = "Speed/Duplex Selection";
-	opt.err = "using default of " __MODULE_STRING(MEDIA_TYPE_AUTO_SENSOR);
+	opt.err = "using default of " __stringify(MEDIA_TYPE_AUTO_SENSOR);
 	opt.def = MEDIA_TYPE_AUTO_SENSOR;
 	opt.arg.r.min = MEDIA_TYPE_AUTO_SENSOR;
 	opt.arg.r.max = MEDIA_TYPE_10M_HALF;

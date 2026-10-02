@@ -56,6 +56,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/stringify.h>
 #include <linux/tcp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
@@ -198,7 +199,7 @@ static void atl1_check_options(struct atl1_adapter *adapter)
 			.type = range_option,
 			.name = "Interrupt Moderator Timer",
 			.err = "using default of "
-				__MODULE_STRING(DEFAULT_INT_MOD_CNT),
+				__stringify(DEFAULT_INT_MOD_CNT),
 			.def = DEFAULT_INT_MOD_CNT,
 			.arg = {.r = {.min = MIN_INT_MOD_CNT,
 					.max = MAX_INT_MOD_CNT} }
