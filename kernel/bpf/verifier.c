@@ -14826,7 +14826,15 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env, struct bpf_insn
 			"Tighten the scalar bounds before the arithmetic so the resulting pointer remains within the allowed range.");
 		return -EINVAL;
 	}
-	reg_bounds_sync(dst_reg);
+	/*
+	 * A packet pointer that keeps its id or range is checked against a
+	 * range set from the checked pointer's umax, so var_off must not tighten
+	 * its umax. r32 must still match var_off for reg_bounds_sanity_check().
+	 */
+	if (reg_is_pkt_pointer(dst_reg) && (known || dst_reg->range > 0))
+		__update_reg32_bounds(dst_reg);
+	else
+		reg_bounds_sync(dst_reg);
 	bounds_ret = sanitize_check_bounds(env, insn, dst_reg);
 	if (bounds_ret == -EACCES)
 		return bounds_ret;

@@ -55,38 +55,6 @@ static void *load_module_thread(void *p)
 	return p;
 }
 
-static int sys_userfaultfd(int flags)
-{
-	return syscall(__NR_userfaultfd, flags);
-}
-
-static int test_setup_uffd(void *fault_addr)
-{
-	struct uffdio_register uffd_register = {};
-	struct uffdio_api uffd_api = {};
-	int uffd;
-
-	uffd = sys_userfaultfd(O_CLOEXEC);
-	if (uffd < 0)
-		return -errno;
-
-	uffd_api.api = UFFD_API;
-	uffd_api.features = 0;
-	if (ioctl(uffd, UFFDIO_API, &uffd_api)) {
-		close(uffd);
-		return -1;
-	}
-
-	uffd_register.range.start = (unsigned long)fault_addr;
-	uffd_register.range.len = getpagesize();
-	uffd_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffd_register)) {
-		close(uffd);
-		return -1;
-	}
-	return uffd;
-}
-
 static void test_bpf_mod_race_config(const struct test_config *config)
 {
 	void *fault_addr, *skel_fail;
@@ -117,7 +85,7 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 	if (!ASSERT_OK(bpf_mod_race__attach(skel), "bpf_mod_kfunc_race__attach"))
 		goto end_destroy;
 
-	uffd = test_setup_uffd(fault_addr);
+	uffd = uffd_block_page(fault_addr);
 	if (!ASSERT_GE(uffd, 0, "userfaultfd open + register address"))
 		goto end_destroy;
 

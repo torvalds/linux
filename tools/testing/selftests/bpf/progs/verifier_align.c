@@ -284,7 +284,7 @@ __msg("26: {{.*}} R5=pkt(r=8,imm=14)")
  */
 __msg("28: {{.*}} R4={{[^)]*}}var_off=(0x2; 0x7fc){{.*}} R5={{[^)]*}}var_off=(0x2; 0x7fc)")
 /* Constant is added to R5 again, setting reg->off to 18. */
-__msg("29: {{.*}} R5=pkt(id=3,{{[^)]*}}var_off=(0x2; 0x7fc)")
+__msg("29: {{.*}} R5=pkt(id=3,{{[^)]*}}var_off=(0x2; 0xffc)")
 /* And once more we add a variable; resulting {{[^)]*}}var_off
  * is still (4n), fixed offset is not changed.
  * Also, we create a new reg->id.
@@ -359,7 +359,7 @@ __msg("7: {{.*}} R6={{[^)]*}}var_off=(0x0; 0x3fc)")
 __msg("8: {{.*}} R6={{[^)]*}}var_off=(0x2; 0x7fc)")
 /* Packet pointer has (4n+2) offset */
 __msg("11: {{.*}} R5={{[^)]*}}var_off=(0x2; 0x7fc)")
-__msg("12: {{.*}} R4={{[^)]*}}var_off=(0x2; 0x7fc)")
+__msg("12: {{.*}} R4={{[^)]*}}var_off=(0x2; 0xffc)")
 /* At the time the word size load is performed from R5,
  * its total fixed offset is NET_IP_ALIGN + reg->off (0)
  * which is 2.  Then the variable offset is (4n+2), so
@@ -375,7 +375,7 @@ __msg("17: {{.*}} R6={{[^)]*}}var_off=(0x0; 0x3fc)")
  * another (4n+2).
  */
 __msg("19: {{.*}} R5={{[^)]*}}var_off=(0x2; 0xffc)")
-__msg("20: {{.*}} R4={{[^)]*}}var_off=(0x2; 0xffc)")
+__msg("20: {{.*}} R4={{[^)]*}}var_off=(0x2; 0x1ffc)")
 /* At the time the word size load is performed from R5,
  * its total fixed offset is NET_IP_ALIGN + reg->off (0)
  * which is 2.  Then the variable offset is (4n+2), so
