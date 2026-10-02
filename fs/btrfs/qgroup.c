@@ -1616,7 +1616,11 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst
 
 	ret = add_qgroup_relation_item(trans, dst, src);
 	if (ret) {
-		del_qgroup_relation_item(trans, src, dst);
+		int ret2;
+
+		ret2 = del_qgroup_relation_item(trans, src, dst);
+		if (ret2 < 0)
+			btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
