@@ -15,11 +15,6 @@
 
 #define GET_ODM(__padapter)	((PDM_ODM_T)(&((GET_HAL_DATA(__padapter))->odmpriv)))
 
-enum hal_status {
-	HAL_STATUS_SUCCESS,
-	HAL_STATUS_FAILURE,
-};
-
 	#if defined(__LITTLE_ENDIAN)
 		#define	ODM_ENDIAN_TYPE			ODM_ENDIAN_LITTLE
 	#else

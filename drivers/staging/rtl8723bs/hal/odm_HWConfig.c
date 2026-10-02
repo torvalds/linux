@@ -394,7 +394,7 @@ void odm_phy_status_query(struct dm_odm_t *dm_odm, struct odm_phy_info *phy_info
 
 /*  If you want to add a new IC, Please follow below template and generate a new one. */
 
-enum hal_status ODM_ConfigRFWithHeaderFile(
+void ODM_ConfigRFWithHeaderFile(
 	struct dm_odm_t *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
 	enum rf_path eRFPath
@@ -404,19 +404,15 @@ enum hal_status ODM_ConfigRFWithHeaderFile(
 		ODM_ReadAndConfig_MP_8723B_RadioA(pDM_Odm);
 	else if (ConfigType == CONFIG_RF_TXPWR_LMT)
 		ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(pDM_Odm);
-
-	return HAL_STATUS_SUCCESS;
 }
 
-enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm)
+void ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm)
 {
 	if (pDM_Odm->SupportInterface == ODM_ITRF_SDIO)
 		ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(pDM_Odm);
-
-	return HAL_STATUS_SUCCESS;
 }
 
-enum hal_status ODM_ConfigBBWithHeaderFile(
+void ODM_ConfigBBWithHeaderFile(
 	struct dm_odm_t *pDM_Odm, enum ODM_BB_Config_Type ConfigType
 )
 {
@@ -426,7 +422,4 @@ enum hal_status ODM_ConfigBBWithHeaderFile(
 		ODM_ReadAndConfig_MP_8723B_AGC_TAB(pDM_Odm);
 	else if (ConfigType == CONFIG_BB_PHY_REG_PG)
 		ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(pDM_Odm);
-
-	return HAL_STATUS_SUCCESS;
 }
-
