@@ -12,6 +12,59 @@
 #include "bitmap.h"
 #include "ntfs.h"
 
+/*
+ * Check a $BadClus run against $Bitmap and optionally reserve its free bits.
+ * This is only used during mount, before the free-space scan starts. The
+ * scan will account for the repaired bits, so do not use the regular bitmap
+ * setters, which wait for that scan and assume every bit changes state.
+ * @free_bits counts only bits that were free, including on read-only mounts.
+ */
+int ntfs_bitmap_check_used(struct ntfs_volume *vol, s64 start, s64 count,
+		bool repair, s64 *free_bits)
+{
+	struct address_space *mapping = vol->lcnbmp_ino->i_mapping;
+	const unsigned int bits_per_page = PAGE_SIZE * BITS_PER_BYTE;
+	struct folio *folio;
+	u8 *bitmap;
+	unsigned int bit, end, bits;
+	s64 nr_free;
+
+	if (start < 0 || count <= 0 || start >= vol->nr_clusters ||
+	    count > vol->nr_clusters - start || NVolFreeClusterKnown(vol))
+		return -EINVAL;
+	if (repair && sb_rdonly(vol->sb))
+		return -EROFS;
+
+	while (count) {
+		folio = read_mapping_folio(mapping,
+					   start >> (PAGE_SHIFT + 3), NULL);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
+
+		folio_lock(folio);
+		bitmap = kmap_local_folio(folio, 0);
+		bit = start & (bits_per_page - 1);
+		bits = min_t(s64, count, bits_per_page - bit);
+		end = bit + bits;
+		nr_free = 0;
+		for (bit = find_next_zero_bit_le(bitmap, end, bit); bit < end;
+		     bit = find_next_zero_bit_le(bitmap, end, bit + 1)) {
+			nr_free++;
+			if (repair)
+				__set_bit_le(bit, bitmap);
+		}
+		kunmap_local(bitmap);
+		if (repair && nr_free)
+			folio_mark_dirty(folio);
+		folio_unlock(folio);
+		folio_put(folio);
+		*free_bits += nr_free;
+		start += bits;
+		count -= bits;
+	}
+	return 0;
+}
+
 int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 {
 	size_t buf_clusters;

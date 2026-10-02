@@ -21,6 +21,7 @@
 #include "mft.h"
 #include "ntfs.h"
 #include "ea.h"
+#include "bitmap.h"
 #include "volume.h"
 
 /* A global default upcase table and a corresponding reference count. */
@@ -1548,6 +1549,125 @@ upcase_failed:
 	return false;
 }
 
+static int ntfs_validate_badclus(struct ntfs_volume *vol,
+		const struct runlist *runlist, s64 *bad_clusters)
+{
+	const struct runlist_element *rl = runlist->rl;
+	s64 next_vcn = 0, bad = 0;
+	size_t i;
+
+	if (!rl)
+		return -EIO;
+
+	for (i = 0; i < runlist->count; i++) {
+		if (!rl[i].length) {
+			if (i != runlist->count - 1 ||
+			    rl[i].vcn != vol->nr_clusters ||
+			    rl[i].lcn != LCN_ENOENT ||
+			    next_vcn != vol->nr_clusters)
+				return -EIO;
+			*bad_clusters = bad;
+			return 0;
+		}
+		if (rl[i].vcn != next_vcn || rl[i].length < 0 ||
+		    rl[i].length > vol->nr_clusters - next_vcn)
+			return -EIO;
+		if (rl[i].lcn != LCN_HOLE) {
+			/* Each bad cluster is mapped to its own volume offset. */
+			if (rl[i].lcn != rl[i].vcn)
+				return -EIO;
+			bad += rl[i].length;
+		}
+		next_vcn += rl[i].length;
+	}
+	return -EIO;
+}
+
+/*
+ * Read the allocation of $BadClus:$Bad, not its data. initialized_size may
+ * be zero even when the runlist contains bad clusters. Validate every run
+ * before repairing $Bitmap, and let the later free-space scan account for
+ * the reservations without subtracting the bad-cluster count again.
+ */
+static int load_and_check_badclus(struct ntfs_volume *vol)
+{
+	static __le16 bad_name[] = {
+		cpu_to_le16('$'), cpu_to_le16('B'),
+		cpu_to_le16('a'), cpu_to_le16('d'),
+	};
+	struct super_block *sb = vol->sb;
+	struct inode *base_ino, *bad_ino;
+	struct ntfs_inode *ni;
+	s64 free_bits = 0;
+	u64 size = ntfs_cluster_to_bytes(vol, vol->nr_clusters);
+	size_t i;
+	int err;
+
+	base_ino = ntfs_iget(sb, FILE_BadClus);
+	if (IS_ERR(base_ino))
+		return PTR_ERR(base_ino);
+	if (!S_ISREG(base_ino->i_mode)) {
+		err = -EIO;
+		goto iput_base;
+	}
+	bad_ino = ntfs_attr_iget(base_ino, AT_DATA, bad_name,
+				 ARRAY_SIZE(bad_name));
+	if (IS_ERR(bad_ino)) {
+		err = PTR_ERR(bad_ino);
+		goto iput_base;
+	}
+	ni = NTFS_I(bad_ino);
+	if (!NInoNonResident(ni) || NInoCompressed(ni) || NInoEncrypted(ni) ||
+	    ni->data_size != size || ni->allocated_size != size) {
+		err = -EIO;
+		goto iput_bad;
+	}
+
+	down_write(&ni->runlist.lock);
+	err = ntfs_attr_map_whole_runlist(ni);
+	if (err)
+		goto unlock;
+	err = ntfs_validate_badclus(vol, &ni->runlist, &vol->bad_clusters);
+	if (err)
+		goto unlock;
+	for (i = 0; i < ni->runlist.count - 1; i++) {
+		struct runlist_element *rl = &ni->runlist.rl[i];
+
+		if (rl->lcn == LCN_HOLE)
+			continue;
+		err = ntfs_bitmap_check_used(vol, rl->lcn, rl->length,
+					     !sb_rdonly(sb), &free_bits);
+		if (err)
+			break;
+	}
+unlock:
+	up_write(&ni->runlist.lock);
+iput_bad:
+	iput(bad_ino);
+iput_base:
+	iput(base_ino);
+	if (err)
+		return err;
+	if (free_bits) {
+		/* A read-only mount must not later remount RW without repair. */
+		if (sb_rdonly(sb))
+			return -EIO;
+		err = filemap_write_and_wait(vol->lcnbmp_ino->i_mapping);
+		if (err)
+			return err;
+		err = blkdev_issue_flush(sb->s_bdev);
+		if (err)
+			return err;
+		ntfs_warning(sb,
+			     "Marked %lld bad clusters as used in $Bitmap.",
+			     free_bits);
+	}
+	if (vol->bad_clusters)
+		pr_info("volume contains %lld bad clusters, dev %s\n",
+			vol->bad_clusters, sb->s_id);
+	return 0;
+}
+
 /*
  * The lcn and mft bitmap inodes are NTFS-internal inodes with
  * their own special locking rules:
@@ -1563,16 +1683,16 @@ static struct lock_class_key
  * Open the system files with normal access functions and complete setting up
  * the ntfs super block @vol.
  *
- * Return 'true' on success or 'false' on error.
+ * Return 0 on success and -errno on error.
  */
-static bool load_system_files(struct ntfs_volume *vol)
+static int load_system_files(struct ntfs_volume *vol)
 {
 	struct super_block *sb = vol->sb;
 	struct mft_record *m;
 	struct volume_information *vi;
 	struct ntfs_attr_search_ctx *ctx;
 	struct restart_page_header *rp;
-	int err;
+	int err, ret = -EINVAL;
 	u8 saved_on_errors;
 
 	ntfs_debug("Entering.");
@@ -1785,6 +1905,25 @@ get_ctx_vol_failed:
 		    "Errors were recorded during mount.  Mounting read-only.  Run chkdsk.");
 	}
 
+	/* Check bad clusters after hibernation checks and before any writes. */
+	saved_on_errors = vol->on_errors;
+	if (saved_on_errors == ON_ERRORS_PANIC)
+		vol->on_errors = ON_ERRORS_REMOUNT_RO;
+	err = load_and_check_badclus(vol);
+	vol->on_errors = saved_on_errors;
+	if (err == -ENOMEM) {
+		ret = err;
+		ntfs_warning(sb, "Not enough memory to load $BadClus.");
+		goto iput_root_err_out;
+	}
+	if (err) {
+		sb->s_flags |= SB_RDONLY;
+		NVolSetErrors(vol);
+		ntfs_error(sb,
+			   "Failed to initialize $BadClus (%d). Mounting read-only. Run fsck.ntfs or chkdsk.",
+			   err);
+	}
+
 	/* If (still) a read-write mount, empty the logfile. */
 	if (!sb_rdonly(sb) &&
 	    vol->logfile_ino && !ntfs_empty_logfile(vol->logfile_ino) &&
@@ -1799,7 +1938,7 @@ get_ctx_vol_failed:
 	}
 	/* If on NTFS versions before 3.0, we are done. */
 	if (unlikely(vol->major_ver < 3))
-		return true;
+		return 0;
 	/* NTFS 3.0+ specific initialization. */
 	/* Get the security descriptors inode. */
 	vol->secure_ino = ntfs_iget(sb, FILE_Secure);
@@ -1818,7 +1957,7 @@ get_ctx_vol_failed:
 		ntfs_error(sb, "Failed to load $Extend.");
 		goto iput_sec_err_out;
 	}
-	return true;
+	return 0;
 
 iput_sec_err_out:
 	iput(vol->secure_ino);
@@ -1854,7 +1993,7 @@ iput_mftbmp_err_out:
 	iput(vol->mftbmp_ino);
 iput_mirr_err_out:
 	iput(vol->mftmirr_ino);
-	return false;
+	return ret;
 }
 
 static void ntfs_volume_free(struct ntfs_volume *vol)
@@ -2460,7 +2599,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	char *boot;
 	struct inode *tmp_ino;
-	int blocksize, result;
+	int blocksize, result, err = -EINVAL;
 	pgoff_t lcn_bit_pages;
 	struct ntfs_volume *vol = NTFS_SB(sb);
 	int silent = fc->sb_flags & SB_SILENT;
@@ -2632,8 +2771,10 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * Open the system files with normal access functions and complete
 	 * setting up the ntfs super block.
 	 */
-	if (!load_system_files(vol)) {
-		ntfs_error(sb, "Failed to load system files.");
+	result = load_system_files(vol);
+	if (result) {
+		err = result;
+		ntfs_warning(sb, "Failed to load system files (%d).", err);
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
 
@@ -2742,9 +2883,9 @@ err_out_now:
 	kfree(vol->volume_label);
 	unload_nls(vol->nls_map);
 	kfree(vol);
-	ntfs_debug("Failed, returning -EINVAL.");
+	ntfs_debug("Failed, returning %d.", err);
 	lockdep_on();
-	return -EINVAL;
+	return err;
 }
 
 /*

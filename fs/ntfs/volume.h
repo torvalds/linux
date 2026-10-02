@@ -86,6 +86,7 @@
  * @nls_utf8: NLS table for UTF-8.
  * @free_waitq: Wait queue for threads waiting for free clusters or MFT records.
  * @free_clusters: Track the number of free clusters.
+ * @bad_clusters: Number of clusters recorded in $BadClus:$Bad.
  * @free_mft_records: Track the free mft records.
  * @dirty_clusters: Number of clusters that are dirty.
  * @sparse_compression_unit: Size of compression/sparse unit in clusters.
@@ -123,6 +124,7 @@ struct ntfs_volume {
 	u32 index_record_size_mask;
 	u8 index_record_size_bits;
 	s64 nr_clusters;
+	s64 bad_clusters;
 	s64 mft_lcn;
 	s64 mftmirr_lcn;
 	u64 serial_no;

@@ -13,6 +13,8 @@
 #include "volume.h"
 
 int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range);
+int ntfs_bitmap_check_used(struct ntfs_volume *vol, s64 start, s64 count,
+		bool repair, s64 *free_bits);
 int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 		const s64 count, const u8 value, const bool is_rollback);
 
