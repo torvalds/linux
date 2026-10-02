@@ -1901,7 +1901,6 @@ EXPORT_SYMBOL(d_invalidate);
  
 static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
-	static struct lock_class_key __lookup_key;
 	struct dentry *dentry;
 	char *dname;
 	int err;
@@ -1959,7 +1958,8 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	dentry->waiters = NULL;
 	INIT_HLIST_NODE(&dentry->d_sib);
 
-	lockdep_init_map(&dentry->lookup_map, "DCACHE_PAR_LOOKUP", &__lookup_key, 0);
+	lockdep_init_map(&dentry->lookup_map, "DCACHE_PAR_LOOKUP",
+			 &sb->s_type->d_lookup_key, 0);
 
 	if (dentry->d_op && dentry->d_op->d_init) {
 		err = dentry->d_op->d_init(dentry);
