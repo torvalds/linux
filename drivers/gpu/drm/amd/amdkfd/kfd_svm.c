@@ -1752,12 +1752,15 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		}
 
 		/*
-		 * If prange with always mapped flag, update mapping on GPUs with
-		 * ACCESS attribute
+		 * If prange with always mapped flag is not mapped or migrated
+		 * yet, update mapping on GPUs with ACCESS attribute. Don't add
+		 * them otherwise, ACCESS GPUs may be on different XGMI hives,
+		 * that would force hmm_range_fault to migrate VRAM back to ram.
 		 */
-		if (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED)
-			bitmap_or(ctx->bitmap, ctx->bitmap, prange->bitmap_access,
-				  MAX_GPU_INSTANCE);
+		if (bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE) &&
+		    prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED)
+			bitmap_copy(ctx->bitmap, prange->bitmap_access,
+				    MAX_GPU_INSTANCE);
 	} else {
 		bitmap_or(ctx->bitmap, prange->bitmap_access,
 			  prange->bitmap_aip, MAX_GPU_INSTANCE);
