@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/property.h>
@@ -560,6 +561,8 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	INIT_LIST_HEAD(&ring->in_flight);
 	INIT_WORK(&ring->work, ring_work);
 	init_waitqueue_head(&ring->wait);
+	lockdep_register_key(&ring->lock_key);
+	lockdep_init_map(&ring->work.lockdep_map, "ring.work", &ring->lock_key, 0);
 
 	ring->nhi = nhi;
 	ring->hop = hop;
@@ -599,6 +602,7 @@ err_free_descs:
 			  ring->size * sizeof(*ring->descriptors),
 			  ring->descriptors, ring->descriptors_dma);
 err_free_ring:
+	lockdep_unregister_key(&ring->lock_key);
 	kfree(ring);
 
 	return NULL;
@@ -848,6 +852,7 @@ void tb_ring_free(struct tb_ring *ring)
 	 * to finish before freeing the ring.
 	 */
 	flush_work(&ring->work);
+	lockdep_unregister_key(&ring->lock_key);
 	kfree(ring);
 }
 EXPORT_SYMBOL_GPL(tb_ring_free);
@@ -1173,32 +1178,6 @@ static void nhi_reset(struct tb_nhi *nhi)
 	} while (ktime_before(ktime_get(), timeout));
 
 	dev_warn(nhi->dev, "timeout resetting host router\n");
-}
-
-/**
- * nhi_reset_interface() - Reset the host interface
- * @nhi: Host interface to reset
- *
- * Brings the registers in the memory BAR back to their default state and
- * clears the End-to-End Flow Control state. The caller is responsible for
- * stopping the control channel over the reset because it clears the ring
- * state as well.
- */
-void nhi_reset_interface(struct tb_nhi *nhi)
-{
-	u32 val;
-
-	val = ioread32(nhi->iobase + REG_CAPS);
-	/* Only v1 host interfaces implement the reset */
-	if (FIELD_GET(REG_CAPS_VERSION_MASK, val) >= REG_CAPS_VERSION_2)
-		return;
-
-	dev_dbg(nhi->dev, "issuing host interface reset\n");
-
-	iowrite32(REG_HOST_INTERFACE_RESET_RST,
-		  nhi->iobase + REG_HOST_INTERFACE_RESET);
-	/* Wait for tHIReset (10 ms) to complete */
-	usleep_range(10000, 20000);
 }
 
 static struct tb *nhi_select_cm(struct tb_nhi *nhi)

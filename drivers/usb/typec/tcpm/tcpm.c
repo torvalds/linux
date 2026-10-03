@@ -1756,7 +1756,8 @@ static void mod_enable_frs_delayed_work(struct tcpm_port *port, unsigned int del
 static void mod_vdm_discovery_cancel_delayed_work(struct tcpm_port *port)
 {
 	hrtimer_cancel(&port->vdm_discovery_timer);
-	kthread_cancel_work_sync(&port->vdm_discovery_work);
+	if (port->wq)
+		kthread_cancel_work_sync(&port->vdm_discovery_work);
 }
 
 static void mod_vdm_discovery_delayed_work(struct tcpm_port *port, unsigned int delay_ms)
@@ -7113,7 +7114,7 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 				port->upcoming_state = FR_SWAP_SEND;
 				ret = tcpm_ams_start(port, FAST_ROLE_SWAP);
 				if (ret == -EAGAIN)
-					port->upcoming_state = INVALID_STATE;
+					tcpm_set_state(port, ERROR_RECOVERY, 0);
 			} else {
 				tcpm_log(port, "Discarding FRS_SIGNAL! Not in sink ready");
 			}
@@ -8977,6 +8978,7 @@ void tcpm_unregister_port(struct tcpm_port *port)
 
 	port->registered = false;
 	kthread_destroy_worker(port->wq);
+	port->wq = NULL;
 
 	hrtimer_cancel(&port->vdm_discovery_timer);
 	hrtimer_cancel(&port->enable_frs_timer);

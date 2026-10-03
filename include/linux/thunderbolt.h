@@ -22,6 +22,7 @@ struct device;
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/mutex.h>
 #include <linux/device-id/tb.h>
 #include <linux/pci.h>
@@ -565,6 +566,7 @@ struct tb_nhi {
  * @interval_nsec: Interval counter if interrupt throttling is to be
  *		   used with this ring (in ns)
  * @wait: Used to signal that the ring may be empty now
+ * @lock_key: Lock validator class key per-ring
  */
 struct tb_ring {
 	spinlock_t lock;
@@ -590,6 +592,7 @@ struct tb_ring {
 	void *poll_data;
 	unsigned int interval_nsec;
 	wait_queue_head_t wait;
+	struct lock_class_key lock_key;
 };
 
 /* Leave ring interrupt enabled on suspend */

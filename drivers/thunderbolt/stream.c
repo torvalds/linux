@@ -978,6 +978,9 @@ static int tbstream_dev_fops_open(struct inode *inode, struct file *file)
 	}
 
 	mutex_unlock(&sdev->lock);
+
+	/* Stream handles IOCB_NOWAIT just fine */
+	file->f_mode |= FMODE_NOWAIT;
 	return 0;
 
 err_unlock:
