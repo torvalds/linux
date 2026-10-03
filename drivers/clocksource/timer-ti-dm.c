@@ -1095,6 +1095,7 @@ static int omap_dm_timer_write_counter(struct omap_dm_timer *cookie, unsigned in
 {
 	struct dmtimer *timer;
 	struct device *dev;
+	int ret;
 
 	timer = to_dmtimer(cookie);
 	if (unlikely(!timer)) {
@@ -1104,7 +1105,10 @@ static int omap_dm_timer_write_counter(struct omap_dm_timer *cookie, unsigned in
 
 	dev = &timer->pdev->dev;
 
-	pm_runtime_resume_and_get(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
 	dmtimer_write(timer, OMAP_TIMER_COUNTER_REG, value);
 	pm_runtime_put_sync(dev);
 
