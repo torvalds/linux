@@ -26,7 +26,7 @@ struct mcp47a1_data {
 	int vref_mV;
 };
 
-static const int mcp47a1_raw_avail[] = { 0, 1, MCP47A1_MAX_STEPS - 1 };
+static const int mcp47a1_raw_avail[] = { 0, 1, MCP47A1_MAX_STEPS };
 
 static const struct iio_chan_spec mcp47a1_channel = {
 	.type = IIO_VOLTAGE,
@@ -46,7 +46,7 @@ static int mcp47a1_write(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (!in_range(val, 0, MCP47A1_MAX_STEPS))
+		if (!in_range(val, 0, MCP47A1_MAX_STEPS + 1))
 			return -EINVAL;
 
 		return i2c_smbus_write_byte_data(data->client, MCP47A1_CMD_CODE,

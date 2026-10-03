@@ -746,13 +746,20 @@ static int ad4030_set_chan_calibbias(struct iio_dev *indio_dev,
 static int ad4030_set_avg_frame_len(struct iio_dev *dev, int avg_val)
 {
 	struct ad4030_state *st = iio_priv(dev);
-	unsigned int avg_log2 = ilog2(avg_val);
 	unsigned int last_avg_idx = ARRAY_SIZE(ad4030_average_modes) - 1;
+	unsigned int avg_log2;
 	int freq_hz;
 	int ret;
 
-	if (avg_val < 0 || avg_val > ad4030_average_modes[last_avg_idx])
+	/* Reject unsupported modes */
+	if (avg_val > ad4030_average_modes[last_avg_idx])
 		return -EINVAL;
+
+	/* Avoid invalid values for logarithm since it's undefined */
+	if (avg_val < 1)
+		return -EINVAL;
+
+	avg_log2 = ilog2(avg_val);
 
 	if (st->offload_trigger) {
 		/*

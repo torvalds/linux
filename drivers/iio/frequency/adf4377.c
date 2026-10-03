@@ -988,10 +988,10 @@ static const struct clk_ops adf4377_clk_ops = {
 
 static int adf4377_clk_register(struct adf4377_state *st)
 {
+	struct clk_parent_data parent_data = { };
 	struct spi_device *spi = st->spi;
 	struct device *dev = &spi->dev;
-	struct clk_init_data init;
-	struct clk_parent_data parent_data;
+	struct clk_init_data init = { };
 	int ret;
 
 	if (!device_property_present(dev, "#clock-cells"))
