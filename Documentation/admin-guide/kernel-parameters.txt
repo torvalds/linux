@@ -3945,8 +3945,8 @@ Kernel parameters
 			like Grub2, otherwise '$' and the following number
 			will be eaten.
 
-	memmap=nn[KMG]!ss[KMG,EARLY]
-			[KNL,X86] Mark specific memory as protected.
+	memmap=nn[KMG]!ss[KMG]
+			[KNL,X86,EARLY] Mark specific memory as protected.
 			Region of memory to be used, from ss to ss+nn.
 			The memory region may be marked as e820 type 12 (0xc)
 			and is NVDIMM or ADR memory.
@@ -4236,11 +4236,11 @@ Kernel parameters
 			Enable printing debug information related to MTRR
 			registers at boot time.
 
-	mtrr_chunk_size=nn[KMG,X86,EARLY]
+	mtrr_chunk_size=nn[KMG]		[X86,EARLY]
 			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
 
-	mtrr_gran_size=nn[KMG,X86,EARLY]
+	mtrr_gran_size=nn[KMG]		[X86,EARLY]
 			Used for mtrr cleanup. It is granularity of mtrr block.
 			Default is 1.
 			Large value could prevent small alignment from
