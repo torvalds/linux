@@ -34,34 +34,34 @@
 				    "new_policy_digest=" IPE_AUDIT_HASH_ALG ":"
 
 static const char *const audit_op_names[__IPE_OP_MAX + 1] = {
-	"EXECUTE",
-	"FIRMWARE",
-	"KMODULE",
-	"KEXEC_IMAGE",
-	"KEXEC_INITRAMFS",
-	"POLICY",
-	"X509_CERT",
-	"UNKNOWN",
+	[IPE_OP_EXEC]			= "EXECUTE",
+	[IPE_OP_FIRMWARE]		= "FIRMWARE",
+	[IPE_OP_KERNEL_MODULE]		= "KMODULE",
+	[IPE_OP_KEXEC_IMAGE]		= "KEXEC_IMAGE",
+	[IPE_OP_KEXEC_INITRAMFS]	= "KEXEC_INITRAMFS",
+	[IPE_OP_POLICY]			= "POLICY",
+	[IPE_OP_X509]			= "X509_CERT",
+	[IPE_OP_INVALID]		= "UNKNOWN",
 };
 
 static const char *const audit_hook_names[__IPE_HOOK_MAX] = {
-	"BPRM_CHECK",
-	"BPRM_CREDS_FOR_EXEC",
-	"MMAP",
-	"MPROTECT",
-	"KERNEL_READ",
-	"KERNEL_LOAD",
+	[IPE_HOOK_BPRM_CHECK]		= "BPRM_CHECK",
+	[IPE_HOOK_BPRM_CREDS_FOR_EXEC]	= "BPRM_CREDS_FOR_EXEC",
+	[IPE_HOOK_MMAP]			= "MMAP",
+	[IPE_HOOK_MPROTECT]		= "MPROTECT",
+	[IPE_HOOK_KERNEL_READ]		= "KERNEL_READ",
+	[IPE_HOOK_KERNEL_LOAD]		= "KERNEL_LOAD",
 };
 
 static const char *const audit_prop_names[__IPE_PROP_MAX] = {
-	"boot_verified=FALSE",
-	"boot_verified=TRUE",
-	"dmverity_roothash=",
-	"dmverity_signature=FALSE",
-	"dmverity_signature=TRUE",
-	"fsverity_digest=",
-	"fsverity_signature=FALSE",
-	"fsverity_signature=TRUE",
+	[IPE_PROP_BOOT_VERIFIED_FALSE]	= "boot_verified=FALSE",
+	[IPE_PROP_BOOT_VERIFIED_TRUE]	= "boot_verified=TRUE",
+	[IPE_PROP_DMV_ROOTHASH]		= "dmverity_roothash=",
+	[IPE_PROP_DMV_SIG_FALSE]	= "dmverity_signature=FALSE",
+	[IPE_PROP_DMV_SIG_TRUE]		= "dmverity_signature=TRUE",
+	[IPE_PROP_FSV_DIGEST]		= "fsverity_digest=",
+	[IPE_PROP_FSV_SIG_FALSE]	= "fsverity_signature=FALSE",
+	[IPE_PROP_FSV_SIG_TRUE]		= "fsverity_signature=TRUE",
 };
 
 /**
