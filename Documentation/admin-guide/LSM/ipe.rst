@@ -791,7 +791,7 @@ Allow execution of a specific fs-verity file
 Additional Information
 ----------------------
 
-- `Github Repository <https://github.com/microsoft/ipe>`_
+- `IPE website <https://ipe-lsm.org/>`_
 - :doc:`Developer and design docs for IPE </security/ipe>`
 
 FAQ
