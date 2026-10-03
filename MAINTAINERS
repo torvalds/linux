@@ -24489,6 +24489,11 @@ R:	Marc Murphy <marc.murphy@sancloud.com>
 S:	Supported
 F:	arch/arm/boot/dts/ti/omap/am335x-sancloud*
 
+SB1250-DUART BROADCOM SOC SERIAL DRIVER
+M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
+S:	Maintained
+F:	drivers/tty/serial/sb1250-duart.c
+
 SBOM
 M:	Luis Augenstein <luis.augenstein@tngtech.com>
 M:	Maximilian Huber <maximilian.huber@tngtech.com>

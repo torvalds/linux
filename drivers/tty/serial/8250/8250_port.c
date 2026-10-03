@@ -3597,7 +3597,7 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
 
 	up->console_line_ended = true;
 	up->console_msr_work_allow = true;
-	init_irq_work(&up->console_msr_work, console_msr_handler);
+	up->console_msr_work = IRQ_WORK_INIT_LAZY(console_msr_handler);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
