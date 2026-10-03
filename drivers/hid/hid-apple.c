@@ -373,6 +373,9 @@ static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
 	{ "2.4G Wireless Receiver" },	/* EPOMAKER TH87 dongle */
 	{ "Thock TKL Wireless" },	/* ENDORFY THOCK TKL BT mode */
 	{ "USB Dongle" },		/* ENDORFY THOCK TKL dongle */
+	{ "HFD GS3104T PRO" },		/* GANSS GS3104T PRO USB mode */
+	{ "GS3104T-PRO 2.4G" },		/* GANSS GS3104T PRO 2.4G dongle */
+	{ "GS3104T PRO" },		/* GANSS GS3104T PRO Bluetooth */
 };
 
 static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
