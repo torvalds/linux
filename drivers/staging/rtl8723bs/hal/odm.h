@@ -848,7 +848,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 
 	/* common */
 
-	bool *pbDriverStopped;
 	bool *pbDriverIsGoingToPnpSetPowerSleep;
 	bool *pinit_adpt_in_progress;
 

@@ -772,10 +772,6 @@ void ODM_CmnInfoHook(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, void 
 		pDM_Odm->pOnePathCCA = pValue;
 		break;
 
-	case ODM_CMNINFO_DRV_STOP:
-		pDM_Odm->pbDriverStopped =  pValue;
-		break;
-
 	case ODM_CMNINFO_PNP_IN:
 		pDM_Odm->pbDriverIsGoingToPnpSetPowerSleep =  pValue;
 		break;
