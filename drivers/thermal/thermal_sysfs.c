@@ -287,12 +287,12 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 	name##_show(struct device *dev, struct device_attribute *devattr, \
 		char *buf)						\
 	{								\
-	struct thermal_zone_device *tz = to_thermal_zone(dev);		\
+		struct thermal_zone_device *tz = to_thermal_zone(dev);	\
 									\
-	if (tz->tzp)							\
+		if (!tz->tzp)						\
+			return -EIO;					\
+									\
 		return sysfs_emit(buf, "%d\n", tz->tzp->name);		\
-	else								\
-		return -EIO;						\
 	}								\
 									\
 	static ssize_t							\
