@@ -58,7 +58,6 @@ struct	stainfo_rxcache	{
 */
 };
 
-
 struct signal_stat {
 	u8 update_req;		/* used to indicate */
 	u8 avg_val;		/* avg of valid elements */
@@ -139,7 +138,6 @@ struct rx_pkt_attrib {
 */
 	struct phy_info phy_info;
 };
-
 
 /* These definition is used for Rx packet reordering. */
 #define SN_LESS(a, b)		(((a - b) & 0x800) != 0)
@@ -248,7 +246,6 @@ struct recv_buf {
 	u8 reuse;
 };
 
-
 /*
 	head  ----->
 
@@ -257,7 +254,6 @@ struct recv_buf {
 			payload
 
 		tail  ----->
-
 
 	end   ----->
 
@@ -342,10 +338,8 @@ static inline u8 *recvframe_pull(union recv_frame *precvframe, signed int sz)
 
 	/* used for extract sz bytes from rx_data, update rx_data and return the updated rx_data to the caller */
 
-
 	if (!precvframe)
 		return NULL;
-
 
 	precvframe->u.hdr.rx_data += sz;
 
@@ -386,8 +380,6 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, signed int sz)
 
 }
 
-
-
 static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, signed int sz)
 {
 	/*  rmv data from rx_tail (by yitsen) */
@@ -416,7 +408,6 @@ static inline signed int get_recvframe_len(union recv_frame *precvframe)
 	return precvframe->u.hdr.len;
 }
 
-
 static inline s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32 SignalPower; /*  in dBm. */
@@ -427,7 +418,6 @@ static inline s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 
 	return SignalPower;
 }
-
 
 struct sta_info;
 
