@@ -2675,6 +2675,7 @@ static void vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
 static void vfio_pci_core_cleanup(void)
 {
 	vfio_pci_uninit_perm_bits();
+	rcu_barrier();
 }
 
 static int __init vfio_pci_core_init(void)
