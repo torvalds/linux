@@ -7,6 +7,7 @@
 #define _EXFAT_FS_H
 
 #include <linux/fs.h>
+#include <linux/atomic.h>
 #include <linux/ratelimit.h>
 #include <linux/nls.h>
 #include <linux/blkdev.h>
@@ -294,9 +295,16 @@ struct exfat_inode_info {
 
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
-	loff_t valid_size;
+	/*
+	 * valid_size and zeroed_size are updated from multiple contexts that
+	 * are not serialised against each other (page_mkwrite runs without
+	 * i_rwsem, while buffered/DIO writes advance them under i_rwsem).  Keep
+	 * them atomic and only ever advance them with a cmpxchg loop so a
+	 * concurrent update can never regress the value or tear on 32-bit.
+	 */
+	atomic64_t valid_size;
 	/* block-aligned size zeroed in the page cache (>= valid_size) */
-	loff_t zeroed_size;
+	atomic64_t zeroed_size;
 	/* hash by i_location */
 	struct hlist_node i_hash_fat;
 	struct inode vfs_inode;
@@ -312,6 +320,54 @@ static inline struct exfat_sb_info *EXFAT_SB(struct super_block *sb)
 static inline struct exfat_inode_info *EXFAT_I(struct inode *inode)
 {
 	return container_of(inode, struct exfat_inode_info, vfs_inode);
+}
+
+static inline loff_t exfat_get_valid_size(struct exfat_inode_info *ei)
+{
+	return atomic64_read(&ei->valid_size);
+}
+
+static inline loff_t exfat_get_zeroed_size(struct exfat_inode_info *ei)
+{
+	return atomic64_read(&ei->zeroed_size);
+}
+
+static inline void exfat_set_valid_size(struct exfat_inode_info *ei, loff_t v)
+{
+	atomic64_set(&ei->valid_size, v);
+}
+
+static inline void exfat_set_zeroed_size(struct exfat_inode_info *ei, loff_t v)
+{
+	atomic64_set(&ei->zeroed_size, v);
+}
+
+/*
+ * Monotonically advance @v to at least @new. Returns true if the value was
+ * actually raised, so callers can decide whether to mark the inode dirty.
+ */
+static inline bool exfat_size_advance(atomic64_t *v, loff_t new)
+{
+	loff_t old = atomic64_read(v);
+
+	do {
+		if (old >= new)
+			return false;
+	} while (!atomic64_try_cmpxchg(v, &old, new));
+
+	return true;
+}
+
+static inline bool exfat_advance_valid_size(struct exfat_inode_info *ei,
+		loff_t new)
+{
+	return exfat_size_advance(&ei->valid_size, new);
+}
+
+static inline bool exfat_advance_zeroed_size(struct exfat_inode_info *ei,
+		loff_t new)
+{
+	return exfat_size_advance(&ei->zeroed_size, new);
 }
 
 static inline int exfat_forced_shutdown(struct super_block *sb)

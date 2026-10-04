@@ -380,7 +380,7 @@ int exfat_find_empty_entry(struct inode *inode,
 
 		/* directory inode should be updated in here */
 		i_size_write(inode, size);
-		ei->valid_size += sbi->cluster_size;
+		atomic64_add(sbi->cluster_size, &ei->valid_size);
 		ei->flags = p_dir->flags;
 		inode->i_blocks += sbi->cluster_size >> 9;
 	}
@@ -1249,7 +1249,7 @@ static int __exfat_rename(struct inode *old_parent_inode,
 			}
 
 			i_size_write(new_inode, 0);
-			new_ei->valid_size = 0;
+			exfat_set_valid_size(new_ei, 0);
 			new_ei->start_clu = EXFAT_EOF_CLUSTER;
 			new_ei->flags = ALLOC_NO_FAT_CHAIN;
 		}

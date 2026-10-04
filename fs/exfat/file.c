@@ -247,8 +247,10 @@ int __exfat_truncate(struct inode *inode)
 		ei->start_clu = EXFAT_EOF_CLUSTER;
 	}
 
-	if (i_size_read(inode) < ei->valid_size)
-		ei->valid_size = ei->zeroed_size = i_size_read(inode);
+	if (i_size_read(inode) < exfat_get_valid_size(ei)) {
+		exfat_set_valid_size(ei, i_size_read(inode));
+		exfat_set_zeroed_size(ei, i_size_read(inode));
+	}
 
 	if (ei->type == TYPE_FILE)
 		ei->attr |= EXFAT_ATTR_ARCHIVE;
@@ -700,12 +702,12 @@ static int exfat_prepare_valid_range(struct inode *inode, loff_t start,
 static int exfat_extend_valid_size(struct inode *inode, loff_t new_valid_size)
 {
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	loff_t old_valid_size = ei->valid_size;
+	loff_t old_valid_size = exfat_get_valid_size(ei);
 	int ret = 0;
 
 	if (old_valid_size < new_valid_size) {
 		/* Do not re-zero blocks already covered by zeroed_size. */
-		loff_t gap_start = max(old_valid_size, ei->zeroed_size);
+		loff_t gap_start = max(old_valid_size, exfat_get_zeroed_size(ei));
 
 		if (i_size_read(inode) < new_valid_size) {
 			/*
@@ -737,9 +739,9 @@ static int exfat_extend_valid_size(struct inode *inode, loff_t new_valid_size)
 			return ret;
 		}
 
-		ei->valid_size = new_valid_size;
-		if (ei->zeroed_size < round_up(new_valid_size, i_blocksize(inode)))
-			ei->zeroed_size = round_up(new_valid_size, i_blocksize(inode));
+		exfat_set_valid_size(ei, new_valid_size);
+		exfat_advance_zeroed_size(ei,
+				round_up(new_valid_size, i_blocksize(inode)));
 		mark_inode_dirty(inode);
 	}
 
@@ -824,7 +826,7 @@ static ssize_t exfat_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (pos > i_size_read(inode))
 		truncate_pagecache(inode, i_size_read(inode));
 
-	valid_size = ei->valid_size;
+	valid_size = exfat_get_valid_size(ei);
 	if (pos > valid_size) {
 		ret = exfat_extend_valid_size(inode, pos);
 		if (ret < 0 && ret != -ENOSPC) {
@@ -900,8 +902,10 @@ static vm_fault_t exfat_page_mkwrite(struct vm_fault *vmf)
 	fault_page_start = ((loff_t)vmf->pgoff) << PAGE_SHIFT;
 	new_valid_size = min(mmap_valid_size, i_size_read(inode));
 
-	if (ei->valid_size < new_valid_size) {
-		if (ei->zeroed_size < fault_page_start) {
+	if (exfat_get_valid_size(ei) < new_valid_size) {
+		loff_t zeroed_size = exfat_get_zeroed_size(ei);
+
+		if (zeroed_size < fault_page_start) {
 			int err;
 
 			/*
@@ -909,7 +913,7 @@ static vm_fault_t exfat_page_mkwrite(struct vm_fault *vmf)
 			 * fault populated its folio and iomap_page_mkwrite()
 			 * will dirty it.
 			 */
-			err = exfat_prepare_valid_range(inode, ei->zeroed_size,
+			err = exfat_prepare_valid_range(inode, zeroed_size,
 					fault_page_start);
 			if (err < 0) {
 				inode_unlock(inode);
@@ -922,9 +926,9 @@ static vm_fault_t exfat_page_mkwrite(struct vm_fault *vmf)
 		 * at i_size recording blocks wholly beyond it could skip a
 		 * later required zeroing.
 		 */
-		if (ei->zeroed_size < round_up(new_valid_size, i_blocksize(inode)))
-			ei->zeroed_size = round_up(new_valid_size, i_blocksize(inode));
-		ei->valid_size = new_valid_size;
+		exfat_advance_zeroed_size(ei,
+				round_up(new_valid_size, i_blocksize(inode)));
+		exfat_set_valid_size(ei, new_valid_size);
 		mark_inode_dirty(inode);
 	}
 

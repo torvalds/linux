@@ -46,6 +46,7 @@ static int __exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	unsigned int cluster, num_clusters;
 	loff_t cluster_offset, cluster_length;
+	loff_t valid_size = exfat_get_valid_size(ei);
 	int err;
 	bool balloc = false;
 
@@ -88,7 +89,7 @@ static int __exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length
 	if (may_alloc || flags & IOMAP_ZERO) {
 		if (balloc)
 			iomap->flags |= IOMAP_F_NEW;
-		else if (iomap->offset + iomap->length >= ei->valid_size) {
+		else if (iomap->offset + iomap->length >= valid_size) {
 			/*
 			 * This is a write that starts at or extends beyond
 			 * the current valid_size. The region between the old
@@ -114,10 +115,10 @@ static int __exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length
 		 * return IOMAP_UNWRITTEN so the write path can
 		 * distinguish it from a real hole.
 		 */
-		if (offset >= ei->valid_size) {
+		if (offset >= valid_size) {
 			iomap->type = flags & IOMAP_REPORT ?
 				IOMAP_HOLE : IOMAP_UNWRITTEN;
-		} else if (offset + iomap->length > ei->valid_size) {
+		} else if (offset + iomap->length > valid_size) {
 			if (flags & IOMAP_REPORT) {
 				/*
 				 * For SEEK_HOLE/SEEK_DATA, clip the length
@@ -125,9 +126,9 @@ static int __exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length
 				 * This ensures the caller gets the precise
 				 * hole position in byte units.
 				 */
-				iomap->length = ei->valid_size - iomap->offset;
+				iomap->length = valid_size - iomap->offset;
 			} else
-				iomap->length = round_up(ei->valid_size,
+				iomap->length = round_up(valid_size,
 							 i_blocksize(inode)) -
 								iomap->offset;
 		}
@@ -196,10 +197,8 @@ static int exfat_write_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	end = pos + written;
 
-	if (ei->valid_size < end) {
-		ei->valid_size = end;
+	if (exfat_advance_valid_size(ei, end))
 		dirtied = true;
-	}
 
 	/*
 	 * IOMAP_F_ZERO_TAIL zeroes the remainder of the last block. Track that
@@ -207,8 +206,7 @@ static int exfat_write_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	 */
 	if (iomap->flags & IOMAP_F_ZERO_TAIL)
 		end = round_up(end, i_blocksize(inode));
-	if (ei->zeroed_size < end)
-		ei->zeroed_size = end;
+	exfat_advance_zeroed_size(ei, end);
 
 	if (dirtied || iomap->flags & IOMAP_F_SIZE_CHANGED)
 		mark_inode_dirty(inode);
@@ -271,7 +269,7 @@ static void exfat_iomap_read_end_io(struct bio *bio)
 		s64 valid_size;
 		loff_t pos = folio_pos(folio);
 
-		valid_size = ei->valid_size;
+		valid_size = exfat_get_valid_size(ei);
 		if (pos + iter.offset < valid_size &&
 		    pos + iter.offset + iter.length > valid_size)
 			folio_zero_segment(folio, offset_in_folio(folio, valid_size),
