@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/regset.h>
+#define __FRAME_OFFSETS
 #include <asm/ptrace-abi.h>
 #include <registers.h>
 #include <skas.h>
