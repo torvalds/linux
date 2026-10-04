@@ -78,7 +78,7 @@ rocket_copy_tasks(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-	for (int i = 0; i < rjob->task_count; i++) {
+	for (unsigned int i = 0; i < rjob->task_count; i++) {
 		struct drm_rocket_task task = {0};
 
 		if (copy_from_user(&task,
