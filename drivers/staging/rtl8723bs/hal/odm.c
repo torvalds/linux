@@ -461,12 +461,8 @@ static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm)
 /* 3 ============================================================ */
 static void odm_SwAntDetectInit(struct dm_odm_t *pDM_Odm)
 {
-	struct swat_t *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-
-	pDM_SWAT_Table->SWAS_NoLink_BK_Reg92c = rtw_read32(pDM_Odm->Adapter, rDPDT_control);
-	pDM_SWAT_Table->PreAntenna = MAIN_ANT;
-	pDM_SWAT_Table->CurAntenna = MAIN_ANT;
-	pDM_SWAT_Table->SWAS_NoLink_State = 0;
+	/* Dummy read rDPDT_control to preserve initialization hardware sequencing */
+	rtw_read32(pDM_Odm->Adapter, rDPDT_control);
 }
 
 /* 3 ============================================================ */
@@ -589,9 +585,7 @@ void ODM_DMWatchdog(struct dm_odm_t *pDM_Odm)
 
 	odm_RSSIMonitorCheck(pDM_Odm);
 
-	/* For CE Platform(SPRD or Tablet) */
-	/* 8723A or 8189ES platform */
-	/* NeilChen--2012--08--24-- */
+	/* For CE Platform (Spreadtrum or Tablet) */
 	/* Fix Leave LPS issue */
 	if (adapter_to_pwrctl(pDM_Odm->Adapter)->pwr_mode != PS_MODE_ACTIVE) {
 		/* in LPS mode */

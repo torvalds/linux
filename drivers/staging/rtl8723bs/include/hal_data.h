@@ -208,7 +208,6 @@ struct hal_com_data {
 	u8 RegReg542;
 	u16 RegRRSR;
 
-	u8 CurAntenna;
 	u8 AntDivCfg;
 	u8 AntDetection;
 	u8 ant_path; /* for 8723B s0/s1 selection */

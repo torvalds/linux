@@ -50,23 +50,12 @@
 #define	PSD_RESCAN		4
 #define	PSD_SCAN_INTERVAL	700 /* ms */
 
-/* 8723A High Power IGI Setting */
-#define		DM_DIG_HIGH_PWR_IGI_LOWER_BOUND	0x22
-#define			DM_DIG_Gmode_HIGH_PWR_IGI_LOWER_BOUND 0x28
-#define		DM_DIG_HIGH_PWR_THRESHOLD	0x3a
-#define		DM_DIG_LOW_PWR_THRESHOLD	0x14
-
 /* ANT Test */
 #define			ANTTESTALL		0x00		/* Ant A or B will be Testing */
 #define		ANTTESTA		0x01		/* Ant A will be Testing */
 #define		ANTTESTB		0x02		/* Ant B will be testing */
 
 #define	PS_MODE_ACTIVE 0x01
-
-/* for 8723A Ant Definition--2012--06--07 due to different IC may be different ANT define */
-#define		MAIN_ANT		1		/* Ant A or Ant Main */
-#define		AUX_ANT		2		/* AntB or Ant Aux */
-#define		MAX_ANT		3		/*  3 for AP using */
 
 /* Antenna Diversity Type */
 #define	SW_ANTDIV	0
@@ -122,54 +111,6 @@ struct rxhp_t {
 #define	TRAFFIC_LOW	0
 #define	TRAFFIC_HIGH	1
 #define	TRAFFIC_UltraLOW	2
-
-struct swat_t { /* _SW_Antenna_Switch_ */
-	u8 Double_chk_flag;
-	u8 try_flag;
-	s32 PreRSSI;
-	u8 CurAntenna;
-	u8 PreAntenna;
-	u8 RSSI_Trying;
-	u8 TestMode;
-	u8 bTriggerAntennaSwitch;
-	u8 SelectAntennaMap;
-	u8 RSSI_target;
-	u8 reset_idx;
-	u16 Single_Ant_Counter;
-	u16 Dual_Ant_Counter;
-	u16 Aux_FailDetec_Counter;
-	u16 Retry_Counter;
-
-	/*  Before link Antenna Switch check */
-	u8 SWAS_NoLink_State;
-	u32 SWAS_NoLink_BK_Reg860;
-	u32 SWAS_NoLink_BK_Reg92c;
-	u32 SWAS_NoLink_BK_Reg948;
-	bool ANTA_ON;	/* To indicate Ant A is or not */
-	bool ANTB_ON;	/* To indicate Ant B is on or not */
-	bool Pre_Aux_FailDetec;
-	bool RSSI_AntDect_bResult;
-	u8 Ant2G;
-
-	s32 RSSI_sum_A;
-	s32 RSSI_sum_B;
-	s32 RSSI_cnt_A;
-	s32 RSSI_cnt_B;
-
-	u64 lastTxOkCnt;
-	u64 lastRxOkCnt;
-	u64 TXByteCnt_A;
-	u64 TXByteCnt_B;
-	u64 RXByteCnt_A;
-	u64 RXByteCnt_B;
-	u8 TrafficLoad;
-	u8 Train_time;
-	u8 Train_time_flag;
-	struct timer_list SwAntennaSwitchTimer;
-	struct timer_list SwAntennaSwitchTimer_8723B;
-	u32 PktCnt_SWAntDivByCtrlFrame;
-	bool bSWAntDivByCtrlFrame;
-};
 
 /* Remove Edca by YuChen */
 
@@ -557,45 +498,6 @@ struct odm_rf_cal_t { /* ODM_RF_Calibration_Structure */
 
 };
 
-/*  ODM Dynamic common info value definition */
-struct fat_t { /* _FAST_ANTENNA_TRAINNING_ */
-	u8 Bssid[6];
-	u8 antsel_rx_keep_0;
-	u8 antsel_rx_keep_1;
-	u8 antsel_rx_keep_2;
-	u8 antsel_rx_keep_3;
-	u32 antSumRSSI[7];
-	u32 antRSSIcnt[7];
-	u32 antAveRSSI[7];
-	u8 FAT_State;
-	u32 TrainIdx;
-	u8 antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
-	u8 antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
-	u8 antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
-	u32 MainAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32 AuxAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32 MainAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32 AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u8 RxIdleAnt;
-	bool	bBecomeLinked;
-	u32 MinMaxRSSI;
-	u8 idx_AntDiv_counter_2G;
-	u32 CCK_counter_main;
-	u32 CCK_counter_aux;
-	u32 OFDM_counter_main;
-	u32 OFDM_counter_aux;
-
-	u32 CCK_CtrlFrame_Cnt_main;
-	u32 CCK_CtrlFrame_Cnt_aux;
-	u32 OFDM_CtrlFrame_Cnt_main;
-	u32 OFDM_CtrlFrame_Cnt_aux;
-	u32 MainAnt_CtrlFrame_Sum;
-	u32 AuxAnt_CtrlFrame_Sum;
-	u32 MainAnt_CtrlFrame_Cnt;
-	u32 AuxAnt_CtrlFrame_Cnt;
-
-};
-
 enum {
 	NO_ANTDIV			= 0xFF,
 	CG_TRX_HW_ANTDIV		= 0x01,
@@ -828,7 +730,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	struct odm_mac_status_info *pMacInfo;
 
 	/* ODM Structure */
-	struct fat_t DM_FatTable;
 	struct dig_t DM_DigTable;
 	struct ps_t DM_PSTable;
 	struct dynamic_primary_CCA DM_PriCCA;
@@ -836,7 +737,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	struct ra_t DM_RA_Table;
 	struct false_ALARM_STATISTICS FalseAlmCnt;
 	struct false_ALARM_STATISTICS FlaseAlmCntBuddyAdapter;
-	struct swat_t DM_SWAT_Table;
 	bool RSSI_test;
 	struct cfo_tracking DM_CfoTrack;
 

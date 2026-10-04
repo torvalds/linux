@@ -527,13 +527,14 @@ u8 PHY_GetTxPowerIndex(
 void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 Channel)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
-	struct fat_t *pDM_FatTable = &pDM_Odm->DM_FatTable;
 	u8 RFPath = RF_PATH_A;
 
-	if (pHalData->AntDivCfg) {/*  antenna diversity Enable */
-		RFPath = ((pDM_FatTable->RxIdleAnt == MAIN_ANT) ? RF_PATH_A : RF_PATH_B);
-	} else { /*  antenna diversity disable */
+	if (pHalData->AntDivCfg) {/* antenna diversity enable */
+		/* Antenna diversity forces path B because Fast Antenna Training
+		 * (FAT) logic is unhandled in this staging driver baseline.
+		 */
+		RFPath = RF_PATH_B;
+	} else { /* antenna diversity disable */
 		RFPath = pHalData->ant_path;
 	}
 

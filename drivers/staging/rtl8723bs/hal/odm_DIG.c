@@ -395,10 +395,9 @@ void odm_DIG(void *pDM_VOID)
 	dm_dig_min = DM_DIG_MIN_NIC;
 	DIG_MaxOfMin = DM_DIG_MAX_AP;
 
-	/* 1 Adjust boundary by RSSI */
+	/* Adjust boundary by RSSI */
 	if (pDM_Odm->bLinked && bPerformance) {
-		/* 2 Modify DIG upper bound */
-		/* 4 Modify DIG upper bound for 92E, 8723A\B, 8821 & 8812 BT */
+		/* Modify DIG upper bound for 8723B BT */
 		if (pDM_Odm->bBtLimitedDig == 1)
 			offset = 10;
 		else
