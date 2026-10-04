@@ -1907,7 +1907,7 @@ void stop_ap_mode(struct adapter *padapter)
 	       0,
 	       sizeof(struct security_priv));
 	padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
-	padapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;
+	padapter->securitypriv.ndisencryptstatus = NDIS_802_11_ENCRYPTION_DISABLED;
 
 	/* for ACL */
 	spin_lock_bh(&pacl_node_q->lock);
