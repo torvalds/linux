@@ -16,8 +16,10 @@ struct ksmbd_work;
 struct ksmbd_share_config {
 	char			*name;
 	char			*path;
+	char			*real_path;
 
 	unsigned int		path_sz;
+	unsigned int		real_path_sz;
 	unsigned int		flags;
 	struct list_head	veto_list;
 

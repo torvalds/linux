@@ -1816,6 +1816,8 @@ void ksmbd_free_global_file_table(void)
 int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
 				  struct ksmbd_file *fp, char *name)
 {
+	const char *share_path = share->real_path;
+	size_t share_path_sz = share->real_path_sz;
 	char *pathname, *ab_pathname;
 	int ret = 0;
 
@@ -1832,14 +1834,14 @@ int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
 	if (name) {
 		size_t len = strlen(ab_pathname);
 
-		if (len == share->path_sz && !strncmp(ab_pathname, share->path, len)) {
+		if (len == share_path_sz && !strncmp(ab_pathname, share_path, len)) {
 			/* the durable fp is the share root itself */
 			if (name[0])
 				ret = -EINVAL;
-		} else if (len <= share->path_sz ||
-			   strncmp(ab_pathname, share->path, share->path_sz) ||
-			   ab_pathname[share->path_sz] != '/' ||
-			   strcmp(&ab_pathname[share->path_sz + 1], name)) {
+		} else if (len <= share_path_sz ||
+			   strncmp(ab_pathname, share_path, share_path_sz) ||
+			   ab_pathname[share_path_sz] != '/' ||
+			   strcmp(&ab_pathname[share_path_sz + 1], name)) {
 			ret = -EINVAL;
 		}
 		if (ret)
