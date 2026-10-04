@@ -376,6 +376,16 @@ struct runlist_element *ntfs_cluster_alloc(struct ntfs_volume *vol, const s64 st
 				continue;
 			}
 			/*
+			 * A contiguous request gets a single run.  The scan can
+			 * move on without testing the clusters after the run
+			 * (past a bitmap page that is full, to pass 2 or to
+			 * another zone), so return the run when this cluster
+			 * does not follow it.
+			 */
+			if (is_contig && rlpos &&
+			    lcn + bmp_pos != prev_lcn + prev_run_len)
+				goto out;
+			/*
 			 * Allocate more memory if needed, including space for
 			 * the terminator element.
 			 * kvzalloc() operates on whole pages only.
