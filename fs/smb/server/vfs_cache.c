@@ -1838,6 +1838,10 @@ int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
 			/* the durable fp is the share root itself */
 			if (name[0])
 				ret = -EINVAL;
+		} else if (share_path_sz == 1 && share_path[0] == '/') {
+			if (ab_pathname[0] != '/' ||
+			    strcmp(ab_pathname + 1, name))
+				ret = -EINVAL;
 		} else if (len <= share_path_sz ||
 			   strncmp(ab_pathname, share_path, share_path_sz) ||
 			   ab_pathname[share_path_sz] != '/' ||
