@@ -551,7 +551,7 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 				   const struct nlattr * const tb[])
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
-	u32 offset, len, flags = 0, op = NFT_EXTHDR_OP_IPV6;
+	u32 offset, len, flags = 0;
 	int err;
 
 	if (!tb[NFTA_EXTHDR_SREG] ||
@@ -581,15 +581,11 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
-	err = nft_parse_u32_check(tb[NFTA_EXTHDR_OP], U8_MAX, &op);
-	if (err < 0)
-		return err;
-
 	priv->type   = nla_get_u8(tb[NFTA_EXTHDR_TYPE]);
 	priv->offset = offset;
 	priv->len    = len;
 	priv->flags  = flags;
-	priv->op     = op;
+	priv->op     = NFT_EXTHDR_OP_TCPOPT;
 
 	return nft_parse_register_load(ctx, tb[NFTA_EXTHDR_SREG], &priv->sreg,
 				       priv->len);
