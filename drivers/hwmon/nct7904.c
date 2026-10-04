@@ -127,6 +127,7 @@ static const unsigned short normal_i2c[] = {
 
 struct nct7904_data {
 	struct i2c_client *client;
+	struct device *hwmon_dev;
 	struct watchdog_device wdt;
 	int bank_sel;
 	u32 fanin_mask;
@@ -914,6 +915,8 @@ static int nct7904_wdt_start(struct watchdog_device *wdt)
 {
 	struct nct7904_data *data = watchdog_get_drvdata(wdt);
 
+	guard(hwmon_lock)(data->hwmon_dev);
+
 	/* Enable soft watchdog timer */
 	return nct7904_write_reg(data, BANK_0, WDT_LOCK_REG, WDT_SOFT_EN);
 }
@@ -921,6 +924,8 @@ static int nct7904_wdt_start(struct watchdog_device *wdt)
 static int nct7904_wdt_stop(struct watchdog_device *wdt)
 {
 	struct nct7904_data *data = watchdog_get_drvdata(wdt);
+
+	guard(hwmon_lock)(data->hwmon_dev);
 
 	return nct7904_write_reg(data, BANK_0, WDT_LOCK_REG, WDT_SOFT_DIS);
 }
@@ -940,6 +945,8 @@ static int nct7904_wdt_set_timeout(struct watchdog_device *wdt,
 	 */
 	wdt->timeout = timeout / 60 * 60;
 
+	guard(hwmon_lock)(data->hwmon_dev);
+
 	return nct7904_write_reg(data, BANK_0, WDT_TIMER_REG,
 				 wdt->timeout / 60);
 }
@@ -954,6 +961,8 @@ static int nct7904_wdt_ping(struct watchdog_device *wdt)
 	 */
 	struct nct7904_data *data = watchdog_get_drvdata(wdt);
 	int ret;
+
+	guard(hwmon_lock)(data->hwmon_dev);
 
 	/* Disable soft watchdog timer */
 	ret = nct7904_write_reg(data, BANK_0, WDT_LOCK_REG, WDT_SOFT_DIS);
@@ -973,6 +982,8 @@ static unsigned int nct7904_wdt_get_timeleft(struct watchdog_device *wdt)
 {
 	struct nct7904_data *data = watchdog_get_drvdata(wdt);
 	int ret;
+
+	guard(hwmon_lock)(data->hwmon_dev);
 
 	ret = nct7904_read_reg(data, BANK_0, WDT_TIMER_REG);
 	if (ret < 0)
@@ -1127,6 +1138,9 @@ static int nct7904_probe(struct i2c_client *client)
 	ret = PTR_ERR_OR_ZERO(hwmon_dev);
 	if (ret)
 		return ret;
+
+	/* The watchdog callbacks take its lock */
+	data->hwmon_dev = hwmon_dev;
 
 	/* Watchdog initialization */
 	data->wdt.ops = &nct7904_wdt_ops;
