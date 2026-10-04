@@ -683,8 +683,14 @@ EXPORT_SYMBOL(inode_permission);
 static __always_inline int lookup_inode_permission_may_exec(const struct mnt_idmap *idmap,
 	struct inode *inode, int mask)
 {
-	/* Lookup already checked this to return -ENOTDIR */
-	VFS_BUG_ON_INODE(!S_ISDIR(inode->i_mode), inode);
+	/*
+	 * Lookup already checked this to return -ENOTDIR.  In rcu-walk that
+	 * check looks at ->d_flags after ->d_seq had been validated, so it can
+	 * see a dentry which went negative and then became a directory while
+	 * nd->inode is still the old non-directory.  Any such walk fails the
+	 * next ->d_seq check and gets redone in ref-walk.
+	 */
+	VFS_BUG_ON_INODE(!S_ISDIR(inode->i_mode) && !(mask & MAY_NOT_BLOCK), inode);
 	VFS_BUG_ON((mask & ~MAY_NOT_BLOCK) != 0);
 
 	mask |= MAY_EXEC;
