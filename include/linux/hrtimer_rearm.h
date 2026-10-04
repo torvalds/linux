@@ -45,7 +45,7 @@ hrtimer_rearm_deferred_user_irq(unsigned long *tif_work, const unsigned long tif
 		clear_thread_flag(TIF_HRTIMER_REARM);
 		__hrtimer_rearm_deferred();
 		/* Don't go into the loop if HRTIMER_REARM was the only flag */
-		*tif_work &= ~TIF_HRTIMER_REARM;
+		*tif_work &= ~_TIF_HRTIMER_REARM;
 		return !*tif_work;
 	}
 	return false;
