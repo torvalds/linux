@@ -2579,8 +2579,9 @@ void filemap_dontcache_kick_writeback(struct address_space *mapping)
 	struct wb_lock_cookie cookie = {};
 	bool need_wakeup = false;
 
+	/* An inode which was never dirtied has no wb and nothing to flush. */
 	wb = unlocked_inode_to_wb_begin(inode, &cookie);
-	if (wb_has_dirty_io(wb) &&
+	if (wb && wb_has_dirty_io(wb) &&
 	    !test_bit(WB_start_dontcache, &wb->state) &&
 	    !test_and_set_bit(WB_start_dontcache, &wb->state)) {
 		wb_get(wb);
