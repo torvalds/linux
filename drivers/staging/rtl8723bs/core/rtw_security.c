@@ -458,7 +458,7 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	if (is_multicast_ether_addr(pattrib->ra))
 		prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 	else
-		prwskey = pattrib->dot118021x_UncstKey.skey;
+		prwskey = pattrib->dot118021x_uncst_key.skey;
 
 	for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
 		iv = pframe + pattrib->hdrlen;
@@ -573,7 +573,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 
 		prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 	} else {
-		prwskey = &stainfo->dot118021x_UncstKey.skey[0];
+		prwskey = &stainfo->dot118021x_uncst_key.skey[0];
 	}
 
 	iv = pframe + prxattrib->hdrlen;
@@ -960,7 +960,7 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	if (is_multicast_ether_addr(pattrib->ra))
 		prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 	else
-		prwskey = pattrib->dot118021x_UncstKey.skey;
+		prwskey = pattrib->dot118021x_uncst_key.skey;
 
 	for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
 		if ((curfragnum + 1) == pattrib->nr_frags) {	/* 4 the last fragment */
@@ -1248,7 +1248,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			goto exit;
 		}
 	} else {
-		prwskey = &stainfo->dot118021x_UncstKey.skey[0];
+		prwskey = &stainfo->dot118021x_uncst_key.skey[0];
 	}
 
 	length = ((union recv_frame *)precvframe)->u.hdr.len -
