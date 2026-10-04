@@ -150,6 +150,18 @@ config IRQ_KUNIT_TEST
 
 	  If unsure, say N.
 
+config REFCOUNT_INTERRUPT_KUNIT_TEST
+	tristate "Test refcounted interrupt enable/disable" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the kunit tests for the refcounted interrupt
+	  infrastructure. It verifies the correctness of single, nested,
+	  and multiple interrupt enable/disable state changes and ensures
+	  that the underlying reference counting mechanisms work as expected.
+
+	  If unsure, say N.
+
 endmenu
 
 config GENERIC_IRQ_MULTI_HANDLER
