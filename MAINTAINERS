@@ -23990,6 +23990,15 @@ L:	rust-for-linux@vger.kernel.org
 S:	Maintained
 F:	rust/kernel/bitfield.rs
 
+RUST [BUG]
+M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
+L:	rust-for-linux@vger.kernel.org
+S:	Maintained
+F:	rust/helpers/bug.c
+F:	rust/kernel/bug.rs
+F:	rust/kernel/generated_arch_reachable_asm.rs.S
+F:	rust/kernel/generated_arch_warn_asm.rs.S
+
 RUST [INTEROP]
 M:	Joel Fernandes <joelagnelf@nvidia.com>
 M:	Alexandre Courbot <acourbot@nvidia.com>
