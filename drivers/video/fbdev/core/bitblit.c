@@ -334,11 +334,10 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	    vc->vc_cursor_type != par->p->cursor_shape ||
 	    par->cursor_state.mask == NULL ||
 	    par->cursor_reset) {
-		unsigned char *mask = kmalloc_array(vc->vc_font.height, w, GFP_ATOMIC);
+		unsigned char *mask = fbcon_cursor_glyph(&vc->vc_font, vc->vc_cursor_type);
 
 		if (!mask)
 			return;
-		fbcon_fill_cursor_mask(par, vc, mask);
 
 		kfree(par->cursor_state.mask);
 		par->cursor_state.mask = (const char *)mask;
