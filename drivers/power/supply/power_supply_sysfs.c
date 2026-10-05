@@ -310,7 +310,8 @@ static ssize_t power_supply_show_enum_with_available(
 	}
 
 	if (!match) {
-		dev_warn(dev, "driver reporting unavailable enum value %d\n", value);
+		dev_warn_ratelimited(dev, "driver reporting unavailable enum value %d\n",
+				     value);
 		return -EINVAL;
 	}
 
