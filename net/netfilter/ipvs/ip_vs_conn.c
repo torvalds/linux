@@ -1336,9 +1336,23 @@ static void ip_vs_conn_rcu_free(struct rcu_head *head)
 	kmem_cache_free(ip_vs_conn_cachep, cp);
 }
 
-/* Try to delete connection while not holding reference.
+/* Try to steal the reference from the pending timer.
  * It can be called concurrently and always under RCU lock
  * to protect from connection deletion from others.
+ */
+static bool ip_vs_conn_del_reference(struct ip_vs_conn *cp)
+{
+	/* Steal reference from the pending timer */
+	if (!timer_delete(&cp->timer))
+		return false;
+
+	/* Drop cp->control chain too */
+	if (cp->control)
+		cp->timeout = 0;
+	return true;
+}
+
+/* Try to delete connection while not holding reference.
  * Used when we need to remove the connection immediately
  * and without overloading the timer processing.
  * OTOH, we use ip_vs_conn_expire_now() when we prefer to
@@ -1347,13 +1361,8 @@ static void ip_vs_conn_rcu_free(struct rcu_head *head)
  */
 static void ip_vs_conn_del(struct ip_vs_conn *cp)
 {
-	/* Steal reference from the pending timer */
-	if (timer_delete(&cp->timer)) {
-		/* Drop cp->control chain too */
-		if (cp->control)
-			cp->timeout = 0;
+	if (ip_vs_conn_del_reference(cp))
 		ip_vs_conn_expire(&cp->timer);
-	}
 }
 
 /* Connection is removed in the following steps:
@@ -1366,6 +1375,9 @@ static void ip_vs_conn_expire(struct timer_list *t)
 	struct ip_vs_conn *cp = timer_container_of(cp, t, timer);
 	struct netns_ipvs *ipvs = cp->ipvs;
 
+	rcu_read_lock();
+
+repeat:
 	/*
 	 *	do I control anybody?
 	 */
@@ -1375,19 +1387,18 @@ static void ip_vs_conn_expire(struct timer_list *t)
 	/* Unlink conn if not referenced anymore */
 	if (likely(ip_vs_conn_unlink(cp))) {
 		struct ip_vs_conn *ct = cp->control;
+		bool next = false;
 
 		/* does anybody control me? */
 		if (ct) {
-			rcu_read_lock();
 			ip_vs_control_del(cp);
 			/* Drop CTL or non-assured TPL if not used anymore */
 			if (!cp->timeout && !atomic_read(&ct->n_control) &&
 			    (!(ct->flags & IP_VS_CONN_F_TEMPLATE) ||
 			     !(ct->state & IP_VS_CTPL_S_ASSURED))) {
 				IP_VS_DBG(4, "drop controlling connection\n");
-				ip_vs_conn_del(ct);
+				next = ip_vs_conn_del_reference(ct);
 			}
-			rcu_read_unlock();
 		}
 
 		if ((cp->flags & IP_VS_CONN_F_NFCT) &&
@@ -1414,7 +1425,11 @@ static void ip_vs_conn_expire(struct timer_list *t)
 		else
 			call_rcu(&cp->rcu_head, ip_vs_conn_rcu_free);
 		atomic_dec(&ipvs->conn_count);
-		return;
+		if (next) {
+			cp = ct;
+			goto repeat;
+		}
+		goto out;
 	}
 
   expire_later:
@@ -1429,6 +1444,9 @@ static void ip_vs_conn_expire(struct timer_list *t)
 		ip_vs_sync_conn(ipvs, cp, sysctl_sync_threshold(ipvs));
 
 	__ip_vs_conn_put_timer(cp);
+
+out:
+	rcu_read_unlock();
 }
 
 /* Modify timer, so that it expires as soon as possible.
