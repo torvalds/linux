@@ -489,10 +489,8 @@ static int vfio_pci_core_pm_exit(struct vfio_pci_core_device *vdev, u32 flags,
 }
 
 #ifdef CONFIG_PM
-static int vfio_pci_core_runtime_suspend(struct device *dev)
+int vfio_pci_core_runtime_suspend(struct vfio_pci_core_device *vdev)
 {
-	struct vfio_pci_core_device *vdev = dev_get_drvdata(dev);
-
 	down_write(&vdev->memory_lock);
 	/*
 	 * The user can move the device into D3hot state before invoking
@@ -517,11 +515,10 @@ static int vfio_pci_core_runtime_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vfio_pci_core_runtime_suspend);
 
-static int vfio_pci_core_runtime_resume(struct device *dev)
+int vfio_pci_core_runtime_resume(struct vfio_pci_core_device *vdev)
 {
-	struct vfio_pci_core_device *vdev = dev_get_drvdata(dev);
-
 	/*
 	 * Resume with a pm_wake_eventfd_ctx signals the eventfd and exit
 	 * low power mode.
@@ -538,6 +535,7 @@ static int vfio_pci_core_runtime_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vfio_pci_core_runtime_resume);
 #endif /* CONFIG_PM */
 
 /*
@@ -576,18 +574,6 @@ static void vfio_pci_core_map_bars(struct vfio_pci_core_device *vdev)
 		}
 	}
 }
-
-/*
- * The pci-driver core runtime PM routines always save the device state
- * before going into suspended state. If the device is going into low power
- * state with only with runtime PM ops, then no explicit handling is needed
- * for the devices which have NoSoftRst-.
- */
-static const struct dev_pm_ops vfio_pci_core_pm_ops = {
-	SET_RUNTIME_PM_OPS(vfio_pci_core_runtime_suspend,
-			   vfio_pci_core_runtime_resume,
-			   NULL)
-};
 
 int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 {
@@ -2222,10 +2208,6 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	/* Drivers must set the vfio_pci_core_device to their drvdata */
-	if (WARN_ON(vdev != dev_get_drvdata(dev)))
-		return -EINVAL;
-
 	/* Drivers must set a name.  Required for sequestering SR-IOV VFs */
 	if (WARN_ON(!vdev->vdev.ops->name))
 		return -EINVAL;
@@ -2293,7 +2275,6 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 	 */
 	vfio_pci_set_power_state(vdev, PCI_D0);
 
-	dev->driver->pm = &vfio_pci_core_pm_ops;
 	pm_runtime_allow(dev);
 	if (!vdev->disable_idle_d3)
 		pm_runtime_put(dev);
@@ -2334,10 +2315,8 @@ void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev)
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_unregister_device);
 
-pci_ers_result_t vfio_pci_core_aer_err_detected(struct pci_dev *pdev,
-						pci_channel_state_t state)
+pci_ers_result_t vfio_pci_core_aer_err_detected(struct vfio_pci_core_device *vdev)
 {
-	struct vfio_pci_core_device *vdev = dev_get_drvdata(&pdev->dev);
 	struct vfio_pci_eventfd *eventfd;
 
 	rcu_read_lock();
@@ -2419,11 +2398,6 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_sriov_configure);
-
-const struct pci_error_handlers vfio_pci_core_err_handlers = {
-	.error_detected = vfio_pci_core_aer_err_detected,
-};
-EXPORT_SYMBOL_GPL(vfio_pci_core_err_handlers);
 
 static bool vfio_dev_in_groups(struct vfio_device *vdev,
 			       struct vfio_pci_group_info *groups)

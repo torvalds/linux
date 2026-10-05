@@ -16,6 +16,9 @@
 
 #include "hisi_acc_vfio_pci.h"
 
+VFIO_PCI_CORE_DEFINE_CALLBACKS(hisi_acc_vf, struct hisi_acc_vf_core_device,
+			       core_device)
+
 /* Return 0 on VM acc device ready, -ETIMEDOUT hardware timeout */
 static int qm_wait_dev_not_ready(struct hisi_qm *qm)
 {
@@ -588,10 +591,7 @@ static int vf_qm_state_save(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 
 static struct hisi_acc_vf_core_device *hisi_acc_drvdata(struct pci_dev *pdev)
 {
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(&pdev->dev);
-
-	return container_of(core_device, struct hisi_acc_vf_core_device,
-			    core_device);
+	return pci_get_drvdata(pdev);
 }
 
 /* Check the PF's RAS state and Function INT state */
@@ -1416,9 +1416,8 @@ static int hisi_acc_vf_debug_check(struct seq_file *seq, struct vfio_device *vde
 static int hisi_acc_vf_debug_cmd(struct seq_file *seq, void *data)
 {
 	struct device *vf_dev = seq->private;
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(vf_dev);
-	struct vfio_device *vdev = &core_device->vdev;
-	struct hisi_acc_vf_core_device *hisi_acc_vdev = hisi_acc_get_vf_dev(vdev);
+	struct hisi_acc_vf_core_device *hisi_acc_vdev = dev_get_drvdata(vf_dev);
+	struct vfio_device *vdev = &hisi_acc_vdev->core_device.vdev;
 	struct hisi_qm *vf_qm = &hisi_acc_vdev->vf_qm;
 	u64 value;
 	int ret;
@@ -1445,9 +1444,8 @@ static int hisi_acc_vf_debug_cmd(struct seq_file *seq, void *data)
 static int hisi_acc_vf_dev_read(struct seq_file *seq, void *data)
 {
 	struct device *vf_dev = seq->private;
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(vf_dev);
-	struct vfio_device *vdev = &core_device->vdev;
-	struct hisi_acc_vf_core_device *hisi_acc_vdev = hisi_acc_get_vf_dev(vdev);
+	struct hisi_acc_vf_core_device *hisi_acc_vdev = dev_get_drvdata(vf_dev);
+	struct vfio_device *vdev = &hisi_acc_vdev->core_device.vdev;
 	size_t vf_data_sz = offsetofend(struct acc_vf_data, padding);
 	struct acc_vf_data *vf_data;
 	int ret;
@@ -1492,9 +1490,7 @@ mutex_release:
 static int hisi_acc_vf_migf_read(struct seq_file *seq, void *data)
 {
 	struct device *vf_dev = seq->private;
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(vf_dev);
-	struct vfio_device *vdev = &core_device->vdev;
-	struct hisi_acc_vf_core_device *hisi_acc_vdev = hisi_acc_get_vf_dev(vdev);
+	struct hisi_acc_vf_core_device *hisi_acc_vdev = dev_get_drvdata(vf_dev);
 	size_t vf_data_sz = offsetofend(struct acc_vf_data, padding);
 	struct hisi_acc_vf_migration_file *debug_migf = hisi_acc_vdev->debug_migf;
 
@@ -1687,7 +1683,7 @@ static int hisi_acc_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device
 	if (IS_ERR(hisi_acc_vdev))
 		return PTR_ERR(hisi_acc_vdev);
 
-	dev_set_drvdata(&pdev->dev, &hisi_acc_vdev->core_device);
+	dev_set_drvdata(&pdev->dev, hisi_acc_vdev);
 	ret = vfio_pci_core_register_device(&hisi_acc_vdev->core_device);
 	if (ret)
 		goto out_put_vdev;
@@ -1721,7 +1717,7 @@ MODULE_DEVICE_TABLE(pci, hisi_acc_vfio_pci_table);
 static const struct pci_error_handlers hisi_acc_vf_err_handlers = {
 	.reset_prepare = hisi_acc_vf_pci_reset_prepare,
 	.reset_done = hisi_acc_vf_pci_aer_reset_done,
-	.error_detected = vfio_pci_core_aer_err_detected,
+	.error_detected = hisi_acc_vf_aer_err_detected,
 };
 
 static struct pci_driver hisi_acc_vfio_pci_driver = {
@@ -1729,6 +1725,7 @@ static struct pci_driver hisi_acc_vfio_pci_driver = {
 	.id_table = hisi_acc_vfio_pci_table,
 	.probe = hisi_acc_vfio_pci_probe,
 	.remove = hisi_acc_vfio_pci_remove,
+	.driver = { .pm = pm_ptr(&hisi_acc_vf_pm_ops) },
 	.err_handler = &hisi_acc_vf_err_handlers,
 	.driver_managed_dma = true,
 };

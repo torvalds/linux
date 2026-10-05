@@ -55,6 +55,9 @@ struct qat_vf_core_device {
 	struct qat_vf_migration_file *saving_migf;
 };
 
+VFIO_PCI_CORE_DEFINE_CALLBACKS(qat_vf, struct qat_vf_core_device,
+			       core_device)
+
 static int qat_vf_pci_open_device(struct vfio_device *core_vdev)
 {
 	struct qat_vf_core_device *qat_vdev =
@@ -623,9 +626,7 @@ static const struct vfio_device_ops qat_vf_pci_ops = {
 
 static struct qat_vf_core_device *qat_vf_drvdata(struct pci_dev *pdev)
 {
-	struct vfio_pci_core_device *core_device = pci_get_drvdata(pdev);
-
-	return container_of(core_device, struct qat_vf_core_device, core_device);
+	return pci_get_drvdata(pdev);
 }
 
 static void qat_vf_pci_aer_reset_done(struct pci_dev *pdev)
@@ -651,7 +652,7 @@ qat_vf_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_ERR(qat_vdev))
 		return PTR_ERR(qat_vdev);
 
-	pci_set_drvdata(pdev, &qat_vdev->core_device);
+	pci_set_drvdata(pdev, qat_vdev);
 	ret = vfio_pci_core_register_device(&qat_vdev->core_device);
 	if (ret)
 		goto out_put_device;
@@ -686,7 +687,7 @@ MODULE_DEVICE_TABLE(pci, qat_vf_vfio_pci_table);
 
 static const struct pci_error_handlers qat_vf_err_handlers = {
 	.reset_done = qat_vf_pci_aer_reset_done,
-	.error_detected = vfio_pci_core_aer_err_detected,
+	.error_detected = qat_vf_aer_err_detected,
 };
 
 static struct pci_driver qat_vf_vfio_pci_driver = {
@@ -694,6 +695,7 @@ static struct pci_driver qat_vf_vfio_pci_driver = {
 	.id_table = qat_vf_vfio_pci_table,
 	.probe = qat_vf_vfio_pci_probe,
 	.remove = qat_vf_vfio_pci_remove,
+	.driver	= { .pm = pm_ptr(&qat_vf_pm_ops) },
 	.err_handler = &qat_vf_err_handlers,
 	.driver_managed_dma = true,
 };
