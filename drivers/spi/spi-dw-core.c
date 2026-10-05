@@ -284,12 +284,6 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 		dw_spi_mask_intr(dws, 0xff);
 		return IRQ_HANDLED;
 	}
-	if (dws->transfer_handler == dw_spi_enh_handler &&
-	    !dws->rx_len && !dws->tx_len) {
-		dw_spi_mask_intr(dws, 0xff);
-		spi_finalize_current_transfer(ctlr);
-		return IRQ_HANDLED;
-	}
 
 	return dws->transfer_handler(dws);
 }
