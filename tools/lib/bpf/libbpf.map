@@ -473,3 +473,6 @@ LIBBPF_1.8.0 {
 		btf__find_by_name_kind_own;
 		btf__new_empty_opts;
 } LIBBPF_1.7.0;
+
+LIBBPF_1.9.0 {
+} LIBBPF_1.8.0;
