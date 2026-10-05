@@ -106,7 +106,8 @@ define RUN_TESTS
 	if [ "X$(summary)" != "X" ]; then       \
 		per_test_logging=1;		\
 	fi;                                     \
-	run_many $(1)
+	run_many $(1);				\
+	ktap_print_totals
 endef
 
 define INSTALL_INCLUDES
