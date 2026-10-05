@@ -18,7 +18,7 @@
 #include <trace/events/f2fs.h>
 #include "segment.h"
 
-static bool f2fs_cache_put(struct f2fs_cached_block *entry);
+static void f2fs_free_cache(struct f2fs_cached_block *entry);
 
 void f2fs_cache_wait_writeback_cond(struct f2fs_cached_block *entry,
 					enum page_type type)
@@ -112,6 +112,27 @@ void f2fs_start_cache_writeback(struct f2fs_cached_block *entry)
 				F2FS_CACHE_TAG_WRITEBACK);
 }
 
+/*
+ * The temporary references taken around clear_and_wake_up_bit() are counted
+ * in units of F2FS_CACHE_PIN_BIAS, like GUP_PIN_COUNTING_BIAS for folios, so
+ * that they can be told apart from the regular references.
+ */
+#define F2FS_CACHE_PIN_BIAS	(1 << 16)
+
+static void f2fs_cache_pin(struct f2fs_cached_block *entry)
+{
+	atomic_add(F2FS_CACHE_PIN_BIAS, &entry->refcount);
+}
+
+static void f2fs_cache_unpin(struct f2fs_cached_block *entry)
+{
+	int ref = atomic_sub_return(F2FS_CACHE_PIN_BIAS, &entry->refcount);
+
+	WARN_ON_ONCE(ref < 0);
+	if (!ref)
+		f2fs_free_cache(entry);
+}
+
 void f2fs_end_cache_writeback(struct f2fs_cached_block *entry)
 {
 	/*
@@ -126,14 +147,20 @@ void f2fs_end_cache_writeback(struct f2fs_cached_block *entry)
 	 * But here we must make sure that the entry is not freed and
 	 * reused before clear_and_wake_up_bit().
 	 */
-	f2fs_cache_get(entry);
+	f2fs_cache_pin(entry);
 	clear_and_wake_up_bit(F2FS_BLOCK_WRITEBACK, &entry->state);
-	f2fs_cache_put(entry);
+	f2fs_cache_unpin(entry);
 }
 
 static int f2fs_cache_refcount(struct f2fs_cached_block *entry)
 {
 	return atomic_read(&entry->refcount);
+}
+
+/* the number of regular references, excluding the temporary ones */
+static int f2fs_cache_users(struct f2fs_cached_block *entry)
+{
+	return f2fs_cache_refcount(entry) & (F2FS_CACHE_PIN_BIAS - 1);
 }
 
 static void f2fs_do_free_cache(struct f2fs_cached_block *entry)
@@ -327,9 +354,9 @@ void f2fs_unlock_cache(struct f2fs_cached_block *entry)
 	 * Pin the entry here to make sure it is not freed before wake_up_bit()
 	 * completes.
 	 */
-	f2fs_cache_get(entry);
+	f2fs_cache_pin(entry);
 	clear_and_wake_up_bit(F2FS_BLOCK_LOCKED, &entry->state);
-	f2fs_cache_put(entry);
+	f2fs_cache_unpin(entry);
 }
 
 bool f2fs_put_cache(struct f2fs_cached_block *entry, bool unlock)
@@ -565,7 +592,8 @@ next:
 	f2fs_bug_on(cache->sbi, f2fs_cache_test_dirty(entry));
 	f2fs_bug_on(cache->sbi, f2fs_cache_test_writeback(entry));
 	f2fs_bug_on(cache->sbi, !list_empty(&entry->list));
-	f2fs_bug_on(cache->sbi, f2fs_cache_refcount(entry) != 1);
+	/* the I/O completion may not have unpinned the entry yet */
+	f2fs_bug_on(cache->sbi, f2fs_cache_users(entry) != 1);
 	f2fs_put_cache(entry, true);
 	goto next;
 }
