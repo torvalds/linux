@@ -700,7 +700,7 @@ static const match_table_t key_tokens = {
 
 /* can have zero or more token= options */
 static int getoptions(char *c, struct trusted_key_payload *pay,
-		      struct trusted_key_options *opt)
+		      struct trusted_key_options *opt, bool is_tpm2)
 {
 	struct trusted_key_tpm *private = opt->private;
 	substring_t args[MAX_OPT_ARGS];
@@ -712,13 +712,8 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 	unsigned long token_mask = 0;
 	unsigned int digest_len;
 	int i;
-	int tpm2;
 
-	tpm2 = tpm_is_tpm2(chip);
-	if (tpm2 < 0)
-		return tpm2;
-
-	private->hash = tpm2 ? HASH_ALGO_SHA256 : HASH_ALGO_SHA1;
+	private->hash = is_tpm2 ? HASH_ALGO_SHA256 : HASH_ALGO_SHA1;
 
 	if (!c)
 		return 0;
@@ -773,7 +768,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 				break;
 			}
 
-			if (tpm2 &&
+			if (is_tpm2 &&
 			    private->blobauth_len <=
 			    sizeof(private->blobauth)) {
 				memcpy(private->blobauth, args[0].from,
@@ -808,14 +803,15 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			}
 			if (i == HASH_ALGO__LAST)
 				return -EINVAL;
-			if  (!tpm2 && i != HASH_ALGO_SHA1) {
+			if (!is_tpm2 && i != HASH_ALGO_SHA1) {
 				pr_info("TPM 1.x only supports SHA-1.\n");
 				return -EINVAL;
 			}
 			break;
 		case Opt_policydigest:
 			digest_len = hash_digest_size[private->hash];
-			if (!tpm2 || strlen(args[0].from) != (2 * digest_len))
+			if (!is_tpm2 ||
+			    strlen(args[0].from) != (2 * digest_len))
 				return -EINVAL;
 			res = hex2bin(private->policydigest, args[0].from,
 				      digest_len);
@@ -824,7 +820,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			private->policydigest_len = digest_len;
 			break;
 		case Opt_policyhandle:
-			if (!tpm2)
+			if (!is_tpm2)
 				return -EINVAL;
 			res = kstrtoul(args[0].from, 16, &handle);
 			if (res < 0)
@@ -838,15 +834,10 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 	return 0;
 }
 
-static struct trusted_key_options *trusted_options_alloc(void)
+static struct trusted_key_options *trusted_options_alloc(bool is_tpm2)
 {
 	struct trusted_key_tpm *private;
 	struct trusted_key_options *options;
-	int tpm2;
-
-	tpm2 = tpm_is_tpm2(chip);
-	if (tpm2 < 0)
-		return NULL;
 
 	options = kzalloc_obj(*options);
 	if (options) {
@@ -858,7 +849,7 @@ static struct trusted_key_options *trusted_options_alloc(void)
 			kfree_sensitive(options);
 			options = NULL;
 		} else {
-			if (!tpm2)
+			if (!is_tpm2)
 				private->keyhandle = SRKHANDLE;
 			options->private = private;
 		}
@@ -877,13 +868,13 @@ static int trusted_tpm_seal(struct trusted_key_payload *p, char *datablob)
 	if (tpm2 < 0)
 		return tpm2;
 
-	options = trusted_options_alloc();
+	options = trusted_options_alloc(tpm2);
 	if (!options)
 		return -ENOMEM;
 
 	private = options->private;
 
-	ret = getoptions(datablob, p, options);
+	ret = getoptions(datablob, p, options, tpm2);
 	if (ret < 0)
 		return ret;
 	dump_options(options);
@@ -922,12 +913,12 @@ static int trusted_tpm_unseal(struct trusted_key_payload *p, char *datablob)
 	if (tpm2 < 0)
 		return tpm2;
 
-	options = trusted_options_alloc();
+	options = trusted_options_alloc(tpm2);
 	if (!options)
 		return -ENOMEM;
 	private = options->private;
 
-	ret = getoptions(datablob, p, options);
+	ret = getoptions(datablob, p, options, tpm2);
 	if (ret < 0)
 		return ret;
 	dump_options(options);
