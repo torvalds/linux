@@ -4966,10 +4966,9 @@ void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans)
 	xa_destroy(&trans->delayed_refs.dirty_extents);
 }
 
-int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
-			      const struct btrfs_squota_delta *delta)
+void btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
+			       const struct btrfs_squota_delta *delta)
 {
-	int ret;
 	struct btrfs_qgroup *qgroup;
 	struct btrfs_qgroup *qg;
 	LIST_HEAD(qgroup_list);
@@ -4979,24 +4978,22 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE &&
 	    !test_bit(BTRFS_FS_SQUOTA_ENABLING, &fs_info->flags))
-		return 0;
+		return;
 
 	if (!btrfs_is_fstree(root))
-		return 0;
+		return;
 
 	/* If the extent predates enabling quotas, don't count it. */
 	if (delta->generation < fs_info->qgroup_enable_gen)
-		return 0;
+		return;
 
 	spin_lock(&fs_info->qgroup_lock);
 	qgroup = find_qgroup_rb(fs_info, root);
 	if (WARN_ON_ONCE(!qgroup)) {
 		btrfs_warn(fs_info, "squota failed to find qgroup for root %llu", root);
-		ret = 0;
 		goto out;
 	}
 
-	ret = 0;
 	qgroup_iterator_add(&qgroup_list, qgroup);
 	list_for_each_entry(qg, &qgroup_list, iterator) {
 		struct btrfs_qgroup_list *glist;
@@ -5022,5 +5019,4 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 
 out:
 	spin_unlock(&fs_info->qgroup_lock);
-	return ret;
 }

@@ -1658,7 +1658,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 href->owning_root);
 		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
-			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
+			btrfs_record_squota_delta(trans->fs_info, &delta);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
@@ -3180,11 +3180,7 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_record_squota_delta(trans->fs_info, delta);
-	if (unlikely(ret)) {
-		btrfs_abort_transaction(trans, ret);
-		return ret;
-	}
+	btrfs_record_squota_delta(trans->fs_info, delta);
 
 	/* If remapped, FST has already been taken care of in remove_range_from_remap_tree(). */
 	if (!remapped) {
@@ -5228,7 +5224,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		btrfs_pin_extent(trans, ins->objectid, ins->offset);
 	else
-		ret = btrfs_record_squota_delta(fs_info, &delta);
+		btrfs_record_squota_delta(fs_info, &delta);
 	btrfs_put_block_group(block_group);
 	return ret;
 }
