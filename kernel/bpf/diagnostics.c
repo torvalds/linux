@@ -632,10 +632,6 @@ static void format_disasm_line(struct bpf_verifier_env *env, int insn_idx,
 
 	print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
 	seq_buf_terminate(&ctx.seq);
-	ctx.seq.len = strnlen(line->text, sizeof(line->text));
-	while (ctx.seq.len && line->text[ctx.seq.len - 1] == '\n')
-		seq_buf_pop(&ctx.seq);
-	seq_buf_terminate(&ctx.seq);
 
 	line->valid = true;
 }
