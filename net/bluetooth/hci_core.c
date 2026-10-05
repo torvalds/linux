@@ -1617,7 +1617,7 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 	if (hdev->cur_adv_instance == instance) {
 		if (hdev->adv_instance_timeout) {
 			cancel_delayed_work(&hdev->adv_instance_expire);
-			hdev->adv_instance_timeout = 0;
+			hdev->adv_instance_timeout = false;
 		}
 		hdev->cur_adv_instance = 0x00;
 	}
@@ -1647,7 +1647,7 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 
 	if (hdev->adv_instance_timeout) {
 		disable_delayed_work(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
+		hdev->adv_instance_timeout = false;
 	}
 
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
@@ -2437,7 +2437,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_instance_cnt = 0;
 	hdev->cur_adv_instance = 0x00;
-	hdev->adv_instance_timeout = 0;
+	hdev->adv_instance_timeout = false;
 
 	hdev->advmon_allowlist_duration = 300;
 	hdev->advmon_no_filter_duration = 500;

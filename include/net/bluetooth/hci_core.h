@@ -601,7 +601,7 @@ struct hci_dev {
 	struct list_head	adv_instances;
 	unsigned int		adv_instance_cnt;
 	__u8			cur_adv_instance;
-	__u16			adv_instance_timeout;
+	bool			adv_instance_timeout;
 	struct delayed_work	adv_instance_expire;
 
 	struct idr		adv_monitors_idr;
