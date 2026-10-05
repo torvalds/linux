@@ -174,6 +174,29 @@ static inline size_t seq_buf_strlen(struct seq_buf *s)
 }
 
 /**
+ * seq_buf_terminate - NUL-terminate the string in a seq_buf
+ * @s: the seq_buf handle
+ *
+ * Terminate @s->buffer exactly as seq_buf_str() and seq_buf_strlen() do,
+ * for callers that want neither the pointer nor the length and only need
+ * the buffer to be safe to read as a C string. A zero-sized seq_buf has
+ * nowhere to put a NUL and is left untouched.
+ *
+ * Nothing is returned on purpose: a caller that wants the length should
+ * use seq_buf_strlen(), which says so.
+ *
+ * After this function is called, s->buffer is safe to use
+ * in string operations.
+ */
+static inline void seq_buf_terminate(struct seq_buf *s)
+{
+	if (s->size == 0)
+		return;
+
+	__seq_buf_terminate(s);
+}
+
+/**
  * seq_buf_get_buf - get buffer to write arbitrary data to
  * @s: the seq_buf handle
  * @bufp: the beginning of the buffer is stored here

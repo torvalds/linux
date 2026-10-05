@@ -632,6 +632,41 @@ static void seq_buf_strlen_zero_size_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, buf, "untouched");
 }
 
+static void seq_buf_terminate_test(struct kunit *test)
+{
+	char buf[16];
+	struct seq_buf s;
+
+	/*
+	 * seq_buf_putmem() writes no NUL, so only seq_buf_terminate() can
+	 * end these strings early. The NUL in the last byte of buf keeps
+	 * the comparisons in bounds if it does not.
+	 */
+
+	/* Terminates directly after the data when there is room. */
+	memset(buf, 'z', sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+	seq_buf_init(&s, buf, sizeof(buf));
+	seq_buf_putmem(&s, "ab", 2);
+	seq_buf_terminate(&s);
+	KUNIT_EXPECT_STREQ(test, buf, "ab");
+
+	/* Terminates in the last byte once the buffer has overflowed. */
+	memset(buf, 'z', sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+	seq_buf_init(&s, buf, 4);
+	seq_buf_putmem(&s, "abcdef", 6);
+	KUNIT_EXPECT_TRUE(test, seq_buf_has_overflowed(&s));
+	seq_buf_terminate(&s);
+	KUNIT_EXPECT_STREQ(test, buf, "abc");
+
+	/* A zero-sized seq_buf is left alone. */
+	strscpy(buf, "untouched", sizeof(buf));
+	seq_buf_init(&s, buf, 0);
+	seq_buf_terminate(&s);
+	KUNIT_EXPECT_STREQ(test, buf, "untouched");
+}
+
 static struct kunit_case seq_buf_test_cases[] = {
 	KUNIT_CASE(seq_buf_init_test),
 	KUNIT_CASE(seq_buf_declare_test),
@@ -655,6 +690,7 @@ static struct kunit_case seq_buf_test_cases[] = {
 	KUNIT_CASE(seq_buf_strlen_puts_overflow_test),
 	KUNIT_CASE(seq_buf_strlen_embedded_nul_test),
 	KUNIT_CASE(seq_buf_strlen_zero_size_test),
+	KUNIT_CASE(seq_buf_terminate_test),
 	KUNIT_CASE(seq_buf_do_printk_test),
 	{}
 };

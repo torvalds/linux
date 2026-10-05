@@ -351,7 +351,7 @@ static void diag_fmt_restore(struct bpf_verifier_env *env, struct diag_fmt_mark 
 
 	if (mark.chunk) {
 		mark.chunk->seq.len = mark.len;
-		seq_buf_str(&mark.chunk->seq);
+		seq_buf_terminate(&mark.chunk->seq);
 	}
 }
 
@@ -631,11 +631,11 @@ static void format_disasm_line(struct bpf_verifier_env *env, int insn_idx,
 		return;
 
 	print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
-	seq_buf_str(&ctx.seq);
+	seq_buf_terminate(&ctx.seq);
 	ctx.seq.len = strnlen(line->text, sizeof(line->text));
 	while (ctx.seq.len && line->text[ctx.seq.len - 1] == '\n')
 		seq_buf_pop(&ctx.seq);
-	seq_buf_str(&ctx.seq);
+	seq_buf_terminate(&ctx.seq);
 
 	line->valid = true;
 }
