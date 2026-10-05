@@ -71,6 +71,31 @@ seq_buf_set_overflow(struct seq_buf *s)
 	s->len = s->size + 1;
 }
 
+/**
+ * seq_buf_init_append - initialize a seq_buf over a buffer that may
+ *			 already hold NUL-terminated content
+ * @s: the seq_buf handle
+ * @buf: pointer to the (possibly non-empty) buffer
+ * @size: total size of @buf
+ *
+ * Unlike seq_buf_init(), which always starts @buf at len=0, this
+ * preserves whatever NUL-terminated content @buf already holds and
+ * positions @s to append after it. Useful for converting code that used
+ * to append to an existing buffer with strlcat()/scnprintf() and friends.
+ *
+ * If @buf holds no NUL within @size, @s starts out overflowed, as
+ * strlcat() treats such a buffer as already truncated.
+ */
+static inline void
+seq_buf_init_append(struct seq_buf *s, char *buf, unsigned int size)
+{
+	s->buffer = buf;
+	s->size = size;
+	s->len = strnlen(buf, size);
+	if (s->len == size)
+		seq_buf_set_overflow(s);
+}
+
 /*
  * How much buffer is left on the seq_buf?
  */
