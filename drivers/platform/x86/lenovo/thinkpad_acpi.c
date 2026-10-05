@@ -11960,7 +11960,7 @@ static int __must_check __init get_thinkpad_model_data(
 
 static int __init probe_for_thinkpad(void)
 {
-	int is_thinkpad;
+	bool is_thinkpad;
 
 	if (acpi_disabled)
 		return -ENODEV;
