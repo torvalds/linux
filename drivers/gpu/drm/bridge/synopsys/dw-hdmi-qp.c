@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/workqueue.h>
 
 #include <drm/bridge/dw_hdmi_qp.h>
 #include <drm/display/drm_hdmi_helper.h>
@@ -37,8 +36,6 @@
 
 #define DDC_CI_ADDR		0x37
 #define DDC_SEGMENT_ADDR	0x30
-
-#define SCRAMB_POLL_DELAY_MS	3000
 
 struct dw_hdmi_qp_i2c {
 	struct i2c_adapter	adap;
