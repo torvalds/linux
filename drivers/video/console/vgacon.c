@@ -506,6 +506,7 @@ static void vgacon_set_cursor_size(int from, int to)
 static void vgacon_cursor(struct vc_data *c, bool enable)
 {
 	unsigned int c_height;
+	unsigned int c_size;
 
 	if (c->vc_mode != KD_TEXT)
 		return;
@@ -513,10 +514,11 @@ static void vgacon_cursor(struct vc_data *c, bool enable)
 	vgacon_restore_screen(c);
 
 	c_height = c->vc_cell_height;
+	c_size = vc_cursor_valid_size(CUR_SIZE(c->vc_cursor_type));
 
 	write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 
-	if (!enable) {
+	if (!enable || c_size == CUR_NONE) {
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
 			vgacon_set_cursor_size(31, 30);
 		else
@@ -524,33 +526,8 @@ static void vgacon_cursor(struct vc_data *c, bool enable)
 		return;
 	}
 
-	switch (CUR_SIZE(c->vc_cursor_type)) {
-	case CUR_UNDERLINE:
-		vgacon_set_cursor_size(c_height - (c_height < 10 ? 2 : 3),
-				       c_height - (c_height < 10 ? 1 : 2));
-		break;
-	case CUR_TWO_THIRDS:
-		vgacon_set_cursor_size(c_height / 3,
-				       c_height - (c_height < 10 ? 1 : 2));
-		break;
-	case CUR_LOWER_THIRD:
-		vgacon_set_cursor_size(c_height * 2 / 3,
-				       c_height - (c_height < 10 ? 1 : 2));
-		break;
-	case CUR_LOWER_HALF:
-		vgacon_set_cursor_size(c_height / 2,
-				       c_height - (c_height < 10 ? 1 : 2));
-		break;
-	case CUR_NONE:
-		if (vga_video_type >= VIDEO_TYPE_VGAC)
-			vgacon_set_cursor_size(31, 30);
-		else
-			vgacon_set_cursor_size(31, 31);
-		break;
-	default:
-		vgacon_set_cursor_size(1, c_height);
-		break;
-	}
+	vgacon_set_cursor_size(vc_cursor_start(c_height, c_size),
+			       vc_cursor_end(c_height, c_size) - 1);
 }
 
 static void vgacon_doresize(struct vc_data *c,
