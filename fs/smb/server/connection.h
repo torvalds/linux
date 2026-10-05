@@ -112,8 +112,6 @@ struct ksmbd_conn {
 	char				ClientGUID[SMB2_CLIENT_GUID_SIZE];
 	struct ntlmssp_auth		ntlmssp;
 
-	spinlock_t			llist_lock;
-	struct list_head		lock_list;
 
 	struct preauth_integrity_info	*preauth_info;
 

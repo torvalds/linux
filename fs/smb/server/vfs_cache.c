@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/dcache.h>
+#include <linux/hashtable.h>
 
 #include "glob.h"
 #include "vfs_cache.h"
@@ -37,6 +38,10 @@ static DEFINE_RWLOCK(inode_hash_lock);
 static struct ksmbd_file_table global_ft;
 static atomic_long_t fd_limit;
 static struct kmem_cache *filp_cache;
+
+/* Both the inode hash and each open's lock_list use this lock. */
+static DEFINE_SPINLOCK(file_locks_lock);
+static DEFINE_HASHTABLE(file_locks, 8);
 
 static int ksmbd_mark_fp_closed(struct ksmbd_file *fp);
 
@@ -613,10 +618,109 @@ static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp
 	write_unlock(&ft->lock);
 }
 
+/**
+ * ksmbd_file_lock_check() - check conflicts or remove an exact unlock match
+ * @lock: unregistered lock from the current request
+ *
+ * Return: 0 on success, -ENOENT for an unmatched unlock, or -EAGAIN on conflict.
+ */
+int ksmbd_file_lock_check(struct ksmbd_lock *lock)
+{
+	struct inode *inode = file_inode(lock->fl->c.flc_file);
+	struct ksmbd_lock *cmp, *lock_to_remove = NULL;
+	int ret = lock_is_unlock(lock->fl) ? -ENOENT : 0;
+
+	spin_lock(&file_locks_lock);
+	hash_for_each_possible(file_locks, cmp, hlist, (unsigned long)inode) {
+		if (file_inode(cmp->fl->c.flc_file) != inode)
+			continue;
+
+		if (lock_is_unlock(lock->fl)) {
+			if (cmp->fl->c.flc_file != lock->fl->c.flc_file ||
+			    cmp->start != lock->start || cmp->end != lock->end)
+				continue;
+			if (waitqueue_active(&cmp->fl->c.flc_wait)) /* VFS waiters */
+				continue;
+
+			/* Prefer an exclusive lock over matching shared locks. */
+			lock_to_remove = cmp;
+			if (cmp->flags & SMB2_LOCKFLAG_EXCLUSIVE)
+				break;
+			continue;
+		}
+
+		if (cmp->fl->c.flc_file == lock->fl->c.flc_file) {
+			if (lock->flags & SMB2_LOCKFLAG_SHARED)
+				continue;
+		} else if (cmp->flags & SMB2_LOCKFLAG_SHARED) {
+			continue;
+		}
+
+		if ((cmp->zero_len && !lock->zero_len &&
+		     cmp->start > lock->start && cmp->start <= lock->end) ||
+		    (lock->zero_len && !cmp->zero_len &&
+		     lock->start > cmp->start && lock->start <= cmp->end) ||
+		    (!cmp->zero_len && !lock->zero_len &&
+		     cmp->start <= lock->end && lock->start <= cmp->end)) {
+			ret = -EAGAIN;
+			break;
+		}
+	}
+	if (lock_to_remove) {
+		hash_del(&lock_to_remove->hlist);
+		list_del_init(&lock_to_remove->flist);
+		ret = 0;
+	}
+	spin_unlock(&file_locks_lock);
+	if (lock_to_remove) {
+		ksmbd_vfs_posix_lock_unblock(lock_to_remove->fl);
+		locks_free_lock(lock_to_remove->fl);
+		kfree(lock_to_remove);
+	}
+	return ret;
+}
+
+/**
+ * ksmbd_file_lock_add() - publish a committed batch independently of its channel
+ * @fp: open holding the locks
+ * @locks: granted locks awaiting publication
+ */
+void ksmbd_file_lock_add(struct ksmbd_file *fp, struct list_head *locks)
+{
+	struct ksmbd_lock *lock, *tmp;
+
+	spin_lock(&file_locks_lock);
+	list_for_each_entry_safe(lock, tmp, locks, llist) {
+		list_del_init(&lock->llist);
+		hash_add(file_locks, &lock->hlist,
+			 (unsigned long)file_inode(fp->filp));
+		list_add_tail(&lock->flist, &fp->lock_list);
+	}
+	spin_unlock(&file_locks_lock);
+}
+
+static void ksmbd_file_lock_clear(struct ksmbd_file *fp)
+{
+	struct ksmbd_lock *lock, *tmp;
+	LIST_HEAD(dispose);
+
+	spin_lock(&file_locks_lock);
+	list_for_each_entry(lock, &fp->lock_list, flist)
+		hash_del(&lock->hlist);
+	list_splice_init(&fp->lock_list, &dispose);
+	spin_unlock(&file_locks_lock);
+
+	list_for_each_entry_safe(lock, tmp, &dispose, flist) {
+		list_del_init(&lock->flist);
+		ksmbd_vfs_posix_lock_unblock(lock->fl);
+		locks_free_lock(lock->fl);
+		kfree(lock);
+	}
+}
+
 static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 {
 	struct file *filp;
-	struct ksmbd_lock *smb_lock, *tmp_lock;
 
 	fd_limit_close();
 	ksmbd_remove_durable_fd(fp);
@@ -626,30 +730,11 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 	close_id_del_oplock(fp);
 	filp = fp->filp;
 
+	/* Remove lookup entries before dropping the file's inode reference. */
+	ksmbd_file_lock_clear(fp);
 	__ksmbd_inode_close(fp);
 	if (!IS_ERR_OR_NULL(filp))
 		fput(filp);
-
-	/*
-	 * The zero fp reference count serializes access to fp->lock_list, but
-	 * the VFS may still have blocked requests chained below these locks.
-	 */
-	list_for_each_entry_safe(smb_lock, tmp_lock, &fp->lock_list, flist) {
-		struct ksmbd_conn *conn = smb_lock->conn;
-
-		if (conn) {
-			spin_lock(&conn->llist_lock);
-			list_del_init(&smb_lock->clist);
-			smb_lock->conn = NULL;
-			spin_unlock(&conn->llist_lock);
-			ksmbd_conn_put(conn);
-		}
-
-		list_del_init(&smb_lock->flist);
-		ksmbd_vfs_posix_lock_unblock(smb_lock->fl);
-		locks_free_lock(smb_lock->fl);
-		kfree(smb_lock);
-	}
 
 	/*
 	 * Drop fp's strong reference on conn (taken in ksmbd_open_fd() /
@@ -1738,7 +1823,6 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 	struct ksmbd_inode *ci;
 	struct oplock_info *op;
 	struct ksmbd_conn *conn;
-	struct ksmbd_lock *smb_lock, *tmp_lock;
 
 	if (!is_reconnectable(fp))
 		return false;
@@ -1770,18 +1854,6 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 		op->session_id = 0;
 	}
 	up_write(&ci->m_lock);
-
-	list_for_each_entry_safe(smb_lock, tmp_lock, &fp->lock_list, flist) {
-		struct ksmbd_conn *lock_conn = smb_lock->conn;
-
-		if (!lock_conn)
-			continue;
-		spin_lock(&lock_conn->llist_lock);
-		list_del_init(&smb_lock->clist);
-		smb_lock->conn = NULL;
-		spin_unlock(&lock_conn->llist_lock);
-		ksmbd_conn_put(lock_conn);
-	}
 
 	spin_lock(&fp->f_lock);
 	fp->conn = NULL;
@@ -1889,7 +1961,6 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	struct oplock_info *op;
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_share_config *old_share;
-	struct ksmbd_lock *smb_lock;
 	unsigned int old_f_state;
 
 	write_lock(&global_ft.lock);
@@ -1937,13 +2008,6 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 		ksmbd_conn_put(conn);
 		ksmbd_share_config_put(work->tcon->share_conf);
 		return -EBADF;
-	}
-
-	list_for_each_entry(smb_lock, &fp->lock_list, flist) {
-		smb_lock->conn = ksmbd_conn_get(conn);
-		spin_lock(&conn->llist_lock);
-		list_add_tail(&smb_lock->clist, &conn->lock_list);
-		spin_unlock(&conn->llist_lock);
 	}
 
 	ci = fp->f_ci;

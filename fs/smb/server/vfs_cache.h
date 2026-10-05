@@ -34,11 +34,11 @@
 
 struct ksmbd_conn;
 struct ksmbd_session;
+struct ksmbd_file;
 
 struct ksmbd_lock {
 	struct file_lock *fl;
-	struct ksmbd_conn *conn;
-	struct list_head clist;
+	struct hlist_node hlist;
 	struct list_head flist;
 	struct list_head llist;
 	unsigned int flags;
@@ -47,6 +47,9 @@ struct ksmbd_lock {
 	unsigned long long start;
 	unsigned long long end;
 };
+
+int ksmbd_file_lock_check(struct ksmbd_lock *lock);
+void ksmbd_file_lock_add(struct ksmbd_file *fp, struct list_head *locks);
 
 struct stream {
 	char *name;

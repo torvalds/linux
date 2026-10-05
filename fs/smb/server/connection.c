@@ -327,8 +327,6 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	ida_init(&conn->async_ida);
 	xa_init(&conn->sessions);
 
-	spin_lock_init(&conn->llist_lock);
-	INIT_LIST_HEAD(&conn->lock_list);
 
 	init_rwsem(&conn->session_lock);
 
