@@ -436,7 +436,6 @@ static int ksmbd_server_process_request(struct ksmbd_conn *conn)
 static int ksmbd_server_terminate_conn(struct ksmbd_conn *conn)
 {
 	ksmbd_conn_sessions_cleanup(conn);
-	destroy_lease_table(conn);
 	return 0;
 }
 
@@ -664,7 +663,7 @@ static int ksmbd_server_shutdown(void)
 	ksmbd_proc_cleanup();
 	ksmbd_crypto_destroy();
 	ksmbd_free_global_file_table();
-	destroy_lease_table(NULL);
+	destroy_lease_table();
 	ksmbd_work_pool_destroy();
 	ksmbd_exit_file_cache();
 	server_conf_free();

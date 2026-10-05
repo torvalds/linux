@@ -125,6 +125,12 @@ static void lease_add_table(struct lease *lease, struct lease_table *lb)
 	spin_unlock(&lb->lb_lock);
 }
 
+static void free_lease_table(struct lease_table *lb)
+{
+	kfree(lb);
+}
+
+/* The caller holds lease_list_lock for write. */
 static void lease_del_table(struct lease *lease)
 {
 	struct lease_table *lb = lease->l_lb;
@@ -143,6 +149,10 @@ static void lease_del_table(struct lease *lease)
 	spin_unlock(&lb->lb_lock);
 
 	lease_put(lease);
+	if (list_empty(&lb->lease_list)) {
+		list_del(&lb->l_entry);
+		free_lease_table(lb);
+	}
 }
 
 static struct lease_table *alloc_lease_table(struct oplock_info *opinfo)
@@ -155,19 +165,9 @@ static struct lease_table *alloc_lease_table(struct oplock_info *opinfo)
 
 	memcpy(lb->client_guid, opinfo->conn->ClientGUID,
 	       SMB2_CLIENT_GUID_SIZE);
-	lb->conn = ksmbd_conn_get(opinfo->conn);
 	INIT_LIST_HEAD(&lb->lease_list);
 	spin_lock_init(&lb->lb_lock);
 	return lb;
-}
-
-static void free_lease_table(struct lease_table *lb)
-{
-	if (!lb)
-		return;
-
-	ksmbd_conn_put(lb->conn);
-	kfree(lb);
 }
 
 static struct lease *alloc_lease(struct lease_ctx_info *lctx,
@@ -927,8 +927,6 @@ unlock:
 		if (lb) {
 			memcpy(guid, lb->client_guid, sizeof(guid));
 			have_guid = true;
-			if (lb->conn)
-				owner->conn = ksmbd_conn_get(lb->conn);
 		}
 		read_unlock(&lease_list_lock);
 	}
@@ -1495,25 +1493,17 @@ static void oplock_break_drain_none(struct list_head *head,
 	}
 }
 
-void destroy_lease_table(struct ksmbd_conn *conn)
+void destroy_lease_table(void)
 {
-	struct lease_table *lb, *lbtmp;
-	struct lease *lease, *ltmp;
+	struct lease_table *lb;
+	struct lease *lease;
 
 	write_lock(&lease_list_lock);
-	if (list_empty(&lease_table_list)) {
-		write_unlock(&lease_list_lock);
-		return;
-	}
-
-	list_for_each_entry_safe(lb, lbtmp, &lease_table_list, l_entry) {
-		if (conn && memcmp(lb->client_guid, conn->ClientGUID,
-				   SMB2_CLIENT_GUID_SIZE))
-			continue;
-		list_for_each_entry_safe(lease, ltmp, &lb->lease_list, l_entry)
-			lease_del_table(lease);
-		list_del(&lb->l_entry);
-		free_lease_table(lb);
+	while (!list_empty(&lease_table_list)) {
+		lb = list_first_entry(&lease_table_list, struct lease_table,
+				      l_entry);
+		lease = list_first_entry(&lb->lease_list, struct lease, l_entry);
+		lease_del_table(lease);
 	}
 	write_unlock(&lease_list_lock);
 }

@@ -34,7 +34,6 @@ struct lease_ctx_info {
 
 struct lease_table {
 	char			client_guid[SMB2_CLIENT_GUID_SIZE];
-	struct ksmbd_conn	*conn;
 	struct list_head	lease_list;
 	struct list_head	l_entry;
 	spinlock_t		lb_lock;
@@ -122,7 +121,7 @@ struct oplock_info *lookup_lease_in_table(struct ksmbd_conn *conn,
 					  char *lease_key);
 int find_same_lease_key(struct ksmbd_conn *conn, struct ksmbd_inode *ci,
 			struct lease_ctx_info *lctx);
-void destroy_lease_table(struct ksmbd_conn *conn);
+void destroy_lease_table(void);
 void smb_send_parent_lease_break_noti(struct ksmbd_file *fp,
 				      struct lease_ctx_info *lctx);
 void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp);
