@@ -150,6 +150,8 @@
 
 #define SO_RIGHTS_NOTRUNC        0x005e
 
+#define SO_PASSPIDFD_THREAD      0x005f
+
 #if !defined(__KERNEL__)
 
 
