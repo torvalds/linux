@@ -280,7 +280,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	if (!irq_status)
 		return IRQ_NONE;
 
-	if (!ctlr->cur_msg && dws->transfer_handler == dw_spi_transfer_handler) {
+	if (!ctlr->cur_msg && dws->transfer_handler != dw_spi_enh_handler) {
 		dw_spi_mask_intr(dws, 0xff);
 		return IRQ_HANDLED;
 	}
