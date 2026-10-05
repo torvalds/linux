@@ -732,7 +732,7 @@ sloop:
 	s->v4.vport = cp->vport;
 	s->v4.dport = cp->dport;
 	s->v4.fwmark = htonl(cp->fwmark);
-	s->v4.timeout = htonl(cp->timeout / HZ);
+	s->v4.timeout = htonl(max(1UL, cp->timeout / HZ));
 	m->nr_conns++;
 
 #ifdef CONFIG_IP_VS_IPV6
