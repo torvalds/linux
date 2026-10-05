@@ -610,7 +610,7 @@ static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp
 	list_del_init(&fp->node);
 	up_write(&fp->f_ci->m_lock);
 
-	if (!has_file_id(fp->volatile_id))
+	if (!ft || !has_file_id(fp->volatile_id))
 		return;
 
 	write_lock(&ft->lock);
@@ -724,8 +724,7 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 
 	fd_limit_close();
 	ksmbd_remove_durable_fd(fp);
-	if (ft)
-		__ksmbd_remove_fd(ft, fp);
+	__ksmbd_remove_fd(ft, fp);
 
 	close_id_del_oplock(fp);
 	filp = fp->filp;
@@ -743,6 +742,7 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 	 * in which case there is nothing to drop here.
 	 */
 	if (fp->conn) {
+		atomic_dec(&fp->conn->stats.open_files_count);
 		ksmbd_conn_put(fp->conn);
 		fp->conn = NULL;
 	}
@@ -860,22 +860,7 @@ static struct ksmbd_file *__ksmbd_lookup_fd(struct ksmbd_file_table *ft,
 
 static void __put_fd_final(struct ksmbd_work *work, struct ksmbd_file *fp)
 {
-	/*
-	 * Detached durable fp -- session_fd_check() cleared fp->conn at
-	 * preserve, so this fp is no longer tracked by any conn's
-	 * stats.open_files_count.  This happens when
-	 * ksmbd_scavenger_dispose_dh() hands the final close off to an
-	 * m_fp_list walker (e.g. ksmbd_lookup_fd_inode()) whose work->conn
-	 * is unrelated to the conn that originally opened the handle; close
-	 * via the NULL-ft path so we do not underflow that unrelated
-	 * counter.
-	 */
-	if (!fp->conn) {
-		__ksmbd_close_fd(NULL, fp);
-		return;
-	}
-	__ksmbd_close_fd(&work->sess->file_table, fp);
-	atomic_dec(&work->conn->stats.open_files_count);
+	__ksmbd_close_fd(fp->conn ? &work->sess->file_table : NULL, fp);
 }
 
 static void set_close_state_blocked_works(struct ksmbd_file *fp)
@@ -1127,11 +1112,8 @@ int ksmbd_close_fd_app_instance_id(struct ksmbd_work *work,
 	up_write(&fp->f_ci->m_lock);
 
 	*closed = true;
-	if (atomic_sub_and_test(n_to_drop, &fp->refcount)) {
-		if (fp->conn)
-			atomic_dec(&fp->conn->stats.open_files_count);
+	if (atomic_sub_and_test(n_to_drop, &fp->refcount))
 		__ksmbd_close_fd(NULL, fp);
-	}
 	return 0;
 
 out:
@@ -1421,7 +1403,7 @@ static int ksmbd_mark_fp_closed(struct ksmbd_file *fp)
 	return 1;
 }
 
-static int
+static void
 __close_file_table_ids(struct ksmbd_session *sess,
 		       struct ksmbd_tree_connect *tcon,
 		       bool (*skip)(struct ksmbd_tree_connect *tcon,
@@ -1432,7 +1414,6 @@ __close_file_table_ids(struct ksmbd_session *sess,
 	struct ksmbd_file_table *ft = &sess->file_table;
 	struct ksmbd_file *fp;
 	unsigned int id = 0;
-	int num = 0;
 
 	while (1) {
 		int n_to_drop;
@@ -1516,10 +1497,8 @@ __close_file_table_ids(struct ksmbd_session *sess,
 		}
 
 		/*
-		 * fp->volatile_id is already cleared to prevent stale idr
-		 * removal from a deferred final close.  Remove fp from
-		 * m_fp_list here because __ksmbd_remove_fd() will skip the
-		 * list unlink when volatile_id is KSMBD_NO_FID.
+		 * Stop inode walkers from finding the open after close is committed.
+		 * Final close also unlinks fp if a global lookup owns the last put.
 		 */
 		down_write(&fp->f_ci->m_lock);
 		list_del_init(&fp->node);
@@ -1538,22 +1517,13 @@ __close_file_table_ids(struct ksmbd_session *sess,
 		 *     the original reference until ksmbd_update_fstate()
 		 *     observes the cleared volatile id.
 		 *
-		 * If we end up as the final putter, finalize fp and
-		 * account the open_files_count decrement via the caller's
-		 * atomic_sub(num, ...).  Otherwise the remaining user's
-		 * ksmbd_fd_put() reaches __put_fd_final(), which does its
-		 * own atomic_dec(&open_files_count), so we must not count
-		 * this fp here -- doing so would double-decrement the
-		 * connection-wide counter.
+		 * The final close accounts the open against fp->conn,
+		 * including when an in-flight user drops the last reference.
 		 */
-		if (atomic_sub_and_test(n_to_drop, &fp->refcount)) {
+		if (atomic_sub_and_test(n_to_drop, &fp->refcount))
 			__ksmbd_close_fd(NULL, fp);
-			num++;
-		}
 		id++;
 	}
-
-	return num;
 }
 
 static inline bool is_reconnectable(struct ksmbd_file *fp)
@@ -1841,29 +1811,29 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 	 * / ksmbd_reopen_durable_fd()), so conn stays valid for the whole
 	 * body of this function regardless of any op->conn puts below.
 	 */
-	conn = fp->conn;
 	ci = fp->f_ci;
 	down_write(&ci->m_lock);
+	conn = fp->conn;
 	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
 				lockdep_is_held(&ci->m_lock)) {
-		if (op->conn != conn)
+		if (op->o_fp != fp)
 			continue;
 		ksmbd_conn_put(op->conn);
 		op->conn = NULL;
 		op->sess = NULL;
 		op->session_id = 0;
 	}
-	up_write(&ci->m_lock);
-
-	spin_lock(&fp->f_lock);
+	write_lock(&global_ft.lock);
 	fp->conn = NULL;
 	fp->tcon = NULL;
 	fp->volatile_id = KSMBD_NO_FID;
-	spin_unlock(&fp->f_lock);
 
 	if (fp->durable_timeout)
 		fp->durable_scavenger_timeout =
 			jiffies_to_msecs(jiffies) + fp->durable_timeout;
+	atomic_dec(&conn->stats.open_files_count);
+	write_unlock(&global_ft.lock);
+	up_write(&ci->m_lock);
 
 	/* Drop fp's own reference on conn. */
 	ksmbd_conn_put(conn);
@@ -1872,22 +1842,12 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work)
 {
-	int num = __close_file_table_ids(work->sess,
-					 work->tcon,
-					 tree_conn_fd_check,
-					 false);
-
-	atomic_sub(num, &work->conn->stats.open_files_count);
+	__close_file_table_ids(work->sess, work->tcon, tree_conn_fd_check, false);
 }
 
 void ksmbd_close_session_fds(struct ksmbd_work *work)
 {
-	int num = __close_file_table_ids(work->sess,
-					 work->tcon,
-					 session_fd_check,
-					 true);
-
-	atomic_sub(num, &work->conn->stats.open_files_count);
+	__close_file_table_ids(work->sess, work->tcon, session_fd_check, true);
 }
 
 int ksmbd_init_global_file_table(void)
@@ -1957,23 +1917,26 @@ int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
 
 int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 {
-	struct ksmbd_inode *ci;
+	struct ksmbd_inode *ci = fp->f_ci;
 	struct oplock_info *op;
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_share_config *old_share;
 	unsigned int old_f_state;
+	int ret = -EBADF;
 
+	down_write(&ci->m_lock);
 	write_lock(&global_ft.lock);
-	if ((!fp->is_durable && !fp->is_persistent) || fp->conn || fp->tcon) {
+	if ((!fp->is_durable && !fp->is_persistent) || fp->conn || fp->tcon ||
+	    fp->f_state != FP_INITED) {
 		write_unlock(&global_ft.lock);
 		pr_err("Invalid durable fd [%p:%p]\n", fp->conn, fp->tcon);
-		return -EBADF;
+		goto out;
 	}
 
 	if (has_file_id(fp->volatile_id)) {
 		write_unlock(&global_ft.lock);
 		pr_err("Still in use durable fd: %llu\n", fp->volatile_id);
-		return -EBADF;
+		goto out;
 	}
 
 	/*
@@ -1993,6 +1956,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	fp->conn = ksmbd_conn_get(conn);
 	fp->tcon = work->tcon;
 	spin_unlock(&fp->f_lock);
+	atomic_inc(&conn->stats.open_files_count);
 	write_unlock(&global_ft.lock);
 
 	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
@@ -2004,14 +1968,13 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 		fp->share_conf = old_share;
 		fp->f_state = old_f_state;
 		spin_unlock(&fp->f_lock);
+		atomic_dec(&conn->stats.open_files_count);
 		write_unlock(&global_ft.lock);
 		ksmbd_conn_put(conn);
 		ksmbd_share_config_put(work->tcon->share_conf);
-		return -EBADF;
+		goto out;
 	}
 
-	ci = fp->f_ci;
-	down_write(&ci->m_lock);
 	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
 				lockdep_is_held(&ci->m_lock)) {
 		if (op->conn || op->o_fp != fp)
@@ -2020,7 +1983,6 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 		op->sess = work->sess;
 		op->session_id = work->sess->id;
 	}
-	up_write(&ci->m_lock);
 
 	spin_lock(&fp->f_lock);
 	fp->owner.uid = fp->owner.gid = 0;
@@ -2029,7 +1991,73 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	spin_unlock(&fp->f_lock);
 	ksmbd_share_config_put(old_share);
 
-	return 0;
+	ret = 0;
+out:
+	up_write(&ci->m_lock);
+	return ret;
+}
+
+/**
+ * ksmbd_rebind_replay_fd() - bind a completed replay to a surviving channel
+ * @work: replay request, with a referenced session
+ * @fp: referenced open whose owner and lease key have been checked
+ *
+ * Return: 0 on success, -ENOEXEC for another session, or -EBADF for a closed open.
+ */
+int ksmbd_rebind_replay_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
+{
+	struct ksmbd_file_table *ft = &work->sess->file_table;
+	struct ksmbd_inode *ci = fp->f_ci;
+	struct ksmbd_conn *old_conn = NULL;
+	struct oplock_info *op;
+	int ret = 0;
+
+	/* CLOSE unpublishes under ft->lock. Detach takes m_lock afterward. */
+	down_write(&ci->m_lock);
+	read_lock(&ft->lock);
+	if (fp->f_state != FP_INITED) {
+		ret = -EBADF;
+		goto out;
+	}
+	/* Detached durable opens follow the existing reconnect path. */
+	if (!fp->conn)
+		goto out;
+	if (!has_file_id(fp->volatile_id)) {
+		ret = -EBADF;
+		goto out;
+	}
+	if (idr_find(ft->idr, fp->volatile_id) != fp) {
+		ret = -ENOEXEC;
+		goto out;
+	}
+	if (fp->conn == work->conn ||
+	    (!ksmbd_conn_exiting(fp->conn) && !ksmbd_conn_releasing(fp->conn)))
+		goto out;
+
+	write_lock(&global_ft.lock);
+	old_conn = fp->conn;
+	fp->conn = ksmbd_conn_get(work->conn);
+	atomic_inc(&fp->conn->stats.open_files_count);
+	atomic_dec(&old_conn->stats.open_files_count);
+	write_unlock(&global_ft.lock);
+
+	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
+				lockdep_is_held(&ci->m_lock)) {
+		struct ksmbd_conn *conn;
+
+		if (op->o_fp != fp)
+			continue;
+		conn = op->conn;
+		op->conn = ksmbd_conn_get(fp->conn);
+		op->sess = work->sess;
+		op->session_id = work->sess->id;
+		ksmbd_conn_put(conn);
+	}
+out:
+	read_unlock(&ft->lock);
+	up_write(&ci->m_lock);
+	ksmbd_conn_put(old_conn);
+	return ret;
 }
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)

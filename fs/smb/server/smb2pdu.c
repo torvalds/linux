@@ -3747,7 +3747,7 @@ static int smb2_check_durable_replay(struct ksmbd_work *work,
 	struct oplock_info *opinfo;
 	int ret = 0;
 
-	if (!fp->is_durable && !fp->is_persistent)
+	if (!fp->conn && !fp->is_durable && !fp->is_persistent)
 		return -EACCES;
 
 	if (ksmbd_vfs_compare_durable_owner(fp, work->sess->user) == false)
@@ -3759,11 +3759,6 @@ static int smb2_check_durable_replay(struct ksmbd_work *work,
 	opinfo = opinfo_get(fp);
 	if (!opinfo)
 		return 0;
-
-	if (opinfo->sess && opinfo->sess->id != work->sess->id) {
-		ret = -ENOEXEC;
-		goto out;
-	}
 
 	if (opinfo->is_lease) {
 		if (!lc ||
@@ -3778,7 +3773,9 @@ static int smb2_check_durable_replay(struct ksmbd_work *work,
 			goto out;
 		}
 
-		if (fp->is_durable && opinfo->level != SMB2_OPLOCK_LEVEL_BATCH)
+		/* A live CREATE replay may follow a completed oplock break. */
+		if (!fp->conn && fp->is_durable &&
+		    opinfo->level != SMB2_OPLOCK_LEVEL_BATCH)
 			ret = -EACCES;
 	}
 out:
@@ -3982,35 +3979,18 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 						goto out;
 					}
 
-					if (!dh_info->fp->is_durable &&
-					    !dh_info->fp->is_persistent) {
-						/*
-						 * A DurableHandleReqV2 CREATE can complete
-						 * without granting durability (for example, if
-						 * it requested no oplock).  Its CreateGuid still
-						 * identifies a completed CREATE for replay.
-						 */
-						if (dh_info->fp->conn &&
-						    ksmbd_vfs_compare_durable_owner(
-							    dh_info->fp, work->sess->user)) {
-							if (smb2_durable_replay_consumed(
-								    dh_info->fp)) {
-								ksmbd_put_durable_fd(dh_info->fp);
-								dh_info->fp = NULL;
-								dh_info->type = dh_idx;
-								dh_info->replay_consumed = true;
-								break;
-							}
-							if (smb2_durable_replay_differs(
-								    dh_info->fp, req))
-								smb2_mark_durable_replay_consumed(
-									dh_info->fp);
-							dh_info->replay = true;
-							dh_info->type = dh_idx;
-							goto out;
-						}
+					err = smb2_check_durable_replay(work,
+									dh_info->fp,
+									lc,
+									dh_info->persistent);
+					if (err) {
 						ksmbd_put_durable_fd(dh_info->fp);
-						err = -EACCES;
+						goto out;
+					}
+
+					err = ksmbd_rebind_replay_fd(work, dh_info->fp);
+					if (err) {
+						ksmbd_put_durable_fd(dh_info->fp);
 						goto out;
 					}
 
@@ -4021,15 +4001,6 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 						dh_info->type = dh_idx;
 						dh_info->replay_consumed = true;
 						break;
-					}
-
-					err = smb2_check_durable_replay(work,
-									dh_info->fp,
-									lc,
-									dh_info->persistent);
-					if (err) {
-						ksmbd_put_durable_fd(dh_info->fp);
-						goto out;
 					}
 
 					if (dh_info->fp->conn) {

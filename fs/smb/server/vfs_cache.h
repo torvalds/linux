@@ -260,6 +260,7 @@ void ksmbd_fd_set_delete_on_close(struct ksmbd_file *fp,
 void ksmbd_fd_set_delete_pending(struct ksmbd_file *fp);
 void ksmbd_fd_clear_delete_pending(struct ksmbd_file *fp);
 int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp);
+int ksmbd_rebind_replay_fd(struct ksmbd_work *work, struct ksmbd_file *fp);
 int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
 				  struct ksmbd_file *fp, char *name);
 int ksmbd_init_file_cache(void);
