@@ -929,7 +929,7 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 struct mlx5_ifc_port_selection_cap_bits {
 	u8         reserved_at_0[0x10];
 	u8         port_select_flow_table[0x1];
-	u8         reserved_at_11[0x1];
+	u8         port_select_eswitch[0x1];
 	u8         port_select_flow_table_bypass[0x1];
 	u8         reserved_at_13[0xd];
 
@@ -2010,7 +2010,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_3b0[0x2];
 	u8         qp_latency_sensitive_disable[0x1];
 	u8         log_max_stride_sz_sq[0x5];
-	u8         reserved_at_3b8[0x3];
+	u8         reserved_at_3b8[0x1];
+	u8         multi_uplink_eswitch[0x1];
+	u8         reserved_at_3ba[0x1];
 	u8         log_min_stride_sz_sq[0x5];
 
 	u8         hairpin[0x1];
