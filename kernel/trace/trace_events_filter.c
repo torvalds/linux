@@ -891,6 +891,25 @@ static int filter_pred_pchar_user(struct filter_pred *pred, void *event)
 	return filter_pchar(pred, str);
 }
 
+static __always_inline int filter_dyn_string(struct filter_pred *pred,
+					     char *str, int len)
+{
+	int cmp;
+
+	/*
+	 * The regex callbacks use zero for an unknown-length, NUL-terminated
+	 * string. A zero-length data_loc or rel_loc field has no bytes at all.
+	 * Match an empty string instead of reading past the end of the field.
+	 */
+	if (!len) {
+		str = "";
+		len = 1;
+	}
+
+	cmp = pred->regex->match(str, pred->regex, len);
+	return cmp ^ pred->not;
+}
+
 /*
  * Filter predicate for dynamic sized arrays of characters.
  * These are implemented through a list of strings at the end
@@ -907,13 +926,8 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event)
 	int str_loc = str_item & 0xffff;
 	int str_len = str_item >> 16;
 	char *addr = (char *)(event + str_loc);
-	int cmp, match;
 
-	cmp = pred->regex->match(addr, pred->regex, str_len);
-
-	match = cmp ^ pred->not;
-
-	return match;
+	return filter_dyn_string(pred, addr, str_len);
 }
 
 /*
@@ -930,13 +944,8 @@ static int filter_pred_strrelloc(struct filter_pred *pred, void *event)
 	int str_loc = str_item & 0xffff;
 	int str_len = str_item >> 16;
 	char *addr = (char *)(&item[1]) + str_loc;
-	int cmp, match;
 
-	cmp = pred->regex->match(addr, pred->regex, str_len);
-
-	match = cmp ^ pred->not;
-
-	return match;
+	return filter_dyn_string(pred, addr, str_len);
 }
 
 /* Filter predicate for CPUs. */
@@ -1037,7 +1046,8 @@ static int filter_pred_within(struct filter_pred *pred, void *event)
  *
  * @str: the string to be searched
  * @r:   the regex structure containing the pattern string
- * @len: the length of the string to be searched (including '\0')
+ * @len: the length of the string to be searched (including '\0'), or zero
+ *       for a NUL-terminated string of unknown length
  *
  * Note:
  * - @str might not be NULL-terminated if it's of type DYN_STRING
@@ -1046,7 +1056,7 @@ static int filter_pred_within(struct filter_pred *pred, void *event)
 
 static int regex_match_full(char *str, struct regex *r, int len)
 {
-	/* len of zero means str is dynamic and ends with '\0' */
+	/* Zero is reserved for a NUL-terminated string of unknown length. */
 	if (!len)
 		return strcmp(str, r->pattern) == 0;
 
