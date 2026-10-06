@@ -51,6 +51,7 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
  * @iter: iteration structure
  * @iomap: the mapping that was just processed
  * @srcmap: the source mapping that was just processed
+ * @ret: return value from the previous mapping's ->end() callback
  *
  * Helper normally called via iomap_iter_next(). Called after the previous
  * mapping has been finished to determine whether there is more of the file
