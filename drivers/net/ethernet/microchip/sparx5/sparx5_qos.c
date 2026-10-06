@@ -457,6 +457,10 @@ int sparx5_qos_init(struct sparx5 *sparx5)
 	if (ret < 0)
 		return ret;
 
+	ret = sparx5_tas_init(sparx5);
+	if (ret)
+		return ret;
+
 	sparx5_psfp_init(sparx5);
 
 	return 0;
