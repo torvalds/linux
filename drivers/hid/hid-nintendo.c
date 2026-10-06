@@ -37,6 +37,7 @@
 #include <linux/unaligned.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/hid.h>
 #include <linux/idr.h>
@@ -3031,6 +3032,7 @@ enum switch2_init_step {
 	NS2_INIT_READ_USER_SECONDARY_CALIB,
 	NS2_INIT_SET_FEATURE_MASK,
 	NS2_INIT_ENABLE_FEATURES,
+	NS2_INIT_ENABLE_RUMBLE,
 	NS2_INIT_GRIP_BUTTONS,
 	NS2_INIT_REPORT_FORMAT,
 	NS2_INIT_INPUT,
@@ -3062,6 +3064,18 @@ struct switch2_stick_calibration {
 	struct switch2_axis_calibration y;
 };
 
+struct switch2_hd_rumble {
+	uint16_t hi_freq : 10;
+	uint16_t hi_amp : 10;
+	uint16_t lo_freq : 10;
+	uint16_t lo_amp : 10;
+} __packed;
+
+struct switch2_erm_rumble {
+	uint16_t error;
+	uint16_t amplitude;
+};
+
 struct switch2_controller {
 	struct hid_device *hdev;
 	struct switch2_cfg_intf *cfg;
@@ -3085,7 +3099,44 @@ struct switch2_controller {
 
 	uint32_t player_id;
 	struct led_classdev *leds;
+
+#if IS_ENABLED(CONFIG_NINTENDO_FF)
+	spinlock_t rumble_lock;
+	uint8_t rumble_seq;
+	union {
+		struct switch2_hd_rumble hd;
+		struct switch2_erm_rumble sd;
+	} rumble;
+	uint64_t last_rumble_work;
+	struct delayed_work rumble_work;
+	uint8_t *rumble_buffer;
+#endif
 };
+
+enum gc_rumble {
+	GC_RUMBLE_OFF = 0,
+	GC_RUMBLE_ON = 1,
+	GC_RUMBLE_STOP = 2,
+};
+
+/*
+ * The highest rumble level for "HD Rumble" is strong enough to potentially damage the controller,
+ * and also leaves your hands feeling like melted jelly, so we set a semi-arbitrary scaling factor
+ * to artificially limit the maximum for safety and comfort. It is currently unknown if the Switch
+ * 2 itself does something similar, but it's quite likely.
+ *
+ * This value must be between 0 and 1024, otherwise the math below will overflow.
+ */
+#define RUMBLE_MAX 450u
+
+/*
+ * Semi-arbitrary values used to simulate the "rumble" sensation of an eccentric rotating
+ * mass type haptic motor on the Switch 2 controllers' linear resonant actuator type haptics.
+ *
+ * The units used are unknown, but the values must be between 0 and 1023.
+ */
+#define RUMBLE_HI_FREQ 0x187
+#define RUMBLE_LO_FREQ 0x112
 
 static DEFINE_MUTEX(switch2_controllers_lock);
 static LIST_HEAD(switch2_controllers);
@@ -3178,7 +3229,7 @@ static const uint8_t switch2_init_cmd_data[] = {
 static const uint8_t switch2_one_data[] = { 0x01, 0x00, 0x00, 0x00 };
 
 static const uint8_t switch2_feature_mask[] = {
-	NS2_FEATURE_BUTTONS | NS2_FEATURE_ANALOG | NS2_FEATURE_IMU,
+	NS2_FEATURE_BUTTONS | NS2_FEATURE_ANALOG | NS2_FEATURE_IMU | NS2_FEATURE_RUMBLE,
 	0x00, 0x00, 0x00
 };
 
@@ -3218,6 +3269,9 @@ static struct switch2_controller *switch2_get_controller(const char *phys)
 	INIT_LIST_HEAD(&ns2->entry);
 	list_add(&ns2->entry, &switch2_controllers);
 	strscpy(ns2->phys, phys, sizeof(ns2->phys));
+#if IS_ENABLED(CONFIG_NINTENDO_FF)
+	spin_lock_init(&ns2->rumble_lock);
+#endif
 	return ns2;
 }
 
@@ -3250,6 +3304,128 @@ static void switch2_kref_put(struct kref *refcount)
 	mutex_destroy(&ns2->lock);
 	kfree(ns2);
 }
+
+#if IS_ENABLED(CONFIG_NINTENDO_FF)
+static void switch2_encode_rumble(struct switch2_hd_rumble *rumble, uint8_t buffer[5])
+{
+	buffer[0] = rumble->hi_freq;
+	buffer[1] = (rumble->hi_freq >> 8) | (rumble->hi_amp << 2);
+	buffer[2] = (rumble->hi_amp >> 6) | (rumble->lo_freq << 4);
+	buffer[3] = (rumble->lo_freq >> 4) | (rumble->lo_amp << 6);
+	buffer[4] = rumble->lo_amp >> 2;
+}
+
+static int switch2_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
+{
+	struct switch2_controller *ns2 = input_get_drvdata(dev);
+	unsigned long flags;
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	if (!ns2)
+		return -ENODEV;
+
+	spin_lock_irqsave(&ns2->rumble_lock, flags);
+	if (ns2->ctlr_type == NS2_CTLR_TYPE_GC) {
+		ns2->rumble.sd.amplitude = max(effect->u.rumble.strong_magnitude,
+			(uint16_t) (effect->u.rumble.weak_magnitude >> 1));
+	} else {
+		ns2->rumble.hd.hi_freq = RUMBLE_HI_FREQ;
+		ns2->rumble.hd.lo_freq = RUMBLE_LO_FREQ;
+		ns2->rumble.hd.hi_amp = effect->u.rumble.weak_magnitude * RUMBLE_MAX >> 16;
+		ns2->rumble.hd.lo_amp = effect->u.rumble.strong_magnitude * RUMBLE_MAX >> 16;
+	}
+	spin_unlock_irqrestore(&ns2->rumble_lock, flags);
+
+	schedule_delayed_work(&ns2->rumble_work, 0);
+
+	return 0;
+}
+
+static void switch2_rumble_work(struct work_struct *work)
+{
+	struct switch2_controller *ns2 = container_of(to_delayed_work(work),
+						      struct switch2_controller, rumble_work);
+	unsigned long flags;
+	bool active;
+	int ret = 0;
+
+	spin_lock_irqsave(&ns2->rumble_lock, flags);
+	ns2->rumble_buffer[0x1] = 0x50 | ns2->rumble_seq;
+	if (ns2->ctlr_type == NS2_CTLR_TYPE_GC) {
+		ns2->rumble_buffer[0] = 3;
+		if (ns2->rumble.sd.amplitude == 0) {
+			ns2->rumble_buffer[2] = GC_RUMBLE_STOP;
+			ns2->rumble.sd.error = 0;
+			active = false;
+		} else {
+			if (ns2->rumble.sd.error < ns2->rumble.sd.amplitude) {
+				ns2->rumble_buffer[2] = GC_RUMBLE_ON;
+				ns2->rumble.sd.error += U16_MAX - ns2->rumble.sd.amplitude;
+			} else {
+				ns2->rumble_buffer[2] = GC_RUMBLE_OFF;
+				ns2->rumble.sd.error -= ns2->rumble.sd.amplitude;
+			}
+			active = true;
+		}
+	} else {
+		ns2->rumble_buffer[0] = 1;
+		switch2_encode_rumble(&ns2->rumble.hd, &ns2->rumble_buffer[0x2]);
+		active = ns2->rumble.hd.hi_amp || ns2->rumble.hd.lo_amp;
+		if (ns2->ctlr_type == NS2_CTLR_TYPE_PRO) {
+			/*
+			 * The Pro Controller contains separate LRAs on each
+			 * side that can be controlled individually.
+			 */
+			ns2->rumble_buffer[0] = 2;
+			ns2->rumble_buffer[0x11] = 0x50 | ns2->rumble_seq;
+			switch2_encode_rumble(&ns2->rumble.hd, &ns2->rumble_buffer[0x12]);
+		}
+	}
+	ns2->rumble_seq = (ns2->rumble_seq + 1) & 0xF;
+	spin_unlock_irqrestore(&ns2->rumble_lock, flags);
+
+	if (active) {
+		unsigned long interval = msecs_to_jiffies(4);
+		uint64_t current_jiffies = get_jiffies_64();
+
+		if (!ns2->last_rumble_work)
+			ns2->last_rumble_work = current_jiffies;
+		else
+			ns2->last_rumble_work += interval;
+
+		/* Reschedule a little early to make sure the buffer never underruns */
+		interval -= msecs_to_jiffies(2);
+		if (ns2->last_rumble_work + interval >= current_jiffies)
+			schedule_delayed_work(&ns2->rumble_work,
+				ns2->last_rumble_work + interval - current_jiffies);
+		else
+			schedule_delayed_work(&ns2->rumble_work, 0);
+	} else {
+		ns2->last_rumble_work = 0;
+	}
+
+	mutex_lock(&ns2->lock);
+	if (!ns2->hdev) {
+		cancel_delayed_work(&ns2->rumble_work);
+	} else {
+		ret = hid_hw_output_report(ns2->hdev, ns2->rumble_buffer, 64);
+		/*
+		 * Don't log on ENODEV, ESHUTDOWN, or EPROTO, which can happen
+		 * mid-hotplug. Also cancel any further work on ENODEV or
+		 * ESHUTDOWN as they're clear indications that the endpoint
+		 * is dead.
+		 */
+		if (ret == -ENODEV || ret == -ESHUTDOWN)
+			cancel_delayed_work(&ns2->rumble_work);
+		else if (ret < 0 && ret != -EPROTO)
+			hid_warn_ratelimited(ns2->hdev,
+				"Failed to send output report ret=%d\n", ret);
+	}
+	mutex_unlock(&ns2->lock);
+}
+#endif
 
 static int switch2_set_leds(struct switch2_controller *ns2)
 {
@@ -3373,6 +3549,26 @@ static int switch2_init_input(struct switch2_controller *ns2)
 		input_free_device(input);
 		return -EINVAL;
 	}
+
+#if IS_ENABLED(CONFIG_NINTENDO_FF)
+	ns2->rumble_buffer = devm_kzalloc(&input->dev, 64, GFP_KERNEL);
+	if (!ns2->rumble_buffer) {
+		input_free_device(input);
+		return -ENOMEM;
+	}
+	ret = devm_delayed_work_autocancel(&input->dev, &ns2->rumble_work, switch2_rumble_work);
+	if (ret < 0) {
+		input_free_device(input);
+		return ret;
+	}
+
+	input_set_capability(input, EV_FF, FF_RUMBLE);
+	ret = input_ff_create_memless(input, NULL, switch2_play_effect);
+	if (ret) {
+		input_free_device(input);
+		return ret;
+	}
+#endif
 
 	hid_info(ns2->hdev, "Firmware version %u.%u.%u (type %i)\n", ns2->version.major,
 		ns2->version.minor, ns2->version.patch, ns2->version.ctlr_type);
@@ -3805,7 +4001,16 @@ int switch2_init_controller(struct switch2_controller *ns2)
 		return ns2->cfg->send_command(NS2_CMD_FEATSEL, NS2_SUBCMD_FEATSEL_SET_MASK,
 			switch2_feature_mask, sizeof(switch2_feature_mask), ns2->cfg);
 	case NS2_INIT_ENABLE_FEATURES:
-		return switch2_features_enable(ns2, NS2_FEATURE_BUTTONS | NS2_FEATURE_ANALOG);
+		return switch2_features_enable(ns2, NS2_FEATURE_BUTTONS |
+			NS2_FEATURE_ANALOG | NS2_FEATURE_RUMBLE);
+	case NS2_INIT_ENABLE_RUMBLE:
+		/*
+		 * It is unclear what this packet is supposed to be for, but it
+		 * appears to be needed for rumble to work reliably. The reply
+		 * data indicates it might be a query of some sort, but we
+		 * ignore the reply so long as it doesn't return an error.
+		 */
+		return ns2->cfg->send_command(0x11, 1, NULL, 0, ns2->cfg);
 	case NS2_INIT_GRIP_BUTTONS:
 		if (!switch2_ctlr_is_joycon(ns2->ctlr_type)) {
 			switch2_init_step_done(ns2, ns2->init_step);
@@ -3917,6 +4122,10 @@ int switch2_receive_command(struct switch2_controller *ns2,
 			ns2->ctlr_type = ns2->version.ctlr_type;
 			switch2_init_step_done(ns2, NS2_INIT_GET_FIRMWARE_INFO);
 		}
+		break;
+	case 0x11:
+		if (header->subcommand == 1)
+			switch2_init_step_done(ns2, NS2_INIT_ENABLE_RUMBLE);
 		break;
 	default:
 		break;
