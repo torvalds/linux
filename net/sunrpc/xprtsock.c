@@ -2637,6 +2637,7 @@ static int xs_tls_handshake_sync(struct rpc_xprt *lower_xprt, struct xprtsec_par
 			goto out_put_xprt;
 		break;
 	case RPC_XPRTSEC_TLS_X509:
+		args.ta_keyring = xprtsec->keyring_serial;
 		args.ta_my_cert = xprtsec->cert_serial;
 		args.ta_my_privkey = xprtsec->privkey_serial;
 		rc = tls_client_hello_x509(&args, GFP_KERNEL);

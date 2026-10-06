@@ -812,6 +812,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		.cred = mds_srv->cred,
 		.xprtsec = {
 			.policy = RPC_XPRTSEC_NONE,
+			.keyring_serial = TLS_NO_KEYRING,
 			.cert_serial = TLS_NO_CERT,
 			.privkey_serial = TLS_NO_PRIVKEY,
 		},
