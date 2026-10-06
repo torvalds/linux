@@ -243,9 +243,9 @@ static void xe_ttm_vram_retry_queued_pages(struct xe_ttm_vram_mgr *mgr)
 			continue;
 		}
 		--mgr->n_queued_pages;
-		list_del_rcu(&pos->queued_link);
+		list_del(&pos->queued_link);
 		++mgr->n_offlined_pages;
-		list_add_rcu(&pos->offlined_link, &mgr->offlined_pages);
+		list_add(&pos->offlined_link, &mgr->offlined_pages);
 	}
 }
 
@@ -394,17 +394,17 @@ static void xe_ttm_vram_free_bad_pages(struct xe_ttm_vram_mgr *mgr)
 	struct xe_ttm_vram_offline_resource *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &mgr->offlined_pages, offlined_link) {
-		list_del_rcu(&pos->offlined_link);
+		list_del(&pos->offlined_link);
 		xe_ttm_vram_buddy_free(mgr, &pos->blocks, pos->used_visible_size);
 		--mgr->n_offlined_pages;
-		kfree_rcu(pos, rcu);
+		kfree(pos);
 	}
 	list_for_each_entry_safe(pos, n, &mgr->queued_pages, queued_link) {
-		list_del_rcu(&pos->queued_link);
+		list_del(&pos->queued_link);
 		/* queued entries have no buddy reservation yet */
 		xe_ttm_vram_buddy_free(mgr, &pos->blocks, 0);
 		--mgr->n_queued_pages;
-		kfree_rcu(pos, rcu);
+		kfree(pos);
 	}
 }
 
@@ -823,7 +823,7 @@ static int xe_ttm_vram_reserve_page_at_addr(struct xe_device *xe, u64 addr,
 			}
 			/* Queue free(to-be-purged) pages */
 			++vram_mgr->n_queued_pages;
-			list_add_rcu(&nentry->queued_link, &vram_mgr->queued_pages);
+			list_add(&nentry->queued_link, &vram_mgr->queued_pages);
 		} else {
 			/* Immediately offline unoccupied pages */
 			/* Queue free(to-be-reserved) pages */
@@ -837,11 +837,11 @@ static int xe_ttm_vram_reserve_page_at_addr(struct xe_device *xe, u64 addr,
 					"Page at addr:0x%llx still busy (%d), deferring reservation\n",
 					addr, ret);
 				++vram_mgr->n_queued_pages;
-				list_add_rcu(&nentry->queued_link, &vram_mgr->queued_pages);
+				list_add(&nentry->queued_link, &vram_mgr->queued_pages);
 				return 0;
 			}
 			++vram_mgr->n_offlined_pages;
-			list_add_rcu(&nentry->offlined_link, &vram_mgr->offlined_pages);
+			list_add(&nentry->offlined_link, &vram_mgr->offlined_pages);
 			return ret;
 		}
 	}
@@ -1045,16 +1045,16 @@ static int vram_bad_pages_show(struct seq_file *m, void *unused)
 			continue;
 		mgr = to_xe_ttm_vram_mgr(man);
 
-		rcu_read_lock();
+		mutex_lock(&mgr->lock);
 
-		list_for_each_entry_rcu(pos, &mgr->offlined_pages, offlined_link) {
+		list_for_each_entry(pos, &mgr->offlined_pages, offlined_link) {
 			u64 pfn;
 
 			pfn = (pos->addr + vr->dpa_base) >> PAGE_SHIFT;
 			seq_printf(m, "0x%016llx : 0x%016lx : R\n", pfn, PAGE_SIZE);
 		}
 
-		list_for_each_entry_rcu(pos, &mgr->queued_pages, queued_link) {
+		list_for_each_entry(pos, &mgr->queued_pages, queued_link) {
 			u64 pfn;
 
 			pfn = (pos->addr + vr->dpa_base) >> PAGE_SHIFT;
@@ -1062,7 +1062,7 @@ static int vram_bad_pages_show(struct seq_file *m, void *unused)
 				   pfn, PAGE_SIZE, pos->status ? 'F' : 'P');
 		}
 
-		rcu_read_unlock();
+		mutex_unlock(&mgr->lock);
 	}
 
 	return 0;
