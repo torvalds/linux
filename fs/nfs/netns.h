@@ -50,4 +50,11 @@ struct nfs_net {
 
 extern unsigned int nfs_net_id;
 
+static inline struct key *nfs_net_keyring(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	return nn->nfs_keyring;
+}
+
 #endif
