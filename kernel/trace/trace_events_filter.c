@@ -2749,6 +2749,28 @@ static int ftrace_function_set_filter(struct perf_event *event,
 }
 #endif /* CONFIG_FUNCTION_TRACER */
 
+static int ftrace_profile_filter_perm(struct event_filter *filter)
+{
+	struct prog_entry *prog = rcu_dereference_protected(filter->prog,
+						lockdep_is_held(&event_mutex));
+	int i, err;
+
+	for (i = 0; prog[i].pred; i++) {
+		if (prog[i].pred->fn_num != FILTER_PRED_FN_PCHAR)
+			continue;
+
+		/*
+		 * Even a counting filter can reveal kernel string data.
+		 * Require the same access as raw kernel tracepoints.
+		 */
+		err = perf_allow_kernel();
+		if (err)
+			return err;
+		return perf_allow_tracepoint();
+	}
+	return 0;
+}
+
 int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 			      char *filter_str)
 {
@@ -2767,6 +2789,10 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 		return -EEXIST;
 
 	err = create_filter(NULL, call, filter_str, false, &filter);
+	if (err)
+		goto free_filter;
+
+	err = ftrace_profile_filter_perm(filter);
 	if (err)
 		goto free_filter;
 
