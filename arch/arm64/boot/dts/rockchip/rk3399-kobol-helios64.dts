@@ -74,6 +74,10 @@
 		compatible = "pwm-fan";
 		pwms = <&pwm0 0 40000 0>;
 		cooling-levels = <0 80 170 255>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC5 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan1_sense>;
 	};
 
 	fan2 {
@@ -81,6 +85,10 @@
 		compatible = "pwm-fan";
 		pwms = <&pwm1 0 40000 0>;
 		cooling-levels = <0 80 170 255>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC7 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan2_sense>;
 	};
 
 	gpio-keys {
@@ -490,6 +498,16 @@
 
 		user1_btn: user1-btn {
 			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	fan {
+		fan1_sense: fan1-sense {
+			rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		fan2_sense: fan2-sense {
+			rockchip,pins = <4 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
