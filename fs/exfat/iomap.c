@@ -149,7 +149,27 @@ static int exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 static int exfat_write_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		unsigned int flags, struct iomap *iomap, struct iomap *srcmap)
 {
-	return __exfat_iomap_begin(inode, offset, length, flags, iomap, true);
+	struct exfat_inode_info *ei = EXFAT_I(inode);
+	loff_t valid_size = exfat_get_valid_size(ei);
+	loff_t end;
+	int err;
+
+	err = __exfat_iomap_begin(inode, offset, length, flags, iomap, true);
+	if (err || flags & (IOMAP_DIRECT | IOMAP_FAULT) ||
+	    iomap->flags & IOMAP_F_NEW)
+		return err;
+
+	end = iomap->offset + iomap->length;
+	if (end >= valid_size ||
+	    round_up(end, i_blocksize(inode)) <= valid_size)
+		return 0;
+
+	/*
+	 * Zero the invalid bytes from valid_size to the end of the block
+	 * to prevent stale data from being exposed through the page cache.
+	 */
+	return iomap_truncate_page(inode, valid_size, NULL, &exfat_iomap_ops,
+				   NULL, NULL);
 }
 
 static DEFINE_IOMAP_ITER_NEXT(exfat_iomap_next, exfat_iomap_begin);
