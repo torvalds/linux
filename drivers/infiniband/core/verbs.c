@@ -1331,8 +1331,7 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	return qp;
 
 err_security:
-	qp->device->ops.destroy_qp(
-		qp, uattrs ? uverbs_get_cleared_udata(uattrs) : NULL);
+	qp->device->ops.destroy_qp(qp, uverbs_get_cleared_udata(uattrs));
 err_create:
 	rdma_restrack_put(&qp->res);
 	xa_destroy(&qp->comp_cntrs);

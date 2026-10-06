@@ -535,18 +535,6 @@ int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
 }
 EXPORT_SYMBOL(uverbs_destroy_def_handler);
 
-/*
- * When calling a destroy function during an error unwind we need to pass in
- * the udata that is sanitized of all user arguments. Ie from the driver
- * perspective it looks like no udata was passed.
- */
-struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
-{
-	attrs->driver_udata = (struct ib_udata){};
-	return &attrs->driver_udata;
-}
-EXPORT_SYMBOL_NS_GPL(uverbs_get_cleared_udata, "rdma_core");
-
 /**
  * _uverbs_alloc() - Quickly allocate memory for use with a bundle
  * @bundle: The bundle
