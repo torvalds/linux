@@ -258,6 +258,7 @@ TEST_GEN_PROGS_loongarch += steal_time
 
 TEST_GEN_PROGS_powerpc = $(TEST_GEN_PROGS_COMMON)
 TEST_GEN_PROGS_powerpc += access_tracking_perf_test
+TEST_GEN_PROGS_powerpc += hardware_disable_test
 
 SPLIT_TESTS += arch_timer
 SPLIT_TESTS += get-reg-list
