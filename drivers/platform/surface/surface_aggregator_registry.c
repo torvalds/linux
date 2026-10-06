@@ -517,6 +517,8 @@ static const struct of_device_id ssam_platform_hub_of_match[] __maybe_unused = {
 	/* Surface Laptop 7 */
 	{ .compatible = "microsoft,romulus13", (void *)ssam_node_group_sl7 },
 	{ .compatible = "microsoft,romulus15", (void *)ssam_node_group_sl7 },
+	/* Surface Laptop 8th Edition (13.8") */
+	{ .compatible = "microsoft,surface-laptop-8-13in", (void *)ssam_node_group_sl7 },
 	{ },
 };
 
