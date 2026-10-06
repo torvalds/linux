@@ -1274,7 +1274,7 @@ static int device_event(struct notifier_block *unused,
 			if (entry->netdev == netdev) {
 				BT_DBG("Unregistered netdev %s %p",
 				       netdev->name, netdev);
-				list_del(&entry->list);
+				list_del_rcu(&entry->list);
 				break;
 			}
 		}
