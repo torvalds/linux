@@ -372,7 +372,7 @@ class Test(object):
             else:
                 raise Unsup(self)
 
-    def compare(self, expect, result):
+    def compare(self, expect, result, strict_groups=True):
         match = {}
 
         log.debug("  compare")
@@ -406,8 +406,9 @@ class Test(object):
 
             match[exp_name] = exp_list
 
-        # For each defined group in the expected events
-        # check we match the same group in the result.
+        # Check that each expected group is matched in the result; an event
+        # opened in a group may match an expectation that doesn't declare
+        # one, as those only verify the event attributes.
         for exp_name, exp_event in expect.items():
             group = exp_event.group
 
@@ -416,6 +417,8 @@ class Test(object):
 
             for res_name in match[exp_name]:
                 res_group = result[res_name].group
+                if res_group == '' and not strict_groups:
+                    continue
                 if res_group not in match[group]:
                     raise Fail(self, 'group failure')
 
@@ -454,7 +457,7 @@ class Test(object):
 
             # do the expectation - results matching - both ways
             self.compare(self.expect, self.result)
-            self.compare(self.result, self.expect)
+            self.compare(self.result, self.expect, strict_groups=False)
 
         finally:
             # cleanup
