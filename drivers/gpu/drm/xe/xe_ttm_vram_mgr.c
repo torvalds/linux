@@ -988,11 +988,12 @@ int xe_ttm_vram_inject_fault(struct xe_device *xe)
 	struct gpu_buddy *mm = &vram_mgr->mm;
 	u64 addr;
 
-	if (vr->actual_physical_size < PAGE_SIZE)
+	/* Stay within the buddy-managed range; CCS/GSM/DSM sit beyond usable_size */
+	if (vr->usable_size < PAGE_SIZE)
 		return -ENOSPC;
 
-	addr = vr->actual_physical_size - PAGE_SIZE;
-	while (addr < vr->actual_physical_size) {
+	addr = ALIGN_DOWN(vr->usable_size - PAGE_SIZE, PAGE_SIZE);
+	while (addr < vr->usable_size) {
 		struct gpu_buddy_block *block;
 		bool found = false;
 
