@@ -20,9 +20,9 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/string_choices.h>
 
 #include "amd_sfh_pcie.h"
+#include "amd_sfh_sysfs.h"
 #include "sfh1_1/amd_sfh_init.h"
 
 #define DRIVER_NAME	"pcie_mp2_amd"
@@ -340,57 +340,6 @@ static const struct dmi_system_id dmi_nodevs[] = {
 	{ }
 };
 
-static ssize_t hpd_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-
-	return sysfs_emit(buf, "%s\n", str_enabled_disabled(mp2->dev_en.is_hpd_enabled));
-}
-
-static ssize_t hpd_store(struct device *dev,
-			 struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-	bool enabled;
-	int ret;
-
-	ret = kstrtobool(buf, &enabled);
-	if (ret)
-		return ret;
-
-	mp2->sfh1_1_ops->toggle_hpd(mp2, enabled);
-
-	return count;
-}
-static DEVICE_ATTR_RW(hpd);
-
-static umode_t sfh_attr_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-
-	if (!mp2->sfh1_1_ops || !mp2->dev_en.is_hpd_present)
-		return 0;
-
-	return attr->mode;
-}
-
-static struct attribute *sfh_attrs[] = {
-	&dev_attr_hpd.attr,
-	NULL,
-};
-
-static struct attribute_group sfh_attr_group = {
-	.attrs = sfh_attrs,
-	.is_visible = sfh_attr_is_visible,
-};
-
-static const struct attribute_group *amd_sfh_groups[] = {
-	&sfh_attr_group,
-	NULL,
-};
-
 static DEFINE_IDA(sfh_tm_ida);
 
 static void amd_sfh_maybe_register_tm(struct amd_mp2_dev *mp2)
@@ -448,7 +397,7 @@ static void sfh1_1_init_work(struct work_struct *work)
 	amd_sfh_clear_intr(mp2);
 	mp2->init_done = 1;
 
-	rc = sysfs_update_group(&mp2->pdev->dev.kobj, &sfh_attr_group);
+	rc = amd_sfh_update_sysfs(mp2);
 	if (rc)
 		dev_warn(&mp2->pdev->dev, "failed to update sysfs group\n");
 
