@@ -1157,6 +1157,11 @@ view_index_meta:
 		}
 		if (a->non_resident) {
 			NInoSetNonResident(ni);
+			if (a->data.non_resident.lowest_vcn) {
+				ntfs_error(vi->i_sb,
+					   "First extent of $DATA attribute has non zero lowest_vcn.");
+				goto unm_err_out;
+			}
 			if (NInoCompressed(ni) || (NInoSparse(ni) && !NInoWofCompressed(ni))) {
 				if (NInoCompressed(ni) &&
 				    a->data.non_resident.compression_unit != 4) {
@@ -1204,11 +1209,6 @@ view_index_meta:
 				}
 				ni->itype.compressed.size = le64_to_cpu(
 						a->data.non_resident.compressed_size);
-			}
-			if (a->data.non_resident.lowest_vcn) {
-				ntfs_error(vi->i_sb,
-					"First extent of $DATA attribute has non zero lowest_vcn.");
-				goto unm_err_out;
 			}
 			if (ntfs_non_resident_sizes_inconsistent(vi, a))
 				goto unm_err_out;
@@ -1435,6 +1435,10 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		}
 	} else {
 		NInoSetNonResident(ni);
+		if (a->data.non_resident.lowest_vcn) {
+			ntfs_error(vi->i_sb, "First extent of attribute has non-zero lowest_vcn.");
+			goto unm_err_out;
+		}
 		/*
 		 * Ensure the attribute name is placed before the mapping pairs
 		 * array.
@@ -1469,10 +1473,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			}
 			ni->itype.compressed.size = le64_to_cpu(
 					a->data.non_resident.compressed_size);
-		}
-		if (a->data.non_resident.lowest_vcn) {
-			ntfs_error(vi->i_sb, "First extent of attribute has non-zero lowest_vcn.");
-			goto unm_err_out;
 		}
 		if (ntfs_non_resident_sizes_inconsistent(vi, a))
 			goto unm_err_out;
