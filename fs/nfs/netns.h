@@ -16,6 +16,7 @@ struct bl_dev_msg {
 	uint32_t major, minor;
 };
 
+struct key;
 struct nfs_netns_client;
 
 struct nfs_net {
@@ -39,6 +40,7 @@ struct nfs_net {
 #endif /* CONFIG_NFS_V4 */
 	struct nfs_netns_client *nfs_client;
 	spinlock_t nfs_client_lock;
+	struct key *nfs_keyring;
 	ktime_t boot_time;
 	struct rpc_stat rpcstats;
 #ifdef CONFIG_PROC_FS

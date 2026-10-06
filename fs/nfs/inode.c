@@ -2641,10 +2641,51 @@ static int nfsiod_start(void)
 unsigned int nfs_net_id;
 EXPORT_SYMBOL_GPL(nfs_net_id);
 
+#ifdef CONFIG_KEYS
+static int nfs_init_keyring(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct cred *cred;
+	struct key *keyring;
+
+	cred = prepare_kernel_cred(&init_task);
+	if (!cred)
+		return -ENOMEM;
+	keyring = keyring_alloc(".nfs", net->user_ns->owner,
+				net->user_ns->group, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				(KEY_USR_ALL & ~KEY_USR_SETATTR),
+				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+	put_cred(cred);
+	if (IS_ERR(keyring))
+		return PTR_ERR(keyring);
+	nn->nfs_keyring = keyring;
+	return 0;
+}
+
+static void nfs_exit_keyring(struct nfs_net *nn)
+{
+	key_put(nn->nfs_keyring);
+}
+#else
+static inline int nfs_init_keyring(struct net *net)
+{
+	return 0;
+}
+
+static inline void nfs_exit_keyring(struct nfs_net *nn)
+{
+}
+#endif /* CONFIG_KEYS */
+
 static int nfs_net_init(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 	int err;
+
+	err = nfs_init_keyring(net);
+	if (err)
+		return err;
 
 	nfs_clients_init(net);
 
@@ -2663,14 +2704,18 @@ err_proc_nfs:
 	rpc_proc_unregister(net, "nfs");
 err_proc_rpc:
 	nfs_clients_exit(net);
+	nfs_exit_keyring(nn);
 	return err;
 }
 
 static void nfs_net_exit(struct net *net)
 {
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
 	rpc_proc_unregister(net, "nfs");
 	nfs_fs_proc_net_exit(net);
 	nfs_clients_exit(net);
+	nfs_exit_keyring(nn);
 }
 
 static struct pernet_operations nfs_net_ops = {
@@ -2680,35 +2725,6 @@ static struct pernet_operations nfs_net_ops = {
 	.size = sizeof(struct nfs_net),
 };
 
-#ifdef CONFIG_KEYS
-static struct key *nfs_keyring;
-
-static int __init nfs_init_keyring(void)
-{
-	nfs_keyring = keyring_alloc(".nfs",
-			     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
-			     current_cred(),
-			     (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			     (KEY_USR_ALL & ~KEY_USR_SETATTR),
-			     KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
-	return PTR_ERR_OR_ZERO(nfs_keyring);
-}
-
-static void nfs_exit_keyring(void)
-{
-	key_put(nfs_keyring);
-}
-#else
-static inline int nfs_init_keyring(void)
-{
-	return 0;
-}
-
-static inline void nfs_exit_keyring(void)
-{
-}
-#endif /* CONFIG_KEYS */
-
 /*
  * Initialize NFS
  */
@@ -2716,13 +2732,9 @@ static int __init init_nfs_fs(void)
 {
 	int err;
 
-	err = nfs_init_keyring();
-	if (err)
-		return err;
-
 	err = nfs_sysfs_init();
 	if (err < 0)
-		goto err_keyring;
+		return err;
 
 	err = register_pernet_subsys(&nfs_net_ops);
 	if (err < 0)
@@ -2779,8 +2791,6 @@ err_pernet:
 	unregister_pernet_subsys(&nfs_net_ops);
 err_sysfs:
 	nfs_sysfs_exit();
-err_keyring:
-	nfs_exit_keyring();
 	return err;
 }
 
@@ -2796,7 +2806,6 @@ static void __exit exit_nfs_fs(void)
 	nfs_fs_proc_exit();
 	nfsiod_stop();
 	nfs_sysfs_exit();
-	nfs_exit_keyring();
 }
 
 /* Not quite true; I just maintain it */
