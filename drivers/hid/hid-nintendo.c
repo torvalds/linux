@@ -4503,6 +4503,21 @@ static int nintendo_hid_event(struct hid_device *hdev,
 		return joycon_event(hdev, report, raw_data, size);
 }
 
+static const __u8 *nintendo_hid_report_fixup(struct hid_device *hdev,
+			    __u8 *rdesc, unsigned int *rsize)
+{
+	if (hdev->vendor == USB_VENDOR_ID_NINTENDO &&
+		hdev->product == USB_DEVICE_ID_NINTENDO_NS2_JOYCONR &&
+		*rsize == 100 && rdesc[24] == NS2_REPORT_JCL)
+		/*
+		 * The NYXI Hyperion 3 right Joy-Con accidentally reports as the
+		 * left one. Since the HID subsystem rejects report IDs that
+		 * aren't listed in the descriptor, we need to patch it.
+		 */
+		rdesc[24] = NS2_REPORT_JCR;
+	return rdesc;
+}
+
 static int nintendo_hid_probe(struct hid_device *hdev,
 			    const struct hid_device_id *id)
 {
@@ -4531,6 +4546,7 @@ static int nintendo_hid_suspend(struct hid_device *hdev, pm_message_t message)
 static struct hid_driver nintendo_hid_driver = {
 	.name		= "nintendo",
 	.id_table	= nintendo_hid_devices,
+	.report_fixup	= nintendo_hid_report_fixup,
 	.probe		= nintendo_hid_probe,
 	.remove		= nintendo_hid_remove,
 	.raw_event	= nintendo_hid_event,
