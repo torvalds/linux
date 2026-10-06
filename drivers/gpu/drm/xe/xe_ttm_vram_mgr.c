@@ -687,6 +687,19 @@ static int xe_ttm_vram_purge_page(struct xe_device *xe, struct xe_bo *bo)
 		goto out;
 	}
 
+	/*
+	 * The caller's user+pinned check was lockless (mgr->lock only), so an
+	 * external pin can race in before we get here. Re-validate now that
+	 * we hold the reservation lock and reject the purge instead of
+	 * unpinning a BO userspace still expects to be resident. Request SBR
+	 * the same way the caller's own critical-BO check does.
+	 */
+	if (xe_bo_is_user(bo) && xe_bo_is_pinned(bo)) {
+		xe_bo_unlock(bo);
+		ret = -EIO;
+		goto out;
+	}
+
 	xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_DONTNEED);
 	ttm_bo_unmap_virtual(&bo->ttm);   /* nuke CPU mmap + VRAM IO mappings */
 	if (xe_bo_is_pinned(bo))
@@ -851,6 +864,13 @@ static int xe_ttm_vram_reserve_page_at_addr(struct xe_device *xe, u64 addr,
 		 */
 		ret = xe_ttm_vram_purge_page(xe, pbo);
 		xe_bo_put(pbo);
+		if (ret == -EIO) {
+			/* Raced into an external pin after the lockless check above */
+			drm_err(&xe->drm,
+				"%s: addr: 0x%llx became externally pinned, requesting SBR\n",
+				__func__, addr);
+			return ret;
+		}
 		if (ret)
 			drm_warn(&xe->drm, "Purge failed at addr:0x%llx, ret:%d\n", addr, ret);
 	}
