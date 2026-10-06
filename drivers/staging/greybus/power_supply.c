@@ -377,12 +377,8 @@ static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
 			gbpsy->pm_acquired = true;
 	} else {
 		if (gbpsy->pm_acquired) {
-			ret = gb_pm_runtime_put_autosuspend(connection->bundle);
-			if (ret)
-				dev_err(&connection->bundle->dev,
-					"Fail to set wake unlock for none charging\n");
-			else
-				gbpsy->pm_acquired = false;
+			gb_pm_runtime_put_autosuspend(connection->bundle);
+			gbpsy->pm_acquired = false;
 		}
 	}
 
