@@ -39,6 +39,12 @@ int main(int argc, char *argv[])
 	int kvm_max_vcpu_id = kvm_check_cap(KVM_CAP_MAX_VCPU_ID);
 	int kvm_max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 
+	/*
+	 * PowerPC's PAPR L0 does not guarantee KVM_CAP_MAX_VCPUS when running
+	 * on pseries LPAR (nested kvm-on-powervm).
+	 */
+	TEST_REQUIRE(!kvm_is_ppc_pseries_lpar());
+
 	pr_info("KVM_CAP_MAX_VCPU_ID: %d\n", kvm_max_vcpu_id);
 	pr_info("KVM_CAP_MAX_VCPUS: %d\n", kvm_max_vcpus);
 
