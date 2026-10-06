@@ -707,6 +707,9 @@ void sparx5_psfp_init(struct sparx5 *sparx5);
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
 			  const ktime_t org_base_time, ktime_t *new_base_time);
 
+/* sparx5_tas.c */
+void sparx5_tas_speed(struct sparx5_port *port, int speed);
+
 /* sparx5_mirror.c */
 int sparx5_mirror_add(struct sparx5_mall_entry *entry);
 void sparx5_mirror_del(struct sparx5_mall_entry *entry);
