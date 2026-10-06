@@ -42,6 +42,12 @@
 #include <linux/uaccess.h>
 #include <linux/iversion.h>
 #include <linux/fileattr.h>
+#include <linux/nsproxy.h>
+#include <linux/key-type.h>
+#include <keys/user-type.h>
+#ifdef CONFIG_KEYS
+#include <keys/request_key_auth-type.h>
+#endif
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -2667,6 +2673,76 @@ static void nfs_exit_keyring(struct nfs_net *nn)
 {
 	key_put(nn->nfs_keyring);
 }
+
+static int nfs_keyring_vet_description(const char *desc)
+{
+	return strcmp(desc, ".nfs") ? -EINVAL : 0;
+}
+
+static int nfs_keyring_format_serial(char *buf, size_t len)
+{
+	struct key *keyring = nfs_net_keyring(current->nsproxy->net_ns);
+
+	return snprintf(buf, len, "%d", key_serial(keyring));
+}
+
+/*
+ * A key planted by add_key() answers request_key() before the handler
+ * runs. Accept only the serial number the handler would produce.
+ */
+static int nfs_keyring_preparse(struct key_preparsed_payload *prep)
+{
+	char serial[12];
+	int len;
+
+	len = nfs_keyring_format_serial(serial, sizeof(serial));
+	if (prep->datalen != len || !prep->data ||
+	    memcmp(prep->data, serial, len))
+		return -EINVAL;
+	return user_preparse(prep);
+}
+
+static int nfs_keyring_request_key(struct key *authkey, void *aux)
+{
+	struct request_key_auth *rka = get_request_key_auth(authkey);
+	char serial[12];
+	int len, ret;
+
+	len = nfs_keyring_format_serial(serial, sizeof(serial));
+	ret = key_instantiate_and_link(rka->target_key, serial, len,
+				       rka->dest_keyring, authkey);
+	if (ret < 0)
+		complete_request_key(authkey, ret);
+	return ret;
+}
+
+/*
+ * A session keyring survives setns(). Without the net domain tag, a
+ * key instantiated in one namespace answers a request from another.
+ */
+static struct key_type key_type_nfs_keyring = {
+	.name		= "nfs_keyring",
+	.flags		= KEY_TYPE_NET_DOMAIN,
+	.vet_description = nfs_keyring_vet_description,
+	.preparse	= nfs_keyring_preparse,
+	.free_preparse	= user_free_preparse,
+	.instantiate	= generic_key_instantiate,
+	.revoke		= user_revoke,
+	.destroy	= user_destroy,
+	.describe	= user_describe,
+	.read		= user_read,
+	.request_key	= nfs_keyring_request_key,
+};
+
+static int __init nfs_register_key_type(void)
+{
+	return register_key_type(&key_type_nfs_keyring);
+}
+
+static void nfs_unregister_key_type(void)
+{
+	unregister_key_type(&key_type_nfs_keyring);
+}
 #else
 static inline int nfs_init_keyring(struct net *net)
 {
@@ -2674,6 +2750,15 @@ static inline int nfs_init_keyring(struct net *net)
 }
 
 static inline void nfs_exit_keyring(struct nfs_net *nn)
+{
+}
+
+static inline int nfs_register_key_type(void)
+{
+	return 0;
+}
+
+static inline void nfs_unregister_key_type(void)
 {
 }
 #endif /* CONFIG_KEYS */
@@ -2740,9 +2825,13 @@ static int __init init_nfs_fs(void)
 	if (err < 0)
 		goto err_sysfs;
 
-	err = nfsiod_start();
+	err = nfs_register_key_type();
 	if (err)
 		goto err_pernet;
+
+	err = nfsiod_start();
+	if (err)
+		goto err_keytype;
 
 	err = nfs_fs_proc_init();
 	if (err)
@@ -2787,6 +2876,8 @@ err_proc:
 	nfs_fs_proc_exit();
 err_nfsiod:
 	nfsiod_stop();
+err_keytype:
+	nfs_unregister_key_type();
 err_pernet:
 	unregister_pernet_subsys(&nfs_net_ops);
 err_sysfs:
@@ -2801,6 +2892,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_destroy_readpagecache();
 	nfs_destroy_inodecache();
 	nfs_destroy_nfspagecache();
+	nfs_unregister_key_type();
 	unregister_pernet_subsys(&nfs_net_ops);
 	unregister_nfs_fs();
 	nfs_fs_proc_exit();
