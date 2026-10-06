@@ -442,7 +442,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
 	union hdmi_scdc_status_flags_data status_data = {0};
 	union hdmi_scdc_source_test_req test_req = {0};
 	union hdmi_scdc_LTP_req_data ltp_req = {0};
-	unsigned long long poll_timeout_ns = 200 * 1000 * 1000;
+	unsigned long long poll_timeout_ns = 220 * 1000 * 1000;
 	unsigned long long wait_time_ns = 2 * 1000 * 1000;
 	unsigned long long num_polls = 0;
 	struct hpo_frl_link_encoder *hpo_frl_link_enc = ddc_service->link->hpo_frl_link_enc;
