@@ -4909,6 +4909,13 @@ static int set_quality_report_func(struct sock *sk, struct hci_dev *hdev,
 
 	hci_req_sync_lock(hdev);
 
+	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_SET_EXP_FEATURE,
+				      MGMT_STATUS_INVALID_INDEX);
+		goto unlock_quality_report;
+	}
+
 	val = !!cp->param[0];
 	changed = (val != hci_dev_test_flag(hdev, HCI_QUALITY_REPORT));
 
