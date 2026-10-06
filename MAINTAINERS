@@ -28042,6 +28042,8 @@ F:	lib/union_find.c
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 R:	Alim Akhtar <alim.akhtar@samsung.com>
 R:	Bart Van Assche <bvanassche@acm.org>
+R:	Bean Huo <beanhuo@micron.com>
+R:	Stanley Jhu <stanleyjhu@google.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/ufs/
