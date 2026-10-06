@@ -460,7 +460,7 @@ pick_next_one:
 /**
  * __genwqe_wait_ddcb(): Waits until DDCB is completed
  * @cd:         pointer to genwqe device descriptor
- * @req:        pointer to requsted DDCB parameters
+ * @req:        pointer to requested DDCB parameters
  *
  * The Service Layer will update the RETC in DDCB when processing is
  * pending or done.
@@ -543,7 +543,7 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 		return -EINVAL;
 	}
 
-	/* Severe error occured. Driver is forced to stop operation */
+	/* Severe error occurred. Driver is forced to stop operation */
 	if (cd->card_state != GENWQE_CARD_USED) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: DDCB#%d forced to stop (rc=%d)\n",
