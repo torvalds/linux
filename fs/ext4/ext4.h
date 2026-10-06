@@ -2628,6 +2628,13 @@ ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
 {
 	unsigned len = le16_to_cpu(dlen);
 
+	/*
+	 * Only blocks of 64k and more need the special encoding of rec_len.
+	 * For smaller blocks 0 and EXT4_MAX_REC_LEN are not valid lengths
+	 * and must not be taken for an entry that spans the whole block.
+	 */
+	if (blocksize < 65536)
+		return len;
 	if (len == EXT4_MAX_REC_LEN || len == 0)
 		return blocksize;
 	return (len & 65532) | ((len & 3) << 16);
