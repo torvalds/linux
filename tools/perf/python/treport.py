@@ -638,8 +638,9 @@ class ReportApp(App):
     @work(thread=True, exclusive=True)
     def load_profile(self) -> None:
         """Build the profile in a thread so the UI stays responsive."""
-        profile = self.loading
-        assert profile is not None
+        loading = self.loading
+        assert loading is not None
+        profile = loading
 
         def progress() -> None:
             try:
