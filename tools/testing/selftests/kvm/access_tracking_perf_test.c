@@ -472,6 +472,16 @@ static int access_tracking_unreliable(void)
 	}
 #endif
 	/*
+	 * PowerPC: Nested KVM (pSeries LPAR) can hide accessed/idle, since KVM
+	 * doesn't explicitely flush the TLB for access bit update. L0 keeps
+	 * translations cached so the guest won't see the idle bit cleared.
+	 */
+	if (kvm_is_ppc_pseries_lpar()) {
+		puts("Skipping idle page count sanity check, because the test is run nested");
+		return 1;
+	}
+
+	/*
 	 * When NUMA balancing is enabled, guest memory will be unmapped to get
 	 * NUMA faults, dropping the Accessed bits.
 	 */
