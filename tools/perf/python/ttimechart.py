@@ -1676,14 +1676,13 @@ class TimechartApp(App):
 
     def goto_task(self, tid: int, time: Optional[float]) -> None:
         """Select the task in the tasks or I/O view, optionally moving the cursor."""
-        for tab_id, view_id, row_type in (("tasks", "#tasks_view", TaskRow),
-                                          ("io", "#io_view", IoRow)):
+        for tab_id, view_id in (("tasks", "#tasks_view"), ("io", "#io_view")):
             views = self.query(view_id)
             if not views:
                 continue
             view = views.first(TimelineView)
             for idx, row in enumerate(view.rows):
-                if isinstance(row, row_type) and row.task.tid == tid:
+                if isinstance(row, (TaskRow, IoRow)) and row.task.tid == tid:
                     self.query_one(TabbedContent).active = tab_id
                     if time is not None:
                         self.window = self.window.with_cursor(time)
