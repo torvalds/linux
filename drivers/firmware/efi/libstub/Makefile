@@ -6,18 +6,22 @@
 # enabled, even if doing so doesn't break the build.
 #
 
-# non-x86 reuses KBUILD_CFLAGS, x86 does not
 cflags-y			:= $(KBUILD_CFLAGS)
 
-cflags-$(CONFIG_X86_32)		:= -march=i386
-cflags-$(CONFIG_X86_64)		:= -mcmodel=small
-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ $(CC_FLAGS_DIALECT) \
-				   -fPIC -fno-strict-aliasing -mno-red-zone \
-				   -mno-mmx -mno-sse -fshort-wchar \
-				   -Wno-pointer-sign \
-				   $(call cc-disable-warning, address-of-packed-member) \
-				   -fno-asynchronous-unwind-tables \
-				   $(CLANG_FLAGS)
+# x86 links the stub into the decompressor rather than the kernel proper, so
+# drop the kernel's code model, calling convention, and stack alignment, and
+# the mitigations that rely on thunks and patch sites only the kernel has.
+cflags-$(CONFIG_X86)		:= $(filter-out -mcmodel=kernel \
+				     -mregparm=3 -freg-struct-return \
+				     -mpreferred-stack-boundary=% \
+				     -mstack-alignment=% \
+				     $(RETPOLINE_CFLAGS) $(RETHUNK_CFLAGS) \
+				     $(PADDING_CFLAGS), $(cflags-y))
+cflags-$(CONFIG_X86_32)		+= -march=i386
+cflags-$(CONFIG_X86_64)		+= -mcmodel=small
+cflags-$(CONFIG_X86)		+= -fPIC $(DISABLE_KSTACK_ERASE)
+# Nothing enables IBT while the stub runs, so ENDBR would only take space.
+cflags-$(CONFIG_X86)		+= $(call cc-option,-fcf-protection=none)
 
 # arm64 uses the full KBUILD_CFLAGS so it's necessary to explicitly
 # disable the stackleak plugin
