@@ -1235,8 +1235,13 @@ read_boot:
 	sbi->maxbytes_sparse = MAX_LFS_FILESIZE;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 #else
-	/* Maximum size for sparse file. */
-	sbi->maxbytes_sparse = (1ull << (cluster_bits + 32)) - 1;
+	/* 
+	 * Maximum size for sparse file:
+	 * 16 aligned up clusters should fit in 32 bits.
+	 * xfstest 308 on sparse file.
+	 */
+	sbi->maxbytes_sparse = (1ull << (cluster_bits + 32)) - 1 -
+			       (sbi->cluster_size << NTFS_LZNT_CUNIT);
 	sb->s_maxbytes = 0xFFFFFFFFull << cluster_bits;
 #endif
 
