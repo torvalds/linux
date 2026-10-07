@@ -1164,7 +1164,7 @@ again:
 		to_alloc = ((vcn0 + clen + clst_per_frame - 1) & cmask) - vcn;
 		if (fr < clst_per_frame)
 			fr = clst_per_frame;
-		if (vcn != vcn0)
+		if (vcn != vcn0 || clen < to_alloc)
 			zero = true;
 
 		/* Check if 'vcn' and 'vcn0' in different attribute segments. */
