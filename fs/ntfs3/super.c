@@ -275,6 +275,8 @@ enum Opt {
 	Opt_delalloc_bool,
 	Opt_ads,
 	Opt_ads_bool,
+	Opt_ugm,
+	Opt_ugm_bool,
 	Opt_err,
 };
 
@@ -303,6 +305,8 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_bool("delalloc",	Opt_delalloc_bool),
 	fsparam_flag("ads",		Opt_ads),
 	fsparam_bool("ads",		Opt_ads_bool),
+	fsparam_flag("ugm",		Opt_ugm),
+	fsparam_bool("ugm",		Opt_ugm_bool),
 	{}
 };
 // clang-format on
@@ -345,7 +349,7 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		pr_err("ntfs3: unknown option \"%s\". Use uid,gid,umask,"
 		       "dmask,fmask,sys_immutable,discard,force,sparse,"
 		       "nohidden,hide_dot_files,windows_names,showmeta,acl,"
-		       "iocharset,prealloc,nocase,delalloc,ads",
+		       "iocharset,prealloc,nocase,delalloc,ads,ugm",
 		       param->key);
 		return -ENOPARAM;
 	}
@@ -442,6 +446,12 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_ads_bool:
 		opts->ads = result.boolean;
+		break;
+	case Opt_ugm:
+		opts->ugm = 1;
+		break;
+	case Opt_ugm_bool:
+		opts->ugm = result.boolean;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
@@ -1905,6 +1915,7 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	opts->fs_fmask_inv = opts->fs_dmask_inv = ~current_umask();
 	opts->prealloc = 1;
 	opts->ads = 1;
+	opts->ugm = 1;
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	/* Set the default value 'acl' */

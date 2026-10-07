@@ -1836,7 +1836,7 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		inode->i_flags |= S_NOSEC;
 	}
 
-	if (!S_ISLNK(mode)) {
+	if (!S_ISLNK(mode) && sbi->options->ugm) {
 		/*
 		 * ntfs_init_acl and ntfs_save_wsl_perm update extended attribute.
 		 * The packed size of extended attribute is stored in direntry too.

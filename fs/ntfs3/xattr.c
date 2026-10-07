@@ -1015,6 +1015,13 @@ int ntfs_save_wsl_perm(struct inode *inode, __le32 *ea_size)
 	__le32 value;
 	struct ntfs_inode *ni = ntfs_i(inode);
 
+	if (!ni->mi.sbi->options->ugm) {
+		/* Do not save uid/gid/mode/dev in xattr. */
+		if (ea_size)
+			*ea_size = 0;
+		return 0;
+	}
+
 	ni_lock(ni);
 	value = cpu_to_le32(i_uid_read(inode));
 	err = ntfs_set_ea(inode, "$LXUID", sizeof("$LXUID") - 1, &value,

@@ -111,6 +111,7 @@ struct ntfs_mount_options {
 	unsigned nocase : 1; /* case insensitive. */
 	unsigned delalloc : 1; /* delay allocation. */
 	unsigned ads : 1; /* ads support. */
+	unsigned ugm : 1; /* store user/group/mode in xattr. */
 };
 
 /* Special value to unpack and deallocate. */
