@@ -2386,6 +2386,12 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 
 	if ((vbo | bytes) & mask) {
 		/* We have to zero a range(s). */
+		if (is_attr_compressed(attr_b)) {
+			/* Compressed file punch must be frame aligned. */
+			return -EINVAL;
+		}
+
+		/* Sparse files can be punched. */
 		if (!frame_size) {
 			/* Caller insists range is aligned. */
 			return -EINVAL;
