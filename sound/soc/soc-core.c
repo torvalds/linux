@@ -2589,6 +2589,42 @@ static int soc_component_initialize(struct snd_soc_component *component,
 	return 0;
 }
 
+struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
+						const struct snd_soc_component_driver *driver)
+{
+	struct snd_soc_component *component;
+
+	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return ERR_PTR(-ENOMEM);
+
+	component->dapm = snd_soc_dapm_alloc(dev);
+	if (!component->dapm)
+		return ERR_PTR(-ENOMEM);
+
+	if (!name) {
+		name = snd_soc_fmt_single_name(dev, NULL);
+		if (!name) {
+			dev_err(dev, "ASoC: Failed to allocate name\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	component->dev = dev;
+	component->name = name;
+	component->driver = driver;
+
+	INIT_LIST_HEAD(&component->dai_list);
+	INIT_LIST_HEAD(&component->dobj_list);
+	INIT_LIST_HEAD(&component->card_list);
+	INIT_LIST_HEAD(&component->list);
+	INIT_LIST_HEAD(&component->card_aux_list);
+	mutex_init(&component->io_mutex);
+
+	return component;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_new);
+
 static int soc_component_add(struct snd_soc_component *component,
 			     struct snd_soc_dai_driver *dai_drv,
 			     int num_dai)
@@ -2653,11 +2689,11 @@ int snd_soc_register_component_d(struct device *dev,
 {
 	struct snd_soc_component *component;
 
-	component = snd_soc_component_alloc(dev);
-	if (!component)
-		return -ENOMEM;
+	component = snd_soc_component_new(dev, NULL, component_driver);
+	if (IS_ERR(component))
+		return PTR_ERR(component);
 
-	return snd_soc_register_component_c(component, component_driver, dai_drv, num_dai);
+	return soc_component_add(component, dai_drv, num_dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component_d);
 
