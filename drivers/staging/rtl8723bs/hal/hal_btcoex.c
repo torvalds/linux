@@ -290,8 +290,11 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_BL_WIFI_SCAN:
-		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or not, since the originally used flag
-			WIFI_SITE_MONITOR in fwstate may not be cleared in time */
+		/*
+		 * Use the value of the new variable GLBtcWiFiInScanState to judge
+		 * whether WiFi is in scan state or not, since the originally used
+		 * flag WIFI_SITE_MONITOR in fwstate may not be cleared in time.
+		 */
 		*pu8 = GLBtcWiFiInScanState;
 		break;
 
