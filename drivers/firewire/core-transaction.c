@@ -112,12 +112,8 @@ int fw_cancel_transaction(struct fw_card *card,
 {
 	u32 tstamp;
 
-	/*
-	 * Cancel the packet transmission if it's still queued.  That
-	 * will call the packet transmission callback which cancels
-	 * the transaction.
-	 */
-
+	// Cancel the packet transmission if it's still queued. That will schedule the packet
+	// transmission callback which cancels the transaction.
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
