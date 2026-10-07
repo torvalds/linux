@@ -1597,7 +1597,7 @@ static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci
 	spin_lock(&local->lock);
 
 	while ((packet = list_first_entry_or_null(&local->list, typeof(*packet), link_for_local))) {
-		list_del(&packet->link_for_local);
+		list_del_init(&packet->link_for_local);
 		spin_unlock(&local->lock);
 
 		if (unlikely(packet->ack != 0)) {
@@ -1671,6 +1671,7 @@ static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet
 
 	// These members are used to cancel the packet.
 	packet->driver_data = NULL;
+	INIT_LIST_HEAD(&packet->link_for_local);
 
 	scoped_guard(spinlock_irqsave, &ohci->lock) {
 		if (!destination_is_local(packet, ohci)) {
@@ -2658,6 +2659,10 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	struct at_local *local = &ohci->at_request_local;
 	int ret = -ENOENT;
 
+	// handle_at_request_local_packet() can reach here by calling fw_core_handle_response().
+	if (current_work() != &local->work)
+		disable_work_sync(&local->work);
+
 	// Avoid dead lock due to programming mistake.
 	if (WARN_ON_ONCE(current_work() == &ctx->work))
 		return 0;
@@ -2681,6 +2686,11 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 			scoped_guard(spinlock_irqsave, &local->lock)
 				list_add_tail(&packet->link_for_local, &local->list);
 			use_local_work = true;
+		} else {
+			scoped_guard(spinlock_irqsave, &local->lock) {
+				if (!list_empty(&packet->link_for_local))
+					use_local_work = true;
+			}
 		}
 	}
 
@@ -2690,10 +2700,12 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 		// Timestamping on behalf of the hardware.
 		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
 		packet->ack = RCODE_CANCELLED;
-		queue_work(card->async_wq, &local->work);
 
 		ret = 0;
 	}
+
+	if (current_work() != &local->work)
+		enable_and_queue_work(card->async_wq, &local->work);
 
 	return ret;
 }
