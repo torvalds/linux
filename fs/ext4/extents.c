@@ -6271,8 +6271,10 @@ void ext4_ext_replay_shrink_inode(struct inode *inode, ext4_lblk_t end)
 		}
 		old_cur = cur;
 		cur = le32_to_cpu(ex->ee_block) + ext4_ext_get_actual_len(ex);
+		/* ex ends before old_cur, which is in a hole: skip the hole */
 		if (cur <= old_cur)
-			cur = old_cur + 1;
+			cur = max(old_cur + 1,
+				  ext4_ext_next_allocated_block(path));
 		ext4_ext_try_to_merge(NULL, inode, path, ex);
 		down_write(&EXT4_I(inode)->i_data_sem);
 		ext4_ext_dirty(NULL, inode, &path[path->p_depth]);
