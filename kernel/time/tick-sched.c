@@ -763,12 +763,18 @@ static ktime_t tick_forward_now(ktime_t expires, ktime_t now)
 	return expires + TICK_NSEC;
 }
 
+static void tick_nohz_forward_last_tick(struct tick_sched *ts, ktime_t now)
+{
+	if (now >= ts->last_tick)
+		ts->last_tick = tick_forward_now(ts->last_tick, now);
+}
+
 static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 {
-	ktime_t expires = ts->last_tick;
+	ktime_t expires;
 
-	if (now >= expires)
-		expires = tick_forward_now(expires, now);
+	tick_nohz_forward_last_tick(ts, now);
+	expires = ts->last_tick;
 
 	if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES)) {
 		hrtimer_start(&ts->sched_timer,	expires, HRTIMER_MODE_ABS_PINNED_HARD);
@@ -1329,6 +1335,12 @@ unsigned long tick_nohz_get_idle_calls_cpu(int cpu)
 	return ts->idle_calls;
 }
 
+static void tick_nohz_dyntick_stop(struct tick_sched *ts, ktime_t now)
+{
+	tick_nohz_forward_last_tick(ts, now);
+	kcpustat_dyntick_stop(now, ts->last_tick - TICK_NSEC);
+}
+
 void tick_nohz_idle_restart_tick(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
@@ -1341,7 +1353,7 @@ void tick_nohz_idle_restart_tick(void)
 		 * no tiny amount of idle time is accounted twice.
 		 */
 		ts->idle_entrytime = ktime_get();
-		kcpustat_dyntick_stop(ts->idle_entrytime);
+		tick_nohz_dyntick_stop(ts, ts->idle_entrytime);
 		tick_nohz_restart_sched_tick(ts, ts->idle_entrytime);
 	}
 }
@@ -1385,7 +1397,7 @@ void tick_nohz_idle_exit(void)
 
 	if (tick_sched_flag_test(ts, TS_FLAG_STOPPED)) {
 		now = ktime_get();
-		kcpustat_dyntick_stop(now);
+		tick_nohz_dyntick_stop(ts, now);
 		tick_nohz_idle_update_tick(ts, now);
 	}
 
