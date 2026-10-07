@@ -103,12 +103,20 @@ void fw_cancel_pending_transactions(struct fw_card *card)
 	__t;								\
 })
 
-/*
- * Only valid for transactions that are potentially pending (ie have
- * been sent).
+/**
+ * fw_cancel_transaction: cancel transaction.
+ * @card:		interface where the transaction has been requested
+ * @transaction:	transaction instance to be cancelled
+ *
+ * Terminate the transaction by either canceling the request subaction or the response subaction
+ * of the split transaction, then schedule the transaction callback to notify the cancellation.
+ * The transaction instance should be kept until the callback will be invoked.
+ *
+ * Context: Process context.
+ * Returns: 0 on success, -ENOENT if the transaction instance is not found in the queue for the
+ * pending transaction.
  */
-int fw_cancel_transaction(struct fw_card *card,
-			  struct fw_transaction *transaction)
+int fw_cancel_transaction(struct fw_card *card, struct fw_transaction *transaction)
 {
 	// Cancel the packet transmission if it's still queued. That will schedule the packet
 	// transmission callback which cancels the transaction.
