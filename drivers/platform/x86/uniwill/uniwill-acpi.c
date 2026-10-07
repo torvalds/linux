@@ -165,9 +165,10 @@
 #define EC_ADDR_LIGHTBAR_AC_CTRL	0x0748
 #define LIGHTBAR_APP_EXISTS		BIT(0)
 #define LIGHTBAR_POWER_SAVE		BIT(1)
-#define LIGHTBAR_S0_OFF			BIT(2)
-#define LIGHTBAR_S3_OFF			BIT(3)	// Breathing animation when suspended
-#define LIGHTBAR_WELCOME		BIT(7)	// Rainbow animation
+#define LIGHTBAR_S0_OFF			BIT(2)	/* Also disables animations */
+#define LIGHTBAR_S3_OFF			BIT(3)	/* No breathing animation when in s2ram */
+#define LIGHTBAR_MODERN_STANDBY_ON	BIT(6)	/* Breathing animation when in s2idle */
+#define LIGHTBAR_WELCOME		BIT(7)	/* Rainbow animation */
 
 #define EC_ADDR_LIGHTBAR_AC_RED		0x0749
 
@@ -306,7 +307,7 @@
 #define EC_ADDR_USB_C_POWER_PRIORITY	0x07CC
 #define USB_C_POWER_PRIORITY		BIT(7)
 
-/* Same bits as EC_ADDR_LIGHTBAR_AC_CTRL except LIGHTBAR_S3_OFF */
+/* Same bits as EC_ADDR_LIGHTBAR_AC_CTRL except LIGHTBAR_S3_OFF and LIGHTBAR_MODERN_STANDBY_ON */
 #define EC_ADDR_LIGHTBAR_BAT_CTRL	0x07E2
 
 #define EC_ADDR_LIGHTBAR_BAT_RED	0x07E3
@@ -916,12 +917,13 @@ static ssize_t breathing_in_suspend_store(struct device *dev, struct device_attr
 		return ret;
 
 	if (enable)
-		value = 0;
+		value = LIGHTBAR_MODERN_STANDBY_ON;
 	else
 		value = LIGHTBAR_S3_OFF;
 
 	/* We only access a single register here, so we do not need to use data->led_lock */
-	ret = regmap_update_bits(data->regmap, EC_ADDR_LIGHTBAR_AC_CTRL, LIGHTBAR_S3_OFF, value);
+	ret = regmap_update_bits(data->regmap, EC_ADDR_LIGHTBAR_AC_CTRL,
+				 LIGHTBAR_S3_OFF | LIGHTBAR_MODERN_STANDBY_ON, value);
 	if (ret < 0)
 		return ret;
 
@@ -939,6 +941,10 @@ static ssize_t breathing_in_suspend_show(struct device *dev, struct device_attri
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * We only test LIGHTBAR_S3_OFF here, because LIGHTBAR_MODERN_STANDBY_ON
+	 * should have the exact opposite value.
+	 */
 	return sysfs_emit(buf, "%d\n", !(value & LIGHTBAR_S3_OFF));
 }
 
@@ -1546,7 +1552,8 @@ static struct led_trigger uniwill_lightbar_trigger = {
 	.trigger_type = &uniwill_lightbar_trigger_type,
 };
 
-#define LIGHTBAR_MASK	(LIGHTBAR_APP_EXISTS | LIGHTBAR_S0_OFF | LIGHTBAR_S3_OFF | LIGHTBAR_WELCOME)
+#define LIGHTBAR_MASK	(LIGHTBAR_APP_EXISTS | LIGHTBAR_S0_OFF | LIGHTBAR_S3_OFF | \
+			 LIGHTBAR_MODERN_STANDBY_ON | LIGHTBAR_WELCOME)
 
 static int uniwill_led_init(struct uniwill_data *data)
 {
@@ -1579,6 +1586,11 @@ static int uniwill_led_init(struct uniwill_data *data)
 		return ret;
 
 	value |= LIGHTBAR_APP_EXISTS;
+	if (value & LIGHTBAR_S3_OFF)
+		value &= ~LIGHTBAR_MODERN_STANDBY_ON;
+	else
+		value |= LIGHTBAR_MODERN_STANDBY_ON;
+
 	ret = regmap_write(data->regmap, EC_ADDR_LIGHTBAR_AC_CTRL, value);
 	if (ret < 0)
 		return ret;
@@ -1588,6 +1600,7 @@ static int uniwill_led_init(struct uniwill_data *data)
 	 * running on battery power.
 	 */
 	value |= LIGHTBAR_S3_OFF;
+	value &= ~LIGHTBAR_MODERN_STANDBY_ON;
 	ret = regmap_update_bits(data->regmap, EC_ADDR_LIGHTBAR_BAT_CTRL, LIGHTBAR_MASK, value);
 	if (ret < 0)
 		return ret;

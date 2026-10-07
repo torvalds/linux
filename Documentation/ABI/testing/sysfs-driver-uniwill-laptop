@@ -35,8 +35,8 @@ KernelVersion:	6.19
 Contact:	Armin Wolf <W_Armin@gmx.de>
 Description:
 		Causes the integrated lightbar to display a breathing animation when the machine
-		has been suspended and is running on AC power. Writing "1"/"0" into this file
-		enables/disables this functionality.
+		has been suspended, is running on AC power and the lightbar brightness not zero.
+		Writing "1"/"0" into this file enables/disables this functionality.
 
 		Reading this file returns the current status of the breathing animation
 		functionality.
