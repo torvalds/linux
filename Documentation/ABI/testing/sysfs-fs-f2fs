@@ -1014,6 +1014,17 @@ Description:	Every time a write operation completes f2fs_write_end_io() is
 		(atc) context. The default value for this attribute is UINT_MAX
 		which means that this functionality is disabled by default.
 
+What:		/sys/fs/f2fs/<disk>/max_atc_write_bio_entry_cnt
+Date:		October 2026
+Contact:	Chao Yu <chao@kernel.org>
+Description:	Every time a write operation completes f2fs_write_end_io() is
+		called. This function may be called from an atomic context,
+		e.g. from inside an interrupt handler. This attribute controls
+		the maximum number of entries (folios or cached blocks) in a
+		write bio that is completed in atomic (atc) context. The default
+		value for this attribute is UINT_MAX which means that this
+		functionality is disabled by default.
+
 What:		/sys/fs/f2fs/<disk>/pinned_area_max_secno
 Date:		August 2026
 Contact:	"Daeho Jeong" <daehojeong@google.com>
