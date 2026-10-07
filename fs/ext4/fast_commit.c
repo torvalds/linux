@@ -2455,6 +2455,12 @@ static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
  * It returns a negative error to indicate that there was an error. At the end
  * of a successful scan phase, sbi->s_fc_replay_state.fc_replay_num_tags is set
  * to indicate the number of tags that need to replayed during the replay phase.
+ *
+ * An invalid tag or a tail that does not match ends the scan without an error.
+ * This is what a fast commit that was only partially written before a crash
+ * looks like.  Its tail is written last and fsync() does not return before
+ * the tail is on disk, so such a fast commit was never reported as durable and
+ * is simply dropped, like jbd2 drops a transaction without a commit block.
  */
 static int ext4_fc_replay_scan(journal_t *journal,
 				struct buffer_head *bh, int off,
@@ -2501,8 +2507,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 		val = cur + EXT4_FC_TAG_BASE_LEN;
 		if (tl.fc_len > end - val ||
 		    !ext4_fc_value_len_isvalid(sbi, tl.fc_tag, tl.fc_len)) {
-			ret = state->fc_replay_num_tags ?
-				JBD2_FC_REPLAY_STOP : -ECANCELED;
+			ext4_debug("Scan phase, invalid tag length, blk %lld\n",
+				   bh->b_blocknr);
+			ret = JBD2_FC_REPLAY_STOP;
 			goto out_err;
 		}
 		ext4_debug("Scan phase, tag:%s, blk %lld\n",
@@ -2542,8 +2549,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 				state->fc_regions_valid =
 					state->fc_regions_used;
 			} else {
-				ret = state->fc_replay_num_tags ?
-					JBD2_FC_REPLAY_STOP : -EFSBADCRC;
+				ext4_debug("Scan phase, invalid tail, blk %lld\n",
+					   bh->b_blocknr);
+				ret = JBD2_FC_REPLAY_STOP;
 			}
 			state->fc_crc = 0;
 			break;
@@ -2563,8 +2571,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 				EXT4_FC_TAG_BASE_LEN + tl.fc_len);
 			break;
 		default:
-			ret = state->fc_replay_num_tags ?
-				JBD2_FC_REPLAY_STOP : -ECANCELED;
+			ext4_debug("Scan phase, unknown tag %d, blk %lld\n",
+				   tl.fc_tag, bh->b_blocknr);
+			ret = JBD2_FC_REPLAY_STOP;
 		}
 		if (ret < 0 || ret == JBD2_FC_REPLAY_STOP)
 			break;
