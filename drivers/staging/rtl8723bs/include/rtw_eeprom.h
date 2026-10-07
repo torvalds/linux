@@ -8,23 +8,11 @@
 #define __RTW_EEPROM_H__
 
 
-#define	RTL8712_EEPROM_ID			0x8712
 /* define	EEPROM_MAX_SIZE			256 */
 
-#define	HWSET_MAX_SIZE_128		128
-#define	HWSET_MAX_SIZE_256		256
 #define	HWSET_MAX_SIZE_512		512
 
 #define	EEPROM_MAX_SIZE			HWSET_MAX_SIZE_512
-
-#define	CLOCK_RATE					50			/* 100us */
-
-/*  EEPROM opcodes */
-#define EEPROM_READ_OPCODE		06
-#define EEPROM_WRITE_OPCODE		05
-#define EEPROM_ERASE_OPCODE		07
-#define EEPROM_EWEN_OPCODE		19      /*  Erase/write enable */
-#define EEPROM_EWDS_OPCODE		16      /*  Erase/write disable */
 
 /* Country codes */
 #define USA							0x555320
