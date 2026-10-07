@@ -10942,6 +10942,8 @@ static inline bool task_misfits_asym_cpu(struct lb_env *env, struct task_struct 
 	return false;
 }
 
+static inline bool sched_asym(struct sched_domain *sd, int dst_cpu, int src_cpu);
+
 /*
  * Check if task p can migrate from source LLC to
  * destination LLC in terms of cache aware load balance.
@@ -10964,6 +10966,10 @@ static enum llc_mig can_migrate_llc_task(struct lb_env *env,
 
 	cpu = READ_ONCE(grp->cpu);
 	if (cpu < 0 || cpus_share_cache(src_cpu, dst_cpu))
+		return mig_unrestricted;
+
+	/* Prioritize asym packing to idle core over cache awareness */
+	if (env->idle && sched_asym(env->sd, dst_cpu, src_cpu))
 		return mig_unrestricted;
 
 	/* skip cache aware load balance for too many threads */
@@ -12160,6 +12166,14 @@ static inline bool llc_balance(struct lb_env *env, struct sg_lb_stats *sgs,
 	 */
 	if ((env->sd->flags & SD_ASYM_CPUCAPACITY) &&
 	    sgs->group_misfit_task_load)
+		return false;
+
+	/*
+	 * On asym packing domains, if the destination CPU
+	 * has higher priority than all CPUs in the source group,
+	 * prioritize asym packing.
+	 */
+	if (sgs->group_asym_packing)
 		return false;
 
 	/*
@@ -13577,11 +13591,11 @@ static int need_active_balance(struct lb_env *env)
 {
 	struct sched_domain *sd = env->sd;
 
-	if (alb_break_llc(env))
-		return 0;
-
 	if (asym_active_balance(env))
 		return 1;
+
+	if (alb_break_llc(env))
+		return 0;
 
 	if (imbalanced_active_balance(env))
 		return 1;
