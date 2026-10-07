@@ -48,7 +48,6 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 {
 	struct dvobj_priv *psdpriv;
 
-
 	psdpriv = sdio_get_drvdata(func);
 
 	if (!psdpriv->if1)
@@ -216,7 +215,6 @@ static void sd_intf_stop(struct adapter *padapter)
 	rtw_sdio_disable_interrupt(padapter);
 }
 
-
 static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj)
 {
 	int status = _FAIL;
@@ -249,7 +247,6 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj)
 
 	/* 4 3.1 set hardware operation functions */
 	rtw_set_hal_ops(padapter);
-
 
 	/* 3 5. initialize Chip version */
 	padapter->intf_start = &sd_intf_start;
