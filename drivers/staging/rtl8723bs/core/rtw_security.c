@@ -631,7 +631,7 @@ static void construct_mic_iv(u8 *mic_iv,
 			     bool qc_exists,
 			     bool a4_exists,
 			     u8 *mpdu,
-			     uint payload_length,
+			     u32 payload_length,
 			     u8 *pn_vector,
 			     u8 frtype)
 {
