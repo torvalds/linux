@@ -40,11 +40,6 @@
 #include <linux/io.h>
 #include <net/selftests.h>
 
-/* For our NAPI weight bigger does *NOT* mean better - it means more
- * D-cache misses and lots more wasted cycles than we'll ever
- * possibly gain from saving instructions.
- */
-#define AG71XX_NAPI_WEIGHT	32
 #define AG71XX_OOM_REFILL	(1 + HZ / 10)
 
 #define AG71XX_INT_ERR	(AG71XX_INT_RX_BE | AG71XX_INT_TX_BE)
@@ -1913,8 +1908,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	netif_napi_add_weight(ndev, &ag->napi, ag71xx_poll,
-			      AG71XX_NAPI_WEIGHT);
+	netif_napi_add(ndev, &ag->napi, ag71xx_poll);
 
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, 0);
 
