@@ -700,7 +700,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
  * it to complete. Returns 0 if a new fast commit was started. Returns -EALREADY
  * if a fast commit is not needed, either because there's an already a commit
  * going on or this tid has already been committed. Returns -EINVAL if no jbd2
- * commit has yet been performed.
+ * commit has yet been performed, or none since the journal was last marked
+ * empty.
  */
 int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 {
@@ -717,6 +718,16 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 	if (tid_geq(journal->j_commit_sequence, tid)) {
 		write_unlock(&journal->j_state_lock);
 		return -EALREADY;
+	}
+
+	/*
+	 * The log was emptied and the superblock on disk says so, which makes
+	 * recovery skip the fast commit area as well. Only a full commit
+	 * records the log tail again.
+	 */
+	if (journal->j_flags & JBD2_FLUSHED) {
+		write_unlock(&journal->j_state_lock);
+		return -EINVAL;
 	}
 
 	if (journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
