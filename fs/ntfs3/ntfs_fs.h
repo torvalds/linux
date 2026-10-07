@@ -464,8 +464,8 @@ int attr_allocate_clusters(struct ntfs_sb_info *sbi, struct runs_tree *run,
 			   CLST *new_len);
 int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 			  struct ATTR_LIST_ENTRY *le, struct mft_inode *mi,
-			  u64 new_size, struct runs_tree *run,
-			  struct ATTRIB **ins_attr, struct page *page);
+			  struct runs_tree *run, struct ATTRIB **ins_attr,
+			  struct page *page);
 int attr_set_size_ex(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		     const __le16 *name, u8 name_len, struct runs_tree *run,
 		     u64 new_size, const u64 *new_valid, bool keep_prealloc,

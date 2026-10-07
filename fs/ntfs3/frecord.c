@@ -2574,9 +2574,8 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 
 	if (!attr->non_res) {
 		down_write(&ni->file.run_lock);
-		err = attr_make_nonresident(ni, attr, le, mi,
-					    le32_to_cpu(attr->res.data_size),
-					    &ni->file.run, &attr, pages[0]);
+		err = attr_make_nonresident(ni, attr, le, mi, &ni->file.run,
+					    &attr, pages[0]);
 		up_write(&ni->file.run_lock);
 		if (err)
 			goto out;

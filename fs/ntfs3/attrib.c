@@ -258,8 +258,8 @@ out:
  */
 int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 			  struct ATTR_LIST_ENTRY *le, struct mft_inode *mi,
-			  u64 new_size, struct runs_tree *run,
-			  struct ATTRIB **ins_attr, struct page *page)
+			  struct runs_tree *run, struct ATTRIB **ins_attr,
+			  struct page *page)
 {
 	struct ntfs_sb_info *sbi;
 	struct ATTRIB *attr_s;
@@ -401,8 +401,8 @@ static int attr_set_size_res(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 	if (new_size > sbi->record_size ||
 	    (dsize > 0 && used + dsize > sbi->max_bytes_per_attr)) {
-		return attr_make_nonresident(ni, attr, le, mi, new_size, run,
-					     ins_attr, NULL);
+		return attr_make_nonresident(ni, attr, le, mi, run, ins_attr,
+					     NULL);
 	}
 
 	if (dsize < 0) {
@@ -2832,9 +2832,8 @@ int attr_force_nonresident(struct ntfs_inode *ni)
 	}
 
 	down_write(&ni->file.run_lock);
-	err = attr_make_nonresident(ni, attr, le, mi,
-				    le32_to_cpu(attr->res.data_size),
-				    &ni->file.run, &attr, NULL);
+	err = attr_make_nonresident(ni, attr, le, mi, &ni->file.run, &attr,
+				    NULL);
 	up_write(&ni->file.run_lock);
 
 	return err;
