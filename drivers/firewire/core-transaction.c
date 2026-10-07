@@ -110,8 +110,6 @@ void fw_cancel_pending_transactions(struct fw_card *card)
 int fw_cancel_transaction(struct fw_card *card,
 			  struct fw_transaction *transaction)
 {
-	u32 tstamp;
-
 	// Cancel the packet transmission if it's still queued. That will schedule the packet
 	// transmission callback which cancels the transaction.
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
@@ -131,9 +129,10 @@ int fw_cancel_transaction(struct fw_card *card,
 
 	// Timestamping on behalf of hardware.
 	(void)fw_card_read_cycle_time(card, &curr_cycle_time);
-	tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
+	transaction->response_timestamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
+	transaction->rcode = RCODE_CANCELLED;
 
-	invoke_callback(transaction, RCODE_CANCELLED, tstamp, NULL, 0);
+	enable_and_queue_work(card->async_wq, &transaction->error_work);
 
 	return 0;
 }
