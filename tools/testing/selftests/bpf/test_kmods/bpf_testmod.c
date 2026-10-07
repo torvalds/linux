@@ -350,6 +350,15 @@ __bpf_kfunc void bpf_kfunc_trusted_task_test(struct task_struct *ptr)
 {
 }
 
+__bpf_kfunc struct task_struct *bpf_kfunc_trusted_null_test(void)
+{
+	return NULL;
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_nullable_test(struct task_struct *ptr__nullable)
+{
+}
+
 __bpf_kfunc void bpf_kfunc_trusted_num_test(int *ptr)
 {
 }
@@ -957,6 +966,8 @@ BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_zero_offset_test, KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_kfunc_nested_release_test, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_kfunc_trusted_vma_test)
 BTF_ID_FLAGS(func, bpf_kfunc_trusted_task_test)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_null_test, KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_nullable_test)
 BTF_ID_FLAGS(func, bpf_kfunc_trusted_num_test)
 BTF_ID_FLAGS(func, bpf_kfunc_rcu_task_test, KF_RCU)
 BTF_ID_FLAGS(func, bpf_kfunc_ret_rcu_test, KF_RET_NULL | KF_RCU_PROTECTED)

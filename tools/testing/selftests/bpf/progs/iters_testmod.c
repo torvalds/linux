@@ -46,6 +46,17 @@ int iter_next_trusted_or_null(const void *ctx)
 	return 0;
 }
 
+SEC("syscall")
+__success
+int trusted_nullable_kfunc(const void *ctx)
+{
+	struct task_struct *task;
+
+	task = bpf_kfunc_trusted_null_test();
+	bpf_kfunc_trusted_nullable_test(task);
+	return 0;
+}
+
 SEC("raw_tp/sys_enter")
 __success
 int iter_next_rcu(const void *ctx)
