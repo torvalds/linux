@@ -1036,7 +1036,13 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
 	ret = readl_relaxed_poll_timeout(spi_engine->base + SPI_ENGINE_REG_SYNC_ID,
-					 reg, reg == 1, 1, 1000);
+					 reg, reg == 1, 1, 1 * USEC_PER_MSEC);
+
+	/* Clear the stale SYNC pending bit so it doesn't fire when the IRQ is later enabled */
+	writel_relaxed(SPI_ENGINE_INT_SYNC, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
+	/* Read back to flush posted write. */
+	readl_relaxed(spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
+
 	if (ret)
 		return ret;
 
