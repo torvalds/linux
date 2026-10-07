@@ -339,6 +339,17 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	int opt;
 
 	opt = fs_parse(fc, ntfs_fs_parameters, param, &result);
+
+	if (opt == -ENOPARAM && strcmp(param->key, "source")) {
+		/* Show mini help. */
+		pr_err("ntfs3: unknown option \"%s\". Use uid,gid,umask,"
+		       "dmask,fmask,sys_immutable,discard,force,sparse,"
+		       "nohidden,hide_dot_files,windows_names,showmeta,acl,"
+		       "iocharset,prealloc,nocase,delalloc,ads",
+		       param->key);
+		return -ENOPARAM;
+	}
+
 	if (opt < 0)
 		return opt;
 
