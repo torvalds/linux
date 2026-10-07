@@ -393,8 +393,8 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 	struct wlan_network  *cur_network = &pmlmepriv->cur_network;
 	struct wireless_dev *pwdev = padapter->rtw_wdev;
 
-	if (pwdev->iftype != NL80211_IFTYPE_STATION
-		&& pwdev->iftype != NL80211_IFTYPE_P2P_CLIENT
+	if (pwdev->iftype != NL80211_IFTYPE_STATION &&
+	    pwdev->iftype != NL80211_IFTYPE_P2P_CLIENT
 	) {
 		return;
 	}
@@ -462,8 +462,8 @@ void rtw_cfg80211_indicate_disconnect(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wireless_dev *pwdev = padapter->rtw_wdev;
 
-	if (pwdev->iftype != NL80211_IFTYPE_STATION
-		&& pwdev->iftype != NL80211_IFTYPE_P2P_CLIENT
+	if (pwdev->iftype != NL80211_IFTYPE_STATION &&
+	    pwdev->iftype != NL80211_IFTYPE_P2P_CLIENT
 	) {
 		return;
 	}
@@ -976,8 +976,8 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 	}
 
 	/* for infra./P2PClient mode */
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
-		&& check_fwstate(pmlmepriv, _FW_LINKED)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
+	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		struct wlan_network  *cur_network = &pmlmepriv->cur_network;
 
 		if (memcmp((u8 *)mac, cur_network->network.mac_address, ETH_ALEN)) {
@@ -1512,9 +1512,9 @@ static int rtw_cfg80211_set_wpa_ie(struct adapter *padapter, u8 *pie, size_t iel
 	}
 
 	/* TKIP and AES disallow multicast packets until installing group key */
-	if (padapter->securitypriv.dot11_privacy_algrthm == _TKIP_
-		|| padapter->securitypriv.dot11_privacy_algrthm == _TKIP_WTMIC_
-		|| padapter->securitypriv.dot11_privacy_algrthm == _AES_)
+	if (padapter->securitypriv.dot11_privacy_algrthm == _TKIP_ ||
+	    padapter->securitypriv.dot11_privacy_algrthm == _TKIP_WTMIC_ ||
+	    padapter->securitypriv.dot11_privacy_algrthm == _AES_)
 		/* WPS open need to enable multicast */
 		/*  check_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS) == true) */
 		rtw_hal_set_hwreg(padapter, HW_VAR_OFF_RCR_AM, null_addr);
