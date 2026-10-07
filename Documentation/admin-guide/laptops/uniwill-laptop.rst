@@ -72,7 +72,7 @@ Lightbar
 --------
 
 The ``uniwill-laptop`` driver exposes the lightbar found on some models as a standard multicolor
-LED class device. The default name of this LED class device is ``uniwill:multicolor:status``.
+LED class device. The default name of this LED class device is ``uniwill:rgb:status``.
 
 The lightbar supports a separate rainbow animation mode that can be enabled by selecting the
 `uniwill-rainbow` LED trigger. To enable a breathing animation during suspend, see
@@ -83,7 +83,7 @@ Keyboard Backlight
 
 The ``uniwill-laptop`` driver supports controlling the keyboard backlight using the standard
 LED class interface. The default name of this LED class device is ``uniwill:white:kbd_backlight``
-when the keyboard backlight supports only a single color, or ``uniwill:multicolor:kbd_backlight``
+when the keyboard backlight supports only a single color, or ``uniwill:rgb:kbd_backlight``
 when the keyboard backlight supports RGB colors. The maximum intensity for each color channel
 in RGB mode is 50.
 

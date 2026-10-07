@@ -1559,7 +1559,7 @@ static int uniwill_led_init(struct uniwill_data *data)
 {
 	struct led_init_data init_data = {
 		.devicename = DRIVER_NAME,
-		.default_label = "multicolor:" LED_FUNCTION_STATUS,
+		.default_label = "rgb:" LED_FUNCTION_STATUS,
 		.devname_mandatory = true,
 	};
 	unsigned int color_indices[3] = {
@@ -1605,7 +1605,7 @@ static int uniwill_led_init(struct uniwill_data *data)
 	if (ret < 0)
 		return ret;
 
-	data->led_mc_cdev.led_cdev.color = LED_COLOR_ID_MULTI;
+	data->led_mc_cdev.led_cdev.color = LED_COLOR_ID_RGB;
 	data->led_mc_cdev.led_cdev.max_brightness = 1;
 	data->led_mc_cdev.led_cdev.flags = LED_REJECT_NAME_CONFLICT;
 	data->led_mc_cdev.led_cdev.brightness_set_blocking = uniwill_led_brightness_set;
@@ -1813,7 +1813,7 @@ static int uniwill_rgb_kbd_led_init(struct uniwill_data *data)
 		LED_COLOR_ID_BLUE,
 	};
 	struct led_init_data init_data = {
-		.default_label = "multicolor:" LED_FUNCTION_KBD_BACKLIGHT,
+		.default_label = "rgb:" LED_FUNCTION_KBD_BACKLIGHT,
 		.devicename = DRIVER_NAME,
 		.devname_mandatory = true,
 	};
@@ -1874,7 +1874,7 @@ static int uniwill_rgb_kbd_led_init(struct uniwill_data *data)
 		return ret;
 
 	data->kbd_led_mc_cdev.led_cdev.max_brightness = data->kbd_led_max_brightness;
-	data->kbd_led_mc_cdev.led_cdev.color = LED_COLOR_ID_MULTI;
+	data->kbd_led_mc_cdev.led_cdev.color = LED_COLOR_ID_RGB;
 	data->kbd_led_mc_cdev.led_cdev.flags = LED_BRIGHT_HW_CHANGED | LED_REJECT_NAME_CONFLICT;
 	data->kbd_led_mc_cdev.led_cdev.brightness_set_blocking = uniwill_kbd_led_mc_brightness_set;
 	data->kbd_led_mc_cdev.led_cdev.brightness_get = uniwill_kbd_led_mc_brightness_get;
