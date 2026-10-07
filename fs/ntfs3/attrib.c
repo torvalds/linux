@@ -1019,11 +1019,8 @@ int attr_data_get_block_locked(struct ntfs_inode *ni, CLST vcn, CLST clen,
 	int step;
 
 again:
-	if (run_lookup_entry_da(run, da ? &ni->file.run_da : NULL, vcn, lcn,
-				len)) {
-	} else {
+	if (!run_lookup_entry_da(run, da ? run_da : NULL, vcn, lcn, len))
 		*len = 0;
-	}
 
 	if (*len) {
 		if (*lcn != SPARSE_LCN || !new)
@@ -1812,7 +1809,7 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 	struct ATTR_LIST_ENTRY *le, *le_b;
 	struct mft_inode *mi, *mi_b;
 	CLST svcn, evcn1, next_svcn, len;
-	CLST vcn, end, clst_data;
+	CLST vcn, end, clst_data, alloc, evcn;
 	u64 total_size, valid_size, data_size;
 
 	le_b = NULL;
@@ -1830,6 +1827,7 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 	svcn = le64_to_cpu(attr_b->nres.svcn);
 	evcn1 = le64_to_cpu(attr_b->nres.evcn) + 1;
 	data_size = le64_to_cpu(attr_b->nres.data_size);
+	valid_size = le64_to_cpu(attr_b->nres.valid_size);
 
 	if (svcn <= vcn && vcn < evcn1) {
 		attr = attr_b;
@@ -1949,63 +1947,63 @@ repack:
 	attr = ni_find_attr(ni, attr, &le, ATTR_DATA, ni->file.ads.name,
 			    ni->file.ads.len, &svcn, &mi);
 
-	if (attr) {
-		CLST alloc = bytes_to_cluster(
-			sbi, le64_to_cpu(attr_b->nres.alloc_size));
-		CLST evcn = le64_to_cpu(attr->nres.evcn);
+	if (!attr)
+		goto ins_ext;
 
-		if (end < next_svcn)
-			end = next_svcn;
-		while (end > evcn) {
-			/* Remove segment [svcn : evcn). */
-			mi_remove_attr(NULL, mi, attr);
+	alloc = bytes_to_cluster(sbi, le64_to_cpu(attr_b->nres.alloc_size));
+	evcn = le64_to_cpu(attr->nres.evcn);
 
-			if (!al_remove_le(ni, le)) {
-				err = -EINVAL;
-				goto out;
-			}
+	if (end < next_svcn)
+		end = next_svcn;
+	while (end > evcn) {
+		/* Remove segment [svcn : evcn). */
+		mi_remove_attr(NULL, mi, attr);
 
-			if (evcn + 1 >= alloc) {
-				/* Last attribute segment. */
-				evcn1 = evcn + 1;
-				goto ins_ext;
-			}
-
-			if (ni_load_mi(ni, le, &mi)) {
-				attr = NULL;
-				goto out;
-			}
-
-			attr = mi_find_attr(ni, mi, NULL, ATTR_DATA,
-					    ni->file.ads.name, ni->file.ads.len,
-					    &le->id);
-			if (!attr) {
-				err = -EINVAL;
-				goto out;
-			}
-			svcn = le64_to_cpu(attr->nres.svcn);
-			evcn = le64_to_cpu(attr->nres.evcn);
+		if (!al_remove_le(ni, le)) {
+			err = -EINVAL;
+			goto out;
 		}
 
-		if (end < svcn)
-			end = svcn;
+		if (evcn + 1 >= alloc) {
+			/* Last attribute segment. */
+			evcn1 = evcn + 1;
+			goto ins_ext;
+		}
 
-		err = attr_load_runs(attr, ni, run, &end);
-		if (err)
+		if (ni_load_mi(ni, le, &mi)) {
+			attr = NULL;
 			goto out;
+		}
 
-		evcn1 = evcn + 1;
-		attr->nres.svcn = cpu_to_le64(next_svcn);
-		err = mi_pack_runs(mi, attr, run, evcn1 - next_svcn);
-		if (err)
+		attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, ni->file.ads.name,
+				    ni->file.ads.len, &le->id);
+		if (!attr) {
+			err = -EINVAL;
 			goto out;
-
-		le->vcn = cpu_to_le64(next_svcn);
-		ni->attr_list.dirty = true;
-		mi->dirty = true;
-
-		next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
+		}
+		svcn = le64_to_cpu(attr->nres.svcn);
+		evcn = le64_to_cpu(attr->nres.evcn);
 	}
+
+	if (end < svcn)
+		end = svcn;
+
+	err = attr_load_runs(attr, ni, run, &end);
+	if (err)
+		goto out;
+
+	evcn1 = evcn + 1;
+	attr->nres.svcn = cpu_to_le64(next_svcn);
+	err = mi_pack_runs(mi, attr, run, evcn1 - next_svcn);
+	if (err)
+		goto out;
+
+	le->vcn = cpu_to_le64(next_svcn);
+	ni->attr_list.dirty = true;
+	mi->dirty = true;
+
+	next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
+
 ins_ext:
 	if (evcn1 > next_svcn) {
 		err = ni_insert_nonresident(ni, ATTR_DATA, ni->file.ads.name,
@@ -2014,6 +2012,14 @@ ins_ext:
 					    &attr, &mi, NULL);
 		if (err)
 			goto out;
+		/* Layout of records is changed. */
+		attr_b = ni_find_attr(ni, NULL, NULL, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
+				      &mi_b);
+		if (!attr_b) {
+			err = -EINVAL;
+			goto out;
+		}
 	}
 ok:
 	run_truncate_around(run, vcn);
@@ -2022,7 +2028,6 @@ out:
 		if (new_valid > data_size)
 			new_valid = data_size;
 
-		valid_size = le64_to_cpu(attr_b->nres.valid_size);
 		if (new_valid != valid_size) {
 			attr_b->nres.valid_size = cpu_to_le64(new_valid);
 			mi_b->dirty = true;
