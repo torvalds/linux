@@ -87,39 +87,21 @@ void fw_cancel_pending_transactions(struct fw_card *card)
 // card->transactions.lock must be acquired in advance.
 #define find_and_pop_transaction_entry(card, condition)			\
 ({									\
-	struct fw_transaction *iter, *t = NULL;				\
+	struct fw_transaction *iter, *__t = NULL;			\
 	list_for_each_entry(iter, &card->transactions.list, link) {	\
 		if (condition) {					\
-			t = iter;					\
+			__t = iter;					\
 			break;						\
 		}							\
 	}								\
-	if (t) {							\
-		if (try_cancel_split_timeout(t))			\
-			remove_transaction_entry(card, t);		\
+	if (__t) {							\
+		if (try_cancel_split_timeout(__t))			\
+			remove_transaction_entry(card, __t);		\
 		else							\
-			t = NULL;					\
+			__t = NULL;					\
 	}								\
-	t;								\
+	__t;								\
 })
-
-static int close_transaction(struct fw_transaction *transaction, struct fw_card *card, int rcode,
-			     u32 response_tstamp)
-{
-	struct fw_transaction *t;
-
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
-	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		t = find_and_pop_transaction_entry(card, iter == transaction);
-		if (!t)
-			return -ENOENT;
-	}
-
-	invoke_callback(t, rcode, response_tstamp, NULL, 0);
-
-	return 0;
-}
 
 /*
  * Only valid for transactions that are potentially pending (ie have
@@ -139,17 +121,25 @@ int fw_cancel_transaction(struct fw_card *card,
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
+	// If the request packet has already been sent, we need to see if the transaction is still
+	// pending and remove it in that case (e.g. the split transaction).
+	//
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		if (!find_and_pop_transaction_entry(card, iter == transaction))
+			return -ENOENT;
+	}
+
 	u32 curr_cycle_time = 0;
 
 	// Timestamping on behalf of hardware.
 	(void)fw_card_read_cycle_time(card, &curr_cycle_time);
 	tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 
-	/*
-	 * If the request packet has already been sent, we need to see
-	 * if the transaction is still pending and remove it in that case.
-	 */
-	return close_transaction(transaction, card, RCODE_CANCELLED, tstamp);
+	invoke_callback(transaction, RCODE_CANCELLED, tstamp, NULL, 0);
+
+	return 0;
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
@@ -205,9 +195,6 @@ static void transmit_complete_callback(struct fw_packet *packet,
 					      packet->speed, status, packet->timestamp);
 
 	switch (status) {
-	case ACK_COMPLETE:
-		close_transaction(t, card, RCODE_COMPLETE, packet->timestamp);
-		break;
 	case ACK_PENDING:
 	{
 		unsigned int delta;
@@ -222,27 +209,36 @@ static void transmit_complete_callback(struct fw_packet *packet,
 		// local destination never runs in any type of IRQ context.
 		scoped_guard(spinlock_irqsave, &card->transactions.lock)
 			start_split_transaction_timeout(t, delta);
-		break;
+		return;
 	}
+	case ACK_COMPLETE:
+		status = RCODE_COMPLETE;
+		break;
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
 	case ACK_BUSY_B:
-		close_transaction(t, card, RCODE_BUSY, packet->timestamp);
+		status = RCODE_BUSY;
 		break;
 	case ACK_DATA_ERROR:
-		close_transaction(t, card, RCODE_DATA_ERROR, packet->timestamp);
+		status = RCODE_DATA_ERROR;
 		break;
 	case ACK_TYPE_ERROR:
-		close_transaction(t, card, RCODE_TYPE_ERROR, packet->timestamp);
+		status = RCODE_TYPE_ERROR;
 		break;
 	default:
-		/*
-		 * In this case the ack is really a juju specific
-		 * rcode, so just forward that to the callback.
-		 */
-		close_transaction(t, card, status, packet->timestamp);
+		// In this case the ack is really a juju specific rcode, so just forward that to
+		// the callback.
 		break;
 	}
+
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		if (!find_and_pop_transaction_entry(card, iter == t))
+			return;
+	}
+
+	invoke_callback(t, status, packet->timestamp, NULL, 0);
 }
 
 static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
