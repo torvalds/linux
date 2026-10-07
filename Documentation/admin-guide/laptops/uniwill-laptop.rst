@@ -74,8 +74,9 @@ Lightbar
 The ``uniwill-laptop`` driver exposes the lightbar found on some models as a standard multicolor
 LED class device. The default name of this LED class device is ``uniwill:multicolor:status``.
 
-See Documentation/ABI/testing/sysfs-driver-uniwill-laptop for details on how to control the various
-animation modes of the lightbar.
+The lightbar supports a separate rainbow animation mode that can be enabled by selecting the
+`uniwill-rainbow` LED trigger. To enable a breathing animation during suspend, see
+Documentation/ABI/testing/sysfs-driver-uniwill-laptop for details.
 
 Keyboard Backlight
 ------------------
