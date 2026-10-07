@@ -701,7 +701,7 @@ static void xe_vm_clear_fault_entries(struct xe_vm *vm)
 	vm->faults.len = 0;
 }
 
-static int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
+static noinline int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
 {
 	int i;
 
