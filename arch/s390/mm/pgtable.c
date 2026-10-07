@@ -107,7 +107,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		set_pte(ptep, set_pte_bit(*ptep, __pgprot(_PAGE_INVALID)));
+		set_pte(ptep, set_pte_bit(old, __pgprot(_PAGE_INVALID)));
 		mm->context.flush_mm = 1;
 	} else
 		ptep_ipte_global(mm, addr, ptep, nodat);
@@ -227,7 +227,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		set_pmd(pmdp, set_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_INVALID)));
+		set_pmd(pmdp, set_pmd_bit(old, __pgprot(_SEGMENT_ENTRY_INVALID)));
 		mm->context.flush_mm = 1;
 	} else {
 		pmdp_idte_global(mm, addr, pmdp);
