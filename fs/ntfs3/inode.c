@@ -968,9 +968,7 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		}
 	}
 
-	if (IOMAP_ZERO == flags && (endbyte & sbi->cluster_mask)) {
-		rw = true;
-	} else if (rw) {
+	if (rw) {
 		clen_max = bytes_to_cluster(sbi, endbyte) - vcn;
 	}
 
@@ -978,7 +976,7 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	 * Force to allocate clusters if directIO(write) or writeback_range.
 	 * NOTE: attr_data_get_block allocates clusters only for sparse file.
 	 * Normal file allocates clusters in attr_set_size.
-	*/
+	 */
 	no_da = flags == (IOMAP_DIRECT | IOMAP_WRITE) || srcmap == WB_NO_DA;
 
 	err = attr_data_get_block(ni, vcn, clen_max, &lcn, &clen,
@@ -987,8 +985,12 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	if (err) {
 		return err;
 	}
-	if (!clen)
+	if (!clen) {
+		/* Looks like file is broken.
+		 * It is marked as bad via _ntfs_bad_inode 
+		 */
 		return -EINVAL;
+	}
 
 	if (lcn == EOF_LCN) {
 		/* request out of file. */
