@@ -5501,15 +5501,17 @@ static u32 *reg2btf_ids[__BPF_REG_TYPE_MAX] = {
 	[CONST_PTR_TO_MAP] = btf_bpf_map_id,
 };
 
-static bool is_trusted_reg(struct bpf_verifier_env *env, const struct bpf_reg_state *reg)
+static bool is_trusted_reg_type(struct bpf_verifier_env *env,
+				const struct bpf_reg_state *reg,
+				enum bpf_reg_type type)
 {
 	/* A referenced register is always trusted. */
 	if (reg_is_referenced(env, reg))
 		return true;
 
 	/* Types listed in the reg2btf_ids are always trusted */
-	if (reg2btf_ids[base_type(reg->type)] &&
-	    !bpf_type_has_unsafe_modifiers(reg->type))
+	if (reg2btf_ids[base_type(type)] &&
+	    !bpf_type_has_unsafe_modifiers(type))
 		return true;
 
 	/* If a register is not referenced, it is trusted if it has the
@@ -5521,8 +5523,14 @@ static bool is_trusted_reg(struct bpf_verifier_env *env, const struct bpf_reg_st
 	 * Eventually, we should make PTR_TRUSTED the single source of truth
 	 * for whether a register is trusted.
 	 */
-	return type_flag(reg->type) & BPF_REG_TRUSTED_MODIFIERS &&
-	       !bpf_type_has_unsafe_modifiers(reg->type);
+	return type_flag(type) & BPF_REG_TRUSTED_MODIFIERS &&
+	       !bpf_type_has_unsafe_modifiers(type);
+}
+
+static bool is_trusted_reg(struct bpf_verifier_env *env,
+			   const struct bpf_reg_state *reg)
+{
+	return is_trusted_reg_type(env, reg, reg->type);
 }
 
 static bool is_rcu_reg(const struct bpf_reg_state *reg)
@@ -9798,6 +9806,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg, u32 slot, u32 p
 	{
 		const u32 *arg_btf_id = fn->arg_btf_id[arg];
 		const struct btf *arg_btf = is_kfunc(meta) ? meta->btf : btf_vmlinux;
+		enum bpf_reg_type reg_type;
 
 		if (!meta->btf) {
 			const struct bpf_reg_types *compatible;
@@ -9825,8 +9834,10 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg, u32 slot, u32 p
 			}
 		}
 
-		if (is_kfunc(meta) && (!is_trusted_reg(env, reg) ||
-				       bpf_type_has_unsafe_modifiers(reg->type))) {
+		reg_type = reg->type & ~(arg_type & PTR_MAYBE_NULL);
+		if ((arg_type & PTR_TRUSTED) &&
+		    (!is_trusted_reg_type(env, reg, reg_type) ||
+		     bpf_type_has_unsafe_modifiers(reg_type))) {
 			if (!(arg_type & MEM_RCU)) {
 				const char *actual_type, *arg_name, *expected_type;
 
@@ -14022,6 +14033,8 @@ get_kfunc_arg_type(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 			proto->arg_btf_id[arg] = reg2btf_ids[CONST_PTR_TO_MAP];
 		else
 			proto->arg_btf_id[arg] = ref_id_ptr;
+
+		arg_type |= PTR_TRUSTED;
 
 		/*
 		 * A KF_RCU kfunc accepts an RCU-protected pointer where it would
