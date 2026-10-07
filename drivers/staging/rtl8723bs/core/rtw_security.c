@@ -784,8 +784,10 @@ static signed int aes_cipher(u8 *key, u16 hdrlen,
 			     u8 *pframe, u32 plen)
 {
 	bool qc_exists, a4_exists;
-	uint	i, j, payload_remainder,
-		num_blocks, payload_index;
+	u8 payload_remainder;
+	u32 payload_index;
+	u32 num_blocks;
+	unsigned int i, j;
 
 	u8 pn_vector[6];
 	u8 mic_iv[16] = {};
@@ -986,8 +988,10 @@ static signed int aes_decipher(u8 *key, u8 hdrlen,
 {
 	static u8 message[MAX_MSG_SIZE];
 	bool qc_exists, a4_exists;
-	uint i, j, payload_remainder,
-			num_blocks, payload_index;
+	u8 payload_remainder;
+	u32 payload_index;
+	u32 num_blocks;
+	unsigned int i, j;
 	signed int res = _SUCCESS;
 	u8 pn_vector[6];
 	u8 mic_iv[16] = {};
