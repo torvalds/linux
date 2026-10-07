@@ -297,9 +297,7 @@ struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *
 int snd_soc_component_register(struct snd_soc_component *component,
 			       struct snd_soc_dai_driver *dai_drv,
 			       int num_dai);
-struct snd_soc_component *snd_soc_component_alloc(struct device *dev);
 
-void snd_soc_component_set_name(struct snd_soc_component *component, const char *name);
 const char *snd_soc_component_name(struct snd_soc_component *component);
 
 void snd_soc_component_set_priv(struct snd_soc_component *component, void *priv);
