@@ -530,11 +530,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	if (ret == -EAGAIN) {
-		if (root->defrag_max.objectid > root->defrag_progress.objectid)
-			goto done;
-		if (root->defrag_max.type > root->defrag_progress.type)
-			goto done;
-		if (root->defrag_max.offset > root->defrag_progress.offset)
+		if (btrfs_comp_cpu_keys(&root->defrag_max, &root->defrag_progress) > 0)
 			goto done;
 		ret = 0;
 	}
