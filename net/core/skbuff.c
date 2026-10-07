@@ -2303,9 +2303,15 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	u8 *data;
 	int i;
 
-	BUG_ON(nhead < 0);
+	if (unlikely(nhead < 0)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
 
-	BUG_ON(skb_shared(skb));
+	if (unlikely(skb_shared(skb))) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
 
 	skb_zcopy_downgrade_managed(skb);
 
