@@ -345,6 +345,20 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 	},
 	{
 		/*
+		 * Same camera power enable on GPIO 11 as the Acer Nitro V 16S AI
+		 * above. It also powers the internal microphones.
+		 * Found in BIOS V1.53
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Acer Nitro 16S AI"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
+		},
+	},
+	{
+		/*
 		 * Wakeup only works when keyboard backlight is turned off
 		 * https://gitlab.freedesktop.org/drm/amd/-/issues/4169
 		 */
