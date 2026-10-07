@@ -3780,10 +3780,9 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 		parse_edid_displayid_vrr(connector, edid);
 
 	has_vsdb = get_amd_vsdb(amdgpu_dm_connector, &vsdb_info) != 0;
+	amdgpu_dm_connector->vsdb_info = vsdb_info;
 
 	if (has_vsdb) {
-		amdgpu_dm_connector->vsdb_info = vsdb_info;
-
 		/* copy refresh rate info as long as VSDB advertises FreeSync */
 		if (vsdb_info.freesync_supported) {
 			amdgpu_dm_connector->min_vfreq = vsdb_info.min_refresh_rate_hz;
