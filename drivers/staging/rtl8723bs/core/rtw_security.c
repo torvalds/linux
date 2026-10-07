@@ -628,8 +628,8 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 /* nonce                                        */
 /************************************************/
 static void construct_mic_iv(u8 *mic_iv,
-			     signed int qc_exists,
-			     signed int a4_exists,
+			     bool qc_exists,
+			     bool a4_exists,
 			     u8 *mpdu,
 			     uint payload_length,
 			     u8 *pn_vector,
@@ -702,8 +702,8 @@ static void construct_mic_header1(u8 *mic_header1,
 /************************************************/
 static void construct_mic_header2(u8 *mic_header2,
 				  u8 *mpdu,
-				  signed int a4_exists,
-				  signed int qc_exists)
+				  bool a4_exists,
+				  bool qc_exists)
 {
 		signed int i;
 
@@ -783,7 +783,8 @@ static void construct_ctr_preload(u8 *ctr_preload,
 static signed int aes_cipher(u8 *key, u16 hdrlen,
 			     u8 *pframe, u32 plen)
 {
-	uint	qc_exists, a4_exists, i, j, payload_remainder,
+	bool qc_exists, a4_exists;
+	uint	i, j, payload_remainder,
 		num_blocks, payload_index;
 
 	u8 pn_vector[6];
@@ -803,14 +804,14 @@ static signed int aes_cipher(u8 *key, u16 hdrlen,
 	frsubtype = frsubtype >> 4;
 
 	if ((hdrlen == WLAN_HDR_A3_LEN) || (hdrlen ==  WLAN_HDR_A3_QOS_LEN))
-		a4_exists = 0;
+		a4_exists = false;
 	else
-		a4_exists = 1;
+		a4_exists = true;
 
 	if (((frtype | frsubtype) == WIFI_DATA_CFACK) ||
 	    ((frtype | frsubtype) == WIFI_DATA_CFPOLL) ||
 	    ((frtype | frsubtype) == WIFI_DATA_CFACKPOLL)) {
-		qc_exists = 1;
+		qc_exists = true;
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
 
@@ -822,9 +823,9 @@ static signed int aes_cipher(u8 *key, u16 hdrlen,
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
 
-		qc_exists = 1;
+		qc_exists = true;
 	} else {
-		qc_exists = 0;
+		qc_exists = false;
 	}
 
 	pn_vector[0] = pframe[hdrlen];
@@ -984,7 +985,8 @@ static signed int aes_decipher(u8 *key, u8 hdrlen,
 			       u8 *pframe, u32 plen)
 {
 	static u8 message[MAX_MSG_SIZE];
-	uint qc_exists, a4_exists, i, j, payload_remainder,
+	bool qc_exists, a4_exists;
+	uint i, j, payload_remainder,
 			num_blocks, payload_index;
 	signed int res = _SUCCESS;
 	u8 pn_vector[6];
@@ -1018,14 +1020,14 @@ static signed int aes_decipher(u8 *key, u8 hdrlen,
 	pn_vector[5]  = pframe[hdrlen + 7];
 
 	if ((hdrlen == WLAN_HDR_A3_LEN) || (hdrlen ==  WLAN_HDR_A3_QOS_LEN))
-		a4_exists = 0;
+		a4_exists = false;
 	else
-		a4_exists = 1;
+		a4_exists = true;
 
 	if (((frtype | frsubtype) == WIFI_DATA_CFACK) ||
 	    ((frtype | frsubtype) == WIFI_DATA_CFPOLL) ||
 	    ((frtype | frsubtype) == WIFI_DATA_CFACKPOLL)) {
-		qc_exists = 1;
+		qc_exists = true;
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
 
@@ -1037,9 +1039,9 @@ static signed int aes_decipher(u8 *key, u8 hdrlen,
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
 
-		qc_exists = 1;
+		qc_exists = true;
 	} else {
-		qc_exists = 0;
+		qc_exists = false;
 	}
 
 	/*  now, decrypt pframe with hdrlen offset and plen long */
