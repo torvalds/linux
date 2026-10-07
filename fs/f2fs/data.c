@@ -298,6 +298,40 @@ static void f2fs_read_end_io(struct bio *bio)
 	f2fs_verify_and_finish_bio(bio, intask);
 }
 
+static void f2fs_cache_write_end_bio(struct bio *bio)
+{
+	struct f2fs_cached_block *entry = F2FS_BIO(bio)->entry;
+	struct f2fs_sb_info *sbi = entry->cache->sbi;
+	struct f2fs_cached_block *next;
+
+	if (bio->bi_status != BLK_STS_OK)
+		f2fs_stop_checkpoint(sbi, true,
+			STOP_CP_REASON_WRITE_FAIL);
+
+	while (entry) {
+		next = entry->next_entry;
+		entry->next_entry = NULL;
+
+		if (f2fs_is_node_cache(entry)) {
+			f2fs_sanity_check_node_footer(sbi, entry,
+				entry->index, NODE_TYPE_REGULAR, true);
+			f2fs_bug_on(sbi, entry->index != nid_of_node(sbi, entry));
+		}
+		if (f2fs_in_warm_node_list(sbi, entry))
+			f2fs_del_fsync_node_entry(sbi, entry);
+
+		dec_cache_count(sbi, F2FS_WB_CP_DATA);
+
+		if (!get_nr_caches(sbi, F2FS_WB_CP_DATA) &&
+				wq_has_sleeper(&sbi->cp_wait))
+			wake_up(&sbi->cp_wait);
+
+		f2fs_end_cache_writeback(entry);
+		entry = next;
+	}
+	bio_put(bio);
+}
+
 static void f2fs_write_end_bio(struct bio *bio)
 {
 	struct f2fs_sb_info *sbi = bio->bi_private;
@@ -305,6 +339,11 @@ static void f2fs_write_end_bio(struct bio *bio)
 
 	if (time_to_inject(sbi, FAULT_WRITE_IO))
 		bio->bi_status = BLK_STS_IOERR;
+
+	if (f2fs_is_cache_bio(bio)) {
+		f2fs_cache_write_end_bio(bio);
+		return;
+	}
 
 	bio_for_each_folio_all(fi, bio) {
 		struct folio *folio = fi.folio;
@@ -404,45 +443,6 @@ static void f2fs_cache_read_end_io(struct bio *bio)
 	bio_put(bio);
 }
 
-static void f2fs_cache_write_end_io(struct bio *bio)
-{
-	struct f2fs_cached_block *entry = F2FS_BIO(bio)->entry;
-	struct f2fs_sb_info *sbi = entry->cache->sbi;
-	struct f2fs_cached_block *next;
-
-	iostat_update_and_unbind_ctx(bio);
-
-	if (time_to_inject(sbi, FAULT_WRITE_IO))
-		bio->bi_status = BLK_STS_IOERR;
-
-	if (bio->bi_status != BLK_STS_OK)
-		f2fs_stop_checkpoint(sbi, true,
-			STOP_CP_REASON_WRITE_FAIL);
-
-	while (entry) {
-		next = entry->next_entry;
-		entry->next_entry = NULL;
-
-		if (f2fs_is_node_cache(entry)) {
-			f2fs_sanity_check_node_footer(sbi, entry,
-				entry->index, NODE_TYPE_REGULAR, true);
-			f2fs_bug_on(sbi, entry->index != nid_of_node(sbi, entry));
-		}
-		if (f2fs_in_warm_node_list(sbi, entry))
-			f2fs_del_fsync_node_entry(sbi, entry);
-
-		dec_cache_count(sbi, F2FS_WB_CP_DATA);
-
-		if (!get_nr_caches(sbi, F2FS_WB_CP_DATA) &&
-				wq_has_sleeper(&sbi->cp_wait))
-			wake_up(&sbi->cp_wait);
-
-		f2fs_end_cache_writeback(entry);
-		entry = next;
-	}
-	bio_put(bio);
-}
-
 #ifdef CONFIG_BLK_DEV_ZONED
 static void f2fs_zone_write_end_io(struct bio *bio)
 {
@@ -450,10 +450,7 @@ static void f2fs_zone_write_end_io(struct bio *bio)
 
 	bio->bi_private = io->bi_private;
 	complete(&io->zone_wait);
-	if (f2fs_is_cache_bio(bio))
-		f2fs_cache_write_end_io(bio);
-	else
-		f2fs_write_end_io(bio);
+	f2fs_write_end_io(bio);
 }
 #endif
 
@@ -552,13 +549,8 @@ static struct bio *__bio_alloc(struct f2fs_io_info *fio, int npages)
 		else
 			bio->bi_end_io = f2fs_read_end_io;
 	} else {
-		if (fio->is_cache) {
-			bio->bi_end_io = f2fs_cache_write_end_io;
-		} else {
-			bio->bi_end_io = f2fs_write_end_io;
-			bio->bi_private = sbi;
-		}
-
+		bio->bi_end_io = f2fs_write_end_io;
+		bio->bi_private = sbi;
 		bio->bi_write_hint = f2fs_io_type_to_rw_hint(sbi,
 						fio->type, fio->temp);
 		bio->bi_write_stream = f2fs_io_type_to_write_stream(bdev, fio->type,
