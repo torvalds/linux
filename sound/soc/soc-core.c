@@ -2625,9 +2625,9 @@ struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_new);
 
-static int soc_component_add(struct snd_soc_component *component,
-			     struct snd_soc_dai_driver *dai_drv,
-			     int num_dai)
+int snd_soc_component_register(struct snd_soc_component *component,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai)
 {
 	struct snd_soc_card *card, *c;
 	int ret;
@@ -2666,6 +2666,7 @@ err_cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_register);
 
 int snd_soc_register_component_c(struct snd_soc_component *component,
 			const struct snd_soc_component_driver *component_driver,
@@ -2678,7 +2679,7 @@ int snd_soc_register_component_c(struct snd_soc_component *component,
 	if (ret < 0)
 		return ret;
 
-	return soc_component_add(component, dai_drv, num_dai);
+	return snd_soc_component_register(component, dai_drv, num_dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component_c);
 
@@ -2693,7 +2694,7 @@ int snd_soc_register_component_d(struct device *dev,
 	if (IS_ERR(component))
 		return PTR_ERR(component);
 
-	return soc_component_add(component, dai_drv, num_dai);
+	return snd_soc_component_register(component, dai_drv, num_dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component_d);
 

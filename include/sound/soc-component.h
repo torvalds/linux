@@ -294,6 +294,9 @@ static inline int snd_soc_component_cache_sync(
 
 struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
 						const struct snd_soc_component_driver *driver);
+int snd_soc_component_register(struct snd_soc_component *component,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai);
 struct snd_soc_component *snd_soc_component_alloc(struct device *dev);
 
 void snd_soc_component_set_name(struct snd_soc_component *component, const char *name);
