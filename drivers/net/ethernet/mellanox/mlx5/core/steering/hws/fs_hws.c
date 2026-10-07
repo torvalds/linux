@@ -928,6 +928,7 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 			goto free_actions;
 		}
 		(*ractions)[num_actions].aso_meter.offset =
+			(fte_action->exe_aso.object_id - fte_action->exe_aso.base_id) * 2 +
 			fte_action->exe_aso.flow_meter.meter_idx;
 		(*ractions)[num_actions].aso_meter.init_color =
 			fte_action->exe_aso.flow_meter.init_color;
