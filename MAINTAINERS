@@ -25844,6 +25844,7 @@ F:	tools/spi/
 
 SPMI SUBSYSTEM
 M:	Stephen Boyd <sboyd@kernel.org>
+M:	Abel Vesa <abelvesa@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sboyd/spmi.git
