@@ -1224,7 +1224,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 			tbl = fib_get_table(net, table);
 
 		if (tbl)
-			err = fib_table_lookup(tbl, &fl4, &res,
+			err = fib_table_lookup(net, tbl, &fl4, &res,
 					       FIB_LOOKUP_IGNORE_LINKSTATE |
 					       FIB_LOOKUP_NOREF);
 

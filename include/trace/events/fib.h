@@ -15,9 +15,10 @@
 TRACE_EVENT(fib_table_lookup,
 
 	TP_PROTO(u32 tb_id, const struct flowi4 *flp,
-		 const struct fib_nh_common *nhc, int err),
+		 const struct fib_nh_common *nhc, int err,
+		 const struct net *net),
 
-	TP_ARGS(tb_id, flp, nhc, err),
+	TP_ARGS(tb_id, flp, nhc, err, net),
 
 	TP_STRUCT__entry(
 		__field(	u32,	tb_id		)
