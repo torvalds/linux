@@ -733,6 +733,8 @@ static int adin1140_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	netdev->netdev_ops = &adin1140_netdev_ops;
+
 	ret = adin1140_phy_init(priv, spi);
 	if (ret)
 		return ret;
@@ -748,7 +750,6 @@ static int adin1140_probe(struct spi_device *spi)
 
 	netdev->if_port = IF_PORT_10BASET;
 	netdev->irq = spi->irq;
-	netdev->netdev_ops = &adin1140_netdev_ops;
 	netdev->ethtool_ops = &adin1140_ethtool_ops;
 	netdev->netns_immutable = true;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE |
