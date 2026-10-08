@@ -119,10 +119,11 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 void ksmbd_vfs_query_maximal_access(const struct mnt_idmap *idmap,
 				   struct dentry *dentry, __le32 *daccess)
 {
-	*daccess = cpu_to_le32(FILE_READ_ATTRIBUTES | READ_CONTROL);
+	*daccess = cpu_to_le32(FILE_READ_ATTRIBUTES | READ_CONTROL |
+			       SYNCHRONIZE);
 
 	if (!inode_permission(idmap, d_inode(dentry), MAY_OPEN | MAY_WRITE))
-		*daccess |= cpu_to_le32(WRITE_DAC | WRITE_OWNER | SYNCHRONIZE |
+		*daccess |= cpu_to_le32(WRITE_DAC | WRITE_OWNER |
 				FILE_WRITE_DATA | FILE_APPEND_DATA |
 				FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES |
 				FILE_DELETE_CHILD);

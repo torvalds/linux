@@ -4119,18 +4119,76 @@ static int parse_app_instance_version(struct smb2_create_req *req,
 	return 0;
 }
 
-static int smb2_handle_app_instance_id(struct smb2_create_rsp *rsp,
-				       struct durable_info *dh_info)
+static int smb2_app_instance_stream_matches(struct ksmbd_file *fp,
+					    char *stream_name, int s_type,
+					    bool *matches)
 {
-	struct ksmbd_file *old_fp;
-	bool reject = false;
+	char *xattr_stream_name;
+	size_t xattr_stream_size;
+	int rc;
 
+	if (!stream_name) {
+		*matches = !ksmbd_stream_fd(fp);
+		return 0;
+	}
+
+	rc = ksmbd_vfs_xattr_stream_name(stream_name, &xattr_stream_name,
+					 &xattr_stream_size, s_type);
+	if (rc)
+		return rc;
+
+	*matches = fp->stream.name && fp->stream.size >= 0 &&
+		   (size_t)fp->stream.size == xattr_stream_size &&
+		   !strncasecmp(fp->stream.name, xattr_stream_name,
+				xattr_stream_size);
+	kfree(xattr_stream_name);
+	return 0;
+}
+
+static int smb2_handle_app_instance_id(struct ksmbd_work *work,
+				       struct smb2_create_rsp *rsp,
+				       struct durable_info *dh_info,
+				       const struct path *path,
+				       char *stream_name, int s_type,
+				       bool *closed)
+{
+	struct ksmbd_conn *conn = work->conn;
+	struct ksmbd_file *old_fp;
+	const struct path *old_path;
+	char *app_instance_id;
+	__le32 maximal_access = FILE_MAXIMAL_ACCESS_LE;
+	bool reject = false, stream_matches;
+	int cursor = 0, rc;
+
+	*closed = false;
 	if (!dh_info->app_instance_id)
 		return 0;
+	app_instance_id = dh_info->AppInstanceId;
 
-	old_fp = ksmbd_lookup_fd_app_instance_id(dh_info->AppInstanceId);
-	if (!old_fp)
-		return 0;
+	while (true) {
+		old_fp = ksmbd_lookup_fd_app_instance_id_next(app_instance_id,
+							      &cursor);
+		if (!old_fp)
+			return 0;
+
+		if (!ksmbd_app_instance_id_matches(work, old_fp) ||
+		    !path_equal(&old_fp->filp->f_path, path)) {
+			ksmbd_put_durable_fd(old_fp);
+			continue;
+		}
+
+		rc = smb2_app_instance_stream_matches(old_fp, stream_name,
+						      s_type, &stream_matches);
+		if (rc) {
+			ksmbd_put_durable_fd(old_fp);
+			return rc;
+		}
+		if (!stream_matches) {
+			ksmbd_put_durable_fd(old_fp);
+			continue;
+		}
+		break;
+	}
 
 	if (dh_info->app_instance_version_valid) {
 		if (old_fp->app_instance_version_valid &&
@@ -4145,13 +4203,34 @@ static int smb2_handle_app_instance_id(struct smb2_create_rsp *rsp,
 		reject = true;
 	}
 
-	ksmbd_put_durable_fd(old_fp);
 	if (reject) {
+		ksmbd_put_durable_fd(old_fp);
 		rsp->hdr.Status = STATUS_FILE_FORCED_CLOSED;
 		return -EIO;
 	}
 
-	return ksmbd_close_fd_app_instance_id(dh_info->AppInstanceId);
+	/* Authorize the referenced open even if its name changes meanwhile. */
+	old_path = &old_fp->filp->f_path;
+	rc = smb_check_perm_dacl(conn, old_path, &maximal_access, 0,
+				 work->sess->user->uid, false);
+	if (rc) {
+		/* Access denial prevents takeover, not the CREATE itself. */
+		ksmbd_put_durable_fd(old_fp);
+		return rc == -EACCES ? 0 : rc;
+	}
+	if (maximal_access == FILE_MAXIMAL_ACCESS_LE)
+		ksmbd_vfs_query_maximal_access(mnt_idmap(old_path->mnt),
+					       old_path->dentry, &maximal_access);
+	/* Also require read access with the effective VFS credentials. */
+	if ((le32_to_cpu(maximal_access) & GENERIC_READ_FLAGS) !=
+	    GENERIC_READ_FLAGS ||
+	    inode_permission(mnt_idmap(old_path->mnt),
+			     d_inode(old_path->dentry), MAY_OPEN | MAY_READ)) {
+		ksmbd_put_durable_fd(old_fp);
+		return 0;
+	}
+
+	return ksmbd_close_fd_app_instance_id(work, old_fp, closed);
 }
 
 /**
@@ -4191,6 +4270,7 @@ int smb2_open(struct ksmbd_work *work)
 	char *name = NULL;
 	char *stream_name = NULL;
 	bool file_present = false, created = false, already_permitted = false;
+	bool app_instance_id_checked = false, app_instance_closed;
 	int share_ret, need_truncate = 0;
 	u64 time, alloc_size = 0;
 	umode_t posix_mode = 0;
@@ -4365,13 +4445,6 @@ int smb2_open(struct ksmbd_work *work)
 		}
 	}
 
-	if (dh_info.app_instance_id && !dh_info.reconnected &&
-	    !dh_info.replay) {
-		rc = smb2_handle_app_instance_id(rsp, &dh_info);
-		if (rc)
-			goto err_out2;
-	}
-
 	if (le32_to_cpu(req->ImpersonationLevel) > le32_to_cpu(IL_DELEGATE)) {
 		pr_err("Invalid impersonationlevel : 0x%x\n",
 		       le32_to_cpu(req->ImpersonationLevel));
@@ -4484,8 +4557,28 @@ int smb2_open(struct ksmbd_work *work)
 		goto err_out2;
 	}
 
+resolve_path:
+	file_present = false;
+	maximal_access = 0;
 	rc = ksmbd_vfs_kern_path(work, name, LOOKUP_NO_SYMLINKS,
 				 &path, 1);
+
+	/* Validate takeover before disconnected delete-on-close cleanup. */
+	if (!rc && dh_info.app_instance_id && !dh_info.reconnected &&
+	    !dh_info.replay && !app_instance_id_checked) {
+		app_instance_id_checked = true;
+		rc = smb2_handle_app_instance_id(work, rsp, &dh_info, &path,
+						 stream_name, s_type,
+						 &app_instance_closed);
+		if (rc) {
+			path_put(&path);
+			goto err_out1;
+		}
+		if (app_instance_closed) {
+			path_put(&path);
+			goto resolve_path;
+		}
+	}
 
 	/*
 	 * A durable handle opened with delete-on-close is preserved across a
