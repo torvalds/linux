@@ -493,6 +493,8 @@ struct stmmac_ops {
 #define stmmac_fpe_map_preemption_class(__priv, __args...) \
 	stmmac_do_callback(__priv, mac, fpe_map_preemption_class, __args)
 
+struct ptp_system_timestamp;
+
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
@@ -502,7 +504,8 @@ struct stmmac_hwtimestamp {
 	int (*config_addend) (void __iomem *ioaddr, u32 addend);
 	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
 			       int add_sub, int gmac4);
-	void (*get_systime) (void __iomem *ioaddr, u64 *systime);
+	void (*get_systime)(void __iomem *ioaddr, u64 *systime,
+			    struct ptp_system_timestamp *sts);
 	void (*get_ptptime)(void __iomem *ioaddr, u64 *ptp_time);
 	void (*timestamp_interrupt)(struct stmmac_priv *priv);
 	void (*hwtstamp_correct_latency)(struct stmmac_priv *priv);

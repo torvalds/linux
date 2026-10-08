@@ -1778,7 +1778,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 		return ret;
 
 	read_lock_irqsave(&priv->ptp_lock, flags);
-	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	stmmac_get_systime(priv, priv->ptpaddr, &curr_time, NULL);
 	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
@@ -1800,7 +1800,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 
 	/* Check if expected time has elapsed */
 	read_lock_irqsave(&priv->ptp_lock, flags);
-	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	stmmac_get_systime(priv, priv->ptpaddr, &curr_time, NULL);
 	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if ((curr_time - start_time) < STMMAC_TBS_LT_OFFSET)
