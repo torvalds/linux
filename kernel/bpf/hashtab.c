@@ -100,6 +100,7 @@ struct bpf_htab {
 	struct percpu_counter pcount;
 	atomic_t count;
 	bool use_percpu_counter;
+	bool has_hash;
 	u32 n_buckets;	/* number of hash buckets */
 	u32 elem_size;	/* size of each element in bytes */
 	u32 elem_offset;/* offset of htab_elem in bytes */
@@ -118,18 +119,22 @@ struct htab_elem {
 			};
 		};
 	};
-	u32 hash __aligned(8);
 	char key[] __aligned(8);
+};
+
+struct htab_elem_hashed {
+	u32 hash __aligned(8);
+	struct htab_elem elem;
 };
 
 struct htab_elem_lru {
 	struct bpf_lru_node lru_node;
-	struct htab_elem elem;
+	struct htab_elem_hashed;
 };
 
 /*
- * Only for non-preallocated PCPU maps. Preallocated PCPU maps don't need
- * ptr_to_pptr, and use htab_elem.
+ * Only for non-preallocated PCPU maps with small keys. Preallocated PCPU maps
+ * don't need ptr_to_pptr, and use htab_elem.
  */
 struct htab_elem_pcpu {
 	/* pointer to per-cpu pointer */
@@ -137,10 +142,23 @@ struct htab_elem_pcpu {
 	struct htab_elem elem;
 };
 
+/*
+ * Only for non-preallocated PCPU maps with large keys. Preallocated PCPU maps
+ * don't need ptr_to_pptr, and use htab_elem_hashed.
+ */
+struct htab_elem_pcpu_hashed {
+	/* pointer to per-cpu pointer */
+	void *ptr_to_pptr;
+	struct htab_elem_hashed;
+};
+
+static_assert(offsetof(struct htab_elem_pcpu_hashed, ptr_to_pptr) ==
+	      offsetof(struct htab_elem_pcpu, ptr_to_pptr));
+
 struct htab_btf_record {
 	struct btf_record *record;
 	struct btf *btf;
-	u32 key_size;
+	u32 value_offset;
 };
 
 static inline bool htab_is_prealloc(const struct bpf_htab *htab)
@@ -195,19 +213,64 @@ static inline bool is_fd_htab(const struct bpf_htab *htab)
 	return htab->map.map_type == BPF_MAP_TYPE_HASH_OF_MAPS;
 }
 
+/*
+ * u32 hash reads are always atomic. If the hash is elided, key comparisons
+ * must also be atomic to avoid false positive matches from torn key
+ * reads/writes on recycled elements. That is only possible when the
+ * key fits within a word.
+ */
+static __always_inline bool htab_key_size_needs_hash(u32 key_size)
+{
+	return key_size > sizeof(unsigned long);
+}
+
+/*
+ * When hash is omitted, key reads and writes must be atomic to support lockless
+ * RCU readers. Zero-extend keys to the word size to support all sub-word key
+ * sizes, regardless of the size of the caller's key allocation.
+ */
+static __always_inline unsigned long htab_zero_extend_key(const void *key,
+							  u32 key_size)
+{
+	unsigned long k = 0;
+
+	memcpy(&k, key, min_t(u32, key_size, sizeof(k)));
+	return k;
+}
+
+static bool htab_has_hash(const struct bpf_htab *htab)
+{
+	return htab->has_hash;
+}
+
+static u32 htab_elem_hash(struct htab_elem *l)
+{
+	return container_of(l, struct htab_elem_hashed, elem)->hash;
+}
+
+static void htab_elem_set_hash(struct htab_elem *l, u32 hash)
+{
+	container_of(l, struct htab_elem_hashed, elem)->hash = hash;
+}
+
 static void *htab_elem_container(const struct bpf_htab *htab, struct htab_elem *l)
 {
 	return (void *)l - htab->elem_offset;
 }
 
-static void *htab_elem_get_ptr_to_pptr(struct htab_elem *l)
+static void *htab_elem_get_ptr_to_pptr(const struct bpf_htab *htab, struct htab_elem *l)
 {
-	return container_of(l, struct htab_elem_pcpu, elem)->ptr_to_pptr;
+	struct htab_elem_pcpu *pcpu_elem = htab_elem_container(htab, l);
+
+	return pcpu_elem->ptr_to_pptr;
 }
 
-static void htab_elem_set_ptr_to_pptr(struct htab_elem *l, void *ptr)
+static void htab_elem_set_ptr_to_pptr(const struct bpf_htab *htab, struct htab_elem *l,
+				      void *ptr)
 {
-	container_of(l, struct htab_elem_pcpu, elem)->ptr_to_pptr = ptr;
+	struct htab_elem_pcpu *pcpu_elem = htab_elem_container(htab, l);
+
+	pcpu_elem->ptr_to_pptr = ptr;
 }
 
 static struct bpf_lru_node *htab_elem_lru_node(struct htab_elem *l)
@@ -381,7 +444,7 @@ skip_percpu_elems:
 	if (htab_is_lru(htab))
 		err = bpf_lru_init(&htab->lru,
 				   htab->map.map_flags & BPF_F_NO_COMMON_LRU,
-				   offsetof(struct htab_elem_lru, elem.hash) -
+				   offsetof(struct htab_elem_lru, hash) -
 				   offsetof(struct htab_elem_lru, lru_node),
 				   htab_lru_map_delete_node,
 				   htab);
@@ -503,14 +566,11 @@ static int htab_map_alloc_check(union bpf_attr *attr)
 static void htab_mem_dtor(void *obj, void *ctx)
 {
 	struct htab_btf_record *hrec = ctx;
-	struct htab_elem *elem = obj;
-	void *map_value;
 
 	if (IS_ERR_OR_NULL(hrec->record))
 		return;
 
-	map_value = htab_elem_value(elem, hrec->key_size);
-	bpf_obj_free_fields(hrec->record, map_value);
+	bpf_obj_free_fields(hrec->record, obj + hrec->value_offset);
 }
 
 static void htab_pcpu_mem_dtor(void *obj, void *ctx)
@@ -540,7 +600,7 @@ static void htab_dtor_ctx_free(void *ctx)
 }
 
 static int bpf_ma_set_dtor(struct bpf_map *map, struct bpf_mem_alloc *ma,
-			   void (*dtor)(void *, void *))
+			   void (*dtor)(void *, void *), u32 value_offset)
 {
 	struct htab_btf_record *hrec;
 	int err;
@@ -552,7 +612,7 @@ static int bpf_ma_set_dtor(struct bpf_map *map, struct bpf_mem_alloc *ma,
 	hrec = kzalloc_obj(*hrec);
 	if (!hrec)
 		return -ENOMEM;
-	hrec->key_size = map->key_size;
+	hrec->value_offset = value_offset;
 	hrec->record = btf_record_dup(map->record);
 	if (IS_ERR(hrec->record)) {
 		err = PTR_ERR(hrec->record);
@@ -587,9 +647,12 @@ static int htab_map_check_btf(struct bpf_map *map, const struct btf *btf,
 	 * populated in htab_map_alloc(), so it will always appear as NULL.
 	 */
 	if (htab_is_percpu(htab))
-		return bpf_ma_set_dtor(map, &htab->pcpu_ma, htab_pcpu_mem_dtor);
+		return bpf_ma_set_dtor(map, &htab->pcpu_ma, htab_pcpu_mem_dtor, 0);
 	else
-		return bpf_ma_set_dtor(map, &htab->ma, htab_mem_dtor);
+		return bpf_ma_set_dtor(map, &htab->ma, htab_mem_dtor,
+				       htab->elem_offset +
+				       offsetof(struct htab_elem, key) +
+				       round_up(map->key_size, 8));
 }
 
 static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
@@ -611,6 +674,10 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 
 	bpf_map_init_from_attr(&htab->map, attr);
+
+	/* Avoid hash memory use and comparisons where unnecessary. */
+	htab->has_hash = htab_is_lru(htab) ||
+			 htab_key_size_needs_hash(htab->map.key_size);
 
 	if (percpu_lru) {
 		/* ensure each CPU's lru list has >=1 elements.
@@ -636,7 +703,11 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	if (htab_is_lru(htab))
 		htab->elem_offset = offsetof(struct htab_elem_lru, elem);
 	else if (percpu && !prealloc)
-		htab->elem_offset = offsetof(struct htab_elem_pcpu, elem);
+		htab->elem_offset = htab_has_hash(htab) ?
+				    offsetof(struct htab_elem_pcpu_hashed, elem) :
+				    offsetof(struct htab_elem_pcpu, elem);
+	else if (htab_has_hash(htab))
+		htab->elem_offset = offsetof(struct htab_elem_hashed, elem);
 
 	htab->elem_size = htab->elem_offset +
 			  sizeof(struct htab_elem) +
@@ -754,35 +825,57 @@ static inline struct hlist_nulls_head *select_bucket(struct bpf_htab *htab, u32 
 	return &__select_bucket(htab, hash)->head;
 }
 
-/* this lookup function can only be called with bucket lock taken */
-static struct htab_elem *lookup_elem_raw(struct hlist_nulls_head *head, u32 hash,
-					 void *key, u32 key_size)
+static __always_inline struct hlist_nulls_node *
+__lookup_elem_raw(struct hlist_nulls_head *head, u32 hash, void *key,
+		  u32 key_size, bool elem_has_hash)
 {
 	struct hlist_nulls_node *n;
 	struct htab_elem *l;
 
-	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
-		if (l->hash == hash && !memcmp(&l->key, key, key_size))
-			return l;
+	if (elem_has_hash) {
+		hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
+			if (htab_elem_hash(l) == hash &&
+			    !memcmp(&l->key, key, key_size))
+				break;
+	} else {
+		unsigned long k = htab_zero_extend_key(key, key_size);
 
-	return NULL;
+		hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
+			if (READ_ONCE(*(unsigned long *)l->key) == k)
+				break;
+	}
+
+	return n;
+}
+
+/* this lookup function can only be called with bucket lock taken */
+static __always_inline struct htab_elem *
+lookup_elem_raw(struct hlist_nulls_head *head, u32 hash, void *key,
+		u32 key_size, bool elem_has_hash)
+{
+	struct hlist_nulls_node *n;
+
+	n = __lookup_elem_raw(head, hash, key, key_size, elem_has_hash);
+	if (is_a_nulls(n))
+		return NULL;
+
+	return hlist_nulls_entry(n, struct htab_elem, hash_node);
 }
 
 /* can be called without bucket lock. it will repeat the loop in
  * the unlikely event when elements moved from one bucket into another
  * while link list is being walked
  */
-static __always_inline struct htab_elem *lookup_nulls_elem_raw(struct hlist_nulls_head *head,
-							       u32 hash, void *key,
-							       u32 key_size, u32 n_buckets)
+static __always_inline struct htab_elem *
+lookup_nulls_elem_raw(struct hlist_nulls_head *head, u32 hash, void *key,
+		      u32 key_size, bool elem_has_hash, u32 n_buckets)
 {
 	struct hlist_nulls_node *n;
-	struct htab_elem *l;
 
 again:
-	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
-		if (l->hash == hash && !memcmp(&l->key, key, key_size))
-			return l;
+	n = __lookup_elem_raw(head, hash, key, key_size, elem_has_hash);
+	if (!is_a_nulls(n))
+		return hlist_nulls_entry(n, struct htab_elem, hash_node);
 
 	if (unlikely(get_nulls_value(n) != (hash & (n_buckets - 1))))
 		goto again;
@@ -790,7 +883,8 @@ again:
 	return NULL;
 }
 
-static __always_inline void *__htab_lookup(struct bpf_map *map, void *key, u32 key_size)
+static __always_inline void *__htab_lookup(struct bpf_map *map, void *key,
+					   u32 key_size, bool elem_has_hash)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct hlist_nulls_head *head;
@@ -803,7 +897,8 @@ static __always_inline void *__htab_lookup(struct bpf_map *map, void *key, u32 k
 
 	head = select_bucket(htab, hash);
 
-	l = lookup_nulls_elem_raw(head, hash, key, key_size, htab->n_buckets);
+	l = lookup_nulls_elem_raw(head, hash, key, key_size, elem_has_hash,
+				  htab->n_buckets);
 
 	return l;
 }
@@ -817,17 +912,25 @@ static __always_inline void *__htab_lookup(struct bpf_map *map, void *key, u32 k
  */
 static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return __htab_lookup(map, key, map->key_size);
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+
+	return __htab_lookup(map, key, map->key_size, htab_has_hash(htab));
 }
 
+/*
+ * Specialized lookups for htab_map_gen_lookup(). These are only used for
+ * BPF_MAP_TYPE_HASH (never LRU), so elem_has_hash depends only on key size.
+ */
 static void *__htab_map_lookup_elem_u32(struct bpf_map *map, void *key)
 {
-	return __htab_lookup(map, key, sizeof(u32));
+	return __htab_lookup(map, key, sizeof(u32),
+			     htab_key_size_needs_hash(sizeof(u32)));
 }
 
 static void *__htab_map_lookup_elem_u64(struct bpf_map *map, void *key)
 {
-	return __htab_lookup(map, key, sizeof(u64));
+	return __htab_lookup(map, key, sizeof(u64),
+			     htab_key_size_needs_hash(sizeof(u64)));
 }
 
 static void *htab_map_lookup_elem(struct bpf_map *map, void *key)
@@ -956,7 +1059,7 @@ static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 	int ret;
 
 	tgt_l = container_of(node, struct htab_elem_lru, lru_node);
-	b = __select_bucket(htab, tgt_l->elem.hash);
+	b = __select_bucket(htab, tgt_l->hash);
 	head = &b->head;
 
 	ret = htab_lock_bucket(b, &flags);
@@ -998,7 +1101,8 @@ static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	head = select_bucket(htab, hash);
 
 	/* lookup the key */
-	l = lookup_nulls_elem_raw(head, hash, key, key_size, htab->n_buckets);
+	l = lookup_nulls_elem_raw(head, hash, key, key_size,
+				  htab_has_hash(htab), htab->n_buckets);
 
 	if (!l)
 		goto find_first_elem;
@@ -1041,7 +1145,7 @@ static void htab_elem_free(struct bpf_htab *htab, struct htab_elem *l)
 	check_and_cancel_fields(htab, l);
 
 	if (htab->map.map_type == BPF_MAP_TYPE_PERCPU_HASH)
-		bpf_mem_cache_free(&htab->pcpu_ma, htab_elem_get_ptr_to_pptr(l));
+		bpf_mem_cache_free(&htab->pcpu_ma, htab_elem_get_ptr_to_pptr(htab, l));
 	bpf_mem_cache_free(&htab->ma, htab_elem_container(htab, l));
 }
 
@@ -1209,7 +1313,9 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 		l_new = container + htab->elem_offset;
 	}
 
-	memcpy(l_new->key, key, key_size);
+	if (htab_has_hash(htab))
+		memcpy(l_new->key, key, key_size);
+
 	if (percpu) {
 		if (prealloc) {
 			pptr = htab_elem_get_ptr(l_new, key_size);
@@ -1222,7 +1328,7 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				l_new = ERR_PTR(-ENOMEM);
 				goto dec_count;
 			}
-			htab_elem_set_ptr_to_pptr(l_new, ptr);
+			htab_elem_set_ptr_to_pptr(htab, l_new, ptr);
 			pptr = *(void __percpu **)ptr;
 		}
 
@@ -1241,7 +1347,11 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 		copy_map_value(&htab->map, htab_elem_value(l_new, key_size), value);
 	}
 
-	l_new->hash = hash;
+	if (htab_has_hash(htab))
+		htab_elem_set_hash(l_new, hash);
+	else
+		WRITE_ONCE(*(unsigned long *)l_new->key,
+			   htab_zero_extend_key(key, key_size));
 	return l_new;
 dec_count:
 	dec_elem_count(htab);
@@ -1292,6 +1402,7 @@ static long htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 			return -EINVAL;
 		/* find an element without taking the bucket lock */
 		l_old = lookup_nulls_elem_raw(head, hash, key, key_size,
+					      htab_has_hash(htab),
 					      htab->n_buckets);
 		ret = check_flags(htab, l_old, map_flags);
 		if (ret)
@@ -1313,7 +1424,7 @@ static long htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	if (ret)
 		return ret;
 
-	l_old = lookup_elem_raw(head, hash, key, key_size);
+	l_old = lookup_elem_raw(head, hash, key, key_size, htab_has_hash(htab));
 
 	ret = check_flags(htab, l_old, map_flags);
 	if (ret)
@@ -1409,7 +1520,7 @@ static long htab_lru_map_update_elem(struct bpf_map *map, void *key, void *value
 	if (ret)
 		goto err_lock_bucket;
 
-	l_old = lookup_elem_raw(head, hash, key, key_size);
+	l_old = lookup_elem_raw(head, hash, key, key_size, true);
 
 	ret = check_flags(htab, l_old, map_flags);
 	if (ret)
@@ -1476,7 +1587,7 @@ static long htab_map_update_elem_in_place(struct bpf_map *map, void *key,
 	if (ret)
 		return ret;
 
-	l_old = lookup_elem_raw(head, hash, key, key_size);
+	l_old = lookup_elem_raw(head, hash, key, key_size, htab_has_hash(htab));
 
 	ret = check_flags(htab, l_old, map_flags);
 	if (ret)
@@ -1550,7 +1661,7 @@ static long __htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
 	if (ret)
 		goto err_lock_bucket;
 
-	l_old = lookup_elem_raw(head, hash, key, key_size);
+	l_old = lookup_elem_raw(head, hash, key, key_size, true);
 
 	ret = check_flags(htab, l_old, map_flags);
 	if (ret)
@@ -1615,7 +1726,7 @@ static long htab_map_delete_elem(struct bpf_map *map, void *key)
 	if (ret)
 		return ret;
 
-	l = lookup_elem_raw(head, hash, key, key_size);
+	l = lookup_elem_raw(head, hash, key, key_size, htab_has_hash(htab));
 	if (l)
 		hlist_nulls_del_rcu(&l->hash_node);
 	else
@@ -1650,7 +1761,7 @@ static long htab_lru_map_delete_elem(struct bpf_map *map, void *key)
 	if (ret)
 		return ret;
 
-	l = lookup_elem_raw(head, hash, key, key_size);
+	l = lookup_elem_raw(head, hash, key, key_size, true);
 
 	if (l)
 		hlist_nulls_del_rcu(&l->hash_node);
@@ -1791,7 +1902,7 @@ static int __htab_map_lookup_and_delete_elem(struct bpf_map *map, void *key,
 	if (ret)
 		return ret;
 
-	l = lookup_elem_raw(head, hash, key, key_size);
+	l = lookup_elem_raw(head, hash, key, key_size, htab_has_hash(htab));
 	if (!l) {
 		ret = -ENOENT;
 		goto out_unlock;
@@ -2977,18 +3088,6 @@ static int rhtab_map_alloc_check(union bpf_attr *attr)
 	return htab_map_alloc_check(attr);
 }
 
-static void rhtab_mem_dtor(void *obj, void *ctx)
-{
-	struct htab_btf_record *hrec = ctx;
-	struct rhtab_elem *elem = obj;
-
-	if (IS_ERR_OR_NULL(hrec->record))
-		return;
-
-	bpf_obj_free_fields(hrec->record,
-			    rhtab_elem_value(elem, hrec->key_size));
-}
-
 static void rhtab_free_elem(void *ptr, void *arg)
 {
 	struct bpf_rhtab *rhtab = arg;
@@ -3214,7 +3313,9 @@ static int rhtab_map_check_btf(struct bpf_map *map, const struct btf *btf,
 	if (btf_type_is_void(key_type))
 		return -EINVAL;
 
-	return bpf_ma_set_dtor(map, &rhtab->ma, rhtab_mem_dtor);
+	return bpf_ma_set_dtor(map, &rhtab->ma, htab_mem_dtor,
+			       offsetof(struct rhtab_elem, data) +
+			       round_up(map->key_size, 8));
 }
 
 static void rhtab_map_free_internal_structs(struct bpf_map *map)
