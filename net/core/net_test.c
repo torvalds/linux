@@ -5,6 +5,7 @@
 /* GSO */
 
 #include <linux/skbuff.h>
+#include <net/gso.h>
 
 static const char hdr[] = "abcdefgh";
 #define GSO_TEST_SIZE 1000
@@ -34,6 +35,10 @@ enum gso_test_nr {
 	GSO_TEST_FRAG_LIST_PURE,
 	GSO_TEST_FRAG_LIST_NON_UNIFORM,
 	GSO_TEST_GSO_BY_FRAGS,
+	GSO_TEST_RESEGMENT,
+	GSO_TEST_RESEGMENT_MULTI,
+	GSO_TEST_RESEGMENT_TAIL,
+	GSO_TEST_RESEGMENT_ONE_MSS,
 };
 
 struct gso_test_case {
@@ -46,10 +51,12 @@ struct gso_test_case {
 	const unsigned int *frags;
 	unsigned int nr_frag_skbs;
 	const unsigned int *frag_skbs;
+	unsigned int max_segs;
 
 	/* output as expected */
 	unsigned int nr_segs;
 	const unsigned int *segs;
+	const unsigned int *gso_segs;
 };
 
 static struct gso_test_case cases[] = {
@@ -134,6 +141,68 @@ static struct gso_test_case cases[] = {
 		.frag_skbs = (const unsigned int[]) { 100, 200, 300, 400 },
 		.nr_segs = 4,
 		.segs = (const unsigned int[]) { 100, 200, 300, 400 },
+	},
+	{
+		.id = GSO_TEST_RESEGMENT,
+		.name = "resegment",
+		.linear_len = GSO_TEST_SIZE,
+		.nr_frags = 3,
+		.frags = (const unsigned int[]) {
+			GSO_TEST_SIZE, GSO_TEST_SIZE, 3,
+		},
+		.max_segs = 2,
+		.nr_segs = 2,
+		.segs = (const unsigned int[]) {
+			2 * GSO_TEST_SIZE, GSO_TEST_SIZE + 3,
+		},
+		.gso_segs = (const unsigned int[]) { 2, 2 },
+	},
+	{
+		.id = GSO_TEST_RESEGMENT_MULTI,
+		.name = "resegment_multi",
+		.linear_len = 2 * GSO_TEST_SIZE,
+		.nr_frags = 4,
+		.frags = (const unsigned int[]) {
+			GSO_TEST_SIZE, GSO_TEST_SIZE, GSO_TEST_SIZE, 3,
+		},
+		.max_segs = 2,
+		.nr_segs = 3,
+		.segs = (const unsigned int[]) {
+			2 * GSO_TEST_SIZE, 2 * GSO_TEST_SIZE, GSO_TEST_SIZE + 3,
+		},
+		.gso_segs = (const unsigned int[]) { 2, 2, 2 },
+	},
+	{
+		/* The last output is not a GSO skb. */
+		.id = GSO_TEST_RESEGMENT_TAIL,
+		.name = "resegment_tail",
+		.linear_len = GSO_TEST_SIZE,
+		.nr_frags = 2,
+		.frags = (const unsigned int[]) {
+			GSO_TEST_SIZE, 400,
+		},
+		.max_segs = 2,
+		.nr_segs = 2,
+		.segs = (const unsigned int[]) {
+			2 * GSO_TEST_SIZE, 400,
+		},
+		.gso_segs = (const unsigned int[]) { 2, 0 },
+	},
+	{
+		/* max_segs of 1 is the same as no limit. */
+		.id = GSO_TEST_RESEGMENT_ONE_MSS,
+		.name = "resegment_one_mss",
+		.linear_len = GSO_TEST_SIZE,
+		.nr_frags = 3,
+		.frags = (const unsigned int[]) {
+			GSO_TEST_SIZE, GSO_TEST_SIZE, 3,
+		},
+		.max_segs = 1,
+		.nr_segs = 4,
+		.segs = (const unsigned int[]) {
+			GSO_TEST_SIZE, GSO_TEST_SIZE, GSO_TEST_SIZE, 3,
+		},
+		.gso_segs = (const unsigned int[]) { 0, 0, 0, 0 },
 	},
 };
 
@@ -226,6 +295,7 @@ static void gso_test_func(struct kunit *test)
 	if (tcase->id == GSO_TEST_FRAG_LIST_NON_UNIFORM)
 		features &= ~NETIF_F_SG;
 
+	SKB_GSO_CB(skb)->max_segs = tcase->max_segs;
 	segs = skb_segment(skb, features);
 	if (IS_ERR(segs)) {
 		KUNIT_FAIL(test, "segs error %pe", segs);
@@ -239,6 +309,9 @@ static void gso_test_func(struct kunit *test)
 	for (cur = segs, i = 0; cur; cur = next, i++) {
 		next = cur->next;
 
+		if (i >= tcase->nr_segs)
+			goto consume;
+
 		KUNIT_ASSERT_EQ(test, cur->len, sizeof(hdr) + tcase->segs[i]);
 
 		/* segs have skb->data pointing to the mac header */
@@ -247,11 +320,25 @@ static void gso_test_func(struct kunit *test)
 
 		/* header was copied to all segs */
 		KUNIT_ASSERT_EQ(test, memcmp(skb_mac_header(cur), hdr, sizeof(hdr)), 0);
+		if (tcase->gso_segs) {
+			unsigned int gso_segs = tcase->gso_segs[i];
+
+			KUNIT_EXPECT_EQ(test, skb_shinfo(cur)->gso_segs,
+					gso_segs);
+			if (!gso_segs) {
+				KUNIT_EXPECT_FALSE(test, skb_is_gso(cur));
+			} else {
+				KUNIT_EXPECT_TRUE(test, skb_is_gso(cur));
+				KUNIT_EXPECT_EQ(test, skb_shinfo(cur)->gso_size,
+						GSO_TEST_SIZE);
+			}
+		}
 
 		/* last seg can be found through segs->prev pointer */
 		if (!next)
 			KUNIT_ASSERT_PTR_EQ(test, cur, last);
 
+consume:
 		consume_skb(cur);
 	}
 
