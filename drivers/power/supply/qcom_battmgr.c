@@ -1277,6 +1277,7 @@ static void qcom_battmgr_sc8280xp_callback(struct qcom_battmgr *battmgr,
 					   size_t len)
 {
 	unsigned int opcode = le32_to_cpu(resp->hdr.opcode);
+	unsigned int power_state;
 	unsigned int source;
 	unsigned int state;
 	size_t payload_len = len - sizeof(struct pmic_glink_hdr);
@@ -1327,18 +1328,23 @@ static void qcom_battmgr_sc8280xp_callback(struct qcom_battmgr *battmgr,
 			return;
 		}
 
-		state = le32_to_cpu(resp->status.battery_state);
-		if (state & BIT(0))
-			battmgr->status.status = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (state & BIT(1))
-			battmgr->status.status = POWER_SUPPLY_STATUS_CHARGING;
-		else
-			battmgr->status.status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-
 		battmgr->status.capacity = le32_to_cpu(resp->status.capacity) * 1000;
 		battmgr->status.power_now = le32_to_cpu(resp->status.rate) * 1000;
 		battmgr->status.voltage_now = le32_to_cpu(resp->status.battery_voltage) * 1000;
 		battmgr->status.temperature = qcom_battmgr_sc8280xp_convert_temp(le32_to_cpu(resp->status.temperature));
+
+		state = le32_to_cpu(resp->status.battery_state);
+		power_state = le32_to_cpu(resp->status.power_state);
+		if (state & BIT(0))
+			battmgr->status.status = POWER_SUPPLY_STATUS_DISCHARGING;
+		else if (state & BIT(1))
+			battmgr->status.status = POWER_SUPPLY_STATUS_CHARGING;
+		else if ((power_state & BIT(0)) &&
+			 battmgr->info.last_full_capacity &&
+			 battmgr->status.capacity >= battmgr->info.last_full_capacity)
+			battmgr->status.status = POWER_SUPPLY_STATUS_FULL;
+		else
+			battmgr->status.status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 		source = le32_to_cpu(resp->status.charging_source);
 		qcom_battmgr_sc8280xp_set_online(battmgr->ac_psy, &battmgr->ac.online,
