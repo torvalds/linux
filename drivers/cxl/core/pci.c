@@ -861,8 +861,8 @@ static int update_gpf_port_dvsec(struct pci_dev *pdev, int dvsec, int phase)
 	    FIELD_GET(scale, ctrl) == GPF_TIMEOUT_SCALE_MAX)
 		return 0;
 
-	ctrl = FIELD_PREP(base, GPF_TIMEOUT_BASE_MAX);
-	ctrl |= FIELD_PREP(scale, GPF_TIMEOUT_SCALE_MAX);
+	FIELD_MODIFY(base, &ctrl, GPF_TIMEOUT_BASE_MAX);
+	FIELD_MODIFY(scale, &ctrl, GPF_TIMEOUT_SCALE_MAX);
 
 	rc = pci_write_config_word(pdev, dvsec + offset, ctrl);
 	if (rc) {
