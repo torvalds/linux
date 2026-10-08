@@ -3755,8 +3755,10 @@ ext4_ext_convert_to_initialized(handle_t *handle, struct inode *inode,
 				ext4_ext_pblock(ex) + split_map.m_lblk +
 				split_map.m_len - ee_block);
 			err = ext4_ext_zeroout(inode, &zero_ex1);
-			if (err)
+			if (err) {
+				zero_ex1.ee_len = 0;
 				goto fallback;
+			}
 			split_map.m_len = *allocated;
 		}
 		if (split_map.m_lblk - ee_block + split_map.m_len <
@@ -3769,8 +3771,10 @@ ext4_ext_convert_to_initialized(handle_t *handle, struct inode *inode,
 				ext4_ext_store_pblock(&zero_ex2,
 						      ext4_ext_pblock(ex));
 				err = ext4_ext_zeroout(inode, &zero_ex2);
-				if (err)
+				if (err) {
+					zero_ex2.ee_len = 0;
 					goto fallback;
+				}
 			}
 
 			split_map.m_len += split_map.m_lblk - ee_block;
