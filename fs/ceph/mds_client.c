@@ -6414,6 +6414,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	INIT_DELAYED_WORK(&mdsc->delayed_work, delayed_work);
 	mdsc->last_renew_caps = jiffies;
 	INIT_LIST_HEAD(&mdsc->cap_delay_list);
+	INIT_LIST_HEAD(&mdsc->cap_idle_delay_list);
 #ifdef CONFIG_DEBUG_FS
 	INIT_LIST_HEAD(&mdsc->cap_wait_list);
 #endif
@@ -6887,6 +6888,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 		}
 	}
 	WARN_ON(!list_empty(&mdsc->cap_delay_list));
+	WARN_ON(!list_empty(&mdsc->cap_idle_delay_list));
 	mutex_unlock(&mdsc->mutex);
 
 	ceph_cleanup_snapid_map(mdsc);

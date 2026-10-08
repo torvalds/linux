@@ -538,6 +538,42 @@ no_change:
 }
 
 /*
+ * Queue the inode of a file that was just closed for a cap check
+ * caps_wanted_delay_min seconds from now, when __ceph_caps_file_wanted()
+ * stops wanting the caps it was opened for.  These inodes go on a list of
+ * their own, as cap_delay_list is in caps_wanted_delay_max order.
+ *
+ * Caller holds i_ceph_lock
+ *    -> we take mdsc->cap_delay_lock
+ */
+static void __cap_delay_requeue_idle(struct ceph_mds_client *mdsc,
+				     struct ceph_inode_info *ci)
+{
+	struct inode *inode = &ci->netfs.inode;
+	struct ceph_mount_options *opt = mdsc->fsc->mount_options;
+
+	if (mdsc->stopping)
+		return;
+	spin_lock(&mdsc->cap_delay_lock);
+	if (!list_empty(&ci->i_cap_delay_list)) {
+		if (ci->i_ceph_flags & CEPH_I_FLUSH)
+			goto no_change;
+		list_del_init(&ci->i_cap_delay_list);
+	}
+	/*
+	 * Round up, so that the check does not come before the last
+	 * read or write is caps_wanted_delay_min seconds old.
+	 */
+	ci->i_hold_caps_max = round_jiffies_up(jiffies +
+					       opt->caps_wanted_delay_min * HZ);
+	doutc(mdsc->fsc->client, "%p %llx.%llx at %lu\n", inode,
+	      ceph_vinop(inode), ci->i_hold_caps_max);
+	list_add_tail(&ci->i_cap_delay_list, &mdsc->cap_idle_delay_list);
+no_change:
+	spin_unlock(&mdsc->cap_delay_lock);
+}
+
+/*
  * Queue an inode for immediate writeback.  Mark inode with I_FLUSH,
  * indicating we should send a cap message to flush dirty metadata
  * asap, and move to the front of the delayed cap list.
@@ -4918,29 +4954,28 @@ bad:
 }
 
 /*
- * Delayed work handler to process end of delayed cap release LRU list.
+ * Process the expired end of one delayed cap list, whose entries were
+ * queued @hold jiffies before they expire.
  *
  * If new caps are added to the list while processing it, these won't get
  * processed in this run.  In this case, the ci->i_hold_caps_max will be
  * returned so that the work can be scheduled accordingly.
  */
-unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
+static unsigned long check_delayed_caps_list(struct ceph_mds_client *mdsc,
+					     struct list_head *list,
+					     unsigned long hold,
+					     unsigned long loop_start)
 {
 	struct ceph_client *cl = mdsc->fsc->client;
 	struct inode *inode;
 	struct ceph_inode_info *ci;
-	struct ceph_mount_options *opt = mdsc->fsc->mount_options;
-	unsigned long delay_max = opt->caps_wanted_delay_max * HZ;
-	unsigned long loop_start = jiffies;
 	unsigned long delay = 0;
 
-	doutc(cl, "begin\n");
 	spin_lock(&mdsc->cap_delay_lock);
-	while (!list_empty(&mdsc->cap_delay_list)) {
-		ci = list_first_entry(&mdsc->cap_delay_list,
-				      struct ceph_inode_info,
+	while (!list_empty(list)) {
+		ci = list_first_entry(list, struct ceph_inode_info,
 				      i_cap_delay_list);
-		if (time_before(loop_start, ci->i_hold_caps_max - delay_max)) {
+		if (time_before(loop_start, ci->i_hold_caps_max - hold)) {
 			doutc(cl, "caps added recently.  Exiting loop");
 			delay = ci->i_hold_caps_max;
 			break;
@@ -4969,8 +5004,33 @@ unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
 			break;
 	}
 	spin_unlock(&mdsc->cap_delay_lock);
+
+	return delay;
+}
+
+/*
+ * Delayed work handler to process end of delayed cap release LRU lists:
+ * the closed files waiting for caps_wanted_delay_min, then the inodes
+ * waiting for caps_wanted_delay_max.
+ */
+unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
+{
+	struct ceph_client *cl = mdsc->fsc->client;
+	struct ceph_mount_options *opt = mdsc->fsc->mount_options;
+	unsigned long loop_start = jiffies;
+	unsigned long delay, idle_delay;
+
+	doutc(cl, "begin\n");
+	idle_delay = check_delayed_caps_list(mdsc, &mdsc->cap_idle_delay_list,
+					     opt->caps_wanted_delay_min * HZ,
+					     loop_start);
+	delay = check_delayed_caps_list(mdsc, &mdsc->cap_delay_list,
+					opt->caps_wanted_delay_max * HZ,
+					loop_start);
 	doutc(cl, "done\n");
 
+	if (idle_delay && (!delay || time_before(idle_delay, delay)))
+		delay = idle_delay;
 	return delay;
 }
 
@@ -5104,8 +5164,21 @@ void ceph_put_fmode(struct ceph_inode_info *ci, int fmode, int count)
 			is_closed = false;
 	}
 
-	if (is_closed)
+	if (is_closed) {
 		percpu_counter_dec(&mdsc->metric.opened_inodes);
+		/*
+		 * A closed file stops wanting its caps once its last read
+		 * or write is caps_wanted_delay_min old, but nothing checks
+		 * its caps again before caps_wanted_delay_max runs out.
+		 * Until then the MDS keeps it the loner and has to revoke
+		 * the exclusive caps from us first when another client
+		 * looks at the file, e.g. stats a file we just created.
+		 * Check again after caps_wanted_delay_min instead.
+		 */
+		if (S_ISREG(ci->netfs.inode.i_mode) &&
+		    (__ceph_caps_issued(ci, NULL) & CEPH_CAP_ANY_WR))
+			__cap_delay_requeue_idle(mdsc, ci);
+	}
 	spin_unlock(&ci->i_ceph_lock);
 }
 
