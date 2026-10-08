@@ -179,6 +179,17 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 		 * to avoid unnecessary reconnects.
 		 */
 		rc = sock_sendmsg(ssocket, smb_msg);
+
+		/*
+		 * If need to reconnect, blame it for any non-interrupt error
+		 * and bail out early, even if -EAGAIN;  reconnect will never
+		 * happen in parallel as cifs_reconnect() needs server mutex
+		 * (which we're already holding), so it's pointless to retry.
+		 */
+		if (unlikely(rc <= 0 && !is_interrupt_error(rc) &&
+			     READ_ONCE(server->tcpStatus) == CifsNeedReconnect))
+			return -ECONNRESET;
+
 		if (rc == -EAGAIN || unlikely(rc == -EINTR && task_work_pending(current))) {
 			retries++;
 			if (retries >= 14 ||
@@ -654,6 +665,26 @@ int wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	return 0;
 }
 
+static void cond_sock_shutdown(struct TCP_Server_Info *server)
+{
+	bool shutdown;
+
+	lockdep_assert_held(&server->_srv_mutex);
+
+	spin_lock(&server->srv_lock);
+	/*
+	 * No need to check status, ->need_sock_shutdown is only set when it's
+	 * CifsNeedReconnect.
+	 */
+	shutdown = server->need_sock_shutdown && server->ssocket;
+	server->need_sock_shutdown = false;
+	spin_unlock(&server->srv_lock);
+
+	if (shutdown)
+		/* Don't release it here/yet! */
+		kernel_sock_shutdown(server->ssocket, SHUT_RDWR);
+}
+
 /*
  * Send a SMB request and set the callback function in the mid to handle
  * the result. Caller is responsible for dealing with timeouts.
@@ -724,6 +755,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		revert_current_mid(server, mid->credits);
 		server->sequence_number -= 2;
 		delete_mid(server, mid);
+		cond_sock_shutdown(server);
 	}
 
 	cifs_server_unlock(server);
@@ -982,6 +1014,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			delete_mid(server, mid[i]);
 			cancelled_mid[i] = true;
 		}
+		cond_sock_shutdown(server);
 	}
 
 	cifs_server_unlock(server);

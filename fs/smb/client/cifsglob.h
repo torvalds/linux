@@ -802,6 +802,7 @@ struct TCP_Server_Info {
 	bool	posix_ext_supported;
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
+	bool need_sock_shutdown; /* shutdown socket when need to reconnect */
 	unsigned long echo_interval;
 
 	/*
