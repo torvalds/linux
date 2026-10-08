@@ -131,7 +131,7 @@ struct kobject *efi_kobj;
  * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
-			   struct kobj_attribute *attr, char *buf)
+			   const struct kobj_attribute *attr, char *buf)
 {
 	char *str = buf;
 
@@ -155,21 +155,21 @@ static ssize_t systab_show(struct kobject *kobj,
 	return str - buf;
 }
 
-static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
+static const struct kobj_attribute efi_attr_systab = __KOBJ_ATTR_RO_MODE(systab, 0400);
 
 static ssize_t fw_platform_size_show(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *buf)
+				     const struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
 }
 
-extern __weak struct kobj_attribute efi_attr_fw_vendor;
-extern __weak struct kobj_attribute efi_attr_runtime;
-extern __weak struct kobj_attribute efi_attr_config_table;
-static struct kobj_attribute efi_attr_fw_platform_size =
-	__ATTR_RO(fw_platform_size);
+extern __weak const struct kobj_attribute efi_attr_fw_vendor;
+extern __weak const struct kobj_attribute efi_attr_runtime;
+extern __weak const struct kobj_attribute efi_attr_config_table;
+static const struct kobj_attribute efi_attr_fw_platform_size =
+	__KOBJ_ATTR_RO(fw_platform_size);
 
-static struct attribute *efi_subsys_attrs[] = {
+static const struct attribute *const efi_subsys_attrs[] = {
 	&efi_attr_systab.attr,
 	&efi_attr_fw_platform_size.attr,
 	&efi_attr_fw_vendor.attr,
@@ -178,15 +178,16 @@ static struct attribute *efi_subsys_attrs[] = {
 	NULL,
 };
 
-umode_t __weak efi_attr_is_visible(struct kobject *kobj, struct attribute *attr,
+umode_t __weak efi_attr_is_visible(struct kobject *kobj,
+				   const struct attribute *attr,
 				   int n)
 {
 	return attr->mode;
 }
 
 static const struct attribute_group efi_subsys_attr_group = {
-	.attrs = efi_subsys_attrs,
-	.is_visible = efi_attr_is_visible,
+	.attrs_const = efi_subsys_attrs,
+	.is_visible_const = efi_attr_is_visible,
 };
 
 struct blocking_notifier_head efivar_ops_nh;
@@ -401,12 +402,15 @@ static void __init efi_debugfs_init(void)
 static inline void efi_debugfs_init(void) {}
 #endif
 
-static ssize_t efi_runtime_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t efi_runtime_show(struct kobject *kobj,
+				const struct kobj_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%d\n", efi_enabled(EFI_RUNTIME_SERVICES));
 }
 
-static ssize_t efi_runtime_store(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t efi_runtime_store(struct kobject *kobj,
+				 const struct kobj_attribute *attr,
 				 const char *buf, size_t count)
 {
 	int ret;
@@ -424,8 +428,8 @@ static ssize_t efi_runtime_store(struct kobject *kobj, struct kobj_attribute *at
 	return count;
 }
 
-static struct kobj_attribute efi_runtime_attr =
-	__ATTR(runtime_enable, 0644, efi_runtime_show, efi_runtime_store);
+static const struct kobj_attribute efi_runtime_attr =
+	__KOBJ_ATTR(runtime_enable, 0644, efi_runtime_show, efi_runtime_store);
 
 static int __init efipostcore_init(void)
 {

@@ -1353,7 +1353,8 @@ bool efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table)
 	return xen_efi_config_table_is_usable(guid, table);
 }
 
-umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n);
+umode_t efi_attr_is_visible(struct kobject *kobj, const struct attribute *attr,
+			    int n);
 
 int ovmf_log_probe(unsigned long ovmf_debug_log_table);
 
