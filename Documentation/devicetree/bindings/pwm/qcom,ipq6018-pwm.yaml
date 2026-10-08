@@ -15,6 +15,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq5018-pwm
+              - qcom,ipq5210-pwm
               - qcom,ipq5332-pwm
               - qcom,ipq9574-pwm
           - const: qcom,ipq6018-pwm
