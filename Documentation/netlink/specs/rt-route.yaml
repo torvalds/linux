@@ -116,6 +116,45 @@ definitions:
       - rpl
       - ioam6
       - xfrm
+  -
+    name: seg6-local-actions
+    type: enum
+    name-prefix: seg6-local-action-
+    enum-name:
+    entries:
+      - unspec
+      - end
+      - end-x
+      - end-t
+      - end-dx2
+      - end-dx6
+      - end-dx4
+      - end-dt6
+      - end-dt4
+      - end-b6
+      - end-b6-encap
+      - end-bm
+      - end-s
+      - end-as
+      - end-am
+      - end-bpf
+      - end-dt46
+  -
+    name: seg6-local-flv-ops
+    type: enum
+    name-prefix: seg6-local-flv-op-
+    enum-name:
+    entries:
+      -
+        name: unspec
+      -
+        name: psp
+      -
+        name: usp
+      -
+        name: usd
+      -
+        name: next-csid
 
 sub-messages:
   -
@@ -490,6 +529,7 @@ attribute-sets:
       -
         name: action
         type: u32
+        enum: seg6-local-actions
       -
         name: srh
         type: binary
@@ -513,16 +553,19 @@ attribute-sets:
         type: u32
       -
         name: bpf
-        type: binary
+        type: nest
+        nested-attributes: seg6-local-bpf
       -
         name: vrftable
         type: u32
       -
         name: counters
-        type: binary
+        type: nest
+        nested-attributes: seg6-local-cnt
       -
         name: flavors
-        type: binary
+        type: nest
+        nested-attributes: seg6-local-flv
   -
     name: rpl-iptunnel
     name-prefix: rpl-iptunnel-
@@ -618,6 +661,50 @@ attribute-sets:
         type: string
         checks:
           max-len: 256
+  -
+    name: seg6-local-bpf
+    name-prefix: seg6-local-bpf-
+    attr-max-name: seg6-local-bpf-prog-max
+    attributes:
+      -
+        name: prog
+        type: u32
+      -
+        name: prog-name
+        type: string
+        checks:
+          max-len: 256
+  -
+    name: seg6-local-cnt
+    name-prefix: seg6-local-cnt-
+    attributes:
+      -
+        name: pad
+        type: pad
+      -
+        name: packets
+        type: u64
+      -
+        name: bytes
+        type: u64
+      -
+        name: errors
+        type: u64
+  -
+    name: seg6-local-flv
+    name-prefix: seg6-local-flv-
+    attributes:
+      -
+        name: operation
+        type: u32
+        enum: seg6-local-flv-ops
+        enum-as-flags: true
+      -
+        name: lcblock-bits
+        type: u8
+      -
+        name: lcnode-fn-bits
+        type: u8
 
 operations:
   enum-model: directional
