@@ -303,14 +303,14 @@ enum {
 	C2H_PACKET
 };
 
-extern union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
-extern union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
-extern int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue);
+union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
+union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
+int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue);
 
-extern int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
-extern int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
+int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
+int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
 
-extern void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfree_recv_queue);
+void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
 signed int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
@@ -421,8 +421,8 @@ static inline s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 
 struct sta_info;
 
-extern void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv);
+void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv);
 
-extern void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame);
+void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame);
 
 #endif
