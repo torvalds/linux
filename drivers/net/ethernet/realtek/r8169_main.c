@@ -30,6 +30,7 @@
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
 #include <linux/unaligned.h>
+#include <linux/u64_stats_sync.h>
 #include <net/ip6_checksum.h>
 #include <net/netdev_queues.h>
 
@@ -767,6 +768,15 @@ struct rtl8169_rx_ring {
 	dma_addr_t rx_buf_dma_addr[NUM_RX_DESC];
 	dma_addr_t rx_phy_addr;
 	struct page *rx_databuff[NUM_RX_DESC];
+
+	struct {
+		u64 rx_errors;
+		u64 rx_dropped;
+		u64 rx_length_errors;
+		u64 rx_crc_errors;
+		u64 multicast;
+		struct u64_stats_sync syncp;
+	} stats;
 };
 
 enum rtl_sfp_mode {
@@ -4083,6 +4093,15 @@ DECLARE_RTL_COND(rtl_mac_ocp_e00e_cond)
 	return r8168_mac_ocp_read(tp, 0xe00e) & BIT(13);
 }
 
+static void rtl8169_hw_enable_vec_mapping(struct rtl8169_private *tp)
+{
+	u8 tmp;
+
+	tmp = RTL_R8(tp, INT_CFG0_8125);
+	tmp |= INT_CFG0_ENABLE_8125;
+	RTL_W8(tp, INT_CFG0_8125, tmp);
+}
+
 static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 {
 	rtl_pcie_state_l2l3_disable(tp);
@@ -4090,6 +4109,9 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	RTL_W16(tp, 0x382, 0x221b);
 	RTL_W32(tp, RSS_CTRL_8125, 0);
 	RTL_W16(tp, Q_NUM_CTRL_8125, 0);
+
+	if (tp->irq_nvecs > 1)
+		rtl8169_hw_enable_vec_mapping(tp);
 
 	/* disable UPS */
 	r8168_mac_ocp_modify(tp, 0xd40a, 0x0010, 0x0000);
@@ -5086,15 +5108,16 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 		skb_checksum_none_assert(skb);
 }
 
-static bool rtl8169_check_rx_desc_error(struct net_device *dev,
-					struct rtl8169_private *tp,
+static bool rtl8169_check_rx_desc_error(struct rtl8169_rx_ring *ring,
 					u32 status)
 {
 	if (unlikely(status & RxRES)) {
+		u64_stats_update_begin(&ring->stats.syncp);
 		if (status & (RxRWT | RxRUNT))
-			dev->stats.rx_length_errors++;
+			ring->stats.rx_length_errors++;
 		if (status & RxCRC)
-			dev->stats.rx_crc_errors++;
+			ring->stats.rx_crc_errors++;
+		u64_stats_update_end(&ring->stats.syncp);
 		return true;
 	}
 	return false;
@@ -5125,11 +5148,13 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp,
 		 */
 		dma_rmb();
 
-		if (rtl8169_check_rx_desc_error(dev, tp, status)) {
+		if (rtl8169_check_rx_desc_error(ring, status)) {
 			if (net_ratelimit())
 				netdev_warn(dev, "Rx ERROR. status = %08x\n",
 					    status);
-			dev->stats.rx_errors++;
+			u64_stats_update_begin(&ring->stats.syncp);
+			ring->stats.rx_errors++;
+			u64_stats_update_end(&ring->stats.syncp);
 
 			if (!(dev->features & NETIF_F_RXALL))
 				goto release_descriptor;
@@ -5145,14 +5170,18 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp,
 		 * They are seen as a symptom of over-mtu sized frames.
 		 */
 		if (unlikely(rtl8169_fragmented_frame(status))) {
-			dev->stats.rx_dropped++;
-			dev->stats.rx_length_errors++;
+			u64_stats_update_begin(&ring->stats.syncp);
+			ring->stats.rx_dropped++;
+			ring->stats.rx_length_errors++;
+			u64_stats_update_end(&ring->stats.syncp);
 			goto release_descriptor;
 		}
 
 		skb = napi_alloc_skb(napi, pkt_size);
 		if (unlikely(!skb)) {
-			dev->stats.rx_dropped++;
+			u64_stats_update_begin(&ring->stats.syncp);
+			ring->stats.rx_dropped++;
+			u64_stats_update_end(&ring->stats.syncp);
 			goto release_descriptor;
 		}
 
@@ -5171,8 +5200,11 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp,
 
 		rtl8169_rx_vlan_tag(desc, skb);
 
-		if (skb->pkt_type == PACKET_MULTICAST)
-			dev->stats.multicast++;
+		if (skb->pkt_type == PACKET_MULTICAST) {
+			u64_stats_update_begin(&ring->stats.syncp);
+			ring->stats.multicast++;
+			u64_stats_update_end(&ring->stats.syncp);
+		}
 
 		napi_gro_receive(napi, skb);
 
@@ -5575,6 +5607,27 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	netdev_stats_to_stats64(stats, &dev->stats);
 	dev_fetch_sw_netstats(stats, dev->tstats);
+
+	for (int i = 0; i < tp->num_rx_rings; i++) {
+		u64 errors, dropped, length_errors, crc_errors, multicast;
+		struct rtl8169_rx_ring *ring = &tp->rx_ring[i];
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin(&ring->stats.syncp);
+			errors = ring->stats.rx_errors;
+			dropped = ring->stats.rx_dropped;
+			length_errors = ring->stats.rx_length_errors;
+			crc_errors = ring->stats.rx_crc_errors;
+			multicast = ring->stats.multicast;
+		} while (u64_stats_fetch_retry(&ring->stats.syncp, start));
+
+		stats->rx_errors += errors;
+		stats->rx_dropped += dropped;
+		stats->rx_length_errors += length_errors;
+		stats->rx_crc_errors += crc_errors;
+		stats->multicast += multicast;
+	}
 
 	/*
 	 * Fetch additional counter values missing in stats collected by driver
@@ -6599,6 +6652,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -ENOMEM;
 		goto err_destroy_phylink;
 	}
+
+	for (int i = 0; i < tp->num_rx_rings; i++)
+		u64_stats_init(&tp->rx_ring[i].stats.syncp);
 
 	tp->rtl8169_napi = kcalloc(tp->irq_nvecs, sizeof(struct napi_struct),
 				   GFP_KERNEL);
