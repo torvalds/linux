@@ -893,7 +893,7 @@ bool efi_is_table_address(unsigned long phys_addr)
 static ssize_t name##_show(struct kobject *kobj, \
 			   const struct kobj_attribute *attr, char *buf) \
 { \
-	return sprintf(buf, "0x%lx\n", EFI_FIELD(name)); \
+	return sysfs_emit(buf, "0x%lx\n", EFI_FIELD(name)); \
 }
 
 EFI_ATTR_SHOW(fw_vendor);

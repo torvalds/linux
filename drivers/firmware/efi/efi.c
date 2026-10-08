@@ -133,26 +133,26 @@ struct kobject *efi_kobj;
 static ssize_t systab_show(struct kobject *kobj,
 			   const struct kobj_attribute *attr, char *buf)
 {
-	char *str = buf;
+	int offset = 0;
 
 	if (!kobj || !buf)
 		return -EINVAL;
 
 	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
+		offset = sysfs_emit(buf, "ACPI20=0x%lx\n", efi.acpi20);
 	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "ACPI=0x%lx\n", efi.acpi);
+		offset += sysfs_emit_at(buf, offset, "ACPI=0x%lx\n", efi.acpi);
 	/*
 	 * If both SMBIOS and SMBIOS3 entry points are implemented, the
 	 * SMBIOS3 entry point shall be preferred, so we list it first to
 	 * let applications stop parsing after the first match.
 	 */
 	if (efi.smbios3 != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "SMBIOS3=0x%lx\n", efi.smbios3);
+		offset += sysfs_emit_at(buf, offset, "SMBIOS3=0x%lx\n", efi.smbios3);
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
+		offset += sysfs_emit_at(buf, offset, "SMBIOS=0x%lx\n", efi.smbios);
 
-	return str - buf;
+	return offset;
 }
 
 static const struct kobj_attribute efi_attr_systab = __KOBJ_ATTR_RO_MODE(systab, 0400);
@@ -160,7 +160,7 @@ static const struct kobj_attribute efi_attr_systab = __KOBJ_ATTR_RO_MODE(systab,
 static ssize_t fw_platform_size_show(struct kobject *kobj,
 				     const struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
+	return sysfs_emit(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
 }
 
 extern __weak const struct kobj_attribute efi_attr_fw_vendor;
@@ -406,7 +406,7 @@ static ssize_t efi_runtime_show(struct kobject *kobj,
 				const struct kobj_attribute *attr,
 				char *buf)
 {
-	return sprintf(buf, "%d\n", efi_enabled(EFI_RUNTIME_SERVICES));
+	return sysfs_emit(buf, "%d\n", efi_enabled(EFI_RUNTIME_SERVICES));
 }
 
 static ssize_t efi_runtime_store(struct kobject *kobj,
