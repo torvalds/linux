@@ -4396,6 +4396,9 @@ static inline bool bpf_map_is_percpu_map(enum bpf_map_type map_type)
 	}
 }
 
+#define BPF_EXIST_FLAGS		(BPF_EXIST | BPF_NOEXIST)
+#define BPF_CPU_FLAGS		(BPF_F_CPU | BPF_F_ALL_CPUS)
+
 static inline int bpf_map_check_op_flags(struct bpf_map *map, u64 flags, u64 allowed_flags)
 {
 	u32 cpu;
