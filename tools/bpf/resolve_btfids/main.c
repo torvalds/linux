@@ -2210,8 +2210,7 @@ dump_btf:
 			goto out;
 	}
 
-	if (!(fatal_warnings && warnings))
-		err = 0;
+	err = fatal_warnings && warnings ? -1 : 0;
 out:
 	free_btf_links(&btf_links);
 	/*
