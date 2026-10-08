@@ -951,13 +951,31 @@ class TypeSubMessage(TypeNest):
             sel_var = f"_sel_{sel}"
         else:
             sel_var = f"{var}->{sel}"
-        get_lines = [f'if (!{sel_var})',
-                     f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");',
-                     f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
-                     "return YNL_PARSE_CB_ERROR;"]
+
+        local_vars = None
+
+        if self.selector.is_enum_val() and not self.selector.is_external():
+            enum = self.family.consts[self.selector.get_enum_name()]
+            pres_var = f"{var}->_present.{sel}"
+            parse_sel = f"{sel}_str"
+            local_vars = [f'const char *{parse_sel};']
+
+            get_lines = [
+                f'if (!{pres_var})',
+                f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");',
+                f'{parse_sel} = {enum.render_name}_str({sel_var});',
+                f'if (!{parse_sel})',
+                f'return ynl_submsg_failed(yarg, "{self.name}", "enum-lookup-failed");']
+        else:
+            parse_sel = sel_var
+            get_lines = [f'if (!{parse_sel})',
+                         f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");']
+
+        get_lines += [f"if ({self.nested_render_name}_parse(&parg, {parse_sel}, attr))",
+                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
-        return get_lines, init_lines, None
+        return get_lines, init_lines, local_vars
 
 
 class Selector:
@@ -978,6 +996,12 @@ class Selector:
 
     def is_external(self):
         return self._external
+
+    def is_enum_val(self):
+        return self.get_enum_name() is not None
+
+    def get_enum_name(self):
+        return self.attr and self.attr.attr.get("enum")
 
 
 class Struct:
