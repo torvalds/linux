@@ -65,10 +65,10 @@ struct vm_area_struct;
 #define _PAGE_FOW	0x0004	/* used for page protection (fault on write) */
 #define _PAGE_FOE	0x0008	/* used for page protection (fault on exec) */
 #define _PAGE_ASM	0x0010
-#define _PAGE_KRE	0x0100	/* xxx - see below on the "accessed" bit */
-#define _PAGE_URE	0x0200	/* xxx */
-#define _PAGE_KWE	0x1000	/* used to do the dirty bit in software */
-#define _PAGE_UWE	0x2000	/* used to do the dirty bit in software */
+#define _PAGE_KRE	0x0100	/* kernel read enable, in __ACCESS_BITS */
+#define _PAGE_URE	0x0200	/* user read enable, in __ACCESS_BITS */
+#define _PAGE_KWE	0x1000	/* kernel write enable, in __DIRTY_BITS */
+#define _PAGE_UWE	0x2000	/* user write enable, in __DIRTY_BITS */
 
 /* .. and these are ours ... */
 #define _PAGE_DIRTY	0x20000
