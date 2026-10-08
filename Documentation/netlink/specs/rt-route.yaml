@@ -99,6 +99,58 @@ definitions:
         name: ra-withdrawn
         doc: A Router Advertisement withdrew the route with a zero
           lifetime.
+  -
+    name: encap-type
+    type: enum
+    name-prefix: lwtunnel-encap-
+    enum-name:
+    entries:
+      - none
+      - mpls
+      - ip
+      - ila
+      - ip6
+      - seg6
+      - bpf
+      - seg6-local
+      - rpl
+      - ioam6
+      - xfrm
+
+sub-messages:
+  -
+    name: encap-data
+    formats:
+      -
+        value: mpls
+        attribute-set: mpls-iptunnel
+      -
+        value: ip
+        attribute-set: lwtunnel-ip
+      -
+        value: ila
+        attribute-set: ila-attrs
+      -
+        value: ip6
+        attribute-set: lwtunnel-ip6
+      -
+        value: seg6
+        attribute-set: seg6-iptunnel
+      -
+        value: bpf
+        attribute-set: lwt-bpf
+      -
+        value: seg6-local
+        attribute-set: seg6-local
+      -
+        value: rpl
+        attribute-set: rpl-iptunnel
+      -
+        value: ioam6
+        attribute-set: ioam6-iptunnel
+      -
+        value: xfrm
+        attribute-set: lwt-xfrm
 
 attribute-sets:
   -
@@ -174,9 +226,12 @@ attribute-sets:
       -
         name: encap-type
         type: u16
+        enum: encap-type
       -
         name: encap
-        type: binary  # tunnel specific nest
+        type: sub-message
+        sub-message: encap-data
+        selector: encap-type
       -
         name: expires
         type: u32
@@ -276,6 +331,236 @@ attribute-sets:
         type: string
       -
         name: fastopen-no-cookie
+        type: u32
+  -
+    name: mpls-iptunnel
+    name-prefix: mpls-iptunnel-
+    header: linux/mpls_iptunnel.h
+    attributes:
+      -
+        name: dst
+        type: binary
+      -
+        name: ttl
+        type: u8
+  -
+    name: lwtunnel-ip
+    name-prefix: lwtunnel-ip-
+    header: linux/lwtunnel.h
+    attributes:
+      -
+        name: id
+        type: u64
+        byte-order: big-endian
+      -
+        name: dst
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: src
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: ttl
+        type: u8
+      -
+        name: tos
+        type: u8
+      -
+        name: flags
+        type: u16
+        byte-order: big-endian
+      -
+        name: pad
+        type: pad
+      -
+        name: opts
+        type: binary  # lwtunnel ip nest options
+  -
+    name: ila-attrs
+    name-prefix: ila-attr-
+    header: linux/ila.h
+    attributes:
+      -
+        name: locator
+        type: u64
+        byte-order: big-endian
+      -
+        name: identifier
+        type: u64
+      -
+        name: locator-match
+        type: u64
+        byte-order: big-endian
+      -
+        name: ifindex
+        type: s32
+      -
+        name: dir
+        type: u32
+      -
+        name: pad
+        type: pad
+      -
+        name: csum-mode
+        type: u8
+      -
+        name: ident-type
+        type: u8
+      -
+        name: hook-type
+        type: u8
+  -
+    name: lwtunnel-ip6
+    name-prefix: lwtunnel-ip6-
+    header: linux/lwtunnel.h
+    attributes:
+      -
+        name: id
+        type: u64
+        byte-order: big-endian
+      -
+        name: dst
+        type: binary
+        display-hint: ipv6
+      -
+        name: src
+        type: binary
+        display-hint: ipv6
+      -
+        name: hoplimit
+        type: u8
+      -
+        name: tc
+        type: u8
+      -
+        name: flags
+        type: u16
+        byte-order: big-endian
+      -
+        name: pad
+        type: pad
+      -
+        name: opts
+        type: binary  # lwtunnel ip nest options
+  -
+    name: seg6-iptunnel
+    name-prefix: seg6-iptunnel-
+    header: linux/seg6_iptunnel.h
+    attributes:
+      -
+        name: srh
+        type: binary
+      -
+        name: src
+        type: binary
+        display-hint: ipv6
+      -
+        name: table
+        type: u32
+  -
+    name: lwt-bpf
+    name-prefix: lwt-bpf-
+    header: linux/lwtunnel.h
+    attributes:
+      -
+        name: in
+        type: binary  # bpf prog
+      -
+        name: out
+        type: binary
+      -
+        name: xmit
+        type: binary
+      -
+        name: xmit-headroom
+        type: u32
+  -
+    name: seg6-local
+    name-prefix: seg6-local-
+    header: linux/seg6_local.h
+    attributes:
+      -
+        name: action
+        type: u32
+      -
+        name: srh
+        type: binary
+      -
+        name: table
+        type: u32
+      -
+        name: nh4
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: nh6
+        type: binary
+        display-hint: ipv6
+      -
+        name: iif
+        type: u32
+      -
+        name: oif
+        type: u32
+      -
+        name: bpf
+        type: binary
+      -
+        name: vrftable
+        type: u32
+      -
+        name: counters
+        type: binary
+      -
+        name: flavors
+        type: binary
+  -
+    name: rpl-iptunnel
+    name-prefix: rpl-iptunnel-
+    header: linux/rpl_iptunnel.h
+    attributes:
+      -
+        name: srh
+        type: binary
+  -
+    name: ioam6-iptunnel
+    name-prefix: ioam6-iptunnel-
+    header: linux/ioam6_iptunnel.h
+    attributes:
+      -
+        name: mode
+        type: u8
+      -
+        name: dst
+        type: binary
+        display-hint: ipv6
+      -
+        name: trace
+        type: binary
+      -
+        name: freq-k
+        type: u32
+      -
+        name: freq-n
+        type: u32
+      -
+        name: src
+        type: binary
+        display-hint: ipv6
+  -
+    name: lwt-xfrm
+    name-prefix: lwt-xfrm-
+    header: linux/lwtunnel.h
+    attributes:
+      -
+        name: if-id
+        type: u32
+      -
+        name: link
         type: u32
 
 operations:
