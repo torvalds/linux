@@ -358,6 +358,22 @@ Description:
 		is deferred. Only visible on multipath head devices.
 		Requires CONFIG_NVME_MULTIPATH.
 
+What:		/sys/block/nvmeXnY/fail_on_ctrl_loss
+Date:		October 2026
+KernelVersion:	7.4
+Contact:	Krishna Iyer <kiyer@crusoe.ai>
+Description:
+		Shows or sets the fail-on-ctrl-loss policy of the multipath
+		head device ("on" or "off", default "off"). When on, I/O
+		queued or arriving while no usable path exists is failed
+		immediately instead of being queued. This is the opposite of
+		the queue-if-no-path behavior enabled by a nonzero
+		delayed_removal_secs: when both are set fail_on_ctrl_loss takes
+		precedence and the parked I/O is failed rather than held for
+		the delayed_removal_secs window. Reconnect attempts are not
+		affected. Only visible on multipath head devices.
+		Requires CONFIG_NVME_MULTIPATH.
+
 What:		/sys/block/nvmeXnY/csi
 What:		/sys/block/nvmeXnY/metadata_bytes
 What:		/sys/block/nvmeXnY/nuse
