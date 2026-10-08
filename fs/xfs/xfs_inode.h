@@ -354,6 +354,15 @@ static inline bool xfs_inode_has_bigrtalloc(const struct xfs_inode *ip)
 }
 
 /*
+ * Return the type of the group that data for a given inode is allocated from.
+ */
+static inline enum xfs_group_type
+xfs_inode_group_type(const struct xfs_inode *ip)
+{
+	return XFS_IS_REALTIME_INODE(ip) ? XG_TYPE_RTG : XG_TYPE_AG;
+}
+
+/*
  * Return the buftarg used for data allocations on a given inode.
  */
 #define xfs_inode_buftarg(ip) \
