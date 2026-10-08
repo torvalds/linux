@@ -579,6 +579,11 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 	if (version->img_type == BTINTEL_IMG_OP)
 		bt_dev_info(hdev, "Firmware SHA1: 0x%8.8x", version->git_sha1);
 
+	if (!mem_is_zero(version->platform_id, sizeof(version->platform_id)))
+		bt_dev_info(hdev, "Platform ID: %6phN", version->platform_id);
+
+	bt_dev_info(hdev, "Unlock policy: 0x%2.2x", version->unlock_policy);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btintel_version_info_tlv);
@@ -604,11 +609,14 @@ static u8 btintel_version_tlv_min_len(u8 type)
 	case INTEL_TLV_DEBUG_LOCK:
 	case INTEL_TLV_LIMITED_CCE:
 	case INTEL_TLV_SBE_TYPE:
+	case INTEL_TLV_UNLOCK_POLICY:
 		return sizeof(u8);
 	case INTEL_TLV_MIN_FW:
 		return 3;
 	case INTEL_TLV_OTP_BDADDR:
 		return sizeof(bdaddr_t);
+	case INTEL_TLV_PLATFORM_ID:
+		return sizeof(((struct intel_version_tlv *)0)->platform_id);
 	default:
 		return 0;
 	}
@@ -715,6 +723,13 @@ int btintel_parse_version_tlv(struct hci_dev *hdev,
 		case INTEL_TLV_FW_ID:
 			snprintf(version->fw_id, sizeof(version->fw_id),
 				 "%.*s", tlv->len, tlv->val);
+			break;
+		case INTEL_TLV_UNLOCK_POLICY:
+			version->unlock_policy = tlv->val[0];
+			break;
+		case INTEL_TLV_PLATFORM_ID:
+			memcpy(version->platform_id, tlv->val,
+			       sizeof(version->platform_id));
 			break;
 		default:
 			/* Ignore rest of information */
@@ -2473,7 +2488,12 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 		else
 			btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
 	} else {
-		btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+		if (intel_data->unlocker) {
+			strscpy(fwname, "intel/unlocker.sfi");
+			intel_data->unlocker = false;
+		} else {
+			btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+		}
 	}
 
 	err = firmware_request_nowarn(&fw, fwname, &hdev->dev);
@@ -3490,6 +3510,36 @@ static int btintel_set_specific_absorption_rate(struct hci_dev *hdev,
 	return 0;
 }
 
+/* Attempt to load intel/unlocker.sfi if it is present in the firmware
+ * search path. If the file is not available the device will be booted
+ * with a signed operational firmware, which is the common case, so its
+ * absence must be treated as normal and not logged as an error.
+ */
+static int btintel_try_load_unlocker(struct hci_dev *hdev,
+				     struct intel_version_tlv *ver)
+{
+	struct btintel_data *data = hci_get_priv(hdev);
+	const struct firmware *fw;
+	u32 boot_param = 0;
+	int err;
+
+	err = firmware_request_nowarn(&fw, "intel/unlocker.sfi", &hdev->dev);
+	if (err) {
+		bt_dev_dbg(hdev, "intel/unlocker.sfi not present (%d), skipping unlocker load",
+			   err);
+		return 0;
+	}
+	release_firmware(fw);
+
+	data->unlocker = true;
+	err = btintel_prepare_fw_download_tlv(hdev, ver, &boot_param);
+	if (err) {
+		bt_dev_err(hdev, "Failed to load intel/unlocker.sfi (%d)", err);
+		data->unlocker = false;
+	}
+	return err;
+}
+
 int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 				 struct intel_version_tlv *ver)
 {
@@ -3497,6 +3547,8 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 	char ddcname[64];
 	int err;
 	struct intel_version_tlv new_ver;
+	struct btintel_data *data = hci_get_priv(hdev);
+	u8 hw_variant = INTEL_HW_VARIANT(ver->cnvi_bt);
 
 	bt_dev_dbg(hdev, "");
 
@@ -3514,6 +3566,31 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 		btintel_clear_flag(hdev, i);
 
 	btintel_set_flag(hdev, INTEL_BOOTLOADER);
+
+	data->unlocker = false;
+
+	/* Legacy unlocker flow (BlazarI / BlazarIW / BlazarU / Gale Peak):
+	 * Boot ROM -> unlocker.sfi -> IML -> OPFW
+	 *
+	 * Skip the unlocker check when the controller is already running
+	 * operational firmware (can happen on USB); the unlocker flow is
+	 * only meaningful from the bootloader stage.
+	 */
+	if (ver->img_type != BTINTEL_IMG_OP &&
+	    ver->api_lock && ver->unlock_policy == 0) {
+		switch (hw_variant) {
+		case BTINTEL_HWID_BZRI:
+		case BTINTEL_HWID_BZRIW:
+		case BTINTEL_HWID_BZRU:
+		case BTINTEL_HWID_GAP:
+			err = btintel_try_load_unlocker(hdev, ver);
+			if (err)
+				return err;
+			break;
+		default:
+			break;
+		}
+	}
 
 	err = btintel_prepare_fw_download_tlv(hdev, ver, &boot_param);
 	if (err)
@@ -3538,8 +3615,19 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 		return err;
 	}
 
-	/* If image type returned is BTINTEL_IMG_IML, then controller supports
-	 * intermediate loader image
+	/* New unlocker flow (Scorpius Peak onwards):
+	 * Boot ROM -> IML -> unlocker.sfi -> OPFW
+	 */
+	if (hw_variant >= BTINTEL_HWID_SCP &&
+	    ver->api_lock && ver->unlock_policy == 1) {
+		err = btintel_try_load_unlocker(hdev, ver);
+		if (err)
+			return err;
+	}
+
+	/* Transition to Operational Firmware
+	 * If image type returned is BTINTEL_IMG_IML, then controller supports
+	 * intermediate loader image.
 	 */
 	if (ver->img_type == BTINTEL_IMG_IML) {
 		err = btintel_prepare_fw_download_tlv(hdev, ver, &boot_param);
