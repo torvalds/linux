@@ -6763,7 +6763,7 @@ M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 R:	Jie Zhan <zhanjie9@hisilicon.com>
 R:	Lifeng Zheng <zhenglifeng1@huawei.com>
-R:	Pierre Gondois <pierre.gondois@arm.com>
+R:	Christian Loehle <christian.loehle@arm.com>
 R:	Sumit Gupta <sumitg@nvidia.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
