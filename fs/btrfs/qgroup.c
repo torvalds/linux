@@ -1207,6 +1207,7 @@ out_add_root:
 	prealloc = kzalloc_obj(*prealloc, GFP_NOFS);
 	if (!prealloc) {
 		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	qgroup = add_qgroup_rb(fs_info, prealloc, BTRFS_FS_TREE_OBJECTID);
@@ -1296,6 +1297,12 @@ out:
 		 * sysfs entries.
 		 */
 		btrfs_free_qgroup_config(fs_info);
+
+		if (quota_root) {
+			spin_lock(&fs_info->trans_lock);
+			list_del_init(&quota_root->dirty_list);
+			spin_unlock(&fs_info->trans_lock);
+		}
 		btrfs_put_root(quota_root);
 	}
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
