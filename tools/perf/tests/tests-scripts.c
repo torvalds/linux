@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -179,6 +180,79 @@ static int shell_test__run(struct test_suite *test, int subtest __maybe_unused)
 	return WEXITSTATUS(err) == 2 ? TEST_SKIP : TEST_FAIL;
 }
 
+/*
+ * The requisites are a comma separated list in the parens ending the
+ * description line, e.g. "perf stat tests (no_mlock)": "exclusive" is the
+ * catch-all, implying every other requisite, "no_mlock" waives the default of
+ * needing room in the per user budget set in kernel.perf_event_mlock_kb.
+ */
+static void shell_test__requisites(char *desc, bool *exclusive, bool *needs_mlock)
+{
+	char *lparen, *rparen, *requisites, *token, *tokp;
+	bool known = false;
+
+	/* Only a list closing the description line is taken for requisites. */
+	rparen = strrchr(desc, ')');
+	if (rparen == NULL || rparen[1] != '\0')
+		return;
+
+	lparen = strrchr(desc, '(');
+	if (lparen == NULL || lparen > rparen)
+		return;
+
+	/* Tokenize a copy: a list with nothing recognized leaves desc alone. */
+	requisites = strndup(lparen + 1, rparen - lparen - 1);
+	if (requisites == NULL) {
+		pr_err("Failed to copy the requisites of '%s'\n", desc);
+		return;
+	}
+
+	for (token = strtok_r(requisites, ",", &tokp); token;
+	     token = strtok_r(NULL, ",", &tokp)) {
+		char *end = token + strlen(token);
+		const char *requisite = token;
+		bool waived;
+
+		while (isspace(*token))
+			token++;
+		while (end > token && isspace(end[-1]))
+			end--;
+		*end = '\0';
+
+		/* A "no_" prefix waives the requisite named after it. */
+		waived = strncmp(token, "no_", sizeof("no_") - 1) == 0;
+		if (waived)
+			token += sizeof("no_") - 1;
+
+		if (!strcmp(token, "mlock")) {
+			*needs_mlock = !waived;
+		} else if (!strcmp(token, "exclusive") && !waived) {
+			*exclusive = true;
+		} else {
+			pr_debug("Ignoring %s requisite '%s' in '%s'\n",
+				 strcmp(token, "exclusive") == 0 ? "a waived" : "an unknown",
+				 requisite, desc);
+			continue;
+		}
+
+		known = true;
+	}
+
+	zfree(&requisites);
+
+	if (!known)
+		return;
+
+	/* Drop the list and the space before it from the description. */
+	*lparen = '\0';
+	if (lparen > desc && isspace(lparen[-1]))
+		lparen[-1] = '\0';
+
+	/* The catch-all implies every other requisite, whatever the order. */
+	if (*exclusive)
+		*needs_mlock = true;
+}
+
 static void append_script(int dir_fd, const char *name, char *desc,
 			  struct test_suite ***result,
 			  size_t *result_sz)
@@ -187,7 +261,8 @@ static void append_script(int dir_fd, const char *name, char *desc,
 	struct test_suite *test_suite, **result_tmp;
 	struct test_case *tests;
 	ssize_t len;
-	char *exclusive;
+	/* Shell tests run perf, that maps ring buffers, so they need the budget. */
+	bool exclusive = false, needs_mlock = true;
 
 	snprintf(link, sizeof(link), "/proc/%d/fd/%d", getpid(), dir_fd);
 	len = readlink(link, filename, sizeof(filename) - 1);
@@ -204,11 +279,8 @@ static void append_script(int dir_fd, const char *name, char *desc,
 		return;
 	}
 	tests[0].name = strdup_check(name);
-	exclusive = strstr(desc, " (exclusive)");
-	if (exclusive != NULL) {
-		tests[0].exclusive = true;
-		exclusive[0] = '\0';
-	}
+	shell_test__requisites(desc, &exclusive, &needs_mlock);
+	tests[0].exclusive = exclusive;
 	tests[0].desc = strdup_check(desc);
 	tests[0].run_case = shell_test__run;
 	test_suite = zalloc(sizeof(*test_suite));
@@ -220,6 +292,7 @@ static void append_script(int dir_fd, const char *name, char *desc,
 	test_suite->desc = desc;
 	test_suite->test_cases = tests;
 	test_suite->priv = strdup_check(filename);
+	test_suite->needs_mlock = needs_mlock;
 	/* Realloc is good enough, though we could realloc by chunks, not that
 	 * anyone will ever measure performance here */
 	result_tmp = realloc(*result, (*result_sz + 1) * sizeof(*result_tmp));

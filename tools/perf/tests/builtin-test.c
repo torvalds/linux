@@ -11,6 +11,7 @@
 #include <execinfo.h>
 #endif
 #include <setjmp.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -56,6 +57,8 @@ static struct strbuf junit_xml_buf = STRBUF_INIT;
 static bool dont_fork;
 /* Fork the tests in parallel and wait for their completion. */
 static bool sequential;
+/* List what each test needs, set by the "requisites" subcommand. */
+static bool list_requisites;
 /* Number of times each test is run. */
 static unsigned int runs_per_test = 1;
 /* Number of lines to include in failure snippet. */
@@ -281,6 +284,30 @@ static const char *test_description(const struct test_suite *t, int test_case)
 		return t->test_cases[test_case].desc;
 
 	return t->desc;
+}
+
+static void requisites__fprintf(FILE *fp, const struct test_suite *t, int test_case)
+{
+	bool needs_mlock = t->needs_mlock, exclusive;
+
+	if (test_case < 0)
+		test_case = test_suite__num_test_cases(t) == 1 ? 0 : -1;
+
+	if (test_case >= 0) {
+		exclusive = t->test_cases[test_case].exclusive;
+		/* The catch-all implies every other requisite. */
+		needs_mlock = needs_mlock || exclusive;
+	} else {
+		exclusive = false;
+	}
+
+	if (!exclusive && !needs_mlock)
+		return;
+
+	fprintf(fp, " (");
+	if (exclusive)
+		fprintf(fp, "exclusive, ");
+	fprintf(fp, "mlock)");
 }
 
 static test_fnptr test_function(const struct test_suite *t, int test_case)
@@ -1450,14 +1477,20 @@ static int perf_test__list(FILE *fp, struct test_suite **suites, int argc, const
 		if (!perf_test__matches(test_description(*t, -1), curr_suite, argc, argv))
 			continue;
 
-		fprintf(fp, "%3d: %s\n", curr_suite + 1, test_description(*t, -1));
+		fprintf(fp, "%3d: %s", curr_suite + 1, test_description(*t, -1));
+		if (list_requisites)
+			requisites__fprintf(fp, *t, /*test_case=*/-1);
+		fprintf(fp, "\n");
 
 		if (test_suite__num_test_cases(*t) <= 1)
 			continue;
 
 		test_suite__for_each_test_case(*t, curr_test_case) {
-			fprintf(fp, "%3d.%1d: %s\n", curr_suite + 1, curr_test_case + 1,
+			fprintf(fp, "%3d.%1d: %s", curr_suite + 1, curr_test_case + 1,
 				test_description(*t, curr_test_case));
+			if (list_requisites)
+				requisites__fprintf(fp, *t, curr_test_case);
+			fprintf(fp, "\n");
 		}
 	}
 	return 0;
@@ -1747,7 +1780,8 @@ static struct test_suite **build_suites(void)
 int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
-	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
+	"perf test [<options>] [{list|requisites} [<test-name-fragment>]|"
+	"[<test-name-fragments>|<test-numbers>]]",
 	NULL,
 	};
 	const char *skip = NULL;
@@ -1776,7 +1810,7 @@ int cmd_test(int argc, const char **argv)
 			  "Generate junit XML output, default test.xml", "test.xml"),
 	OPT_END()
 	};
-	const char * const test_subcommands[] = { "list", NULL };
+	const char * const test_subcommands[] = { "list", "requisites", NULL };
 	struct intlist *skiplist = NULL;
 	struct test_suite **suites;
 	int ret;
@@ -1808,10 +1842,11 @@ int cmd_test(int argc, const char **argv)
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	argc = parse_options_subcommand(argc, argv, test_options, test_subcommands, test_usage, 0);
-	if (argc >= 1 && !strcmp(argv[0], "list")) {
+	if (argc >= 1 && (!strcmp(argv[0], "list") || !strcmp(argv[0], "requisites"))) {
 		suites = build_suites();
 		if (!suites)
 			return errno ? -errno : -ENOMEM;
+		list_requisites = !strcmp(argv[0], "requisites");
 		ret = perf_test__list(stdout, suites, argc - 1, argv + 1);
 		free(suites);
 		return ret;

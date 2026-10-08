@@ -46,6 +46,12 @@ struct test_suite {
 	struct test_case *test_cases;
 	void *priv;
 	int (*setup)(struct test_suite *suite);
+	/*
+	 * Set for the suites mapping perf ring buffers, that need room in the
+	 * per user budget set in kernel.perf_event_mlock_kb, see
+	 * shell_test__requisites() for the shell suites.
+	 */
+	bool needs_mlock;
 };
 
 #define DECLARE_SUITE(name) \
@@ -101,6 +107,17 @@ struct test_suite {
 	struct test_suite suite__##_name = {		\
 		.desc = description,			\
 		.test_cases = tests__##_name,		\
+	}
+
+#define DEFINE_SUITE_NEEDS_MLOCK(description, _name)	\
+	struct test_case tests__##_name[] = {           \
+		TEST_CASE(description, _name),		\
+		{	.name = NULL, }			\
+	};						\
+	struct test_suite suite__##_name = {		\
+		.desc = description,			\
+		.test_cases = tests__##_name,		\
+		.needs_mlock = true,			\
 	}
 
 /* Tests */
