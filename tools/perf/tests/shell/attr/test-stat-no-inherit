@@ -2,6 +2,7 @@
 command = stat
 args    = -i -e cycles kill >/dev/null 2>&1
 ret     = 1
+requires = core-pmu
 
 [event:base-stat]
 inherit=0

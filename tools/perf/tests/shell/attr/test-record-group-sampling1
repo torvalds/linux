@@ -3,6 +3,7 @@ command = record
 args    = --no-bpf-event -e '{cycles,cache-misses}:S' kill >/dev/null 2>&1
 ret     = 1
 kernel_since = 6.12
+requires = core-pmu
 
 [event-1:base-record]
 fd=1

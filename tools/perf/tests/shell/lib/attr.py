@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import configparser
+import errno
 import os
 import sys
 import glob
@@ -27,6 +28,50 @@ def data_equal(a, b):
                 return True
 
     return False
+
+CORE_PMU_AVAILABLE = None
+
+def core_pmu_available():
+    """
+    Is there a core PMU on this machine? Without one hardware events aren't
+    supported and get replaced by the software fallback, so there's no way to
+    check the expectations that pin their legacy encodings.  The answer can't
+    change while the tests run, so probe the binding only once.
+    """
+    global CORE_PMU_AVAILABLE
+
+    if CORE_PMU_AVAILABLE is None:
+        CORE_PMU_AVAILABLE = core_pmu_probe()
+
+    return CORE_PMU_AVAILABLE
+
+def core_pmu_probe():
+    """
+    Ask perf itself, through its python binding, to parse and open 'cycles':
+    a parse failure or an ENOENT means no PMU can count it, any other error
+    means we can't tell whether there is one.
+    """
+    try:
+        import perf
+        parse_events = perf.parse_events
+    except (ImportError, AttributeError):
+        # Nothing to ask about it, let the expectations speak.
+        return True
+
+    try:
+        evlist = parse_events('cycles')
+    except OSError:
+        # No PMU that can count it, the same as the ENOENT below.
+        return False
+
+    try:
+        evlist.open()
+    except OSError as err:
+        # Anything else is a permission problem or alike, not our business here.
+        return err.errno != errno.ENOENT
+    evlist.close()
+
+    return True
 
 class Fail(Exception):
     def __init__(self, test, msg):
@@ -138,6 +183,9 @@ def parse_version(version):
 #     'arch'    - architecture specific test (optional)
 #                 comma separated list, ! at the beginning
 #                 negates it.
+#     'requires' - Comma separated list of things the test needs, it is
+#                 skipped when any of them isn't there, currently:
+#                   core-pmu - the machine can count hardware events.
 #     'auxv'    - Truthy statement that is evaled in the scope of the auxv map. When false,
 #                 the test is skipped. For example 'auxv["AT_HWCAP"] == 10'. (optional)
 #     'kernel_since' - Inclusive kernel version from which the test will start running. Only the
@@ -173,6 +221,7 @@ class Test(object):
             self.arch  = ''
 
         self.auxv = parser.get('config', 'auxv', fallback=None)
+        self.requires = parser.get('config', 'requires', fallback='')
         self.kernel_since = parse_version(parser.get('config', 'kernel_since', fallback=None))
         self.kernel_until = parse_version(parser.get('config', 'kernel_until', fallback=None))
         self.expect   = {}
@@ -242,6 +291,17 @@ class Test(object):
                 return False
         return True
 
+    def skip_test_requires(self):
+        for requirement in filter(None, map(str.strip, self.requires.split(','))):
+            if requirement == 'core-pmu':
+                if not core_pmu_available():
+                    log.warning("test limitation 'requires %s'", requirement)
+                    return True
+            else:
+                log.warning("unknown requirement '%s', ignored", requirement)
+
+        return False
+
     def restore_sample_rate(self, value=10000):
         try:
             # Check value of sample_rate
@@ -295,6 +355,9 @@ class Test(object):
 
         if self.skip_test_kernel_until():
             raise Notest(self, "new kernel skip")
+
+        if self.skip_test_requires():
+            raise Notest(self, "requirements skip")
 
         self.restore_sample_rate()
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
