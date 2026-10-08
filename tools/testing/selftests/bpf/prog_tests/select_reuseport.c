@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <error.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <linux/bpf.h>
@@ -21,6 +22,7 @@
 #include "bpf_util.h"
 
 #include "test_progs.h"
+#include "socket_helpers.h"
 #include "test_select_reuseport_common.h"
 
 #define MAX_TEST_NAME 80
@@ -740,18 +742,6 @@ static const char *maptype_str(enum bpf_map_type type)
 	}
 }
 
-static const char *family_str(sa_family_t family)
-{
-	switch (family) {
-	case AF_INET:
-		return "IPv4";
-	case AF_INET6:
-		return "IPv6";
-	default:
-		return "unknown";
-	}
-}
-
 static const char *sotype_str(int sotype)
 {
 	switch (sotype) {
@@ -794,7 +784,7 @@ static void test_config(int sotype, sa_family_t family, bool inany)
 
 		snprintf(s, sizeof(s), "%s %s/%s %s %s",
 			 maptype_str(inner_map_type),
-			 family_str(family), sotype_str(sotype),
+			 inet_family_str(family), sotype_str(sotype),
 			 inany ? "INANY" : "LOOPBACK", t->name);
 
 		if (!test__start_subtest(s))
