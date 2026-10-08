@@ -2834,17 +2834,25 @@ static int musb_suspend(struct device *dev)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
+	musb_save_context(musb);
+
 	if (is_peripheral_active(musb)) {
-		/* FIXME force disconnect unless we know USB will wake
-		 * the system up quickly enough to respond ...
+		/*
+		 * We can't answer a host with the interrupts off, so disable
+		 * the D+ pullup. musb_restore_context() puts back the state
+		 * saved above. Where the PHY is powered off during suspend
+		 * (AM335x, for one), D+ drops anyway; where it stays powered,
+		 * as on sunxi, the host would see a device that can't answer.
 		 */
+		u8 power = musb_readb(musb->mregs, MUSB_POWER);
+
+		musb_writeb(musb->mregs, MUSB_POWER,
+			    power & ~MUSB_POWER_SOFTCONN);
 	} else if (is_host_active(musb)) {
 		/* we know all the children are suspended; sometimes
 		 * they will even be wakeup-enabled.
 		 */
 	}
-
-	musb_save_context(musb);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
