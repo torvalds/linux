@@ -328,11 +328,12 @@ struct amdgpu_vm {
 	struct drm_sched_entity	immediate;
 	struct drm_sched_entity	delayed;
 
-	/* Last finished delayed update */
+	/* Last TLB seq/fence */
 	atomic64_t		tlb_seq;
-	struct dma_fence	*last_tlb_flush;
+	struct dma_fence	*last_seq_flush;
 	atomic64_t		kfd_last_flushed_seq;
 	uint64_t		tlb_fence_context;
+	struct dma_fence	*last_tlb_inv;
 
 	/* How many times we had to re-generate the page tables */
 	uint64_t		generation;
@@ -561,7 +562,7 @@ static inline uint64_t amdgpu_vm_tlb_seq(struct amdgpu_vm *vm)
 	 * sure that the dma_fence structure isn't freed up.
 	 */
 	rcu_read_lock();
-	lock = dma_fence_spinlock(vm->last_tlb_flush);
+	lock = dma_fence_spinlock(vm->last_seq_flush);
 	rcu_read_unlock();
 
 	spin_lock_irqsave(lock, flags);
@@ -576,9 +577,9 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 				  uint32_t status,
 				  unsigned int vmhub);
 void amdgpu_vm_tlb_fence_create(struct amdgpu_device *adev,
-				 struct amdgpu_vm *vm,
-				 struct dma_fence **fence);
-
+				struct amdgpu_vm *vm,
+				struct dma_fence *dep,
+				struct dma_fence **fence);
 void amdgpu_vm_print_task_info(struct amdgpu_device *adev,
 			       struct amdgpu_task_info *task_info);
 
