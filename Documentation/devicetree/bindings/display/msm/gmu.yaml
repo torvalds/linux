@@ -55,18 +55,14 @@ properties:
       - const: gmu
 
   power-domains:
-    minItems: 2
     items:
       - description: CX power domain
       - description: GX power domain
-      - description: GMU MX power domain
 
   power-domain-names:
-    minItems: 2
     items:
       - const: cx
       - const: gx
-      - const: gmu_mx
 
   iommus:
     maxItems: 1
@@ -364,46 +360,6 @@ allOf:
             - const: cxo
             - const: memnoc
             - const: hub
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: qcom,adreno-gmu-850.1
-    then:
-      properties:
-        reg:
-          items:
-            - description: Core GMU registers
-        reg-names:
-          items:
-            - const: gmu
-        clocks:
-          items:
-            - description: GMU clock
-            - description: GPU CX clock
-            - description: GPU MEMNOC clock
-            - description: GPU AHB clock
-            - description: GPU MXG AHB clock
-            - description: GMU HUB clock
-        clock-names:
-          items:
-            - const: gmu
-            - const: cxo
-            - const: memnoc
-            - const: ahb
-            - const: mxg_ahb
-            - const: hub
-        power-domains:
-          items:
-            - description: CX power domain
-            - description: GX power domain
-            - description: GMU MX power domain
-        power-domain-names:
-          items:
-            - const: cx
-            - const: gx
-            - const: gmu_mx
 
   - if:
       properties:
