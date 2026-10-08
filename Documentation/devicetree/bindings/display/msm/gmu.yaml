@@ -369,46 +369,6 @@ allOf:
       properties:
         compatible:
           contains:
-            const: qcom,adreno-gmu-845.0
-    then:
-      properties:
-        reg:
-          items:
-            - description: Core GMU registers
-        reg-names:
-          items:
-            - const: gmu
-        clocks:
-          items:
-            - description: GMU clock
-            - description: GPU CX clock
-            - description: GPU SMMU Vote clock
-            - description: GPU AHB clock
-            - description: GPU MXG AHB clock
-            - description: GMU HUB clock
-        clock-names:
-          items:
-            - const: gmu
-            - const: cxo
-            - const: smmu_vote
-            - const: ahb
-            - const: mxg_ahb
-            - const: hub
-        power-domains:
-          items:
-            - description: CX power domain
-            - description: GX power domain
-            - description: GMU MX power domain
-        power-domain-names:
-          items:
-            - const: cx
-            - const: gx
-            - const: gmu_mx
-
-  - if:
-      properties:
-        compatible:
-          contains:
             const: qcom,adreno-gmu-850.1
     then:
       properties:
@@ -476,6 +436,28 @@ allOf:
             - const: memnoc
             - const: hub
             - const: rscc
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,adreno-gmu-wrapper
+    then:
+      properties:
+        reg:
+          items:
+            - description: GMU wrapper register space
+        reg-names:
+          items:
+            - const: gmu
+    else:
+      required:
+        - clocks
+        - clock-names
+        - interrupts
+        - interrupt-names
+        - iommus
+        - operating-points-v2
 
 examples:
   - |

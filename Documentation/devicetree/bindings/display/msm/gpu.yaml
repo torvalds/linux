@@ -416,7 +416,6 @@ allOf:
               - qcom,adreno-44010000
               - qcom,adreno-44050001
               - qcom,adreno-44050a01
-              - qcom,adreno-44041400
               - qcom,adreno-44051401
               - qcom,adreno-44070001
     then:
@@ -456,7 +455,6 @@ allOf:
               - qcom,adreno-44010000
               - qcom,adreno-44050001
               - qcom,adreno-44050a01
-              - qcom,adreno-44041400
               - qcom,adreno-44051401
               - qcom,adreno-44060000
               - qcom,adreno-44070001
