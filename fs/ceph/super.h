@@ -481,7 +481,8 @@ struct ceph_inode_info {
 	struct mutex i_truncate_mutex;
 	u32 i_truncate_seq;        /* last truncate to smaller size */
 	u64 i_truncate_size;       /*  and the size we last truncated down to */
-	int i_truncate_pending;    /*  still need to call vmtruncate */
+	bool i_truncate_pending;   /*  still need to call vmtruncate */
+	bool i_truncate_shrank;		/* Truncate shrank the file */
 	/*
 	 * For none fscrypt case it equals to i_truncate_size or it will
 	 * equals to fscrypt_file_size

@@ -184,7 +184,7 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 extern void __fscache_use_cookie(struct fscache_cookie *, bool);
 extern void __fscache_unuse_cookie(struct fscache_cookie *, const void *, const uoff_t *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, bool);
-extern void __fscache_resize_cookie(struct fscache_cookie *, uoff_t);
+void __fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size, bool shrank);
 extern void __fscache_invalidate(struct fscache_cookie *, const void *, uoff_t, unsigned int);
 extern int __fscache_begin_read_operation(struct netfs_cache_resources *, struct fscache_cookie *);
 extern int __fscache_begin_write_operation(struct netfs_cache_resources *, struct fscache_cookie *);
@@ -394,8 +394,9 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
 
 /**
  * fscache_resize_cookie - Request that a cache object be resized
- * @cookie: The cookie representing the cache object
- * @new_size: The new size of the object (may be NULL)
+ * @cookie: The cookie representing the cache object (may be NULL)
+ * @new_size: The new size of the object
+ * @shrank: True if the file shrank; false if it expanded
  *
  * Request that the size of an object be changed.
  *
@@ -403,10 +404,10 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
  * description.
  */
 static inline
-void fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size)
+void fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size, bool shrank)
 {
 	if (fscache_cookie_enabled(cookie))
-		__fscache_resize_cookie(cookie, new_size);
+		__fscache_resize_cookie(cookie, new_size, shrank);
 }
 
 /**
