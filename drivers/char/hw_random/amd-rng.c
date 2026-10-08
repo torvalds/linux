@@ -158,14 +158,14 @@ static int __init amd_rng_mod_init(void)
 
 	if (!request_region(pmbase + PMBASE_OFFSET, PMBASE_SIZE, DRV_NAME)) {
 		dev_err(&pdev->dev, DRV_NAME " region 0x%x already in use!\n",
-			pmbase + 0xF0);
+			pmbase + PMBASE_OFFSET);
 		err = -EBUSY;
 		goto out;
 	}
 
 	priv->iobase = ioport_map(pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 	if (!priv->iobase) {
-		pr_err(DRV_NAME "Cannot map ioport\n");
+		pr_err(DRV_NAME " cannot map ioport\n");
 		err = -EINVAL;
 		goto err;
 	}
