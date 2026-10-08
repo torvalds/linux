@@ -346,6 +346,8 @@ static int lan865x_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, priv);
 	INIT_WORK(&priv->multicast_work, lan865x_multicast_work_handler);
 
+	netdev->netdev_ops = &lan865x_netdev_ops;
+
 	priv->tc6 = oa_tc6_init(spi, netdev, NULL);
 	if (!priv->tc6) {
 		ret = -ENODEV;
@@ -397,7 +399,6 @@ static int lan865x_probe(struct spi_device *spi)
 
 	netdev->if_port = IF_PORT_10BASET;
 	netdev->irq = spi->irq;
-	netdev->netdev_ops = &lan865x_netdev_ops;
 	netdev->ethtool_ops = &lan865x_ethtool_ops;
 
 	ret = register_netdev(netdev);
