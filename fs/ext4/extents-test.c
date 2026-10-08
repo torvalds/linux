@@ -176,7 +176,8 @@ ext4_ext_insert_extent_stub(handle_t *handle, struct inode *inode,
 /*
  * We will zeroout the equivalent range in the data area
  */
-static int ext4_ext_zeroout_stub(struct inode *inode, struct ext4_extent *ex)
+static int ext4_ext_zeroout_stub(handle_t *handle, struct inode *inode,
+				 struct ext4_extent *ex)
 {
 	ext4_lblk_t ee_block, off_blk;
 	loff_t ee_len;
@@ -199,8 +200,9 @@ static int ext4_ext_zeroout_stub(struct inode *inode, struct ext4_extent *ex)
 	return 0;
 }
 
-static int ext4_issue_zeroout_stub(struct inode *inode, ext4_lblk_t lblk,
-				   ext4_fsblk_t pblk, ext4_lblk_t len)
+static int ext4_issue_zeroout_stub(handle_t *handle, struct inode *inode,
+				   ext4_lblk_t lblk, ext4_fsblk_t pblk,
+				   ext4_lblk_t len)
 {
 	ext4_lblk_t off_blk;
 	loff_t off_bytes;

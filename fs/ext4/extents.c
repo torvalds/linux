@@ -3167,17 +3167,18 @@ static void ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
 }
 
 /* FIXME!! we need to try to merge to left or right after zero-out  */
-int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
+int ext4_ext_zeroout(handle_t *handle, struct inode *inode,
+		     struct ext4_extent *ex)
 {
 	ext4_fsblk_t ee_pblock;
 	unsigned int ee_len;
 
-	KUNIT_STATIC_STUB_REDIRECT(ext4_ext_zeroout, inode, ex);
+	KUNIT_STATIC_STUB_REDIRECT(ext4_ext_zeroout, handle, inode, ex);
 
 	ee_len    = ext4_ext_get_actual_len(ex);
 	ee_pblock = ext4_ext_pblock(ex);
-	return ext4_issue_zeroout(inode, le32_to_cpu(ex->ee_block), ee_pblock,
-				  ee_len);
+	return ext4_issue_zeroout(handle, inode, le32_to_cpu(ex->ee_block),
+				  ee_pblock, ee_len);
 }
 
 /*
@@ -3347,7 +3348,8 @@ static int ext4_split_extent_zeroout(handle_t *handle, struct inode *inode,
 			lblk = ee_block;
 			len = map->m_lblk - ee_block;
 			pblk = ext4_ext_pblock(ex);
-			err = ext4_issue_zeroout(inode, lblk, pblk, len);
+			err = ext4_issue_zeroout(handle, inode, lblk, pblk,
+						 len);
 			if (err)
 				/* ZEROOUT failed, just return original error */
 				return err;
@@ -3358,7 +3360,8 @@ static int ext4_split_extent_zeroout(handle_t *handle, struct inode *inode,
 			lblk = map_end;
 			len = ex_end - map_end;
 			pblk = ext4_ext_pblock(ex) + (map_end - ee_block);
-			err = ext4_issue_zeroout(inode, lblk, pblk, len);
+			err = ext4_issue_zeroout(handle, inode, lblk, pblk,
+						 len);
 			if (err)
 				/* ZEROOUT failed, just return original error */
 				return err;
@@ -3377,7 +3380,7 @@ static int ext4_split_extent_zeroout(handle_t *handle, struct inode *inode,
 		lblk = map->m_lblk;
 		len = map->m_len;
 		pblk = ext4_ext_pblock(ex) + (map->m_lblk - ee_block);
-		err = ext4_issue_zeroout(inode, lblk, pblk, len);
+		err = ext4_issue_zeroout(handle, inode, lblk, pblk, len);
 		if (err)
 			/* ZEROOUT failed, just return original error */
 			return err;
@@ -3754,7 +3757,7 @@ ext4_ext_convert_to_initialized(handle_t *handle, struct inode *inode,
 			ext4_ext_store_pblock(&zero_ex1,
 				ext4_ext_pblock(ex) + split_map.m_lblk +
 				split_map.m_len - ee_block);
-			err = ext4_ext_zeroout(inode, &zero_ex1);
+			err = ext4_ext_zeroout(handle, inode, &zero_ex1);
 			if (err) {
 				zero_ex1.ee_len = 0;
 				goto fallback;
@@ -3770,7 +3773,7 @@ ext4_ext_convert_to_initialized(handle_t *handle, struct inode *inode,
 							ee_block);
 				ext4_ext_store_pblock(&zero_ex2,
 						      ext4_ext_pblock(ex));
-				err = ext4_ext_zeroout(inode, &zero_ex2);
+				err = ext4_ext_zeroout(handle, inode, &zero_ex2);
 				if (err) {
 					zero_ex2.ee_len = 0;
 					goto fallback;
@@ -4698,8 +4701,14 @@ retry:
 			WARN_ON_ONCE(map.m_lblk + map.m_len >
 				EXT4_B_TO_LBLK(inode, new_size ?: old_size));
 
-			ret = ext4_issue_zeroout(inode, map.m_lblk, map.m_pblk,
-						 map.m_len);
+			/*
+			 * Zeroed out without a handle, see the comment
+			 * on EXT4_GET_BLOCKS_ZERO above. The conversion
+			 * below tracks the blocks it converts for fast
+			 * commit, and written blocks keep their mapping.
+			 */
+			ret = ext4_issue_zeroout(NULL, inode, map.m_lblk,
+						 map.m_pblk, map.m_len);
 			if (unlikely(ret))
 				break;
 

@@ -476,23 +476,32 @@ static int __check_block_validity(struct inode *inode, const char *func,
 	return 0;
 }
 
-int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk, ext4_fsblk_t pblk,
-		       ext4_lblk_t len)
+/*
+ * The zeroes written here are file data. With a @handle the range is tracked
+ * for fast commit, because some callers zero out blocks outside the range that
+ * ext4_map_blocks() tracks and convert them to written. A caller without a
+ * handle must make sure that the conversion tracks the range.
+ */
+int ext4_issue_zeroout(handle_t *handle, struct inode *inode, ext4_lblk_t lblk,
+		       ext4_fsblk_t pblk, ext4_lblk_t len)
 {
 	int ret;
 
-	KUNIT_STATIC_STUB_REDIRECT(ext4_issue_zeroout, inode, lblk, pblk, len);
+	KUNIT_STATIC_STUB_REDIRECT(ext4_issue_zeroout, handle, inode, lblk, pblk,
+				   len);
 
 	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode))
-		return fscrypt_zeroout_range(inode,
+		ret = fscrypt_zeroout_range(inode,
 				(loff_t)lblk << inode->i_blkbits,
 				pblk << (inode->i_blkbits - SECTOR_SHIFT),
 				(u64)len << inode->i_blkbits);
-
-	ret = sb_issue_zeroout(inode->i_sb, pblk, len, GFP_NOFS);
+	else
+		ret = sb_issue_zeroout(inode->i_sb, pblk, len, GFP_NOFS);
 	if (ret > 0)
 		ret = 0;
 
+	if (!ret && handle)
+		ext4_fc_track_range(handle, inode, lblk, lblk + len - 1);
 	return ret;
 }
 
@@ -727,8 +736,8 @@ int ext4_map_create_blocks(handle_t *handle, struct inode *inode,
 	 */
 	if (flags & EXT4_GET_BLOCKS_ZERO &&
 	    map->m_flags & EXT4_MAP_MAPPED && map->m_flags & EXT4_MAP_NEW) {
-		err = ext4_issue_zeroout(inode, map->m_lblk, map->m_pblk,
-					 map->m_len);
+		err = ext4_issue_zeroout(handle, inode, map->m_lblk,
+					 map->m_pblk, map->m_len);
 		if (err)
 			return err;
 	}
