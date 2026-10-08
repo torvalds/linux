@@ -5129,7 +5129,7 @@ perform_csum_check:
 		}
 
 		if (tail->len - doffset <= gso_size)
-			skb_shinfo(tail)->gso_size = 0;
+			skb_gso_reset(tail);
 		else if (tail != segs)
 			skb_shinfo(tail)->gso_segs = DIV_ROUND_UP(tail->len - doffset, gso_size);
 	}
