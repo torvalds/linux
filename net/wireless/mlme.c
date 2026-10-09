@@ -892,14 +892,13 @@ static bool cfg80211_allowed_random_address(struct wireless_dev *wdev,
 	return false;
 }
 
-int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
-			  struct wireless_dev *wdev,
-			  struct cfg80211_mgmt_tx_params *params, u64 cookie)
+static int cfg80211_mgmt_tx_check(struct cfg80211_registered_device *rdev,
+				  struct wireless_dev *wdev,
+				  enum nl80211_iftype iftype,
+				  struct cfg80211_mgmt_tx_params *params)
 {
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;
-
-	lockdep_assert_wiphy(&rdev->wiphy);
 
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
@@ -917,14 +916,14 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
-	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].tx & BIT(stype >> 4)))
+	if (!(wdev->wiphy->mgmt_stypes[iftype].tx & BIT(stype >> 4)))
 		return -EINVAL;
 
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC) {
 		int err = 0;
 
-		switch (wdev->iftype) {
+		switch (iftype) {
 		case NL80211_IFTYPE_ADHOC:
 			/*
 			 * check for IBSS DA must be done by driver as
@@ -1003,8 +1002,53 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	    !cfg80211_allowed_random_address(wdev, mgmt))
 		return -EINVAL;
 
+	return 0;
+}
+
+int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
+			  struct wireless_dev *wdev,
+			  struct cfg80211_mgmt_tx_params *params, u64 cookie)
+{
+	int err;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	err = cfg80211_mgmt_tx_check(rdev, wdev, wdev->iftype, params);
+	if (err)
+		return err;
+
 	/* Transmit the management frame as requested by user space */
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
+}
+
+int cfg80211_mlme_mgmt_tx_unlocked(struct cfg80211_registered_device *rdev,
+				   struct wireless_dev *wdev,
+				   struct cfg80211_mgmt_tx_params *params,
+				   u64 cookie)
+{
+	/* can change concurrently, so read only once */
+	enum nl80211_iftype iftype = READ_ONCE(wdev->iftype);
+	int err;
+
+	if (!rdev->ops->mgmt_tx_unlocked)
+		return -EAGAIN;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
+		break;
+	default:
+		/* the checks for other interface types need the wiphy mutex */
+		return -EAGAIN;
+	}
+
+	err = cfg80211_mgmt_tx_check(rdev, wdev, iftype, params);
+	if (err)
+		return err;
+
+	return rdev_mgmt_tx_unlocked(rdev, wdev, params, cookie);
 }
 
 bool cfg80211_rx_mgmt_ext(struct wireless_dev *wdev,

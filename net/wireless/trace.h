@@ -2236,7 +2236,7 @@ TRACE_EVENT(rdev_cancel_remain_on_channel,
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->cookie)
 );
 
-TRACE_EVENT(rdev_mgmt_tx,
+DECLARE_EVENT_CLASS(rdev_mgmt_tx_evt,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct cfg80211_mgmt_tx_params *params),
 	TP_ARGS(wiphy, wdev, params),
@@ -2264,6 +2264,18 @@ TRACE_EVENT(rdev_mgmt_tx,
 		  BOOL_TO_STR(__entry->offchan), __entry->wait,
 		  BOOL_TO_STR(__entry->no_cck),
 		  BOOL_TO_STR(__entry->dont_wait_for_ack))
+);
+
+DEFINE_EVENT(rdev_mgmt_tx_evt, rdev_mgmt_tx,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 struct cfg80211_mgmt_tx_params *params),
+	TP_ARGS(wiphy, wdev, params)
+);
+
+DEFINE_EVENT(rdev_mgmt_tx_evt, rdev_mgmt_tx_unlocked,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 struct cfg80211_mgmt_tx_params *params),
+	TP_ARGS(wiphy, wdev, params)
 );
 
 TRACE_EVENT(rdev_tx_control_port,

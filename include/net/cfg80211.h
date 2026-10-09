@@ -5087,6 +5087,13 @@ struct mgmt_frame_regs {
  *	This allows the operation to be terminated prior to timeout based on
  *	the duration value.
  * @mgmt_tx: Transmit a management frame.
+ * @mgmt_tx_unlocked: Like @mgmt_tx, but called without the wiphy mutex,
+ *	currently limited to AP/GO/NAN. The driver may -EAGAIN to get
+ *	@mgmt_tx with the wiphy mutex held for the same operation,
+ *	although if the device is removed concurrently that might not
+ *	happen and userspace sees -ENODEV.
+ *	Note this cannot acquire the wiphy mutex or RTNL, that would
+ *	deadlock against unregistering the wdev.
  * @mgmt_tx_cancel_wait: Cancel the wait time from transmitting a management
  *	frame on another channel
  *
@@ -5510,6 +5517,10 @@ struct cfg80211_ops {
 	int	(*mgmt_tx)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   struct cfg80211_mgmt_tx_params *params,
 			   u64 cookie);
+	int	(*mgmt_tx_unlocked)(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    struct cfg80211_mgmt_tx_params *params,
+				    u64 cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       u64 cookie);

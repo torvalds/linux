@@ -15152,6 +15152,22 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 					   info->extack);
 }
 
+static int nl80211_tx_mgmt_locked(struct cfg80211_registered_device *rdev,
+				  struct wireless_dev *wdev,
+				  struct cfg80211_mgmt_tx_params *params,
+				  u64 cookie)
+{
+	if (params->link_id >= 0 &&
+	    !(wdev->valid_links & BIT(params->link_id)))
+		return -EINVAL;
+
+	if (params->offchan &&
+	    !cfg80211_off_channel_oper_allowed(wdev, params->chan))
+		return -EBUSY;
+
+	return cfg80211_mlme_mgmt_tx(rdev, wdev, params, cookie);
+}
+
 static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -15237,18 +15253,14 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	if (!chandef.chan && params.offchan)
 		return -EINVAL;
 
-	if (params.offchan &&
-	    !cfg80211_off_channel_oper_allowed(wdev, chandef.chan))
-		return -EBUSY;
-
 	params.link_id = nl80211_link_id_or_invalid(info->attrs);
 	/*
-	 * This now races due to the unlock, but we cannot check
-	 * the valid links for the _station_ anyway, so that's up
-	 * to the driver.
+	 * This races (even with the wiphy mutex, since it's not held for
+	 * netdevs here), but we cannot check the valid links for the
+	 * _station_ anyway, so that's up to the driver.
 	 */
 	if (params.link_id >= 0 &&
-	    !(wdev->valid_links & BIT(params.link_id)))
+	    !(READ_ONCE(wdev->valid_links) & BIT(params.link_id)))
 		return -EINVAL;
 
 	params.no_sta =
@@ -15279,7 +15291,19 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 
 	params.chan = chandef.chan;
 	cookie = cfg80211_assign_cookie(rdev);
-	err = cfg80211_mlme_mgmt_tx(rdev, wdev, &params, cookie);
+
+	/* pre_doit didn't lock the wiphy mutex, try without */
+	err = cfg80211_mlme_mgmt_tx_unlocked(rdev, wdev, &params, cookie);
+	if (err == -EAGAIN) {
+		wdev = nl80211_lock_held_wdev(rdev, info, wdev);
+		if (IS_ERR(wdev)) {
+			err = PTR_ERR(wdev);
+		} else {
+			err = nl80211_tx_mgmt_locked(rdev, wdev, &params,
+						     cookie);
+			wiphy_unlock(&rdev->wiphy);
+		}
+	}
 	if (err)
 		goto free_msg;
 
@@ -19930,7 +19954,10 @@ nl80211_epcs_cfg(struct sk_buff *skb, struct genl_info *info)
 	SELECTOR(__sel, WDEV_UP_RTNL_NOMTX,		\
 		 NL80211_FLAG_NEED_WDEV_UP |		\
 		 NL80211_FLAG_NO_WIPHY_MTX |		\
-		 NL80211_FLAG_NEED_RTNL)
+		 NL80211_FLAG_NEED_RTNL)		\
+	SELECTOR(__sel, WDEV_UP_NOMTX,			\
+		 NL80211_FLAG_NEED_WDEV_UP |		\
+		 NL80211_FLAG_NO_WIPHY_MTX)
 
 /*
  * Note: a
@@ -20690,7 +20717,8 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl80211_tx_mgmt,
 		.flags = GENL_UNS_ADMIN_PERM,
-		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP),
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP |
+					 NL80211_FLAG_NO_WIPHY_MTX),
 	},
 	{
 		.cmd = NL80211_CMD_FRAME_WAIT_CANCEL,

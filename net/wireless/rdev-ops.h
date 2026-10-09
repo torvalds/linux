@@ -785,6 +785,18 @@ static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_mgmt_tx_unlocked(struct cfg80211_registered_device *rdev,
+		      struct wireless_dev *wdev,
+		      struct cfg80211_mgmt_tx_params *params, u64 cookie)
+{
+	int ret;
+	trace_rdev_mgmt_tx_unlocked(&rdev->wiphy, wdev, params);
+	ret = rdev->ops->mgmt_tx_unlocked(&rdev->wiphy, wdev, params, cookie);
+	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
+	return ret;
+}
+
 static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       struct net_device *dev,
 				       const void *buf, size_t len,
