@@ -73,6 +73,32 @@ def core_pmu_probe():
 
     return True
 
+PERF_TYPE_HARDWARE = 0
+PERF_TYPE_HW_CACHE = 3
+
+# The legacy event types, where perf may qualify 'config' with the core PMU
+# type in its top 32 bits when there is more than one core PMU.
+LEGACY_TYPES = (str(PERF_TYPE_HARDWARE), str(PERF_TYPE_HW_CACHE))
+
+def hide_core_pmu_type(value):
+    """
+    The kernel can be told which core PMU a legacy type event is meant for by
+    putting its type in the top 32 bits of 'config', which perf only does when
+    there is more than one core PMU, so take those bits out to keep the
+    expectations written for the single core PMU case matching on
+    heterogeneous machines.
+    """
+    hidden = []
+
+    for alternative in value.split('|'):
+        try:
+            alternative = str(int(alternative, 0) & 0xffffffff)
+        except ValueError:
+            pass
+        hidden.append(alternative)
+
+    return '|'.join(hidden)
+
 class Fail(Exception):
     def __init__(self, test, msg):
         self.msg = msg
@@ -146,12 +172,33 @@ class Event(dict):
         self.add(base)
         self.add(data)
 
+    def hide_core_pmu_type_terms(self, other):
+        """
+        Is this a legacy type event? Then the core PMU type that perf may have
+        put in the top 32 bits of 'config' to tell the kernel which core PMU it
+        wants isn't part of what we asked for, see hide_core_pmu_type().
+        """
+        for event in (self, other):
+            for type in event.get('type', '').split('|'):
+                if type in LEGACY_TYPES:
+                    return True
+
+        return False
+
+    def hide_core_pmu_type(self, term, value, other):
+        if term == 'config' and self.hide_core_pmu_type_terms(other):
+            return hide_core_pmu_type(value)
+
+        return value
+
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s", t, self[t], other[t])
             if t not in self or t not in other:
                 return False
-            if not data_equal(self[t], other[t]):
+            exp = self.hide_core_pmu_type(t, self[t], other)
+            got = self.hide_core_pmu_type(t, other[t], other)
+            if not data_equal(exp, got):
                 return False
         return True
 
@@ -164,7 +211,9 @@ class Event(dict):
         for t in Event.terms:
             if t not in self or t not in other:
                 continue
-            if not data_equal(self[t], other[t]):
+            exp = self.hide_core_pmu_type(t, self[t], other)
+            got = self.hide_core_pmu_type(t, other[t], other)
+            if not data_equal(exp, got):
                 log.warning("expected %s=%s, got %s", t, self[t], other[t])
 
 def parse_version(version):
