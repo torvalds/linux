@@ -533,9 +533,13 @@ void zpci_remove_parent_msi_domain(struct zpci_bus *zbus)
 {
 	struct fwnode_handle *fn;
 
+	if (!zbus->msi_parent_domain)
+		return;
+
 	fn = zbus->msi_parent_domain->fwnode;
 	irq_domain_remove(zbus->msi_parent_domain);
 	irq_domain_free_fwnode(fn);
+	zbus->msi_parent_domain = NULL;
 }
 
 static void __init cpu_enable_directed_irq(void *unused)
