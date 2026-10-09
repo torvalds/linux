@@ -7144,6 +7144,36 @@ static int read_sysfs_int(char *path)
 	return (retval);
 }
 
+/*
+ * read_sysfs_line(char *path, char **buf)
+ *
+ * fail silently if open fails
+ * err() if open works, but read fails
+ * Replace \n with \0 in buffer and return byte count accordingly.
+ *
+ * n.b. caller owns freeing buf
+ */
+static int read_sysfs_line(char *path, char **buf)
+{
+	FILE *fp;
+	size_t size = 0;
+	int bytes_read;
+
+	fp = fopen(path, "r");
+	if (!fp)
+		return 0;
+
+	bytes_read = getline(buf, &size, fp);
+	if (bytes_read < 0)
+		err(1, "%s: file read failed", path);
+
+	fclose(fp);
+
+	assert((*buf)[bytes_read - 1] == '\n');
+	(*buf)[bytes_read - 1] = '\0';
+	return bytes_read - 1;
+}
+
 static void dump_sysfs_file(char *path)
 {
 	FILE *input;
@@ -7260,11 +7290,23 @@ static void probe_intel_uncore_frequency_cluster(void)
 		if (quiet)
 			continue;
 
+		char *agent_types = NULL;
+		int agent_bytes;
+
+		sprintf(path, "%s/agent_types", path_base);
+		agent_bytes = read_sysfs_line(path, &agent_types);
+
+		if (agent_bytes > 0)
+			fprintf(outf, "pkg%d: %s(%s):", unc_pkg_id, name_buf, agent_types);
+		else
+			fprintf(outf, "pkg%d: %s:", unc_pkg_id, name_buf);
+		free(agent_types);
+
 		sprintf(path, "%s/min_freq_khz", path_base);
 		k = read_sysfs_int(path);
 		sprintf(path, "%s/max_freq_khz", path_base);
 		l = read_sysfs_int(path);
-		fprintf(outf, "Uncore Frequency package%d domain%d cluster%d: %d - %d MHz ", unc_pkg_id, domain_id, cluster_id, k / 1000, l / 1000);
+		fprintf(outf, " %d - %d MHz ", k / 1000, l / 1000);
 
 		sprintf(path, "%s/initial_min_freq_khz", path_base);
 		k = read_sysfs_int(path);
