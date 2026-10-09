@@ -266,6 +266,34 @@ nl80211_lock_and_recheck(struct cfg80211_registered_device *rdev,
 	return ERR_PTR(-ENODEV);
 }
 
+/*
+ * Must have wdev_hold(), acquire the wiphy mutex. This has to
+ * look up the wdev again (otherwise it could deadlock against
+ * wdev removal), so it can return an error pointer.
+ */
+static struct wireless_dev *
+nl80211_lock_held_wdev(struct cfg80211_registered_device *rdev,
+		       struct genl_info *info, struct wireless_dev *wdev)
+{
+	u32 wdev_id = wdev->identifier;
+
+	/* the wdev reference was keeping the wiphy alive */
+	get_device(&rdev->wiphy.dev);
+	info->user_ptr[1] = NULL;
+	wdev_put(wdev);
+
+	wdev = nl80211_lock_and_recheck(rdev, genl_info_net(info), wdev_id);
+	if (IS_ERR(wdev))
+		return wdev;
+
+	if (!wdev_running(wdev)) {
+		wiphy_unlock(&rdev->wiphy);
+		return ERR_PTR(-ENETDOWN);
+	}
+
+	return wdev;
+}
+
 static int validate_beacon_head(const struct nlattr *attr,
 				struct netlink_ext_ack *extack)
 {
@@ -19906,14 +19934,10 @@ nl80211_epcs_cfg(struct sk_buff *skb, struct genl_info *info)
 
 /*
  * Note: a
- *	SELECTOR(...,
- *		 NL80211_FLAG_NO_WIPHY_MTX |
- *		 NL80211_FLAG_NEED_WDEV)
- * or
  *	SELECTOR(..., NL80211_FLAG_NO_WIPHY_MTX)
  *
- * isn't valid - nothing would ensure the device stays around,
- * need at least a netdev, the wiphy mutex, or RTNL.
+ * isn't valid - nothing would ensure the device stays around, need
+ * at least a wdev/netdev reference, the wiphy mutex, or RTNL.
  */
 
 enum nl80211_internal_flags_selector {
@@ -19928,6 +19952,13 @@ static u32 nl80211_internal_flags[] = {
 #undef SELECTOR
 };
 
+/* without RTNL or wiphy mutex, a wdev reference keeps everything alive */
+static bool nl80211_need_wdev_ref(u32 internal_flags)
+{
+	return !(internal_flags & NL80211_FLAG_NEED_RTNL) &&
+	       internal_flags & NL80211_FLAG_NO_WIPHY_MTX;
+}
+
 static int nl80211_pre_doit(const struct genl_split_ops *ops,
 			    struct sk_buff *skb,
 			    struct genl_info *info)
@@ -19936,7 +19967,7 @@ static int nl80211_pre_doit(const struct genl_split_ops *ops,
 	struct net *netns = genl_info_net(info);
 	struct wireless_dev *wdev = NULL;
 	struct net_device *dev = NULL;
-	bool need_rtnl, locked = false;
+	bool need_rtnl, wdev_ref, locked = false;
 	u32 internal_flags, wdev_id = 0;
 	int err;
 
@@ -19945,6 +19976,7 @@ static int nl80211_pre_doit(const struct genl_split_ops *ops,
 
 	internal_flags = nl80211_internal_flags[ops->internal_flags];
 	need_rtnl = internal_flags & NL80211_FLAG_NEED_RTNL;
+	wdev_ref = nl80211_need_wdev_ref(internal_flags);
 
 	if (need_rtnl)
 		rtnl_lock();
@@ -19966,7 +19998,16 @@ static int nl80211_pre_doit(const struct genl_split_ops *ops,
 		}
 
 		dev = wdev->netdev;
-		dev_hold(dev);
+		/*
+		 * Take the wdev ref only if we need it (wdev_ref is true when
+		 * the op is unlocked), we must not try to acquire this with
+		 * a wdev pointer protected by locking, it'd deadlock against
+		 * unregistration.
+		 */
+		if (wdev_ref)
+			wdev_hold(wdev);
+		else
+			dev_hold(dev);
 		rdev = wiphy_to_rdev(wdev->wiphy);
 	}
 
@@ -19999,12 +20040,12 @@ static int nl80211_pre_doit(const struct genl_split_ops *ops,
 		locked = true;
 	} else if (rdev && !need_rtnl) {
 		/*
-		 * Without any mutex need a netdev to keep it alive, see
-		 * also the note about selectors - the WARN can't happen
+		 * Without any mutex need a wdev reference to keep it alive,
+		 * see also the note about selectors - the WARN can't happen
 		 * without wrong selectors and those don't exist.
 		 */
 		put_device(&rdev->wiphy.dev);
-		if (WARN_ON(!dev)) {
+		if (WARN_ON(!wdev)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -20069,7 +20110,10 @@ static int nl80211_pre_doit(const struct genl_split_ops *ops,
 out:
 	if (locked)
 		wiphy_unlock(&rdev->wiphy);
-	dev_put(dev);
+	if (wdev_ref && wdev)
+		wdev_put(wdev);
+	else
+		dev_put(dev);
 	if (need_rtnl)
 		rtnl_unlock();
 	return err;
@@ -20086,16 +20130,22 @@ static void nl80211_post_doit(const struct genl_split_ops *ops,
 			      struct genl_info *info)
 {
 	u32 internal_flags = nl80211_internal_flags[ops->internal_flags];
+	struct wireless_dev *wdev = NULL;
+	struct net_device *dev = NULL;
 
 	if (info->user_ptr[1]) {
 		if (internal_flags & NL80211_FLAG_NEED_WDEV) {
-			struct wireless_dev *wdev = info->user_ptr[1];
-
-			dev_put(wdev->netdev);
+			wdev = info->user_ptr[1];
+			dev = wdev->netdev;
 		} else {
-			dev_put(info->user_ptr[1]);
+			dev = info->user_ptr[1];
 		}
 	}
+
+	if (wdev && nl80211_need_wdev_ref(internal_flags))
+		wdev_put(wdev);
+	else
+		dev_put(dev);
 
 	if (info->user_ptr[0] &&
 	    !(internal_flags & NL80211_FLAG_NO_WIPHY_MTX)) {

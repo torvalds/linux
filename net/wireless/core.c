@@ -1514,6 +1514,16 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 
 	list_del_rcu(&wdev->list);
 	synchronize_net();
+
+	/*
+	 * After synchronize_net() any lookups under RCU either have
+	 * references (must wdev_hold() inside the critical section)
+	 * or can't find this wdev anymore. Wait for any wdev_hold()
+	 * users on a pure wdev to get to dev_put().
+	 */
+	if (!wdev->netdev && !refcount_dec_and_test(&wdev->refcnt))
+		wait_var_event(&wdev->refcnt, !refcount_read(&wdev->refcnt));
+
 	rdev->devlist_generation++;
 	wiphy_work_cancel(wdev->wiphy, &wdev->disconnect_wk);
 
@@ -1700,6 +1710,7 @@ EXPORT_SYMBOL(cfg80211_stop_link);
 
 void cfg80211_init_wdev(struct wireless_dev *wdev)
 {
+	refcount_set(&wdev->refcnt, 1);
 	INIT_LIST_HEAD(&wdev->event_list);
 	spin_lock_init(&wdev->event_lock);
 	INIT_LIST_HEAD(&wdev->mgmt_registrations);

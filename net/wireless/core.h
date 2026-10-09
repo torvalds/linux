@@ -14,6 +14,7 @@
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
 #include <linux/rtnetlink.h>
+#include <linux/wait_bit.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "reg.h"
@@ -258,6 +259,26 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 void cfg80211_init_wdev(struct wireless_dev *wdev);
 void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
+
+static inline void wdev_hold(struct wireless_dev *wdev)
+{
+	if (wdev->netdev) {
+		dev_hold(wdev->netdev);
+		return;
+	}
+
+	/* also not RTNL, but can't check that */
+	lockdep_assert_not_held(&wdev->wiphy->mtx);
+	refcount_inc(&wdev->refcnt);
+}
+
+static inline void wdev_put(struct wireless_dev *wdev)
+{
+	if (wdev->netdev)
+		dev_put(wdev->netdev);
+	else if (refcount_dec_and_test(&wdev->refcnt))
+		wake_up_var(&wdev->refcnt);
+}
 
 static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
 {

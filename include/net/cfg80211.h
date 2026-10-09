@@ -21,6 +21,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
+#include <linux/refcount.h>
 #include <linux/net.h>
 #include <linux/rfkill.h>
 #include <net/regulatory.h>
@@ -7226,6 +7227,9 @@ enum ieee80211_ap_reg_power {
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
  *	wireless device if it has no netdev
+ * @refcnt: (private) references held by nl80211 if there's no netdev,
+ *	to ensure cfg80211_unregister_wdev() cannot return while
+ *	unlocked ops are running
  * @u: union containing data specific to @iftype
  * @connected: indicates if connected or not (STA mode)
  * @wext: (private) Used by the internal wireless extensions compat code
@@ -7291,6 +7295,7 @@ struct wireless_dev {
 	struct net_device *netdev;
 
 	u32 identifier;
+	refcount_t refcnt;
 
 	struct list_head mgmt_registrations;
 	u8 mgmt_registrations_need_update:1;
@@ -10173,6 +10178,9 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * by calling the del_virtual_intf() callback. The function must also be called
  * when the driver wishes to unregister the wdev, e.g. when the hardware device
  * is unbound from the driver.
+ *
+ * Note that unlocked operations can run concurrently until this returns, so be
+ * careful about ordering.
  *
  * Context: Requires the RTNL and wiphy mutex to be held.
  */
