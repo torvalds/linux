@@ -1414,6 +1414,16 @@ void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
 				      MLX5E_TC_FT_LEVEL);
 }
 
+static void mlx5e_tc_free_parse_attr(struct mlx5_flow_attr *attr)
+{
+	if (!attr->parse_attr)
+		return;
+
+	mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
+	kvfree(attr->parse_attr);
+	attr->parse_attr = NULL;
+}
+
 static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
@@ -1436,10 +1446,8 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	}
 	mutex_unlock(&tc->t_lock);
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
-	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 		mlx5_fc_destroy(priv->mdev, attr->counter);
@@ -1450,7 +1458,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	free_flow_post_acts(flow);
 	mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
 
-	kvfree(attr->parse_attr);
+	mlx5e_tc_free_parse_attr(attr);
 	kfree(flow->attr);
 }
 
@@ -4759,6 +4767,7 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
+	mlx5e_tc_free_parse_attr(flow->attr);
 	flow_flag_set(flow, OFFLOADED);
 	*__flow = flow;
 
@@ -4766,7 +4775,6 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 
 err_free:
 	flow_flag_set(flow, FAILED);
-	mlx5e_mod_hdr_dealloc(&parse_attr->mod_hdr_acts);
 	mlx5e_flow_put(priv, flow);
 out:
 	return err;
