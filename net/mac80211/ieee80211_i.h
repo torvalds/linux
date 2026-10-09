@@ -2192,6 +2192,9 @@ int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 				       struct wireless_dev *wdev, u64 cookie);
 int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		      struct cfg80211_mgmt_tx_params *params, u64 cookie);
+int ieee80211_mgmt_tx_unlocked(struct wiphy *wiphy, struct wireless_dev *wdev,
+			       struct cfg80211_mgmt_tx_params *params,
+			       u64 cookie);
 int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 				  struct wireless_dev *wdev, u64 cookie);
 

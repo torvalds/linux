@@ -1074,6 +1074,115 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return ret;
 }
 
+int ieee80211_mgmt_tx_unlocked(struct wiphy *wiphy, struct wireless_dev *wdev,
+			       struct cfg80211_mgmt_tx_params *params,
+			       u64 cookie)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta = NULL;
+	enum nl80211_band band;
+	struct sk_buff *skb;
+	int link_id = -1, i;
+
+	if (READ_ONCE(local->in_reconfig) || READ_ONCE(local->quiescing))
+		return -EAGAIN;
+
+	guard(rcu)();
+
+	/* do_stop() synchronizes RCU before the interface type can change */
+	if (!ieee80211_sdata_running(sdata))
+		return -EAGAIN;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_NAN_DATA:
+		if (is_multicast_ether_addr(mgmt->da))
+			return -EOPNOTSUPP;
+		fallthrough;
+	case NL80211_IFTYPE_NAN:
+		/* Frames can be sent during NAN schedule */
+		skb = ieee80211_mgmt_tx_skb(sdata, params, cookie, GFP_ATOMIC);
+		if (!skb)
+			return -ENOMEM;
+
+		__ieee80211_tx_skb_tid_band(sdata, skb,
+					    params->no_sta ? ERR_PTR(-ENOENT) :
+							     NULL,
+					    7, -1, NUM_NL80211_BANDS);
+		return 0;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		if (sdata->bss->active)
+			break;
+		fallthrough;
+	default:
+		return -EAGAIN;
+	}
+
+	if (!params->no_sta)
+		sta = sta_info_get_bss(sdata, mgmt->da);
+
+	if (ieee80211_is_action(mgmt->frame_control) &&
+	    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC &&
+	    mgmt->u.action.category != WLAN_CATEGORY_SELF_PROTECTED &&
+	    mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT) {
+		if (!sta)
+			return -ENOLINK;
+		if (params->link_id >= 0 &&
+		    !(sta->sta.valid_links & BIT(params->link_id)))
+			return -ENOLINK;
+		link_id = params->link_id;
+	}
+
+	if ((params->chan || !sta || !sta->sta.mlo) &&
+	    ieee80211_mgmt_tx_need_offchan(sdata, params, mgmt,
+					   sta && sta->sta.mlo, &link_id))
+		return -EAGAIN;
+
+	/* things may have changed, avoid WARNs in ieee80211_tx_skb_tid() */
+	if (ieee80211_vif_is_mld(&sdata->vif)) {
+		band = 0;
+
+		if (link_id < 0 &&
+		    !ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
+			for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
+				struct ieee80211_bss_conf *conf;
+
+				conf = rcu_dereference(sdata->vif.link_conf[i]);
+				if (conf &&
+				    ether_addr_equal(conf->addr, mgmt->sa)) {
+					link_id = i;
+					break;
+				}
+			}
+			if (link_id < 0)
+				return -EAGAIN;
+		}
+
+		if (link_id >= 0 &&
+		    !(READ_ONCE(sdata->vif.active_links) & BIT(link_id)))
+			return -EAGAIN;
+	} else {
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		chanctx_conf =
+			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		if (!chanctx_conf)
+			return -EAGAIN;
+		band = chanctx_conf->def.chan->band;
+	}
+
+	skb = ieee80211_mgmt_tx_skb(sdata, params, cookie, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	__ieee80211_tx_skb_tid_band(sdata, skb,
+				    params->no_sta ? ERR_PTR(-ENOENT) : sta,
+				    7, link_id, band);
+	return 0;
+}
+
 int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 				  struct wireless_dev *wdev, u64 cookie)
 {
