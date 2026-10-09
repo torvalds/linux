@@ -109,7 +109,7 @@ SECTIONS
   PROVIDE(_bss_start = .);
   SBSS(0)
   BSS(0)
-  *(.lbss .lbss.[0-9a-zA-Z_]* .lbss..L*)
+  .lbss : { *(.lbss .lbss.[0-9a-zA-Z_]* .lbss..L*) }
    __bss_stop = .;
   _end = .;
   PROVIDE (end = .);
