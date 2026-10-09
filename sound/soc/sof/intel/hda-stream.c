@@ -293,9 +293,8 @@ static int _hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stre
 {
 	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	struct hdac_ext_stream *hext_stream_match = NULL;
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct sof_intel_hda_stream *hda_stream;
-	struct hdac_ext_stream *hext_stream;
 	struct hdac_ext_stream *link_stream;
 	struct hdac_stream *s;
 	bool dmi_l1_enable = true;
@@ -308,6 +307,9 @@ static int _hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stre
 	 * that are DMI L1 incompatible.
 	 */
 	list_for_each_entry(s, &bus->stream_list, list) {
+		struct sof_intel_hda_stream *hda_stream;
+		struct hdac_ext_stream *hext_stream;
+
 		hext_stream = stream_to_hdac_ext_stream(s);
 		hda_stream = container_of(hext_stream, struct sof_intel_hda_stream, hext_stream);
 
@@ -315,6 +317,7 @@ static int _hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stre
 			continue;
 
 		if (s->direction == direction && s->stream_tag == stream_tag) {
+			hext_stream_match = hext_stream;
 			s->opened = false;
 			found = true;
 			s->curr_pos = 0;
@@ -322,6 +325,20 @@ static int _hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stre
 				link_stream = hext_stream;
 		} else if (!(hda_stream->flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE)) {
 			dmi_l1_enable = false;
+		}
+	}
+
+	if (!sdev->dspless_mode_selected && !pair && hext_stream_match) {
+		/*
+		 * Couple host and link DMA if link DMA is unused
+		 * In case of channel pair the snd_hdac_ext_stream_release() will
+		 * take care of coupling te HDA channel.
+		 */
+		if (!hext_stream_match->link_locked) {
+			u32 mask = BIT(hext_stream_match->hstream.index);
+
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+						SOF_HDA_REG_PP_PPCTL, mask, 0);
 		}
 	}
 
