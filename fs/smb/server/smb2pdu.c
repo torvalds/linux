@@ -2206,14 +2206,14 @@ static struct ksmbd_user *session_user(struct ksmbd_conn *conn,
 
 static int ntlm_authenticate(struct ksmbd_work *work,
 			     struct smb2_sess_setup_req *req,
-			     struct smb2_sess_setup_rsp *rsp)
+			     struct smb2_sess_setup_rsp *rsp,
+			     u64 *previous_session_id)
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	struct ksmbd_user *user;
 	char channel_key[CIFS_KEY_SIZE] = {};
 	char *auth_key = conn->binding ? channel_key : sess->sess_key;
-	u64 prev_id;
 	bool binding = conn->binding;
 	int sz, rc;
 
@@ -2278,9 +2278,7 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 		}
 	}
 
-	prev_id = le64_to_cpu(req->PreviousSessionId);
-	if (prev_id && prev_id != sess->id)
-		destroy_previous_session(conn, sess->user, prev_id);
+	*previous_session_id = le64_to_cpu(req->PreviousSessionId);
 
 	/*
 	 * If session state is SMB2_SESSION_VALID, We can assume
@@ -2342,7 +2340,8 @@ out:
 #ifdef CONFIG_SMB_SERVER_KERBEROS5
 static int krb5_authenticate(struct ksmbd_work *work,
 			     struct smb2_sess_setup_req *req,
-			     struct smb2_sess_setup_rsp *rsp)
+			     struct smb2_sess_setup_rsp *rsp,
+			     u64 *previous_session_id)
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
@@ -2351,7 +2350,6 @@ static int krb5_authenticate(struct ksmbd_work *work,
 	char reauth_key[CIFS_KEY_SIZE] = {};
 	char *auth_key = conn->binding ? channel_key :
 		(work->session_setup_reauth ? reauth_key : sess->sess_key);
-	u64 prev_sess_id;
 	bool binding = conn->binding;
 	int in_len, out_len;
 	int retval;
@@ -2373,10 +2371,7 @@ static int krb5_authenticate(struct ksmbd_work *work,
 		goto out;
 	}
 
-	/* Check previous session */
-	prev_sess_id = le64_to_cpu(req->PreviousSessionId);
-	if (prev_sess_id && prev_sess_id != sess->id)
-		destroy_previous_session(conn, sess->user, prev_sess_id);
+	*previous_session_id = le64_to_cpu(req->PreviousSessionId);
 
 	rsp->SecurityBufferLength = cpu_to_le16(out_len);
 
@@ -2445,7 +2440,8 @@ out:
 #else
 static int krb5_authenticate(struct ksmbd_work *work,
 			     struct smb2_sess_setup_req *req,
-			     struct smb2_sess_setup_rsp *rsp)
+			     struct smb2_sess_setup_rsp *rsp,
+			     u64 *previous_session_id)
 {
 	return -EOPNOTSUPP;
 }
@@ -2459,6 +2455,8 @@ int smb2_sess_setup(struct ksmbd_work *work)
 	struct ksmbd_session *sess = NULL;
 	struct negotiate_message *negblob;
 	unsigned int negblob_len, negblob_off;
+	u64 previous_session_id = 0;
+	bool authenticated = false;
 	int rc = 0;
 
 	ksmbd_debug(SMB, "Received smb2 session setup request\n");
@@ -2648,14 +2646,11 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 		if (conn->preferred_auth_mech &
 				(KSMBD_AUTH_KRB5 | KSMBD_AUTH_MSKRB5)) {
-			rc = krb5_authenticate(work, req, rsp);
+			rc = krb5_authenticate(work, req, rsp, &previous_session_id);
 			if (rc)
 				goto out_err;
 
-			if (!ksmbd_conn_need_reconnect(conn)) {
-				ksmbd_conn_set_good(conn);
-				sess->state = SMB2_SESSION_VALID;
-			}
+			authenticated = true;
 		} else if (conn->preferred_auth_mech == KSMBD_AUTH_NTLMSSP) {
 			if (negblob->MessageType == NtLmNegotiate) {
 				rc = ntlm_negotiate(work, negblob, negblob_len, rsp);
@@ -2664,14 +2659,12 @@ int smb2_sess_setup(struct ksmbd_work *work)
 				rsp->hdr.Status =
 					STATUS_MORE_PROCESSING_REQUIRED;
 			} else if (negblob->MessageType == NtLmAuthenticate) {
-				rc = ntlm_authenticate(work, req, rsp);
+				rc = ntlm_authenticate(work, req, rsp,
+						       &previous_session_id);
 				if (rc)
 					goto out_err;
 
-				if (!ksmbd_conn_need_reconnect(conn)) {
-					ksmbd_conn_set_good(conn);
-					sess->state = SMB2_SESSION_VALID;
-				}
+				authenticated = true;
 				if (conn->binding) {
 					struct preauth_session *preauth_sess;
 
@@ -2802,6 +2795,21 @@ out_err:
 		rc = ksmbd_iov_pin_rsp(work, rsp, iov_len);
 		if (rc)
 			rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
+	}
+
+	work->session_setup_binding = conn->binding;
+	if (authenticated) {
+		/*
+		 * Draining the previous session drops srv_mutex. Finish using the
+		 * connection's authentication state and free mechToken first, and
+		 * retain this request's binding decision for response processing.
+		 */
+		if (previous_session_id && previous_session_id != sess->id)
+			destroy_previous_session(conn, sess->user, previous_session_id);
+		if (!ksmbd_conn_need_reconnect(conn)) {
+			ksmbd_conn_set_good(conn);
+			sess->state = SMB2_SESSION_VALID;
+		}
 	}
 
 	ksmbd_conn_unlock(conn);
@@ -12478,7 +12486,7 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 	command = le16_to_cpu(hdr->Command);
 
 	if (command == SMB2_SESSION_SETUP_HE &&
-	    (!conn->binding || hdr->Status != STATUS_SUCCESS)) {
+	    (!work->session_setup_binding || hdr->Status != STATUS_SUCCESS)) {
 		signing_key = work->sess->smb3signingkey;
 	} else {
 		chann = lookup_chann_list(work->sess, work->conn);
@@ -12527,7 +12535,7 @@ void smb3_preauth_hash_rsp(struct ksmbd_work *work)
 	if (le16_to_cpu(rsp->Command) == SMB2_SESSION_SETUP_HE && sess) {
 		ksmbd_conn_lock(conn);
 
-		if (conn->binding) {
+		if (work->session_setup_binding) {
 			struct preauth_session *preauth_sess;
 
 			preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);

@@ -94,6 +94,8 @@ struct ksmbd_work {
 	bool                            need_invalidate_rkey:1;
 	bool				request_open_chseq_tracked:1;
 	bool				session_setup_reauth:1;
+	/* Retain the binding decision for response signing and preauth hashing. */
+	bool				session_setup_binding:1;
 
 	unsigned int                    remote_key;
 	/* cancel works */

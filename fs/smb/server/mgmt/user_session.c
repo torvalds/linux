@@ -759,6 +759,7 @@ void destroy_previous_session(struct ksmbd_conn *conn,
 {
 	struct ksmbd_session *prev_sess;
 	struct ksmbd_user *prev_user;
+	bool pinned = false;
 	int err;
 
 	down_write(&sessions_table_lock);
@@ -781,9 +782,21 @@ void destroy_previous_session(struct ksmbd_conn *conn,
 	}
 	prev_sess->tearing_down = true;
 	up_write(&prev_sess->chann_lock);
+	ksmbd_user_session_get(prev_sess);
+	pinned = true;
+	up_write(&conn->session_lock);
+	up_write(&sessions_table_lock);
 
 	ksmbd_all_conn_set_status(prev_sess, KSMBD_SESS_NEED_RECONNECT);
+	/*
+	 * The caller has finished using the connection's authentication state.
+	 * Drop srv_mutex so drained requests can write their responses.
+	 */
+	ksmbd_conn_unlock(conn);
 	err = ksmbd_conn_wait_idle_sess(conn, prev_sess);
+	ksmbd_conn_lock(conn);
+	down_write(&sessions_table_lock);
+	down_write(&conn->session_lock);
 	if (err) {
 		down_write(&prev_sess->chann_lock);
 		prev_sess->tearing_down = false;
@@ -800,6 +813,8 @@ void destroy_previous_session(struct ksmbd_conn *conn,
 out:
 	up_write(&conn->session_lock);
 	up_write(&sessions_table_lock);
+	if (pinned)
+		ksmbd_user_session_put(prev_sess);
 }
 
 static bool ksmbd_preauth_session_id_match(struct preauth_session *sess,
