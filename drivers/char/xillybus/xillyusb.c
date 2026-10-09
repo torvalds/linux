@@ -1121,12 +1121,13 @@ unlock_done:
  */
 
 static int flush_downstream(struct xillyusb_channel *chan,
-			    long timeout,
+			    unsigned long timeout,
 			    bool interruptible)
 {
 	struct xillyusb_dev *xdev = chan->xdev;
 	int chan_num = chan->chan_idx << 1;
-	long deadline, left_to_sleep;
+	unsigned long deadline;
+	long left_to_sleep;
 	int rc;
 
 	if (chan->flushed)
@@ -1135,7 +1136,8 @@ static int flush_downstream(struct xillyusb_channel *chan,
 	deadline = jiffies + 1 + timeout;
 
 	if (chan->flushing) {
-		long cancel_deadline = jiffies + 1 + XILLY_RESPONSE_TIMEOUT;
+		unsigned long cancel_deadline =
+			jiffies + 1 + XILLY_RESPONSE_TIMEOUT;
 
 		chan->canceled = 0;
 		rc = xillyusb_send_opcode(xdev, chan_num,
@@ -1146,7 +1148,7 @@ static int flush_downstream(struct xillyusb_channel *chan,
 
 		/* Ignoring interrupts. Cancellation must be handled */
 		while (!chan->canceled) {
-			left_to_sleep = cancel_deadline - ((long)jiffies);
+			left_to_sleep = cancel_deadline - jiffies;
 
 			if (left_to_sleep <= 0) {
 				report_io_error(xdev, -EIO);
@@ -1196,7 +1198,7 @@ static int flush_downstream(struct xillyusb_channel *chan,
 	}
 
 	while (chan->flushing) {
-		left_to_sleep = deadline - ((long)jiffies);
+		left_to_sleep = deadline - jiffies;
 
 		if (left_to_sleep <= 0)
 			return -ETIMEDOUT;
@@ -1429,7 +1431,8 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 	struct xillyfifo *fifo = chan->in_fifo;
 	int chan_num = (chan->chan_idx << 1) | 1;
 
-	long deadline, left_to_sleep;
+	unsigned long deadline;
+	long left_to_sleep;
 	int bytes_done = 0;
 	bool sent_set_push = false;
 	int rc;
@@ -1458,7 +1461,7 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 		bytes_done += rc;
 		chan->in_consumed_bytes += rc;
 
-		left_to_sleep = deadline - ((long)jiffies);
+		left_to_sleep = deadline - jiffies;
 
 		/*
 		 * Some 32-bit arithmetic that may wrap. Note that

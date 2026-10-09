@@ -694,7 +694,8 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 	unsigned long flags;
 	int bytes_done = 0;
 	int no_time_left = 0;
-	long deadline, left_to_sleep;
+	unsigned long deadline;
+	long left_to_sleep;
 	struct xilly_channel *channel = filp->private_data;
 
 	int empty, reached_eof, exhausted, ready;
@@ -938,7 +939,7 @@ interrupted: /* Mutex is not held if got here */
 			return -EINTR;
 		}
 
-		left_to_sleep = deadline - ((long) jiffies);
+		left_to_sleep = deadline - jiffies;
 
 		/*
 		 * If our time is out, skip the waiting. We may miss wr_sleepy
