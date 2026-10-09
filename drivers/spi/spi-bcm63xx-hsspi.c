@@ -152,7 +152,7 @@ static ssize_t wait_mode_show(struct device *dev, struct device_attribute *attr,
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct bcm63xx_hsspi *bs = spi_controller_get_devdata(ctrl);
 
-	return sprintf(buf, "%d\n", bs->wait_mode);
+	return sysfs_emit(buf, "%d\n", bs->wait_mode);
 }
 
 static ssize_t wait_mode_store(struct device *dev, struct device_attribute *attr,
@@ -188,7 +188,7 @@ static ssize_t xfer_mode_show(struct device *dev, struct device_attribute *attr,
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct bcm63xx_hsspi *bs = spi_controller_get_devdata(ctrl);
 
-	return sprintf(buf, "%d\n", bs->xfer_mode);
+	return sysfs_emit(buf, "%d\n", bs->xfer_mode);
 }
 
 static ssize_t xfer_mode_store(struct device *dev, struct device_attribute *attr,
