@@ -4857,6 +4857,17 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * In SYNC mode, sync the pending zeroed EOF block to ensure the
+	 * i_disksize update is persisted.
+	 */
+	if (((file->f_flags & O_SYNC) || IS_SYNC(inode)) && new_size) {
+		ret = ext4_iomap_sync_zeroed_eof(inode, 0, LLONG_MAX);
+		if (ret)
+			return ret;
+	}
+
 	/* Finish zeroing out if it doesn't contain partial block */
 	if (IS_ALIGNED(offset | end, blocksize))
 		return ret;
@@ -4928,10 +4939,20 @@ static long ext4_do_fallocate(struct file *file, loff_t offset,
 	if (ret)
 		goto out;
 
-	if (((file->f_flags & O_SYNC) || IS_SYNC(inode)) &&
-	    EXT4_SB(inode->i_sb)->s_journal) {
-		ret = ext4_fc_commit(EXT4_SB(inode->i_sb)->s_journal,
-					EXT4_I(inode)->i_sync_tid);
+	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+		/*
+		 * Sync the pending zeroed EOF block to ensure the
+		 * i_disksize update is persisted.
+		 */
+		if (new_size) {
+			ret = ext4_iomap_sync_zeroed_eof(inode, 0, LLONG_MAX);
+			if (ret)
+				goto out;
+		}
+		if (EXT4_SB(inode->i_sb)->s_journal) {
+			ret = ext4_fc_commit(EXT4_SB(inode->i_sb)->s_journal,
+						EXT4_I(inode)->i_sync_tid);
+		}
 	}
 out:
 	trace_ext4_fallocate_exit(inode, offset,
@@ -5674,6 +5695,14 @@ static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len)
 		return -EINVAL;
 
 	/*
+	 * Persist the pending zeroed EOF block to ensure i_disksize
+	 * can be safely updated thereafter.
+	 */
+	ret = ext4_iomap_sync_zeroed_eof(inode, 0, LLONG_MAX);
+	if (ret)
+		return ret;
+
+	/*
 	 * Write tail of the last page before removed range and data that
 	 * will be shifted since they will get removed from the page cache
 	 * below. We are also protected from pages becoming dirty by
@@ -5722,7 +5751,7 @@ static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len)
 
 	new_size = inode->i_size - len;
 	i_size_write(inode, new_size);
-	EXT4_I(inode)->i_disksize = new_size;
+	__ext4_set_i_disksize(inode, new_size);
 
 	up_write(&EXT4_I(inode)->i_data_sem);
 	ret = ext4_mark_inode_dirty(handle, inode);
@@ -5776,6 +5805,14 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 		return -EFBIG;
 
 	/*
+	 * Persist the pending zeroed EOF block to ensure i_disksize
+	 * can be safely updated thereafter.
+	 */
+	ret = ext4_iomap_sync_zeroed_eof(inode, 0, LLONG_MAX);
+	if (ret)
+		return ret;
+
+	/*
 	 * Write out all dirty pages. Need to round down to align start offset
 	 * to page size boundary for page size > block size.
 	 */
@@ -5794,8 +5831,7 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 	ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_FALLOC_RANGE, handle);
 
 	/* Expand file to avoid data loss if there is error while shifting */
-	inode->i_size += len;
-	EXT4_I(inode)->i_disksize += len;
+	ext4_update_inode_size(inode, inode->i_size + len);
 	ret = ext4_mark_inode_dirty(handle, inode);
 	if (ret)
 		goto out_handle;

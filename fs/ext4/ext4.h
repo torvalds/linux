@@ -3226,6 +3226,8 @@ void ext4_iomap_clear_disksize_pending(struct inode *inode);
 void ext4_iomap_wait_disksize_pending(struct inode *inode);
 unsigned int ext4_iomap_get_disksize_pending_range(struct inode *inode,
 						   loff_t *start);
+extern int ext4_iomap_sync_zeroed_eof(struct inode *inode,
+				      loff_t offset, loff_t end);
 extern int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end);
 
 #define EXT4_PARTIAL_ZERO_START	0x1
