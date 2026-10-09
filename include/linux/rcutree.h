@@ -116,7 +116,7 @@ int rcutree_offline_cpu(unsigned int cpu);
 
 void rcutree_migrate_callbacks(int cpu);
 
-/* Called from hotplug and also arm64 early secondary boot failure */
+/* Called from hotplug */
 void rcutree_report_cpu_dead(void);
 
 #endif /* __LINUX_RCUTREE_H */
