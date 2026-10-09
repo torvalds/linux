@@ -114,11 +114,13 @@ a shared page or remove an overlay page after the new kernel is
 using the page for a different purpose, corrupting the new kernel.
 Hyper-V does not provide a single "set everything" operation to
 guest VMs, so Linux code must individually revoke all sharing before
-doing kexec.   See hv_kexec_handler() and hv_crash_handler().  But
-the crash/panic path still has holes in cleanup because some shared
-pages are set using per-CPU synthetic registers and there's no
-mechanism to revoke the shared pages for CPUs other than the CPU
-running the panic path.
+doing kexec.  For a normal kexec reboot, the VMBus driver calls
+hv_kexec_handler() from its syscore shutdown callback, after device
+shutdown and before the architecture-specific machine shutdown.  The
+crash/panic path uses hv_crash_handler(), but still has holes in
+cleanup because some shared pages are set using per-CPU synthetic
+registers and there is no mechanism to revoke the shared pages for
+CPUs other than the CPU running the panic path.
 
 CPU Management
 --------------
