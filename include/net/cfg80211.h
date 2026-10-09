@@ -5271,6 +5271,7 @@ struct mgmt_frame_regs {
  * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
  *	tells the driver that the frame should not be encrypted. A @cookie
  *	value of 0 means the caller does not want TX status reporting.
+ *	Called without the wiphy mutex.
  *
  * @get_ftm_responder_stats: Retrieve FTM responder statistics, if available.
  *	Statistics should be cumulative, currently no way to reset is provided.
