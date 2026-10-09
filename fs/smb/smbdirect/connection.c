@@ -1529,7 +1529,7 @@ void smbdirect_connection_recv_io_done(struct ib_cq *cq, struct ib_wc *wc)
 	u32 data_length;
 	u32 remaining_data_length;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS || WARN_ON_ONCE(wc->opcode != IB_WC_RECV))) {
+	if (unlikely(wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV)) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			smbdirect_log_rdma_recv(sc, SMBDIRECT_LOG_ERR,
 				"wc->status=%s (%d) wc->opcode=%d\n",
