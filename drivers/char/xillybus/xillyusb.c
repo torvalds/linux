@@ -50,6 +50,7 @@ MODULE_LICENSE("GPL v2");
 static const char xillyname[] = "xillyusb";
 
 static unsigned int fifo_buf_order;
+static DEFINE_MUTEX(fifo_buf_order_mutex);
 static struct workqueue_struct *wakeup_wq;
 
 #define USB_VENDOR_ID_XILINX		0x03fd
@@ -372,6 +373,8 @@ static int fifo_init(struct xillyfifo *fifo,
 
 	unsigned int log2_fifo_buf_size;
 
+	mutex_lock(&fifo_buf_order_mutex);
+
 retry:
 	log2_fifo_buf_size = fifo_buf_order + PAGE_SHIFT;
 
@@ -388,8 +391,10 @@ retry:
 
 	fifo->mem = kmalloc_array(fifo->bufnum, sizeof(void *), GFP_KERNEL);
 
-	if (!fifo->mem)
+	if (!fifo->mem) {
+		mutex_unlock(&fifo_buf_order_mutex);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < fifo->bufnum; i++) {
 		fifo->mem[i] = kmalloc(fifo->bufsize, GFP_KERNEL);
@@ -405,6 +410,8 @@ retry:
 	fifo->writebuf = 0;
 	spin_lock_init(&fifo->lock);
 	init_waitqueue_head(&fifo->waitq);
+
+	mutex_unlock(&fifo_buf_order_mutex);
 	return 0;
 
 memfail:
@@ -418,6 +425,7 @@ memfail:
 		fifo_buf_order--;
 		goto retry;
 	} else {
+		mutex_unlock(&fifo_buf_order_mutex);
 		return -ENOMEM;
 	}
 }
@@ -1931,6 +1939,9 @@ static int setup_channels(struct xillyusb_dev *xdev,
 	struct usb_device *udev = xdev->udev;
 	struct xillyusb_channel *chan, *new_channels;
 	int i;
+
+	/* Don't let process_bulk_in() run while we change the channels */
+	guard(mutex)(&xdev->process_in_mutex);
 
 	chan = kzalloc_objs(*chan, num_channels);
 	if (!chan)
