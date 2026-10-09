@@ -22,12 +22,11 @@ static enum {FLOATING, DIRECTED} irq_delivery;
  */
 static struct airq_iv *zpci_sbv;
 
-/*
- * interrupt bit vectors
- * FLOATING - interrupt bit vector per function
- * DIRECTED - interrupt bit vector per cpu
- */
-static struct airq_iv **zpci_ibv;
+/* FLOATING - interrupt bit vector per function */
+static struct airq_iv __rcu **zpci_ibv;
+
+/* DIRECTED - interrupt bit vector per cpu */
+static struct airq_iv **zpci_dibv;
 
 /* Modify PCI: Register floating adapter interruptions */
 static int zpci_set_airq(struct zpci_dev *zdev)
@@ -169,7 +168,7 @@ static struct irq_chip zpci_irq_chip = {
 
 static void zpci_handle_cpu_local_irq(bool rescan)
 {
-	struct airq_iv *dibv = zpci_ibv[smp_processor_id()];
+	struct airq_iv *dibv = zpci_dibv[smp_processor_id()];
 	union zpci_sic_iib iib = {{0}};
 	struct irq_domain *msi_domain;
 	irq_hw_number_t hwirq;
@@ -279,7 +278,9 @@ static void zpci_floating_irq_handler(struct airq_struct *airq,
 		}
 
 		/* Scan the adapter interrupt vector for this device. */
-		aibv = zpci_ibv[si];
+		aibv = rcu_dereference(zpci_ibv[si]);
+		if (!aibv)
+			continue;
 		for (ai = 0;;) {
 			ai = airq_iv_scan(aibv, ai, airq_iv_end(aibv));
 			if (ai == -1UL)
@@ -299,7 +300,7 @@ static int __alloc_airq(struct zpci_dev *zdev, int msi_vecs,
 {
 	if (irq_delivery == DIRECTED) {
 		/* Allocate cpu vector bits */
-		*bit = airq_iv_alloc(zpci_ibv[0], msi_vecs);
+		*bit = airq_iv_alloc(zpci_dibv[0], msi_vecs);
 		if (*bit == -1UL)
 			return -EIO;
 	} else {
@@ -320,7 +321,7 @@ static int __alloc_airq(struct zpci_dev *zdev, int msi_vecs,
 		}
 
 		/* Wire up shortcut pointer */
-		zpci_ibv[*bit] = zdev->aibv;
+		rcu_assign_pointer(zpci_ibv[*bit], zdev->aibv);
 		/* Each function has its own interrupt vector */
 		*bit = 0;
 	}
@@ -342,13 +343,16 @@ static struct airq_struct zpci_airq = {
 
 static void zpci_msi_teardown_directed(struct zpci_dev *zdev)
 {
-	airq_iv_free(zpci_ibv[0], zdev->msi_first_bit, zdev->msi_nr_irqs);
+	airq_iv_free(zpci_dibv[0], zdev->msi_first_bit, zdev->msi_nr_irqs);
 	zdev->msi_first_bit = -1U;
 	zdev->msi_nr_irqs = 0;
 }
 
 static void zpci_msi_teardown_floating(struct zpci_dev *zdev)
 {
+	rcu_assign_pointer(zpci_ibv[zdev->aisb], NULL);
+	synchronize_rcu();
+
 	airq_iv_release(zdev->aibv);
 	zdev->aibv = NULL;
 	airq_iv_free_bit(zpci_sbv, zdev->aisb);
@@ -428,9 +432,9 @@ static int zpci_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 		if (irq_delivery == DIRECTED) {
 			for_each_possible_cpu(cpu) {
-				airq_iv_set_ptr(zpci_ibv[cpu], bit + i,
+				airq_iv_set_ptr(zpci_dibv[cpu], bit + i,
 						(unsigned long)zbus->msi_parent_domain);
-				airq_iv_set_data(zpci_ibv[cpu], bit + i, hwirq + i);
+				airq_iv_set_data(zpci_dibv[cpu], bit + i, hwirq + i);
 			}
 		} else {
 			airq_iv_set_ptr(zdev->aibv, bit + i,
@@ -455,8 +459,8 @@ static void zpci_msi_clear_airq(struct irq_data *d, int i)
 
 	if (irq_delivery == DIRECTED) {
 		for_each_possible_cpu(cpu) {
-			airq_iv_set_ptr(zpci_ibv[cpu], bit + i, 0);
-			airq_iv_set_data(zpci_ibv[cpu], bit + i, 0);
+			airq_iv_set_ptr(zpci_dibv[cpu], bit + i, 0);
+			airq_iv_set_data(zpci_dibv[cpu], bit + i, 0);
 		}
 	} else {
 		airq_iv_set_ptr(zdev->aibv, bit + i, 0);
@@ -550,7 +554,7 @@ static void __init cpu_enable_directed_irq(void *unused)
 	union zpci_sic_iib iib = {{0}};
 	union zpci_sic_iib ziib = {{0}};
 
-	iib.cdiib.dibv_addr = virt_to_phys(zpci_ibv[smp_processor_id()]->vector);
+	iib.cdiib.dibv_addr = virt_to_phys(zpci_dibv[smp_processor_id()]->vector);
 
 	zpci_set_irq_ctrl(SIC_IRQ_MODE_SET_CPU, 0, &iib);
 	zpci_set_irq_ctrl(SIC_IRQ_MODE_D_SINGLE, PCI_ISC, &ziib);
@@ -570,8 +574,8 @@ static int __init zpci_directed_irq_init(void)
 	iib.diib.disb_addr = virt_to_phys(zpci_sbv->vector);
 	zpci_set_irq_ctrl(SIC_IRQ_MODE_DIRECT, 0, &iib);
 
-	zpci_ibv = kzalloc_objs(*zpci_ibv, num_possible_cpus());
-	if (!zpci_ibv)
+	zpci_dibv = kzalloc_objs(*zpci_dibv, num_possible_cpus());
+	if (!zpci_dibv)
 		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
@@ -579,12 +583,12 @@ static int __init zpci_directed_irq_init(void)
 		 * Per CPU IRQ vectors look the same but bit-allocation
 		 * is only done on the first vector.
 		 */
-		zpci_ibv[cpu] = airq_iv_create(cache_line_size() * BITS_PER_BYTE,
-					       AIRQ_IV_PTR |
-					       AIRQ_IV_DATA |
-					       AIRQ_IV_CACHELINE |
-					       (!cpu ? AIRQ_IV_ALLOC : 0), NULL);
-		if (!zpci_ibv[cpu])
+		zpci_dibv[cpu] = airq_iv_create(cache_line_size() * BITS_PER_BYTE,
+						AIRQ_IV_PTR |
+						AIRQ_IV_DATA |
+						AIRQ_IV_CACHELINE |
+						(!cpu ? AIRQ_IV_ALLOC : 0), NULL);
+		if (!zpci_dibv[cpu])
 			return -ENOMEM;
 	}
 	on_each_cpu(cpu_enable_directed_irq, NULL, 1);
@@ -660,10 +664,12 @@ void __init zpci_irq_exit(void)
 
 	if (irq_delivery == DIRECTED) {
 		for_each_possible_cpu(cpu) {
-			airq_iv_release(zpci_ibv[cpu]);
+			airq_iv_release(zpci_dibv[cpu]);
 		}
+		kfree(zpci_dibv);
+	} else {
+		kfree(zpci_ibv);
 	}
-	kfree(zpci_ibv);
 	if (zpci_sbv)
 		airq_iv_release(zpci_sbv);
 	unregister_adapter_interrupt(&zpci_airq);
