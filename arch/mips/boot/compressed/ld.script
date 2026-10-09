@@ -17,7 +17,7 @@ SECTIONS
 	/* . = VMLINUZ_LOAD_ADDRESS; */
 	.text : {
 		*(.text)
-		*(.rodata)
+		*(.rodata .rodata.*)
 	}: text
 	/* End of text section */
 
@@ -50,7 +50,9 @@ SECTIONS
 
 	/* Sections to be discarded */
 	/DISCARD/ : {
+		*(.MIPS.abiflags)
 		*(.MIPS.options)
+		*(.gnu.attributes)
 		*(.options)
 		*(.pdr)
 		*(.reginfo)
