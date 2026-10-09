@@ -1413,15 +1413,11 @@ unopen:
 	if (filp->f_mode & FMODE_WRITE)
 		chan->open_for_write = 0;
 
-	mutex_unlock(&chan->lock);
-
-	kref_put(&xdev->kref, cleanup_dev);
-
-	return rc;
-
 unmutex_fail:
-	kref_put(&xdev->kref, cleanup_dev);
 	mutex_unlock(&chan->lock);
+
+	kref_put(&xdev->kref, cleanup_dev);
+
 	return rc;
 }
 
