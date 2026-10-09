@@ -799,10 +799,8 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 		ret = fsl_lpspi_dma_transfer(controller, fsl_lpspi, t);
 	else
 		ret = fsl_lpspi_pio_transfer(fsl_lpspi, t);
-	if (ret < 0)
-		return ret;
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
