@@ -4949,6 +4949,9 @@ struct mgmt_frame_regs {
  * @start_ap: Start acting in AP mode defined by the parameters.
  * @change_beacon: Change the beacon parameters for an access point mode
  *	interface. This should reject the call when AP mode wasn't started.
+ * @update_beacon: Update the beacon and other templates like @change_beacon,
+ *	but called without the wiphy mutex held. May return -EAGAIN to have
+ *	it fall back to @change_beacon with the wiphy mutex held.
  * @stop_ap: Stop being an AP, including stopping beaconing.
  *
  * @add_station: Add a new station.
@@ -5363,6 +5366,8 @@ struct cfg80211_ops {
 	int	(*start_ap)(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_ap_settings *settings);
 	int	(*change_beacon)(struct wiphy *wiphy, struct net_device *dev,
+				 struct cfg80211_ap_update *info);
+	int	(*update_beacon)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_ap_update *info);
 	int	(*stop_ap)(struct wiphy *wiphy, struct net_device *dev,
 			   unsigned int link_id);

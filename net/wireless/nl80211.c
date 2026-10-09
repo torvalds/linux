@@ -7578,15 +7578,87 @@ out:
 	return err;
 }
 
+static int nl80211_parse_ap_update(struct cfg80211_registered_device *rdev,
+				   struct nlattr *attrs[],
+				   struct ieee80211_channel *chan,
+				   struct cfg80211_ap_update *params,
+				   struct netlink_ext_ack *extack)
+{
+	struct nlattr *attr;
+	int err;
+
+	err = nl80211_parse_beacon(rdev, attrs, &params->beacon, chan, extack);
+	if (err)
+		return err;
+
+	attr = attrs[NL80211_ATTR_FILS_DISCOVERY];
+	if (attr) {
+		err = nl80211_parse_fils_discovery(rdev, attr,
+						   &params->fils_discovery);
+		if (err)
+			return err;
+	}
+
+	attr = attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP];
+	if (attr) {
+		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr,
+							   &params->unsol_bcast_probe_resp);
+		if (err)
+			return err;
+	}
+
+	attr = attrs[NL80211_ATTR_S1G_SHORT_BEACON];
+	if (attr) {
+		err = nl80211_parse_s1g_short_beacon(rdev, attr,
+						     &params->s1g_short_beacon);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int nl80211_change_beacon(struct cfg80211_registered_device *rdev,
+				 struct net_device *dev,
+				 struct cfg80211_ap_update *params)
+{
+	struct cfg80211_beaconing_check_config beacon_check = {};
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	unsigned int link_id = params->beacon.link_id;
+	int err;
+
+	/* recheck beaconing is permitted with possibly changed power type */
+	beacon_check.iftype = wdev->iftype;
+	beacon_check.relax = true;
+	beacon_check.reg_power =
+		cfg80211_get_6ghz_power_type(params->beacon.tail,
+					     params->beacon.tail_len, 0);
+	if (!cfg80211_reg_check_beaconing(&rdev->wiphy,
+					  &wdev->links[link_id].ap.chandef,
+					  &beacon_check))
+		return -EINVAL;
+
+	err = rdev_change_beacon(rdev, dev, params);
+	if (!err)
+		wdev->links[link_id].ap.reg_power = beacon_check.reg_power;
+
+	return err;
+}
+
+static void nl80211_free_ap_update(struct cfg80211_ap_update *params)
+{
+	kfree(params->beacon.mbssid_ies);
+	kfree(params->beacon.rnr_ies);
+	kfree(params);
+}
+
 static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	struct cfg80211_beaconing_check_config beacon_check = {};
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_ap_update *params;
-	struct nlattr *attr;
 	int err;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
@@ -7603,57 +7675,190 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	if (!params)
 		return -ENOMEM;
 
-	err = nl80211_parse_beacon(rdev, info->attrs, &params->beacon,
-				   wdev->links[link_id].ap.chandef.chan,
-				   info->extack);
-	if (err)
-		goto out;
-
-	/* recheck beaconing is permitted with possibly changed power type */
-	beacon_check.iftype = wdev->iftype;
-	beacon_check.relax = true;
-	beacon_check.reg_power =
-		cfg80211_get_6ghz_power_type(params->beacon.tail,
-					     params->beacon.tail_len, 0);
-	if (!cfg80211_reg_check_beaconing(&rdev->wiphy,
-					  &wdev->links[link_id].ap.chandef,
-					  &beacon_check)) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	attr = info->attrs[NL80211_ATTR_FILS_DISCOVERY];
-	if (attr) {
-		err = nl80211_parse_fils_discovery(rdev, attr,
-						   &params->fils_discovery);
-		if (err)
-			goto out;
-	}
-
-	attr = info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP];
-	if (attr) {
-		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr,
-							   &params->unsol_bcast_probe_resp);
-		if (err)
-			goto out;
-	}
-
-	attr = info->attrs[NL80211_ATTR_S1G_SHORT_BEACON];
-	if (attr) {
-		err = nl80211_parse_s1g_short_beacon(rdev, attr,
-						     &params->s1g_short_beacon);
-		if (err)
-			goto out;
-	}
-
-	err = rdev_change_beacon(rdev, dev, params);
+	err = nl80211_parse_ap_update(rdev, info->attrs,
+				      wdev->links[link_id].ap.chandef.chan,
+				      params, info->extack);
 	if (!err)
-		wdev->links[link_id].ap.reg_power = beacon_check.reg_power;
+		err = nl80211_change_beacon(rdev, dev, params);
 
+	nl80211_free_ap_update(params);
+	return err;
+}
+
+static struct cfg80211_ap_update *
+nl80211_parse_link_update(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, struct nlattr *attrs[],
+			  struct netlink_ext_ack *extack)
+{
+	struct nlattr *link_attr = attrs[NL80211_ATTR_MLO_LINK_ID];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	unsigned int link_id = nl80211_link_id(attrs);
+	u16 valid_links = READ_ONCE(wdev->valid_links);
+	struct cfg80211_ap_update *params;
+	struct ieee80211_channel *chan;
+	int err;
+
+	/* without locks this is racy, the driver needs to check again */
+	if (valid_links ? !link_attr || !(valid_links & BIT(link_id)) :
+			  !!link_attr)
+		return ERR_PTR(-EINVAL);
+
+	if (attrs[NL80211_ATTR_FTM_RESPONDER] ||
+	    attrs[NL80211_ATTR_HE_BSS_COLOR] ||
+	    attrs[NL80211_ATTR_S1G_SHORT_BEACON]) {
+		NL_SET_ERR_MSG(extack, "cannot change configuration in update");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!attrs[NL80211_ATTR_BEACON_HEAD] ||
+	    !attrs[NL80211_ATTR_BEACON_TAIL]) {
+		NL_SET_ERR_MSG(extack, "beacon head and tail are required");
+		return ERR_PTR(-EINVAL);
+	}
+
+	chan = READ_ONCE(wdev->links[link_id].ap.chandef.chan);
+	if (!chan || !READ_ONCE(wdev->links[link_id].ap.beacon_interval))
+		return ERR_PTR(-EINVAL);
+
+	params = kzalloc_obj(*params);
+	if (!params)
+		return ERR_PTR(-ENOMEM);
+
+	err = nl80211_parse_ap_update(rdev, attrs, chan, params, extack);
+	if (err) {
+		nl80211_free_ap_update(params);
+		return ERR_PTR(err);
+	}
+
+	return params;
+}
+
+static int nl80211_update_link_beacon(struct cfg80211_registered_device *rdev,
+				      struct net_device *dev,
+				      struct cfg80211_ap_update *params)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	unsigned int link_id = params->beacon.link_id;
+
+	/* a power type change needs regulatory checks under the wiphy mutex */
+	if (cfg80211_get_6ghz_power_type(params->beacon.tail,
+					 params->beacon.tail_len, 0) !=
+	    READ_ONCE(wdev->links[link_id].ap.reg_power))
+		return -EAGAIN;
+
+	return rdev_update_beacon(rdev, dev, params);
+}
+
+static int
+nl80211_update_link_beacon_locked(struct cfg80211_registered_device *rdev,
+				  struct net_device *dev,
+				  struct cfg80211_ap_update *params)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	unsigned int link_id = params->beacon.link_id;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	if (!rdev->wiphy.registered || !wdev_running(wdev))
+		return -ENETDOWN;
+
+	if (wdev->valid_links ? !(wdev->valid_links & BIT(link_id)) : link_id)
+		return -ENOLINK;
+
+	if (!wdev->links[link_id].ap.beacon_interval)
+		return -EINVAL;
+
+	return nl80211_change_beacon(rdev, dev, params);
+}
+
+static int nl80211_update_beacon(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_ap_update *params[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	unsigned long need_lock = 0;
+	unsigned int n = 0, i;
+	struct nlattr *link;
+	u16 links = 0;
+	int rem, err = 0;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->update_beacon || !rdev->ops->change_beacon ||
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_UPDATE_BEACON))
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_MLO_LINKS]) {
+		params[0] = nl80211_parse_link_update(rdev, dev, info->attrs,
+						      info->extack);
+		if (IS_ERR(params[0]))
+			return PTR_ERR(params[0]);
+		n = 1;
+	} else {
+		struct nlattr **attrs = kzalloc_objs(*attrs, NUM_NL80211_ATTR);
+
+		if (!attrs)
+			return -ENOMEM;
+
+		nla_for_each_nested(link, info->attrs[NL80211_ATTR_MLO_LINKS],
+				    rem) {
+			struct cfg80211_ap_update *p;
+
+			err = nla_parse_nested(attrs, NL80211_ATTR_MAX, link,
+					       NULL, info->extack);
+			if (err)
+				break;
+
+			p = nl80211_parse_link_update(rdev, dev, attrs,
+						      info->extack);
+			if (IS_ERR(p)) {
+				err = PTR_ERR(p);
+				break;
+			}
+
+			/* also ensures we don't overflow params[] */
+			if (links & BIT(p->beacon.link_id)) {
+				nl80211_free_ap_update(p);
+				err = -EINVAL;
+				break;
+			}
+			links |= BIT(p->beacon.link_id);
+			params[n++] = p;
+		}
+
+		kfree(attrs);
+		if (!err && !n)
+			err = -EINVAL;
+		if (err)
+			goto out;
+	}
+
+	/* try updates without wiphy mutex first */
+	for (i = 0; i < n; i++) {
+		err = nl80211_update_link_beacon(rdev, dev, params[i]);
+		if (err == -EAGAIN)
+			__set_bit(i, &need_lock);
+		else if (err)
+			goto out;
+	}
+
+	err = 0;
+	if (need_lock) {
+		wiphy_lock(&rdev->wiphy);
+		for_each_set_bit(i, &need_lock, n) {
+			err = nl80211_update_link_beacon_locked(rdev, dev,
+								params[i]);
+			if (err)
+				break;
+		}
+		wiphy_unlock(&rdev->wiphy);
+	}
 out:
-	kfree(params->beacon.mbssid_ies);
-	kfree(params->beacon.rnr_ies);
-	kfree(params);
+	for (i = 0; i < n; i++)
+		nl80211_free_ap_update(params[i]);
 	return err;
 }
 
@@ -20926,6 +21131,13 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.doit = nl80211_nan_set_non_evac_channels,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP),
+	},
+	{
+		.cmd = NL80211_CMD_UPDATE_BEACON,
+		.doit = nl80211_update_beacon,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP |
+					 NL80211_FLAG_NO_WIPHY_MTX),
 	},
 };
 

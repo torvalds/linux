@@ -1458,6 +1458,16 @@
  *	keep their non-evacuable marking, removed channels lose it, and newly
  *	added channels are evacuable by default; issue this command again to
  *	change the non-evacuable set.
+ * @NL80211_CMD_UPDATE_BEACON: Update the beacon and other templates of an AP
+ *	interface, but only that. Same attributes as %NL80211_CMD_SET_BEACON,
+ *	%NL80211_ATTR_BEACON_HEAD and %NL80211_ATTR_BEACON_TAIL are required,
+ *	configuration changes such as %NL80211_ATTR_FTM_RESPONDER rejected.
+ *	This doesn't acquire the wiphy mutex internally, so it's faster, but
+ *	cannot update any other configuration.
+ *	For MLO a single link is set with %NL80211_ATTR_MLO_LINK_ID as usual
+ *	and multiple can be nested in %NL80211_ATTR_MLO_LINKS but then the
+ *	update isn't atomic if any failures happen.
+ *	Only supported with %NL80211_EXT_FEATURE_UPDATE_BEACON.
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1737,6 +1747,8 @@ enum nl80211_commands {
 	NL80211_CMD_STOP_PD,
 
 	NL80211_CMD_NAN_SET_NON_EVAC_CHANNELS,
+
+	NL80211_CMD_UPDATE_BEACON,
 
 	/* add new commands above here */
 
@@ -7178,6 +7190,9 @@ enum nl80211_feature_flags {
  *	offload in station mode, including Fast Transition or Opportunistic
  *	Key Caching.
  *
+ * @NL80211_EXT_FEATURE_UPDATE_BEACON: Driver supports
+ *	%NL80211_CMD_UPDATE_BEACON.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -7261,6 +7276,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SET_KEY_LTF_SEED,
 	NL80211_EXT_FEATURE_PROBE_AP,
 	NL80211_EXT_FEATURE_FAST_ROAM_OFFLOAD,
+	NL80211_EXT_FEATURE_UPDATE_BEACON,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
