@@ -674,6 +674,37 @@ struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id)
 	return sess;
 }
 
+/* The caller holds a session reference and must put each returned connection. */
+unsigned int ksmbd_session_get_channels(struct ksmbd_session *sess,
+					struct ksmbd_conn **conns,
+					unsigned int max_conns)
+{
+	struct channel *chann;
+	unsigned long index;
+	unsigned int nr_conns = 0;
+
+	/*
+	 * Channel connections are borrowed. Unregister can leave the channel
+	 * list in a pinned session after removing it from the registry, so
+	 * chann_lock alone does not keep those connections alive. Only collect
+	 * registered sessions, excluding both unregister and connection cleanup
+	 * until the connection references have been taken.
+	 */
+	down_read(&sessions_table_lock);
+	if (hlist_unhashed(&sess->hlist))
+		goto out;
+	down_read(&sess->chann_lock);
+	xa_for_each(&sess->ksmbd_chann_list, index, chann) {
+		if (nr_conns == max_conns)
+			break;
+		conns[nr_conns++] = ksmbd_conn_get(chann->conn);
+	}
+	up_read(&sess->chann_lock);
+out:
+	up_read(&sessions_table_lock);
+	return nr_conns;
+}
+
 struct ksmbd_session *ksmbd_session_lookup_all_states(struct ksmbd_conn *conn,
 						      unsigned long long id)
 {

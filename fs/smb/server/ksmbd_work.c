@@ -16,6 +16,7 @@
 
 static struct kmem_cache *work_cache;
 static struct workqueue_struct *ksmbd_wq;
+static struct workqueue_struct *ksmbd_break_wq;
 
 static int ksmbd_reserve_iov(struct ksmbd_work *work, int need_iov_cnt)
 {
@@ -110,6 +111,12 @@ int ksmbd_workqueue_init(void)
 	ksmbd_wq = alloc_workqueue("ksmbd-io", WQ_PERCPU, 0);
 	if (!ksmbd_wq)
 		return -ENOMEM;
+	ksmbd_break_wq = alloc_workqueue("ksmbd-break", WQ_UNBOUND, 0);
+	if (!ksmbd_break_wq) {
+		destroy_workqueue(ksmbd_wq);
+		ksmbd_wq = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -117,11 +124,23 @@ void ksmbd_workqueue_destroy(void)
 {
 	destroy_workqueue(ksmbd_wq);
 	ksmbd_wq = NULL;
+	destroy_workqueue(ksmbd_break_wq);
+	ksmbd_break_wq = NULL;
 }
 
 bool ksmbd_queue_work(struct ksmbd_work *work)
 {
 	return queue_work(ksmbd_wq, &work->work);
+}
+
+void ksmbd_queue_io_work(struct work_struct *work)
+{
+	queue_work(ksmbd_wq, work);
+}
+
+void ksmbd_queue_break_work(struct work_struct *work)
+{
+	queue_work(ksmbd_break_wq, work);
 }
 
 static inline void __ksmbd_iov_pin(struct ksmbd_work *work, void *ib,

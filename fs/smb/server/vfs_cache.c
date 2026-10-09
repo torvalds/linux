@@ -1767,6 +1767,7 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 		ksmbd_conn_put(op->conn);
 		op->conn = NULL;
 		op->sess = NULL;
+		op->session_id = 0;
 	}
 	up_write(&ci->m_lock);
 
@@ -1953,6 +1954,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 			continue;
 		op->conn = ksmbd_conn_get(fp->conn);
 		op->sess = work->sess;
+		op->session_id = work->sess->id;
 	}
 	up_write(&ci->m_lock);
 

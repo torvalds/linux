@@ -94,6 +94,9 @@ struct ksmbd_session *ksmbd_smb2_session_create(void);
 void ksmbd_session_destroy(struct ksmbd_session *sess);
 
 struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id);
+unsigned int ksmbd_session_get_channels(struct ksmbd_session *sess,
+					struct ksmbd_conn **conns,
+					unsigned int max_conns);
 struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 					   unsigned long long id);
 bool is_ksmbd_session_in_connection(struct ksmbd_conn *conn,

@@ -62,6 +62,7 @@ struct lease {
 struct oplock_info {
 	struct ksmbd_conn	*conn;
 	struct ksmbd_session	*sess;
+	u64			session_id;
 	struct ksmbd_work	*work;
 	struct ksmbd_file	*o_fp;
 	int                     level;
@@ -80,19 +81,6 @@ struct oplock_info {
 	wait_queue_head_t	oplock_q; /* Other server threads */
 	wait_queue_head_t	oplock_brk; /* oplock breaking wait */
 	struct rcu_head		rcu;
-};
-
-struct lease_break_info {
-	__le32			curr_state;
-	__le32			new_state;
-	__le16			epoch;
-	char			lease_key[SMB2_LEASE_KEY_SIZE];
-};
-
-struct oplock_break_info {
-	int level;
-	int open_trunc;
-	int fid;
 };
 
 int smb_grant_oplock(struct ksmbd_work *work, int req_op_level,
