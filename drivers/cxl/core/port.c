@@ -1106,10 +1106,39 @@ static void cond_cxl_root_unlock(struct cxl_port *port)
 		device_unlock(&port->dev);
 }
 
+static int clear_decoder_target(struct device *dev, void *data)
+{
+	struct cxl_dport *dport = data;
+	struct cxl_switch_decoder *cxlsd;
+
+	if (!is_switch_decoder(dev))
+		return 0;
+
+	cxlsd = to_cxl_switch_decoder(dev);
+	guard(rwsem_write)(&cxl_rwsem.region);
+
+	/*
+	 * A dport can occupy more than one position of an interleave, so
+	 * scan the whole target list rather than stopping at the first hit.
+	 */
+	for (int i = 0; i < cxlsd->nr_targets; i++) {
+		if (cxlsd->target[i] != dport)
+			continue;
+		cxlsd->target[i] = NULL;
+		dev_dbg(dev, "dport%d removed from target list, index %d\n",
+			dport->port_id, i);
+	}
+
+	return 0;
+}
+
 static void cxl_dport_remove(void *data)
 {
 	struct cxl_dport *dport = data;
 	struct cxl_port *port = dport->port;
+
+	/* counterpart of cxl_port_update_decoder_targets() */
+	device_for_each_child(&port->dev, dport, clear_decoder_target);
 
 	port->nr_dports--;
 	xa_erase(&port->dports, (unsigned long) dport->dport_dev);
@@ -1337,7 +1366,7 @@ static int add_ep(struct cxl_ep *new)
 {
 	struct cxl_port *port = new->dport->port;
 
-	guard(device)(&port->dev);
+	device_lock_assert(&port->dev);
 	if (port->dead)
 		return -ENXIO;
 
@@ -1353,6 +1382,11 @@ static int add_ep(struct cxl_ep *new)
  * Intermediate CXL ports are scanned based on the arrival of endpoints.
  * When those endpoints depart the port can be destroyed once all
  * endpoints that care about that port have been removed.
+ *
+ * Context: Caller must hold the device lock of @dport->port, which pins
+ *          @dport, across the lookup of @dport and this call. @dport->port
+ *          is never the CXL root port, whose dports are pinned by its
+ *          uport_dev instead.
  */
 static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 {
@@ -1375,13 +1409,11 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 struct cxl_find_port_ctx {
 	const struct device *dport_dev;
 	const struct cxl_port *parent_port;
-	struct cxl_dport **dport;
 };
 
 static int match_port_by_dport(struct device *dev, const void *data)
 {
 	const struct cxl_find_port_ctx *ctx = data;
-	struct cxl_dport *dport;
 	struct cxl_port *port;
 
 	if (!is_cxl_port(dev))
@@ -1390,10 +1422,7 @@ static int match_port_by_dport(struct device *dev, const void *data)
 		return 0;
 
 	port = to_cxl_port(dev);
-	dport = cxl_find_dport_by_dev(port, ctx->dport_dev);
-	if (ctx->dport)
-		*ctx->dport = dport;
-	return dport != NULL;
+	return !!cxl_find_dport_by_dev(port, ctx->dport_dev);
 }
 
 static struct cxl_port *__find_cxl_port_by_dport(struct cxl_find_port_ctx *ctx)
@@ -1412,22 +1441,21 @@ static struct cxl_port *__find_cxl_port_by_dport(struct cxl_find_port_ctx *ctx)
 /**
  * find_cxl_port_by_dport - find a cxl_port by one of its targets
  * @dport_dev: device representing the dport target
- * @dport: optional output of the 'struct cxl_dport' companion of the @dport_dev
  *
  * Return a 'struct cxl_port' with an elevated reference if found. Use
  * __free(put_cxl_port) to release.
+ *
+ * The port reference does not pin the dport, which is a devm allocation of
+ * cxl_port_dport_host(). Use cxl_pci_find_dport() or cxl_mem_find_dport()
+ * under that device's lock to get it.
  */
-static struct cxl_port *find_cxl_port_by_dport(struct device *dport_dev,
-					       struct cxl_dport **dport)
+static struct cxl_port *find_cxl_port_by_dport(struct device *dport_dev)
 {
 	struct cxl_find_port_ctx ctx = {
 		.dport_dev = dport_dev,
-		.dport = dport,
 	};
-	struct cxl_port *port;
 
-	port = __find_cxl_port_by_dport(&ctx);
-	return port;
+	return __find_cxl_port_by_dport(&ctx);
 }
 
 /*
@@ -1690,13 +1718,15 @@ static struct cxl_dport *probe_dport(struct cxl_port *port,
 	return drv->add_dport(port, dport_dev);
 }
 
-static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
-					      struct cxl_port *parent_port,
-					      struct cxl_dport *parent_dport,
-					      struct device *uport_dev,
-					      struct device *dport_dev)
+static int devm_cxl_create_port(struct device *ep_dev,
+				struct cxl_port *parent_port,
+				struct cxl_dport *parent_dport,
+				struct device *uport_dev,
+				struct device *dport_dev)
 {
 	resource_size_t component_reg_phys;
+	struct cxl_dport *dport;
+	int rc;
 
 	device_lock_assert(&parent_port->dev);
 	if (!parent_port->dev.driver) {
@@ -1713,7 +1743,7 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		port = devm_cxl_add_port(&parent_port->dev, uport_dev,
 					 component_reg_phys, parent_dport);
 		if (IS_ERR(port))
-			return ERR_CAST(port);
+			return PTR_ERR(port);
 
 		/*
 		 * retry to make sure a port is found. a port device
@@ -1721,7 +1751,7 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		 */
 		port = find_cxl_port_by_uport(uport_dev);
 		if (!port)
-			return ERR_PTR(-ENODEV);
+			return -ENODEV;
 
 		dev_dbg(ep_dev, "created port %s:%s\n",
 			dev_name(&port->dev), dev_name(port->uport_dev));
@@ -1730,11 +1760,25 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 		 * Port was created before right before this function is
 		 * called. Signal the caller to deal with it.
 		 */
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 
+	/* @dport is only valid while @port's lock is held */
 	guard(device)(&port->dev);
-	return probe_dport(port, dport_dev);
+	dport = probe_dport(port, dport_dev);
+	if (IS_ERR(dport))
+		return PTR_ERR(dport);
+
+	rc = cxl_add_ep(dport, ep_dev);
+	if (rc == -EBUSY) {
+		/*
+		 * "can't" happen, but this error code means
+		 * something to the caller, so translate it.
+		 */
+		rc = -ENXIO;
+	}
+
+	return rc;
 }
 
 static int add_port_attach_ep(struct cxl_memdev *cxlmd,
@@ -1742,7 +1786,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 			      struct device *dport_dev)
 {
 	struct device *dparent = grandparent(dport_dev);
-	struct cxl_dport *dport, *parent_dport;
+	struct cxl_dport *parent_dport;
 	int rc;
 
 	if (is_cxl_host_bridge(dparent)) {
@@ -1771,33 +1815,23 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 				return PTR_ERR(parent_dport);
 		}
 
-		dport = devm_cxl_create_port(&cxlmd->dev, parent_port,
-					     parent_dport, uport_dev,
-					     dport_dev);
-		if (IS_ERR(dport)) {
-			/* Port or dport already exists, restart iteration */
-			if (PTR_ERR(dport) == -EAGAIN || PTR_ERR(dport) == -EBUSY)
-				return 0;
-			return PTR_ERR(dport);
-		}
+		rc = devm_cxl_create_port(&cxlmd->dev, parent_port,
+					  parent_dport, uport_dev, dport_dev);
 	}
 
-	rc = cxl_add_ep(dport, &cxlmd->dev);
-	if (rc == -EBUSY) {
-		/*
-		 * "can't" happen, but this error code means
-		 * something to the caller, so translate it.
-		 */
-		rc = -ENXIO;
-	}
+	/* Port or dport already exists, restart iteration */
+	if (rc == -EAGAIN || rc == -EBUSY)
+		return 0;
 
 	return rc;
 }
 
-static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
-					   struct device *dport_dev)
+static int find_or_add_dport_attach_ep(struct cxl_memdev *cxlmd,
+				       struct cxl_port *port,
+				       struct device *dport_dev)
 {
 	struct cxl_dport *dport;
+	int rc;
 
 	/*
 	 * The port is already visible in CXL hierarchy, but it may still
@@ -1813,13 +1847,28 @@ static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
 	if (!dport) {
 		dport = probe_dport(port, dport_dev);
 		if (IS_ERR(dport))
-			return dport;
+			return PTR_ERR(dport);
 
 		/* New dport added, restart iteration */
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 
-	return dport;
+	/* @dport is only valid while @port's lock is held */
+	rc = cxl_add_ep(dport, &cxlmd->dev);
+
+	/*
+	 * If the endpoint already exists in the port's list,
+	 * that's ok, it was added on a previous pass.
+	 * Otherwise, retry in add_port_attach_ep() after taking
+	 * the parent_port lock as the current port may be being
+	 * reaped.
+	 */
+	if (rc && rc != -EBUSY)
+		return rc;
+
+	cxl_gpf_port_setup(dport);
+
+	return 0;
 }
 
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
@@ -1848,7 +1897,6 @@ retry:
 	for (iter = dev; iter; iter = grandparent(iter)) {
 		struct device *dport_dev = grandparent(iter);
 		struct device *uport_dev;
-		struct cxl_dport *dport;
 
 		if (is_cxl_host_bridge(dport_dev))
 			return 0;
@@ -1875,26 +1923,12 @@ retry:
 			 * RP port enumerated by cxl_acpi without dport will
 			 * have the dport added here.
 			 */
-			dport = find_or_add_dport(port, dport_dev);
-			if (IS_ERR(dport)) {
-				if (PTR_ERR(dport) == -EAGAIN)
-					goto retry;
-				return PTR_ERR(dport);
-			}
-
-			rc = cxl_add_ep(dport, &cxlmd->dev);
-
-			/*
-			 * If the endpoint already exists in the port's list,
-			 * that's ok, it was added on a previous pass.
-			 * Otherwise, retry in add_port_attach_ep() after taking
-			 * the parent_port lock as the current port may be being
-			 * reaped.
-			 */
-			if (rc && rc != -EBUSY)
+			rc = find_or_add_dport_attach_ep(cxlmd, port,
+							 dport_dev);
+			if (rc == -EAGAIN)
+				goto retry;
+			if (rc)
 				return rc;
-
-			cxl_gpf_port_setup(dport);
 
 			/* Any more ports to add between this one and the root? */
 			if (!dev_is_cxl_root_child(&port->dev))
@@ -1918,19 +1952,49 @@ retry:
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_ports, "CXL");
 
-struct cxl_port *cxl_pci_find_port(struct pci_dev *pdev,
-				   struct cxl_dport **dport)
+struct cxl_port *cxl_pci_find_port(struct pci_dev *pdev)
 {
-	return find_cxl_port_by_dport(pdev->dev.parent, dport);
+	return find_cxl_port_by_dport(pdev->dev.parent);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_pci_find_port, "CXL");
 
-struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
-				   struct cxl_dport **dport)
+struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd)
 {
-	return find_cxl_port_by_dport(grandparent(&cxlmd->dev), dport);
+	return find_cxl_port_by_dport(grandparent(&cxlmd->dev));
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, "CXL");
+
+/**
+ * cxl_pci_find_dport - find the dport of @port that @pdev is below
+ * @pdev: PCI device below the dport
+ * @port: port to search, typically from cxl_pci_find_port()
+ *
+ * Context: Caller must hold the cxl_port_dport_host() lock of @port, and
+ *	    must not use the result after dropping it.
+ */
+struct cxl_dport *cxl_pci_find_dport(struct pci_dev *pdev,
+				     struct cxl_port *port)
+{
+	device_lock_assert(cxl_port_dport_host(port));
+	return cxl_find_dport_by_dev(port, pdev->dev.parent);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_pci_find_dport, "CXL");
+
+/**
+ * cxl_mem_find_dport - find the dport of @port that @cxlmd is below
+ * @cxlmd: memdev below the dport
+ * @port: port to search, typically from cxl_mem_find_port()
+ *
+ * Context: Caller must hold the cxl_port_dport_host() lock of @port, and
+ *	    must not use the result after dropping it.
+ */
+struct cxl_dport *cxl_mem_find_dport(struct cxl_memdev *cxlmd,
+				     struct cxl_port *port)
+{
+	device_lock_assert(cxl_port_dport_host(port));
+	return cxl_find_dport_by_dev(port, grandparent(&cxlmd->dev));
+}
+EXPORT_SYMBOL_NS_GPL(cxl_mem_find_dport, "CXL");
 
 static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 				    struct cxl_port *port)
@@ -2339,6 +2403,9 @@ EXPORT_SYMBOL_NS_GPL(schedule_cxl_memdev_detach, "CXL");
 
 static void add_latency(struct access_coordinate *c, long latency)
 {
+	/* Convert link latency from picoseconds to nanoseconds. */
+	latency = DIV_ROUND_UP(latency, 1000);
+
 	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
 		c[i].write_latency += latency;
 		c[i].read_latency += latency;

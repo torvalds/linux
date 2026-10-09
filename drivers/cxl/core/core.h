@@ -178,11 +178,7 @@ static inline struct device *port_to_host(struct cxl_port *port)
 
 static inline struct device *dport_to_host(struct cxl_dport *dport)
 {
-	struct cxl_port *port = dport->port;
-
-	if (is_cxl_root(port))
-		return port->uport_dev;
-	return &port->dev;
+	return cxl_port_dport_host(dport->port);
 }
 #ifdef CONFIG_CXL_RAS
 void cxl_ras_init(void);
