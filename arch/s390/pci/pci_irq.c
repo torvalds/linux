@@ -313,8 +313,11 @@ static int __alloc_airq(struct zpci_dev *zdev, int msi_vecs,
 		zdev->aibv = airq_iv_create(msi_vecs,
 					    AIRQ_IV_PTR | AIRQ_IV_DATA | AIRQ_IV_BITLOCK,
 					    NULL);
-		if (!zdev->aibv)
+		if (!zdev->aibv) {
+			airq_iv_free_bit(zpci_sbv, *bit);
+			zdev->aisb = -1UL;
 			return -ENOMEM;
+		}
 
 		/* Wire up shortcut pointer */
 		zpci_ibv[*bit] = zdev->aibv;
