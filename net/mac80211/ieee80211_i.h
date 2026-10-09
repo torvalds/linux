@@ -1103,6 +1103,8 @@ struct ieee80211_link_data_ap {
 	struct unsol_bcast_probe_resp_data __rcu *unsol_bcast_probe_resp;
 	struct s1g_short_beacon_data __rcu *s1g_short_beacon;
 
+	bool bss_update_in_progress;
+
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
 };

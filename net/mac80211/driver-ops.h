@@ -1107,6 +1107,22 @@ static inline void drv_stop_ap(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_update_beacon(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_bss_conf *link_conf,
+				     u64 changed)
+{
+	/* can race with HW restart, so don't warn */
+	if (!(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+		return;
+
+	trace_drv_update_beacon(local, sdata, link_conf, changed);
+	if (local->ops->update_beacon)
+		local->ops->update_beacon(&local->hw, &sdata->vif, link_conf,
+					  changed);
+	trace_drv_return_void(local);
+}
+
 static inline void
 drv_reconfig_complete(struct ieee80211_local *local,
 		      enum ieee80211_reconfig_type reconfig_type)
