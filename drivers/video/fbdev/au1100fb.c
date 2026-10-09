@@ -424,15 +424,15 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 
 	switch (blank_mode) {
 
-	case VESA_NO_BLANKING:
+	case FB_BLANK_UNBLANK:
 		/* Turn on panel */
 		fbdev->regs->lcd_control |= LCD_CONTROL_GO;
 		wmb(); /* drain writebuffer */
 		break;
-
-	case VESA_VSYNC_SUSPEND:
-	case VESA_HSYNC_SUSPEND:
-	case VESA_POWERDOWN:
+	case FB_BLANK_NORMAL:
+	case FB_BLANK_VSYNC_SUSPEND:
+	case FB_BLANK_HSYNC_SUSPEND:
+	case FB_BLANK_POWERDOWN:
 		/* Turn off panel */
 		fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
 		wmb(); /* drain writebuffer */
@@ -539,7 +539,7 @@ static int au1100fb_setmode(struct au1100fb_device *fbdev)
 	/* Resume controller */
 	fbdev->regs->lcd_control |= LCD_CONTROL_GO;
 	mdelay(10);
-	au1100fb_fb_blank(VESA_NO_BLANKING, info);
+	au1100fb_fb_blank(FB_BLANK_UNBLANK, info);
 
 	return 0;
 }
@@ -856,7 +856,7 @@ static void au1100fb_drv_remove(struct platform_device *dev)
 	fbdev = platform_get_drvdata(dev);
 
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
-	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
+	au1100fb_fb_blank(FB_BLANK_POWERDOWN, &fbdev->info);
 #endif
 	fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
 
@@ -880,7 +880,7 @@ static int au1100fb_drv_suspend(struct platform_device *dev, pm_message_t state)
 		return 0;
 
 	/* Blank the LCD */
-	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
+	au1100fb_fb_blank(FB_BLANK_POWERDOWN, &fbdev->info);
 
 	clk_disable(fbdev->lcdclk);
 
@@ -904,7 +904,7 @@ static int au1100fb_drv_resume(struct platform_device *dev)
 		return ret;
 
 	/* Unblank the LCD */
-	au1100fb_fb_blank(VESA_NO_BLANKING, &fbdev->info);
+	au1100fb_fb_blank(FB_BLANK_UNBLANK, &fbdev->info);
 
 	return 0;
 }
