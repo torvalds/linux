@@ -1497,6 +1497,14 @@ static void ext4_destroy_inode(struct inode *inode)
 			 "Inode %llu (%p): i_reserved_data_blocks (%u) not cleared!",
 			 inode->i_ino, EXT4_I(inode),
 			 EXT4_I(inode)->i_reserved_data_blocks);
+
+	if (!(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ERROR_FS) &&
+	    !ext4_emergency_state(inode->i_sb) &&
+	    WARN_ON_ONCE(ext4_test_inode_state(inode,
+				EXT4_STATE_DISKSIZE_GROW_PENDING)))
+		ext4_msg(inode->i_sb, KERN_ERR,
+			 "Inode %llu (%p): EXT4_STATE_DISKSIZE_GROW_PENDING not cleared!",
+			 inode->i_ino, EXT4_I(inode));
 }
 
 static void ext4_shutdown(struct super_block *sb)

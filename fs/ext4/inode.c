@@ -266,6 +266,8 @@ void ext4_evict_inode(struct inode *inode)
 
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
+	if (ext4_inode_buffered_iomap(inode))
+		ext4_iomap_clear_disksize_pending(inode);
 	truncate_inode_pages_final(&inode->i_data);
 
 	/*
@@ -4350,8 +4352,17 @@ static void ext4_iomap_discard_folio(struct folio *folio, loff_t pos)
 {
 	struct inode *inode = folio->mapping->host;
 	loff_t length = folio_pos(folio) + folio_size(folio) - pos;
+	loff_t pstart, plen;
 
 	ext4_iomap_punch_delalloc(inode, pos, length, NULL);
+
+	/*
+	 * Clear the disksize-grow-pending state if the zeroed EOF block
+	 * fails to write back and is discarded.
+	 */
+	plen = ext4_iomap_get_disksize_pending_range(inode, &pstart);
+	if (plen && pos <= pstart && folio_next_pos(folio) >= pstart + plen)
+		ext4_iomap_clear_disksize_pending(inode);
 }
 
 static ssize_t ext4_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
@@ -6761,7 +6772,18 @@ static int ext4_truncate_down(struct inode *inode, loff_t oldsize,
 	start_lblk = newsize > 0 ? (newsize - 1) >> inode->i_blkbits : 0;
 	ext4_fc_track_range(handle, inode, start_lblk, EXT_MAX_BLOCKS - 1);
 
-	ext4_set_inode_size(inode, newsize);
+	down_write(&EXT4_I(inode)->i_data_sem);
+	/*
+	 * Truncate the zeroed EOF block invalidates the pending disksize
+	 * update, so clear the disksize-grow-pending state.
+	 */
+	if (ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING) &&
+	    (newsize <= EXT4_I(inode)->i_disksize))
+		ext4_iomap_clear_disksize_pending(inode);
+
+	i_size_write(inode, newsize);
+	__ext4_set_i_disksize(inode, newsize);
+	up_write(&EXT4_I(inode)->i_data_sem);
 
 	ret = ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
