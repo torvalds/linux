@@ -814,6 +814,124 @@ int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	return ieee80211_cancel_roc(local, cookie, false);
 }
 
+static bool
+ieee80211_mgmt_tx_need_offchan(struct ieee80211_sub_if_data *sdata,
+			       struct cfg80211_mgmt_tx_params *params,
+			       const struct ieee80211_mgmt *mgmt,
+			       bool mlo_sta, int *link_id)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf = NULL;
+	int i;
+
+	guard(rcu)();
+
+	/* Check all the links first */
+	for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
+		struct ieee80211_bss_conf *conf;
+
+		conf = rcu_dereference(sdata->vif.link_conf[i]);
+		if (!conf)
+			continue;
+
+		chanctx_conf = rcu_dereference(conf->chanctx_conf);
+		if (!chanctx_conf)
+			continue;
+
+		if (mlo_sta && params->chan == chanctx_conf->def.chan &&
+		    ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
+			*link_id = i;
+			break;
+		}
+
+		if (ether_addr_equal(conf->addr, mgmt->sa)) {
+			/* If userspace requested Tx on a specific link
+			 * use the same link id if the link bss is matching
+			 * the requested chan.
+			 */
+			if (sdata->vif.valid_links &&
+			    params->link_id >= 0 && params->link_id == i &&
+			    params->chan == chanctx_conf->def.chan)
+				*link_id = i;
+
+			break;
+		}
+
+		chanctx_conf = NULL;
+	}
+
+	if (!chanctx_conf)
+		return true;
+
+	return params->chan && params->chan != chanctx_conf->def.chan;
+}
+
+static struct sk_buff *
+ieee80211_mgmt_tx_skb(struct ieee80211_sub_if_data *sdata,
+		      struct cfg80211_mgmt_tx_params *params,
+		      u64 cookie, gfp_t gfp)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	u32 flags;
+	u8 *data;
+
+	if (params->dont_wait_for_ack)
+		flags = IEEE80211_TX_CTL_NO_ACK;
+	else
+		flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
+			IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	if (params->no_cck)
+		flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + params->len);
+	if (!skb)
+		return NULL;
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	data = skb_put_data(skb, params->buf, params->len);
+
+	/* Update CSA counters */
+	if (sdata->vif.bss_conf.csa_active &&
+	    (sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
+	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
+	    params->n_csa_offsets) {
+		int i;
+		struct beacon_data *beacon = NULL;
+
+		rcu_read_lock();
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP)
+			beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
+		else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+			beacon = rcu_dereference(sdata->u.ibss.presp);
+		else if (ieee80211_vif_is_mesh(&sdata->vif))
+			beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+		if (beacon)
+			for (i = 0; i < params->n_csa_offsets; i++)
+				data[params->csa_offsets[i]] =
+					beacon->cntdwn_current_counter;
+
+		rcu_read_unlock();
+	}
+
+	IEEE80211_SKB_CB(skb)->flags = flags;
+	IEEE80211_SKB_CB(skb)->control.flags |= IEEE80211_TX_CTRL_DONT_USE_RATE_MASK;
+
+	skb->dev = sdata->dev;
+
+	/* make a copy to preserve the frame contents in case of encryption */
+	if (!params->dont_wait_for_ack &&
+	    ieee80211_attach_ack_skb(local, skb, &cookie, gfp)) {
+		kfree_skb(skb);
+		return NULL;
+	}
+
+	return skb;
+}
+
 int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		      struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
@@ -825,20 +943,9 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	bool need_offchan = false;
 	bool mlo_sta = false;
 	int link_id = -1;
-	u32 flags;
 	int ret;
-	u8 *data;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
-
-	if (params->dont_wait_for_ack)
-		flags = IEEE80211_TX_CTL_NO_ACK;
-	else
-		flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
-			IEEE80211_TX_CTL_REQ_TX_STATUS;
-
-	if (params->no_cck)
-		flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_ADHOC:
@@ -927,52 +1034,9 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		   sdata->vif.type == NL80211_IFTYPE_NAN_DATA) {
 		/* Frames can be sent during NAN schedule */
 	} else if (!need_offchan) {
-		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
-		int i;
-
-		rcu_read_lock();
-		/* Check all the links first */
-		for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
-			struct ieee80211_bss_conf *conf;
-
-			conf = rcu_dereference(sdata->vif.link_conf[i]);
-			if (!conf)
-				continue;
-
-			chanctx_conf = rcu_dereference(conf->chanctx_conf);
-			if (!chanctx_conf)
-				continue;
-
-			if (mlo_sta && params->chan == chanctx_conf->def.chan &&
-			    ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
-				link_id = i;
-				break;
-			}
-
-			if (ether_addr_equal(conf->addr, mgmt->sa)) {
-				/* If userspace requested Tx on a specific link
-				 * use the same link id if the link bss is matching
-				 * the requested chan.
-				 */
-				if (sdata->vif.valid_links &&
-				    params->link_id >= 0 && params->link_id == i &&
-				    params->chan == chanctx_conf->def.chan)
-					link_id = i;
-
-				break;
-			}
-
-			chanctx_conf = NULL;
-		}
-
-		if (chanctx_conf) {
-			need_offchan = params->chan &&
-				       (params->chan !=
-					chanctx_conf->def.chan);
-		} else {
-			need_offchan = true;
-		}
-		rcu_read_unlock();
+		need_offchan = ieee80211_mgmt_tx_need_offchan(sdata, params,
+							      mgmt, mlo_sta,
+							      &link_id);
 	}
 
 	if (need_offchan && !params->offchan) {
@@ -980,55 +1044,10 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		goto out_unlock;
 	}
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + params->len);
+	skb = ieee80211_mgmt_tx_skb(sdata, params, cookie, GFP_KERNEL);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out_unlock;
-	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	data = skb_put_data(skb, params->buf, params->len);
-
-	/* Update CSA counters */
-	if (sdata->vif.bss_conf.csa_active &&
-	    (sdata->vif.type == NL80211_IFTYPE_AP ||
-	     sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
-	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
-	    params->n_csa_offsets) {
-		int i;
-		struct beacon_data *beacon = NULL;
-
-		rcu_read_lock();
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP)
-			beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
-		else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-			beacon = rcu_dereference(sdata->u.ibss.presp);
-		else if (ieee80211_vif_is_mesh(&sdata->vif))
-			beacon = rcu_dereference(sdata->u.mesh.beacon);
-
-		if (beacon)
-			for (i = 0; i < params->n_csa_offsets; i++)
-				data[params->csa_offsets[i]] =
-					beacon->cntdwn_current_counter;
-
-		rcu_read_unlock();
-	}
-
-	IEEE80211_SKB_CB(skb)->flags = flags;
-	IEEE80211_SKB_CB(skb)->control.flags |= IEEE80211_TX_CTRL_DONT_USE_RATE_MASK;
-
-	skb->dev = sdata->dev;
-
-	if (!params->dont_wait_for_ack) {
-		/* make a copy to preserve the frame contents
-		 * in case of encryption.
-		 */
-		ret = ieee80211_attach_ack_skb(local, skb, &cookie, GFP_KERNEL);
-		if (ret) {
-			kfree_skb(skb);
-			goto out_unlock;
-		}
 	}
 
 	if (!need_offchan) {
