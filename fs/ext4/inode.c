@@ -4372,7 +4372,10 @@ static int ext4_iomap_writeback_submit(struct iomap_writepage_ctx *wpc,
 				       int error)
 {
 	struct iomap_ioend *ioend = wpc->wb_ctx;
-	struct ext4_inode_info *ei = EXT4_I(ioend->io_inode);
+	struct inode *inode = ioend->io_inode;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	unsigned int blocksize = i_blocksize(inode);
+	loff_t pstart, plen;
 
 	/*
 	 * After I/O completion, a worker needs to be scheduled when:
@@ -4384,6 +4387,21 @@ static int ext4_iomap_writeback_submit(struct iomap_writepage_ctx *wpc,
 	    (ioend->io_offset + ioend->io_size > READ_ONCE(ei->i_disksize)) ||
 	    test_opt(ioend->io_inode->i_sb, DATA_ERR_ABORT))
 		ioend->io_bio.bi_end_io = ext4_iomap_end_bio;
+
+	/*
+	 * Mark the I/O as DISKSIZE_GROW_IO by setting io_private to
+	 * EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO if it covers the pending range.
+	 * Such I/O will allow or trigger i_disksize advancement in the
+	 * ioend worker.
+	 */
+	plen = ext4_iomap_get_disksize_pending_range(inode, &pstart);
+	if (plen &&
+	    round_down(ioend->io_offset, blocksize) <= pstart &&
+	    round_up(ioend->io_offset + ioend->io_size, blocksize) >=
+			pstart + plen) {
+		ioend->io_bio.bi_end_io = ext4_iomap_end_bio;
+		ioend->io_private = (void *)EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO;
+	}
 
 	/*
 	 * ext4_iomap_end_bio() always defers endio processing, disable
@@ -4404,6 +4422,36 @@ static const struct iomap_writeback_ops ext4_writeback_ops = {
 	.writeback_submit = ext4_iomap_writeback_submit,
 };
 
+/*
+ * If the current writeback range begins after the pending zeroed EOF
+ * block range which straddles i_disksize, issue a separate writeback to
+ * flush it first, so as to avoid prolonged waiting.
+ */
+static void ext4_iomap_wb_submit_zeroed_eof(struct inode *inode,
+					    struct writeback_control *wbc)
+{
+	struct address_space *mapping = inode->i_mapping;
+	loff_t pstart, plen, range_start;
+
+	if (wbc->range_cyclic)
+		range_start = (loff_t)mapping->writeback_index << PAGE_SHIFT;
+	else
+		range_start = wbc->range_start;
+
+	plen = ext4_iomap_get_disksize_pending_range(inode, &pstart);
+	if (!plen)
+		return;
+	if (round_down(range_start, mapping_min_folio_nrbytes(mapping)) <
+	    pstart + plen)
+		return;
+
+	/* Keep the caller's sync mode to avoid stalling the background flusher. */
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		filemap_fdatawrite_range(mapping, pstart, pstart + plen - 1);
+	else
+		filemap_flush_range(mapping, pstart, pstart + plen - 1);
+}
+
 static int ext4_iomap_writepages(struct address_space *mapping,
 				 struct writeback_control *wbc)
 {
@@ -4420,6 +4468,12 @@ static int ext4_iomap_writepages(struct address_space *mapping,
 	ret = ext4_emergency_state(sb);
 	if (unlikely(ret))
 		return ret;
+
+	/*
+	 * Submit the pending zeroed EOF block range if the entire
+	 * writeback range lies beyond it.
+	 */
+	ext4_iomap_wb_submit_zeroed_eof(inode, wbc);
 
 	alloc_ctx = ext4_writepages_down_read(sb);
 	trace_ext4_writepages(inode, wbc);
