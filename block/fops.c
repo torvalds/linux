@@ -321,9 +321,6 @@ static void blkdev_bio_end_io_async(struct bio *bio)
 		ret = blk_status_to_errno(bio->bi_status);
 	}
 
-	if (bio_integrity(bio))
-		bio_integrity_unmap_user(bio);
-
 	iocb->ki_complete(iocb, ret);
 
 	if (dio->flags & DIO_SHOULD_DIRTY) {
@@ -383,13 +380,6 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 		}
 	} else {
 		task_io_account_write(bio->bi_iter.bi_size);
-	}
-
-	if (iocb->ki_flags & IOCB_HAS_METADATA) {
-		ret = bio_integrity_map_iter(bio, iocb->private);
-		WRITE_ONCE(iocb->private, NULL);
-		if (unlikely(ret))
-			goto out_bio_put;
 	}
 
 	if (iocb->ki_flags & IOCB_HIPRI) {
