@@ -2649,6 +2649,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	unsigned int slot_id;
 	int ep_index;
 	struct xhci_td *td = NULL;
+	struct urb *missed_urb = NULL;
 	dma_addr_t ep_trb_dma;
 	union xhci_trb *ep_trb;
 	int status = -EINPROGRESS;
@@ -2868,25 +2869,30 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					return 0;
 
 				/*
+				 * If skip flag is still set at xrun, we are on xHCI 1.0 and our TRB
+				 * pointer is zero again. All missed TDs can be given back, but we
+				 * don't know which were missed and which were queued after the xrun
+				 * occurred. We can safely give back the first pending URB.
+				 */
+				if (ring_xrun_event) {
+					if (!missed_urb)
+						missed_urb = td->urb;
+
+					if (td->urb != missed_urb) {
+						xhci_dbg(xhci, "Skipped one URB for slot %u ep %u",
+								slot_id, ep_index);
+						return 0;
+					}
+				}
+
+				/*
 				 * TD was missed, skip it. Core already initialized frame->status
 				 * to -EXDEV and frame->actual_length to 0, nothing more to do.
 				 */
 				xhci_dequeue_td(xhci, td, ep_ring, 0);
 
-				if (!list_empty(&ep_ring->td_list)) {
-					if (ring_xrun_event) {
-						/*
-						 * If we are here, we are on xHCI 1.0 host with no
-						 * idea how many TDs were missed or where the xrun
-						 * occurred. New TDs may have been added after the
-						 * xrun, so skip only one TD to be safe.
-						 */
-						xhci_dbg(xhci, "Skipped one TD for slot %u ep %u",
-								slot_id, ep_index);
-						return 0;
-					}
+				if (!list_empty(&ep_ring->td_list))
 					continue;
-				}
 
 				xhci_dbg(xhci, "All TDs skipped for slot %u ep %u. Clear skip flag.\n",
 					 slot_id, ep_index);
