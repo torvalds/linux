@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   $nodename:
-    pattern: "^ethernet(@.*)?$"
+    pattern: "^ethernet(@.+|-[0-9]+)?$"
 
   label:
     description: Human readable label on a port of a box.
