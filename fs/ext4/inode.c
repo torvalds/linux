@@ -5028,7 +5028,14 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 	ret = ext4_zero_partial_blocks(inode, offset, length, &partial_zeroed);
 	if (ret)
 		return ret;
-	if (((file->f_flags & O_SYNC) || IS_SYNC(inode)) && partial_zeroed) {
+	/*
+	 * On the iomap path, partial invalidate of a folio without an ifs
+	 * leaves sub-block dirty bits uncleared.  Drain writeback before
+	 * removing extents so that any bio in flight on a partial folio
+	 * completes against blocks still owned by this inode.
+	 */
+	if (ext4_inode_buffered_iomap(inode) ||
+	    (((file->f_flags & O_SYNC) || IS_SYNC(inode)) && partial_zeroed)) {
 		ret = filemap_write_and_wait_range(inode->i_mapping, offset,
 						   end - 1);
 		if (ret)
