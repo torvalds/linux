@@ -746,6 +746,7 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
 	struct mlx5hws_action_dest_attr *dest_actions;
 	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	struct mlx5_fs_hws_rule_action *rule_actions;
 	struct mlx5_fs_hws_rule_action *fs_actions;
 	struct mlx5_core_dev *dev = ns->dev;
 	struct mlx5hws_action *dest_action;
@@ -1041,13 +1042,20 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	fs_actions[num_fs_actions++].action = tmp_action;
 	(*ractions)[num_actions++].action = tmp_action;
 
+	rule_actions = kmemdup_array(fs_actions, num_fs_actions,
+				     sizeof(*fs_actions), GFP_KERNEL);
+	if (!rule_actions) {
+		err = -ENOMEM;
+		goto free_actions;
+	}
+	kfree(fs_actions);
 	kfree(dest_actions);
 
 	/* Actions created specifically for this rule will be destroyed
 	 * once rule is deleted.
 	 */
 	fte->fs_hws_rule.num_fs_actions = num_fs_actions;
-	fte->fs_hws_rule.hws_fs_actions = fs_actions;
+	fte->fs_hws_rule.hws_fs_actions = rule_actions;
 
 	return 0;
 
