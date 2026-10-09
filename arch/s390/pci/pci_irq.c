@@ -674,6 +674,7 @@ void __init zpci_irq_exit(void)
 {
 	unsigned int cpu;
 
+	unregister_adapter_interrupt(&zpci_airq);
 	if (irq_delivery == DIRECTED) {
 		for_each_possible_cpu(cpu) {
 			airq_iv_release(zpci_dibv[cpu]);
@@ -684,5 +685,4 @@ void __init zpci_irq_exit(void)
 	}
 	if (zpci_sbv)
 		airq_iv_release(zpci_sbv);
-	unregister_adapter_interrupt(&zpci_airq);
 }
