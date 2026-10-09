@@ -19,15 +19,33 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 				     const struct rdma_conn_param *param)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct smbdirect_recv_io *recv_io;
+	struct smbdirect_recv_io *recv_io = NULL;
 	u8 peer_initiator_depth;
 	u8 peer_responder_resources;
 	struct rdma_conn_param conn_param;
 	__be32 ird_ord_hdr[2];
 	int ret;
 
-	if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_CREATED))
-		return -EINVAL;
+	/*
+	 * Install the real event handler (and the event we expect next)
+	 * before anything that can fail. On an early error the caller
+	 * (smbdirect_listen_connect_request()) only schedules our deferred
+	 * cleanup and returns 0 to the rdma_cm core, which keeps the cm_id, so
+	 * the cm_id must already carry smbdirect_accept_rdma_event_handler():
+	 * it turns any unexpected event (e.g. RDMA_CM_EVENT_DEVICE_REMOVAL)
+	 * into a clean smbdirect_socket_schedule_cleanup(). Otherwise the
+	 * placeholder smbdirect_socket_rdma_event_handler() installed by
+	 * smbdirect_socket_init_accepting() stays in place and returns -ESTALE,
+	 * which makes the rdma_cm core destroy the cm_id behind the back of our
+	 * pending teardown.
+	 */
+	sc->rdma.expected_event = RDMA_CM_EVENT_ESTABLISHED;
+	sc->rdma.cm_id->event_handler = smbdirect_accept_rdma_event_handler;
+
+	if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_CREATED)) {
+		ret = -EINVAL;
+		goto cleanup;
+	}
 
 	/*
 	 * First set what the we as server are able to support
@@ -48,7 +66,7 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"smbdirect_accept_init_params() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto init_params_failed;
+		goto cleanup;
 	}
 
 	ret = smbdirect_connection_create_qp(sc);
@@ -56,7 +74,7 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"smbdirect_connection_create_qp() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto create_qp_failed;
+		goto cleanup;
 	}
 
 	ret = smbdirect_connection_create_mem_pools(sc);
@@ -64,7 +82,7 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"smbdirect_connection_create_mem_pools() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto create_mem_failed;
+		goto cleanup;
 	}
 
 	recv_io = smbdirect_connection_get_recv_io(sc);
@@ -73,7 +91,7 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"smbdirect_connection_get_recv_io() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto get_recv_io_failed;
+		goto cleanup;
 	}
 	recv_io->cqe.done = smbdirect_accept_negotiate_recv_done;
 
@@ -87,7 +105,7 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"smbdirect_connection_post_recv_io() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto post_recv_io_failed;
+		goto cleanup;
 	}
 	/*
 	 * From here recv_io is known to the RDMA QP and needs ib_drain_qp and
@@ -123,14 +141,12 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 	/* explicitly set above */
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED);
 	sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING;
-	sc->rdma.expected_event = RDMA_CM_EVENT_ESTABLISHED;
-	sc->rdma.cm_id->event_handler = smbdirect_accept_rdma_event_handler;
 	ret = rdma_accept(sc->rdma.cm_id, &conn_param);
 	if (ret) {
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
 			"rdma_accept() failed %1pe\n",
 			SMBDIRECT_DEBUG_ERR_PTR(ret));
-		goto rdma_accept_failed;
+		goto cleanup;
 	}
 
 	/*
@@ -144,31 +160,25 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 
 	return 0;
 
-rdma_accept_failed:
+cleanup:
 	/*
-	 * The recv_io posted above is now owned by the QP (recv_io was set to
-	 * NULL after a successful post).  smbdirect_connection_destroy_qp()
-	 * calls ib_drain_qp(), whose completion
-	 * (smbdirect_accept_negotiate_recv_done) returns the recv_io to the
-	 * free list via smbdirect_connection_put_recv_io().  It therefore MUST
-	 * run BEFORE smbdirect_connection_destroy_mem_pools(): otherwise the
-	 * posted recv_io is still outstanding when kmem_cache_destroy() runs
-	 * ("Slab cache still has objects") and is later freed into an
-	 * already-destroyed mempool (mempool_free_bulk NULL-ptr-deref).
+	 * No RDMA state is torn down here, and in particular sc is not
+	 * released: the caller (smbdirect_listen_connect_request()) owns that
+	 * decision and schedules sc's teardown via
+	 * smbdirect_socket_schedule_cleanup() on a non-zero return. All of the
+	 * RDMA state - the QP, the memory pools and the cm_id itself - is then
+	 * torn down asynchronously by smbdirect_socket_cleanup_work() ->
+	 * smbdirect_socket_release() -> smbdirect_socket_destroy(), which
+	 * drains the QP (returning any posted recv_io to the pool) before
+	 * destroying the memory pools and destroys the cm_id with
+	 * rdma_destroy_id(), all in the correct order.
+	 *
+	 * The only resource not reachable by that teardown is a recv_io that
+	 * was taken from the pool but not yet posted to the QP (recv_io is set
+	 * to NULL after a successful post), so hand it back here.
 	 */
-	smbdirect_connection_destroy_qp(sc);
-	smbdirect_connection_destroy_mem_pools(sc);
-	return ret;
-post_recv_io_failed:
-	/* post failed: recv_io was not accepted by the QP, still in hand */
 	if (recv_io)
 		smbdirect_connection_put_recv_io(recv_io);
-get_recv_io_failed:
-	smbdirect_connection_destroy_mem_pools(sc);
-create_mem_failed:
-	smbdirect_connection_destroy_qp(sc);
-create_qp_failed:
-init_params_failed:
 	return ret;
 }
 
@@ -302,6 +312,7 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, connect.work);
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
+	struct smbdirect_socket *lsc;
 	struct smbdirect_recv_io *recv_io;
 	struct smbdirect_negotiate_req *nreq;
 	unsigned long flags;
@@ -464,29 +475,55 @@ static void smbdirect_accept_negotiate_recv_work(struct work_struct *work)
 	 */
 	sp->max_fragmented_send_size = max_fragmented_size;
 
-	if (sc->accept.listener) {
-		struct smbdirect_socket *lsc = sc->accept.listener;
-		unsigned long flags;
-
-		spin_lock_irqsave(&lsc->listen.lock, flags);
-		list_del(&sc->accept.list);
-		list_add_tail(&sc->accept.list, &lsc->listen.ready);
-		wake_up(&lsc->listen.wait_queue);
-		spin_unlock_irqrestore(&lsc->listen.lock, flags);
-
-		/*
-		 * smbdirect_socket_accept() will call
-		 * smbdirect_accept_negotiate_finish(nsc, 0);
-		 *
-		 * So that we don't send the negotiation
-		 * response that grants credits to the peer
-		 * before the socket is accepted by the
-		 * application.
-		 */
+	/*
+	 * Every accepting socket was created by
+	 * smbdirect_listen_connect_request() and has a
+	 * listener. If it's already cleared, the listener
+	 * (or its purge_orphaned_work) is responsible for
+	 * releasing us, so we must not send a negotiate
+	 * response.
+	 *
+	 * The memory of the listener is freed via kfree_rcu(),
+	 * see smbdirect_listen_orphan_socket().
+	 */
+	rcu_read_lock();
+	lsc = READ_ONCE(sc->accept.listener);
+	if (!lsc) {
+		rcu_read_unlock();
 		return;
 	}
 
-	ntstatus = le32_to_cpu(STATUS_SUCCESS);
+	spin_lock_irqsave(&lsc->listen.lock, flags);
+	/*
+	 * The listener (or its purge_orphaned_work)
+	 * may have cleared sc->accept.listener in the
+	 * meantime and is responsible for releasing us.
+	 *
+	 * If we already failed, we're either
+	 * already on the orphaned list or
+	 * smbdirect_socket_cleanup_work() will
+	 * move us there.
+	 *
+	 * In both cases we must not move us
+	 * to the ready list.
+	 */
+	if (sc->accept.listener == lsc && !READ_ONCE(sc->first_error)) {
+		list_move_tail(&sc->accept.list, &lsc->listen.ready);
+		wake_up(&lsc->listen.wait_queue);
+	}
+	spin_unlock_irqrestore(&lsc->listen.lock, flags);
+	rcu_read_unlock();
+
+	/*
+	 * smbdirect_socket_accept() will call
+	 * smbdirect_accept_negotiate_finish(nsc, 0);
+	 *
+	 * So that we don't send the negotiation
+	 * response that grants credits to the peer
+	 * before the socket is accepted by the
+	 * application.
+	 */
+	return;
 
 not_supported:
 	smbdirect_accept_negotiate_finish(sc, ntstatus);
@@ -839,7 +876,7 @@ struct smbdirect_socket *smbdirect_socket_accept(struct smbdirect_socket *lsc,
 				       struct smbdirect_socket,
 				       accept.list);
 	if (nsc) {
-		nsc->accept.listener = NULL;
+		WRITE_ONCE(nsc->accept.listener, NULL);
 		list_del_init_careful(&nsc->accept.list);
 		arg->is_empty = list_empty_careful(&lsc->listen.ready);
 	}

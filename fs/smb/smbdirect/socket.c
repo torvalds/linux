@@ -319,6 +319,15 @@ void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 	 * (smbdirect_socket_destroy) to reap.
 	 */
 	if (sc->listen.backlog != -1) { /* was a listener */
+		/*
+		 * We don't move them to the orphaned list here,
+		 * each child does that itself at the end of its
+		 * smbdirect_socket_cleanup_work(), see
+		 * smbdirect_listen_orphan_socket(). Only that checks
+		 * accept.listener, which is still NULL for a child
+		 * that smbdirect_listen_connect_request() is still
+		 * setting up and will release itself on failure.
+		 */
 		spin_lock_irqsave(&sc->listen.lock, flags);
 		list_splice_init(&sc->listen.ready, &sc->listen.pending);
 		list_for_each_entry_safe(psc, tsc, &sc->listen.pending, accept.list)
@@ -427,6 +436,15 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 	 * instances of one class -- harmless, but lockdep cannot tell).
 	 */
 	if (sc->listen.backlog != -1) { /* was a listener */
+		/*
+		 * We don't move them to the orphaned list here,
+		 * each child does that itself at the end of its
+		 * smbdirect_socket_cleanup_work(), see
+		 * smbdirect_listen_orphan_socket(). Only that checks
+		 * accept.listener, which is still NULL for a child
+		 * that smbdirect_listen_connect_request() is still
+		 * setting up and will release itself on failure.
+		 */
 		spin_lock_irqsave(&sc->listen.lock, flags);
 		list_splice_init(&sc->listen.ready, &sc->listen.pending);
 		list_for_each_entry_safe(psc, tsc, &sc->listen.pending, accept.list)
@@ -486,6 +504,18 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 	 * in order to notice the broken connection.
 	 */
 	smbdirect_socket_wake_up_all(sc);
+
+	/*
+	 * If we're still on the pending or ready list
+	 * of a listener, we started the disconnect
+	 * as far as possible above, so we move ourself
+	 * to the orphaned list of the listener,
+	 * which will release us.
+	 *
+	 * This is a no-op internally if
+	 * sc->accept.listener is NULL.
+	 */
+	smbdirect_listen_orphan_socket(sc);
 }
 
 static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
@@ -544,6 +574,7 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 	disable_work_sync(&sc->recv_io.posted.refill_work);
 	disable_work_sync(&sc->idle.immediate_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
+	disable_work_sync(&sc->listen.purge_orphaned_work);
 
 	if (sc->rdma.cm_id)
 		rdma_lock_handler(sc->rdma.cm_id);
@@ -607,6 +638,19 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 	spin_lock_irqsave(&sc->listen.lock, flags);
 	list_splice_tail_init(&sc->listen.ready, &pending_list);
 	list_splice_tail_init(&sc->listen.pending, &pending_list);
+	/*
+	 * purge_orphaned_work is already disabled above,
+	 * so we also need to release the orphaned sockets.
+	 *
+	 * Clearing accept.listener under listen.lock
+	 * makes us responsible for releasing them and
+	 * prevents them from moving themselves to
+	 * the orphaned list via
+	 * smbdirect_listen_orphan_socket().
+	 */
+	list_splice_tail_init(&sc->listen.orphaned, &pending_list);
+	list_for_each_entry(psc, &pending_list, accept.list)
+		WRITE_ONCE(psc->accept.listener, NULL);
 	spin_unlock_irqrestore(&sc->listen.lock, flags);
 
 	/* It's not possible for upper layer to get to reassembly */
@@ -650,7 +694,6 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 			"release %zu pending sockets\n", psockets);
 	list_for_each_entry_safe(psc, tsc, &pending_list, accept.list) {
 		list_del_init(&psc->accept.list);
-		psc->accept.listener = NULL;
 		smbdirect_socket_release(psc);
 	}
 	if (sc->listen.backlog != -1) /* was a listener */
@@ -777,7 +820,17 @@ static void smbdirect_socket_release_destroy(struct kref *kref)
 	 * in DESTROYED state, before we free the memory.
 	 */
 	smbdirect_socket_destroy_sync(sc);
-	kfree(sc);
+
+	/*
+	 * Only a listener (backlog != -1) is ever dereferenced
+	 * via sc->accept.listener under rcu_read_lock(), see
+	 * smbdirect_listen_orphan_socket(). Other sockets can be
+	 * freed immediately.
+	 */
+	if (sc->listen.backlog != -1) /* was a listener */
+		kfree_rcu(sc, refs.rcu);
+	else
+		kfree(sc);
 }
 
 void smbdirect_socket_release(struct smbdirect_socket *sc)

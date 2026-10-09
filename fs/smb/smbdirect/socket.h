@@ -151,6 +151,12 @@ struct smbdirect_socket {
 		 * the disconnect refcount.
 		 */
 		struct kref destroy;
+
+		/*
+		 * smbdirect_socket_release_destroy() uses
+		 * kfree_rcu(), see accept.listener.
+		 */
+		struct rcu_head rcu;
 	} refs;
 
 	/* RDMA related */
@@ -216,6 +222,16 @@ struct smbdirect_socket {
 		 * only be > 0.
 		 */
 		int backlog;
+		/*
+		 * Sockets on pending or ready that failed
+		 * move themselves to orphaned and queue
+		 * purge_orphaned_work, which releases them.
+		 * So that they are freed while the listener
+		 * is still alive. They still count against
+		 * the backlog until they are released.
+		 */
+		struct list_head orphaned;
+		struct work_struct purge_orphaned_work;
 	} listen;
 
 	/*
@@ -226,7 +242,30 @@ struct smbdirect_socket {
 	 * connection.
 	 */
 	struct {
+		/*
+		 * This is only set, protected by
+		 * listener->listen.lock, while the socket
+		 * is owned by the listener (on its pending,
+		 * ready or orphaned list). The one who clears
+		 * it is responsible for releasing the socket.
+		 *
+		 * The memory of a struct smbdirect_socket is
+		 * freed via kfree_rcu(), so the listener
+		 * can be dereferenced under rcu_read_lock(),
+		 * even if accept.listener is cleared and
+		 * the listener is released concurrently.
+		 */
 		struct smbdirect_socket *listener;
+		/*
+		 * Linkage on one of the listener's
+		 * listen.{pending,ready,orphaned} lists.
+		 *
+		 * accept.list and accept.listener are set
+		 * together under listener->listen.lock before
+		 * smbdirect_accept_connect_request() is called,
+		 * so whenever the socket is on one of those lists
+		 * accept.listener is that listener (never NULL).
+		 */
 		struct list_head list;
 	} accept;
 
@@ -588,6 +627,9 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	spin_lock_init(&sc->listen.lock);
 	INIT_LIST_HEAD(&sc->listen.pending);
 	INIT_LIST_HEAD(&sc->listen.ready);
+	INIT_LIST_HEAD(&sc->listen.orphaned);
+	INIT_WORK(&sc->listen.purge_orphaned_work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->listen.purge_orphaned_work);
 	sc->listen.backlog = -1; /* not a listener */
 	init_waitqueue_head(&sc->listen.wait_queue);
 
