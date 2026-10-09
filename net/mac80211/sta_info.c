@@ -2822,7 +2822,7 @@ static u32 sta_estimate_expected_throughput(struct sta_info *sta,
 	u32 duration;
 	u8 band;
 
-	conf = sdata_dereference(bss_conf->chanctx_conf, sta->sdata);
+	conf = rcu_dereference_wiphy(hw->wiphy, bss_conf->chanctx_conf);
 	if (!conf)
 		return 0;
 	band = conf->def.chan->band;
@@ -2835,15 +2835,15 @@ static u32 sta_estimate_expected_throughput(struct sta_info *sta,
 	return ((1024 * USEC_PER_SEC) / duration) * 8;
 }
 
-static void sta_set_link_sinfo(struct sta_info *sta,
-			       struct link_sta_info *link_sta_info,
-			       struct link_station_info *link_sinfo,
-			       struct ieee80211_link_data *link,
-			       bool tidstats)
+static int sta_set_link_sinfo(struct sta_info *sta,
+			      struct link_sta_info *link_sta_info,
+			      struct link_station_info *link_sinfo,
+			      struct ieee80211_link_data *link,
+			      bool tidstats, bool locked)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_sta_rx_stats *last_rxstats;
-	int i, ac, cpu;
+	int i, ac, cpu, ret;
 	u32 thr = 0;
 
 	last_rxstats = sta_get_last_rx_stats(link_sta_info);
@@ -2857,9 +2857,10 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 
 	ether_addr_copy(link_sinfo->addr, link_sta_info->addr);
 
-	drv_link_sta_statistics(sta->local, sdata,
-				link_sta_info->pub,
-				link_sinfo);
+	ret = drv_link_sta_statistics(sta->local, sdata, link_sta_info->pub,
+				      link_sinfo, locked);
+	if (ret)
+		return ret;
 
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_INACTIVE_TIME) |
 			 BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC);
@@ -3027,7 +3028,7 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 	}
 
 	if (tidstats && !cfg80211_link_sinfo_alloc_tid_stats(link_sinfo,
-							     GFP_KERNEL)) {
+							     GFP_ATOMIC)) {
 		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
 			sta_set_tidstats(sta, link_sta_info,
 					 &link_sinfo->pertid[i], i, false);
@@ -3075,15 +3076,17 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 		link_sinfo->filled |=
 			BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
 	}
+
+	return 0;
 }
 
-void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
-		   bool tidstats)
+int __sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
+		    bool tidstats, bool locked)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	u32 thr = 0;
-	int i, ac, cpu;
+	int i, ac, cpu, ret;
 	struct ieee80211_sta_rx_stats *last_rxstats;
 
 	last_rxstats = sta_get_last_rx_stats(&sta->deflink);
@@ -3097,7 +3100,10 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sinfo->rx_beacon = sdata->deflink.u.mgd.count_beacon_signal;
 
-	drv_sta_statistics(local, sdata, &sta->sta, sinfo);
+	ret = drv_sta_statistics(local, sdata, &sta->sta, sinfo, locked);
+	if (ret)
+		return ret;
+
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_INACTIVE_TIME) |
 			 BIT_ULL(NL80211_STA_INFO_STA_FLAGS) |
 			 BIT_ULL(NL80211_STA_INFO_CONNECTED_TIME) |
@@ -3258,7 +3264,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 	}
 
-	if (tidstats && !cfg80211_sinfo_alloc_tid_stats(sinfo, GFP_KERNEL)) {
+	if (tidstats && !cfg80211_sinfo_alloc_tid_stats(sinfo, GFP_ATOMIC)) {
 		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
 			sta_set_tidstats(sta, &sta->deflink,
 					 &sinfo->pertid[i], i, true);
@@ -3355,17 +3361,19 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		for_each_valid_link(sinfo, link_id) {
 			struct link_station_info *link_sinfo = sinfo->links[link_id];
 
-			link_sta = wiphy_dereference(sta->local->hw.wiphy,
-						     sta->link[link_id]);
-			link = wiphy_dereference(sdata->local->hw.wiphy,
-						 sdata->link[link_id]);
+			link_sta = rcu_dereference_wiphy(sta->local->hw.wiphy,
+							 sta->link[link_id]);
+			link = rcu_dereference_wiphy(sdata->local->hw.wiphy,
+						     sdata->link[link_id]);
 
 			if (!link_sta || !link_sinfo || !link) {
 				sinfo->valid_links &= ~BIT(link_id);
 				continue;
 			}
-			sta_set_link_sinfo(sta, link_sta, link_sinfo, link,
-					   tidstats);
+			ret = sta_set_link_sinfo(sta, link_sta, link_sinfo, link,
+						 tidstats, locked);
+			if (ret)
+				return ret;
 			if (!thr &&
 			    (link_sinfo->filled & BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT)))
 				est_thr += link_sinfo->expected_throughput;
@@ -3375,6 +3383,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 			sinfo->expected_throughput = est_thr;
 		}
 	}
+
+	return 0;
 }
 
 u32 sta_get_expected_throughput(struct sta_info *sta)

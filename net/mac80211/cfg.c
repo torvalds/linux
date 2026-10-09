@@ -1018,31 +1018,63 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
+static int __ieee80211_dump_station(struct ieee80211_sub_if_data *sdata,
+				    int idx, u8 *mac,
+				    struct station_info *sinfo, bool locked)
+{
+	struct sta_info *sta;
+	int ret;
+
+	sta = sta_info_get_by_idx(sdata, idx);
+	if (!sta)
+		return -ENOENT;
+
+	memcpy(mac, sta->sta.addr, ETH_ALEN);
+	ret = __sta_set_sinfo(sta, sinfo, true, locked);
+	if (ret)
+		return ret;
+
+	/*
+	 * Add accumulated removed link data to sinfo data for
+	 * consistency for MLO
+	 */
+	if (sinfo->valid_links)
+		sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+
+	return 0;
+}
+
 static int ieee80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	int ret = -ENOENT;
 
-	lockdep_assert_wiphy(local->hw.wiphy);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
-	sta = sta_info_get_by_idx(sdata, idx);
-	if (sta) {
-		ret = 0;
-		memcpy(mac, sta->sta.addr, ETH_ALEN);
-		sta_set_sinfo(sta, sinfo, true);
+	return __ieee80211_dump_station(sdata, idx, mac, sinfo, true);
+}
 
-		/* Add accumulated removed link data to sinfo data for
-		 * consistency for MLO
-		 */
-		if (sinfo->valid_links)
-			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+/* driver must have atomic ops (or none), otherwise we need the mutex */
+static bool ieee80211_sta_stats_need_mtx(struct ieee80211_local *local)
+{
+	const struct ieee80211_ops *ops = local->ops;
 
-	}
+	return (ops->sta_statistics && !ops->sta_statistics_atomic) ||
+	       (ops->link_sta_statistics && !ops->link_sta_statistics_atomic);
+}
 
-	return ret;
+static int ieee80211_dump_station_unlocked(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
+					   int idx, u8 *mac,
+					   struct station_info *sinfo)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	if (ieee80211_sta_stats_need_mtx(sdata->local))
+		return -EAGAIN;
+
+	guard(rcu)();
+	return __ieee80211_dump_station(sdata, idx, mac, sinfo, false);
 }
 
 static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
@@ -1053,30 +1085,54 @@ static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	return drv_get_survey(local, idx, survey);
 }
 
+static int __ieee80211_get_station(struct ieee80211_sub_if_data *sdata,
+				   const u8 *mac, struct station_info *sinfo,
+				   bool locked)
+{
+	struct sta_info *sta;
+	int ret;
+
+	sta = sta_info_get_bss(sdata, mac);
+	if (!sta)
+		return -ENOENT;
+
+	ret = __sta_set_sinfo(sta, sinfo, true, locked);
+	if (ret)
+		return ret;
+
+	/*
+	 * Add accumulated removed link data to sinfo data for
+	 * consistency for MLO
+	 */
+	if (sinfo->valid_links)
+		sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+
+	return 0;
+}
+
 static int ieee80211_get_station(struct wiphy *wiphy,
 				 struct wireless_dev *wdev,
 				 const u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	int ret = -ENOENT;
 
-	lockdep_assert_wiphy(local->hw.wiphy);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
-	sta = sta_info_get_bss(sdata, mac);
-	if (sta) {
-		ret = 0;
-		sta_set_sinfo(sta, sinfo, true);
+	return __ieee80211_get_station(sdata, mac, sinfo, true);
+}
 
-		/* Add accumulated removed link data to sinfo data for
-		 * consistency for MLO
-		 */
-		if (sinfo->valid_links)
-			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
-	}
+static int ieee80211_get_station_unlocked(struct wiphy *wiphy,
+					  struct wireless_dev *wdev,
+					  const u8 *mac,
+					  struct station_info *sinfo)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
-	return ret;
+	if (ieee80211_sta_stats_need_mtx(sdata->local))
+		return -EAGAIN;
+
+	guard(rcu)();
+	return __ieee80211_get_station(sdata, mac, sinfo, false);
 }
 
 static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
@@ -6273,7 +6329,9 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.del_station = ieee80211_del_station,
 	.change_station = ieee80211_change_station,
 	.get_station = ieee80211_get_station,
+	.get_station_unlocked = ieee80211_get_station_unlocked,
 	.dump_station = ieee80211_dump_station,
+	.dump_station_unlocked = ieee80211_dump_station_unlocked,
 	.dump_survey = ieee80211_dump_survey,
 #ifdef CONFIG_MAC80211_MESH
 	.add_mpath = ieee80211_add_mpath,
