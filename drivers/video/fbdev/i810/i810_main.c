@@ -1623,7 +1623,7 @@ static int i810fb_resume(struct pci_dev *dev)
 			par->cursor_heap.offset);
 	i810fb_set_par(info);
 	fb_set_suspend (info, 0);
-	info->fbops->fb_blank(VESA_NO_BLANKING, info);
+	info->fbops->fb_blank(FB_BLANK_UNBLANK, info);
 fail:
 	console_unlock();
 	return 0;
