@@ -578,9 +578,9 @@ static void ext4_iomap_wb_disksize_pending_wait(struct inode *inode,
 }
 
 static int ext4_iomap_wb_update_disksize(handle_t *handle, struct inode *inode,
-					 loff_t end)
+					 loff_t end, bool is_disksize_grow)
 {
-	loff_t new_disksize = end;
+	loff_t new_disksize, i_size;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	int ret;
 
@@ -589,7 +589,34 @@ static int ext4_iomap_wb_update_disksize(handle_t *handle, struct inode *inode,
 	 * i_data_sem.
 	 */
 	down_write(&ei->i_data_sem);
-	new_disksize = min(new_disksize, i_size_read(inode));
+	i_size = i_size_read(inode);
+
+	/*
+	 * EXT4_STATE_DISKSIZE_GROW_PENDING is cleared when the pending
+	 * I/O completes. However, another thread may have re-set the bit
+	 * between that point and here, meaning i_disksize has already
+	 * been advanced and a new EOF zeroing has been initiated. In that
+	 * case, do not advance i_disksize to i_size; leave it to the
+	 * next pending grow ioend.
+	 */
+	if (is_disksize_grow &&
+	    ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
+		is_disksize_grow = false;
+
+	/*
+	 * Update i_disksize to i_size when EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO
+	 * completes. This is safe because we never directly allocate written
+	 * blocks during buffered writes.
+	 *
+	 * This ensures that i_disksize is correctly advanced during
+	 * truncate-up or append fallocate on a block-unaligned file,
+	 * preventing it from remaining stale. The tradeoff is that zeroed
+	 * data may be exposed after crash recovery if dirty data in this
+	 * range is not yet on disk, but stale data will never be exposed.
+	 * This is because the extent is only converted to written state
+	 * after the data has been persisted.
+	 */
+	new_disksize = is_disksize_grow ? i_size : min(end, i_size);
 	if (new_disksize > ei->i_disksize)
 		WRITE_ONCE(ei->i_disksize, new_disksize);
 	up_write(&ei->i_data_sem);
@@ -607,6 +634,8 @@ static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
 	loff_t pos = ioend->io_offset;
 	size_t size = ioend->io_size;
 	loff_t end = pos + size;
+	unsigned long io_mode = (unsigned long)ioend->io_private;
+	bool is_disksize_grow = (io_mode == EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO);
 	handle_t *handle;
 	int credits;
 	int ret, err;
@@ -619,7 +648,7 @@ static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
 	}
 
 	if (!(ioend->io_flags & IOMAP_IOEND_UNWRITTEN) &&
-	    end <= READ_ONCE(EXT4_I(inode)->i_disksize))
+	    end <= READ_ONCE(EXT4_I(inode)->i_disksize) && !is_disksize_grow)
 		goto out;
 
 	/* Wait for disksize-pending zeroed data to be written out. */
@@ -638,8 +667,9 @@ static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
 	}
 
 	/* Update on-disk size after I/O is completed. */
-	if (end > READ_ONCE(EXT4_I(inode)->i_disksize)) {
-		ret = ext4_iomap_wb_update_disksize(handle, inode, end);
+	if (end > READ_ONCE(EXT4_I(inode)->i_disksize) || is_disksize_grow) {
+		ret = ext4_iomap_wb_update_disksize(handle, inode, end,
+						    is_disksize_grow);
 		if (ret)
 			goto out_journal;
 	}
