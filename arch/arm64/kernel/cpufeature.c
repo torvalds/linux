@@ -1395,154 +1395,6 @@ static int update_32bit_cpu_features(int cpu, struct cpuinfo_32bit *info,
 	return taint;
 }
 
-/*
- * Update system wide CPU feature registers with the values from a
- * non-boot CPU. Also performs SANITY checks to make sure that there
- * aren't any insane variations from that of the boot CPU.
- */
-void update_cpu_features(int cpu)
-{
-	struct cpuinfo_arm64 *boot, *info;
-	int taint = 0;
-
-	boot = &boot_cpu_data;
-	info = per_cpu_ptr(&cpu_data, cpu);
-
-	/*
-	 * The kernel can handle differing I-cache policies, but otherwise
-	 * caches should look identical. Userspace JITs will make use of
-	 * *minLine.
-	 */
-	taint |= check_update_ftr_reg(SYS_CTR_EL0, cpu,
-				      info->reg_ctr, boot->reg_ctr);
-
-	/*
-	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
-	 * could result in too much or too little memory being zeroed if a
-	 * process is preempted and migrated between CPUs.
-	 */
-	taint |= check_update_ftr_reg(SYS_DCZID_EL0, cpu,
-				      info->reg_dczid, boot->reg_dczid);
-
-	/* If different, timekeeping will be broken (especially with KVM) */
-	taint |= check_update_ftr_reg(SYS_CNTFRQ_EL0, cpu,
-				      info->reg_cntfrq, boot->reg_cntfrq);
-
-	/*
-	 * The kernel uses self-hosted debug features and expects CPUs to
-	 * support identical debug features. We presently need CTX_CMPs, WRPs,
-	 * and BRPs to be identical.
-	 * ID_AA64DFR1 is currently RES0.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64DFR0_EL1, cpu,
-				      info->reg_id_aa64dfr0, boot->reg_id_aa64dfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64DFR1_EL1, cpu,
-				      info->reg_id_aa64dfr1, boot->reg_id_aa64dfr1);
-	/*
-	 * Even in big.LITTLE, processors should be identical instruction-set
-	 * wise.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR0_EL1, cpu,
-				      info->reg_id_aa64isar0, boot->reg_id_aa64isar0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR1_EL1, cpu,
-				      info->reg_id_aa64isar1, boot->reg_id_aa64isar1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR2_EL1, cpu,
-				      info->reg_id_aa64isar2, boot->reg_id_aa64isar2);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR3_EL1, cpu,
-				      info->reg_id_aa64isar3, boot->reg_id_aa64isar3);
-
-	/*
-	 * Differing PARange support is fine as long as all peripherals and
-	 * memory are mapped within the minimum PARange of all CPUs.
-	 * Linux should not care about secure memory.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
-				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
-				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR2_EL1, cpu,
-				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR3_EL1, cpu,
-				      info->reg_id_aa64mmfr3, boot->reg_id_aa64mmfr3);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR4_EL1, cpu,
-				      info->reg_id_aa64mmfr4, boot->reg_id_aa64mmfr4);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
-				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR1_EL1, cpu,
-				      info->reg_id_aa64pfr1, boot->reg_id_aa64pfr1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR2_EL1, cpu,
-				      info->reg_id_aa64pfr2, boot->reg_id_aa64pfr2);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64ZFR0_EL1, cpu,
-				      info->reg_id_aa64zfr0, boot->reg_id_aa64zfr0);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
-				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64FPFR0_EL1, cpu,
-				      info->reg_id_aa64fpfr0, boot->reg_id_aa64fpfr0);
-
-	/* Probe vector lengths */
-	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
-	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
-		if (!system_capabilities_finalized()) {
-			unsigned long cpacr = cpacr_save_enable_kernel_sve();
-
-			vec_update_vq_map(ARM64_VEC_SVE);
-
-			cpacr_restore(cpacr);
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_ARM64_SME) &&
-	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		unsigned long cpacr = cpacr_save_enable_kernel_sme();
-
-		/* Probe vector lengths */
-		if (!system_capabilities_finalized())
-			vec_update_vq_map(ARM64_VEC_SME);
-
-		cpacr_restore(cpacr);
-	}
-
-	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0) || id_aa64pfr1_mpamfrac(info->reg_id_aa64pfr1))
-		taint |= check_update_ftr_reg(SYS_MPAMIDR_EL1, cpu,
-					      info->reg_mpamidr, boot->reg_mpamidr);
-
-	/*
-	 * The kernel uses the LDGM/STGM instructions and the number of tags
-	 * they read/write depends on the GMID_EL1.BS field. Check that the
-	 * value is the same on all CPUs.
-	 */
-	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
-		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
-					      info->reg_gmid, boot->reg_gmid);
-
-	/*
-	 * If we don't have AArch32 at all then skip the checks entirely
-	 * as the register values may be UNKNOWN and we're not going to be
-	 * using them for anything.
-	 *
-	 * This relies on a sanitised view of the AArch64 ID registers
-	 * (e.g. SYS_ID_AA64PFR0_EL1), so we call it last.
-	 */
-	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
-		lazy_init_32bit_cpu_features(info, boot);
-		taint |= update_32bit_cpu_features(cpu, &info->aarch32,
-						   &boot->aarch32);
-	}
-
-	/*
-	 * Mismatched CPU features are a recipe for disaster. Don't even
-	 * pretend to support them.
-	 */
-	if (taint) {
-		pr_warn_once("Unsupported CPU feature variation detected.\n");
-		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
-	}
-}
-
 u64 read_sanitised_ftr_reg(u32 id)
 {
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(id);
@@ -3888,15 +3740,166 @@ void check_local_cpu_capabilities(void)
 	check_early_cpu_features();
 
 	/*
+	 * Verify that this CPU has all the system advertised
+	 * capabilities.
+	 */
+	if (system_capabilities_finalized())
+		verify_local_cpu_capabilities();
+}
+
+/*
+ * Update system wide CPU feature registers with the values from a
+ * non-boot CPU. Also performs SANITY checks to make sure that there
+ * aren't any insane variations from that of the boot CPU.
+ */
+void update_cpu_features(int cpu)
+{
+	struct cpuinfo_arm64 *boot, *info;
+	int taint = 0;
+
+	/*
 	 * If we haven't finalised the system capabilities, this CPU gets
 	 * a chance to update the errata work arounds and local features.
-	 * Otherwise, this CPU should verify that it has all the system
-	 * advertised capabilities.
 	 */
 	if (!system_capabilities_finalized())
 		update_cpu_capabilities(SCOPE_LOCAL_CPU);
-	else
-		verify_local_cpu_capabilities();
+
+	boot = &boot_cpu_data;
+	info = per_cpu_ptr(&cpu_data, cpu);
+
+	/*
+	 * The kernel can handle differing I-cache policies, but otherwise
+	 * caches should look identical. Userspace JITs will make use of
+	 * *minLine.
+	 */
+	taint |= check_update_ftr_reg(SYS_CTR_EL0, cpu,
+				      info->reg_ctr, boot->reg_ctr);
+
+	/*
+	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
+	 * could result in too much or too little memory being zeroed if a
+	 * process is preempted and migrated between CPUs.
+	 */
+	taint |= check_update_ftr_reg(SYS_DCZID_EL0, cpu,
+				      info->reg_dczid, boot->reg_dczid);
+
+	/* If different, timekeeping will be broken (especially with KVM) */
+	taint |= check_update_ftr_reg(SYS_CNTFRQ_EL0, cpu,
+				      info->reg_cntfrq, boot->reg_cntfrq);
+
+	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR0_EL1, cpu,
+				      info->reg_id_aa64dfr0, boot->reg_id_aa64dfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR1_EL1, cpu,
+				      info->reg_id_aa64dfr1, boot->reg_id_aa64dfr1);
+	/*
+	 * Even in big.LITTLE, processors should be identical instruction-set
+	 * wise.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR0_EL1, cpu,
+				      info->reg_id_aa64isar0, boot->reg_id_aa64isar0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR1_EL1, cpu,
+				      info->reg_id_aa64isar1, boot->reg_id_aa64isar1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR2_EL1, cpu,
+				      info->reg_id_aa64isar2, boot->reg_id_aa64isar2);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR3_EL1, cpu,
+				      info->reg_id_aa64isar3, boot->reg_id_aa64isar3);
+
+	/*
+	 * Differing PARange support is fine as long as all peripherals and
+	 * memory are mapped within the minimum PARange of all CPUs.
+	 * Linux should not care about secure memory.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
+				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
+				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR2_EL1, cpu,
+				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR3_EL1, cpu,
+				      info->reg_id_aa64mmfr3, boot->reg_id_aa64mmfr3);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR4_EL1, cpu,
+				      info->reg_id_aa64mmfr4, boot->reg_id_aa64mmfr4);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
+				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR1_EL1, cpu,
+				      info->reg_id_aa64pfr1, boot->reg_id_aa64pfr1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR2_EL1, cpu,
+				      info->reg_id_aa64pfr2, boot->reg_id_aa64pfr2);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64ZFR0_EL1, cpu,
+				      info->reg_id_aa64zfr0, boot->reg_id_aa64zfr0);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
+				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64FPFR0_EL1, cpu,
+				      info->reg_id_aa64fpfr0, boot->reg_id_aa64fpfr0);
+
+	/* Probe vector lengths */
+	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
+	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
+		if (!system_capabilities_finalized()) {
+			unsigned long cpacr = cpacr_save_enable_kernel_sve();
+
+			vec_update_vq_map(ARM64_VEC_SVE);
+
+			cpacr_restore(cpacr);
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_ARM64_SME) &&
+	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
+		unsigned long cpacr = cpacr_save_enable_kernel_sme();
+
+		/* Probe vector lengths */
+		if (!system_capabilities_finalized())
+			vec_update_vq_map(ARM64_VEC_SME);
+
+		cpacr_restore(cpacr);
+	}
+
+	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0) || id_aa64pfr1_mpamfrac(info->reg_id_aa64pfr1))
+		taint |= check_update_ftr_reg(SYS_MPAMIDR_EL1, cpu,
+					info->reg_mpamidr, boot->reg_mpamidr);
+
+	/*
+	 * The kernel uses the LDGM/STGM instructions and the number of tags
+	 * they read/write depends on the GMID_EL1.BS field. Check that the
+	 * value is the same on all CPUs.
+	 */
+	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
+		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
+					      info->reg_gmid, boot->reg_gmid);
+
+	/*
+	 * If we don't have AArch32 at all then skip the checks entirely
+	 * as the register values may be UNKNOWN and we're not going to be
+	 * using them for anything.
+	 *
+	 * This relies on a sanitised view of the AArch64 ID registers
+	 * (e.g. SYS_ID_AA64PFR0_EL1), so we call it last.
+	 */
+	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
+		lazy_init_32bit_cpu_features(info, boot);
+		taint |= update_32bit_cpu_features(cpu, &info->aarch32,
+						   &boot->aarch32);
+	}
+
+	/*
+	 * Mismatched CPU features are a recipe for disaster. Don't even
+	 * pretend to support them.
+	 */
+	if (taint) {
+		pr_warn_once("Unsupported CPU feature variation detected.\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+	}
 }
 
 bool this_cpu_has_cap(unsigned int n)
