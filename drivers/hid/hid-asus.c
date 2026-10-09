@@ -765,9 +765,14 @@ static void asus_work(struct work_struct *work)
 	struct asus_work_action *action = NULL;
 	unsigned long flags;
 
-	/* Save the action to be performed and clear the flag */
+	/*
+	 * Dequeue the next action, if any. Once teardown has begun .removed
+	 * is set and asus_worker_stop() drains the queue: leave the queued
+	 * actions alone, they are dropped instead of being executed against
+	 * a device that is being removed.
+	 */
 	spin_lock_irqsave(&worker->lock, flags);
-	if (!list_empty(&worker->actions)) {
+	if (!worker->removed && !list_empty(&worker->actions)) {
 		action = list_first_entry(&worker->actions,
 					  struct asus_work_action, node);
 		list_del(&action->node);
@@ -817,6 +822,25 @@ static int asus_worker_create(struct hid_device *hdev, struct asus_drvdata *drvd
 	return 0;
 }
 
+/**
+ * asus_worker_stop - quiesce the worker
+ * @worker: the worker to quiesce
+ *
+ * Once this function returns no more actions can be queued and no instance
+ * of asus_work() is running or pending.
+ *
+ * Callers must do this before hid_hw_stop(): actions are executed while the
+ * device is fully operational, since they send raw requests to it and, in
+ * the fan-key fallback path, re-inject raw reports into the HID core. After
+ * hid_hw_stop() the transport is gone (usbhid_stop() frees the URBs and the
+ * I/O buffers) and the input devices have been unregistered.
+ *
+ * The quiescing is race free because every site that queues an action holds
+ * worker->lock across the .removed check, the list insertion and
+ * schedule_work(): anything scheduled before .removed is set here is caught
+ * by the cancel_work_sync() below, anything after it is discarded by
+ * asus_worker_schedule().
+ */
 static void asus_worker_stop(struct asus_worker *worker)
 {
 	struct asus_work_action *action, *tmp;
