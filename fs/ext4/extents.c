@@ -5137,27 +5137,36 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 	int ret = 0, ret2 = 0, ret3 = 0;
 	struct ext4_map_blocks map;
 	unsigned int blkbits = inode->i_blkbits;
-	unsigned int credits = 0;
+	unsigned int credits;
+	bool internal_handle = !handle;
 
 	map.m_lblk = offset >> blkbits;
 	map.m_len = max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
 
-	if (!handle) {
-		/*
-		 * credits to insert 1 extent into extent tree
-		 */
-		credits = ext4_chunk_trans_blocks(inode, max_blocks);
+	/* Credits to convert one extent in this range to written state. */
+	credits = ext4_meta_trans_blocks(inode, max_blocks, 1, 0);
+
+	if (internal_handle) {
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			goto out;
+		}
 	}
 
 	while (max_blocks) {
-		if (credits) {
-			handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
-						    credits);
-			if (IS_ERR(handle)) {
-				ret = PTR_ERR(handle);
-				break;
-			}
-		}
+		/*
+		 * The caller cannot know how many extents the range covers,
+		 * so make sure the transaction can take one more extent,
+		 * extending or restarting it once it is full.  The reserved
+		 * handle of the buffer_head writeback path is safe as it has
+		 * enough credits for the conversion, so it is not restarted
+		 * here.
+		 */
+		ret = ext4_journal_ensure_credits(handle, credits, 0);
+		if (ret < 0)
+			break;
+
 		/*
 		 * Do not cache any unrelated extents, as it does not hold the
 		 * i_rwsem or invalidate_lock, which could corrupt the extent
@@ -5177,11 +5186,6 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 		}
 
 		ret2 = ext4_mark_inode_dirty(handle, inode);
-		if (credits) {
-			ret3 = ext4_journal_stop(handle);
-			if (unlikely(ret3))
-				ret2 = ret3;
-		}
 		ret = ret < 0 ? ret : ret2;
 		if (ret)
 			break;
@@ -5189,6 +5193,13 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 		map.m_lblk += map.m_len;
 		map.m_len = (max_blocks -= map.m_len);
 	}
+
+	if (internal_handle) {
+		ret3 = ext4_journal_stop(handle);
+		if (!ret)
+			ret = ret3;
+	}
+out:
 	/* Converted some or all blocks successfully? */
 	if (converted)
 		*converted = conv_blocks;
@@ -5203,8 +5214,8 @@ int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 
 	/*
 	 * This is somewhat ugly but the idea is clear: When transaction is
-	 * reserved, everything goes into it. Otherwise we rather start several
-	 * smaller transactions for conversion of each extent separately.
+	 * reserved, everything goes into it. Otherwise the conversion runs
+	 * its own transaction, extending or restarting it as it goes.
 	 */
 	if (handle) {
 		handle = ext4_journal_start_reserved(handle,
