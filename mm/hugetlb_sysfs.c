@@ -462,6 +462,8 @@ static void __init hugetlb_register_all_nodes(void)
 {
 	int nid;
 
+	hugetlb_sysfs_initialized = true;
+
 	for_each_online_node(nid)
 		hugetlb_register_node(node_devices[nid]);
 }
@@ -495,8 +497,5 @@ void __init hugetlb_sysfs_init(void)
 			pr_err("HugeTLB: Unable to add hstate %s\n", h->name);
 	}
 
-#ifdef CONFIG_NUMA
-	hugetlb_sysfs_initialized = true;
-#endif
 	hugetlb_register_all_nodes();
 }
