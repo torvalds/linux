@@ -1152,6 +1152,9 @@ struct ieee80211_link_data {
 		struct ieee80211_link_data_ap ap;
 	} u;
 
+	/* protects replacing the u.ap template pointers, also without wiphy mutex */
+	spinlock_t ap_tmpl_lock;
+
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
 	struct ieee80211_bss_conf *conf;
@@ -1165,6 +1168,21 @@ struct ieee80211_link_data {
 	struct dentry *debugfs_dir;
 #endif
 };
+
+#define ap_tmpl_dereference(link, p)					\
+	rcu_dereference_protected(p, lockdep_is_held(&(link)->ap_tmpl_lock))
+
+#define ap_tmpl_replace(link, p, new)					\
+do {									\
+	typeof(ap_tmpl_dereference(link, p)) __old;			\
+									\
+	spin_lock(&(link)->ap_tmpl_lock);				\
+	__old = rcu_replace_pointer(p, new,				\
+				    lockdep_is_held(&(link)->ap_tmpl_lock));\
+	spin_unlock(&(link)->ap_tmpl_lock);				\
+	if (__old)							\
+		kfree_rcu(__old, rcu_head);				\
+} while (0)
 
 struct ieee80211_sub_if_data {
 	struct list_head list;
