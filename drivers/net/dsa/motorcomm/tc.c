@@ -1029,7 +1029,10 @@ yt921x_acl_rule_ext_parse_flow(struct yt921x_acl_rule_ext *ruleext, int port,
 			       const struct flow_cls_offload *cls, bool ingress,
 			       struct yt921x_priv *priv)
 {
+	const unsigned int scale = (U16_MAX + 1) / YT921X_ACL_ORD_NUM;
 	struct netlink_ext_ack *extack = cls->common.extack;
+	u32 prio = cls->common.prio;
+	u32 ord;
 	int res;
 
 	if (!ingress) {
@@ -1042,6 +1045,36 @@ yt921x_acl_rule_ext_parse_flow(struct yt921x_acl_rule_ext *ruleext, int port,
 		return -EOPNOTSUPP;
 	}
 
+	/* Lower TC priorities take precedence, while larger orders win in
+	 * hardware. Spread the 512 hardware orders over the TC priority range
+	 * as evenly as possible, retaining the relative order:
+	 *
+	 *   prio 65535 -> ORD 0    catchall filter
+	 *   prio 65408 -> ORD 1    highest mappable TC priority
+	 *   ...
+	 *   prio 49152 -> ORD 128  default value for the first tc flower rule
+	 *   ...
+	 *   prio   128 -> ORD 511
+	 *   prio     0             (invalid TC priority)
+	 *
+	 * The catchall filter always comes with priority 65535; pin it to ORD
+	 * 0, the lowest hardware order, instead of rejecting it.
+	 *
+	 * Prefer explicit rejects over implicit behaviour changes: reject
+	 * the priorities which do not map onto a hardware order instead of
+	 * silently colliding with a neighbouring one.
+	 */
+	if (prio == U16_MAX) {
+		ord = 0;
+	} else if (!(prio % scale)) {
+		ord = YT921X_ACL_ORD_NUM - prio / scale;
+	} else {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Invalid priority %u, must be a multiple of %u or 65535",
+				       prio, scale);
+		return -EOPNOTSUPP;
+	}
+
 	res = yt921x_acl_rule_ext_parse_flow_action(ruleext, cls, priv, port);
 	if (res)
 		return res;
@@ -1049,7 +1082,7 @@ yt921x_acl_rule_ext_parse_flow(struct yt921x_acl_rule_ext *ruleext, int port,
 	if (res)
 		return res;
 
-	yt921x_acl_rule_set_ports(&ruleext->r, 0, BIT(port));
+	yt921x_acl_rule_set_ports(&ruleext->r, ord, BIT(port));
 	ruleext->r.tag = cls->cookie;
 	ruleext->r.type = TC_SETUP_CLSFLOWER;
 	return 0;

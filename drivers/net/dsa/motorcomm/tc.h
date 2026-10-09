@@ -331,6 +331,7 @@ enum yt921x_l4_type {
 
 #define YT921X_ACL_ENT_PER_BLK	8
 #define YT921X_ACL_NUM		384
+#define YT921X_ACL_ORD_NUM	512
 
 struct yt921x_acl_entry {
 	u32 key[2];
