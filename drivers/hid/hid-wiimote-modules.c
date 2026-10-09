@@ -339,9 +339,9 @@ static void wiimod_led_set(struct led_classdev *led_dev,
 static int wiimod_led_probe(const struct wiimod_ops *ops,
 			    struct wiimote_data *wdata)
 {
+	struct led_classdev *led __free(kfree) = NULL;
 	struct device *dev = &wdata->hdev->dev;
 	size_t namesz = strlen(dev_name(dev)) + 9;
-	struct led_classdev *led;
 	char *name;
 	int ret;
 
@@ -359,15 +359,14 @@ static int wiimod_led_probe(const struct wiimod_ops *ops,
 
 	wdata->leds[ops->arg] = led;
 	ret = led_classdev_register(dev, led);
-	if (ret)
-		goto err_free;
+	if (ret) {
+		wdata->leds[ops->arg] = NULL;
+		return ret;
+	}
+
+	retain_and_null_ptr(led);
 
 	return 0;
-
-err_free:
-	wdata->leds[ops->arg] = NULL;
-	kfree(led);
-	return ret;
 }
 
 static void wiimod_led_remove(const struct wiimod_ops *ops,
