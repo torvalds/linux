@@ -235,6 +235,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	 * Log the CPU info before it is marked online and might get read.
 	 */
 	cpuinfo_store_cpu();
+	update_cpu_features(cpu);
 	store_cpu_topology(cpu);
 
 	/*
@@ -457,7 +458,7 @@ void __init smp_prepare_boot_cpu(void)
 
 	/* Check arm64_ftr_regs[] before anything looks registers up in it. */
 	validate_ftr_regs();
-	cpuinfo_store_boot_cpu();
+	cpuinfo_store_cpu();
 	setup_boot_cpu_features();
 
 	/* Conditionally switch to GIC PMR for interrupt masking */
