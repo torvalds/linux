@@ -5149,7 +5149,10 @@ struct mgmt_frame_regs {
  *
  * @probe_peer: probe a connected peer (AP: STA MAC required; STA: no MAC),
  *	must use the @cookie as provided which is later passed to
- *	cfg80211_probe_status().
+ *	cfg80211_probe_status(). Called without the wiphy mutex, so the
+ *	interface type may have changed/be changing and the MAC may be
+ *	%NULL even in AP mode (if runtime type changes are supported),
+ *	drivers must check for that.
  *
  * @set_noack_map: Set the NoAck Map for the TIDs.
  *
