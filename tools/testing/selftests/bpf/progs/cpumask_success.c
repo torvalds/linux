@@ -460,6 +460,9 @@ int BPF_PROG(test_insert_leave, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
 
+	if (!is_test_task())
+		return 0;
+
 	cpumask = create_cpumask();
 	if (!cpumask)
 		return 0;
@@ -475,6 +478,9 @@ int BPF_PROG(test_insert_remove_release, struct task_struct *task, u64 clone_fla
 {
 	struct bpf_cpumask *cpumask;
 	struct __cpumask_map_value *v;
+
+	if (!is_test_task())
+		return 0;
 
 	cpumask = create_cpumask();
 	if (!cpumask)
