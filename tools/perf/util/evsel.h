@@ -120,6 +120,7 @@ struct evsel {
 	u64			db_id;
 	bool			uniquified_name;
 	bool 			supported;
+	bool			support_probe;	/* Opened just to check for support. */
 	bool 			needs_swap;
 	bool 			disabled;
 	bool			no_aux_samples;

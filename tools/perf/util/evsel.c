@@ -3104,7 +3104,11 @@ retry_open:
 
 			bpf_counter__install_pe(evsel, idx, fd);
 
-			if (unlikely(test_attr__enabled())) {
+			/*
+			 * Support probes aren't what was asked for, leave them
+			 * out of the PERF_TEST_ATTR dump.
+			 */
+			if (unlikely(test_attr__enabled() && !evsel->support_probe)) {
 				test_attr__open(&evsel->core.attr, pid, cpu,
 						fd, group_fd, evsel->open_flags);
 			}

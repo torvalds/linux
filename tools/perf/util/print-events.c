@@ -147,6 +147,7 @@ bool is_event_supported(u8 type, u64 config)
 
 	evsel = evsel__new(&attr);
 	if (evsel) {
+		evsel->support_probe = true;
 		ret = evsel__open(evsel, NULL, tmap) >= 0;
 
 		if (!ret) {
