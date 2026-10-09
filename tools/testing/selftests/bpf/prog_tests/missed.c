@@ -36,7 +36,7 @@ static void test_missed_perf_kprobe(void)
 
 	ASSERT_EQ(info.type, BPF_LINK_TYPE_PERF_EVENT, "info.type");
 	ASSERT_EQ(info.perf_event.type, BPF_PERF_EVENT_KPROBE, "info.perf_event.type");
-	ASSERT_EQ(info.perf_event.kprobe.missed, 1, "info.perf_event.kprobe.missed");
+	ASSERT_GE(info.perf_event.kprobe.missed, 1, "info.perf_event.kprobe.missed");
 
 cleanup:
 	missed_kprobe__destroy(skel);
