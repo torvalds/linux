@@ -6125,11 +6125,17 @@ error:
  * For extent-to-indirect block migration (via EXT4_IOC_SETFLAGS
  * clearing EXT4_EXTENTS_FL), this operation is directly rejected for
  * inodes using the iomap path.
+ *
+ * When remounting to toggle the buffered_iomap mount option, the change
+ * of I/O path is deferred as well, it will be available after the inode
+ * is re-initialized.
  */
 void ext4_enable_buffered_iomap(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
+	if (!test_opt2(sb, BUFFERED_IOMAP))
+		return;
 	if (!S_ISREG(inode->i_mode))
 		return;
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EA_INODE))
