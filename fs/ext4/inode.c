@@ -830,6 +830,13 @@ found:
 				map->m_flags |= EXT4_MAP_MAPPED;
 			goto out;
 		}
+	} else if (retval == 0) {
+		/*
+		 * Do not allocate blocks for holes in the context of
+		 * data submission path.
+		 */
+		if (!map->m_flags && (flags & EXT4_GET_BLOCKS_IO_SUBMIT))
+			goto out;
 	}
 
 	if (!handle) {
@@ -2428,6 +2435,12 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	err = ext4_map_blocks(handle, inode, map, get_blocks_flags);
 	if (err < 0)
 		return err;
+	/*
+	 * A hole? This should never happen since mpage_add_bh_to_extent()
+	 * has filtered it out.
+	 */
+	if (WARN_ON_ONCE(!err))
+		return -EINVAL;
 	if (dioread_nolock && (map->m_flags & EXT4_MAP_UNWRITTEN)) {
 		if (!mpd->io_submit.io_end->handle &&
 		    ext4_handle_valid(handle)) {
