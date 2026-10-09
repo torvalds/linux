@@ -523,9 +523,6 @@ int zpci_create_parent_msi_domain(struct zpci_bus *zbus)
 		return -ENOMEM;
 	}
 
-	if (irq_delivery == FLOATING)
-		zpci_msi_parent_ops.required_flags |= MSI_FLAG_NO_AFFINITY;
-
 	zbus->msi_parent_domain = msi_create_parent_irq_domain(&info, &zpci_msi_parent_ops);
 	if (!zbus->msi_parent_domain) {
 		irq_domain_free_fwnode(info.fwnode);
@@ -635,6 +632,9 @@ int __init zpci_irq_init(void)
 	irq_delivery = sclp.has_dirq ? DIRECTED : FLOATING;
 	if (s390_pci_force_floating)
 		irq_delivery = FLOATING;
+
+	if (irq_delivery == FLOATING)
+		zpci_msi_parent_ops.required_flags |= MSI_FLAG_NO_AFFINITY;
 
 	if (irq_delivery == DIRECTED)
 		zpci_airq.handler = zpci_directed_irq_handler;
