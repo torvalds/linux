@@ -462,6 +462,8 @@ struct yt921x_port {
 	/* BR_ISOLATED */
 	bool isolated:1;
 
+	unsigned short acl_cnt;
+
 #if IS_ENABLED(CONFIG_NET_DSA_YT921X_LEDS)
 	unsigned char led_duty;
 	unsigned short led_cycle;
