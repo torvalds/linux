@@ -91,6 +91,8 @@ enum utf16_endian;
 struct ntfs_mount_options {
 	char *nls_name;
 	struct nls_table *nls;
+	/* ->d_hash() and ->d_compare() read the options in rcu pathwalk */
+	struct rcu_head rcu;
 
 	kuid_t fs_uid;
 	kgid_t fs_gid;

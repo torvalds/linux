@@ -251,6 +251,11 @@ static inline void put_mount_options(struct ntfs_mount_options *options)
 	kfree(options);
 }
 
+static void put_mount_options_rcu(struct rcu_head *head)
+{
+	put_mount_options(container_of(head, struct ntfs_mount_options, rcu));
+}
+
 enum Opt {
 	Opt_uid,
 	Opt_gid,
@@ -444,6 +449,7 @@ static int ntfs_fs_reconfigure(struct fs_context *fc)
 	struct super_block *sb = fc->root->d_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct ntfs_mount_options *new_opts = fc->fs_private;
+	struct ntfs_mount_options *old_opts;
 	int ro_rw;
 
 	ro_rw = sb_rdonly(sb) && !(fc->sb_flags & SB_RDONLY);
@@ -473,7 +479,15 @@ static int ntfs_fs_reconfigure(struct fs_context *fc)
 	}
 
 	sync_filesystem(sb);
-	swap(sbi->options, fc->fs_private);
+	old_opts = sbi->options;
+	/* pairs with the READ_ONCE() in ntfs_nls_to_utf16() */
+	smp_store_release(&sbi->options, new_opts);
+	fc->fs_private = NULL;
+	/*
+	 * ntfs_d_hash() and ntfs_d_compare() of a pathwalk in rcu mode may
+	 * still read the old options through the sbi.
+	 */
+	call_rcu(&old_opts->rcu, put_mount_options_rcu);
 
 	return 0;
 }
