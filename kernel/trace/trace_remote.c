@@ -1098,6 +1098,7 @@ static int remote_event_format_show(struct seq_file *s, void *unused)
 
 	field = &evt->fields[0];
 	while (field->name) {
+		offset = ALIGN(offset, field->align);
 		seq_printf(s, "\tfield:%s %s;\toffset:%zu;\tsize:%u;\tsigned:%d;\n",
 			   field->type, field->name, offset, field->size,
 			   field->is_signed);
