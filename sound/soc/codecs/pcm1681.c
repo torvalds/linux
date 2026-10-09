@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -337,6 +338,10 @@ static const struct i2c_device_id pcm1681_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcm1681_i2c_id);
 
+static const char * const pcm1681_supply_names[] = {
+	"VCC1", "VCC2", "VDD",
+};
+
 static int pcm1681_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -346,6 +351,13 @@ static int pcm1681_i2c_probe(struct i2c_client *client)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	ret = devm_regulator_bulk_get_enable(dev,
+					     ARRAY_SIZE(pcm1681_supply_names),
+					     pcm1681_supply_names);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable supplies\n");
 
 	priv->sck = devm_clk_get_optional(dev, "sck");
 	if (IS_ERR(priv->sck))
