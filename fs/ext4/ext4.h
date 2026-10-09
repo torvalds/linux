@@ -3601,30 +3601,67 @@ do {								\
 #define EXT4_FREECLUSTERS_WATERMARK 0
 #endif
 
-/* Update i_disksize. Requires i_rwsem to avoid races with truncate */
+/*
+ * Update i_disksize. Requires i_rwsem to avoid races with truncate.
+ *
+ * In the iomap buffered I/O path, the EXT4_STATE_DISKSIZE_GROW_PENDING
+ * inode state bit indicates that the zeroed EOF partial block which
+ * straddles i_disksize is still waiting writeback.  In that case,
+ * i_disksize will be updated after the pending zeroed data has been
+ * written out.
+ */
 static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 {
 	WARN_ON_ONCE(S_ISREG(inode->i_mode) &&
 		     !inode_is_locked(inode));
 	down_write(&EXT4_I(inode)->i_data_sem);
-	if (newsize > EXT4_I(inode)->i_disksize)
+	if (newsize > EXT4_I(inode)->i_disksize &&
+	    !ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
 		WRITE_ONCE(EXT4_I(inode)->i_disksize, newsize);
 	up_write(&EXT4_I(inode)->i_data_sem);
 }
 
-/* Update i_size, i_disksize. Requires i_rwsem to avoid races with truncate */
+static inline void __ext4_set_i_disksize(struct inode *inode, loff_t newsize)
+{
+	WARN_ON_ONCE(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
+
+	if (newsize < EXT4_I(inode)->i_disksize ||
+	    !ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
+		WRITE_ONCE(EXT4_I(inode)->i_disksize, newsize);
+}
+
+/*
+ * Update i_size and i_disksize to @newsize.  Requires i_rwsem to avoid
+ * races with truncate.
+ *
+ * In the iomap buffered I/O path, i_disksize is updated only if no zeroed
+ * pending block straddles i_disksize (EXT4_STATE_DISKSIZE_GROW_PENDING
+ * clear), otherwise the ioend worker for the pending block will advance
+ * i_disksize once the pending block is written back.  Both updates happen
+ * under i_data_sem so that the writeback ioend worker can always see the
+ * latest i_size under the same semaphore.
+ *
+ * Returns 0 if nothing changed, 1 if i_size was raised, 2 if i_disksize
+ * was raised, or 3 if both were.
+ */
 static inline int ext4_update_inode_size(struct inode *inode, loff_t newsize)
 {
 	int changed = 0;
 
+	if (newsize <= inode->i_size && newsize <= EXT4_I(inode)->i_disksize)
+		return 0;
+
+	down_write(&EXT4_I(inode)->i_data_sem);
 	if (newsize > inode->i_size) {
 		i_size_write(inode, newsize);
 		changed = 1;
 	}
-	if (newsize > EXT4_I(inode)->i_disksize) {
-		ext4_update_i_disksize(inode, newsize);
+	if (newsize > EXT4_I(inode)->i_disksize &&
+	    !ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING)) {
+		WRITE_ONCE(EXT4_I(inode)->i_disksize, newsize);
 		changed |= 2;
 	}
+	up_write(&EXT4_I(inode)->i_data_sem);
 	return changed;
 }
 

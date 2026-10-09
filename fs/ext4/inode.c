@@ -6635,8 +6635,10 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  * Set i_size and i_disksize to 'newsize'.
  *
  * Both i_rwsem and i_data_sem are required here to avoid races between
- * generic append writeback and concurrent truncate that also modify
- * i_size and i_disksize.
+ * generic append writeback (or zeroed pending I/O writeback) and
+ * concurrent operations (e.g., fallocate, truncate) that also modify
+ * i_size and i_disksize. This also ensures that the writeback ioend worker
+ * observes the latest i_size under the same lock protection.
  */
 static inline void ext4_set_inode_size(struct inode *inode, loff_t newsize)
 {
@@ -6644,7 +6646,7 @@ static inline void ext4_set_inode_size(struct inode *inode, loff_t newsize)
 
 	down_write(&EXT4_I(inode)->i_data_sem);
 	i_size_write(inode, newsize);
-	EXT4_I(inode)->i_disksize = newsize;
+	__ext4_set_i_disksize(inode, newsize);
 	up_write(&EXT4_I(inode)->i_data_sem);
 }
 

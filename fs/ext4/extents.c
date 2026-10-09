@@ -4561,7 +4561,7 @@ int ext4_ext_truncate(handle_t *handle, struct inode *inode)
 	 */
 
 	/* we have to know where to truncate from in crash case */
-	EXT4_I(inode)->i_disksize = inode->i_size;
+	__ext4_set_i_disksize(inode, inode->i_size);
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err)
 		return err;
