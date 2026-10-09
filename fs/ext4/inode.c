@@ -1990,7 +1990,7 @@ add_delayed:
 		}
 	}
 
-	map->m_flags |= EXT4_MAP_DELAYED;
+	map->m_flags |= EXT4_MAP_DELAYED | EXT4_MAP_NEW;
 	retval = ext4_insert_delayed_blocks(inode, map->m_lblk, map->m_len);
 	if (!retval)
 		map->m_seq = READ_ONCE(EXT4_I(inode)->i_es_seq);
