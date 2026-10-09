@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Motorcomm 8511/8521/8522/8531/8531S/8821 PHY driver.
+ * Motorcomm 8511/8521/8522/8531/8531S/861x/8821 PHY driver.
  *
  * Author: Peter Geis <pgwipeout@gmail.com>
  * Author: Frank <Frank.Sae@motor-comm.com>
@@ -18,6 +18,8 @@
 #define PHY_ID_YT8522		0x4f51e928
 #define PHY_ID_YT8531		0x4f51e91b
 #define PHY_ID_YT8531S		0x4f51e91a
+/* Live captured from YT921x switch internal MDIO bus */
+#define PHY_ID_INT861X		0x01e04281
 #define PHY_ID_YT8821		0x4f51ea19
 /* YT8521/YT8531S/YT8821 Register Overview
  *	UTP Register space	|	FIBER Register space
@@ -2539,6 +2541,29 @@ static int yt8521_get_features(struct phy_device *phydev)
 }
 
 /**
+ * yt861x_config_init() - apply the auto sleep setting to the PHY
+ * @phydev: a pointer to a &struct phy_device
+ *
+ * Auto sleep is enabled by default and a BMCR soft reset does not restore it,
+ * so apply the setting from config_init. It can be disabled with the
+ * "motorcomm,auto-sleep-disabled" device property.
+ *
+ * Returns: 0 or negative errno code
+ */
+static int yt861x_config_init(struct phy_device *phydev)
+{
+	bool sleep;
+
+	sleep = !device_property_read_bool(&phydev->mdio.dev,
+					   "motorcomm,auto-sleep-disabled");
+
+	return ytphy_modify_ext_with_lock(phydev,
+					 YT8521_EXTREG_SLEEP_CONTROL1_REG,
+					 YT8521_ESC1R_SLEEP_SW,
+					 sleep ? YT8521_ESC1R_SLEEP_SW : 0);
+}
+
+/**
  * yt8821_get_features - read mmd register to get 2.5G capability
  * @phydev: target phy_device struct
  *
@@ -3174,6 +3199,15 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.resume		= yt8521_resume,
 	},
 	{
+		PHY_ID_MATCH_EXACT(PHY_ID_INT861X),
+		.name			= "YT861x Internal Gigabit Ethernet",
+		.flags			= PHY_IS_INTERNAL,
+		.config_init		= yt861x_config_init,
+		.soft_reset		= genphy_soft_reset,
+		.suspend		= genphy_suspend,
+		.resume			= genphy_resume,
+	},
+	{
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8821),
 		.name			= "YT8821 2.5Gbps PHY",
 		.get_features		= yt8821_get_features,
@@ -3194,7 +3228,7 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 
 module_phy_driver(motorcomm_phy_drvs);
 
-MODULE_DESCRIPTION("Motorcomm 8511/8521/8531/8531S/8821 PHY driver");
+MODULE_DESCRIPTION("Motorcomm 8511/8521/8531/8531S/861x/8821 PHY driver");
 MODULE_AUTHOR("Peter Geis");
 MODULE_AUTHOR("Frank");
 MODULE_LICENSE("GPL");
@@ -3205,6 +3239,7 @@ static const struct mdio_device_id __maybe_unused motorcomm_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8522) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531S) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_INT861X) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8821) },
 	{ /* sentinel */ }
 };
