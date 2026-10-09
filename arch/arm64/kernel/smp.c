@@ -455,6 +455,8 @@ void __init smp_prepare_boot_cpu(void)
 	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 
+	/* Check arm64_ftr_regs[] before anything looks registers up in it. */
+	validate_ftr_regs();
 	cpuinfo_store_boot_cpu();
 	setup_boot_cpu_features();
 

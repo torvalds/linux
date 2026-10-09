@@ -962,7 +962,7 @@ s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 	return ret;
 }
 
-static void __init sort_ftr_regs(void)
+void __init validate_ftr_regs(void)
 {
 	unsigned int i;
 
@@ -1207,9 +1207,6 @@ bool gmid_el1_accessible(const struct cpuinfo_arm64 *info)
 
 void __init init_cpu_features(struct cpuinfo_arm64 *info)
 {
-	/* Before we start using the tables, make sure it is sorted */
-	sort_ftr_regs();
-
 	init_cpu_ftr_reg(SYS_CTR_EL0, info->reg_ctr);
 	init_cpu_ftr_reg(SYS_DCZID_EL0, info->reg_dczid);
 	init_cpu_ftr_reg(SYS_CNTFRQ_EL0, info->reg_cntfrq);
