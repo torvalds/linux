@@ -1039,6 +1039,9 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 
 	if (ext4_has_inline_data(inode))
 		return -ERANGE;
+	/* inode using the iomap buffered I/O path should not go here. */
+	if (WARN_ON_ONCE(ext4_inode_buffered_iomap(inode)))
+		return -EINVAL;
 
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
@@ -2916,6 +2919,13 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 		goto out_writepages;
 
 	/*
+	 * Does ext4_change_inode_journal_flag() change the inode's
+	 * buffered I/O path?
+	 */
+	if (ext4_inode_buffered_iomap(inode))
+		goto out_writepages;
+
+	/*
 	 * If the filesystem has aborted, it is read-only, so return
 	 * right away instead of dumping stack traces later on that
 	 * will obscure the real source of the problem.  We test
@@ -4053,6 +4063,9 @@ static int ext4_iomap_map_blocks(struct inode *inode, loff_t offset,
 {
 	u8 blkbits = inode->i_blkbits;
 
+	/* inode using the buffer_head buffered I/O path should not go here. */
+	if (WARN_ON_ONCE(!ext4_inode_buffered_iomap(inode)))
+		return -EINVAL;
 	if ((offset >> blkbits) > EXT4_MAX_LOGICAL_BLOCK)
 		return -EINVAL;
 
@@ -4496,6 +4509,15 @@ static int ext4_iomap_writepages(struct address_space *mapping,
 	ext4_iomap_wb_submit_zeroed_eof(inode, wbc);
 
 	alloc_ctx = ext4_writepages_down_read(sb);
+	/*
+	 * Does ext4_change_inode_journal_flag() change the inode's
+	 * buffered I/O path?
+	 */
+	if (!ext4_inode_buffered_iomap(inode)) {
+		ext4_writepages_up_read(sb, alloc_ctx);
+		return ret;
+	}
+
 	trace_ext4_writepages(inode, wbc);
 	ret = iomap_writepages(&wpc);
 	trace_ext4_writepages_result(inode, wbc, ret, nr - wbc->nr_to_write);
@@ -6076,6 +6098,81 @@ error:
 	return -EFSCORRUPTED;
 }
 
+/*
+ * Determine whether an inode should use the iomap buffered I/O path.
+ * EXT4_STATE_BUFFERED_IOMAP is generally set at inode initialization
+ * time. Online switching of the buffered I/O path on an active inode is
+ * NOT supported, with the exception of changing a per-inode journal
+ * flag.
+ *
+ * For features like inline data, fsverity, and encryption that can be
+ * dynamically enabled or disabled, we check the superblock-level
+ * feature flags. If any of these is globally enabled, no inode is
+ * allowed into the iomap buffered I/O path. This avoids the complexity
+ * of dynamic toggling.
+ *
+ * For the global data journal mode (EXT4_MOUNT_JOURNAL_DATA), dynamic
+ * change through remount is deferred. It will only become available
+ * after the inode is re-initialized (i.e., after the last reference
+ * drops and the inode is re-read from disk with the journal flag
+ * cleared).
+ *
+ * For the per-inode data journal mode (EXT4_INODE_JOURNAL_DATA),
+ * dynamic changes take effect immediately. This is safe because
+ * address_space operations can be switched and all page cache can be
+ * dropped under i_rwsem and filemap_invalidate_lock.
+ *
+ * For extent-to-indirect block migration (via EXT4_IOC_SETFLAGS
+ * clearing EXT4_EXTENTS_FL), this operation is directly rejected for
+ * inodes using the iomap path.
+ */
+void ext4_enable_buffered_iomap(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+
+	if (!S_ISREG(inode->i_mode))
+		return;
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EA_INODE))
+		return;
+
+	/* Unsupported Features */
+	if (ext4_has_feature_inline_data(sb))
+		return;
+	if (ext4_has_feature_verity(sb))
+		return;
+	if (ext4_has_feature_encrypt(sb))
+		return;
+	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA))
+		return;
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
+		return;
+
+	ext4_set_inode_state(inode, EXT4_STATE_BUFFERED_IOMAP);
+
+	/*
+	 * Install the iomap end_io handler on the shared conversion
+	 * work.  This is safe at inode initialization and during the
+	 * buffered I/O path changes where we flush all pending
+	 * writebacks and drop page cache under i_rwsem and
+	 * filemap_invalidate_lock.
+	 */
+	INIT_WORK(&EXT4_I(inode)->i_rsv_conversion_work, ext4_iomap_end_io);
+}
+
+static void ext4_disable_buffered_iomap(struct inode *inode)
+{
+	ext4_clear_inode_state(inode, EXT4_STATE_BUFFERED_IOMAP);
+
+	/*
+	 * Reinstall the buffer_head end_io handler on the shared
+	 * conversion work.  This is safe during the buffered I/O path
+	 * changes where we flush all pending writebacks and drop page
+	 * cache under i_rwsem and filemap_invalidate_lock.
+	 */
+	INIT_WORK(&EXT4_I(inode)->i_rsv_conversion_work, ext4_end_io_rsv_work);
+}
+
 void ext4_set_inode_mapping_order(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
@@ -6389,6 +6486,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	}
 	if (ret)
 		goto bad_inode;
+
+	ext4_enable_buffered_iomap(inode);
 
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext4_file_inode_operations;
@@ -7626,9 +7725,10 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	 * the inode's in-core data-journaling state flag now.
 	 */
 
-	if (val)
+	if (val) {
 		ext4_set_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
-	else {
+		ext4_disable_buffered_iomap(inode);
+	} else {
 		err = jbd2_journal_flush(journal, 0);
 		if (err < 0) {
 			jbd2_journal_unlock_updates(journal);
@@ -7637,6 +7737,7 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 			return err;
 		}
 		ext4_clear_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
+		ext4_enable_buffered_iomap(inode);
 	}
 	ext4_set_aops(inode);
 	ext4_set_inode_mapping_order(inode);
