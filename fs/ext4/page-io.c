@@ -22,6 +22,7 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
+#include <linux/iomap.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
@@ -546,4 +547,125 @@ void ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 			continue;
 		io_submit_add_bh(io, inode, folio, bh);
 	} while ((bh = bh->b_this_page) != head);
+}
+
+static int ext4_iomap_wb_update_disksize(handle_t *handle, struct inode *inode,
+					 loff_t end)
+{
+	loff_t new_disksize = end;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	int ret;
+
+	/*
+	 * Races with truncate are avoided by checking i_size under
+	 * i_data_sem.
+	 */
+	down_write(&ei->i_data_sem);
+	new_disksize = min(new_disksize, i_size_read(inode));
+	if (new_disksize > ei->i_disksize)
+		WRITE_ONCE(ei->i_disksize, new_disksize);
+	up_write(&ei->i_data_sem);
+	ret = ext4_mark_inode_dirty(handle, inode);
+	if (ret)
+		EXT4_ERROR_INODE_ERR(inode, -ret, "Failed to mark inode dirty");
+
+	return ret;
+}
+
+static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
+{
+	struct inode *inode = ioend->io_inode;
+	struct super_block *sb = inode->i_sb;
+	loff_t pos = ioend->io_offset;
+	size_t size = ioend->io_size;
+	loff_t end = pos + size;
+	handle_t *handle;
+	int credits;
+	int ret, err;
+
+	ret = blk_status_to_errno(ioend->io_bio.bi_status);
+	if (unlikely(ret)) {
+		if (test_opt(sb, DATA_ERR_ABORT) && !ext4_emergency_state(sb))
+			jbd2_journal_abort(EXT4_SB(sb)->s_journal, ret);
+		goto out;
+	}
+
+	if (!(ioend->io_flags & IOMAP_IOEND_UNWRITTEN) &&
+	    end <= READ_ONCE(EXT4_I(inode)->i_disksize))
+		goto out;
+
+	/*
+	 * We may need to convert one extent, update the i_disksize and
+	 * dirty the inode.
+	 */
+	credits = ext4_chunk_trans_blocks(inode,
+			EXT4_MAX_BLOCKS(size, pos, inode->i_blkbits));
+	handle = ext4_journal_start(inode, EXT4_HT_EXT_CONVERT, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out_err;
+	}
+
+	/* Update on-disk size after I/O is completed. */
+	if (end > READ_ONCE(EXT4_I(inode)->i_disksize)) {
+		ret = ext4_iomap_wb_update_disksize(handle, inode, end);
+		if (ret)
+			goto out_journal;
+	}
+
+	if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
+		ret = ext4_convert_unwritten_extents(handle, inode, pos,
+						     size, NULL);
+
+out_journal:
+	err = ext4_journal_stop(handle);
+	if (!ret)
+		ret = err;
+out_err:
+	if (ret < 0 && !ext4_emergency_state(sb)) {
+		ext4_msg(sb, KERN_EMERG,
+			 "failed to convert unwritten extents to written extents or update inode size -- potential data loss! (inode %llu, error %d)",
+			 inode->i_ino, ret);
+	}
+out:
+	iomap_finish_ioends(ioend, ret);
+}
+
+/*
+ * Work on buffered iomap completed IO, to convert unwritten extents to
+ * mapped extents
+ */
+void ext4_iomap_end_io(struct work_struct *work)
+{
+	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+						  i_rsv_conversion_work);
+	struct iomap_ioend *ioend;
+	struct list_head ioend_list;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	list_replace_init(&ei->i_rsv_conversion_list, &ioend_list);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+
+	iomap_sort_ioends(&ioend_list);
+	while (!list_empty(&ioend_list)) {
+		ioend = list_entry(ioend_list.next, struct iomap_ioend, io_list);
+		list_del_init(&ioend->io_list);
+		iomap_ioend_try_merge(ioend, &ioend_list);
+		ext4_iomap_finish_ioend(ioend);
+	}
+}
+
+void ext4_iomap_end_bio(struct bio *bio)
+{
+	struct iomap_ioend *ioend = iomap_ioend_from_bio(bio);
+	struct ext4_inode_info *ei = EXT4_I(ioend->io_inode);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (list_empty(&ei->i_rsv_conversion_list))
+		queue_work(EXT4_SB(ioend->io_inode->i_sb)->rsv_conversion_wq,
+			   &ei->i_rsv_conversion_work);
+	list_add_tail(&ioend->io_list, &ei->i_rsv_conversion_list);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }

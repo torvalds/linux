@@ -1208,8 +1208,10 @@ struct ext4_inode_info {
 	/* Lock protecting lists below */
 	spinlock_t i_completed_io_lock;
 	/*
-	 * Completed IOs that need unwritten extents handling and have
-	 * transaction reserved
+	 * Completed IOs that need unwritten extents handling and have a
+	 * transaction reserved for the buffer_head writeback path, and
+	 * also used by the iomap writeback path to queue ioends needing
+	 * unwritten extents conversion, i_disksize update, etc.
 	 */
 	struct list_head i_rsv_conversion_list;
 	struct work_struct i_rsv_conversion_work;
@@ -3990,6 +3992,8 @@ void ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *page,
 		size_t len);
 extern struct ext4_io_end_vec *ext4_alloc_io_end_vec(ext4_io_end_t *io_end);
 extern struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end);
+extern void ext4_iomap_end_io(struct work_struct *work);
+extern void ext4_iomap_end_bio(struct bio *bio);
 
 /* mmp.c */
 extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
