@@ -621,6 +621,13 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 	},
 };
 
+static const __u8 player_leds[] = {
+	WIIPROTO_FLAG_LED1,
+	WIIPROTO_FLAG_LED2,
+	WIIPROTO_FLAG_LED3,
+	WIIPROTO_FLAG_LED4
+};
+
 static void wiimote_modules_load(struct wiimote_data *wdata,
 				 unsigned int devtype)
 {
@@ -670,7 +677,10 @@ static void wiimote_modules_load(struct wiimote_data *wdata,
 
 	spin_lock_irq(&wdata->state.lock);
 	wdata->state.devtype = devtype;
+	/* after loading modules, set the Player ID LED cycling the available LEDs*/
+	wiiproto_req_leds(wdata, player_leds[(wdata->player_id - 1U) % ARRAY_SIZE(player_leds)]);
 	spin_unlock_irq(&wdata->state.lock);
+
 	return;
 
 error:
@@ -855,11 +865,11 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 
 done:
 	if (devtype == WIIMOTE_DEV_GENERIC)
-		hid_info(wdata->hdev, "cannot detect device; NAME: %s VID: %04x PID: %04x EXT: %04x\n",
-			name, vendor, product, exttype);
+		hid_info(wdata->hdev, "cannot detect device; NAME: %s VID: %04x PID: %04x EXT: %04x (%d)\n",
+			name, vendor, product, exttype, wdata->player_id);
 	else
-		hid_info(wdata->hdev, "detected device: %s\n",
-			 wiimote_devtype_names[devtype]);
+		hid_info(wdata->hdev, "detected device: %s (%d)\n",
+			 wiimote_devtype_names[devtype], wdata->player_id);
 
 	wiimote_modules_load(wdata, devtype);
 }
@@ -1752,6 +1762,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	mutex_init(&wdata->state.sync);
 	wdata->state.drm = WIIPROTO_REQ_DRM_K;
 	wdata->state.cmd_battery = 0xff;
+	wdata->player_id = 0; // min 1, u8 0 is unassigned id
 
 	INIT_WORK(&wdata->init_worker, wiimote_init_worker);
 	timer_setup(&wdata->timer, wiimote_init_timeout, 0);
@@ -1759,11 +1770,17 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	return wdata;
 }
 
+/* Global id allocator for wii remotes */
+static DEFINE_IDA(wiimote_ida);
+
 static void wiimote_destroy(struct wiimote_data *wdata)
 {
 	unsigned long flags;
 
 	wiidebug_deinit(wdata);
+
+	if (wdata->player_id > 0)
+		ida_free(&wiimote_ida, wdata->player_id);
 
 	/* prevent init_worker from being scheduled again */
 	spin_lock_irqsave(&wdata->state.lock, flags);
@@ -1834,7 +1851,14 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	if (ret)
 		goto err_free;
 
-	hid_info(hdev, "New device registered\n");
+	ret = ida_alloc_range(&wiimote_ida, 1, 255, GFP_KERNEL);
+	if (ret < 1) {
+		hid_err(hdev, "cannot allocate controller id\n");
+		goto err_free;
+	}
+
+	wdata->player_id = ret;
+	hid_info(hdev, "New device registered (Wiimote %d)\n", wdata->player_id);
 
 	/* schedule device detection */
 	wiimote_schedule(wdata);
@@ -1887,7 +1911,21 @@ static struct hid_driver wiimote_hid_driver = {
 	.remove = wiimote_hid_remove,
 	.raw_event = wiimote_hid_event,
 };
-module_hid_driver(wiimote_hid_driver);
+
+
+static int __init wiimote_init(void)
+{
+	return hid_register_driver(&wiimote_hid_driver);
+}
+
+static void __exit wiimote_exit(void)
+{
+	hid_unregister_driver(&wiimote_hid_driver);
+	ida_destroy(&wiimote_ida);
+}
+
+module_init(wiimote_init);
+module_exit(wiimote_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");

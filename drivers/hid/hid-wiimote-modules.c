@@ -362,13 +362,6 @@ static int wiimod_led_probe(const struct wiimod_ops *ops,
 	if (ret)
 		goto err_free;
 
-	/* enable LED1 to stop initial LED-blinking */
-	if (ops->arg == 0) {
-		spin_lock_irqsave(&wdata->state.lock, flags);
-		wiiproto_req_leds(wdata, WIIPROTO_FLAG_LED1);
-		spin_unlock_irqrestore(&wdata->state.lock, flags);
-	}
-
 	return 0;
 
 err_free:

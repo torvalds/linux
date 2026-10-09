@@ -186,12 +186,14 @@ int wiidebug_init(struct wiimote_data *wdata)
 	dbg->drm = debugfs_create_file("drm", S_IRUSR,
 			dbg->wdata->hdev->debug_dir, dbg, &wiidebug_drm_fops);
 
+	debugfs_create_u8("player_id", S_IRUSR,
+		   dbg->wdata->hdev->debug_dir, &wdata->player_id);
+
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wdata->debug = dbg;
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	return 0;
-
 }
 
 void wiidebug_deinit(struct wiimote_data *wdata)
@@ -208,5 +210,6 @@ void wiidebug_deinit(struct wiimote_data *wdata)
 
 	debugfs_remove(dbg->drm);
 	debugfs_remove(dbg->eeprom);
+	debugfs_lookup_and_remove("player_id", dbg->wdata->hdev->debug_dir);
 	kfree(dbg);
 }
