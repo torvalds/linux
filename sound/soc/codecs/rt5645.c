@@ -4045,26 +4045,16 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
 
-	if (IS_ERR(rt5645->gpiod_hp_det)) {
-		dev_info(&i2c->dev, "failed to initialize gpiod\n");
-		ret = PTR_ERR(rt5645->gpiod_hp_det);
-		/*
-		 * Continue if optional gpiod is missing, bail for all other
-		 * errors, including -EPROBE_DEFER
-		 */
-		if (ret != -ENOENT)
-			return ret;
-	}
+	if (IS_ERR(rt5645->gpiod_hp_det))
+		return dev_err_probe(&i2c->dev, PTR_ERR(rt5645->gpiod_hp_det),
+				     "failed to get hp-detect gpio\n");
 
 	rt5645->gpiod_cbj_sleeve = devm_gpiod_get_optional(&i2c->dev, "cbj-sleeve",
 							   GPIOD_OUT_LOW);
 
-	if (IS_ERR(rt5645->gpiod_cbj_sleeve)) {
-		ret = PTR_ERR(rt5645->gpiod_cbj_sleeve);
-		dev_info(&i2c->dev, "failed to initialize gpiod, ret=%d\n", ret);
-		if (ret != -ENOENT)
-			return ret;
-	}
+	if (IS_ERR(rt5645->gpiod_cbj_sleeve))
+		return dev_err_probe(&i2c->dev, PTR_ERR(rt5645->gpiod_cbj_sleeve),
+				     "failed to get cbj-sleeve gpio\n");
 
 	for (i = 0; i < ARRAY_SIZE(rt5645->supplies); i++)
 		rt5645->supplies[i].supply = rt5645_supply_names[i];
