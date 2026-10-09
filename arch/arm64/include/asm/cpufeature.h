@@ -627,6 +627,13 @@ static inline bool id_aa64pfr1_mpamfrac(u64 pfr1)
 	return val > 0;
 }
 
+static inline bool id_aa64pfr1_mte(u64 pfr1)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_MTE_SHIFT);
+
+	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
+}
+
 void __init setup_boot_cpu_features(void);
 void __init setup_system_features(void);
 void __init setup_user_features(void);
@@ -957,6 +964,10 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 
 s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new, s64 cur);
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
+u64 arm64_ftr_reg_override(u32 sys_id, u64 val);
+
+/* Read this CPU's ID register with each valid command-line override applied. */
+#define read_cpuid_with_overrides(reg)	arm64_ftr_reg_override(SYS_##reg, read_cpuid(reg))
 
 extern struct arm64_ftr_override id_aa64mmfr0_override;
 extern struct arm64_ftr_override id_aa64mmfr1_override;

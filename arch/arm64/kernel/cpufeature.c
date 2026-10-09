@@ -962,6 +962,32 @@ s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 	return ret;
 }
 
+u64 arm64_ftr_reg_override(u32 sys_id, u64 val)
+{
+	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_id);
+	const struct arm64_ftr_bits *ftrp;
+
+	if (!reg || !reg->override->mask)
+		return val;
+
+	for (ftrp = reg->ftr_bits; ftrp->width; ftrp++) {
+		u64 ftr_mask = arm64_ftr_mask(ftrp);
+		s64 ftr_new, ftr_ovr;
+
+		if ((ftr_mask & reg->override->mask) != ftr_mask)
+			continue;
+
+		ftr_new = arm64_ftr_value(ftrp, val);
+		ftr_ovr = arm64_ftr_value(ftrp, reg->override->val);
+
+		/* An unsafe override is left for init_cpu_ftr_reg() to remove. */
+		if (arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new) == ftr_ovr)
+			val = arm64_ftr_set_value(ftrp, val, ftr_ovr);
+	}
+
+	return val;
+}
+
 void __init validate_ftr_regs(void)
 {
 	unsigned int i;
@@ -1178,33 +1204,6 @@ static bool detect_ftr_has_mpam(void)
 	return id_aa64pfr0_mpam(pfr0) || id_aa64pfr1_mpamfrac(pfr1);
 }
 
-bool gmid_el1_accessible(const struct cpuinfo_arm64 *info)
-{
-	const struct arm64_ftr_bits *ftrp;
-	s64 mte, ovr;
-	u64 ftr_mask;
-
-	/* No ID register reflects CONFIG_ARM64_MTE. */
-	if (!IS_ENABLED(CONFIG_ARM64_MTE))
-		return false;
-
-	for (ftrp = ftr_id_aa64pfr1; ftrp->width; ftrp++) {
-		if (ftrp->shift == ID_AA64PFR1_EL1_MTE_SHIFT)
-			break;
-	}
-
-	ftr_mask = arm64_ftr_mask(ftrp);
-	mte = arm64_ftr_value(ftrp, info->reg_id_aa64pfr1);
-
-	/* The boot CPU runs before init_cpu_ftr_reg() strips unsafe overrides. */
-	if ((id_aa64pfr1_override.mask & ftr_mask) == ftr_mask) {
-		ovr = arm64_ftr_value(ftrp, id_aa64pfr1_override.val);
-		mte = arm64_ftr_safe_value(ftrp, ovr, mte);
-	}
-
-	return mte >= ID_AA64PFR1_EL1_MTE_MTE2;
-}
-
 void __init init_cpu_features(struct cpuinfo_arm64 *info)
 {
 	init_cpu_ftr_reg(SYS_CTR_EL0, info->reg_ctr);
@@ -1254,7 +1253,7 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 		init_cpu_ftr_reg(SYS_MPAMIDR_EL1, info->reg_mpamidr);
 	}
 
-	if (gmid_el1_accessible(info))
+	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
 		init_cpu_ftr_reg(SYS_GMID_EL1, info->reg_gmid);
 }
 
@@ -1516,7 +1515,7 @@ void update_cpu_features(int cpu,
 	 * they read/write depends on the GMID_EL1.BS field. Check that the
 	 * value is the same on all CPUs.
 	 */
-	if (gmid_el1_accessible(info))
+	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
 		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
 					      info->reg_gmid, boot->reg_gmid);
 
