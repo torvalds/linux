@@ -127,6 +127,12 @@ struct efi_runtime_work efi_rts_work;
 #define EFI_RTS_TIMEOUT		(120 * HZ)
 
 /*
+ * Set when __efi_queue_work() gives up waiting for a call that is wedged in
+ * firmware. EFI runtime services are disabled for good at that point.
+ */
+static bool efi_rts_abandoned;
+
+/*
  * efi_queue_work:	Queue EFI runtime service call and wait for completion
  * @_rts:		EFI runtime service function identifier
  * @_args:		Arguments to pass to the EFI runtime service
@@ -336,7 +342,12 @@ static void __nocfi efi_call_rts(struct work_struct *work)
 	efi_call_virt_check_flags(flags, efi_rts_work.caller);
 	arch_efi_call_virt_teardown();
 
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	/*
+	 * EFI runtime services may also have been disabled because the
+	 * firmware faulted, but the caller is still waiting for us in that
+	 * case. Only park the worker if the caller has given up on it.
+	 */
+	if (READ_ONCE(efi_rts_abandoned))
 		efi_rts_park_worker();
 
 	efi_rts_work.status = status;
@@ -373,6 +384,7 @@ static efi_status_t __efi_queue_work(enum efi_rts_ids id,
 					 EFI_RTS_TIMEOUT)) {
 		pr_err("EFI runtime service %d wedged in firmware; disabling EFI runtime services\n",
 		       id);
+		WRITE_ONCE(efi_rts_abandoned, true);
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return EFI_ABORTED;
 	}
