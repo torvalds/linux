@@ -133,9 +133,12 @@ void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
  */
 void ext4_iomap_clear_disksize_pending(struct inode *inode)
 {
-	clear_and_wake_up_bit(
+	if (!test_and_clear_wake_up_bit(
 		ext4_inode_state_wait_bit(EXT4_STATE_DISKSIZE_GROW_PENDING),
-		ext4_inode_state_wait_word(inode));
+		ext4_inode_state_wait_word(inode)))
+		return;
+
+	trace_ext4_iomap_clear_disksize_pending(inode);
 }
 
 /*
@@ -144,6 +147,10 @@ void ext4_iomap_clear_disksize_pending(struct inode *inode)
  */
 void ext4_iomap_wait_disksize_pending(struct inode *inode)
 {
+	/* Only emit the trace when the bit is actually set */
+	if (ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
+		trace_ext4_iomap_wait_disksize_pending(inode);
+
 	wait_on_bit(ext4_inode_state_wait_word(inode),
 		    ext4_inode_state_wait_bit(EXT4_STATE_DISKSIZE_GROW_PENDING),
 		    TASK_UNINTERRUPTIBLE);
@@ -4922,8 +4929,10 @@ static int ext4_iomap_mark_disksize_pending(struct inode *inode, loff_t from)
 	 */
 	if (likely(folio_test_dirty(folio) &&
 		   !ext4_test_inode_state(inode,
-					  EXT4_STATE_DISKSIZE_GROW_PENDING)))
+					  EXT4_STATE_DISKSIZE_GROW_PENDING))) {
+		trace_ext4_iomap_mark_disksize_pending(inode);
 		ext4_set_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING);
+	}
 out:
 	folio_unlock(folio);
 	folio_put(folio);
