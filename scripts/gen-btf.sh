@@ -68,10 +68,7 @@ esac
 
 gen_btf_data()
 {
-	inline=""
-	if [ -n "${BTF_INLINE}" ] && [ -z "${BTF_BASE}" ]; then
-		inline="--inline"
-	fi
+	inline=${BTF_INLINE:+--inline}
 	btf1="${ELF_FILE}.BTF.1"
 	${PAHOLE} -J ${PAHOLE_FLAGS}			\
 		${BTF_BASE:+--btf_base ${BTF_BASE}}	\
@@ -130,7 +127,7 @@ embed_btf_data()
 	if [ -f "${btf_base}" ]; then
 		${OBJCOPY} --add-section .BTF.base=${btf_base} ${ELF_FILE}
 	fi
-	btf_inline=""
+	btf_inline=${ELF_FILE}.BTF.inline
 	case "${ELF_FILE}" in
 	*/btf_vmlinux_inline.ko)
 		btf_inline=${BTF_BASE}.BTF.inline
