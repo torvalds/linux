@@ -11919,6 +11919,8 @@ static void smb20_oplock_break_ack(struct ksmbd_work *work)
 		return;
 	}
 
+	/* Serialize the level update with break completion and timeout. */
+	spin_lock(&opinfo->state_lock);
 	if (opinfo->op_state != OPLOCK_ACK_WAIT) {
 		ksmbd_debug(SMB, "unexpected oplock state 0x%x\n",
 			    opinfo->op_state);
@@ -11930,6 +11932,7 @@ static void smb20_oplock_break_ack(struct ksmbd_work *work)
 			rsp->Reserved2 = 0;
 			rsp->VolatileFid = volatile_id;
 			rsp->PersistentFid = persistent_id;
+			spin_unlock(&opinfo->state_lock);
 			ret = ksmbd_iov_pin_rsp(work, rsp,
 						 sizeof(struct smb2_oplock_break));
 			if (ret)
@@ -11986,6 +11989,9 @@ static void smb20_oplock_break_ack(struct ksmbd_work *work)
 		rsp_oplevel = req_oplevel;
 
 	opinfo->level = rsp_oplevel;
+	opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_unlock(&opinfo->state_lock);
+	wake_up_interruptible_all(&opinfo->oplock_q);
 
 	rsp->StructureSize = cpu_to_le16(24);
 	rsp->OplockLevel = rsp_oplevel;
@@ -11997,18 +12003,15 @@ static void smb20_oplock_break_ack(struct ksmbd_work *work)
 	if (ret)
 		ksmbd_debug(SMB, "failed to pin oplock break response: %d\n",
 			    ret);
-	goto out;
+	goto out_no_state_change;
 
 err_out:
-	rsp->hdr.Status = status;
-	smb2_set_err_rsp(work);
-
-out:
-	spin_lock(&opinfo->state_lock);
 	if (opinfo->op_state != OPLOCK_CLOSING)
 		opinfo->op_state = OPLOCK_STATE_NONE;
 	spin_unlock(&opinfo->state_lock);
 	wake_up_interruptible_all(&opinfo->oplock_q);
+	rsp->hdr.Status = status;
+	smb2_set_err_rsp(work);
 out_no_state_change:
 	opinfo_put(opinfo);
 	ksmbd_fd_put(work, fp);
@@ -12042,7 +12045,7 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	struct smb2_lease_ack *req;
 	struct smb2_lease_ack *rsp;
 	struct oplock_info *opinfo;
-	int ret = 0;
+	int ret;
 	__le32 lease_state;
 	struct lease *lease;
 
@@ -12053,26 +12056,27 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	opinfo = lookup_lease_in_table(conn, req->LeaseKey);
 	if (!opinfo) {
 		ksmbd_debug(OPLOCK, "file not opened\n");
-		smb2_set_err_rsp(work);
 		rsp->hdr.Status = STATUS_UNSUCCESSFUL;
+		smb2_set_err_rsp(work);
 		return;
 	}
 	lease = opinfo->o_lease;
 
-	if (opinfo->op_state == OPLOCK_STATE_NONE) {
-		pr_err("unexpected lease break state 0x%x\n",
-		       opinfo->op_state);
-		if (smb3_hdr_replay(&req->hdr))
+	/* Publish NONE only after the lease state and all open levels are updated. */
+	spin_lock(&opinfo->state_lock);
+	if (opinfo->op_state != OPLOCK_ACK_WAIT) {
+		if (opinfo->op_state == OPLOCK_STATE_NONE &&
+		    smb3_hdr_replay(&req->hdr))
 			goto replay_rsp;
 		rsp->hdr.Status = STATUS_UNSUCCESSFUL;
-		goto err_out;
+		goto err_unlock;
 	}
 
 	if (!atomic_read(&opinfo->breaking_cnt)) {
 		if (smb3_hdr_replay(&req->hdr))
 			goto replay_rsp;
 		rsp->hdr.Status = STATUS_UNSUCCESSFUL;
-		goto err_out;
+		goto err_unlock;
 	}
 
 	if (check_lease_state(lease, req->LeaseState)) {
@@ -12080,51 +12084,41 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 		ksmbd_debug(OPLOCK,
 			    "req lease state: 0x%x, expected state: 0x%x\n",
 			    req->LeaseState, lease->new_state);
-		goto err_out;
+		goto err_unlock;
 	}
 
 	lease_state = req->LeaseState;
 	lease->state = lease_state;
 	lease->new_state = SMB2_LEASE_NONE_LE;
 	lease_update_oplock_levels(lease);
+	opinfo->op_state = OPLOCK_STATE_NONE;
+	atomic_dec_if_positive(&opinfo->breaking_cnt);
+	spin_unlock(&opinfo->state_lock);
+	wake_up_interruptible_all(&opinfo->oplock_q);
+	wake_up_interruptible_all(&opinfo->oplock_brk);
+	goto response;
 
+replay_rsp:
+	lease_state = lease->state;
+	spin_unlock(&opinfo->state_lock);
+response:
 	rsp->StructureSize = cpu_to_le16(36);
 	rsp->Reserved = 0;
 	rsp->Flags = 0;
-	memcpy(rsp->LeaseKey, req->LeaseKey, 16);
+	memcpy(rsp->LeaseKey, req->LeaseKey, SMB2_LEASE_KEY_SIZE);
 	rsp->LeaseState = lease_state;
 	rsp->LeaseDuration = 0;
 	ret = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_lease_ack));
 	if (ret)
 		goto err_out;
+	opinfo_put(opinfo);
+	return;
 
-	spin_lock(&opinfo->state_lock);
-	if (opinfo->op_state != OPLOCK_CLOSING)
-		opinfo->op_state = OPLOCK_STATE_NONE;
+err_unlock:
 	spin_unlock(&opinfo->state_lock);
-	wake_up_interruptible_all(&opinfo->oplock_q);
-	atomic_dec_if_positive(&opinfo->breaking_cnt);
-	wake_up_interruptible_all(&opinfo->oplock_brk);
-	opinfo_put(opinfo);
-	return;
-
-replay_rsp:
-	rsp->StructureSize = cpu_to_le16(36);
-	rsp->Reserved = 0;
-	rsp->Flags = 0;
-	memcpy(rsp->LeaseKey, req->LeaseKey, 16);
-	rsp->LeaseState = lease->state;
-	rsp->LeaseDuration = 0;
-	ret = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_lease_ack));
-	if (ret)
-		goto err_out;
-	opinfo_put(opinfo);
-	return;
-
 err_out:
 	smb2_set_err_rsp(work);
 	opinfo_put(opinfo);
-	return;
 }
 
 /**
