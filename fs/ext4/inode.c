@@ -4848,6 +4848,89 @@ static int ext4_block_zero_range(struct inode *inode,
 }
 
 /*
+ * Inodes using the iomap buffered I/O path do not use data=ordered mode.
+ * Therefore, we mark the inode as disksize-grow-pending after zeroing the
+ * EOF block. The zeroed block will be submitted before any subsequent
+ * data.
+ *
+ * In the I/O completion path, ext4_iomap_wb_disksize_pending_wait() will
+ * wait for I/O completion before advancing i_disksize if the write
+ * extends beyond the zeroed boundary.
+ *
+ * When zeroed I/O is in progress, operations that extend i_disksize are
+ * handled as follows:
+ *
+ *  - Truncate up, append fallocate and zero_range:
+ *    Defer the update. The file size will be updated to i_size by the
+ *    end_io handler once the ongoing pending I/O completes.
+ *
+ *  - Insert range and collapse range operations:
+ *    Wait synchronously for the relevant I/O to complete before updating
+ *    i_disksize.
+ */
+static int ext4_iomap_mark_disksize_pending(struct inode *inode, loff_t from)
+{
+	struct folio *folio;
+
+	folio = filemap_lock_folio(inode->i_mapping, from >> PAGE_SHIFT);
+	if (IS_ERR(folio))
+		/* Already in writeback and cleared? */
+		return PTR_ERR(folio) == -ENOENT ? 0 : PTR_ERR(folio);
+
+	/*
+	 * Ensure that in-flight writeback, possibly started after
+	 * iomap_zero_range() unlocked the folio, has completed. Without
+	 * this wait folio_test_dirty() below may miss the zeroed data
+	 * (writeback clears PG_dirty), causing us to skip the
+	 * disksize-grow-pending tracking and potentially expose stale
+	 * on-disk data.
+	 */
+	folio_wait_writeback(folio);
+	WARN_ON_ONCE(folio_test_writeback(folio));
+
+	/*
+	 * If the zeroed range does not overlap the existing on-disk tail
+	 * block, the zeroed data lies beyond the currently on-disk data
+	 * and will be written back before i_disksize is advanced past it,
+	 * so no stale data can be exposed.
+	 *
+	 * Checking i_disksize here (after folio_wait_writeback()) is
+	 * necessary and safe. If a delalloc writeback of this folio was
+	 * in-flight, it could be raced by a concurrent mmap write which
+	 * corrupts the tail block beyond i_size but the i_disksize is not
+	 * advanced. folio_wait_writeback() has waited for its completion
+	 * and the ioend has advanced i_disksize accordingly. If writeback
+	 * had not started, we don't need to mark any pending state because
+	 * any future writeback will carry the pagecache content that now
+	 * includes the zeroed data, so no stale data can appear on disk
+	 * even without the pending tracking.
+	 */
+	if (from >= round_up(READ_ONCE(EXT4_I(inode)->i_disksize),
+			     i_blocksize(inode)))
+		goto out;
+
+	/*
+	 * Mark the inode as disksize-grow-pending. The zeroed block will
+	 * be written out by the generic writepages cycle or any other
+	 * syncing operation.
+	 *
+	 * Multiple overlapping unaligned EOF writes should not happen,
+	 * because we only mark the pending state after zeroing the on-disk
+	 * EOF block, and i_disksize can only be updated after the previous
+	 * zeroed pending block has been written back or the dirty folio
+	 * has been discarded.
+	 */
+	if (likely(folio_test_dirty(folio) &&
+		   !ext4_test_inode_state(inode,
+					  EXT4_STATE_DISKSIZE_GROW_PENDING)))
+		ext4_set_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING);
+out:
+	folio_unlock(folio);
+	folio_put(folio);
+	return 0;
+}
+
+/*
  * Submit and wait for the pending zeroed EOF block range to complete
  * if the given range [@offset, @end) fully covers it.  Must be called
  * outside the context of an active journal handle and hold the i_rwsem.
@@ -4923,21 +5006,20 @@ int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end)
 	 * truncating up or performing an append write, because there might be
 	 * exposing stale on-disk data which may caused by concurrent post-EOF
 	 * mmap write during folio writeback.
-	 *
-	 * TODO: In the iomap path, handle this by tracking the ordered range
-	 * and updating i_disksize to i_size after the zeroed data has been
-	 * written back.
 	 */
-	if (ext4_should_order_data(inode) &&
-	    did_zero && zero_written && !IS_DAX(inode)) {
-		handle_t *handle;
+	if (did_zero && zero_written && !IS_DAX(inode)) {
+		if (ext4_should_order_data(inode)) {
+			handle_t *handle;
 
-		handle = ext4_journal_start(inode, EXT4_HT_MISC, 1);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
+			handle = ext4_journal_start(inode, EXT4_HT_MISC, 1);
+			if (IS_ERR(handle))
+				return PTR_ERR(handle);
 
-		err = ext4_jbd2_inode_add_write(handle, inode, from, length);
-		ext4_journal_stop(handle);
+			err = ext4_jbd2_inode_add_write(handle, inode, from,
+							length);
+			ext4_journal_stop(handle);
+		} else if (ext4_inode_buffered_iomap(inode))
+			err = ext4_iomap_mark_disksize_pending(inode, from);
 		if (err)
 			return err;
 	}
