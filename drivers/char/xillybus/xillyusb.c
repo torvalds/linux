@@ -1501,8 +1501,8 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 		 */
 
 		if (chan->read_data_ok &&
-		    (leap > (fifo->size >> 3) ||
-		     (checkpoint_for_complete && leap > 0))) {
+		    (leap > 0 && (leap > (fifo->size >> 3) ||
+				  checkpoint_for_complete))) {
 			chan->in_current_checkpoint = checkpoint;
 			rc = xillyusb_send_opcode(xdev, chan_num,
 						  OPCODE_SET_CHECKPOINT,
