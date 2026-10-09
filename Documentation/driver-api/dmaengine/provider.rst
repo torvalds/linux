@@ -557,6 +557,11 @@ dma_cookie_t
 - Not really relevant any more since the introduction of ``virt-dma``
   that abstracts it away.
 
+- dmaengine drivers need to ensure buffers are flushed before invoking
+  vchan_cookie_complete() or dma_cookie_complete(). This would imply a call
+  to unmapping buffers or any such architecture calls to ensure caller seeing
+  buffers are flushed is done before invoking these calls.
+
 dma_vec
 
 - A small structure that contains a DMA address and length.
