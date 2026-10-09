@@ -51,6 +51,8 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define FEATURE_KBD_LED_REPORT_ID1 0x5d
 #define FEATURE_KBD_LED_REPORT_ID2 0x5e
 
+#define ROG_XGM_REPORT_SIZE 300
+
 #define ROG_ALLY_REPORT_SIZE 64
 #define ROG_ALLY_X_MIN_MCU 313
 #define ROG_ALLY_MIN_MCU 319
@@ -144,6 +146,11 @@ struct asus_worker {
 	bool removed;
 };
 
+struct asus_xgm_led {
+	struct led_classdev cdev;
+	struct hid_device *hdev;
+};
+
 struct asus_touchpad_info {
 	int max_x;
 	int max_y;
@@ -170,6 +177,7 @@ struct asus_drvdata {
 	unsigned long battery_next_query;
 	struct asus_hid_listener listener;
 	bool fn_lock;
+	struct asus_xgm_led *xgm_led;
 };
 
 static int asus_report_battery(struct asus_drvdata *, u8 *, int);
@@ -1161,6 +1169,26 @@ static int asus_battery_probe(struct hid_device *hdev)
 	return ret;
 }
 
+static int asus_xgm_led_set(struct led_classdev *led_cdev, enum led_brightness value)
+{
+	const u8 buf[ROG_XGM_REPORT_SIZE] = {
+		FEATURE_KBD_LED_REPORT_ID2, 0xC5, (value) ? 0x50 : 0x00
+	};
+	struct asus_xgm_led *xgm = container_of(led_cdev, struct asus_xgm_led, cdev);
+	int ret;
+
+	ret = asus_kbd_set_report(xgm->hdev, buf, ROG_XGM_REPORT_SIZE);
+	if (ret < 0) {
+		hid_err(xgm->hdev, "Unable to set XG mobile led state: %d\n", ret);
+		return ret;
+	} else if (ret != ROG_XGM_REPORT_SIZE) {
+		hid_err(xgm->hdev, "Unexpected partial transfer to XG mobile: %d\n", ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 {
 	struct input_dev *input = hi->input;
@@ -1406,6 +1434,49 @@ static void asus_initialize_reports(struct hid_device *hdev)
 	}
 }
 
+static int asus_xgm_init(struct hid_device *hdev, struct asus_drvdata *drvdata)
+{
+	const char *name;
+	int ret;
+
+	drvdata->xgm_led = devm_kzalloc(&hdev->dev, sizeof(*drvdata->xgm_led), GFP_KERNEL);
+	if (drvdata->xgm_led == NULL)
+		return -ENOMEM;
+
+	name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "asus:xgm-%s:led",
+			      strlen(hdev->uniq) ? hdev->uniq : dev_name(&hdev->dev));
+
+	if (name == NULL) {
+		ret = -ENOMEM;
+		goto asus_xgm_init_err;
+	}
+
+	drvdata->xgm_led->hdev = hdev;
+	drvdata->xgm_led->cdev.name = name;
+	drvdata->xgm_led->cdev.brightness = 1;
+	drvdata->xgm_led->cdev.max_brightness = 1;
+	drvdata->xgm_led->cdev.brightness_set_blocking = asus_xgm_led_set;
+	drvdata->xgm_led->cdev.flags = LED_CORE_SUSPENDRESUME;
+
+	/* LED state is arbitrary on boot, set a default */
+	ret = asus_xgm_led_set(&drvdata->xgm_led->cdev, drvdata->xgm_led->cdev.brightness);
+	if (ret) {
+		hid_err(hdev, "Asus failed to set xgm led: %d\n", ret);
+		goto asus_xgm_init_err;
+	}
+
+	ret = devm_led_classdev_register(&hdev->dev, &drvdata->xgm_led->cdev);
+	if (ret) {
+		hid_err(hdev, "Asus failed to register xgm led: %d\n", ret);
+		goto asus_xgm_init_err;
+	}
+
+	return 0;
+asus_xgm_init_err:
+	drvdata->xgm_led = NULL;
+	return ret;
+}
+
 static int __maybe_unused asus_resume(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
@@ -1545,6 +1616,16 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!drvdata->tp)
 		asus_initialize_reports(hdev);
 
+	if (asus_has_report_id(hdev, FEATURE_KBD_REPORT_ID) &&
+	    ((hdev->product == USB_DEVICE_ID_ASUSTEK_XGM_2022) ||
+	     (hdev->product == USB_DEVICE_ID_ASUSTEK_XGM_2023))) {
+		ret = asus_xgm_init(hdev, drvdata);
+		if (ret) {
+			hid_err(hdev, "Failed to initialize xg mobile: %d\n", ret);
+			goto err_stop_hw;
+		}
+	}
+
 	/* Laptops keyboard backlight is always at 0x5a */
 	if (is_vendor && (drvdata->quirks & QUIRK_USE_KBD_BACKLIGHT) &&
 	    (asus_has_report_id(hdev, FEATURE_KBD_REPORT_ID)) &&
@@ -1582,6 +1663,9 @@ err_stop_hw:
 	if (drvdata->listener.brightness_set)
 		asus_hid_unregister_listener(&drvdata->listener);
 
+	if (drvdata->xgm_led)
+		devm_led_classdev_unregister(&hdev->dev, &drvdata->xgm_led->cdev);
+
 	asus_worker_stop(drvdata->worker);
 	hid_hw_stop(hdev);
 	return ret;
@@ -1593,6 +1677,9 @@ static void asus_remove(struct hid_device *hdev)
 
 	if (drvdata->listener.brightness_set)
 		asus_hid_unregister_listener(&drvdata->listener);
+
+	if (drvdata->xgm_led)
+		devm_led_classdev_unregister(&hdev->dev, &drvdata->xgm_led->cdev);
 
 	asus_worker_stop(drvdata->worker);
 	hid_hw_stop(hdev);
