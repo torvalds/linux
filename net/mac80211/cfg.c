@@ -5223,11 +5223,17 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 	int size;
 	int ret;
 
-	/* the lock is needed to assign the cookie later */
-	lockdep_assert_wiphy(local->hw.wiphy);
+	guard(rcu)();
+
+	/* do_stop() synchronizes RCU before the interface type can change */
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
 
 	switch (ieee80211_vif_type_p2p(&sdata->vif)) {
 	case NL80211_IFTYPE_AP:
+		/* NULL if the interface was a station when checked */
+		if (!peer)
+			return -EINVAL;
 		fromds = true;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -5253,8 +5259,7 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 			 * per-link address for the client's link.
 			 */
 			link_id = sta->deflink.link_id;
-			conf = wiphy_dereference(local->hw.wiphy,
-						 sdata->vif.link_conf[link_id]);
+			conf = rcu_dereference(sdata->vif.link_conf[link_id]);
 			if (!conf)
 				return -ENOLINK;
 			src_addr = conf->addr;
@@ -5269,9 +5274,8 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 		/* MLD transmissions must not rely on the band */
 		band = 0;
 	} else {
-		chanctx_conf = wiphy_dereference(local->hw.wiphy,
-						 sdata->vif.bss_conf.chanctx_conf);
-		if (WARN_ON(!chanctx_conf))
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		if (!chanctx_conf)
 			return -EINVAL;
 		band = chanctx_conf->def.chan->band;
 		link_id = 0;
@@ -5318,9 +5322,7 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	local_bh_disable();
-	rcu_read_lock();
 	ieee80211_xmit(sdata, sta, skb);
-	rcu_read_unlock();
 	local_bh_enable();
 
 	return 0;
