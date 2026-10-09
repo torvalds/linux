@@ -77,6 +77,21 @@ PERF_TYPE_HARDWARE = 0
 PERF_TYPE_HW_CACHE = 3
 PERF_SAMPLE_ID = 1 << 6
 PERF_SAMPLE_IDENTIFIER = 1 << 16
+PERF_TYPE_SOFTWARE = 1
+PERF_COUNT_SW_DUMMY = 9
+
+def is_dummy_tracking_event(event):
+    """
+    Is this the dummy event perf opens to carry the tracking events (mmap,
+    comm, task) when the requested ones can't, like when there is more than one
+    core PMU and each core PMU's events run on only part of the CPUs?
+    """
+    return (event.get('type') == str(PERF_TYPE_SOFTWARE) and
+            event.get('config') == str(PERF_COUNT_SW_DUMMY))
+
+# With more than one core PMU the tracking terms go to the dummy tracking event,
+# leaving the requested events without them, so they can't be matched there.
+TRACKING_TERMS = ['mmap', 'comm', 'task', 'mmap_data']
 
 # The legacy event types, where perf may qualify 'config' with the core PMU
 # type in its top 32 bits when there is more than one core PMU.
@@ -259,11 +274,29 @@ class Event(dict):
 
         return self if getattr(self, 'recorded', False) else None
 
+    def hide_tracking_via_dummy(self, term, other):
+        """
+        The tracking terms are set on the tracking event, which is the dummy
+        event when there is more than one core PMU, leaving the requested
+        events without them, nothing to match on then.
+        """
+        if term not in TRACKING_TERMS:
+            return False
+
+        for event in (self, other):
+            if term in getattr(event, 'tracking_moved_to_dummy', ()):
+                return True
+
+        return False
+
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s", t, self[t], other[t])
             if t not in self or t not in other:
                 return False
+            if self.hide_tracking_via_dummy(t, other):
+                continue
+
             recorded = self.recorded_side(other)
             if recorded is self:
                 expected, got_event = other, self
@@ -286,6 +319,9 @@ class Event(dict):
         for t in Event.terms:
             if t not in self or t not in other:
                 continue
+            if self.hide_tracking_via_dummy(t, other):
+                continue
+
             recorded = self.recorded_side(other)
             if recorded is self:
                 expected, got_event = other, self
@@ -504,6 +540,29 @@ class Test(object):
             else:
                 raise Unsup(self)
 
+    def drop_dummy_tracking_events(self):
+        """
+        Leave out the dummy event perf itself opened, see
+        is_dummy_tracking_event(), unless the expectations ask for one.
+        """
+        if any(is_dummy_tracking_event(e) for e in self.expect.values()):
+            return
+
+        if not any(is_dummy_tracking_event(e) for e in self.result.values()):
+            return
+
+        moved = set()
+        for name, event in list(self.result.items()):
+            if is_dummy_tracking_event(event):
+                log.debug("      dropping dummy tracking event [%s]", name)
+                moved.update(t for t in TRACKING_TERMS if event.get(t) == '1')
+                del self.result[name]
+
+        # The tracking terms the dropped dummies carried, flag the remaining
+        # events so that the match leaves only those out.
+        for event in self.result.values():
+            event.tracking_moved_to_dummy = moved
+
     def compare(self, expect, result, strict_groups=True):
         match = {}
 
@@ -584,6 +643,8 @@ class Test(object):
                 self.load_events(f, self.result)
             for event in self.result.values():
                 event.recorded = True
+
+            self.drop_dummy_tracking_events()
 
             # resolve group_fd to event names
             self.resolve_groups(self.expect)
