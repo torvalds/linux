@@ -446,7 +446,7 @@ static int zpci_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	return 0;
 }
 
-static void zpci_msi_clear_airq(struct irq_data *d, int i)
+static void zpci_msi_clear_airq(struct irq_data *d)
 {
 	struct msi_desc *desc = irq_data_get_msi_desc(d);
 	struct zpci_dev *zdev = to_zpci_dev(desc->dev);
@@ -459,12 +459,12 @@ static void zpci_msi_clear_airq(struct irq_data *d, int i)
 
 	if (irq_delivery == DIRECTED) {
 		for_each_possible_cpu(cpu) {
-			airq_iv_set_ptr(zpci_dibv[cpu], bit + i, 0);
-			airq_iv_set_data(zpci_dibv[cpu], bit + i, 0);
+			airq_iv_set_ptr(zpci_dibv[cpu], bit, 0);
+			airq_iv_set_data(zpci_dibv[cpu], bit, 0);
 		}
 	} else {
-		airq_iv_set_ptr(zdev->aibv, bit + i, 0);
-		airq_iv_set_data(zdev->aibv, bit + i, 0);
+		airq_iv_set_ptr(zdev->aibv, bit, 0);
+		airq_iv_set_data(zdev->aibv, bit, 0);
 	}
 }
 
@@ -476,7 +476,7 @@ static void zpci_msi_domain_free(struct irq_domain *domain, unsigned int virq,
 
 	for (i = 0; i < nr_irqs; i++) {
 		d = irq_domain_get_irq_data(domain, virq + i);
-		zpci_msi_clear_airq(d, i);
+		zpci_msi_clear_airq(d);
 		irq_domain_reset_irq_data(d);
 	}
 }
