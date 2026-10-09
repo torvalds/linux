@@ -1544,8 +1544,10 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < ctlr->num_chipselect; i++) {
-		sprintf(mcspi->dma_channels[i].dma_rx_ch_name, "rx%d", i);
-		sprintf(mcspi->dma_channels[i].dma_tx_ch_name, "tx%d", i);
+		snprintf(mcspi->dma_channels[i].dma_rx_ch_name,
+			 sizeof(mcspi->dma_channels[i].dma_rx_ch_name), "rx%d", i);
+		snprintf(mcspi->dma_channels[i].dma_tx_ch_name,
+			 sizeof(mcspi->dma_channels[i].dma_tx_ch_name), "tx%d", i);
 
 		status = omap2_mcspi_request_dma(mcspi,
 						 &mcspi->dma_channels[i]);
