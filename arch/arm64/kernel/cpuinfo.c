@@ -443,33 +443,33 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 
 static void __cpuinfo_store_cpu_32bit(struct cpuinfo_32bit *info)
 {
-	info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
-	info->reg_id_dfr1 = read_cpuid(ID_DFR1_EL1);
-	info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
-	info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
-	info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
-	info->reg_id_isar3 = read_cpuid(ID_ISAR3_EL1);
-	info->reg_id_isar4 = read_cpuid(ID_ISAR4_EL1);
-	info->reg_id_isar5 = read_cpuid(ID_ISAR5_EL1);
-	info->reg_id_isar6 = read_cpuid(ID_ISAR6_EL1);
-	info->reg_id_mmfr0 = read_cpuid(ID_MMFR0_EL1);
-	info->reg_id_mmfr1 = read_cpuid(ID_MMFR1_EL1);
-	info->reg_id_mmfr2 = read_cpuid(ID_MMFR2_EL1);
-	info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
-	info->reg_id_mmfr4 = read_cpuid(ID_MMFR4_EL1);
-	info->reg_id_mmfr5 = read_cpuid(ID_MMFR5_EL1);
-	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
-	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
-	info->reg_id_pfr2 = read_cpuid(ID_PFR2_EL1);
+	info->reg_id_dfr0 = read_cpuid_with_overrides(ID_DFR0_EL1);
+	info->reg_id_dfr1 = read_cpuid_with_overrides(ID_DFR1_EL1);
+	info->reg_id_isar0 = read_cpuid_with_overrides(ID_ISAR0_EL1);
+	info->reg_id_isar1 = read_cpuid_with_overrides(ID_ISAR1_EL1);
+	info->reg_id_isar2 = read_cpuid_with_overrides(ID_ISAR2_EL1);
+	info->reg_id_isar3 = read_cpuid_with_overrides(ID_ISAR3_EL1);
+	info->reg_id_isar4 = read_cpuid_with_overrides(ID_ISAR4_EL1);
+	info->reg_id_isar5 = read_cpuid_with_overrides(ID_ISAR5_EL1);
+	info->reg_id_isar6 = read_cpuid_with_overrides(ID_ISAR6_EL1);
+	info->reg_id_mmfr0 = read_cpuid_with_overrides(ID_MMFR0_EL1);
+	info->reg_id_mmfr1 = read_cpuid_with_overrides(ID_MMFR1_EL1);
+	info->reg_id_mmfr2 = read_cpuid_with_overrides(ID_MMFR2_EL1);
+	info->reg_id_mmfr3 = read_cpuid_with_overrides(ID_MMFR3_EL1);
+	info->reg_id_mmfr4 = read_cpuid_with_overrides(ID_MMFR4_EL1);
+	info->reg_id_mmfr5 = read_cpuid_with_overrides(ID_MMFR5_EL1);
+	info->reg_id_pfr0 = read_cpuid_with_overrides(ID_PFR0_EL1);
+	info->reg_id_pfr1 = read_cpuid_with_overrides(ID_PFR1_EL1);
+	info->reg_id_pfr2 = read_cpuid_with_overrides(ID_PFR2_EL1);
 
-	info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
-	info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
-	info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
+	info->reg_mvfr0 = read_cpuid_with_overrides(MVFR0_EL1);
+	info->reg_mvfr1 = read_cpuid_with_overrides(MVFR1_EL1);
+	info->reg_mvfr2 = read_cpuid_with_overrides(MVFR2_EL1);
 }
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 {
-	info->reg_cntfrq = arch_timer_get_cntfrq();
+	info->reg_cntfrq = arm64_ftr_reg_override(SYS_CNTFRQ_EL0, arch_timer_get_cntfrq());
 	/*
 	 * Use the effective value of the CTR_EL0 than the raw value
 	 * exposed by the CPU. CTR_EL0.IDC field value must be interpreted
@@ -478,35 +478,35 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	 * effective value of the CTR_EL0 in our internal records for
 	 * accurate sanity check and feature enablement.
 	 */
-	info->reg_ctr = read_cpuid_effective_cachetype();
-	info->reg_dczid = read_cpuid(DCZID_EL0);
+	info->reg_ctr = arm64_ftr_reg_override(SYS_CTR_EL0, read_cpuid_effective_cachetype());
+	info->reg_dczid = read_cpuid_with_overrides(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
 	info->reg_revidr = read_cpuid(REVIDR_EL1);
 	info->reg_aidr = read_cpuid(AIDR_EL1);
 
-	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
-	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);
-	info->reg_id_aa64isar0 = read_cpuid(ID_AA64ISAR0_EL1);
-	info->reg_id_aa64isar1 = read_cpuid(ID_AA64ISAR1_EL1);
-	info->reg_id_aa64isar2 = read_cpuid(ID_AA64ISAR2_EL1);
-	info->reg_id_aa64isar3 = read_cpuid(ID_AA64ISAR3_EL1);
-	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
-	info->reg_id_aa64mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
-	info->reg_id_aa64mmfr2 = read_cpuid(ID_AA64MMFR2_EL1);
-	info->reg_id_aa64mmfr3 = read_cpuid(ID_AA64MMFR3_EL1);
-	info->reg_id_aa64mmfr4 = read_cpuid(ID_AA64MMFR4_EL1);
+	info->reg_id_aa64dfr0 = read_cpuid_with_overrides(ID_AA64DFR0_EL1);
+	info->reg_id_aa64dfr1 = read_cpuid_with_overrides(ID_AA64DFR1_EL1);
+	info->reg_id_aa64isar0 = read_cpuid_with_overrides(ID_AA64ISAR0_EL1);
+	info->reg_id_aa64isar1 = read_cpuid_with_overrides(ID_AA64ISAR1_EL1);
+	info->reg_id_aa64isar2 = read_cpuid_with_overrides(ID_AA64ISAR2_EL1);
+	info->reg_id_aa64isar3 = read_cpuid_with_overrides(ID_AA64ISAR3_EL1);
+	info->reg_id_aa64mmfr0 = read_cpuid_with_overrides(ID_AA64MMFR0_EL1);
+	info->reg_id_aa64mmfr1 = read_cpuid_with_overrides(ID_AA64MMFR1_EL1);
+	info->reg_id_aa64mmfr2 = read_cpuid_with_overrides(ID_AA64MMFR2_EL1);
+	info->reg_id_aa64mmfr3 = read_cpuid_with_overrides(ID_AA64MMFR3_EL1);
+	info->reg_id_aa64mmfr4 = read_cpuid_with_overrides(ID_AA64MMFR4_EL1);
 	info->reg_id_aa64pfr0 = read_cpuid_with_overrides(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid_with_overrides(ID_AA64PFR1_EL1);
-	info->reg_id_aa64pfr2 = read_cpuid(ID_AA64PFR2_EL1);
-	info->reg_id_aa64zfr0 = read_cpuid(ID_AA64ZFR0_EL1);
-	info->reg_id_aa64smfr0 = read_cpuid(ID_AA64SMFR0_EL1);
-	info->reg_id_aa64fpfr0 = read_cpuid(ID_AA64FPFR0_EL1);
+	info->reg_id_aa64pfr2 = read_cpuid_with_overrides(ID_AA64PFR2_EL1);
+	info->reg_id_aa64zfr0 = read_cpuid_with_overrides(ID_AA64ZFR0_EL1);
+	info->reg_id_aa64smfr0 = read_cpuid_with_overrides(ID_AA64SMFR0_EL1);
+	info->reg_id_aa64fpfr0 = read_cpuid_with_overrides(ID_AA64FPFR0_EL1);
 
 	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
-		info->reg_gmid = read_cpuid(GMID_EL1);
+		info->reg_gmid = read_cpuid_with_overrides(GMID_EL1);
 
 	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0) || id_aa64pfr1_mpamfrac(info->reg_id_aa64pfr1))
-		info->reg_mpamidr = read_cpuid(MPAMIDR_EL1);
+		info->reg_mpamidr = read_cpuid_with_overrides(MPAMIDR_EL1);
 
 	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0))
 		__cpuinfo_store_cpu_32bit(&info->aarch32);

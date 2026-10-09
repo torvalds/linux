@@ -1043,6 +1043,8 @@ void __init validate_ftr_regs(void)
  * Also initialises the strict_mask for the register.
  * Any bits that are not covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
+ * @new has been through arm64_ftr_reg_override(), so a valid override is
+ * already applied to it. Only an unsafe one is left to remove here.
  */
 static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 {
@@ -1063,29 +1065,20 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 		s64 ftr_ovr = arm64_ftr_value(ftrp, reg->override->val);
 
 		if ((ftr_mask & reg->override->mask) == ftr_mask) {
-			s64 tmp = arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new);
-			char *str = NULL;
+			char *str = "forced";
 
-			if (ftr_ovr != tmp) {
+			if (arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new) != ftr_ovr) {
 				/* Unsafe, remove the override */
 				reg->override->mask &= ~ftr_mask;
 				reg->override->val &= ~ftr_mask;
-				tmp = ftr_ovr;
 				str = "ignoring override";
-			} else if (ftr_new != tmp) {
-				/* Override was valid */
-				ftr_new = tmp;
-				str = "forced";
-			} else {
-				/* Override was the safe value */
-				str = "already set";
 			}
 
 			pr_warn("%s[%d:%d]: %s to %llx\n",
 				reg->name,
 				ftrp->shift + ftrp->width - 1,
 				ftrp->shift, str,
-				tmp & (BIT(ftrp->width) - 1));
+				ftr_ovr & (BIT(ftrp->width) - 1));
 		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
 			reg->override->val &= ~ftr_mask;
 			pr_warn("%s[%d:%d]: impossible override, ignored\n",
