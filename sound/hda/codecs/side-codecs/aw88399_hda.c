@@ -172,6 +172,8 @@ static const struct aw88399_prop_model aw88399_prop_model_table[] = {
 	{ "17AA3907", aw88399_swap_channels },
 	{ "17AA3927", aw88399_swap_channels },
 	{ "17AA3928", aw88399_swap_channels },
+	{ "17AA3934", aw88399_swap_channels },
+	{ "17AA3935", aw88399_swap_channels },
 	{ "17AA3936", aw88399_swap_channels },
 	{ "17AA3937", aw88399_swap_channels },
 	{ "17AA3938", aw88399_swap_channels },
