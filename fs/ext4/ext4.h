@@ -2052,6 +2052,9 @@ enum {
 	EXT4_STATE_ORPHAN_FILE,		/* Inode orphaned in orphan file */
 	EXT4_STATE_FC_REQUEUE,		/* Inode modified during fast commit */
 	EXT4_STATE_BUFFERED_IOMAP,	/* Inode use iomap for buffered IO */
+	EXT4_STATE_DISKSIZE_GROW_PENDING,
+					/* Has zeroed EOF block straddles
+					 * i_disksize awaiting writeback */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -3219,6 +3222,10 @@ extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_chunk_trans_extent(struct inode *inode, int nrblocks);
 extern int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 				  int pextents, int alloc_extents);
+void ext4_iomap_clear_disksize_pending(struct inode *inode);
+void ext4_iomap_wait_disksize_pending(struct inode *inode);
+unsigned int ext4_iomap_get_disksize_pending_range(struct inode *inode,
+						   loff_t *start);
 extern int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end);
 
 #define EXT4_PARTIAL_ZERO_START	0x1

@@ -126,6 +126,63 @@ void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
 		raw->i_checksum_hi = cpu_to_le16(csum >> 16);
 }
 
+/*
+ * Clear the disksize-grow-pending state and wake up all waiters.
+ * Called when the pending zeroed EOF block which straddles i_disksize
+ * has completed writeback or its folio is discarded.
+ */
+void ext4_iomap_clear_disksize_pending(struct inode *inode)
+{
+	clear_and_wake_up_bit(
+		ext4_inode_state_wait_bit(EXT4_STATE_DISKSIZE_GROW_PENDING),
+		ext4_inode_state_wait_word(inode));
+}
+
+/*
+ * Wait for the disksize-grow-pending zeroed EOF block which straddles
+ * i_disksize to be written back or cleared.
+ */
+void ext4_iomap_wait_disksize_pending(struct inode *inode)
+{
+	wait_on_bit(ext4_inode_state_wait_word(inode),
+		    ext4_inode_state_wait_bit(EXT4_STATE_DISKSIZE_GROW_PENDING),
+		    TASK_UNINTERRUPTIBLE);
+}
+
+/*
+ * Get the range of the disksize-grow-pending zeroed EOF block range
+ * which straddles i_disksize if the EXT4_STATE_DISKSIZE_GROW_PENDING
+ * bit is set.
+ *
+ * Return the pending range, or zero if the BIT has already been cleared.
+ */
+unsigned int ext4_iomap_get_disksize_pending_range(struct inode *inode,
+						   loff_t *start)
+{
+	unsigned int blocksize = i_blocksize(inode);
+	loff_t disksize;
+
+	if (!ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
+		return 0;
+
+	/*
+	 * The pending bit should be set only when i_disksize is not
+	 * block-size aligned. While set, i_disksize must not be advanced,
+	 * and the bit must be cleared when i_disksize is shrunk.
+	 */
+	down_read(&EXT4_I(inode)->i_data_sem);
+	disksize = READ_ONCE(EXT4_I(inode)->i_disksize);
+	if (!ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING) ||
+	    WARN_ON_ONCE(IS_ALIGNED(disksize, blocksize))) {
+		up_read(&EXT4_I(inode)->i_data_sem);
+		return 0;
+	}
+
+	up_read(&EXT4_I(inode)->i_data_sem);
+	*start = disksize;
+	return blocksize - (disksize & (blocksize - 1));
+}
+
 static inline int ext4_begin_ordered_truncate(struct inode *inode,
 					      loff_t new_size)
 {
