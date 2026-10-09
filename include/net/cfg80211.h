@@ -4963,7 +4963,13 @@ struct mgmt_frame_regs {
  *	them, also against the existing state! Drivers must call
  *	cfg80211_check_station_change() to validate the information.
  * @get_station: get station information for the station identified by @mac
+ * @get_station_unlocked: Like @get_station, but called without the wiphy
+ *	mutex. Return -EAGAIN to get @get_station called with the wiphy mutex
+ *	held instead.
  * @dump_station: dump station callback -- resume dump at index @idx
+ * @dump_station_unlocked: Like @dump_station, but called without the wiphy
+ *	mutex. Return -EAGAIN to get @dump_station called with the wiphy mutex
+ *	held instead.
  *
  * @add_mpath: add a fixed mesh path
  * @del_mpath: delete a given mesh path
@@ -5395,8 +5401,16 @@ struct cfg80211_ops {
 				  struct station_parameters *params);
 	int	(*get_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			       const u8 *mac, struct station_info *sinfo);
+	int	(*get_station_unlocked)(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					const u8 *mac,
+					struct station_info *sinfo);
 	int	(*dump_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				int idx, u8 *mac, struct station_info *sinfo);
+	int	(*dump_station_unlocked)(struct wiphy *wiphy,
+					 struct wireless_dev *wdev,
+					 int idx, u8 *mac,
+					 struct station_info *sinfo);
 
 	int	(*add_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			       const u8 *dst, const u8 *next_hop);

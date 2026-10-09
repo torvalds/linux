@@ -1056,12 +1056,17 @@ DEFINE_EVENT(wiphy_wdev_mac_evt, rdev_get_station,
 	TP_ARGS(wiphy, wdev, mac)
 );
 
+DEFINE_EVENT(wiphy_wdev_mac_evt, rdev_get_station_unlocked,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev, const u8 *mac),
+	TP_ARGS(wiphy, wdev, mac)
+);
+
 DEFINE_EVENT(wiphy_netdev_mac_evt, rdev_del_mpath,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, const u8 *mac),
 	TP_ARGS(wiphy, netdev, mac)
 );
 
-TRACE_EVENT(rdev_dump_station,
+DECLARE_EVENT_CLASS(rdev_dump_station_evt,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev, int _idx,
 		 u8 *mac),
 	TP_ARGS(wiphy, wdev, _idx, mac),
@@ -1080,6 +1085,18 @@ TRACE_EVENT(rdev_dump_station,
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", station mac: %pM, idx: %d",
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->sta_mac,
 		  __entry->idx)
+);
+
+DEFINE_EVENT(rdev_dump_station_evt, rdev_dump_station,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev, int _idx,
+		 u8 *mac),
+	TP_ARGS(wiphy, wdev, _idx, mac)
+);
+
+DEFINE_EVENT(rdev_dump_station_evt, rdev_dump_station_unlocked,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev, int _idx,
+		 u8 *mac),
+	TP_ARGS(wiphy, wdev, _idx, mac)
 );
 
 TRACE_EVENT(rdev_return_int_station_info,

@@ -266,23 +266,51 @@ nl80211_lock_and_recheck(struct cfg80211_registered_device *rdev,
 	return ERR_PTR(-ENODEV);
 }
 
+/* like nl80211_lock_and_recheck() but under RCU, for wdev_hold() */
+static struct wireless_dev *
+nl80211_wdev_by_id_rcu(struct cfg80211_registered_device *rdev,
+		       struct net *netns, u32 wdev_id)
+{
+	struct wireless_dev *wdev;
+
+	if (!net_eq(wiphy_net(&rdev->wiphy), netns))
+		return NULL;
+
+	list_for_each_entry_rcu(wdev, &rdev->wiphy.wdev_list, list) {
+		if (wdev->identifier != wdev_id)
+			continue;
+		if (wdev->netdev && !net_eq(dev_net(wdev->netdev), netns))
+			return NULL;
+		return wdev;
+	}
+
+	return NULL;
+}
+
 /*
  * Must have wdev_hold(), acquire the wiphy mutex. This has to
  * look up the wdev again (otherwise it could deadlock against
  * wdev removal), so it can return an error pointer.
  */
 static struct wireless_dev *
-nl80211_lock_held_wdev(struct cfg80211_registered_device *rdev,
-		       struct genl_info *info, struct wireless_dev *wdev)
+__nl80211_lock_held_wdev(struct cfg80211_registered_device *rdev,
+			 struct net *netns, struct wireless_dev *wdev)
 {
 	u32 wdev_id = wdev->identifier;
 
 	/* the wdev reference was keeping the wiphy alive */
 	get_device(&rdev->wiphy.dev);
-	info->user_ptr[1] = NULL;
 	wdev_put(wdev);
 
-	wdev = nl80211_lock_and_recheck(rdev, genl_info_net(info), wdev_id);
+	return nl80211_lock_and_recheck(rdev, netns, wdev_id);
+}
+
+static struct wireless_dev *
+nl80211_lock_held_wdev(struct cfg80211_registered_device *rdev,
+		       struct genl_info *info, struct wireless_dev *wdev)
+{
+	info->user_ptr[1] = NULL;
+	wdev = __nl80211_lock_held_wdev(rdev, genl_info_net(info), wdev);
 	if (IS_ERR(wdev))
 		return wdev;
 
@@ -1326,10 +1354,10 @@ nl80211_packet_pattern_policy[MAX_NL80211_PKTPAT + 1] = {
 	[NL80211_PKTPAT_OFFSET] = { .type = NLA_U32 },
 };
 
-static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
-				     struct cfg80211_registered_device **rdev,
-				     struct wireless_dev **wdev,
-				     struct nlattr **attrbuf)
+static int __nl80211_prepare_wdev_dump(struct netlink_callback *cb,
+				       struct cfg80211_registered_device **rdev,
+				       struct wireless_dev **wdev,
+				       struct nlattr **attrbuf, bool lock)
 {
 	struct net *netns = sock_net(cb->skb->sk);
 	u32 wdev_id;
@@ -1374,19 +1402,36 @@ static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
 		wdev_id = cb->args[1];
 	}
 
-	get_device(&(*rdev)->wiphy.dev);
-	rcu_read_unlock();
+	if (!lock) {
+		*wdev = nl80211_wdev_by_id_rcu(*rdev, netns, wdev_id);
+		if (*wdev)
+			wdev_hold(*wdev);
+		rcu_read_unlock();
+		if (!*wdev)
+			return -ENODEV;
+	} else {
+		get_device(&(*rdev)->wiphy.dev);
+		rcu_read_unlock();
 
-	/* things may have changed since the lookup or the last dumpit call */
-	*wdev = nl80211_lock_and_recheck(*rdev, netns, wdev_id);
-	if (IS_ERR(*wdev))
-		return PTR_ERR(*wdev);
+		/* things may have changed since the lookup or last dumpit */
+		*wdev = nl80211_lock_and_recheck(*rdev, netns, wdev_id);
+		if (IS_ERR(*wdev))
+			return PTR_ERR(*wdev);
+	}
 
 	/* 0 is the first index - add 1 to parse only once */
 	cb->args[0] = (*rdev)->wiphy_idx + 1;
 	cb->args[1] = wdev_id;
 
 	return 0;
+}
+
+static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
+				     struct cfg80211_registered_device **rdev,
+				     struct wireless_dev **wdev,
+				     struct nlattr **attrbuf)
+{
+	return __nl80211_prepare_wdev_dump(cb, rdev, wdev, attrbuf, true);
 }
 
 /* message building helper */
@@ -8843,13 +8888,46 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int nl80211_fill_station_info(struct cfg80211_registered_device *rdev,
+				     struct wireless_dev *wdev,
+				     struct nl80211_dump_station_ctx *ctx,
+				     bool locked)
+{
+	int err;
+
+	if (!ctx->filter_mac) {
+		if (locked)
+			return rdev_dump_station(rdev, wdev, ctx->sta_idx,
+						 ctx->mac_addr, &ctx->sinfo);
+		if (!rdev->ops->dump_station_unlocked)
+			return -EAGAIN;
+		return rdev_dump_station_unlocked(rdev, wdev, ctx->sta_idx,
+						  ctx->mac_addr, &ctx->sinfo);
+	}
+
+	if (locked)
+		err = rdev_get_station(rdev, wdev, ctx->filter_mac_addr,
+				       &ctx->sinfo);
+	else if (rdev->ops->get_station_unlocked)
+		err = rdev_get_station_unlocked(rdev, wdev, ctx->filter_mac_addr,
+						&ctx->sinfo);
+	else
+		return -EAGAIN;
+
+	if (!err)
+		memcpy(ctx->mac_addr, ctx->filter_mac_addr, ETH_ALEN);
+	return err;
+}
+
 static int nl80211_dump_station(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 	struct nl80211_dump_station_ctx *ctx = (void *)cb->args[2];
+	struct net *netns = sock_net(cb->skb->sk);
 	struct nlattr **attrbuf __free(kfree) = NULL;
+	bool locked = false;
 	int err;
 
 	if (!ctx) {
@@ -8858,11 +8936,9 @@ static int nl80211_dump_station(struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
-	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev, attrbuf);
+	err = __nl80211_prepare_wdev_dump(cb, &rdev, &wdev, attrbuf, false);
 	if (err)
 		return err;
-	/* nl80211_prepare_wdev_dump acquired it in the successful case */
-	__acquire(&rdev->wiphy.mtx);
 
 	if (!ctx) {
 		ctx = kzalloc_obj(*ctx);
@@ -8919,21 +8995,28 @@ static int nl80211_dump_station(struct sk_buff *skb,
 				}
 			}
 
-			if (ctx->filter_mac) {
-				if (ctx->sta_idx > 0) {
-					err = skb->len;
-					goto out_err_release;
+			if (ctx->filter_mac && ctx->sta_idx > 0) {
+				err = skb->len;
+				goto out_err_release;
+			}
+
+			err = nl80211_fill_station_info(rdev, wdev, ctx,
+							locked);
+			if (err == -EAGAIN && !locked) {
+				cfg80211_sinfo_release_content(&ctx->sinfo);
+				memset(&ctx->sinfo, 0, sizeof(ctx->sinfo));
+
+				/* this fails if the wdev is being removed */
+				wdev = __nl80211_lock_held_wdev(rdev, netns,
+								wdev);
+				if (IS_ERR(wdev)) {
+					err = PTR_ERR(wdev);
+					goto out_err;
 				}
-				err = rdev_get_station(rdev, wdev,
-						       ctx->filter_mac_addr,
-						       &ctx->sinfo);
-				if (!err)
-					memcpy(ctx->mac_addr,
-					       ctx->filter_mac_addr, ETH_ALEN);
-			} else {
-				err = rdev_dump_station(rdev, wdev, ctx->sta_idx,
-							ctx->mac_addr,
-							&ctx->sinfo);
+
+				/* try again locked now */
+				locked = true;
+				continue;
 			}
 			if (err == -ENOENT) {
 				err = skb->len;
@@ -9028,7 +9111,10 @@ out_err_release:
 	cfg80211_sinfo_release_content(&ctx->sinfo);
 	memset(&ctx->sinfo, 0, sizeof(ctx->sinfo));
 out_err:
-	wiphy_unlock(&rdev->wiphy);
+	if (locked)
+		wiphy_unlock(&rdev->wiphy);
+	else if (wdev)
+		wdev_put(wdev);
 
 	return err;
 }
@@ -9049,6 +9135,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct wireless_dev *wdev = info->user_ptr[1];
 	struct station_info sinfo;
+	bool locked = false;
 	struct sk_buff *msg;
 	u8 *mac_addr = NULL;
 	int err, i;
@@ -9074,16 +9161,39 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	err = rdev_get_station(rdev, wdev, mac_addr, &sinfo);
-	if (err) {
-		cfg80211_sinfo_release_content(&sinfo);
-		return err;
-	}
-
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
 		cfg80211_sinfo_release_content(&sinfo);
 		return -ENOMEM;
+	}
+
+	err = -EAGAIN;
+	if (rdev->ops->get_station_unlocked) {
+		err = rdev_get_station_unlocked(rdev, wdev, mac_addr, &sinfo);
+
+		if (err == -EAGAIN) {
+			cfg80211_sinfo_release_content(&sinfo);
+			memset(&sinfo, 0, sizeof(sinfo));
+		}
+	}
+
+	if (err == -EAGAIN) {
+		/* the wdev pointer is only valid until unlocking after this */
+		info->user_ptr[1] = NULL;
+		/* can fail if the wdev is being removed */
+		wdev = __nl80211_lock_held_wdev(rdev, genl_info_net(info),
+						wdev);
+		if (IS_ERR(wdev)) {
+			err = PTR_ERR(wdev);
+		} else {
+			locked = true;
+			err = rdev_get_station(rdev, wdev, mac_addr, &sinfo);
+		}
+	}
+
+	if (err) {
+		cfg80211_sinfo_release_content(&sinfo);
+		goto out;
 	}
 
 	if (sinfo.valid_links)
@@ -9091,9 +9201,14 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 
 	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION,
 				 info->snd_portid, info->snd_seq, 0,
-				 rdev, wdev, mac_addr, &sinfo) < 0) {
+				 rdev, wdev, mac_addr, &sinfo) < 0)
+		err = -ENOBUFS;
+out:
+	if (locked)
+		wiphy_unlock(&rdev->wiphy);
+	if (err) {
 		nlmsg_free(msg);
-		return -ENOBUFS;
+		return err;
 	}
 
 	return genlmsg_reply(msg, info);
@@ -19894,6 +20009,9 @@ nl80211_epcs_cfg(struct sk_buff *skb, struct genl_info *info)
 		 NL80211_FLAG_NEED_WIPHY)		\
 	SELECTOR(__sel, WDEV,				\
 		 NL80211_FLAG_NEED_WDEV)		\
+	SELECTOR(__sel, WDEV_NOMTX,			\
+		 NL80211_FLAG_NEED_WDEV |		\
+		 NL80211_FLAG_NO_WIPHY_MTX)		\
 	SELECTOR(__sel, NETDEV,				\
 		 NL80211_FLAG_NEED_NETDEV)		\
 	SELECTOR(__sel, NETDEV_LINK,			\
@@ -20323,7 +20441,8 @@ static const struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_get_station,
 		.dumpit = nl80211_dump_station,
 		.done = nl80211_dump_station_done,
-		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV),
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV |
+					 NL80211_FLAG_NO_WIPHY_MTX),
 	},
 };
 
