@@ -1455,6 +1455,28 @@ config ROCKCHIP_ERRATUM_3588001
 
 	  If unsure, say Y.
 
+config NXP_IMX8QM_ERRATUM_ERR050104
+	bool "NXP iMX8QM/QP ERR050104: broken cache/TLB invalidation broadcast"
+	default y
+	help
+	  On iMX8QM (QuadMax) and iMX8QP (QuadPlus), address bits above bit 35
+	  in the A53 subsystem ARADDR and ACADDR buses are incorrectly
+	  connected. This corrupts targeted TLBI and IC broadcasts exchanged
+	  between the A53 and A72 core clusters.
+
+	  Work around this by redirecting targeted TLBI operations to
+	  broadcast-all variants (VMALLE1IS) in the high-level TLB flush
+	  functions, upgrading IC IVAU to IC IALLUIS for both kernel and
+	  user-space, and disabling KVM since correct TLB maintenance
+	  cannot be guaranteed for guests.
+
+	  The user-space IC IVAU is upgraded by trapping it to the kernel
+	  (SCTLR_EL1.UCI cleared). This also traps the user DC CVAU, DC CVAC,
+	  DC CVAP, DC CVADP and DC CIVAC instructions, making user cache
+	  maintenance slower on the affected SoCs.
+
+	  If unsure, say Y.
+
 config SOCIONEXT_SYNQUACER_PREITS
 	bool "Socionext Synquacer: Workaround for GICv3 pre-ITS"
 	default y
