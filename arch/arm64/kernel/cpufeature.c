@@ -3694,8 +3694,11 @@ static void verify_local_cpu_caps(u16 scope_mask)
 		if (!caps || !(caps->type & scope_mask))
 			continue;
 
-		cpu_has_cap = caps->matches(caps, SCOPE_LOCAL_CPU);
 		system_has_cap = cpus_have_cap(caps->capability);
+		if (cpucap_probe_once(caps))
+			cpu_has_cap = system_has_cap;
+		else
+			cpu_has_cap = caps->matches(caps, SCOPE_LOCAL_CPU);
 
 		if (system_has_cap) {
 			/*
