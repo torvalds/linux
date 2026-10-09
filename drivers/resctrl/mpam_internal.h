@@ -203,9 +203,10 @@ static inline int mpam_mon_sel_lock_init(struct device *dev,
 	return devm_mutex_init(dev, &msc->mon_sel_mutex);
 }
 
-DEFINE_GUARD(mon_sel, struct mpam_msc *,
-	     mpam_mon_sel_lock(_T), mpam_mon_sel_unlock(_T));
-DEFINE_GUARD_COND(mon_sel, _lock, mpam_mon_sel_lock(_T), _RET);
+DEFINE_CLASS(mon_sel_lock, struct mpam_msc *,
+	     if (_T) mpam_mon_sel_unlock(_T),
+	     mpam_mon_sel_lock(msc) ? msc : NULL, struct mpam_msc *msc);
+DEFINE_CLASS_IS_COND_GUARD(mon_sel_lock);
 
 /* Bits for mpam features bitmaps */
 enum mpam_device_features {
