@@ -2547,19 +2547,10 @@ void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 }
 
 static struct ieee80211_sta_rx_stats *
-sta_get_last_rx_stats(struct sta_info *sta, int link_id)
+sta_get_last_rx_stats(struct link_sta_info *link_sta_info)
 {
-	struct ieee80211_sta_rx_stats *stats;
-	struct link_sta_info *link_sta_info;
+	struct ieee80211_sta_rx_stats *stats = &link_sta_info->rx_stats;
 	int cpu;
-
-	if (link_id < 0)
-		link_sta_info = &sta->deflink;
-	else
-		link_sta_info = wiphy_dereference(sta->local->hw.wiphy,
-						  sta->link[link_id]);
-
-	stats = &link_sta_info->rx_stats;
 
 	if (!link_sta_info->pcpu_rx_stats)
 		return stats;
@@ -2574,6 +2565,19 @@ sta_get_last_rx_stats(struct sta_info *sta, int link_id)
 	}
 
 	return stats;
+}
+
+static unsigned long sta_link_last_active(struct link_sta_info *link_sta_info)
+{
+	struct ieee80211_sta_rx_stats *stats;
+
+	stats = sta_get_last_rx_stats(link_sta_info);
+
+	if (!link_sta_info->status_stats.last_ack ||
+	    time_after(stats->last_rx, link_sta_info->status_stats.last_ack))
+		return stats->last_rx;
+
+	return link_sta_info->status_stats.last_ack;
 }
 
 static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
@@ -2653,10 +2657,11 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
 	}
 }
 
-static int sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo,
-				int link_id)
+static int sta_set_rate_info_rx(struct sta_info *sta,
+				struct link_sta_info *link_sta_info,
+				struct rate_info *rinfo)
 {
-	u32 rate = READ_ONCE(sta_get_last_rx_stats(sta, link_id)->last_rate);
+	u32 rate = READ_ONCE(sta_get_last_rx_stats(link_sta_info)->last_rate);
 
 	if (rate == STA_STATS_RATE_INVALID)
 		return -EINVAL;
@@ -2680,18 +2685,12 @@ static inline u64 sta_get_tidstats_msdu(struct ieee80211_sta_rx_stats *rxstats,
 }
 
 static void sta_set_tidstats(struct sta_info *sta,
+			     struct link_sta_info *link_sta_info,
 			     struct cfg80211_tid_stats *tidstats,
-			     int tid, int link_id)
+			     int tid, bool txq_stats)
 {
 	struct ieee80211_local *local = sta->local;
-	struct link_sta_info *link_sta_info;
 	int cpu;
-
-	if (link_id < 0)
-		link_sta_info = &sta->deflink;
-	else
-		link_sta_info = wiphy_dereference(sta->local->hw.wiphy,
-						  sta->link[link_id]);
 
 	if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
 		tidstats->rx_msdu +=
@@ -2731,7 +2730,7 @@ static void sta_set_tidstats(struct sta_info *sta,
 			link_sta_info->status_stats.msdu_failed[tid];
 	}
 
-	if (link_id < 0 && tid < IEEE80211_NUM_TIDS) {
+	if (txq_stats && tid < IEEE80211_NUM_TIDS) {
 		spin_lock_bh(&local->fq.lock);
 
 		tidstats->filled |= BIT(NL80211_TID_STATS_TXQ_STATS);
@@ -2837,20 +2836,17 @@ static u32 sta_estimate_expected_throughput(struct sta_info *sta,
 }
 
 static void sta_set_link_sinfo(struct sta_info *sta,
+			       struct link_sta_info *link_sta_info,
 			       struct link_station_info *link_sinfo,
 			       struct ieee80211_link_data *link,
 			       bool tidstats)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_sta_rx_stats *last_rxstats;
-	int i, ac, cpu, link_id = link->link_id;
-	struct link_sta_info *link_sta_info;
+	int i, ac, cpu;
 	u32 thr = 0;
 
-	last_rxstats = sta_get_last_rx_stats(sta, link_id);
-
-	link_sta_info = wiphy_dereference(sta->local->hw.wiphy,
-					  sta->link[link_id]);
+	last_rxstats = sta_get_last_rx_stats(link_sta_info);
 
 	/* do before driver, so beacon filtering drivers have a
 	 * chance to e.g. just add the number of filtered beacons
@@ -2876,8 +2872,7 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 
 	link_sinfo->inactive_time =
 		jiffies_delta_to_msecs(jiffies -
-				       ieee80211_sta_last_active(sta,
-								 link_id));
+				       sta_link_last_active(link_sta_info));
 
 	if (!(link_sinfo->filled & (BIT_ULL(NL80211_STA_INFO_TX_BYTES64) |
 				    BIT_ULL(NL80211_STA_INFO_TX_BYTES)))) {
@@ -3025,8 +3020,8 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 	}
 
 	if (!(link_sinfo->filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE))) {
-		if (sta_set_rate_info_rx(sta, &link_sinfo->rxrate,
-					 link_id) == 0)
+		if (sta_set_rate_info_rx(sta, link_sta_info,
+					 &link_sinfo->rxrate) == 0)
 			link_sinfo->filled |=
 				BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 	}
@@ -3034,8 +3029,8 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 	if (tidstats && !cfg80211_link_sinfo_alloc_tid_stats(link_sinfo,
 							     GFP_KERNEL)) {
 		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
-			sta_set_tidstats(sta, &link_sinfo->pertid[i], i,
-					 link_id);
+			sta_set_tidstats(sta, link_sta_info,
+					 &link_sinfo->pertid[i], i, false);
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
@@ -3091,7 +3086,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	int i, ac, cpu;
 	struct ieee80211_sta_rx_stats *last_rxstats;
 
-	last_rxstats = sta_get_last_rx_stats(sta, -1);
+	last_rxstats = sta_get_last_rx_stats(&sta->deflink);
 
 	sinfo->generation = sdata->local->sta_generation;
 
@@ -3119,7 +3114,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	sinfo->assoc_at = sta->assoc_at;
 	sinfo->inactive_time =
 		jiffies_delta_to_msecs(jiffies -
-				       ieee80211_sta_last_active(sta, -1));
+				       sta_link_last_active(&sta->deflink));
 
 	if (!(sinfo->filled & (BIT_ULL(NL80211_STA_INFO_TX_BYTES64) |
 			       BIT_ULL(NL80211_STA_INFO_TX_BYTES)))) {
@@ -3258,13 +3253,15 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE)) &&
 	    !sta->sta.valid_links) {
-		if (sta_set_rate_info_rx(sta, &sinfo->rxrate, -1) == 0)
+		if (sta_set_rate_info_rx(sta, &sta->deflink,
+					 &sinfo->rxrate) == 0)
 			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 	}
 
 	if (tidstats && !cfg80211_sinfo_alloc_tid_stats(sinfo, GFP_KERNEL)) {
 		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
-			sta_set_tidstats(sta, &sinfo->pertid[i], i, -1);
+			sta_set_tidstats(sta, &sta->deflink,
+					 &sinfo->pertid[i], i, true);
 	}
 
 #ifdef CONFIG_MAC80211_MESH
@@ -3367,7 +3364,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 				sinfo->valid_links &= ~BIT(link_id);
 				continue;
 			}
-			sta_set_link_sinfo(sta, link_sinfo, link, tidstats);
+			sta_set_link_sinfo(sta, link_sta, link_sinfo, link,
+					   tidstats);
 			if (!thr &&
 			    (link_sinfo->filled & BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT)))
 				est_thr += link_sinfo->expected_throughput;
@@ -3400,10 +3398,7 @@ u32 sta_get_expected_throughput(struct sta_info *sta)
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta, int link_id)
 {
-	struct ieee80211_sta_rx_stats *stats;
 	struct link_sta_info *link_sta_info;
-
-	stats = sta_get_last_rx_stats(sta, link_id);
 
 	if (link_id < 0)
 		link_sta_info = &sta->deflink;
@@ -3411,11 +3406,7 @@ unsigned long ieee80211_sta_last_active(struct sta_info *sta, int link_id)
 		link_sta_info = wiphy_dereference(sta->local->hw.wiphy,
 						  sta->link[link_id]);
 
-	if (!link_sta_info->status_stats.last_ack ||
-	    time_after(stats->last_rx, link_sta_info->status_stats.last_ack))
-		return stats->last_rx;
-
-	return link_sta_info->status_stats.last_ack;
+	return sta_link_last_active(link_sta_info);
 }
 
 int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
