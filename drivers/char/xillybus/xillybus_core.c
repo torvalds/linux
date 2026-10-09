@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/sizes.h>
 #include "xillybus.h"
 #include "xillybus_class.h"
 
@@ -351,6 +352,12 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 	struct device *dev = ep->dev;
 	struct xilly_buffer *this_buffer = NULL; /* Init to silence warning */
 
+	if (bytebufsize == 0 || bytebufsize > SZ_1G) {
+		dev_err(ep->dev,
+			"Illegal buffer size requested in IDT. Aborting.\n");
+		return -ENODEV;
+	}
+
 	if (buffers) { /* Not the message buffer */
 		this_buffer = devm_kcalloc(dev, bufnum,
 					   sizeof(struct xilly_buffer),
@@ -623,6 +630,12 @@ static int xilly_scan_idt(struct xilly_endpoint *endpoint,
 		return -ENODEV;
 	}
 
+	if (count == 0 || count > XILLYBUS_MAX_NODES) {
+		dev_err(endpoint->dev,
+			"Unreasonable number of channels. Aborting.\n");
+		return -ENODEV;
+	}
+
 	idt_handle->entries = len >> 2;
 	endpoint->num_channels = count;
 
@@ -725,8 +738,18 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 			bufidx = channel->wr_host_buf_idx;
 			bufpos = channel->wr_host_buf_pos;
 			howmany = ((channel->wr_buffers[bufidx]->end_offset
-				    + 1) << channel->log2_element_size)
-				- bufpos;
+				    + 1) << channel->log2_element_size);
+
+			if (howmany > channel->wr_buf_size ||
+			    howmany < bufpos) {
+				dev_err(channel->endpoint->dev,
+					"Illegal buffer fill level from hardware\n");
+				channel->endpoint->fatal_error = 1;
+				spin_unlock_irqrestore(&channel->wr_spinlock, flags);
+				break;
+			}
+
+			howmany	-= bufpos;
 
 			/* Update wr_host_* to its post-operation state */
 			if (howmany > bytes_to_do) {
@@ -1899,6 +1922,11 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 					     XILLY_TIMEOUT);
 	if (t <= 0) {
 		dev_err(endpoint->dev, "No response from FPGA. Aborting.\n");
+		return -ENODEV;
+	}
+
+	if (endpoint->idtlen < 4 || endpoint->idtlen > XILLYBUS_MAX_IDT) {
+		dev_err(endpoint->dev, "Invalid IDT length. Aborting.\n");
 		return -ENODEV;
 	}
 

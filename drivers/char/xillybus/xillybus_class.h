@@ -8,6 +8,9 @@
 #ifndef __XILLYBUS_CLASS_H
 #define __XILLYBUS_CLASS_H
 
+#define XILLYBUS_MAX_NODES 1024
+#define XILLYBUS_MAX_IDT 1048576
+
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/fs.h>

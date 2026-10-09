@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/sizes.h>
 #include <linux/crc32.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
@@ -388,6 +389,12 @@ retry:
 
 	fifo->bufnum = 1 << log2_bufnum;
 	fifo->size = fifo->bufnum * fifo->bufsize;
+
+	if (!fifo->size || /* Unsigned integer overflow */
+	    fifo->size > SZ_1G) { /* Avoid signed int issues */
+		mutex_unlock(&fifo_buf_order_mutex);
+		return -ENOMEM; /* Reported as greed for memory */
+	}
 
 	fifo->mem = kmalloc_array(fifo->bufnum, sizeof(void *), GFP_KERNEL);
 
@@ -882,6 +889,7 @@ static int process_in_opcode(struct xillyusb_dev *xdev,
 	struct xillyusb_channel *chan;
 	struct device *dev = xdev->dev;
 	int chan_idx = chan_num >> 1;
+	struct xillyfifo *in_fifo;
 
 	if (chan_idx >= xdev->num_channels) {
 		dev_err(dev, "Received illegal channel ID %d from FPGA\n",
@@ -906,7 +914,10 @@ static int process_in_opcode(struct xillyusb_dev *xdev,
 		 */
 		smp_wmb();
 		WRITE_ONCE(chan->read_data_ok, 0);
-		wake_up_interruptible(&chan->in_fifo->waitq);
+
+		in_fifo = READ_ONCE(chan->in_fifo);
+		if (in_fifo)
+			wake_up_interruptible(&in_fifo->waitq);
 		break;
 
 	case OPCODE_REACHED_CHECKPOINT:
@@ -2066,6 +2077,13 @@ static int xillyusb_discovery(struct usb_interface *interface)
 	}
 
 	idt_len = READ_ONCE(idt_fifo.fill);
+
+	if (idt_len < 4 || idt_len > XILLYBUS_MAX_IDT) {
+		rc = -ENODEV;
+		dev_err(&interface->dev, "Invalid IDT length. Aborting.\n");
+		goto unfifo;
+	}
+
 	idt = kmalloc(idt_len, GFP_KERNEL);
 
 	if (!idt) {
@@ -2096,6 +2114,12 @@ static int xillyusb_discovery(struct usb_interface *interface)
 
 	if (idt_len < names_offset) {
 		dev_err(&interface->dev, "IDT too short. This is exceptionally weird, because its CRC is OK\n");
+		rc = -ENODEV;
+		goto unidt;
+	}
+
+	if (num_channels == 0 || num_channels > XILLYBUS_MAX_NODES) {
+		dev_err(&interface->dev, "Unreasonable number of channels. Aborting.\n");
 		rc = -ENODEV;
 		goto unidt;
 	}
