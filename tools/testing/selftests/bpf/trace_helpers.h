@@ -38,6 +38,7 @@ typedef int (*ksym_search_cmp_t)(const void *p1, const struct ksym *p2);
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
 long ksym_get_addr(const char *name);
+unsigned long long module_get_base_addr(const char *module);
 
 struct ksyms *load_kallsyms_local(void);
 struct ksym *ksym_search_local(struct ksyms *ksyms, long key);

@@ -244,6 +244,26 @@ out:
 	return err;
 }
 
+unsigned long long module_get_base_addr(const char *module)
+{
+	unsigned long long addr, base_addr = 0;
+	char name[500];
+	FILE *f;
+
+	f = fopen("/proc/modules", "r");
+	if (!f)
+		return 0;
+
+	while (fscanf(f, "%499s %*s %*s %*s %*s 0x%llx", name, &addr) == 2) {
+		if (strcmp(module, name) == 0) {
+			base_addr = addr;
+			break;
+		}
+	}
+	fclose(f);
+	return base_addr;
+}
+
 #ifdef PROCMAP_QUERY
 int env_verbosity __weak = 0;
 

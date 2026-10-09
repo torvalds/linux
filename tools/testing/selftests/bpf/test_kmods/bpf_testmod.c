@@ -735,6 +735,13 @@ out:
 EXPORT_SYMBOL(bpf_testmod_test_read);
 ALLOW_ERROR_INJECTION(bpf_testmod_test_read, ERRNO);
 
+static __always_inline size_t testmod_inline_len(size_t len)
+{
+	/* Keep an instruction in the inline site without changing len. */
+	asm volatile("" : "+m"(len));
+	return len;
+}
+
 noinline ssize_t
 bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 		      const struct bin_attribute *bin_attr,
@@ -743,7 +750,7 @@ bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 	struct bpf_testmod_test_write_ctx ctx = {
 		.buf = buf,
 		.off = off,
-		.len = len,
+		.len = testmod_inline_len(len),
 	};
 
 	trace_bpf_testmod_test_write_bare_tp(current, &ctx);
@@ -802,7 +809,7 @@ static struct testmod_uprobe uprobe = {
 	.consumer.ret_handler = uprobe_ret_handler,
 };
 
-static int testmod_register_uprobe(loff_t offset)
+static __always_inline int testmod_register_uprobe(loff_t offset)
 {
 	int err = -EBUSY;
 
