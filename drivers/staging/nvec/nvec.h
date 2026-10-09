@@ -102,7 +102,7 @@ struct nvec_msg {
 /**
  * struct nvec_chip - A single connection to an NVIDIA Embedded controller
  * @dev: The device
- * @gpio: The same as for &struct nvec_platform_data
+ * @gpiod: GPIO descriptor for the embedded controller request line
  * @irq: The IRQ of the I2C device
  * @i2c_addr: The address of the I2C slave
  * @base: The base of the memory mapped region of the I2C device
