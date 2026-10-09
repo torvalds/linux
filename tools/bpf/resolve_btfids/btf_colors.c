@@ -7,6 +7,12 @@
  * which can't be included in main.c because of the u32 poison and pr_warn macro conflicts.
  */
 
+void btf_sha256(const void *data, size_t len,
+		__u8 out[BTF_SHA256_DIGEST_LENGTH])
+{
+	libbpf_sha256(data, len, out);
+}
+
 /*
  * Marks `root_id` and local types reachable from it with `color`.
  * `colors` is indexed by source ID; worklist has room for every local type.

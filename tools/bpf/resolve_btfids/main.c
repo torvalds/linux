@@ -93,6 +93,7 @@
 #include <subcmd/parse-options.h>
 
 #define BTF_IDS_SECTION	".BTF_ids"
+#define BTF_LINK_MODULE_NAME_MAX	64
 #define BTF_ID_PREFIX	"__BTF_ID__"
 
 #define BTF_STRUCT	"struct"
@@ -158,6 +159,7 @@ struct object {
 		size_t		 strtabidx;
 		unsigned long	 idlist_addr;
 		int		 encoding;
+		int		 elf_class;
 		const char	**func_symbols;
 		u32		 func_symbols_cnt;
 		u32		 func_symbols_cap;
@@ -178,6 +180,19 @@ struct object {
 	struct addr_sym *addr_syms;
 	u32 addr_syms_cnt;
 	u32 addr_syms_cap;
+};
+
+struct btf_link {
+	char *value;
+	char *section;
+	char *module;
+	char *btf_path;
+};
+
+struct btf_links {
+	struct btf_link *links;
+	u32 cnt;
+	u32 cap;
 };
 
 #define DECL_TAG_FASTCALL "bpf_fastcall"
@@ -266,6 +281,49 @@ static int __ensure_mem(void **data, u32 *cap, u32 cnt, size_t elem_sz)
 
 #define ensure_mem(arr_ptr, cap_ptr, cnt) \
 	__ensure_mem((void **)(arr_ptr), (cap_ptr), (cnt), sizeof(**(arr_ptr)))
+
+static int parse_btf_link(const struct option *opt, const char *arg, int unset)
+{
+	struct btf_links *links = opt->value;
+	struct btf_link *link;
+	char *separator;
+
+	if (unset)
+		return -EINVAL;
+	if (__ensure_mem((void **)&links->links, &links->cap, links->cnt + 1,
+			 sizeof(*links->links)))
+		return -ENOMEM;
+	link = &links->links[links->cnt];
+	memset(link, 0, sizeof(*link));
+	link->value = strdup(arg);
+	if (!link->value)
+		return -ENOMEM;
+	link->section = link->value;
+	separator = strchr(link->section, ':');
+	if (!separator || separator == link->section)
+		goto err_value;
+	*separator++ = '\0';
+	link->module = separator;
+	separator = strchr(link->module, ':');
+	if (!separator || separator == link->module || !separator[1])
+		goto err_value;
+	*separator++ = '\0';
+	link->btf_path = separator;
+	links->cnt++;
+	return 0;
+err_value:
+	free(link->value);
+	return -EINVAL;
+}
+
+static void free_btf_links(struct btf_links *links)
+{
+	u32 i;
+
+	for (i = 0; i < links->cnt; i++)
+		free(links->links[i].value);
+	free(links->links);
+}
 
 static bool is_btf_id(const char *name)
 {
@@ -488,6 +546,7 @@ static int elf_collect(struct object *obj)
 		return -1;
 	}
 	obj->efile.encoding = ehdr.e_ident[EI_DATA];
+	obj->efile.elf_class = ehdr.e_ident[EI_CLASS];
 
 	/*
 	 * Scan all the elf sections and look for save data
@@ -1028,6 +1087,153 @@ static int dump_raw_btf(struct btf *btf, const char *out_path)
 		return -1;
 
 	return 0;
+}
+
+static int patch_btf_link(struct object *obj, const struct btf_link *link)
+{
+	char section[128];
+	void *raw_btf_data = NULL;
+	size_t shdrstrndx, module_name_len;
+	int fd = -1, len, err = -1;
+	FILE *btf_file = NULL;
+	Elf_Scn *scn = NULL;
+	u32 raw_btf_size;
+	struct stat st;
+	Elf_Data *data;
+	GElf_Shdr sh;
+	char *name;
+	Elf *elf = NULL;
+	u8 *size;
+
+	if (stat(link->btf_path, &st)) {
+		err = -errno;
+		pr_err("FAILED to stat BTF file %s: %s\n",
+		       link->btf_path, strerror(errno));
+		return err;
+	}
+	if (!S_ISREG(st.st_mode) || st.st_size <= 0 || st.st_size > UINT_MAX) {
+		pr_err("FAILED: invalid BTF file size or type: %s\n", link->btf_path);
+		return -EINVAL;
+	}
+	raw_btf_size = st.st_size;
+	raw_btf_data = malloc(raw_btf_size);
+	if (!raw_btf_data) {
+		pr_err("FAILED to allocate %u bytes for BTF file %s\n",
+		       raw_btf_size, link->btf_path);
+		return -ENOMEM;
+	}
+	btf_file = fopen(link->btf_path, "rb");
+	if (!btf_file) {
+		err = -errno;
+		pr_err("FAILED to open BTF file %s: %s\n",
+		       link->btf_path, strerror(errno));
+		goto out;
+	}
+	if (fread(raw_btf_data, raw_btf_size, 1, btf_file) != 1) {
+		err = -EIO;
+		pr_err("FAILED to read BTF file %s\n", link->btf_path);
+		goto out;
+	}
+	fclose(btf_file);
+	btf_file = NULL;
+	if (obj->efile.elf_class == ELFCLASS32) {
+		module_name_len = BTF_LINK_MODULE_NAME_MAX - 4;
+	} else if (obj->efile.elf_class == ELFCLASS64) {
+		module_name_len = BTF_LINK_MODULE_NAME_MAX - 8;
+	} else {
+		err = -EINVAL;
+		pr_err("FAILED: unsupported ELF class %u in %s\n",
+		       obj->efile.elf_class, obj->path);
+		goto out;
+	}
+	if (strlen(link->module) >= module_name_len) {
+		err = -EINVAL;
+		pr_err("FAILED: module name too long for BTF link: %s\n", link->module);
+		goto out;
+	}
+	len = snprintf(section, sizeof(section), "%s.link", link->section);
+	if (len < 0 || len >= sizeof(section)) {
+		err = -ENAMETOOLONG;
+		pr_err("FAILED: BTF link section name too long: %s.link\n", link->section);
+		goto out;
+	}
+
+	fd = open(obj->path, O_RDWR);
+	if (fd < 0) {
+		err = -errno;
+		pr_err("FAILED to open %s: %s\n", obj->path, strerror(errno));
+		goto out;
+	}
+	elf = elf_begin(fd, ELF_C_RDWR_MMAP, NULL);
+	if (!elf) {
+		err = -EINVAL;
+		pr_err("FAILED to create ELF descriptor for %s: %s\n",
+		       obj->path, elf_errmsg(-1));
+		goto out;
+	}
+	elf_flagelf(elf, ELF_C_SET, ELF_F_LAYOUT);
+	if (elf_getshdrstrndx(elf, &shdrstrndx)) {
+		pr_err("FAILED to get section name index from %s: %s\n",
+		       obj->path, elf_errmsg(-1));
+		goto out;
+	}
+	while ((scn = elf_nextscn(elf, scn))) {
+		if (gelf_getshdr(scn, &sh) != &sh) {
+			pr_err("FAILED to get section header from %s: %s\n",
+			       obj->path, elf_errmsg(-1));
+			goto out;
+		}
+		name = elf_strptr(elf, shdrstrndx, sh.sh_name);
+		if (name && !strcmp(name, section))
+			break;
+	}
+	if (!scn) {
+		pr_err("FAILED: section %s not found in %s\n", section, obj->path);
+		goto out;
+	}
+	data = elf_getdata(scn, NULL);
+	if (sh.sh_type != SHT_PROGBITS || !data || !data->d_buf ||
+	    data->d_size != module_name_len +
+		BTF_SHA256_DIGEST_LENGTH + sizeof(u32)) {
+		pr_err("FAILED: section %s is not a writable BTF link\n", section);
+		goto out;
+	}
+	memset(data->d_buf, 0, data->d_size);
+	memcpy(data->d_buf, link->module, strlen(link->module) + 1);
+	btf_sha256(raw_btf_data, raw_btf_size,
+		   (u8 *)data->d_buf + module_name_len);
+	size = (u8 *)data->d_buf + module_name_len + BTF_SHA256_DIGEST_LENGTH;
+	if (obj->efile.encoding == ELFDATA2LSB) {
+		size[0] = raw_btf_size;
+		size[1] = raw_btf_size >> 8;
+		size[2] = raw_btf_size >> 16;
+		size[3] = raw_btf_size >> 24;
+	} else if (obj->efile.encoding == ELFDATA2MSB) {
+		size[0] = raw_btf_size >> 24;
+		size[1] = raw_btf_size >> 16;
+		size[2] = raw_btf_size >> 8;
+		size[3] = raw_btf_size;
+	} else {
+		pr_err("FAILED: unsupported ELF data encoding %u in %s\n",
+		       obj->efile.encoding, obj->path);
+		goto out;
+	}
+	elf_flagdata(data, ELF_C_SET, ELF_F_DIRTY);
+	if (elf_update(elf, ELF_C_WRITE) < 0) {
+		pr_err("FAILED to update ELF file %s: %s\n",
+		       obj->path, elf_errmsg(-1));
+		goto out;
+	}
+	err = 0;
+out:
+	if (elf)
+		elf_end(elf);
+	if (fd >= 0)
+		close(fd);
+	if (btf_file)
+		fclose(btf_file);
+	free(raw_btf_data);
+	return err;
 }
 
 static const struct btf_type *btf_type_skip_qualifiers(const struct btf *btf, s32 type_id)
@@ -1871,7 +2077,7 @@ out:
 
 static const char * const resolve_btfids_usage[] = {
 	"resolve_btfids [<options>] <ELF object>",
-	"resolve_btfids --patch_btfids <.BTF_ids file> <ELF object>",
+	"resolve_btfids --patch_btfids <.BTF_ids file> [--btf_link <section:module:btf-file>] <ELF object>",
 	NULL
 };
 
@@ -1889,6 +2095,7 @@ int main(int argc, const char **argv)
 		.sets     = RB_ROOT,
 	};
 	const char *btfids_path = NULL;
+	struct btf_links btf_links = {};
 	bool fatal_warnings = false;
 	bool resolve_btfids = true;
 	char out_path[PATH_MAX];
@@ -1906,6 +2113,8 @@ int main(int argc, const char **argv)
 			    "distill --btf_base and emit .BTF.base section data"),
 		OPT_BOOLEAN(0, "inline", &obj.extract_inline,
 			    "extract location BTF into a .BTF.inline file"),
+		OPT_CALLBACK(0, "btf_link", &btf_links, "section:module:btf-file",
+			     "patch a BTF link with --patch_btfids", parse_btf_link),
 		OPT_STRING(0, "patch_btfids", &btfids_path, "file",
 			   "path to .BTF_ids section data blob to patch into ELF file"),
 		OPT_END()
@@ -1916,12 +2125,30 @@ int main(int argc, const char **argv)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc != 1)
 		usage_with_options(resolve_btfids_usage, btfid_options);
+	if (btf_links.cnt && !btfids_path) {
+		pr_err("--btf_link requires --patch_btfids\n");
+		goto out;
+	}
 
 	obj.path = argv[0];
 
-	if (btfids_path)
-		return patch_btfids(btfids_path, obj.path);
+	if (btfids_path) {
+		err = patch_btfids(btfids_path, obj.path);
+		if (err || !btf_links.cnt)
+			goto out;
+		if (elf_collect(&obj)) {
+			err = -EINVAL;
+			goto out;
+		}
+		for (u32 i = 0; i < btf_links.cnt; i++) {
+			struct btf_link *link = &btf_links.links[i];
 
+			err = patch_btf_link(&obj, link);
+			if (err)
+				break;
+		}
+		goto out;
+	}
 	if (elf_collect(&obj))
 		goto out;
 	if (obj.extract_inline && collect_func_symbols(&obj))
@@ -1986,6 +2213,7 @@ dump_btf:
 	if (!(fatal_warnings && warnings))
 		err = 0;
 out:
+	free_btf_links(&btf_links);
 	/*
 	 * Free BTFs in reverse dependency order.  inline_btf borrows obj.btf;
 	 * obj.btf can borrow a base owned by orig_btf or obj.base_btf, and
