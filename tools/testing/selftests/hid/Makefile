@@ -148,6 +148,8 @@ endif
 
 $(RESOLVE_BTFIDS): $(HOST_BPFOBJ) | $(HOST_BUILD_DIR)/resolve_btfids	\
 		       $(TOOLSDIR)/bpf/resolve_btfids/main.c	\
+		       $(TOOLSDIR)/bpf/resolve_btfids/btf_colors.c	\
+		       $(TOOLSDIR)/bpf/resolve_btfids/btf_colors.h	\
 		       $(TOOLSDIR)/lib/rbtree.c			\
 		       $(TOOLSDIR)/lib/zalloc.c			\
 		       $(TOOLSDIR)/lib/string.c			\
