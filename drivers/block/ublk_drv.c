@@ -2653,6 +2653,12 @@ static int ublk_ch_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		return -EPERM;
 
+	/*
+	 * The per-queue command buffer is kernel-written ABI; prevent
+	 * the daemon from upgrading to writable via mprotect().
+	 */
+	vm_flags_clear(vma, VM_MAYWRITE);
+
 	end = UBLKSRV_CMD_BUF_OFFSET + ub->dev_info.nr_hw_queues * max_sz;
 	if (phys_off < UBLKSRV_CMD_BUF_OFFSET || phys_off >= end)
 		return -EINVAL;
@@ -5390,7 +5396,7 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 		       page_to_pfn(pages[i + 1]) == pfn + (i - start) + 1)
 			i++;
 
-		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		range = kzalloc_obj(*range);
 		if (!range) {
 			ret = -ENOMEM;
 			goto unwind;
@@ -5453,7 +5459,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	nr_pages = buf_reg.len >> PAGE_SHIFT;
 
 	/* Pin pages before any locks (may sleep) */
-	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, nr_pages);
 	if (!pages)
 		return -ENOMEM;
 

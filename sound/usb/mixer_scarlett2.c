@@ -2603,9 +2603,9 @@ static int scarlett2_usb_rx(struct usb_device *dev, int interface,
 }
 
 /* Send a proprietary format request to the Scarlett interface */
-static int scarlett2_usb(
-	struct usb_mixer_interface *mixer, u32 cmd,
-	void *req_data, u16 req_size, void *resp_data, u16 resp_size)
+static int scarlett2_usb_nopm(struct usb_mixer_interface *mixer, u32 cmd,
+			      void *req_data, u16 req_size,
+			      void *resp_data, u16 resp_size)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
@@ -2711,6 +2711,18 @@ retry:
 		memcpy(resp_data, resp->data, resp_size);
 
 	return err;
+}
+
+static int scarlett2_usb(struct usb_mixer_interface *mixer, u32 cmd,
+			 void *req_data, u16 req_size,
+			 void *resp_data, u16 resp_size)
+{
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
+
+	return scarlett2_usb_nopm(mixer, cmd, req_data, req_size,
+				  resp_data, resp_size);
 }
 
 /* Send a USB message to get data; result placed in *buf */
@@ -3020,9 +3032,21 @@ static int scarlett2_usb_set_config_buf(
 /* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
 static void scarlett2_config_save(struct usb_mixer_interface *mixer)
 {
-	int err;
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	int err = scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
+				&req, sizeof(req), NULL, 0);
 
-	err = scarlett2_usb_activate_config(mixer, SCARLETT2_USB_CONFIG_SAVE);
+	if (err < 0)
+		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
+}
+
+/* The USB suspend callback must not acquire another PM reference. */
+static void scarlett2_config_save_nopm(struct usb_mixer_interface *mixer)
+{
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	int err = scarlett2_usb_nopm(mixer, SCARLETT2_USB_DATA_CMD,
+				     &req, sizeof(req), NULL, 0);
+
 	if (err < 0)
 		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
 }
@@ -8639,7 +8663,7 @@ static void scarlett2_private_suspend(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	if (cancel_delayed_work_sync(&private->work))
-		scarlett2_config_save(private->mixer);
+		scarlett2_config_save_nopm(private->mixer);
 
 	scarlett2_cleanup_urb(mixer);
 }

@@ -1874,8 +1874,8 @@ static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 			free_percpu(ref);
 	}
 
-	fph = kvzalloc(struct_size(fph, queues, hash_slots),
-		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+	fph = kvzalloc_flex(*fph, queues, hash_slots,
+			    GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!fph)
 		return -ENOMEM;
 
@@ -2103,7 +2103,7 @@ static int __init futex_init(void)
 	size = sizeof(struct futex_hash_bucket) * hashsize;
 	order = get_order(size);
 
-	__futex_queues = kcalloc(nr_node_ids, sizeof(*__futex_queues), GFP_KERNEL);
+	__futex_queues = kzalloc_objs(*__futex_queues, nr_node_ids);
 	kmemleak_not_leak(__futex_queues);
 
 	runtime_const_init(shift, __futex_shift);

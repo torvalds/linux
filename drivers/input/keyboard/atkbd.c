@@ -1070,7 +1070,7 @@ static int atkbd_get_keymap_from_fwnode(struct atkbd *atkbd)
 	if (n <= 0 || n > ATKBD_KEYMAP_SIZE)
 		return -ENXIO;
 
-	u32 *ptr __free(kfree) = kcalloc(n, sizeof(*ptr), GFP_KERNEL);
+	u32 *ptr __free(kfree) = kzalloc_objs(*ptr, n);
 	if (!ptr)
 		return -ENOMEM;
 

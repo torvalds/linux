@@ -336,7 +336,7 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 static struct page **fuse_readdir_alloc_buf(struct fuse_args_pages *ap, size_t *bufsize)
 {
 	unsigned int i, nr_alloc, nr_pages = DIV_ROUND_UP(*bufsize, PAGE_SIZE);
-	struct page **pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	struct page **pages = kzalloc_objs(*pages, nr_pages);
 
 	if (!pages)
 		return NULL;

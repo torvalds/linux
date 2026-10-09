@@ -119,8 +119,7 @@ static ssize_t afs_do_read_symlink(struct afs_vnode *vnode)
 		vnode->directory_size = i_size;
 
 		/* Copy the symlink. */
-		symlink = kmalloc_flex(struct afs_symlink, content, i_size + 1,
-				       GFP_KERNEL);
+		symlink = kmalloc_flex(struct afs_symlink, content, i_size + 1);
 		if (!symlink)
 			return -ENOMEM;
 

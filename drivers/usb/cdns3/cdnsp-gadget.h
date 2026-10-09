@@ -1510,6 +1510,7 @@ int cdnsp_endpoint_init(struct cdnsp_device *pdev,
 int cdnsp_ring_expansion(struct cdnsp_device *pdev,
 			 struct cdnsp_ring *ring,
 			 unsigned int num_trbs, gfp_t flags);
+void cdnsp_ring_init(struct cdnsp_device *pdev, struct cdnsp_ring *ring);
 struct cdnsp_ring *cdnsp_dma_to_transfer_ring(struct cdnsp_ep *ep, u64 address);
 int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
 			    struct cdnsp_ep *pep,

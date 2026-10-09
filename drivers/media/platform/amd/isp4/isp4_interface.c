@@ -127,7 +127,7 @@ isp4if_gpu_mem_alloc(struct isp4_interface *ispif, u32 mem_size)
 	struct device *dev = ispif->dev;
 	int ret;
 
-	mem_info = kmalloc_obj(*mem_info, GFP_KERNEL);
+	mem_info = kmalloc_obj(*mem_info);
 	if (!mem_info)
 		return NULL;
 
@@ -368,7 +368,7 @@ static int isp4if_send_fw_cmd(struct isp4_interface *ispif, u32 cmd_id,
 
 	/* Allocate the sync command object early and outside of the lock */
 	if (sync) {
-		ele = kmalloc_obj(*ele, GFP_KERNEL);
+		ele = kmalloc_obj(*ele);
 		if (!ele)
 			return -ENOMEM;
 
@@ -738,7 +738,7 @@ isp4if_alloc_buffer_node(struct isp4if_img_buf_info *buf_info)
 {
 	struct isp4if_img_buf_node *node;
 
-	node = kmalloc_obj(*node, GFP_KERNEL);
+	node = kmalloc_obj(*node);
 	if (node)
 		node->buf_info = *buf_info;
 

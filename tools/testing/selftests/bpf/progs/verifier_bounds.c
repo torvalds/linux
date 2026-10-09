@@ -2267,6 +2267,47 @@ __naked void deduce64_from_32_wrapping_32bit(void)
 	: __clobber_all);
 }
 
+/*
+ * Unprivileged variable pointer arithmetic on a PTR_TO_MAP_VALUE whose
+ * offset collapses to a constant. The Spectre-v1 speculative path snapshots
+ * the pointer while its r32 has just been blanked but its offset not yet
+ * synced; the following register move used to trip reg_bounds_sanity_check()
+ * ("const subreg tnum out of sync with range bounds"). With
+ * BPF_F_TEST_REG_INVARIANTS that violation turns into a load failure, so the
+ * unprivileged program must still load.
+ */
+SEC("socket")
+__success __success_unpriv
+__flag(BPF_F_TEST_REG_INVARIANTS)
+__naked void spec_ptr_alu_const_offset(void)
+{
+	asm volatile ("							\
+	call %[bpf_ktime_get_ns];					\
+	*(u64*)(r10 - 16) = r0;						\
+	r1 = 0;								\
+	*(u64*)(r10 - 8) = r1;						\
+	r2 = r10;							\
+	r2 += -8;							\
+	r1 = %[map_hash_8b] ll;						\
+	call %[bpf_map_lookup_elem];					\
+	if r0 == 0 goto l0_%=;						\
+	r1 = *(u64*)(r10 - 16);						\
+	r2 = 0x40000000;						\
+	if r1 > r2 goto l0_%=;						\
+	if r1 s> 1 goto l0_%=;		/* r1 in [0, 1] */		\
+	r0 += r1;			/* ptr += bounded scalar */	\
+	r9 = r0;			/* used to trip the warning */	\
+	*(u8*)(r0 + 0) = r1;						\
+l0_%=:	r0 = 0;								\
+	exit;								\
+	"
+	:
+	: __imm(bpf_ktime_get_ns),
+	  __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
 /* Check that range_within() compares cnum ranges, not min/max projections. */
 SEC("socket")
 __failure __msg("div by zero")

@@ -158,7 +158,7 @@ int scsi_complete_async_scans(void)
 		 * sleep a little.  Even if we never get memory, the async
 		 * scans will finish eventually.
 		 */
-		data = kmalloc(sizeof(*data), GFP_KERNEL);
+		data = kmalloc_obj(*data);
 		if (!data)
 			msleep(1);
 	} while (!data);

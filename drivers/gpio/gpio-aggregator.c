@@ -886,8 +886,8 @@ gpio_aggregator_make_device_sw_node(struct gpio_aggregator *aggr)
 	if (num_lines == 0)
 		return NULL;
 
-	const char **line_names __free(kfree) = kcalloc(
-				num_lines, sizeof(*line_names), GFP_KERNEL);
+	const char **line_names __free(kfree) = kzalloc_objs(*line_names,
+							     num_lines);
 	if (!line_names)
 		return ERR_PTR(-ENOMEM);
 

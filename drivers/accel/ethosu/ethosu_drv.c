@@ -356,6 +356,8 @@ static int ethosu_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 
 	ethosudev->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ethosudev->regs))
+		return PTR_ERR(ethosudev->regs);
 	ethosudev->pmu_regs = ethosudev->regs;
 
 	ethosudev->num_clks = devm_clk_bulk_get_all(&pdev->dev, &ethosudev->clks);

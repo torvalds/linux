@@ -302,7 +302,7 @@ int nxpwifi_alloc_cmd_buffer(struct nxpwifi_adapter *adapter)
 
 	/* Allocate and initialize struct cmd_ctrl_node */
 	cmd_array = kzalloc_objs(struct cmd_ctrl_node,
-				 NXPWIFI_NUM_OF_CMD_BUFFER, GFP_KERNEL);
+				 NXPWIFI_NUM_OF_CMD_BUFFER);
 	if (!cmd_array)
 		return -ENOMEM;
 

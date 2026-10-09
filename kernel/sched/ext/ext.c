@@ -5449,7 +5449,7 @@ static ssize_t scx_attr_caps_show(struct kobject *kobj,
 	struct scx_sched *sch = container_of(kobj, struct scx_sched, kobj);
 	u32 npossible = num_possible_cpus();
 	struct scx_cmask *agg __free(kfree) =
-		kzalloc(struct_size(agg, bits, SCX_CMASK_NR_WORDS(npossible)), GFP_KERNEL);
+		kzalloc_flex(*agg, bits, SCX_CMASK_NR_WORDS(npossible));
 	unsigned long *agg_bm __free(bitmap) = bitmap_zalloc(npossible, GFP_KERNEL);
 	ssize_t count = 0;
 	s32 cap, si;

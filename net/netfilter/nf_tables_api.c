@@ -3215,7 +3215,7 @@ static int nft_trans_delhook(struct nft_hook *hook,
 {
 	struct nft_trans_hook *trans_hook;
 
-	trans_hook = kmalloc_obj(*trans_hook, GFP_KERNEL);
+	trans_hook = kmalloc_obj(*trans_hook);
 	if (!trans_hook)
 		return -ENOMEM;
 

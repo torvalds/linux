@@ -2361,9 +2361,8 @@ void amdgpu_ttm_enable_buffer_funcs(struct amdgpu_device *adev)
 	num_clear_entities = MIN(adev->mman.num_buffer_funcs_scheds, TTM_NUM_MOVE_FENCES);
 	num_move_entities = MIN(adev->mman.num_buffer_funcs_scheds, TTM_NUM_MOVE_FENCES);
 
-	adev->mman.clear_entities = kcalloc(num_clear_entities,
-						sizeof(struct amdgpu_ttm_buffer_entity),
-						GFP_KERNEL);
+	adev->mman.clear_entities = kzalloc_objs(struct amdgpu_ttm_buffer_entity,
+						 num_clear_entities);
 	atomic_set(&adev->mman.next_clear_entity, 0);
 	if (!adev->mman.clear_entities)
 		goto error_free_default_entity;

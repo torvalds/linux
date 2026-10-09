@@ -96,7 +96,7 @@ static int ucb1x00_assabet_add(struct ucb1x00_dev *dev)
 
 	struct ucb1x00_assabet_priv *priv;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -348,7 +348,7 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 
 	count = opp_table->regulator_count;
 
-	uV = kmalloc_array(count, sizeof(*uV), GFP_KERNEL);
+	uV = kmalloc_objs(*uV, count);
 	if (!uV)
 		return 0;
 
@@ -1505,7 +1505,7 @@ struct opp_device *_add_opp_dev(const struct device *dev,
 {
 	struct opp_device *opp_dev;
 
-	opp_dev = kzalloc(sizeof(*opp_dev), GFP_KERNEL);
+	opp_dev = kzalloc_obj(*opp_dev);
 	if (!opp_dev)
 		return NULL;
 
