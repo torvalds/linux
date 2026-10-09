@@ -187,6 +187,8 @@ struct xhci_op_regs {
  * SW does need to pay attention to function wake notifications.
  */
 #define	DEV_NOTE_FWAKE		BIT(1)
+/* Notification Type value carried by a Device Notification Event TRB (6.4.2.7) */
+#define	DEV_NOTE_TYPE_FWAKE	1
 
 /* CRCR - Command Ring Control Register - cmd_ring bitmasks */
 /* bit 0 - Cycle bit indicates the ownership of the command ring */
@@ -995,6 +997,9 @@ enum xhci_ep_reset_type {
 /* Force Header */
 #define TRB_TO_PACKET_TYPE(p)		((p) & 0x1f)
 #define TRB_TO_ROOTHUB_PORT(p)		(((p) & (0xff << 24)) >> 24)
+
+/* Device Notification Event TRB fields, 6.4.2.7 */
+#define TRB_TO_DEV_NOTE_TYPE(p)		(((p) & (0xf << 4)) >> 4)
 
 enum xhci_setup_dev {
 	SETUP_CONTEXT_ONLY,
