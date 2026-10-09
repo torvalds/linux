@@ -83,7 +83,9 @@ struct cfg80211_registered_device {
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
-	u64 cookie_counter;
+
+	/* atomic for unlocked users */
+	atomic64_t cookie_counter;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
@@ -171,10 +173,10 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 
 static inline u64 cfg80211_assign_cookie(struct cfg80211_registered_device *rdev)
 {
-	u64 r = ++rdev->cookie_counter;
+	u64 r = atomic64_inc_return(&rdev->cookie_counter);
 
 	if (WARN_ON(r == 0))
-		r = ++rdev->cookie_counter;
+		r = atomic64_inc_return(&rdev->cookie_counter);
 
 	return r;
 }
