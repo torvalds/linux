@@ -425,12 +425,30 @@ config PAHOLE_HAS_LANG_EXCLUDE
 	  otherwise it would emit malformed kernel and module binaries when
 	  using DEBUG_INFO_BTF_MODULES.
 
+config PAHOLE_HAS_INLINE
+	def_bool PAHOLE_VERSION >= 132
+	help
+	  Support for the "inline" BTF feature is available. It encodes
+	  information about inline sites and how to retrieve their parameters.
+
 config DEBUG_INFO_BTF_MODULES
 	bool "Generate BTF type information for kernel modules"
 	default y
 	depends on DEBUG_INFO_BTF && MODULES
 	help
 	  Generate compact split BTF type information for kernel modules.
+
+config DEBUG_INFO_BTF_INLINE
+	tristate "Provide information about inline sites in BTF"
+	default n
+	depends on DEBUG_INFO_BTF && PAHOLE_HAS_INLINE && SYSFS
+	select DEBUG_INFO_BTF_MODULES if MODULES
+	help
+	  Generate information about inline sites in .BTF.inline sections.
+	  These sections contain split BTF relative to the kernel or module BTF
+	  and are made available in /sys/kernel/btf with a ".inline" suffix.
+	  The information describes inline locations and how to retrieve their
+	  associated parameters.
 
 config MODULE_ALLOW_BTF_MISMATCH
 	bool "Allow loading modules with non-matching BTF type info"

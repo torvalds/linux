@@ -5,6 +5,7 @@
 #define _LINUX_BTF_H 1
 
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/bpfptr.h>
 #include <linux/bsearch.h>
 #include <linux/btf_ids.h>
@@ -117,6 +118,19 @@ union bpf_attr;
 struct btf_show;
 struct btf_id_set;
 struct bpf_prog;
+
+#define BTF_LINK_SHA256_LEN	32
+
+/*
+ * A .BTF.link or .BTF.inline.link section identifies the module which
+ * carries a vmlinux BTF section.  The module name is NUL terminated and the
+ * field is padded to __MODULE_NAME_LEN.
+ */
+struct btf_link {
+	char module_name[__MODULE_NAME_LEN];
+	u8 sha256[BTF_LINK_SHA256_LEN];
+	u32 btf_size;
+} __packed;
 
 typedef int (*btf_kfunc_filter_t)(const struct bpf_prog *prog, u32 kfunc_id);
 
@@ -623,6 +637,29 @@ int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_ty
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
 int btf_check_iter_arg(struct btf *btf, const struct btf_type *func, int arg_idx);
+
+#if IS_ENABLED(CONFIG_SYSFS)
+struct bin_attribute *sysfs_btf_add(const char *name, void *data, size_t data_size,
+				    bool mmap, const char *lazy_module_name);
+bool sysfs_btf_update(struct bin_attribute *attr, void *data);
+void sysfs_btf_remove(struct bin_attribute *attr);
+#else
+static inline struct bin_attribute *
+sysfs_btf_add(const char *name, void *data, size_t data_size, bool mmap,
+	      const char *lazy_module_name)
+{
+	return NULL;
+}
+
+static inline bool sysfs_btf_update(struct bin_attribute *attr, void *data)
+{
+	return false;
+}
+
+static inline void sysfs_btf_remove(struct bin_attribute *attr)
+{
+}
+#endif
 
 static inline bool btf_type_is_struct_ptr(struct btf *btf, const struct btf_type *t)
 {

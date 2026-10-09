@@ -25,11 +25,12 @@
 #include <linux/skmsg.h>
 #include <linux/perf_event.h>
 #include <linux/bsearch.h>
-#include <linux/kobject.h>
 #include <linux/string.h>
-#include <linux/sysfs.h>
 #include <linux/overflow.h>
 #include <linux/bitops.h>
+#include <linux/unaligned.h>
+#include <linux/vmalloc.h>
+#include <crypto/sha2.h>
 
 #include <net/netfilter/nf_bpf_link.h>
 
@@ -9126,21 +9127,132 @@ static DEFINE_MUTEX(btf_module_mutex);
 
 static void purge_cand_cache(struct btf *btf);
 
+#if IS_MODULE(CONFIG_DEBUG_INFO_BTF_INLINE)
+extern char __start_BTF_inline_link[];
+extern char __stop_BTF_inline_link[];
+
+static struct bin_attribute *vmlinux_inline_attr;
+static const struct btf_link *vmlinux_inline_link;
+
+static const struct btf_link *btf_parse_link(void *start, unsigned int size)
+{
+	const struct btf_link *link = start;
+	unsigned int module_name_len;
+
+	if (!link || size != sizeof(*link) || link->btf_size == 0)
+		return NULL;
+
+	module_name_len = strnlen(link->module_name, sizeof(link->module_name));
+	if (!module_name_len || module_name_len == sizeof(link->module_name) ||
+	    memchr_inv(link->module_name + module_name_len + 1, 0,
+		       sizeof(link->module_name) - module_name_len - 1))
+		return NULL;
+	return link;
+}
+
+static bool btf_verify_link(const struct btf_link *link, const struct module *mod,
+			    const void *data, size_t data_size)
+{
+	u8 actual_digest[BTF_LINK_SHA256_LEN];
+
+	if (!link || data_size != link->btf_size) {
+		pr_warn(" BTF link from module [%s] missing or has unexpected size\n", mod->name);
+		return false;
+	}
+	sha256(data, data_size, actual_digest);
+	if (memcmp(actual_digest, link->sha256, sizeof(actual_digest))) {
+		pr_warn("BTF link from module [%s] has unexpected digest\n", mod->name);
+		return false;
+	}
+
+	return true;
+}
+
+static void btf_vmlinux_inline_lazy_init(void)
+{
+	vmlinux_inline_link = btf_parse_link(__start_BTF_inline_link,
+					     __stop_BTF_inline_link -
+					     __start_BTF_inline_link);
+	if (!vmlinux_inline_link) {
+		pr_warn("invalid vmlinux inline BTF link\n");
+		return;
+	}
+	vmlinux_inline_attr = sysfs_btf_add("vmlinux.inline", NULL,
+					    vmlinux_inline_link->btf_size, true,
+					    vmlinux_inline_link->module_name);
+	if (IS_ERR(vmlinux_inline_attr)) {
+		pr_warn("failed to register vmlinux inline BTF in sysfs: %ld\n",
+			PTR_ERR(vmlinux_inline_attr));
+		vmlinux_inline_attr = NULL;
+	}
+}
+
+static bool btf_module_is_vmlinux_inline(const struct module *mod)
+{
+	return vmlinux_inline_link && !strcmp(mod->name, vmlinux_inline_link->module_name);
+}
+
+static int btf_module_handle_vmlinux_inline(const struct module *mod)
+{
+	void *data;
+
+	if (!mod->btf_inline_data ||
+	    mod->btf_inline_data_size != vmlinux_inline_link->btf_size)
+		return -EINVAL;
+
+	data = vmalloc_user(mod->btf_inline_data_size);
+	if (!data)
+		return -ENOMEM;
+	memcpy(data, mod->btf_inline_data, mod->btf_inline_data_size);
+
+	if (!btf_verify_link(vmlinux_inline_link, mod, data, mod->btf_inline_data_size) ||
+	    !sysfs_btf_update(vmlinux_inline_attr, data)) {
+		kvfree(data);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+#else
+
+static bool btf_module_is_vmlinux_inline(const struct module *mod)
+{
+	return false;
+}
+
+static int btf_module_handle_vmlinux_inline(const struct module *mod)
+{
+	return 0;
+}
+
+static void btf_vmlinux_inline_lazy_init(void)
+{
+}
+
+#endif /* IS_MODULE(CONFIG_DEBUG_INFO_BTF_INLINE) */
+
 static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			     void *module)
 {
 	struct btf_module *btf_mod, *tmp;
 	struct module *mod = module;
+	struct bin_attribute *attr;
 	struct btf *btf;
 	int err = 0;
 
-	if (mod->btf_data_size == 0 ||
-	    (op != MODULE_STATE_COMING && op != MODULE_STATE_LIVE &&
-	     op != MODULE_STATE_GOING))
+	if (op != MODULE_STATE_COMING && op != MODULE_STATE_LIVE &&
+	    op != MODULE_STATE_GOING)
 		goto out;
 
 	switch (op) {
 	case MODULE_STATE_COMING:
+		if (btf_module_is_vmlinux_inline(mod)) {
+			err = btf_module_handle_vmlinux_inline(mod);
+			break;
+		}
+
+		if (!mod->btf_data_size)
+			break;
 		btf_mod = kzalloc_obj(*btf_mod);
 		if (!btf_mod) {
 			err = -ENOMEM;
@@ -9173,34 +9285,16 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		list_add(&btf_mod->list, &btf_modules);
 		mutex_unlock(&btf_module_mutex);
 
-		if (IS_ENABLED(CONFIG_SYSFS)) {
-			struct bin_attribute *attr;
-
-			attr = kzalloc_obj(*attr);
-			if (!attr)
-				goto out;
-
-			sysfs_bin_attr_init(attr);
-			attr->attr.name = btf->name;
-			attr->attr.mode = 0444;
-			attr->size = btf->data_size;
-			attr->private = btf->data;
-			attr->read = sysfs_bin_attr_simple_read;
-
-			err = sysfs_create_bin_file(btf_kobj, attr);
-			if (err) {
-				pr_warn("failed to register module [%s] BTF in sysfs: %d\n",
-					mod->name, err);
-				kfree(attr);
-				err = 0;
-				goto out;
-			}
-
-			btf_mod->sysfs_attr = attr;
+		attr = sysfs_btf_add(btf->name, btf->data, btf->data_size, false, NULL);
+		if (IS_ERR(attr)) {
+			err = 0;
+			goto out;
 		}
-
+		btf_mod->sysfs_attr = attr;
 		break;
 	case MODULE_STATE_LIVE:
+		if (!mod->btf_data_size)
+			break;
 		mutex_lock(&btf_module_mutex);
 		list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
 			if (btf_mod->module != module)
@@ -9212,6 +9306,8 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		mutex_unlock(&btf_module_mutex);
 		break;
 	case MODULE_STATE_GOING:
+		if (!mod->btf_data_size)
+			break;
 		mutex_lock(&btf_module_mutex);
 		list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
 			if (btf_mod->module != module)
@@ -9226,10 +9322,9 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			btf_free_id(btf_mod->btf);
 			list_del(&btf_mod->list);
 			if (btf_mod->sysfs_attr)
-				sysfs_remove_bin_file(btf_kobj, btf_mod->sysfs_attr);
+				sysfs_btf_remove(btf_mod->sysfs_attr);
 			purge_cand_cache(btf_mod->btf);
 			btf_put(btf_mod->btf);
-			kfree(btf_mod->sysfs_attr);
 			kfree(btf_mod);
 			break;
 		}
@@ -9246,6 +9341,7 @@ static struct notifier_block btf_module_nb = {
 
 static int __init btf_module_init(void)
 {
+	btf_vmlinux_inline_lazy_init();
 	register_module_notifier(&btf_module_nb);
 	return 0;
 }
