@@ -31,6 +31,8 @@
 #include "xattr.h"
 #include "acl.h"
 
+#include <trace/events/ext4.h>
+
 static struct kmem_cache *io_end_cachep;
 static struct kmem_cache *io_end_vec_cachep;
 
@@ -574,6 +576,7 @@ static void ext4_iomap_wb_disksize_pending_wait(struct inode *inode,
 	if (!plen || pos < pstart + plen)
 		return;
 
+	trace_ext4_iomap_wb_disksize_pending_wait(inode, pos, size);
 	ext4_iomap_wait_disksize_pending(inode);
 }
 
@@ -617,8 +620,11 @@ static int ext4_iomap_wb_update_disksize(handle_t *handle, struct inode *inode,
 	 * after the data has been persisted.
 	 */
 	new_disksize = is_disksize_grow ? i_size : min(end, i_size);
-	if (new_disksize > ei->i_disksize)
+	if (new_disksize > ei->i_disksize) {
+		trace_ext4_iomap_wb_update_disksize(inode, end, i_size,
+				ei->i_disksize, new_disksize, is_disksize_grow);
 		WRITE_ONCE(ei->i_disksize, new_disksize);
+	}
 	up_write(&ei->i_data_sem);
 	ret = ext4_mark_inode_dirty(handle, inode);
 	if (ret)
@@ -641,6 +647,9 @@ static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
 	int ret, err;
 
 	ret = blk_status_to_errno(ioend->io_bio.bi_status);
+	if (is_disksize_grow)
+		trace_ext4_iomap_wb_disksize_pending_complete(ioend->io_inode,
+				ioend->io_offset, ioend->io_size, ret);
 	if (unlikely(ret)) {
 		if (test_opt(sb, DATA_ERR_ABORT) && !ext4_emergency_state(sb))
 			jbd2_journal_abort(EXT4_SB(sb)->s_journal, ret);

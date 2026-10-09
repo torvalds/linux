@@ -4417,6 +4417,8 @@ static int ext4_iomap_writeback_submit(struct iomap_writepage_ctx *wpc,
 	    round_down(ioend->io_offset, blocksize) <= pstart &&
 	    round_up(ioend->io_offset + ioend->io_size, blocksize) >=
 			pstart + plen) {
+		trace_ext4_iomap_wb_disksize_pending_submit(inode,
+				ioend->io_offset, ioend->io_size);
 		ioend->io_bio.bi_end_io = ext4_iomap_end_bio;
 		ioend->io_private = (void *)EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO;
 	}
@@ -5033,6 +5035,7 @@ int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end)
 			return err;
 	}
 
+	trace_ext4_block_zero_eof(inode, from, length, did_zero, zero_written);
 	return 0;
 }
 
