@@ -75,6 +75,8 @@ def core_pmu_probe():
 
 PERF_TYPE_HARDWARE = 0
 PERF_TYPE_HW_CACHE = 3
+PERF_SAMPLE_ID = 1 << 6
+PERF_SAMPLE_IDENTIFIER = 1 << 16
 
 # The legacy event types, where perf may qualify 'config' with the core PMU
 # type in its top 32 bits when there is more than one core PMU.
@@ -105,6 +107,49 @@ def hide_core_pmu_type(value):
     heterogeneous machines.
     """
     return mask_bits(value, 0xffffffff00000000)
+
+# The two sample id bits mean the same thing here: how the samples of the
+# events in the evlist get associated with the event that produced them.
+SAMPLE_ID_BITS = PERF_SAMPLE_ID | PERF_SAMPLE_IDENTIFIER
+
+# No real sample_type bit is this high, so it can stand for "either of the
+# sample id bits" when comparing the two sides.
+SAMPLE_ID_EITHER = 1 << 40
+
+def hide_sample_id(expected, recorded):
+    """
+    perf asks for a way to tell the samples apart, PERF_SAMPLE_IDENTIFIER where
+    available, PERF_SAMPLE_ID otherwise, see evlist__config(): whenever the
+    evlist has more than one event, and when asked to outright, with
+    --sample-identifier, by an auxtrace session, or by record__config() for a
+    pipe run, none of which depends on the sample types, as those only choose
+    between the two bits:
+    with more than one core PMU the dummy tracking events make the sample types
+    differ, so IDENTIFIER is asked for even for events whose expectations ask
+    for ID, written on a machine with a single core PMU.
+
+    So treat the two as the same thing: when the expectation asks for either
+    of them, ask for "an id of some sort" on both sides, and when the
+    expectation doesn't ask for any, take the bits out of what got recorded.
+    """
+    try:
+        asked = int(expected, 0) & SAMPLE_ID_BITS
+    except ValueError:
+        # The expectation is a wildcard or a set of alternatives.
+        return expected, recorded
+
+    try:
+        recorded_id_bits = int(recorded, 0) & SAMPLE_ID_BITS
+    except ValueError:
+        # The recorded side is a wildcard or a set of alternatives.
+        return expected, mask_bits(recorded, SAMPLE_ID_BITS)
+
+    if not asked:
+        return expected, mask_bits(recorded, SAMPLE_ID_BITS)
+
+    return (str(int(expected, 0) & ~SAMPLE_ID_BITS | SAMPLE_ID_EITHER),
+            str(int(recorded, 0) & ~SAMPLE_ID_BITS |
+                (SAMPLE_ID_EITHER if recorded_id_bits else 0)))
 
 class Fail(Exception):
     def __init__(self, test, msg):
@@ -198,13 +243,36 @@ class Event(dict):
 
         return value
 
+    def hide_event_count_dependent_terms(self, term, expected, recorded):
+        if term == 'sample_type':
+            return hide_sample_id(expected, recorded)
+
+        return expected, recorded
+
+    def recorded_side(self, other):
+        """
+        Which one is what perf recorded? Both directions get compared, see
+        Test.compare(), so this can't be taken from the arguments' order.
+        """
+        if getattr(other, 'recorded', False):
+            return other
+
+        return self if getattr(self, 'recorded', False) else None
+
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s", t, self[t], other[t])
             if t not in self or t not in other:
                 return False
-            exp = self.hide_core_pmu_type(t, self[t], other)
-            got = self.hide_core_pmu_type(t, other[t], other)
+            recorded = self.recorded_side(other)
+            if recorded is self:
+                expected, got_event = other, self
+            else:
+                expected, got_event = self, other
+            exp = self.hide_core_pmu_type(t, expected[t], other)
+            got = self.hide_core_pmu_type(t, got_event[t], other)
+            if recorded is not None:
+                exp, got = self.hide_event_count_dependent_terms(t, exp, got)
             if not data_equal(exp, got):
                 return False
         return True
@@ -218,10 +286,18 @@ class Event(dict):
         for t in Event.terms:
             if t not in self or t not in other:
                 continue
-            exp = self.hide_core_pmu_type(t, self[t], other)
-            got = self.hide_core_pmu_type(t, other[t], other)
+            recorded = self.recorded_side(other)
+            if recorded is self:
+                expected, got_event = other, self
+            else:
+                expected, got_event = self, other
+            exp = self.hide_core_pmu_type(t, expected[t], other)
+            got = self.hide_core_pmu_type(t, got_event[t], other)
+            if recorded is not None:
+                exp, got = self.hide_event_count_dependent_terms(t, exp, got)
             if not data_equal(exp, got):
-                log.warning("expected %s=%s, got %s", t, self[t], other[t])
+                log.warning("expected %s=%s, got %s", t, expected[t],
+                            got_event[t])
 
 def parse_version(version):
     if not version:
@@ -506,6 +582,8 @@ class Test(object):
             log.debug("  loading result events")
             for f in glob.glob(tempdir + '/event*'):
                 self.load_events(f, self.result)
+            for event in self.result.values():
+                event.recorded = True
 
             # resolve group_fd to event names
             self.resolve_groups(self.expect)
