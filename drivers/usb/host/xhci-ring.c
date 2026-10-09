@@ -2778,16 +2778,18 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * Set skip flag of the ep_ring; Complete the missed tds as
 		 * short transfer when process the ep_ring next time.
 		 */
-		ep->skip = true;
+		if (ep_ring->type == TYPE_ISOC)
+			ep->skip = true;
 		xhci_dbg(xhci,
-			 "Miss service interval error for slot %u ep %u, set skip flag%s\n",
-			 slot_id, ep_index, ep_trb_dma ? ", skip now" : "");
+			 "Missed Service Error for slot %u ep %u, skip %d, try now %d\n",
+			 slot_id, ep_index, ep->skip, !!ep_trb_dma);
 		break;
 	case COMP_NO_PING_RESPONSE_ERROR:
-		ep->skip = true;
+		if (ep_ring->type == TYPE_ISOC)
+			ep->skip = true;
 		xhci_dbg(xhci,
-			 "No Ping response error for slot %u ep %u, Skip one Isoc TD\n",
-			 slot_id, ep_index);
+			 "No Ping response error for slot %u ep %u, skip %d\n",
+			 slot_id, ep_index, ep->skip);
 		return 0;
 
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
@@ -2863,7 +2865,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		/* Is this TRB not part of the currently executing TD? */
 		if (!trb_in_td(td, ep_trb_dma)) {
 
-			if (ep->skip && usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
+			if (ep->skip) {
 				/* this event is unlikely to match any TD, don't skip them all */
 				if (trb_comp_code == COMP_STOPPED_LENGTH_INVALID)
 					return 0;
