@@ -4040,7 +4040,7 @@ static int ext4_iomap_buffered_do_write_begin(struct inode *inode,
 		return -ERANGE;
 	if (WARN_ON_ONCE(!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
-	if (WARN_ON_ONCE(!(flags & IOMAP_WRITE)))
+	if (WARN_ON_ONCE(!(flags & (IOMAP_WRITE | IOMAP_FAULT))))
 		return -EINVAL;
 
 	map_flags = delalloc ? EXT4_GET_BLOCKS_DELALLOC_RESERVE :
@@ -4096,6 +4096,14 @@ static int ext4_iomap_buffered_da_write_end(struct inode *inode, loff_t offset,
 
 	/* If we didn't reserve the blocks, we're not allowed to punch them. */
 	if (iomap->type != IOMAP_DELALLOC || !(iomap->flags & IOMAP_F_NEW))
+		return 0;
+
+	/*
+	 * iomap_page_mkwrite() will never fail in a way that requires delalloc
+	 * extents that it allocated to be revoked.  Hence never try to release
+	 * them here.
+	 */
+	if (flags & IOMAP_FAULT)
 		return 0;
 
 	/* Nothing to do if we've written the entire delalloc extent */
@@ -7315,6 +7323,23 @@ out_error:
 	return ret;
 }
 
+static vm_fault_t ext4_iomap_page_mkwrite(struct vm_fault *vmf)
+{
+	struct inode *inode = file_inode(vmf->vma->vm_file);
+	const struct iomap_ops *iomap_ops;
+
+	/*
+	 * ext4_nonda_switch() could writeback this folio, so have to
+	 * call it before lock folio.
+	 */
+	if (test_opt(inode->i_sb, DELALLOC) && !ext4_nonda_switch(inode->i_sb))
+		iomap_ops = &ext4_iomap_buffered_da_write_ops;
+	else
+		iomap_ops = &ext4_iomap_buffered_write_ops;
+
+	return iomap_page_mkwrite(vmf, iomap_ops, NULL);
+}
+
 vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -7340,6 +7365,11 @@ vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 	err = ext4_convert_inline_data(inode);
 	if (err)
 		goto out_ret;
+
+	if (ext4_inode_buffered_iomap(inode)) {
+		ret = ext4_iomap_page_mkwrite(vmf);
+		goto out;
+	}
 
 	/*
 	 * On data journalling we skip straight to the transaction handle:
