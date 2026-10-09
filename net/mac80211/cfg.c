@@ -1483,52 +1483,16 @@ static void ieee80211_update_ap_bandwidth(struct ieee80211_link_data *link,
 	ieee80211_recalc_chanctx_min_def(local, chanctx);
 }
 
-static int
-ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
-			struct ieee80211_link_data *link,
-			struct cfg80211_beacon_data *params,
-			const struct ieee80211_csa_settings *csa,
-			const struct ieee80211_color_change_settings *cca,
-			u64 *changed)
+static struct beacon_data *
+ieee80211_alloc_beacon(struct cfg80211_mbssid_elems *mbssid,
+		       struct cfg80211_rnr_elems *rnr,
+		       int head_len, int tail_len)
 {
-	struct cfg80211_mbssid_elems *mbssid = NULL;
-	struct cfg80211_rnr_elems *rnr = NULL;
-	struct beacon_data *new, *old;
-	int new_head_len, new_tail_len;
-	int size, err;
+	struct beacon_data *new;
+	int size;
 	u8 *pos;
-	u64 _changed = BSS_CHANGED_BEACON;
-	struct ieee80211_bss_conf *link_conf = link->conf;
 
-	old = sdata_dereference(link->u.ap.beacon, sdata);
-
-	/* Need to have a beacon head if we don't have one yet */
-	if (!params->head && !old)
-		return -EINVAL;
-
-	/* new or old head? */
-	if (params->head)
-		new_head_len = params->head_len;
-	else
-		new_head_len = old->head_len;
-
-	/* new or old tail? */
-	if (params->tail || !old)
-		/* params->tail_len will be zero for !params->tail */
-		new_tail_len = params->tail_len;
-	else
-		new_tail_len = old->tail_len;
-
-	size = sizeof(*new) + new_head_len + new_tail_len;
-
-	/* new or old multiple BSSID elements? */
-	if (params->mbssid_ies) {
-		mbssid = params->mbssid_ies;
-		rnr = params->rnr_ies;
-	} else if (old && old->mbssid_ies) {
-		mbssid = old->mbssid_ies;
-		rnr = old->rnr_ies;
-	}
+	size = sizeof(*new) + head_len + tail_len;
 
 	if (mbssid) {
 		size += struct_size(new->mbssid_ies, elem, mbssid->cnt);
@@ -1540,9 +1504,7 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 
 	new = kzalloc(size, GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
-
-	/* start filling the new info now */
+		return NULL;
 
 	/*
 	 * pointers go into the block we allocated, the order in memory is
@@ -1565,11 +1527,11 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	new->head = pos;
-	new->head_len = new_head_len;
-	pos += new_head_len;
+	new->head_len = head_len;
+	pos += head_len;
 	new->tail = pos;
-	new->tail_len = new_tail_len;
-	pos += new_tail_len;
+	new->tail_len = tail_len;
+	pos += tail_len;
 
 	/* copy in optional mbssid_ies */
 	if (mbssid) {
@@ -1577,13 +1539,66 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 						    mbssid);
 		if (rnr)
 			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
-		/* update bssid_indicator */
-		if (new->mbssid_ies->cnt && new->mbssid_ies->elem[0].len > 2)
-			link_conf->bssid_indicator =
-					*(new->mbssid_ies->elem[0].data + 2);
-		else
-			link_conf->bssid_indicator = 0;
 	}
+
+	return new;
+}
+
+static u8 ieee80211_beacon_bssid_indicator(struct beacon_data *beacon)
+{
+	if (beacon->mbssid_ies->cnt && beacon->mbssid_ies->elem[0].len > 2)
+		return *(beacon->mbssid_ies->elem[0].data + 2);
+	return 0;
+}
+
+static int
+ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+			struct ieee80211_link_data *link,
+			struct cfg80211_beacon_data *params,
+			const struct ieee80211_csa_settings *csa,
+			const struct ieee80211_color_change_settings *cca,
+			u64 *changed)
+{
+	struct cfg80211_mbssid_elems *mbssid = params->mbssid_ies;
+	struct cfg80211_rnr_elems *rnr = mbssid ? params->rnr_ies : NULL;
+	struct beacon_data *new, *old;
+	int new_head_len, new_tail_len;
+	int err;
+	u64 _changed = BSS_CHANGED_BEACON;
+	struct ieee80211_bss_conf *link_conf = link->conf;
+
+	old = sdata_dereference(link->u.ap.beacon, sdata);
+
+	/* Need to have a beacon head if we don't have one yet */
+	if (!params->head && !old)
+		return -EINVAL;
+
+	/* new or old head? */
+	if (params->head)
+		new_head_len = params->head_len;
+	else
+		new_head_len = old->head_len;
+
+	/* new or old tail? */
+	if (params->tail || !old)
+		/* params->tail_len will be zero for !params->tail */
+		new_tail_len = params->tail_len;
+	else
+		new_tail_len = old->tail_len;
+
+	/* new or old multiple BSSID elements? */
+	if (!mbssid && old && old->mbssid_ies) {
+		mbssid = old->mbssid_ies;
+		rnr = old->rnr_ies;
+	}
+
+	new = ieee80211_alloc_beacon(mbssid, rnr, new_head_len, new_tail_len);
+	if (!new)
+		return -ENOMEM;
+
+	if (new->mbssid_ies)
+		link_conf->bssid_indicator =
+			ieee80211_beacon_bssid_indicator(new);
 
 	if (csa) {
 		new->cntdwn_current_counter = csa->count;
