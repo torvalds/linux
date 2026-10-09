@@ -6640,9 +6640,6 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	u32 flags = 0;
 	int err;
 
-	/* mutex lock is only needed for incrementing the cookie counter */
-	lockdep_assert_wiphy(local->hw.wiphy);
-
 	/* Only accept CONTROL_PORT_PROTOCOL configured in CONNECT/ASSOCIATE
 	 * or Pre-Authentication
 	 */
@@ -6701,6 +6698,14 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	 * AF_PACKET
 	 */
 	rcu_read_lock();
+
+	/* do_stop() synchronizes RCU before the interface type can change */
+	if (!ieee80211_sdata_running(sdata)) {
+		dev_kfree_skb(skb);
+		rcu_read_unlock();
+		return -ENETDOWN;
+	}
+
 	err = ieee80211_lookup_ra_sta(sdata, skb, &sta, true);
 	if (err) {
 		dev_kfree_skb(skb);
