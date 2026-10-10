@@ -7891,6 +7891,7 @@ static void early_kmem_cache_node_alloc(int node)
 
 	n = next_slab_obj(kmem_cache_node, &iter);
 	BUG_ON(!n);
+	set_freepointer(kmem_cache_node, n, NULL);
 
 	slab->inuse = 1;
 	build_slab_freelist(kmem_cache_node, slab, &iter);
