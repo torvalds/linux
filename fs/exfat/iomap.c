@@ -75,6 +75,17 @@ static int __exfat_iomap_begin(struct inode *inode, loff_t offset, loff_t length
 
 	err = exfat_map_cluster(inode, exfat_bytes_to_cluster(sbi, offset),
 			&cluster, &num_clusters, may_alloc, &balloc);
+	if (err == -ENOSPC && !(flags & IOMAP_DIRECT)) {
+		/*
+		 * There are not enough free clusters for the whole range. A
+		 * buffered write can be short, so map what still fits.
+		 */
+		num_clusters = 1;
+		err = exfat_map_cluster(inode,
+					exfat_bytes_to_cluster(sbi, offset),
+					&cluster, &num_clusters, may_alloc,
+					&balloc);
+	}
 	if (err)
 		goto out;
 
