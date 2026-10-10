@@ -643,6 +643,59 @@ int cxl_mem_dpa_fetch(struct cxl_memdev_state *mds, struct cxl_dpa_info *info)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_dpa_fetch, "CXL");
 
+int cxl_configure_dcd(struct cxl_memdev_state *mds, struct cxl_dpa_info *info)
+{
+	struct cxl_dc_partition_info dc_info = { };
+	struct device *dev = mds->cxlds.dev;
+	u64 static_end = 0;
+	u64 dc_end;
+	int rc;
+
+	if (!mds->cxlds.media_ready)
+		return 0;
+
+	rc = cxl_dev_dc_identify(&mds->cxlds.cxl_mbox, &dc_info);
+	if (rc) {
+		dev_warn(dev,
+			 "Failed to read Dynamic Capacity config: %d\n", rc);
+		return rc;
+	}
+
+	if (info->nr_partitions)
+		static_end = info->part[info->nr_partitions - 1].range.end + 1;
+
+	if (dc_info.start < static_end) {
+		dev_err(dev,
+			"DC partition 0 base %#llx overlaps static capacity ending at %#llx\n",
+			dc_info.start, static_end);
+		return -EINVAL;
+	}
+
+	/* A gap between static capacity and the DC partition is not supported */
+	if (dc_info.start > static_end) {
+		dev_warn(dev,
+			 "DC partition 0 base %#llx leaves a gap from static capacity ending at %#llx\n",
+			 dc_info.start, static_end);
+		return -EOPNOTSUPP;
+	}
+
+	if (check_add_overflow(dc_info.start, dc_info.size, &dc_end)) {
+		dev_err(dev,
+			"DC partition 0 size %#llx overflows DPA space at base %#llx\n",
+			dc_info.size, dc_info.start);
+		return -EINVAL;
+	}
+
+	/* The DPA space must reach the end of the DC partition */
+	if (dc_end > info->size)
+		info->size = dc_end;
+	dev_dbg(dev, "Adding dynamic ram partition; %#llx size %#llx\n",
+		dc_info.start, dc_info.size);
+	add_part(info, dc_info.start, dc_info.size, CXL_PARTMODE_DYNAMIC_RAM);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_configure_dcd, "CXL");
 
 /**
  * cxl_set_capacity: initialize dpa by a driver without a mailbox.
