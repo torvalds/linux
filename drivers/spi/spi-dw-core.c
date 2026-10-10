@@ -32,6 +32,22 @@ struct dw_spi_chip_data {
 	u32 rx_sample_dly;	/* RX sample delay */
 };
 
+/* Slave spi_transfer/spi_mem_op related */
+struct dw_spi_cfg {
+	u8 tmode;
+	u8 dfs;
+	u32 ndf;
+	u32 freq;
+	u8 spi_frf;
+};
+
+struct dw_spi_enh_cfg {
+	u8 wait_c;
+	u8 inst_l;
+	u8 addr_l;
+	u8 trans_t;
+};
+
 #ifdef CONFIG_DEBUG_FS
 
 #define DW_SPI_DBGFS_REG(_name, _off)	\
@@ -342,8 +358,8 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 	return cr0;
 }
 
-void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-			  struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg)
+static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
+				 struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg)
 {
 	struct dw_spi_chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
@@ -406,7 +422,6 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		dw_writel(dws, DW_SPI_SPI_CTRLR0, cr0);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, "SPI_DW_CORE");
 
 static void dw_spi_irq_setup(struct dw_spi *dws)
 {
