@@ -55,7 +55,7 @@ static struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 	return platform_get_drvdata(pdev);
 }
 
-static  struct rproc *vdev_to_rproc(struct virtio_device *vdev)
+static struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 
