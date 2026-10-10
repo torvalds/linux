@@ -1014,6 +1014,33 @@ static int aw88261_volume_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int aw88261_mute_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
+	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = !aw88261->mute_st;
+	return 0;
+}
+
+static int aw88261_mute_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
+	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
+	bool mute = !ucontrol->value.integer.value[0];
+
+	if (aw88261->mute_st == mute)
+		return 0;
+
+	aw88261->mute_st = mute;
+	if (aw88261->aw_pa->status == AW88261_DEV_PW_ON)
+		aw88261_dev_mute(aw88261->aw_pa, mute);
+
+	return 1;
+}
+
 /*
  * The field contains 4 bits in units of 6dB + 6 bits in units of 0.125dB
  * which is too precise for TLV (!) so we have to multiply the scale by 2.
@@ -1026,6 +1053,8 @@ static const struct snd_kcontrol_new aw88261_controls[] = {
 	SOC_SINGLE_EXT_TLV("PCM Playback Volume", AW88261_SYSCTRL2_REG,
 		6, AW88261_CTL_MAX_VOL, 1,
 		aw88261_volume_get, aw88261_volume_set, volume_tlv),
+	SOC_SINGLE_EXT("Playback Switch", 0, 0, 1, 0,
+		aw88261_mute_get, aw88261_mute_put),
 	AW88261_PROFILE_EXT("Profile Set", aw88261_profile_info,
 		aw88261_profile_get, aw88261_profile_set),
 };
