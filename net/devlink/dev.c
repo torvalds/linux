@@ -412,9 +412,9 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 	return net;
 }
 
-static void devlink_reload_netns_change(struct devlink *devlink,
-					struct net *curr_net,
-					struct net *dest_net)
+void devlink_reload_netns_change(struct devlink *devlink,
+				 struct net *curr_net,
+				 struct net *dest_net)
 {
 	/* Userspace needs to be notified about devlink objects
 	 * removed from original and entering new network namespace.
