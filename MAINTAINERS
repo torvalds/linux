@@ -9690,7 +9690,7 @@ R:	Chunhai Guo <guochunhai@vivo.com>
 L:	linux-erofs@lists.ozlabs.org
 S:	Maintained
 W:	https://erofs.docs.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs.git dev
 F:	Documentation/ABI/testing/sysfs-fs-erofs
 F:	Documentation/filesystems/erofs.rst
 F:	fs/erofs/
