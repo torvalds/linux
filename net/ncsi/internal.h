@@ -312,6 +312,7 @@ struct vlan_vid {
 	struct list_head list;
 	__be16 proto;
 	u16 vid;
+	struct rcu_head rcu_head;
 };
 
 struct ncsi_dev_priv {
