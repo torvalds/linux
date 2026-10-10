@@ -3,6 +3,8 @@
  * Generic hugetlb support.
  * (C) Nadia Yvette Chambers, April 2004
  */
+#define pr_fmt(fmt)	"HugeTLB: " fmt
+
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -458,7 +460,7 @@ static void hugetlb_vma_lock_alloc(struct vm_area_struct *vma)
 		 * until the file is removed.  Warn in the unlikely case of
 		 * allocation failure.
 		 */
-		pr_warn_once("HugeTLB: unable to allocate vma specific lock\n");
+		pr_warn_once("unable to allocate vma specific lock\n");
 		return;
 	}
 
@@ -987,7 +989,7 @@ void hugetlb_fix_reserve_counts(struct inode *inode)
 	}
 
 	if (!reserved)
-		pr_warn("hugetlb: Huge Page Reserved count may go negative.\n");
+		pr_warn("Huge Page Reserved count may go negative.\n");
 }
 
 /*
@@ -3408,7 +3410,7 @@ static unsigned long __init hugetlb_free_cross_zone_pages(struct hstate *h, int 
 		char buf[32];
 
 		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, sizeof(buf));
-		pr_warn("HugeTLB: freed %lu cross-zone hugepages of size %s on node %d.\n",
+		pr_warn("freed %lu cross-zone hugepages of size %s on node %d.\n",
 			freed, buf, nid);
 	}
 
@@ -3454,7 +3456,7 @@ static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
 		return;
 
 	string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
-	pr_warn("HugeTLB: allocating %u of page size %s failed node%d.  Only allocated %lu hugepages.\n",
+	pr_warn("allocating %u of page size %s failed node%d.  Only allocated %lu hugepages.\n",
 		h->max_huge_pages_node[nid], buf, nid, i);
 	h->max_huge_pages -= (h->max_huge_pages_node[nid] - i);
 	h->max_huge_pages_node[nid] = i;
@@ -3481,7 +3483,7 @@ static void __init hugetlb_hstate_alloc_pages_errcheck(unsigned long allocated, 
 		char buf[32];
 
 		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
-		pr_warn("HugeTLB: allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
+		pr_warn("allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
 			h->max_huge_pages, buf, allocated);
 		h->max_huge_pages = allocated;
 	}
@@ -3596,7 +3598,7 @@ static unsigned long __init hugetlb_pages_alloc_boot(struct hstate *h)
 
 	jiffies_end = jiffies;
 
-	pr_info("HugeTLB: allocation took %dms with hugepage_allocation_threads=%ld\n",
+	pr_info("allocation took %dms with hugepage_allocation_threads=%ld\n",
 		jiffies_to_msecs(jiffies_end - jiffies_start),
 		hugepage_allocation_threads);
 
@@ -3624,7 +3626,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 	 */
 	if (hstate_is_gigantic(h) && hugetlb_cma_total_size() &&
 	    !hugetlb_early_cma(h)) {
-		pr_warn_once("HugeTLB: hugetlb_cma is enabled, skip boot time allocation\n");
+		pr_warn_once("hugetlb_cma is enabled, skip boot time allocation\n");
 		return;
 	}
 
@@ -3692,9 +3694,9 @@ static void __init report_hugepages(void)
 		char buf[32];
 
 		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
-		pr_info("HugeTLB: registered %s page size, pre-allocated %ld pages\n",
+		pr_info("registered %s page size, pre-allocated %ld pages\n",
 			buf, h->nr_huge_pages);
-		pr_info("HugeTLB: %d KiB vmemmap can be freed for a %s page\n",
+		pr_info("%d KiB vmemmap can be freed for a %s page\n",
 			hugetlb_vmemmap_optimizable_size(h) / SZ_1K, buf);
 	}
 }
@@ -4034,7 +4036,7 @@ long demote_pool_huge_page(struct hstate *src, nodemask_t *nodes_allowed,
 
 	/* We should never get here if no demote order */
 	if (!src->demote_order) {
-		pr_warn("HugeTLB: NULL demote order passed to demote_pool_huge_page.\n");
+		pr_warn("NULL demote order passed to demote_pool_huge_page.\n");
 		return -EINVAL;		/* internal error */
 	}
 	dst = size_to_hstate(PAGE_SIZE << src->demote_order);
@@ -4179,7 +4181,7 @@ static int __init hugetlb_init(void)
 
 	if (!hugepages_supported()) {
 		if (hugetlb_max_hstate || default_hstate_max_huge_pages)
-			pr_warn("HugeTLB: huge pages not supported, ignoring associated command-line parameters\n");
+			pr_warn("huge pages not supported, ignoring associated command-line parameters\n");
 		return 0;
 	}
 
@@ -4204,9 +4206,9 @@ static int __init hugetlb_init(void)
 
 				string_get_size(huge_page_size(&default_hstate),
 					1, STRING_UNITS_2, buf, 32);
-				pr_warn("HugeTLB: Ignoring hugepages=%lu associated with %s page size\n",
+				pr_warn("Ignoring hugepages=%lu associated with %s page size\n",
 					default_hstate.max_huge_pages, buf);
-				pr_warn("HugeTLB: Using hugepages=%lu for number of default huge pages\n",
+				pr_warn("Using hugepages=%lu for number of default huge pages\n",
 					default_hstate_max_huge_pages);
 			}
 			default_hstate.max_huge_pages =
@@ -4346,12 +4348,12 @@ static int __init hugepages_setup(char *s)
 	char *p = s;
 
 	if (!hugepages_supported()) {
-		pr_warn("HugeTLB: hugepages unsupported, ignoring hugepages=%s cmdline\n", s);
+		pr_warn("hugepages unsupported, ignoring hugepages=%s cmdline\n", s);
 		return 0;
 	}
 
 	if (!parsed_valid_hugepagesz) {
-		pr_warn("HugeTLB: hugepages=%s does not follow a valid hugepagesz, ignoring\n", s);
+		pr_warn("hugepages=%s does not follow a valid hugepagesz, ignoring\n", s);
 		parsed_valid_hugepagesz = true;
 		return -EINVAL;
 	}
@@ -4368,7 +4370,7 @@ static int __init hugepages_setup(char *s)
 		mhp = &parsed_hstate->max_huge_pages;
 
 	if (mhp == last_mhp) {
-		pr_warn("HugeTLB: hugepages= specified twice without interleaving hugepagesz=, ignoring hugepages=%s\n", s);
+		pr_warn("hugepages= specified twice without interleaving hugepagesz=, ignoring hugepages=%s\n", s);
 		return 1;
 	}
 
@@ -4379,7 +4381,7 @@ static int __init hugepages_setup(char *s)
 		/* Parameter is node format */
 		if (p[count] == ':') {
 			if (!hugetlb_node_alloc_supported()) {
-				pr_warn("HugeTLB: architecture can't support node specific alloc, ignoring!\n");
+				pr_warn("architecture can't support node specific alloc, ignoring!\n");
 				return 1;
 			}
 			if (tmp >= MAX_NUMNODES || !node_online(tmp))
@@ -4412,7 +4414,7 @@ static int __init hugepages_setup(char *s)
 	return 0;
 
 invalid:
-	pr_warn("HugeTLB: Invalid hugepages parameter %s\n", p);
+	pr_warn("Invalid hugepages parameter %s\n", p);
 	hugepages_clear_pages_in_node();
 	return -EINVAL;
 }
@@ -4431,7 +4433,7 @@ static int __init hugepagesz_setup(char *s)
 	struct hstate *h;
 
 	if (!hugepages_supported()) {
-		pr_warn("HugeTLB: hugepages unsupported, ignoring hugepagesz=%s cmdline\n", s);
+		pr_warn("hugepages unsupported, ignoring hugepagesz=%s cmdline\n", s);
 		return 0;
 	}
 
@@ -4439,7 +4441,7 @@ static int __init hugepagesz_setup(char *s)
 	size = (unsigned long)memparse(s, NULL);
 
 	if (!arch_hugetlb_valid_size(size)) {
-		pr_err("HugeTLB: unsupported hugepagesz=%s\n", s);
+		pr_err("unsupported hugepagesz=%s\n", s);
 		return -EINVAL;
 	}
 
@@ -4454,7 +4456,7 @@ static int __init hugepagesz_setup(char *s)
 		 */
 		if (!parsed_default_hugepagesz ||  h != &default_hstate ||
 		    default_hstate.max_huge_pages) {
-			pr_warn("HugeTLB: hugepagesz=%s specified twice, ignoring\n", s);
+			pr_warn("hugepagesz=%s specified twice, ignoring\n", s);
 			return -EINVAL;
 		}
 
@@ -4484,21 +4486,21 @@ static int __init default_hugepagesz_setup(char *s)
 	int i;
 
 	if (!hugepages_supported()) {
-		pr_warn("HugeTLB: hugepages unsupported, ignoring default_hugepagesz=%s cmdline\n",
+		pr_warn("hugepages unsupported, ignoring default_hugepagesz=%s cmdline\n",
 			s);
 		return 0;
 	}
 
 	parsed_valid_hugepagesz = false;
 	if (parsed_default_hugepagesz) {
-		pr_err("HugeTLB: default_hugepagesz previously specified, ignoring %s\n", s);
+		pr_err("default_hugepagesz previously specified, ignoring %s\n", s);
 		return -EINVAL;
 	}
 
 	size = (unsigned long)memparse(s, NULL);
 
 	if (!arch_hugetlb_valid_size(size)) {
-		pr_err("HugeTLB: unsupported default_hugepagesz=%s\n", s);
+		pr_err("unsupported default_hugepagesz=%s\n", s);
 		return -EINVAL;
 	}
 
@@ -4763,7 +4765,7 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 				vma->vm_private_data = NULL;
 				hugetlb_vma_lock_alloc(vma);
 			} else {
-				pr_warn("HugeTLB: vma_lock already exists in %s.\n", __func__);
+				pr_warn("vma_lock already exists in %s.\n", __func__);
 			}
 		} else {
 			hugetlb_vma_lock_alloc(vma);
