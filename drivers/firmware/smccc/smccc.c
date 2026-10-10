@@ -116,8 +116,7 @@ static bool __init smccc_probe_smccc_device(const struct smccc_device_info *smcc
 	if (IS_ENABLED(CONFIG_ARM) && ARM_SMCCC_IS_64(smccc_dev->func_id))
 		return false;
 
-	arm_smccc_1_1_invoke(smccc_dev->func_id,
-			     0, 0, 0, 0, 0, 0, 0, &res);
+	arm_smccc_1_1_invoke(smccc_dev->func_id, 0, &res);
 	ret = res.a0;
 
 	if (ret == SMCCC_RET_NOT_SUPPORTED)
