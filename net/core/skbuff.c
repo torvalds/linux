@@ -6214,6 +6214,10 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 	if (to->pp_recycle != from->pp_recycle)
 		return false;
 
+	/* All frags in an skb must either all be struct page-backed or all
+	 * belong to the same memory provider instance; do not coalesce skbs
+	 * that would mix them.
+	 */
 	if (skb_frags_readable(from) != skb_frags_readable(to))
 		return false;
 
