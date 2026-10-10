@@ -54,7 +54,7 @@ mes_userq_create_wptr_mapping(struct amdgpu_device *adev,
 			goto fail_lock;
 
 		wptr_mapping = amdgpu_vm_bo_lookup_mapping(vm, wptr);
-		if (!wptr_mapping) {
+		if (!wptr_mapping || !wptr_mapping->bo_va->base.bo) {
 			ret = -EINVAL;
 			goto fail_lock;
 		}
@@ -207,16 +207,44 @@ static int mes_userq_unmap(struct amdgpu_usermode_queue *queue)
 	return 0;
 }
 
+int mes_userq_reset_hw(struct amdgpu_usermode_queue *queue,
+		       struct mes_reset_queue_input *input)
+{
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
+	struct amdgpu_device *adev = uq_mgr->adev;
+	int r;
+
+	amdgpu_mes_lock(&adev->mes);
+	r = adev->mes.funcs->reset_hw_queue(&adev->mes, input);
+	amdgpu_mes_unlock(&adev->mes);
+	if (r)
+		return r;
+
+	r = mes_userq_unmap(queue);
+	if (r)
+		return r;
+
+	/* Prevent the restore worker from resubmitting the guilty job. */
+	trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
+	queue->state = AMDGPU_USERQ_STATE_HUNG;
+	return 0;
+}
+
 int mes_userq_reset(struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct mes_reset_queue_input queue_input;
-	int r;
 
 	/* already reset by an earlier job's hang-detect; just signal and bail */
 	if (queue->state == AMDGPU_USERQ_STATE_HUNG)
 		return 0;
+
+	/* A GFX pipe reset also affects the kernel rings on that pipe. */
+	if (queue->queue_type == AMDGPU_HW_IP_GFX &&
+	    adev->gfx.funcs->detect_hung_queue &&
+	    amdgpu_gfx_me_pipe_reset_supported(adev))
+		return amdgpu_gfx_reset_mes_gfx(adev, NULL, NULL, queue, 0, true);
 
 	memset(&queue_input, 0x0, sizeof(struct mes_reset_queue_input));
 	queue_input.doorbell_offset = queue->doorbell_index;
@@ -244,25 +272,7 @@ int mes_userq_reset(struct amdgpu_usermode_queue *queue)
 		}
 	}
 
-	amdgpu_mes_lock(&adev->mes);
-	r = adev->mes.funcs->reset_hw_queue(&adev->mes, &queue_input);
-	amdgpu_mes_unlock(&adev->mes);
-	if (r)
-		return r;
-
-	/* drop the queue from MES */
-	r = mes_userq_unmap(queue);
-	if (r)
-		return r;
-
-	/*
-	 * HUNG, not UNMAPPED: the guilty job is still in the ring, so the
-	 * restore worker must not re-map and re-run it.
-	 */
-	trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
-	queue->state = AMDGPU_USERQ_STATE_HUNG;
-
-	return 0;
+	return mes_userq_reset_hw(queue, &queue_input);
 }
 
 int mes_userq_reset_queue(struct amdgpu_device *adev,
@@ -397,8 +407,7 @@ static int mes_userq_mqd_create(struct amdgpu_usermode_queue *queue,
 
 		compute_mqd = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
 		if (IS_ERR(compute_mqd)) {
-			DRM_ERROR("Failed to read user MQD\n");
-			r = -ENOMEM;
+			r = PTR_ERR(compute_mqd);
 			goto free_mqd;
 		}
 
@@ -442,8 +451,7 @@ static int mes_userq_mqd_create(struct amdgpu_usermode_queue *queue,
 
 		mqd_gfx_v11 = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
 		if (IS_ERR(mqd_gfx_v11)) {
-			DRM_ERROR("Failed to read user MQD\n");
-			r = -ENOMEM;
+			r = PTR_ERR(mqd_gfx_v11);
 			goto free_mqd;
 		}
 
@@ -487,8 +495,7 @@ static int mes_userq_mqd_create(struct amdgpu_usermode_queue *queue,
 
 		mqd_sdma_v11 = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
 		if (IS_ERR(mqd_sdma_v11)) {
-			DRM_ERROR("Failed to read sdma user MQD\n");
-			r = -ENOMEM;
+			r = PTR_ERR(mqd_sdma_v11);
 			goto free_mqd;
 		}
 

@@ -79,6 +79,43 @@ static void dcn60_update_soc_bb_with_values_from_dmub(struct dml2_soc_bb *soc_bb
 			min_alt_ch_carveout_size_mb;
 }
 
+static void dcn60_update_soc_bb_with_values_from_software_policy(struct dml2_soc_bb *soc_bb, const struct dc *dc)
+{
+	/* set if the value is provided */
+	if (dc->bb_overrides.sr_exit_time_ns)
+		soc_bb->power_management_parameters.stutter_exit_latency_us =
+				dc->bb_overrides.sr_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_time_ns)
+		soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us =
+				dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.dram_clock_change_latency_ns)
+		soc_bb->power_management_parameters.dram_clk_change_blackout_us =
+				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+
+	if (dc->bb_overrides.fclk_clock_change_latency_ns)
+		soc_bb->power_management_parameters.fclk_change_blackout_us =
+				dc->bb_overrides.fclk_clock_change_latency_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_exit_z8_time_ns)
+		soc_bb->power_management_parameters.z8_stutter_exit_latency_us =
+				dc->bb_overrides.sr_exit_z8_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_z8_time_ns)
+		soc_bb->power_management_parameters.z8_stutter_enter_plus_exit_latency_us =
+				dc->bb_overrides.sr_enter_plus_exit_z8_time_ns / 1000.0;
+
+	/* low power stutter latencies exist only on DCN6 and above */
+	if (dc->bb_overrides.sr_lp_exit_time_ns)
+		soc_bb->power_management_parameters.low_power_stutter_exit_latency_us =
+				dc->bb_overrides.sr_lp_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_lp_enter_plus_exit_time_ns)
+		soc_bb->power_management_parameters.low_power_stutter_enter_plus_exit_latency_us =
+				dc->bb_overrides.sr_lp_enter_plus_exit_time_ns / 1000.0;
+}
+
 static void apply_soc_bb_updates(struct dml2_soc_bb *soc_bb, const struct dc *dc, const struct dml2_configuration_options *config)
 {
 	/* Individual modification can be overwritten even if it was obtained by a previous function.
@@ -89,7 +126,7 @@ static void apply_soc_bb_updates(struct dml2_soc_bb *soc_bb, const struct dc *dc
 	dcn60_update_soc_bb_with_values_from_dmub(soc_bb, config);
 	dcn401_update_soc_bb_with_values_from_clk_mgr(soc_bb, dc, config);
 	dcn401_update_soc_bb_with_values_from_vbios(soc_bb, dc);
-	dcn401_update_soc_bb_with_values_from_software_policy(soc_bb, dc);
+	dcn60_update_soc_bb_with_values_from_software_policy(soc_bb, dc);
 }
 
 static void dcn60_get_soc_bb(struct dml2_soc_bb *soc_bb, const struct dc *dc, const struct dml2_configuration_options *config)

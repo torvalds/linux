@@ -700,12 +700,6 @@ static int ih_v7_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	return -ETIMEDOUT;
 }
 
-static int ih_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return 0;
-}
-
 static void ih_v7_0_update_clockgating_state(struct amdgpu_device *adev,
 					       bool enable)
 {
@@ -863,7 +857,6 @@ static const struct amd_ip_funcs ih_v7_0_ip_funcs = {
 	.suspend = ih_v7_0_suspend,
 	.resume = ih_v7_0_resume,
 	.wait_for_idle = ih_v7_0_wait_for_idle,
-	.soft_reset = ih_v7_0_soft_reset,
 	.set_clockgating_state = ih_v7_0_set_clockgating_state,
 	.set_powergating_state = ih_v7_0_set_powergating_state,
 	.get_clockgating_state = ih_v7_0_get_clockgating_state,

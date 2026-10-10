@@ -36,6 +36,9 @@ static const struct ras_nbio_ip_func *ras_nbio_get_ip_funcs(
 	case IP_VERSION(6, 3, 2):
 		/* TBD for dGPU */
 		break;
+	case IP_VERSION(7, 10, 0):
+		/* TBD for dGPU */
+		break;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"NBIO ip version(0x%x) is not supported!\n", ip_version);

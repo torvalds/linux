@@ -639,6 +639,7 @@ static void gmc_v12_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	int r;
 
 	if (adev->smuio.funcs &&
 	    adev->smuio.funcs->is_host_gpu_xgmi_supported)
@@ -660,6 +661,18 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 	gmc_v12_0_set_gfxhub_funcs(adev);
 	gmc_v12_0_set_mmhub_funcs(adev);
 	gmc_v12_0_set_umc_funcs(adev);
+
+	if (amdgpu_virt_vram_is_spm(adev)) {
+		u64 aper_base, aper_size;
+
+		r = amdgpu_acpi_find_gpu_memory_in_srat(adev, &aper_base,
+							&aper_size);
+		if (r)
+			return r;
+
+		adev->gmc.aper_base = aper_base;
+		adev->gmc.aper_size = aper_size;
+	}
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -707,10 +720,19 @@ static void gmc_v12_0_vram_gtt_location(struct amdgpu_device *adev,
 			amdgpu_gmc_agp_location(adev, mc);
 	}
 	/* base offset of vram pages */
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_virt_vram_is_spm(adev)) {
+		/*
+		 * For SPM-backed VRAM, PDB0 entries use PTE_SYSTEM, so the
+		 * address is a system physical address. vram_base_offset must
+		 * be aper_base so PDB0 maps GPU address 0 onto the HBM system
+		 * physical address.
+		 */
+		adev->vm_manager.vram_base_offset = adev->gmc.aper_base;
+	} else if (amdgpu_sriov_vf(adev)) {
 		adev->vm_manager.vram_base_offset = 0;
-	else
+	} else {
 		adev->vm_manager.vram_base_offset = adev->mmhub.funcs->get_mc_fb_offset(adev);
+	}
 
 	adev->vm_manager.vram_base_offset +=
 		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
@@ -747,17 +769,28 @@ static int gmc_v12_0_mc_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
-
 #ifdef CONFIG_X86_64
-	if (((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) ||
-	    (adev->gmc.xgmi.connected_to_cpu)) {
-		adev->gmc.aper_base =
-			adev->mmhub.funcs->get_mc_fb_offset(adev) +
-			adev->gmc.xgmi.physical_node_id *
-			adev->gmc.xgmi.node_segment_size;
-		adev->gmc.aper_size = adev->gmc.real_vram_size;
+	/*
+	 * SPM-backed devices resolve the aperture from SRAT during early_init.
+	 * For native A+A (non-VF) or APU, override aper_base using mmhub
+	 * offset. Otherwise derive the aperture from BAR 0.
+	 */
+	if (!amdgpu_virt_vram_is_spm(adev)) {
+		if (!amdgpu_sriov_vf(adev) &&
+		    (((adev->flags & AMD_IS_APU) &&
+		      !amdgpu_passthrough(adev)) ||
+		     adev->gmc.xgmi.connected_to_cpu)) {
+			adev->gmc.aper_base =
+				adev->mmhub.funcs->get_mc_fb_offset(adev) +
+				adev->gmc.xgmi.physical_node_id *
+				adev->gmc.xgmi.node_segment_size;
+			adev->gmc.aper_size = adev->gmc.real_vram_size;
+		} else {
+			adev->gmc.aper_base =
+				pci_resource_start(adev->pdev, 0);
+			adev->gmc.aper_size =
+				pci_resource_len(adev->pdev, 0);
+		}
 	}
 #endif
 	/* In case the PCI BAR is larger than the actual amount of vram */
@@ -980,6 +1013,9 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 				      false);
 
 	amdgpu_vm_manager_init(adev);
+
+	if (adev->vm_manager.npa_vmid)
+		adev->vm_manager.vmid_uq_mask_mmhub &= ~BIT(adev->vm_manager.npa_vmid);
 
 	r = amdgpu_gmc_ras_sw_init(adev);
 	if (r)

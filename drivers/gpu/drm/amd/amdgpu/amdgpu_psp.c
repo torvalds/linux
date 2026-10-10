@@ -41,6 +41,7 @@
 #include "psp_v13_0_4.h"
 #include "psp_v14_0.h"
 #include "psp_v15_0.h"
+#include "psp_v15_0_3.h"
 #include "psp_v15_0_8.h"
 
 #include "amdgpu_ras.h"
@@ -173,6 +174,10 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 12):
 		ret = psp_init_ta_microcode(psp, ucode_prefix);
 		break;
+	case IP_VERSION(15, 0, 3):
+	case IP_VERSION(15, 0, 8):
+		adev->virt.autoload_ucode_id = AMDGPU_UCODE_ID_CP_MES1_DATA;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -283,6 +288,9 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		psp_v15_0_0_set_psp_funcs(psp);
 		psp->boot_time_tmr = false;
 		break;
+	case IP_VERSION(15, 0, 3):
+		psp_v15_0_3_set_psp_funcs(psp);
+		break;
 	case IP_VERSION(15, 0, 8):
 		psp_v15_0_8_set_psp_funcs(psp);
 		break;
@@ -379,6 +387,22 @@ Err_out:
 	return ret;
 }
 
+static uint64_t psp_get_runtime_db_header_pos(struct amdgpu_device *adev)
+{
+	uint64_t pos;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(15, 0, 3):
+		pos = adev->discovery.offset + PSP_RUNTIME_DB_OFFSET_FROM_IP_DISCOVERY_TABLE;
+		break;
+	default:
+		pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
+		break;
+	}
+
+	return pos;
+}
+
 /*
  * Helper funciton to query psp runtime database entry
  *
@@ -411,7 +435,7 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 		amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 15))
 		return false;
 
-	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
+	db_header_pos = psp_get_runtime_db_header_pos(adev);
 	db_dir_pos = db_header_pos + sizeof(struct psp_runtime_data_header);
 
 	/* read runtime db header from vram */
@@ -902,7 +926,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ras_intr = amdgpu_ras_intr_triggered();
 		if (ras_intr)
 			break;
-		usleep_range(60, 150);
+		usleep_range(150, 300);
 		amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	}
 
@@ -3706,6 +3730,18 @@ int amdgpu_psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK:
 		*type = GFX_FW_TYPE_RS64_MEC_P3_STACK;
 		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P4_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P4_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P5_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P5_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P6_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P6_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P7_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P7_STACK;
+		break;
 	case AMDGPU_UCODE_ID_VPE_CTX:
 		*type = GFX_FW_TYPE_VPEC_FW1;
 		break;
@@ -3732,6 +3768,9 @@ int amdgpu_psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 		break;
 	case AMDGPU_UCODE_ID_ISP:
 		*type = GFX_FW_TYPE_ISP;
+		break;
+	case AMDGPU_UCODE_ID_MP5:
+		*type = GFX_FW_TYPE_MP5;
 		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
@@ -3784,6 +3823,10 @@ static void psp_print_fw_hdr(struct psp_context *psp,
 		break;
 	case AMDGPU_UCODE_ID_SMC:
 		hdr = (struct common_firmware_header *)adev->pm.fw->data;
+		amdgpu_ucode_print_smc_hdr(hdr);
+		break;
+	case AMDGPU_UCODE_ID_MP5:
+		hdr = (struct common_firmware_header *)adev->pm.mp5_fw->data;
 		amdgpu_ucode_print_smc_hdr(hdr);
 		break;
 	default:
@@ -3971,6 +4014,8 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 			     IP_VERSION(11, 0, 12) ||
 		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
 			     IP_VERSION(15, 0, 0) ||
+			amdgpu_ip_version(adev, MP0_HWIP, 0) ==
+				 IP_VERSION(15, 0, 3) ||
 		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
 			     IP_VERSION(15, 0, 5) ||
 		     amdgpu_ip_version(adev, MP0_HWIP, 0) ==
@@ -5515,6 +5560,14 @@ const struct amdgpu_ip_block_version psp_v15_0_ip_block = {
 	.major = 15,
 	.minor = 0,
 	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v15_0_3_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 15,
+	.minor = 0,
+	.rev = 3,
 	.funcs = &psp_ip_funcs,
 };
 

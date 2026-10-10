@@ -42,10 +42,10 @@
  * @adev:	struct amdgpu_device *
  * @hub:	vmhub index into adev->vm_manager.id_mgr[]
  *
- * Equivalent to OR-ing BIT(0) into id_mgr[hub].vmid_mask and walking the
- * result with for_each_set_bit(). Used by the gfx_v*_constants_init() paths
- * which must always touch VMID 0 (system) in addition to the regular VMIDs
- * owned by the hub.
+ * Equivalent to OR-ing BIT(0) into id_mgr[hub].vmid_mask and walking
+ * the result with for_each_set_bit(). Used by the gfx_v*_constants_init()
+ * paths which must always touch VMID 0 (system) in addition to the regular
+ * VMIDs owned by the hub.
  *
  * Relies on AMDGPU_NUM_VMID (16) fitting in a single unsigned long, i.e.
  * vmid_mask[] being a 1-element bitmap.
@@ -86,7 +86,7 @@ struct amdgpu_vmid {
 	struct dma_fence	*pasid_mapping;
 };
 
-struct amdgpu_vmid_mgr {
+struct amdgpu_kq_vmid_mgr {
 	struct mutex		lock;
 	struct list_head	ids_lru;
 	struct amdgpu_vmid	ids[AMDGPU_NUM_VMID];

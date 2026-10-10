@@ -28,6 +28,7 @@
 #include "discovery.h"
 
 #define DISCOVERY_TMR_SIZE      (10 << 10)
+#define DISCOVERY_TMR_SIZE_SRIOV (16 << 10)
 #define DISCOVERY_TMR_OFFSET    (64 << 10)
 
 struct ip_discovery_top;

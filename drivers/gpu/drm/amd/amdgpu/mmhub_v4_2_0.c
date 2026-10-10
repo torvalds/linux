@@ -154,7 +154,10 @@ static int mmhub_v4_2_0_get_xgmi_info(struct amdgpu_device *adev)
 	if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
 		return -EINVAL;
 
-	adev->gmc.xgmi.node_segment_size = seg_size;
+	if (amdgpu_virt_vram_is_spm(adev) && adev->gmc.aper_size)
+		adev->gmc.xgmi.node_segment_size = adev->gmc.aper_size;
+	else
+		adev->gmc.xgmi.node_segment_size = seg_size;
 
 	return 0;
 }

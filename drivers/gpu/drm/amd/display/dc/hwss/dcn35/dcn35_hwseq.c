@@ -369,13 +369,23 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
 		dsc_cfg.dsc_padding = 0;
 
-		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+		if (!dsc->funcs->dsc_prepare_config(dsc, &dsc_cfg, &dsc_optc_cfg)) {
+			ASSERT(false);
+			return;
+		}
+		dsc->funcs->dsc_set_config(dsc);
 		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 			struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
 
 			ASSERT(odm_dsc);
-			odm_dsc->funcs->dsc_set_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg);
+			if (!odm_dsc)
+				return;
+			if (!odm_dsc->funcs->dsc_prepare_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg)) {
+				ASSERT(false);
+				return;
+			}
+			odm_dsc->funcs->dsc_set_config(odm_dsc);
 			odm_dsc->funcs->dsc_enable(odm_dsc, odm_pipe->stream_res.opp->inst);
 		}
 		dsc_cfg.dc_dsc_cfg.num_slices_h *= opp_cnt;
@@ -1646,9 +1656,30 @@ void dcn35_hardware_release(struct dc *dc)
 		dc->hwss.hw_block_power_up(dc, &pg_update_state);
 }
 
-void dcn35_abort_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, struct hubp *hubp, uint32_t stream_idx)
+/* Set the cursor offload flag on every resolved hubp/dpp in the pipe tree. */
+static void dcn35_set_cursor_offload(struct dpp **dpp, struct hubp **hubp,
+		uint8_t pipe_count, bool enable)
 {
-	struct dc *dc = dpp->ctx->dc;
+	uint8_t i;
+
+	for (i = 0; i < pipe_count; i++) {
+		if (hubp[i])
+			hubp[i]->cursor_offload = enable;
+		if (dpp[i])
+			dpp[i]->cursor_offload = enable;
+	}
+}
+
+void dcn35_abort_cursor_offload_update(struct dmub_srv *dmub, struct dpp **dpp,
+		struct hubp **hubp, uint8_t pipe_count, uint32_t stream_idx)
+{
+	struct dc *dc;
+	uint8_t i;
+
+	if (pipe_count == 0 || dpp[0] == NULL)
+		return;
+
+	dc = dpp[0]->ctx->dc;
 
 	/*
 	 * Insert a blank update to modify the write index and set pipe_mask to 0.
@@ -1667,10 +1698,10 @@ void dcn35_abort_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, s
 	 */
 
 	if (dc->hwss.begin_cursor_offload_update)
-		dc->hwss.begin_cursor_offload_update(dmub, dpp, hubp, stream_idx);
+		dc->hwss.begin_cursor_offload_update(dmub, dpp, hubp, pipe_count, stream_idx);
 
 	if (dc->hwss.commit_cursor_offload_update)
-		dc->hwss.commit_cursor_offload_update(dmub, dpp, hubp, stream_idx);
+		dc->hwss.commit_cursor_offload_update(dmub, dpp, hubp, pipe_count, stream_idx);
 
 	/*
 	 * The aborted payload is dropped by firmware, so resync the SW cursor
@@ -1678,13 +1709,16 @@ void dcn35_abort_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, s
 	 * set_cursor_position re-program CURSOR_ENABLE instead of skipping it
 	 * because of a stale cache.
 	 */
-	if (dpp->funcs->refresh_cursor_state)
-		dpp->funcs->refresh_cursor_state(dpp);
-	if (hubp && hubp->funcs->refresh_cursor_state)
-		hubp->funcs->refresh_cursor_state(hubp);
+	for (i = 0; i < pipe_count; i++) {
+		if (dpp[i] && dpp[i]->funcs->refresh_cursor_state)
+			dpp[i]->funcs->refresh_cursor_state(dpp[i]);
+		if (hubp[i] && hubp[i]->funcs->refresh_cursor_state)
+			hubp[i]->funcs->refresh_cursor_state(hubp[i]);
+	}
 }
 
-void dcn35_begin_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, struct hubp *hubp, uint32_t stream_idx)
+void dcn35_begin_cursor_offload_update(struct dmub_srv *dmub, struct dpp **dpp,
+		struct hubp **hubp, uint8_t pipe_count, uint32_t stream_idx)
 {
 	volatile struct dmub_cursor_offload_v1 *cs = dmub->cursor_offload_v1;
 	uint32_t write_idx, payload_idx;
@@ -1695,24 +1729,17 @@ void dcn35_begin_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, s
 	cs->offload_streams[stream_idx].payloads[payload_idx].write_idx_start = write_idx;
 	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask = 0;
 
-	if (hubp)
-		hubp->cursor_offload = true;
-
-	if (dpp)
-		dpp->cursor_offload = true;
+	dcn35_set_cursor_offload(dpp, hubp, pipe_count, true);
 }
 
-void dcn35_commit_cursor_offload_update(struct dmub_srv *dmub, struct dpp *dpp, struct hubp *hubp, uint32_t stream_idx)
+void dcn35_commit_cursor_offload_update(struct dmub_srv *dmub, struct dpp **dpp,
+		struct hubp **hubp, uint8_t pipe_count, uint32_t stream_idx)
 {
 	volatile struct dmub_cursor_offload_v1 *cs = dmub->cursor_offload_v1;
 	volatile struct dmub_shared_state_cursor_offload_stream_v1 *shared_stream;
 	uint32_t write_idx, payload_idx;
 
-	if (hubp)
-		hubp->cursor_offload = false;
-
-	if (dpp)
-		dpp->cursor_offload = false;
+	dcn35_set_cursor_offload(dpp, hubp, pipe_count, false);
 
 	write_idx = cs->offload_streams[stream_idx].write_idx + 1; /*  new payload (+1) */
 	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
@@ -1838,11 +1865,7 @@ bool dcn35_dmub_hw_control_lock(struct dc *dc, struct dc_state *context, bool lo
 {
 	union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
-	if (!dc->ctx || !dc->ctx->dmub_srv)
-		return false;
-
-	/* if not support inbox0 lock, would not use inbox0 lock mechanism  */
-	if (!dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_support)
+	if (!dcn35_is_dmub_hw_lock_supported(dc))
 		return false;
 
 	if (lock) {
@@ -1860,22 +1883,12 @@ bool dcn35_dmub_hw_control_lock(struct dc *dc, struct dc_state *context, bool lo
 	return true;
 }
 
-void dcn35_dmub_hw_control_lock_fast(union block_sequence_params *params)
+bool dcn35_is_dmub_hw_lock_supported(const struct dc *dc)
 {
-	struct dc *dc = params->dmub_hw_control_lock_fast_params.dc;
-	bool lock = params->dmub_hw_control_lock_fast_params.lock;
+	if (!dc || !dc->ctx || !dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
+		return false;
 
-	/* if not support inbox0 lock, would not use inbox0 lock mechanism  */
-	if (!dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_support)
-		return;
-
-	if (params->dmub_hw_control_lock_fast_params.is_required) {
-		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
-
-		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
-		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
-		hw_lock_cmd.bits.lock = lock;
-		hw_lock_cmd.bits.should_release = !lock;
-		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
-	}
+	/* if not support inbox0 lock, would not use inbox0 lock mechanism */
+	return dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_support != 0;
 }
+

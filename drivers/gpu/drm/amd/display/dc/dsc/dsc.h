@@ -116,8 +116,9 @@ struct dsc_funcs {
 	void (*dsc_read_state)(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
 	void (*dsc_read_reg_state)(struct display_stream_compressor *dsc, struct dcn_dsc_reg_state *dccg_reg_state);
 	bool (*dsc_validate_stream)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-	void (*dsc_set_config)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+	bool (*dsc_prepare_config)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 			struct dsc_optc_config *dsc_optc_cfg);
+	void (*dsc_set_config)(struct display_stream_compressor *dsc);
 	bool (*dsc_get_packed_pps)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 			uint8_t *dsc_packed_pps);
 	void (*dsc_enable)(struct display_stream_compressor *dsc, int opp_pipe);

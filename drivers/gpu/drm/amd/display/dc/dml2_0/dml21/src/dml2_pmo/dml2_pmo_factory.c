@@ -63,6 +63,7 @@ bool dml2_pmo_create(enum dml2_project_id project_id, struct dml2_pmo_instance *
 		result = true;
 		break;
 	case dml2_project_dcn42:
+	case dml2_project_dcn42b:
 		out->initialize = pmo_dcn42_initialize;
 
 		out->init_for_vmin = pmo_dcn4_fams2_init_for_vmin;

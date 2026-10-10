@@ -47,7 +47,8 @@ void opp2_set_disp_pattern_generator(
 		const struct tg_color *solid_color,
 		int width,
 		int height,
-		int offset)
+		int offset,
+		bool disable_dyn_exp_for_test_pattern)
 {
 	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
 	enum test_pattern_color_format bit_depth;
@@ -89,7 +90,7 @@ void opp2_set_disp_pattern_generator(
 	break;
 	}
 
-	if (opp->ctx->dc->debug.disable_dynamic_expansion_for_test_pattern) {
+	if (disable_dyn_exp_for_test_pattern) {
 		switch (test_pattern) {
 		case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES:
 		case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA:

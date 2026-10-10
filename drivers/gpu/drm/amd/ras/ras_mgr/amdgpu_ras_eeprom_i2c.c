@@ -121,6 +121,7 @@ static int ras_eeprom_i2c_config(struct ras_core_context *ras_core,
 		case IP_VERSION(13, 0, 10):
 		case IP_VERSION(13, 0, 12):
 		case IP_VERSION(13, 0, 14):
+		case IP_VERSION(13, 0, 15):
 			cfg->eeprom_i2c_addr = EEPROM_I2C_MADDR_4;
 			badpages_per_record = BAD_PAGE_NUM_PER_EEPROM_RECORD_V13;
 			break;

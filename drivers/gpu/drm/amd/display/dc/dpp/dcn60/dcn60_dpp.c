@@ -294,7 +294,7 @@ void dpp60_full_bypass(struct dpp *dpp_base)
 }
 
 static struct dpp_funcs dcn60_dpp_funcs = {
-	.dpp_program_gamcor_lut		= dpp3_program_gamcor_lut,
+	.dpp_program_gamcor_lut		= dpp6_program_gamcor_lut,
 	.dpp_read_state				= dpp401_read_state,
 	.dpp_reset					= dpp_reset,
 	.dpp_set_scaler				= dpp60_dscl_set_scaler_manual_scale,

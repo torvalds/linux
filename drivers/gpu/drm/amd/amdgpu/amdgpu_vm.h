@@ -289,7 +289,6 @@ struct amdgpu_vm {
 	 */
 	struct mutex		eviction_lock;
 	bool			evicting;
-	unsigned int		saved_flags;
 
 	/* Memory statistics for this vm, protected by stats_lock */
 	spinlock_t		stats_lock;
@@ -383,7 +382,7 @@ struct amdgpu_vm {
 
 struct amdgpu_vm_manager {
 	/* Handling of VMIDs */
-	struct amdgpu_vmid_mgr			id_mgr[AMDGPU_MAX_VMHUBS];
+	struct amdgpu_kq_vmid_mgr		id_mgr[AMDGPU_MAX_VMHUBS];
 	unsigned int				first_kfd_vmid;
 	bool					concurrent_flush;
 
@@ -412,8 +411,12 @@ struct amdgpu_vm_manager {
 	int					vm_update_mode;
 
 	/* Global registration of recent page fault information */
-	struct amdgpu_vm_fault_info	fault_info;
+	struct amdgpu_vm_fault_info		fault_info;
 	unsigned int				npa_vmid;
+
+	/* VMID masks for GFXHUB and MMHUB */
+	uint32_t				vmid_uq_mask_gfxhub;
+	uint32_t				vmid_uq_mask_mmhub;
 };
 
 struct amdgpu_bo_va_mapping;

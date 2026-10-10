@@ -108,5 +108,6 @@ int amdgpu_vpe_sysfs_reset_mask_init(struct amdgpu_device *adev);
 
 extern const struct amdgpu_ip_block_version vpe_v6_1_ip_block;
 extern const struct amdgpu_ip_block_version vpe_v2_0_ip_block;
+extern const struct amdgpu_ip_block_version vpe_v3_0_ip_block;
 
 #endif

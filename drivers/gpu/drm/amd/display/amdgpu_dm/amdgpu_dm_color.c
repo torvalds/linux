@@ -1907,6 +1907,7 @@ __set_dm_plane_colorop_3dlut(struct drm_plane_state *plane_state,
 			tf->tf = TRANSFER_FUNCTION_LINEAR;
 			tf->sdr_ref_white_level = SDR_WHITE_LEVEL_INIT_VALUE;
 			ret = __set_output_tf_32(tf, NULL, 0, false);
+			dc_plane_state->cm.flags.bits.shaper_enable = 1;
 		}
 	} else {
 		dc_plane_state->cm.flags.bits.lut3d_enable = 0;

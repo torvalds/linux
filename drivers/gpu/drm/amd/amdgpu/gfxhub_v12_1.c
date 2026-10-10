@@ -482,27 +482,6 @@ static void gfxhub_v12_1_xcc_program_invalidation(struct amdgpu_device *adev,
 static int gfxhub_v12_1_xcc_gart_enable(struct amdgpu_device *adev,
 					uint32_t xcc_mask)
 {
-	uint32_t i;
-
-	if (amdgpu_sriov_vf(adev)) {
-		/* GCMC_VM_FB_LOCATION_BASE/TOP are VF copy registers
-		 * VBIO post does not program them at boot up phase
-		 * Need driver to program them from guest side */
-		for_each_inst(i, xcc_mask) {
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_BASE_LO32,
-				     lower_32_bits(adev->gmc.vram_start >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_BASE_HI32,
-				     upper_32_bits(adev->gmc.vram_start >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_TOP_LO32,
-				     lower_32_bits(adev->gmc.vram_end >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_TOP_HI32,
-				     upper_32_bits(adev->gmc.vram_end >> 24));
-		}
-	}
 	/* GART Enable. */
 	gfxhub_v12_1_xcc_init_gart_aperture_regs(adev, xcc_mask);
 	gfxhub_v12_1_xcc_init_system_aperture_regs(adev, xcc_mask);
@@ -575,6 +554,9 @@ static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev
 {
 	u32 tmp;
 	int i;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),

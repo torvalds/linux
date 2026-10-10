@@ -518,5 +518,8 @@ bool dpp60_construct(struct dcn60_dpp *dpp60,
 	const struct dcn60_dpp_shift *tf_shift,
 	const struct dcn60_dpp_mask *tf_mask);
 
+bool dpp6_program_gamcor_lut(
+	struct dpp *dpp_base, const struct pwl_params *params);
+
 
 #endif /* __DCN60_DPP_H__ */

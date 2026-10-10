@@ -1391,8 +1391,10 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			read_idcc_data(link->ddc, HDMI_IDCC_SCOPE_RW_CA,
 				link->hdmi_cable_id.raw, 0, 4);
 		}
-		if (sink->edid_caps.rr_capable)
+
+		if (sink->edid_caps.rr_capable && !dc->debug.skip_hdmi_rr_enable)
 			hdmi_frl_write_read_request_enable(link->ddc);
+
 		/* When FreeSync is toggled through OSD,
 		 * we see same EDID no matter what. Check MCCS caps
 		 * to see if we should update FreeSync caps now.

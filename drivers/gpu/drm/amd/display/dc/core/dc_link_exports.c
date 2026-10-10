@@ -263,6 +263,11 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 			lt_overrides, link, skip_immediate_retrain);
 }
 
+void dc_link_set_skip_link_bw_clear(struct dc_link *link, bool skip)
+{
+	link->preferred_training_settings.skip_link_bw_clear = skip;
+}
+
 bool dc_dp_trace_is_initialized(struct dc_link *link)
 {
 	return link->dc->link_srv->dp_trace_is_initialized(link);

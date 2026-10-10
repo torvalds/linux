@@ -1086,6 +1086,15 @@ struct dc_crtc_timing_adjust {
 	uint8_t timing_adjust_pending;
 };
 
+struct dtbclk_dto_params {
+	const struct dc_crtc_timing *timing;
+	int otg_inst;
+	int pixclk_khz;
+	int req_audio_dtbclk_khz;
+	int num_odm_segments;
+	int ref_dtbclk_khz;
+	bool is_hdmi;
+};
 
 /* Passed on init */
 enum vram_type {

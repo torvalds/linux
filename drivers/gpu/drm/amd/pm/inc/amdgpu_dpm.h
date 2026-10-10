@@ -351,7 +351,9 @@ struct amdgpu_pm {
 	bool                    sysfs_initialized;
 	struct amdgpu_dpm       dpm;
 	const struct firmware	*fw;	/* SMC firmware */
+	const struct firmware	*mp5_fw;	/* MP5 firmware */
 	uint32_t                fw_version;
+	uint32_t                mp5_fw_version;
 	uint32_t                pcie_gen_mask;
 	uint32_t                pcie_mlw_mask;
 	struct amd_pp_display_configuration pm_display_cfg;/* set by dc */

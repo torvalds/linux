@@ -137,6 +137,8 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.update_dchubp_dpp = dcn20_update_dchubp_dpp,
 	.post_unlock_reset_opp = dcn20_post_unlock_reset_opp,
 	.get_underflow_debug_data = dcn30_get_underflow_debug_data,
+	.dmub_hw_control_lock = dcn35_dmub_hw_control_lock,
+	.is_dmub_hw_lock_supported = dcn35_is_dmub_hw_lock_supported,
 };
 
 static const struct hwseq_private_funcs dcn35_private_funcs = {

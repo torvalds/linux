@@ -541,6 +541,15 @@ struct clk_mgr_internal {
 	const void *dal_init_table;
 	long long dal_init_table_addr;
 
+	/**
+	 * @utm_override_table:
+	 *
+	 * GPU-accessible DRAM buffer for the UTM table transferred to SMU via
+	 * DALSMC_MSG_TransferTableDram2Smu(TABLE_SOC_UTM).
+	 */
+	void *utm_override_table;
+	long long utm_override_table_addr;
+
 	bool dpm_present;
 	bool pme_trigger_pending;
 };

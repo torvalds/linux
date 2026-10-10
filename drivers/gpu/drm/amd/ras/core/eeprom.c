@@ -260,7 +260,7 @@ static void
 __encode_table_header_to_buf(struct ras_eeprom_table_header *hdr,
 			     unsigned char *buf)
 {
-	u32 *pp = (uint32_t *)buf;
+	__le32 *pp = (__le32 *)buf;
 
 	pp[0] = cpu_to_le32(hdr->header);
 	pp[1] = cpu_to_le32(hdr->version);
@@ -273,7 +273,7 @@ static void
 __decode_table_header_from_buf(struct ras_eeprom_table_header *hdr,
 			       unsigned char *buf)
 {
-	u32 *pp = (uint32_t *)buf;
+	__le32 *pp = (__le32 *)buf;
 
 	hdr->header	      = le32_to_cpu(pp[0]);
 	hdr->version	      = le32_to_cpu(pp[1]);
@@ -315,7 +315,7 @@ static void
 __encode_table_ras_info_to_buf(struct ras_eeprom_table_ras_info *rai,
 			       unsigned char *buf)
 {
-	u32 *pp = (uint32_t *)buf;
+	__le32 *pp = (__le32 *)buf;
 	u32 tmp;
 
 	tmp = ((uint32_t)(rai->rma_status) & 0xFF) |

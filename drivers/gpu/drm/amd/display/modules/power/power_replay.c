@@ -338,9 +338,11 @@ static bool mod_power_update_replay_active_status(unsigned int active_replay_eve
 
 	/* General UI scenario */
 	if (active_replay_events & replay_event_general_ui) {
-		if (replay_enable_option & pr_enable_option_general_ui)
+		if (replay_enable_option & pr_enable_option_general_ui) {
+			if (link->replay_settings.system_in_dc)
+				link->replay_settings.config.replay_timing_sync_supported = false;
 			return true;
-		else
+		} else
 			return false;
 	}
 

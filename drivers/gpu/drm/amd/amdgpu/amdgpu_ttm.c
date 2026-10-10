@@ -1460,9 +1460,17 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 			flags |= AMDGPU_PTE_SNOOPED;
 	}
 
-	if (mem && mem->mem_type == TTM_PL_VRAM &&
-			mem->bus.caching == ttm_cached)
-		flags |= AMDGPU_PTE_SNOOPED;
+	if (mem && mem->mem_type == TTM_PL_VRAM) {
+		if (mem->bo) {
+			struct amdgpu_device *adev = amdgpu_ttm_adev(mem->bo->bdev);
+
+			if (amdgpu_virt_vram_is_spm(adev))
+				flags |= AMDGPU_PTE_SYSTEM;
+		}
+
+		if (mem->bus.caching == ttm_cached)
+			flags |= AMDGPU_PTE_SNOOPED;
+	}
 
 	return flags;
 }

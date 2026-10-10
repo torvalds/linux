@@ -1571,8 +1571,8 @@ unlock:
 int amdgpu_vcn_reg_dump_init(struct amdgpu_device *adev,
 			     const struct amdgpu_hwip_reg_entry *reg, u32 count)
 {
-	adev->vcn.ip_dump = kcalloc(adev->vcn.num_vcn_inst * count,
-				     sizeof(uint32_t), GFP_KERNEL);
+	adev->vcn.ip_dump = kzalloc_objs(*adev->vcn.ip_dump,
+					 adev->vcn.num_vcn_inst * count);
 	if (!adev->vcn.ip_dump)
 		return -ENOMEM;
 	adev->vcn.reg_list = reg;

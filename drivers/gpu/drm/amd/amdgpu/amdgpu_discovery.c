@@ -68,10 +68,12 @@
 #include "nbio_v7_7.h"
 #include "nbif_v6_3_1.h"
 #include "nbio_v6_3_2.h"
+#include "nbif_v7_10.h"
 #include "hdp_v5_0.h"
 #include "hdp_v5_2.h"
 #include "hdp_v6_0.h"
 #include "hdp_v7_0.h"
+#include "hdp_v8_0.h"
 #include "nv.h"
 #include "soc21.h"
 #include "soc24.h"
@@ -80,6 +82,7 @@
 #include "ih_v6_0.h"
 #include "ih_v6_1.h"
 #include "ih_v7_0.h"
+#include "ih_v8_0.h"
 #include "gfx_v10_0.h"
 #include "gfx_v11_0.h"
 #include "gfx_v12_0.h"
@@ -92,6 +95,7 @@
 #include "lsdma_v6_0.h"
 #include "lsdma_v7_0.h"
 #include "lsdma_v7_1.h"
+#include "lsdma_v8_0.h"
 #include "vcn_v2_0.h"
 #include "jpeg_v2_0.h"
 #include "vcn_v3_0.h"
@@ -113,6 +117,7 @@
 #include "smuio_v13_0_6.h"
 #include "smuio_v14_0_2.h"
 #include "smuio_v15_0_0.h"
+#include "smuio_v15_0_3.h"
 #include "smuio_v15_0_8.h"
 #include "vcn_v5_0_0.h"
 #include "vcn_v5_0_1.h"
@@ -142,6 +147,7 @@ MODULE_FIRMWARE("amdgpu/aldebaran_ip_discovery.bin");
 /* Note: These registers are consistent across all the SOCs */
 #define mmIP_DISCOVERY_VERSION  0x16A00
 #define mmRCC_CONFIG_MEMSIZE	0xde3
+#define mmRCC_HW_DEBUG		0x10c01
 #define mmMP0_SMN_C2PMSG_33	0x16061
 #define mmMM_INDEX		0x0
 #define mmMM_INDEX_HI		0x6
@@ -287,6 +293,17 @@ static int hw_id_map[MAX_HWIP] = {
 	[ATU_HWIP]	= ATU_HWID,
 };
 
+static u32 amdgpu_discovery_get_config_memsize(struct amdgpu_device *adev)
+{
+	u32 memsize = RREG32(mmRCC_CONFIG_MEMSIZE);
+
+	/* Fall back to RCC_HW_DEBUG when RCC_CONFIG_MEMSIZE reads 0 on a VF. */
+	if (!memsize && amdgpu_sriov_vf(adev))
+		memsize = RREG32(mmRCC_HW_DEBUG);
+
+	return memsize;
+}
+
 static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 					 bool *is_tmr_in_sysmem)
 {
@@ -311,7 +328,7 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 		}
 	}
 
-	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
+	vram_size = amdgpu_discovery_get_config_memsize(adev);
 	if (vram_size == U32_MAX)
 		return -ENXIO;
 	else if (!vram_size)
@@ -697,7 +714,7 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		break;
 	}
 
-	if (check_table && offset) {
+	if (check_table && offset && table_size) {
 		if (act_val != exp_val) {
 			dev_err(adev->dev, "invalid ip discovery %s signature\n", table_name);
 			return -EINVAL;
@@ -748,13 +765,13 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	/* Read from file if it is the preferred option */
 	fw_name = amdgpu_discovery_get_fw_name(adev);
 	if (fw_name != NULL) {
-		drm_dbg(&adev->ddev, "use ip discovery information from file");
+		drm_dbg(&adev->ddev, "use ip discovery information from file\n");
 		r = amdgpu_discovery_read_binary_from_file(adev, discovery_bin,
 							   fw_name);
 		if (r)
 			goto out;
 	} else {
-		drm_dbg(&adev->ddev, "use ip discovery information from memory");
+		drm_dbg(&adev->ddev, "use ip discovery information from memory\n");
 		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin,
 							  is_tmr_in_sysmem);
 		if (r)
@@ -2058,6 +2075,7 @@ union gc_info {
 	struct gc_info_v1_1 v1_1;
 	struct gc_info_v1_2 v1_2;
 	struct gc_info_v1_3 v1_3;
+	struct gc_info_v1_4 v1_4;
 	struct gc_info_v1_5 v1_5;
 	struct gc_info_v2_0 v2;
 	struct gc_info_v2_1 v2_1;
@@ -2120,7 +2138,18 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 			adev->gfx.config.gc_gl1c_size_per_instance = le32_to_cpu(gc_info->v1_2.gc_gl1c_size_per_instance);
 			adev->gfx.config.gc_gl2c_per_gpu = le32_to_cpu(gc_info->v1_2.gc_gl2c_per_gpu);
 		}
-		if (le16_to_cpu(gc_info->v1.header.version_minor) >= 3) {
+		if (le16_to_cpu(gc_info->v1.header.version_minor) == 4) {
+			num_wgps_per_sa = le32_to_cpu(gc_info->v1_4.gc_num_rwgp0_per_sa) +
+					  le32_to_cpu(gc_info->v1_4.gc_num_rwgp1_per_sa) +
+					  le32_to_cpu(gc_info->v1_4.gc_num_twgp0_per_sa) +
+					  le32_to_cpu(gc_info->v1_4.gc_num_twgp1_per_sa);
+			num_wgps_per_sa1 = le32_to_cpu(gc_info->v1_4.gc_num_rwgp0_per_sa1) +
+					   le32_to_cpu(gc_info->v1_4.gc_num_rwgp1_per_sa1) +
+					   le32_to_cpu(gc_info->v1_4.gc_num_twgp0_per_sa1) +
+					   le32_to_cpu(gc_info->v1_4.gc_num_twgp1_per_sa1);
+			adev->gfx.config.max_cu_per_sh = 2 * (num_wgps_per_sa >= num_wgps_per_sa1 ?
+							      num_wgps_per_sa : num_wgps_per_sa1);
+		} else if (le16_to_cpu(gc_info->v1.header.version_minor) >= 3) {
 			adev->gfx.config.gc_tcp_size_per_cu = le32_to_cpu(gc_info->v1_3.gc_tcp_size_per_cu);
 			adev->gfx.config.gc_tcp_cache_line_size = le32_to_cpu(gc_info->v1_3.gc_tcp_cache_line_size);
 			adev->gfx.config.gc_instruction_cache_size_per_sqc = le32_to_cpu(gc_info->v1_3.gc_instruction_cache_size_per_sqc);
@@ -2129,14 +2158,6 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 			adev->gfx.config.gc_scalar_data_cache_line_size = le32_to_cpu(gc_info->v1_3.gc_scalar_data_cache_line_size);
 			adev->gfx.config.gc_tcc_size = le32_to_cpu(gc_info->v1_3.gc_tcc_size);
 			adev->gfx.config.gc_tcc_cache_line_size = le32_to_cpu(gc_info->v1_3.gc_tcc_cache_line_size);
-		}
-		if (le16_to_cpu(gc_info->v1.header.version_minor) == 4 ||
-		    le16_to_cpu(gc_info->v1.header.version_minor) > 5) {
-			dev_err(adev->dev,
-				"Unsupported GC info table %d.%d\n",
-				le16_to_cpu(gc_info->v1.header.version_major),
-				le16_to_cpu(gc_info->v1.header.version_minor));
-			return -EINVAL;
 		}
 		if (le16_to_cpu(gc_info->v1.header.version_minor) == 5) {
 			adev->gfx.config.gc_max_num_residency_ways = le32_to_cpu(gc_info->v1_5.gc_max_num_residency_ways);
@@ -2201,7 +2222,7 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 	union mall_info *mall_info;
 	u32 u, mall_size_per_umc, m_s_present, half_use;
 	u64 mall_size;
-	u16 offset;
+	u16 offset, size;
 
 	if (!discovery_bin) {
 		DRM_ERROR("ip discovery uninitialized\n");
@@ -2211,8 +2232,9 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 	if (amdgpu_discovery_get_table_info(adev, &info, MALL_INFO))
 		return -EINVAL;
 	offset = le16_to_cpu(info->offset);
+	size = le16_to_cpu(info->size);
 
-	if (!offset)
+	if (!offset || !size)
 		return 0;
 
 	mall_info = (union mall_info *)(discovery_bin + offset);
@@ -2257,7 +2279,7 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 	uint8_t *discovery_bin = adev->discovery.bin;
 	struct table_info *info;
 	union vcn_info *vcn_info;
-	u16 offset;
+	u16 offset, size;
 	int v;
 
 	if (!discovery_bin) {
@@ -2278,8 +2300,9 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 	if (amdgpu_discovery_get_table_info(adev, &info, VCN_INFO))
 		return -EINVAL;
 	offset = le16_to_cpu(info->offset);
+	size = le16_to_cpu(info->size);
 
-	if (!offset)
+	if (!offset || !size)
 		return 0;
 
 	vcn_info = (union vcn_info *)(discovery_bin + offset);
@@ -2317,7 +2340,7 @@ static int amdgpu_discovery_refresh_nps_info(struct amdgpu_device *adev,
 	struct binary_header_v2 bhdrv2;
 	uint16_t checksum;
 
-	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
+	vram_size = (uint64_t)amdgpu_discovery_get_config_memsize(adev) << 20;
 	pos = vram_size - DISCOVERY_TMR_OFFSET;
 	amdgpu_device_vram_access(adev, pos, &bhdr, sizeof(bhdr), false);
 
@@ -2768,6 +2791,9 @@ static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(7, 1, 0):
 		amdgpu_device_ip_block_add(adev, &ih_v7_0_ip_block);
 		break;
+	case IP_VERSION(8, 0, 1):
+		amdgpu_device_ip_block_add(adev, &ih_v8_0_ip_block);
+		break;
 	default:
 		dev_err(adev->dev,
 			"Failed to add ih ip block(OSSSYS_HWIP:0x%x)\n",
@@ -2837,6 +2863,9 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(15, 0, 5):
 	case IP_VERSION(15, 0, 9):
 		amdgpu_device_ip_block_add(adev, &psp_v15_0_ip_block);
+		break;
+	case IP_VERSION(15, 0, 3):
+		amdgpu_device_ip_block_add(adev, &psp_v15_0_3_ip_block);
 		break;
 	case IP_VERSION(15, 0, 8):
 		amdgpu_device_ip_block_add(adev, &psp_v15_0_8_ip_block);
@@ -3132,7 +3161,9 @@ static int amdgpu_discovery_set_ras_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(13, 0, 15):
 	case IP_VERSION(15, 0, 8):
+	case IP_VERSION(15, 0, 3):
 		amdgpu_device_ip_block_add(adev, &ras_v1_0_ip_block);
 		break;
 	default:
@@ -3318,6 +3349,10 @@ static int amdgpu_discovery_set_vpe_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(2, 0, 0):
 	case IP_VERSION(2, 2, 0):
 		amdgpu_device_ip_block_add(adev, &vpe_v2_0_ip_block);
+		break;
+	case IP_VERSION(3, 0, 0):
+	case IP_VERSION(3, 0, 1):
+		amdgpu_device_ip_block_add(adev, &vpe_v3_0_ip_block);
 		break;
 	default:
 		break;
@@ -3806,6 +3841,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(6, 3, 2):
 		adev->nbio.funcs = &nbio_v6_3_2_funcs;
 		break;
+	case IP_VERSION(7, 10, 0):
+		adev->nbio.funcs = &nbif_v7_10_funcs;
+		adev->nbio.hdp_flush_reg = &nbif_v7_10_hdp_flush_reg;
+		break;
 	default:
 		break;
 	}
@@ -3844,6 +3883,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(7, 0, 0):
 		adev->hdp.funcs = &hdp_v7_0_funcs;
 		break;
+	case IP_VERSION(8, 0, 1):
+		adev->hdp.funcs = &hdp_v8_0_funcs;
+		break;
 	default:
 		break;
 	}
@@ -3869,6 +3911,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 15, 0):
 	case IP_VERSION(4, 15, 1):
+	case IP_VERSION(5, 0, 2):
 		adev->df.funcs = &df_v4_15_funcs;
 		break;
 	default:
@@ -3924,6 +3967,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(15, 0, 5):
 		adev->smuio.funcs = &smuio_v15_0_0_funcs;
 		break;
+	case IP_VERSION(15, 0, 3):
+		adev->smuio.funcs = &smuio_v15_0_3_funcs;
+		break;
 	case IP_VERSION(15, 0, 8):
 		adev->smuio.funcs = &smuio_v15_0_8_funcs;
 		break;
@@ -3944,6 +3990,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(7, 1, 0):
 		adev->lsdma.funcs = &lsdma_v7_1_funcs;
+		break;
+	case IP_VERSION(8, 0, 0):
+		adev->lsdma.funcs = &lsdma_v8_0_funcs;
 		break;
 	default:
 		break;

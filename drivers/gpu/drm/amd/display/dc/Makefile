@@ -68,6 +68,7 @@ FILES += dc_fused_io.o
 FILES += dc_helper.o
 FILES += dc_memory_pool.o
 FILES += core/dc.o
+FILES += dc_api_dispatch/api_shim.o
 FILES += core/dc_debug.o
 FILES += core/dc_hw_sequencer.o
 FILES += core/dc_link_enc_cfg.o
@@ -79,6 +80,8 @@ FILES += core/dc_state.o
 FILES += core/dc_stream.o
 FILES += core/dc_surface.o
 FILES += core/dc_vm_helper.o
+FILES += core2/dc_core2.o
+FILES += core2/dc_core2_init.o
 
 AMD_DISPLAY_FILES += $(addprefix $(AMDDALPATH)/dc/, $(FILES))
 

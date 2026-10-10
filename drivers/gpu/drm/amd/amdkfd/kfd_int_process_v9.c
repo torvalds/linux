@@ -359,7 +359,7 @@ static bool event_interrupt_isr_v9(struct kfd_node *dev,
 		!amdgpu_no_queue_eviction_on_vm_fault);
 }
 
-static void gfx942_clean_fault(uint16_t pasid)
+static void gfx_9_clean_fault(uint16_t pasid)
 {
 	struct kfd_process *p;
 	struct kfd_process_device *pdd = NULL;
@@ -565,10 +565,12 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 			return;
 		}
 
-			/* GPR cleaner shader for MI2XX */
-			if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
-				gfx942_clean_fault(pasid);
-
+		/* GPR cleaner for GFX9 MI-series GPUs */
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0))
+			gfx_9_clean_fault(pasid);
 
 		info.vmid = vmid;
 		info.mc_id = client_id;

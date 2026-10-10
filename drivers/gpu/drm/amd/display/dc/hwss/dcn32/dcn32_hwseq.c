@@ -425,22 +425,10 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	}
 }
 
-void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
+bool dcn32_is_subvp_hw_lock_supported(const struct dc *dc)
 {
-	struct dc *dc = params->subvp_pipe_control_lock_fast_params.dc;
-	bool lock = params->subvp_pipe_control_lock_fast_params.lock;
-	bool subvp_immediate_flip = params->subvp_pipe_control_lock_fast_params.subvp_immediate_flip;
-
-	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
-	if (subvp_immediate_flip) {
-		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
-
-		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
-		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
-		hw_lock_cmd.bits.lock = lock;
-		hw_lock_cmd.bits.should_release = !lock;
-		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
-	}
+	/* SubVP inbox0 lock has no firmware feature gate on this generation. */
+	return dc && dc->ctx && dc->ctx->dmub_srv && dc->ctx->dmub_srv->dmub;
 }
 
 bool dcn32_set_mpc_shaper_3dlut(struct dpp *dpp, struct mpc *mpc,
@@ -1115,17 +1103,25 @@ void dcn32_update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		if (should_use_dto_dscclk)
 			dccg->funcs->set_dto_dscclk(dccg, dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+		if (!dsc->funcs->dsc_prepare_config(dsc, &dsc_cfg, &dsc_optc_cfg)) {
+			ASSERT(false);
+			return;
+		}
+		dsc->funcs->dsc_set_config(dsc);
 		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 			struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
 
 			ASSERT(odm_dsc);
 			if (!odm_dsc)
-				continue;
+				return;
 			if (should_use_dto_dscclk)
 				dccg->funcs->set_dto_dscclk(dccg, odm_dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-			odm_dsc->funcs->dsc_set_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg);
+			if (!odm_dsc->funcs->dsc_prepare_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg)) {
+				ASSERT(false);
+				return;
+			}
+			odm_dsc->funcs->dsc_set_config(odm_dsc);
 			odm_dsc->funcs->dsc_enable(odm_dsc, odm_pipe->stream_res.opp->inst);
 		}
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
@@ -1754,7 +1750,8 @@ void dcn32_init_blank(
 				&black_color,
 				otg_active_width,
 				otg_active_height,
-				0);
+				0,
+				dc->debug.disable_dynamic_expansion_for_test_pattern);
 
 	if (num_opps == 2) {
 		if (bottom_opp && bottom_opp->funcs->opp_set_disp_pattern_generator) {
@@ -1766,7 +1763,8 @@ void dcn32_init_blank(
 					&black_color,
 					otg_active_width,
 					otg_active_height,
-					0);
+					0,
+					dc->debug.disable_dynamic_expansion_for_test_pattern);
 			hws->funcs.wait_for_blank_complete(bottom_opp);
 		}
 	}

@@ -561,13 +561,6 @@ static int vega10_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	return -ETIMEDOUT;
 }
 
-static int vega10_ih_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-
-	return 0;
-}
-
 static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
 					       bool enable)
 {
@@ -625,7 +618,6 @@ const struct amd_ip_funcs vega10_ih_ip_funcs = {
 	.suspend = vega10_ih_suspend,
 	.resume = vega10_ih_resume,
 	.wait_for_idle = vega10_ih_wait_for_idle,
-	.soft_reset = vega10_ih_soft_reset,
 	.set_clockgating_state = vega10_ih_set_clockgating_state,
 	.set_powergating_state = vega10_ih_set_powergating_state,
 };

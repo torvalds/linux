@@ -370,7 +370,7 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
 	struct drm_exec exec;
-	u64 addr, *ptr;
+	u64 addr, offset, *ptr;
 	int ret;
 
 	addr = queue->userq_prop->wptr_gpu_addr;
@@ -384,7 +384,7 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 			goto lock_error;
 
 		mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, addr);
-		if (!mapping) {
+		if (!mapping || !mapping->bo_va->base.bo) {
 			ret = -EINVAL;
 			goto lock_error;
 		}
@@ -402,7 +402,10 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 		goto lock_error;
 	}
 
-	*wptr = le64_to_cpu(*ptr);
+	/* The WPTR can be anywhere within the BO's VA mapping. */
+	offset = addr - (mapping->start << AMDGPU_GPU_PAGE_SHIFT);
+	offset += mapping->offset;
+	*wptr = le64_to_cpu(ptr[offset / sizeof(*ptr)]);
 
 	amdgpu_bo_kunmap(bo);
 	drm_exec_fini(&exec);

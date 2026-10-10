@@ -58,8 +58,14 @@ struct dc_memory_pool {
 	char _reserved2[PAGE_SIZE - sizeof(atomic64_t)];
 };
 
-static_assert(sizeof(struct dc_memory_pool) == 2 * PAGE_SIZE);
-static_assert(offsetof(struct dc_memory_pool, free_head) == PAGE_SIZE);
+static_assert(
+		sizeof(struct dc_memory_pool) == 2 * PAGE_SIZE,
+		"dc_memory_pool size should be 2 pages"
+);
+static_assert(
+		offsetof(struct dc_memory_pool, free_head) == PAGE_SIZE,
+		"dc_memory_pool free_head should be aligned to page"
+);
 
 static size_t divide_ceiling(size_t x, size_t d)
 {

@@ -714,7 +714,7 @@ pro_end:
 	return r;
 }
 
-static int gfx_v9_4_2_clean_shaders(struct amdgpu_device *adev)
+static int gfx_v9_clean_shaders(struct amdgpu_device *adev)
 {
 	int r;
 	/* CU_ID: 0~15, SIMD_ID: 0~3, WAVE_ID: 0 ~ 9 */
@@ -763,16 +763,17 @@ pro_end:
 	amdgpu_ib_free(&wb_ib, NULL);
 
 	if (r)
-		dev_dbg(adev->dev, "Clean MI200 Failed\n");
+		dev_dbg(adev->dev, "Clean GPR Failed\n");
 	else
-		dev_dbg(adev->dev, "Clean MI200 Successfully\n");
+		dev_dbg(adev->dev, "Clean GPR Successfully\n");
 
 	return r;
 }
 
-void gfx_v9_4_2_clean_fault(struct amdgpu_device *adev)
+void gfx_v9_fault_cleaner(struct amdgpu_device *adev)
 {
-	gfx_v9_4_2_clean_shaders(adev);
+	/* to clean MI2XX and MI3XX */
+	gfx_v9_clean_shaders(adev);
 }
 
 int gfx_v9_4_2_do_edc_gpr_workarounds(struct amdgpu_device *adev)

@@ -30,6 +30,7 @@ RAS_CORE_FILES = core.o \
 			eeprom.o \
 			ras_umc.o \
 			ras_umc_v12_0.o \
+			ras_umc_v13_0.o \
 			ras_umc_v15_0.o \
 			cmd.o \
 			ras_gfx.o \
@@ -43,6 +44,7 @@ RAS_CORE_FILES = core.o \
 			ras_psp.o \
 			ras_psp_v13_0.o \
 			ras_psp_v15_0.o \
+			ras_psp_v15_0_3.o \
 			eeprom_fw.o \
 			ras_mce.o
 

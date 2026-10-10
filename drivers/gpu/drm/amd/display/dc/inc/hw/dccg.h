@@ -201,15 +201,6 @@ struct dccg {
 	//int audio_dtbclk_khz;/* TODO needs to be removed */
 	//int ref_dtbclk_khz;/* TODO needs to be removed */
 };
-struct dtbclk_dto_params {
-	const struct dc_crtc_timing *timing;
-	int otg_inst;
-	int pixclk_khz;
-	int req_audio_dtbclk_khz;
-	int num_odm_segments;
-	int ref_dtbclk_khz;
-	bool is_hdmi;
-};
 
 struct dccg_funcs {
 	void (*update_dpp_dto)(struct dccg *dccg,

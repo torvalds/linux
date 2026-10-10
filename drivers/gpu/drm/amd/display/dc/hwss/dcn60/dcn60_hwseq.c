@@ -885,6 +885,11 @@ void dcn60_init_hw(struct dc *dc)
 		dc->res_pool->hubbub->funcs->override_utm_client_qc_profile(dc->res_pool->hubbub, dc->debug.utm_client_qc_profiles[1], 1);
 		dc->res_pool->hubbub->funcs->override_utm_client_qc_profile(dc->res_pool->hubbub, dc->debug.utm_client_qc_profiles[2], 2);
 	}
+		/* Temporary init for SDP port control in driver.
+		 * Remove once programming is in pre-OS DMU init.
+		 */
+	if (dc->res_pool->hubbub->funcs->set_sdpif_port_control)
+		dc->res_pool->hubbub->funcs->set_sdpif_port_control(dc->res_pool->hubbub, false);
 
 	// Get DMCUB capabilities
 	if (dc->ctx->dmub_srv) {

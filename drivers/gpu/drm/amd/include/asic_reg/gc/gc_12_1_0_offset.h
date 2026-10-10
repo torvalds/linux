@@ -6649,6 +6649,8 @@
 #define regRLC_IMU_MISC_BASE_IDX                                                                        1
 #define regRLC_IMU_RESET_VECTOR                                                                         0x4e17
 #define regRLC_IMU_RESET_VECTOR_BASE_IDX                                                                1
+#define regRLC_IMU_AID_CONFIG                                                                           0x4e18
+#define regRLC_IMU_AID_CONFIG_BASE_IDX                                                                  1
 
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_cpwd_rlcsdec

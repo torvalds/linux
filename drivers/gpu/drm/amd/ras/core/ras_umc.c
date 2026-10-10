@@ -24,6 +24,7 @@
 #include "ras.h"
 #include "ras_umc.h"
 #include "ras_umc_v12_0.h"
+#include "ras_umc_v13_0.h"
 #include "ras_umc_v15_0.h"
 
 #define MAX_ECC_NUM_PER_RETIREMENT  16
@@ -80,6 +81,9 @@ static const struct ras_umc_ip_func *ras_umc_get_ip_func(
 	case IP_VERSION(15, 0, 0):
 		ras_umc->max_pages_per_row = 128;
 		return &ras_umc_func_v15_0;
+	case IP_VERSION(13, 1, 0):
+		ras_umc->max_pages_per_row = 128;
+		return &ras_umc_func_v13_0;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"UMC ip version(0x%x) is not supported!\n", ip_version);

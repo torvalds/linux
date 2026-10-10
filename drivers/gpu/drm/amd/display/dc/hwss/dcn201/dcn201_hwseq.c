@@ -214,7 +214,8 @@ void dcn201_init_blank(
 			&black_color,
 			otg_active_width,
 			otg_active_height,
-			0);
+			0,
+			dc->debug.disable_dynamic_expansion_for_test_pattern);
 
 	hws->funcs.wait_for_blank_complete(opp);
 }

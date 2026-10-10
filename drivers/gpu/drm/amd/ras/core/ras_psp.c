@@ -26,6 +26,7 @@
 #include "ras_psp.h"
 #include "ras_psp_v13_0.h"
 #include "ras_psp_v15_0.h"
+#include "ras_psp_v15_0_3.h"
 
 /* position of instance value in sub_block_index of
  * ta_ras_trigger_error_input, the sub block uses lower 12 bits
@@ -46,7 +47,10 @@ static const struct ras_psp_ip_func *ras_psp_get_ip_funcs(
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 14):
 	case IP_VERSION(13, 0, 12):
+	case IP_VERSION(13, 0, 15):
 		return &ras_psp_v13_0;
+	case IP_VERSION(15, 0, 3):
+		return &ras_psp_v15_0_3;
 	case IP_VERSION(15, 0, 8):
 		return &ras_psp_v15_0;
 	default:

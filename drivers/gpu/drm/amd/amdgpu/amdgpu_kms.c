@@ -30,6 +30,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_vblank.h>
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 #include "atom.h"
@@ -283,6 +284,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		break;
 	case AMDGPU_INFO_FW_SMC:
 		fw_info->ver = adev->pm.fw_version;
+		fw_info->feature = 0;
+		break;
+	case AMDGPU_INFO_FW_MP5:
+		fw_info->ver = adev->pm.mp5_fw_version;
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_TA:
@@ -1665,6 +1670,9 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
+	if (!down_read_trylock(&adev->reset_domain->sem))
+		return drm_crtc_vblank_count(crtc);
+
 
 	/* The hw increments its frame counter at start of vsync, not at start
 	 * of vblank, as is required by DRM core vblank counter handling.
@@ -1710,6 +1718,7 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 		DRM_DEBUG_VBL("NULL mode info! Returned count may be wrong.\n");
 	}
 
+	up_read(&adev->reset_domain->sem);
 	return count;
 }
 
@@ -1936,6 +1945,14 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	smu_debug = (fw_info.ver >> 0) & 0xff;
 	seq_printf(m, "SMC feature version: %u, program: %d, firmware version: 0x%08x (%d.%d.%d)\n",
 		   fw_info.feature, smu_program, fw_info.ver, smu_major, smu_minor, smu_debug);
+
+	/* MP5 */
+	query_fw.fw_type = AMDGPU_INFO_FW_MP5;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MP5 feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	/* SDMA */
 	query_fw.fw_type = AMDGPU_INFO_FW_SDMA;

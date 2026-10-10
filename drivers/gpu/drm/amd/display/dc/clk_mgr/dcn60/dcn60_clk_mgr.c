@@ -120,6 +120,9 @@ static const struct clk_mgr_mask clk_mgr_mask_dcn60 = {
 #define TO_DCN60_CLK_MGR(clk_mgr)\
 	container_of(clk_mgr, struct dcn60_clk_mgr, base)
 
+/* Temporary UTM override used to unblock DCN6 testing. */
+static bool dcn60_should_apply_temp_utm_override = true;
+
 static bool dcn60_is_ppclk_dpm_enabled(struct clk_mgr_internal *clk_mgr, PPCLK_e clk)
 {
 	bool ppclk_dpm_enabled = false;
@@ -481,18 +484,19 @@ static int dcn60_get_dtb_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 
 /**
  * dcn60_override_dc_mode_limit - Override DC mode limits from the clock table.
- * @dc_limit: output DC mode limit to populate
- * @clk_table: clock table already populated (and possibly overridden)
+ * @clk_mgr: clock manager instance
+ * @bw_params: bandwidth parameters containing the clock table and DC limits
  *
  * Sets the DC mode max frequency for each clock to the highest populated DPM
  * level in the clock table. Deriving the limit from the clock table (rather
  * than the raw DAL init table) ensures any overrides applied to the clock
  * levels are respected.
  */
-static void dcn60_override_dc_mode_limit(
-		struct clk_limit_table_entry *dc_limit,
-		const struct clk_limit_table *clk_table)
+static void dcn60_override_dc_mode_limit(struct clk_mgr_internal *clk_mgr,
+		struct clk_bw_params *bw_params)
 {
+	struct clk_limit_table_entry *dc_limit = &bw_params->dc_mode_limit;
+	const struct clk_limit_table *clk_table = &bw_params->clk_table;
 	const struct clk_limit_table_entry *entries = clk_table->entries;
 	const struct clk_limit_num_entries *num_entries = &clk_table->num_entries_per_clk;
 
@@ -510,6 +514,11 @@ static void dcn60_override_dc_mode_limit(
 			entries[num_entries->num_memclk_levels - 1].memclk_mhz : 0;
 	dc_limit->fclk_mhz    = num_entries->num_fclk_levels ?
 			entries[num_entries->num_fclk_levels - 1].fclk_mhz : 0;
+
+	if (clk_mgr->base.ctx->dc->debug.disable_dtb_ref_clk_switch)
+		dc_limit->dtbclk_mhz = 0;
+
+	bw_params->dc_mode_softmax_memclk = dc_limit->memclk_mhz;
 }
 
 static unsigned int dcn60_get_dc_mode_limit_mhz(const DpmClock_t *dpm_clk)
@@ -615,56 +624,118 @@ static void dcn60_populate_clk_table(struct clk_mgr_internal *clk_mgr,
 
 /**
  * dcn60_override_clk_table - Override the clock table with hardcoded values.
+ * @clk_mgr: clock manager instance
  * @clk_table: clock table to override
  *
  * Temporary debug/bring-up override that replaces the DPM clock levels
  * populated from the DAL init table (see dcn60_populate_clk_table) with a
- * fixed set of hardcoded values. Implement any override as needed.
+ * fixed set of hardcoded values, then applies the configured minimum clock
+ * floors.
  */
-static void dcn60_override_clk_table(struct clk_limit_table *clk_table)
+static void dcn60_override_clk_table(struct clk_mgr_internal *clk_mgr,
+		struct clk_limit_table *clk_table)
 {
-	/* Override as needed */
-	(void)clk_table;
+	unsigned int i;
+
+	if (clk_mgr->base.ctx->dc->debug.min_disp_clk_khz) {
+		unsigned int min_disp_clk_mhz =
+			khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_disp_clk_khz);
+
+		for (i = 0; i < clk_table->num_entries_per_clk.num_dispclk_levels; i++)
+			if (clk_table->entries[i].dispclk_mhz
+					< min_disp_clk_mhz)
+				clk_table->entries[i].dispclk_mhz
+					= min_disp_clk_mhz;
+	}
+
+	if (clk_mgr->base.ctx->dc->debug.min_dpp_clk_khz) {
+		unsigned int min_dpp_clk_mhz =
+			khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_dpp_clk_khz);
+
+		for (i = 0; i < clk_table->num_entries_per_clk.num_dppclk_levels; i++)
+			if (clk_table->entries[i].dppclk_mhz
+					< min_dpp_clk_mhz)
+				clk_table->entries[i].dppclk_mhz
+					= min_dpp_clk_mhz;
+	}
+}
+
+/**
+ * dcn60_copy_utm_qos_model_to_soc_table - Convert a UTM QoS model to the PMFW table format.
+ * @dchub: overridden DCN6 UTM QoS model
+ * @utm_table: GPU-visible PMFW UTM table to populate
+ */
+static void dcn60_copy_utm_qos_model_to_soc_table(
+		const struct utm_qos_model_dchub_v3 *dchub,
+		SocUtmTable_t *utm_table)
+{
+	unsigned int load_level_count = dchub->load_level_count;
+	unsigned int sop_count = dchub->sop_count;
+	unsigned int ll, sop;
+
+	if (load_level_count > UTM_QOS_MODEL_V3_MAX_LOAD_LEVEL_COUNT)
+		load_level_count = UTM_QOS_MODEL_V3_MAX_LOAD_LEVEL_COUNT;
+
+	if (sop_count > UTM_QOS_MODEL_V3_MAX_SOP_COUNT)
+		sop_count = UTM_QOS_MODEL_V3_MAX_SOP_COUNT;
+
+	memset(utm_table, 0, sizeof(*utm_table));
+	utm_table->Header.LoadLevelCount = load_level_count;
+	utm_table->Header.SopCount = sop_count;
+
+	for (ll = 0; ll < load_level_count; ll++) {
+		for (sop = 0; sop < sop_count; sop++) {
+			const struct utm_qos_model_dchub_v3_sop_entry *src =
+					&dchub->sops[ll][sop];
+			SocUtmSopEntry_t *dst = &utm_table->Sops[ll][sop];
+
+			dst->UrgentRampPs = src->urgent_ramp_ps;
+			dst->TripPs = src->t_trip_ps;
+			dst->MetaTripToMemPs = src->meta_trip_to_mem_ps;
+			dst->MaxReqLatencyUrgPs = src->max_req_latency_urg_ps;
+			dst->AvgReqLatencyUrgPs = src->avg_req_latency_urg_ps;
+			dst->MaxReqLatencyNonUrgPs = src->max_req_latency_non_urg_ps;
+			dst->AvgReqLatencyNonUrgPs = src->avg_req_latency_non_urg_ps;
+			dst->DfResponseTimePs = src->df_response_time_ps;
+			dst->UrgentBandwidthKBps = src->urgent_bandwidth_KBps;
+			dst->NominalBandwidthKBps = src->nominal_bandwidth_KBps;
+			dst->LsdmaBandwidthKBps = src->lsdma_bandwidth_KBps;
+		}
+	}
+}
+
+/**
+ * dcn60_override_utm_qos_model - Override the UTM QoS model.
+ * @clk_mgr: clock manager instance
+ * @bw_params: clock manager bandwidth parameters
+ */
+static void dcn60_override_utm_qos_model(struct clk_mgr_internal *clk_mgr,
+		struct clk_bw_params *bw_params)
+{
+	struct dcn60_clk_mgr *dcn60_clk_mgr =
+			container_of(clk_mgr, struct dcn60_clk_mgr, base);
+	struct utm_qos_model *qos_model = &dcn60_clk_mgr->utm_qos_model;
+	struct utm_qos_model_dchub_v3 *dchub = &dcn60_clk_mgr->dchub_v3;
+
+	bw_params->utm_qos_model = qos_model;
+
+	dcn6_test_initialize_utm_qos_model_v3(qos_model, dchub);
+
+	// Override for lsdma here is redundant with the above call, but this may need to outlive
+	// the test_initialize call for debug purposes so keep it here for now.
+	dcn6_test_override_lsdma_bandwidth_v3(dchub);
 }
 
 static void dcn60_override_bw_params(struct clk_mgr_internal *clk_mgr,
 		struct clk_bw_params *bw_params)
 {
-	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	unsigned int i;
-
-	if (clk_mgr->base.ctx->dc->debug.min_disp_clk_khz) {
-		for (i = 0; i < clk_table->num_entries_per_clk.num_dispclk_levels; i++)
-			if (clk_table->entries[i].dispclk_mhz
-					< (unsigned int)khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_disp_clk_khz))
-				clk_table->entries[i].dispclk_mhz
-					= (unsigned int)khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_disp_clk_khz);
+	if (!ASICREV_IS_DCN6_VARIANT_LITE3(clk_mgr->base.ctx->asic_id.hw_internal_rev)) {
+		dcn60_override_clk_table(clk_mgr, &bw_params->clk_table);
+		dcn60_override_dc_mode_limit(clk_mgr, bw_params);
 	}
 
-	if (clk_mgr->base.ctx->dc->debug.min_dpp_clk_khz) {
-		for (i = 0; i < clk_table->num_entries_per_clk.num_dppclk_levels; i++)
-			if (clk_table->entries[i].dppclk_mhz
-					< (unsigned int)khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_dpp_clk_khz))
-				clk_table->entries[i].dppclk_mhz
-					= (unsigned int)khz_to_mhz_ceil(clk_mgr->base.ctx->dc->debug.min_dpp_clk_khz);
-	}
-
-	if (clk_mgr->base.ctx->dc->debug.disable_dtb_ref_clk_switch)
-		bw_params->dc_mode_limit.dtbclk_mhz = 0;
-
-	bw_params->dc_mode_softmax_memclk = bw_params->dc_mode_limit.memclk_mhz;
-
-	/* Override as needed - temporary for debug only. */
-	if (bw_params->utm_qos_model && bw_params->utm_qos_model->dchub_v3) {
-		dcn6_test_initialize_utm_qos_model_v3(
-				(struct utm_qos_model *)bw_params->utm_qos_model,
-				(struct utm_qos_model_dchub_v3 *)bw_params->utm_qos_model->dchub_v3);
-
-		// Override for lsdma here is redundant with the above call, but this may need to outlive
-		// the test_initialize call for debug purposes so keep it here for now.
-		dcn6_test_override_lsdma_bandwidth_v3(
-				(struct utm_qos_model_dchub_v3 *)bw_params->utm_qos_model->dchub_v3);
-	}
+	if (dcn60_should_apply_temp_utm_override)
+		dcn60_override_utm_qos_model(clk_mgr, bw_params);
 }
 
 /**
@@ -750,8 +821,6 @@ static bool dcn60_fetch_dal_init_table(struct clk_mgr_internal *clk_mgr)
 	dcn60_populate_utm_qos_model(clk_mgr, &bw_params->utm_qos_model, init_table);
 
 	dcn60_override_bw_params(clk_mgr, bw_params);
-	dcn60_override_clk_table(&bw_params->clk_table);
-	dcn60_override_dc_mode_limit(&bw_params->dc_mode_limit, &bw_params->clk_table);
 
 	return true;
 }
@@ -922,6 +991,32 @@ static void dcn60_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
 	}
 }
 
+/**
+ * dcn60_update_smu_utm_table - Send the current UTM QoS model to SMU.
+ * @clk_mgr: clock manager instance
+ *
+ * Return: true if SMU accepted the UTM table, false otherwise
+ */
+static bool dcn60_update_smu_utm_table(struct clk_mgr_internal *clk_mgr)
+{
+	const struct utm_qos_model *qos_model = clk_mgr->base.bw_params->utm_qos_model;
+	const struct utm_qos_model_dchub_v3 *dchub;
+	SocUtmTable_t *utm_table;
+
+	if (!qos_model
+			|| qos_model->version != utm_qos_model_version_v3
+			|| !qos_model->dchub_v3
+			|| !clk_mgr->utm_override_table)
+		return false;
+
+	dchub = qos_model->dchub_v3;
+	utm_table = (SocUtmTable_t *)clk_mgr->utm_override_table;
+
+	dcn60_copy_utm_qos_model_to_soc_table(dchub, utm_table);
+	return dcn60_smu_set_soc_utm_table(clk_mgr,
+			clk_mgr->utm_override_table_addr);
+}
+
 void dcn60_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -947,6 +1042,11 @@ void dcn60_init_clocks(struct clk_mgr *clk_mgr_base)
 	if (clk_mgr->dpm_present)
 		clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 				clk_mgr_base->ctx->dc, clk_mgr_base->bw_params);
+
+	if (clk_mgr->dpm_present
+			&& dcn60_should_apply_temp_utm_override
+			&& !dcn60_update_smu_utm_table(clk_mgr))
+		DC_LOG_ERROR("Failed to transfer UTM override table to SMU.\n");
 }
 
 
@@ -1704,6 +1804,7 @@ struct clk_mgr_internal *dcn60_clk_mgr_construct(
 {
 	struct dcn60_clk_mgr *clk_mgr60 = kzalloc_obj(struct dcn60_clk_mgr);
 	struct clk_mgr_internal *clk_mgr;
+	bool variant_clocks = ASICREV_IS_DCN6_VARIANT_LITE3(ctx->asic_id.hw_internal_rev);
 
 	if (!clk_mgr60)
 		return NULL;
@@ -1728,14 +1829,14 @@ struct clk_mgr_internal *dcn60_clk_mgr_construct(
 	 * dcn60_dump_clk_registers from 4 * dentist_vco_freq_khz /
 	 * dprefclk DID divider
 	 */
-	clk_mgr->base.dprefclk_khz = 720000;
+	clk_mgr->base.dprefclk_khz = variant_clocks ? 607407 : 720000;
 
 		/* integer part is now VCO frequency in kHz */
 		clk_mgr->base.dentist_vco_freq_khz = dcn60_get_vco_frequency_from_reg(clk_mgr);
 
 		/* in case we don't get a value from the register, use default */
 		if (clk_mgr->base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.dentist_vco_freq_khz = 4500000;
+			clk_mgr->base.dentist_vco_freq_khz = variant_clocks ? 4100000 : 4500000;
 
 	clk_mgr->dfs_bypass_enabled = false;
 
@@ -1751,6 +1852,12 @@ struct clk_mgr_internal *dcn60_clk_mgr_construct(
 	if (!clk_mgr->dal_init_table)
 		goto fail;
 
+	clk_mgr->utm_override_table = dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx,
+			DC_MEM_ALLOC_TYPE_GART, sizeof(SocUtmTable_t),
+			&clk_mgr->utm_override_table_addr);
+	if (!clk_mgr->utm_override_table)
+		goto fail;
+
 	return &clk_mgr60->base;
 
 fail:
@@ -1763,6 +1870,10 @@ fail:
 void dcn60_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
 	kfree(clk_mgr->base.bw_params);
+
+	if (clk_mgr->utm_override_table)
+		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,
+				clk_mgr->utm_override_table);
 
 	if (clk_mgr->dal_init_table)
 		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,

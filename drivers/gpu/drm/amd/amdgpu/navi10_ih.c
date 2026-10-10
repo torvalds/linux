@@ -635,12 +635,6 @@ static int navi10_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	return -ETIMEDOUT;
 }
 
-static int navi10_ih_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return 0;
-}
-
 static void navi10_ih_update_clockgating_state(struct amdgpu_device *adev,
 					       bool enable)
 {
@@ -698,7 +692,6 @@ static const struct amd_ip_funcs navi10_ih_ip_funcs = {
 	.suspend = navi10_ih_suspend,
 	.resume = navi10_ih_resume,
 	.wait_for_idle = navi10_ih_wait_for_idle,
-	.soft_reset = navi10_ih_soft_reset,
 	.set_clockgating_state = navi10_ih_set_clockgating_state,
 	.set_powergating_state = navi10_ih_set_powergating_state,
 	.get_clockgating_state = navi10_ih_get_clockgating_state,

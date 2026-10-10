@@ -1428,7 +1428,7 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			ret = convert_tiling_flags_to_modifier_gfx6(rfb);
 
 		if (ret) {
-			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
+			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier\n",
 				    rfb->tiling_flags);
 			return ret;
 		}

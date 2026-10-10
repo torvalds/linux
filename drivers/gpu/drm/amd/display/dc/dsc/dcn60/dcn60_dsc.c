@@ -12,6 +12,7 @@
 static const struct dsc_funcs dcn60_dsc_funcs = {
 	.dsc_read_state = dsc401_read_state,
 	.dsc_validate_stream = dsc401_validate_stream,
+	.dsc_prepare_config = dsc60_prepare_config,
 	.dsc_set_config = dsc60_set_config,
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
 	.dsc_enable = dsc401_enable,
@@ -115,10 +116,10 @@ static void dsc60_init_reg_values(struct dsc60_reg_values *reg_vals)
 	reg_vals->pps.rc_tgt_offset_high = 3;
 }
 
-/*Updates dsc_reg_values::reg_vals::xxx fields based on the values from computed params.
-* This is required because dscc_compute_dsc_parameters returns a modified PPS, which in turn
-* affects non - PPS register values.
-*/
+/* Updates dsc60_reg_values::reg_vals::xxx fields based on the values from computed params.
+ * This is required because dscc_compute_dsc_parameters returns a modified PPS, which in turn
+ * affects non-PPS register values.
+ */
 static void dsc60_update_from_dsc_parameters(struct dsc60_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
 {
 	int i;
@@ -132,7 +133,7 @@ static void dsc60_update_from_dsc_parameters(struct dsc60_reg_values *reg_vals, 
 	reg_vals->rc_buffer_model_size = dsc_params->rc_buffer_model_size;
 }
 
-static bool dsc60_prepare_config(const struct dsc_config *dsc_cfg, struct dsc60_reg_values *dsc_reg_vals,
+static bool dsc60_prepare_config_internal(const struct dsc_config *dsc_cfg, struct dsc60_reg_values *dsc_reg_vals,
 	struct dsc_optc_config *dsc_optc_cfg)
 {
 	struct dsc_parameters dsc_params;
@@ -403,16 +404,32 @@ static void dsc60_write_to_registers(struct display_stream_compressor *dsc, cons
 
 }
 
-void dsc60_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc60_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 	struct dsc_optc_config *dsc_optc_cfg)
 {
-	bool is_config_ok;
-	struct dcn60_dsc *dsc60 = TO_DCN60_DSC(dsc);
+	struct dcn60_dsc *dsc60;
+	struct dsc60_reg_values reg_vals = {};
+	struct dsc_optc_config optc = {};
 
-	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
-	dsc_config_log(dsc, dsc_cfg);
-	is_config_ok = dsc60_prepare_config(dsc_cfg, &dsc60->reg_vals, dsc_optc_cfg);
-	ASSERT(is_config_ok);
+	if (!dsc || !dsc_cfg || !dsc_optc_cfg)
+		return false;
+
+	dsc60 = TO_DCN60_DSC(dsc);
+	if (!dsc60_prepare_config_internal(dsc_cfg, &reg_vals, &optc))
+		return false;
+	dsc60->reg_vals = reg_vals;
+	*dsc_optc_cfg = optc;
+	return true;
+}
+
+void dsc60_set_config(struct display_stream_compressor *dsc)
+{
+	struct dcn60_dsc *dsc60;
+
+	if (!dsc)
+		return;
+
+	dsc60 = TO_DCN60_DSC(dsc);
 	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	dsc_log_pps(dsc, &dsc60->reg_vals.pps);
 	dsc60_write_to_registers(dsc, &dsc60->reg_vals);

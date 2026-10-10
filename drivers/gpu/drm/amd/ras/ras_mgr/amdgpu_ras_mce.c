@@ -163,8 +163,13 @@ static int amdgpu_ras_mce_notifier_v1(struct amdgpu_device *adev, unsigned int i
 
 	__fill_mce_to_aca_bank(adev, MCE_BANK_TYPE_GPU, m, &aca_bank);
 
-	if (ras_aca_parse_bank(ras_mgr->ras_core, &aca_bank, &err))
+	if (ras_aca_parse_bank(ras_mgr->ras_core, &aca_bank, &err)) {
+		RAS_DEV_ERR(adev,
+			"Unrecognized gpu mce: bank:%u IPID:0x%llx"
+			" STATUS:0x%llx ADDR:0x%llx SYND:0x%llx\n",
+			m->bank, m->ipid, m->status, m->addr, m->synd);
 		return -EINVAL;
+	}
 
 	/* GPU device only record bank data that matches its own socket id.*/
 	if (adev->smuio.funcs->get_socket_id(adev) != err.bank_info.socket_id)
@@ -201,9 +206,13 @@ static int amdgpu_ras_mce_notifier_v5(struct amdgpu_device *adev, unsigned int i
 	__fill_mce_to_aca_bank(adev, bank_type, m, &aca_bank);
 
 	if (bank_type == MCE_BANK_TYPE_GPU) {
-
-		if (ras_aca_parse_bank(ras_mgr->ras_core, &aca_bank, &err))
+		if (ras_aca_parse_bank(ras_mgr->ras_core, &aca_bank, &err)) {
+			RAS_DEV_ERR(adev,
+				"Unrecognized gpu mce: bank:%u IPID:0x%llx"
+				" STATUS:0x%llx ADDR:0x%llx SYND:0x%llx\n",
+				m->bank, m->ipid, m->status, m->addr, m->synd);
 			return -EINVAL;
+		}
 
 		/* GPU device only record bank data that matches its own socket id.*/
 		if (adev->smuio.funcs->get_socket_id(adev) != err.bank_info.socket_id)

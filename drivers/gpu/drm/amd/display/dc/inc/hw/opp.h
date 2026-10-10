@@ -340,7 +340,8 @@ struct opp_funcs {
 			const struct tg_color *solid_color,
 			int width,
 			int height,
-			int offset);
+			int offset,
+			bool disable_dyn_exp_for_test_pattern);
 
 	void (*opp_program_dpg_dimensions)(
 				struct output_pixel_processor *opp,

@@ -1250,8 +1250,15 @@ void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, con
 void dc_dmub_srv_cursor_offload_init(struct dc *dc)
 {
 	struct dmub_rb_cmd_cursor_offload_init *init;
-	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+	struct dc_dmub_srv *dc_dmub_srv;
 	union dmub_rb_cmd cmd;
+
+	if (!dc || !dc->ctx)
+		return;
+
+	dc_dmub_srv = dc->ctx->dmub_srv;
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return;
 
 	if (!dc->config.enable_cursor_offload)
 		return;
@@ -1942,6 +1949,7 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 		config->global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
 		config->global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
 		config->global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
+		config->global.features.bits.alternate_channel_workaround = dc->debug.fams2_config.bits.alternate_channel_workaround;
 
 		/* construct per-stream configs */
 		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {

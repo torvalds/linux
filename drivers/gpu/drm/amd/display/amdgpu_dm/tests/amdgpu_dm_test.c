@@ -50,15 +50,6 @@ static void dm_test_wait_for_idle(struct kunit *test)
 }
 
 /**
- * dm_test_soft_reset - Test placeholder soft-reset callback returns success
- * @test: The KUnit test context
- */
-static void dm_test_soft_reset(struct kunit *test)
-{
-	KUNIT_EXPECT_EQ(test, dm_soft_reset(NULL), 0);
-}
-
-/**
  * dm_test_set_clockgating_state - Test placeholder clockgating callback returns success
  * @test: The KUnit test context
  */
@@ -5217,7 +5208,6 @@ static void dm_test_gpureset_toggle_interrupts_dcn(struct kunit *test)
 static struct kunit_case amdgpu_dm_tests[] = {
 	/* Simple DM callbacks */
 	KUNIT_CASE(dm_test_wait_for_idle),
-	KUNIT_CASE(dm_test_soft_reset),
 	KUNIT_CASE(dm_test_set_clockgating_state),
 	KUNIT_CASE(dm_test_set_powergating_state),
 	KUNIT_CASE(dm_test_bandwidth_update),

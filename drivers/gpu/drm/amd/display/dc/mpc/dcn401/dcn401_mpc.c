@@ -627,8 +627,24 @@ void mpc401_get_lut_mode(struct mpc *mpc,
 	}
 }
 
+static void mpc401_read_mpcc_state(
+		struct mpc *mpc,
+		int mpcc_inst,
+		struct mpcc_state *s)
+{
+	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
+
+	mpc1_read_mpcc_state(mpc, mpcc_inst, s);
+
+	REG_GET_2(MPCC_MCM_3DLUT_MODE[mpcc_inst],
+			MPCC_MCM_3DLUT_MODE_CURRENT, &s->lut3d_mode,
+			MPCC_MCM_3DLUT_SIZE, &s->lut3d_size);
+	REG_GET(MPCC_MCM_SHAPER_CONTROL[mpcc_inst],
+			MPCC_MCM_SHAPER_MODE_CURRENT, &s->shaper_lut_mode);
+}
+
 static const struct mpc_funcs dcn401_mpc_funcs = {
-	.read_mpcc_state = mpc1_read_mpcc_state,
+	.read_mpcc_state = mpc401_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
 	.mpc_init = mpc32_mpc_init,

@@ -49,23 +49,6 @@
 #define NORMALIZE_MID_REG_OFFSET(offset) \
 		(offset & 0x3FFFF)
 
-/*
- * die_info[0].die_id from IP discovery encodes the silicon revision:
- *   bit[15:12] Reserved
- *   bit[11:8] MID revision
- *   bit[7:4]  AID revision
- *   bit[3:0]  XCD revision
- * The value is copied into adev->rev_id[15:0] (rev_id[31:16] are 0) and mapped
- * to adev->external_rev_id below.
- */
-#define SOC_V1_0_DIE_REV_XCD__SHIFT 0
-#define SOC_V1_0_DIE_REV_AID__SHIFT 4
-#define SOC_V1_0_DIE_REV_MID__SHIFT 8
-#define SOC_V1_0_DIE_REV(mid, aid, xcd)           \
-	(((mid) << SOC_V1_0_DIE_REV_MID__SHIFT) | \
-	 ((aid) << SOC_V1_0_DIE_REV_AID__SHIFT) | \
-	 ((xcd) << SOC_V1_0_DIE_REV_XCD__SHIFT))
-
 static const struct amdgpu_video_codecs vcn_5_0_2_video_codecs_encode_vcn0 = {
 	.codec_count = 0,
 	.codec_array = NULL,

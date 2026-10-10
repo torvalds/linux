@@ -2433,6 +2433,8 @@ static bool dcn42b_resource_construct(
 	/* SPL */
 	dc->caps.scl_caps.sharpener_support = true;
 
+	dc->dml2_options.pmo.force_mandatory_uclk_pstate_support = true;
+
 	return true;
 
 create_fail:

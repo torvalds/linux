@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 
 /* Copyright 2024 Advanced Micro Devices, Inc. */
-/* Copyright 2019 Raptor Engineering, LLC */
 
 #ifndef _SPL_OS_TYPES_H_
 #define _SPL_OS_TYPES_H_

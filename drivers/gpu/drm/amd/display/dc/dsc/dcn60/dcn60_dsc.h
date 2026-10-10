@@ -239,8 +239,9 @@ void dsc60_construct(struct dcn60_dsc *dsc,
 	const struct dcn60_dsc_mask *dsc_mask);
 
 void dsc60_set_fgcg(struct display_stream_compressor *dsc, bool enable);
-void dsc60_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc60_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 	struct dsc_optc_config *dsc_optc_cfg);
+void dsc60_set_config(struct display_stream_compressor *dsc);
 
 void dsc60_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsigned int max_dscclk_khz);
 

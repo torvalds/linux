@@ -724,6 +724,8 @@ void override_training_settings(
 {
 	uint32_t lane;
 
+	lt_settings->skip_link_bw_clear = overrides->skip_link_bw_clear;
+
 	/* Override link spread */
 	if (!link->dp_ss_off && overrides->downspread != NULL)
 		lt_settings->link_settings.link_spread = *overrides->downspread ?
@@ -1095,7 +1097,7 @@ enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings)
 {
-	uint8_t rate;
+	uint8_t rate = 0;
 	enum dc_status status;
 
 	union down_spread_ctrl downspread = {0};
@@ -1129,7 +1131,7 @@ enum dc_status dpcd_set_link_settings(
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
 			lt_settings->link_settings.use_link_rate_set == true) {
-		rate = 0;
+
 		/* WA for some MUX chips that will power down with eDP and lose supported
 		 * link rate set for eDP 1.4. Source reads DPCD 0x010 again to ensure
 		 * MUX chip gets link rate set back before link training.
@@ -1140,9 +1142,17 @@ enum dc_status dpcd_set_link_settings(
 			core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 					supported_link_rates, sizeof(supported_link_rates));
 		}
-		status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
-		if (status != DC_OK)
-			DC_LOG_ERROR("%s:%d: core_link_write_dpcd (DP_LINK_BW_SET) failed\n", __func__, __LINE__);
+
+		/*
+		 * It doesn't need to clear 0x100 in below two conditions:
+		 * 1. eDP v1.5 or later, because the last write will take effect in Sink.
+		 * 2. Sink requires not to clear 0x100.
+		 */
+		if (!lt_settings->skip_link_bw_clear && link->dpcd_caps.edp_rev <= DP_EDP_14b) {
+			status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
+			if (status != DC_OK)
+				DC_LOG_ERROR("%s:%d: core_link_write_dpcd (DP_LINK_BW_SET) failed\n", __func__, __LINE__);
+		}
 
 		status = core_link_write_dpcd(link, DP_LINK_RATE_SET,
 				&lt_settings->link_settings.link_rate_set, 1);

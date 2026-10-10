@@ -122,8 +122,6 @@ struct amdgpu_mes {
 	void                            *mqd_backup[AMDGPU_MAX_MES_INST_PIPES];
 	struct amdgpu_irq_src	        irq[AMDGPU_MAX_MES_INST_PIPES];
 
-	uint32_t                        vmid_mask_gfxhub;
-	uint32_t                        vmid_mask_mmhub;
 	uint32_t                        gfx_hqd_mask[AMDGPU_MES_MAX_GFX_PIPES];
 	uint32_t                        compute_hqd_mask[AMDGPU_MES_MAX_COMPUTE_PIPES];
 	uint32_t                        sdma_hqd_mask[AMDGPU_MES_MAX_SDMA_PIPES];
@@ -154,6 +152,30 @@ struct amdgpu_mes {
 	struct amdgpu_bo	*event_log_gpu_obj;
 	uint64_t			event_log_gpu_addr;
 	void				*event_log_cpu_addr;
+
+	/* MES firmware debug extension ("mes_dbgext") log buffer */
+	uint32_t			dbgext_log_size;	/* per-XCC region size */
+	uint64_t			dbgext_log_options;
+	struct amdgpu_bo		*dbgext_log_gpu_obj;
+	uint64_t			dbgext_log_gpu_addr;
+	void				*dbgext_log_cpu_addr;
+	bool				dbgext_use_irq;
+
+	/*
+	 * Number of per-XCC log regions packed back-to-back in the buffer above;
+	 * each is dbgext_log_size bytes.  1 on single-XCC ASICs (gfx11/gfx12).
+	 */
+	uint32_t			dbgext_num_xcc;
+
+	/* armed: FW attached + reader/irq running */
+	bool					dbgext_active;
+
+	struct work_struct		dbgext_work;
+	struct task_struct		*dbgext_reader;		/* polling fallback */
+	struct mutex			dbgext_lock;		/* serializes runtime start/stop */
+
+	/* runtime-requested size (KB); 0 = follow module param */
+	uint32_t			dbgext_runtime_kb;
 
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
@@ -371,7 +393,8 @@ enum mes_misc_opcode {
 	MES_MISC_OP_WRM_REG_WR_WAIT,
 	MES_MISC_OP_SET_SHADER_DEBUGGER,
 	MES_MISC_OP_CHANGE_CONFIG,
-	MES_MISC_OP_NOTIFY_WORK_ON_UNMAPPED_QUEUE
+	MES_MISC_OP_NOTIFY_WORK_ON_UNMAPPED_QUEUE,
+	MES_MISC_OP_SETUP_MES_DBGEXT,
 };
 
 struct mes_misc_op_input {
@@ -426,6 +449,11 @@ struct mes_misc_op_input {
 				uint32_t tdr_delay;
 			} tdr_config;
 		} change_config;
+
+		struct {
+			uint64_t log_buffer_mc_addr;
+			uint64_t log_options;
+		} setup_mes_dbgext;
 	};
 };
 
@@ -450,6 +478,13 @@ struct amdgpu_mes_funcs {
 
 	int (*misc_op)(struct amdgpu_mes *mes,
 		       struct mes_misc_op_input *input);
+
+	/*
+	 * Enable/disable the MES firmware debug-extension host interrupt at the
+	 * hardware level.  Runs in process context (may take srbm_mutex), unlike
+	 * the atomic irq .set callback.
+	 */
+	int (*enable_dbgext_irq)(struct amdgpu_mes *mes, bool enable);
 
 	int (*reset_hw_queue)(struct amdgpu_mes *mes,
 			      struct mes_reset_queue_input *input);
@@ -517,6 +552,26 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe);
 void amdgpu_mes_validate_fw_version(struct amdgpu_device *adev);
 int amdgpu_mes_init(struct amdgpu_device *adev);
 void amdgpu_mes_fini(struct amdgpu_device *adev);
+
+int amdgpu_mes_dbgext_start(struct amdgpu_device *adev);
+void amdgpu_mes_dbgext_stop(struct amdgpu_device *adev);
+void amdgpu_mes_dbgext_notify(struct amdgpu_device *adev, u32 context_data);
+
+/*
+ * MES host-interrupt context dword (IH src_data[0]), same overlay as KMD
+ * IRQMGR_INTERRUPT_CONTEXTDATA_MES and firmware MES_INT_CONTEXT_DATA:
+ *   bits 25:0  payload (doorbell / reserved)
+ *   bits 31:26 interrupt type (MES_DBGMSG = 7)
+ */
+#define AMDGPU_MES_IH_INT_TYPE_SHIFT	26
+#define AMDGPU_MES_IH_INT_TYPE_MASK	0x3f
+#define AMDGPU_MES_IH_INT_TYPE_DBGMSG	7
+
+static inline uint32_t amdgpu_mes_ih_int_type(uint32_t context_data)
+{
+	return (context_data >> AMDGPU_MES_IH_INT_TYPE_SHIFT) &
+	       AMDGPU_MES_IH_INT_TYPE_MASK;
+}
 
 int amdgpu_mes_suspend(struct amdgpu_device *adev, u32 xcc_id);
 int amdgpu_mes_resume(struct amdgpu_device *adev, u32 xcc_id);

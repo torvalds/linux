@@ -1040,6 +1040,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	if (!kfd->init_complete)
 		return 0;
 
+	for (i = 0; i < kfd->num_nodes; i++)
+		kfd_dqm_set_queues_as_reset(kfd->nodes[i]->dqm);
+
 	for (i = 0; i < kfd->num_nodes; i++) {
 		ret = kfd_resume(kfd->nodes[i]);
 		if (ret)

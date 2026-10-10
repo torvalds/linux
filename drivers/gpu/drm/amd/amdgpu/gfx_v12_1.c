@@ -703,6 +703,19 @@ static int gfx_v12_1_get_xccs_per_xcp(struct amdgpu_device *adev)
 	u32 reg_data;
 
 	/* the register data is expected to be the same on all instances */
+	if (amdgpu_sriov_vf(adev)) {
+		/*
+		 * RLCG cannot access the GFX_IMU registers, so take the field
+		 * from RLC_IMU_AID_CONFIG and read it without going through
+		 * the RLCG path.
+		 */
+		reg_data = RREG32_NO_KIQ(SOC15_REG_OFFSET(GC, GET_INST(GC, 0),
+							 regRLC_IMU_AID_CONFIG));
+
+		return REG_GET_FIELD(reg_data, RLC_IMU_AID_CONFIG,
+				     TOTAL_XCCS_IN_XCP);
+	}
+
 	reg_data = RREG32_SOC15(GC, GET_INST(GC, 0),
 				regGFX_IMU_PARTITION_SWITCH_SHADOW);
 
@@ -1134,7 +1147,7 @@ static void gfx_v12_1_alloc_ip_dump(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	ptr = kcalloc(reg_count * num_xcc, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, reg_count * num_xcc);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for GFX IP Dump\n");
 		adev->gfx.ip_dump_core = NULL;
@@ -1147,7 +1160,7 @@ static void gfx_v12_1_alloc_ip_dump(struct amdgpu_device *adev)
 	inst = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec *
 		adev->gfx.mec.num_queue_per_pipe;
 
-	ptr = kcalloc(reg_count * inst * num_xcc, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, reg_count * inst * num_xcc);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for Compute Queues IP Dump\n");
 		adev->gfx.ip_dump_compute_queues = NULL;
@@ -1496,11 +1509,23 @@ static u32 gfx_v12_1_get_sa_active_bitmap(struct amdgpu_device *adev,
 	return sa_mask & (~(gc_disabled_sa_mask | gc_user_disabled_sa_mask));
 }
 
+static u32 gfx_v12_1_get_sh_mem_config(struct amdgpu_device *adev)
+{
+	u32 sh_mem_config = DEFAULT_SH_MEM_CONFIG;
+
+	/* GC 12.1.0 A0 requires RETRY_DISABLE in SH_MEM_CONFIG. */
+	if (SOC_V1_0_DIE_REV_XCD(adev->rev_id) == 0)
+		sh_mem_config |= 1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+
+	return sh_mem_config;
+}
+
 static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 					    int xcc_id)
 {
 	int i;
 	uint32_t sh_mem_bases;
+	uint32_t sh_mem_config;
 	uint32_t data;
 
 	/*
@@ -1512,12 +1537,13 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 				     (adev->gmc.private_aperture_start >> 58));
 	sh_mem_bases = REG_SET_FIELD(sh_mem_bases, SH_MEM_BASES, SHARED_BASE,
 				     (adev->gmc.shared_aperture_start >> 48));
+	sh_mem_config = gfx_v12_1_get_sh_mem_config(adev);
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
 		soc_v1_0_grbm_select(adev, 0, 0, 0, i, GET_INST(GC, xcc_id));
 		/* CP and shaders */
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSH_MEM_CONFIG, DEFAULT_SH_MEM_CONFIG);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSH_MEM_CONFIG, sh_mem_config);
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSH_MEM_BASES, sh_mem_bases);
 
 		/* Enable trap for each kfd vmid. */
@@ -1551,7 +1577,10 @@ static void gfx_v12_1_xcc_constants_init(struct amdgpu_device *adev,
 					 int xcc_id)
 {
 	u32 tmp;
+	u32 sh_mem_config;
 	int i;
+
+	sh_mem_config = gfx_v12_1_get_sh_mem_config(adev);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -1560,7 +1589,7 @@ static void gfx_v12_1_xcc_constants_init(struct amdgpu_device *adev,
 		soc_v1_0_grbm_select(adev, 0, 0, 0, i, GET_INST(GC, xcc_id));
 		/* CP and shaders */
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id),
-			     regSH_MEM_CONFIG, DEFAULT_SH_MEM_CONFIG);
+			     regSH_MEM_CONFIG, sh_mem_config);
 		if (i != 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
 				(adev->gmc.private_aperture_start >> 58));
@@ -2417,8 +2446,10 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 				return r;
 		}
 
-		gfx_v12_1_xcc_update_medium_grain_clock_gating(adev, false,
-							       xcc_id, true);
+		/* MGCG is device wide and owned by the PF */
+		if (!amdgpu_sriov_vf(adev))
+			gfx_v12_1_xcc_update_medium_grain_clock_gating(adev, false,
+								       xcc_id, true);
 		/* GFX CGCG and LS is disabled by rlc fw */
 		gfx_v12_1_xcc_enable_gui_idle_interrupt(adev, false, xcc_id);
 
@@ -2440,8 +2471,9 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 			if (r)
 				return r;
 		}
-		gfx_v12_1_xcc_update_medium_grain_clock_gating(adev, true,
-							       xcc_id, true);
+		if (!amdgpu_sriov_vf(adev))
+			gfx_v12_1_xcc_update_medium_grain_clock_gating(adev, true,
+								       xcc_id, true);
 	}
 
 	return 0;
@@ -2665,7 +2697,8 @@ static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	gfx_v12_1_init_golden_registers(adev);
+	if (!amdgpu_sriov_vf(adev))
+		gfx_v12_1_init_golden_registers(adev);
 
 	gfx_v12_1_constants_init(adev);
 

@@ -19,6 +19,7 @@ bool dml2_initialize_instance(struct dml2_initialize_instance_in_out *in_out)
 	case dml2_project_dcn4x_stage2:
 	case dml2_project_dcn4x_stage2_auto_drr_svp:
 	case dml2_project_dcn42:
+	case dml2_project_dcn42b:
 		return dml2_top_soc15_initialize_instance(in_out);
 	case dml2_project_dcn5x_utm:
 	case dml2_project_dcn6x_soc_var_a:

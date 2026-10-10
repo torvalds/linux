@@ -1076,6 +1076,7 @@ struct dm_crtc_state {
 	bool vrr_supported;
 	struct mod_freesync_config freesync_config;
 	struct dc_info_packet vrr_infopacket;
+	struct dc_info_packet vtem_infopacket;
 
 	int abm_level;
 

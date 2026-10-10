@@ -1060,7 +1060,8 @@ static const char * const amdgpu_vram_names[] = {
 	"LPDDR4",
 	"LPDDR5",
 	"HBM3E",
-	"HBM4"
+	"HBM4",
+	"GDDR7"
 };
 
 /**

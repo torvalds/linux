@@ -1234,7 +1234,7 @@ uint32_t kgd_gfx_v9_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
 
 void kgd_gfx_v9_clean_fault(struct amdgpu_device *adev)
 {
-	gfx_v9_4_2_clean_fault(adev);
+	gfx_v9_fault_cleaner(adev);
 }
 
 const struct kfd2kgd_calls gfx_v9_kfd2kgd = {

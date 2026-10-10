@@ -35,6 +35,7 @@ bool dml2_core_create(enum dml2_project_id project_id, struct dml2_core_instance
 		result = true;
 		break;
 	case dml2_project_dcn42:
+	case dml2_project_dcn42b:
 		out->initialize = &core_dcn42_initialize;
 		out->mode_support = &core_dcn4_mode_support;
 		out->mode_programming = &core_dcn4_mode_programming;

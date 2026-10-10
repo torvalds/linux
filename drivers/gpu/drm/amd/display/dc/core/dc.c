@@ -90,6 +90,8 @@
 #endif
 
 #include "dce/dmub_outbox.h"
+#include "dc_api_dispatch/api_shim.h"
+#include "core2/dc_core2.h"
 
 #define CTX \
 	dc->ctx
@@ -981,6 +983,8 @@ static void dc_destruct(struct dc *dc)
 	kfree(dc->vm_helper);
 	dc->vm_helper = NULL;
 
+	if (TO_DC2(dc)->selection == DC2_SELECTION_CORE2)
+		core2_destruct(dc);
 }
 
 static bool dc_construct_ctx(struct dc *dc,
@@ -1178,6 +1182,10 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
+	api_shim_construct(dc, init_params);
+	if (TO_DC2(dc)->selection == DC2_SELECTION_CORE2)
+		core2_construct(dc);
+
 	return true;
 
 fail:
@@ -1333,6 +1341,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_crtc_timing_adjust *adjust)
 {
 	int i;
+	bool drr_unchanged;
 
 	/*
 	 * Don't adjust DRR while there's bandwidth optimizations pending to
@@ -1347,6 +1356,19 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		}
 	}
 
+	/* timing_adjust_pending tracks whether stream->adjust still describes the
+	 * OTG, so a cleared flag plus matching values means hw is already current.
+	 */
+	drr_unchanged = !stream->adjust.timing_adjust_pending &&
+			stream->adjust.v_total_min == adjust->v_total_min &&
+			stream->adjust.v_total_max == adjust->v_total_max &&
+			stream->adjust.v_total_mid == adjust->v_total_mid &&
+			stream->adjust.v_total_mid_frame_num == adjust->v_total_mid_frame_num &&
+			stream->adjust.allow_otg_v_count_halt == adjust->allow_otg_v_count_halt;
+
+	if (drr_unchanged)
+		return true;
+
 	dc_exit_ips_for_hw_access(dc);
 
 	stream->adjust.v_total_max = adjust->v_total_max;
@@ -1357,11 +1379,13 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 
 	if (dc->caps.max_v_total != 0 &&
 		(adjust->v_total_max > dc->caps.max_v_total || adjust->v_total_min > dc->caps.max_v_total)) {
-		stream->adjust.timing_adjust_pending = false;
-		if (adjust->allow_otg_v_count_halt)
+		if (adjust->allow_otg_v_count_halt) {
+			stream->adjust.timing_adjust_pending = false;
 			return set_long_vtotal(dc, stream, adjust);
-		else
-			return false;
+		}
+		/* Nothing reached hw, so stream->adjust no longer describes the OTG. */
+		stream->adjust.timing_adjust_pending = true;
+		return false;
 	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1564,7 +1588,8 @@ static void disable_vbios_mode_if_required(
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
-	struct dc *dc = kvzalloc_obj(*dc);
+	struct dc2 *dc2 = kvzalloc_obj(*dc2);
+	struct dc *dc = dc2 ? &dc2->dc : NULL;
 	unsigned int full_pipe_count;
 
 	if (!dc)
@@ -1612,7 +1637,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 destruct_dc:
 	dc_destruct(dc);
-	kvfree(dc);
+	kvfree(TO_DC2(dc));
 	return NULL;
 }
 
@@ -1638,7 +1663,7 @@ static void detect_edp_presence(struct dc *dc)
 	}
 }
 
-void dc_hardware_init(struct dc *dc)
+void legacy_hardware_init(struct dc *dc)
 {
 
 	detect_edp_presence(dc);
@@ -1661,7 +1686,7 @@ void dc_deinit_callbacks(struct dc *dc)
 void dc_destroy(struct dc **dc)
 {
 	dc_destruct(*dc);
-	kvfree(*dc);
+	kvfree(TO_DC2(*dc));
 	*dc = NULL;
 }
 
@@ -4080,21 +4105,14 @@ static void add_update_info_frame_sequence(
 
 static void add_link_update_dsc_config_sequence(
 		struct block_sequence_state *seq_state,
-		struct pipe_ctx *pipe_ctx,
-		struct dsc_config *dsc_cfg,
-		struct dsc_optc_config *dsc_optc_cfg)
+		struct pipe_ctx *pipe_ctx)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc *dc = stream->ctx->dc;
-	struct dccg *dccg = dc->res_pool->dccg;
 	struct pipe_ctx *top_pipe = pipe_ctx;
-	struct pipe_ctx *odm_pipe = NULL;
-	int opp_cnt = 1;
-	bool should_use_dto_dscclk = false;
-	struct dsc_config dsc_pps_cfg;
+	struct dsc_optc_config dsc_optc_cfg = {};
+	struct dsc_config dsc_pps_cfg = {};
 	uint8_t *dsc_packed_pps = stream->dsc_packed_pps;
-	int last_dsc_set_config_step = 0;
 
 	if (!stream->timing.flags.DSC || !dsc)
 		return;
@@ -4102,60 +4120,13 @@ static void add_link_update_dsc_config_sequence(
 	while (top_pipe->prev_odm_pipe)
 		top_pipe = top_pipe->prev_odm_pipe;
 
-	for (odm_pipe = top_pipe->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		opp_cnt++;
-
-	memset(dsc_cfg, 0, sizeof(*dsc_cfg));
-	memset(dsc_optc_cfg, 0, sizeof(*dsc_optc_cfg));
-
-	dsc_cfg->pic_width = (stream->timing.h_addressable +
-		top_pipe->dsc_padding_params.dsc_hactive_padding +
-		stream->timing.h_border_left +
-		stream->timing.h_border_right) / opp_cnt;
-	dsc_cfg->pic_height = stream->timing.v_addressable +
-		stream->timing.v_border_top +
-		stream->timing.v_border_bottom;
-	dsc_cfg->pixel_encoding = stream->timing.pixel_encoding;
-	dsc_cfg->color_depth = stream->timing.display_color_depth;
-	dsc_cfg->is_odm = top_pipe->next_odm_pipe ? true : false;
-	dsc_cfg->dc_dsc_cfg = stream->timing.dsc_cfg;
-	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_h % opp_cnt == 0);
-	dsc_cfg->dc_dsc_cfg.num_slices_h /= opp_cnt;
-	dsc_cfg->dsc_padding = 0;
-
-	if (dccg && dccg->funcs->set_dto_dscclk &&
-			stream->timing.pix_clk_100hz > 480000)
-		should_use_dto_dscclk = true;
-
-	if (should_use_dto_dscclk)
-		hwss_add_dccg_set_dto_dscclk(seq_state, dccg, dsc->inst,
-			dsc_cfg->dc_dsc_cfg.num_slices_h);
-
-	last_dsc_set_config_step = *seq_state->num_steps;
-	hwss_add_dsc_set_config(seq_state, dsc, dsc_cfg, dsc_optc_cfg);
-	hwss_add_dsc_enable_with_opp(seq_state, top_pipe);
-
-	for (odm_pipe = top_pipe->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
-
-		if (should_use_dto_dscclk)
-			hwss_add_dccg_set_dto_dscclk(seq_state, dccg, odm_dsc->inst,
-				dsc_cfg->dc_dsc_cfg.num_slices_h);
-
-		last_dsc_set_config_step = *seq_state->num_steps;
-		hwss_add_dsc_set_config(seq_state, odm_dsc, dsc_cfg, dsc_optc_cfg);
-		hwss_add_dsc_enable_with_opp(seq_state, odm_pipe);
-	}
+	if (!hwss_add_dsc_sequence_for_stream(seq_state, top_pipe, 0, &dsc_optc_cfg))
+		return;
 
 	if (dc_is_dp_signal(stream->signal) && !dp_is_128b_132b_signal(pipe_ctx))
 		hwss_add_stream_enc_dp_set_dsc_config(seq_state,
-			pipe_ctx->stream_res.stream_enc,
-			&seq_state->steps[last_dsc_set_config_step].params.dsc_set_config_simple_params.dsc_optc_cfg);
+			pipe_ctx->stream_res.stream_enc, &dsc_optc_cfg);
 
-	hwss_add_tg_set_dsc_config(seq_state, top_pipe->stream_res.tg,
-		&seq_state->steps[last_dsc_set_config_step].params.dsc_set_config_simple_params.dsc_optc_cfg, true);
-
-	memset(&dsc_pps_cfg, 0, sizeof(dsc_pps_cfg));
 	dsc_pps_cfg.pic_width = stream->timing.h_addressable +
 		stream->timing.h_border_left + stream->timing.h_border_right;
 	dsc_pps_cfg.pic_height = stream->timing.v_addressable +
@@ -4198,7 +4169,6 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 {
 	int j;
 	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
-	unsigned int dsc_cfg_index = 0;
 	*num_steps = 0; // Initialize to 0
 
 	// Stream updates
@@ -4269,15 +4239,7 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 				continue;
 
 			if (stream_update->dsc_config)
-				if (dsc_cfg_index < MAX_PIPES) {
-					struct dsc_config dsc_cfg;
-					struct dsc_optc_config dsc_optc_cfg;
-
-					add_link_update_dsc_config_sequence(&seq_state,
-						pipe_ctx,
-						&dsc_cfg,
-						&dsc_optc_cfg);
-				}
+				add_link_update_dsc_config_sequence(&seq_state, pipe_ctx);
 
 			if (stream_update->mst_bw_update) {
 				if (stream_update->mst_bw_update->is_increase)
@@ -6675,13 +6637,22 @@ bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc,
 	return false;
 }
 
-/* cleanup on driver unload */
-void dc_hardware_release(struct dc *dc)
+void legacy_hardware_release(struct dc *dc)
 {
 	dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(dc);
 
 	if (dc->hwss.hardware_release)
 		dc->hwss.hardware_release(dc);
+}
+
+static const struct dc2_funcs dc2_legacy_funcs_table = {
+	.hardware_init = legacy_hardware_init,
+	.hardware_release = legacy_hardware_release,
+};
+
+const struct dc2_funcs *dc2_legacy_funcs(void)
+{
+	return &dc2_legacy_funcs_table;
 }
 
 void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)

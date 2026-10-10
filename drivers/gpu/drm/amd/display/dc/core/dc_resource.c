@@ -3019,7 +3019,7 @@ static inline int find_fixed_dio_link_enc(const struct dc_link *link)
 {
 	/* virtual links own their link encoder directly and are never
 	 * registered into pool->link_encoders[]. */
-	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
+	if (link->link_id.id == CONNECTOR_ID_VIRTUAL)
 		return -1;
 
 	/* the 8b10b dp phy can only use fixed link encoder */
@@ -4886,7 +4886,7 @@ static void calculate_timing_params_for_dsc_with_padding(struct pipe_ctx *pipe_c
 #if defined(CONFIG_DRM_AMD_DC_FP)
 	uint32_t hactive;
 	uint32_t ceil_slice_width;
-	if (stream && stream->timing.flags.DSC) {
+	if (stream && stream->timing.flags.DSC && stream->signal == SIGNAL_TYPE_HDMI_FRL) {
 		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 
 		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/

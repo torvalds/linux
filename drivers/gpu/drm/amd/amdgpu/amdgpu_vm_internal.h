@@ -51,7 +51,7 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_device *adev;
 
 	/**
-	 * @vm: optional amdgpu_vm we do this update for
+	 * @vm: amdgpu_vm we do this update for
 	 */
 	struct amdgpu_vm *vm;
 
@@ -94,6 +94,11 @@ struct amdgpu_vm_update_params {
 	bool override_pte;
 
 	/**
+	 * @saved_flags: Saved flags for GFP reduction.
+	 */
+	unsigned int saved_flags;
+
+	/**
 	 * @tlb_flush_waitlist: temporary storage for BOs until tlb_flush
 	 */
 	struct list_head tlb_flush_waitlist;
@@ -126,21 +131,37 @@ void amdgpu_vm_pt_free_list(struct amdgpu_device *adev,
 			    struct amdgpu_vm_update_params *params);
 int amdgpu_vm_pt_map_tables(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 
-/*
- * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
- * happens while holding this lock anywhere to prevent deadlocks when
- * an MMU notifier runs in reclaim-FS context.
+/**
+ * amdgpu_vm_begin_critical - start the critical section of the update
+ * @p: The update parameters
+ *
+ * Serialize all updates, check parameters and make sure that memory allocations
+ * don't enter the reclaim path so that we don't deadlock with MMU notifiers.
+ *
+ * Returns:
+ *
+ * 0 on success or a negative error code on failure.
+ * Even on error amdgpu_vm_end_critical() must still be called to clean up!
  */
-static inline void amdgpu_vm_eviction_lock(struct amdgpu_vm *vm)
+static inline int amdgpu_vm_begin_critical(struct amdgpu_vm_update_params *p)
 {
-	mutex_lock(&vm->eviction_lock);
-	vm->saved_flags = memalloc_noreclaim_save();
+	mutex_lock(&p->vm->eviction_lock);
+	p->saved_flags = memalloc_noreclaim_save();
+	if (p->vm->evicting)
+		return -EBUSY;
+	return 0;
 }
 
-static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
+/**
+ * amdgpu_vm_end_critical - end the critical section of the update
+ * @p: The update parameters
+ *
+ * Restore the GFP flags and drop the lock.
+ */
+static inline void amdgpu_vm_end_critical(struct amdgpu_vm_update_params *p)
 {
-	memalloc_noreclaim_restore(vm->saved_flags);
-	mutex_unlock(&vm->eviction_lock);
+	memalloc_noreclaim_restore(p->saved_flags);
+	mutex_unlock(&p->vm->eviction_lock);
 }
 
 #endif

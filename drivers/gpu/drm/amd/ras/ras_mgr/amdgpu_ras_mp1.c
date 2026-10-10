@@ -92,9 +92,11 @@ static int amdgpu_ras_send_mp1_msg(struct ras_core_context *ras_core, u32 msg_id
 		ret = amdgpu_smu_ras_send_msg(adev, smu_msg,
 				params, num_params, read_args, num_read_args);
 		up_read(&adev->reset_domain->sem);
-	} else {
+	} else if (msg_id == RAS_MP1_MSG_ClearMcaOnRead)
+		ret = amdgpu_smu_ras_send_msg(adev, smu_msg,
+				params, num_params, read_args, num_read_args);
+	else
 		ret = -RAS_CORE_GPU_IN_MODE1_RESET;
-	}
 
 	return ret;
 }

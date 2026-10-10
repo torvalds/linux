@@ -30,15 +30,24 @@ static bool hubbub42_program_urgent_watermarks(
 		bool safe_to_lower)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+	const unsigned int urgent_floor = hubbub->ctx->dc->debug.urgent_watermark_override;
+	const unsigned int urgent_a = max(urgent_floor,
+		watermarks->dcn4x.a.urgent);
+	const unsigned int urgent_b = max(urgent_floor,
+		watermarks->dcn4x.b.urgent);
+	const unsigned int urgent_c = max(urgent_floor,
+		watermarks->dcn4x.c.urgent);
+	const unsigned int urgent_d = max(urgent_floor,
+		watermarks->dcn4x.d.urgent);
 	bool wm_pending = false;
 
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
-	if (safe_to_lower || watermarks->dcn4x.a.urgent > hubbub2->watermarks.dcn4x.a.urgent) {
-		hubbub2->watermarks.dcn4x.a.urgent = watermarks->dcn4x.a.urgent;
+	if (safe_to_lower || urgent_a > hubbub2->watermarks.dcn4x.a.urgent) {
+		hubbub2->watermarks.dcn4x.a.urgent = urgent_a;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, watermarks->dcn4x.a.urgent);
-	} else if (watermarks->dcn4x.a.urgent < hubbub2->watermarks.dcn4x.a.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, urgent_a);
+	} else if (urgent_a < hubbub2->watermarks.dcn4x.a.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -64,11 +73,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state B */
-	if (safe_to_lower || watermarks->dcn4x.b.urgent > hubbub2->watermarks.dcn4x.b.urgent) {
-		hubbub2->watermarks.dcn4x.b.urgent = watermarks->dcn4x.b.urgent;
+	if (safe_to_lower || urgent_b > hubbub2->watermarks.dcn4x.b.urgent) {
+		hubbub2->watermarks.dcn4x.b.urgent = urgent_b;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, watermarks->dcn4x.b.urgent);
-	} else if (watermarks->dcn4x.b.urgent < hubbub2->watermarks.dcn4x.b.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, urgent_b);
+	} else if (urgent_b < hubbub2->watermarks.dcn4x.b.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -94,11 +103,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state C */
-	if (safe_to_lower || watermarks->dcn4x.c.urgent > hubbub2->watermarks.dcn4x.c.urgent) {
-		hubbub2->watermarks.dcn4x.c.urgent = watermarks->dcn4x.c.urgent;
+	if (safe_to_lower || urgent_c > hubbub2->watermarks.dcn4x.c.urgent) {
+		hubbub2->watermarks.dcn4x.c.urgent = urgent_c;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, watermarks->dcn4x.c.urgent);
-	} else if (watermarks->dcn4x.c.urgent < hubbub2->watermarks.dcn4x.c.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, urgent_c);
+	} else if (urgent_c < hubbub2->watermarks.dcn4x.c.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -124,11 +133,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state D */
-	if (safe_to_lower || watermarks->dcn4x.d.urgent > hubbub2->watermarks.dcn4x.d.urgent) {
-		hubbub2->watermarks.dcn4x.d.urgent = watermarks->dcn4x.d.urgent;
+	if (safe_to_lower || urgent_d > hubbub2->watermarks.dcn4x.d.urgent) {
+		hubbub2->watermarks.dcn4x.d.urgent = urgent_d;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, watermarks->dcn4x.d.urgent);
-	} else if (watermarks->dcn4x.d.urgent < hubbub2->watermarks.dcn4x.d.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, urgent_d);
+	} else if (urgent_d < hubbub2->watermarks.dcn4x.d.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -530,6 +539,7 @@ static const struct hubbub_funcs hubbub42_funcs = {
 	.program_watermarks = hubbub42_program_watermarks,
 	.allow_self_refresh_control = hubbub42_allow_self_refresh_control,
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
+	.soft_reset = hubbub1_soft_reset,
 	.force_wm_propagate_to_pipes = hubbub32_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub35_init_watermarks,

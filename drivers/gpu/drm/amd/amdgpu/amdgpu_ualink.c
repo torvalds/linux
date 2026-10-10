@@ -2936,19 +2936,12 @@ static void amdgpu_ualink_exp_cleanup_worker(struct work_struct *work)
 	amdgpu_bo_unref(&bo);
 	exp_xa_node->bo = NULL;
 
-	/* Build the full npa_release_bitmap before sending any NPA-REVOKE. */
-	for_each_set_bit(remote_acc_id, exp_xa_node->importers_bitmap,
-				 AMDGPU_UALINK_ACCEL_MAX) {
-		imp_entry = &exp_xa_node->importer_entries[remote_acc_id];
-		if (!amdgpu_ualink_check_conn_ready(adev, remote_acc_id,
-					imp_entry->generation_count)) {
-			clear_bit(remote_acc_id,
-				  exp_xa_node->importers_bitmap);
-			continue;
-		}
-
-		set_bit(remote_acc_id, exp_xa_node->npa_release_bitmap);
-	}
+	/* Seed npa_release_bitmap with all importers before any NPA-REVOKE, so
+	 * the release IRQ only sees it empty once every responder has replied.
+	 * Dead peers are dropped from it in the send loop below.
+	 */
+	bitmap_copy(exp_xa_node->npa_release_bitmap,
+		    exp_xa_node->importers_bitmap, AMDGPU_UALINK_ACCEL_MAX);
 
 	/* Send NPA-REVOKE to all importers which have imported this memory.
 	 * On send failure clear the bit (no response will arrive) and mark the
@@ -2956,6 +2949,21 @@ static void amdgpu_ualink_exp_cleanup_worker(struct work_struct *work)
 	 */
 	for_each_set_bit(remote_acc_id, exp_xa_node->importers_bitmap,
 				 AMDGPU_UALINK_ACCEL_MAX) {
+		imp_entry = &exp_xa_node->importer_entries[remote_acc_id];
+
+		/* Re-check the connection right before the send: concurrent
+		 * cleanup workers all seed the bitmap while the peer is still
+		 * ESTABLISHED, so once its egress dies and the first worker
+		 * marks it NOT_READY, this skips the rest instead of flooding
+		 * the log with failed LSDMA sends to the same dead peer.
+		 */
+		if (!amdgpu_ualink_check_conn_ready(adev, remote_acc_id,
+					imp_entry->generation_count)) {
+			clear_bit(remote_acc_id,
+				  exp_xa_node->npa_release_bitmap);
+			continue;
+		}
+
 		dev_dbg(adev->dev,
 			"EXP-CLEANUP: Sending NPA-REVOKE to remote:%u\n",
 			remote_acc_id);
@@ -2966,7 +2974,6 @@ static void amdgpu_ualink_exp_cleanup_worker(struct work_struct *work)
 				remote_acc_id);
 			clear_bit(remote_acc_id, exp_xa_node->npa_release_bitmap);
 
-			imp_entry = &exp_xa_node->importer_entries[remote_acc_id];
 			amdgpu_ualink_handle_connection_reset(adev, remote_acc_id,
 						AMDGPU_UALINK_CONN_NOT_READY,
 						imp_entry->generation_count);
@@ -3049,12 +3056,7 @@ static void amdgpu_ualink_invalidate_import_mappings(struct amdgpu_bo *bo)
 		}
 	}
 
-	/* FIXME: This should be after the "if", but needs a fix to make sure
-	 * DMABuf imports are initialized in the right VM list.
-	 */
-	amdgpu_vm_bo_invalidate(bo, false);
-	if (!bo->tbo.resource || bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
-		goto fini;
+	amdgpu_vm_bo_move(bo, NULL, false);
 
 	r = ttm_bo_validate(&bo->tbo, &placement, &ctx);
 	if (r) {
@@ -3288,16 +3290,35 @@ static void amdgpu_ualink_process_npa_revoke_msg(struct amdgpu_device *adev,
 		return;
 	}
 
-	WRITE_ONCE(imp_xa_node->node_state, AMDGPU_UALINK_NODE_TEARDOWN);
-	list_del_init(&imp_xa_node->list);
-	xa_unlock(&adev->ualink.imp_xa);
+	switch (READ_ONCE(imp_xa_node->node_state)) {
+	case AMDGPU_UALINK_NODE_READY:
+		WRITE_ONCE(imp_xa_node->node_state, AMDGPU_UALINK_NODE_TEARDOWN);
+		list_del_init(&imp_xa_node->list);
+		xa_unlock(&adev->ualink.imp_xa);
 
-	/* Invalidate the GPUVM mappings */
-	bo = gem_to_amdgpu_bo(imp_xa_node->dmabuf->priv);
-	amdgpu_ualink_invalidate_import_mappings(bo);
+		/* Invalidate the GPUVM mappings */
+		bo = gem_to_amdgpu_bo(imp_xa_node->dmabuf->priv);
+		amdgpu_ualink_invalidate_import_mappings(bo);
 
-	/* Drop the refcount for the node */
-	amdgpu_ualink_imp_xa_entry_put(imp_xa_node);
+		/* Drop the refcount for the node */
+		amdgpu_ualink_imp_xa_entry_put(imp_xa_node);
+		break;
+	case AMDGPU_UALINK_NODE_PENDING:
+		/* The import is still building the dma-buf and nothing has
+		 * been handed to user-space yet. The importing thread sees
+		 * the teardown state and unwinds.
+		 */
+		WRITE_ONCE(imp_xa_node->node_state, AMDGPU_UALINK_NODE_TEARDOWN);
+		xa_unlock(&adev->ualink.imp_xa);
+		break;
+	default:
+		/* NPA-REVOKE always follows NPA-RSP, so a NOT_READY node means
+		 * a stale revoke, and a node in teardown is already being
+		 * released by whoever moved it there.
+		 */
+		xa_unlock(&adev->ualink.imp_xa);
+		return;
+	}
 
 	r = amdgpu_ualink_send_npa_release_msg(adev, remote_acc_id, handle);
 	if (r)
@@ -3760,9 +3781,20 @@ static int amdgpu_ualink_do_import_handle(struct amdgpu_device *adev,
 		return r;
 	}
 
-	/* Add this node to the imported handles list for the remote GPU */
+	/* Add this node to the imported handles list for the remote GPU,
+	 * unless the exporter revoked the handle while the import was in
+	 * flight. The dmabuf is released with the last node reference.
+	 */
 	xa_lock(&adev->ualink.imp_xa);
+	if (READ_ONCE(imp_xa_node->node_state) == AMDGPU_UALINK_NODE_TEARDOWN) {
+		xa_unlock(&adev->ualink.imp_xa);
+		dev_dbg(adev->dev,
+			"IMPORT: handle:%llx:%llx revoked during import\n",
+			handle.handle_hi, handle.handle_lo);
+		return -EINVAL;
+	}
 	list_add(&imp_xa_node->list, &adev->ualink.imp_handles_list[remote_acc_id]);
+	WRITE_ONCE(imp_xa_node->node_state, AMDGPU_UALINK_NODE_READY);
 	xa_unlock(&adev->ualink.imp_xa);
 
 	return 0;
@@ -3938,9 +3970,6 @@ int amdgpu_ualink_import_handle(struct drm_device *dev,
 					"IMPORT: XA import failed for handle:%llx:%llx\n",
 					handle.handle_hi, handle.handle_lo);
 			goto cleanup;
-		} else {
-			WRITE_ONCE(imp_xa_node->node_state,
-				   AMDGPU_UALINK_NODE_READY);
 		}
 	}
 
@@ -4023,8 +4052,7 @@ int amdgpu_ualink_export_handle(struct drm_device *dev, struct drm_file *filp,
 		if (IS_ERR(exp_xa_node->dmabuf)) {
 			r = PTR_ERR(exp_xa_node->dmabuf);
 			dev_err(adev->dev, "Failed to generate DMABuf for the BO\n");
-			kfree(exp_xa_node);
-			goto out;
+			goto err_unref_bo;
 		}
 
 		xa_lock(&adev->ualink.exp_xa);
@@ -4035,13 +4063,22 @@ int amdgpu_ualink_export_handle(struct drm_device *dev, struct drm_file *filp,
 		xa_unlock(&adev->ualink.exp_xa);
 		if (r) {
 			dev_err(adev->dev, "Failed to insert exp_xa_node into XA: %d\n", r);
-			dma_buf_put(exp_xa_node->dmabuf);
-			amdgpu_bo_unref(&robj);
-			kfree(exp_xa_node);
-			goto out;
+			goto err_put_dmabuf;
+		}
+
+		r = amdgpu_bo_reserve(robj, false);
+		if (r)
+			goto err_erase_xa;
+
+		if (robj->ualink_handle_lo) {
+			amdgpu_bo_unreserve(robj);
+			r = -EAGAIN;
+			goto err_erase_xa;
 		}
 
 		robj->ualink_handle_lo = handle.handle_lo;
+		amdgpu_bo_unreserve(robj);
+
 		/* Return the generated handle back to the caller */
 		*handle_out = handle;
 	} else {
@@ -4058,6 +4095,16 @@ int amdgpu_ualink_export_handle(struct drm_device *dev, struct drm_file *filp,
 			handle_out->handle_hi = exp_xa_node->handle.handle_hi;
 	}
 
+	drm_gem_object_put(gobj);
+	return 0;
+
+err_erase_xa:
+	xa_erase(&adev->ualink.exp_xa, handle.handle_lo);
+err_put_dmabuf:
+	dma_buf_put(exp_xa_node->dmabuf);
+err_unref_bo:
+	amdgpu_bo_unref(&exp_xa_node->bo);
+	kfree(exp_xa_node);
 out:
 	drm_gem_object_put(gobj);
 	return r;
@@ -4072,10 +4119,15 @@ int amdgpu_gem_ualink_handle_ioctl(struct drm_device *dev, void *data,
 	u32 gem_handle;
 	int r, fd = -1;
 
-	if (adev->ualink.info->accel_state !=
-	    AMDGPU_UALINK_ACCEL_STATE_ACTIVE) {
-		dev_err(adev->dev,
-			"ualink device is not in active state in vpod\n");
+	/* The ioctl is registered for every amdgpu device, but the UALink
+	 * software state only exists on ASICs that instantiate the UALink IP
+	 * block. Bail out if it is absent, and short-circuit before the
+	 * accel_state dereference below.
+	 */
+	if (!adev->ualink.info ||
+	    adev->ualink.info->accel_state != AMDGPU_UALINK_ACCEL_STATE_ACTIVE) {
+		dev_dbg(adev->dev,
+			"ualink device not available or not in active state\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -6116,6 +6168,7 @@ static int amdgpu_ualink_peer_remote_init(struct amdgpu_device *adev)
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo->tbo.ttm, bo->tbo.resource);
 	flags |= AMDGPU_PTE_SNOOPED | AMDGPU_PTE_PRT_GFX12 | AMDGPU_PTE_BUS_ATOMICS;
 	flags &= ~AMDGPU_PTE_VALID;
+	flags &= ~AMDGPU_PTE_SYSTEM;
 	/* PTE.X=0 turn off RPC checks for RBs, wptr and doorbell NPA address */
 	flags &= ~AMDGPU_PTE_EXECUTABLE;
 

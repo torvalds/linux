@@ -226,7 +226,8 @@ enum radeon_connector_table {
 	CT_MAC_X800,
 	CT_MAC_G5_9600,
 	CT_SAM440EP,
-	CT_MAC_G4_SILVER
+	CT_MAC_G4_SILVER,
+	CT_SUN_XVR300
 };
 
 enum radeon_dvo_chip {

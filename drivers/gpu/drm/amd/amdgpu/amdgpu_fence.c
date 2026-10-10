@@ -460,8 +460,8 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 
 	ring->fence_drv.num_fences_mask = ring->num_hw_submission * 2 - 1;
 	spin_lock_init(&ring->fence_drv.lock);
-	ring->fence_drv.fences = kcalloc(ring->num_hw_submission * 2, sizeof(void *),
-					 GFP_KERNEL);
+	ring->fence_drv.fences = kzalloc_objs(*ring->fence_drv.fences,
+					      ring->num_hw_submission * 2);
 
 	if (!ring->fence_drv.fences)
 		return -ENOMEM;

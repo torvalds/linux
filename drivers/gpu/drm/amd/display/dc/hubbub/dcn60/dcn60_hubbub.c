@@ -1905,6 +1905,13 @@ static void hubbub60_override_utm_client_qc_profile(struct hubbub *hubbub, uint8
 	}
 }
 
+static void hubbub60_set_sdpif_port_control(struct hubbub *hubbub, bool ignore_cstate_req)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	REG_UPDATE(DCHUBBUB_SDPIF_CFG0, SDPIF_PORT_CONTROL, ignore_cstate_req);
+}
+
 static const struct hubbub_funcs hubbub60_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub60_init_dchub_sys_ctx,
@@ -1919,6 +1926,7 @@ static const struct hubbub_funcs hubbub60_funcs = {
 	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.verify_allow_pstate_change_high = NULL,
+	.soft_reset = hubbub1_soft_reset,
 	.force_wm_propagate_to_pipes = hubbub60_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub60_init_watermarks,
@@ -1970,6 +1978,7 @@ static const struct hubbub_funcs hubbub60_funcs = {
 		.reset_display_qos_profile =
 			hubbub60_reset_display_qos_profile,
 	},
+	.set_sdpif_port_control = hubbub60_set_sdpif_port_control,
 };
 
 void hubbub60_construct(struct dcn20_hubbub *hubbub2,

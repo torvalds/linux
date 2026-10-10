@@ -30,17 +30,17 @@
 
 static bool dmub_hw_lock_has_inbox0_lock(const struct dc *dc)
 {
-	return dc->ctx && dc->ctx->dmub_srv &&
-	       dc->hwss.dmub_hw_control_lock &&
-	       dc->hwss.dmub_hw_control_lock_fast &&
-	       dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_support;
+	return dc && dc->ctx && dc->ctx->dmub_srv && dc->ctx->dmub_srv->dmub &&
+		dc->hwss.dmub_hw_control_lock &&
+		dc->hwss.is_dmub_hw_lock_supported &&
+		dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_support;
 }
 
 static bool dmub_hw_lock_has_inbox0_lock_split(const struct dc *dc)
 {
-	return dc->ctx && dc->ctx->dmub_srv &&
+	return dc && dc->ctx && dc->ctx->dmub_srv && dc->ctx->dmub_srv->dmub &&
 		dc->hwss.dmub_hw_control_lock &&
-		dc->hwss.dmub_hw_control_lock_fast &&
+		dc->hwss.is_dmub_hw_lock_supported &&
 		dc->ctx->dmub_srv->dmub->meta_info.feature_bits.bits.inbox0_lock_split;
 }
 

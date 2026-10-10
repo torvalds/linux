@@ -912,6 +912,10 @@ static void gfx_v12_0_select_me_pipe_q(struct amdgpu_device *adev,
 	soc24_grbm_select(adev, me, pipe, q, vm);
 }
 
+static bool gfx_v12_0_detect_hung_queue(struct amdgpu_device *adev,
+					u32 doorbell_index,
+					u32 *me, u32 *pipe, u32 *queue);
+
 /* all sizes are in bytes */
 #define MQD_SHADOW_BASE_SIZE      73728
 #define MQD_SHADOW_BASE_ALIGNMENT 256
@@ -951,6 +955,7 @@ static const struct amdgpu_gfx_funcs gfx_v12_0_gfx_funcs = {
 	.read_wave_sgprs = &gfx_v12_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v12_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v12_0_select_me_pipe_q,
+	.detect_hung_queue = &gfx_v12_0_detect_hung_queue,
 	.update_perfmon_mgcg = &gfx_v12_0_update_perf_clk,
 	.get_gfx_shadow_info = &gfx_v12_0_get_gfx_shadow_info,
 	.get_hdp_flush_mask = &amdgpu_gfx_get_hdp_flush_mask,
@@ -1371,7 +1376,7 @@ static void gfx_v12_0_alloc_ip_dump(struct amdgpu_device *adev)
 	uint32_t *ptr;
 	uint32_t inst;
 
-	ptr = kcalloc(reg_count, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, reg_count);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for GFX IP Dump\n");
 		adev->gfx.ip_dump_core = NULL;
@@ -1384,7 +1389,7 @@ static void gfx_v12_0_alloc_ip_dump(struct amdgpu_device *adev)
 	inst = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec *
 		adev->gfx.mec.num_queue_per_pipe;
 
-	ptr = kcalloc(reg_count * inst, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, reg_count * inst);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for Compute Queues IP Dump\n");
 		adev->gfx.ip_dump_compute_queues = NULL;
@@ -1397,7 +1402,7 @@ static void gfx_v12_0_alloc_ip_dump(struct amdgpu_device *adev)
 	inst = adev->gfx.me.num_me * adev->gfx.me.num_pipe_per_me *
 		adev->gfx.me.num_queue_per_pipe;
 
-	ptr = kcalloc(reg_count * inst, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, reg_count * inst);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for GFX Queues IP Dump\n");
 		adev->gfx.ip_dump_gfx_queues = NULL;
@@ -1570,6 +1575,8 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 		    !adev->debug_disable_gpu_ring_reset) {
 			adev->gfx.compute_supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 			adev->gfx.gfx_supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+			/* TODO: verify CP warm-reset support before enabling PER_PIPE. */
+			/* adev->gfx.gfx_supported_reset |= AMDGPU_RESET_TYPE_PER_PIPE; */
 		}
 		break;
 	default:
@@ -4873,6 +4880,29 @@ static int gfx_v12_0_eop_irq(struct amdgpu_device *adev,
 
 	DRM_DEBUG("IH: CP EOP\n");
 
+	if (((entry->ring_id & 0x0c) >> 2) == 3) {
+		u32 type = amdgpu_mes_ih_int_type(doorbell_offset);
+
+		switch (type) {
+		case AMDGPU_MES_IH_INT_TYPE_DBGMSG:
+			/*
+			 * MES firmware debug-extension ("mes_dbgext")
+			 * messages are delivered as an EOP interrupt from
+			 * the MES pipe (me 3), carrying MES_DBGMSG (type 7)
+			 * in context dword bits 31:26.  Route them to the
+			 * mes_dbgext drain instead of the (gfx/compute) EOP
+			 * fence handling below.
+			 */
+			if (adev->mes.dbgext_active)
+				amdgpu_mes_dbgext_notify(adev, doorbell_offset);
+			break;
+		default:
+			/* other MES host interrupt types are not handled */
+			break;
+		}
+		return 0;
+	}
+
 	if (!adev->gfx.disable_kq) {
 		u8 me_id = (entry->ring_id & 0x0c) >> 2;
 		u8 pipe_id = (entry->ring_id & 0x03) >> 0;
@@ -5046,6 +5076,43 @@ static int gfx_v12_0_set_priv_inst_fault_state(struct amdgpu_device *adev,
 	}
 
 	return 0;
+}
+
+static bool gfx_v12_0_detect_hung_queue(struct amdgpu_device *adev,
+					u32 doorbell_index,
+					u32 *me, u32 *pipe, u32 *queue)
+{
+	u32 i, k, p, db_ctrl, dboff;
+	bool found = false;
+
+	amdgpu_gfx_off_ctrl(adev, false);
+	mutex_lock(&adev->srbm_mutex);
+	for (i = 0; i < adev->gfx.me.num_me && !found; i++) {
+		for (p = 0; p < adev->gfx.me.num_pipe_per_me && !found; p++) {
+			for (k = 0; k < adev->gfx.me.num_queue_per_pipe; k++) {
+				soc24_grbm_select(adev, i, p, k, 0);
+				db_ctrl = RREG32_SOC15(GC, 0,
+						       regCP_RB_DOORBELL_CONTROL);
+				if (!(db_ctrl & CP_RB_DOORBELL_CONTROL__DOORBELL_EN_MASK))
+					continue;
+				dboff = (db_ctrl &
+					 CP_RB_DOORBELL_CONTROL__DOORBELL_OFFSET_MASK) >>
+					CP_RB_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+				if (dboff == doorbell_index) {
+					*me = i;
+					*pipe = p;
+					*queue = k;
+					found = true;
+					break;
+				}
+			}
+		}
+	}
+	soc24_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+	amdgpu_gfx_off_ctrl(adev, true);
+
+	return found;
 }
 
 /*

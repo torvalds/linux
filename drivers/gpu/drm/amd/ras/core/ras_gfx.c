@@ -38,6 +38,9 @@ static const struct ras_gfx_ip_func *ras_gfx_get_ip_funcs(
 	case IP_VERSION(12, 1, 0):
 		/* TBD */
 		break;
+	case IP_VERSION(13, 0, 1):
+		/* TBD */
+		break;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"GFX ip version(0x%x) is not supported!\n", ip_version);
