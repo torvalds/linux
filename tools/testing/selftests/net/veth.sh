@@ -327,7 +327,12 @@ if [ -f "$YNL" ]; then
 	ip netns exec $NS_DST ethtool -K veth$DST gro off
 	ip -n $NS_DST link set dev veth$DST up
 	chk_xdp_feature "        - peer ndo-xmit cleared" $SRC 0 ndo-xmit
+	ip -n $NS_SRC link set dev veth$SRC down
+	ip -n $NS_DST link set dev veth$DST down
 	ip netns exec $NS_DST ethtool -K veth$DST gro on
+	ip -n $NS_SRC link set dev veth$SRC up
+	chk_xdp_feature "        - own ndo-xmit" $SRC 1 ndo-xmit
+	ip -n $NS_DST link set dev veth$DST up
 fi
 ip netns exec $NS_SRC ethtool -K veth$SRC tx-udp-segmentation off
 ip netns exec $NS_DST ethtool -K veth$DST rx-udp-gro-forwarding on
