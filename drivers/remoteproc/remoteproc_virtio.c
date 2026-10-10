@@ -37,11 +37,12 @@ static int copy_dma_range_map(struct device *to, struct device *from)
 	for (r = map; r->size; r++)
 		num_ranges++;
 
-	new_map = kmemdup(map, array_size(num_ranges + 1, sizeof(*map)),
-			  GFP_KERNEL);
+	new_map = kmemdup_array(map, num_ranges + 1, sizeof(*map), GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
+
 	to->dma_range_map = new_map;
+
 	return 0;
 }
 
