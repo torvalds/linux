@@ -3913,6 +3913,11 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
+		.led_brightness_set = m88e1318_led_brightness_set,
+		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1510,
