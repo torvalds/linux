@@ -658,7 +658,8 @@ continue_unlock:
 
 			if (!__f2fs_write_meta_cache(entry, io_type)) {
 				f2fs_unlock_cache(entry);
-				break;
+				f2fs_cache_gang_release(entries, nr);
+				goto stop;
 			}
 			nwritten++;
 			next = entry->index + 1;
@@ -667,6 +668,9 @@ continue_unlock:
 		}
 		f2fs_cache_gang_release(entries, nr);
 		cond_resched();
+
+		if (unlikely(nwritten >= nr_to_write))
+			break;
 	}
 stop:
 	if (nwritten)
