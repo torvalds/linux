@@ -1289,10 +1289,10 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
 							dc_link_get_link_cap(aconnector->dc_link));
 
-	if (aconnector->dc_link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
-	    aconnector->dc_link->dpia_bw_alloc_config.bw_alloc_enabled) {
+	if (aconnector->dc_link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 		dsc_options.max_target_bpp_limit_override_x16 = 8 * 16;
-		dsc_options.force_dsc_when_not_needed = true;
+		if (aconnector->dc_link->dpia_bw_alloc_config.bw_alloc_enabled)
+			dsc_options.force_dsc_when_not_needed = true;
 	}
 
 	/* Set DSC policy according to dsc_clock_en */
