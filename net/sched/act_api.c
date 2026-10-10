@@ -307,13 +307,11 @@ int tcf_action_update_hw_stats(struct tc_action *action)
 
 	err = tcf_action_offload_cmd(&fl_act, NULL, NULL, NULL);
 	if (!err) {
-		preempt_disable();
 		tcf_action_stats_update(action, fl_act.stats.bytes,
 					fl_act.stats.pkts,
 					fl_act.stats.drops,
 					fl_act.stats.lastused,
 					true);
-		preempt_enable();
 		action->used_hw_stats = fl_act.stats.used_hw_stats;
 		action->used_hw_stats_valid = true;
 	} else {
@@ -1596,6 +1594,7 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
 			     u64 drops, bool hw)
 {
 	if (a->cpu_bstats) {
+		local_bh_disable();
 		_bstats_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
 
 		this_cpu_add(a->cpu_qstats->drops, drops);
@@ -1603,13 +1602,16 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
 		if (hw)
 			_bstats_update(this_cpu_ptr(a->cpu_bstats_hw),
 				       bytes, packets);
+		local_bh_enable();
 		return;
 	}
 
+	spin_lock_bh(&a->tcfa_lock);
 	_bstats_update(&a->tcfa_bstats, bytes, packets);
 	atomic_add(drops, &a->tcfa_drops);
 	if (hw)
 		_bstats_update(&a->tcfa_bstats_hw, bytes, packets);
+	spin_unlock_bh(&a->tcfa_lock);
 }
 EXPORT_SYMBOL(tcf_action_update_stats);
 
