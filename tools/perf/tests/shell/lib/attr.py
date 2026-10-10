@@ -30,6 +30,7 @@ def data_equal(a, b):
     return False
 
 CORE_PMU_AVAILABLE = None
+CORE_PMU_COUNT = None
 
 def core_pmu_available():
     """
@@ -38,40 +39,47 @@ def core_pmu_available():
     check the expectations that pin their legacy encodings.  The answer can't
     change while the tests run, so probe the binding only once.
     """
-    global CORE_PMU_AVAILABLE
-
-    if CORE_PMU_AVAILABLE is None:
-        CORE_PMU_AVAILABLE = core_pmu_probe()
-
+    core_pmu_probe()
     return CORE_PMU_AVAILABLE
 
 def core_pmu_probe():
     """
-    Ask perf itself, through its python binding, to parse and open 'cycles':
-    a parse failure or an ENOENT means no PMU can count it, any other error
-    means we can't tell whether there is one.
+    Ask perf itself, through its python binding, to parse and open 'cycles'
+    once: a parse failure or an ENOENT means no PMU can count it, any other
+    error means we can't tell whether there is one, and the number of events
+    it expanded to is the number of core PMUs, see
+    parse_events_multi_pmu_add(), which is what core_pmu_count() asks for.
     """
+    global CORE_PMU_AVAILABLE, CORE_PMU_COUNT
+
+    if CORE_PMU_AVAILABLE is not None:
+        return
+
     try:
         import perf
         parse_events = perf.parse_events
     except (ImportError, AttributeError):
         # Nothing to ask about it, let the expectations speak.
-        return True
+        CORE_PMU_AVAILABLE = True
+        return
 
     try:
         evlist = parse_events('cycles')
     except OSError:
         # No PMU that can count it, the same as the ENOENT below.
-        return False
+        CORE_PMU_AVAILABLE = False
+        return
 
+    CORE_PMU_COUNT = len(evlist)
     try:
         evlist.open()
     except OSError as err:
         # Anything else is a permission problem or alike, not our business here.
-        return err.errno != errno.ENOENT
+        CORE_PMU_AVAILABLE = err.errno != errno.ENOENT
+        return
     evlist.close()
 
-    return True
+    CORE_PMU_AVAILABLE = True
 
 PERF_TYPE_HARDWARE = 0
 PERF_TYPE_HW_CACHE = 3
@@ -131,6 +139,45 @@ SAMPLE_ID_BITS = PERF_SAMPLE_ID | PERF_SAMPLE_IDENTIFIER
 # sample id bits" when comparing the two sides.
 SAMPLE_ID_EITHER = 1 << 40
 
+PERF_FORMAT_GROUP = 1 << 3
+
+def core_pmu_count():
+    """
+    How many core PMUs does perf see?  An event with no PMU named in it
+    becomes one event per core PMU, see parse_events_multi_pmu_add(), and
+    that is the expansion that leaves the clones for the other core PMUs
+    without any group members and that makes perf qualify 'config' with the
+    type of the PMU it is for, so this is the number of events perf makes of
+    'cycles', from the probe core_pmu_available() shares.
+    """
+    core_pmu_probe()
+    return CORE_PMU_COUNT
+
+def single_core_pmu():
+    """
+    Does perf see only one core PMU?  Asked for by the comparisons that need
+    it, not at import time, as a run may never get to one.
+    """
+    return core_pmu_count() == 1
+
+def hide_group_format(expected, recorded):
+    """
+    read_format's PERF_FORMAT_GROUP bit asks for the group members to be read
+    along with the leader, which aside from this bit is verified with the
+    fd/group_fd based group checking, and with more than one core PMU a group
+    whose members are pinned to one of them, say 'default_core', leaves the
+    clones for the other core PMUs without any members, so that bit isn't
+    there: whether it is there is a consequence of how the evlist got
+    expanded to more than one core PMU, not of what the expectations are
+    about, so take it out on both sides.  On a machine with a single core PMU
+    there is nothing to expand, so the expectations keep verifying it.
+    """
+    if single_core_pmu():
+        return expected, recorded
+
+    return (mask_bits(expected, PERF_FORMAT_GROUP),
+            mask_bits(recorded, PERF_FORMAT_GROUP))
+
 def hide_sample_id(expected, recorded):
     """
     perf asks for a way to tell the samples apart, PERF_SAMPLE_IDENTIFIER where
@@ -160,6 +207,8 @@ def hide_sample_id(expected, recorded):
         return expected, mask_bits(recorded, SAMPLE_ID_BITS)
 
     if not asked:
+        if single_core_pmu():
+            return expected, recorded
         return expected, mask_bits(recorded, SAMPLE_ID_BITS)
 
     return (str(int(expected, 0) & ~SAMPLE_ID_BITS | SAMPLE_ID_EITHER),
@@ -261,6 +310,8 @@ class Event(dict):
     def hide_event_count_dependent_terms(self, term, expected, recorded):
         if term == 'sample_type':
             return hide_sample_id(expected, recorded)
+        if term == 'read_format':
+            return hide_group_format(expected, recorded)
 
         return expected, recorded
 
