@@ -1366,6 +1366,7 @@ static int cxl_dc_check(struct device *dev, struct cxl_dc_partition_info *part,
 	u64 decode_len = le64_to_cpu(dev_part->decode_length);
 	u64 blk_size = le64_to_cpu(dev_part->block_size);
 	u64 len = le64_to_cpu(dev_part->length);
+	u32 handle = le32_to_cpu(dev_part->dsmad_handle);
 	u64 size;
 
 	/*
@@ -1376,6 +1377,13 @@ static int cxl_dc_check(struct device *dev, struct cxl_dc_partition_info *part,
 		*part = (struct cxl_dc_partition_info) { };
 		dev_dbg(dev, "Partition 0 unavailable for DC\n");
 		return 0;
+	}
+
+	/* The CDAT DSMAD handle this refers to is 8 bits */
+	if (handle > U8_MAX) {
+		dev_warn(dev, "DSMAD handle 0x%x exceeds the 8 bit CDAT DSMAD handle\n",
+			 handle);
+		return -EINVAL;
 	}
 
 	/*
@@ -1391,6 +1399,7 @@ static int cxl_dc_check(struct device *dev, struct cxl_dc_partition_info *part,
 	*part = (struct cxl_dc_partition_info) {
 		.start = le64_to_cpu(dev_part->base),
 		.size = size,
+		.handle = handle,
 	};
 
 	/*
