@@ -19931,7 +19931,7 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 					    IEEE80211_MLD_MAX_NUM_LINKS,
 					    NULL, 0, info);
 		if (err)
-			return err;
+			goto out;
 
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
