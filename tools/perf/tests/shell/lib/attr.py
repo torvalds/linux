@@ -80,6 +80,22 @@ PERF_TYPE_HW_CACHE = 3
 # type in its top 32 bits when there is more than one core PMU.
 LEGACY_TYPES = (str(PERF_TYPE_HARDWARE), str(PERF_TYPE_HW_CACHE))
 
+def mask_bits(value, bits):
+    """
+    Take the bits in 'bits' out of each of the '|'-separated alternatives in
+    'value', keeping the rest of the expression, wildcards included.
+    """
+    masked = []
+
+    for alternative in value.split('|'):
+        try:
+            alternative = str(int(alternative, 0) & ~bits)
+        except ValueError:
+            pass
+        masked.append(alternative)
+
+    return '|'.join(masked)
+
 def hide_core_pmu_type(value):
     """
     The kernel can be told which core PMU a legacy type event is meant for by
@@ -88,16 +104,7 @@ def hide_core_pmu_type(value):
     expectations written for the single core PMU case matching on
     heterogeneous machines.
     """
-    hidden = []
-
-    for alternative in value.split('|'):
-        try:
-            alternative = str(int(alternative, 0) & 0xffffffff)
-        except ValueError:
-            pass
-        hidden.append(alternative)
-
-    return '|'.join(hidden)
+    return mask_bits(value, 0xffffffff00000000)
 
 class Fail(Exception):
     def __init__(self, test, msg):
