@@ -18,12 +18,16 @@
 static bool rt712_sdca_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0x201a ... 0x201f:
 	case 0x2029 ... 0x202a:
 	case 0x202d ... 0x2034:
 	case 0x2230 ... 0x2232:
 	case 0x2f01 ... 0x2f0a:
 	case 0x2f35 ... 0x2f36:
+	case 0x2f3a:
+	case 0x2f3d:
+	case 0x2f41:
 	case 0x2f50:
 	case 0x2f54:
 	case 0x2f58 ... 0x2f5d:
@@ -48,6 +52,7 @@ static bool rt712_sdca_readable_register(struct device *dev, unsigned int reg)
 static bool rt712_sdca_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0x201b:
 	case 0x201c:
 	case 0x201d:
@@ -56,6 +61,9 @@ static bool rt712_sdca_volatile_register(struct device *dev, unsigned int reg)
 	case 0x2230:
 	case 0x2f01:
 	case 0x2f35:
+	case 0x2f3a:
+	case 0x2f3d:
+	case 0x2f41:
 	case 0x320c:
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_GE49, RT712_SDCA_CTL_DETECTED_MODE, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_HID, RT712_SDCA_ENT_HID01, RT712_SDCA_CTL_HIDTX_CURRENT_OWNER, 0) ...

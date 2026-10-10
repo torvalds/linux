@@ -12,12 +12,24 @@
 static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
+	unsigned long *groups;
+	unsigned int ngroups;
 
-	if (nlk->groups == NULL)
+	/* Hashed sockets are dumped from the rhashtable walk, which only
+	 * holds rcu_read_lock(), while netlink_realloc_groups() can replace
+	 * nlk->groups and nlk->ngroups at any time.
+	 *
+	 * Read nlk->ngroups first : this pairs with smp_store_release()
+	 * from netlink_realloc_groups(), so that we can not use the new
+	 * (bigger) size with the old (smaller) buffer. The old buffer is
+	 * freed after an RCU grace period.
+	 */
+	ngroups = smp_load_acquire(&nlk->ngroups);
+	groups = READ_ONCE(nlk->groups);
+	if (!groups)
 		return 0;
 
-	return nla_put(nlskb, NETLINK_DIAG_GROUPS, NLGRPSZ(nlk->ngroups),
-		       nlk->groups);
+	return nla_put(nlskb, NETLINK_DIAG_GROUPS, NLGRPSZ(ngroups), groups);
 }
 
 static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)

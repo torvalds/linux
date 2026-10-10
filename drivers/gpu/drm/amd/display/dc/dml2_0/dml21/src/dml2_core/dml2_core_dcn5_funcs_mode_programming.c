@@ -1128,8 +1128,8 @@ static bool dcn5_mode_programming(struct dml2_core_calcs_mode_programming_ex *in
 		CalculateWatermarks_params->USRRetrainingSupport = &mode_lib->mp.USRRetrainingSupport;
 		CalculateWatermarks_params->temp_read_or_ppt_support = mode_lib->mp.temp_read_or_ppt_support;
 		CalculateWatermarks_params->global_temp_read_or_ppt_supported = &mode_lib->mp.global_temp_read_or_ppt_supported;
-		CalculateWatermarks_params->VActiveLatencyHidingMargin = 0;
-		CalculateWatermarks_params->VActiveLatencyHidingUs = 0;
+		CalculateWatermarks_params->VActiveLatencyHidingMargin = NULL;
+		CalculateWatermarks_params->VActiveLatencyHidingUs = NULL;
 
 		dcn5_calculate_watermarks_and_dram_speed_change_support(&mode_lib->scratch, CalculateWatermarks_params);
 

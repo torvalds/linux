@@ -4,6 +4,26 @@
 #include <linux/mlx5/driver.h>
 #include "eswitch.h"
 #include "devlink.h"
+#include "diag/reporter_vnic.h"
+
+static int
+mlx5_esw_rep_vnic_reporter_diagnose(struct devlink_health_reporter *reporter,
+				    struct devlink_fmsg *fmsg,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlx5_vport *vport = devlink_health_reporter_priv(reporter);
+
+	mlx5_reporter_vnic_diagnose_counters(vport->dev, fmsg, vport->vport,
+					     true);
+
+	return 0;
+}
+
+static const
+struct devlink_health_reporter_ops mlx5_esw_rep_vnic_reporter_ops = {
+	.name = "vnic",
+	.diagnose = mlx5_esw_rep_vnic_reporter_diagnose,
+};
 
 static void
 mlx5_esw_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_id *ppid)
@@ -220,6 +240,7 @@ static void mlx5_esw_devlink_port_res_unregister(struct devlink_port *dl_port)
 
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
+	struct devlink_health_reporter *reporter;
 	struct mlx5_core_dev *dev = esw->dev;
 	const struct devlink_port_ops *ops;
 	struct mlx5_devlink_port *dl_port;
@@ -255,6 +276,16 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, struct mlx
 		mlx5_core_dbg(dev, "Failed to register port resources: %d\n",
 			      err);
 
+	reporter = devl_port_health_reporter_create(
+		&dl_port->dl_port, &mlx5_esw_rep_vnic_reporter_ops,
+		vport);
+	if (IS_ERR(reporter))
+		mlx5_core_err(dev,
+			      "Failed to create vnic health reporter for vport %d: %pe\n",
+			      vport_num, reporter);
+	else
+		dl_port->vnic_reporter = reporter;
+
 	return 0;
 
 rate_err:
@@ -269,6 +300,12 @@ void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_vport *vport)
 	if (!vport->dl_port)
 		return;
 	dl_port = vport->dl_port;
+
+	if (dl_port->vnic_reporter) {
+		devl_health_reporter_destroy(dl_port->vnic_reporter);
+		dl_port->vnic_reporter = NULL;
+	}
+
 	mlx5_esw_devlink_port_res_unregister(&dl_port->dl_port);
 
 	devl_rate_leaf_destroy(&dl_port->dl_port);

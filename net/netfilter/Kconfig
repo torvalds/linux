@@ -739,7 +739,7 @@ config NETFILTER_XTABLES_COMPAT
 	bool "Netfilter Xtables 32bit support"
 	depends on COMPAT
 	help
-	   This option provides a translation layer to run 32bit arp,ip(6),ebtables
+	   This option provides a translation layer to run 32bit ip(6),ebtables
 	   binaries on 64bit kernels.
 
 	   If unsure, say N.

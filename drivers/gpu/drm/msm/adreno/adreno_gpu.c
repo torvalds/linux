@@ -52,6 +52,12 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 		return -ENODEV;
 	}
 
+	/* We need PAS to be able to load the firmware */
+	if (!qcom_pas_is_available()) {
+		DRM_DEV_ERROR(dev, "PAS is not available\n");
+		return -EPROBE_DEFER;
+	}
+
 	ret = of_reserved_mem_region_to_resource(np, 0, &r);
 	if (ret) {
 		zap_available = false;
@@ -170,17 +176,10 @@ out:
 int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct platform_device *pdev = gpu->pdev;
 
 	/* Short cut if we determine the zap shader isn't available/needed */
 	if (!zap_available)
 		return -ENODEV;
-
-	/* We need PAS to be able to load the firmware */
-	if (!qcom_pas_is_available()) {
-		DRM_DEV_ERROR(&pdev->dev, "PAS is not available\n");
-		return -EPROBE_DEFER;
-	}
 
 	return zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw, pasid);
 }
@@ -1261,6 +1260,8 @@ void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 
 	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
 		release_firmware(adreno_gpu->fw[i]);
+
+	pm_runtime_dont_use_autosuspend(&gpu->pdev->dev);
 
 	if (priv && pm_runtime_enabled(&priv->gpu_pdev->dev))
 		pm_runtime_disable(&priv->gpu_pdev->dev);

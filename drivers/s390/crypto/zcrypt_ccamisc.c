@@ -1158,8 +1158,21 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 
 	/* do not check the key here, it may be incomplete */
 
-	/* copy the vlsc key token back */
+	/*
+	 * Copy the vlsc key token back.
+	 * The available space in the destination (key_token) and the source
+	 * (t) buffer is always larger as the valid range of prepparm->kb.len.
+	 * Validate t->len by comparing it with the length information in the
+	 * param block of the request (prepparm->kb.len)
+	 * The value range of prepparm->kb.len has been checked above.
+	 */
 	t = (struct cipherkeytoken *)prepparm->kb.tlv1.key_token;
+	if (t->len != prepparm->kb.len - 3 * sizeof(uint16_t)) {
+		ZCRYPT_DBF_ERR("%s reply with invalid key_token length %u\n",
+			       __func__, t->len);
+		rc = -EIO;
+		goto out;
+	}
 	memcpy(key_token, t, t->len);
 	*key_token_size = t->len;
 

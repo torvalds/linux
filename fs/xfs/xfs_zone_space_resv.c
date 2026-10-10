@@ -85,13 +85,13 @@ xfs_zoned_add_available(
 	struct xfs_zone_info		*zi = mp->m_zone_info;
 	struct xfs_zone_reservation	*reservation;
 
-	if (list_empty_careful(&zi->zi_reclaim_reservations)) {
-		xfs_add_freecounter(mp, XC_FREE_RTAVAILABLE, count_fsb);
+	spin_lock(&zi->zi_reservation_lock);
+	xfs_add_freecounter(mp, XC_FREE_RTAVAILABLE, count_fsb);
+	if (list_empty(&zi->zi_reclaim_reservations)) {
+		spin_unlock(&zi->zi_reservation_lock);
 		return;
 	}
 
-	spin_lock(&zi->zi_reservation_lock);
-	xfs_add_freecounter(mp, XC_FREE_RTAVAILABLE, count_fsb);
 	count_fsb = xfs_sum_freecounter(mp, XC_FREE_RTAVAILABLE);
 	list_for_each_entry(reservation, &zi->zi_reclaim_reservations, entry) {
 		if (reservation->count_fsb > count_fsb)

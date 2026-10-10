@@ -1382,7 +1382,7 @@ bool nbcon_kthread_create(struct console *con)
 		return true;
 
 	kt = kthread_run(nbcon_kthread_func, con, "pr/%s%d", con->name, con->index);
-	if (WARN_ON(IS_ERR(kt))) {
+	if (IS_ERR(kt)) {
 		con_printk(KERN_ERR, con, "failed to start printing thread\n");
 		return false;
 	}
@@ -1782,7 +1782,7 @@ bool nbcon_alloc(struct console *con)
 	}
 
 	rcuwait_init(&con->rcuwait);
-	init_irq_work(&con->irq_work, nbcon_irq_work);
+	con->irq_work = IRQ_WORK_INIT_LAZY(nbcon_irq_work);
 	atomic_long_set(&ACCESS_PRIVATE(con, nbcon_prev_seq), -1UL);
 	nbcon_state_set(con, &state);
 
@@ -1836,6 +1836,8 @@ void nbcon_free(struct console *con)
 
 	/* Synchronize the kthread stop. */
 	lockdep_assert_console_list_lock_held();
+
+	irq_work_sync(&con->irq_work);
 
 	if (printk_kthreads_running) {
 		nbcon_kthread_stop(con);

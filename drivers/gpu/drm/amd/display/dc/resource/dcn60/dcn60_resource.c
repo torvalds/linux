@@ -998,7 +998,7 @@ static struct dce_aux *dcn60_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110);
 
 	if (!aux_engine)
 		return NULL;
@@ -1037,7 +1037,7 @@ static struct dce_i2c_hw *dcn60_i2c_hw_create(
 	uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -1061,7 +1061,7 @@ static struct clock_source *dcn60_clock_source_create(
 		bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src);
 
 	if (!clk_src)
 		return NULL;
@@ -1081,8 +1081,7 @@ static struct hubbub *dcn60_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
-	struct dcn20_hubbub *hubbub2 = kzalloc(sizeof(struct dcn20_hubbub),
-					  GFP_KERNEL);
+	struct dcn20_hubbub *hubbub2 = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub2)
 		return NULL;
@@ -1136,7 +1135,7 @@ static struct hubp *dcn60_hubp_create(
 	uint32_t inst)
 {
 	struct dcn20_hubp *hubp2 =
-		kzalloc(sizeof(struct dcn20_hubp), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_hubp);
 
 	if (!hubp2)
 		return NULL;
@@ -1168,7 +1167,7 @@ static struct dpp *dcn60_dpp_create(
 	uint32_t inst)
 {
 	struct dcn60_dpp *dpp60 =
-		kzalloc(sizeof(struct dcn60_dpp), GFP_KERNEL);
+		kzalloc_obj(struct dcn60_dpp);
 
 	if (!dpp60)
 		return NULL;
@@ -1194,8 +1193,7 @@ static struct mpc *dcn60_mpc_create(
 		int num_mpcc,
 		int num_rmu)
 {
-	struct dcn60_mpc *mpc60 = kzalloc(sizeof(struct dcn60_mpc),
-					  GFP_KERNEL);
+	struct dcn60_mpc *mpc60 = kzalloc_obj(struct dcn60_mpc);
 
 	if (!mpc60)
 		return NULL;
@@ -1218,7 +1216,7 @@ static struct output_pixel_processor *dcn60_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_opp *opp2 =
-		kzalloc(sizeof(struct dcn20_opp), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_opp);
 
 	if (!opp2) {
 		BREAK_TO_DEBUGGER();
@@ -1242,7 +1240,7 @@ static struct timing_generator *dcn60_timing_generator_create(
 		uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc(sizeof(struct optc), GFP_KERNEL);
+		kzalloc_obj(struct optc);
 
 	if (!tgn10)
 		return NULL;
@@ -1282,7 +1280,7 @@ static struct link_encoder *dcn60_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
-		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_link_encoder);
 
 	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs)) {
 		kfree(enc20);
@@ -1349,7 +1347,7 @@ static struct vpg *dcn60_vpg_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn31_vpg *vpg6 = kzalloc(sizeof(struct dcn31_vpg), GFP_KERNEL);
+	struct dcn31_vpg *vpg6 = kzalloc_obj(struct dcn31_vpg);
 
 	if (!vpg6)
 		return NULL;
@@ -1378,7 +1376,7 @@ static struct apg *dcn60_apg_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn31_apg *apg60 = kzalloc(sizeof(struct dcn31_apg), GFP_KERNEL);
+	struct dcn31_apg *apg60 = kzalloc_obj(struct dcn31_apg);
 
 	if (!apg60)
 		return NULL;
@@ -1415,7 +1413,7 @@ static struct stream_encoder *dcn60_stream_encoder_create(
 	} else
 		return NULL;
 
-	enc1 = kzalloc(sizeof(struct dcn10_stream_encoder), GFP_KERNEL);
+	enc1 = kzalloc_obj(struct dcn10_stream_encoder);
 	vpg = dcn60_vpg_create(ctx, vpg_inst);
 	apg = dcn60_apg_create(ctx, apg_inst);
 
@@ -1462,7 +1460,7 @@ static struct hpo_frl_stream_encoder *dcn60_hpo_frl_stream_encoder_create(
 		return NULL;
 
 	/* allocate HPO stream encoder and create VPG, APG sub-blocks */
-	hpo_enc60 = kzalloc(sizeof(struct dcn401_hpo_frl_stream_encoder), GFP_KERNEL);
+	hpo_enc60 = kzalloc_obj(struct dcn401_hpo_frl_stream_encoder);
 	vpg = dcn60_vpg_create(ctx, vpg_inst);
 	apg = dcn60_apg_create(ctx, apg_inst);
 
@@ -1493,7 +1491,7 @@ static struct hpo_frl_link_encoder *dcn60_hpo_frl_link_encoder_create(
 	hpo_frl_link_encoder_reg_list(0);
 
 	/* allocate HPO link encoder */
-	hpo_link_enc = kzalloc(sizeof(struct dcn30_hpo_frl_link_encoder), GFP_KERNEL);
+	hpo_link_enc = kzalloc_obj(struct dcn30_hpo_frl_link_encoder);
 	if (!hpo_link_enc)
 		return NULL; /* out of memory */
 
@@ -1535,7 +1533,7 @@ static struct hpo_dp_stream_encoder *dcn60_hpo_dp_stream_encoder_create(
 	apg_inst = hpo_dp_inst;
 
 	/* allocate HPO stream encoder and create VPG sub-block */
-	hpo_dp_enc60 = kzalloc(sizeof(struct dcn31_hpo_dp_stream_encoder), GFP_KERNEL);
+	hpo_dp_enc60 = kzalloc_obj(struct dcn31_hpo_dp_stream_encoder);
 	vpg = dcn60_vpg_create(ctx, vpg_inst);
 	apg = dcn60_apg_create(ctx, apg_inst);
 
@@ -1568,7 +1566,7 @@ static struct hpo_dp_link_encoder *dcn60_hpo_dp_link_encoder_create(
 	struct dcn31_hpo_dp_link_encoder *hpo_dp_enc60;
 
 	/* allocate HPO link encoder */
-	hpo_dp_enc60 = kzalloc(sizeof(struct dcn31_hpo_dp_link_encoder), GFP_KERNEL);
+	hpo_dp_enc60 = kzalloc_obj(struct dcn31_hpo_dp_link_encoder);
 	if (!hpo_dp_enc60)
 		return NULL; /* out of memory */
 
@@ -1589,7 +1587,7 @@ static struct hpo_dp_link_encoder *dcn60_hpo_dp_link_encoder_create(
 static struct dce_hwseq *dcn60_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq);
 
 #undef REG_STRUCT
 #define REG_STRUCT hwseq_reg
@@ -1784,7 +1782,7 @@ static struct display_stream_compressor *dcn60_dsc_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn60_dsc *dsc =
-		kzalloc(sizeof(struct dcn60_dsc), GFP_KERNEL);
+		kzalloc_obj(struct dcn60_dsc);
 
 	if (!dsc) {
 		BREAK_TO_DEBUGGER();
@@ -2363,7 +2361,7 @@ struct resource_pool *dcn60_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn60_resource_pool *pool =
-		kzalloc(sizeof(struct dcn60_resource_pool), GFP_KERNEL);
+		kzalloc_obj(struct dcn60_resource_pool);
 
 	if (!pool)
 		return NULL;

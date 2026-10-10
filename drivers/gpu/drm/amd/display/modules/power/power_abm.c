@@ -705,8 +705,7 @@ void initialize_backlight_caps(struct core_power *core_power, unsigned int inst)
 	 * (do not want to use 256 bytes on the stack)
 	 */
 	ext_backlight_caps = (struct dm_acpi_atif_backlight_caps *)
-		(kzalloc(sizeof(struct dm_acpi_atif_backlight_caps),
-				GFP_KERNEL));
+		(kzalloc_obj(struct dm_acpi_atif_backlight_caps));
 
 	if (ext_backlight_caps == NULL)
 		return;

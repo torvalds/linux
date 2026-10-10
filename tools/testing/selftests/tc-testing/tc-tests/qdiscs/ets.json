@@ -987,7 +987,7 @@
     },
     {
         "id": "41f5",
-        "name": "ETS offload where the sum of quanta wraps u32",
+        "name": "ETS offload with out-of-range quanta clamped",
         "category": [
             "qdisc",
             "ets"
@@ -1002,7 +1002,7 @@
         "cmdUnderTest": "$TC qdisc add dev $ETH root ets quanta 4294967294 1 1",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $ETH",
-        "matchPattern": "qdisc ets .*bands 3 quanta 4294967294 1 1",
+        "matchPattern": "qdisc ets .*bands 3 quanta 1048576 256 256",
         "matchCount": "1",
         "teardown": [
             "echo \"1\" > /sys/bus/netdevsim/del_device"

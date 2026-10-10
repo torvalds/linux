@@ -1202,6 +1202,7 @@ dpll_pin_ref_sync_state_set(struct dpll_pin *pin,
 			    const enum dpll_pin_state state,
 			    struct netlink_ext_ack *extack)
 {
+	void *pin_priv, *ref_sync_pin_priv;
 	const struct dpll_pin_ops *ops;
 	enum dpll_pin_state old_state;
 	struct dpll_pin *ref_sync_pin;
@@ -1230,9 +1231,15 @@ dpll_pin_ref_sync_state_set(struct dpll_pin *pin,
 		return -EOPNOTSUPP;
 	}
 	dpll = ref->dpll;
-	ret = ops->ref_sync_get(pin, dpll_pin_on_dpll_priv(dpll, pin),
-				ref_sync_pin,
-				dpll_pin_on_dpll_priv(dpll, ref_sync_pin),
+	pin_priv = dpll_pin_on_dpll_priv(dpll, pin);
+	ref_sync_pin_priv = dpll_pin_on_dpll_priv(dpll, ref_sync_pin);
+	/* Pin may have been unregistered from this dpll already */
+	if (!ref_sync_pin_priv) {
+		NL_SET_ERR_MSG(extack,
+			       "reference sync pin not registered with the dpll");
+		return -ENODEV;
+	}
+	ret = ops->ref_sync_get(pin, pin_priv, ref_sync_pin, ref_sync_pin_priv,
 				&old_state, extack);
 	if (ret) {
 		NL_SET_ERR_MSG(extack, "unable to get old reference sync state");
@@ -1241,9 +1248,7 @@ dpll_pin_ref_sync_state_set(struct dpll_pin *pin,
 	if (state == old_state)
 		return 0;
 
-	ret = ops->ref_sync_set(pin, dpll_pin_on_dpll_priv(dpll, pin),
-				ref_sync_pin,
-				dpll_pin_on_dpll_priv(dpll, ref_sync_pin),
+	ret = ops->ref_sync_set(pin, pin_priv, ref_sync_pin, ref_sync_pin_priv,
 				state, extack);
 	if (ret) {
 		NL_SET_ERR_MSG_FMT(extack,

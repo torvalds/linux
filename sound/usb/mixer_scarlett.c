@@ -707,6 +707,10 @@ static int scarlett_ctl_meter_get(struct snd_kcontrol *kctl,
 	int idx = snd_usb_ctrl_intf(elem->head.mixer->hostif) | (elem->head.id << 8);
 	int err;
 
+	CLASS(snd_usb_lock, pm)(chip);
+	if (pm.err < 0)
+		return -EIO;
+
 	err = snd_usb_ctl_msg(chip->dev,
 				usb_rcvctrlpipe(chip->dev, 0),
 				UAC2_CS_MEM,

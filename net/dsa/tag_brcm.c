@@ -373,6 +373,7 @@ static const struct dsa_device_ops brcm_legacy_fcs_netdev_ops = {
 	.xmit = brcm_leg_fcs_tag_xmit,
 	.rcv = brcm_leg_tag_rcv,
 	.needed_headroom = BRCM_LEG_TAG_LEN,
+	.needed_tailroom = ETH_FCS_LEN,
 };
 
 DSA_TAG_DRIVER(brcm_legacy_fcs_netdev_ops);

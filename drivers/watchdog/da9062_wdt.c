@@ -256,7 +256,7 @@ static int __maybe_unused da9062_wdt_suspend(struct device *dev)
 	if (!wdt->use_sw_pm)
 		return 0;
 
-	if (watchdog_active(wdd))
+	if (watchdog_active(wdd) || watchdog_hw_running(wdd))
 		return da9062_wdt_stop(wdd);
 
 	return 0;
@@ -270,7 +270,7 @@ static int __maybe_unused da9062_wdt_resume(struct device *dev)
 	if (!wdt->use_sw_pm)
 		return 0;
 
-	if (watchdog_active(wdd))
+	if (watchdog_active(wdd) || watchdog_hw_running(wdd))
 		return da9062_wdt_start(wdd);
 
 	return 0;

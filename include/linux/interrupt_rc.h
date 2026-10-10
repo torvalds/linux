@@ -20,11 +20,8 @@
 /* Per-CPU interrupt disabling state for local_interrupt_{disable,enable}(). */
 DECLARE_PER_CPU(unsigned long, local_interrupt_disable_state);
 
-static __always_inline void __local_interrupt_disable(void)
+static __always_inline void __local_interrupt_save_state(unsigned long flags)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	raw_cpu_write(local_interrupt_disable_state, flags);
 }
 
@@ -36,9 +33,9 @@ static __always_inline void __local_interrupt_enable(void)
 }
 
 #ifndef INSTANTIATE_EXPORTED_INTERRUPT_DISABLE
-static __always_inline void _local_interrupt_disable(void)
+static __always_inline void _local_interrupt_save_state(unsigned long flags)
 {
-	__local_interrupt_disable();
+	__local_interrupt_save_state(flags);
 }
 
 static __always_inline void _local_interrupt_enable(void)
@@ -46,27 +43,30 @@ static __always_inline void _local_interrupt_enable(void)
 	__local_interrupt_enable();
 }
 #else
-extern void _local_interrupt_disable(void);
+extern void _local_interrupt_save_state(unsigned long flags);
 extern void _local_interrupt_enable(void);
 #endif
 
 #else /* !MODULE */
-extern void _local_interrupt_disable(void);
+extern void _local_interrupt_save_state(unsigned long flags);
 extern void _local_interrupt_enable(void);
 #endif /* !MODULE */
+
+#define hardirq_disable_enter()	__preempt_count_add_return(HARDIRQ_DISABLE_OFFSET)
+#define hardirq_disable_exit()	__preempt_count_sub_return(HARDIRQ_DISABLE_OFFSET)
 
 static inline void local_interrupt_disable(void)
 {
 	int new_count;
+	unsigned long flags;
 
 	WARN_ON_ONCE(in_nmi());
 
+	local_irq_save(flags);
 	new_count = hardirq_disable_enter();
 
-	/* Interrupts can happen here, but it's OK, see __irq_exit_rcu(). */
-
 	if ((new_count & HARDIRQ_DISABLE_MASK) == HARDIRQ_DISABLE_OFFSET)
-		_local_interrupt_disable();
+		_local_interrupt_save_state(flags);
 }
 
 static inline void local_interrupt_enable(void)

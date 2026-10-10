@@ -846,10 +846,23 @@ static void set_close_state_blocked_works(struct ksmbd_file *fp)
 	spin_lock(&fp->f_lock);
 	list_for_each_entry(cancel_work, &fp->blocked_works,
 				 fp_entry) {
-		cancel_work->state = KSMBD_WORK_CLOSED;
-		cancel_work->cancel_fn(cancel_work->cancel_argv);
+		if (xchg(&cancel_work->state, KSMBD_WORK_CLOSED) ==
+		    KSMBD_WORK_ACTIVE)
+			cancel_work->cancel_fn(cancel_work->cancel_argv);
 	}
 	spin_unlock(&fp->f_lock);
+}
+
+void ksmbd_wake_session_blocked_works(struct ksmbd_session *sess)
+{
+	struct ksmbd_file_table *ft = &sess->file_table;
+	struct ksmbd_file *fp;
+	unsigned int id;
+
+	read_lock(&ft->lock);
+	idr_for_each_entry(ft->idr, fp, id)
+		set_close_state_blocked_works(fp);
+	read_unlock(&ft->lock);
 }
 
 int ksmbd_close_fd(struct ksmbd_work *work, u64 id)

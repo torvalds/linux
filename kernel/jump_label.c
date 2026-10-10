@@ -726,12 +726,11 @@ static int jump_label_add_module(struct module *mod)
 		if (static_key_sealed(key))
 			goto do_poke;
 
-		jlm = kzalloc(sizeof(struct static_key_mod), GFP_KERNEL);
+		jlm = kzalloc_obj(struct static_key_mod);
 		if (!jlm)
 			return -ENOMEM;
 		if (!static_key_linked(key)) {
-			jlm2 = kzalloc(sizeof(struct static_key_mod),
-				       GFP_KERNEL);
+			jlm2 = kzalloc_obj(struct static_key_mod);
 			if (!jlm2) {
 				kfree(jlm);
 				return -ENOMEM;

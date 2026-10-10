@@ -283,9 +283,10 @@ reset_vgacntr:
 	intel_de_posting_read(display, vga_reg);
 }
 
-static unsigned int intel_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
+static unsigned int intel_vga_set_decode(void *data, bool enable_decode)
 {
-	struct intel_display *display = to_intel_display(pdev);
+	struct intel_display *display = data;
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	unsigned int decodes = VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 
 	drm_dbg_kms(display->drm, "%s VGA decode due to VGA arbitration\n",
@@ -331,7 +332,7 @@ void intel_vga_register(struct intel_display *display)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(pdev, intel_vga_set_decode);
+	ret = vga_client_register(pdev, intel_vga_set_decode, display);
 	drm_WARN_ON(display->drm, ret && ret != -ENODEV);
 }
 

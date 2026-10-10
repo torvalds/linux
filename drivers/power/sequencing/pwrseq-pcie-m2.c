@@ -291,7 +291,7 @@ static int pwrseq_pcie_m2_create_serdev_one(struct pwrseq_pcie_m2_ctx *ctx,
 		}
 	}
 
-	pci_dev = kzalloc(sizeof(*pci_dev), GFP_KERNEL);
+	pci_dev = kzalloc_obj(*pci_dev);
 	if (!pci_dev) {
 		ret = -ENOMEM;
 		goto err_put_ctrl;

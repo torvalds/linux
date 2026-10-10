@@ -1055,9 +1055,10 @@ xlog_cil_set_ctx_write_state(
 		spin_unlock(&cil->xc_push_lock);
 
 		/*
-		 * Make sure the metadata we are about to overwrite in the log
-		 * has been flushed to stable storage before this iclog is
-		 * issued.
+		 * Flush the write cache before writing the start record so that
+		 * the metadata we are about to overwrite in the log and the
+		 * data that new allocations in this context refer to are
+		 * persisted to stable storage before this iclog is written.
 		 */
 		spin_lock(&cil->xc_log->l_icloglock);
 		iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
@@ -1556,7 +1557,7 @@ xlog_cil_push_work(
 			 * iclogs older than ic_prev. Hence we only need to wait
 			 * on the most recent older iclog here.
 			 */
-			xlog_wait_on_iclog(ctx->commit_iclog->ic_prev);
+			xlog_wait_on_iclog(log, ctx->commit_iclog->ic_prev);
 			spin_lock(&log->l_icloglock);
 		}
 
@@ -1627,6 +1628,7 @@ out_abort_free_ticket:
 static void
 xlog_cil_push_background(
 	struct xlog	*log)
+		__releases_shared(&log->l_cilp->xc_ctx_lock)
 {
 	struct xfs_cil	*cil = log->l_cilp;
 	int		space_used = atomic_read(&cil->xc_ctx->space_used);

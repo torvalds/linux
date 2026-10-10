@@ -222,7 +222,7 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	if (!buffer)
 		return RAS_CMD__ERROR_GENERIC;
 
-	trace = kcalloc(trace_count, sizeof(*trace), GFP_KERNEL);
+	trace = kzalloc_objs(*trace, trace_count);
 	if (!trace) {
 		ret = RAS_CMD__ERROR_GENERIC;
 		goto out;
@@ -316,7 +316,7 @@ static int ras_cmd_get_batch_trace_records(struct ras_core_context *ras_core,
 	    (input_data->start_batch_id >= overview.last_batch_id))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
-	trace_arry = kcalloc(trace_count, sizeof(*trace_arry), GFP_KERNEL);
+	trace_arry = kzalloc_objs(*trace_arry, trace_count);
 	if (!trace_arry)
 		return RAS_CMD__ERROR_GENERIC;
 

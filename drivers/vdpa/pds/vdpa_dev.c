@@ -731,6 +731,12 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 		notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
 						 i, &pdsv->vqs[i].notify_pa);
+		if (!notify) {
+			err = -EINVAL;
+			dev_err(dev, "Fail to map vq notify %d\n", i);
+			goto err_unmap;
+		}
+
 		pds_vdpa_init_vqs_entry(pdsv, i, notify);
 	}
 

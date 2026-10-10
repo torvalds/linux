@@ -631,8 +631,8 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (!buf.opp_count)
-		return ERR_PTR(-ENOENT);
+	if (!buf.opp_count || buf.opp_count > MAX_DVFS_OPPS)
+		return ERR_PTR(-EINVAL);
 
 	info = kmalloc_obj(*info);
 	if (!info)
@@ -661,12 +661,15 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 static int scpi_dev_domain_id(struct device *dev)
 {
 	struct of_phandle_args clkspec;
+	int domain;
 
 	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
 				       0, &clkspec))
 		return -EINVAL;
 
-	return clkspec.args[0];
+	domain = clkspec.args[0];
+	of_node_put(clkspec.np);
+	return domain;
 }
 
 static struct scpi_dvfs_info *scpi_dvfs_info(struct device *dev)

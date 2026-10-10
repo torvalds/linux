@@ -7,6 +7,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_print.h>
@@ -765,7 +766,7 @@ int ls7a1000_cursor_plane_init(struct drm_device *ddev,
 
 	drm_plane_helper_add(plane, &ls7a1000_cursor_plane_helper_funcs);
 
-	return 0;
+	return drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_COVERAGE));
 }
 
 int ls7a2000_cursor_plane_init(struct drm_device *ddev,
@@ -790,5 +791,5 @@ int ls7a2000_cursor_plane_init(struct drm_device *ddev,
 
 	drm_plane_helper_add(plane, &ls7a2000_cursor_plane_helper_funcs);
 
-	return 0;
+	return drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_COVERAGE));
 }

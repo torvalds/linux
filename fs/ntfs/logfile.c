@@ -691,7 +691,7 @@ map_vcn:
 
 	memset(empty_buf, 0xff, vol->cluster_size);
 
-	ra = kzalloc(sizeof(*ra), GFP_NOFS);
+	ra = kzalloc_obj(*ra, GFP_NOFS);
 	if (!ra)
 		goto err;
 

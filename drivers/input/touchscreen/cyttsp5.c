@@ -710,6 +710,7 @@ static irqreturn_t cyttsp5_handle_irq(int irq, void *handle)
 		size = 2;
 	} else {
 		report_id = ts->input_buf[2];
+		size = min(size, CY_MAX_INPUT);
 	}
 
 	switch (report_id) {

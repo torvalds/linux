@@ -890,7 +890,7 @@ static int snd_mixer_oss_build_test(struct snd_mixer_oss *mixer, struct slot *sl
 	int err;
 
 	struct snd_ctl_elem_info *info __free(kfree) =
-		kmalloc(sizeof(*info), GFP_KERNEL);
+		kmalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	scoped_guard(rwsem_read, &card->controls_rwsem) {

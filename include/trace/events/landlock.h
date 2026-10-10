@@ -28,6 +28,16 @@ struct task_struct;
 
 #ifdef CREATE_TRACE_POINTS
 
+/* About 6 KiB, leaving about 2 KiB for sibling helpers and fixed fields. */
+#define TRACE_UNTRUSTED_STR_OUTPUT_SIZE \
+	(TRACE_SEQ_BUFFER_SIZE - TRACE_SEQ_BUFFER_SIZE / 4)
+
+/*
+ * A raw UTF-8 ellipsis (…) marks truncation and cannot collide with escaped
+ * input: ESCAPE_NAP renders every non-ASCII input byte in octal.
+ */
+#define TRACE_TRUNCATION_MARKER "\xe2\x80\xa6"
+
 /*
  * Escapes @len bytes of an untrusted string into the trace sequence @p so it
  * cannot inject field separators or control characters into the ftrace text
@@ -37,33 +47,59 @@ struct task_struct;
  * NUL-terminated or carries embedded NUL bytes (an abstract socket name) is
  * escaped in full instead of being truncated at the first NUL.
  *
- * Return: a pointer into @p's buffer, or NULL if @src is NULL or the buffer is
- * exhausted (normal when the trace buffer is full).
+ * Strings that exceed the output limit retain the largest complete escaped
+ * prefix followed by the truncation marker.
+ *
+ * Return: a pointer into @p's buffer, or NULL if @src is NULL or the fixed
+ * output reservation is unavailable.
  */
 static inline const char *
 __trace_print_untrusted_str(struct trace_seq *p, const char *src, size_t len)
 {
+	const unsigned int escape_flags = ESCAPE_SPACE | ESCAPE_SPECIAL |
+					  ESCAPE_NAP | ESCAPE_APPEND |
+					  ESCAPE_OCTAL;
+	const size_t marker_len = sizeof(TRACE_TRUNCATION_MARKER) - 1;
+	size_t buf_size, prefix_len, prefix_size;
 	int escaped_size;
 	char *buf;
-	size_t buf_size = seq_buf_get_buf(&p->seq, &buf);
-	const char *ret = trace_seq_buffer_ptr(p);
+	const char *ret;
 
-	/* Buffer exhaustion is normal when the trace buffer is full. */
-	if (!src || buf_size == 0)
+	buf_size = seq_buf_get_buf(&p->seq, &buf);
+	if (!src || buf_size < TRACE_UNTRUSTED_STR_OUTPUT_SIZE)
 		return NULL;
 
-	escaped_size =
-		string_escape_mem(src, len, buf, buf_size,
-				  ESCAPE_SPACE | ESCAPE_SPECIAL | ESCAPE_NAP |
-					  ESCAPE_APPEND | ESCAPE_OCTAL,
-				  " ='\"\\");
-	if (unlikely(escaped_size >= buf_size)) {
-		/* We need some room for the final '\0'. */
-		seq_buf_set_overflow(&p->seq);
-		p->full = 1;
-		return NULL;
+	ret = trace_seq_buffer_ptr(p);
+	escaped_size = string_escape_mem(src, len, buf,
+					 TRACE_UNTRUSTED_STR_OUTPUT_SIZE,
+					 escape_flags, " ='\"\\");
+	if (likely(escaped_size < TRACE_UNTRUSTED_STR_OUTPUT_SIZE)) {
+		seq_buf_commit(&p->seq, escaped_size);
+		trace_seq_putc(p, 0);
+		return ret;
 	}
-	seq_buf_commit(&p->seq, escaped_size);
+
+	prefix_len = 0;
+	prefix_size = 0;
+	while (prefix_len < len) {
+		const char *const src_char = src + prefix_len;
+		int char_size;
+
+		char_size = string_escape_mem(src_char, 1, NULL, 0,
+					      escape_flags, " ='\"\\");
+		if (char_size > TRACE_UNTRUSTED_STR_OUTPUT_SIZE - marker_len -
+					1 - prefix_size)
+			break;
+		prefix_size += char_size;
+		prefix_len++;
+	}
+
+	escaped_size = string_escape_mem(src, prefix_len, buf, prefix_size,
+					 escape_flags, " ='\"\\");
+	if (WARN_ON_ONCE(escaped_size != prefix_size))
+		return NULL;
+	memcpy(buf + prefix_size, TRACE_TRUNCATION_MARKER, marker_len);
+	seq_buf_commit(&p->seq, prefix_size + marker_len);
 	trace_seq_putc(p, 0);
 	return ret;
 }

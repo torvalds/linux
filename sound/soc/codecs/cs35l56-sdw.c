@@ -386,11 +386,8 @@ static int __maybe_unused cs35l56_sdw_system_suspend(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
 
-	if (!cs35l56->base.init_done)
-		return 0;
-
-	/* runtime_resume unmasks the interrupt */
-	cs35l56_mask_soundwire_interrupts(cs35l56);
+	if (cs35l56->sdw_attached)
+		cs35l56_mask_soundwire_interrupts(cs35l56);
 
 	return cs35l56_system_suspend(dev);
 }

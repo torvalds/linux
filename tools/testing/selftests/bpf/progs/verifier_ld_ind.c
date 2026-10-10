@@ -194,6 +194,102 @@ __naked void ld_ind_subprog_both_paths_safe(void)
 	::: __clobber_all);
 }
 
+__naked __noinline __used
+static int ld_abs_callback(void)
+{
+	asm volatile (
+	"r6 = *(u64 *)(r2 + 0);"
+	".8byte %[ld_abs];"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(ld_abs, BPF_LD_ABS(BPF_W, 0))
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("ld_abs: reject in callback")
+__failure __msg("cannot use BPF_LD_[ABS|IND] within callback")
+int ld_abs_callback_reject(struct __sk_buff *skb)
+{
+	bpf_loop(1, ld_abs_callback, &skb, 0);
+	return 0;
+}
+
+__naked __noinline __used
+static int ld_ind_callback_subprog(void)
+{
+	asm volatile (
+	"r6 = r1;"
+	"r7 = 0;"
+	".8byte %[ld_ind];"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(ld_ind, BPF_LD_IND(BPF_W, BPF_REG_7, 0))
+	: __clobber_all);
+}
+
+__naked __noinline __used
+static int ld_ind_callback(void)
+{
+	asm volatile (
+	"r1 = *(u64 *)(r2 + 0);"
+	"call ld_ind_callback_subprog;"
+	"exit;"
+	::: __clobber_all);
+}
+
+SEC("socket")
+__description("ld_ind: reject in callback subprog")
+__failure __msg("cannot use BPF_LD_[ABS|IND] within callback")
+int ld_ind_callback_subprog_reject(struct __sk_buff *skb)
+{
+	bpf_loop(1, ld_ind_callback, &skb, 0);
+	return 0;
+}
+
+static __noinline int ld_ind_global_static(struct __sk_buff *skb)
+{
+	asm volatile (
+	"r6 = %[skb];"
+	"r7 = 0;"
+	".8byte %[ld_ind];"
+	:
+	: [skb] "r"(skb),
+	  __imm_insn(ld_ind, BPF_LD_IND(BPF_W, BPF_REG_7, 0))
+	: __clobber_common, "r6", "r7");
+	return skb->mark;
+}
+
+__noinline int ld_ind_global(struct __sk_buff *skb)
+{
+	return ld_ind_global_static(skb);
+}
+
+static int ld_ind_global_callback(__u32 index, struct __sk_buff **ctx)
+{
+	ld_ind_global(*ctx);
+	return 0;
+}
+
+SEC("socket")
+__description("ld_ind: reject in callback global subprog")
+__failure __msg("cannot use BPF_LD_[ABS|IND] within callback")
+int ld_ind_global_callback_reject(struct __sk_buff *skb)
+{
+	bpf_loop(1, ld_ind_global_callback, &skb, 0);
+	return 0;
+}
+
+SEC("socket")
+__description("ld_ind: allow in non-callback global subprog")
+__success
+int ld_ind_global_subprog_ok(struct __sk_buff *skb)
+{
+	return ld_ind_global(skb);
+}
+
 /*
  * ld_{abs,ind} in subprogs require scalar (int) return type in BTF.
  * A test with void return must be rejected.

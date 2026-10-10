@@ -1529,6 +1529,17 @@ int intel_ddi_level(struct intel_encoder *encoder,
 	return level;
 }
 
+int intel_ddi_link_symbol_clock(struct intel_encoder *encoder, int clock)
+{
+	if (intel_encoder_is_dp(encoder))
+		return intel_dp_link_symbol_clock(clock);
+
+	if (intel_hdmi_is_frl(clock))
+		return DIV_ROUND_CLOSEST(clock * 10, 18);
+
+	return clock;
+}
+
 static void
 hsw_set_signal_levels(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)

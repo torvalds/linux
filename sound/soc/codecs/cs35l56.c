@@ -18,9 +18,11 @@
 #include <linux/interrupt.h>
 #include <linux/math.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -36,6 +38,13 @@
 
 #include "wm_adsp.h"
 #include "cs35l56.h"
+
+/*
+ * snd_soc_register_component() can call component_probe() on all instances
+ * in a card, so deferred registration must be protected across all instances.
+ */
+static DEFINE_MUTEX(cs35l56_component_register_lock);
+static bool cs35l56_shutting_down;
 
 void cs35l56_mask_soundwire_interrupts(struct cs35l56_private *cs35l56)
 {
@@ -1365,12 +1374,6 @@ static int _cs35l56_component_probe(struct snd_soc_component *component)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
 
-	if (!wait_for_completion_timeout(&cs35l56->init_completion,
-					 msecs_to_jiffies(5000))) {
-		dev_err(cs35l56->base.dev, "%s: init_completion timed out\n", __func__);
-		return -ENODEV;
-	}
-
 	cs35l56->dsp.part = kasprintf(GFP_KERNEL, "cs35l%02x", cs35l56->base.type);
 	if (!cs35l56->dsp.part)
 		return -ENOMEM;
@@ -1939,6 +1942,45 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 	return ret;
 }
 
+static int cs35l56_component_register(struct cs35l56_private *cs35l56)
+{
+	int ret;
+
+	ret = snd_soc_register_component(cs35l56->base.dev,
+					 &soc_component_dev_cs35l56,
+					 cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
+	if (ret < 0) {
+		dev_err(cs35l56->base.dev, "Register codec failed: %d\n", ret);
+		return ret;
+	}
+
+	cs35l56->component_registered = true;
+
+	return 0;
+}
+
+static void cs35l56_component_register_work(struct work_struct *work)
+{
+	struct cs35l56_private *cs35l56 = container_of(work,
+						       struct cs35l56_private,
+						       component_register_work);
+	int ret;
+
+	guard(mutex)(&cs35l56_component_register_lock);
+
+	if (cs35l56_shutting_down)
+		return;
+
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(cs35l56->base.dev, pm_err);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm_err);
+	if (ret) {
+		dev_err(cs35l56->base.dev, "register_work failed to get pm_runtime: %d\n", ret);
+		return;
+	}
+
+	cs35l56_component_register(cs35l56);
+}
+
 int cs35l56_common_probe(struct cs35l56_private *cs35l56, int irq)
 {
 	int ret;
@@ -1947,6 +1989,7 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56, int irq)
 	mutex_init(&cs35l56->base.irq_lock);
 	cs35l56->base.cal_index = -1;
 	cs35l56->speaker_id = -ENOENT;
+	INIT_WORK(&cs35l56->component_register_work, cs35l56_component_register_work);
 
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
@@ -2020,12 +2063,17 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56, int irq)
 	if (ret)
 		goto err_remove_wm_adsp;
 
-	ret = snd_soc_register_component(cs35l56->base.dev,
-					 &soc_component_dev_cs35l56,
-					 cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
-	if (ret < 0) {
-		dev_err_probe(cs35l56->base.dev, ret, "Register codec failed\n");
-		goto err_free_irq;
+	/*
+	 * Defer calling snd_soc_register_component() on SoundWire to prevent
+	 * a deadlock where it calls our component_probe(), which requires the
+	 * SoundWire enumeration to complete, but because we are still in probe()
+	 * the SoundWire core will not call the update_status() callback. At time
+	 * of writing snd_soc_register_component() never returns EPROBE_DEFER.
+	 */
+	if (!cs35l56->sdw_peripheral) {
+		ret = cs35l56_component_register(cs35l56);
+		if (ret < 0)
+			goto err_free_irq;
 	}
 
 	return 0;
@@ -2055,6 +2103,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_common_probe, "SND_SOC_CS35L56_CORE");
 
 int cs35l56_init(struct cs35l56_private *cs35l56)
 {
+	bool first_time_init = !cs35l56->base.init_done;
 	int ret;
 
 	/*
@@ -2131,13 +2180,23 @@ post_soft_reset:
 	cs35l56->base.init_done = true;
 	complete_all(&cs35l56->init_completion);
 
+	if (cs35l56->sdw_peripheral && first_time_init) {
+		/*
+		 * Hardware now accessible, queue work to call
+		 * snd_soc_register_component().
+		 */
+		queue_work(system_freezable_wq, &cs35l56->component_register_work);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_init, "SND_SOC_CS35L56_CORE");
 
 void cs35l56_remove(struct cs35l56_private *cs35l56)
 {
-	snd_soc_unregister_component(cs35l56->base.dev);
+	cancel_work_sync(&cs35l56->component_register_work);
+	if (cs35l56->component_registered)
+		snd_soc_unregister_component(cs35l56->base.dev);
 
 	cs35l56->base.init_done = false;
 
@@ -2171,6 +2230,37 @@ EXPORT_NS_GPL_DEV_PM_OPS(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE) = {
 	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_no_irq, cs35l56_system_resume_no_irq)
 };
 #endif
+
+static int cs35l56_reboot_notify(struct notifier_block *nb,
+				 unsigned long action, void *data)
+{
+	guard(mutex)(&cs35l56_component_register_lock);
+	cs35l56_shutting_down = true;
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block cs35l56_reboot_notifier = {
+	.notifier_call = cs35l56_reboot_notify,
+};
+
+static int __init cs35l56_modinit(void)
+{
+	/*
+	 * Use reboot notifier to prevent race between shutdown and
+	 * snd_soc_register_component(). Driver shutdown() callback would
+	 * run too late, after device_shutdown() is already walking the
+	 * device list that component registration can modify.
+	 */
+	return register_reboot_notifier(&cs35l56_reboot_notifier);
+}
+module_init(cs35l56_modinit);
+
+static void __exit cs35l56_modexit(void)
+{
+	unregister_reboot_notifier(&cs35l56_reboot_notifier);
+}
+module_exit(cs35l56_modexit);
 
 MODULE_DESCRIPTION("ASoC CS35L56 driver");
 MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");

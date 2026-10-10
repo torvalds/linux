@@ -1116,7 +1116,7 @@ static int ext4_fc_snapshot_inode(struct inode *inode,
 	else if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE)
 		inode_len += ei->i_extra_isize;
 
-	snap = kmalloc(struct_size(snap, inode_buf, inode_len), GFP_NOFS);
+	snap = kmalloc_flex(*snap, inode_buf, inode_len, GFP_NOFS);
 	if (!snap) {
 		atomic64_inc(&stats->snap_fail_nomem);
 		ext4_fc_set_snap_err(snap_err, EXT4_FC_SNAP_ERR_NOMEM);
@@ -1522,7 +1522,7 @@ static int ext4_fc_alloc_snapshot_inodes(struct super_block *sb,
 	if (nr_inodes > EXT4_FC_SNAPSHOT_MAX_INODES)
 		return -E2BIG;
 
-	inodes = kvcalloc(nr_inodes, sizeof(*inodes), GFP_NOFS);
+	inodes = kvzalloc_objs(*inodes, nr_inodes, GFP_NOFS);
 	if (!inodes)
 		return -ENOMEM;
 
