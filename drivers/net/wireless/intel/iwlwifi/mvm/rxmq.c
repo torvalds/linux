@@ -2427,7 +2427,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_no_data_ver_3 *desc = (void *)pkt->data;
 	u32 rssi;
-	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	struct iwl_mvm_rx_phy_data phy_data;
 	u32 format;
@@ -2541,9 +2540,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 				      RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK) + 1;
 	}
 
-	rcu_read_lock();
-	ieee80211_rx_napi(mvm->hw, sta ? &sta->deflink : NULL, skb, napi);
-	rcu_read_unlock();
+	ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
 }
 
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
