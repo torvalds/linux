@@ -123,6 +123,8 @@ zl3073x_dpll_pin_get_by_ref(struct zl3073x_dpll *zldpll, u8 ref_id)
 {
 	struct zl3073x_dpll_pin *pin;
 
+	lockdep_assert_held(&zldpll->lock);
+
 	list_for_each_entry(pin, &zldpll->pins, list) {
 		if (zl3073x_dpll_is_input_pin(pin) &&
 		    zl3073x_input_pin_ref_get(pin->id) == ref_id)
@@ -132,10 +134,41 @@ zl3073x_dpll_pin_get_by_ref(struct zl3073x_dpll *zldpll, u8 ref_id)
 	return NULL;
 }
 
+/**
+ * zl3073x_dpll_output_pin_sibling_get - get the other pin of an output pair
+ * @pin: output pin whose sibling is sought
+ *
+ * Output pin ids are allocated in P/N pairs (P even, N odd) that share a
+ * single HW output. Looks up the other pin of the pair in the pin list
+ * of this DPLL. A pin is on the list from just before its registration
+ * until just after its unregistration, so a registered sibling is always
+ * found, but the returned pin may also be one that is not (yet or any
+ * longer) registered.
+ *
+ * Return: pointer to sibling pin, or NULL if it is not on the pin list
+ */
+static struct zl3073x_dpll_pin *
+zl3073x_dpll_output_pin_sibling_get(struct zl3073x_dpll_pin *pin)
+{
+	struct zl3073x_dpll_pin *sibling;
+
+	lockdep_assert_held(&pin->dpll->lock);
+
+	list_for_each_entry(sibling, &pin->dpll->pins, list) {
+		if (!zl3073x_dpll_is_input_pin(sibling) &&
+		    sibling->id == (pin->id ^ 1))
+			return sibling;
+	}
+
+	return NULL;
+}
+
 static struct zl3073x_dpll_pin *
 zl3073x_dpll_nco_pin_get(struct zl3073x_dpll *zldpll)
 {
 	struct zl3073x_dpll_pin *pin;
+
+	lockdep_assert_held(&zldpll->lock);
 
 	list_for_each_entry(pin, &zldpll->pins, list) {
 		if (zl3073x_dpll_is_nco_pin(pin))
@@ -909,12 +942,14 @@ zl3073x_dpll_output_pin_esync_set(const struct dpll_pin *dpll_pin,
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dev *zldev = zldpll->dev;
 	struct zl3073x_dpll_pin *pin = pin_priv;
+	struct zl3073x_dpll_pin *sibling = NULL;
 	const struct zl3073x_synth *synth;
 	struct zl3073x_out out;
 	u32 synth_freq;
 	u8 out_id;
+	int rc;
 
-	guard(mutex)(&zldpll->lock);
+	mutex_lock(&zldpll->lock);
 
 	out_id = zl3073x_output_pin_out_get(pin->id);
 	out = *zl3073x_out_state_get(zldev, out_id);
@@ -923,12 +958,14 @@ zl3073x_dpll_output_pin_esync_set(const struct dpll_pin *dpll_pin,
 	 * for N-division is also used for the esync divider so both cannot
 	 * be used.
 	 */
-	if (zl3073x_out_is_ndiv(&out))
-		return -EOPNOTSUPP;
+	if (zl3073x_out_is_ndiv(&out)) {
+		rc = -EOPNOTSUPP;
+		goto unlock;
+	}
 
 	if (!freq) {
 		zl3073x_out_esync_disable(&out);
-		return zl3073x_out_state_set(zldev, out_id, &out);
+		goto commit;
 	}
 
 	/* Get attached synth frequency */
@@ -937,9 +974,24 @@ zl3073x_dpll_output_pin_esync_set(const struct dpll_pin *dpll_pin,
 
 	/* Enable 1PPS eSync for this pin frequency */
 	zl3073x_out_esync_enable(&out, synth_freq / out.div);
-
+commit:
 	/* Commit output configuration */
-	return zl3073x_out_state_set(zldev, out_id, &out);
+	rc = zl3073x_out_state_set(zldev, out_id, &out);
+	if (rc)
+		goto unlock;
+
+	/* The clock type, esync period and esync width are all shared by
+	 * both pins of the output pair, so the sibling pin's esync
+	 * configuration changes too and userspace has to be notified.
+	 */
+	sibling = zl3073x_dpll_output_pin_sibling_get(pin);
+unlock:
+	mutex_unlock(&zldpll->lock);
+
+	if (!rc && sibling)
+		__dpll_pin_change_ntf(sibling->dpll_pin);
+
+	return rc;
 }
 
 static int
@@ -969,13 +1021,15 @@ zl3073x_dpll_output_pin_frequency_set(const struct dpll_pin *dpll_pin,
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dev *zldev = zldpll->dev;
 	struct zl3073x_dpll_pin *pin = pin_priv;
+	struct zl3073x_dpll_pin *sibling = NULL;
 	const struct zl3073x_synth *synth;
 	u32 new_div, synth_freq;
 	struct zl3073x_out out;
 	u64 n_period, rem;
 	u8 out_id;
+	int rc;
 
-	guard(mutex)(&zldpll->lock);
+	mutex_lock(&zldpll->lock);
 
 	out_id = zl3073x_output_pin_out_get(pin->id);
 	out = *zl3073x_out_state_get(zldev, out_id);
@@ -988,7 +1042,8 @@ zl3073x_dpll_output_pin_frequency_set(const struct dpll_pin *dpll_pin,
 	/* Check signal format */
 	if (!zl3073x_out_is_ndiv(&out)) {
 		/* For non N-divided signal formats the frequency is computed
-		 * as division of synth frequency and output divisor.
+		 * as division of synth frequency and output divisor, which
+		 * is shared by both pins of the output pair.
 		 */
 		out.div = new_div;
 
@@ -1013,7 +1068,16 @@ zl3073x_dpll_output_pin_frequency_set(const struct dpll_pin *dpll_pin,
 		}
 
 		/* Commit output configuration */
-		return zl3073x_out_state_set(zldev, out_id, &out);
+		rc = zl3073x_out_state_set(zldev, out_id, &out);
+		if (rc)
+			goto unlock;
+
+		/* The other pin's frequency changed too - it has to be
+		 * notified about the change.
+		 */
+		sibling = zl3073x_dpll_output_pin_sibling_get(pin);
+
+		goto unlock;
 	}
 
 	if (zl3073x_dpll_is_p_pin(pin)) {
@@ -1039,19 +1103,22 @@ zl3073x_dpll_output_pin_frequency_set(const struct dpll_pin *dpll_pin,
 		NL_SET_ERR_MSG_FMT(extack,
 				   "OUT%uN freq must be at most half of OUT%uP freq",
 				   out_id, out_id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto unlock;
 	}
 	if (n_period > U32_MAX) {
 		NL_SET_ERR_MSG_FMT(extack,
 				   "OUT%uN freq is too low for OUT%uP freq",
 				   out_id, out_id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto unlock;
 	}
 	if (rem != 0) {
 		NL_SET_ERR_MSG_FMT(extack,
 				   "OUT%uN freq must divide OUT%uP freq",
 				   out_id, out_id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto unlock;
 	}
 	out.esync_n_period = n_period;
 
@@ -1059,7 +1126,14 @@ zl3073x_dpll_output_pin_frequency_set(const struct dpll_pin *dpll_pin,
 	out.esync_n_width = out.esync_n_period;
 
 	/* Commit output configuration */
-	return zl3073x_out_state_set(zldev, out_id, &out);
+	rc = zl3073x_out_state_set(zldev, out_id, &out);
+unlock:
+	mutex_unlock(&zldpll->lock);
+
+	if (!rc && sibling)
+		__dpll_pin_change_ntf(sibling->dpll_pin);
+
+	return rc;
 }
 
 static int
@@ -1098,10 +1172,12 @@ zl3073x_dpll_output_pin_phase_adjust_set(const struct dpll_pin *dpll_pin,
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dev *zldev = zldpll->dev;
 	struct zl3073x_dpll_pin *pin = pin_priv;
+	struct zl3073x_dpll_pin *sibling = NULL;
 	struct zl3073x_out out;
 	u8 out_id;
+	int rc;
 
-	guard(mutex)(&zldpll->lock);
+	mutex_lock(&zldpll->lock);
 
 	out_id = zl3073x_output_pin_out_get(pin->id);
 	out = *zl3073x_out_state_get(zldev, out_id);
@@ -1110,7 +1186,21 @@ zl3073x_dpll_output_pin_phase_adjust_set(const struct dpll_pin *dpll_pin,
 	out.phase_comp = phase_adjust / pin->phase_gran;
 
 	/* Update output configuration from mailbox */
-	return zl3073x_out_state_set(zldev, out_id, &out);
+	rc = zl3073x_out_state_set(zldev, out_id, &out);
+	if (rc)
+		goto unlock;
+
+	/* The phase compensation register is shared by both pins of the
+	 * output pair, so the sibling pin's phase adjustment changes too.
+	 */
+	sibling = zl3073x_dpll_output_pin_sibling_get(pin);
+unlock:
+	mutex_unlock(&zldpll->lock);
+
+	if (!rc && sibling)
+		__dpll_pin_change_ntf(sibling->dpll_pin);
+
+	return rc;
 }
 
 static int
@@ -1734,6 +1824,13 @@ zl3073x_dpll_pin_register(struct zl3073x_dpll_pin *pin, u32 index)
 	else
 		ops = &zl3073x_dpll_output_pin_ops;
 
+	/* Add the pin to the list before registering it with the DPLL core so
+	 * that it is findable as a sibling as soon as the core publishes it.
+	 */
+	mutex_lock(&zldpll->lock);
+	list_add(&pin->list, &zldpll->pins);
+	mutex_unlock(&zldpll->lock);
+
 	/* Register the pin */
 	rc = dpll_pin_register(zldpll->dpll_dev, pin->dpll_pin, ops, pin);
 	if (rc)
@@ -1745,6 +1842,9 @@ zl3073x_dpll_pin_register(struct zl3073x_dpll_pin *pin, u32 index)
 	return 0;
 
 err_register:
+	mutex_lock(&zldpll->lock);
+	list_del(&pin->list);
+	mutex_unlock(&zldpll->lock);
 	dpll_pin_put(pin->dpll_pin, &pin->tracker);
 err_pin_get:
 	pin->dpll_pin = NULL;
@@ -1779,6 +1879,13 @@ zl3073x_dpll_pin_unregister(struct zl3073x_dpll_pin *pin)
 	/* Unregister the pin */
 	dpll_pin_unregister(zldpll->dpll_dev, pin->dpll_pin, ops, pin);
 
+	/* Remove the pin from the list only after it has been unregistered so
+	 * that a still-registered pin is always findable as a sibling.
+	 */
+	mutex_lock(&zldpll->lock);
+	list_del(&pin->list);
+	mutex_unlock(&zldpll->lock);
+
 	dpll_pin_put(pin->dpll_pin, &pin->tracker);
 	pin->dpll_pin = NULL;
 
@@ -1798,9 +1905,11 @@ zl3073x_dpll_pins_unregister(struct zl3073x_dpll *zldpll)
 {
 	struct zl3073x_dpll_pin *pin, *next;
 
+	/* Unregister each pin before removing it from the list so that a
+	 * still-registered pin is always findable as a sibling.
+	 */
 	list_for_each_entry_safe(pin, next, &zldpll->pins, list) {
 		zl3073x_dpll_pin_unregister(pin);
-		list_del(&pin->list);
 		zl3073x_dpll_pin_free(pin);
 	}
 }
@@ -1913,16 +2022,24 @@ zl3073x_dpll_nco_pin_register(struct zl3073x_dpll *zldpll)
 		goto err_pin_get;
 	}
 
+	/* Add the pin to the list before registering it with the DPLL core so
+	 * that a registered pin is always on the list.
+	 */
+	mutex_lock(&zldpll->lock);
+	list_add(&pin->list, &zldpll->pins);
+	mutex_unlock(&zldpll->lock);
+
 	rc = dpll_pin_register(zldpll->dpll_dev, pin->dpll_pin,
 			       &zl3073x_dpll_nco_pin_ops, pin);
 	if (rc)
 		goto err_register;
 
-	list_add(&pin->list, &zldpll->pins);
-
 	return 0;
 
 err_register:
+	mutex_lock(&zldpll->lock);
+	list_del(&pin->list);
+	mutex_unlock(&zldpll->lock);
 	dpll_pin_put(pin->dpll_pin, &pin->tracker);
 err_pin_get:
 	pin->dpll_pin = NULL;
@@ -1974,8 +2091,6 @@ zl3073x_dpll_pins_register(struct zl3073x_dpll *zldpll)
 			zl3073x_dpll_pin_free(pin);
 			goto error;
 		}
-
-		list_add(&pin->list, &zldpll->pins);
 	}
 
 	/* Register NCO virtual input pin */
