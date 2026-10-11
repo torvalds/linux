@@ -4,9 +4,9 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
-#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -94,16 +94,13 @@ static int al_fic_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	return 0;
 }
 
-static void al_fic_irq_handler(struct irq_desc *desc)
+static irqreturn_t al_fic_irq_handler(int irq, void *data)
 {
-	struct al_fic *fic = irq_desc_get_handler_data(desc);
-	struct irq_chip *irqchip = irq_desc_get_chip(desc);
+	struct al_fic *fic = data;
 	struct irq_domain *domain = fic->domain;
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(domain, 0);
 	unsigned long pending;
 	u32 hwirq;
-
-	chained_irq_enter(irqchip, desc);
 
 	pending = readl_relaxed(fic->base + AL_FIC_CAUSE);
 	pending &= ~gc->mask_cache;
@@ -111,7 +108,7 @@ static void al_fic_irq_handler(struct irq_desc *desc)
 	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS)
 		generic_handle_domain_irq(domain, hwirq);
 
-	chained_irq_exit(irqchip, desc);
+	return pending ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int al_fic_irq_retrigger(struct irq_data *data)
@@ -136,9 +133,15 @@ static int al_fic_register(struct device_node *node, struct al_fic *fic)
 		return -ENOMEM;
 	}
 
+	/*
+	 * Let irq_domain_remove() free the generic chips on either error path
+	 * below, instead of calling irq_domain_remove_generic_chips() by hand.
+	 */
+	fic->domain->flags |= IRQ_DOMAIN_FLAG_DESTROY_GC;
+
 	ret = irq_alloc_domain_generic_chips(fic->domain, NR_FIC_IRQS,
 					     1, of_node_full_name(fic->node), handle_level_irq,
-					     0, 0, IRQ_GC_INIT_MASK_CACHE);
+					     0, 0, 0);
 	if (ret) {
 		pr_err("fail to allocate generic chip (%d)\n", ret);
 		goto err_domain_remove;
@@ -156,7 +159,21 @@ static int al_fic_register(struct device_node *node, struct al_fic *fic)
 	gc->chip_types->chip.flags = IRQCHIP_SKIP_SET_WAKE;
 	gc->private = fic;
 
-	irq_set_chained_handler_and_data(fic->parent_irq, al_fic_irq_handler, fic);
+	/*
+	 * Seed the mask cache with the value al_fic_wire_init() programmed,
+	 * rather than having the generic chip read the register back on the
+	 * first child mapping: that is later than the parent is requested, and
+	 * never happens at all for a group with no consumer in the devicetree.
+	 */
+	gc->mask_cache = ~0U;
+
+	ret = request_irq(fic->parent_irq, al_fic_irq_handler, IRQF_NO_THREAD | IRQF_SHARED,
+			  of_node_full_name(fic->node), fic);
+	if (ret) {
+		pr_err("fail to request irq (%d)\n", ret);
+		goto err_domain_remove;
+	}
+
 	return 0;
 
 err_domain_remove:
