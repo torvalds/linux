@@ -4372,17 +4372,18 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = NULL;
 	struct net_device *netdev = NULL;
-	struct wireless_dev *wdev;
+	struct wireless_dev *wdev = NULL;
 	int result = 0, rem_txq_params = 0;
 	struct nlattr *nl_txq_params;
-	u32 changed;
+	u32 changed, wdev_id = 0;
 	u8 retry_short = 0, retry_long = 0;
 	u32 frag_threshold = 0, rts_threshold = 0;
 	u8 coverage_class = 0;
 	u32 txq_limit = 0, txq_memory_limit = 0, txq_quantum = 0;
 	int radio_idx = -1;
 
-	rtnl_lock();
+	/* keeps the wiphy registered and its netns stable */
+	mutex_lock(&cfg80211_mutex);
 	/*
 	 * Try to find the wiphy and netdev. Normally this
 	 * function shouldn't need the netdev, but this is
@@ -4396,27 +4397,43 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_IFINDEX]) {
 		int ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
 
-		netdev = __dev_get_by_index(genl_info_net(info), ifindex);
-		if (netdev && netdev->ieee80211_ptr)
+		rcu_read_lock();
+		netdev = dev_get_by_index_rcu(genl_info_net(info), ifindex);
+		if (netdev && netdev->ieee80211_ptr) {
 			rdev = wiphy_to_rdev(netdev->ieee80211_ptr->wiphy);
-		else
-			netdev = NULL;
+			wdev_id = netdev->ieee80211_ptr->identifier;
+		}
+		rcu_read_unlock();
 	}
 
-	if (!netdev) {
+	if (!rdev) {
+		/* RCU for the wdev list walk, cfg80211_mutex keeps rdev */
+		rcu_read_lock();
 		rdev = __cfg80211_rdev_from_attrs(genl_info_net(info),
 						  info->attrs);
+		rcu_read_unlock();
 		if (IS_ERR(rdev)) {
-			rtnl_unlock();
+			mutex_unlock(&cfg80211_mutex);
 			return PTR_ERR(rdev);
 		}
-		wdev = NULL;
-		netdev = NULL;
-		result = 0;
-	} else
-		wdev = netdev->ieee80211_ptr;
+	}
 
 	guard(wiphy)(&rdev->wiphy);
+
+	/* the netdev may have been unregistered after the lookup */
+	if (wdev_id) {
+		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+			if (wdev->identifier == wdev_id)
+				break;
+		}
+		if (list_entry_is_head(wdev, &rdev->wiphy.wdev_list, list)) {
+			mutex_unlock(&cfg80211_mutex);
+			return -ENODEV;
+		}
+		netdev = wdev->netdev;
+	} else {
+		netdev = NULL;
+	}
 
 	/*
 	 * end workaround code, by now the rdev is available
@@ -4426,7 +4443,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_WIPHY_NAME])
 		result = cfg80211_dev_rename(
 			rdev, nla_data(info->attrs[NL80211_ATTR_WIPHY_NAME]));
-	rtnl_unlock();
+	mutex_unlock(&cfg80211_mutex);
 
 	if (result)
 		return result;

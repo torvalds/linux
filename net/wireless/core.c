@@ -94,7 +94,7 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 	struct cfg80211_registered_device *rdev2;
 	int wiphy_idx, taken = -1, digits;
 
-	ASSERT_RTNL();
+	lockdep_assert_held(&cfg80211_mutex);
 
 	if (strlen(newname) > NL80211_WIPHY_NAME_MAXLEN)
 		return -EINVAL;
@@ -127,7 +127,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 {
 	int result;
 
-	ASSERT_RTNL();
+	lockdep_assert_held(&cfg80211_mutex);
 	lockdep_assert_wiphy(&rdev->wiphy);
 
 	/* Ignore nop renames */
@@ -664,16 +664,16 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	if (requested_name && requested_name[0]) {
 		int rv;
 
-		rtnl_lock();
+		mutex_lock(&cfg80211_mutex);
 		rv = cfg80211_dev_check_name(rdev, requested_name);
 
 		if (rv < 0) {
-			rtnl_unlock();
+			mutex_unlock(&cfg80211_mutex);
 			goto use_default_name;
 		}
 
 		rv = dev_set_name(&rdev->wiphy.dev, "%s", requested_name);
-		rtnl_unlock();
+		mutex_unlock(&cfg80211_mutex);
 		if (rv)
 			goto use_default_name;
 	} else {
