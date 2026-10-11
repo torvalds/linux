@@ -309,7 +309,7 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
  * SMB 2.1/SMB3 Protocol specific functions
  */
 int
-smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+smb2_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		      struct cifs_sb_info *cifs_sb, const unsigned char *path,
 		      char *pbuf, unsigned int *pbytes_read)
 {
@@ -363,7 +363,7 @@ qmf_out_open_fail:
 }
 
 int
-smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+smb2_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		       struct cifs_sb_info *cifs_sb, const unsigned char *path,
 		       char *pbuf, unsigned int *pbytes_written)
 {
