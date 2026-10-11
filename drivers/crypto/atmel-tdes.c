@@ -633,7 +633,7 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 	dd->dma_lch_in.chan = dma_request_chan(dd->dev, "tx");
 	if (IS_ERR(dd->dma_lch_in.chan)) {
 		ret = PTR_ERR(dd->dma_lch_in.chan);
-		goto err_dma_in;
+		goto err_dma;
 	}
 
 	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
@@ -649,7 +649,8 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 	dd->dma_lch_out.chan = dma_request_chan(dd->dev, "rx");
 	if (IS_ERR(dd->dma_lch_out.chan)) {
 		ret = PTR_ERR(dd->dma_lch_out.chan);
-		goto err_dma_out;
+		dma_release_channel(dd->dma_lch_in.chan);
+		goto err_dma;
 	}
 
 	dd->dma_lch_out.dma_conf.src_addr = dd->phys_base +
@@ -664,9 +665,7 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 
 	return 0;
 
-err_dma_out:
-	dma_release_channel(dd->dma_lch_in.chan);
-err_dma_in:
+err_dma:
 	dev_err(dd->dev, "no DMA channel available\n");
 	return ret;
 }
