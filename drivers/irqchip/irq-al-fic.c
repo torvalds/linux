@@ -16,11 +16,14 @@
 /* FIC Registers */
 #define AL_FIC_CAUSE		0x00
 #define AL_FIC_SET_CAUSE	0x08
-#define AL_FIC_MASK		0x10
+#define AL_FIC_INFO_MASK	0x10
 #define AL_FIC_CONTROL		0x28
+#define AL_FIC_ERROR_MASK	0x2c
+#define AL_FIC_FATAL_MASK	0x34
 
 #define CONTROL_TRIGGER_RISING	BIT(3)
 #define CONTROL_MASK_MSI_X	BIT(5)
+#define CONTROL_VERSION_ID	GENMASK(29, 28)
 
 #define NR_FIC_IRQS 32
 
@@ -31,6 +34,37 @@ enum al_fic_state {
 	AL_FIC_UNCONFIGURED = 0,
 	AL_FIC_CONFIGURED_LEVEL,
 	AL_FIC_CONFIGURED_RISING_EDGE,
+};
+
+/*
+ * FIC hardware revision, as reported by the CONTROL register version field
+ * (CONTROL_VERSION_ID, bits 29-28). These are this driver's names for that
+ * field's encoding.
+ */
+enum al_fic_version {
+	AL_FIC_VERSION_V1,
+	AL_FIC_VERSION_V2,
+};
+
+enum al_fic_id {
+	AL_FIC_ID_INFO,
+	AL_FIC_ID_ERROR,
+	AL_FIC_ID_FATAL,
+	AL_FIC_ID_MAX,
+};
+
+/* Mask register offset for each interrupt group */
+static const unsigned int al_fic_mask_offset[AL_FIC_ID_MAX] = {
+	[AL_FIC_ID_INFO]  = AL_FIC_INFO_MASK,
+	[AL_FIC_ID_ERROR] = AL_FIC_ERROR_MASK,
+	[AL_FIC_ID_FATAL] = AL_FIC_FATAL_MASK,
+};
+
+/* amazon,al-fic-mask property value for each interrupt group */
+static const char * const al_fic_mask_name[AL_FIC_ID_MAX] = {
+	[AL_FIC_ID_INFO]  = "info",
+	[AL_FIC_ID_ERROR] = "error",
+	[AL_FIC_ID_FATAL] = "fatal",
 };
 
 struct al_fic {
@@ -121,7 +155,7 @@ static int al_fic_irq_retrigger(struct irq_data *data)
 	return 1;
 }
 
-static int al_fic_register(struct device_node *node, struct al_fic *fic)
+static int al_fic_register(struct device_node *node, struct al_fic *fic, enum al_fic_id fic_id)
 {
 	struct irq_chip_generic *gc;
 	int ret;
@@ -149,7 +183,7 @@ static int al_fic_register(struct device_node *node, struct al_fic *fic)
 
 	gc = irq_get_domain_generic_chip(fic->domain, 0);
 	gc->reg_base = fic->base;
-	gc->chip_types->regs.mask = AL_FIC_MASK;
+	gc->chip_types->regs.mask = al_fic_mask_offset[fic_id];
 	gc->chip_types->regs.ack = AL_FIC_CAUSE;
 	gc->chip_types->chip.irq_mask = irq_gc_mask_set_bit;
 	gc->chip_types->chip.irq_unmask = irq_gc_mask_clr_bit;
@@ -186,6 +220,8 @@ err_domain_remove:
  * @node: pointer to the interrupt controller's device tree node
  * @base: mmio to fic register
  * @parent_irq: interrupt of parent
+ * @fic_id: which of the controller's outputs (info, error or fatal) this
+ *          group drives
  *
  * This API will configure the fic hardware to work in wire mode.
  * In wire mode, fic hardware is generating a wire ("wired") interrupt.
@@ -193,9 +229,9 @@ err_domain_remove:
  * to be determined based on connected hardware to this fic.
  */
 static struct al_fic *al_fic_wire_init(struct device_node *node, void __iomem *base,
-				       unsigned int parent_irq)
+				       unsigned int parent_irq, enum al_fic_id fic_id)
 {
-	u32 control = CONTROL_MASK_MSI_X;
+	u32 control, version_id;
 	struct al_fic *fic;
 	int ret;
 
@@ -207,22 +243,37 @@ static struct al_fic *al_fic_wire_init(struct device_node *node, void __iomem *b
 	fic->parent_irq = parent_irq;
 	fic->node = of_node_get(node);
 
+	control = readl_relaxed(fic->base + AL_FIC_CONTROL);
+	version_id = FIELD_GET(CONTROL_VERSION_ID, control);
+	if (version_id == AL_FIC_VERSION_V1 && fic_id != AL_FIC_ID_INFO) {
+		pr_err("%pOF: amazon,al-fic-mask = \"%s\" not available on FIC v1\n",
+		       node, al_fic_mask_name[fic_id]);
+		ret = -EINVAL;
+		goto err_free;
+	}
+
 	/* mask out all interrupts */
-	writel_relaxed(0xFFFFFFFF, fic->base + AL_FIC_MASK);
+	writel_relaxed(~0U, fic->base + AL_FIC_INFO_MASK);
+	if (version_id > AL_FIC_VERSION_V1) {
+		writel_relaxed(~0U, fic->base + AL_FIC_ERROR_MASK);
+		writel_relaxed(~0U, fic->base + AL_FIC_FATAL_MASK);
+	}
 
 	/* clear any pending interrupt */
 	writel_relaxed(0, fic->base + AL_FIC_CAUSE);
 
+	/* make sure the controller works in non msi_x mode */
+	control |= CONTROL_MASK_MSI_X;
 	writel_relaxed(control, fic->base + AL_FIC_CONTROL);
 
-	ret = al_fic_register(node, fic);
+	ret = al_fic_register(node, fic, fic_id);
 	if (ret) {
 		pr_err("fail to register irqchip\n");
 		goto err_free;
 	}
 
-	pr_info("%pOF initialized successfully in Legacy mode (parent-irq=%u)\n",
-		node, parent_irq);
+	pr_info("%pOF initialized successfully (mask=%s parent-irq=%u)\n",
+		node, al_fic_mask_name[fic_id], parent_irq);
 
 	return fic;
 
@@ -232,9 +283,36 @@ err_free:
 	return ERR_PTR(ret);
 }
 
+/*
+ * Parse the amazon,al-fic-mask property into an enum al_fic_id, selecting
+ * which of the controller's outputs this group drives. The property is
+ * optional; an absent property means the info output.
+ */
+static int al_fic_parse_mask(struct device_node *node, enum al_fic_id *fic_id)
+{
+	const char *mask;
+	int ret;
+
+	ret = of_property_read_string(node, "amazon,al-fic-mask", &mask);
+	if (ret == -EINVAL) {
+		*fic_id = AL_FIC_ID_INFO;
+		return 0;
+	}
+	if (ret)
+		return ret;
+
+	ret = match_string(al_fic_mask_name, AL_FIC_ID_MAX, mask);
+	if (ret < 0)
+		return ret;
+
+	*fic_id = ret;
+	return 0;
+}
+
 static int __init al_fic_init_dt(struct device_node *node, struct device_node *parent)
 {
 	unsigned int parent_irq;
+	enum al_fic_id fic_id;
 	struct al_fic *fic;
 	void __iomem *base;
 	int ret;
@@ -242,6 +320,12 @@ static int __init al_fic_init_dt(struct device_node *node, struct device_node *p
 	if (!parent) {
 		pr_err("%pOF: unsupported - device requires a parent\n", node);
 		return -EINVAL;
+	}
+
+	ret = al_fic_parse_mask(node, &fic_id);
+	if (ret) {
+		pr_err("%pOF: invalid amazon,al-fic-mask\n", node);
+		return ret;
 	}
 
 	base = of_iomap(node, 0);
@@ -257,7 +341,7 @@ static int __init al_fic_init_dt(struct device_node *node, struct device_node *p
 		goto err_unmap;
 	}
 
-	fic = al_fic_wire_init(node, base, parent_irq);
+	fic = al_fic_wire_init(node, base, parent_irq, fic_id);
 
 	if (IS_ERR(fic)) {
 		pr_err("%pOF: fail to initialize irqchip (%pe)\n", node, fic);
