@@ -1616,6 +1616,7 @@ static unsigned long system_supported_vcpu_features(void)
 	return features;
 }
 
+#if ARM64_S390_COMMON == 1
 static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 					const struct kvm_vcpu_init *init)
 {
@@ -1668,6 +1669,8 @@ static bool kvm_vcpu_init_changed(struct kvm_vcpu *vcpu,
 	return !bitmap_equal(vcpu->kvm->arch.vcpu_features, &features,
 			     KVM_VCPU_MAX_FEATURES);
 }
+
+#endif /* ARM64_S390_COMMON == 1 */
 
 static int kvm_setup_vcpu(struct kvm_vcpu *vcpu)
 {
