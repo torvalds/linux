@@ -4195,8 +4195,12 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	if (rc) {
 		if (new_ses) {
+			enum securityEnum sectype;
+
+			sectype = server->ops->select_sectype(server,
+							      ses->sectype);
 			cifs_server_dbg(VFS, "failed to create a new SMB session with %s: %d\n",
-					get_security_type_str(ses->sectype), rc);
+					get_security_type_str(sectype), rc);
 		}
 		spin_lock(&ses->ses_lock);
 		if (ses->ses_status == SES_IN_SETUP)
