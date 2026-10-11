@@ -140,8 +140,15 @@ static irqreturn_t al_fic_irq_handler(int irq, void *data)
 	pending = readl_relaxed(fic->base + AL_FIC_CAUSE);
 	pending &= ~gc->mask_cache;
 
-	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS)
-		generic_handle_domain_irq(domain, hwirq);
+	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS) {
+		/*
+		 * Redirect a child whose affinity excludes this CPU to its
+		 * target CPU via irq_work. The ack moves to
+		 * al_fic_irq_pre_redirect(), because the whole flow handler is
+		 * deferred when that happens.
+		 */
+		generic_handle_demux_domain_irq(domain, hwirq);
+	}
 
 	return pending ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -155,6 +162,32 @@ static int al_fic_irq_retrigger(struct irq_data *data)
 
 	return 1;
 }
+
+#ifdef CONFIG_SMP
+/* The ack happens in al_fic_irq_pre_redirect() on both paths instead. */
+static void al_fic_ack_noop(struct irq_data *data) { }
+
+/*
+ * Runs in the parent interrupt context on every dispatch, redirected or not.
+ * Clear the cause bit here: once the flow handler is deferred, the FIC keeps
+ * driving its output until the irq_work runs, and a level parent SPI re-fires.
+ *
+ * A level configured group is masked too, because its cause bit re-latches
+ * while the input stays asserted; the deferred handle_level_irq() unmasks
+ * when the handler is done. An edge configured group is only acked, since
+ * handle_edge_irq() never unmasks unconditionally and the mask would stay.
+ */
+static void al_fic_irq_pre_redirect(struct irq_data *data)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+	struct al_fic *fic = gc->private;
+
+	if (fic->state == AL_FIC_CONFIGURED_LEVEL)
+		irq_gc_mask_set_bit(data);
+
+	irq_gc_ack_clr_bit(data);
+}
+#endif /* CONFIG_SMP */
 
 static int al_fic_register(struct device_node *node, struct al_fic *fic, enum al_fic_id fic_id)
 {
@@ -188,9 +221,19 @@ static int al_fic_register(struct device_node *node, struct al_fic *fic, enum al
 	gc->chip_types->regs.ack = AL_FIC_CAUSE;
 	gc->chip_types->chip.irq_mask = irq_gc_mask_set_bit;
 	gc->chip_types->chip.irq_unmask = irq_gc_mask_clr_bit;
-	gc->chip_types->chip.irq_ack = irq_gc_ack_clr_bit;
 	gc->chip_types->chip.irq_set_type = al_fic_irq_set_type;
 	gc->chip_types->chip.irq_retrigger = al_fic_irq_retrigger;
+#ifdef CONFIG_SMP
+	/*
+	 * The FIC has no hardware affinity control, so give each child real
+	 * affinity by redirecting its handler to the target CPU.
+	 */
+	gc->chip_types->chip.irq_ack = al_fic_ack_noop;
+	gc->chip_types->chip.irq_pre_redirect = al_fic_irq_pre_redirect;
+	gc->chip_types->chip.irq_set_affinity = irq_chip_redirect_set_affinity;
+#else
+	gc->chip_types->chip.irq_ack = irq_gc_ack_clr_bit;
+#endif
 	gc->chip_types->chip.flags = IRQCHIP_SKIP_SET_WAKE;
 	gc->private = fic;
 
