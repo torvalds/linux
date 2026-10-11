@@ -200,9 +200,6 @@ static void set_next_compound(struct cifs_tcon *tcon,
 	(*num_rqst)++;
 }
 
-#define COMP_PID(cfile) ((cfile) ? (cfile)->fid.persistent_fid : COMPOUND_FID)
-#define COMP_VID(cfile) ((cfile) ? (cfile)->fid.volatile_fid : COMPOUND_FID)
-
 /*
  * note: If cfile is passed, the reference to it is dropped here.
  * So make sure that you do not reuse cfile after return from this func.

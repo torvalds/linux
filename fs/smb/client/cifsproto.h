@@ -319,9 +319,10 @@ int generate_smb311signingkey(struct cifs_ses *ses,
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb, const char *reason, int rc);
 bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
-int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
-		     struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		     const unsigned char *path);
+int cifs_check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const char *full_path, struct inode *inode,
+			  struct cifs_fattr *fattr);
 int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 	      const struct nls_table *codepage);
 
@@ -337,9 +338,11 @@ struct cifs_ses *cifs_get_smb_ses(struct TCP_Server_Info *server,
 int cifs_readv_receive(struct TCP_Server_Info *server,
 		       struct mid_q_entry *mid);
 
-int cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+int cifs_query_mf_symlink(const unsigned int xid,
+			  struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb,
-			  const unsigned char *path, char *pbuf,
+			  const char *full_path,
+			  struct inode *inode, char *pbuf,
 			  unsigned int *pbytes_read);
 int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,

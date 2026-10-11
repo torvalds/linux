@@ -13,6 +13,14 @@
 #ifndef _SMB2_GLOB_H
 #define _SMB2_GLOB_H
 
+#define COMP_PID(cfile) ((cfile) ? (cfile)->fid.persistent_fid : COMPOUND_FID)
+#define COMP_VID(cfile) ((cfile) ? (cfile)->fid.volatile_fid : COMPOUND_FID)
+
+static inline void cifs_stats_fail_inc(struct cifs_tcon *tcon, uint16_t code)
+{
+	cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_failed[code]);
+}
+
 /*
  *****************************************************************
  * Constants go here

@@ -95,9 +95,11 @@ int smb2_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
-int smb2_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+int smb2_query_mf_symlink(const unsigned int xid,
+			  struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb,
-			  const unsigned char *path, char *pbuf,
+			  const char *full_path,
+			  struct inode *inode, char *pbuf,
 			  unsigned int *pbytes_read);
 int smb2_fix_symlink_target_type(char **target, bool directory,
 				 struct cifs_sb_info *cifs_sb);
@@ -172,6 +174,10 @@ int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 		    struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		    u64 persistent_fid, u64 volatile_fid);
 void SMB2_flush_free(struct smb_rqst *rqst);
+int smb2_new_read_req(void **buf, unsigned int *total_len,
+		      struct cifs_io_parms *io_parms,
+		      struct cifs_io_subrequest *rdata,
+		      unsigned int remaining_bytes, int request_type);
 int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		    u64 persistent_fid, u64 volatile_fid,
 		    struct smb2_file_all_info *data);

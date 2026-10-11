@@ -543,9 +543,12 @@ struct smb_version_operations {
 			     struct cifsFileInfo *src_file, void __user *);
 	int (*notify)(const unsigned int xid, struct file *pfile,
 			     void __user *pbuf, bool return_changes);
-	int (*query_mf_symlink)(unsigned int, struct cifs_tcon *,
-				struct cifs_sb_info *, const unsigned char *,
-				char *, unsigned int *);
+	int (*query_mf_symlink)(const unsigned int xid,
+				struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb,
+				const char *full_path,
+				struct inode *inode, char *pbuf,
+				unsigned int *pbytes_read);
 	int (*create_mf_symlink)(unsigned int, struct cifs_tcon *,
 				 struct cifs_sb_info *, const unsigned char *,
 				 char *, unsigned int *);

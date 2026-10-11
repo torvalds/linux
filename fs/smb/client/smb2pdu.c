@@ -2113,11 +2113,6 @@ smb2_session_already_dead:
 	return rc;
 }
 
-static inline void cifs_stats_fail_inc(struct cifs_tcon *tcon, uint16_t code)
-{
-	cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_failed[code]);
-}
-
 #define MAX_SHARENAME_LENGTH (255 /* server */ + 80 /* share */ + 1 /* NULL */)
 
 /* These are similar values to what Windows uses */
@@ -4581,10 +4576,10 @@ static inline bool smb3_use_rdma_offload(struct cifs_io_parms *io_parms)
  * To form a chain of read requests, any read requests after the first should
  * have the end_of_chain boolean set to true.
  */
-static int
-smb2_new_read_req(void **buf, unsigned int *total_len,
-	struct cifs_io_parms *io_parms, struct cifs_io_subrequest *rdata,
-	unsigned int remaining_bytes, int request_type)
+int smb2_new_read_req(void **buf, unsigned int *total_len,
+		      struct cifs_io_parms *io_parms,
+		      struct cifs_io_subrequest *rdata,
+		      unsigned int remaining_bytes, int request_type)
 {
 	int rc = -EACCES;
 	struct smb2_read_req *req = NULL;
