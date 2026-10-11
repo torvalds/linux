@@ -1792,13 +1792,13 @@ fn generate_projections(info: &StructInfo) -> TokenStream {
         #[doc = #docs]
         // Allow `non_snake_case` since the same warning will be emitted on
         // the struct definition.
-        #[allow(dead_code, non_snake_case)]
+        #[allow(dead_code, non_snake_case, explicit_outlives_requirements)]
         #[doc(hidden)]
         #projection_lt_def
 
         // Allow `non_snake_case` since the same warning will be emitted on
         // the struct definition.
-        #[allow(dead_code, non_snake_case)]
+        #[allow(dead_code, non_snake_case, explicit_outlives_requirements)]
         #[doc(hidden)]
         #projection_ref_lt_def
 
@@ -2000,7 +2000,7 @@ fn generate_the_pin_data(info: &StructInfo) -> TokenStream {
     quote! {
         // We declare this struct which will host all of the projection function for our type.
         #[doc(hidden)]
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, explicit_outlives_requirements)]
         #vis struct __PinDataLt #generics_with_field_lt
             #whr_with_field_lt
         {
