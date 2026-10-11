@@ -520,6 +520,205 @@ static const struct ppe_scheduler_qm_config ipq9574_ppe_sch_qm_config[] = {
 	{0x98, 6, 5, true, 2},
 };
 
+static const struct ppe_scheduler_bm_config ipq5424_ppe_sch_bm_config[] = {
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 1},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 3},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 3},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 1},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 3},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  2, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 3},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 1},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 3},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  2, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 1},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  3, true, 2},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 3},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 3, false, 0},
+	{true, PPE_SCH_EGRESS,  1, true, 2},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  3, false, 0},
+	{true, PPE_SCH_INGRESS, 2, false, 0},
+	{true, PPE_SCH_EGRESS,  0, false, 0},
+	{true, PPE_SCH_INGRESS, 1, false, 0},
+	{true, PPE_SCH_EGRESS,  2, true, 3},
+	{true, PPE_SCH_INGRESS, 0, false, 0},
+	{true, PPE_SCH_EGRESS,  1, false, 0},
+};
+
+/* ensch_port_bmp is left as 0 for every entry here, unlike
+ * ipq9574_ppe_sch_qm_config[] above. This is expected for IPQ5424,
+ * not an omission.
+ */
+static const struct ppe_scheduler_qm_config ipq5424_ppe_sch_qm_config[] = {
+	{0x0, 3, 2, false, 0},
+	{0x0, 1, 3, false, 0},
+	{0x0, 0, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 3, 1, true, 0},
+	{0x0, 3, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 3, 1, true, 0},
+	{0x0, 3, 2, false, 0},
+	{0x0, 1, 3, false, 0},
+	{0x0, 0, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 3, 1, true, 0},
+	{0x0, 3, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 0, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 3, 2, true, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 1, 3, false, 0},
+	{0x0, 0, 1, false, 0},
+	{0x0, 3, 2, true, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 0, 2, false, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 0, false, 0},
+	{0x0, 1, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 0, 2, false, 0},
+	{0x0, 3, 0, false, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 3, false, 0},
+	{0x0, 0, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 3, 2, true, 0},
+	{0x0, 3, 1, false, 0},
+	{0x0, 2, 3, false, 0},
+	{0x0, 0, 2, false, 0},
+	{0x0, 1, 0, false, 0},
+	{0x0, 2, 1, false, 0},
+	{0x0, 0, 2, false, 0},
+	{0x0, 3, 0, false, 0},
+};
+
 static const struct ppe_scheduler_port_config ppe_port_sch_config[] = {
 	{
 		.port		= 0,
@@ -1817,14 +2016,29 @@ static int ppe_config_scheduler(struct ppe_device *ppe_dev)
 	const struct ppe_scheduler_port_config *port_cfg;
 	const struct ppe_scheduler_qm_config *qm_cfg;
 	const struct ppe_scheduler_bm_config *bm_cfg;
-	int ret, i, count;
+	int ret, i, bm_count, qm_count, count;
 	u32 val, reg;
 
-	count = ARRAY_SIZE(ipq9574_ppe_sch_bm_config);
-	bm_cfg = ipq9574_ppe_sch_bm_config;
+	switch (ppe_dev->type) {
+	case IPQ9574_PPE:
+		bm_cfg = ipq9574_ppe_sch_bm_config;
+		bm_count = ARRAY_SIZE(ipq9574_ppe_sch_bm_config);
+		qm_cfg = ipq9574_ppe_sch_qm_config;
+		qm_count = ARRAY_SIZE(ipq9574_ppe_sch_qm_config);
+		break;
+	case IPQ5424_PPE:
+		bm_cfg = ipq5424_ppe_sch_bm_config;
+		bm_count = ARRAY_SIZE(ipq5424_ppe_sch_bm_config);
+		qm_cfg = ipq5424_ppe_sch_qm_config;
+		qm_count = ARRAY_SIZE(ipq5424_ppe_sch_qm_config);
+		break;
+	default:
+		dev_err(ppe_dev->dev, "Invalid PPE type %d\n", ppe_dev->type);
+		return -EINVAL;
+	}
 
 	/* Configure the depth of BM scheduler entries. */
-	val = FIELD_PREP(PPE_BM_SCH_CTRL_SCH_DEPTH, count);
+	val = FIELD_PREP(PPE_BM_SCH_CTRL_SCH_DEPTH, bm_count);
 	val |= FIELD_PREP(PPE_BM_SCH_CTRL_SCH_OFFSET, 0);
 	val |= FIELD_PREP(PPE_BM_SCH_CTRL_SCH_EN, 1);
 
@@ -1836,7 +2050,7 @@ static int ppe_config_scheduler(struct ppe_device *ppe_dev)
 	 * egress port, the second port takes effect when the specified port
 	 * is in the inactive state.
 	 */
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < bm_count; i++) {
 		val = FIELD_PREP(PPE_BM_SCH_CFG_TBL_VALID, bm_cfg[i].valid);
 		val |= FIELD_PREP(PPE_BM_SCH_CFG_TBL_DIR, bm_cfg[i].dir);
 		val |= FIELD_PREP(PPE_BM_SCH_CFG_TBL_PORT_NUM, bm_cfg[i].port);
@@ -1851,11 +2065,8 @@ static int ppe_config_scheduler(struct ppe_device *ppe_dev)
 			goto sch_config_fail;
 	}
 
-	count = ARRAY_SIZE(ipq9574_ppe_sch_qm_config);
-	qm_cfg = ipq9574_ppe_sch_qm_config;
-
 	/* Configure the depth of QM scheduler entries. */
-	val = FIELD_PREP(PPE_PSCH_SCH_DEPTH_CFG_SCH_DEPTH, count);
+	val = FIELD_PREP(PPE_PSCH_SCH_DEPTH_CFG_SCH_DEPTH, qm_count);
 	ret = regmap_write(ppe_dev->regmap, PPE_PSCH_SCH_DEPTH_CFG_ADDR, val);
 	if (ret)
 		goto sch_config_fail;
@@ -1864,7 +2075,7 @@ static int ppe_config_scheduler(struct ppe_device *ppe_dev)
 	 * port, the second port takes effect when the specified dequeue
 	 * port is in the inactive port.
 	 */
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < qm_count; i++) {
 		val = FIELD_PREP(PPE_PSCH_SCH_CFG_TBL_ENS_PORT_BITMAP,
 				 qm_cfg[i].ensch_port_bmp);
 		val |= FIELD_PREP(PPE_PSCH_SCH_CFG_TBL_ENS_PORT,
