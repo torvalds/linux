@@ -696,7 +696,7 @@ free_req:
 			if (!zone->len)
 				break;
 
-			ret = disk_report_zone(disk, zone, i, args);
+			ret = disk_report_zone(disk, zone, done_zones, args);
 			if (ret)
 				goto out;
 
