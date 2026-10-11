@@ -6,7 +6,8 @@
  * via the pseudo-firmware bitmap register. This includes the registers'
  * read/write behavior before and after the VM has started, and if the
  * hypercalls are properly masked or unmasked to the guest when disabled or
- * enabled from the KVM userspace, respectively.
+ * enabled from the KVM userspace, respectively. It also checks the two
+ * SMCCC_ARCH_FEATURES queries whose answer SMCCC pins to SUCCESS.
  */
 #include <errno.h>
 #include <linux/arm-smccc.h>
@@ -97,6 +98,12 @@ static const struct test_hvc_info false_hvc_info[] = {
 	TEST_HVC_INFO(ARM_SMCCC_HV_PV_TIME_FEATURES, ARM_SMCCC_TRNG_RND64),
 };
 
+/* SMCCC pins the answer to SUCCESS, whatever the bitmaps hold. */
+static const struct test_hvc_info always_hvc_info[] = {
+	TEST_HVC_INFO(ARM_SMCCC_ARCH_FEATURES_FUNC_ID, ARM_SMCCC_VERSION_FUNC_ID),
+	TEST_HVC_INFO(ARM_SMCCC_ARCH_FEATURES_FUNC_ID, ARM_SMCCC_ARCH_FEATURES_FUNC_ID),
+};
+
 static void guest_test_hvc(const struct test_hvc_info *hc_info)
 {
 	unsigned int i;
@@ -128,6 +135,23 @@ static void guest_test_hvc(const struct test_hvc_info *hc_info)
 	}
 }
 
+static void guest_test_always_hvc(void)
+{
+	struct arm_smccc_res res;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(always_hvc_info); i++) {
+		memset(&res, 0, sizeof(res));
+		do_smccc(always_hvc_info[i].func_id, always_hvc_info[i].arg1,
+			 0, 0, 0, 0, 0, 0, &res);
+
+		__GUEST_ASSERT(res.a0 == SMCCC_RET_SUCCESS,
+			       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%lx, stage = %u",
+			       res.a0, always_hvc_info[i].func_id,
+			       always_hvc_info[i].arg1, stage);
+	}
+}
+
 static void guest_code(void)
 {
 	while (stage != TEST_STAGE_END) {
@@ -137,6 +161,7 @@ static void guest_code(void)
 		case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
 		case TEST_STAGE_HVC_IFACE_FEAT_ENABLED:
 			guest_test_hvc(hvc_info);
+			guest_test_always_hvc();
 			break;
 		case TEST_STAGE_HVC_IFACE_FALSE_INFO:
 			guest_test_hvc(false_hvc_info);
