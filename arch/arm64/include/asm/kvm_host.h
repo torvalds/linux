@@ -221,6 +221,26 @@ struct kvm_guest_s2_mapping {
 	struct interval_tree_node nested;
 };
 
+struct kvm_vcpu_ops {
+	void (*vcpu_load)(struct kvm_vcpu *vcpu);
+	void (*vcpu_put)(struct kvm_vcpu *vcpu);
+};
+
+struct kvm_gfn_range;
+struct kvm_s2_fault_desc;
+
+struct kvm_vm_s2_ops {
+	bool (*vm_age_gfn)(struct kvm *kvm, struct kvm_gfn_range *range);
+	bool (*vm_test_age_gfn)(struct kvm *kvm, struct kvm_gfn_range *range);
+	int (*vm_flush_remote_tlbs)(struct kvm *kvm);
+	int (*vm_flush_remote_tlbs_range)(struct kvm *kvm, gfn_t gfn,
+					  u64 nr_pages);
+	void (*vm_stage2_unmap_range)(struct kvm_s2_mmu *mmu,
+				      phys_addr_t start, u64 size,
+				      bool may_block);
+	int (*vm_mem_abort)(const struct kvm_s2_fault_desc *s2fd);
+};
+
 struct kvm_s2_mmu {
 	struct kvm_vmid vmid;
 
@@ -327,7 +347,6 @@ struct kvm_smccc_features {
 struct kvm_protected_vm {
 	pkvm_handle_t handle;
 	struct kvm_hyp_memcache stage2_teardown_mc;
-	bool is_protected;
 	bool is_created;
 
 	/*
@@ -376,8 +395,24 @@ enum fgt_group_id {
 	__NR_FGT_GROUP_IDS__
 };
 
+enum kvm_arm_vm_flavor {
+	VM_NVHE,
+	VM_VHE,
+	/* VMs running on a hyp that doesn't trust */
+	MARKER(__VM_DISTRUSTING_HYP),
+	VM_PKVM,		/* Normal guests on pKVM */
+	MARKER(__VM_PROTECTED),
+	VM_PROTECTED_PKVM,	/* Protected VM */
+	VM_FLAVOR_MAX
+};
+
 struct kvm_arch {
 	struct kvm_s2_mmu mmu;
+	const struct kvm_vm_s2_ops *vm_s2_ops;
+
+	enum kvm_arm_vm_flavor vm_flavor;
+	/* Mandated version of PSCI */
+	u32 psci_version;
 
 	/*
 	 * Fine-Grained UNDEF, mimicking the FGT layout defined by the
@@ -407,9 +442,6 @@ struct kvm_arch {
 
 	/* Timers */
 	struct arch_timer_vm_data timer_data;
-
-	/* Mandated version of PSCI */
-	u32 psci_version;
 
 	/* Protects VM-scoped configuration data */
 	struct mutex config_lock;
@@ -886,6 +918,7 @@ struct vncr_tlb;
 
 struct kvm_vcpu_arch {
 	struct kvm_cpu_context ctxt;
+	const struct kvm_vcpu_ops *vcpu_ops;
 
 	/*
 	 * Guest floating point state
@@ -1532,9 +1565,30 @@ struct kvm *kvm_arch_alloc_vm(void);
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLBS_RANGE
 
-#define kvm_vm_is_protected(kvm)	(is_protected_kvm_enabled() && (kvm)->arch.pkvm.is_protected)
+#ifdef __KVM_NVHE_HYPERVISOR__
 
+#define kvm_vm_is_protected(kvm)			\
+	(is_protected_kvm_enabled() && ((kvm)->arch.vm_flavor == VM_PROTECTED_PKVM))
+/*
+ * Accessing vcpu->kvm from nVHE hyp stub is tricky, as we need to convert the
+ * pointer to the hyp VA. With pKVM, the nVHE code runs with the hyp_vcpu,
+ * which is populated correctly and is gated on is_protected_kvm_enabled().
+ */
+#define vcpu_is_protected(vcpu)						\
+	({								\
+		struct kvm *__kvm = READ_ONCE((vcpu)->kvm);		\
+									\
+		(__kvm && kvm_vm_is_protected(__kvm));			\
+	})
+
+#else
+
+#define kvm_vm_is_protected(kvm)	((kvm)->arch.vm_flavor >= __VM_PROTECTED)
 #define vcpu_is_protected(vcpu)		kvm_vm_is_protected((vcpu)->kvm)
+
+#define kvm_vm_hyp_is_distrusting(kvm)	((kvm)->arch.vm_flavor >= __VM_DISTRUSTING_HYP)
+
+#endif	/* __KVM_NVHE_HYPERVISOR__ */
 
 #define kvm_has_mte(kvm)					\
 	(system_supports_mte() &&				\
