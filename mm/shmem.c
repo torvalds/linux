@@ -5160,6 +5160,9 @@ static const struct dentry_operations shmem_ci_dentry_ops = {
 
 static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	static struct lock_class_key shmem_unused_huge_lock_key;
+#endif
 	struct shmem_options *ctx = fc->fs_private;
 	struct inode *inode;
 	struct shmem_sb_info *sbinfo;
@@ -5238,7 +5241,8 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto failed;
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	if (list_lru_init_memcg(&sbinfo->shrinklist, sb->s_shrink))
+	if (list_lru_init_memcg_key(&sbinfo->shrinklist, sb->s_shrink,
+				    &shmem_unused_huge_lock_key))
 		goto failed;
 #endif
 
