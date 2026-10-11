@@ -622,6 +622,10 @@ retry_open:
 	if (rdwr_for_fscache == 2)
 		cifs_invalidate_cache(inode, FSCACHE_INVAL_DIO_WRITE);
 
+	if (server->vals->protocol_id > SMB20_PROT_ID &&
+	    *oplock != SMB2_OPLOCK_LEVEL_NONE)
+		CIFS_I(inode)->lease_granted = true;
+
 	/* TODO: Add support for calling posix query info but with passing in fid */
 	if (tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, inode->i_sb,
