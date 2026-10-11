@@ -1133,6 +1133,107 @@ static int assoc_array_delete_collapse_iterator(const void *leaf,
 	return 0;
 }
 
+/*
+ * Deleting a leaf from node leaves its subtree with FAN_OUT or fewer leaves:
+ * collapse the subtree into one new node, together with as much of the tree
+ * above it as also fits.  Returns false if the new node cannot be allocated.
+ */
+static bool assoc_array_delete_collapse(struct assoc_array_edit *edit,
+					struct assoc_array_node *node)
+{
+	struct assoc_array_delete_collapse_context collapse;
+	struct assoc_array_node *parent, *grandparent, *new_n0;
+	struct assoc_array_ptr *ptr;
+	bool has_meta;
+	int i;
+
+	/* First of all, we need to know if this node has metadata so
+	 * that we don't try collapsing if all the leaves are already
+	 * here.
+	 */
+	has_meta = false;
+	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+		ptr = node->slots[i];
+		if (assoc_array_ptr_is_meta(ptr)) {
+			has_meta = true;
+			break;
+		}
+	}
+
+	pr_devel("leaves: %ld [m=%d]\n",
+		 node->nr_leaves_on_branch - 1, has_meta);
+
+	/* Look further up the tree to see if we can collapse this node
+	 * into a more proximal node too.
+	 */
+	parent = node;
+collapse_up:
+	pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
+
+	ptr = parent->back_pointer;
+	if (!ptr)
+		goto do_collapse;
+	if (assoc_array_ptr_is_shortcut(ptr)) {
+		struct assoc_array_shortcut *s = assoc_array_ptr_to_shortcut(ptr);
+		ptr = s->back_pointer;
+		if (!ptr)
+			goto do_collapse;
+	}
+
+	grandparent = assoc_array_ptr_to_node(ptr);
+	if (grandparent->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
+		parent = grandparent;
+		goto collapse_up;
+	}
+
+do_collapse:
+	/* There's no point collapsing if the original node has no meta
+	 * pointers to discard and if we didn't merge into one of that
+	 * node's ancestry.
+	 */
+	if (has_meta || parent != node) {
+		node = parent;
+
+		/* Create a new node to collapse into */
+		new_n0 = kzalloc_obj(struct assoc_array_node);
+		if (!new_n0)
+			return false;
+		edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
+
+		new_n0->back_pointer = node->back_pointer;
+		new_n0->parent_slot = node->parent_slot;
+		new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
+		edit->adjust_count_on = new_n0;
+
+		collapse.node = new_n0;
+		collapse.skip_leaf = assoc_array_ptr_to_leaf(edit->dead_leaf);
+		collapse.slot = 0;
+		assoc_array_subtree_iterate(assoc_array_node_to_ptr(node),
+					    node->back_pointer,
+					    assoc_array_delete_collapse_iterator,
+					    &collapse);
+		pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
+		BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
+
+		if (!node->back_pointer) {
+			edit->set[1].ptr = &edit->array->root;
+		} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
+			BUG();
+		} else if (assoc_array_ptr_is_node(node->back_pointer)) {
+			struct assoc_array_node *p =
+				assoc_array_ptr_to_node(node->back_pointer);
+			edit->set[1].ptr = &p->slots[node->parent_slot];
+		} else if (assoc_array_ptr_is_shortcut(node->back_pointer)) {
+			struct assoc_array_shortcut *s =
+				assoc_array_ptr_to_shortcut(node->back_pointer);
+			edit->set[1].ptr = &s->next_node;
+		}
+		edit->set[1].to = assoc_array_node_to_ptr(new_n0);
+		edit->excised_subtree = assoc_array_node_to_ptr(node);
+	}
+	return true;
+}
+
 /**
  * assoc_array_delete - Script deletion of an object from an associative array
  * @array: The array to search.
@@ -1156,13 +1257,11 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
 					    const struct assoc_array_ops *ops,
 					    const void *index_key)
 {
-	struct assoc_array_delete_collapse_context collapse;
 	struct assoc_array_walk_result result;
-	struct assoc_array_node *node, *new_n0;
+	struct assoc_array_node *node;
 	struct assoc_array_edit *edit;
 	struct assoc_array_ptr *ptr;
-	bool has_meta;
-	int slot, i;
+	int slot;
 
 	pr_devel("-->%s()\n", __func__);
 
@@ -1231,95 +1330,9 @@ found_leaf:
 	 * We could also try and collapse in partially filled subtrees to take
 	 * up space in this node.
 	 */
-	if (node->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
-		struct assoc_array_node *parent, *grandparent;
-		struct assoc_array_ptr *ptr;
-
-		/* First of all, we need to know if this node has metadata so
-		 * that we don't try collapsing if all the leaves are already
-		 * here.
-		 */
-		has_meta = false;
-		for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-			ptr = node->slots[i];
-			if (assoc_array_ptr_is_meta(ptr)) {
-				has_meta = true;
-				break;
-			}
-		}
-
-		pr_devel("leaves: %ld [m=%d]\n",
-			 node->nr_leaves_on_branch - 1, has_meta);
-
-		/* Look further up the tree to see if we can collapse this node
-		 * into a more proximal node too.
-		 */
-		parent = node;
-	collapse_up:
-		pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
-
-		ptr = parent->back_pointer;
-		if (!ptr)
-			goto do_collapse;
-		if (assoc_array_ptr_is_shortcut(ptr)) {
-			struct assoc_array_shortcut *s = assoc_array_ptr_to_shortcut(ptr);
-			ptr = s->back_pointer;
-			if (!ptr)
-				goto do_collapse;
-		}
-
-		grandparent = assoc_array_ptr_to_node(ptr);
-		if (grandparent->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
-			parent = grandparent;
-			goto collapse_up;
-		}
-
-	do_collapse:
-		/* There's no point collapsing if the original node has no meta
-		 * pointers to discard and if we didn't merge into one of that
-		 * node's ancestry.
-		 */
-		if (has_meta || parent != node) {
-			node = parent;
-
-			/* Create a new node to collapse into */
-			new_n0 = kzalloc_obj(struct assoc_array_node);
-			if (!new_n0)
-				goto enomem;
-			edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
-
-			new_n0->back_pointer = node->back_pointer;
-			new_n0->parent_slot = node->parent_slot;
-			new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
-			edit->adjust_count_on = new_n0;
-
-			collapse.node = new_n0;
-			collapse.skip_leaf = assoc_array_ptr_to_leaf(edit->dead_leaf);
-			collapse.slot = 0;
-			assoc_array_subtree_iterate(assoc_array_node_to_ptr(node),
-						    node->back_pointer,
-						    assoc_array_delete_collapse_iterator,
-						    &collapse);
-			pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
-			BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
-
-			if (!node->back_pointer) {
-				edit->set[1].ptr = &array->root;
-			} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
-				BUG();
-			} else if (assoc_array_ptr_is_node(node->back_pointer)) {
-				struct assoc_array_node *p =
-					assoc_array_ptr_to_node(node->back_pointer);
-				edit->set[1].ptr = &p->slots[node->parent_slot];
-			} else if (assoc_array_ptr_is_shortcut(node->back_pointer)) {
-				struct assoc_array_shortcut *s =
-					assoc_array_ptr_to_shortcut(node->back_pointer);
-				edit->set[1].ptr = &s->next_node;
-			}
-			edit->set[1].to = assoc_array_node_to_ptr(new_n0);
-			edit->excised_subtree = assoc_array_node_to_ptr(node);
-		}
-	}
+	if (node->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1 &&
+	    !assoc_array_delete_collapse(edit, node))
+		goto enomem;
 
 	return edit;
 
