@@ -1308,9 +1308,6 @@ OldOpenRetry:
 		cifs_dbg(FYI, "Error in Open = %d\n", rc);
 	} else {
 	/* BB verify if wct == 15 */
-
-/*		*pOplock = pSMBr->OplockLevel; */ /* BB take from action field*/
-
 		*netfid = pSMBr->Fid;   /* cifs fid stays in le */
 		/* Let caller know file was created so we can set the mode. */
 		/* Do we care about the CreateAction in any other cases? */
