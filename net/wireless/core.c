@@ -660,33 +660,13 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	/* atomic_inc_return makes it start at 1, make it start at 0 */
 	rdev->wiphy_idx--;
 
-	/* give it a proper name */
-	if (requested_name && requested_name[0]) {
+	/* remember the name, used/checked during registration */
+	if (!requested_name || !requested_name[0] ||
+	    dev_set_name(&rdev->wiphy.dev, "%s", requested_name)) {
 		int rv;
 
-		mutex_lock(&cfg80211_mutex);
-		rv = cfg80211_dev_check_name(rdev, requested_name);
-
-		if (rv < 0) {
-			mutex_unlock(&cfg80211_mutex);
-			goto use_default_name;
-		}
-
-		rv = dev_set_name(&rdev->wiphy.dev, "%s", requested_name);
-		mutex_unlock(&cfg80211_mutex);
-		if (rv)
-			goto use_default_name;
-	} else {
-		int rv;
-
-use_default_name:
-		/* NOTE:  This is *probably* safe w/out holding rtnl because of
-		 * the restrictions on phy names.  Probably this call could
-		 * fail if some other part of the kernel (re)named a device
-		 * phyX.  But, might should add some locking and check return
-		 * value, and use a different name if this one exists?
-		 */
-		rv = dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+		rv = dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d",
+				  rdev->wiphy_idx);
 		if (rv < 0) {
 			kfree(rdev);
 			return NULL;
@@ -1240,7 +1220,14 @@ int wiphy_register(struct wiphy *wiphy)
 	rtnl_lock();
 	mutex_lock(&cfg80211_mutex);
 	wiphy_lock(&rdev->wiphy);
-	res = device_add(&rdev->wiphy.dev);
+
+	/* use default name if the requested one isn't good */
+	res = cfg80211_dev_check_name(rdev, dev_name(&rdev->wiphy.dev));
+	if (res)
+		res = dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d",
+				   rdev->wiphy_idx);
+	if (!res)
+		res = device_add(&rdev->wiphy.dev);
 	if (res) {
 		wiphy_unlock(&rdev->wiphy);
 		mutex_unlock(&cfg80211_mutex);
