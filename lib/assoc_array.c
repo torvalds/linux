@@ -516,6 +516,38 @@ static bool assoc_array_insert_in_node(struct assoc_array_edit *edit,
 }
 
 /*
+ * Fill in the edit script's segment cache for a full node: the segment at
+ * this level of each leaf's index key, or 0xff for a metadata pointer.
+ * The new key's segment, in the last entry, is left to the caller.  Returns
+ * true if there are any metadata pointers.
+ */
+static bool assoc_array_fill_segment_cache(struct assoc_array_edit *edit,
+					   const struct assoc_array_ops *ops,
+					   const struct assoc_array_node *node,
+					   int level)
+{
+	struct assoc_array_ptr *ptr;
+	unsigned long base_seg;
+	bool have_meta;
+	int i;
+
+	have_meta = false;
+	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+		ptr = node->slots[i];
+		if (assoc_array_ptr_is_meta(ptr)) {
+			edit->segment_cache[i] = 0xff;
+			have_meta = true;
+			continue;
+		}
+		base_seg = ops->get_object_key_chunk(
+			assoc_array_ptr_to_leaf(ptr), level);
+		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
+	}
+	return have_meta;
+}
+
+/*
  * Handle insertion into a terminal node.
  */
 static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
@@ -534,7 +566,6 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 
 	node	= result->terminal_node.node;
 	level	= result->terminal_node.level;
-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
 
 	pr_devel("-->%s()\n", __func__);
 
@@ -566,19 +597,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 
 	/* We need to find out how similar the leaves are. */
 	pr_devel("no spare slots\n");
-	have_meta = false;
-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		ptr = node->slots[i];
-		if (assoc_array_ptr_is_meta(ptr)) {
-			edit->segment_cache[i] = 0xff;
-			have_meta = true;
-			continue;
-		}
-		base_seg = ops->get_object_key_chunk(
-			assoc_array_ptr_to_leaf(ptr), level);
-		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
-		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
-	}
+	have_meta = assoc_array_fill_segment_cache(edit, ops, node, level);
+	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
 
 	if (have_meta) {
 		pr_devel("have meta\n");
@@ -791,13 +811,7 @@ all_leaves_cluster_together:
 	/* This now reduces to a node splitting exercise for which we'll need
 	 * to regenerate the disparity table.
 	 */
-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		ptr = node->slots[i];
-		base_seg = ops->get_object_key_chunk(assoc_array_ptr_to_leaf(ptr),
-						     level);
-		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
-		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
-	}
+	assoc_array_fill_segment_cache(edit, ops, node, level);
 
 	base_seg = ops->get_key_chunk(index_key, level);
 	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
