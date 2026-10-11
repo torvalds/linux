@@ -1938,6 +1938,7 @@ static void cvmx_usb_schedule(struct octeon_hcd *usb, int is_sof)
 	struct cvmx_usb_pipe *pipe;
 	int need_sof;
 	u64 min_due;
+	bool due_now;
 	enum cvmx_usb_transfer ttype;
 
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
@@ -1979,15 +1980,32 @@ done:
 	 */
 	need_sof = 0;
 	min_due = ~0ull;
+	due_now = false;
 	for (ttype = CVMX_USB_TRANSFER_CONTROL;
 	     ttype <= CVMX_USB_TRANSFER_INTERRUPT; ttype++) {
 		list_for_each_entry(pipe, &usb->active_pipes[ttype], node) {
+			/*
+			 * Do not sleep past a pipe that is only retried from a
+			 * SOF: a periodic one that is due but was not started
+			 * (no idle channel, closed split window, another pipe's
+			 * split active), or any pipe waiting for the frame its
+			 * split complete may go out in. Other control and bulk
+			 * pipes are left out: their next_tx_frame is not updated
+			 * on completion, so they always look due.
+			 */
+			if (pipe->split_sc_frame != -1 ||
+			    (pipe->next_tx_frame <= usb->frame_number &&
+			     (ttype == CVMX_USB_TRANSFER_ISOCHRONOUS ||
+			      ttype == CVMX_USB_TRANSFER_INTERRUPT)))
+				due_now = true;
 			if (pipe->next_tx_frame > usb->frame_number &&
 			    pipe->next_tx_frame < min_due)
 				min_due = pipe->next_tx_frame;
 		}
 	}
-	if (min_due != ~0ull) {
+	if (due_now) {
+		need_sof = 1;
+	} else if (min_due != ~0ull) {
 		u64 delta = min_due - usb->frame_number;
 
 		/*
