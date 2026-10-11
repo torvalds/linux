@@ -176,7 +176,7 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 	struct __queue *pfree_sta_queue;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	int i = 0;
-	u16  wRxSeqInitialValue = 0xffff;
+	u16  rx_seq_initial_value = 0xffff;
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
@@ -214,7 +214,7 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 	/*  So, we initialize the tid_rxseq variable as the 0xffff. */
 
 	for (i = 0; i < 16; i++)
-		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
+		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &rx_seq_initial_value, 2);
 
 	timer_setup(&psta->addba_retry_timer, addba_timer_hdl, 0);
 
