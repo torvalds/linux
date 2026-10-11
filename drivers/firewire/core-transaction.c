@@ -455,13 +455,15 @@ __must_not_hold(&card->transactions.lock)
 	timer_setup(&t->split_timeout_timer, split_transaction_timeout_callback, 0);
 	t->packet.callback = transmit_complete_callback;
 
+	// The node_id field of fw_card can be updated when handling SelfIDComplete.
+	int node_id;
+
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
-	scoped_guard(spinlock_irqsave, &card->lock) {
-		// The node_id field of fw_card can be updated when handling SelfIDComplete.
-		fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, card->node_id,
-				generation, speed, offset, payload, length);
-	}
+	scoped_guard(spinlock_irqsave, &card->lock)
+		node_id = card->node_id;
+	fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, node_id, generation, speed,
+			offset, payload, length);
 
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
