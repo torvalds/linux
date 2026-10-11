@@ -371,15 +371,15 @@ int kvm_inject_serror_esr(struct kvm_vcpu *vcpu, u64 esr)
 	}
 
 	/*
-	 * Emulate the exception entry if SErrors are unmasked. This is useful if
-	 * the vCPU is in a nested context w/ vSErrors enabled then we've already
-	 * delegated he hardware vSError context (i.e. HCR_EL2.VSE, VSESR_EL2,
-	 * VDISR_EL2) to the guest hypervisor.
+	 * With NV, emulate the exception entry if SErrors are unmasked: in a
+	 * nested context with vSErrors enabled, the hardware vSError context
+	 * (i.e. HCR_EL2.VSE, VSESR_EL2, VDISR_EL2) is delegated to the guest
+	 * hypervisor. Otherwise, HCR_EL2.VSE delivers it once it is unmasked.
 	 *
 	 * As we're emulating the SError injection we need to explicitly populate
 	 * ESR_ELx.EC because hardware will not do it on our behalf.
 	 */
-	if (!serror_is_masked(vcpu)) {
+	if (vcpu_has_nv(vcpu) && !serror_is_masked(vcpu)) {
 		pend_serror_exception(vcpu);
 		esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_SERROR) | ESR_ELx_IL;
 		vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));

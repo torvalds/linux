@@ -1323,6 +1323,9 @@ guests, across different userspace implementations. Nevertheless, userspace
 can still emulate all Arm exceptions by manipulating individual registers
 using the KVM_SET_ONE_REG API.
 
+For a protected VM, setting ext_dabt_pending returns -EPERM; see
+Documentation/virt/kvm/arm/pkvm.rst. Injecting an SError is unaffected.
+
 See KVM_GET_VCPU_EVENTS for the data structure.
 
 Calling this ioctl on a vCPU that hasn't been initialized will return
@@ -1546,7 +1549,9 @@ Possible values are:
    KVM_MP_STATE_RUNNABLE         the vcpu is currently running
                                  [x86,arm64,riscv,loongarch]
    KVM_MP_STATE_UNINITIALIZED    the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal [x86]
+                                 which has not yet received an INIT signal
+                                 [x86], or a protected VM's vcpu that the
+                                 guest holds powered off [arm64]
    KVM_MP_STATE_INIT_RECEIVED    the vcpu has received an INIT signal, and is
                                  now ready for a SIPI [x86]
    KVM_MP_STATE_HALTED           the vcpu has executed a HLT instruction and
@@ -1624,6 +1629,12 @@ For arm64/riscv:
 
 The only states that are valid are KVM_MP_STATE_STOPPED and
 KVM_MP_STATE_RUNNABLE which reflect if the vcpu should be paused or not.
+
+On arm64, once a protected VM's vcpu has run, it reads as
+KVM_MP_STATE_UNINITIALIZED while the guest holds it powered off, with
+CPU_OFF or by not yet bringing it online with CPU_ON, and
+KVM_MP_STATE_RUNNABLE and KVM_MP_STATE_SUSPENDED return -EPERM on it: only
+the guest can power it on. See Documentation/virt/kvm/arm/pkvm.rst.
 
 On LoongArch, only the KVM_MP_STATE_RUNNABLE state is used to reflect
 whether the vcpu is runnable.
@@ -2325,7 +2336,8 @@ Errors:
   ENOENT   no such register
   EINVAL   invalid register ID, or no such register or used with VMs in
            protected virtualization mode on s390
-  EPERM    (arm64) register access not allowed before vcpu finalization
+  EPERM    (arm64) register access not allowed before vcpu
+           finalization, or after a protected VM's vcpu has run
   EBUSY    (riscv) changing register value not allowed after the vcpu
            has run at least once
   ======   ============================================================
@@ -2950,7 +2962,8 @@ Errors include:
   ENOENT   no such register
   EINVAL   invalid register ID, or no such register or used with VMs in
            protected virtualization mode on s390
-  EPERM    (arm64) register access not allowed before vcpu finalization
+  EPERM    (arm64) register access not allowed before vcpu
+           finalization, or after a protected VM's vcpu has run
   ======== ============================================================
 
 (These error codes are indicative only: do not rely on a specific error
@@ -3485,6 +3498,7 @@ Errors:
   ======     =================================================================
   EINVAL     the target is unknown, or the combination of features is invalid.
   ENOENT     a features bit specified is unknown.
+  EPERM      the vcpu belongs to a protected VM and has already run.
   ======     =================================================================
 
 This tells KVM what type of CPU to present to the guest, and what
@@ -3512,6 +3526,10 @@ Userspace can call this function multiple times for a given vcpu, including
 after the vcpu has been run. This will reset the vcpu to its initial
 state. All calls to this function after the initial call must use the same
 target and same set of feature flags, otherwise EINVAL will be returned.
+
+For a protected VM this ioctl returns EPERM once the vcpu has run, and the
+features it accepts are restricted: KVM_ARM_VCPU_PSCI_0_2 is required. See
+Documentation/virt/kvm/arm/pkvm.rst.
 
 Possible features:
 
@@ -3784,6 +3802,9 @@ For arm64 the number of debug registers is implementation defined and
 can be determined by querying the KVM_CAP_GUEST_DEBUG_HW_BPS and
 KVM_CAP_GUEST_DEBUG_HW_WPS capabilities which return a positive number
 indicating the number of supported registers.
+
+On arm64, this ioctl returns -EPERM for a protected VM: debugging a
+protected guest is not supported. See Documentation/virt/kvm/arm/pkvm.rst.
 
 For ppc, the KVM_CAP_PPC_GUEST_DEBUG_SSTEP capability indicates whether
 the single-step debug event (KVM_GUESTDBG_SINGLESTEP) is supported.
