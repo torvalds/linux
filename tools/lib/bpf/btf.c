@@ -6640,7 +6640,7 @@ void btf_set_base_btf(struct btf *btf, const struct btf *base_btf)
 
 int btf__relocate(struct btf *btf, const struct btf *base_btf)
 {
-	int err = btf_relocate(btf, base_btf, NULL);
+	int err = btf_relocate(btf, base_btf, NULL, NULL);
 
 	if (!err)
 		btf->owns_base = false;

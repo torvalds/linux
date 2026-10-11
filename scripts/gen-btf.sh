@@ -68,6 +68,7 @@ esac
 
 gen_btf_data()
 {
+	inline=${BTF_INLINE:+--inline}
 	btf1="${ELF_FILE}.BTF.1"
 	${PAHOLE} -J ${PAHOLE_FLAGS}			\
 		${BTF_BASE:+--btf_base ${BTF_BASE}}	\
@@ -76,6 +77,7 @@ gen_btf_data()
 
 	${RESOLVE_BTFIDS} ${RESOLVE_BTFIDS_FLAGS}	\
 		${BTF_BASE:+--btf_base ${BTF_BASE}}	\
+		${inline}				\
 		--btf ${btf1} "${ELF_FILE}"
 }
 
@@ -83,14 +85,28 @@ gen_btf_o()
 {
 	btf_data=${ELF_FILE}.btf.o
 
-	# Create ${btf_data} which contains just .BTF section but no symbols. Add
+	# Create ${btf_data} which contains just BTF sections but no symbols. Add
 	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
 	# deletes all symbols including __start_BTF and __stop_BTF, which will
 	# be redefined in the linker script.
 	echo "" | ${CC} ${CLANG_FLAGS} ${KBUILD_CPPFLAGS} ${KBUILD_CFLAGS} -fno-lto -c -x c -o ${btf_data} -
 	${OBJCOPY} --add-section .BTF=${ELF_FILE}.BTF \
 		--set-section-flags .BTF=alloc,readonly ${btf_data}
-	${OBJCOPY} --only-section=.BTF --strip-all ${btf_data}
+	ONLY_SEC="--only-section=.BTF"
+	btf_inline=${ELF_FILE}.BTF.inline
+	if [ "${BTF_INLINE}" = "m" ]; then
+		if [ -f "${btf_inline}" ]; then
+			cp "${btf_inline}" "${objtree}/vmlinux.BTF.inline"
+		else
+			rm -f "${objtree}/vmlinux.BTF.inline"
+		fi
+	fi
+	if [ "${BTF_INLINE}" = "y" ] && [ -f "${btf_inline}" ]; then
+		${OBJCOPY} --add-section .BTF.inline=${btf_inline} \
+			--set-section-flags .BTF.inline=alloc,readonly ${btf_data}
+		ONLY_SEC="${ONLY_SEC} --only-section=.BTF.inline"
+	fi
+	${OBJCOPY} ${ONLY_SEC} --strip-all ${btf_data}
 
 	# Change e_type to ET_REL so that it can be used to link final vmlinux.
 	# GNU ld 2.35+ and lld do not allow an ET_EXEC input.
@@ -111,6 +127,15 @@ embed_btf_data()
 	if [ -f "${btf_base}" ]; then
 		${OBJCOPY} --add-section .BTF.base=${btf_base} ${ELF_FILE}
 	fi
+	btf_inline=${ELF_FILE}.BTF.inline
+	case "${ELF_FILE}" in
+	*/btf_vmlinux_inline.ko)
+		btf_inline=${BTF_BASE}.BTF.inline
+		;;
+	esac
+	if [ -n "${BTF_INLINE}" ] && [ -f "${btf_inline}" ]; then
+		${OBJCOPY} --add-section .BTF.inline=${btf_inline} ${ELF_FILE}
+	fi
 	btf_ids="${ELF_FILE}.BTF_ids"
 	if [ -f "${btf_ids}" ]; then
 		${RESOLVE_BTFIDS} --patch_btfids ${btf_ids} ${ELF_FILE}
@@ -121,6 +146,8 @@ cleanup()
 {
 	rm -f "${ELF_FILE}.BTF.1"
 	rm -f "${ELF_FILE}.BTF"
+	rm -f "${ELF_FILE}.BTF.inline"
+	rm -f "${ELF_FILE}.BTF.inline.link"
 	if [ "${BTFGEN_MODE}" = "module" ]; then
 		rm -f "${ELF_FILE}.BTF.base"
 		rm -f "${ELF_FILE}.BTF_ids"

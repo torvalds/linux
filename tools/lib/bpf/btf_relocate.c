@@ -441,7 +441,8 @@ static int btf_relocate_rewrite_strs(struct btf_relocate *r, __u32 i)
 /* If successful, output of relocation is updated BTF with base BTF pointing
  * at base_btf, and type ids, strings adjusted accordingly.
  */
-int btf_relocate(struct btf *btf, const struct btf *base_btf, __u32 **id_map)
+int btf_relocate(struct btf *btf, const struct btf *base_btf, __u32 **id_map,
+		 __u32 **str_map)
 {
 	unsigned int nr_types = btf__type_cnt(btf);
 	const struct btf_header *dist_base_hdr;
@@ -511,6 +512,10 @@ int btf_relocate(struct btf *btf, const struct btf *base_btf, __u32 **id_map)
 	if (id_map) {
 		*id_map = r.id_map;
 		r.id_map = NULL;
+	}
+	if (str_map) {
+		*str_map = r.str_map;
+		r.str_map = NULL;
 	}
 err_out:
 	free(r.id_map);

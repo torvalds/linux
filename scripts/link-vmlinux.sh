@@ -289,7 +289,13 @@ vmlinux_link "${VMLINUX}"
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
 	info BTFIDS ${VMLINUX}
-	${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} ${VMLINUX}
+	if [ "${BTF_INLINE}" = "m" ]; then
+		${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} \
+			--btf_link .BTF.inline:btf_vmlinux_inline:vmlinux.BTF.inline \
+			${VMLINUX}
+	else
+		${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} ${VMLINUX}
+	fi
 fi
 
 mksysmap "${VMLINUX}" System.map
