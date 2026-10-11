@@ -870,7 +870,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 					    struct assoc_array_walk_result *result)
 {
 	struct assoc_array_shortcut *shortcut, *new_s0, *new_s1;
-	struct assoc_array_node *node, *new_n0, *side;
+	struct assoc_array_node *new_n0, *side;
 	unsigned long sc_segments, dissimilarity, blank;
 	size_t keylen;
 	int level, sc_level, diff;
@@ -896,14 +896,11 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 	diff += sc_level & ~ASSOC_ARRAY_KEY_CHUNK_MASK;
 	pr_devel("diff=%d\n", diff);
 
-	if (!shortcut->back_pointer) {
-		edit->set[0].ptr = &edit->array->root;
-	} else if (assoc_array_ptr_is_node(shortcut->back_pointer)) {
-		node = assoc_array_ptr_to_node(shortcut->back_pointer);
-		edit->set[0].ptr = &node->slots[shortcut->parent_slot];
-	} else {
-		BUG();
-	}
+	BUG_ON(shortcut->back_pointer &&
+	       !assoc_array_ptr_is_node(shortcut->back_pointer));
+	edit->set[0].ptr = assoc_array_parent_link(edit->array,
+						   shortcut->back_pointer,
+						   shortcut->parent_slot);
 
 	edit->excised_meta[0] = assoc_array_shortcut_to_ptr(shortcut);
 
