@@ -626,11 +626,11 @@ static const struct llcc_slice_config glymur_data[] = {
 
 static const struct llcc_slice_config ipq5424_data[] =  {
 	{
-		.usecase_id = LLCC_CPUSS,
+		.usecase_id = LLCC_PPE_RXDESC,
 		.slice_id = 1,
-		.max_cap = 768,
-		.priority = 1,
-		.bonus_ways = 0xFFFF,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x0FFF,
 		.retain_on_pc = true,
 		.activate_on_init = true,
 		.write_scid_cacheable_en = true,
@@ -642,12 +642,52 @@ static const struct llcc_slice_config ipq5424_data[] =  {
 		.vict_prio = true,
 	},
 	{
-		.usecase_id = LLCC_VIDSC0,
+		.usecase_id = LLCC_CPUSS,
 		.slice_id = 2,
-		.max_cap = 256,
-		.priority = 2,
+		.max_cap = 768,
+		.priority = 1,
 		.fixed_size = true,
-		.bonus_ways = 0xF000,
+		.bonus_ways = 0x0FFF,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+	},
+	{
+		.usecase_id = LLCC_PPE_RXFILL,
+		.slice_id = 5,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x0FFF,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+		.alloc_oneway_en = true,
+		.ovcap_en = true,
+		.ovcap_prio = true,
+		.vict_prio = true,
+	},
+	{
+		.usecase_id = LLCC_WLAN_5G,
+		.slice_id = 6,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0xC000,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+	},
+	{
+		.usecase_id = LLCC_WLAN_6G,
+		.slice_id = 7,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x3000,
 		.retain_on_pc = true,
 		.activate_on_init = true,
 		.write_scid_cacheable_en = true,
@@ -5617,6 +5657,10 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	}
 
 	drv_data->ecc_irq = platform_get_irq_optional(pdev, 0);
+	if (drv_data->ecc_irq < 0 && drv_data->ecc_irq != -ENXIO)
+		return dev_err_probe(&pdev->dev, drv_data->ecc_irq,
+				     "failed to get IRQ resource\n");
+
 	drv_data->edac_reg_offset = cfg->edac_reg_offset;
 	drv_data->ecc_irq_configured = cfg->irq_configured;
 	drv_data->dev = dev;

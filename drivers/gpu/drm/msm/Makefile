@@ -24,6 +24,8 @@ adreno-y := \
 	adreno/a6xx_gmu.o \
 	adreno/a6xx_hfi.o \
 	adreno/a6xx_preempt.o \
+	adreno/a7xx_catalog.o \
+	adreno/a8xx_catalog.o \
 	adreno/a8xx_gpu.o \
 	adreno/a8xx_preempt.o \
 

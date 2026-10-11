@@ -510,7 +510,6 @@
 
 	bq27441_fg: bq27441-battery@55 {
 		compatible = "ti,bq27411";
-		status = "okay";
 		reg = <0x55>;
 	};
 };

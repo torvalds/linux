@@ -705,14 +705,17 @@
 };
 
 &gpi_dma0 {
+	dma-channel-mask = <0x3>;
 	status = "okay";
 };
 
 &gpi_dma1 {
+	dma-channel-mask = <0x3>;
 	status = "okay";
 };
 
 &gpi_dma2 {
+	dma-channel-mask = <0x3>;
 	status = "okay";
 };
 
@@ -734,6 +737,7 @@
 
 &mdss0_dp0_out {
 	data-lanes = <0 1 2 3>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
 	remote-endpoint = <&usb_0_qmpphy_dp_in>;
 };
 
@@ -743,6 +747,7 @@
 
 &mdss0_dp1_out {
 	data-lanes = <0 1 2 3>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
 	remote-endpoint = <&usb_1_qmpphy_dp_in>;
 };
 
@@ -1212,6 +1217,38 @@
 		"VA DMIC1", "MIC BIAS1",
 		"VA DMIC2", "MIC BIAS3",
 		"TX SWR_ADC1", "ADC2_OUTPUT";
+
+	dp0-dai-link {
+		link-name = "DP0 Playback";
+
+		codec {
+			sound-dai = <&mdss0_dp0>;
+		};
+
+		cpu {
+			sound-dai = <&q6apmbedai DISPLAY_PORT_RX_0>;
+		};
+
+		platform {
+			sound-dai = <&q6apm>;
+		};
+	};
+
+	dp1-dai-link {
+		link-name = "DP1 Playback";
+
+		codec {
+			sound-dai = <&mdss0_dp1>;
+		};
+
+		cpu {
+			sound-dai = <&q6apmbedai DISPLAY_PORT_RX_1>;
+		};
+
+		platform {
+			sound-dai = <&q6apm>;
+		};
+	};
 
 	wcd-playback-dai-link {
 		link-name = "WCD Playback";

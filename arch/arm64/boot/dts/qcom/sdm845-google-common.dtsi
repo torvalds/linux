@@ -392,6 +392,8 @@
 };
 
 &i2c3 {
+	clock-frequency = <400000>;
+
 	status = "okay";
 
 	nfc@28 {
@@ -403,7 +405,7 @@
 		enable-gpios = <&tlmm 25 GPIO_ACTIVE_HIGH>;
 		firmware-gpios = <&tlmm 79 GPIO_ACTIVE_HIGH>;
 
-		pinctrl-0 = <&nfc_int_default &nfc_enable_default>;
+		pinctrl-0 = <&nfc_default>;
 		pinctrl-names = "default";
 	};
 };
@@ -476,18 +478,28 @@
 	gpio-reserved-ranges = < 0 4>, /* SPI (Intel MNH Pixel Visual Core) */
 			       <81 4>; /* SPI (most likely Fingerprint Cards FPC1075) */
 
-	nfc_int_default: nfc-int-default-state {
-		pins = "gpio63";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
+	nfc_default: nfc-default-state {
+		enable-pins {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
 
-	nfc_enable_default: nfc-enable-default-state {
-		pins = "gpio25", "gpio79";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-pull-down;
+		irq-pins {
+			pins = "gpio63";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		firmware-pins {
+			pins = "gpio79";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
 	};
 
 	touchscreen_reset: ts-reset-state {

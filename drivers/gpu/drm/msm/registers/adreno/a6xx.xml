@@ -269,6 +269,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0x08b2" name="CP_CHICKEN_DBG_PIPE" variants="A8XX-"/>
 	<reg32 offset="0x0842" name="CP_ADDR_MODE_CNTL" type="a5xx_address_mode" variants="A6XX"/>
 	<reg32 offset="0x0843" name="CP_DBG_ECO_CNTL" variants="A6XX-A7XX"/>
+	<reg32 offset="0x084a" name="CP_MULTIDRAW_CNTL" variants="A8XX-"/>
 	<reg32 offset="0x084b" name="CP_DBG_ECO_CNTL" variants="A8XX-"/>
 
 	<bitset name="a6xx_cp_protect_cntl" inline="yes">
@@ -1326,6 +1327,7 @@ by a particular renderpass/blit.
 
 	<reg32 offset="0x0c00" name="VSC_DBG_ECO_CNTL"/>
 	<reg32 offset="0x0df0" name="VSC_KMD_DBG_ECO_CNTL" variants="A8XX-"/>
+	<reg32 offset="0x0df8" name="VSC_VISIBILITY_FLUSH_CNTL" variants="A8XX-"/>
 	<reg32 offset="0x0c02" name="VSC_BIN_SIZE" usage="cmd" variants="A6XX-A7XX">
 		<bitfield name="BINW" low="0" high="7" shr="5" type="uint"/>
 		<bitfield name="BINH" low="8" high="16" shr="4" type="uint"/>
@@ -1386,7 +1388,7 @@ by a particular renderpass/blit.
 		<reg32 offset="0x0" name="REG"/>
 	</array>
 
-	<array offset="0x0c58" name="VSC_PIPE_DATA_PRIM_SIZE" stride="1" length="32" variants="A6XX" usage="cmd">
+	<array offset="0x0c58" name="VSC_PIPE_DATA_PRIM_SIZE" stride="1" length="32" usage="cmd">
 		<doc>
 			Has the size of data written to corresponding VSC_PRIM_STRM
 			buffer.
@@ -1394,7 +1396,7 @@ by a particular renderpass/blit.
 		<reg32 offset="0x0" name="REG"/>
 	</array>
 
-	<array offset="0x0c78" name="VSC_PIPE_DATA_DRAW_SIZE" stride="1" length="32" variants="A6XX" usage="cmd">
+	<array offset="0x0c78" name="VSC_PIPE_DATA_DRAW_SIZE" stride="1" length="32" usage="cmd">
 		<doc>
 			Has the size of data written to corresponding VSC pipe, ie.
 			same thing that is written out to VSC_SIZE_BASE
@@ -1459,8 +1461,10 @@ by a particular renderpass/blit.
 		<bitfield name="IJ_LINEAR_CENTROID" pos="4" type="boolean"/>
 		<bitfield name="IJ_LINEAR_SAMPLE" pos="5" type="boolean"/>
 		<bitfield name="COORD_MASK" low="6" high="9" type="hex"/>
-		<bitfield name="UNK10" pos="10" type="boolean" variants="A7XX-"/>
-		<bitfield name="UNK11" pos="11" type="boolean" variants="A7XX-"/>
+		<!-- A740+ field, Must match RB_PS_INPUT_CNTL -->
+		<bitfield name="FACENESS" pos="10" type="boolean" variants="A7XX-"/>
+		<!-- A740+ field, Must match RB_PS_INPUT_CNTL -->
+		<bitfield name="CENTERRHW" pos="11" type="boolean" variants="A7XX-"/>
 	</bitset>
 
 	<reg32 offset="0x8005" name="GRAS_CL_INTERP_CNTL" type="a6xx_gras_cl_interp_cntl" variants="A6XX-A7XX" usage="draw"/>
@@ -2168,12 +2172,12 @@ by a particular renderpass/blit.
 		<bitfield name="SCISSOR" pos="16" type="boolean"/>
 		<bitfield name="UNK17" low="17" high="18"/>
 		<!-- required when blitting D24S8/D24X8 -->
-		<bitfield name="D24S8" pos="19" type="boolean"/>
+		<bitfield name="IS_SRC_YUV" pos="19" type="boolean"/>
 		<!-- some sort of channel mask, disabled channels are set to zero ? -->
 		<bitfield name="MASK" low="20" high="23"/>
 		<bitfield name="IFMT" low="24" high="26" type="a6xx_2d_ifmt"/>
-		<bitfield name="UNK27" pos="27" type="boolean"/>
-		<bitfield name="UNK28" pos="28" type="boolean"/>
+		<bitfield name="FULL_RANGE_YUV" pos="27" type="boolean"/>
+		<bitfield name="LINEAR_YUV" pos="28" type="boolean"/>
 		<bitfield name="RASTER_MODE" pos="29" type="a6xx_raster_mode"/>
 		<bitfield name="COPY" pos="30" type="boolean" variants="A7XX-"/>
 	</bitset>
@@ -2559,10 +2563,8 @@ by a particular renderpass/blit.
 		<reg32 offset="0" name="REG" type="float"/>
 	</array>
 
-	<!-- 0x88c2-0x88cf invalid-->
 	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="resolve">
-		<bitfield name="UNK0" low="0" high="12"/>
-		<bitfield name="UNK16" low="16" high="26"/>
+		<bitfield name="YUV_PLANE_ID" low="0" high="1"/>
 	</reg32>
 	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="resolve"/>
 	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="resolve"/>
@@ -2759,7 +2761,22 @@ by a particular renderpass/blit.
 	<reg32 offset="0x8a30" name="RB_UNKNOWN_8A30" variants="A6XX" usage="draw"/>
 
 	<reg32 offset="0x8c00" name="RB_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" usage="blit"/>
-	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="blit"/>
+
+	<enum name="a6xx_a2d_pixel_op">
+		<value value="0" name="PIXEL_OP_DISABLED"/>
+		<value value="1" name="PIXEL_OP_BLENDING"/>
+		<value value="3" name="PIXEL_OP_ROP"/>
+	</enum>
+
+	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="blit">
+		<bitfield name="PIXEL_OP" low="0" high="1" type="a6xx_a2d_pixel_op"/>
+		<bitfield name="COLOR_SRC_FACTOR" low="6" high="10" type="adreno_rb_blend_factor"/>
+		<bitfield name="COLOR_BLEND_OP" low="11" high="13" type="a3xx_rb_blend_opcode"/>
+		<bitfield name="COLOR_DST_FACTOR" low="14" high="18" type="adreno_rb_blend_factor"/>
+		<bitfield name="ALPHA_SRC_FACTOR" low="19" high="23" type="adreno_rb_blend_factor"/>
+		<bitfield name="ALPHA_BLEND_OP" low="24" high="26" type="a3xx_rb_blend_opcode"/>
+		<bitfield name="ALPHA_DST_FACTOR" low="27" high="31" type="adreno_rb_blend_factor"/>
+	</reg32>
 
 	<bitset name="a6xx_a2d_src_texture_info" inline="yes">
 		<bitfield name="COLOR_FORMAT" low="0" high="7" type="a6xx_format"/>
@@ -2812,7 +2829,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0x8c2e" name="RB_A2D_CLEAR_COLOR_DW2" usage="blit"/>
 	<reg32 offset="0x8c2f" name="RB_A2D_CLEAR_COLOR_DW3" usage="blit"/>
 
-	<reg32 offset="0x8c34" name="RB_A2D_UNKNOWN_8C34" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0x8c34" name="RB_A2D_DEST_BUFFER_ARRAY_PITCH" variants="A7XX-" usage="blit"/>
 
 	<!-- 0x8c35-0x8dff invalid -->
 
@@ -2957,16 +2974,9 @@ by a particular renderpass/blit.
 		<bitfield name="DISCARD" pos="2" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x9980" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A6XX" usage="draw"/>
-	<reg32 offset="0x9107" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x9107" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A6XX-A7XX" usage="draw"/>
 	<reg32 offset="0x930d" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A8XX-" usage="draw"/>
 	<reg32 offset="0x9317" name="VPC_RAST_STREAM_CNTL_V2" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="draw"/>
-
-	<reg32 offset="0x9107" name="VPC_UNKNOWN_9107" variants="A6XX" usage="draw">
-		<!-- this mirrors VPC_RAST_STREAM_CNTL::DISCARD, although it seems it's unused -->
-		<bitfield name="RASTER_DISCARD" pos="0" type="boolean"/>
-		<bitfield name="UNK2" pos="2" type="boolean"/>
-	</reg32>
 
 	<reg32 offset="0x9108" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX-A7XX" usage="draw"/>
 	<reg32 offset="0x930e" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="draw"/>
@@ -3286,7 +3296,29 @@ by a particular renderpass/blit.
 	<reg32 offset="0x9803" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A6XX-A7XX" usage="draw"/>
 	<reg32 offset="0x9b15" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9804" name="PC_MODE_CNTL" low="0" high="7" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9804" name="PC_MODE_CNTL" low="0" high="7" variants="A6XX-A7XX" usage="draw">
+		<!-- 
+			The higher this is set, the faster primitive processing performance
+			ends up being. It is likely the amount of entries to process/fetch.
+		-->
+		<bitfield name="COUNT1" low="0" high="4" type="uint"/>
+		<!--
+			Setting this slows down primitive processing substantially, but it
+			was noted to fix some vertex corruption issues in the past. Likely
+			serves as a workaround to serialize the primitive pipeline?
+		-->
+		<bitfield name="UNK5" pos="5" type="boolean"/>
+		<!-- Never set by the blob, removed in A7XX. Unclear impact. -->
+		<bitfield name="UNK6" pos="6" type="boolean" variants="A6XX"/>
+		<!-- Never set by the blob. Unclear impact. -->
+		<bitfield name="UNK7" pos="7" type="boolean"/>
+		<!--
+			Same as COUNT1 but one bit larger, this replaces COUNT1 mid-A7XX but
+			the proprietary driver tends to set it to the same or larger value
+			(by using the extra bit) as COUNT1.
+		-->
+		<bitfield name="COUNT2" low="8" high="13" type="uint" variants="A7XX-"/>
+	</reg32>
 	<reg32 offset="0x9b00" name="PC_MODE_CNTL" low="0" high="14" variants="A8XX" usage="draw"/>
 
 	<reg32 offset="0x9805" name="PC_POWER_CNTL" low="0" high="2" variants="A6XX" usage="draw"/>
@@ -3364,6 +3396,8 @@ by a particular renderpass/blit.
 	-->
 	<reg32 offset="0x9886" name="PC_TF_BUFFER_SIZE" variants="A7XX" usage="cmd"/>
 	<reg32 offset="0x9815" name="PC_TF_BUFFER_SIZE" variants="A8XX-" usage="cmd"/>
+
+	<reg32 offset="0x9980" name="PC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A6XX" usage="draw"/>
 
 	<!-- 0x9982-0x9aff invalid -->
 
@@ -3464,7 +3498,7 @@ by a particular renderpass/blit.
 	<reg64 offset="0x9e12" name="PC_PVIS_STREAM_BIN_BASE" type="waddress" align="32" variants="A6XX-A7XX"/>
 	<reg64 offset="0x9e14" name="PC_DVIS_STREAM_BIN_BASE" type="waddress" align="32" variants="A6XX-A7XX"/>
 
-	<reg32 offset="0x9e0a" name="PC_AUTO_VERTEX_STRIDE"/>
+	<reg32 offset="0x9e0a" name="PC_AUTO_VERTEX_STRIDE" low="0" high="9" type="uint"/>
 	<reg32 offset="0x9e0d" name="PC_VIS_STREAM_CNTL" type="a6xx_pc_vis_stream_cntl" variants="A8XX-"/>
 	<reg64 offset="0x9e0e" name="PC_PVIS_STREAM_BIN_BASE" type="waddress" align="32" variants="A8XX-"/>
 	<reg64 offset="0x9e10" name="PC_DVIS_STREAM_BIN_BASE" type="waddress" align="32" variants="A8XX-"/>
@@ -4075,8 +4109,8 @@ by a particular renderpass/blit.
 		<bitfield name="THREADSIZE" pos="20" type="a6xx_threadsize"/>
 		<!-- seems to make SP use less concurrent threads when possible? -->
 		<bitfield name="UNK21" pos="21" type="boolean"/>
-		<!-- has a small impact on performance, not clear what it does -->
-		<bitfield name="UNK22" pos="22" type="boolean"/>
+		<!-- Enables round-robin mode, which guarantees fair scheduling -->
+		<bitfield name="COMPUTERRMODEEN" pos="22" type="boolean"/>
 		<bitfield name="EARLYPREAMBLE" pos="23" type="boolean"/>
 		<bitfield name="MERGEDREGS" pos="31" type="boolean"/>
 	</reg32>
@@ -4340,6 +4374,7 @@ by a particular renderpass/blit.
 		</doc>
 		<bitfield name="EOLM_ENABLE" pos="1" type="boolean"/>
 	</reg32>
+	<reg32 offset="0xaf81" name="SP_LPAC_CHICKEN_BITS" variants="A7XX" usage="init"/>
 	<reg32 offset="0xae04" name="SP_NC_MODE_CNTL_2" usage="init">
 		<bitfield name="F16_NO_INF" pos="3" type="boolean"/>
 	</reg32>
@@ -4352,6 +4387,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xae0a" name="SP_CHICKEN_BITS_3" variants="A7XX-" usage="init"/>
 	<reg32 offset="0xae0b" name="SP_CHICKEN_BITS_4" variants="A8XX-"/>
 	<reg32 offset="0xae0c" name="SP_STATUS"/>
+	<reg32 offset="0xae0e" name="SP_L0_PERF_TUNE" variants="A8XX-"/>
 
 	<reg32 offset="0xae0f" name="SP_PERFCTR_SHADER_MASK" usage="init">
 		<!-- some perfcntrs are affected by a per-stage enable bit
@@ -4389,6 +4425,7 @@ by a particular renderpass/blit.
 
 	<reg64 offset="0xae10" name="SP_HLSQ_GC_GMEM_RANGE_MIN" variants="A8XX-"/>
 	<reg64 offset="0xae12" name="SP_HLSQ_LPAC_GMEM_RANGE_MIN" variants="A8XX-"/>
+	<reg32 offset="0xae14" name="SP_CHICKEN_BITS_5" variants="A8XX-"/>
 	<reg32 offset="0xae15" name="SP_LPAC_CPI_STATUS" variants="A8XX-"/>
 	<reg32 offset="0xae16" name="SP_LPAC_DBG_STATUS" variants="A8XX-"/>
 	<reg32 offset="0xae17" name="SP_LPAC_ISDB_BATCH_COUNT" variants="A8XX-"/>
@@ -5094,6 +5131,10 @@ by a particular renderpass/blit.
 	<reg32 offset="0x0001" name="SYSTEM_CACHE_CNTL_0"/>
 	<reg32 offset="0x0002" name="SYSTEM_CACHE_CNTL_1"/>
 	<reg32 offset="0x0039" name="CX_MISC_TCM_RET_CNTL" variants="A7XX-"/>
+	<reg32 offset="0x0083" name="CX_MISC_GFX_PWR_CLK_STATUS" variants="A8XX-">
+		<bitfield name="GX_GDSC_POWER_OFF" pos="3" type="boolean"/>
+		<bitfield name="GX_CLK_OFF" pos="4" type="boolean"/>
+	</reg32>
 	<reg32 offset="0x0087" name="CX_MISC_SLICE_ENABLE_FINAL" variants="A8XX"/>
 	<reg32 offset="0x0400" name="CX_MISC_SW_FUSE_VALUE" variants="A7XX-">
 		<bitfield pos="0" name="FASTBLEND" type="boolean"/>

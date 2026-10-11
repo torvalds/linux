@@ -82,8 +82,8 @@ struct qcom_smsm {
 	u32 num_hosts;
 	u32 num_entries;
 
-	u32 *local_state;
-	u32 *subscription;
+	u32 __iomem *local_state;
+	u32 __iomem *subscription;
 	struct qcom_smem_state *state;
 
 	spinlock_t lock;
@@ -115,8 +115,8 @@ struct smsm_entry {
 	DECLARE_BITMAP(irq_falling, 32);
 	unsigned long last_value;
 
-	u32 *remote_state;
-	u32 *subscription;
+	u32 __iomem *remote_state;
+	u32 __iomem *subscription;
 };
 
 /**
@@ -451,10 +451,8 @@ static int smsm_inbound_entry(struct qcom_smsm *smsm,
 					NULL, smsm_intr,
 					IRQF_ONESHOT,
 					"smsm", (void *)entry);
-	if (ret) {
-		dev_err(smsm->dev, "failed to request interrupt\n");
+	if (ret)
 		return ret;
-	}
 
 	entry->domain = irq_domain_create_linear(of_fwnode_handle(node), 32, &smsm_irq_ops, entry);
 	if (!entry->domain) {
@@ -513,9 +511,9 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct smsm_entry *entry;
 	struct qcom_smsm *smsm;
-	u32 *intr_mask;
+	u32 __iomem *intr_mask;
 	size_t size;
-	u32 *states;
+	u32 __iomem *states;
 	u32 id;
 	int ret;
 
@@ -579,7 +577,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 		goto out_put;
 	}
 
-	states = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_SHARED_STATE, NULL);
+	states = (u32 __iomem *)qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_SHARED_STATE, NULL);
 	if (IS_ERR(states)) {
 		dev_err(&pdev->dev, "Unable to acquire shared state entry\n");
 		ret = PTR_ERR(states);
@@ -594,7 +592,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 		goto out_put;
 	}
 
-	intr_mask = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_CPU_INTR_MASK, NULL);
+	intr_mask = (u32 __iomem *)qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_CPU_INTR_MASK, NULL);
 	if (IS_ERR(intr_mask)) {
 		dev_err(&pdev->dev, "unable to acquire shared memory interrupt mask\n");
 		ret = PTR_ERR(intr_mask);

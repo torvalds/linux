@@ -102,7 +102,7 @@ struct smp2p_entry {
 	struct qcom_smp2p *smp2p;
 
 	const char *name;
-	u32 *value;
+	u32 __iomem *value;
 	u32 last_value;
 
 	struct irq_domain *domain;
@@ -276,7 +276,7 @@ static void qcom_smp2p_start_in(struct qcom_smp2p *smp2p)
 		list_for_each_entry(entry, &smp2p->inbound, node) {
 			memcpy(buf, in->entries[i].name, sizeof(buf));
 			if (!strcmp(buf, entry->name)) {
-				entry->value = &in->entries[i].value;
+				entry->value = (u32 __iomem *)&in->entries[i].value;
 				entry->last_value = readl(entry->value);
 				break;
 			}
@@ -302,7 +302,7 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 		list_for_each_entry(entry, &smp2p->inbound, node) {
 			memcpy(buf, in->entries[i].name, sizeof(buf));
 			if (!strcmp(buf, entry->name)) {
-				entry->value = &in->entries[i].value;
+				entry->value = (u32 __iomem *)&in->entries[i].value;
 				break;
 			}
 		}
@@ -528,7 +528,7 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 	memcpy(out->entries[out->valid_entries].name, buf, SMP2P_MAX_ENTRY_NAME);
 
 	/* Make the logical entry reference the physical value */
-	entry->value = &out->entries[out->valid_entries].value;
+	entry->value = (u32 __iomem *)&out->entries[out->valid_entries].value;
 
 	out->valid_entries++;
 
@@ -720,10 +720,8 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 					NULL, qcom_smp2p_intr,
 					IRQF_ONESHOT,
 					NULL, (void *)smp2p);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request interrupt\n");
+	if (ret)
 		goto unwind_interfaces;
-	}
 
 	/*
 	 * Treat smp2p interrupt as wakeup source, but keep it disabled

@@ -893,9 +893,20 @@
 	};
 };
 
-/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
-&ufs_mem_hc { status = "disabled"; };
-&ufs_mem_phy { status = "disabled"; };
+&ufs_mem_hc {
+	status = "okay";
+	reset-gpios = <&tlmm 203 GPIO_ACTIVE_LOW>;
+	vcc-supply = <&pm8350_l7>;
+	vcc-max-microamp = <800000>;
+	vccq-supply = <&pm8350_l9>;
+	vcc-max-microamp = <900000>;
+};
+
+&ufs_mem_phy {
+	status = "okay";
+	vdda-phy-supply = <&pm8350_l5>;
+	vdda-pll-supply = <&pm8350_l6>;
+};
 
 &usb_1 {
 	status = "okay";

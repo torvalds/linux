@@ -222,8 +222,7 @@
 
 			clocks = <&gcc GCC_MDIO0_AHB_CLK>;
 			clock-names = "gcc_mdio_ahb_clk";
-
-			status = "disabled";
+			clock-frequency = <6250000>;
 
 			ge_phy: ethernet-phy@7 {
 				compatible = "ethernet-phy-id004d.d0c0";
@@ -241,6 +240,8 @@
 			reg = <0x00090000 0x64>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
 
 			clocks = <&gcc GCC_MDIO1_AHB_CLK>;
 			clock-names = "gcc_mdio_ahb_clk";
@@ -420,6 +421,22 @@
 			gpio-ranges = <&tlmm 0 0 47>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			mdio_pins: mdio-state {
+				mdc-pins {
+					pins = "gpio36";
+					function = "mdc";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+
+				mdio-pins {
+					pins = "gpio37";
+					function = "mdio";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
 
 			uart1_pins: uart1-state {
 				pins = "gpio31", "gpio32", "gpio33", "gpio34";

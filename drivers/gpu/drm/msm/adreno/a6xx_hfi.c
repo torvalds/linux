@@ -888,6 +888,94 @@ static int a6xx_hfi_enable_acd(struct a6xx_gmu *gmu)
 	return 0;
 }
 
+static int a6xx_hfi_enable_iff_pclx(struct a6xx_gmu *gmu, const struct a6xx_limits_tbl *limits)
+{
+	struct a6xx_hfi_table_entry *entry;
+	struct a6xx_hfi_table *tbl;
+	size_t entry_size;
+	size_t size;
+	int ret;
+
+	if (!limits)
+		return 0;
+
+	ret = a6xx_hfi_feature_ctrl_msg(gmu, HFI_FEATURE_IFF_PCLX, 1, 0);
+	if (ret) {
+		DRM_DEV_ERROR(gmu->dev, "Unable to enable IFF PCLX (%d)\n", ret);
+		return ret;
+	}
+
+	entry_size = limits->count * sizeof(struct a6xx_hfi_limits_tbl);
+	size = sizeof(*tbl) + sizeof(*entry) + entry_size;
+
+	tbl = kzalloc(size, GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+
+	tbl->type = HFI_TABLE_LIMITS_MIT;
+	entry = &tbl->entry[0];
+	entry->count = limits->count;
+	entry->stride = sizeof(struct a6xx_hfi_limits_tbl) >> 2;
+
+	memcpy(entry->data, limits->tbl, entry_size);
+
+	ret = a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_TABLE, tbl, size, NULL, 0);
+	if (ret)
+		DRM_DEV_ERROR(gmu->dev, "Unable to send PCLX table (%d)\n", ret);
+
+	kfree(tbl);
+	return ret;
+}
+
+static int a6xx_hfi_enable_clx(struct a6xx_gmu *gmu)
+{
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct a6xx_info *info = adreno_gpu->info->a6xx;
+	struct a6xx_hfi_clx_table_v2_cmd cmd = { 0 };
+	int ret;
+
+	if (!info->clx_tbl)
+		return 0;
+
+	ret = a6xx_hfi_feature_ctrl_msg(gmu, HFI_FEATURE_CLX, 1, 0);
+	if (ret) {
+		DRM_DEV_ERROR(gmu->dev, "Unable to enable CLX (%d)\n", ret);
+		return ret;
+	}
+
+	memcpy(&cmd, info->clx_tbl, sizeof(cmd));
+
+	ret = a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_CLX_TBL, &cmd, sizeof(cmd), NULL, 0);
+	if (ret) {
+		DRM_DEV_ERROR(gmu->dev, "Unable to send CLX table (%d)\n", ret);
+		return ret;
+	}
+
+	return a6xx_hfi_enable_iff_pclx(gmu, info->limits_tbl);
+}
+
+static int a6xx_hfi_send_thinmem_config(struct a6xx_gmu *gmu)
+{
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct a6xx_info *info = adreno_gpu->info->a6xx;
+	u32 data;
+	int ret;
+
+	if (!info->thinmem_config)
+		return 0;
+
+	/* Bits [7:4] contain the thinmem_cfg data. */
+	data = FIELD_PREP(GENMASK(7, 4), info->thinmem_config);
+
+	ret = a6xx_hfi_feature_ctrl_msg(gmu, HFI_FEATURE_THINMEM_CFG, 1, data);
+	if (ret)
+		DRM_DEV_ERROR(gmu->dev, "Unable to send THINMEM_CFG (%d)\n", ret);
+
+	return ret;
+}
+
 static int a6xx_hfi_send_test(struct a6xx_gmu *gmu)
 {
 	struct a6xx_hfi_msg_test msg = { 0 };
@@ -989,7 +1077,15 @@ int a6xx_hfi_start(struct a6xx_gmu *gmu, int boot_state)
 	if (ret)
 		return ret;
 
+	ret = a6xx_hfi_enable_clx(gmu);
+	if (ret)
+		return ret;
+
 	ret = a6xx_hfi_enable_ifpc(gmu);
+	if (ret)
+		return ret;
+
+	ret = a6xx_hfi_send_thinmem_config(gmu);
 	if (ret)
 		return ret;
 

@@ -411,10 +411,14 @@
 };
 
 &qupv3_id_0 {
+	firmware-name = "qcom/qcs615/qupv3fw.elf";
+
 	status = "okay";
 };
 
 &qupv3_id_1 {
+	firmware-name = "qcom/qcs615/qupv3fw.elf";
+
 	status = "okay";
 };
 

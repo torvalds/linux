@@ -214,6 +214,22 @@
 		regulator-boot-on;
 	};
 
+	vreg_vcc3v3_output: regulator-vcc3v3-output {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vcc3v3_output";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&vcc3v3_output_en>;
+		pinctrl-names = "default";
+
+		regulator-always-on;
+	};
+
 	vph_pwr: regulator-vph-pwr {
 		compatible = "regulator-fixed";
 
@@ -1246,6 +1262,13 @@
 
 	usb_eth_power: usb-eth-power-state {
 		pins = "gpio7";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	vcc3v3_output_en: vcc3v3-output-en-state {
+		pins = "gpio14";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;

@@ -112,6 +112,9 @@ void a8xx_gpu_get_slice_info(struct msm_gpu *gpu)
 	/* Chip ID depends on the number of slices available. So update it */
 	adreno_gpu->chip_id |= FIELD_PREP(GENMASK(7, 4), hweight32(slice_mask));
 
+	/* GMEM is split evenly between slices: report the active share */
+	adreno_gpu->gmem = (adreno_gpu->info->gmem / info->max_slices) * hweight32(slice_mask);
+
 	/* Update the gpu-name to reflect the slice config: */
 	const char *name = devm_kasprintf(dev, GFP_KERNEL,
 			"%"ADRENO_CHIPID_FMT,
@@ -200,7 +203,7 @@ static void a8xx_set_hwcg(struct msm_gpu *gpu, bool state)
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	u32 val;
 
-	if (adreno_is_x285(adreno_gpu) && state)
+	if ((adreno_is_x285_family(adreno_gpu) || adreno_is_a830(adreno_gpu)) && state)
 		gpu_write(gpu, REG_A8XX_RBBM_CGC_0_PC, 0x00000702);
 
 	gmu_write(gmu, REG_A6XX_GPU_GMU_AO_GMU_CGC_MODE_CNTL,
@@ -286,10 +289,11 @@ static void a8xx_set_ubwc_config(struct msm_gpu *gpu)
 	u32 hbb, hbb_hi, hbb_lo, mode;
 	u8 uavflagprd_inv = 2;
 
-	if (ubwc_version > UBWC_6_0)
+	if (ubwc_version > UBWC_7_0)
 		dev_err(&gpu->pdev->dev, "Unknown UBWC version: 0x%x\n", ubwc_version);
 
-	if (ubwc_version == UBWC_6_0)
+	if (ubwc_version == UBWC_6_0 ||
+	    ubwc_version == UBWC_7_0)
 		yuvnotcomptofc = true;
 
 	if (ubwc_version < UBWC_5_0 &&
@@ -726,6 +730,7 @@ static int hw_init(struct msm_gpu *gpu)
 
 	for (pipe_id = PIPE_BR; pipe_id <= PIPE_DDE_BV; pipe_id++) {
 		u32 apriv_mask = A8XX_APRIV_MASK;
+		u32 int_mask = A8XX_CP_INTERRUPT_STATUS_MASK_PIPE;
 		unsigned long flags;
 
 		if (pipe_id == PIPE_LPAC)
@@ -734,10 +739,16 @@ static int hw_init(struct msm_gpu *gpu)
 		if (pipe_id == PIPE_BR)
 			apriv_mask = A8XX_BR_APRIV_MASK;
 
+		/*
+		 * A845/A850's BV pipe raises a spurious RTWROVF fault interrupt;
+		 * mask it off to avoid false fault recovery.
+		 */
+		if (adreno_is_a850_family(adreno_gpu) && pipe_id == PIPE_BV)
+			int_mask &= ~A8XX_CP_INTERRUPT_STATUS_MASK_PIPE_RTWROVF;
+
 		a8xx_aperture_acquire(gpu, pipe_id, &flags);
 		gpu_write(gpu, REG_A8XX_CP_APRIV_CNTL_PIPE, apriv_mask);
-		gpu_write(gpu, REG_A8XX_CP_INTERRUPT_STATUS_MASK_PIPE,
-				A8XX_CP_INTERRUPT_STATUS_MASK_PIPE);
+		gpu_write(gpu, REG_A8XX_CP_INTERRUPT_STATUS_MASK_PIPE, int_mask);
 		gpu_write(gpu, REG_A8XX_CP_HW_FAULT_STATUS_MASK_PIPE,
 				A8XX_CP_HW_FAULT_STATUS_MASK_PIPE);
 		a8xx_aperture_release(gpu, flags);

@@ -3432,6 +3432,7 @@ F:	include/linux/soc/qcom/
 ARM/QUALCOMM SUPPORT
 M:	Bjorn Andersson <andersson@kernel.org>
 M:	Konrad Dybcio <konradybcio@kernel.org>
+R:	Abel Vesa <abelvesa@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 C:	irc://irc.oftc.net/linux-msm

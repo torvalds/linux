@@ -1572,12 +1572,15 @@
 			};
 		};
 
-		usb: usb@4ef8800 {
-			compatible = "qcom,qcm2290-dwc3", "qcom,dwc3";
-			reg = <0x0 0x04ef8800 0x0 0x400>;
-			interrupts-extended = <&intc GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+		usb: usb@4e00000 {
+			compatible = "qcom,qcm2290-dwc3", "qcom,snps-dwc3";
+			reg = <0x0 0x04e00000 0x0 0xfc100>;
+
+			interrupts-extended = <&intc GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
 					      <&mpm 12 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "hs_phy_irq",
+			interrupt-names = "dwc_usb3",
+					  "hs_phy_irq",
 					  "ss_phy_irq";
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
@@ -1595,7 +1598,8 @@
 
 			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
-			assigned-clock-rates = <19200000>, <133333333>;
+			assigned-clock-rates = <19200000>,
+					       <133333333>;
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
@@ -1606,48 +1610,42 @@
 					 &config_noc SLAVE_USB3 RPM_ALWAYS_TAG>;
 			interconnect-names = "usb-ddr",
 					     "apps-usb";
-			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x120 0x0>;
+
+			phys = <&usb_hsphy>,
+			       <&usb_qmpphy>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,hird-threshold = /bits/ 8 <0x10>;
+			snps,parkmode-disable-ss-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,has-lpm-erratum;
+			snps,usb3_lpm_capable;
+
+			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
-			usb_dwc3: usb@4e00000 {
-				compatible = "snps,dwc3";
-				reg = <0x0 0x04e00000 0x0 0xcd00>;
-				interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
-				phys = <&usb_hsphy>, <&usb_qmpphy>;
-				phy-names = "usb2-phy", "usb3-phy";
-				iommus = <&apps_smmu 0x120 0x0>;
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,has-lpm-erratum;
-				snps,hird-threshold = /bits/ 8 <0x10>;
-				snps,usb3_lpm_capable;
-				snps,parkmode-disable-ss-quirk;
-				maximum-speed = "super-speed";
-				dr_mode = "otg";
-				usb-role-switch;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
+				port@0 {
+					reg = <0>;
 
-					port@0 {
-						reg = <0>;
-
-						usb_dwc3_hs: endpoint {
-						};
+					usb_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_qmpphy_usb_ss_in>;
-						};
+					usb_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_qmpphy_usb_ss_in>;
 					};
 				};
 			};
