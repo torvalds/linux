@@ -93,7 +93,7 @@ typedef struct _NEGOTIATE_MESSAGE {
 struct ntlmssp_version {
 	__u8	ProductMajorVersion;
 	__u8	ProductMinorVersion;
-	__le16	ProductBuild; /* we send the cifs.ko module version here */
+	__le16	ProductBuild; /* we send the kernel sublevel here */
 	__u8	Reserved[3];
 	__u8	NTLMRevisionCurrent; /* currently 0x0F */
 } __packed;

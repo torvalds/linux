@@ -890,7 +890,7 @@ int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer,
 
 	sec_blob->Version.ProductMajorVersion = LINUX_VERSION_MAJOR;
 	sec_blob->Version.ProductMinorVersion = LINUX_VERSION_PATCHLEVEL;
-	sec_blob->Version.ProductBuild = cpu_to_le16(SMB3_PRODUCT_BUILD);
+	sec_blob->Version.ProductBuild = cpu_to_le16(LINUX_VERSION_SUBLEVEL);
 	sec_blob->Version.NTLMRevisionCurrent = NTLMSSP_REVISION_W2K3;
 
 	tmp = *pbuffer + sizeof(struct negotiate_message);
@@ -956,7 +956,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 
 	sec_blob->Version.ProductMajorVersion = LINUX_VERSION_MAJOR;
 	sec_blob->Version.ProductMinorVersion = LINUX_VERSION_PATCHLEVEL;
-	sec_blob->Version.ProductBuild = cpu_to_le16(SMB3_PRODUCT_BUILD);
+	sec_blob->Version.ProductBuild = cpu_to_le16(LINUX_VERSION_SUBLEVEL);
 	sec_blob->Version.NTLMRevisionCurrent = NTLMSSP_REVISION_W2K3;
 
 	tmp = *pbuffer + sizeof(AUTHENTICATE_MESSAGE);

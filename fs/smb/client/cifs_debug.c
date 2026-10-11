@@ -450,7 +450,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_puts(m,
 		    "Display Internal CIFS Data Structures for Debugging\n"
 		    "---------------------------------------------------\n");
-	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
 	seq_printf(m, "Features:");
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	seq_printf(m, " DFS");
