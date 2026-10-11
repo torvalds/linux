@@ -679,9 +679,10 @@ found_slot_for_multiple_occupancy:
 /*
  * All the leaves, new and old, want to cluster together in this node in the
  * same slot, so we have to replace this node with a shortcut to skip over
- * the identical parts of the key, leading to new_n0.  The caller then splits
- * the leaves between new_n0 and new_n1 at the shortcut's far end, for which
- * this fills in the segment cache.
+ * the identical parts of the key, leading to new_n0.  If the node is the
+ * target of a shortcut, the new one replaces that shortcut as well.  The
+ * caller then splits the leaves between new_n0 and new_n1 at the shortcut's
+ * far end, for which this fills in the segment cache.
  */
 static struct assoc_array_shortcut *
 assoc_array_insert_shortcut(struct assoc_array_edit *edit,
@@ -726,6 +727,20 @@ assoc_array_insert_shortcut(struct assoc_array_edit *edit,
 
 	new_s0->back_pointer = node->back_pointer;
 	new_s0->parent_slot = node->parent_slot;
+
+	/* A shortcut has to lead to a node, so a node at the end of a shortcut
+	 * is replaced together with that shortcut.  The new one holds the index
+	 * key from the root, so it covers what the old one did.
+	 */
+	if (node->back_pointer &&
+	    assoc_array_ptr_is_shortcut(node->back_pointer)) {
+		struct assoc_array_shortcut *above =
+			assoc_array_ptr_to_shortcut(node->back_pointer);
+
+		new_s0->back_pointer = above->back_pointer;
+		new_s0->parent_slot = above->parent_slot;
+		edit->excised_meta[1] = node->back_pointer;
+	}
 	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
 	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
 	new_n0->parent_slot = 0;
@@ -807,7 +822,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 		/* The node only contains leaves and all the leaves cluster in
 		 * the same slot, so we need to insert a shortcut to skip the
 		 * common portion of the key and split the node at the
-		 * shortcut's far end.
+		 * shortcut's far end.  The shortcut goes wherever its back
+		 * pointer says, which may be further up than the node.
 		 */
 		new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
 						     node, level, new_n0);
