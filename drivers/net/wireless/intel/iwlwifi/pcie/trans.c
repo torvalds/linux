@@ -3995,10 +3995,10 @@ int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
  * Read rf id and cdb info from prph register and store it
  */
 static void get_crf_id(struct iwl_trans *iwl_trans,
-		       struct iwl_trans_info *info)
+		       struct iwl_trans_info *info,
+		       u32 *hw_wfpm_id)
 {
 	u32 sd_reg_ver_addr;
-	u32 hw_wfpm_id;
 	u32 val = 0;
 	u8 step;
 
@@ -4064,10 +4064,10 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	}
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
-	hw_wfpm_id = iwl_trans_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
+	*hw_wfpm_id = iwl_trans_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
 
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
-		 info->hw_crf_id, info->hw_cnv_id, hw_wfpm_id);
+		 info->hw_crf_id, info->hw_cnv_id, *hw_wfpm_id);
 }
 
 /*
@@ -4075,14 +4075,13 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
  * from the prph registers.
  */
 static int map_crf_id(struct iwl_trans *iwl_trans,
-		      struct iwl_trans_info *info)
+		      struct iwl_trans_info *info,
+		      u32 hw_wfpm_id)
 {
 	int ret = 0;
 	u32 val = info->hw_crf_id;
 	u32 step_id = REG_CRF_ID_STEP(val);
 	u32 slave_id = REG_CRF_ID_SLAVE(val);
-	u32 hw_wfpm_id = iwl_trans_read_umac_prph_no_grab(iwl_trans,
-							  WFPM_OTP_CFG1_ADDR);
 	u32 cdb_id_wfpm = WFPM_OTP_CFG1_IS_CDB(hw_wfpm_id);
 
 	/* Map between crf id to rf id */
@@ -4195,6 +4194,7 @@ int _iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent,
 	};
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
+	u32 hw_wfpm_id = 0;
 	int ret;
 
 	iwl_trans = iwl_trans_pcie_alloc(pdev, mac_cfg, &info, hw_base);
@@ -4222,7 +4222,7 @@ int _iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent,
 		if (ret)
 			goto out_free_trans;
 		if (iwl_trans_grab_nic_access(iwl_trans)) {
-			get_crf_id(iwl_trans, &info);
+			get_crf_id(iwl_trans, &info, &hw_wfpm_id);
 			/* all good */
 			iwl_trans_release_nic_access(iwl_trans);
 		} else {
@@ -4239,7 +4239,8 @@ int _iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent,
 	 * This is relevant only for family 9000 and up.
 	 */
 	if (iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
-	    !CSR_HW_RFID_TYPE(info.hw_rf_id) && map_crf_id(iwl_trans, &info)) {
+	    !CSR_HW_RFID_TYPE(info.hw_rf_id) &&
+	    map_crf_id(iwl_trans, &info, hw_wfpm_id)) {
 		ret = -EINVAL;
 		goto out_free_trans;
 	}
