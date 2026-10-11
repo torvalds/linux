@@ -470,6 +470,52 @@ static bool assoc_array_insert_in_empty_tree(struct assoc_array_edit *edit)
 }
 
 /*
+ * Insert into a terminal node without changing its shape, if that can be
+ * done: in place of a leaf with the same index key, or in a free slot.
+ */
+static bool assoc_array_insert_in_node(struct assoc_array_edit *edit,
+				       const struct assoc_array_ops *ops,
+				       const void *index_key,
+				       struct assoc_array_node *node)
+{
+	struct assoc_array_ptr *ptr;
+	int free_slot, i;
+
+	free_slot = -1;
+
+	/* Firstly, we have to check the leaves in this node to see if there's
+	 * a matching one we should replace in place.
+	 */
+	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+		ptr = node->slots[i];
+		if (!ptr) {
+			free_slot = i;
+			continue;
+		}
+		if (assoc_array_ptr_is_leaf(ptr) &&
+		    ops->compare_object(assoc_array_ptr_to_leaf(ptr),
+					index_key)) {
+			pr_devel("replace in slot %d\n", i);
+			edit->leaf_p = &node->slots[i];
+			edit->dead_leaf = node->slots[i];
+			return true;
+		}
+	}
+
+	/* If there is a free slot in this node then we can just insert the
+	 * leaf here.
+	 */
+	if (free_slot >= 0) {
+		pr_devel("insert in free slot %d\n", free_slot);
+		edit->leaf_p = &node->slots[free_slot];
+		edit->adjust_count_on = node;
+		return true;
+	}
+
+	return false;
+}
+
+/*
  * Handle insertion into a terminal node.
  */
 static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
@@ -497,36 +543,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 	 * want must go here (either by insertion or replacement) or (b) we
 	 * need to split this node and insert in one of the fragments.
 	 */
-	free_slot = -1;
-
-	/* Firstly, we have to check the leaves in this node to see if there's
-	 * a matching one we should replace in place.
-	 */
-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		ptr = node->slots[i];
-		if (!ptr) {
-			free_slot = i;
-			continue;
-		}
-		if (assoc_array_ptr_is_leaf(ptr) &&
-		    ops->compare_object(assoc_array_ptr_to_leaf(ptr),
-					index_key)) {
-			pr_devel("replace in slot %d\n", i);
-			edit->leaf_p = &node->slots[i];
-			edit->dead_leaf = node->slots[i];
-			pr_devel("<--%s() = ok [replace]\n", __func__);
-			return true;
-		}
-	}
-
-	/* If there is a free slot in this node then we can just insert the
-	 * leaf here.
-	 */
-	if (free_slot >= 0) {
-		pr_devel("insert in free slot %d\n", free_slot);
-		edit->leaf_p = &node->slots[free_slot];
-		edit->adjust_count_on = node;
-		pr_devel("<--%s() = ok [insert]\n", __func__);
+	if (assoc_array_insert_in_node(edit, ops, index_key, node)) {
+		pr_devel("<--%s() = ok [in node]\n", __func__);
 		return true;
 	}
 
