@@ -118,6 +118,9 @@ void fw_cancel_pending_transactions(struct fw_card *card)
  */
 int fw_cancel_transaction(struct fw_card *card, struct fw_transaction *transaction)
 {
+	// Allow the call of struct fw_card_driver.cancel_packet() to wait for any event.
+	might_sleep();
+
 	// Cancel the packet transmission if it's still queued. That will schedule the packet
 	// transmission callback which cancels the transaction.
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
@@ -492,6 +495,9 @@ int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
+	// Due to the call of wait_for_completion().
+	might_sleep();
+
 	timer_setup_on_stack(&t.split_timeout_timer, NULL, 0);
 	init_completion(&d.done);
 	d.payload = payload;
@@ -527,6 +533,9 @@ void fw_send_phy_config(struct fw_card *card,
 {
 	long timeout = msecs_to_jiffies(100);
 	u32 data = 0;
+
+	// Due to the call of wait_for_completion_timeout().
+	might_sleep();
 
 	phy_packet_set_packet_identifier(&data, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG);
 
@@ -701,6 +710,9 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
+	// Due to synchronize_rcu().
+	might_sleep();
+
 	scoped_guard(spinlock, &address_handler_list_lock)
 		list_del_rcu(&handler->link);
 
@@ -1108,6 +1120,10 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 	unsigned long long offset;
 	unsigned int tcode;
 
+	// Allow the call of allocate_request() to perform object allocation with GFP_KERNEL,
+	// as well as the address handlers to work with mutexes.
+	might_sleep();
+
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
@@ -1145,6 +1161,9 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	u32 *data;
 	size_t data_length;
 	int tcode, tlabel, source, rcode;
+
+	// Allow the call of struct fw_card_driver.cancel_packet() to wait for any event.
+	might_sleep();
 
 	tcode = async_header_get_tcode(p->header);
 	tlabel = async_header_get_tlabel(p->header);
