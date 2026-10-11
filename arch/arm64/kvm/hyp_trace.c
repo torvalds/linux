@@ -13,6 +13,7 @@
 #include <asm/kvm_host.h>
 #include <asm/kvm_hyptrace.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_pkvm.h>
 
 #include "hyp_trace.h"
 
@@ -59,14 +60,8 @@ static void __hyp_clock_work(struct work_struct *work)
 	if (hyp_clock->mult) {
 		u64 err, cur = delta_cycles;
 
-		if (WARN_ON_ONCE(cur >= hyp_clock->cyc_overflow64)) {
-			__uint128_t tmp = (__uint128_t)cur * hyp_clock->mult;
-
-			cur = tmp >> hyp_clock->shift;
-		} else {
-			cur *= hyp_clock->mult;
-			cur >>= hyp_clock->shift;
-		}
+		WARN_ON_ONCE(cur >= hyp_clock->cyc_overflow64);
+		cur = mul_u64_u32_shr(cur, hyp_clock->mult, hyp_clock->shift);
 		cur += hyp_clock->boot;
 
 		err = abs_diff(cur, boot);
@@ -84,7 +79,7 @@ static void __hyp_clock_work(struct work_struct *work)
 					    err / NSEC_PER_USEC);
 	}
 
-	rate = div64_u64(delta_cycles * NSEC_PER_SEC, delta_boot);
+	rate = mul_u64_u64_div_u64(delta_cycles, NSEC_PER_SEC, delta_boot);
 
 	clocks_calc_mult_shift(&hyp_clock->mult, &hyp_clock->shift,
 			       rate, NSEC_PER_SEC, CLOCK_MAX_CONVERSION_S);
@@ -151,11 +146,18 @@ static void __unshare_page(unsigned long va)
 
 static int hyp_trace_buffer_alloc_bpages_backing(struct hyp_trace_buffer *trace_buffer, size_t size)
 {
-	int nr_bpages = (PAGE_ALIGN(size) / PAGE_SIZE) + 1;
+	unsigned long nr_bpages;
 	size_t backing_size;
 	void *start;
 	int ret;
 
+	if (is_protected_kvm_enabled()) {
+		trace_buffer->desc->bpages_backing_start = 0;
+		trace_buffer->desc->bpages_backing_size = 0;
+		return 0;
+	}
+
+	nr_bpages = __calc_nr_pages_ring_buffer_desc(size);
 	backing_size = PAGE_ALIGN(sizeof(struct simple_buffer_page) * nr_bpages *
 				  num_possible_cpus());
 
@@ -177,6 +179,9 @@ static int hyp_trace_buffer_alloc_bpages_backing(struct hyp_trace_buffer *trace_
 
 static void hyp_trace_buffer_free_bpages_backing(struct hyp_trace_buffer *trace_buffer)
 {
+	if (!trace_buffer->desc->bpages_backing_start)
+		return;
+
 	free_pages_exact((void *)trace_buffer->desc->bpages_backing_start,
 			 trace_buffer->desc->bpages_backing_size);
 }
@@ -269,7 +274,7 @@ static struct trace_buffer_desc *hyp_trace_load(unsigned long size, void *priv)
 	if (ret)
 		goto err_free_buffer;
 
-	ret = kvm_call_hyp_nvhe(__tracing_load, desc, desc_size);
+	ret = pkvm_call_hyp_req(__tracing_load, desc, desc_size);
 	if (ret)
 		goto err_unload_pages;
 

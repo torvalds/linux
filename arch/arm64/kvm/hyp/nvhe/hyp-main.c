@@ -20,6 +20,7 @@
 #include <asm/kvm_hypevents.h>
 #include <asm/kvm_mmu.h>
 
+#include <nvhe/alloc.h>
 #include <nvhe/ffa.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
@@ -70,6 +71,33 @@ DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 		set_cpu_reg(host_ctxt, 1, ret, __do_##name());		\
 	}								\
 	static ret __do_##name(void)
+
+/*
+ * Encode a hypervisor request in the host SMCCC return registers for known
+ * error numbers.
+ *
+ * Must be paired with pkvm_call_hyp_req() on the host side.
+ */
+static int errno_to_smccc(int ret)
+{
+	struct pkvm_hyp_req req = { .type = PKVM_HYP_NO_REQ };
+
+	switch (ret) {
+	case -ENOMEM: {
+		u32 nr_pages = hyp_alloc_topup_needed();
+
+		if (nr_pages) {
+			req.type = PKVM_HYP_REQ_HYP_ALLOC;
+			req.mem.nr_pages = nr_pages;
+		}
+		break;
+	}
+	}
+
+	pkvm_hyp_req_to_smccc(host_data_ptr(host_ctxt), &req);
+
+	return ret;
+}
 
 /* Number of implemented GICv3 LRs. Used by flush_hyp_vcpu(). */
 unsigned int hyp_gicv3_nr_lr;
@@ -933,9 +961,9 @@ static int pkvm_refill_memcache(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
-	return refill_memcache(&hyp_vcpu->vcpu.arch.pkvm_memcache,
-			       host_vcpu->arch.pkvm_memcache.nr_pages,
-			       &host_vcpu->arch.pkvm_memcache);
+	return refill_memcache(&hyp_vcpu->vcpu.arch.stage2_mc,
+			       host_vcpu->arch.stage2_mc.nr_pages,
+			       &host_vcpu->arch.stage2_mc);
 }
 
 DEFINE_KVM_HOST_HCALL(int, __pkvm_host_donate_guest,
@@ -1304,17 +1332,15 @@ DEFINE_KVM_HOST_HCALL(void, __pkvm_unreserve_vm,
 }
 
 DEFINE_KVM_HOST_HCALL(int, __pkvm_init_vm,
-	struct kvm __kern *, host_kvm, void __kern *, vm_hva,
-	void __kern *, pgd_hva)
+	struct kvm __kern *, host_kvm, void __kern *, pgd_hva)
 {
-	return __pkvm_init_vm(kern_hyp_va_host(host_kvm), vm_hva, pgd_hva);
+	return errno_to_smccc(__pkvm_init_vm(kern_hyp_va_host(host_kvm), pgd_hva));
 }
 
 DEFINE_KVM_HOST_HCALL(int, __pkvm_init_vcpu,
-	pkvm_handle_t, handle, struct kvm_vcpu __kern *, host_vcpu,
-	void __kern *, vcpu_hva)
+	pkvm_handle_t, handle, struct kvm_vcpu __kern *, host_vcpu)
 {
-	return __pkvm_init_vcpu(handle, kern_hyp_va_host(host_vcpu), vcpu_hva);
+	return errno_to_smccc(__pkvm_init_vcpu(handle, kern_hyp_va_host(host_vcpu)));
 }
 
 DEFINE_KVM_HOST_HCALL0(int, __pkvm_vcpu_in_poison_fault)
@@ -1348,10 +1374,89 @@ DEFINE_KVM_HOST_HCALL(int, __pkvm_finalize_teardown_vm,
 	return __pkvm_finalize_teardown_vm(handle);
 }
 
+DEFINE_KVM_HOST_HCALL0(int, __pkvm_hyp_alloc_selftest)
+{
+	struct pkvm_hyp_req req = { .type = PKVM_HYP_NO_REQ };
+	int ret = -EPERM;
+
+#ifdef CONFIG_NVHE_EL2_DEBUG
+	ret = hyp_allocator_selftest();
+	if (ret == -ENOMEM) {
+		req.type = PKVM_HYP_REQ_HYP_ALLOC_SELFTEST;
+		req.mem.nr_pages = hyp_alloc_selftest_topup_needed();
+	}
+#endif
+	pkvm_hyp_req_to_smccc(host_data_ptr(host_ctxt), &req);
+
+	return ret;
+}
+
+DEFINE_KVM_HOST_HCALL(int, __pkvm_hyp_topup,
+	enum pkvm_topup_id, id, phys_addr_t, head, unsigned long, nr_pages)
+{
+	struct kvm_cpu_context *host_ctxt = host_data_ptr(host_ctxt);
+	struct kvm_hyp_memcache host_mc = {
+		.head = head,
+		.nr_pages = nr_pages,
+	};
+	int ret;
+
+	switch (id) {
+	case PKVM_TOPUP_HYP_ALLOC:
+		ret = hyp_alloc_topup(&host_mc);
+		break;
+	case PKVM_TOPUP_HYP_ALLOC_SELFTEST:
+		ret = hyp_alloc_selftest_topup(&host_mc);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	cpu_reg(host_ctxt, 2) = host_mc.head;
+	cpu_reg(host_ctxt, 3) = host_mc.nr_pages;
+
+	return ret;
+}
+
+DEFINE_KVM_HOST_HCALL(int, __pkvm_hyp_reclaim,
+	enum pkvm_topup_id, id, unsigned long, target)
+{
+	struct kvm_cpu_context *host_ctxt = host_data_ptr(host_ctxt);
+	struct kvm_hyp_memcache host_mc = {};
+	int ret = 0;
+
+	switch (id) {
+	case PKVM_TOPUP_HYP_ALLOC:
+		hyp_alloc_reclaim(&host_mc, target);
+		break;
+	case PKVM_TOPUP_HYP_ALLOC_SELFTEST:
+		hyp_alloc_selftest_reclaim(&host_mc, target);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	cpu_reg(host_ctxt, 2) = host_mc.head;
+	cpu_reg(host_ctxt, 3) = host_mc.nr_pages;
+
+	return ret;
+}
+
+DEFINE_KVM_HOST_HCALL(ulong, __pkvm_hyp_reclaimable,
+	enum pkvm_topup_id, id)
+{
+	switch (id) {
+	case PKVM_TOPUP_HYP_ALLOC:
+		return hyp_alloc_reclaimable();
+	default:
+		return 0;
+	}
+}
+
 DEFINE_KVM_HOST_HCALL(int, __tracing_load,
 	void __kern *, desc_hva, size_t, desc_size)
 {
-	return __tracing_load(desc_hva, desc_size);
+	return errno_to_smccc(__tracing_load(desc_hva, desc_size));
 }
 
 DEFINE_KVM_HOST_HCALL0(void, __tracing_unload)
@@ -1446,6 +1551,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__kvm_enable_ssbs),
 	HANDLE_FUNC(__vgic_v3_init_lrs),
 	HANDLE_FUNC(__vgic_v3_get_gic_config),
+	HANDLE_FUNC(__pkvm_hyp_alloc_selftest),
 	HANDLE_FUNC(__pkvm_prot_finalize),
 
 	HANDLE_FUNC(__kvm_adjust_pc),
@@ -1472,6 +1578,9 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__vgic_v5_vdpend),
 	HANDLE_FUNC(__vgic_v5_save_apr),
 	HANDLE_FUNC(__vgic_v5_restore_vmcr_apr),
+	HANDLE_FUNC(__pkvm_hyp_topup),
+	HANDLE_FUNC(__pkvm_hyp_reclaim),
+	HANDLE_FUNC(__pkvm_hyp_reclaimable),
 
 	HANDLE_FUNC(__pkvm_host_share_hyp),
 	HANDLE_FUNC(__pkvm_host_unshare_hyp),

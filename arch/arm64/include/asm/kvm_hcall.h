@@ -22,6 +22,12 @@
 
 typedef u16 pkvm_handle_t;
 
+enum pkvm_topup_id {
+	PKVM_TOPUP_HYP_ALLOC,
+	NR_PKVM_TOPUP_HYP_IDS,
+	PKVM_TOPUP_HYP_ALLOC_SELFTEST,
+};
+
 struct kvm;
 struct kvm_s2_mmu;
 struct kvm_vcpu;
@@ -149,6 +155,7 @@ DECLARE_KVM_HOST_HCALL(int, __pkvm_cpu_set_vector,
 DECLARE_KVM_HOST_HCALL0(void, __kvm_enable_ssbs)
 DECLARE_KVM_HOST_HCALL0(void, __vgic_v3_init_lrs)
 DECLARE_KVM_HOST_HCALL0(u64, __vgic_v3_get_gic_config)
+DECLARE_KVM_HOST_HCALL0(int, __pkvm_hyp_alloc_selftest)
 
 DECLARE_KVM_HOST_HCALL0(int, __pkvm_prot_finalize)
 
@@ -199,6 +206,12 @@ DECLARE_KVM_HOST_HCALL(void, __vgic_v5_restore_vmcr_apr,
 	struct vgic_v5_cpu_if __kern *, cpu_if)
 DECLARE_KVM_HOST_HCALL(void, __vgic_v5_vdpend,
 		       u32, intid, bool, pending, u16, vm);
+DECLARE_KVM_HOST_HCALL(int, __pkvm_hyp_topup,
+	enum pkvm_topup_id, id, phys_addr_t, head, unsigned long, nr_pages)
+DECLARE_KVM_HOST_HCALL(int, __pkvm_hyp_reclaim,
+	enum pkvm_topup_id, id, unsigned long, target)
+DECLARE_KVM_HOST_HCALL(ulong, __pkvm_hyp_reclaimable,
+	enum pkvm_topup_id, id)
 
 /* Hypercalls that are available only when pKVM has finalised. */
 DECLARE_KVM_HOST_HCALL(int, __pkvm_host_share_hyp,
@@ -223,11 +236,9 @@ DECLARE_KVM_HOST_HCALL0(int, __pkvm_reserve_vm)
 DECLARE_KVM_HOST_HCALL(void, __pkvm_unreserve_vm,
 	pkvm_handle_t, handle)
 DECLARE_KVM_HOST_HCALL(int, __pkvm_init_vm,
-	struct kvm __kern *, host_kvm, void __kern *, vm_hva,
-	void __kern *, pgd_hva)
+	struct kvm __kern *, host_kvm, void __kern *, pgd_hva)
 DECLARE_KVM_HOST_HCALL(int, __pkvm_init_vcpu,
-	pkvm_handle_t, handle, struct kvm_vcpu __kern *, host_vcpu,
-	void __kern *, vcpu_hva)
+	pkvm_handle_t, handle, struct kvm_vcpu __kern *, host_vcpu)
 DECLARE_KVM_HOST_HCALL0(int, __pkvm_vcpu_in_poison_fault)
 DECLARE_KVM_HOST_HCALL(int, __pkvm_force_reclaim_guest_page,
 	phys_addr_t, phys)
