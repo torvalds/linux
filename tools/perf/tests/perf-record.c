@@ -372,4 +372,5 @@ static struct test_case tests__PERF_RECORD[] = {
 struct test_suite suite__PERF_RECORD = {
 	.desc = "PERF_RECORD_* events & perf_sample fields",
 	.test_cases = tests__PERF_RECORD,
+	.needs_mlock = true,
 };

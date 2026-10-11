@@ -885,4 +885,4 @@ static int test__code_reading(struct test_suite *test __maybe_unused, int subtes
 	};
 }
 
-DEFINE_SUITE("Object code reading", code_reading);
+DEFINE_SUITE_NEEDS_MLOCK("Object code reading", code_reading);

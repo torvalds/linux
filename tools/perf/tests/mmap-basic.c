@@ -448,4 +448,5 @@ static struct test_case tests__basic_mmap[] = {
 struct test_suite suite__basic_mmap = {
 	.desc = "mmap interface tests",
 	.test_cases = tests__basic_mmap,
+	.needs_mlock = true,
 };

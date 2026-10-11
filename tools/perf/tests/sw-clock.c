@@ -149,4 +149,4 @@ static int test__sw_clock_freq(struct test_suite *test __maybe_unused, int subte
 	return ret;
 }
 
-DEFINE_SUITE("Software clock events period values", sw_clock_freq);
+DEFINE_SUITE_NEEDS_MLOCK("Software clock events period values", sw_clock_freq);
