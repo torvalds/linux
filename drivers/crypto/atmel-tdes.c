@@ -473,7 +473,7 @@ static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 	else
 		err = atmel_tdes_crypt_pdc(dd, addr_in, addr_out);
 
-	if (err && (dd->flags & TDES_FLAGS_FAST)) {
+	if (err && fast) {
 		dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
 	}
