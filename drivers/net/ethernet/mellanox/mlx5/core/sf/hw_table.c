@@ -262,24 +262,17 @@ static void mlx5_sf_hw_table_res_unregister(struct mlx5_core_dev *dev)
 	devl_resources_unregister(priv_to_devlink(dev));
 }
 
-static int mlx5_sf_hw_table_res_register(struct mlx5_core_dev *dev, u16 max_fn,
-					 u16 max_ext_fn)
+static int mlx5_sf_hw_table_res_register(struct mlx5_core_dev *dev,
+					 u16 max_fn)
 {
 	struct devlink_resource_size_params size_params;
 	struct devlink *devlink = priv_to_devlink(dev);
-	int err;
 
 	devlink_resource_size_params_init(&size_params, max_fn, max_fn, 1,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devl_resource_register(devlink, "max_local_SFs", max_fn, MLX5_DL_RES_MAX_LOCAL_SFS,
-				     DEVLINK_RESOURCE_ID_PARENT_TOP, &size_params);
-	if (err)
-		return err;
-
-	devlink_resource_size_params_init(&size_params, max_ext_fn, max_ext_fn, 1,
-					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	return devl_resource_register(devlink, "max_external_SFs", max_ext_fn,
-				      MLX5_DL_RES_MAX_EXTERNAL_SFS, DEVLINK_RESOURCE_ID_PARENT_TOP,
+	return devl_resource_register(devlink, "max_local_SFs", max_fn,
+				      MLX5_DL_RES_MAX_LOCAL_SFS,
+				      DEVLINK_RESOURCE_ID_PARENT_TOP,
 				      &size_params);
 }
 
@@ -303,7 +296,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	if (err)
 		return err;
 
-	if (mlx5_sf_hw_table_res_register(dev, max_fn, max_ext_fn))
+	if (mlx5_sf_hw_table_res_register(dev, max_fn))
 		mlx5_core_dbg(dev, "failed to register max SFs resources");
 
 	if (!max_fn && !max_ext_fn && !mlx5_esw_has_spf_sfs(dev))
