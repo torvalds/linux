@@ -976,7 +976,7 @@ static void io_wq_for_each_worker(struct io_wq *wq,
 
 static bool io_wq_worker_wake(struct io_worker *worker, void *data)
 {
-	__set_notify_signal(worker->task);
+	set_tsk_thread_flag(worker->task, TIF_NOTIFY_SIGNAL);
 	wake_up_process(worker->task);
 	return false;
 }
