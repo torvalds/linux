@@ -752,7 +752,6 @@ struct TCP_Server_Info {
 	char	negflavor;	/* NEGOTIATE response flavor */
 	/* extended security flavors that server supports */
 	bool	sec_ntlmssp;		/* supports NTLMSSP */
-	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	sec_iakerb;		/* supports pass-through auth for Kerberos (krb5 proxy) */
