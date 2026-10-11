@@ -704,10 +704,10 @@ static bool cfg80211_is_all_idle(void)
 
 static void disconnect_work(struct work_struct *work)
 {
-	rtnl_lock();
+	guard(mutex)(&cfg80211_mutex);
+
 	if (cfg80211_is_all_idle())
 		regulatory_hint_disconnect();
-	rtnl_unlock();
 }
 
 DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);

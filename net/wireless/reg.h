@@ -115,7 +115,7 @@ void regulatory_hint_country_ie(struct wiphy *wiphy,
  * be respected but if a user had set the regulatory domain that will take
  * precedence.
  *
- * Must be called from process context.
+ * Must be called with cfg80211_mutex held.
  */
 void regulatory_hint_disconnect(void);
 
