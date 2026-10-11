@@ -92,9 +92,9 @@ struct fw_card {
 	u64 reset_jiffies;
 
 	struct {
-		int current_tlabel;
-		u64 tlabel_mask;
-		struct list_head list;
+		int current_tlabel __guarded_by(&lock);
+		u64 tlabel_mask __guarded_by(&lock);
+		struct list_head list __guarded_by(&lock);
 		spinlock_t lock;
 	} transactions;
 

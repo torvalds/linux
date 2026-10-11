@@ -36,18 +36,24 @@
 #define HEADER_DESTINATION_IS_BROADCAST(header) \
 	((async_header_get_destination(header) & 0x3f) == 0x3f)
 
-/* returns 0 if the split timeout handler is already running */
+// Returns 0 if the split timeout handler is already running.
+//
+// card->transactions.lock must be acquired in advance.
 static int try_cancel_split_timeout(struct fw_transaction *t)
 {
+	lockdep_assert_held(&t->card->transactions.lock);
+
 	if (t->is_split_transaction)
 		return timer_delete(&t->split_timeout_timer) || disable_work(&t->error_work);
 	else
 		return 1;
 }
 
-// card->transactions.lock must be acquired in advance.
 static void remove_transaction_entry(struct fw_card *card, struct fw_transaction *entry)
+__must_hold(&card->transactions.lock)
 {
+	lockdep_assert_held(&card->transactions.lock);
+
 	list_del_init(&entry->link);
 	card->transactions.tlabel_mask &= ~(1ULL << entry->tlabel);
 }
@@ -65,9 +71,12 @@ static void invoke_callback(struct fw_transaction *t, int rcode, u32 response_ts
 
 // Must be called without holding card->transactions.lock.
 void fw_cancel_pending_transactions(struct fw_card *card)
+__must_not_hold(&card->transactions.lock)
 {
 	struct fw_transaction *t, *tmp;
 	LIST_HEAD(pending_list);
+
+	lockdep_assert_not_held(&card->transactions.lock);
 
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
@@ -117,7 +126,10 @@ void fw_cancel_pending_transactions(struct fw_card *card)
  * pending transaction.
  */
 int fw_cancel_transaction(struct fw_card *card, struct fw_transaction *transaction)
+__must_not_hold(&card->transactions.lock)
 {
+	lockdep_assert_not_held(&card->transactions.lock);
+
 	// Allow the call of struct fw_card_driver.cancel_packet() to wait for any event.
 	might_sleep();
 
@@ -164,10 +176,13 @@ static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 res
 	queue_work(t->card->async_wq, &t->error_work);
 }
 
+// card->transactions.lock must be released in advance.
 static void split_transaction_timeout_callback(struct timer_list *timer)
 {
 	struct fw_transaction *t = timer_container_of(t, timer, split_timeout_timer);
 	struct fw_card *card = t->card;
+
+	lockdep_assert_not_held(&card->transactions.lock);
 
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (list_empty(&t->link))
@@ -181,6 +196,8 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 // card->transactions.lock should be acquired in advance for the linked list.
 static void start_split_transaction_timeout(struct fw_transaction *t, unsigned int delta)
 {
+	lockdep_assert_held(&t->card->transactions.lock);
+
 	if (list_empty(&t->link) || WARN_ON(t->is_split_transaction))
 		return;
 
@@ -193,9 +210,12 @@ static u32 compute_split_timeout_timestamp(struct fw_card *card, u32 request_tim
 
 static void transmit_complete_callback(struct fw_packet *packet,
 				       struct fw_card *card, int status)
+__must_not_hold(&card->transactions.lock)
 {
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
+
+	lockdep_assert_not_held(&card->transactions.lock);
 
 	trace_async_request_outbound_complete((uintptr_t)t, card->index, packet->generation,
 					      packet->speed, status, packet->timestamp);
@@ -392,8 +412,11 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 		int destination_id, int generation, int speed, unsigned long long offset,
 		void *payload, size_t length, union fw_transaction_callback callback,
 		bool with_tstamp, void *callback_data)
+__must_not_hold(&card->transactions.lock)
 {
 	int tlabel;
+
+	lockdep_assert_not_held(&card->transactions.lock);
 
 	t->card = card;
 	t->callback = callback;
@@ -1156,11 +1179,14 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 EXPORT_SYMBOL(fw_core_handle_request);
 
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
+__must_not_hold(&card->transactions.lock)
 {
 	struct fw_transaction *t = NULL;
 	u32 *data;
 	size_t data_length;
 	int tcode, tlabel, source, rcode;
+
+	lockdep_assert_not_held(&card->transactions.lock);
 
 	// Allow the call of struct fw_card_driver.cancel_packet() to wait for any event.
 	might_sleep();
