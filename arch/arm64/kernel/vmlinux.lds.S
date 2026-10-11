@@ -214,6 +214,14 @@ SECTIONS
 
 	HYPERVISOR_RODATA_SECTIONS
 
+#ifdef CONFIG_NVHE_EL2_TRACING
+	.rodata.hyp_string_fmts : {
+		__hyp_string_fmts_start = .;
+		*(_hyp_string_fmts)
+		__hyp_string_fmts_end = .;
+	}
+#endif
+
 	.got : { *(.got) }
 	/*
 	 * Make sure that the .got.plt is either completely empty or it
