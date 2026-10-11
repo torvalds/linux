@@ -1,57 +1,86 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include "fuse_i.h"
-#include <linux/rbtree.h>
 #include <linux/pagemap.h>
 #include <linux/iomap.h>
 #include <linux/dax.h>
+#include <linux/sort.h>
+#include <linux/log2.h>
+#include <linux/math64.h>
 
 struct fuse_iext {
-	struct rb_node rb;
 	u64 start;
 	u64 end; /* exclusive */
 	struct fuse_backing *backing;
 	u64 backing_offset;
 };
 
-void fuse_ext_map_destroy(struct rb_root *extents)
+void fuse_ext_map_destroy(struct fuse_backing *fb)
 {
-	struct fuse_iext *fie, *tmp;
+	unsigned int i;
 
-	rbtree_postorder_for_each_entry_safe(fie, tmp, extents, rb) {
-		fuse_backing_put(fie->backing);
-		kfree(fie);
-	}
+	for (i = 0; i < fb->nr_extents; i++)
+		fuse_backing_put(fb->extents[i].backing);
+
+	kvfree(fb->extents);
+	fb->extents = NULL;
+	fb->nr_extents = 0;
 }
 
-static struct fuse_iext *fuse_find_extent(struct rb_root *extents, u64 offset)
+/*
+ * Resolve @offset to an extent.
+ *
+ * A uniform map (all extents the same length, contiguous from offset zero) is
+ * resolved with a single array index.  A cyclic map is uniform by construction;
+ * the index wraps and *ncycle is the number of complete cycles before @offset.
+ * Only an irregular map needs a search: a binary search of the sorted array.
+ */
+static struct fuse_iext *fuse_find_extent(struct fuse_backing *fb, u64 offset,
+					  u64 *ncycle)
 {
-	struct rb_node *node = extents->rb_node;
+	struct fuse_iext *ext = fb->extents;
+	unsigned int lo, hi;
+	u64 idx;
 
-	while (node) {
-		struct fuse_iext *fie = rb_entry(node, typeof(*fie), rb);
+	*ncycle = 0;
 
-		if (offset < fie->start)
-			node = node->rb_left;
-		else if (offset >= fie->end)
-			node = node->rb_right;
+	/* If the extents are uniform... */
+	if (fb->ext_len) {
+		idx = div64_u64(offset, fb->ext_len);
+
+		if (fb->cycle_length) {
+			u32 rem;
+
+			*ncycle = div_u64_rem(idx, fb->nr_extents, &rem);
+			idx = rem;
+		} else if (idx >= fb->nr_extents) {
+			return NULL;
+		}
+		return &ext[idx];
+	}
+
+	/* Extents are not uniform: binary search the extents array */
+	lo = 0;
+	hi = fb->nr_extents;
+	while (lo < hi) {
+		unsigned int mid = lo + (hi - lo) / 2;
+
+		if (offset < ext[mid].start)
+			hi = mid;
+		else if (offset >= ext[mid].end)
+			lo = mid + 1;
 		else
-			return fie;
+			return &ext[mid];
 	}
 
 	return NULL;
 }
 
-static int fuse_add_extent(struct fuse_conn *fc, struct rb_root *extents,
+static int fuse_add_extent(struct fuse_conn *fc, struct fuse_iext *new_fie,
 			   struct fuse_extent *ext)
 {
-	struct fuse_iext *new_fie __free(kfree) = kzalloc_obj(*new_fie);
-	struct rb_node *parent = NULL, **link = &extents->rb_node;
 	loff_t end;
 	u64 tmp;
-
-	if (!new_fie)
-		return -ENOMEM;
 
 	if (ext->reserved[0] || ext->reserved[1])
 		return fuse_EIO("reserved fields set");
@@ -67,33 +96,74 @@ static int fuse_add_extent(struct fuse_conn *fc, struct rb_root *extents,
 	    check_add_overflow(ext->addr, ext->length, &tmp))
 		return fuse_EIO("offset overflow");
 
-	new_fie->start = ext->offset;
-	new_fie->end = end;
-	new_fie->backing_offset = ext->addr;
-
-	while (*link) {
-		struct fuse_iext *fie = rb_entry(*link, typeof(*fie), rb);
-
-		parent = *link;
-		if (new_fie->end <= fie->start)
-			link = &parent->rb_left;
-		else if (new_fie->start >= fie->end)
-			link = &parent->rb_right;
-		else
-			return fuse_EIO("overlap");
-	}
-
 	new_fie->backing = fuse_backing_lookup(fc, ext->backing_id);
 	if (!new_fie->backing)
 		return fuse_EIO("backing not found");
 
 	if (new_fie->backing->type != FUSE_BACKING_DAXDEV) {
 		fuse_backing_put(new_fie->backing);
+		new_fie->backing = NULL;
 		return fuse_EIO("backing is not dax device");
 	}
 
-	rb_link_node(&new_fie->rb, parent, link);
-	rb_insert_color(&no_free_ptr(new_fie)->rb, extents);
+	new_fie->start = ext->offset;
+	new_fie->end = end;
+	new_fie->backing_offset = ext->addr;
+
+	return 0;
+}
+
+static int fuse_iext_cmp(const void *a, const void *b)
+{
+	const struct fuse_iext *x = a, *y = b;
+
+	if (x->start < y->start)
+		return -1;
+	return x->start > y->start;
+}
+
+/*
+ * fb has an array of extents;
+ * - Sort it to guarantee they are in file offset order
+ * - Check whether it is uniform (starts at ofs=0, all same size, no gaps)
+ * - Validate if cyclic
+ *
+ * Array-based extent lists have better cache locality than a tree
+ * (packed into cache lines). Uniform simple extent lists and all currently
+ * valid cyclic extent lists can be indexed in O(1) at fault time. And
+ * when search is needed, arrays can be bisected for balanced O(log2 n).
+ */
+static int fuse_ext_map_finish(struct fuse_backing *fb, bool cyclic)
+{
+	struct fuse_iext *ext = fb->extents;
+	unsigned int n = fb->nr_extents;
+	unsigned int i;
+	bool uniform;
+	u64 len;
+
+	sort(ext, n, sizeof(*ext), fuse_iext_cmp, NULL);
+
+	len = ext[0].end - ext[0].start;
+	uniform = ext[0].start == 0;
+
+	/* Check for uniformity */
+	for (i = 1; i < n; i++) {
+		if (ext[i].start < ext[i - 1].end)
+			return fuse_EIO("overlap");
+
+		if (ext[i].start != ext[i - 1].end ||
+		    ext[i].end - ext[i].start != len)
+			uniform = false;
+	}
+
+	if (cyclic) {
+		if (!uniform ||
+		    check_mul_overflow(len, (u64)n, &fb->cycle_length))
+			return -EINVAL;
+	}
+
+	if (uniform)
+		fb->ext_len = len;
 
 	return 0;
 }
@@ -103,18 +173,13 @@ static int fuse_ext_map_iomap_begin(struct inode *inode, loff_t offset, loff_t l
 {
 	struct fuse_backing *fb = fuse_inode_backing(get_fuse_inode(inode));
 	struct fuse_iext *fie;
-	u64 ncycle = 0, seq_off = 0, addr, tmp;
+	u64 ncycle, seq_off, addr, tmp;
 	loff_t ext_len;
 
 	if (!fb || fb->type != FUSE_BACKING_EXTMAP)
 		return fuse_EIO("missing or wrong type backing");
 
-	if (fb->cycle_length) {
-		ncycle = div64_u64(offset, fb->cycle_length);
-		seq_off = ncycle * fb->cycle_length;
-	}
-
-	fie = fuse_find_extent(&fb->extents, offset - seq_off);
+	fie = fuse_find_extent(fb, offset, &ncycle);
 	if (!fie)
 		return fuse_EIO("missing mapping");
 
@@ -127,6 +192,7 @@ static int fuse_ext_map_iomap_begin(struct inode *inode, loff_t offset, loff_t l
 	}
 
 	ext_len = fie->end - fie->start;
+	seq_off = ncycle * fb->cycle_length;
 	addr = fie->backing_offset;
 	if (check_mul_overflow(ncycle, ext_len, &tmp) || check_add_overflow(addr, tmp, &addr))
 		return fuse_EIO("extent address overflow");
@@ -256,13 +322,10 @@ int fuse_ext_map_mmap(struct file *file, struct vm_area_struct *vma)
 
 bool fuse_ext_map_is_dax(struct fuse_backing *fb)
 {
-	struct fuse_iext *fie;
-
-	if (WARN_ON(fb->type != FUSE_BACKING_EXTMAP || RB_EMPTY_ROOT(&fb->extents)))
+	if (WARN_ON(fb->type != FUSE_BACKING_EXTMAP || !fb->nr_extents))
 		return false;
 
-	fie = rb_entry(fb->extents.rb_node, typeof(*fie), rb);
-	return fie->backing->type == FUSE_BACKING_DAXDEV;
+	return fb->extents[0].backing->type == FUSE_BACKING_DAXDEV;
 }
 
 int fuse_ext_map_populate(struct fuse_conn *fc, struct fuse_notify_backing_map_out *arg,
@@ -271,47 +334,41 @@ int fuse_ext_map_populate(struct fuse_conn *fc, struct fuse_notify_backing_map_o
 	struct fuse_backing *fb;
 	unsigned int i;
 	int err;
-	u64 chunk_size = 0;
 
 	if (!arg->num_extents)
 		return fuse_EIO("no extents");
 
-	if (arg->flags & FUSE_BACKING_MAP_CREATE) {
-		fb = kzalloc_obj(*fb);
-		if (!fb)
-			return -ENOMEM;
-
-		refcount_set(&fb->count, 1);
-		fb->type = FUSE_BACKING_EXTMAP;
-		fb->backing_id = arg->backing_id;
-	} else {
-		/* Adding extents to an existing extmap backing is not yet supported */
+	/* Adding extents to an existing extmap backing is not yet supported */
+	if (!(arg->flags & FUSE_BACKING_MAP_CREATE))
 		return -EINVAL;
-	}
 
-	if (arg->flags & FUSE_BACKING_MAP_CYCLIC) {
-		chunk_size = ext[0].length;
-		err = -EINVAL;
-		if (check_mul_overflow(chunk_size, arg->num_extents, &fb->cycle_length))
-			goto err_put;
-	}
+	fb = kzalloc_obj(*fb);
+	if (!fb)
+		return -ENOMEM;
+
+	refcount_set(&fb->count, 1);
+	fb->type = FUSE_BACKING_EXTMAP;
+	fb->backing_id = arg->backing_id;
+
+	err = -ENOMEM;
+	fb->extents = kvcalloc(arg->num_extents, sizeof(*fb->extents), GFP_KERNEL);
+	if (!fb->extents)
+		goto err_put;
 
 	for (i = 0; i < arg->num_extents; i++) {
-		err = -EINVAL;
-		if (chunk_size && (ext[i].offset != chunk_size * i || ext[i].length != chunk_size))
-			goto err_put;
-
-		err = fuse_add_extent(fc, &fb->extents, &ext[i]);
+		err = fuse_add_extent(fc, &fb->extents[i], &ext[i]);
 		if (err)
 			goto err_put;
+		fb->nr_extents++;
 	}
 
-	err = 0;
-	if (arg->flags & FUSE_BACKING_MAP_CREATE) {
-		err = fuse_backing_add_64(fc, fb);
-		if (!err)
-			return 0;
-	}
+	err = fuse_ext_map_finish(fb, arg->flags & FUSE_BACKING_MAP_CYCLIC);
+	if (err)
+		goto err_put;
+
+	err = fuse_backing_add_64(fc, fb);
+	if (!err)
+		return 0;
 
 err_put:
 	fuse_backing_put(fb);

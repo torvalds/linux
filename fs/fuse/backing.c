@@ -34,7 +34,7 @@ static void fuse_backing_free(struct fuse_backing *fb)
 		break;
 
 	case FUSE_BACKING_EXTMAP:
-		fuse_ext_map_destroy(&fb->extents);
+		fuse_ext_map_destroy(fb);
 		break;
 	}
 	kfree_rcu(fb, rcu);
@@ -356,10 +356,9 @@ void fuse_backing_files_free(struct fuse_conn *fc)
 				continue;
 			break;
 		}
-		if (fb->type == FUSE_BACKING_EXTMAP && !RB_EMPTY_ROOT(&fb->extents)) {
+		if (fb->type == FUSE_BACKING_EXTMAP && fb->extents) {
 			rhashtable_walk_stop(&iter);
-			fuse_ext_map_destroy(&fb->extents);
-			fb->extents.rb_node = NULL;
+			fuse_ext_map_destroy(fb);
 			rhashtable_walk_start(&iter);
 		}
 	}

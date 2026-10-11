@@ -95,6 +95,8 @@ enum fuse_backing_type {
 	FUSE_BACKING_EXTMAP,
 };
 
+struct fuse_iext;
+
 /* Container for data related to mapping to backing file */
 struct fuse_backing {
 	enum fuse_backing_type type;
@@ -109,7 +111,9 @@ struct fuse_backing {
 			bool dax_error;
 		};
 		struct {
-			struct rb_root extents;
+			struct fuse_iext *extents;
+			unsigned int nr_extents;
+			u64 ext_len;
 			u64 cycle_length;
 		};
 	};
@@ -1376,7 +1380,7 @@ extern void fuse_sysctl_unregister(void);
 
 /* ext_map.c */
 
-void fuse_ext_map_destroy(struct rb_root *extents);
+void fuse_ext_map_destroy(struct fuse_backing *fb);
 ssize_t fuse_ext_map_write_iter(struct kiocb *iocb, struct iov_iter *from);
 ssize_t fuse_ext_map_read_iter(struct kiocb *iocb, struct iov_iter *to);
 int fuse_ext_map_mmap(struct file *file, struct vm_area_struct *vma);
