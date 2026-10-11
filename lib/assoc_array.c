@@ -1503,120 +1503,16 @@ void assoc_array_cancel_edit(struct assoc_array_edit *edit)
 	kfree(edit);
 }
 
-/**
- * assoc_array_gc - Garbage collect an associative array.
- * @array: The array to clean.
- * @ops: The operations to use.
- * @iterator: A callback function to pass judgement on each object.
- * @iterator_data: Private data for the callback function.
- *
- * Collect garbage from an associative array and pack down the internal tree to
- * save memory.
- *
- * The iterator function is asked to pass judgement upon each object in the
- * array.  If it returns false, the object is discard and if it returns true,
- * the object is kept.  If it returns true, it must increment the object's
- * usage count (or whatever it needs to do to retain it) before returning.
- *
- * This function returns 0 if successful or -ENOMEM if out of memory.  In the
- * latter case, the array is not changed.
- *
- * The caller should lock against other modifications and must continue to hold
- * the lock until assoc_array_apply_edit() has been called.
- *
- * Accesses to the tree may take place concurrently with this function,
- * provided they hold the RCU read lock.
+/*
+ * Fold the children of a finished copy into it where their leaves fit in
+ * its free slots, and count its leaves.  Returns the number of free slots
+ * left.
  */
-int assoc_array_gc(struct assoc_array *array,
-		   const struct assoc_array_ops *ops,
-		   bool (*iterator)(void *object, void *iterator_data),
-		   void *iterator_data)
+static int assoc_array_gc_fold(struct assoc_array_node *new_n)
 {
-	struct assoc_array_shortcut *shortcut, *new_s;
-	struct assoc_array_node *node, *new_n;
-	struct assoc_array_edit *edit;
-	struct assoc_array_ptr *cursor, *ptr;
-	struct assoc_array_ptr *new_root, *new_parent, **new_ptr_pp;
-	unsigned long nr_leaves_on_tree;
+	struct assoc_array_ptr *ptr;
 	bool retained;
-	int keylen, slot, nr_free, next_slot, i;
-
-	pr_devel("-->%s()\n", __func__);
-
-	if (!array->root)
-		return 0;
-
-	edit = kzalloc_obj(struct assoc_array_edit);
-	if (!edit)
-		return -ENOMEM;
-	edit->array = array;
-	edit->ops = ops;
-	edit->ops_for_excised_subtree = ops;
-	edit->set[0].ptr = &array->root;
-	edit->excised_subtree = array->root;
-
-	new_root = new_parent = NULL;
-	new_ptr_pp = &new_root;
-	cursor = array->root;
-
-descend:
-	/* The node at this position is duplicated, and so is the shortcut in
-	 * front of it if there is one.  The node is allocated first: the copy
-	 * of the shortcut starts out pointing at the old node, and must not be
-	 * in the new tree if the node cannot be allocated, or the cleanup
-	 * would follow it into the old tree.
-	 */
-	new_n = kzalloc_obj(struct assoc_array_node);
-	if (!new_n)
-		goto enomem;
-
-	if (assoc_array_ptr_is_shortcut(cursor)) {
-		shortcut = assoc_array_ptr_to_shortcut(cursor);
-		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
-		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
-		new_s = kmalloc_flex(*new_s, index_key, keylen);
-		if (!new_s) {
-			kfree(new_n);
-			goto enomem;
-		}
-		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
-		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
-		new_s->back_pointer = new_parent;
-		new_s->parent_slot = shortcut->parent_slot;
-		*new_ptr_pp = new_parent = assoc_array_shortcut_to_ptr(new_s);
-		new_ptr_pp = &new_s->next_node;
-		cursor = shortcut->next_node;
-	}
-
-	node = assoc_array_ptr_to_node(cursor);
-	pr_devel("dup node %p -> %p\n", node, new_n);
-	new_n->back_pointer = new_parent;
-	new_n->parent_slot = node->parent_slot;
-	*new_ptr_pp = new_parent = assoc_array_node_to_ptr(new_n);
-	new_ptr_pp = NULL;
-	slot = 0;
-
-continue_node:
-	/* Filter across any leaves and gc any subtrees */
-	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = node->slots[slot];
-		if (!ptr)
-			continue;
-
-		if (assoc_array_ptr_is_leaf(ptr)) {
-			if (iterator(assoc_array_ptr_to_leaf(ptr),
-				     iterator_data))
-				/* The iterator will have done any reference
-				 * counting on the object for us.
-				 */
-				new_n->slots[slot] = ptr;
-			continue;
-		}
-
-		new_ptr_pp = &new_n->slots[slot];
-		cursor = ptr;
-		goto descend;
-	}
+	int slot, nr_free, next_slot, i;
 
 retry_compress:
 	pr_devel("-- compress node %p --\n", new_n);
@@ -1695,6 +1591,124 @@ retry_compress:
 		goto retry_compress;
 	}
 	pr_devel("after: %lu\n", new_n->nr_leaves_on_branch);
+	return nr_free;
+}
+
+/**
+ * assoc_array_gc - Garbage collect an associative array.
+ * @array: The array to clean.
+ * @ops: The operations to use.
+ * @iterator: A callback function to pass judgement on each object.
+ * @iterator_data: Private data for the callback function.
+ *
+ * Collect garbage from an associative array and pack down the internal tree to
+ * save memory.
+ *
+ * The iterator function is asked to pass judgement upon each object in the
+ * array.  If it returns false, the object is discard and if it returns true,
+ * the object is kept.  If it returns true, it must increment the object's
+ * usage count (or whatever it needs to do to retain it) before returning.
+ *
+ * This function returns 0 if successful or -ENOMEM if out of memory.  In the
+ * latter case, the array is not changed.
+ *
+ * The caller should lock against other modifications and must continue to hold
+ * the lock until assoc_array_apply_edit() has been called.
+ *
+ * Accesses to the tree may take place concurrently with this function,
+ * provided they hold the RCU read lock.
+ */
+int assoc_array_gc(struct assoc_array *array,
+		   const struct assoc_array_ops *ops,
+		   bool (*iterator)(void *object, void *iterator_data),
+		   void *iterator_data)
+{
+	struct assoc_array_shortcut *shortcut, *new_s;
+	struct assoc_array_node *node, *new_n;
+	struct assoc_array_edit *edit;
+	struct assoc_array_ptr *cursor, *ptr;
+	struct assoc_array_ptr *new_root, *new_parent, **new_ptr_pp;
+	unsigned long nr_leaves_on_tree;
+	int keylen, slot, nr_free;
+
+	pr_devel("-->%s()\n", __func__);
+
+	if (!array->root)
+		return 0;
+
+	edit = kzalloc_obj(struct assoc_array_edit);
+	if (!edit)
+		return -ENOMEM;
+	edit->array = array;
+	edit->ops = ops;
+	edit->ops_for_excised_subtree = ops;
+	edit->set[0].ptr = &array->root;
+	edit->excised_subtree = array->root;
+
+	new_root = new_parent = NULL;
+	new_ptr_pp = &new_root;
+	cursor = array->root;
+
+descend:
+	/* The node at this position is duplicated, and so is the shortcut in
+	 * front of it if there is one.  The node is allocated first: the copy
+	 * of the shortcut starts out pointing at the old node, and must not be
+	 * in the new tree if the node cannot be allocated, or the cleanup
+	 * would follow it into the old tree.
+	 */
+	new_n = kzalloc_obj(struct assoc_array_node);
+	if (!new_n)
+		goto enomem;
+
+	if (assoc_array_ptr_is_shortcut(cursor)) {
+		shortcut = assoc_array_ptr_to_shortcut(cursor);
+		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+		new_s = kmalloc_flex(*new_s, index_key, keylen);
+		if (!new_s) {
+			kfree(new_n);
+			goto enomem;
+		}
+		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
+		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
+		new_s->back_pointer = new_parent;
+		new_s->parent_slot = shortcut->parent_slot;
+		*new_ptr_pp = new_parent = assoc_array_shortcut_to_ptr(new_s);
+		new_ptr_pp = &new_s->next_node;
+		cursor = shortcut->next_node;
+	}
+
+	node = assoc_array_ptr_to_node(cursor);
+	pr_devel("dup node %p -> %p\n", node, new_n);
+	new_n->back_pointer = new_parent;
+	new_n->parent_slot = node->parent_slot;
+	*new_ptr_pp = new_parent = assoc_array_node_to_ptr(new_n);
+	new_ptr_pp = NULL;
+	slot = 0;
+
+continue_node:
+	/* Filter across any leaves and gc any subtrees */
+	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
+		ptr = node->slots[slot];
+		if (!ptr)
+			continue;
+
+		if (assoc_array_ptr_is_leaf(ptr)) {
+			if (iterator(assoc_array_ptr_to_leaf(ptr),
+				     iterator_data))
+				/* The iterator will have done any reference
+				 * counting on the object for us.
+				 */
+				new_n->slots[slot] = ptr;
+			continue;
+		}
+
+		new_ptr_pp = &new_n->slots[slot];
+		cursor = ptr;
+		goto descend;
+	}
+
+	nr_free = assoc_array_gc_fold(new_n);
 
 	nr_leaves_on_tree = new_n->nr_leaves_on_branch;
 
