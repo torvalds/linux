@@ -210,11 +210,13 @@ static u32 compute_split_timeout_timestamp(struct fw_card *card, u32 request_tim
 
 static void transmit_complete_callback(struct fw_packet *packet,
 				       struct fw_card *card, int status)
+__must_not_hold(&card->split_timeout.lock)
 __must_not_hold(&card->transactions.lock)
 {
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
 
+	lockdep_assert_not_held(&card->split_timeout.lock);
 	lockdep_assert_not_held(&card->transactions.lock);
 
 	trace_async_request_outbound_complete((uintptr_t)t, card->index, packet->generation,
@@ -898,10 +900,13 @@ __must_hold(&card->split_timeout.lock)
 
 static struct fw_request *allocate_request(struct fw_card *card,
 					   struct fw_packet *p)
+__must_not_hold(&card->split_timeout.lock)
 {
 	struct fw_request *request;
 	u32 *data, length;
 	int request_tcode;
+
+	lockdep_assert_not_held(&card->split_timeout.lock);
 
 	request_tcode = async_header_get_tcode(p->header);
 	switch (request_tcode) {
@@ -1320,6 +1325,8 @@ __must_hold(&card->split_timeout.lock)
 {
 	unsigned int cycles;
 
+	lockdep_assert_held(&card->split_timeout.lock);
+
 	cycles = card->split_timeout.hi * 8000 + (card->split_timeout.lo >> 19);
 
 	/* minimum per IEEE 1394, maximum which doesn't overflow OHCI */
@@ -1375,28 +1382,28 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		break;
 
 	case CSR_SPLIT_TIMEOUT_HI:
-		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(card->split_timeout.hi);
-		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
-			scoped_guard(spinlock, &card->split_timeout.lock) {
+		scoped_guard(spinlock, &card->split_timeout.lock) {
+			if (tcode == TCODE_READ_QUADLET_REQUEST) {
+				*data = cpu_to_be32(card->split_timeout.hi);
+			} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
 				card->split_timeout.hi = be32_to_cpu(*data) & 7;
 				update_split_timeout(card);
+			} else {
+				rcode = RCODE_TYPE_ERROR;
 			}
-		} else {
-			rcode = RCODE_TYPE_ERROR;
 		}
 		break;
 
 	case CSR_SPLIT_TIMEOUT_LO:
-		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(card->split_timeout.lo);
-		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
-			scoped_guard(spinlock, &card->split_timeout.lock) {
+		scoped_guard(spinlock, &card->split_timeout.lock) {
+			if (tcode == TCODE_READ_QUADLET_REQUEST) {
+				*data = cpu_to_be32(card->split_timeout.lo);
+			} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
 				card->split_timeout.lo = be32_to_cpu(*data) & 0xfff80000;
 				update_split_timeout(card);
+			} else {
+				rcode = RCODE_TYPE_ERROR;
 			}
-		} else {
-			rcode = RCODE_TYPE_ERROR;
 		}
 		break;
 

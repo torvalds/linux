@@ -99,10 +99,10 @@ struct fw_card {
 	} transactions;
 
 	struct {
-		u32 hi;
-		u32 lo;
-		unsigned int cycles;
-		unsigned int jiffies;
+		u32 hi __guarded_by(&lock);
+		u32 lo __guarded_by(&lock);
+		unsigned int cycles __guarded_by(&lock);
+		unsigned int jiffies __guarded_by(&lock);
 		spinlock_t lock;
 	} split_timeout;
 
