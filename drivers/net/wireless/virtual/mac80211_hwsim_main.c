@@ -5751,9 +5751,6 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		goto failed;
 	}
 
-	/* ieee80211_alloc_hw_nm may have used a default name */
-	param->hwname = wiphy_name(hw->wiphy);
-
 	if (info)
 		net = genl_info_net(info);
 	else
@@ -6240,6 +6237,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	list_add_tail(&data->list, &hwsim_radios);
 	hwsim_radios_generation++;
 	spin_unlock_bh(&hwsim_radio_lock);
+
+	/* alloc/register can change the name, we want the right one */
+	param->hwname = wiphy_name(hw->wiphy);
 
 	hwsim_mcast_new_radio(idx, wiphy_net(data->hw->wiphy), info, param);
 
