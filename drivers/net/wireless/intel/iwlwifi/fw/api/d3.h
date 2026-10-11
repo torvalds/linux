@@ -373,9 +373,9 @@ enum iwl_wowlan_flags {
 /**
  * struct iwl_wowlan_config_cmd_v6 - WoWLAN configuration (versions 5 and 6)
  * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
- * @non_qos_seq: non-QoS sequence counter to use next.
+ * @non_qos_seq: last used non-QoS sequence counter.
  *               Reserved if the struct has version >= 6.
- * @qos_seq: QoS sequence counters to use next
+ * @qos_seq: last used QoS sequence counters
  * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
  * @is_11n_connection: indicates HT connection
  * @offloading_tid: TID reserved for firmware use
@@ -732,8 +732,8 @@ struct iwl_wowlan_igtk_status {
  * @gtk: GTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @non_qos_seq_ctr: last used non-QoS sequence counter
+ * @qos_seq_ctr: last used QoS sequence counters
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -763,8 +763,8 @@ struct iwl_wowlan_status_v6 {
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @non_qos_seq_ctr: last used non-QoS sequence counter
+ * @qos_seq_ctr: last used QoS sequence counters
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -796,7 +796,7 @@ struct iwl_wowlan_status_v7 {
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched patterns
  * @reserved1: reserved
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @qos_seq_ctr: last used QoS sequence counters
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -882,7 +882,7 @@ struct iwl_wowlan_mlo_gtk {
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched patterns
  * @reserved1: reserved
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @qos_seq_ctr: last used QoS sequence counters
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -916,7 +916,7 @@ struct iwl_wowlan_info_notif_v3 {
  * @bigtk: BIGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched patterns
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @qos_seq_ctr: last used QoS sequence counter for @tid_offloaded_tx
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -955,7 +955,7 @@ struct iwl_wowlan_info_notif_v5 {
  * @bigtk: BIGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched patterns
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @qos_seq_ctr: last used QoS sequence counter for @tid_offloaded_tx
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
@@ -995,7 +995,7 @@ struct iwl_wowlan_info_notif_v6 {
  * @cigtk: CIGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched patterns
- * @qos_seq_ctr: QoS sequence counters to use next
+ * @qos_seq_ctr: last used QoS sequence counter for @tid_offloaded_tx
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
  * @transmitted_ndps: number of transmitted neighbor discovery packets
