@@ -2121,9 +2121,9 @@ static int vgic_its_save_ite(struct vgic_its *its, struct its_device *dev,
 	u64 val;
 
 	/*
-	 * MAPC with V=0 keeps the ITEs mapped but drops their collection,
-	 * and with it the ICID. Save a zeroed entry, which the restore path
-	 * reads back as invalid.
+	 * MAPC with V=0 and clearing GITS_BASER<coll>.Valid both keep the
+	 * ITEs mapped while dropping their collection, and with it the ICID.
+	 * Save a zeroed entry, which the restore path reads back as invalid.
 	 */
 	if (!ite->collection)
 		return vgic_its_write_entry_lock(its, gpa, 0ULL, ite);

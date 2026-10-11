@@ -1263,7 +1263,7 @@ static int noinstr kvm_arm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
  * kvm_arch_vcpu_ioctl_run - the main VCPU run function to execute guest code
  * @vcpu:	The VCPU pointer
  *
- * This function is called through the VCPU_RUN ioctl called from user space. It
+ * This function is called through the KVM_RUN ioctl called from user space. It
  * will execute VM code in a loop until the time slice for the process is used
  * or some emulation is needed from user space in which case the function will
  * return with return value 0 and with the kvm_run structure filled in with the
