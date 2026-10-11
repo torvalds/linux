@@ -1567,10 +1567,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result)
 		goto fail_flows;
 
-	rtnl_lock();
 	result = ieee80211_init_rate_ctrl_alg(local,
 					      hw->rate_control_algorithm);
-	rtnl_unlock();
 	if (result < 0) {
 		wiphy_debug(local->hw.wiphy,
 			    "Failed to initialize rate control algorithm\n");
@@ -1689,9 +1687,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_wiphy_register:
  fail_band:
 	rtnl_lock();
-	rate_control_deinitialize(local);
 	ieee80211_remove_interfaces(local);
 	rtnl_unlock();
+	rate_control_deinitialize(local);
  fail_rate:
 	ieee80211_txq_teardown_flows(local);
  fail_flows:
