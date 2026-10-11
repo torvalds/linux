@@ -39,6 +39,10 @@ pub const NSEC_PER_MSEC: i64 = bindings::NSEC_PER_MSEC as i64;
 /// The number of nanoseconds per second.
 pub const NSEC_PER_SEC: i64 = bindings::NSEC_PER_SEC as i64;
 
+/// The C side `MAX_JIFFY_OFFSET`, i.e. `((LONG_MAX >> 1) - 1)`. It is the upper
+/// bound the kernel uses for a jiffies span, not a wait-forever value.
+const MAX_JIFFY_OFFSET: isize = (isize::MAX >> 1) - 1;
+
 /// The time unit of Linux kernel. One jiffy equals (1/HZ) second.
 pub type Jiffies = crate::ffi::c_ulong;
 
@@ -53,9 +57,9 @@ pub fn msecs_to_jiffies(msecs: Msecs) -> Jiffies {
     unsafe { bindings::__msecs_to_jiffies(msecs) }
 }
 
-/// Trait for clock sources.
+/// Trait for kernel clock identifiers.
 ///
-/// Selection of the clock source depends on the use case. In some cases the usage of a
+/// Selection of the clock depends on the use case. In some cases the usage of a
 /// particular clock is mandatory, e.g. in network protocols, filesystems. In other
 /// cases the user of the clock has to decide which clock is best suited for the
 /// purpose. In most scenarios clock [`Monotonic`] is the best choice as it
@@ -66,13 +70,13 @@ pub fn msecs_to_jiffies(msecs: Msecs) -> Jiffies {
 /// Implementers must ensure that `ktime_get()` returns a value in the inclusive range
 /// `0..=KTIME_MAX` (i.e., greater than or equal to 0 and less than or equal to
 /// `KTIME_MAX`, where `KTIME_MAX` equals `i64::MAX`).
-pub unsafe trait ClockSource {
-    /// The kernel clock ID associated with this clock source.
+pub unsafe trait ClockId {
+    /// The kernel clock ID associated with this clock.
     ///
     /// This constant corresponds to the C side `clockid_t` value.
     const ID: bindings::clockid_t;
 
-    /// Get the current time from the clock source.
+    /// Get the current time from the clock.
     ///
     /// The function must return a value in the range `0..=KTIME_MAX`.
     fn ktime_get() -> bindings::ktime_t;
@@ -93,7 +97,7 @@ pub struct Monotonic;
 
 // SAFETY: The kernel's `ktime_get()` is guaranteed to return a value
 // in `0..=KTIME_MAX`.
-unsafe impl ClockSource for Monotonic {
+unsafe impl ClockId for Monotonic {
     const ID: bindings::clockid_t = bindings::CLOCK_MONOTONIC as bindings::clockid_t;
 
     fn ktime_get() -> bindings::ktime_t {
@@ -120,7 +124,7 @@ pub struct RealTime;
 
 // SAFETY: The kernel's `ktime_get_real()` is guaranteed to return a value
 // in `0..=KTIME_MAX`.
-unsafe impl ClockSource for RealTime {
+unsafe impl ClockId for RealTime {
     const ID: bindings::clockid_t = bindings::CLOCK_REALTIME as bindings::clockid_t;
 
     fn ktime_get() -> bindings::ktime_t {
@@ -140,7 +144,7 @@ pub struct BootTime;
 
 // SAFETY: The kernel's `ktime_get_boottime()` is guaranteed to return a value
 // in `0..=KTIME_MAX`.
-unsafe impl ClockSource for BootTime {
+unsafe impl ClockId for BootTime {
     const ID: bindings::clockid_t = bindings::CLOCK_BOOTTIME as bindings::clockid_t;
 
     fn ktime_get() -> bindings::ktime_t {
@@ -164,7 +168,7 @@ pub struct Tai;
 
 // SAFETY: The kernel's `ktime_get_clocktai()` is guaranteed to return a value
 // in `0..=KTIME_MAX`.
-unsafe impl ClockSource for Tai {
+unsafe impl ClockId for Tai {
     const ID: bindings::clockid_t = bindings::CLOCK_TAI as bindings::clockid_t;
 
     fn ktime_get() -> bindings::ktime_t {
@@ -180,24 +184,24 @@ unsafe impl ClockSource for Tai {
 /// The `inner` value is in the range from 0 to `KTIME_MAX`.
 #[repr(transparent)]
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
-pub struct Instant<C: ClockSource> {
+pub struct Instant<C: ClockId> {
     inner: bindings::ktime_t,
     _c: PhantomData<C>,
 }
 
-impl<C: ClockSource> Clone for Instant<C> {
+impl<C: ClockId> Clone for Instant<C> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<C: ClockSource> Copy for Instant<C> {}
+impl<C: ClockId> Copy for Instant<C> {}
 
-impl<C: ClockSource> Instant<C> {
+impl<C: ClockId> Instant<C> {
     /// Get the current time from the clock source.
     #[inline]
     pub fn now() -> Self {
-        // INVARIANT: The `ClockSource::ktime_get()` function returns a value in the range
+        // INVARIANT: The `ClockId::ktime_get()` function returns a value in the range
         // from 0 to `KTIME_MAX`.
         Self {
             inner: C::ktime_get(),
@@ -239,7 +243,7 @@ impl<C: ClockSource> Instant<C> {
     }
 }
 
-impl<C: ClockSource> ops::Sub for Instant<C> {
+impl<C: ClockId> ops::Sub for Instant<C> {
     type Output = Delta;
 
     // By the type invariant, it never overflows.
@@ -251,7 +255,7 @@ impl<C: ClockSource> ops::Sub for Instant<C> {
     }
 }
 
-impl<T: ClockSource> ops::Add<Delta> for Instant<T> {
+impl<T: ClockId> ops::Add<Delta> for Instant<T> {
     type Output = Self;
 
     #[inline]
@@ -271,7 +275,7 @@ impl<T: ClockSource> ops::Add<Delta> for Instant<T> {
     }
 }
 
-impl<T: ClockSource> ops::Sub<Delta> for Instant<T> {
+impl<T: ClockId> ops::Sub<Delta> for Instant<T> {
     type Output = Self;
 
     #[inline]
@@ -554,6 +558,62 @@ impl Delta {
         }
     }
 
+    /// Convert this span to a [`Delta<Jiffy>`] suitable for use as a timeout.
+    ///
+    /// Unless the result saturates, the value is rounded up to the next whole
+    /// jiffy, so the resulting timeout is never shorter than `self`.
+    ///
+    /// A negative span saturates at zero jiffies, i.e. an immediate timeout.
+    ///
+    /// A span that does not fit saturates at the kernel's [`MAX_JIFFY_OFFSET`],
+    /// the upper bound for a jiffies span. That is a finite timeout, so a
+    /// saturated result can be shorter than the requested span. It is derived
+    /// from `long`, so only 32 bit can reach it, at about 12 days with `HZ=1000`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::time::Delta;
+    ///
+    /// // A negative span is an immediate timeout.
+    /// assert_eq!(Delta::from_millis(-1).to_jiffies_timeout().as_jiffies(), 0);
+    ///
+    /// // A span shorter than a jiffy still waits, i.e. the timeout is never
+    /// // shorter than the span.
+    /// assert!(Delta::from_nanos(1).to_jiffies_timeout().as_jiffies() >= 1);
+    /// ```
+    ///
+    /// [`MAX_JIFFY_OFFSET`]: srctree/include/linux/jiffies.h
+    #[inline]
+    pub fn to_jiffies_timeout(self) -> Delta<Jiffy> {
+        const HZ: u64 = bindings::HZ as u64;
+
+        // The quotient `(nsecs * HZ + NSEC_PER_SEC - 1) / NSEC_PER_SEC` has to fit in
+        // `u64`; `nsecs * HZ` does not. With `HZ <= NSEC_PER_SEC` the numerator is at
+        // most `(nsecs + 1) * NSEC_PER_SEC - 1`, so the quotient is at most `nsecs`.
+        crate::static_assert!(HZ <= NSEC_PER_SEC as u64);
+
+        // CAST: `i64::max()` makes the value non-negative, so the cast keeps it.
+        let nsecs = i64::max(self.as_nanos(), 0) as u64;
+
+        // SAFETY: `mul_u64_add_u64_div_u64()` must not be called with a zero divisor,
+        // and its result must fit in `u64`. `NSEC_PER_SEC` is a non-zero constant, and
+        // the assertion above bounds the quotient by `nsecs`.
+        let jiffies = unsafe {
+            bindings::mul_u64_add_u64_div_u64(
+                nsecs,
+                HZ,
+                (NSEC_PER_SEC - 1) as u64,
+                NSEC_PER_SEC as u64,
+            )
+        };
+
+        // CAST: `jiffies` is clamped to `MAX_JIFFY_OFFSET`, which is `<= isize::MAX`.
+        let jiffies = u64::min(jiffies, MAX_JIFFY_OFFSET as u64) as isize;
+
+        Delta::<Jiffy>::from_jiffies(jiffies)
+    }
+
     /// Return `self % dividend` where `dividend` is in nanoseconds.
     ///
     /// The kernel doesn't have any emulation for `s64 % s64` on 32 bit platforms, so this is
@@ -578,5 +638,50 @@ impl Delta {
                 value: i64::from(rem),
             }
         }
+    }
+}
+
+#[cfg(CONFIG_RUST_TIME_KUNIT_TEST)]
+#[macros::kunit_tests(rust_kernel_time)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_jiffies_timeout_converts() {
+        const HZ: isize = bindings::HZ as isize;
+
+        // One second is exactly `HZ` jiffies, and the round-up must not add one.
+        assert_eq!(Delta::from_secs(1).to_jiffies_timeout().as_jiffies(), HZ);
+
+        // One nanosecond more has to round up to the next whole jiffy.
+        assert_eq!(
+            Delta::from_nanos(NSEC_PER_SEC + 1)
+                .to_jiffies_timeout()
+                .as_jiffies(),
+            HZ + 1
+        );
+    }
+
+    #[test]
+    fn to_jiffies_timeout_saturates() {
+        // The result never exceeds `MAX_JIFFY_OFFSET`. On 32 bit with `HZ=1000` this
+        // span is 2147483647 jiffies, so the clamp is what keeps it in range; on 64
+        // bit it fits and the check holds for every possible return value.
+        let clamped = Delta::from_millis(i64::from(i32::MAX)).to_jiffies_timeout();
+        assert!(clamped.as_jiffies() <= MAX_JIFFY_OFFSET);
+
+        // `MAX_JIFFY_OFFSET` is derived from `long`, so only 32 bit can reach it. On
+        // 64 bit `i64::MAX` nanoseconds is about 292 years, which is 9223372036855
+        // jiffies with `HZ=1000`, far below the limit.
+        #[cfg(not(CONFIG_64BIT))]
+        {
+            // An overlong span is clamped to `MAX_JIFFY_OFFSET`.
+            let overlong = Delta::from_nanos(i64::MAX).to_jiffies_timeout();
+            assert_eq!(overlong.as_jiffies(), MAX_JIFFY_OFFSET);
+        }
+
+        // A negative span is an immediate timeout, however long it is.
+        let negative = Delta::from_nanos(i64::MIN).to_jiffies_timeout();
+        assert_eq!(negative.as_jiffies(), 0);
     }
 }

@@ -83,3 +83,8 @@ pub const compat_ptr_ioctl: Option<
         None
     }
 };
+
+// `bindgen` keeps the first definition of a macro and ignores a later `#undef`.
+// The generated `HZ` is therefore `__USER_HZ` from
+// `include/uapi/asm-generic/param.h`, not `CONFIG_HZ`.
+pub const HZ: u32 = CONFIG_HZ;
