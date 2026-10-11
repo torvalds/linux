@@ -255,6 +255,21 @@ size_t get_def_hugetlb_pagesz(void)
 	TEST_FAIL("Error in reading /proc/meminfo");
 }
 
+size_t get_free_hugepages(size_t page_size)
+{
+	char path[128];
+	size_t free;
+
+	snprintf(path, sizeof(path),
+		 "/sys/kernel/mm/hugepages/hugepages-%zukB/free_hugepages",
+		 page_size >> 10);
+	if (!test_sysfs_path(path))
+		return 0;
+
+	free = get_sysfs_val(path);
+	return free * page_size;
+}
+
 #define ANON_FLAGS	(MAP_PRIVATE | MAP_ANONYMOUS)
 #define ANON_HUGE_FLAGS	(ANON_FLAGS | MAP_HUGETLB)
 
