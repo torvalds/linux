@@ -548,116 +548,24 @@ static bool assoc_array_fill_segment_cache(struct assoc_array_edit *edit,
 }
 
 /*
- * Handle insertion into a terminal node.
+ * Split a full node into new_n0, which takes its place, and new_n1, below
+ * new_n0 in the slot of a segment that at least two of the leaves share,
+ * the new one included.  The caller has filled in the segment cache and
+ * set new_n0's back pointer and parent slot.
  */
-static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
-						  const struct assoc_array_ops *ops,
-						  const void *index_key,
-						  struct assoc_array_walk_result *result)
+static void assoc_array_split_node(struct assoc_array_edit *edit,
+				   struct assoc_array_node *node,
+				   struct assoc_array_node *new_n0,
+				   struct assoc_array_node *new_n1)
 {
-	struct assoc_array_shortcut *shortcut, *new_s0;
-	struct assoc_array_node *node, *new_n0, *new_n1, *side;
+	struct assoc_array_shortcut *shortcut;
+	struct assoc_array_node *side;
 	struct assoc_array_ptr *ptr;
-	unsigned long dissimilarity, base_seg, blank;
-	size_t keylen;
-	bool have_meta;
-	int level, diff;
 	int slot, next_slot, free_slot, i, j;
 
-	node	= result->terminal_node.node;
-	level	= result->terminal_node.level;
-
-	pr_devel("-->%s()\n", __func__);
-
-	/* We arrived at a node which doesn't have an onward node or shortcut
-	 * pointer that we have to follow.  This means that (a) the leaf we
-	 * want must go here (either by insertion or replacement) or (b) we
-	 * need to split this node and insert in one of the fragments.
-	 */
-	if (assoc_array_insert_in_node(edit, ops, index_key, node)) {
-		pr_devel("<--%s() = ok [in node]\n", __func__);
-		return true;
-	}
-
-	/* The node has no spare slots - so we're either going to have to split
-	 * it or insert another node before it.
-	 *
-	 * Whatever, we're going to need at least two new nodes - so allocate
-	 * those now.  We may also need a new shortcut, but we deal with that
-	 * when we need it.
-	 */
-	new_n0 = kzalloc_obj(struct assoc_array_node);
-	if (!new_n0)
-		return false;
-	edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
-	new_n1 = kzalloc_obj(struct assoc_array_node);
-	if (!new_n1)
-		return false;
-	edit->new_meta[1] = assoc_array_node_to_ptr(new_n1);
-
-	/* We need to find out how similar the leaves are. */
-	pr_devel("no spare slots\n");
-	have_meta = assoc_array_fill_segment_cache(edit, ops, node, level);
-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
-
-	if (have_meta) {
-		pr_devel("have meta\n");
-		goto split_node;
-	}
-
-	/* The node contains only leaves */
-	dissimilarity = 0;
-	base_seg = edit->segment_cache[0];
-	for (i = 1; i < ASSOC_ARRAY_FAN_OUT; i++)
-		dissimilarity |= edit->segment_cache[i] ^ base_seg;
-
-	pr_devel("only leaves; dissimilarity=%lx\n", dissimilarity);
-
-	if ((dissimilarity & ASSOC_ARRAY_FAN_MASK) == 0) {
-		/* The old leaves all cluster in the same slot.  We will need
-		 * to insert a shortcut if the new node wants to cluster with them.
-		 */
-		if ((edit->segment_cache[ASSOC_ARRAY_FAN_OUT] ^ base_seg) == 0)
-			goto all_leaves_cluster_together;
-
-		/* Otherwise all the old leaves cluster in the same slot, but
-		 * the new leaf wants to go into a different slot - so we
-		 * create a new node (n0) to hold the new leaf and a pointer to
-		 * a new node (n1) holding all the old leaves.
-		 *
-		 * This can be done by falling through to the node splitting
-		 * path.
-		 */
-		pr_devel("present leaves cluster but not new leaf\n");
-	}
-
-split_node:
 	pr_devel("split node\n");
 
-	/* We need to split the current node.  The node must contain anything
-	 * from a single leaf (in the one leaf case, this leaf will cluster
-	 * with the new leaf) and the rest meta-pointers, to all leaves, some
-	 * of which may cluster.
-	 *
-	 * It won't contain the case in which all the current leaves plus the
-	 * new leaves want to cluster in the same slot.
-	 *
-	 * We need to expel at least two leaves out of a set consisting of the
-	 * leaves in the node and the new leaf.  The current meta pointers can
-	 * just be copied as they shouldn't cluster with any of the leaves.
-	 *
-	 * We need a new node (n0) to replace the current one and a new node to
-	 * take the expelled nodes (n1).
-	 */
-	edit->set[0].to = assoc_array_node_to_ptr(new_n0);
-	new_n0->back_pointer = node->back_pointer;
-	new_n0->parent_slot = node->parent_slot;
 	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
-	new_n1->parent_slot = -1; /* Need to calculate this */
-
-do_split_node:
-	pr_devel("do_split_node\n");
-
 	new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
 	new_n1->nr_leaves_on_branch = 0;
 
@@ -737,6 +645,114 @@ found_slot_for_multiple_occupancy:
 			}
 		}
 	}
+}
+
+/*
+ * Handle insertion into a terminal node.
+ */
+static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+						  const struct assoc_array_ops *ops,
+						  const void *index_key,
+						  struct assoc_array_walk_result *result)
+{
+	struct assoc_array_shortcut *new_s0;
+	struct assoc_array_node *node, *new_n0, *new_n1;
+	struct assoc_array_ptr *ptr;
+	unsigned long dissimilarity, base_seg, blank;
+	size_t keylen;
+	bool have_meta;
+	int level, diff;
+	int i;
+
+	node	= result->terminal_node.node;
+	level	= result->terminal_node.level;
+
+	pr_devel("-->%s()\n", __func__);
+
+	/* We arrived at a node which doesn't have an onward node or shortcut
+	 * pointer that we have to follow.  This means that (a) the leaf we
+	 * want must go here (either by insertion or replacement) or (b) we
+	 * need to split this node and insert in one of the fragments.
+	 */
+	if (assoc_array_insert_in_node(edit, ops, index_key, node)) {
+		pr_devel("<--%s() = ok [in node]\n", __func__);
+		return true;
+	}
+
+	/* The node has no spare slots - so we're either going to have to split
+	 * it or insert another node before it.
+	 *
+	 * Whatever, we're going to need at least two new nodes - so allocate
+	 * those now.  We may also need a new shortcut, but we deal with that
+	 * when we need it.
+	 */
+	new_n0 = kzalloc_obj(struct assoc_array_node);
+	if (!new_n0)
+		return false;
+	edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
+	new_n1 = kzalloc_obj(struct assoc_array_node);
+	if (!new_n1)
+		return false;
+	edit->new_meta[1] = assoc_array_node_to_ptr(new_n1);
+
+	/* We need to find out how similar the leaves are. */
+	pr_devel("no spare slots\n");
+	have_meta = assoc_array_fill_segment_cache(edit, ops, node, level);
+	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
+
+	if (have_meta) {
+		pr_devel("have meta\n");
+		goto split_node;
+	}
+
+	/* The node contains only leaves */
+	dissimilarity = 0;
+	base_seg = edit->segment_cache[0];
+	for (i = 1; i < ASSOC_ARRAY_FAN_OUT; i++)
+		dissimilarity |= edit->segment_cache[i] ^ base_seg;
+
+	pr_devel("only leaves; dissimilarity=%lx\n", dissimilarity);
+
+	if ((dissimilarity & ASSOC_ARRAY_FAN_MASK) == 0) {
+		/* The old leaves all cluster in the same slot.  We will need
+		 * to insert a shortcut if the new node wants to cluster with them.
+		 */
+		if ((edit->segment_cache[ASSOC_ARRAY_FAN_OUT] ^ base_seg) == 0)
+			goto all_leaves_cluster_together;
+
+		/* Otherwise all the old leaves cluster in the same slot, but
+		 * the new leaf wants to go into a different slot - so we
+		 * create a new node (n0) to hold the new leaf and a pointer to
+		 * a new node (n1) holding all the old leaves.
+		 *
+		 * This can be done by falling through to the node splitting
+		 * path.
+		 */
+		pr_devel("present leaves cluster but not new leaf\n");
+	}
+
+split_node:
+	/* We need to split the current node.  The node must contain anything
+	 * from a single leaf (in the one leaf case, this leaf will cluster
+	 * with the new leaf) and the rest meta-pointers, to all leaves, some
+	 * of which may cluster.
+	 *
+	 * It won't contain the case in which all the current leaves plus the
+	 * new leaves want to cluster in the same slot.
+	 *
+	 * We need to expel at least two leaves out of a set consisting of the
+	 * leaves in the node and the new leaf.  The current meta pointers can
+	 * just be copied as they shouldn't cluster with any of the leaves.
+	 *
+	 * We need a new node (n0) to replace the current one and a new node to
+	 * take the expelled nodes (n1).
+	 */
+	edit->set[0].to = assoc_array_node_to_ptr(new_n0);
+	new_n0->back_pointer = node->back_pointer;
+	new_n0->parent_slot = node->parent_slot;
+
+do_split_node:
+	assoc_array_split_node(edit, node, new_n0, new_n1);
 
 	ptr = node->back_pointer;
 	if (!ptr)
@@ -791,8 +807,6 @@ all_leaves_cluster_together:
 	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
 	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
 	new_n0->parent_slot = 0;
-	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
-	new_n1->parent_slot = -1; /* Need to calculate this */
 
 	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
 	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
