@@ -1419,10 +1419,6 @@ static void pl011_rs485_tx_start(struct uart_amba_port *uap)
 	struct uart_port *port = &uap->port;
 	u32 cr;
 
-	if (uap->rs485_tx_state == WAIT_AFTER_RTS) {
-		uap->rs485_tx_state = SEND;
-		return;
-	}
 	if (uap->rs485_tx_state == WAIT_AFTER_SEND ||
 	    uap->rs485_tx_state == WAIT_AFTER_SEND_DELAY) {
 		hrtimer_try_to_cancel(&uap->trigger_stop_tx);
@@ -1461,6 +1457,10 @@ static void pl011_start_tx(struct uart_port *port)
 
 	if ((uap->port.rs485.flags & SER_RS485_ENABLED) &&
 	    uap->rs485_tx_state != SEND) {
+		/* trigger_start_tx starts TX once delay_rts_before_send passed */
+		if (uap->rs485_tx_state == WAIT_AFTER_RTS)
+			return;
+
 		pl011_rs485_tx_start(uap);
 		if (uap->rs485_tx_state == WAIT_AFTER_RTS)
 			return;
@@ -1477,8 +1477,10 @@ static enum hrtimer_restart pl011_trigger_start_tx(struct hrtimer *t)
 	unsigned long flags;
 
 	uart_port_lock_irqsave(&uap->port, &flags);
-	if (uap->rs485_tx_state == WAIT_AFTER_RTS)
+	if (uap->rs485_tx_state == WAIT_AFTER_RTS) {
+		uap->rs485_tx_state = SEND;
 		pl011_start_tx(&uap->port);
+	}
 	uart_port_unlock_irqrestore(&uap->port, flags);
 
 	return HRTIMER_NORESTART;
