@@ -733,9 +733,6 @@ struct TCP_Server_Info {
 	/* message size the server can send or receive for non-raw SMBs */
 	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
 	/* when socket is setup (and during reconnect) before NegProt sent */
-	unsigned int max_rw;	/* maxRw specifies the maximum */
-	/* message size the server can send or receive for */
-	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u64 current_mid;	/* multiplex id - rotating counter, protected by mid_counter_lock */

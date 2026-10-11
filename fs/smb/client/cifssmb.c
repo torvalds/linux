@@ -502,7 +502,6 @@ CIFSSMBNegotiate(const unsigned int xid,
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
 	/* set up max_read for readahead check */
 	server->max_read = server->maxBuf;
-	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 	server->session_key_id = pSMBr->SessionKey;
