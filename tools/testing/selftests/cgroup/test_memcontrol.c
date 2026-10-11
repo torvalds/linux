@@ -1678,7 +1678,7 @@ static int test_memcg_inotify_delete_file(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *memcg = NULL;
-	int fd, wd;
+	int fd = -1, wd;
 
 	memcg = cg_name(root, "memcg_test_0");
 
@@ -1723,7 +1723,7 @@ static int test_memcg_inotify_delete_dir(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *memcg = NULL;
-	int fd, wd;
+	int fd = -1, wd;
 
 	memcg = cg_name(root, "memcg_test_0");
 
