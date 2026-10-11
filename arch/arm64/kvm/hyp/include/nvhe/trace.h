@@ -4,6 +4,7 @@
 
 #include <linux/trace_remote_event.h>
 
+#include <asm/kvm_hcall.h>
 #include <asm/kvm_hyptrace.h>
 
 static inline pid_t __tracing_get_vcpu_pid(struct kvm_cpu_context *host_ctxt)
@@ -46,7 +47,7 @@ static inline pid_t __tracing_get_vcpu_pid(struct kvm_cpu_context *host_ctxt)
 void *tracing_reserve_entry(unsigned long length);
 void tracing_commit_entry(void);
 
-int __tracing_load(unsigned long desc_va, size_t desc_size);
+int __tracing_load(void __kern *desc_va, size_t desc_size);
 void __tracing_unload(void);
 int __tracing_enable(bool enable);
 int __tracing_swap_reader(unsigned int cpu);
@@ -59,7 +60,7 @@ static inline void tracing_commit_entry(void) { }
 #define HYP_EVENT(__name, __proto, __struct, __assign, __printk)      \
 	static inline void trace_##__name(__proto) {}
 
-static inline int __tracing_load(unsigned long desc_va, size_t desc_size) { return -ENODEV; }
+static inline int __tracing_load(void __kern *desc_va, size_t desc_size) { return -ENODEV; }
 static inline void __tracing_unload(void) { }
 static inline int __tracing_enable(bool enable) { return -ENODEV; }
 static inline int __tracing_swap_reader(unsigned int cpu) { return -ENODEV; }

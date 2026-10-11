@@ -269,7 +269,7 @@ static struct trace_buffer_desc *hyp_trace_load(unsigned long size, void *priv)
 	if (ret)
 		goto err_free_buffer;
 
-	ret = kvm_call_hyp_nvhe(__tracing_load, (unsigned long)desc, desc_size);
+	ret = kvm_call_hyp_nvhe(__tracing_load, desc, desc_size);
 	if (ret)
 		goto err_unload_pages;
 

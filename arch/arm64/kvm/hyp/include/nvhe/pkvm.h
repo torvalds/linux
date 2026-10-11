@@ -7,6 +7,7 @@
 #ifndef __ARM64_KVM_NVHE_PKVM_H__
 #define __ARM64_KVM_NVHE_PKVM_H__
 
+#include <asm/kvm_hcall.h>
 #include <asm/kvm_pkvm.h>
 
 #include <nvhe/gfp.h>
@@ -69,10 +70,10 @@ void pkvm_hyp_vm_table_init(void *tbl);
 
 int __pkvm_reserve_vm(void);
 void __pkvm_unreserve_vm(pkvm_handle_t handle);
-int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
-		   unsigned long pgd_hva);
+int __pkvm_init_vm(struct kvm *host_kvm, void __kern *vm_hva,
+		   void __kern *pgd_hva);
 int __pkvm_init_vcpu(pkvm_handle_t handle, struct kvm_vcpu *host_vcpu,
-		     unsigned long vcpu_hva);
+		     void __kern *vcpu_hva);
 
 int __pkvm_reclaim_dying_guest_page(pkvm_handle_t handle, u64 gfn);
 int __pkvm_start_teardown_vm(pkvm_handle_t handle);
