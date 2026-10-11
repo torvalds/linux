@@ -54,14 +54,13 @@ int add_wait_queue_priority_exclusive(struct wait_queue_head *wq_head,
 {
 	struct list_head *head = &wq_head->head;
 
-	wq_entry->flags |= WQ_FLAG_EXCLUSIVE | WQ_FLAG_PRIORITY;
-
 	guard(spinlock_irqsave)(&wq_head->lock);
 
 	if (!list_empty(head) &&
 	    (list_first_entry(head, typeof(*wq_entry), entry)->flags & WQ_FLAG_PRIORITY))
 		return -EBUSY;
 
+	wq_entry->flags |= WQ_FLAG_EXCLUSIVE | WQ_FLAG_PRIORITY;
 	list_add(&wq_entry->entry, head);
 	return 0;
 }
