@@ -126,6 +126,13 @@ managing and controlling ublk devices with help of several control commands:
   ublk server will release resources (such as destroying I/O handler threads &
   io_uring).
 
+  If a server has ``/dev/ublkc*`` open, its fetched I/O commands complete with
+  ``UBLK_IO_RES_ABORT``. Until it closes ``/dev/ublkc*``, new
+  ``UBLK_IO_FETCH_REQ`` and ``UBLK_U_IO_PREP_IO_CMDS`` commands complete with
+  ``UBLK_IO_RES_ABORT`` too, and ``UBLK_CMD_START_DEV`` fails with ``-EBUSY``,
+  even if the server hadn't fetched anything. The device can be started again
+  by a server that opens ``/dev/ublkc*`` after that.
+
 - ``UBLK_CMD_DEL_DEV``
 
   Remove ``/dev/ublkc*``. When this command returns, the allocated ublk device
