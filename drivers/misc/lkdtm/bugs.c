@@ -841,6 +841,37 @@ static void __maybe_unused lkdtm_EFI_RUNTIME_CRASH(void)
 		       status);
 }
 
+static void efi_rt_test(enum efi_rts_ids id, const char *desc)
+{
+	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_err("XFAIL: EFI runtime services have been disabled\n");
+		return;
+	} else if (!efi_enabled(EFI_MEM_ATTR)) {
+		pr_err("XFAIL: EFI memory attributes table not provided by firmware\n");
+		return;
+	} else if (!efi.lkdtm_rt_test) {
+		pr_err("XFAIL: Only supported with native EFI runtime services\n");
+		return;
+	}
+
+	efi_status_t status = efi.lkdtm_rt_test(id);
+	if (status == EFI_UNSUPPORTED)
+		pr_err("XFAIL: EFI runtime service not implemented by firmware\n");
+	else if (status != EFI_ABORTED || efi_enabled(EFI_RUNTIME_SERVICES))
+		pr_err("FAIL: EFI %s memory not caught (%#lx)\n",
+		       desc, status);
+}
+
+static void __maybe_unused lkdtm_EFI_RUNTIME_WRITE_TO_RO(void)
+{
+	efi_rt_test(EFI_LKDTM_RUNTIME_RO_TEST, "write to RO");
+}
+
+static void __maybe_unused lkdtm_EFI_RUNTIME_BRANCH_TO_NX(void)
+{
+	efi_rt_test(EFI_LKDTM_RUNTIME_NX_TEST, "branch to NX");
+}
+
 static struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
 	CRASHTYPE(PANIC_STOP_IRQOFF),
@@ -876,6 +907,8 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(CORRUPT_PAC),
 #ifdef CONFIG_EFI
 	CRASHTYPE(EFI_RUNTIME_CRASH),
+	CRASHTYPE(EFI_RUNTIME_WRITE_TO_RO),
+	CRASHTYPE(EFI_RUNTIME_BRANCH_TO_NX),
 #endif
 };
 
