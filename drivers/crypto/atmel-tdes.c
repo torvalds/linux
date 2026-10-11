@@ -372,37 +372,32 @@ static int atmel_tdes_crypt_dma(struct atmel_tdes_dev *dd,
 				dma_addr_t dma_addr_in,
 				dma_addr_t dma_addr_out)
 {
-	struct scatterlist sg[2];
-	struct dma_async_tx_descriptor	*in_desc, *out_desc;
-	enum dma_slave_buswidth addr_width;
+	struct scatterlist sg_in, sg_out;
+	struct dma_async_tx_descriptor *in_desc, *out_desc;
 
-	addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-
-	dd->dma_lch_in.dma_conf.dst_addr_width = addr_width;
-	dd->dma_lch_out.dma_conf.src_addr_width = addr_width;
+	dd->dma_lch_in.dma_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_out.dma_conf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	dmaengine_slave_config(dd->dma_lch_in.chan, &dd->dma_lch_in.dma_conf);
 	dmaengine_slave_config(dd->dma_lch_out.chan, &dd->dma_lch_out.dma_conf);
 
 	dd->flags |= TDES_FLAGS_DMA;
 
-	sg_init_table(&sg[0], 1);
-	sg_dma_address(&sg[0]) = dma_addr_in;
-	sg_dma_len(&sg[0]) = dd->dma_size;
+	sg_init_table(&sg_in, 1);
+	sg_dma_address(&sg_in) = dma_addr_in;
+	sg_dma_len(&sg_in) = dd->dma_size;
 
-	sg_init_table(&sg[1], 1);
-	sg_dma_address(&sg[1]) = dma_addr_out;
-	sg_dma_len(&sg[1]) = dd->dma_size;
+	sg_init_table(&sg_out, 1);
+	sg_dma_address(&sg_out) = dma_addr_out;
+	sg_dma_len(&sg_out) = dd->dma_size;
 
-	in_desc = dmaengine_prep_slave_sg(dd->dma_lch_in.chan, &sg[0],
-				1, DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT  |  DMA_CTRL_ACK);
+	in_desc = dmaengine_prep_slave_sg(dd->dma_lch_in.chan, &sg_in, 1, DMA_MEM_TO_DEV,
+					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!in_desc)
 		return -EINVAL;
 
-	out_desc = dmaengine_prep_slave_sg(dd->dma_lch_out.chan, &sg[1],
-				1, DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	out_desc = dmaengine_prep_slave_sg(dd->dma_lch_out.chan, &sg_out, 1, DMA_DEV_TO_MEM,
+					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!out_desc)
 		return -EINVAL;
 
