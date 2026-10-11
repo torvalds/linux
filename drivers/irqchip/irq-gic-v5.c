@@ -1122,8 +1122,10 @@ static void gicv5_set_cpuif_idbits(void)
 #ifdef CONFIG_KVM
 static struct gic_kvm_info gic_v5_kvm_info __initdata;
 
-static void __init gic_of_setup_kvm_info(struct device_node *node)
+static int __init gic_setup_kvm_info(unsigned int maint_irq)
 {
+	struct gicv5_irs_chip_data *irs_data = gicv5_irs_get_chip_data();
+
 	/*
 	 * If we don't have native GICv5 virtualisation support, then
 	 * we also don't have FEAT_GCIE_LEGACY - the architecture
@@ -1131,25 +1133,120 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 	 */
 	if (!gicv5_global_data.virt_capable) {
 		pr_info("GIC implementation is not virtualization capable\n");
-		return;
+		return -ENODEV;
 	}
 
+	if (WARN_ON(!irs_data))
+		return -ENODEV;
+
 	gic_v5_kvm_info.type = GIC_V5;
+	gic_v5_kvm_info.gicv5_irs.base = irs_data->irs_base;
+	gic_v5_kvm_info.gicv5_irs.non_coherent = !!(irs_data->flags & IRS_FLAGS_NON_COHERENT);
 
 	/* GIC Virtual CPU interface maintenance interrupt */
 	gic_v5_kvm_info.no_maint_irq_mask = false;
-	gic_v5_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
-	if (!gic_v5_kvm_info.maint_irq) {
-		pr_warn("cannot find GICv5 virtual CPU interface maintenance interrupt\n");
+	gic_v5_kvm_info.maint_irq = maint_irq;
+
+	/*
+	 * We require an MI if we have legacy support, but don't, otherwise.
+	 * Given that there's an existing flag to convey that an MI isn't
+	 * needed, we (ab)use it to tell KVM that the MI isn't needed if we
+	 * don't support legacy.
+	 *
+	 * The check for ARM64_HAS_GICV5_LEGACY explicitly doesn't use
+	 * cpus_have_final_cap() here as we run too early.
+	 */
+	if (!cpus_have_cap(ARM64_HAS_GICV5_LEGACY) && !gic_v5_kvm_info.maint_irq)
+		gic_v5_kvm_info.no_maint_irq_mask = true;
+
+	vgic_set_kvm_info(&gic_v5_kvm_info);
+	return 0;
+}
+
+static void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+	unsigned int maint_irq;
+
+	/* GIC Virtual CPU interface maintenance interrupt */
+	maint_irq = irq_of_parse_and_map(node, 0);
+	if (gic_setup_kvm_info(maint_irq))
+		irq_dispose_mapping(maint_irq);
+}
+
+#ifdef CONFIG_ACPI
+struct gicv5_acpi_kvm_info {
+	u32 maint_irq;
+	bool valid;
+};
+
+static struct gicv5_acpi_kvm_info acpi_v5_kvm_info __initdata;
+
+static int __init gic_acpi_parse_virt_madt_gicc(union acpi_subtable_headers *header,
+						const unsigned long end)
+{
+	struct acpi_madt_generic_interrupt *gicc =
+		(struct acpi_madt_generic_interrupt *)header;
+
+	if (!(gicc->flags &
+	      (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE)))
+		return 0;
+
+	if (gicc->flags & ACPI_MADT_VGIC_IRQ_MODE)
+		pr_warn_once(FW_BUG "MI wrongly advertised as Edge-triggered\n");
+
+	if (!acpi_v5_kvm_info.valid) {
+		acpi_v5_kvm_info.valid = true;
+		acpi_v5_kvm_info.maint_irq = gicc->vgic_interrupt;
+		return 0;
+	}
+
+	if (acpi_v5_kvm_info.maint_irq != gicc->vgic_interrupt)
+		pr_warn_once(FW_BUG "MI not the same on all CPUs\n");
+
+	return 0;
+}
+
+static bool __init gic_acpi_collect_virt_info(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
+			      gic_acpi_parse_virt_madt_gicc, 0);
+
+	return acpi_v5_kvm_info.valid;
+}
+
+static void __init gic_acpi_setup_kvm_info(void)
+{
+	int irq = 0;
+
+	if (!gic_acpi_collect_virt_info()) {
+		pr_warn("Unable to get hardware information used for virtualization\n");
 		return;
 	}
 
-	vgic_set_kvm_info(&gic_v5_kvm_info);
+	if (acpi_v5_kvm_info.maint_irq) {
+		irq = acpi_register_gsi(NULL, acpi_v5_kvm_info.maint_irq,
+					ACPI_LEVEL_SENSITIVE,
+					ACPI_ACTIVE_HIGH);
+		if (irq <= 0) {
+			pr_warn("Failed to register GSI for GICv5 maintenance IRQ\n");
+			irq = 0;
+		}
+	}
+
+	if (gic_setup_kvm_info(irq) && irq)
+		acpi_unregister_gsi(acpi_v5_kvm_info.maint_irq);
 }
+#endif // CONFIG_ACPI
 #else
 static inline void __init gic_of_setup_kvm_info(struct device_node *node)
 {
 }
+
+#ifdef CONFIG_ACPI
+static inline void __init gic_acpi_setup_kvm_info(void)
+{
+}
+#endif
 #endif // CONFIG_KVM
 
 static int __init gicv5_init_common(struct fwnode_handle *parent_domain)
@@ -1258,6 +1355,8 @@ static int __init gic_acpi_init(union acpi_subtable_headers *header, const unsig
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC_V5, gic_v5_get_gsi_domain_id,
 			   gic_v5_get_gsi_handle);
+
+	gic_acpi_setup_kvm_info();
 
 	return 0;
 

@@ -979,7 +979,7 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 			return ret;
 	}
 
-	ret = vgic_v5_finalize_ppi_state(kvm);
+	ret = vgic_v5_finalize_ppi_state(vcpu);
 	if (ret)
 		return ret;
 
@@ -1156,6 +1156,14 @@ static int check_vcpu_requests(struct kvm_vcpu *vcpu)
 			preempt_disable();
 			vgic_v4_put(vcpu);
 			vgic_v4_load(vcpu);
+			preempt_enable();
+		}
+
+		if (kvm_check_request(KVM_REQ_RELOAD_GICv5, vcpu)) {
+			/* The IRS enable bit was changed */
+			preempt_disable();
+			vgic_v5_put(vcpu);
+			vgic_v5_load(vcpu);
 			preempt_enable();
 		}
 

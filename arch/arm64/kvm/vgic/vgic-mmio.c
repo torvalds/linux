@@ -1065,6 +1065,9 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	case IODEV_ITS:
 		data = region->its_read(vcpu->kvm, iodev->its, addr, len);
 		break;
+	case IODEV_GICV5_IRS:
+		data = region->read(vcpu, addr, len);
+		break;
 	}
 
 	vgic_data_host_to_mmio_bus(val, len, data);
@@ -1094,6 +1097,9 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 		break;
 	case IODEV_ITS:
 		region->its_write(vcpu->kvm, iodev->its, addr, len, data);
+		break;
+	case IODEV_GICV5_IRS:
+		region->write(vcpu, addr, len, data);
 		break;
 	}
 

@@ -129,13 +129,30 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	}
 	ret = 0;
 
-	if (type == KVM_DEV_TYPE_ARM_VGIC_V2)
+	switch (type) {
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
 		kvm->max_vcpus = VGIC_V2_MAX_CPUS;
-	else if (type == KVM_DEV_TYPE_ARM_VGIC_V3)
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		kvm->max_vcpus = VGIC_V3_MAX_CPUS;
-	else if (type == KVM_DEV_TYPE_ARM_VGIC_V5)
-		kvm->max_vcpus = min(VGIC_V5_MAX_CPUS,
-				     kvm_vgic_global_state.max_gic_vcpus);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		kvm->max_vcpus = kvm_vgic_global_state.max_gicv5_vcpus;
+		break;
+	}
+
+	/*
+	 * KVM_CREATE_VCPU enforces the model-specific limit if the VGIC has
+	 * already been created. Apply the same limit to any existing vCPUs so
+	 * that the result does not depend on the order in which userspace
+	 * creates them.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu->vcpu_id >= kvm->max_vcpus) {
+			ret = -E2BIG;
+			goto out_unlock;
+		}
+	}
 
 	if (atomic_read(&kvm->online_vcpus) > kvm->max_vcpus) {
 		ret = -E2BIG;
@@ -154,6 +171,8 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		INIT_LIST_HEAD(&kvm->arch.vgic.rd_regions);
 		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		kvm->arch.vgic.gicv5_vm.vm_id = VGIC_V5_VM_ID_INVAL;
 	}
 
 	/*
@@ -168,29 +187,49 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 			break;
 	}
 
-	if (ret) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-			kfree(vgic_cpu->private_irqs);
-			vgic_cpu->private_irqs = NULL;
-		}
-
-		kvm->arch.vgic.vgic_model = 0;
-		kvm->arch.vgic.in_kernel = false;
-		goto out_unlock;
-	}
+	if (ret)
+		goto out_free_private_irqs;
 
 	if (type == KVM_DEV_TYPE_ARM_VGIC_V3)
 		kvm->arch.vgic.nassgicap = system_supports_direct_sgis();
 
-	/*
-	 * We now know that we have a GICv5. The Arch Timer PPI interrupts may
-	 * have been initialised at this stage, but will have done so assuming
-	 * that we have an older GIC, meaning that the IntIDs won't be
-	 * correct. We init them again, and this time they will be correct.
-	 */
-	if (type == KVM_DEV_TYPE_ARM_VGIC_V5)
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V5) {
+		/* Allocate a vIRS for GICv5 systems */
+		kvm->arch.vgic.vgic_v5_irs_data = kzalloc_obj(struct vgic_v5_irs,
+							      GFP_KERNEL_ACCOUNT);
+		if (!kvm->arch.vgic.vgic_v5_irs_data) {
+			ret = -ENOMEM;
+			goto out_free_private_irqs;
+		}
+
+		/*
+		 * Initialization happens later, for now just explicitly
+		 * disable the device and undef its base address.
+		 */
+		kvm->arch.vgic.vgic_v5_irs_data->vgic_v5_irs_base = VGIC_ADDR_UNDEF;
+
+		/*
+		 * We now know that we have a GICv5. The Arch Timer PPI
+		 * interrupts may have been initialised at this stage, but will
+		 * have done so assuming that we have an older GIC, meaning that
+		 * the IntIDs won't be correct. We init them again, and this
+		 * time they will be correct.
+		 */
 		kvm_timer_init_vm(kvm);
+	}
+
+	goto out_unlock;
+
+out_free_private_irqs:
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+		kfree(vgic_cpu->private_irqs);
+		vgic_cpu->private_irqs = NULL;
+	}
+
+	kvm->arch.vgic.in_kernel = false;
+	kvm->arch.vgic.vgic_model = 0;
 
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
@@ -397,15 +436,27 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	if (ret)
 		return ret;
 
-	/*
-	 * If we are creating a VCPU with a GICv3 we must also register the
-	 * KVM io device for the redistributor that belongs to this VCPU.
-	 */
-	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
+		/*
+		 * If we are creating a VCPU with a GICv3 we must also register
+		 * the KVM io device for the redistributor that belongs to this
+		 * VCPU.
+		 */
 		mutex_lock(&vcpu->kvm->slots_lock);
 		ret = vgic_register_redist_iodev(vcpu);
 		mutex_unlock(&vcpu->kvm->slots_lock);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		/*
+		 * Ensure that it is possible to represent the
+		 * userspace-allocated vcpu_id in the hardware-limited (or
+		 * KVM-capped) VPE table used by GICv5.
+		 */
+		if (vcpu->vcpu_id >= kvm_vgic_global_state.max_gicv5_vcpus)
+			return -EINVAL;
 	}
+
 	return ret;
 }
 
@@ -465,6 +516,9 @@ int vgic_init(struct kvm *kvm)
 				return ret;
 		}
 	} else {
+		if (!dist->nr_spis)
+			dist->nr_spis = VGIC_V5_DEFAULT_NR_SPIS;
+
 		ret = vgic_v5_init(kvm);
 		if (ret)
 			return ret;
@@ -474,8 +528,12 @@ int vgic_init(struct kvm *kvm)
 		kvm_vgic_vcpu_reset(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
-	if (ret)
+	if (ret) {
+		if (vgic_is_v5(kvm))
+			vgic_v5_teardown(kvm);
+
 		return ret;
+	}
 
 	vgic_debug_init(kvm);
 	dist->initialized = true;
@@ -496,16 +554,24 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	dist->nr_spis = 0;
 	dist->vgic_dist_base = VGIC_ADDR_UNDEF;
 
-	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list)
 			vgic_v3_free_redist_region(kvm, rdreg);
 		INIT_LIST_HEAD(&dist->rd_regions);
-	} else {
-		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
-	}
 
-	if (vgic_supports_direct_irqs(kvm))
-		vgic_v4_teardown(kvm);
+		if (vgic_supports_direct_irqs(kvm))
+			vgic_v4_teardown(kvm);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		vgic_v5_teardown(kvm);
+		kfree(dist->vgic_v5_irs_data);
+		dist->vgic_v5_irs_data = NULL;
+		break;
+	}
 
 	xa_destroy(&dist->lpi_xa);
 }
@@ -624,9 +690,8 @@ int vgic_lazy_init(struct kvm *kvm)
 int kvm_vgic_map_resources(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	bool needs_dist = true;
 	enum vgic_type type;
-	gpa_t dist_base;
+	gpa_t dist_base, irs_base;
 	int ret = 0;
 
 	if (likely(smp_load_acquire(&dist->ready)))
@@ -649,13 +714,12 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	} else {
 		ret = vgic_v5_map_resources(kvm);
 		type = VGIC_V5;
-		needs_dist = false;
 	}
 
 	if (ret)
 		goto out;
 
-	if (needs_dist) {
+	if (type != VGIC_V5) {
 		dist_base = dist->vgic_dist_base;
 		mutex_unlock(&kvm->arch.config_lock);
 
@@ -665,7 +729,19 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 			goto out_slots;
 		}
 	} else {
+		irs_base = dist->vgic_v5_irs_data->vgic_v5_irs_base;
 		mutex_unlock(&kvm->arch.config_lock);
+
+		if (IS_VGIC_ADDR_UNDEF(irs_base)) {
+			ret = -ENXIO;
+			goto out_slots;
+		}
+
+		ret = vgic_v5_register_irs_iodev(kvm, irs_base);
+		if (ret) {
+			kvm_err("Unable to register VGIC IRS MMIO regions\n");
+			goto out_slots;
+		}
 	}
 
 	smp_store_release(&dist->ready, true);

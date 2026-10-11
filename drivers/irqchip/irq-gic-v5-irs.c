@@ -21,8 +21,6 @@
  */
 #define LPI_ID_BITS_LINEAR		12
 
-#define IRS_FLAGS_NON_COHERENT		BIT(0)
-
 static DEFINE_PER_CPU_READ_MOSTLY(struct gicv5_irs_chip_data *, per_cpu_irs_data);
 static LIST_HEAD(irs_nodes);
 
@@ -48,6 +46,11 @@ static void irs_writeq_relaxed(struct gicv5_irs_chip_data *irs_data,
 			       const u64 val, const u32 reg_offset)
 {
 	writeq_relaxed(val, irs_data->irs_base + reg_offset);
+}
+
+struct gicv5_irs_chip_data *gicv5_irs_get_chip_data(void)
+{
+	return per_cpu(per_cpu_irs_data, 0);
 }
 
 /*
@@ -266,24 +269,24 @@ int gicv5_irs_iste_alloc(const u32 lpi)
  * itself is not supported) again serves to make it easier to find physically
  * contiguous blocks of memory.
  */
-static unsigned int gicv5_irs_l2_sz(u32 idr2)
+unsigned int gicv5_irs_l2_sz(u32 l2sz)
 {
 	switch (PAGE_SIZE) {
 	case SZ_64K:
-		if (GICV5_IRS_IST_L2SZ_SUPPORT_64KB(idr2))
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_64KB(l2sz))
 			return GICV5_IRS_IST_CFGR_L2SZ_64K;
 		fallthrough;
 	case SZ_4K:
-		if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(idr2))
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(l2sz))
 			return GICV5_IRS_IST_CFGR_L2SZ_4K;
 		fallthrough;
 	case SZ_16K:
-		if (GICV5_IRS_IST_L2SZ_SUPPORT_16KB(idr2))
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_16KB(l2sz))
 			return GICV5_IRS_IST_CFGR_L2SZ_16K;
 		break;
 	}
 
-	if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(idr2))
+	if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(l2sz))
 		return GICV5_IRS_IST_CFGR_L2SZ_4K;
 
 	return GICV5_IRS_IST_CFGR_L2SZ_64K;
@@ -331,7 +334,7 @@ static int __init gicv5_irs_init_ist(struct gicv5_irs_chip_data *irs_data)
 	lpi_id_bits = min(lpi_id_bits, gicv5_global_data.cpuif_id_bits);
 
 	if (two_levels)
-		l2sz = gicv5_irs_l2_sz(idr2);
+		l2sz = gicv5_irs_l2_sz(FIELD_GET(GICV5_IRS_IDR2_IST_L2SZ, idr2));
 
 	istmd = !!FIELD_GET(GICV5_IRS_IDR2_ISTMD, idr2);
 

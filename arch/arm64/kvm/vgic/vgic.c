@@ -86,20 +86,32 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
  */
 struct vgic_irq *vgic_get_irq(struct kvm *kvm, u32 intid)
 {
-	/* Non-private IRQs are not yet implemented for GICv5 */
-	if (vgic_is_v5(kvm))
-		return NULL;
+	enum kvm_device_type type = kvm->arch.vgic.vgic_model;
 
 	/* SPIs */
-	if (intid >= VGIC_NR_PRIVATE_IRQS &&
-	    intid < (kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS)) {
-		intid -= VGIC_NR_PRIVATE_IRQS;
-		intid = array_index_nospec(intid, kvm->arch.vgic.nr_spis);
-		return &kvm->arch.vgic.spis[intid];
+	if (__irq_is_spi(type, intid)) {
+		switch (type) {
+		case KVM_DEV_TYPE_ARM_VGIC_V5:
+			intid = vgic_v5_get_hwirq_id(intid);
+
+			if (intid >= kvm->arch.vgic.nr_spis)
+				return NULL;
+
+			intid = array_index_nospec(intid, kvm->arch.vgic.nr_spis);
+			return &kvm->arch.vgic.spis[intid];
+		default: {
+			u32 max_intid = kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
+
+			if (intid < max_intid) {
+				intid -= VGIC_NR_PRIVATE_IRQS;
+				intid = array_index_nospec(intid, kvm->arch.vgic.nr_spis);
+				return &kvm->arch.vgic.spis[intid];
+			}
+		}}
 	}
 
 	/* LPIs */
-	if (irq_is_lpi(kvm, intid))
+	if (__irq_is_lpi(type, intid))
 		return vgic_get_lpi(kvm, intid);
 
 	return NULL;
@@ -564,6 +576,9 @@ int kvm_vgic_inject_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 		irq->line_level = level;
 	else
 		irq->pending_latch = true;
+
+	if (irq->ops && irq->ops->set_pending_state)
+		WARN_ON_ONCE(!irq->ops->set_pending_state(vcpu, irq));
 
 	vgic_queue_irq_unlock(kvm, irq, flags);
 	vgic_put_irq(kvm, irq);
@@ -1236,8 +1251,12 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 	struct vgic_vmcr vmcr;
 
-	if (vgic_is_v5(vcpu->kvm))
+	if (vgic_is_v5(vcpu->kvm)) {
+		if (READ_ONCE(vcpu->arch.vgic_cpu.vgic_v5.gicv5_vpe.db_fired))
+			return true;
+
 		return vgic_v5_has_pending_ppi(vcpu);
+	}
 
 	if (!vcpu->kvm->arch.vgic.enabled)
 		return false;

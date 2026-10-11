@@ -846,6 +846,24 @@ DEFINE_KVM_HOST_HCALL(void, __tracing_write_event,
 	trace_selftest(id);
 }
 
+DEFINE_KVM_HOST_HCALL(void, __vgic_v5_make_resident,
+		      struct vgic_v5_cpu_if __kern *, cpu_if)
+{
+	if (unlikely(is_protected_kvm_enabled()))
+		return;
+
+	__vgic_v5_make_resident(kern_hyp_va_host(cpu_if));
+}
+
+DEFINE_KVM_HOST_HCALL(void, __vgic_v5_make_non_resident,
+		      struct vgic_v5_cpu_if __kern *, cpu_if)
+{
+	if (unlikely(is_protected_kvm_enabled()))
+		return;
+
+	__vgic_v5_make_non_resident(kern_hyp_va_host(cpu_if));
+}
+
 DEFINE_KVM_HOST_HCALL(void, __vgic_v5_save_apr,
 	struct vgic_v5_cpu_if __kern *, cpu_if)
 {
@@ -856,6 +874,15 @@ DEFINE_KVM_HOST_HCALL(void, __vgic_v5_restore_vmcr_apr,
 	struct vgic_v5_cpu_if __kern *, cpu_if)
 {
 	__vgic_v5_restore_vmcr_apr(kern_hyp_va_host(cpu_if));
+}
+
+DEFINE_KVM_HOST_HCALL(void, __vgic_v5_vdpend,
+		      u32, intid, bool, pending, u16, vm)
+{
+	if (unlikely(is_protected_kvm_enabled()))
+		return;
+
+	__vgic_v5_vdpend(intid, pending, vm);
 }
 
 typedef void (*hcall_t)(struct kvm_cpu_context *);
@@ -891,6 +918,9 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__tracing_write_event),
 	HANDLE_FUNC(__vgic_v3_save_aprs),
 	HANDLE_FUNC(__vgic_v3_restore_vmcr_aprs),
+	HANDLE_FUNC(__vgic_v5_make_resident),
+	HANDLE_FUNC(__vgic_v5_make_non_resident),
+	HANDLE_FUNC(__vgic_v5_vdpend),
 	HANDLE_FUNC(__vgic_v5_save_apr),
 	HANDLE_FUNC(__vgic_v5_restore_vmcr_apr),
 

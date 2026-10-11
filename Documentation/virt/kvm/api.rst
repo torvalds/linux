@@ -918,7 +918,8 @@ The irq_type field has the following values:
 - KVM_ARM_IRQ_TYPE_SPI:
 	       in-kernel GICv2/GICv3: SPI, irq_id between 32 and 1019 (incl.)
                (the vcpu_index field is ignored)
-	       in-kernel GICv5: SPI, irq_id between 0 and 65535 (incl.)
+	       in-kernel GICv5: SPI, irq_id between 0 and the configured
+	       number of SPIs minus one (1023 maximum)
 - KVM_ARM_IRQ_TYPE_PPI:
 	       in-kernel GICv2/GICv3: PPI, irq_id between 16 and 31 (incl.)
 	       in-kernel GICv5: PPI, irq_id between 0 and 127 (incl.)

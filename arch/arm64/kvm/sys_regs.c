@@ -5933,7 +5933,7 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 
 int __init kvm_sys_reg_table_init(void)
 {
-	const struct sys_reg_desc *gicv3_regs;
+	const struct sys_reg_desc *gicv3_regs, *gicv5_regs;
 	bool valid = true;
 	unsigned int i, sz;
 	int ret = 0;
@@ -5946,8 +5946,12 @@ int __init kvm_sys_reg_table_init(void)
 	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
 
+	/* The GICv3 system registers... */
 	gicv3_regs = vgic_v3_get_sysreg_table(&sz);
 	valid &= check_sysreg_table(gicv3_regs, sz, false);
+	/* ...and the GICv5 system registers. */
+	gicv5_regs = vgic_v5_get_sysreg_table(&sz);
+	valid &= check_sysreg_table(gicv5_regs, sz, false);
 
 	if (!valid)
 		return -EINVAL;

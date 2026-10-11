@@ -19,8 +19,13 @@ static int vgic_irqfd_set_irq(struct kvm_kernel_irq_routing_entry *e,
 			struct kvm *kvm, int irq_source_id,
 			int level, bool line_status)
 {
-	unsigned int spi_id = e->irqchip.pin + VGIC_NR_PRIVATE_IRQS;
+	unsigned int spi_id;
 	int ret;
+
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V5)
+		spi_id = vgic_v5_make_spi(e->irqchip.pin);
+	else
+		spi_id = e->irqchip.pin + VGIC_NR_PRIVATE_IRQS;
 
 	if (!vgic_valid_spi(kvm, spi_id))
 		return -EINVAL;
@@ -45,6 +50,13 @@ int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
+	/*
+	 * The common routing table reserves enough entries for all GICv5 SPI
+	 * pins. KVM limits GICv5 to 1024 SPI pins, while GICv2 and GICv3
+	 * only support SPIs 32..1019, leaving 988 pins.
+	 */
+	unsigned int max_irqchip_pins = vgic_is_v5(kvm) ?
+		VGIC_V5_MAX_NR_SPIS : VGIC_MAX_SPI - VGIC_NR_PRIVATE_IRQS + 1;
 	int r = -EINVAL;
 
 	switch (ue->type) {
@@ -52,8 +64,8 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->set = vgic_irqfd_set_irq;
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
 		e->irqchip.pin = ue->u.irqchip.pin;
-		if ((e->irqchip.pin >= KVM_IRQCHIP_NUM_PINS) ||
-		    (e->irqchip.irqchip >= KVM_NR_IRQCHIPS))
+		if (e->irqchip.pin >= max_irqchip_pins ||
+		    e->irqchip.irqchip >= KVM_NR_IRQCHIPS)
 			goto out;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
