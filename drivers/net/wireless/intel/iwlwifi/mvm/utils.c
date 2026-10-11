@@ -1356,8 +1356,8 @@ __le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver)
 	case RATE_MCS_MOD_TYPE_VHT:
 		result = RATE_MCS_VHT_MSK_V1;
 		result |= u32_encode_bits(u32_get_bits(rate,
-						       RATE_VHT_MCS_NSS_MSK),
-					  RATE_MCS_CODE_MSK);
+						       RATE_MCS_CODE_MSK),
+					  RATE_VHT_MCS_RATE_CODE_MSK);
 		result |= u32_encode_bits(u32_get_bits(rate, RATE_MCS_NSS_MSK),
 					  RATE_VHT_MCS_NSS_MSK);
 		break;
