@@ -1504,6 +1504,105 @@ void assoc_array_cancel_edit(struct assoc_array_edit *edit)
 }
 
 /*
+ * Where assoc_array_gc() has got to.  It copies the tree depth first without
+ * recursion: on reaching a subtree it copies it and carries on there, and on
+ * finishing a node it climbs back up the old tree to the node above.
+ */
+struct assoc_array_gc_walk {
+	struct assoc_array_node	*node;		/* The node being copied */
+	struct assoc_array_node	*new_n;		/* Its copy */
+	int			slot;		/* The next slot of node to look at */
+	struct assoc_array_ptr	*new_root;	/* The root of the copy */
+	unsigned long		nr_leaves_on_tree;
+	bool (*iterator)(void *object, void *iterator_data);
+	void			*iterator_data;
+};
+
+/*
+ * Copy the node at cursor, and the shortcut in front of it if there is one,
+ * into the new tree at *link, below the copy of the node being worked on,
+ * and work on that node next.
+ */
+static bool assoc_array_gc_copy(struct assoc_array_gc_walk *w,
+				struct assoc_array_ptr *cursor,
+				struct assoc_array_ptr **link)
+{
+	struct assoc_array_shortcut *shortcut, *new_s;
+	struct assoc_array_node *new_n;
+	struct assoc_array_ptr *new_parent;
+	int keylen;
+
+	new_parent = w->new_n ? assoc_array_node_to_ptr(w->new_n) : NULL;
+
+	/* The node at this position is duplicated, and so is the shortcut in
+	 * front of it if there is one.  The node is allocated first: the copy
+	 * of the shortcut starts out pointing at the old node, and must not be
+	 * in the new tree if the node cannot be allocated, or the cleanup
+	 * would follow it into the old tree.
+	 */
+	new_n = kzalloc_obj(struct assoc_array_node);
+	if (!new_n)
+		return false;
+
+	if (assoc_array_ptr_is_shortcut(cursor)) {
+		shortcut = assoc_array_ptr_to_shortcut(cursor);
+		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+		new_s = kmalloc_flex(*new_s, index_key, keylen);
+		if (!new_s) {
+			kfree(new_n);
+			return false;
+		}
+		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
+		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
+		new_s->back_pointer = new_parent;
+		new_s->parent_slot = shortcut->parent_slot;
+		*link = new_parent = assoc_array_shortcut_to_ptr(new_s);
+		link = &new_s->next_node;
+		cursor = shortcut->next_node;
+	}
+
+	w->node = assoc_array_ptr_to_node(cursor);
+	pr_devel("dup node %p -> %p\n", w->node, new_n);
+	new_n->back_pointer = new_parent;
+	new_n->parent_slot = w->node->parent_slot;
+	*link = assoc_array_node_to_ptr(new_n);
+	w->new_n = new_n;
+	w->slot = 0;
+	return true;
+}
+
+/*
+ * Carry on through the slots of the node being copied, putting the leaves
+ * the iterator keeps into the copy, as far as the next pointer to a subtree.
+ * Returns that pointer, with w->slot at it, or NULL when the node is done.
+ */
+static struct assoc_array_ptr *assoc_array_gc_next(struct assoc_array_gc_walk *w)
+{
+	struct assoc_array_ptr *ptr;
+
+	/* Filter across any leaves and gc any subtrees */
+	for (; w->slot < ASSOC_ARRAY_FAN_OUT; w->slot++) {
+		ptr = w->node->slots[w->slot];
+		if (!ptr)
+			continue;
+
+		if (assoc_array_ptr_is_leaf(ptr)) {
+			if (w->iterator(assoc_array_ptr_to_leaf(ptr),
+					w->iterator_data))
+				/* The iterator will have done any reference
+				 * counting on the object for us.
+				 */
+				w->new_n->slots[w->slot] = ptr;
+			continue;
+		}
+
+		return ptr;
+	}
+	return NULL;
+}
+
+/*
  * Fold the children of a finished copy into it where their leaves fit in
  * its free slots, and count its leaves.  Returns the number of free slots
  * left.
@@ -1594,6 +1693,124 @@ retry_compress:
 	return nr_free;
 }
 
+/*
+ * The copy of the node being worked on is finished: fold its children into
+ * it, then remove it if all it holds is a shortcut, or remove the shortcut
+ * in front of it if it is small.  Returns what is then the copy's parent, or
+ * NULL if it is at the root, when the whole tree has been copied.
+ */
+static struct assoc_array_ptr *assoc_array_gc_pack(struct assoc_array_gc_walk *w)
+{
+	struct assoc_array_shortcut *new_s;
+	struct assoc_array_node *new_n = w->new_n;
+	struct assoc_array_ptr *ptr, *new_parent;
+	int nr_free, slot;
+
+	nr_free = assoc_array_gc_fold(new_n);
+	w->nr_leaves_on_tree = new_n->nr_leaves_on_branch;
+
+	/* Excise this node if it is singly occupied by a shortcut */
+	if (nr_free == ASSOC_ARRAY_FAN_OUT - 1) {
+		for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++)
+			if ((ptr = new_n->slots[slot]))
+				break;
+
+		if (assoc_array_ptr_is_meta(ptr) &&
+		    assoc_array_ptr_is_shortcut(ptr)) {
+			pr_devel("excise node %p with 1 shortcut\n", new_n);
+			new_s = assoc_array_ptr_to_shortcut(ptr);
+			new_parent = new_n->back_pointer;
+			slot = new_n->parent_slot;
+			kfree(new_n);
+			if (!new_parent) {
+				new_s->back_pointer = NULL;
+				new_s->parent_slot = 0;
+				w->new_root = ptr;
+				return NULL;
+			}
+
+			if (assoc_array_ptr_is_shortcut(new_parent)) {
+				/* We can discard any preceding shortcut also */
+				struct assoc_array_shortcut *s =
+					assoc_array_ptr_to_shortcut(new_parent);
+
+				pr_devel("excise preceding shortcut\n");
+
+				new_parent = new_s->back_pointer = s->back_pointer;
+				slot = new_s->parent_slot = s->parent_slot;
+				kfree(s);
+				if (!new_parent) {
+					new_s->back_pointer = NULL;
+					new_s->parent_slot = 0;
+					w->new_root = ptr;
+					return NULL;
+				}
+			}
+
+			new_s->back_pointer = new_parent;
+			new_s->parent_slot = slot;
+			assoc_array_ptr_to_node(new_parent)->slots[slot] = ptr;
+			return new_parent;
+		}
+	}
+
+	/* Excise any shortcuts we might encounter that point to nodes that
+	 * only contain leaves.
+	 */
+	ptr = new_n->back_pointer;
+	if (!ptr)
+		return NULL;
+
+	if (!assoc_array_ptr_is_shortcut(ptr))
+		return ptr;
+
+	new_s = assoc_array_ptr_to_shortcut(ptr);
+	new_parent = new_s->back_pointer;
+	slot = new_s->parent_slot;
+
+	if (new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
+		pr_devel("excise shortcut\n");
+		new_n->back_pointer = new_parent;
+		new_n->parent_slot = slot;
+		kfree(new_s);
+		if (!new_parent) {
+			w->new_root = assoc_array_node_to_ptr(new_n);
+			return NULL;
+		}
+
+		assoc_array_ptr_to_node(new_parent)->slots[slot] =
+			assoc_array_node_to_ptr(new_n);
+	}
+	return new_parent;
+}
+
+/*
+ * Go back up from the node just finished to the node above it, whose copy is
+ * parent, and on to that node's next slot.
+ */
+static void assoc_array_gc_ascend(struct assoc_array_gc_walk *w,
+				  struct assoc_array_ptr *parent)
+{
+	struct assoc_array_shortcut *shortcut;
+	struct assoc_array_ptr *ptr, *cursor;
+	int slot;
+
+	w->new_n = assoc_array_ptr_to_node(parent);
+
+	ptr = w->node->back_pointer;
+	if (assoc_array_ptr_is_shortcut(ptr)) {
+		shortcut = assoc_array_ptr_to_shortcut(ptr);
+		slot = shortcut->parent_slot;
+		cursor = shortcut->back_pointer;
+	} else {
+		slot = w->node->parent_slot;
+		cursor = ptr;
+	}
+	BUG_ON(!cursor);
+	w->node = assoc_array_ptr_to_node(cursor);
+	w->slot = slot + 1;
+}
+
 /**
  * assoc_array_gc - Garbage collect an associative array.
  * @array: The array to clean.
@@ -1623,13 +1840,12 @@ int assoc_array_gc(struct assoc_array *array,
 		   bool (*iterator)(void *object, void *iterator_data),
 		   void *iterator_data)
 {
-	struct assoc_array_shortcut *shortcut, *new_s;
-	struct assoc_array_node *node, *new_n;
+	struct assoc_array_gc_walk w = {
+		.iterator	= iterator,
+		.iterator_data	= iterator_data,
+	};
 	struct assoc_array_edit *edit;
-	struct assoc_array_ptr *cursor, *ptr;
-	struct assoc_array_ptr *new_root, *new_parent, **new_ptr_pp;
-	unsigned long nr_leaves_on_tree;
-	int keylen, slot, nr_free;
+	struct assoc_array_ptr *ptr, *parent, **link;
 
 	pr_devel("-->%s()\n", __func__);
 
@@ -1645,177 +1861,33 @@ int assoc_array_gc(struct assoc_array *array,
 	edit->set[0].ptr = &array->root;
 	edit->excised_subtree = array->root;
 
-	new_root = new_parent = NULL;
-	new_ptr_pp = &new_root;
-	cursor = array->root;
-
-descend:
-	/* The node at this position is duplicated, and so is the shortcut in
-	 * front of it if there is one.  The node is allocated first: the copy
-	 * of the shortcut starts out pointing at the old node, and must not be
-	 * in the new tree if the node cannot be allocated, or the cleanup
-	 * would follow it into the old tree.
-	 */
-	new_n = kzalloc_obj(struct assoc_array_node);
-	if (!new_n)
-		goto enomem;
-
-	if (assoc_array_ptr_is_shortcut(cursor)) {
-		shortcut = assoc_array_ptr_to_shortcut(cursor);
-		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
-		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
-		new_s = kmalloc_flex(*new_s, index_key, keylen);
-		if (!new_s) {
-			kfree(new_n);
+	ptr = array->root;
+	link = &w.new_root;
+	for (;;) {
+		if (!assoc_array_gc_copy(&w, ptr, link))
 			goto enomem;
+
+		/* Find the next subtree to copy: further on in this node, or,
+		 * when it is done, in the nodes above it.
+		 */
+		while (!(ptr = assoc_array_gc_next(&w))) {
+			parent = assoc_array_gc_pack(&w);
+			if (!parent)
+				goto copied;
+			assoc_array_gc_ascend(&w, parent);
 		}
-		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
-		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
-		new_s->back_pointer = new_parent;
-		new_s->parent_slot = shortcut->parent_slot;
-		*new_ptr_pp = new_parent = assoc_array_shortcut_to_ptr(new_s);
-		new_ptr_pp = &new_s->next_node;
-		cursor = shortcut->next_node;
+		link = &w.new_n->slots[w.slot];
 	}
 
-	node = assoc_array_ptr_to_node(cursor);
-	pr_devel("dup node %p -> %p\n", node, new_n);
-	new_n->back_pointer = new_parent;
-	new_n->parent_slot = node->parent_slot;
-	*new_ptr_pp = new_parent = assoc_array_node_to_ptr(new_n);
-	new_ptr_pp = NULL;
-	slot = 0;
-
-continue_node:
-	/* Filter across any leaves and gc any subtrees */
-	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = node->slots[slot];
-		if (!ptr)
-			continue;
-
-		if (assoc_array_ptr_is_leaf(ptr)) {
-			if (iterator(assoc_array_ptr_to_leaf(ptr),
-				     iterator_data))
-				/* The iterator will have done any reference
-				 * counting on the object for us.
-				 */
-				new_n->slots[slot] = ptr;
-			continue;
-		}
-
-		new_ptr_pp = &new_n->slots[slot];
-		cursor = ptr;
-		goto descend;
-	}
-
-	nr_free = assoc_array_gc_fold(new_n);
-
-	nr_leaves_on_tree = new_n->nr_leaves_on_branch;
-
-	/* Excise this node if it is singly occupied by a shortcut */
-	if (nr_free == ASSOC_ARRAY_FAN_OUT - 1) {
-		for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++)
-			if ((ptr = new_n->slots[slot]))
-				break;
-
-		if (assoc_array_ptr_is_meta(ptr) &&
-		    assoc_array_ptr_is_shortcut(ptr)) {
-			pr_devel("excise node %p with 1 shortcut\n", new_n);
-			new_s = assoc_array_ptr_to_shortcut(ptr);
-			new_parent = new_n->back_pointer;
-			slot = new_n->parent_slot;
-			kfree(new_n);
-			if (!new_parent) {
-				new_s->back_pointer = NULL;
-				new_s->parent_slot = 0;
-				new_root = ptr;
-				goto gc_complete;
-			}
-
-			if (assoc_array_ptr_is_shortcut(new_parent)) {
-				/* We can discard any preceding shortcut also */
-				struct assoc_array_shortcut *s =
-					assoc_array_ptr_to_shortcut(new_parent);
-
-				pr_devel("excise preceding shortcut\n");
-
-				new_parent = new_s->back_pointer = s->back_pointer;
-				slot = new_s->parent_slot = s->parent_slot;
-				kfree(s);
-				if (!new_parent) {
-					new_s->back_pointer = NULL;
-					new_s->parent_slot = 0;
-					new_root = ptr;
-					goto gc_complete;
-				}
-			}
-
-			new_s->back_pointer = new_parent;
-			new_s->parent_slot = slot;
-			new_n = assoc_array_ptr_to_node(new_parent);
-			new_n->slots[slot] = ptr;
-			goto ascend_old_tree;
-		}
-	}
-
-	/* Excise any shortcuts we might encounter that point to nodes that
-	 * only contain leaves.
-	 */
-	ptr = new_n->back_pointer;
-	if (!ptr)
-		goto gc_complete;
-
-	if (assoc_array_ptr_is_shortcut(ptr)) {
-		new_s = assoc_array_ptr_to_shortcut(ptr);
-		new_parent = new_s->back_pointer;
-		slot = new_s->parent_slot;
-
-		if (new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
-			struct assoc_array_node *n;
-
-			pr_devel("excise shortcut\n");
-			new_n->back_pointer = new_parent;
-			new_n->parent_slot = slot;
-			kfree(new_s);
-			if (!new_parent) {
-				new_root = assoc_array_node_to_ptr(new_n);
-				goto gc_complete;
-			}
-
-			n = assoc_array_ptr_to_node(new_parent);
-			n->slots[slot] = assoc_array_node_to_ptr(new_n);
-		}
-	} else {
-		new_parent = ptr;
-	}
-	new_n = assoc_array_ptr_to_node(new_parent);
-
-ascend_old_tree:
-	ptr = node->back_pointer;
-	if (assoc_array_ptr_is_shortcut(ptr)) {
-		shortcut = assoc_array_ptr_to_shortcut(ptr);
-		slot = shortcut->parent_slot;
-		cursor = shortcut->back_pointer;
-		if (!cursor)
-			goto gc_complete;
-	} else {
-		slot = node->parent_slot;
-		cursor = ptr;
-	}
-	BUG_ON(!cursor);
-	node = assoc_array_ptr_to_node(cursor);
-	slot++;
-	goto continue_node;
-
-gc_complete:
-	edit->set[0].to = new_root;
+copied:
+	edit->set[0].to = w.new_root;
 	assoc_array_apply_edit(edit);
-	array->nr_leaves_on_tree = nr_leaves_on_tree;
+	array->nr_leaves_on_tree = w.nr_leaves_on_tree;
 	return 0;
 
 enomem:
 	pr_devel("enomem\n");
-	assoc_array_destroy_subtree(new_root, edit->ops);
+	assoc_array_destroy_subtree(w.new_root, edit->ops);
 	kfree(edit);
 	return -ENOMEM;
 }
