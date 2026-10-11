@@ -47,6 +47,9 @@ static int iwl_mld_send_rss_cfg_cmd(struct iwl_mld *mld)
 
 	lockdep_assert_wiphy(mld->wiphy);
 
+	if (mld->trans->info.num_rxqs == 1)
+		return 0;
+
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (int i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
