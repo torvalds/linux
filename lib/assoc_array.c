@@ -648,6 +648,84 @@ found_slot_for_multiple_occupancy:
 }
 
 /*
+ * All the leaves, new and old, want to cluster together in this node in the
+ * same slot, so we have to replace this node with a shortcut to skip over
+ * the identical parts of the key, leading to new_n0.  The caller then splits
+ * the leaves between new_n0 and new_n1 at the shortcut's far end, for which
+ * this fills in the segment cache.
+ */
+static struct assoc_array_shortcut *
+assoc_array_insert_shortcut(struct assoc_array_edit *edit,
+			    const struct assoc_array_ops *ops,
+			    const void *index_key,
+			    struct assoc_array_node *node, int level,
+			    struct assoc_array_node *new_n0)
+{
+	struct assoc_array_shortcut *new_s0;
+	unsigned long base_seg, blank;
+	size_t keylen;
+	int diff, i;
+
+	/* Firstly we need to work out where the leaves start diverging as a
+	 * bit position into their keys so that we know how big the shortcut
+	 * needs to be.
+	 *
+	 * We only need to make a single pass of N of the N+1 leaves because if
+	 * any keys differ between themselves at bit X then at least one of
+	 * them must also differ with the base key at bit X or before.
+	 */
+	pr_devel("all leaves cluster together\n");
+	diff = INT_MAX;
+	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
+					  index_key);
+		if (x < diff) {
+			BUG_ON(x < 0);
+			diff = x;
+		}
+	}
+	BUG_ON(diff == INT_MAX);
+	BUG_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
+
+	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+
+	new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
+	if (!new_s0)
+		return NULL;
+	edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s0);
+
+	new_s0->back_pointer = node->back_pointer;
+	new_s0->parent_slot = node->parent_slot;
+	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
+	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
+	new_n0->parent_slot = 0;
+
+	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
+	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
+	BUG_ON(level <= 0);
+
+	for (i = 0; i < keylen; i++)
+		new_s0->index_key[i] =
+			ops->get_key_chunk(index_key, i * ASSOC_ARRAY_KEY_CHUNK_SIZE);
+
+	if (level & ASSOC_ARRAY_KEY_CHUNK_MASK) {
+		blank = ULONG_MAX << (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
+		pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, level, blank);
+		new_s0->index_key[keylen - 1] &= ~blank;
+	}
+
+	/* This now reduces to a node splitting exercise for which we'll need
+	 * to regenerate the disparity table.
+	 */
+	assoc_array_fill_segment_cache(edit, ops, node, level);
+	base_seg = ops->get_key_chunk(index_key, level);
+	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = base_seg & ASSOC_ARRAY_FAN_MASK;
+	return new_s0;
+}
+
+/*
  * Handle insertion into a terminal node.
  */
 static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
@@ -658,10 +736,9 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 	struct assoc_array_shortcut *new_s0;
 	struct assoc_array_node *node, *new_n0, *new_n1;
 	struct assoc_array_ptr *ptr;
-	unsigned long dissimilarity, base_seg, blank;
-	size_t keylen;
+	unsigned long dissimilarity, base_seg;
 	bool have_meta;
-	int level, diff;
+	int level;
 	int i;
 
 	node	= result->terminal_node.node;
@@ -766,70 +843,11 @@ do_split_node:
 	return true;
 
 all_leaves_cluster_together:
-	/* All the leaves, new and old, want to cluster together in this node
-	 * in the same slot, so we have to replace this node with a shortcut to
-	 * skip over the identical parts of the key and then place a pair of
-	 * nodes, one inside the other, at the end of the shortcut and
-	 * distribute the keys between them.
-	 *
-	 * Firstly we need to work out where the leaves start diverging as a
-	 * bit position into their keys so that we know how big the shortcut
-	 * needs to be.
-	 *
-	 * We only need to make a single pass of N of the N+1 leaves because if
-	 * any keys differ between themselves at bit X then at least one of
-	 * them must also differ with the base key at bit X or before.
-	 */
-	pr_devel("all leaves cluster together\n");
-	diff = INT_MAX;
-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
-					  index_key);
-		if (x < diff) {
-			BUG_ON(x < 0);
-			diff = x;
-		}
-	}
-	BUG_ON(diff == INT_MAX);
-	BUG_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
-
-	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
-	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
-
-	new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
+	new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
+					     node, level, new_n0);
 	if (!new_s0)
 		return false;
-	edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s0);
-
 	edit->set[0].to = assoc_array_shortcut_to_ptr(new_s0);
-	new_s0->back_pointer = node->back_pointer;
-	new_s0->parent_slot = node->parent_slot;
-	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
-	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
-	new_n0->parent_slot = 0;
-
-	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
-	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
-	BUG_ON(level <= 0);
-
-	for (i = 0; i < keylen; i++)
-		new_s0->index_key[i] =
-			ops->get_key_chunk(index_key, i * ASSOC_ARRAY_KEY_CHUNK_SIZE);
-
-	if (level & ASSOC_ARRAY_KEY_CHUNK_MASK) {
-		blank = ULONG_MAX << (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
-		pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, level, blank);
-		new_s0->index_key[keylen - 1] &= ~blank;
-	}
-
-	/* This now reduces to a node splitting exercise for which we'll need
-	 * to regenerate the disparity table.
-	 */
-	assoc_array_fill_segment_cache(edit, ops, node, level);
-
-	base_seg = ops->get_key_chunk(index_key, level);
-	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = base_seg & ASSOC_ARRAY_FAN_MASK;
 	goto do_split_node;
 }
 
