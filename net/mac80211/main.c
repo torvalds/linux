@@ -1683,12 +1683,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 #if defined(CONFIG_INET) || defined(CONFIG_IPV6)
  fail_ifa:
 #endif
-	wiphy_unregister(local->hw.wiphy);
- fail_wiphy_register:
- fail_band:
 	rtnl_lock();
 	ieee80211_remove_interfaces(local);
 	rtnl_unlock();
+	wiphy_unregister(local->hw.wiphy);
+ fail_wiphy_register:
+ fail_band:
 	rate_control_deinitialize(local);
  fail_rate:
 	ieee80211_txq_teardown_flows(local);
