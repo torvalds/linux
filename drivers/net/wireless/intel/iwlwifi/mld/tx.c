@@ -1484,6 +1484,10 @@ int iwl_mld_update_sta_txqs(struct iwl_mld *mld,
 
 	lockdep_assert_wiphy(mld->wiphy);
 
+	if (mld->trans->conf.queue_alloc_cmd_ver >= 4)
+		cmd.u.modify.flags =
+			cpu_to_le16(IWL_SCD_QUEUE_MODIFY_FLAG_STA_MSK);
+
 	for (int tid = 0; tid <= IWL_MAX_TID_COUNT; tid++) {
 		struct ieee80211_txq *txq =
 			sta->txq[tid != IWL_MAX_TID_COUNT ?

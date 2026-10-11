@@ -1075,7 +1075,8 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 		hcmd.id = SCD_QUEUE_CFG;
 		hcmd.len[0] = sizeof(cmd.old);
 		hcmd.data[0] = &cmd.old;
-	} else if (trans->conf.queue_alloc_cmd_ver == 3) {
+	} else if (trans->conf.queue_alloc_cmd_ver == 3 ||
+		   trans->conf.queue_alloc_cmd_ver == 4) {
 		memset(&cmd.new, 0, sizeof(cmd.new));
 		cmd.new.operation = cpu_to_le32(IWL_SCD_QUEUE_ADD);
 		cmd.new.u.add.tfdq_dram_addr = cpu_to_le64(txq->dma_addr);

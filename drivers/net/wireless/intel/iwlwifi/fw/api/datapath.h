@@ -609,6 +609,16 @@ enum iwl_scd_queue_cfg_operation {
 };
 
 /**
+ * enum iwl_scd_queue_modify_flags - scheduler queue modify flags
+ * @IWL_SCD_QUEUE_MODIFY_FLAG_RD_PTR: update the read pointer
+ * @IWL_SCD_QUEUE_MODIFY_FLAG_STA_MSK: update the station mask
+ */
+enum iwl_scd_queue_modify_flags {
+	IWL_SCD_QUEUE_MODIFY_FLAG_RD_PTR	= BIT(0),
+	IWL_SCD_QUEUE_MODIFY_FLAG_STA_MSK	= BIT(1),
+};
+
+/**
  * struct iwl_scd_queue_cfg_cmd - scheduler queue allocation command
  * @operation: the operation, see &enum iwl_scd_queue_cfg_operation
  * @u: union depending on command usage
@@ -625,6 +635,8 @@ enum iwl_scd_queue_cfg_operation {
  * @u.modify.old_sta_mask: old station mask for modify
  * @u.modify.tid: TID of queue to modify
  * @u.modify.new_sta_mask: new station mask for modify
+ * @u.modify.rd_ptr: new read pointer to set for the queue (version 4)
+ * @u.modify.flags: &enum iwl_scd_queue_modify_flags (version 4)
  */
 struct iwl_scd_queue_cfg_cmd {
 	__le32 operation;
@@ -646,9 +658,11 @@ struct iwl_scd_queue_cfg_cmd {
 			__le32 old_sta_mask;
 			__le32 tid;
 			__le32 new_sta_mask;
-		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
-	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
-} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */
+			__le16 rd_ptr;
+			__le16 flags;
+		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1, _VER_2 */
+	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1, _VER_2 */
+} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3, _VER_4 */
 
 /**
  * enum iwl_sec_key_flags - security key command key flags
