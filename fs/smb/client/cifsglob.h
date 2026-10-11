@@ -797,7 +797,6 @@ struct TCP_Server_Info {
 	__le16	cipher_type;
 	 /* save initial negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-	bool	signing_negotiated; /* true if valid signing context rcvd from server */
 	bool	posix_ext_supported;
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
