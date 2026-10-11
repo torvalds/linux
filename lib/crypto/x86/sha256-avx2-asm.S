@@ -522,14 +522,13 @@ STACK_SIZE	= _CTX      + _CTX_SIZE
 ########################################################################
 .text
 SYM_FUNC_START(sha256_transform_rorx)
+	pushq	%rbp
+	mov	%rsp, %rbp
 	pushq	%rbx
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-
-	push	%rbp
-	mov	%rsp, %rbp
 
 	subq	$STACK_SIZE, %rsp
 	and	$-32, %rsp	# align rsp to 32 byte boundary
@@ -704,14 +703,13 @@ SYM_FUNC_START(sha256_transform_rorx)
 
 .Ldone_hash:
 
-	mov	%rbp, %rsp
-	pop	%rbp
-
+	lea	-40(%rbp), %rsp
 	popq	%r15
 	popq	%r14
 	popq	%r13
 	popq	%r12
 	popq	%rbx
+	popq	%rbp
 	vzeroupper
 	RET
 SYM_FUNC_END(sha256_transform_rorx)

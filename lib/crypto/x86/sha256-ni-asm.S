@@ -276,10 +276,11 @@ SYM_FUNC_END(sha256_ni_transform)
 // to taking better advantage of the CPU's SHA-256 and SIMD throughput.
 //
 SYM_FUNC_START(sha256_ni_finup2x)
-	// Allocate 128 bytes of stack space, 16-byte aligned.
-	push		%rbx
 	push		%rbp
 	mov		%rsp, %rbp
+	push		%rbx
+
+	// Allocate 128 bytes of stack space, 16-byte aligned.
 	sub		$128, %rsp
 	and		$~15, %rsp
 
@@ -527,9 +528,9 @@ SYM_FUNC_START(sha256_ni_finup2x)
 	movdqu		STATE1_A, 0*16(OUT1)
 	movdqu		STATE1_B, 0*16(OUT2)
 
-	mov		%rbp, %rsp
-	pop		%rbp
+	lea		-8(%rbp), %rsp
 	pop		%rbx
+	pop		%rbp
 	RET
 SYM_FUNC_END(sha256_ni_finup2x)
 
