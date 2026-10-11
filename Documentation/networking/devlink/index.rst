@@ -33,8 +33,8 @@ sure to respect following rules:
    lock of both nested and parent instances at the same time, devlink
    instance lock of the nested instance should be taken first, only then
    instance lock of the parent instance could be taken.
- - Driver should use object-specific helpers to setup the
-   nested relationship:
+ - Driver should use object-specific helpers to setup the nested relationship
+   before registering the nested devlink instance:
 
    - ``devl_nested_devlink_set()`` - called to setup devlink -> nested
      devlink relationship (could be used for multiple nested instances).
