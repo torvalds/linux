@@ -1290,8 +1290,11 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 		int tcode, int destination, int source, int generation,
 		unsigned long long offset, void *payload, size_t length,
 		void *callback_data)
+__must_not_hold(&card->topology_map.lock)
 {
 	int start;
+
+	lockdep_assert_not_held(&card->topology_map.lock);
 
 	if (!tcode_is_read_request(tcode)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);

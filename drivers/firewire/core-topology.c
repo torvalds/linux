@@ -474,8 +474,11 @@ static void update_topology_map(__be32 *buffer, size_t buffer_size, int root_nod
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 			      int self_id_count, u32 *self_ids, bool bm_abdicate)
+__must_not_hold(&card->topology_map.lock)
 {
 	struct fw_node *local_node;
+
+	lockdep_assert_not_held(&card->topology_map.lock);
 
 	trace_bus_reset_handle(card->index, generation, node_id, bm_abdicate, self_ids, self_id_count);
 

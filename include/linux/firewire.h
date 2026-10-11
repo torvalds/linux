@@ -139,7 +139,7 @@ struct fw_card {
 	u32 broadcast_channel;
 
 	struct {
-		__be32 buffer[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
+		__be32 buffer[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4] __guarded_by(&lock);
 		spinlock_t lock;
 	} topology_map;
 
