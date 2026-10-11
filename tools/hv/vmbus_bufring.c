@@ -58,12 +58,6 @@ void vmbus_br_setup(struct vmbus_br *br, void *buf, unsigned int blen)
 	br->dsize = blen - sizeof(struct vmbus_bufring);
 }
 
-static inline __always_inline void
-rte_smp_mb(void)
-{
-	asm volatile("lock addl $0, -128(%%rsp); " ::: "memory");
-}
-
 static inline int
 rte_atomic32_cmpset(volatile uint32_t *dst, uint32_t exp, uint32_t src)
 {
