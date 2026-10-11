@@ -1237,7 +1237,6 @@ void iwl_trans_fw_reset_handshake(struct iwl_trans *trans);
  * @send_cmd: send a host command to the firmware
  * @alloc_tx_cmd: allocate a device TX command
  * @free_tx_cmd: free a device TX command
- * @write8: write a byte to a device register
  * @write32: write a dword to a device register
  * @read32: read a dword from a device register
  * @read_prph: read a peripheral register
@@ -1291,7 +1290,6 @@ struct iwl_trans_ops {
 	void (*free_tx_cmd)(struct iwl_trans *trans,
 			    struct iwl_device_tx_cmd *dev_cmd);
 
-	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);

@@ -3704,7 +3704,6 @@ const struct iwl_trans_ops iwl_trans_pcie_ops = {
 	.alloc_tx_cmd = iwl_pcie_alloc_tx_cmd,
 	.free_tx_cmd = iwl_pcie_free_tx_cmd,
 
-	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,
 	.read32 = iwl_trans_pcie_read32,
 	.read_prph = iwl_trans_pcie_read_prph,
