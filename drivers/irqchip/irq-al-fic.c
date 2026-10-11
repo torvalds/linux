@@ -243,7 +243,7 @@ static int __init al_fic_init_dt(struct device_node *node, struct device_node *p
 	fic = al_fic_wire_init(node, base, node->name, parent_irq);
 
 	if (IS_ERR(fic)) {
-		pr_err("%s: fail to initialize irqchip (%lu)\n", node->name, PTR_ERR(fic));
+		pr_err("%s: fail to initialize irqchip (%pe)\n", node->name, fic);
 		ret = PTR_ERR(fic);
 		goto err_irq_dispose;
 	}
