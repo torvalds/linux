@@ -44,9 +44,9 @@ static inline bool kvm_pkvm_ext_allowed(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_PTRAUTH_GENERIC:
 		return true;
 	case KVM_CAP_ARM_MTE:
-		return false;
 	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
 	case KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES:
+	case KVM_CAP_PRE_FAULT_MEMORY:
 		return false;
 	default:
 		return !kvm || !kvm_vm_is_protected(kvm);

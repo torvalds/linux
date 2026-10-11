@@ -486,7 +486,7 @@ static int check_page_ownership(phys_addr_t phys)
 			return -EPERM;
 	}
 
-	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, phys, &pte, NULL);
+	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, phys, &pte, NULL, 0);
 	if (ret)
 		return ret;
 
