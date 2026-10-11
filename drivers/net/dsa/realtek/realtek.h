@@ -97,7 +97,6 @@ struct realtek_priv {
 	int			vlan_enabled;
 	int			vlan4k_enabled;
 
-	char			buf[4096];
 	void			*chip_data; /* Per-chip extra variant data */
 };
 
