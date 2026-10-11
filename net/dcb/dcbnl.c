@@ -1578,6 +1578,15 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 
 	if (ieee[DCB_ATTR_IEEE_ETS] && ops->ieee_setets) {
 		struct ieee_ets *ets = nla_data(ieee[DCB_ATTR_IEEE_ETS]);
+
+		/* IEEE 802.1Qaz: BW allocation applies only to ETS TCs */
+		for (int i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+			if (ets->tc_tsa[i] != IEEE_8021QAZ_TSA_ETS &&
+			    ets->tc_tx_bw[i]) {
+				err = -EINVAL;
+				goto err;
+			}
+		}
 		err = ops->ieee_setets(netdev, ets);
 		if (err)
 			goto err;
