@@ -568,6 +568,9 @@ frame_size = frame_CTX + CTX_SIZE
 ########################################################################
 SYM_FUNC_START(sha512_transform_rorx)
 
+	push	%rbp
+	mov	%rsp, %rbp
+
 	# Save GPRs
 	push	%rbx
 	push	%r12
@@ -576,8 +579,6 @@ SYM_FUNC_START(sha512_transform_rorx)
 	push	%r15
 
 	# Allocate Stack Space
-	push	%rbp
-	mov	%rsp, %rbp
 	sub	$frame_size, %rsp
 	and	$~(0x20 - 1), %rsp
 
@@ -667,9 +668,8 @@ SYM_FUNC_START(sha512_transform_rorx)
 	cmp	frame_INPEND(%rsp), INP
 	jne	.Lloop0
 
-	# Restore Stack Pointer
-	mov	%rbp, %rsp
-	pop	%rbp
+	# Deallocate Stack Space
+	lea	-40(%rbp), %rsp
 
 	# Restore GPRs
 	pop	%r15
@@ -677,6 +677,7 @@ SYM_FUNC_START(sha512_transform_rorx)
 	pop	%r13
 	pop	%r12
 	pop	%rbx
+	pop	%rbp
 
 	vzeroupper
 	RET
