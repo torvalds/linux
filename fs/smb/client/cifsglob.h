@@ -1231,7 +1231,6 @@ struct cifs_tcon {
 			atomic_t num_symlinks;
 			atomic_t num_locks;
 			atomic_t num_acl_get;
-			atomic_t num_acl_set;
 		} cifs_stats;
 		struct {
 			atomic_t smb2_com_sent[NUMBER_OF_SMB2_COMMANDS];
