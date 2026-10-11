@@ -205,8 +205,8 @@ static struct al_fic *al_fic_wire_init(struct device_node *node, void __iomem *b
 		goto err_free;
 	}
 
-	pr_debug("%s initialized successfully in Legacy mode (parent-irq=%u)\n",
-		 fic->name, parent_irq);
+	pr_info("%pOF initialized successfully in Legacy mode (parent-irq=%u)\n",
+		node, parent_irq);
 
 	return fic;
 
@@ -223,19 +223,19 @@ static int __init al_fic_init_dt(struct device_node *node, struct device_node *p
 	int ret;
 
 	if (!parent) {
-		pr_err("%s: unsupported - device require a parent\n", node->name);
+		pr_err("%pOF: unsupported - device requires a parent\n", node);
 		return -EINVAL;
 	}
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("%s: fail to map memory\n", node->name);
+		pr_err("%pOF: fail to map memory\n", node);
 		return -ENOMEM;
 	}
 
 	parent_irq = irq_of_parse_and_map(node, 0);
 	if (!parent_irq) {
-		pr_err("%s: fail to map irq\n", node->name);
+		pr_err("%pOF: fail to map irq\n", node);
 		ret = -EINVAL;
 		goto err_unmap;
 	}
@@ -243,7 +243,7 @@ static int __init al_fic_init_dt(struct device_node *node, struct device_node *p
 	fic = al_fic_wire_init(node, base, node->name, parent_irq);
 
 	if (IS_ERR(fic)) {
-		pr_err("%s: fail to initialize irqchip (%pe)\n", node->name, fic);
+		pr_err("%pOF: fail to initialize irqchip (%pe)\n", node, fic);
 		ret = PTR_ERR(fic);
 		goto err_irq_dispose;
 	}
