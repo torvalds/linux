@@ -662,6 +662,97 @@ cleanup:
 	free(ids2);
 }
 
+/*
+ * Find two BTF ids that resolve to the same address. The stub of a syscall
+ * without arguments is an alias of its __do_sys_ function.
+ */
+static bool get_same_addr_ids(__u32 *ids)
+{
+	const char *prefix = "__x64_sys_";
+	__u32 nr, type_id;
+	bool found = false;
+	struct btf *btf;
+	char alias[128];
+
+	btf = btf__load_vmlinux_btf();
+	if (!ASSERT_OK_PTR(btf, "btf__load_vmlinux_btf"))
+		return false;
+
+	nr = btf__type_cnt(btf);
+	for (type_id = 1; type_id < nr && !found; type_id++) {
+		const struct btf_type *type = btf__type_by_id(btf, type_id);
+		const char *str;
+		long addr;
+		__s32 id;
+
+		if (!btf_is_func(type))
+			continue;
+
+		str = btf__name_by_offset(btf, type->name_off);
+		if (!str || strncmp(str, prefix, strlen(prefix)))
+			continue;
+
+		snprintf(alias, sizeof(alias), "__do_sys_%s", str + strlen(prefix));
+		id = btf__find_by_name_kind(btf, alias, BTF_KIND_FUNC);
+		if (id <= 0)
+			continue;
+
+		addr = ksym_get_addr(str);
+		if (!addr || addr != ksym_get_addr(alias))
+			continue;
+
+		ids[0] = type_id;
+		ids[1] = id;
+		found = true;
+	}
+
+	btf__free(btf);
+	return found;
+}
+
+static void test_attach_same_addr(void)
+{
+	LIBBPF_OPTS(bpf_tracing_multi_opts, opts);
+	struct tracing_multi_fail *skel;
+	struct bpf_link *link;
+	__u32 ids[2];
+	int i;
+
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
+		return;
+
+	if (!get_same_addr_ids(ids)) {
+		test__skip();
+		return;
+	}
+
+	skel = tracing_multi_fail__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tracing_multi_fail__open_and_load"))
+		return;
+
+	/* Each id attaches fine on its own.. */
+	for (i = 0; i < 2; i++) {
+		opts.ids = &ids[i];
+		opts.cnt = 1;
+
+		link = bpf_program__attach_tracing_multi(skel->progs.test_fentry, NULL, &opts);
+		if (!ASSERT_OK_PTR(link, "attach_single"))
+			goto cleanup;
+		bpf_link__destroy(link);
+	}
+
+	/* ..but there's only one call site, so not both of them. */
+	opts.ids = ids;
+	opts.cnt = 2;
+
+	link = bpf_program__attach_tracing_multi(skel->progs.test_fentry, NULL, &opts);
+	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "attach_same_addr"))
+		bpf_link__destroy(link);
+
+cleanup:
+	tracing_multi_fail__destroy(skel);
+}
+
 void serial_test_tracing_multi_bench_attach(void)
 {
 	LIBBPF_OPTS(bpf_tracing_multi_opts, opts);
@@ -747,6 +838,12 @@ void serial_test_tracing_multi_bench_attach(void)
 
 		if (!btf_type_is_traceable_func(btf, type))
 			continue;
+
+		/*
+		 * BTF can have more functions of the same name and they all
+		 * resolve to the same address, take just the first one.
+		 */
+		tdelete(&str, &root, compare);
 
 		err = libbpf_ensure_mem((void **) &ids, &cap, sizeof(*ids), cnt + 1);
 		if (err)
@@ -1023,6 +1120,8 @@ void test_tracing_multi_test(void)
 		test_session();
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
+	if (test__start_subtest("attach_same_addr"))
+		test_attach_same_addr();
 	RUN_TESTS(tracing_multi_verifier);
 	if (test__start_subtest("fentry_after_multi"))
 		test_fentry_after_multi();
