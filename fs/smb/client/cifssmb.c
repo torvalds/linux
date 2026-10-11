@@ -2225,7 +2225,6 @@ CIFSSMBLock(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc = 0;
 	LOCK_REQ *pSMB = NULL;
-/*	LOCK_RSP *pSMBr = NULL; */ /* No response data other than rc to parse */
 	unsigned int in_len;
 	int bytes_returned;
 	int flags = CIFS_WINDOWS_LOCK | CIFS_INTERRUPTIBLE_WAIT;
