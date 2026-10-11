@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf metrics value validation
+# perf metrics value validation (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 shelldir=$(dirname "$0")

@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat STD output linter
+# perf stat STD output linter (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 # Tests various perf stat STD output commands for
 # default event and metricgroup

@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# stat-cpi python test
+# stat-cpi python test (no_mlock)
 
 set -e
 

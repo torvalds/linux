@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat metrics --for-each-cgroup test
+# perf stat metrics --for-each-cgroup test (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

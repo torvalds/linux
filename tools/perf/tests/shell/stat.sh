@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat tests
+# perf stat tests (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

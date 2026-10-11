@@ -1,5 +1,5 @@
 #!/bin/sh
-# Validate CPU and domain pairing in perf sched stats snapshots
+# Validate CPU and domain pairing in perf sched stats snapshots (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

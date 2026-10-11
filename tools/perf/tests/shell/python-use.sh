@@ -1,5 +1,5 @@
 #!/bin/bash
-# 'import perf' in python
+# 'import perf' in python (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 # Just test if we can load the python binding.
 set -e

@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf script ilist and perf list --tui test
+# perf script ilist and perf list --tui test (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

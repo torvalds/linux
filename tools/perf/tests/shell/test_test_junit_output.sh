@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# perf test junit XML output validation
+# perf test junit XML output validation (no_mlock)
+#
+# Waiving the mlock requisite this way holds only while the 'perf test'
+# runs below keep picking tests that don't map ring buffers.
 
 set -e
 

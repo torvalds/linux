@@ -1,5 +1,5 @@
 #!/bin/bash
-# test perf probe of function from different CU
+# test perf probe of function from different CU (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

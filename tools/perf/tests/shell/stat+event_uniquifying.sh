@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat events uniquifying
+# perf stat events uniquifying (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
