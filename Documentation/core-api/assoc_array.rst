@@ -123,10 +123,12 @@ This points to a number of methods, all of which need to be provided:
 
     unsigned long (*get_key_chunk)(const void *index_key, int level);
 
-   This should return a chunk of caller-supplied index key starting at the
-   *bit* position given by the level argument.  The level argument will be a
-   multiple of ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` and the function should return
-   ``ASSOC_ARRAY_KEY_CHUNK_SIZE bits``.  No error is possible.
+   This should return the ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` bits of
+   caller-supplied index key that contain the *bit* position given by the
+   level argument, starting at level rounded down to a multiple of
+   ``ASSOC_ARRAY_KEY_CHUNK_SIZE``.  The level is often that of a node, which
+   is a multiple of ``ASSOC_ARRAY_LEVEL_STEP``, so the function has to do the
+   rounding.  No error is possible.
 
 
 2. Get a chunk of an object's index key::
