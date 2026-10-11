@@ -20,7 +20,7 @@
 #include "reg.h"
 
 
-/* protects the wiphy list and regulatory state */
+/* protects the wiphy list, wiphy netns changes and regulatory state */
 extern struct mutex cfg80211_mutex;
 
 #define WIPHY_IDX_INVALID	-1

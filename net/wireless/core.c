@@ -171,6 +171,9 @@ static int __cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev, *tmp;
 	int err = 0;
 
+	/* make the whole switch atomic for cfg80211_mutex holders, e.g. dumps */
+	guard(mutex)(&cfg80211_mutex);
+
 	list_for_each_entry_safe(wdev, tmp, &rdev->wiphy.wdev_list, list) {
 		err = cfg80211_switch_wdev_netns(wdev, net);
 		if (!err)
