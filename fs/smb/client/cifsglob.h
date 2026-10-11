@@ -1070,7 +1070,6 @@ struct cifs_ses {
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
 	enum ses_status_enum ses_status;  /* updates protected by cifs_tcp_ses_lock */
-	unsigned int overrideSecFlg; /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
