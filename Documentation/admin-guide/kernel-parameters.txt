@@ -6176,6 +6176,13 @@ Kernel parameters
 			stress RCU, they don't participate in the actual
 			test, hence the "fake".
 
+	rcutorture.nmi_calls= [KNL]
+			Enable issuing RCU callbacks from an NMI, on the
+			RCU flavors that support it, to exercise the
+			any-context callback path.  Requires
+			CONFIG_PERF_EVENTS and a hardware PMU; without
+			both, nothing is issued.  Defaults to enabled.
+
 	rcutorture.nocbs_nthreads= [KNL]
 			Set number of RCU callback-offload togglers.
 			Zero (the default) disables toggling.
