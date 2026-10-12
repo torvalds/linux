@@ -7,8 +7,6 @@
 #define __IVPU_HW_BTRS_H__
 
 #include "ivpu_drv.h"
-#include "ivpu_hw_37xx_reg.h"
-#include "ivpu_hw_40xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 
 #define PLL_PROFILING_FREQ_DEFAULT   38400000
