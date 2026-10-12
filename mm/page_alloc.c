@@ -1319,29 +1319,41 @@ static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
  * whose refcount has reached zero is on no LRU and not yet on the
  * allocator's lists.
  *
- * Each CPU has at most one grace period in flight.  @batch holds the
- * folios it covers: they were moved from @pending when queue_rcu_work()
- * started it.  Folios freed meanwhile collect on @pending.  When the grace
- * period ends, the work takes @batch, moves @pending to @batch and starts
- * the next grace period, and then frees what it took.  The move and the
- * queue_rcu_work() happen together under @lock, so no folio joins a batch
- * after its grace period started.  A folio waits one to two grace periods.
+ * Each CPU has at most one grace period of @rwork in flight.  @batch holds
+ * the folios it covers: they were moved from @pending when
+ * queue_rcu_work() started it.  Folios freed meanwhile collect on
+ * @pending.  When the grace period ends, the work takes @batch, moves
+ * @pending to @batch and starts the next grace period, and then frees
+ * what it took.  The move and the queue_rcu_work() happen together under
+ * @lock, so no folio joins a batch after its grace period started.  A
+ * folio waits one to two grace periods, or one expedited grace period if
+ * @expedite takes it from @pending.
  *
  * @batch is non-empty from the queue_rcu_work() until the work has taken
- * it.  So @batch being empty means that no grace period is in flight and
- * @rwork is not queued.
+ * it.  So @batch being empty means that no grace period of @rwork is in
+ * flight and @rwork is not queued.
  *
  * Reclaim makes progress only when these frees complete, so the work must
  * not wait for a new worker: the workqueue is WQ_MEM_RECLAIM.
  *
+ * The allocator does not see the folios on these lists, and a CPU that
+ * frees faster than grace periods end can put any amount of memory here.
+ * So @nr_pending counts the pages on @pending, and above
+ * RCU_FREE_EXPEDITE the CPU queues @expedite, which takes @pending and
+ * runs an expedited grace period for it.
+ *
  * rcu_free_init() runs before vfs_caches_init(), so before anything can
  * be mounted: no folio is in a page cache until the workqueue exists.
  */
+#define RCU_FREE_EXPEDITE	1024
+
 struct rcu_free_pcpu {
 	spinlock_t lock;
 	struct list_head pending;
 	struct list_head batch;
+	unsigned long nr_pending;
 	struct rcu_work rwork;
+	struct work_struct expedite;
 };
 static DEFINE_PER_CPU(struct rcu_free_pcpu, rcu_free_pcpu) = {
 	.lock = __SPIN_LOCK_UNLOCKED(rcu_free_pcpu.lock),
@@ -1356,6 +1368,7 @@ static void rcu_free_start(struct rcu_free_pcpu *r)
 		return;
 
 	list_splice_init(&r->pending, &r->batch);
+	r->nr_pending = 0;
 	if (!list_empty(&r->batch))
 		WARN_ON_ONCE(!queue_rcu_work(rcu_free_wq, &r->rwork));
 }
@@ -1395,6 +1408,38 @@ static void rcu_free_workfn(struct work_struct *work)
 	rcu_free_pages(&done);
 }
 
+/*
+ * Take @pending and free it after an expedited grace period, which starts
+ * once the folios are off the list.  Only this work waits for it.
+ *
+ * @batch is left alone: its grace period is in flight and @rwork frees it.
+ */
+static void rcu_free_expedite_workfn(struct work_struct *work)
+{
+	struct rcu_free_pcpu *r = container_of(work, struct rcu_free_pcpu,
+					       expedite);
+	LIST_HEAD(list);
+
+	spin_lock_irq(&r->lock);
+	list_splice_init(&r->pending, &list);
+	r->nr_pending = 0;
+	spin_unlock_irq(&r->lock);
+
+	/* @rwork got there first and moved @pending to @batch */
+	if (list_empty(&list))
+		return;
+
+	synchronize_rcu_expedited();
+	rcu_free_pages(&list);
+}
+
+static void rcu_free_expedite(struct rcu_free_pcpu *r, unsigned long limit)
+{
+	/* Unlocked: a stale @nr_pending moves the expedite by one free */
+	if (data_race(r->nr_pending) > limit && !work_pending(&r->expedite))
+		queue_work(rcu_free_wq, &r->expedite);
+}
+
 static void rcu_free_defer(struct folio *folio)
 {
 	struct rcu_free_pcpu *r = raw_cpu_ptr(&rcu_free_pcpu);
@@ -1402,8 +1447,11 @@ static void rcu_free_defer(struct folio *folio)
 
 	spin_lock_irqsave(&r->lock, flags);
 	list_add_tail(&folio->lru, &r->pending);
+	r->nr_pending += folio_nr_pages(folio);
 	rcu_free_start(r);
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	rcu_free_expedite(r, RCU_FREE_EXPEDITE);
 }
 
 static void __init rcu_free_init(void)
@@ -1418,6 +1466,7 @@ static void __init rcu_free_init(void)
 		INIT_LIST_HEAD(&r->pending);
 		INIT_LIST_HEAD(&r->batch);
 		INIT_RCU_WORK(&r->rwork, rcu_free_workfn);
+		INIT_WORK(&r->expedite, rcu_free_expedite_workfn);
 	}
 }
 
