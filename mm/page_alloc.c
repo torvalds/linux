@@ -1444,6 +1444,7 @@ static void rcu_free_expedite_workfn(struct work_struct *work)
 	if (list_empty(&list))
 		return;
 
+	count_vm_event(PGFREE_RCU_KICK);
 	synchronize_rcu_expedited();
 	rcu_free_pages(&list);
 }
