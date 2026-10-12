@@ -2004,8 +2004,8 @@ SMB2_select_sec(struct SMB2_sess_data *sess_data)
 int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		    struct TCP_Server_Info *server)
 {
+	struct SMB2_sess_data sess_data;
 	int rc = 0;
-	struct SMB2_sess_data *sess_data;
 
 	cifs_dbg(FYI, "Session Setup\n");
 
@@ -2014,17 +2014,15 @@ int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
-	sess_data = kzalloc_obj(struct SMB2_sess_data);
-	if (!sess_data)
-		return -ENOMEM;
+	sess_data = (struct SMB2_sess_data) {
+		.xid			= xid,
+		.ses			= ses,
+		.server			= server,
+		.buf0_type		= CIFS_NO_BUFFER,
+		.previous_session	= ses->Suid,
+	};
 
-	sess_data->xid = xid;
-	sess_data->ses = ses;
-	sess_data->server = server;
-	sess_data->buf0_type = CIFS_NO_BUFFER;
-	sess_data->previous_session = ses->Suid;
-
-	rc = SMB2_select_sec(sess_data);
+	rc = SMB2_select_sec(&sess_data);
 	if (rc)
 		goto out;
 
@@ -2034,14 +2032,14 @@ int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	memcpy(ses->preauth_sha_hash, server->preauth_sha_hash,
 	       SMB2_PREAUTH_HASH_SIZE);
 
-	while (sess_data->func)
-		sess_data->func(sess_data);
+	while (sess_data.func)
+		sess_data.func(&sess_data);
 
 	if ((ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST) && (ses->sign))
 		cifs_server_dbg(VFS, "signing requested but authenticated as guest\n");
-	rc = sess_data->result;
+	rc = sess_data.result;
 out:
-	kfree_sensitive(sess_data);
+	memzero_explicit(&sess_data, sizeof(sess_data));
 	return rc;
 }
 
