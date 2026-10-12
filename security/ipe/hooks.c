@@ -9,6 +9,7 @@
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/blk_types.h>
+#include <linux/rcupdate.h>
 
 #include "ipe.h"
 #include "hooks.h"
@@ -232,7 +233,20 @@ void ipe_bdev_free_security(struct block_device *bdev)
 {
 	struct ipe_bdev *blob = ipe_bdev(bdev);
 
-	ipe_digest_free(blob->root_hash);
+	ipe_digest_free(rcu_access_pointer(blob->root_hash));
+}
+
+static void ipe_set_dmverity_roothash(struct ipe_bdev *blob,
+				      struct digest_info *info)
+{
+	struct digest_info *old;
+
+	/* Protected by device-mapper's md->suspend_lock */
+	old = rcu_replace_pointer(blob->root_hash, info, true);
+	if (old) {
+		synchronize_rcu();
+		ipe_digest_free(old);
+	}
 }
 
 #ifdef CONFIG_IPE_PROP_DM_VERITY_SIGNATURE
@@ -280,8 +294,7 @@ int ipe_bdev_setintegrity(struct block_device *bdev, enum lsm_integrity_type typ
 		return -EINVAL;
 
 	if (!value) {
-		ipe_digest_free(blob->root_hash);
-		blob->root_hash = NULL;
+		ipe_set_dmverity_roothash(blob, NULL);
 
 		return 0;
 	}
@@ -301,8 +314,7 @@ int ipe_bdev_setintegrity(struct block_device *bdev, enum lsm_integrity_type typ
 
 	info->digest_len = digest->digest_len;
 
-	ipe_digest_free(blob->root_hash);
-	blob->root_hash = info;
+	ipe_set_dmverity_roothash(blob, info);
 
 	return 0;
 err:

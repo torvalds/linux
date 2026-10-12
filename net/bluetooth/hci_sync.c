@@ -32,8 +32,10 @@ static void hci_cmd_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 	WRITE_ONCE(hdev->req_status, HCI_REQ_DONE);
 
 	/* Free the request command so it is not used as response */
+	hci_dev_lock(hdev);
 	kfree_skb(hdev->req_skb);
 	hdev->req_skb = NULL;
+	hci_dev_unlock(hdev);
 
 	if (skb) {
 		struct sock *sk = hci_skb_sk(skb);
@@ -311,6 +313,10 @@ static void hci_cmd_sync_work(struct work_struct *work)
 	/* Dequeue all entries and run them */
 	while (1) {
 		struct hci_cmd_sync_work_entry *entry;
+
+		/* Leave the backlog to hci_cmd_sync_clear() */
+		if (hci_dev_test_flag(hdev, HCI_UNREGISTER))
+			break;
 
 		mutex_lock(&hdev->cmd_sync_work_lock);
 		entry = list_first_entry_or_null(&hdev->cmd_sync_work_list,
@@ -658,6 +664,8 @@ void hci_cmd_sync_clear(struct hci_dev *hdev)
 {
 	struct hci_cmd_sync_work_entry *entry, *tmp;
 
+	/* cmd_work is disabled, the pending request can only time out */
+	hci_cmd_sync_cancel_sync(hdev, ENODEV);
 	cancel_work_sync(&hdev->cmd_sync_work);
 	cancel_work_sync(&hdev->reenable_adv_work);
 
@@ -3058,15 +3066,21 @@ static int hci_le_set_ext_scan_param_sync(struct hci_dev *hdev, u8 type,
 	 */
 	if (hci_dev_test_flag(hdev, HCI_PA_SYNC)) {
 		struct hci_cp_le_add_to_accept_list *sent;
+		bdaddr_t bdaddr;
 
+		hci_dev_lock(hdev);
 		sent = hci_sent_cmd_data(hdev, HCI_OP_LE_ADD_TO_ACCEPT_LIST);
+		if (sent)
+			bacpy(&bdaddr, &sent->bdaddr);
+		hci_dev_unlock(hdev);
+
 		if (sent) {
 			struct hci_conn *conn;
 
 			rcu_read_lock();
 
 			conn = hci_conn_hash_lookup_ba(hdev, PA_LINK,
-						       &sent->bdaddr);
+						       &bdaddr);
 			if (conn) {
 				struct bt_iso_qos *qos = &conn->iso_qos;
 
@@ -4797,6 +4811,24 @@ static int hci_le_set_def_rate_sync(struct hci_dev *hdev)
 	cp.cont_num = cpu_to_le16(0x0001);
 	cp.supv_timeout = cpu_to_le16(0x000c);	/* 120 ms */
 
+	/* The connection event length recommended in requests by a Peripheral
+	 * uses units of 125 us with a valid range of 0x0001 to 0x7CFF
+	 * (0.125 ms to 3.999875 s), so 0x0000 cannot be used. Also note that
+	 * the Controller is not required to use these values:
+	 *
+	 * BLUETOOTH CORE SPECIFICATION Version 6.2 | Vol 4, Part E
+	 * 7.8.158. LE Set Default Rate Parameters command
+	 *
+	 * The Min_CE_Length and Max_CE_Length parameters provide the
+	 * Controller with the expected minimum and maximum length of the
+	 * connection events. The Controller is not required to use these
+	 * values.
+	 *
+	 * So it is safe to just use the minimum.
+	 */
+	cp.min_ce_len = cpu_to_le16(0x0001);
+	cp.max_ce_len = cpu_to_le16(0x0001);
+
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_DEF_RATE,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
@@ -5655,7 +5687,9 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	memset(hdev->eir, 0, sizeof(hdev->eir));
 	memset(hdev->dev_class, 0, sizeof(hdev->dev_class));
 	bacpy(&hdev->random_addr, BDADDR_ANY);
+	hci_dev_lock(hdev);
 	hci_codec_list_clear(&hdev->local_codecs);
+	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
 	return err;
@@ -5744,6 +5778,7 @@ int hci_stop_discovery_sync(struct hci_dev *hdev)
 {
 	struct discovery_state *d = &hdev->discovery;
 	struct inquiry_entry *e;
+	bdaddr_t addr;
 	int err;
 
 	bt_dev_dbg(hdev, "state %u", hdev->discovery.state);
@@ -5779,15 +5814,21 @@ int hci_stop_discovery_sync(struct hci_dev *hdev)
 		return 0;
 
 	if (d->state == DISCOVERY_RESOLVING || d->state == DISCOVERY_STOPPING) {
+		hci_dev_lock(hdev);
 		e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY,
 						     NAME_PENDING);
-		if (!e)
+		if (!e) {
+			hci_dev_unlock(hdev);
 			return 0;
+		}
+
+		bacpy(&addr, &e->data.bdaddr);
+		hci_dev_unlock(hdev);
 
 		/* Ignore cancel errors since it should interfere with stopping
 		 * of the discovery.
 		 */
-		hci_remote_name_cancel_sync(hdev, &e->data.bdaddr);
+		hci_remote_name_cancel_sync(hdev, &addr);
 	}
 
 	return 0;
@@ -6423,8 +6464,7 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 		goto update_scan;
 	}
 
-	accept_list = kmalloc_array(num_entries, sizeof(*accept_list),
-				    GFP_KERNEL);
+	accept_list = kmalloc_objs(*accept_list, num_entries);
 	if (!accept_list) {
 		hci_dev_unlock(hdev);
 		return -ENOMEM;
@@ -7217,6 +7257,7 @@ static int hci_acl_create_conn_sync(struct hci_dev *hdev, void *data)
 	bacpy(&cp.bdaddr, &conn->dst);
 	cp.pscan_rep_mode = 0x02;
 
+	hci_dev_lock(hdev);
 	ie = hci_inquiry_cache_lookup(hdev, &conn->dst);
 	if (ie) {
 		if (inquiry_entry_age(ie) <= INQUIRY_ENTRY_AGE_MAX) {
@@ -7228,6 +7269,7 @@ static int hci_acl_create_conn_sync(struct hci_dev *hdev, void *data)
 
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
 	}
+	hci_dev_unlock(hdev);
 
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 	if (lmp_rswitch_capable(hdev) && !(hdev->link_mode & HCI_LM_MASTER))
@@ -7467,8 +7509,24 @@ static int hci_le_conn_rate_request_sync(struct hci_dev *hdev, void *data)
 	cp.max_latency	= cpu_to_le16(params->max_latency);
 	cp.cont_num	= cpu_to_le16(params->cont_num);
 	cp.supv_timeout	= cpu_to_le16(params->rate_supv_timeout);
-	cp.min_ce_len	= cpu_to_le16(0x0000);
-	cp.max_ce_len	= cpu_to_le16(0x0000);
+
+	/* The connection event length recommended in requests by a Peripheral
+	 * uses units of 125 us with a valid range of 0x0001 to 0x7CFF
+	 * (0.125 ms to 3.999875 s), so 0x0000 cannot be used. Also note that
+	 * the Controller is not required to use these values:
+	 *
+	 * BLUETOOTH CORE SPECIFICATION Version 6.2 | Vol 4, Part E
+	 * 7.8.157. LE Connection Rate Request command
+	 *
+	 * The Min_CE_Length and Max_CE_Length parameters provide the
+	 * Controller with the expected minimum and maximum length of the
+	 * connection events. The Controller is not required to use these
+	 * values.
+	 *
+	 * So it is safe to just use the minimum.
+	 */
+	cp.min_ce_len	= cpu_to_le16(0x0001);
+	cp.max_ce_len	= cpu_to_le16(0x0001);
 
 	hci_dev_unlock(hdev);
 

@@ -1158,7 +1158,7 @@ static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 		qeth_bridgeport_setrole(card, card->options.sbp.role);
 		/* Let the callback function refresh the stored role value. */
 		qeth_bridgeport_query_ports(card, &card->options.sbp.role,
-					    NULL);
+					    NULL, NULL);
 	}
 	if (card->options.sbp.hostnotification) {
 		if (qeth_bridgeport_an_set(card, 1))
@@ -1545,6 +1545,7 @@ struct _qeth_sbp_cbctl {
 		struct {
 			enum qeth_sbp_roles *role;
 			enum qeth_sbp_states *state;
+			bool *os_mismatch;
 		} qports;
 	} data;
 };
@@ -1721,10 +1722,19 @@ static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 	struct _qeth_sbp_cbctl *cbctl = (struct _qeth_sbp_cbctl *)reply->param;
 	struct qeth_sbp_port_data *qports;
+	u16 sbp_rc;
 	int rc;
 
 	QETH_CARD_TEXT(card, 2, "brqprtcb");
-	rc = qeth_bridgeport_makerc(card, cmd);
+	sbp_rc = cmd->data.sbp.hdr.return_code;
+
+	/* on OS family mismatch, query still returns valid port data;
+	 * treat as success
+	 */
+	if (sbp_rc == IPA_RC_SBP_IQD_OS_MISMATCH && !cmd->hdr.return_code)
+		rc = 0;
+	else
+		rc = qeth_bridgeport_makerc(card, cmd);
 	if (rc)
 		return rc;
 
@@ -1740,6 +1750,9 @@ static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
 		if (cbctl->data.qports.state)
 			*cbctl->data.qports.state = qports->entry[0].state;
 	}
+	if (cbctl->data.qports.os_mismatch)
+		*cbctl->data.qports.os_mismatch =
+			(sbp_rc == IPA_RC_SBP_IQD_OS_MISMATCH);
 	return 0;
 }
 
@@ -1748,13 +1761,17 @@ static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
  * @card:			   qeth_card structure pointer.
  * @role:   Role of the port: 0-none, 1-primary, 2-secondary.
  * @state:  State of the port: 0-inactive, 1-standby, 2-active.
+ * @os_mismatch: if non-NULL, set to true when firmware reports
+ *		 OS family mismatch.
  *
  * Returns negative errno-compatible error indication or 0 on success.
  *
- * 'role' and 'state' are not updated in case of hardware operation failure.
+ * 'role', 'state' and 'os_mismatch' are not updated in case of
+ * hardware operation failure.
  */
 int qeth_bridgeport_query_ports(struct qeth_card *card,
-	enum qeth_sbp_roles *role, enum qeth_sbp_states *state)
+	enum qeth_sbp_roles *role, enum qeth_sbp_states *state,
+	bool *os_mismatch)
 {
 	struct qeth_cmd_buffer *iob;
 	struct _qeth_sbp_cbctl cbctl = {
@@ -1762,6 +1779,7 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 			.qports = {
 				.role = role,
 				.state = state,
+				.os_mismatch = os_mismatch,
 			},
 		},
 	};

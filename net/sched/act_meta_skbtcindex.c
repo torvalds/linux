@@ -10,6 +10,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/unaligned.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,9 +29,10 @@ static int skbtcindex_encode(struct sk_buff *skb, void *skbdata,
 
 static int skbtcindex_decode(struct sk_buff *skb, void *data, u16 len)
 {
-	u16 ifetc_index = *(u16 *)data;
+	if (len != sizeof(u16))
+		return -EINVAL;
 
-	skb->tc_index = ntohs(ifetc_index);
+	skb->tc_index = get_unaligned_be16(data);
 	return 0;
 }
 

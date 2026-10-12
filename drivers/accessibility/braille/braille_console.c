@@ -62,14 +62,50 @@ static void braille_write(u16 *buf)
 {
 	static u16 lastwrite[WIDTH];
 	unsigned char data[1 + 1 + 2*WIDTH + 2 + 1], csum = 0, *c;
+	struct nbcon_write_context wctxt = { };
+	unsigned long flags;
 	u16 out;
 	int i;
 
 	if (!braille_co)
 		return;
 
+	/*
+	 * Braille console is not registered in console_list. Instead, it
+	 * is integrated with VT and shows what appears on the graphical
+	 * console under console_lock(). From this POV it is a legacy
+	 * console. But it calls serial console driver which might be
+	 * converted to the NBCON API. It is similar to
+	 * nbcon_legacy_emit_next_record() except that we should try
+	 * harder to get the lock. Otherwise, the Braille device won't show
+	 * everything what is displayed on the terminal.
+	 *
+	 * In short, simulate the original locking using NBCON API.
+	 */
+	if (braille_co->flags & CON_NBCON) {
+		if (panic_on_this_cpu()) {
+			/*
+			 * This should be good enough in practice. Most/all
+			 * serial console drivers have the atomic callback.
+			 */
+			if (!braille_co->write_atomic)
+				return;
+
+			local_irq_save(flags);
+			/* NBCON API strictly requires the ownership. */
+			if (!nbcon_braille_try_acquire(braille_co, &wctxt)) {
+				local_irq_restore(flags);
+				return;
+			}
+		} else {
+			braille_co->device_lock(braille_co, &flags);
+			while (!nbcon_braille_try_acquire(braille_co, &wctxt))
+				cpu_relax();
+		}
+	}
+
 	if (!memcmp(lastwrite, buf, WIDTH * sizeof(*buf)))
-		return;
+		goto unlock_nbcon;
 	memcpy(lastwrite, buf, WIDTH * sizeof(*buf));
 
 #define SOH 1
@@ -102,7 +138,24 @@ static void braille_write(u16 *buf)
 	*c++ = csum;
 	*c++ = ETX;
 
-	braille_co->write(braille_co, data, c - data);
+	if (braille_co->flags & CON_NBCON) {
+		nbcon_write_context_set_buf(&wctxt, (char *)data, c - data);
+		if (panic_on_this_cpu())
+			braille_co->write_atomic(braille_co, &wctxt);
+		else
+			braille_co->write_thread(braille_co, &wctxt);
+	} else {
+		braille_co->write(braille_co, data, c - data);
+	}
+
+unlock_nbcon:
+	if (braille_co->flags & CON_NBCON) {
+		nbcon_braille_release(&wctxt);
+		if (panic_on_this_cpu())
+			local_irq_restore(flags);
+		else
+			braille_co->device_unlock(braille_co, flags);
+	}
 }
 
 /* Follow the VC cursor*/

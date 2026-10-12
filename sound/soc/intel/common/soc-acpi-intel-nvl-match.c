@@ -51,10 +51,10 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_nvl_machines[] = {
 	},
 	{
 		.comp_ids = &nvl_rt5682_rt5682s_hp,
-		.drv_name = "sof_rt5682",
-		.sof_tplg_filename = "sof-nvl-rt5682", /* the tplg suffix is added at run time */
-		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
-					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB,
+		.drv_name = "nvl_rt5682_def",
+		.sof_tplg_filename = "sof-nvl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
 	},
 	/* place amp/hdmi-in only boards in the end of table */
 	{

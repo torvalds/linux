@@ -199,7 +199,7 @@ static int __cifs_do_create(struct inode *dir, struct dentry *direntry,
 			    struct tcon_link *tlink, unsigned int oflags,
 			    umode_t mode, __u32 *oplock, struct cifs_fid *fid,
 			    struct cifs_open_info_data *buf,
-			    struct inode **inode)
+			    struct inode **inode, bool *opened)
 {
 	int rc = -ENOENT;
 	int create_options = CREATE_NOT_DIR;
@@ -216,6 +216,7 @@ static int __cifs_do_create(struct inode *dir, struct dentry *direntry,
 	__le32 lease_flags = 0;
 
 	*inode = NULL;
+	*opened = false;
 	*oplock = 0;
 	if (tcon->ses->server->oplocks)
 		*oplock = REQ_OPLOCK;
@@ -232,6 +233,7 @@ static int __cifs_do_create(struct inode *dir, struct dentry *direntry,
 				     oflags, oplock, &fid->netfid, xid);
 		switch (rc) {
 		case 0:
+			*opened = true;
 			if (newinode == NULL) {
 				/* query inode info */
 				goto cifs_create_get_file_info;
@@ -253,11 +255,9 @@ static int __cifs_do_create(struct inode *dir, struct dentry *direntry,
 				/*
 				 * The server may allow us to open things like
 				 * FIFOs, but the client isn't set up to deal
-				 * with that. If it's not a regular file, just
-				 * close it and proceed as if it were a normal
-				 * lookup.
+				 * with that. Keep the handle until the caller
+				 * can finish the lookup.
 				 */
-				CIFSSMBClose(xid, tcon, fid->netfid);
 				goto cifs_create_get_file_info;
 			}
 			/* success, no need to query */
@@ -384,6 +384,7 @@ retry_open:
 		}
 		return rc;
 	}
+	*opened = true;
 	if (rdwr_for_fscache == 2)
 		cifs_invalidate_cache(dir, FSCACHE_INVAL_DIO_WRITE);
 
@@ -475,7 +476,7 @@ cifs_create_set_dentry:
 	return rc;
 
 out_err:
-	if (server->ops->close)
+	if (*opened && server->ops->close)
 		server->ops->close(xid, tcon, fid);
 	if (newinode)
 		iput(newinode);
@@ -487,7 +488,7 @@ static int cifs_do_create(struct inode *dir, struct dentry *direntry,
 			  unsigned int oflags, umode_t mode,
 			  __u32 *oplock, struct cifs_fid *fid,
 			  struct cifs_open_info_data *buf,
-			  struct inode **inode)
+			  struct inode **inode, bool *opened)
 {
 	void *page = alloc_dentry_path();
 	const char *full_path;
@@ -496,10 +497,11 @@ static int cifs_do_create(struct inode *dir, struct dentry *direntry,
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
 		rc = PTR_ERR(full_path);
+		*opened = false;
 	} else {
 		rc = __cifs_do_create(dir, direntry, full_path, xid,
 				      tlink, oflags, mode, oplock,
-				      fid, buf, inode);
+				      fid, buf, inode, opened);
 	}
 	free_dentry_path(page);
 	return rc;
@@ -529,6 +531,8 @@ int cifs_atomic_open(struct inode *dir, struct dentry *direntry,
 	struct inode *inode;
 	unsigned int xid;
 	__u32 oplock;
+	bool is_regular;
+	bool opened;
 	int rc;
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
@@ -581,10 +585,24 @@ int cifs_atomic_open(struct inode *dir, struct dentry *direntry,
 	cifs_add_pending_open(&fid, tlink, &open);
 
 	rc = cifs_do_create(dir, direntry, xid, tlink, oflags, mode,
-			    &oplock, &fid, &buf, &inode);
+			    &oplock, &fid, &buf, &inode, &opened);
 	if (rc) {
 		cifs_del_pending_open(&open);
 		goto out;
+	}
+
+	is_regular = S_ISREG(inode->i_mode);
+	if (!is_regular || !opened) {
+		if (opened && server->ops->close)
+			server->ops->close(xid, tcon, &fid);
+		cifs_del_pending_open(&open);
+		if (S_ISLNK(inode->i_mode) &&
+		    (oflags & (O_NOFOLLOW | __O_REGULAR)) ==
+		    (O_NOFOLLOW | __O_REGULAR) && !(oflags & O_EXCL)) {
+			iput(inode);
+			rc = -ELOOP;
+			goto out;
+		}
 	}
 
 	if (d_in_lookup(direntry)) {
@@ -595,8 +613,14 @@ int cifs_atomic_open(struct inode *dir, struct dentry *direntry,
 		d_instantiate(direntry, inode);
 	}
 
-	if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
+	if (is_regular && opened &&
+	    (oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 		file->f_mode |= FMODE_CREATED;
+
+	if (!is_regular || !opened) {
+		rc = finish_no_open(file, NULL);
+		goto out;
+	}
 
 	rc = finish_open(file, direntry, generic_file_open);
 	if (rc) {
@@ -660,6 +684,7 @@ int cifs_create(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode *inode;
 	struct cifs_fid fid;
 	__u32 oplock;
+	bool opened;
 	struct cifs_open_info_data buf = {};
 
 	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
@@ -682,10 +707,10 @@ int cifs_create(struct mnt_idmap *idmap, struct inode *dir,
 		server->ops->new_lease_key(&fid);
 
 	rc = cifs_do_create(dir, direntry, xid, tlink, oflags,
-			    mode, &oplock, &fid, &buf, &inode);
+			    mode, &oplock, &fid, &buf, &inode, &opened);
 	if (!rc) {
 		d_instantiate(direntry, inode);
-		if (server->ops->close)
+		if (opened && server->ops->close)
 			server->ops->close(xid, tcon, &fid);
 	}
 
@@ -1078,6 +1103,7 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode *inode;
 	unsigned int xid;
 	__u32 oplock;
+	bool opened;
 	int namelen;
 	int rc;
 
@@ -1116,7 +1142,7 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		namelen = scnprintf(name, namesize, CIFS_TMPNAME_PREFIX "%x",
 				    atomic_inc_return(&cifs_tmpcounter));
 		rc = __cifs_do_create(dir, dentry, path, xid, tlink, oflags,
-				      mode, &oplock, &fid, NULL, &inode);
+				      mode, &oplock, &fid, NULL, &inode, &opened);
 		if (!rc) {
 			rc = d_mark_tmpfile_name(file, &QSTR_LEN(name, namelen));
 			if (rc) {

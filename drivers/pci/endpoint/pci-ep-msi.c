@@ -57,7 +57,7 @@ static int pci_epf_alloc_doorbell_embedded(struct pci_epf *epf, u16 num_db)
 		return -ENODEV;
 
 	struct pci_epc_aux_resource *res __free(kfree) =
-				kcalloc(count, sizeof(*res), GFP_KERNEL);
+				kzalloc_objs(*res, count);
 	if (!res)
 		return -ENOMEM;
 
@@ -98,7 +98,7 @@ static int pci_epf_alloc_doorbell_embedded(struct pci_epf *epf, u16 num_db)
 		addr = iova_base + off;
 	}
 
-	msg = kcalloc(num_db, sizeof(*msg), GFP_KERNEL);
+	msg = kzalloc_objs(*msg, num_db);
 	if (!msg) {
 		ret = -ENOMEM;
 		goto err_unmap;

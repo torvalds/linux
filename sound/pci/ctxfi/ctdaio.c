@@ -221,14 +221,18 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 
 static int dao_clear_input(struct dao *dao, unsigned int start, unsigned int end)
 {
+	struct imapper *entry;
 	unsigned int i;
 
-	if (!dao->imappers[start])
+	entry = dao->imappers[start];
+	if (!entry)
 		return 0;
+
 	for (i = start; i < end; i++) {
 		dao->mgr->imap_delete(dao->mgr, dao->imappers[i]);
 		dao->imappers[i] = NULL;
 	}
+	kfree(entry);
 
 	return 0;
 }
@@ -540,7 +544,7 @@ static int get_daio_rsc(struct daio_mgr *mgr,
 	err = -ENOMEM;
 	/* Allocate mem for daio resource */
 	if (desc->output) {
-		struct dao *dao = kzalloc(sizeof(*dao), GFP_KERNEL);
+		struct dao *dao = kzalloc_obj(*dao);
 		if (!dao)
 			goto error;
 
@@ -552,7 +556,7 @@ static int get_daio_rsc(struct daio_mgr *mgr,
 
 		*rdaio = &dao->daio;
 	} else {
-		struct dai *dai = kzalloc(sizeof(*dai), GFP_KERNEL);
+		struct dai *dai = kzalloc_obj(*dai);
 		if (!dai)
 			goto error;
 

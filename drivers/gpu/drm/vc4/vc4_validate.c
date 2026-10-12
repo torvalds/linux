@@ -402,7 +402,7 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
-	bin_slot = vc4_v3d_get_bin_slot(vc4);
+	bin_slot = vc4_v3d_get_bin_slot(vc4, MAX_SCHEDULE_TIMEOUT);
 	if (bin_slot < 0) {
 		if (bin_slot != -EINTR && bin_slot != -ERESTARTSYS) {
 			drm_err(dev, "Failed to allocate binner memory: %d\n",

@@ -1029,6 +1029,13 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
 			if (ret)
 				return ret;
+
+			/*
+			 * If no line-name property is present, fall back to the OF
+			 * node name as in the previous implementation.
+			 */
+			if (!name)
+				name = to_of_node(fwnode)->name;
 		} else {
 			/*
 			 * GPIO_ACTIVE_LOW is currently the only lookup flag
@@ -1178,7 +1185,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	int base = 0;
 	int ret;
 
-	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
+	gdev = kzalloc_obj(*gdev);
 	if (!gdev)
 		return -ENOMEM;
 	gc->gpiodev = gdev;
@@ -1218,7 +1225,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		goto err_put_device;
 	gdev->ngpio = gc->ngpio;
 
-	gdev->descs = kcalloc(gc->ngpio, sizeof(*gdev->descs), GFP_KERNEL);
+	gdev->descs = kzalloc_objs(*gdev->descs, gc->ngpio);
 	if (!gdev->descs) {
 		ret = -ENOMEM;
 		goto err_put_device;

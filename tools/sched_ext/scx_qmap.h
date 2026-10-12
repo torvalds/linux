@@ -165,12 +165,15 @@ struct qmap_arena {
 
 	/* bpf-internal cmasks (embedded, see struct qmap_cmask) */
 	struct qmap_cmask self_cids;	/* cids this node runs its own tasks on */
+	struct qmap_cmask avail_cids;	/* cids with caps in effect on the cpu */
+	struct qmap_cmask usable_cids;	/* self_cids & avail_cids, placeable right now */
 	struct qmap_cmask idle_cids;	/* idle state of all cids regardless of delegation */
 	struct qmap_cmask rr_cids;	/* the shared pool, as a mask for grant/revoke */
 
 	/* scratch cmasks */
 	struct qmap_cmask to_revoke_cids; /* delta cids to revoke */
 	struct qmap_cmask to_grant_cids; /* delta cids to grant */
+	struct qmap_cmask usable_scratch; /* refresh_usable() build area */
 	struct qmap_cmask prev_rr_cids; /* previous shared pool, to clear stale grants */
 	struct qmap_cmask held_excl;	/* cids held excl (ENQ): delegatable */
 	struct qmap_cmask held_shared;	/* cids held shared (ENQ_IMMED only): self-local */

@@ -2054,12 +2054,10 @@ static int leapraid_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->transportt = leapraid_transport_template;
 	shost->unique_id = adapter->adapter_attr.id;
 
-	snprintf(adapter->fw_evt_s.fw_evt_name,
-		 sizeof(adapter->fw_evt_s.fw_evt_name),
-		 "fw_event_%s%d", LEAPRAID_DRIVER_NAME,
-		 adapter->adapter_attr.id);
 	adapter->fw_evt_s.fw_evt_thread =
-		alloc_ordered_workqueue(adapter->fw_evt_s.fw_evt_name, 0);
+		alloc_ordered_workqueue("fw_event_%s%d", 0,
+					LEAPRAID_DRIVER_NAME,
+					adapter->adapter_attr.id);
 	if (!adapter->fw_evt_s.fw_evt_thread) {
 		dev_err(&adapter->pdev->dev,
 			"%s: Failed to create fw event workqueue\n", __func__);

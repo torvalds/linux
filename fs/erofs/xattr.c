@@ -620,8 +620,8 @@ int erofs_xattr_fill_inode_fingerprint(struct erofs_inode_fingerprint *fp,
 {
 	struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
 	struct erofs_xattr_prefix_item *prefix;
+	int domainlen, valuelen, base_index;
 	const char *infix;
-	int valuelen, base_index;
 
 	if (!test_opt(&sbi->opt, INODE_SHARE))
 		return -EOPNOTSUPP;
@@ -633,17 +633,18 @@ int erofs_xattr_fill_inode_fingerprint(struct erofs_inode_fingerprint *fp,
 	valuelen = erofs_getxattr(inode, base_index, infix, NULL, 0);
 	if (valuelen <= 0 || valuelen > (1 << sbi->blkszbits))
 		return -EFSCORRUPTED;
-	fp->size = valuelen + (domain_id ? strlen(domain_id) : 0);
+	domainlen = strlen(domain_id);
+	fp->size = domainlen + 1 + valuelen;
 	fp->opaque = kmalloc(fp->size, GFP_KERNEL);
 	if (!fp->opaque)
 		return -ENOMEM;
+	memcpy(fp->opaque, domain_id, domainlen + 1);
 	if (valuelen != erofs_getxattr(inode, base_index, infix,
-				       fp->opaque, valuelen)) {
+				       fp->opaque + domainlen + 1, valuelen)) {
 		kfree(fp->opaque);
 		fp->opaque = NULL;
 		return -EFSCORRUPTED;
 	}
-	memcpy(fp->opaque + valuelen, domain_id, fp->size - valuelen);
 	return 0;
 }
 #endif

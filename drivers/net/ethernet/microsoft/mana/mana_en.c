@@ -758,6 +758,44 @@ static void *mana_get_rxbuf_pre(struct mana_rxq *rxq, dma_addr_t *da)
 	return va;
 }
 
+/* Reserve enough headroom to satisfy the skb_cow() in ip_forward() and avoid
+ * reallocation: the TX path keeps the SGE DMA mappings in struct mana_skb_head
+ * at skb->head, so the port advertises ndev->needed_headroom = MANA_HEADROOM.
+ */
+static u32 mana_get_rxbuf_headroom(struct mana_port_context *apc)
+{
+	if (mana_xdp_get(apc))
+		return mana_xdp_headroom(apc->ndev);
+
+	return LL_RESERVED_SPACE(apc->ndev);
+}
+
+static u32 mana_get_rxbuf_size(struct mana_port_context *apc, u32 mtu)
+{
+	u32 len = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD +
+				 mana_get_rxbuf_headroom(apc));
+
+	return ALIGN(len, MANA_RX_FRAG_ALIGNMENT);
+}
+
+/* Returns true when one RX buffer per page is already required by XDP or by
+ * the buffer size implied by the MTU, i.e. regardless of the
+ * MANA_PRIV_FLAG_USE_FULL_PAGE_RXBUF private flag.
+ */
+bool mana_single_rxbuf_per_page_forced(struct mana_port_context *apc, u32 mtu)
+{
+	/* For xdp make sure only one packet fits per page. */
+	if (mana_xdp_get(apc))
+		return true;
+
+	/* Only use the page_pool fragment path when at least two buffers,
+	 * including the headroom each of them has to reserve, actually fit
+	 * into one page. Otherwise the fragment path degenerates into one
+	 * buffer per page while still paying the fragment accounting cost.
+	 */
+	return PAGE_SIZE / mana_get_rxbuf_size(apc, mtu) < 2;
+}
+
 static bool
 mana_use_single_rxbuf_per_page(struct mana_port_context *apc, u32 mtu)
 {
@@ -770,32 +808,27 @@ mana_use_single_rxbuf_per_page(struct mana_port_context *apc, u32 mtu)
 	if (apc->priv_flags & BIT(MANA_PRIV_FLAG_USE_FULL_PAGE_RXBUF))
 		return true;
 
-	/* For xdp and jumbo frames make sure only one packet fits per page. */
-	if (mtu + MANA_RXBUF_PAD > PAGE_SIZE / 2 || mana_xdp_get(apc))
-		return true;
-
-	return false;
+	return mana_single_rxbuf_per_page_forced(apc, mtu);
 }
 
-/* Get RX buffer's data size, alloc size, XDP headroom based on MTU */
+/* Get RX buffer's data size, alloc size, headroom and frag count based on MTU */
 static void mana_get_rxbuf_cfg(struct mana_port_context *apc,
 			       int mtu, u32 *datasize, u32 *alloc_size,
 			       u32 *headroom, u32 *frag_count)
 {
-	u32 len, buf_size;
+	u32 buf_size;
 
 	/* Calculate datasize first (consistent across all cases) */
 	*datasize = mtu + ETH_HLEN;
 
+	*headroom = mana_get_rxbuf_headroom(apc);
+
 	if (mana_use_single_rxbuf_per_page(apc, mtu)) {
-		if (mana_xdp_get(apc)) {
-			*headroom = XDP_PACKET_HEADROOM;
+		if (mana_xdp_get(apc))
 			*alloc_size = PAGE_SIZE;
-		} else {
-			*headroom = 0; /* no support for XDP */
+		else
 			*alloc_size = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD +
 						     *headroom);
-		}
 
 		*frag_count = 1;
 
@@ -809,11 +842,7 @@ static void mana_get_rxbuf_cfg(struct mana_port_context *apc,
 	}
 
 	/* Standard MTU case - optimize for multiple packets per page */
-	*headroom = 0;
-
-	/* Calculate base buffer size needed */
-	len = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD + *headroom);
-	buf_size = ALIGN(len, MANA_RX_FRAG_ALIGNMENT);
+	buf_size = mana_get_rxbuf_size(apc, mtu);
 
 	/* Calculate how many packets can fit in a page */
 	*frag_count = PAGE_SIZE / buf_size;
@@ -2986,6 +3015,10 @@ static int mana_alloc_rx_wqe(struct mana_port_context *apc,
 		*cq_size += COMP_ENTRY_SIZE;
 	}
 
+	/* Reserve an extra slot for Fence completion
+	 * event (CQE_RX_OBJECT_FENCE) in case RX CQ is full.
+	 */
+	*cq_size += COMP_ENTRY_SIZE;
 	return 0;
 }
 
@@ -3080,7 +3113,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 		goto out;
 
 	rq_size = MANA_PAGE_ALIGN(rq_size);
-	cq_size = MANA_PAGE_ALIGN(cq_size);
+	cq_size = MANA_PAGE_ALIGN(roundup_pow_of_two(cq_size));
 
 	/* Create RQ */
 	memset(&spec, 0, sizeof(spec));
@@ -3983,7 +4016,8 @@ static void mana_rdma_service_handle(struct work_struct *work)
 	struct device *dev = gd->gdma_context->dev;
 	int ret;
 
-	if (READ_ONCE(gd->rdma_teardown))
+	/* Pairs with the smp_store_release() in mana_rdma_probe(). */
+	if (smp_load_acquire(&gd->rdma_teardown))
 		goto out;
 
 	switch (serv_work->event) {
@@ -4278,6 +4312,21 @@ int mana_rdma_probe(struct gdma_dev *gd)
 	err = mana_gd_register_device(gd);
 	if (err)
 		return err;
+
+	/* Clear the state left by a previous mana_rdma_remove() so servicing
+	 * events are handled again after a reset cycle.
+	 */
+	gd->is_suspended = false;
+
+	/* Publish is_suspended before re-opening the gate, so the handler
+	 * cannot observe an open gate with a stale is_suspended.  Pairs
+	 * with the smp_load_acquire() in mana_rdma_service_handle().  This
+	 * matters on the reset path, where mana_rdma_remove() closed the
+	 * gate and drained the workqueue; on the initial probe path the
+	 * gate was never closed and both flags are already clear.  It does
+	 * not order gd->adev, which add_adev() publishes below.
+	 */
+	smp_store_release(&gd->rdma_teardown, false);
 
 	err = add_adev(gd, "rdma");
 	if (err)

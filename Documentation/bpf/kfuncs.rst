@@ -486,6 +486,16 @@ Example usage in BPF program:
 	/* note that the last argument is omitted */
         bpf_task_work_schedule_signal(task, &work->tw, &arrmap, task_work_callback);
 
+2.5.10 KF_PERFMON flag
+----------------------
+
+The KF_PERFMON flag is used for kfuncs that can expose kernel memory or kernel
+addresses to the BPF program, for example by reading through a pointer that the
+verifier does not check. Calling such a kfunc requires CAP_PERFMON, or
+CAP_SYS_ADMIN, in the same way that the equivalent BPF helpers are gated in
+bpf_base_func_proto(). A program loaded with CAP_BPF alone is rejected at load
+time.
+
 2.6 Registering the kfuncs
 --------------------------
 

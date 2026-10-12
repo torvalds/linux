@@ -42,6 +42,23 @@ static int usb4_port_compare(struct device *dev, void *fwnode)
 	return usb4_usb3_port_match(dev, fwnode);
 }
 
+static bool typec_has_usb4_host_interface(const struct fwnode_handle *fwnode)
+{
+	if (!IS_REACHABLE(CONFIG_USB4))
+		return false;
+
+	struct fwnode_handle *nhi_fwnode __free(fwnode_handle) =
+		fwnode_find_reference(fwnode, "usb4-host-interface", 0);
+
+	/*
+	 * The USB4 port can only appear if the host interface is enabled in
+	 * the firmware and has been enumerated as a device. The latter is
+	 * the same check as in usb_acpi_add_usb4_devlink().
+	 */
+	return !IS_ERR(nhi_fwnode) && fwnode_device_is_available(nhi_fwnode) &&
+	       nhi_fwnode->dev;
+}
+
 static int typec_port_compare(struct device *dev, void *fwnode)
 {
 	return device_match_fwnode(dev, fwnode);
@@ -64,11 +81,11 @@ static int typec_port_match(struct device *dev, void *data)
 				    adev_fwnode);
 
 		/*
-		 * If dev is USB 3.x port, it may have reference to the
+		 * If dev is USB 3.x port, it may have reference to an available
 		 * USB4 host interface in which case we can also link the
 		 * Type-C port with the USB4 port.
 		 */
-		if (fwnode_property_present(adev_fwnode, "usb4-host-interface"))
+		if (typec_has_usb4_host_interface(adev_fwnode))
 			component_match_add(&arg->port->dev, &arg->match,
 					    usb4_port_compare, adev_fwnode);
 	}

@@ -41,45 +41,60 @@ enum cgbc_sensor_types {
 
 static const char * const cgbc_hwmon_labels_temp[] = {
 	"CPU Temperature",
-	"Box Temperature",
+	"Case Temperature",
 	"Ambient Temperature",
-	"Board Temperature",
-	"Carrier Temperature",
-	"Chipset Temperature",
-	"Video Temperature",
+	"CPU Board Temperature",
+	"Carrier Board Temperature",
+	"System Chipset Temperature",
+	"Video Controller/Board Temperature",
 	"Other Temperature",
-	"TOPDIM Temperature",
-	"BOTTOMDIM Temperature",
+	"Top DIMM 0 Temperature",
+	"Bottom DIMM 0 Temperature",
+	"Alternate Board Temperature",
+	"Top DIMM 1 Temperature",
+	"Top DIMM 2 Temperature",
+	"Top DIMM 3 Temperature",
+	"Top DIMM 4 Temperature",
+	"Top DIMM 5 Temperature",
+	"Top DIMM 6 Temperature",
+	"Top DIMM 7 Temperature",
+	"Bottom DIMM 1 Temperature",
 };
 
+static const char * const cgbc_hwmon_labels_in[] = {
+	"CPU Core Voltage",
+	"DC Runtime Voltage",
+	"DC Standby Voltage",
+	"CMOS Battery Voltage",
+	"Battery Supply Voltage",
+	"AC Voltage",
+	"Other Voltage",
+	"5V Runtime Voltage",
+	"5V Standby Voltage",
+	"3V3 Runtime Voltage",
+	"3V3 Standby Voltage",
+	"VCore A Voltage",
+	"VCore B Voltage",
+	"12V Runtime Voltage",
+	"12V Standby Voltage",
+};
+
+/*
+ * Current sensors are a bit special, they don't have consecutive IDs like
+ * other types of sensors. So they need to be defined explicitly.
+ */
 static const struct {
-	enum hwmon_sensor_types type;
 	const char *label;
-} cgbc_hwmon_labels_in[] = {
-	{ hwmon_in, "CPU Voltage" },
-	{ hwmon_in, "DC Runtime Voltage" },
-	{ hwmon_in, "DC Standby Voltage" },
-	{ hwmon_in, "CMOS Battery Voltage" },
-	{ hwmon_in, "Battery Voltage" },
-	{ hwmon_in, "AC Voltage" },
-	{ hwmon_in, "Other Voltage" },
-	{ hwmon_in, "5V Voltage" },
-	{ hwmon_in, "5V Standby Voltage" },
-	{ hwmon_in, "3V3 Voltage" },
-	{ hwmon_in, "3V3 Standby Voltage" },
-	{ hwmon_in, "VCore A Voltage" },
-	{ hwmon_in, "VCore B Voltage" },
-	{ hwmon_in, "12V Voltage" },
-	{ hwmon_curr, "DC Current" },
-	{ hwmon_curr, "5V Current" },
-	{ hwmon_curr, "12V Current" },
+	int id;
+} cgbc_hwmon_labels_curr[] = {
+	{ "DC Runtime Current", 0x12 },
+	{ "5V Runtime Current", 0x18 },
+	{ "12V Runtime Current", 0x1E },
 };
-
-#define CGBC_HWMON_NB_IN_SENSORS	14
 
 static const char * const cgbc_hwmon_labels_fan[] = {
 	"CPU Fan",
-	"Box Fan",
+	"Case Fan",
 	"Ambient Fan",
 	"Chipset Fan",
 	"Video Fan",
@@ -114,7 +129,8 @@ static int cgbc_hwmon_probe_sensors(struct device *dev, struct cgbc_hwmon_data *
 
 	for (i = 0; i < nb_sensors; i++) {
 		enum cgbc_sensor_types type;
-		unsigned int channel;
+		unsigned int channel, id;
+		int j;
 
 		/*
 		 * No need to request data for the first sensor.
@@ -128,32 +144,49 @@ static int cgbc_hwmon_probe_sensors(struct device *dev, struct cgbc_hwmon_data *
 		}
 
 		type = FIELD_GET(CGBC_HWMON_TYPE_MASK, data[1]);
-		channel = FIELD_GET(CGBC_HWMON_ID_MASK, data[1]) - 1;
+		id = FIELD_GET(CGBC_HWMON_ID_MASK, data[1]);
+		channel = id - 1;
 
 		if (type == CGBC_HWMON_TYPE_TEMP && channel < ARRAY_SIZE(cgbc_hwmon_labels_temp)) {
 			sensor->type = hwmon_temp;
 			sensor->label = cgbc_hwmon_labels_temp[channel];
-		} else if (type == CGBC_HWMON_TYPE_IN &&
-			   channel < ARRAY_SIZE(cgbc_hwmon_labels_in)) {
+		} else if (type == CGBC_HWMON_TYPE_IN) {
 			/*
 			 * The Board Controller doesn't differentiate current and voltage sensors.
-			 * Get the sensor type from cgbc_hwmon_labels_in[channel].type instead.
+			 * First check if it is a current sensor.
 			 */
-			sensor->type = cgbc_hwmon_labels_in[channel].type;
-			sensor->label = cgbc_hwmon_labels_in[channel].label;
+			for (j = 0; j < ARRAY_SIZE(cgbc_hwmon_labels_curr); j++) {
+				if (id == cgbc_hwmon_labels_curr[j].id) {
+					sensor->type = hwmon_curr;
+					sensor->label = cgbc_hwmon_labels_curr[j].label;
+					channel = j;
+				}
+			}
+
+			/* If it's not a current sensor, it may be a voltage sensor. */
+			if (!sensor->label && channel < ARRAY_SIZE(cgbc_hwmon_labels_in)) {
+				sensor->type = hwmon_in;
+				sensor->label = cgbc_hwmon_labels_in[channel];
+			}
 		} else if (type == CGBC_HWMON_TYPE_FAN &&
 			   channel < ARRAY_SIZE(cgbc_hwmon_labels_fan)) {
 			sensor->type = hwmon_fan;
 			sensor->label = cgbc_hwmon_labels_fan[channel];
-		} else {
-			dev_warn(dev, "Board Controller returned an unknown sensor (type=%d, channel=%d), ignore it",
-				 type, channel);
+		}
+
+		if (!sensor->label) {
+			dev_warn(dev, "Board Controller returned an unknown sensor (bc_type=%d, bc_id=%d), ignore it",
+				 type, id);
 			continue;
 		}
 
 		sensor->active = FIELD_GET(CGBC_HWMON_ACTIVE_BIT, data[1]);
 		sensor->channel = channel;
 		sensor->index = i;
+
+		dev_dbg(dev, "Found sensor: bc_type=%d, bc_id=%d, hwmon_type=%d, hwmon_channel=%d, hwmon_label='%s', active=%d\n",
+			type, id, sensor->type, sensor->channel, sensor->label, sensor->active);
+
 		sensor++;
 		hwmon->nb_sensors++;
 	}
@@ -166,14 +199,6 @@ static struct cgbc_hwmon_sensor *cgbc_hwmon_find_sensor(struct cgbc_hwmon_data *
 {
 	struct cgbc_hwmon_sensor *sensor = NULL;
 	int i;
-
-	/*
-	 * The Board Controller doesn't differentiate current and voltage sensors.
-	 * The channel value (from the Board Controller point of view) shall be computed for current
-	 * sensors.
-	 */
-	if (type == hwmon_curr)
-		channel += CGBC_HWMON_NB_IN_SENSORS;
 
 	for (i = 0; i < hwmon->nb_sensors; i++) {
 		if (hwmon->sensors[i].type == type && hwmon->sensors[i].channel == channel) {
@@ -240,7 +265,12 @@ static const struct hwmon_channel_info * const cgbc_hwmon_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL),
+			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
 			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
@@ -248,7 +278,8 @@ static const struct hwmon_channel_info * const cgbc_hwmon_info[] = {
 			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
 			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
 			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
-			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL),
+			   HWMON_I_INPUT | HWMON_I_LABEL, HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL),
 	HWMON_CHANNEL_INFO(curr,
 			   HWMON_C_INPUT | HWMON_C_LABEL, HWMON_C_INPUT | HWMON_C_LABEL,
 			   HWMON_C_INPUT | HWMON_C_LABEL),

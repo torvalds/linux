@@ -163,12 +163,24 @@
 #define HGATP_MODE_SHIFT	HGATP32_MODE_SHIFT
 #endif
 
-/* VSIP & HVIP relation */
+/*
+ * VSIP & HVIP relation
+ *
+ * The bit positions are same between VSIP and HVIP for interrupt
+ * numbers 13-63, where there's a shift for the SSI, STI and SEI.
+ */
 #define VSIP_TO_HVIP_SHIFT	(IRQ_VS_SOFT - IRQ_S_SOFT)
-#define VSIP_VALID_MASK		((_AC(1, UL) << IRQ_S_SOFT) | \
+#define VSIP_BIAS_MASK		((_AC(1, UL) << IRQ_S_SOFT) | \
 				 (_AC(1, UL) << IRQ_S_TIMER) | \
-				 (_AC(1, UL) << IRQ_S_EXT) | \
-				 (_AC(1, UL) << IRQ_PMU_OVF))
+				 (_AC(1, UL) << IRQ_S_EXT))
+#define VSIP_NO_BIAS_MASK	(_AC(1, UL) << IRQ_PMU_OVF)
+#define VSIP_VALID_MASK		(VSIP_BIAS_MASK | VSIP_NO_BIAS_MASK)
+#define vsip_to_hvip(_vsip)	((((_vsip) & VSIP_BIAS_MASK) << \
+				  VSIP_TO_HVIP_SHIFT) | \
+				 ((_vsip) & VSIP_NO_BIAS_MASK))
+#define hvip_to_vsip(_hvip)	((((_hvip) >> VSIP_TO_HVIP_SHIFT) & \
+				  VSIP_BIAS_MASK) | \
+				 ((_hvip) & VSIP_NO_BIAS_MASK))
 
 /* AIA CSR bits */
 #define TOPI_IID_SHIFT		16

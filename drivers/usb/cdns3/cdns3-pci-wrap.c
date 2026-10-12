@@ -96,6 +96,11 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 
 	if (pci_is_enabled(func)) {
 		wrap = pci_get_drvdata(func);
+		if (!wrap) {
+			dev_err(&pdev->dev,
+				"second function not initialized, retrying\n");
+			return -EPROBE_DEFER;
+		}
 	} else {
 		wrap = kzalloc_obj(*wrap);
 		if (!wrap)

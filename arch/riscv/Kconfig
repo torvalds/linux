@@ -326,7 +326,7 @@ config STACKTRACE_SUPPORT
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
-	select GENERIC_BUG_RELATIVE_POINTERS if 64BIT
+	select GENERIC_BUG_RELATIVE_POINTERS
 
 config GENERIC_BUG_RELATIVE_POINTERS
 	bool
@@ -453,9 +453,10 @@ config SMP
 config NR_CPUS
 	int "Maximum number of CPUs (2-512)"
 	depends on SMP
-	range 2 512 if !RISCV_SBI_V01
-	range 2 32 if RISCV_SBI_V01 && 32BIT
+	range 2 512 if !RISCV_SBI_V01 && 64BIT
+	range 2 128 if !RISCV_SBI_V01 && 32BIT
 	range 2 64 if RISCV_SBI_V01 && 64BIT
+	range 2 32 if RISCV_SBI_V01 && 32BIT
 	default "32" if 32BIT
 	default "64" if RISCV_SBI_V01 && 64BIT
 	default "256" if !RISCV_SBI_V01 && 64BIT

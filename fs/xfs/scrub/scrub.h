@@ -40,7 +40,7 @@ static inline int xchk_maybe_relax(struct xchk_relax *widget)
 		return 0;
 	widget->resched_nr = 0;
 
-	if (unlikely(widget->next_resched <= jiffies)) {
+	if (unlikely(time_after_eq(jiffies, widget->next_resched))) {
 		cond_resched();
 		widget->next_resched = XCHK_RELAX_NEXT;
 	}
@@ -261,7 +261,6 @@ static inline int xchk_nothing(struct xfs_scrub *sc)
 }
 
 /* Metadata scrubbers */
-int xchk_tester(struct xfs_scrub *sc);
 int xchk_superblock(struct xfs_scrub *sc);
 int xchk_agf(struct xfs_scrub *sc);
 int xchk_agfl(struct xfs_scrub *sc);

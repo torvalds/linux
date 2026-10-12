@@ -411,16 +411,13 @@ int gpu_buddy_init(struct gpu_buddy *mm, u64 size, u64 chunk_size)
 	if (!mm->used_scoreboard)
 		goto out_free_free_scoreboard;
 
-	mm->free_trees = kmalloc_array(GPU_BUDDY_MAX_FREE_TREES,
-				       sizeof(*mm->free_trees),
-				       GFP_KERNEL);
+	mm->free_trees = kmalloc_objs(*mm->free_trees, GPU_BUDDY_MAX_FREE_TREES);
 	if (!mm->free_trees)
 		goto out_free_used_scoreboard;
 
 	for_each_free_tree(i) {
-		mm->free_trees[i] = kmalloc_array(mm->max_order + 1,
-						  sizeof(struct rb_root),
-						  GFP_KERNEL);
+		mm->free_trees[i] = kmalloc_objs(struct rb_root,
+						 mm->max_order + 1);
 		if (!mm->free_trees[i])
 			goto out_free_tree;
 
@@ -430,9 +427,7 @@ int gpu_buddy_init(struct gpu_buddy *mm, u64 size, u64 chunk_size)
 
 	mm->n_roots = hweight64(size);
 
-	mm->roots = kmalloc_array(mm->n_roots,
-				  sizeof(struct gpu_buddy_block *),
-				  GFP_KERNEL);
+	mm->roots = kmalloc_objs(struct gpu_buddy_block *, mm->n_roots);
 	if (!mm->roots)
 		goto out_free_tree;
 

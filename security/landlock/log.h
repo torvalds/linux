@@ -15,6 +15,8 @@
 
 struct landlock_cred_security;
 struct landlock_hierarchy;
+struct sockaddr;
+struct task_struct;
 
 enum landlock_request_type {
 	LANDLOCK_REQUEST_PTRACE = 1,
@@ -24,6 +26,31 @@ enum landlock_request_type {
 	LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
 	LANDLOCK_REQUEST_SCOPE_SIGNAL,
 };
+
+struct landlock_blockers {
+	access_mask_t access;
+	enum landlock_request_type type;
+};
+
+#ifdef CONFIG_TRACEPOINTS
+
+struct landlock_net_trace {
+	const struct sockaddr *address;
+	int addrlen;
+	u16 socket_family;
+};
+
+struct landlock_ptrace_trace {
+	u64 tracee_domain_id;
+	const struct task_struct *tracer;
+};
+
+struct landlock_signal_trace {
+	u64 target_domain_id;
+	int signal;
+};
+
+#endif /* CONFIG_TRACEPOINTS */
 
 /*
  * We should be careful to only use a variable of this type for
@@ -52,13 +79,24 @@ struct landlock_request {
 	deny_masks_t deny_masks;
 	optional_access_t quiet_optional_accesses;
 
-	/*
-	 * Other-party domain ID for a relational (scope/ptrace) denial, or 0 if
-	 * that party is unsandboxed.  An ID, not a pointer: the other task can
-	 * replace its credential and free the domain it referenced.  Trace path
-	 * only; audit ignores it.
-	 */
-	u64 other_domain_id;
+#ifdef CONFIG_TRACEPOINTS
+	union {
+		/*
+		 * Other-party domain ID for an abstract UNIX socket scope
+		 * denial, or 0 if that party is unsandboxed.  Store an ID, not
+		 * a pointer: the other task can replace its credential and free
+		 * the domain it referenced.
+		 */
+		u64 other_domain_id;
+
+		/* Synchronous context for a network denial. */
+		const struct landlock_net_trace *trace_net;
+		/* Synchronous context for a ptrace denial. */
+		const struct landlock_ptrace_trace *trace_ptrace;
+		/* Synchronous context for a signal denial. */
+		const struct landlock_signal_trace *trace_signal;
+	};
+#endif /* CONFIG_TRACEPOINTS */
 };
 
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG

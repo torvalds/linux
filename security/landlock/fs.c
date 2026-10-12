@@ -356,14 +356,14 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 	 * held for BTF consistency (enforced by lockdep_assert_held in
 	 * TP_fast_assign).
 	 */
-	if (!err && trace_landlock_add_rule_fs_enabled()) {
+	if (!err && trace_landlock_add_rule_path_beneath_enabled()) {
 		char *buffer __free(__putname) = __getname();
 		const char *pathname =
 			buffer ? resolve_path_for_trace(path, buffer) :
 				 "<no_mem>";
 
-		trace_landlock_add_rule_fs(ruleset, access_rights, path,
-					   pathname);
+		trace_landlock_add_rule_path_beneath(
+			ruleset, flags, access_rights, path, pathname);
 	}
 	mutex_unlock(&ruleset->lock);
 
@@ -423,8 +423,8 @@ static bool unmask_layers_fs(const struct landlock_domain *const domain,
 
 	ret = landlock_unmask_layers(domain, id, masks, &rule);
 	if (rule)
-		trace_landlock_check_rule_fs(domain, rule, access_request,
-					     dentry);
+		trace_landlock_check_rule_inode(domain, rule, access_request,
+						dentry);
 	return ret;
 }
 
@@ -1298,11 +1298,12 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	/*
 	 * old_dentry may be the root of the common mount point and
 	 * !IS_ROOT(old_dentry) at the same time (e.g. with open_tree() and
-	 * OPEN_TREE_CLONE).  We do not need to call dget(old_parent) because
-	 * we keep a reference to old_dentry.
+	 * OPEN_TREE_CLONE).  Pin the dentry used as old_parent in either case.
+	 * Otherwise, dget_parent() safely fetches and pins the current parent
+	 * against a concurrent rename(2).
 	 */
-	old_parent = (old_dentry == mnt_dir.dentry) ? old_dentry :
-						      old_dentry->d_parent;
+	old_parent = (old_dentry == mnt_dir.dentry) ? dget(old_dentry) :
+						      dget_parent(old_dentry);
 
 	/* new_dir->dentry is equal to new_dentry->d_parent */
 	allow_parent1 = collect_domain_accesses(subject->domain, mnt_dir.dentry,
@@ -1311,8 +1312,10 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	allow_parent2 = collect_domain_accesses(subject->domain, mnt_dir.dentry,
 						new_dir->dentry,
 						&layer_masks_parent2);
-	if (allow_parent1 && allow_parent2)
+	if (allow_parent1 && allow_parent2) {
+		dput(old_parent);
 		return 0;
+	}
 
 	/*
 	 * To be able to compare source and destination domain access rights,
@@ -1324,8 +1327,10 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 		    subject->domain, &mnt_dir, access_request_parent1,
 		    &layer_masks_parent1, &request1, old_dentry,
 		    access_request_parent2, &layer_masks_parent2, &request2,
-		    exchange ? new_dentry : NULL))
+		    exchange ? new_dentry : NULL)) {
+		dput(old_parent);
 		return 0;
+	}
 
 	if (request1.access) {
 		request1.audit.u.path.dentry = old_parent;
@@ -1335,6 +1340,7 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 		request2.audit.u.path.dentry = new_dir->dentry;
 		landlock_log_denial(subject, &request2);
 	}
+	dput(old_parent);
 
 	/*
 	 * This prioritizes EACCES over EXDEV for all actions, including

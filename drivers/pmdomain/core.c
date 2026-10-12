@@ -2962,7 +2962,7 @@ int of_genpd_add_child_ids(struct device_node *np,
 		return -EINVAL;
 
 	/* Allocate tracking array for error unwind (parent/child pairs) */
-	pairs = kmalloc_array(count * 2, sizeof(*pairs), GFP_KERNEL);
+	pairs = kmalloc_objs(*pairs, count * 2);
 	if (!pairs)
 		return -ENOMEM;
 

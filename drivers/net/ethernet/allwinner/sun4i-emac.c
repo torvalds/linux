@@ -300,7 +300,7 @@ static int emac_dma_inblk_32bit(struct emac_board_info *db,
 	if (!req) {
 		dev_err(db->dev, "alloc emac dma req error.\n");
 		ret = -ENOMEM;
-		goto alloc_req_err;
+		goto prepare_err;
 	}
 
 	desc->callback_param = req;
@@ -318,9 +318,6 @@ static int emac_dma_inblk_32bit(struct emac_board_info *db,
 
 submit_err:
 	emac_free_dma_req(req);
-
-alloc_req_err:
-	dmaengine_desc_free(desc);
 
 prepare_err:
 	dma_unmap_single(db->dev, rxbuf, count, DMA_FROM_DEVICE);
@@ -1067,6 +1064,7 @@ static int emac_probe(struct platform_device *pdev)
 	return 0;
 
 out_release_sram:
+	of_node_put(db->phy_node);
 	sunxi_sram_release(&pdev->dev);
 out_clk_disable_unprepare:
 	clk_disable_unprepare(db->clk);
@@ -1094,6 +1092,7 @@ static void emac_remove(struct platform_device *pdev)
 	}
 
 	unregister_netdev(ndev);
+	of_node_put(db->phy_node);
 	sunxi_sram_release(&pdev->dev);
 	clk_disable_unprepare(db->clk);
 	irq_dispose_mapping(ndev->irq);

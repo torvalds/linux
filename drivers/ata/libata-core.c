@@ -2972,9 +2972,10 @@ static void ata_dev_config_lpm(struct ata_device *dev)
 		    (dev->id[ATA_ID_SATA_CAPABILITY] & 0xe) == 0x2)
 			dev->quirks |= ATA_QUIRK_NOLPM;
 
-		/* ATI specific quirk */
-		if ((dev->quirks & ATA_QUIRK_NO_LPM_ON_ATI) &&
-		    ata_dev_check_adapter(dev, PCI_VENDOR_ID_ATI))
+		/* ATI and AMD specific quirk */
+		if ((dev->quirks & ATA_QUIRK_NO_LPM_ON_ATI_AND_AMD) &&
+		    (ata_dev_check_adapter(dev, PCI_VENDOR_ID_ATI) ||
+		     ata_dev_check_adapter(dev, PCI_VENDOR_ID_AMD)))
 			dev->quirks |= ATA_QUIRK_NOLPM;
 	}
 
@@ -4136,7 +4137,7 @@ static const char * const ata_quirk_names[] = {
 	[__ATA_QUIRK_MAX_SEC]		= "maxsec",
 	[__ATA_QUIRK_MAX_TRIM_128M]	= "maxtrim128m",
 	[__ATA_QUIRK_NO_NCQ_ON_ATI]	= "noncqonati",
-	[__ATA_QUIRK_NO_LPM_ON_ATI]	= "nolpmonati",
+	[__ATA_QUIRK_NO_LPM_ON_ATI_AND_AMD] = "nolpmonatiandamd",
 	[__ATA_QUIRK_NO_ID_DEV_LOG]	= "noiddevlog",
 	[__ATA_QUIRK_NO_LOG_DIR]	= "nologdir",
 	[__ATA_QUIRK_NO_FUA]		= "nofua",
@@ -4420,15 +4421,15 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 	{ "Samsung SSD 860*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
 						ATA_QUIRK_ZERO_AFTER_TRIM |
 						ATA_QUIRK_NO_NCQ_ON_ATI |
-						ATA_QUIRK_NO_LPM_ON_ATI },
+						ATA_QUIRK_NO_LPM_ON_ATI_AND_AMD },
 	{ "Samsung SSD 870*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
 						ATA_QUIRK_ZERO_AFTER_TRIM |
 						ATA_QUIRK_NO_NCQ_ON_ATI |
-						ATA_QUIRK_NO_LPM_ON_ATI },
+						ATA_QUIRK_NO_LPM_ON_ATI_AND_AMD },
 	{ "SAMSUNG*MZ7LH*",		NULL,	ATA_QUIRK_NO_NCQ_TRIM |
 						ATA_QUIRK_ZERO_AFTER_TRIM |
 						ATA_QUIRK_NO_NCQ_ON_ATI |
-						ATA_QUIRK_NO_LPM_ON_ATI },
+						ATA_QUIRK_NO_LPM_ON_ATI_AND_AMD },
 	{ "FCCT*M500*",			NULL,	ATA_QUIRK_NO_NCQ_TRIM |
 						ATA_QUIRK_ZERO_AFTER_TRIM },
 

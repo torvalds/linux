@@ -2136,7 +2136,7 @@ static void imx_uart_console_write_atomic(struct console *co,
 	imx_uart_writel(sport, ucr1, UCR1);
 	imx_uart_writel(sport, old_ucr.ucr2 | UCR2_TXEN, UCR2);
 
-	if (!sport->last_putchar_was_newline)
+	if (unlikely(!sport->last_putchar_was_newline && !nbcon_is_braille(co)))
 		uart_console_write(port, "\n", 1, imx_uart_console_putchar);
 	uart_console_write(port, wctxt->outbuf, wctxt->len,
 			   imx_uart_console_putchar);

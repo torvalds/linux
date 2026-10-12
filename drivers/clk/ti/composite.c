@@ -52,7 +52,7 @@ static const struct clk_ops ti_composite_gate_ops = {
 
 struct component_clk {
 	int num_parents;
-	struct clk_parent_data *parent_data;
+	const char **parent_names;
 	struct device_node *node;
 	int type;
 	struct clk_hw *hw;
@@ -116,7 +116,7 @@ static void __init _register_composite(void *user,
 	struct clk_hw_omap_comp *cclk = to_clk_hw_comp(hw);
 	struct component_clk *comp;
 	int num_parents = 0;
-	struct clk_parent_data *parent_data = NULL;
+	const char **parent_names = NULL;
 	const char *name;
 	int i;
 	int ret;
@@ -155,7 +155,7 @@ static void __init _register_composite(void *user,
 			continue;
 		if (comp->num_parents) {
 			num_parents = comp->num_parents;
-			parent_data = comp->parent_data;
+			parent_names = comp->parent_names;
 			break;
 		}
 	}
@@ -166,8 +166,8 @@ static void __init _register_composite(void *user,
 	}
 
 	name = ti_dt_clk_name(node);
-	clk = clk_register_composite_pdata(NULL, name,
-				     parent_data, num_parents,
+	clk = clk_register_composite(NULL, name,
+				     parent_names, num_parents,
 				     _get_hw(cclk, CLK_COMPONENT_TYPE_MUX),
 				     &ti_clk_mux_ops,
 				     _get_hw(cclk, CLK_COMPONENT_TYPE_DIVIDER),
@@ -190,7 +190,7 @@ cleanup:
 		if (!cclk->comp_clks[i])
 			continue;
 		list_del(&cclk->comp_clks[i]->link);
-		kfree(cclk->comp_clks[i]->parent_data);
+		kfree(cclk->comp_clks[i]->parent_names);
 		kfree(cclk->comp_clks[i]);
 	}
 
@@ -237,9 +237,8 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 				int type)
 {
 	unsigned int num_parents;
-	struct clk_parent_data *parent_data;
+	const char **parent_names;
 	struct component_clk *clk;
-	unsigned int i;
 
 	num_parents = of_clk_get_parent_count(node);
 
@@ -248,21 +247,20 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 		return -EINVAL;
 	}
 
-	parent_data = kcalloc(num_parents, sizeof(*parent_data), GFP_KERNEL);
-	if (!parent_data)
+	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
+	if (!parent_names)
 		return -ENOMEM;
 
-	for (i = 0; i < num_parents; i++)
-		parent_data[i].index = i;
+	of_clk_parent_fill(node, parent_names, num_parents);
 
 	clk = kzalloc_obj(*clk);
 	if (!clk) {
-		kfree(parent_data);
+		kfree(parent_names);
 		return -ENOMEM;
 	}
 
 	clk->num_parents = num_parents;
-	clk->parent_data = parent_data;
+	clk->parent_names = parent_names;
 	clk->hw = hw;
 	clk->node = node;
 	clk->type = type;

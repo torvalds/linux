@@ -439,9 +439,10 @@ landlock_merge_ruleset(struct landlock_domain *const parent,
 	int err;
 
 	might_sleep();
-	lockdep_assert_held(&ruleset->lock);
 	if (WARN_ON_ONCE(!ruleset))
 		return ERR_PTR(-EINVAL);
+
+	lockdep_assert_held(&ruleset->lock);
 
 	if (parent) {
 		if (parent->num_layers >= LANDLOCK_MAX_NUM_LAYERS)

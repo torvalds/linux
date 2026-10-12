@@ -2734,6 +2734,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	}
 
 	clk_rate = clk_get_rate(clk);
+	clk_put(clk);
 	if (!clk_rate) {
 		err = -EINVAL;
 		dev_err(&of_dev->dev, "%s: Failed to determine FM%d clock rate\n",

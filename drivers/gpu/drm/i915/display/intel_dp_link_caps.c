@@ -3,6 +3,8 @@
  * Copyright © 2026 Intel Corporation
  */
 
+#include <kunit/visibility.h>
+
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/log2.h>
@@ -426,12 +428,15 @@ calc_allowed_config_filter(struct intel_dp_link_caps *link_caps,
 			   const struct intel_dp_link_config *forced_params)
 {
 	struct intel_dp_link_caps_filter allowed_configs = INTEL_DP_LINK_CAPS_FILTER_NONE;
+	struct intel_display *display = to_intel_display(link_caps->dp);
 	struct intel_dp_link_caps_order order = bw_desc_config_order();
 	struct intel_dp_link_caps_iter iter;
 	struct intel_dp_link_config config;
 
 	iter_start(&iter, link_caps, order, enabled_configs);
 	for_each_dp_link_config(&iter, &config) {
+		int config_idx;
+
 		if (forced_params->rate &&
 		    forced_params->rate != config.rate)
 			continue;
@@ -446,7 +451,11 @@ calc_allowed_config_filter(struct intel_dp_link_caps *link_caps,
 		if (config.lane_count > max_limits->lane_count)
 			continue;
 
-		allowed_configs.config_mask |= BIT(iter_pos_to_idx(link_caps, order, iter.pos));
+		config_idx = iter_pos_to_idx(link_caps, order, iter.pos);
+		if (drm_WARN_ON(display->drm, config_idx < 0))
+			continue;
+
+		allowed_configs.config_mask |= BIT(config_idx);
 	}
 	intel_dp_link_caps_iter_end(&iter);
 
@@ -1295,14 +1304,14 @@ void intel_dp_link_caps_cleanup(struct intel_dp_link_caps *link_caps)
 const struct intel_dp_link_caps_test_ops i915_display_dp_link_caps_test_ops = {
 	INTEL_DP_LINK_CAPS_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(i915_display_dp_link_caps_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(i915_display_dp_link_caps_test_ops);
 
 #else
 
 const struct intel_dp_link_caps_test_ops intel_display_dp_link_caps_test_ops = {
 	INTEL_DP_LINK_CAPS_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(intel_display_dp_link_caps_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(intel_display_dp_link_caps_test_ops);
 
 #endif	/* I915 */
 

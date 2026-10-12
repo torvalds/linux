@@ -8,9 +8,11 @@
  */
 #ifndef __S390_PCI_REPORT_H
 #define __S390_PCI_REPORT_H
+#include <linux/pci.h>
 
 struct zpci_dev;
 
-int zpci_report_status(struct zpci_dev *zdev, const char *operation, const char *status);
+int zpci_report_status(struct zpci_dev *zdev, struct pci_dev *pdev,
+		       const char *operation, const char *status);
 
 #endif /* __S390_PCI_REPORT_H */

@@ -115,8 +115,8 @@ static int adp5585_keys_parse_fw(const struct adp5585_dev *adp5585,
 				     "Too many keypad pins (%d) defined (max=%d)\n",
 				     n_pins, adp5585->n_pins);
 
-	unsigned int *keypad_pins __free(kfree) = kcalloc(n_pins, sizeof(*keypad_pins),
-							  GFP_KERNEL);
+	unsigned int *keypad_pins __free(kfree) = kzalloc_objs(*keypad_pins,
+							       n_pins);
 	if (!keypad_pins)
 		return -ENOMEM;
 

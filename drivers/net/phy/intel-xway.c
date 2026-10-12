@@ -16,6 +16,11 @@
 #define XWAY_MDIO_ISTAT			0x1A	/* interrupt status */
 #define XWAY_MDIO_LED			0x1B	/* led control */
 
+#define XWAY_MDIO_GCTRL_TM_MASK		GENMASK(15, 13)
+#define XWAY_MDIO_GCTRL_TM(mode)	FIELD_PREP(XWAY_MDIO_GCTRL_TM_MASK, (mode))
+#define XWAY_MDIO_GCTRL_TM_NOP		XWAY_MDIO_GCTRL_TM(0)	/* Normal operation */
+#define XWAY_MDIO_GCTRL_TM_CDIAG	XWAY_MDIO_GCTRL_TM(6)	/* Cable diagnostics */
+
 #define XWAY_MDIO_ERRCNT_SEL		GENMASK(11, 8)
 #define XWAY_MDIO_ERRCNT_COUNT		GENMASK(7, 0)
 #define XWAY_MDIO_ERRCNT_SEL_RXERR	0
@@ -324,6 +329,28 @@ static int xway_gphy_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 
 	return 0;
+}
+
+static int xway_11g_int_config_init(struct phy_device *phydev)
+{
+	int err;
+
+	/* An issue has been sporadically observed after device power-on on the
+	 * first link-up attempt in 100BASE-TX mode resulting in either the
+	 * link-up taking a long time, or failing to link-up altogether.
+	 *
+	 * Workaround:
+	 * After power-on, enable Cable Diagnostic Mode for all ports and
+	 * disable it.
+	 */
+	err = phy_modify(phydev, MII_CTRL1000, XWAY_MDIO_GCTRL_TM_MASK, XWAY_MDIO_GCTRL_TM_CDIAG);
+	if (err)
+		return err;
+	err = phy_modify(phydev, MII_CTRL1000, XWAY_MDIO_GCTRL_TM_MASK, XWAY_MDIO_GCTRL_TM_NOP);
+	if (err)
+		return err;
+
+	return xway_gphy_config_init(phydev);
 }
 
 static int xway_gphy14_config_aneg(struct phy_device *phydev)
@@ -735,7 +762,7 @@ static struct phy_driver xway_gphy[] = {
 		.phy_id_mask	= 0xffffffff,
 		.name		= "Intel XWAY PHY11G (xRX v1.2 integrated)",
 		/* PHY_GBIT_FEATURES */
-		.config_init	= xway_gphy_config_init,
+		.config_init	= xway_11g_int_config_init,
 		.probe		= xway_gphy_probe,
 		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,

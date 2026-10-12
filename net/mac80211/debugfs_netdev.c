@@ -657,6 +657,9 @@ static ssize_t ieee80211_if_fmt_tsf(
 	struct ieee80211_local *local = sdata->local;
 	u64 tsf;
 
+	if (!ieee80211_sdata_running((struct ieee80211_sub_if_data *)sdata))
+		return -ENETDOWN;
+
 	tsf = drv_get_tsf(local, (struct ieee80211_sub_if_data *)sdata);
 
 	return scnprintf(buf, buflen, "0x%016llx\n", (unsigned long long) tsf);
@@ -669,6 +672,9 @@ static ssize_t ieee80211_if_parse_tsf(
 	unsigned long long tsf;
 	int ret;
 	int tsf_is_delta = 0;
+
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
 
 	if (strncmp(buf, "reset", 5) == 0) {
 		if (local->ops->reset_tsf) {
@@ -728,6 +734,9 @@ static ssize_t ieee80211_if_parse_active_links(struct ieee80211_sub_if_data *sda
 
 	if (kstrtou16(buf, 0, &active_links) || !active_links)
 		return -EINVAL;
+
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
 
 	return ieee80211_set_active_links(&sdata->vif, active_links) ?: buflen;
 }

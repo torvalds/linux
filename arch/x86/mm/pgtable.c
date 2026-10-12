@@ -705,46 +705,36 @@ int pmd_clear_huge(pmd_t *pmd)
 }
 
 #ifdef CONFIG_X86_64
-/**
- * pud_free_pmd_page - Clear PUD entry and free PMD page
- * @pud: Pointer to a PUD
- * @addr: Virtual address associated with PUD
- *
- * Context: The PUD range has been unmapped and TLB purged.
- * Return: 1 if clearing the entry succeeded. 0 otherwise.
- *
- * NOTE: Callers must allow a single page allocation.
+/*
+ * Given a PUD poitner, detach and free the pointed-to
+ * PMD page and any PTE page children. The entire range
+ * under the PUD must not have any valid translations
+ * and the TLB must have already been flushed.
  */
 int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 {
-	pmd_t *pmd, *pmd_sv;
 	struct ptdesc *pt;
+	pmd_t *pmd;
 	int i;
 
 	pmd = pud_pgtable(*pud);
-	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
-	if (!pmd_sv)
-		return 0;
 
-	for (i = 0; i < PTRS_PER_PMD; i++) {
-		pmd_sv[i] = pmd[i];
-		if (!pmd_none(pmd[i]))
-			pmd_clear(&pmd[i]);
-	}
-
+	/* Detach the PMD page: */
 	pud_clear(pud);
 
-	/* INVLPG to clear all paging-structure caches */
+	/*
+	 * PMD and all its descendents are unreachable
+	 * via normal page walks. Make them unreachable
+	 * in cached mid-level walks too:
+	 */
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		if (!pmd_none(pmd_sv[i])) {
-			pt = page_ptdesc(pmd_page(pmd_sv[i]));
+		if (!pmd_none(pmd[i])) {
+			pt = page_ptdesc(pmd_page(pmd[i]));
 			pagetable_dtor_free(pt);
 		}
 	}
-
-	free_page((unsigned long)pmd_sv);
 
 	pmd_free(&init_mm, pmd);
 

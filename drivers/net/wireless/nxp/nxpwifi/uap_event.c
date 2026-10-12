@@ -75,6 +75,7 @@ nxpwifi_uap_event_sta_deauth(struct nxpwifi_private *priv)
 		nxpwifi_del_tx_ba_stream_tbl_by_ra(priv, deauth_mac);
 	}
 	nxpwifi_wmm_del_peer_ra_list(priv, deauth_mac);
+	nxpwifi_del_sta_entry(priv, deauth_mac);
 
 	return 0;
 }
@@ -88,7 +89,7 @@ nxpwifi_uap_event_sta_assoc(struct nxpwifi_private *priv)
 	struct nxpwifi_sta_node *node;
 	int len, i;
 
-	sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return -ENOMEM;
 

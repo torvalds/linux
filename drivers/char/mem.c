@@ -503,7 +503,7 @@ static int mmap_zero_prepare(struct vm_area_desc *desc)
 #ifndef CONFIG_MMU
 	return -ENOSYS;
 #endif
-	if (vma_desc_test(desc, VMA_SHARED_BIT))
+	if (vma_desc_test(desc, VMA_MAYSHARE_BIT))
 		return shmem_zero_setup_desc(desc);
 
 	/*

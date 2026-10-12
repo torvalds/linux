@@ -24,7 +24,7 @@
 struct pcm_urb {
 	struct hiface_chip *chip;
 
-	struct urb instance;
+	struct urb *instance;
 	struct usb_anchor submitted;
 	u8 *buffer;
 };
@@ -193,7 +193,7 @@ static void hiface_pcm_stream_stop(struct pcm_runtime *rt)
 			if (!time)
 				usb_kill_anchored_urbs(
 					&rt->out_urbs[i].submitted);
-			usb_kill_urb(&rt->out_urbs[i].instance);
+			usb_kill_urb(rt->out_urbs[i].instance);
 		}
 
 		rt->stream_state = STREAM_DISABLED;
@@ -215,9 +215,9 @@ static int hiface_pcm_stream_start(struct pcm_runtime *rt)
 		rt->stream_state = STREAM_STARTING;
 		for (i = 0; i < PCM_N_URBS; i++) {
 			memset(rt->out_urbs[i].buffer, 0, PCM_PACKET_SIZE);
-			usb_anchor_urb(&rt->out_urbs[i].instance,
+			usb_anchor_urb(rt->out_urbs[i].instance,
 				       &rt->out_urbs[i].submitted);
-			ret = usb_submit_urb(&rt->out_urbs[i].instance,
+			ret = usb_submit_urb(rt->out_urbs[i].instance,
 					     GFP_ATOMIC);
 			if (ret) {
 				hiface_pcm_stream_stop(rt);
@@ -334,7 +334,7 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(sub->instance);
 
-	ret = usb_submit_urb(&out_urb->instance, GFP_ATOMIC);
+	ret = usb_submit_urb(out_urb->instance, GFP_ATOMIC);
 	if (ret < 0)
 		goto out_fail;
 
@@ -492,16 +492,18 @@ static int hiface_pcm_init_urb(struct pcm_urb *urb,
 			       void (*handler)(struct urb *))
 {
 	urb->chip = chip;
-	usb_init_urb(&urb->instance);
+	urb->instance = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb->instance)
+		return -ENOMEM;
 
 	urb->buffer = kzalloc(PCM_PACKET_SIZE, GFP_KERNEL);
 	if (!urb->buffer)
 		return -ENOMEM;
 
-	usb_fill_bulk_urb(&urb->instance, chip->dev,
+	usb_fill_bulk_urb(urb->instance, chip->dev,
 			  usb_sndbulkpipe(chip->dev, ep), (void *)urb->buffer,
 			  PCM_PACKET_SIZE, handler, urb);
-	if (usb_urb_ep_type_check(&urb->instance))
+	if (usb_urb_ep_type_check(urb->instance))
 		return -EINVAL;
 	init_usb_anchor(&urb->submitted);
 
@@ -520,24 +522,26 @@ void hiface_pcm_abort(struct hiface_chip *chip)
 	}
 }
 
-static void hiface_pcm_destroy(struct hiface_chip *chip)
+static void hiface_pcm_destroy(struct pcm_runtime *rt)
 {
-	struct pcm_runtime *rt = chip->pcm;
 	int i;
 
-	for (i = 0; i < PCM_N_URBS; i++)
-		kfree(rt->out_urbs[i].buffer);
+	if (!rt)
+		return;
 
-	kfree(chip->pcm);
-	chip->pcm = NULL;
+	if (rt->chip)
+		rt->chip->pcm = NULL;
+
+	for (i = 0; i < PCM_N_URBS; i++) {
+		usb_free_urb(rt->out_urbs[i].instance);
+		kfree(rt->out_urbs[i].buffer);
+	}
+	kfree(rt);
 }
 
 static void hiface_pcm_free(struct snd_pcm *pcm)
 {
-	struct pcm_runtime *rt = pcm->private_data;
-
-	if (rt)
-		hiface_pcm_destroy(rt->chip);
+	hiface_pcm_destroy(pcm->private_data);
 }
 
 int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
@@ -587,8 +591,6 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 	return 0;
 
 error:
-	for (i = 0; i < PCM_N_URBS; i++)
-		kfree(rt->out_urbs[i].buffer);
-	kfree(rt);
+	hiface_pcm_destroy(rt);
 	return ret;
 }

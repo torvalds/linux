@@ -55,7 +55,7 @@ DECLARE_EVENT_CLASS(rtrs_clt_conn_class,
 		__entry->max_reconnect_attempts = clt->max_reconnect_attempts;
 		__entry->fail_cnt = clt_path->stats->reconnects.fail_cnt;
 		__entry->success_cnt = clt_path->stats->reconnects.successful_cnt;
-		memcpy(__entry->sessname, kobject_name(&clt_path->kobj), NAME_MAX);
+		strscpy(__entry->sessname, kobject_name(&clt_path->kobj) ?: "", NAME_MAX);
 	),
 
 	TP_printk("RTRS-CLT: sess='%s' state=%s attempts='%d' max-attempts='%d' fail='%d' success='%d'",

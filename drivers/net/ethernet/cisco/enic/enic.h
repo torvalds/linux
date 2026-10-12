@@ -137,6 +137,12 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
+enum enic_vf_link_state {
+	ENIC_VF_LINK_STATE_UNKNOWN,
+	ENIC_VF_LINK_STATE_DOWN,
+	ENIC_VF_LINK_STATE_UP,
+};
+
 /* enic_rfs_fltr_node - rfs filter node in hash table
  *	@@keys: IPv4 5 tuple
  *	@flow_id: flow_id of clsf filter provided by kernel
@@ -312,19 +318,25 @@ struct enic {
 	unsigned int admin_msg_count;	/* current depth of admin_msg_list */
 	void (*admin_rq_handler)(struct enic *enic, void *buf,
 				 unsigned int len);
+	/* The PF is authoritative for a V2 VF's carrier.  Keep the last
+	 * notification across an ordinary netdev close/open and serialize it
+	 * against the open/stop carrier transition.
+	 */
+	spinlock_t vf_link_state_lock;
+	enum enic_vf_link_state vf_link_state;
+	bool vf_link_running;
 
 	/* MBOX protocol state — mbox_lock serializes admin WQ sends */
 	struct mutex mbox_lock;
 	u64 mbox_msg_num;
-	/* MBOX request-reply state.  mbox_expected_reply is written and
-	 * cleared by the process-context request helpers (capability/register/
-	 * unregister) and only read by the admin_msg_work receive handlers, so
-	 * it is annotated with READ_ONCE()/WRITE_ONCE() rather than locked:
-	 * only one request is in flight at a time (requesters run under RTNL or
-	 * single-threaded probe/remove), so each request is serialized and its
-	 * reply completes mbox_comp before the next request is issued.
+	/* MBOX request-reply state.  Existing request callers allow only one
+	 * request in flight.  The state lock arbitrates reply acceptance against
+	 * timeout invalidation, while mbox_comp publishes the accepted result to
+	 * the requester.
 	 */
 	struct completion mbox_comp;
+	spinlock_t mbox_state_lock;	/* protects expected reply state */
+	u64 mbox_expected_msg_num;
 	u8 mbox_expected_reply;
 	bool mbox_initialized;
 

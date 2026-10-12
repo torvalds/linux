@@ -19,7 +19,7 @@ enum /* settings for comm */
 struct comm_runtime {
 	struct sfire_chip *chip;
 
-	struct urb receiver;
+	struct urb *receiver;
 	u8 *receiver_buffer;
 
 	u8 serial; /* urb serial */

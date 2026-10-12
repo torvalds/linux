@@ -1001,6 +1001,31 @@ static s32 tas_sdw_hw_params(struct snd_pcm_substream *substream,
 	/* SoundWire specific configuration */
 	snd_sdw_params_to_config(substream, params,
 				 &stream_config, &port_config);
+
+	/*
+	 * The two mono amps each render one channel of the stereo stream:
+	 * snd_sdw_params_to_config() hands every codec the full mask for
+	 * playback, which leaves the pair in mirror mode and one channel
+	 * unreproduced.  Claim a single channel instead, keyed off the
+	 * machine-assigned component prefix rather than the SoundWire
+	 * address, which is board-specific: soc_sdw_ti_amp.c names the amps
+	 * tas2783-1..4.
+	 *
+	 * Which side an amp then renders does not follow from the bit that
+	 * is set - sdw_compute_slave_ports() advances the payload offset by
+	 * the popcount of ch_mask and never looks at which bit it is - but
+	 * from the amp's position in the codec order of the DAI link, which
+	 * on these boards matches the prefix numbering.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    params_channels(params) == 2 && component->name_prefix) {
+		const char *idx_str = strrchr(component->name_prefix, '-');
+		unsigned long idx;
+
+		if (idx_str && !kstrtoul(idx_str + 1, 10, &idx) && idx)
+			port_config.ch_mask = (idx & 1) ? BIT(0) : BIT(1);
+	}
+
 	/* port 1 for playback */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		port_config.num = 1;

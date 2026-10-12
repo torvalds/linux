@@ -167,11 +167,16 @@ void inv_sensors_timestamp_interrupt(struct inv_sensors_timestamp *ts,
 		valid = inv_validate_period(ts, period);
 	}
 
-	/* if interrupt interval is valid, sync with interrupt timestamp */
+	/*
+	 * If interrupt interval is valid, sync with interrupt timestamp.
+	 * Otherwise, use estimated value while ensuring interrupt timestamp
+	 * remains the maximum possible value.
+	 */
+	period = inv_align_timestamp_it(ts, sample_nb);
 	if (valid)
-		ts->period = inv_align_timestamp_it(ts, sample_nb);
+		ts->period = period;
 	else
-		ts->period = ts->mult * ts->chip_period.val;
+		ts->period = min(ts->mult * ts->chip_period.val, period);
 }
 EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_interrupt, "IIO_INV_SENSORS_TIMESTAMP");
 

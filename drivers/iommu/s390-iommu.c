@@ -974,6 +974,8 @@ static unsigned long *get_rto_from_iova(struct s390_domain *domain,
 	case ZPCI_TABLE_TYPE_RFX:
 	case ZPCI_TABLE_TYPE_RSX:
 		rso = get_rso_from_iova(domain, iova);
+		if (!rso)
+			return NULL;
 		rsx = calc_rsx(iova);
 		rse = READ_ONCE(rso[rsx]);
 		if (!reg_entry_isvalid(rse))

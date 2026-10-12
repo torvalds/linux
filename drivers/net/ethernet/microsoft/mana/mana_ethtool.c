@@ -815,12 +815,12 @@ static int mana_set_priv_flags(struct net_device *ndev, u32 priv_flags)
 		if (!apc->port_is_up)
 			return 0;
 
-		/* If XDP is attached or MTU is jumbo, single-buffer-per-page
-		 * is already forced regardless of this flag. Skip the
-		 * expensive detach/attach cycle since nothing changes.
+		/* If XDP is attached or the MTU already forces one buffer per
+		 * page, single-buffer-per-page is used regardless of this
+		 * flag. Skip the expensive detach/attach cycle since nothing
+		 * changes.
 		 */
-		if (ndev->mtu + MANA_RXBUF_PAD > PAGE_SIZE / 2 ||
-		    mana_xdp_get(apc))
+		if (mana_single_rxbuf_per_page_forced(apc, ndev->mtu))
 			return 0;
 
 		/* Block RDMA from grabbing the vport during detach/attach */

@@ -39,7 +39,7 @@
  * - ``reason_mem_thermal``: Memory thermal
  * - ``reason_vr_thermal``: VR thermal
  * - ``reason_iccmax``: ICCMAX
- * - ``reason_ratl``: RATL thermal algorithm
+ * - ``reason_pwrbrk``: Power brake
  * - ``reason_soc_avg_thermal``: SoC average temp
  * - ``reason_fastvmode``: VR is hitting FastVMode
  * - ``reason_psys_pl1``: PSYS PL1
@@ -200,6 +200,7 @@ static THROTTLE_ATTR_RO(reason_psys_pl1, PSYS_PL1_MASK);
 static THROTTLE_ATTR_RO(reason_psys_pl2, PSYS_PL2_MASK);
 static THROTTLE_ATTR_RO(reason_p0_freq, P0_FREQ_MASK);
 static THROTTLE_ATTR_RO(reason_psys_crit, PSYS_CRIT_MASK);
+static THROTTLE_ATTR_RO(reason_pwrbrk, PWRBRK_MASK);
 
 static struct attribute *cri_throttle_attrs[] = {
 	/* Common */
@@ -209,12 +210,12 @@ static struct attribute *cri_throttle_attrs[] = {
 	&attr_reason_pl2.attr.attr,
 	&attr_reason_pl4.attr.attr,
 	&attr_reason_prochot.attr.attr,
-	&attr_reason_ratl.attr.attr,
 	/* CRI */
 	&attr_reason_vr_thermal.attr.attr,
 	&attr_reason_soc_thermal.attr.attr,
 	&attr_reason_mem_thermal.attr.attr,
 	&attr_reason_iccmax.attr.attr,
+	&attr_reason_pwrbrk.attr.attr,
 	&attr_reason_soc_avg_thermal.attr.attr,
 	&attr_reason_fastvmode.attr.attr,
 	&attr_reason_psys_pl1.attr.attr,

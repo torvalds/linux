@@ -800,6 +800,27 @@ static void zloop_cmd_workfn(struct work_struct *work)
 	current->flags = orig_flags;
 }
 
+static void zloop_fill_zero_rq(struct request *rq, unsigned int zero_from)
+{
+	struct req_iterator iter;
+	struct bio_vec bv;
+	unsigned int pos = 0;
+	unsigned int end, off;
+
+	rq_for_each_segment(bv, rq, iter) {
+		end = pos + bv.bv_len;
+		if (end > zero_from) {
+			if (pos < zero_from)
+				off = zero_from - pos;
+			else
+				off = 0;
+			memzero_page(bv.bv_page, bv.bv_offset + off,
+				     bv.bv_len - off);
+		}
+		pos = end;
+	}
+}
+
 static void zloop_complete_rq(struct request *rq)
 {
 	struct zloop_cmd *cmd = blk_mq_rq_to_pdu(rq);
@@ -814,13 +835,9 @@ static void zloop_complete_rq(struct request *rq)
 			pr_err("Zone %u: failed read sector %llu, %llu sectors\n",
 			       zone_no, cmd->sector, cmd->nr_sectors);
 
-		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq)) {
-			/* short read */
-			struct bio *bio;
-
-			__rq_for_each_bio(bio, rq)
-				zero_fill_bio(bio);
-		}
+		/* Short read. Zero out the unread tail beyond cmd->ret. */
+		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq))
+			zloop_fill_zero_rq(rq, cmd->ret);
 		break;
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_APPEND:
@@ -1042,12 +1059,14 @@ static int zloop_get_block_size(struct zloop_device *zlo,
 	 * Use the dio alignment of the file system if provided.  The incoming
 	 * request's bio_vec is forwarded to the backing file unchanged, so its
 	 * required memory alignment becomes the device's dma_alignment when
-	 * used for direct-io.
+	 * used for direct-io.  The file system reports zeroed alignments if the
+	 * file can't be used for direct-io at all, so fall back to the block
+	 * device limits in that case.
 	 */
 	if (!vfs_getattr(&zone->file->f_path, &st, STATX_DIOALIGN, 0) &&
-	    (st.result_mask & STATX_DIOALIGN)) {
+	    (st.result_mask & STATX_DIOALIGN) && st.dio_mem_align) {
 		zlo->block_size = st.dio_offset_align;
-		zlo->dio_mem_align = st.dio_mem_align - 1;
+		zlo->dio_mem_align = min(st.dio_mem_align - 1, PAGE_SIZE - 1);
 	} else if (sb_bdev) {
 		zlo->block_size = bdev_physical_block_size(sb_bdev);
 		zlo->dio_mem_align = bdev_dma_alignment(sb_bdev);

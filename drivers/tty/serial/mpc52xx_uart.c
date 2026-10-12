@@ -634,6 +634,9 @@ static void __exit mpc512x_psc_fifoc_uninit(void)
 	}
 }
 
+static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
+static struct clk *psc_ipg_clk[MPC52xx_PSC_MAXNUM];
+
 /* 512x specific interrupt handler. The caller holds the port lock */
 static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 {
@@ -653,9 +656,6 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 
 	return IRQ_NONE;
 }
-
-static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
-static struct clk *psc_ipg_clk[MPC52xx_PSC_MAXNUM];
 
 /* called from within the .request_port() callback (allocation) */
 static int mpc512x_psc_alloc_clock(struct uart_port *port)

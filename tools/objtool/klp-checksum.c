@@ -54,6 +54,19 @@ static int checksum_debug_init(struct objtool_file *file)
 	return 0;
 }
 
+/*
+ * Detect a reference to anonymous constant pool data which the compiler places
+ * in .rodata.cst<num> and which either has an .LC<num> symbol associated with
+ * it or (with Clang) no symbol at all.  These are typically initializers for
+ * local function stack data, so they're considered part of the function rather
+ * than data per se.
+ */
+static bool is_anonymous_const_data(struct symbol *sym)
+{
+	return strstarts(sym->sec->name, ".rodata.cst") &&
+	       (is_sec_sym(sym) || strstarts(sym->name, ".LC"));
+}
+
 static void checksum_update_insn(struct objtool_file *file, struct symbol *func,
 				 struct instruction *insn)
 {
@@ -126,6 +139,14 @@ static void checksum_update_insn(struct objtool_file *file, struct symbol *func,
 
 		str = sym->sec->data->d_buf + sym->offset + offset;
 		__checksum_update_insn(func, insn, str, strlen(str));
+		goto alts;
+	}
+
+	if (is_anonymous_const_data(sym)) {
+		void *cst;
+
+		cst = sym->sec->data->d_buf + sym->offset + offset;
+		__checksum_update_insn(func, insn, cst, sym->sec->sh.sh_entsize);
 		goto alts;
 	}
 

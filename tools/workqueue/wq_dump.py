@@ -78,6 +78,12 @@ def cpumask_str(cpumask):
 
 wq_type_len = 9
 
+def wq_attrs(wq):
+    try:
+        return wq.attrs
+    except AttributeError:
+        return wq.unbound_attrs
+
 def wq_type_str(wq):
     if wq.flags & WQ_BH:
         return f'{"bh":{wq_type_len}}'
@@ -85,7 +91,7 @@ def wq_type_str(wq):
         if wq.flags & WQ_ORDERED:
             return f'{"ordered":{wq_type_len}}'
         else:
-            if wq.attrs.affn_strict:
+            if wq_attrs(wq).affn_strict:
                 return f'{"unbound,S":{wq_type_len}}'
             else:
                 return f'{"unbound":{wq_type_len}}'
@@ -206,7 +212,7 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
 
     print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
     if wq.flags & WQ_UNBOUND:
-        print(f' {cpumask_str(wq.attrs.cpumask):{ucpus_len}}', end='')
+        print(f' {cpumask_str(wq_attrs(wq).cpumask):{ucpus_len}}', end='')
     else:
         print(f' {"":{ucpus_len}}', end='')
 

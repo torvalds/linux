@@ -136,8 +136,8 @@ struct optee_msg_param_rmem {
  * struct optee_msg_param_fmem - FF-A memory reference parameter
  * @offs_low:		lower bits of offset into shared memory reference
  * @offs_high:		higher bits of offset into shared memory reference
- * @internal_offs:	internal offset into the first page of shared memory
- *			reference
+ * @internal_offs:	offset into the first 4 KiB page of the FF-A shared
+ *			memory region
  * @size:		size of the buffer
  * @global_id:		global identifier of the shared memory
  */

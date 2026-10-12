@@ -200,7 +200,7 @@ static int max98363_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	struct max98363_priv *max98363 =
 		snd_soc_component_get_drvdata(component);
 
-	struct sdw_stream_config stream_config;
+	struct sdw_stream_config stream_config = {0};
 	struct sdw_port_config port_config;
 	enum sdw_data_direction direction;
 	struct sdw_stream_runtime *stream;

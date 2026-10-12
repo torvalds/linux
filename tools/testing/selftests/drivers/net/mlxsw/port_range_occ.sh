@@ -9,6 +9,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	port_range_occ_test
+	port_range_occ_tmplt_test
 "
 NUM_NETIFS=2
 source $lib_dir/lib.sh
@@ -99,6 +100,31 @@ port_range_occ_test()
 	check_err $? "Got occupancy $(port_range_occ_get), expected $occ"
 
 	log_test "port range occupancy"
+}
+
+port_range_occ_tmplt_test()
+{
+	local occ
+
+	RET=0
+	occ=$(port_range_occ_get)
+
+	# Addition of a chain template should not impact occupancy.
+	tc chain add dev "$swp1" ingress chain 1 protocol ip \
+		flower ip_proto udp src_port 501-600 dst_port 701-800
+	check_err $? "Could not add chain template"
+
+	(( occ == $(port_range_occ_get) ))
+	check_err $? "Got occupancy $(port_range_occ_get), expected $occ"
+
+	# And just for completeness sake, neither should deletion.
+	tc chain del dev "$swp1" ingress chain 1
+	check_err $? "Could not delete chain template"
+
+	(( occ == $(port_range_occ_get) ))
+	check_err $? "Got occupancy $(port_range_occ_get), expected $occ"
+
+	log_test "port range occupancy after template create/destroy"
 }
 
 trap cleanup EXIT

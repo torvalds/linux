@@ -195,6 +195,9 @@ check_io_mapping(struct nv50_instmem *imem)
 {
 	struct nvkm_device *device = imem->base.subdev.device;
 
+	if (imem->iomap.size)
+		return true;
+
 	return io_mapping_init_wc(&imem->iomap,
 				  device->func->resource_addr(device, NVKM_BAR2_INST),
 				  device->func->resource_size(device, NVKM_BAR2_INST)) != NULL;

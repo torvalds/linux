@@ -562,6 +562,55 @@ int arena_ptr_add_arena_ptr(void *ctx)
 }
 
 SEC("syscall")
+__failure __msg("same insn cannot be used with and without arena pointer")
+int mixed_arena_scalar_alu64_scalar_first(void *ctx)
+{
+	volatile register __u64 reg asm("r3");
+	__u32 pick_arena = bpf_get_prandom_u32();
+
+	reg = 1ULL << 32;
+
+	if (pick_arena) {
+		asm volatile (
+			"r9 = %[arena] ll;"
+			"%[reg] = 0;"
+			"%[reg] = addr_space_cast(%[reg], 0x0, 0x1);"
+			: [reg] "=r"(reg)
+			: __imm_addr(arena)
+			: "r9"
+		);
+	}
+
+	reg += 1;
+
+	return 0;
+}
+
+SEC("syscall")
+__failure __msg("same insn cannot be used with and without arena pointer")
+int mixed_arena_scalar_alu64_arena_first(void *ctx)
+{
+	volatile register __u64 reg asm("r3");
+	__u32 pick_scalar = bpf_get_prandom_u32();
+
+	asm volatile (
+		"r9 = %[arena] ll;"
+		"%[reg] = 0;"
+		"%[reg] = addr_space_cast(%[reg], 0x0, 0x1);"
+		: [reg] "=r"(reg)
+		: __imm_addr(arena)
+		: "r9"
+	);
+
+	if (pick_scalar)
+		reg = 1ULL << 32;
+
+	reg += 1;
+
+	return 0;
+}
+
+SEC("syscall")
 __success __retval(0)
 int scalar_xor_arena_ptr(void *ctx)
 {

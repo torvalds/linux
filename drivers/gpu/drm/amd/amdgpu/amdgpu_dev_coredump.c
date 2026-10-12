@@ -299,10 +299,10 @@ amdgpu_devcoredump_print_ibs(struct drm_printer *p,
 			amdgpu_res_first(abo->tbo.resource, offset,
 					 coredump->ibs[i].ib_size_dw * 4, &cursor);
 			while (cursor.remaining) {
-				amdgpu_device_mm_access(adev, cursor.start / 4,
-							&ib_content[off], cursor.size / 4,
+				amdgpu_device_mm_access(adev, cursor.start,
+							&ib_content[off], cursor.size,
 							false);
-				off += cursor.size;
+				off += cursor.size / 4;
 				amdgpu_res_next(&cursor, cursor.size);
 			}
 			emit_content = true;
@@ -603,9 +603,8 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 		ring_count++;
 	}
 	if (ring_count)
-		coredump->rings = kvcalloc(ring_count,
-					   sizeof(struct amdgpu_coredump_ring),
-					   GFP_NOWAIT);
+		coredump->rings = kvzalloc_objs(struct amdgpu_coredump_ring,
+						ring_count, GFP_NOWAIT);
 	if (coredump->rings) {
 		for (i = 0, idx = 0; i < adev->num_rings && idx < ring_count; i++) {
 			struct amdgpu_coredump_ring *cdump_ring;

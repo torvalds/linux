@@ -326,7 +326,6 @@ bool has_capability_noaudit(struct task_struct *t, int cap)
 {
 	return has_ns_capability_noaudit(t, &init_user_ns, cap);
 }
-EXPORT_SYMBOL(has_capability_noaudit);
 
 static bool ns_capable_common(struct user_namespace *ns,
 			      int cap,
@@ -416,6 +415,24 @@ bool capable(int cap)
 	return ns_capable(&init_user_ns, cap);
 }
 EXPORT_SYMBOL(capable);
+
+/**
+ * capable_noaudit - Determine if the current task has a superior
+ * capability in effect by checking the process's effective
+ * capabilities (unaudited).
+ * @cap: The capability to be tested for
+ *
+ * This is the same as capable(), except it uses CAP_OPT_NOAUDIT as to prevent
+ * issuing spurious audit messages.
+ *
+ * This sets PF_SUPERPRIV on the task if the capability is available on the
+ * assumption that it's about to be used.
+ */
+bool capable_noaudit(int cap)
+{
+	return ns_capable_noaudit(&init_user_ns, cap);
+}
+EXPORT_SYMBOL(capable_noaudit);
 #endif /* CONFIG_MULTIUSER */
 
 /**

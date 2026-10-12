@@ -6,6 +6,7 @@
  */
 
 #include <linux/swap.h>
+#include <linux/rmap.h>
 #include "internal.h"
 
 /**
@@ -563,3 +564,120 @@ void netfs_wait_for_paused_write(struct netfs_io_request *rreq)
 {
 	return netfs_wait_for_pause(rreq, netfs_write_collection);
 }
+
+/*
+ * Wait for the readahead-acquired refs to be put.
+ */
+void netfs_wait_for_put_ra_refs(struct netfs_io_request *rreq)
+{
+	DEFINE_WAIT(myself);
+
+	for (;;) {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_put_ra_refs);
+		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
+		if (!test_bit(NETFS_RREQ_NEED_PUT_RA_REFS, &rreq->flags))
+			break;
+		schedule();
+	}
+
+	trace_netfs_rreq(rreq, netfs_rreq_trace_waited_put_ra_refs);
+	finish_wait(&rreq->waitq, &myself);
+}
+
+/**
+ * netfs_clear_stale_isize - Clear stale pagecache in a to-be-created hole
+ * @inode: The inode to act upon.
+ * @from: The base of the hole to be made.
+ * @to: The top of the hole to be made.
+ * @nowait: True to return -EAGAIN rather than block.
+ * @exclusive: True if the caller holds i_rwsem exclusively for the resize.
+ *
+ * Zero any data left in the pagecache within the [@from, @to) hole by a
+ * write through an mmap so that it isn't exposed as file content once the
+ * file is extended.  Only the uptodate folio straddling @from can hold such
+ * data as pages wholly beyond the EOF can't be faulted in, so the zeroing
+ * is limited to that folio.  The folio is zeroed rather than dropped so
+ * that a concurrent extending write can't lose data.
+ *
+ * If @exclusive is false, @from is re-read from i_size and used to clamp
+ * the zeroed range, for callers that may race with another writer also
+ * extending the file (eg. multiple buffered writes extending the same file
+ * under a shared i_rwsem).  If @exclusive is true, for callers that hold
+ * i_rwsem exclusively across the whole resize and have already updated
+ * i_size to @to, staleness is decided from the folio's dirty state instead:
+ * since no genuine concurrent buffered writer can be racing, a lockless
+ * stat() adopting a server-confirmed size mid-resize has no data behind it
+ * and never dirties the folio, so it can't fool this check into skipping
+ * the zeroing the way it could fool the @exclusive false clamp.
+ *
+ * pagecache_isize_extended() can't be reused here: it is keyed on a
+ * sub-page block size (a no-op when the block size is >= PAGE_SIZE, as on
+ * network filesystems), runs after i_size is updated, can't honour
+ * @nowait, and doesn't wait for writeback.  Keep the two in sync if either
+ * is changed.
+ *
+ * Return: 0 on success, or -EAGAIN if @nowait is set and the folio is
+ * mapped or under writeback and so can't be cleaned without blocking.
+ */
+static int netfs_clear_stale_isize(struct inode *inode, uoff_t from,
+				   uoff_t to, bool nowait, bool exclusive)
+{
+	struct address_space *mapping = inode->i_mapping;
+	fgf_t fgp = FGP_LOCK;
+	struct folio *folio;
+	int ret;
+
+	if (from >= to)
+		return 0;
+
+	if (nowait)
+		fgp |= FGP_NOWAIT;
+
+	folio = __filemap_get_folio(mapping, from >> PAGE_SHIFT, fgp, 0);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio) == -EAGAIN ? -EAGAIN : 0;
+
+	ret = 0;
+	if (nowait && (folio_mapped(folio) || folio_test_writeback(folio))) {
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	folio_wait_writeback(folio);
+
+	if (folio_mkclean(folio))
+		folio_mark_dirty(folio);
+
+	if (folio_test_uptodate(folio) &&
+	    (!exclusive || folio_test_dirty(folio))) {
+		uoff_t fpos = folio_pos(folio);
+
+		if (!exclusive)
+			from = umax(from, i_size_read(inode));
+		if (from < to && from < fpos + folio_size(folio)) {
+			size_t end = umin(to - fpos, folio_size(folio));
+			size_t offset = from - fpos;
+
+			folio_zero_segment(folio, offset, end);
+		}
+	}
+out:
+	folio_unlock(folio);
+	folio_put(folio);
+	return ret;
+}
+
+/* Clear stale pagecache before an extending buffered/DIO write. */
+int netfs_clear_stale_pre_isize(struct inode *inode, uoff_t from,
+				uoff_t to, bool nowait)
+{
+	return netfs_clear_stale_isize(inode, from, to, nowait, false);
+}
+
+/* Clear stale pagecache when extending a file under an exclusive resize. */
+void netfs_clear_stale_post_isize(struct inode *inode, uoff_t from,
+				  uoff_t to)
+{
+	netfs_clear_stale_isize(inode, from, to, false, true);
+}
+EXPORT_SYMBOL(netfs_clear_stale_post_isize);

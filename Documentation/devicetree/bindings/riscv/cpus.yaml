@@ -117,8 +117,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       VLEN/8, the vector register length in bytes. This property is required on
-      thead systems where the vector register length is not identical on all harts, or
-      the vlenb CSR is not available.
+      thead systems where the vector register length is not identical on all
+      harts, or the vlenb CSR is not available.
 
   # RISC-V has multiple properties for cache op block sizes as the sizes
   # differ between individual CBO extensions
@@ -151,8 +151,8 @@ anyOf:
       - riscv,isa-base
 
 dependencies:
-  riscv,isa-base: [ "riscv,isa-extensions" ]
-  riscv,isa-extensions: [ "riscv,isa-base" ]
+  riscv,isa-base: ["riscv,isa-extensions"]
+  riscv,isa-extensions: ["riscv,isa-base"]
 
 required:
   - interrupt-controller

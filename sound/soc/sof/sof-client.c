@@ -230,7 +230,7 @@ int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 	struct sof_client_dev *cdev;
 	int ret;
 
-	centry = kzalloc(sizeof(*centry), GFP_KERNEL);
+	centry = kzalloc_obj(*centry);
 	if (!centry)
 		return -ENOMEM;
 

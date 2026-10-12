@@ -796,8 +796,8 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 	struct ad7280_state *st = iio_priv(indio_dev);
 	int i, ret;
 
-	unsigned int *channels __free(kfree) = kcalloc(st->scan_cnt, sizeof(*channels),
-						       GFP_KERNEL);
+	unsigned int *channels __free(kfree) = kzalloc_objs(*channels,
+							    st->scan_cnt);
 	if (!channels)
 		return IRQ_HANDLED;
 

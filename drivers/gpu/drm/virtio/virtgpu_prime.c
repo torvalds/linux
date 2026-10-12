@@ -293,9 +293,7 @@ int virtgpu_dma_buf_obj_resubmit(struct virtio_gpu_device *vgdev,
 		return -ENOMEM;
 	}
 
-	ents = kvmalloc_array(bo->sgt->nents,
-			      sizeof(struct virtio_gpu_mem_entry),
-			      GFP_KERNEL);
+	ents = kvmalloc_objs(struct virtio_gpu_mem_entry, bo->sgt->nents);
 	if (!ents) {
 		DRM_ERROR("failed to allocate ent list\n");
 		return -ENOMEM;
@@ -351,7 +349,7 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 		}
 	}
 
-	if (!vgdev->has_resource_blob)
+	if (!vgdev->has_resource_blob || vgdev->has_virgl_3d)
 		return drm_gem_prime_import(dev, buf);
 
 	bo = kzalloc_obj(*bo);

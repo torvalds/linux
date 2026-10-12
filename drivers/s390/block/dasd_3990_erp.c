@@ -103,7 +103,7 @@ dasd_3990_erp_int_req(struct dasd_ccw_req * erp)
 
 	/* first time set initial retry counter and erp_function */
 	/* and retry once without blocking queue		 */
-	/* (this enables easier enqueing of the cqr)		 */
+	/* (this enables easier enqueuing of the cqr)		 */
 	if (erp->function != dasd_3990_erp_int_req) {
 
 		erp->retries = 256;
@@ -302,7 +302,7 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 
 	/* first time set initial retry counter and erp_function    */
 	/* and retry once without waiting for state change pending  */
-	/* interrupt (this enables easier enqueing of the cqr)	    */
+	/* interrupt (this enables easier enqueuing of the cqr)	    */
 	if (erp->function != dasd_3990_erp_action_4) {
 
 		DBF_DEV_EVENT(DBF_INFO, device, "%s",
@@ -1078,7 +1078,7 @@ dasd_3990_erp_bus_out(struct dasd_ccw_req * erp)
 
 	/* first time set initial retry counter and erp_function */
 	/* and retry once without blocking queue		 */
-	/* (this enables easier enqueing of the cqr)		 */
+	/* (this enables easier enqueuing of the cqr)		 */
 	if (erp->function != dasd_3990_erp_bus_out) {
 		erp->retries = 256;
 		erp->function = dasd_3990_erp_bus_out;

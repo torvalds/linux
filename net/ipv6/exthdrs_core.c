@@ -278,6 +278,9 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			hdrlen = ipv6_optlen(hp);
 
 		if (!found) {
+			if (skb->len - start < hdrlen)
+				return -EBADMSG;
+
 			nexthdr = hp->nexthdr;
 			start += hdrlen;
 		}

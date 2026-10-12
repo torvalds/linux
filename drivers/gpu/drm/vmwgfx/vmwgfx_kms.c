@@ -20,10 +20,18 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_sysfs.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_blend.h>
 
 void vmw_du_init(struct vmw_display_unit *du)
 {
 	vmw_vkms_crtc_init(&du->crtc);
+	drm_plane_create_blend_mode_property(&du->primary,
+					     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					     BIT(DRM_MODE_BLEND_PREMULTI));
+	// Check that the cursor plane was actually initialized
+	if (du->crtc.cursor == &du->cursor.base)
+		drm_plane_create_blend_mode_property(&du->cursor.base,
+						     BIT(DRM_MODE_BLEND_PREMULTI));
 }
 
 void vmw_du_cleanup(struct vmw_display_unit *du)

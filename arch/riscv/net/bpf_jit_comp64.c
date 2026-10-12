@@ -822,6 +822,24 @@ static int gen_jump_or_nops(void *target, void *ip, u32 *insns, bool is_call)
 	return emit_jump_and_link(is_call ? RV_REG_T0 : RV_REG_ZERO, rvoff, false, &ctx);
 }
 
+int arch_bpf_trampoline_skip(void *nop, void *target)
+{
+	u32 old_insn = rv_nop();
+	u32 new_insn = rv_jal(RV_REG_ZERO, (target - nop) >> 1);
+	int ret;
+
+	if (memcmp(nop, &old_insn, sizeof(old_insn)))
+		return -EFAULT;
+
+	cpus_read_lock();
+	mutex_lock(&text_mutex);
+	ret = patch_text(nop, &new_insn, sizeof(new_insn));
+	mutex_unlock(&text_mutex);
+	cpus_read_unlock();
+
+	return ret;
+}
+
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
 		       enum bpf_text_poke_type new_t, void *old_addr,
 		       void *new_addr)
@@ -904,12 +922,17 @@ static void emit_store_stack_imm64(u8 reg, int stack_off, u64 imm64,
 	emit_sd(RV_REG_FP, stack_off, reg, ctx);
 }
 
-static int invoke_bpf_prog(struct bpf_tramp_node *node, int args_off, int retval_off,
-			   int run_ctx_off, bool save_ret, struct rv_jit_context *ctx)
+static int invoke_bpf_prog(struct bpf_tramp_image *im, struct bpf_tramp_node *node,
+			   int args_off, int retval_off, int run_ctx_off, bool save_ret,
+			   struct rv_jit_context *ctx)
 {
 	int ret, branch_off;
 	struct bpf_prog *p = node->link->prog;
 	int cookie_off = offsetof(struct bpf_tramp_run_ctx, bpf_cookie);
+	void *skip = ctx->ro_insns + ctx->ninsns;
+
+	/* nop, patched to a jal over this prog when it is detached */
+	emit(rv_nop(), ctx);
 
 	if (node->cookie)
 		emit_store_stack_imm64(RV_REG_T1, -run_ctx_off + cookie_off, node->cookie, ctx);
@@ -962,13 +985,17 @@ static int invoke_bpf_prog(struct bpf_tramp_node *node, int args_off, int retval
 	/* arg3: &run_ctx */
 	emit_addi(RV_REG_A2, RV_REG_FP, -run_ctx_off, ctx);
 	ret = emit_call((const u64)bpf_trampoline_exit(p), true, ctx);
+	if (ret)
+		return ret;
 
-	return ret;
+	bpf_tramp_image_add_skip(im, p, skip, ctx->ro_insns + ctx->ninsns);
+	return 0;
 }
 
-static int invoke_bpf(struct bpf_tramp_nodes *tn, int args_off, int retval_off,
-		      int run_ctx_off, int func_meta_off, bool save_ret, u64 func_meta,
-		      int cookie_off, struct rv_jit_context *ctx)
+static int invoke_bpf(struct bpf_tramp_image *im, struct bpf_tramp_nodes *tn,
+		      int args_off, int retval_off, int run_ctx_off, int func_meta_off,
+		      bool save_ret, u64 func_meta, int cookie_off,
+		      struct rv_jit_context *ctx)
 {
 	int i, cur_cookie = (cookie_off - args_off) / 8;
 
@@ -981,8 +1008,8 @@ static int invoke_bpf(struct bpf_tramp_nodes *tn, int args_off, int retval_off,
 			emit_store_stack_imm64(RV_REG_T1, -func_meta_off, meta, ctx);
 			cur_cookie--;
 		}
-		err = invoke_bpf_prog(tn->nodes[i], args_off, retval_off, run_ctx_off,
-				      save_ret, ctx);
+		err = invoke_bpf_prog(im, tn->nodes[i], args_off, retval_off,
+				      run_ctx_off, save_ret, ctx);
 		if (err)
 			return err;
 	}
@@ -1170,7 +1197,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	}
 
 	if (fentry->nr_nodes) {
-		ret = invoke_bpf(fentry, args_off, retval_off, run_ctx_off, func_meta_off,
+		ret = invoke_bpf(im, fentry, args_off, retval_off, run_ctx_off, func_meta_off,
 				 flags & BPF_TRAMP_F_RET_FENTRY_RET, func_meta, cookie_off, ctx);
 		if (ret)
 			return ret;
@@ -1184,7 +1211,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		/* cleanup to avoid garbage return value confusion */
 		emit_sd(RV_REG_FP, -retval_off, RV_REG_ZERO, ctx);
 		for (i = 0; i < fmod_ret->nr_nodes; i++) {
-			ret = invoke_bpf_prog(fmod_ret->nodes[i], args_off, retval_off,
+			ret = invoke_bpf_prog(im, fmod_ret->nodes[i], args_off, retval_off,
 					      run_ctx_off, true, ctx);
 			if (ret)
 				goto out;
@@ -1211,10 +1238,6 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 			emit_sd(RV_REG_FP, -tcc_off, RV_REG_TCC, ctx);
 		emit_sd(RV_REG_FP, -retval_off, RV_REG_A0, ctx);
 		emit_sd(RV_REG_FP, -(retval_off - 8), regmap[BPF_REG_0], ctx);
-		im->ip_after_call = ctx->ro_insns + ctx->ninsns;
-		/* 2 nops reserved for auipc+jalr pair */
-		emit(rv_nop(), ctx);
-		emit(rv_nop(), ctx);
 	}
 
 	/* update branches saved in invoke_bpf_mod_ret with bnez */
@@ -1230,14 +1253,13 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		emit_store_stack_imm64(RV_REG_T1, -func_meta_off, func_meta, ctx);
 
 	if (fexit->nr_nodes) {
-		ret = invoke_bpf(fexit, args_off, retval_off, run_ctx_off, func_meta_off,
+		ret = invoke_bpf(im, fexit, args_off, retval_off, run_ctx_off, func_meta_off,
 				 false, func_meta, cookie_off, ctx);
 		if (ret)
 			goto out;
 	}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		im->ip_epilogue = ctx->ro_insns + ctx->ninsns;
 		emit_imm(RV_REG_A0, ctx->insns ? (const s64)im : RV_MAX_COUNT_IMM, ctx);
 		ret = emit_call((const u64)__bpf_tramp_exit, true, ctx);
 		if (ret)
@@ -1299,7 +1321,7 @@ out:
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 			     struct bpf_tramp_nodes *tnodes, void *func_addr)
 {
-	struct bpf_tramp_image im;
+	struct bpf_tramp_image im = {};
 	struct rv_jit_context ctx;
 	int ret;
 
@@ -2128,7 +2150,15 @@ bool bpf_jit_supports_ptr_xchg(void)
 
 bool bpf_jit_supports_arena(void)
 {
-	return true;
+	/*
+	 * The arena range tree uses kmalloc_nolock(), which needs
+	 * cmpxchg128, provided by ZACAS on riscv.
+	 */
+#ifdef system_has_cmpxchg128
+	return system_has_cmpxchg128();
+#else
+	return false;
+#endif
 }
 
 bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)

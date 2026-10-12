@@ -153,7 +153,7 @@ static inline void delay(long ticks)
 /*
  * XFS wrapper structure for sysfs support. It depends on external data
  * structures and is embedded in various internal data structures to implement
- * the XFS sysfs object heirarchy. Define it here for broad access throughout
+ * the XFS sysfs object hierarchy. Define it here for broad access throughout
  * the codebase.
  */
 struct xfs_kobj {
@@ -288,16 +288,5 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 #else
 # define PTR_FMT "%p"
 #endif
-
-/*
- * Helper for IO routines to grab backing pages from allocated kernel memory.
- */
-static inline struct page *
-kmem_to_page(void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		return vmalloc_to_page(addr);
-	return virt_to_page(addr);
-}
 
 #endif /* _XFS_PLATFORM_H */

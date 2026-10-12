@@ -52,6 +52,28 @@ int create_and_destroy(void *ctx)
 	return 0;
 }
 
+/* fp+0 is not a stack slot. bpf_get_spi(0) used to alias spi 0 (fp-8). */
+SEC("?raw_tp")
+__failure __msg("cannot pass in iter at an offset=0")
+int destroy_fp0_fail(void *ctx)
+{
+	struct bpf_iter_num iter;
+
+	asm volatile ("r1 = %[iter];"
+		"r2 = 0;"
+		"r3 = 1000;"
+		"call %[bpf_iter_num_new];"
+		/* r10 is fp+0, one byte above the top of the BPF stack */
+		"r1 = r10;"
+		"call %[bpf_iter_num_destroy];"
+		:
+		: __imm_ptr(iter), ITER_HELPERS
+		: __clobber_common
+	);
+
+	return 0;
+}
+
 SEC("?raw_tp")
 __failure __msg("Unreleased reference id=1")
 int create_and_forget_to_destroy_fail(void *ctx)

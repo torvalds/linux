@@ -970,6 +970,12 @@
 
 /*
  * LEDs
+ *
+ * Do not add any new LED definitions to the input subsystem. The existing
+ * definitions are legacy and grandfathered for backwards compatibility with
+ * userspace (via evdev). Any new LEDs should be implemented using the
+ * LED subsystem (struct led_classdev). The input core provides a bridge to
+ * the LED subsystem in drivers/input/input-leds.c.
  */
 
 #define LED_NUML		0x00

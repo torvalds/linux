@@ -376,8 +376,10 @@ static int mtk_hdmi_ddc_v2_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 
 	ret = devm_i2c_add_adapter(dev, &ddc->adap);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
 		return dev_err_probe(dev, ret, "Cannot add DDC I2C adapter\n");
+	}
 
 	platform_set_drvdata(pdev, ddc);
 	return 0;

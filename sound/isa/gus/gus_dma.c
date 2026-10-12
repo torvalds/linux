@@ -214,7 +214,7 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 	struct snd_gf1_dma_block *block;
 	struct snd_gf1_dma_block *free_block = NULL;
 
-	block = kmalloc(sizeof(*block), atomic ? GFP_ATOMIC : GFP_KERNEL);
+	block = kmalloc_obj(*block, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!block)
 		return -ENOMEM;
 
