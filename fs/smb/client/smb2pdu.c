@@ -2116,9 +2116,8 @@ static inline void init_copy_chunk_defaults(struct cifs_tcon *tcon)
 	tcon->max_bytes_copy = 16777216;
 }
 
-int
-SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
-	  struct cifs_tcon *tcon, const struct nls_table *cp)
+int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
+	      struct cifs_tcon *tcon)
 {
 	struct smb_rqst rqst;
 	struct smb2_tree_connect_req *req;
@@ -2142,7 +2141,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	if (unc_path == NULL)
 		return -ENOMEM;
 
-	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree), cp);
+	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree),
+				       ses->local_nls);
 	if (unc_path_len <= 0) {
 		rc = -EINVAL;
 		goto free_unc_path;

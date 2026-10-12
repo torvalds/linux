@@ -33,7 +33,7 @@ int small_smb_init_no_tc(const int smb_command, const int wct,
 int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses,
 		     struct TCP_Server_Info *server);
 int CIFSTCon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
-	     struct cifs_tcon *tcon, const struct nls_table *nls_codepage);
+	     struct cifs_tcon *tcon);
 int CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon);
 int CIFSSMBEcho(struct TCP_Server_Info *server);
 int CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses);

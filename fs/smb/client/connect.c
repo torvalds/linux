@@ -2085,7 +2085,7 @@ struct cifs_tcon *cifs_setup_ipc(struct cifs_ses *ses, bool seal)
 	tcon->ses = ses;
 	tcon->ipc = true;
 	tcon->seal = seal;
-	rc = server->ops->tree_connect(xid, ses, unc, tcon, ses->local_nls);
+	rc = server->ops->tree_connect(xid, ses, unc, tcon);
 	free_xid(xid);
 
 	if (rc) {
@@ -2815,8 +2815,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	}
 
 	xid = get_xid();
-	rc = ses->server->ops->tree_connect(xid, ses, ctx->UNC, tcon,
-					    ctx->local_nls);
+	rc = ses->server->ops->tree_connect(xid, ses, ctx->UNC, tcon);
 	free_xid(xid);
 	cifs_dbg(FYI, "Tcon rc = %d\n", rc);
 	if (rc)
@@ -4561,8 +4560,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon)
 	tcon->status = TID_IN_TCON;
 	spin_unlock(&tcon->tc_lock);
 
-	rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name,
-			       tcon, tcon->ses->local_nls);
+	rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon);
 	if (rc) {
 		spin_lock(&tcon->tc_lock);
 		if (tcon->status == TID_IN_TCON)

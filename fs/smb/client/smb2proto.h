@@ -134,7 +134,7 @@ int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		    struct TCP_Server_Info *server);
 int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
 int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
-	      struct cifs_tcon *tcon, const struct nls_table *cp);
+	      struct cifs_tcon *tcon);
 int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 	      __le16 *path, __u8 *oplock, struct cifs_open_info_data *buf,

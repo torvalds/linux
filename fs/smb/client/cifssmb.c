@@ -536,10 +536,8 @@ neg_err_exit:
 /*
  * Issue a TREE_CONNECT request.
  */
-int
-CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
-	 const char *tree, struct cifs_tcon *tcon,
-	 const struct nls_table *nls_codepage)
+int CIFSTCon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
+	     struct cifs_tcon *tcon)
 {
 	struct smb_hdr *smb_buffer;
 	struct smb_hdr *smb_buffer_response;
@@ -590,7 +588,8 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		length =
 		    cifs_strtoUTF16((__le16 *) bcc_ptr, tree,
 			6 /* max utf8 char length in bytes */ *
-			(/* server len*/ + 256 /* share len */), nls_codepage);
+			(/* server len*/ + 256 /* share len */),
+			ses->local_nls);
 		bcc_ptr += 2 * length;	/* convert num 16 bit words to bytes */
 		bcc_ptr += 2;	/* skip trailing null */
 	} else {		/* ASCII */
@@ -648,7 +647,7 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		kfree(tcon->nativeFileSystem);
 		tcon->nativeFileSystem = cifs_strndup_from_utf16(bcc_ptr,
 						      bytes_left, is_unicode,
-						      nls_codepage);
+						      ses->local_nls);
 
 		cifs_dbg(FYI, "nativeFileSystem=%s\n", tcon->nativeFileSystem);
 
