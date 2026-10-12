@@ -63,6 +63,7 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 	xa_init(&hws_pool->el2tol3tnl_pools);
 	xa_init(&hws_pool->el2tol2tnl_pools);
 	xa_init(&hws_pool->mh_pools);
+	mutex_init(&hws_pool->mh_pools_lock);
 	xa_init(&hws_pool->table_dests);
 	xa_init(&hws_pool->vport_dests);
 	xa_init(&hws_pool->vport_vhca_dests);
@@ -111,6 +112,7 @@ static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 	xa_for_each(&hws_pool->mh_pools, i, pool)
 		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, i);
 	xa_destroy(&hws_pool->mh_pools);
+	mutex_destroy(&hws_pool->mh_pools_lock);
 	xa_for_each(&hws_pool->el2tol2tnl_pools, i, pool)
 		mlx5_fs_destroy_pr_pool(pool, &hws_pool->el2tol2tnl_pools, i);
 	xa_destroy(&hws_pool->el2tol2tnl_pools);
@@ -1458,6 +1460,23 @@ mlx5_fs_destroy_mh_pool(struct mlx5_fs_pool *pool, struct xarray *mh_pools,
 	kfree(pool);
 }
 
+static struct mlx5_fs_pool *
+mlx5_fs_find_mh_pool(struct xarray *mh_pools,
+		     struct mlx5hws_action_mh_pattern *pattern,
+		     unsigned long *cnt)
+{
+	struct mlx5_fs_pool *pool;
+	unsigned long i;
+
+	*cnt = 0;
+	xa_for_each(mh_pools, i, pool) {
+		if (mlx5_fs_hws_mh_pool_match(pool, pattern))
+			return pool;
+		(*cnt)++;
+	}
+	return NULL;
+}
+
 static int mlx5_cmd_hws_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 					    u8 namespace, u8 num_actions,
 					    void *modify_actions,
@@ -1468,33 +1487,28 @@ static int mlx5_cmd_hws_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 	struct mlx5_fs_hws_mh *mh_data = NULL;
 	struct mlx5hws_action *hws_action;
 	struct mlx5_fs_pool *pool;
-	unsigned long i, cnt = 0;
-	bool known_pattern;
+	unsigned long cnt;
 	int err;
 
 	pattern.sz = MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto) * num_actions;
 	pattern.data = modify_actions;
 
-	known_pattern = false;
-	xa_for_each(&hws_pool->mh_pools, i, pool) {
-		if (mlx5_fs_hws_mh_pool_match(pool, &pattern)) {
-			known_pattern = true;
-			break;
-		}
-		cnt++;
-	}
-
-	if (!known_pattern) {
-		pool = mlx5_fs_create_mh_pool(ns->dev, &pattern,
-					      &hws_pool->mh_pools, cnt);
+	pool = mlx5_fs_find_mh_pool(&hws_pool->mh_pools, &pattern, &cnt);
+	if (!pool) {
+		mutex_lock(&hws_pool->mh_pools_lock);
+		pool = mlx5_fs_find_mh_pool(&hws_pool->mh_pools, &pattern,
+					    &cnt);
+		if (!pool)
+			pool = mlx5_fs_create_mh_pool(ns->dev, &pattern,
+						      &hws_pool->mh_pools, cnt);
+		mutex_unlock(&hws_pool->mh_pools_lock);
 		if (IS_ERR(pool))
 			return PTR_ERR(pool);
 	}
+
 	mh_data = mlx5_fs_hws_mh_pool_acquire_mh(pool);
-	if (IS_ERR(mh_data)) {
-		err = PTR_ERR(mh_data);
-		goto destroy_pool;
-	}
+	if (IS_ERR(mh_data))
+		return PTR_ERR(mh_data);
 	hws_action = mh_data->bulk->hws_action;
 	mh_data->data = kmemdup(pattern.data, pattern.sz, GFP_KERNEL);
 	if (!mh_data->data) {
@@ -1510,9 +1524,6 @@ static int mlx5_cmd_hws_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 
 release_mh:
 	mlx5_fs_hws_mh_pool_release_mh(pool, mh_data);
-destroy_pool:
-	if (!known_pattern)
-		mlx5_fs_destroy_mh_pool(pool, &hws_pool->mh_pools, cnt);
 	return err;
 }
 
