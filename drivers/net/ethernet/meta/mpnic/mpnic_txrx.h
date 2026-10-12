@@ -100,8 +100,12 @@ struct mpnic_queue_stats {
 			u64_stats_t packets;
 			u64_stats_t bytes;
 			u64_stats_t dropped;
+			u64_stats_t alloc_failed;
 			u64_stats_t errors;
 		} rcq;
+		struct {
+			u64_stats_t alloc_failed;
+		} bdq;
 	};
 	struct u64_stats_sync syncp;
 };

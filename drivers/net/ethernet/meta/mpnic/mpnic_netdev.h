@@ -23,6 +23,7 @@ struct mpnic_base_stats {
 		u64 packets;
 		u64 bytes;
 		u64 dropped;
+		u64 alloc_failed;
 		u64 errors;
 	} rx;
 

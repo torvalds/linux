@@ -147,14 +147,29 @@ static const struct net_device_ops mpnic_netdev_ops = {
 	.ndo_get_stats64	= mpnic_get_stats64,
 };
 
+static u64 mpnic_bdq_alloc_failed(struct mpnic_ring *bdq)
+{
+	struct mpnic_queue_stats *stats = &bdq->stats;
+	unsigned int start;
+	u64 alloc_failed;
+
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		alloc_failed = u64_stats_read(&stats->bdq.alloc_failed);
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	return alloc_failed;
+}
+
 static void mpnic_get_queue_stats_rx(struct net_device *dev, int idx,
 				     struct netdev_queue_stats_rx *rx)
 {
 	struct mpnic_net *mpn = netdev_priv(dev);
 	struct mpnic_ring *rxr = mpn->rx[idx];
+	u64 bytes, packets, alloc_failed;
 	struct mpnic_queue_stats *stats;
+	struct mpnic_q_triad *qt;
 	unsigned int start;
-	u64 bytes, packets;
 
 	if (!rxr)
 		return;
@@ -164,10 +179,16 @@ static void mpnic_get_queue_stats_rx(struct net_device *dev, int idx,
 		start = u64_stats_fetch_begin(&stats->syncp);
 		bytes = u64_stats_read(&stats->rcq.bytes);
 		packets = u64_stats_read(&stats->rcq.packets);
+		alloc_failed = u64_stats_read(&stats->rcq.alloc_failed);
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	qt = container_of(rxr, struct mpnic_q_triad, cmpl);
+	alloc_failed += mpnic_bdq_alloc_failed(&qt->sub0);
+	alloc_failed += mpnic_bdq_alloc_failed(&qt->sub1);
 
 	rx->bytes = bytes;
 	rx->packets = packets;
+	rx->alloc_fail = alloc_failed;
 }
 
 static void mpnic_get_queue_stats_tx(struct net_device *dev, int idx,
@@ -221,6 +242,7 @@ static void mpnic_get_base_stats(struct net_device *dev,
 
 	rx->bytes = base->rx.bytes;
 	rx->packets = base->rx.packets;
+	rx->alloc_fail = base->rx.alloc_failed;
 }
 
 static const struct netdev_stat_ops mpnic_stat_ops = {

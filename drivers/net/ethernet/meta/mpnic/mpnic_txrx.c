@@ -409,8 +409,12 @@ static unsigned int __mpnic_fill_bdq(struct mpnic_ring *bdq)
 		struct page *page;
 
 		page = page_pool_dev_alloc_pages(bdq->page_pool);
-		if (!page)
+		if (!page) {
+			u64_stats_update_begin(&bdq->stats.syncp);
+			u64_stats_inc(&bdq->stats.bdq.alloc_failed);
+			u64_stats_update_end(&bdq->stats.syncp);
 			break;
+		}
 
 		bdq->rx_buf[i] = page;
 		mpnic_bd_prep(bdq, i, page);
@@ -598,6 +602,7 @@ static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 	unsigned int packets = 0, bytes = 0, dropped = 0, errors = 0;
 	struct mpnic_ring *rcq = &qt->cmpl;
 	struct mpnic_rcq_state *state;
+	unsigned int alloc_failed = 0;
 	__le64 *raw_rcd, done;
 	u32 head = rcq->head;
 
@@ -632,6 +637,7 @@ static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 				   !state->pkt.add_frag_failed)) {
 				bytes += xdp_get_buff_len(&state->pkt.buff);
 				skb = xdp_build_skb_from_buff(&state->pkt.buff);
+				alloc_failed += !skb;
 			}
 
 			if (likely(skb)) {
@@ -665,6 +671,7 @@ static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 	u64_stats_add(&rcq->stats.rcq.packets, packets - errors);
 	u64_stats_add(&rcq->stats.rcq.bytes, bytes);
 	u64_stats_add(&rcq->stats.rcq.dropped, dropped);
+	u64_stats_add(&rcq->stats.rcq.alloc_failed, alloc_failed);
 	u64_stats_add(&rcq->stats.rcq.errors, errors);
 	u64_stats_update_end(&rcq->stats.syncp);
 
@@ -725,12 +732,19 @@ static void mpnic_aggregate_ring_tcq_counters(struct mpnic_base_stats *base,
 	base->tx.wake += u64_stats_read(&tcq->stats.tcq.wake);
 }
 
+static void mpnic_aggregate_ring_bdq_counters(struct mpnic_base_stats *base,
+					      struct mpnic_ring *bdq)
+{
+	base->rx.alloc_failed += u64_stats_read(&bdq->stats.bdq.alloc_failed);
+}
+
 static void mpnic_aggregate_ring_rcq_counters(struct mpnic_base_stats *base,
 					      struct mpnic_ring *rcq)
 {
 	base->rx.packets += u64_stats_read(&rcq->stats.rcq.packets);
 	base->rx.bytes += u64_stats_read(&rcq->stats.rcq.bytes);
 	base->rx.dropped += u64_stats_read(&rcq->stats.rcq.dropped);
+	base->rx.alloc_failed += u64_stats_read(&rcq->stats.rcq.alloc_failed);
 	base->rx.errors += u64_stats_read(&rcq->stats.rcq.errors);
 }
 
@@ -767,8 +781,13 @@ void mpnic_stats_fold_rings(struct mpnic_net *mpn)
 			mpnic_aggregate_ring_tcq_counters(new, &qt->cmpl);
 		}
 
-		for (j = 0; j < nv->rxt_count; j++, t++)
-			mpnic_aggregate_ring_rcq_counters(new, &nv->qt[t].cmpl);
+		for (j = 0; j < nv->rxt_count; j++, t++) {
+			struct mpnic_q_triad *qt = &nv->qt[t];
+
+			mpnic_aggregate_ring_bdq_counters(new, &qt->sub0);
+			mpnic_aggregate_ring_bdq_counters(new, &qt->sub1);
+			mpnic_aggregate_ring_rcq_counters(new, &qt->cmpl);
+		}
 	}
 
 	rcu_assign_pointer(mpn->stats.base, new);
@@ -1494,7 +1513,9 @@ void mpnic_fill(struct mpnic_net *mpn)
 			state->hdr.idx = UINT_MAX;
 			state->payld.idx = UINT_MAX;
 
+			local_bh_disable();
 			mpnic_fill_qt_bdqs(qt);
+			local_bh_enable();
 		}
 	}
 }
