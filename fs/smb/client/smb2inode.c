@@ -317,7 +317,7 @@ replay_again:
 		/* Operation */
 		switch (cmds[i]) {
 		case SMB2_OP_QUERY_INFO:
-			rqst[num_rqst].rq_iov = &vars->qi_iov;
+			rqst[num_rqst].rq_iov = vars->qi_iov;
 			rqst[num_rqst].rq_nvec = 1;
 
 			rc = SMB2_query_info_init(tcon, server,
@@ -334,7 +334,7 @@ replay_again:
 							     ses->Suid, full_path);
 			break;
 		case SMB2_OP_POSIX_QUERY_INFO:
-			rqst[num_rqst].rq_iov = &vars->qi_iov;
+			rqst[num_rqst].rq_iov = vars->qi_iov;
 			rqst[num_rqst].rq_nvec = 1;
 
 			/* TBD: fix following to allow for longer SIDs */

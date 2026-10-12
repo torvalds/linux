@@ -1728,7 +1728,7 @@ replay_again:
 					SMB2_O_INFO_FILE, 0, data, size);
 		free_req1_func = SMB2_set_info_free;
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
-		rqst[1].rq_iov = &vars->qi_iov;
+		rqst[1].rq_iov = vars->qi_iov;
 		rqst[1].rq_nvec = 1;
 
 		rc = SMB2_query_info_init(tcon, server,
@@ -3026,7 +3026,7 @@ replay_again:
 		goto qic_exit;
 	smb2_set_next_command(tcon, &rqst[0]);
 
-	rqst[1].rq_iov = &vars->qi_iov;
+	rqst[1].rq_iov = vars->qi_iov;
 	rqst[1].rq_nvec = 1;
 
 	if (cfid) {

@@ -2256,7 +2256,7 @@ struct smb2_compound_vars {
 	struct kvec rsp_iov[MAX_COMPOUND];
 	struct smb_rqst rqst[MAX_COMPOUND];
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
-	struct kvec qi_iov;
+	struct kvec qi_iov[SMB2_QUERY_INFO_IOV_SIZE];
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec hl_iov[SMB2_SET_INFO_IOV_SIZE];
