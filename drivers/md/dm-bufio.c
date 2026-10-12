@@ -1044,12 +1044,6 @@ static unsigned long dm_bufio_default_cache_size;
  */
 static unsigned long dm_bufio_cache_size;
 
-/*
- * A copy of dm_bufio_cache_size because dm_bufio_cache_size can change
- * at any time.  If it disagrees, the user has changed cache size.
- */
-static unsigned long dm_bufio_cache_size_latch;
-
 static DEFINE_SPINLOCK(global_spinlock);
 
 static unsigned int dm_bufio_max_age; /* No longer does anything */
@@ -1076,7 +1070,7 @@ static int dm_bufio_client_count;
 static LIST_HEAD(dm_bufio_all_clients);
 
 /*
- * This mutex protects dm_bufio_cache_size_latch and dm_bufio_client_count
+ * This mutex protects dm_bufio_client_count
  */
 static DEFINE_MUTEX(dm_bufio_clients_lock);
 
@@ -1092,6 +1086,17 @@ static void buffer_record_stack(struct dm_buffer *b)
 #endif
 
 /*----------------------------------------------------------------*/
+
+static unsigned long dm_budio_get_cache_size(void)
+{
+	unsigned long s = READ_ONCE(dm_bufio_cache_size);
+	if (unlikely(!s)) {
+		unsigned long d = dm_bufio_default_cache_size;
+		(void)cmpxchg(&dm_bufio_cache_size, 0, d);
+		s = d;
+	}
+	return s;
+}
 
 static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 {
@@ -1120,33 +1125,11 @@ static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 		dm_bufio_peak_allocated = dm_bufio_current_allocated;
 
 	if (!unlink) {
-		if (dm_bufio_current_allocated > dm_bufio_cache_size)
+		if (dm_bufio_current_allocated > dm_budio_get_cache_size())
 			queue_work(dm_bufio_wq, &dm_bufio_replacement_work);
 	}
 
 	spin_unlock(&global_spinlock);
-}
-
-/*
- * Change the number of clients and recalculate per-client limit.
- */
-static void __cache_size_refresh(void)
-{
-	if (WARN_ON(!mutex_is_locked(&dm_bufio_clients_lock)))
-		return;
-	if (WARN_ON(dm_bufio_client_count < 0))
-		return;
-
-	dm_bufio_cache_size_latch = READ_ONCE(dm_bufio_cache_size);
-
-	/*
-	 * Use default if set to 0 and report the actual cache size used.
-	 */
-	if (!dm_bufio_cache_size_latch) {
-		(void)cmpxchg(&dm_bufio_cache_size, 0,
-			      dm_bufio_default_cache_size);
-		dm_bufio_cache_size_latch = dm_bufio_default_cache_size;
-	}
 }
 
 /*
@@ -1618,7 +1601,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 	 * be allocated.
 	 */
 	while (1) {
-		if (dm_bufio_cache_size_latch != 1) {
+		if (dm_budio_get_cache_size() != 1) {
 			b = alloc_buffer(c, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOMEMALLOC);
 			if (b)
 				return b;
@@ -1627,7 +1610,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 		if (nf == NF_PREFETCH)
 			return NULL;
 
-		if (dm_bufio_cache_size_latch != 1 && !tried_noio_alloc) {
+		if (dm_budio_get_cache_size() != 1 && !tried_noio_alloc) {
 			dm_bufio_unlock(c);
 			b = alloc_buffer(c, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
 			dm_bufio_lock(c);
@@ -2616,7 +2599,6 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	mutex_lock(&dm_bufio_clients_lock);
 	dm_bufio_client_count++;
 	list_add(&c->client_list, &dm_bufio_all_clients);
-	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
 	return c;
@@ -2658,7 +2640,6 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 
 	list_del(&c->client_list);
 	dm_bufio_client_count--;
-	__cache_size_refresh();
 
 	mutex_unlock(&dm_bufio_clients_lock);
 
@@ -2827,8 +2808,8 @@ static void check_watermarks(void)
 
 static void evict_old(void)
 {
-	unsigned long threshold = dm_bufio_cache_size -
-		dm_bufio_cache_size / DM_BUFIO_LOW_WATERMARK_RATIO;
+	unsigned long cs = dm_budio_get_cache_size();
+	unsigned long threshold = cs - cs / DM_BUFIO_LOW_WATERMARK_RATIO;
 	int unproductive = 0;
 
 	mutex_lock(&dm_bufio_clients_lock);
@@ -2889,10 +2870,8 @@ static int __init dm_bufio_init(void)
 #endif
 
 	dm_bufio_default_cache_size = mem;
-
-	mutex_lock(&dm_bufio_clients_lock);
-	__cache_size_refresh();
-	mutex_unlock(&dm_bufio_clients_lock);
+	if (!dm_bufio_cache_size)
+		dm_bufio_cache_size = mem;
 
 	dm_bufio_wq = alloc_workqueue("dm_bufio_cache",
 				      WQ_MEM_RECLAIM | WQ_PERCPU, 0);
