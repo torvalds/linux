@@ -141,6 +141,11 @@ static int info_init_mtl(struct ivpu_device *vdev)
 	hw->tile_fuse = BTRS_MTL_TILE_FUSE_ENABLE_BOTH;
 	hw->sku = BTRS_MTL_TILE_SKU_BOTH;
 	hw->config = WP_CONFIG(MTL_CONFIG_2_TILE, MTL_PLL_RATIO_4_3);
+	hw->btrs_irq_mask = BTRS_MTL_IRQ_MASK;
+
+	if (ivpu_test_mode & IVPU_TEST_MODE_FREQ_CHANGE_ENABLE)
+		hw->btrs_irq_mask = REG_SET_FLD(VPU_HW_BTRS_MTL_INTERRUPT_STAT, FREQ_CHANGE,
+						hw->btrs_irq_mask);
 
 	return 0;
 }
@@ -157,6 +162,11 @@ static int info_init_lnl(struct ivpu_device *vdev)
 
 	hw->tile_fuse = tile_fuse_config;
 	hw->pll.profiling_freq = PLL_PROFILING_FREQ_DEFAULT;
+	hw->btrs_irq_mask = BTRS_LNL_IRQ_MASK;
+
+	if (ivpu_test_mode & IVPU_TEST_MODE_FREQ_CHANGE_ENABLE)
+		hw->btrs_irq_mask = REG_SET_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, FREQ_CHANGE,
+						hw->btrs_irq_mask);
 
 	return 0;
 }
@@ -683,7 +693,7 @@ int ivpu_hw_btrs_cfg_freq_init(struct ivpu_device *vdev)
 /* Handler for IRQs from Buttress core (irqB) */
 bool ivpu_hw_btrs_irq_handler_mtl(struct ivpu_device *vdev, int irq)
 {
-	u32 status = REGB_RD32(VPU_HW_BTRS_MTL_INTERRUPT_STAT) & BTRS_MTL_IRQ_MASK;
+	u32 status = REGB_RD32(VPU_HW_BTRS_MTL_INTERRUPT_STAT) & vdev->hw->btrs_irq_mask;
 	bool schedule_recovery = false;
 
 	if (!status)
@@ -725,7 +735,7 @@ bool ivpu_hw_btrs_irq_handler_mtl(struct ivpu_device *vdev, int irq)
 /* Handler for IRQs from Buttress core (irqB) */
 bool ivpu_hw_btrs_irq_handler_lnl(struct ivpu_device *vdev, int irq)
 {
-	u32 status = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & BTRS_LNL_IRQ_MASK;
+	u32 status = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & vdev->hw->btrs_irq_mask;
 	bool schedule_recovery = false;
 
 	if (!status)
@@ -867,10 +877,10 @@ void ivpu_hw_btrs_global_int_enable(struct ivpu_device *vdev)
 void ivpu_hw_btrs_irq_enable(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL) {
-		REGB_WR32(VPU_HW_BTRS_MTL_LOCAL_INT_MASK, (u32)(~BTRS_MTL_IRQ_MASK));
+		REGB_WR32(VPU_HW_BTRS_MTL_LOCAL_INT_MASK, (u32)(~vdev->hw->btrs_irq_mask));
 		REGB_WR32(VPU_HW_BTRS_MTL_GLOBAL_INT_MASK, 0x0);
 	} else {
-		REGB_WR32(VPU_HW_BTRS_LNL_LOCAL_INT_MASK, (u32)(~BTRS_LNL_IRQ_MASK));
+		REGB_WR32(VPU_HW_BTRS_LNL_LOCAL_INT_MASK, (u32)(~vdev->hw->btrs_irq_mask));
 		REGB_WR32(VPU_HW_BTRS_LNL_GLOBAL_INT_MASK, 0x0);
 	}
 }
@@ -888,7 +898,7 @@ void ivpu_hw_btrs_irq_disable(struct ivpu_device *vdev)
 
 static void diagnose_failure_mtl(struct ivpu_device *vdev)
 {
-	u32 reg = REGB_RD32(VPU_HW_BTRS_MTL_INTERRUPT_STAT) & BTRS_MTL_IRQ_MASK;
+	u32 reg = REGB_RD32(VPU_HW_BTRS_MTL_INTERRUPT_STAT) & vdev->hw->btrs_irq_mask;
 
 	if (REG_TEST_FLD(VPU_HW_BTRS_MTL_INTERRUPT_STAT, ATS_ERR, reg))
 		ivpu_err(vdev, "ATS_ERR irq 0x%016llx", REGB_RD64(VPU_HW_BTRS_MTL_ATS_ERR_LOG_0));
@@ -905,7 +915,7 @@ static void diagnose_failure_mtl(struct ivpu_device *vdev)
 
 static void diagnose_failure_lnl(struct ivpu_device *vdev)
 {
-	u32 reg = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & BTRS_LNL_IRQ_MASK;
+	u32 reg = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & vdev->hw->btrs_irq_mask;
 
 	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, ATS_ERR, reg)) {
 		ivpu_err(vdev, "ATS_ERR_LOG1 0x%08x ATS_ERR_LOG2 0x%08x\n",

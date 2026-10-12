@@ -51,6 +51,7 @@ struct ivpu_hw_info {
 	u16 config;
 	ktime_t d0i3_entry_host_ts;
 	u64 d0i3_entry_vpu_ts;
+	u32 btrs_irq_mask;
 	atomic_t firewall_irq_counter;
 };
 
