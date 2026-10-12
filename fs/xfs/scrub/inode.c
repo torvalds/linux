@@ -212,7 +212,7 @@ xchk_setup_inode(
 	 * make repairs to the ondisk inode buffer.
 	 */
 	if (xchk_could_repair(sc))
-		xrep_setup_inode(sc, &imap);
+		return xrep_setup_inode(sc, &imap);
 	return 0;
 
 out_cancel:

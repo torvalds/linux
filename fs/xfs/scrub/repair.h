@@ -240,7 +240,7 @@ xrep_setup_nothing(
 #define xrep_setup_rtrmapbt		xrep_setup_nothing
 #define xrep_setup_rtrefcountbt		xrep_setup_nothing
 
-#define xrep_setup_inode(sc, imap)	((void)0)
+#define xrep_setup_inode(sc, imap)	(0)
 
 static inline int xrep_setup_symlink(struct xfs_scrub *sc, unsigned int *x)
 {
