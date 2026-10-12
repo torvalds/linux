@@ -694,6 +694,47 @@ static void print_line_highlighted(FILE *fp, const char *line, size_t len)
 }
 
 
+static bool is_blank_line(const char *line, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		if (!isspace((unsigned char)line[i]))
+			return false;
+	}
+	return true;
+}
+
+static bool is_stack_line(const char *line, size_t len)
+{
+	size_t i = 0;
+
+	while (i < len && isspace((unsigned char)line[i]))
+		i++;
+	return i + 1 < len && line[i] == '#' && isdigit((unsigned char)line[i + 1]);
+}
+
+static bool is_ignorable_snippet_line(const char *line, size_t len)
+{
+	return is_blank_line(line, len) || is_stack_line(line, len);
+}
+
+static bool has_non_blank_between(const char **lines, const size_t *line_lens,
+				  size_t start, size_t end)
+{
+	for (size_t j = start + 1; j < end; j++) {
+		if (!is_blank_line(lines[j], line_lens[j]))
+			return true;
+	}
+	return false;
+}
+
+static void pick_snippet_line(bool *pick, size_t idx, unsigned int *picked_count)
+{
+	if (!pick[idx] && *picked_count < failure_snippet_lines) {
+		pick[idx] = true;
+		(*picked_count)++;
+	}
+}
+
 static void print_test_failure_snippet(FILE *fp, const char *buf)
 {
 	size_t num_lines = 0;
@@ -764,43 +805,63 @@ static void print_test_failure_snippet(FILE *fp, const char *buf)
 	}
 
 	/* Pass 0: Always pick the very first line */
-	if (num_lines > 0 && picked_count < failure_snippet_lines) {
-		pick[0] = true;
-		picked_count++;
-	}
+	if (num_lines > 0)
+		pick_snippet_line(pick, 0, &picked_count);
 
 	/* Pass 1: Pick lines with failure keywords from start (Highest Priority) */
 	for (i = 0; i < num_lines && picked_count < failure_snippet_lines; i++) {
 		size_t dummy;
 
-		if (find_next_keyword(lines[i], line_lens[i], &dummy)) {
-			if (!pick[i]) {
-				pick[i] = true;
-				picked_count++;
-			}
-			/* Prioritize getting the immediate next line for context */
-			if (i + 1 < num_lines && !pick[i + 1] &&
-			    picked_count < failure_snippet_lines) {
-				pick[i + 1] = true;
-				picked_count++;
+		if (is_ignorable_snippet_line(lines[i], line_lens[i]))
+			continue;
+		if (!find_next_keyword(lines[i], line_lens[i], &dummy))
+			continue;
+
+		pick_snippet_line(pick, i, &picked_count);
+		/*
+		 * For unexpected signals, prioritize the preceding non-blank
+		 * line showing where the test had run to before the signal.
+		 */
+		if (!strncmp(lines[i], "---- unexpected signal", 22)) {
+			size_t j = i;
+
+			while (j > 0) {
+				j--;
+				if (!is_ignorable_snippet_line(lines[j], line_lens[j])) {
+					pick_snippet_line(pick, j, &picked_count);
+					break;
+				}
 			}
 		}
+		/* Prioritize getting the immediate next line for context */
+		if (i + 1 < num_lines &&
+		    !is_ignorable_snippet_line(lines[i + 1], line_lens[i + 1]))
+			pick_snippet_line(pick, i + 1, &picked_count);
 	}
 
-	/* Pass 2: Fill remaining quota from the end backwards */
+	/*
+	 * Pass 2: Fill remaining quota from the end backwards, skipping blank
+	 * and stack trace lines so trailing test progress is shown instead of
+	 * outermost stack frames like main/_start.
+	 */
 	i = num_lines;
 	while (i > 0 && picked_count < failure_snippet_lines) {
 		i--;
-		if (!pick[i]) {
-			pick[i] = true;
-			picked_count++;
-		}
+		if (!is_ignorable_snippet_line(lines[i], line_lens[i]))
+			pick_snippet_line(pick, i, &picked_count);
+	}
+
+	/* Pass 3: Fallback to top stack frames if quota remains */
+	for (i = 0; i < num_lines && picked_count < failure_snippet_lines; i++) {
+		if (!is_blank_line(lines[i], line_lens[i]))
+			pick_snippet_line(pick, i, &picked_count);
 	}
 
 	for (i = 0; i < num_lines; i++) {
 		if (!pick[i])
 			continue;
-		if (last_printed != -1 && (int)i > last_printed + 1) {
+		if (last_printed != -1 &&
+		    has_non_blank_between(lines, line_lens, last_printed, i)) {
 			if (perf_use_color_default)
 				fprintf(fp, "%s...%s\n", PERF_COLOR_BLUE, PERF_COLOR_RESET);
 			else
