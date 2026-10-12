@@ -443,7 +443,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 
 	if (ses->user_name != NULL) {
 		/* calculate nlmv2 response and session key */
-		rc = setup_ntlmv2_rsp(ses, sess_data->nls_cp);
+		rc = setup_ntlmv2_rsp(ses);
 		if (rc) {
 			cifs_dbg(VFS, "Error %d during NTLMv2 authentication\n", rc);
 			goto out;

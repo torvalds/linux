@@ -929,7 +929,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	unsigned char *tmp;
 	int len;
 
-	rc = setup_ntlmv2_rsp(ses, nls_cp);
+	rc = setup_ntlmv2_rsp(ses);
 	if (rc) {
 		cifs_dbg(VFS, "Error %d during NTLMSSP authentication\n", rc);
 		*buflen = 0;

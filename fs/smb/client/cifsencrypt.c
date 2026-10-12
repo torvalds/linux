@@ -373,8 +373,7 @@ out:
 	return rc;
 }
 
-int
-setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
+int setup_ntlmv2_rsp(struct cifs_ses *ses)
 {
 	unsigned char *tiblob = NULL; /* target info blob */
 	struct ntlmv2_resp *ntlmv2;
@@ -382,11 +381,6 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	__le64 rsp_timestamp;
 	__u64 cc;
 	int rc;
-
-	if (nls_cp == NULL) {
-		cifs_dbg(VFS, "%s called with nls_cp==NULL\n", __func__);
-		return -EINVAL;
-	}
 
 	if (ses->server->negflavor == CIFS_NEGFLAVOR_EXTENDED) {
 		if (!ses->domainName) {
