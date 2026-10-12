@@ -290,10 +290,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	case DRM_IVPU_PARAM_FW_API_VERSION:
 		if (args->index < VPU_FW_API_VER_NUM) {
-			struct vpu_firmware_header *fw_hdr;
-
-			fw_hdr = (struct vpu_firmware_header *)vdev->fw->file->data;
-			args->value = fw_hdr->api_version[args->index];
+			args->value = vdev->fw->api_version[args->index];
 		} else {
 			ret = -EINVAL;
 		}

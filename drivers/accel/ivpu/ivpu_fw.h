@@ -20,6 +20,7 @@ struct ivpu_fw_info {
 	const struct firmware *file;
 	const char *name;
 	char version[FW_VERSION_STR_SIZE];
+	u32 api_version[VPU_FW_API_VER_NUM];
 	struct ivpu_bo *mem_bp;
 	struct ivpu_bo *mem_fw_ver;
 	struct ivpu_bo *mem;
