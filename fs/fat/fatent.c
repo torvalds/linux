@@ -503,7 +503,8 @@ static int fat_flush_bhs(struct super_block *sb, struct buffer_head **bhs,
 	return 0;
 }
 
-int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
+static int __fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster,
+				bool return_all)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -546,7 +547,10 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 				if (sbi->free_clusters != -1)
 					sbi->free_clusters--;
 
-				cluster[idx_clus] = entry;
+				if (return_all)
+					cluster[idx_clus] = entry;
+				else if (!idx_clus)
+					*cluster = entry;
 				idx_clus++;
 
 				if (nr_bhs + fatent.nr_bhs > MAX_BUF_PER_PAGE) {
@@ -594,6 +598,16 @@ out:
 		fat_free_clusters(inode, cluster[0]);
 
 	return err;
+}
+
+int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
+{
+	return __fat_alloc_clusters(inode, cluster, nr_cluster, true);
+}
+
+int fat_alloc_chain(struct inode *inode, int *cluster, int nr_cluster)
+{
+	return __fat_alloc_clusters(inode, cluster, nr_cluster, false);
 }
 
 int fat_free_clusters(struct inode *inode, int cluster)

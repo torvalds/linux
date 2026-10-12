@@ -292,7 +292,7 @@ static long fat_fallocate(struct file *file, int mode,
 
 		/* Start the allocation.We are not zeroing out the clusters */
 		while (nr_cluster-- > 0) {
-			err = fat_add_cluster(inode);
+			err = fat_add_clusters(inode, 1);
 			if (err)
 				goto error;
 		}
