@@ -138,7 +138,6 @@ int __init sclp_early_get_core_info(struct sclp_core_info *info)
 	if (!sccb)
 		return -ENOMEM;
 
-	memset(sccb, 0, length);
 	sccb->header.length = length;
 	sccb->header.control_mask[2] = 0x80;
 	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb)) {
