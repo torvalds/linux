@@ -299,7 +299,15 @@ __naked void gotol(void)
 		"r3 = 24;"
 		"if r1 > 0x7 goto +2;"
 		"r0 = r2;"
+#ifdef __clang__
 		"gotol +1;"
+#else
+		/*
+		 * gas mis-parses 'gotol +1' as 'goto l+1', same encoding
+		 * without the sign (binutils PR gas/34558).
+		 */
+		"gotol 1;"
+#endif
 		"r0 = r3;"
 		"exit;"
 		:
@@ -427,6 +435,34 @@ __naked void subprog1(void)
 		"r3 = 3;"
 		"call aux1;"
 		"r0 = 0;"
+		"exit;"
+		::: __clobber_all);
+}
+
+static __used __naked unsigned __int128 aux2(void)
+{
+	asm volatile (
+		"r0 = 1;"
+		"r2 = 2;"
+		"exit;"
+		::: __clobber_all);
+}
+
+SEC("socket")
+/* A program observing the pair needs the JIT; see bpf_compute_subprog_ret_regs(). */
+__load_if_JITed()
+__log_level(2)
+__msg("0: .12345.... (85) call pc+2")
+__msg("1: ..2....... (bf) r0 = r2")
+__msg("2: 0......... (95) exit")
+__msg("3: .......... (b7) r0 = 1")
+__msg("4: 0......... (b7) r2 = 2")
+__msg("5: 0.2....... (95) exit")
+__naked void subprog_ret_reg_pair(void)
+{
+	asm volatile (
+		"call aux2;"
+		"r0 = r2;"
 		"exit;"
 		::: __clobber_all);
 }

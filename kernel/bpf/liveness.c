@@ -2060,7 +2060,8 @@ static inline u16 mask_hi(u32 m) { return (u16)(m >> 16); }
 /* Compute info->{use,def} fields for the instruction */
 static void compute_insn_live_regs(struct bpf_verifier_env *env,
 				   struct bpf_insn *insn,
-				   struct insn_live_regs *info)
+				   struct insn_live_regs *info,
+				   bool ret_reg_pair)
 {
 	struct bpf_call_summary cs;
 	const u8 class = BPF_CLASS(insn->code);
@@ -2072,6 +2073,7 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 	const u32 src32 = mask_lo(src);
 	const u32 dst32 = mask_lo(dst);
 	const u32 r0  = reg64_mask(0);
+	const u32 r2  = reg64_mask(BPF_REG_2);
 	u32 def = 0;
 	u32 use = U32_MAX;
 
@@ -2191,7 +2193,7 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 			break;
 		case BPF_EXIT:
 			def = 0;
-			use = r0;
+			use = ret_reg_pair ? (r0 | r2) : r0;
 			break;
 		case BPF_CALL:
 			def = ALL_CALLER_SAVED_REGS;
@@ -2228,8 +2230,8 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 	struct insn_live_regs *state;
 	int insn_cnt = env->prog->len;
 	u64 pos, insn_pos;
-	int err = 0, i, j;
-	bool changed;
+	int err = 0, i, j, subprog, start, end;
+	bool changed, ret_reg_pair;
 
 	/* Use the following algorithm:
 	 * - define the following:
@@ -2256,8 +2258,14 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 		goto out;
 	}
 
-	for (i = 0; i < insn_cnt; ++i)
-		compute_insn_live_regs(env, &insns[i], &state[i]);
+	for (subprog = 0; subprog < env->subprog_cnt; subprog++) {
+		start = env->subprog_info[subprog].start;
+		end = env->subprog_info[subprog + 1].start;
+		ret_reg_pair = bpf_ret_reg_pair(env, subprog);
+
+		for (i = start; i < end; ++i)
+			compute_insn_live_regs(env, &insns[i], &state[i], ret_reg_pair);
+	}
 
 	/* Forward pass: resolve stack access through FP-derived pointers */
 	err = bpf_compute_subprog_arg_access(env);

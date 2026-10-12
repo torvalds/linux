@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /* Copyright (c) 2025 Meta Platforms, Inc. and affiliates. */
 #ifndef BPF_ATOMIC_H
 #define BPF_ATOMIC_H

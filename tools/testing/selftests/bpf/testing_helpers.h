@@ -61,4 +61,7 @@ int testing_prog_flags(void);
 bool is_jit_enabled(void);
 int stack_mprotect(void);
 
+/* Runs diff(1) on mismatch */
+int compare_text_to_expected(const char *actual, const char *expected);
+
 #endif /* __TESTING_HELPERS_H */

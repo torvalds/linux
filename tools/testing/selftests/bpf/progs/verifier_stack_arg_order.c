@@ -5,7 +5,8 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && \
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && \
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 
 __noinline __used __naked
@@ -174,6 +175,7 @@ __naked void stack_arg_read_without_write_2(void)
 
 SEC("socket")
 __description("stack_arg order is not supported by compiler or jit, use a dummy test")
+__skip("stack_arg order is not supported by compiler or jit")
 __success
 int dummy_test(void)
 {

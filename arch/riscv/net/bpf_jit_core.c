@@ -48,6 +48,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	int pass = 0, prev_ninsns = 0, i;
 	struct rv_jit_data *jit_data;
 	struct rv_jit_context *ctx;
+	u16 stack_arg_cnt;
 
 	if (!prog->jit_requested)
 		return prog;
@@ -71,6 +72,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 
 	ctx->arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
 	ctx->user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
+
+	stack_arg_cnt = bpf_out_stack_arg_cnt(env, prog);
+	/* First 3 stack args in regs, rest on stack */
+	ctx->stack_arg_sz = stack_arg_cnt > RV_EXTRA_STK_ARGS ?
+			    round_up((stack_arg_cnt - RV_EXTRA_STK_ARGS) * 8, STACK_ALIGN) : 0;
+
 	ctx->prog = prog;
 	ctx->offset = kvzalloc_objs(int, prog->len);
 	if (!ctx->offset)

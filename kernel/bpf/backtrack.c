@@ -423,6 +423,10 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 				 */
 				verifier_bug_if(idx + 1 != subseq_idx, env,
 						"extra insn from subprog");
+				/* global subprog always sets R0 */
+				bt_clear_reg(bt, BPF_REG_0);
+				/* and if it does not set R2, main pass would catch it */
+				bt_clear_reg(bt, BPF_REG_2);
 				/* r1-r5 are invalidated after subprog call,
 				 * so for global func call it shouldn't be set
 				 * anymore
@@ -432,8 +436,6 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 						     bt_reg_mask(bt));
 					return -EFAULT;
 				}
-				/* global subprog always sets R0 */
-				bt_clear_reg(bt, BPF_REG_0);
 				return 0;
 			} else {
 				/* static subprog call instruction, which
@@ -506,6 +508,8 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 				return -ENOTSUPP;
 			/* regular helper call sets R0 */
 			bt_clear_reg(bt, BPF_REG_0);
+			/* kfunc might also set R2 */
+			bt_clear_reg(bt, BPF_REG_2);
 			if (bt_reg_mask(bt) & BPF_REGMASK_ARGS) {
 				/* if backtracking was looking for registers R1-R5
 				 * they should have been found already.
@@ -520,40 +524,50 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 					return -EFAULT;
 			}
 		} else if (opcode == BPF_EXIT) {
-			bool from_subprog_call, r0_precise;
+			bool from_subprog_call, r0_precise, r2_precise;
 
 			/* BPF_EXIT in subprog or callback always returns
 			 * right after the call instruction, so by checking
 			 * whether the instruction at subseq_idx-1 is subprog
 			 * call or not we can distinguish actual exit from
 			 * *subprog* from exit from *callback*. In the former
-			 * case, we need to propagate r0 precision, if
-			 * necessary. In the former we never do that.
+			 * case, we need to propagate the precision of the
+			 * return registers, if necessary. In the latter we
+			 * never do that.
 			 */
 			from_subprog_call = subseq_idx - 1 >= 0 &&
 					    bpf_pseudo_call(&env->prog->insnsi[subseq_idx - 1]);
 
 			r0_precise = from_subprog_call && bt_is_reg_set(bt, BPF_REG_0);
+			r2_precise = from_subprog_call && bt_is_reg_set(bt, BPF_REG_2);
 
 			/* Backtracking to a nested function call, 'idx' is a part of
 			 * the inner frame 'subseq_idx' is a part of the outer frame.
-			 * In case of a regular function call, instructions giving
-			 * precision to registers R1-R5 should have been found already.
+			 * In case of a regular function call, the callee defines the
+			 * return registers R0 and R2, so clear them before checking
+			 * that instructions giving precision to registers R1-R5 have
+			 * been found already. R2 is also an argument register, hence
+			 * it has to be cleared before that check.
 			 * In case of a callback from bpf_loop(), R{1,4} in the calling
-			 * frame would be set as precise and that is correct.
+			 * frame would be set as precise and that is correct, and R2
+			 * might be a precise helper argument as well, so leave it set.
 			 */
+			bt_clear_reg(bt, BPF_REG_0);
+			if (from_subprog_call)
+				bt_clear_reg(bt, BPF_REG_2);
 			if (from_subprog_call && (bt_reg_mask(bt) & BPF_REGMASK_ARGS)) {
 				verifier_bug(env, "backtracking exit unexpected regs %x",
 					     bt_reg_mask(bt));
 				return -EFAULT;
 			}
 
-			bt_clear_reg(bt, BPF_REG_0);
 			if (bt_subprog_enter(bt))
 				return -EFAULT;
 
 			if (r0_precise)
 				bt_set_reg(bt, BPF_REG_0);
+			if (r2_precise)
+				bt_set_reg(bt, BPF_REG_2);
 			/* r6-r9 and stack slots will stay set in caller frame
 			 * bitmasks until we return back from callee(s)
 			 */

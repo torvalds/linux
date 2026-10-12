@@ -130,6 +130,12 @@ cleanup:
 
 int bpftool_prog_sign(struct bpf_load_and_run_opts *opts)
 {
+	unsigned int signer_flags = CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
+#ifdef CMS_NO_SIGNING_TIME
+				    CMS_NO_SIGNING_TIME |
+#endif
+				    CMS_USE_KEYID | CMS_NOATTR;
+	const EVP_MD *cms_digest = EVP_sha256();
 	BIO *bd_in = NULL, *bd_out = NULL;
 	EVP_PKEY *private_key = NULL;
 	CMS_ContentInfo *cms = NULL;
@@ -167,6 +173,20 @@ int bpftool_prog_sign(struct bpf_load_and_run_opts *opts)
 		goto cleanup;
 	}
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && OPENSSL_VERSION_NUMBER < 0x40000000L
+	if (EVP_PKEY_is_a(private_key, "ML-DSA-44") ||
+	    EVP_PKEY_is_a(private_key, "ML-DSA-65") ||
+	    EVP_PKEY_is_a(private_key, "ML-DSA-87")) {
+		/*
+		 * See workaround in 0ad9a71933e7 ("modsign: Enable ML-DSA
+		 * module signing"). Kernel only accepts sha512, see also
+		 * 8bbdeb7a25b4 ("pkcs7, x509: Add ML-DSA support").
+		 */
+		signer_flags &= ~CMS_NOATTR;
+		cms_digest = EVP_sha512();
+	}
+#endif
+
 	cms = CMS_sign(NULL, NULL, NULL, NULL,
 		       CMS_NOCERTS | CMS_PARTIAL | CMS_BINARY | CMS_DETACHED |
 			       CMS_STREAM);
@@ -175,9 +195,7 @@ int bpftool_prog_sign(struct bpf_load_and_run_opts *opts)
 		goto cleanup;
 	}
 
-	if (!CMS_add1_signer(cms, x509, private_key, EVP_sha256(),
-			     CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
-			     CMS_USE_KEYID | CMS_NOATTR)) {
+	if (!CMS_add1_signer(cms, x509, private_key, cms_digest, signer_flags)) {
 		err = -EINVAL;
 		goto cleanup;
 	}

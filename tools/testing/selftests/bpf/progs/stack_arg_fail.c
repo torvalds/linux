@@ -103,8 +103,9 @@ __naked void r11_store_zero_off(void)
 
 SEC("tc")
 __description("stack_arg_fail: not supported, dummy test")
+__skip("stack_arg_fail: not supported")
 __success
-int test_stack_arg_big(struct __sk_buff *skb)
+int dummy_test(struct __sk_buff *skb)
 {
 	return 0;
 }

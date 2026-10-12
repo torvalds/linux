@@ -267,6 +267,7 @@ __naked void load_acquire_with_invalid_reg(void)
 
 SEC("socket")
 __description("Clang version < 18, ENABLE_ATOMICS_TESTS not defined, and/or JIT doesn't support load-acquire, use a dummy test")
+__skip("Clang version < 18, ENABLE_ATOMICS_TESTS not defined, and/or JIT doesn't support load-acquire")
 __success
 int dummy_test(void)
 {

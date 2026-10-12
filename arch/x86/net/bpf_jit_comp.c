@@ -22,6 +22,17 @@
 #include <asm/unwind.h>
 #include <asm/cfi.h>
 
+#if IS_ENABLED(CONFIG_BPF_JIT_KASAN)
+void __asan_load1(void *p);
+void __asan_store1(void *p);
+void __asan_load2(void *p);
+void __asan_store2(void *p);
+void __asan_load4(void *p);
+void __asan_store4(void *p);
+void __asan_load8(void *p);
+void __asan_store8(void *p);
+#endif
+
 static bool all_callee_regs_used[4] = {true, true, true, true};
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
@@ -1111,6 +1122,93 @@ static void maybe_emit_1mod(u8 **pprog, u32 reg, bool is64)
 	*pprog = prog;
 }
 
+static int emit_kasan_check(struct bpf_verifier_env *env, u8 **pprog,
+			    u32 addr_reg, s32 off, u32 bpf_size, u8 *ip,
+			    bool is_write)
+{
+#ifdef CONFIG_BPF_JIT_KASAN
+	u8 *prog = *pprog;
+	void *kasan_func;
+
+	if (!env)
+		return 0;
+
+	if (addr_reg == BPF_REG_FP || addr_reg == BPF_REG_PARAMS)
+		return 0;
+
+	/* Derive KASAN check function from access type and size */
+	switch (bpf_size) {
+	case BPF_B:
+		kasan_func = is_write ? __asan_store1 : __asan_load1;
+		break;
+	case BPF_H:
+		kasan_func = is_write ? __asan_store2 : __asan_load2;
+		break;
+	case BPF_W:
+		kasan_func = is_write ? __asan_store4 : __asan_load4;
+		break;
+	case BPF_DW:
+		kasan_func = is_write ? __asan_store8 : __asan_load8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Save rax */
+	EMIT1(0x50);
+	/* Save rcx */
+	EMIT1(0x51);
+	/* Save rdx */
+	EMIT1(0x52);
+	/* Save rsi */
+	EMIT1(0x56);
+	/* Save rdi */
+	EMIT1(0x57);
+	/* Save r8 */
+	EMIT2(0x41, 0x50);
+	/* Save r9 */
+	EMIT2(0x41, 0x51);
+	/* Save r10 */
+	EMIT2(0x41, 0x52);
+	/* Save r11 */
+	EMIT2(0x41, 0x53);
+	/* mov rdi, addr_reg */
+	EMIT_mov(BPF_REG_1, addr_reg);
+
+	/* add rdi, off (if offset is non-zero) */
+	if (off) {
+		if (is_imm8(off)) {
+			/* add rdi, imm8 */
+			EMIT4(0x48, 0x83, 0xC7, (u8)off);
+		} else {
+			/* add rdi, imm32 */
+			EMIT3_off32(0x48, 0x81, 0xC7, off);
+		}
+	}
+
+	/* Adjust ip to account for the instrumentation generated so far */
+	ip += (prog - *pprog);
+	/* We emit a call, so update call depth counting */
+	ip += x86_call_depth_emit_accounting(&prog, kasan_func, ip);
+	/* call kasan_func */
+	if (emit_call(&prog, kasan_func, ip))
+		return -ERANGE;
+
+	EMIT2(0x41, 0x5B);
+	EMIT2(0x41, 0x5A);
+	EMIT2(0x41, 0x59);
+	EMIT2(0x41, 0x58);
+	EMIT1(0x5F);
+	EMIT1(0x5E);
+	EMIT1(0x5A);
+	EMIT1(0x59);
+	EMIT1(0x58);
+
+	*pprog = prog;
+#endif /* CONFIG_BPF_JIT_KASAN */
+	return 0;
+}
+
 /* LDX: dst_reg = *(u8*)(src_reg + off) */
 static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 {
@@ -1316,6 +1414,46 @@ static void emit_st_index(u8 **pprog, u32 size, u32 dst_reg, u32 index_reg, int 
 	*pprog = prog;
 }
 
+/* ST: *(u8*)(dst_reg + off) = imm */
+static void emit_st(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
+		    s32 insn_off)
+{
+	s32 imm32 = insn->imm;
+	u8 *prog = *pprog;
+
+	switch (BPF_SIZE(insn->code)) {
+	case BPF_B:
+		if (is_ereg(dst_reg))
+			EMIT2(0x41, 0xC6);
+		else
+			EMIT1(0xC6);
+		break;
+	case BPF_H:
+		if (is_ereg(dst_reg))
+			EMIT3(0x66, 0x41, 0xC7);
+		else
+			EMIT2(0x66, 0xC7);
+		break;
+	case BPF_W:
+		if (is_ereg(dst_reg))
+			EMIT2(0x41, 0xC7);
+		else
+			EMIT1(0xC7);
+		break;
+	case BPF_DW:
+		EMIT2(add_1mod(0x48, dst_reg), 0xC7);
+		break;
+	}
+
+	if (is_imm8(insn_off))
+		EMIT2(add_1reg(0x40, dst_reg), insn_off);
+	else
+		EMIT1_off32(add_1reg(0x80, dst_reg), insn_off);
+
+	EMIT(imm32, bpf_size_to_x86_bytes(BPF_SIZE(insn->code)));
+	*pprog = prog;
+}
+
 static void emit_st_r12(u8 **pprog, u32 size, u32 dst_reg, int off, int imm)
 {
 	emit_st_index(pprog, size, dst_reg, X86_REG_R12, off, imm);
@@ -1424,17 +1562,35 @@ static int emit_atomic_rmw_index(u8 **pprog, u32 atomic_op, u32 size,
 	return 0;
 }
 
-static int emit_atomic_ld_st(u8 **pprog, u32 atomic_op, u32 dst_reg,
-			     u32 src_reg, s16 off, u8 bpf_size)
+static int emit_atomic_ld_st(struct bpf_verifier_env *env, u8 **pprog,
+			     struct bpf_insn *insn, u8 *ip, u32 dst_reg,
+			     u32 src_reg, bool accesses_stack_only)
 {
+	u32 atomic_op = insn->imm;
+	int err;
+
 	switch (atomic_op) {
 	case BPF_LOAD_ACQ:
+		if (!accesses_stack_only) {
+			err = emit_kasan_check(env, pprog, src_reg, insn->off,
+					       BPF_SIZE(insn->code), ip, false);
+			if (err)
+				return err;
+		}
 		/* dst_reg = smp_load_acquire(src_reg + off16) */
-		emit_ldx(pprog, bpf_size, dst_reg, src_reg, off);
+		emit_ldx(pprog, BPF_SIZE(insn->code), dst_reg, src_reg,
+			 insn->off);
 		break;
 	case BPF_STORE_REL:
+		if (!accesses_stack_only) {
+			err = emit_kasan_check(env, pprog, dst_reg, insn->off,
+					       BPF_SIZE(insn->code), ip, true);
+			if (err)
+				return err;
+		}
 		/* smp_store_release(dst_reg + off16, src_reg) */
-		emit_stx(pprog, bpf_size, dst_reg, src_reg, off);
+		emit_stx(pprog, BPF_SIZE(insn->code), dst_reg, src_reg,
+			 insn->off);
 		break;
 	default:
 		pr_err("bpf_jit: unknown atomic load/store opcode %02x\n",
@@ -1690,16 +1846,11 @@ static int emit_spectre_bhb_barrier(u8 **pprog, u8 *ip,
  * arena NULL is offset 0. Return the number of emitted bytes.
  */
 static int emit_kfunc_arena_args(struct bpf_prog *bpf_prog,
-				 const struct bpf_insn *insn, u8 **pprog)
+				 const struct btf_func_model *fm, u8 **pprog)
 {
-	const struct btf_func_model *fm;
 	u8 *prog = *pprog;
 	u8 *start = prog;
 	int i;
-
-	fm = bpf_jit_find_kfunc_model(bpf_prog, insn);
-	if (!fm)
-		return -EINVAL;
 
 	for (i = 0; i < min_t(int, fm->nr_args, MAX_BPF_FUNC_REG_ARGS); i++) {
 		u8 flags = fm->arg_flags[i];
@@ -1860,10 +2011,12 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		const s32 imm32 = insn->imm;
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
+		bool accesses_stack_only;
 		u8 b2 = 0, b3 = 0;
 		u8 *start_of_ldx;
 		s64 jmp_offset;
 		s32 insn_off;
+		int insn_idx;
 		u8 jmp_cond;
 		u8 *func;
 		int nops;
@@ -1880,6 +2033,10 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 			EMIT_ENDBR();
 
 		ip = image + addrs[i - 1] + (prog - temp);
+		insn_idx = i - 1 + bpf_prog->aux->subprog_start;
+		accesses_stack_only =
+			env ? !env->insn_aux_data[insn_idx].non_stack_access :
+			      false;
 
 		switch (insn->code) {
 			/* ALU */
@@ -2256,49 +2413,37 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 			EMIT_LFENCE();
 			break;
 
-			/* ST: *(u8*)(dst_reg + off) = imm */
 		case BPF_ST | BPF_MEM | BPF_B:
-			if (is_ereg(dst_reg))
-				EMIT2(0x41, 0xC6);
-			else
-				EMIT1(0xC6);
-			goto st;
 		case BPF_ST | BPF_MEM | BPF_H:
-			if (is_ereg(dst_reg))
-				EMIT3(0x66, 0x41, 0xC7);
-			else
-				EMIT2(0x66, 0xC7);
-			goto st;
 		case BPF_ST | BPF_MEM | BPF_W:
-			if (is_ereg(dst_reg))
-				EMIT2(0x41, 0xC7);
-			else
-				EMIT1(0xC7);
-			goto st;
 		case BPF_ST | BPF_MEM | BPF_DW:
 			if (dst_reg == BPF_REG_PARAMS && insn->off == -8) {
 				/* Arg 6: store immediate in r9 register */
-				emit_mov_imm64(&prog, X86_REG_R9, imm32 >> 31, (u32)imm32);
+				emit_mov_imm64(&prog, X86_REG_R9, imm32 >> 31,
+					       imm32);
 				break;
 			}
-			EMIT2(add_1mod(0x48, dst_reg), 0xC7);
-
-st:			insn_off = insn->off;
+			insn_off = insn->off;
 			if (dst_reg == BPF_REG_PARAMS) {
 				/*
 				 * Args 7+: reverse BPF negative offsets to
 				 * x86 positive rsp offsets.
 				 * BPF off=-16 → [rsp+0], off=-24 → [rsp+8], ...
 				 */
-				insn_off = outgoing_arg_base - outgoing_rsp - insn_off - 16;
+				insn_off = outgoing_arg_base - outgoing_rsp -
+					   insn_off - 16;
 				dst_reg = BPF_REG_FP;
 			}
-			if (is_imm8(insn_off))
-				EMIT2(add_1reg(0x40, dst_reg), insn_off);
-			else
-				EMIT1_off32(add_1reg(0x80, dst_reg), insn_off);
+			if (!accesses_stack_only) {
+				err = emit_kasan_check(env, &prog, dst_reg,
+						       insn_off,
+						       BPF_SIZE(insn->code), ip,
+						       true);
+				if (err)
+					return err;
+			}
 
-			EMIT(imm32, bpf_size_to_x86_bytes(BPF_SIZE(insn->code)));
+			emit_st(&prog, insn, dst_reg, insn_off);
 			break;
 
 			/* STX: *(u8*)(dst_reg + off) = src_reg */
@@ -2315,6 +2460,14 @@ st:			insn_off = insn->off;
 			if (dst_reg == BPF_REG_PARAMS) {
 				insn_off = outgoing_arg_base - outgoing_rsp - insn_off - 16;
 				dst_reg = BPF_REG_FP;
+			}
+			if (!accesses_stack_only) {
+				err = emit_kasan_check(env, &prog, dst_reg,
+						       insn_off,
+						       BPF_SIZE(insn->code), ip,
+						       true);
+				if (err)
+					return err;
 			}
 			emit_stx(&prog, BPF_SIZE(insn->code), dst_reg, src_reg, insn_off);
 			break;
@@ -2497,6 +2650,13 @@ populate_extable:
 				/* populate jmp_offset for JAE above to jump to start_of_ldx */
 				start_of_ldx = prog;
 				end_of_jmp[-1] = start_of_ldx - end_of_jmp;
+			} else if (!accesses_stack_only) {
+				err = emit_kasan_check(env, &prog, src_reg,
+						       insn_off,
+						       BPF_SIZE(insn->code), ip,
+						       false);
+				if (err)
+					return err;
 			}
 			if (BPF_MODE(insn->code) == BPF_PROBE_MEMSX ||
 			    BPF_MODE(insn->code) == BPF_MEMSX)
@@ -2558,28 +2718,42 @@ populate_extable:
 			}
 			fallthrough;
 		case BPF_STX | BPF_ATOMIC | BPF_W:
-		case BPF_STX | BPF_ATOMIC | BPF_DW:
-			if (insn->imm == (BPF_AND | BPF_FETCH) ||
-			    insn->imm == (BPF_OR | BPF_FETCH) ||
-			    insn->imm == (BPF_XOR | BPF_FETCH)) {
-				bool is64 = BPF_SIZE(insn->code) == BPF_DW;
-				u32 real_src_reg = src_reg;
-				u32 real_dst_reg = dst_reg;
-				u8 *branch_target;
-
+		case BPF_STX | BPF_ATOMIC | BPF_DW: {
+			bool is64 = BPF_SIZE(insn->code) == BPF_DW;
+			u32 real_src_reg = src_reg;
+			u32 real_dst_reg = dst_reg;
+			u8 *old_prog;
+			bool is_atomic_fetch =
+				(insn->imm == (BPF_AND | BPF_FETCH) ||
+				 insn->imm == (BPF_OR | BPF_FETCH) ||
+				 insn->imm == (BPF_XOR | BPF_FETCH));
+			if (is_atomic_fetch) {
 				/*
 				 * Can't be implemented with a single x86 insn.
 				 * Need to do a CMPXCHG loop.
 				 */
 
 				/* Will need RAX as a CMPXCHG operand so save R0 */
+				old_prog = prog;
 				emit_mov_reg(&prog, true, BPF_REG_AX, BPF_REG_0);
 				if (src_reg == BPF_REG_0)
 					real_src_reg = BPF_REG_AX;
 				if (dst_reg == BPF_REG_0)
 					real_dst_reg = BPF_REG_AX;
-
-				branch_target = prog;
+				ip += (prog - old_prog);
+			}
+			if (!bpf_atomic_is_load_store(insn)) {
+				if (!accesses_stack_only) {
+					err = emit_kasan_check(
+						env, &prog, real_dst_reg,
+						insn->off, BPF_SIZE(insn->code),
+						ip, true);
+					if (err)
+						return err;
+				}
+			}
+			if (is_atomic_fetch) {
+				u8 *branch_target = prog;
 				/* Load old value */
 				emit_ldx(&prog, BPF_SIZE(insn->code),
 					 BPF_REG_0, real_dst_reg, insn->off);
@@ -2611,15 +2785,16 @@ populate_extable:
 			}
 
 			if (bpf_atomic_is_load_store(insn))
-				err = emit_atomic_ld_st(&prog, insn->imm, dst_reg, src_reg,
-							insn->off, BPF_SIZE(insn->code));
+				err = emit_atomic_ld_st(env, &prog, insn, ip,
+							dst_reg, src_reg,
+							accesses_stack_only);
 			else
 				err = emit_atomic_rmw(&prog, insn->imm, dst_reg, src_reg,
 						      insn->off, BPF_SIZE(insn->code));
 			if (err)
 				return err;
 			break;
-
+		}
 		case BPF_STX | BPF_PROBE_ATOMIC | BPF_B:
 		case BPF_STX | BPF_PROBE_ATOMIC | BPF_H:
 			if (!bpf_atomic_is_load_store(insn)) {
@@ -2645,6 +2820,8 @@ populate_extable:
 
 			/* call */
 		case BPF_JMP | BPF_CALL: {
+			const struct btf_func_model *fm = NULL;
+
 			func = (u8 *) __bpf_call_base + imm32;
 			if (src_reg == BPF_PSEUDO_CALL && tail_call_reachable) {
 				LOAD_TAIL_CALL_CNT_PTR(stack_depth);
@@ -2653,7 +2830,10 @@ populate_extable:
 			if (!imm32)
 				return -EINVAL;
 			if (src_reg == BPF_PSEUDO_KFUNC_CALL) {
-				err = emit_kfunc_arena_args(bpf_prog, insn, &prog);
+				fm = bpf_jit_find_kfunc_model(bpf_prog, insn);
+				if (!fm)
+					return -EINVAL;
+				err = emit_kfunc_arena_args(bpf_prog, fm, &prog);
 				if (err < 0)
 					return err;
 				ip += err;
@@ -2667,6 +2847,14 @@ populate_extable:
 				return -EINVAL;
 			if (priv_frame_ptr)
 				pop_r9(&prog);
+			/*
+			 * A kfunc returning more than 8 bytes hands the second
+			 * half back in RDX (the native ABI's second return reg),
+			 * but BPF expects it in R0:R2. BPF R0 is RAX (no move
+			 * needed), while BPF R2 is RSI, so copy RDX into RSI.
+			 */
+			if (fm && fm->ret_size > 8)
+				emit_mov_reg(&prog, true, BPF_REG_2, BPF_REG_3);
 			break;
 		}
 
@@ -4154,6 +4342,11 @@ out_priv_stack:
 }
 
 bool bpf_jit_supports_kfunc_call(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_kfunc_ret_reg_pair(void)
 {
 	return true;
 }

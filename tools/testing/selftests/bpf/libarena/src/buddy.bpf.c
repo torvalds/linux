@@ -5,6 +5,8 @@
 #include <libarena/asan.h>
 #include <libarena/buddy.h>
 
+#include <bpf_arena_spin_lock.h>
+
 /*
  * Buddy allocator arena-based implementation.
  *
@@ -45,15 +47,8 @@ enum {
 	BUDDY_CHUNK_PAGES	= BUDDY_CHUNK_BYTES / __PAGE_SIZE
 };
 
-static inline int buddy_lock(struct buddy __arena *buddy)
-{
-	return arena_spin_lock(&buddy->lock);
-}
-
-static inline void buddy_unlock(struct buddy __arena *buddy)
-{
-	arena_spin_unlock(&buddy->lock);
-}
+#define buddy_lock(buddy, flags) (arena_spin_lock_irqsave(&(buddy)->lock, (flags)))
+#define buddy_unlock(buddy, flags) (arena_spin_unlock_irqrestore(&(buddy)->lock, (flags)))
 
 /*
  * Reserve part of the arena address space for the allocator. We use
@@ -385,6 +380,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 {
 	u64 order, ord, min_order, max_order;
 	struct buddy_chunk __arena  *chunk;
+	unsigned long flags;
 	size_t left;
 	int power2;
 	u64 vaddr;
@@ -416,7 +412,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 		return NULL;
 	}
 
-	if (buddy_lock(buddy)) {
+	if (buddy_lock(buddy, flags)) {
 		/*
 		 * We cannot reclaim the vaddr space, but that is ok - this
 		 * operation should always succeed. The error path is to catch
@@ -520,7 +516,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 			arena_stderr(
 				"chunk has size of 0x%lx bytes (left %lx bytes)\n",
 				sizeof(*chunk), left);
-			buddy_unlock(buddy);
+			buddy_unlock(buddy, flags);
 
 			return NULL;
 		}
@@ -531,7 +527,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 		order = (power2 >= BUDDY_MIN_ALLOC_SHIFT) ? power2 - BUDDY_MIN_ALLOC_SHIFT : 0;
 
 		if (idx_set_allocated(chunk, idx, true)) {
-			buddy_unlock(buddy);
+			buddy_unlock(buddy, flags);
 			return NULL;
 		}
 
@@ -547,7 +543,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 		 */
 		min_order = left ? order + 1 : order;
 		if (add_leftovers_to_freelist(chunk, idx, min_order, max_order)) {
-			buddy_unlock(buddy);
+			buddy_unlock(buddy, flags);
 			return NULL;
 		}
 
@@ -556,7 +552,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 		max_order = order;
 	}
 
-	buddy_unlock(buddy);
+	buddy_unlock(buddy, flags);
 
 	return chunk;
 }
@@ -564,6 +560,7 @@ static struct buddy_chunk __arena *buddy_chunk_get(struct buddy __arena *buddy)
 __weak int buddy_init(struct buddy __arena *buddy)
 {
 	struct buddy_chunk __arena *chunk;
+	unsigned long flags;
 	int ret;
 
 	if (!asan_ready())
@@ -579,7 +576,7 @@ __weak int buddy_init(struct buddy __arena *buddy)
 
 	chunk = buddy_chunk_get(buddy);
 
-	if (buddy_lock(buddy)) {
+	if (buddy_lock(buddy, flags)) {
 		bpf_arena_free_pages(&arena, chunk, BUDDY_CHUNK_PAGES);
 		return -EINVAL;
 	}
@@ -591,7 +588,7 @@ __weak int buddy_init(struct buddy __arena *buddy)
 	/* Put the chunk at the beginning of the list. */
 	buddy->first_chunk = chunk;
 
-	buddy_unlock(buddy);
+	buddy_unlock(buddy, flags);
 
 	return chunk ? 0 : -ENOMEM;
 }
@@ -730,9 +727,10 @@ static u64 buddy_alloc_from_existing_chunks(struct buddy __arena *buddy, int ord
  */
 static u64 buddy_alloc_from_new_chunk(struct buddy __arena *buddy, struct buddy_chunk __arena *chunk, int order)
 {
+	unsigned long flags;
 	u64 address;
 
-	if (buddy_lock(buddy))
+	if (buddy_lock(buddy, flags))
 		return (u64)NULL;
 
 
@@ -745,7 +743,7 @@ static u64 buddy_alloc_from_new_chunk(struct buddy __arena *buddy, struct buddy_
 
 	address = buddy_chunk_alloc(buddy->first_chunk, order);
 
-	buddy_unlock(buddy);
+	buddy_unlock(buddy, flags);
 
 	return (u64)address;
 }
@@ -754,6 +752,7 @@ void __arena *buddy_alloc(struct buddy __arena *buddy, size_t size)
 {
 	void __arena *address = NULL;
 	struct buddy_chunk __arena *chunk;
+	unsigned long flags;
 	int order;
 
 	if (!buddy)
@@ -765,11 +764,11 @@ void __arena *buddy_alloc(struct buddy __arena *buddy, size_t size)
 		return NULL;
 	}
 
-	if (buddy_lock(buddy))
+	if (buddy_lock(buddy, flags))
 		return NULL;
 
 	address = (u8 __arena *)buddy_alloc_from_existing_chunks(buddy, order);
-	buddy_unlock(buddy);
+	buddy_unlock(buddy, flags);
 	if (address)
 		goto done;
 
@@ -880,6 +879,7 @@ static __always_inline int buddy_free_unlocked(struct buddy __arena *buddy, u64 
 
 __weak int buddy_free(struct buddy __arena *buddy, void __arena *addr)
 {
+	unsigned long flags;
 	int ret;
 
 	if (!buddy)
@@ -889,13 +889,13 @@ __weak int buddy_free(struct buddy __arena *buddy, void __arena *addr)
 	if (!addr)
 		return 0;
 
-	ret = buddy_lock(buddy);
+	ret = buddy_lock(buddy, flags);
 	if (ret)
 		return ret;
 
 	ret = buddy_free_unlocked(buddy, (u64)addr);
 
-	buddy_unlock(buddy);
+	buddy_unlock(buddy, flags);
 
 	return ret;
 }

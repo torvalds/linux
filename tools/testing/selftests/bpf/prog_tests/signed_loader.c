@@ -32,11 +32,22 @@ enum {
 	BPF_SIG_KEYRING_SECONDARY,
 	BPF_SIG_KEYRING_PLATFORM,
 	BPF_SIG_KEYRING_USER,
+	BPF_SIG_KEYRING_BPF,
 };
 
-static int load_loader(const void *insns, __u32 insns_sz, int map_fd,
-		       const void *sig, __u32 sig_sz, __s32 keyring_id,
-		       __u32 fd_array_cnt)
+#ifndef KEY_SPEC_BPF_KEYRING
+#define KEY_SPEC_BPF_KEYRING	-9
+#endif
+
+/* verify_sig_setup.sh exits with this when openssl cannot do ML-DSA. */
+#define SETUP_SKIP		(-77)
+
+/* FIPS-204 ML-DSA-87 signature size, see include/crypto/mldsa.h. */
+#define MLDSA87_SIGNATURE_SIZE	4627
+
+static int load_loader_log(const void *insns, __u32 insns_sz, int map_fd,
+			   const void *sig, __u32 sig_sz, __s32 keyring_id,
+			   __u32 fd_array_cnt, char *log_buf, __u32 log_sz)
 {
 	union bpf_attr attr;
 	int fd;
@@ -48,16 +59,29 @@ static int load_loader(const void *insns, __u32 insns_sz, int map_fd,
 	attr.license = ptr_to_u64("Dual BSD/GPL");
 	attr.prog_flags = BPF_F_SLEEPABLE;
 	attr.fd_array = ptr_to_u64(&map_fd);
+	attr.fd_array_cnt = fd_array_cnt;
 	if (sig) {
 		attr.signature = ptr_to_u64(sig);
 		attr.signature_size = sig_sz;
 		attr.keyring_id = keyring_id;
 	}
-	attr.fd_array_cnt = fd_array_cnt;
+	if (log_buf) {
+		attr.log_level = 1;
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_sz;
+	}
 	memcpy(attr.prog_name, "__loader.prog", sizeof("__loader.prog"));
 	fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr,
 		     offsetofend(union bpf_attr, keyring_id));
 	return fd < 0 ? -errno : fd;
+}
+
+static int load_loader(const void *insns, __u32 insns_sz, int map_fd,
+		       const void *sig, __u32 sig_sz, __s32 keyring_id,
+		       __u32 fd_array_cnt)
+{
+	return load_loader_log(insns, insns_sz, map_fd, sig, sig_sz, keyring_id,
+			       fd_array_cnt, NULL, 0);
 }
 
 static int run_gen_loader(const void *insns, __u32 insns_sz,
@@ -156,12 +180,30 @@ static int run_setup(const char *cmd, const char *dir)
 	}
 	if (waitpid(pid, &status, 0) < 0)
 		return -errno;
-	return (WIFEXITED(status) &&
-		WEXITSTATUS(status) == 0) ? 0 : -EINVAL;
+	if (!WIFEXITED(status))
+		return -EINVAL;
+	return -WEXITSTATUS(status);
 }
 
-static int sign_buf(const char *dir, const void *buf, __u32 len,
-		    void *sig, __u32 *sig_sz)
+static void genkey_dir_fini(const char *dir)
+{
+	static const char * const files[] = {
+		"signing_key.der", "signing_key.pem", "x509.genkey",
+	};
+	char path[PATH_MAX];
+	size_t i;
+
+	if (!dir)
+		return;
+	for (i = 0; i < ARRAY_SIZE(files); i++) {
+		snprintf(path, sizeof(path), "%s/%s", dir, files[i]);
+		unlink(path);
+	}
+	rmdir(dir);
+}
+
+static int sign_buf_digest(const char *dir, const void *buf, __u32 len,
+			   void *sig, __u32 *sig_sz, const char *digest)
 {
 	char data_tmpl[PATH_MAX], key[PATH_MAX];
 	char sigpath[PATH_MAX + sizeof(".p7s")];
@@ -176,6 +218,7 @@ static int sign_buf(const char *dir, const void *buf, __u32 len,
 	fd = mkstemp(data_tmpl);
 	if (fd < 0)
 		return -errno;
+	snprintf(sigpath, sizeof(sigpath), "%s.p7s", data_tmpl);
 	if (write(fd, buf, len) != (ssize_t)len) {
 		close(fd);
 		ret = -EIO;
@@ -190,7 +233,7 @@ static int sign_buf(const char *dir, const void *buf, __u32 len,
 	}
 	if (pid == 0) {
 		snprintf(key, sizeof(key), "%s/signing_key.pem", dir);
-		execlp("./sign-file", "./sign-file", "-d", "sha256",
+		execlp("./sign-file", "./sign-file", "-d", digest,
 		       key, key, data_tmpl, NULL);
 		exit(1);
 	}
@@ -200,32 +243,36 @@ static int sign_buf(const char *dir, const void *buf, __u32 len,
 		goto out;
 	}
 
-	snprintf(sigpath, sizeof(sigpath), "%s.p7s", data_tmpl);
 	if (stat(sigpath, &st) < 0) {
 		ret = -errno;
 		goto out;
 	}
 	if (st.st_size > (off_t)*sig_sz) {
 		ret = -E2BIG;
-		goto out_sig;
+		goto out;
 	}
 	fd = open(sigpath, O_RDONLY);
 	if (fd < 0) {
 		ret = -errno;
-		goto out_sig;
+		goto out;
 	}
 	if (read(fd, sig, st.st_size) != st.st_size) {
 		close(fd);
 		ret = -EIO;
-		goto out_sig;
+		goto out;
 	}
 	close(fd);
 	*sig_sz = st.st_size;
-out_sig:
-	unlink(sigpath);
 out:
+	unlink(sigpath);
 	unlink(data_tmpl);
 	return ret;
+}
+
+static int sign_buf(const char *dir, const void *buf, __u32 len,
+		    void *sig, __u32 *sig_sz)
+{
+	return sign_buf_digest(dir, buf, len, sig, sig_sz, "sha256");
 }
 
 struct gen_loader_fixture {
@@ -457,7 +504,7 @@ static void signed_btf_fd_array_rejected(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -529,7 +576,6 @@ static void signature_failure_logs(void)
 	static const __u8 junk[64] = { 0x30, 0x42, 0x13, 0x37, };
 	char log_buf[1024] = {};
 	struct gen_loader_fixture f;
-	union bpf_attr attr;
 	int fd;
 
 	if (gen_loader_fixture_init(&f) == 0) {
@@ -538,22 +584,9 @@ static void signature_failure_logs(void)
 		 * failure is reported through the verifier log. A present-but-
 		 * invalid signature is rejected and the log says why.
 		 */
-		memset(&attr, 0, sizeof(attr));
-		attr.prog_type = BPF_PROG_TYPE_SYSCALL;
-		attr.insns = ptr_to_u64(f.gopts.insns);
-		attr.insn_cnt = f.gopts.insns_sz / sizeof(struct bpf_insn);
-		attr.license = ptr_to_u64("Dual BSD/GPL");
-		attr.prog_flags = BPF_F_SLEEPABLE;
-		attr.signature = ptr_to_u64(junk);
-		attr.signature_size = sizeof(junk);
-		attr.keyring_id = KEY_SPEC_SESSION_KEYRING;
-		attr.log_level = 1;
-		attr.log_buf = ptr_to_u64(log_buf);
-		attr.log_size = sizeof(log_buf);
-		memcpy(attr.prog_name, "__loader.prog", sizeof("__loader.prog"));
-
-		fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr,
-			     offsetofend(union bpf_attr, keyring_id));
+		fd = load_loader_log(f.gopts.insns, f.gopts.insns_sz, -1, junk,
+				     sizeof(junk), KEY_SPEC_SESSION_KEYRING, 0,
+				     log_buf, sizeof(log_buf));
 		ASSERT_LT(fd, 0, "invalid signature rejected at load");
 		if (fd >= 0)
 			close(fd);
@@ -571,8 +604,9 @@ static void signature_too_large(void)
 
 	if (gen_loader_fixture_init(&f) == 0) {
 		/*
-		 * signature_size beyond the kernel's bound (KMALLOC_MAX_CACHE_SIZE)
-		 * is rejected before the buffer is read.
+		 * signature_size beyond the kernel's bound
+		 * (BPF_PROG_MAX_SIGNATURE_SIZE) is rejected before the buffer
+		 * is read.
 		 */
 		fd = load_loader(f.gopts.insns, f.gopts.insns_sz, -1, junk,
 				 64 << 20, KEY_SPEC_SESSION_KEYRING, 0);
@@ -624,6 +658,280 @@ static void signature_bad_keyring(void)
 			close(fd);
 	}
 	gen_loader_fixture_fini(&f);
+}
+
+static bool keyring_unsealed_boot(void)
+{
+	char val = 0;
+	int fd;
+
+	fd = open("/sys/module/bpf/parameters/keyring_unsealed", O_RDONLY);
+	if (fd < 0)
+		return false;
+	if (read(fd, &val, 1) != 1)
+		val = 0;
+	close(fd);
+	return val == 'Y' || val == '1';
+}
+
+static int bpf_keyring_lookup(int *nr_keys)
+{
+	char line[512], type[32], desc[64];
+	int serial = -ENOENT;
+	FILE *f;
+
+	f = fopen("/proc/keys", "r");
+	if (!f)
+		return -errno;
+
+	while (fgets(line, sizeof(line), f)) {
+		unsigned int hex;
+		char *sum;
+
+		if (sscanf(line, "%x %*s %*s %*s %*s %*s %*s %31s %63s",
+			   &hex, type, desc) != 3)
+			continue;
+		if (strcmp(type, "keyring") || strcmp(desc, ".bpf:"))
+			continue;
+
+		serial = (int)hex;
+		if (nr_keys) {
+			sum = strstr(line, ".bpf: ");
+			*nr_keys = !sum || !strncmp(sum + 6, "empty", 5) ?
+				   0 : atoi(sum + 6);
+		}
+		break;
+	}
+	fclose(f);
+	return serial;
+}
+
+static long keyctl_ret(int cmd, unsigned long arg2, unsigned long arg3)
+{
+	long ret = syscall(__NR_keyctl, cmd, arg2, arg3);
+
+	return ret < 0 ? -errno : ret;
+}
+
+/*
+ * What the bpf keyring still needs once it got provisioned: KEY_POS_SEARCH
+ * for the in-kernel search during verification, and the user view/read bits
+ * so it stays visible in /proc/keys, rest is dropped so the enrolled is
+ * therefore final.
+ */
+#define BPF_KEYRING_PERM_LOCKED		0x08030000
+/* What bpf_keyring_init() grants at boot. */
+#define BPF_KEYRING_PERM_INITIAL	0x082f0000
+
+static void bpf_keyring_sealed(void)
+{
+	static const __u8 junk[64] = {};
+	struct gen_loader_fixture f;
+	int serial, key, fd;
+
+	if (keyring_unsealed_boot()) {
+		printf("%s:SKIP:the bpf keyring was unsealed at boot\n", __func__);
+		test__skip();
+		return;
+	}
+	serial = bpf_keyring_lookup(NULL);
+	if (serial >= 0) {
+		ASSERT_EQ(keyctl_ret(KEYCTL_GET_KEYRING_ID,
+				     KEY_SPEC_BPF_KEYRING, 0), serial,
+			  "KEY_SPEC_BPF_KEYRING resolves to the bpf keyring");
+		key = syscall(__NR_add_key, "user", "sealprobe", "x", 1,
+			      KEY_SPEC_BPF_KEYRING);
+		if (key >= 0)
+			syscall(__NR_keyctl, KEYCTL_UNLINK, key,
+				KEY_SPEC_BPF_KEYRING);
+		ASSERT_EQ(key < 0 ? -errno : 0, -EPERM,
+			  "nothing links into a sealed keyring");
+	}
+	if (gen_loader_fixture_init(&f) == 0) {
+		fd = load_loader(f.gopts.insns, f.gopts.insns_sz, -1, junk,
+				 sizeof(junk), KEY_SPEC_BPF_KEYRING, 0);
+		ASSERT_EQ(fd, -ENOKEY, "sealed bpf keyring rejected");
+		if (fd >= 0)
+			close(fd);
+	}
+	gen_loader_fixture_fini(&f);
+}
+
+static int try_load(const struct gen_loader_fixture *f, const void *sig,
+		    __u32 sig_sz, __s32 keyring_id, char *log_buf, __u32 log_sz)
+{
+	int map_fd, prog_fd;
+
+	map_fd = setup_meta_map(f);
+	if (!ASSERT_OK_FD(map_fd, "meta_map"))
+		return map_fd;
+	prog_fd = load_loader_log(f->gopts.insns, f->gopts.insns_sz, map_fd,
+				  sig, sig_sz, keyring_id, 1, log_buf, log_sz);
+	close(map_fd);
+	if (prog_fd >= 0)
+		close(prog_fd);
+	return prog_fd;
+}
+
+/*
+ * This needs bpf.keyring_unsealed=1 on the guest kernel command line, which
+ * vmtest.sh can pass via KERNEL_CMDLINE_EXTRA. There is no way to unseal the
+ * keyring from here, so without it the test skips. It also only works once
+ * per boot, as restricting a keyring cannot be undone.
+ */
+static void bpf_keyring_provisioned(void)
+{
+	char dir_tmpl[] = "/tmp/bpfkeyringXXXXXX";
+	char bad_tmpl[] = "/tmp/bpfkeyringbadXXXXXX";
+	__u8 *sig = NULL, *bad = NULL, *buf = NULL;
+	int serial, err;
+	int nr_keys = 0, der_fd = -1;
+	struct gen_loader_fixture f;
+	__u32 sig_sz = 8192, bad_sz;
+	bool have_fixture = false;
+	char *dir, *bad_dir = NULL;
+	char log_buf[1024] = {};
+	char path[PATH_MAX];
+	__u8 der[4096];
+	ssize_t der_sz;
+
+	serial = bpf_keyring_lookup(&nr_keys);
+	if (serial < 0) {
+		printf("%s:SKIP:no bpf keyring (needs CONFIG_KEYS)\n", __func__);
+		test__skip();
+		return;
+	}
+	if (nr_keys != 0) {
+		printf("%s:SKIP:the bpf keyring has already been provisioned\n",
+		       __func__);
+		test__skip();
+		return;
+	}
+
+	dir = mkdtemp(dir_tmpl);
+	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
+		return;
+	if (!ASSERT_OK(run_setup("genkey", dir), "verify_sig_setup genkey"))
+		goto rmdir;
+
+	snprintf(path, sizeof(path), "%s/signing_key.der", dir);
+	der_fd = open(path, O_RDONLY);
+	if (!ASSERT_OK_FD(der_fd, "open signing_key.der"))
+		goto rmdir;
+	der_sz = read(der_fd, der, sizeof(der));
+	close(der_fd);
+	if (!ASSERT_GT(der_sz, 0, "read signing_key.der"))
+		goto rmdir;
+
+	ASSERT_EQ(keyctl_ret(KEYCTL_GET_KEYRING_ID, KEY_SPEC_BPF_KEYRING, 0),
+		  serial, "KEY_SPEC_BPF_KEYRING resolves to the bpf keyring");
+
+	err = syscall(__NR_add_key, "asymmetric", "", der, (size_t)der_sz,
+		      KEY_SPEC_BPF_KEYRING);
+	if (err < 0 && errno == EPERM) {
+		printf("%s:SKIP:the bpf keyring is sealed, need bpf.keyring_unsealed=1\n",
+		       __func__);
+		test__skip();
+		goto rmdir;
+	}
+	if (!ASSERT_GE(err, 0, "add the signing key to the bpf keyring"))
+		goto rmdir;
+
+	sig = malloc(sig_sz);
+	if (!ASSERT_OK_PTR(sig, "sig buf"))
+		goto out;
+	have_fixture = true;
+	if (gen_loader_fixture_init(&f) != 0)
+		goto out;
+
+	buf = malloc((size_t)f.gopts.insns_sz + f.data_sz);
+	if (!ASSERT_OK_PTR(buf, "signbuf"))
+		goto out;
+	memcpy(buf, f.gopts.insns, f.gopts.insns_sz);
+	memcpy(buf + f.gopts.insns_sz, f.blob, f.data_sz);
+	if (!ASSERT_OK(sign_buf(dir, buf, f.gopts.insns_sz + f.data_sz, sig,
+				&sig_sz), "sign insns||metadata"))
+		goto out;
+
+	ASSERT_EQ(try_load(&f, sig, sig_sz, KEY_SPEC_BPF_KEYRING, NULL, 0),
+		  -ENOKEY, "unrestricted keyring still not consulted");
+
+	ASSERT_EQ(try_load(&f, sig, sig_sz, KEY_SPEC_SESSION_KEYRING, NULL, 0),
+		  -EPERM, "caller-supplied keyring refused before provisioning");
+
+	if (!ASSERT_OK(syscall(__NR_keyctl, KEYCTL_RESTRICT_KEYRING,
+			       KEY_SPEC_BPF_KEYRING, NULL, NULL),
+		       "restrict bpf keyring"))
+		goto out;
+
+	if (!ASSERT_OK_FD(try_load(&f, sig, sig_sz, KEY_SPEC_BPF_KEYRING,
+				   NULL, 0),
+			  "load signed by a key in the .bpf keyring"))
+		goto out;
+
+	bad_dir = mkdtemp(bad_tmpl);
+	if (!ASSERT_OK_PTR(bad_dir, "mkdtemp unenrolled"))
+		goto out;
+	if (!ASSERT_OK(run_setup("genkey", bad_dir), "verify_sig_setup genkey unenrolled"))
+		goto out;
+	bad_sz = 8192;
+	bad = malloc(bad_sz);
+	if (!ASSERT_OK_PTR(bad, "bad sig buf"))
+		goto out;
+	if (!ASSERT_OK(sign_buf(bad_dir, buf, f.gopts.insns_sz + f.data_sz, bad,
+				&bad_sz), "sign with an unenrolled key"))
+		goto out;
+
+	ASSERT_EQ(try_load(&f, bad, bad_sz, KEY_SPEC_BPF_KEYRING, log_buf,
+			   sizeof(log_buf)), -ENOKEY,
+		  "key outside the bpf keyring refused");
+	ASSERT_HAS_SUBSTR(log_buf, "signature verification failed",
+			  "the bpf keyring was consulted");
+
+	f.blob[0] ^= 0xff;
+	err = try_load(&f, sig, sig_sz, KEY_SPEC_BPF_KEYRING, NULL, 0);
+	f.blob[0] ^= 0xff;
+	ASSERT_EQ(err, -EKEYREJECTED, "tampered metadata refused");
+
+	ASSERT_EQ(try_load(&f, sig, sig_sz, KEY_SPEC_SESSION_KEYRING, NULL, 0),
+		  -EPERM, "caller-supplied keyring refused once .bpf is in use");
+
+	err = keyctl_ret(KEYCTL_UNLINK, KEY_SPEC_SESSION_KEYRING, serial);
+	ASSERT_EQ(err, -ENOENT, "keyring writable while the user bits are there");
+
+	err = keyctl_ret(KEYCTL_SETPERM, serial, BPF_KEYRING_PERM_LOCKED);
+	if (!ASSERT_OK(err, "drop the user bits on the bpf keyring"))
+		goto out;
+
+	ASSERT_OK_FD(try_load(&f, sig, sig_sz, KEY_SPEC_BPF_KEYRING, NULL, 0),
+		     "load still verified against the locked keyring");
+	ASSERT_EQ(keyctl_ret(KEYCTL_GET_KEYRING_ID, KEY_SPEC_BPF_KEYRING, 0),
+		  -EACCES, "the special id grants no rights of its own");
+
+	err = keyctl_ret(KEYCTL_UNLINK, KEY_SPEC_SESSION_KEYRING, serial);
+	ASSERT_EQ(err, -EACCES, "unlink refused");
+	err = keyctl_ret(KEYCTL_CLEAR, serial, 0);
+	ASSERT_EQ(err, -EACCES, "clear refused");
+	err = keyctl_ret(KEYCTL_REVOKE, serial, 0);
+	ASSERT_EQ(err, -EACCES, "revoke refused");
+	err = keyctl_ret(KEYCTL_INVALIDATE, serial, 0);
+	ASSERT_EQ(err, -EACCES, "invalidate refused");
+	err = keyctl_ret(KEYCTL_SET_TIMEOUT, serial, 1);
+	ASSERT_EQ(err, -EACCES, "timeout refused");
+	err = keyctl_ret(KEYCTL_SETPERM, serial, BPF_KEYRING_PERM_INITIAL);
+	ASSERT_EQ(err, -EACCES, "the bits cannot be granted back");
+
+	ASSERT_EQ(bpf_keyring_lookup(&nr_keys), serial, "keyring still there");
+	ASSERT_EQ(nr_keys, 1, "the enrolled key survived");
+out:
+	if (have_fixture)
+		gen_loader_fixture_fini(&f);
+	genkey_dir_fini(bad_dir);
+	free(buf);
+	free(bad);
+	free(sig);
+rmdir:
+	genkey_dir_fini(dir);
 }
 
 /*
@@ -831,7 +1139,7 @@ static void signature_authenticates_insns(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -931,7 +1239,7 @@ static void signature_authenticates_metadata(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -1267,7 +1575,7 @@ static void lsm_signature_verdict(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		goto out;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		dir = NULL;
 		goto out;
@@ -1450,7 +1758,7 @@ static void loadtime_verify(struct bpf_object *obj, int expect_maps)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -1525,6 +1833,89 @@ static void loadtime_with_map(void)
 }
 
 /*
+ * End-to-end signed load with a post-quantum key. ML-DSA (FIPS-204) is wired
+ * through the X.509 and PKCS#7 parsers, and BPF reaches them via
+ * verify_pkcs7_signature() without knowing the algorithm, so an ML-DSA key in
+ * the keyring should verify an ML-DSA signed program with no BPF-side work.
+ */
+static void mldsa_signed_load(void)
+{
+	char dir_tmpl[] = "/tmp/bpfmldsaXXXXXX";
+	int map_fd = -1, prog_fd = -1, err;
+	__u8 *sig = NULL, *buf = NULL;
+	struct gen_loader_fixture f;
+	bool have_fixture = false;
+	__u32 sig_sz = 16384;
+	char *dir;
+
+	syscall(__NR_request_key, "keyring", "_uid.0", NULL,
+		KEY_SPEC_SESSION_KEYRING);
+	dir = mkdtemp(dir_tmpl);
+	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
+		return;
+
+	err = run_setup("setup-mldsa", dir);
+	if (err == SETUP_SKIP) {
+		printf("%s:SKIP:no working ML-DSA signing, set SELFTESTS_VERBOSE=1\n",
+		       __func__);
+		test__skip();
+		genkey_dir_fini(dir);
+		return;
+	}
+	if (!ASSERT_OK(err, "verify_sig_setup setup-mldsa")) {
+		genkey_dir_fini(dir);
+		return;
+	}
+
+	sig = malloc(sig_sz);
+	if (!ASSERT_OK_PTR(sig, "sig buf"))
+		goto out;
+	have_fixture = true;
+	if (gen_loader_fixture_init(&f) != 0)
+		goto out;
+
+	buf = malloc((size_t)f.gopts.insns_sz + f.data_sz);
+	if (!ASSERT_OK_PTR(buf, "signbuf"))
+		goto out;
+	memcpy(buf, f.gopts.insns, f.gopts.insns_sz);
+	memcpy(buf + f.gopts.insns_sz, f.blob, f.data_sz);
+
+	/*
+	 * ML-DSA hashes the message itself, but openssl before 4.0 cannot
+	 * produce a CMS message without signedAttrs for it, and with those in
+	 * play only SHA-512 is permitted for the messageDigest attribute.
+	 */
+	if (!ASSERT_OK(sign_buf_digest(dir, buf, f.gopts.insns_sz + f.data_sz,
+				       sig, &sig_sz, "sha512"),
+		       "sign insns||metadata with ML-DSA"))
+		goto out;
+
+	/*
+	 * Guard against the setup silently handing back some other key type:
+	 * an RSA or ECDSA signature is a few hundred bytes, where an ML-DSA-87
+	 * one cannot be smaller than the raw signature it carries.
+	 */
+	ASSERT_GT(sig_sz, MLDSA87_SIGNATURE_SIZE, "ML-DSA-87 signature size");
+
+	map_fd = setup_meta_map(&f);
+	if (!ASSERT_OK_FD(map_fd, "meta_map"))
+		goto out;
+	prog_fd = load_loader(f.gopts.insns, f.gopts.insns_sz, map_fd, sig,
+			      sig_sz, KEY_SPEC_SESSION_KEYRING, 1);
+	ASSERT_OK_FD(prog_fd, "ML-DSA signed loader load");
+out:
+	if (prog_fd >= 0)
+		close(prog_fd);
+	if (map_fd >= 0)
+		close(map_fd);
+	if (have_fixture)
+		gen_loader_fixture_fini(&f);
+	free(buf);
+	free(sig);
+	run_setup("cleanup", dir);
+}
+
+/*
  * A signed program need not bind any map. A plain BPF_PROG_TYPE_SYSCALL
  * program with no fd_array is signed over its instructions alone: the kernel
  * verifies the signature, folds no metadata, and the program loads. Exercise
@@ -1548,7 +1939,7 @@ static void signed_no_fd_array(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -1619,7 +2010,7 @@ static void signed_map_by_fd_rejected(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		goto out_map;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		goto out_map;
 	}
@@ -1681,7 +2072,7 @@ static void signed_sparse_fd_array_rejected(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		goto out_map;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		goto out_map;
 	}
@@ -1735,7 +2126,7 @@ static void signed_module_kfunc_rejected(void)
 	dir = mkdtemp(dir_tmpl);
 	if (!ASSERT_OK_PTR(dir, "mkdtemp"))
 		return;
-	if (!ASSERT_OK(run_setup("setup", dir), "verify_sig_setup")) {
+	if (!ASSERT_OK(run_setup("setup-rsa", dir), "verify_sig_setup")) {
 		rmdir(dir);
 		return;
 	}
@@ -1777,64 +2168,71 @@ cleanup:
 	run_setup("cleanup", dir);
 }
 
+enum subtest_boot {
+	BOOT_ANY,
+	BOOT_SEALED,
+	BOOT_UNSEALED,
+};
+
+static const struct {
+	const char *name;
+	void (*fn)(void);
+	enum subtest_boot boot;
+} subtests[] = {
+	{ "loadtime_no_map", loadtime_no_map, BOOT_SEALED },
+	{ "loadtime_with_map", loadtime_with_map, BOOT_SEALED },
+	{ "metadata_match", metadata_match, BOOT_ANY },
+	{ "signature_enforced", signature_enforced, BOOT_SEALED },
+	{ "signed_nonexcl_fd_array_rejected", signed_nonexcl_fd_array_rejected, BOOT_SEALED },
+	{ "signed_unfrozen_fd_array_rejected", signed_unfrozen_fd_array_rejected, BOOT_SEALED },
+	{ "signed_nonarray_fd_array_rejected", signed_nonarray_fd_array_rejected, BOOT_SEALED },
+	{ "signed_btf_fd_array_rejected", signed_btf_fd_array_rejected, BOOT_ANY },
+	{ "signed_module_kfunc_rejected", signed_module_kfunc_rejected, BOOT_SEALED },
+	{ "signature_failure_logs", signature_failure_logs, BOOT_SEALED },
+	{ "signature_too_large", signature_too_large, BOOT_ANY },
+	{ "signature_zero_size", signature_zero_size, BOOT_ANY },
+	{ "signature_bad_keyring", signature_bad_keyring, BOOT_SEALED },
+	{ "bpf_keyring_sealed", bpf_keyring_sealed, BOOT_ANY },
+	{ "mldsa_signed_load", mldsa_signed_load, BOOT_SEALED },
+	{ "metadata_ctx_max_entries_ignored", metadata_ctx_max_entries_ignored, BOOT_ANY },
+	{ "metadata_ctx_initial_value_ignored", metadata_ctx_initial_value_ignored, BOOT_ANY },
+	{ "signature_authenticates_insns", signature_authenticates_insns, BOOT_SEALED },
+	{ "signature_authenticates_metadata", signature_authenticates_metadata, BOOT_SEALED },
+	{ "hash_requires_frozen", hash_requires_frozen, BOOT_ANY },
+	{ "no_update_after_freeze", no_update_after_freeze, BOOT_ANY },
+	{ "freeze_writable_mmap", freeze_writable_mmap, BOOT_ANY },
+	{ "no_writable_mmap_frozen", no_writable_mmap_frozen, BOOT_ANY },
+	{ "map_hash_matches_libbpf", map_hash_matches_libbpf, BOOT_ANY },
+	{ "map_hash_multi_element", map_hash_multi_element, BOOT_ANY },
+	{ "map_hash_bad_size", map_hash_bad_size, BOOT_ANY },
+	{ "map_hash_unsupported_type", map_hash_unsupported_type, BOOT_ANY },
+	{ "lsm_signature_verdict", lsm_signature_verdict, BOOT_SEALED },
+	{ "signed_no_fd_array", signed_no_fd_array, BOOT_SEALED },
+	{ "signed_map_by_fd_rejected", signed_map_by_fd_rejected, BOOT_SEALED },
+	{ "signed_sparse_fd_array_rejected", signed_sparse_fd_array_rejected, BOOT_SEALED },
+	{ "bpf_keyring_provisioned", bpf_keyring_provisioned, BOOT_UNSEALED },
+};
+
 void test_signed_loader(void)
 {
-	if (test__start_subtest("loadtime_no_map"))
-		loadtime_no_map();
-	if (test__start_subtest("loadtime_with_map"))
-		loadtime_with_map();
-	if (test__start_subtest("metadata_match"))
-		metadata_match();
-	if (test__start_subtest("signature_enforced"))
-		signature_enforced();
-	if (test__start_subtest("signed_nonexcl_fd_array_rejected"))
-		signed_nonexcl_fd_array_rejected();
-	if (test__start_subtest("signed_unfrozen_fd_array_rejected"))
-		signed_unfrozen_fd_array_rejected();
-	if (test__start_subtest("signed_nonarray_fd_array_rejected"))
-		signed_nonarray_fd_array_rejected();
-	if (test__start_subtest("signed_btf_fd_array_rejected"))
-		signed_btf_fd_array_rejected();
-	if (test__start_subtest("signed_module_kfunc_rejected"))
-		signed_module_kfunc_rejected();
-	if (test__start_subtest("signature_failure_logs"))
-		signature_failure_logs();
-	if (test__start_subtest("signature_too_large"))
-		signature_too_large();
-	if (test__start_subtest("signature_zero_size"))
-		signature_zero_size();
-	if (test__start_subtest("signature_bad_keyring"))
-		signature_bad_keyring();
-	if (test__start_subtest("metadata_ctx_max_entries_ignored"))
-		metadata_ctx_max_entries_ignored();
-	if (test__start_subtest("metadata_ctx_initial_value_ignored"))
-		metadata_ctx_initial_value_ignored();
-	if (test__start_subtest("signature_authenticates_insns"))
-		signature_authenticates_insns();
-	if (test__start_subtest("signature_authenticates_metadata"))
-		signature_authenticates_metadata();
-	if (test__start_subtest("hash_requires_frozen"))
-		hash_requires_frozen();
-	if (test__start_subtest("no_update_after_freeze"))
-		no_update_after_freeze();
-	if (test__start_subtest("freeze_writable_mmap"))
-		freeze_writable_mmap();
-	if (test__start_subtest("no_writable_mmap_frozen"))
-		no_writable_mmap_frozen();
-	if (test__start_subtest("map_hash_matches_libbpf"))
-		map_hash_matches_libbpf();
-	if (test__start_subtest("map_hash_multi_element"))
-		map_hash_multi_element();
-	if (test__start_subtest("map_hash_bad_size"))
-		map_hash_bad_size();
-	if (test__start_subtest("map_hash_unsupported_type"))
-		map_hash_unsupported_type();
-	if (test__start_subtest("lsm_signature_verdict"))
-		lsm_signature_verdict();
-	if (test__start_subtest("signed_no_fd_array"))
-		signed_no_fd_array();
-	if (test__start_subtest("signed_map_by_fd_rejected"))
-		signed_map_by_fd_rejected();
-	if (test__start_subtest("signed_sparse_fd_array_rejected"))
-		signed_sparse_fd_array_rejected();
+	bool unsealed = keyring_unsealed_boot();
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(subtests); i++) {
+		if (!test__start_subtest(subtests[i].name))
+			continue;
+		if (subtests[i].boot == BOOT_SEALED && unsealed) {
+			printf("%s:SKIP:needs a boot without bpf.keyring_unsealed=1\n",
+			       subtests[i].name);
+			test__skip();
+			continue;
+		}
+		if (subtests[i].boot == BOOT_UNSEALED && !unsealed) {
+			printf("%s:SKIP:needs bpf.keyring_unsealed=1\n",
+			       subtests[i].name);
+			test__skip();
+			continue;
+		}
+		subtests[i].fn();
+	}
 }

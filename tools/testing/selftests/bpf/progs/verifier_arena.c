@@ -734,4 +734,52 @@ int check_arena_arg_ret(void *ctx)
 	return 0;
 }
 
+#if defined(__clang_major__) && __clang_major__ >= 23
+
+struct arena_word_pair {
+	u32 __arena *first;
+	u32 __arena *second;
+};
+
+__weak struct arena_word_pair arena_word_pair(u32 __arena *page)
+{
+	struct arena_word_pair pair;
+
+	pair.first = page;
+	pair.second = page + 1;
+
+	return pair;
+}
+
+SEC("syscall")
+__load_if_JITed()
+__success __retval(0)
+int check_arena_struct_ret(void *ctx)
+{
+	u32 __arena *page = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	u32 volatile __arena *first, *second;
+	struct arena_word_pair pair;
+
+	if (!page)
+		return 1;
+
+	pair = arena_word_pair(page);
+	if (!pair.first || !pair.second)
+		return 2;
+
+	/* Both halves of the pair must still be usable as arena pointers. */
+	first = pair.first;
+	second = pair.second;
+	*first = 1;
+	*second = 2;
+	if (*first != 1)
+		return 3;
+	if (*second != 2)
+		return 4;
+
+	return 0;
+}
+
+#endif
+
 char _license[] SEC("license") = "GPL";

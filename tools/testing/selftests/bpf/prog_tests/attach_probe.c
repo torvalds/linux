@@ -543,8 +543,10 @@ static void test_kprobe_sleepable(void)
 		return;
 
 	/* sleepable kprobe test case needs flags set before loading */
-	if (!ASSERT_OK(bpf_program__set_flags(skel->progs.handle_kprobe_sleepable,
-		BPF_F_SLEEPABLE), "kprobe_sleepable_flags"))
+	if (!ASSERT_OK(bpf_program__set_flags(
+			       skel->progs.handle_kprobe_sleepable,
+			       bpf_program__flags(skel->progs.handle_kprobe_sleepable) | BPF_F_SLEEPABLE),
+		       "kprobe_sleepable_flags"))
 		goto cleanup;
 
 	if (!ASSERT_OK(test_attach_kprobe_sleepable__load(skel),

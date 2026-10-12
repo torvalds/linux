@@ -575,6 +575,80 @@ is also covered by this recovery. A kfunc handed an arena pointer may
 therefore access up to ``GUARD_SZ / 2`` past it without bounds-checking
 against the arena. Larger accesses must verify the range explicitly.
 
+2.9 kfunc Return Values
+-----------------------
+
+A kfunc may return a scalar, a pointer, or a small struct or union by
+value. A scalar or pointer of up to 8 bytes is returned in R0, as usual.
+
+A struct or union returned by value must be composed only of scalars and arena
+pointers, where a scalar is an integer or an enum and an arena pointer is one
+carrying the ``btf_type_tag("arena")`` attribute. Those may be nested in
+structs and unions and in arrays of any number of dimensions, in any
+combination, as long as what the nesting bottoms out in is a scalar or an arena
+pointer. Its bytes are handed back to the program as the raw contents of R0
+(and R2), so a member of any other pointer type would be laundered into a
+scalar and escape the verifier's pointer provenance and reference tracking. A
+struct or union with such a member is therefore rejected at load time, and so
+is one with a floating-point member, which the ABI may not return in R0:R2 at
+all.
+
+An arena pointer member is handed back as a scalar too, but nothing is lost by
+that. The program must ``cast_kern()`` the value before it can be used, and the
+verifier allows that cast on any scalar, so a laundered arena address gives the
+program no reach it did not already have. The result is confined to the
+program's arena in either case.
+
+A kfunc may also return a value larger than 8 bytes and up to 16 bytes -- a
+struct or union of scalars and arena pointers, or an ``__int128``. Such a
+value is returned in the register pair R0:R2, matching the convention LLVM
+uses for the BPF target: the first 8 bytes in R0 and the second 8 bytes in R2.
+A struct or union of 8 bytes or less is returned in R0 alone.
+
+::
+
+        struct bpf_pair { __u64 a, b; };   /* 16 bytes */
+
+        __bpf_kfunc struct bpf_pair bpf_kfunc_get_pair(void)
+        {
+                struct bpf_pair p = { .a = 1, .b = 2 };
+
+                return p;      /* p.a in R0, p.b in R2 */
+        }
+
+Returning a value in the R0:R2 pair requires the JIT to place the second
+half of the return value into R2, which not every architecture supports
+right now. A kfunc with a return value larger than 8 bytes is therefore
+rejected at load time on a JIT that does not advertise this capability (see
+``bpf_jit_supports_kfunc_ret_reg_pair()``), and such a program is never run
+by the interpreter. A return value larger than 16 bytes is not supported.
+
+The same R0:R2 convention applies to a BPF subprogram, global or static, that
+returns an ``__int128`` or a struct or union larger than 8 bytes. It is only
+used when the program is JITed, since the interpreter propagates only R0 out of
+a subprogram: without a JIT the return value stays in R0 alone, and a caller
+reading R2 is rejected for reading an uninitialized register. A global
+subprogram is verified in isolation, so its by-value struct or union return is
+restricted to scalars and arena pointers just like a kfunc's; a static
+subprogram is verified inline and has no such restriction. The main program is
+not covered: its return value is the program's exit code, read out of R0
+alone, so a declared upper half is never looked at.
+
+A global subprogram must leave a scalar in *every* register of the pair, so
+both halves of the returned value have to be assigned. Leaving the upper half
+uninitialized is not merely untidy: the compiler is then free to leave R2
+holding whatever it happened to hold, which for a subprogram taking a pointer
+argument is typically that pointer. Handing the caller an unknown scalar built
+from a pointer is a leak, so the verifier rejects it with::
+
+        At subprogram exit the register R2 is not a scalar value (...)
+
+Initialize the whole return value, for example ``struct pair p = {};``, to
+avoid this. A static subprogram is exempt from the scalar-only rule: it is
+verified inline, so an unassigned R2 is simply passed back to the caller as
+uninitialized and only a caller that reads it fails. A stack pointer left in
+R2 is still rejected there, just as one in R0 is.
+
 .. _BPF_kfunc_lifecycle_expectations:
 
 3. kfunc lifecycle expectations

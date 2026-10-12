@@ -365,15 +365,19 @@ static int do_batch(int argc, char **argv)
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
-	while (fgets(buf, sizeof(buf), fp)) {
-		cp = strchr(buf, '#');
-		if (cp)
-			*cp = '\0';
+	for (;;) {
+		errno = 0;
+		if (!fgets(buf, sizeof(buf), fp))
+			break;
 
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
 			break;
 		}
+
+		cp = strchr(buf, '#');
+		if (cp)
+			*cp = '\0';
 
 		/* Append continuation lines if any (coming after a line ending
 		 * with '\' in the batch file).
@@ -387,15 +391,15 @@ static int do_batch(int argc, char **argv)
 				goto err_close;
 			}
 
-			cp = strchr(contline, '#');
-			if (cp)
-				*cp = '\0';
-
 			if (strlen(buf) + strlen(contline) + 1 > sizeof(buf)) {
 				p_err("command %u is too long", lines);
 				err = -1;
 				goto err_close;
 			}
+
+			cp = strchr(contline, '#');
+			if (cp)
+				*cp = '\0';
 			buf[strlen(buf) - 2] = '\0';
 			strcat(buf, contline);
 		}
@@ -466,16 +470,6 @@ int main(int argc, char **argv)
 	int opt, ret;
 
 	setlinebuf(stdout);
-
-#ifdef USE_LIBCAP
-	/* Libcap < 2.63 hooks before main() to compute the number of
-	 * capabilities of the running kernel, and doing so it calls prctl()
-	 * which may fail and set errno to non-zero.
-	 * Let's reset errno to make sure this does not interfere with the
-	 * batch mode.
-	 */
-	errno = 0;
-#endif
 
 	last_do_help = do_help;
 	pretty_output = false;

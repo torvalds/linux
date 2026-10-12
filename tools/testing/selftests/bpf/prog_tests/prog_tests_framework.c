@@ -179,3 +179,26 @@ void test_prog_tests_framework_expected_msgs(void)
 		}
 	}
 }
+
+void test_prog_tests_framework_compare_text(void)
+{
+	int err;
+
+	if (test__start_subtest("compare_text_match")) {
+		err = compare_text_to_expected("same\n", "same\n");
+		ASSERT_EQ(err, 0, "match_rc");
+		test__end_subtest();
+	}
+
+	if (test__start_subtest("compare_text_mismatch")) {
+		err = compare_text_to_expected("line two\n", "line one\n");
+		fflush(stdout);
+
+		ASSERT_EQ(err, -1, "mismatch_rc");
+		ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "-line one",
+				  "diff_has_expected");
+		ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "+line two",
+				  "diff_has_actual");
+		test__end_subtest();
+	}
+}

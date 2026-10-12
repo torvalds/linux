@@ -362,7 +362,7 @@ static void test_attach_api_fails(void)
 	sl_skel->bss->user_ptr = sl_skel;
 
 	err = bpf_program__set_flags(sl_skel->progs.handle_kprobe_multi_sleepable,
-				     BPF_F_SLEEPABLE);
+				     bpf_program__flags(sl_skel->progs.handle_kprobe_multi_sleepable) | BPF_F_SLEEPABLE);
 	if (!ASSERT_OK(err, "sleep_skel_set_flags"))
 		goto cleanup;
 

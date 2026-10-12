@@ -805,8 +805,12 @@ static int dump_btf_c(const struct btf *btf,
 
 		if (sort_dump)
 			datums = sort_btf_c(btf);
-		for (i = 1; i < cnt; i++) {
+		for (i = 0; i < cnt; i++) {
 			int idx = datums ? datums[i].index : i;
+
+			/* type ID 0 is void, skip it */
+			if (idx == 0)
+				continue;
 
 			err = btf_dump__dump_type(d, idx);
 			if (err)

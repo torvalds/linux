@@ -6,7 +6,8 @@
 #include "../test_kmods/bpf_testmod_kfunc.h"
 #include "bpf_misc.h"
 
-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && \
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && \
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 
 /* Force kfunc extern BTF generation for inline asm call below.
@@ -124,6 +125,7 @@ __naked void stack_arg_precision_bpf2bpf(void)
 
 SEC("socket")
 __description("stack_arg_precision: not supported, dummy test")
+__skip("stack_arg_precision: not supported")
 __success
 int dummy_test(void)
 {

@@ -46,6 +46,10 @@ void test_stream_syscall(void)
 	ret = -errno;
 	ASSERT_EQ(ret, -EFAULT, "bad stream buf");
 
+	ASSERT_LT(bpf_prog_stream_read(prog_fd, BPF_STREAM_STDOUT, buf, UINT_MAX, NULL), 0, "error");
+	ret = -errno;
+	ASSERT_EQ(ret, -EINVAL, "large stream buf");
+
 	ret = bpf_prog_stream_read(prog_fd, BPF_STREAM_STDOUT, buf, 2, NULL);
 	ASSERT_EQ(ret, 2, "bytes");
 	ret = bpf_prog_stream_read(prog_fd, BPF_STREAM_STDOUT, buf, 2, NULL);
@@ -55,6 +59,69 @@ void test_stream_syscall(void)
 	ret = bpf_prog_stream_read(prog_fd, BPF_STREAM_STDERR, buf, 1, &ropts);
 	ASSERT_EQ(ret, 0, "no bytes stderr");
 
+	stream__destroy(skel);
+}
+
+void test_stream_oversize(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	struct stream *skel;
+	int ret, prog_fd;
+
+	skel = stream__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "stream__open_and_load"))
+		return;
+
+	prog_fd = bpf_program__fd(skel->progs.stream_oversize);
+	ret = bpf_prog_test_run_opts(prog_fd, &opts);
+	ASSERT_OK(ret, "oversize run");
+	ASSERT_OK(opts.retval, "oversize retval");
+
+	stream__destroy(skel);
+}
+
+void test_stream_partial_read(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	struct stream *skel;
+	int ret, prog_fd;
+	long page_size;
+	char *page, *buf;
+	char rest[8] = {};
+
+	skel = stream__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "stream__open_and_load"))
+		return;
+
+	prog_fd = bpf_program__fd(skel->progs.stream_syscall);
+	ret = bpf_prog_test_run_opts(prog_fd, &opts);
+	ASSERT_OK(ret, "ret");
+	ASSERT_OK(opts.retval, "retval");
+
+	page_size = sysconf(_SC_PAGESIZE);
+	page = mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (!ASSERT_NEQ(page, MAP_FAILED, "mmap")) {
+		stream__destroy(skel);
+		return;
+	}
+	/* Leave only the first page mapped so a straddling copy faults. */
+	if (!ASSERT_OK(munmap(page + page_size, page_size), "munmap second page")) {
+		munmap(page, page_size * 2);
+		stream__destroy(skel);
+		return;
+	}
+
+	buf = page + page_size - 1;
+	ret = bpf_prog_stream_read(prog_fd, BPF_STREAM_STDOUT, buf, 3, NULL);
+	ASSERT_EQ(ret, 1, "partial bytes");
+	ASSERT_EQ(buf[0], 'f', "first byte");
+
+	ret = bpf_prog_stream_read(prog_fd, BPF_STREAM_STDOUT, rest, sizeof(rest), NULL);
+	ASSERT_EQ(ret, 2, "remaining bytes");
+	ASSERT_OK(memcmp(rest, "oo", 2), "remaining data");
+
+	munmap(page, page_size);
 	stream__destroy(skel);
 }
 
