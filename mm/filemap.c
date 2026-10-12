@@ -2760,17 +2760,51 @@ static inline bool pos_same_folio(loff_t pos1, loff_t pos2, struct folio *folio)
 }
 
 /*
+ * Reads keep coming back to @folio.  From now on it is freed only after an
+ * RCU grace period: PG_rcu_free stays set until it is freed.  The caller
+ * holds a reference.
+ *
+ * Not for a folio that is not uptodate or is marked for readahead or
+ * dropbehind: its next read needs the reference anyway.  Not for an
+ * unevictable one either (mlocked, or ramfs): folio_mark_accessed() calls
+ * it hot once it is referenced, so the first test in
+ * filemap_read_accessed() would mark every one of them on its first or
+ * second read.  Such a folio stays in memory, which suits the fast path,
+ * but a ramfs file that is read and then deleted, an initramfs at
+ * switch_root for one, would then have the free of every one of its
+ * folios deferred.
+ */
+static void filemap_mark_hot(struct folio *folio)
+{
+	if (folio_test_rcu_free(folio) || !folio_test_uptodate(folio) ||
+	    folio_test_readahead(folio) || folio_test_dropbehind(folio) ||
+	    folio_test_unevictable(folio))
+		return;
+	folio_test_set_rcu_free(folio);
+}
+
+/*
  * filemap_read() is about to copy from @folio at @pos.  @last_pos is where
  * the previous read of this open file ended, or how far this one has got.
  *
  * Reading on in the folio that the last read ended in is not another access
  * to it: a folio read in small pieces is marked accessed once.
+ *
+ * The folio is hot when folio_mark_accessed() finds it as accessed as the
+ * LRU records, or when this open file goes back to data that it has just
+ * read.
  */
 static void filemap_read_accessed(struct folio *folio, loff_t pos,
 				  loff_t last_pos)
 {
-	if (!pos_same_folio(pos, last_pos - 1, folio))
-		folio_mark_accessed(folio);
+	bool hot;
+
+	if (pos_same_folio(pos, last_pos - 1, folio))
+		hot = pos < last_pos;
+	else
+		hot = folio_mark_accessed(folio);
+	if (hot)
+		filemap_mark_hot(folio);
 }
 
 static void filemap_end_dropbehind_read(struct folio *folio)
