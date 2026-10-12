@@ -873,7 +873,7 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 		rc = SMBSetInformation(xid, tcon, full_path,
 				       info.Attributes,
 				       0 /* do not change write time */,
-				       cifs_sb->local_nls, cifs_sb);
+				       cifs_sb);
 	if (rc == 0)
 		cifsInode->cifsAttrs = dosattrs;
 }
@@ -1072,7 +1072,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 		rc = SMBSetInformation(xid, tcon, full_path,
 				       buf->Attributes != 0 ? buf->Attributes : cpu_to_le32(cinode->cifsAttrs),
 				       write_time,
-				       cifs_sb->local_nls, cifs_sb);
+				       cifs_sb);
 		if (rc == 0)
 			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 		else
@@ -1111,7 +1111,7 @@ set_via_filehandle:
 		SMBSetInformation(xid, tcon, full_path,
 				  buf->Attributes,
 				  0 /* do not change write time */,
-				  cifs_sb->local_nls, cifs_sb);
+				  cifs_sb);
 	}
 out:
 	if (tlink != NULL)

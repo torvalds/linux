@@ -5728,11 +5728,9 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-int
-SMBSetInformation(const unsigned int xid, struct cifs_tcon *tcon,
-		  const char *fileName, __le32 attributes, __le64 write_time,
-		  const struct nls_table *nls_codepage,
-		  struct cifs_sb_info *cifs_sb)
+int SMBSetInformation(const unsigned int xid, struct cifs_tcon *tcon,
+		      const char *fileName, __le32 attributes,
+		      __le64 write_time, struct cifs_sb_info *cifs_sb)
 {
 	SETATTR_REQ *pSMB;
 	SETATTR_RSP *pSMBr;
@@ -5754,7 +5752,8 @@ retry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 			cifsConvertToUTF16((__le16 *) pSMB->fileName,
-					   fileName, PATH_MAX, nls_codepage,
+					   fileName, PATH_MAX,
+					   tcon->ses->local_nls,
 					   cifs_remap(cifs_sb));
 		name_len++;     /* trailing null */
 		name_len *= 2;

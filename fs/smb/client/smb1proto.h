@@ -186,8 +186,7 @@ int CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 		       bool set_allocation);
 int SMBSetInformation(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *fileName, __le32 attributes,
-		      __le64 write_time, const struct nls_table *nls_codepage,
-		      struct cifs_sb_info *cifs_sb);
+		      __le64 write_time, struct cifs_sb_info *cifs_sb);
 int CIFSSMBSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 		       const FILE_BASIC_INFO *data, __u16 fid,
 		       __u32 pid_of_opener);
