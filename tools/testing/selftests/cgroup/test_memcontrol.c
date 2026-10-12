@@ -1379,6 +1379,24 @@ free_ainfo:
 	return ret;
 }
 
+static bool memcg_sockets_disabled(void)
+{
+	char buf[4 * BUF_SIZE], *opt;
+
+	if (read_text("/proc/cmdline", buf, sizeof(buf)) <= 0)
+		return false;
+
+	for (opt = strstr(buf, "cgroup.memory="); opt;
+	     opt = strstr(opt + 1, "cgroup.memory=")) {
+		char *end = strchrnul(opt, ' ');
+		char *ns = strstr(opt, "nosocket");
+
+		if (ns && ns < end)
+			return true;
+	}
+	return false;
+}
+
 /*
  * This test checks socket memory accounting.
  * The test forks a TCP server listens on a random port between 1000
@@ -1393,6 +1411,9 @@ static int test_memcg_sock(const char *root)
 	unsigned short port;
 	char *memcg;
 	long sock_post = -1;
+
+	if (memcg_sockets_disabled())
+		return KSFT_SKIP;
 
 	memcg = cg_name(root, "memcg_test");
 	if (!memcg)
