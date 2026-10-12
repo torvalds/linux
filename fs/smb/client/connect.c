@@ -2403,8 +2403,7 @@ retry_old_session:
 				return ERR_PTR(rc);
 			}
 
-			rc = cifs_setup_session(xid, ses, server,
-						ctx->local_nls);
+			rc = cifs_setup_session(xid, ses, server);
 			if (rc) {
 				if (((rc == -EACCES) || (rc == -EKEYEXPIRED) ||
 					(rc == -EKEYREVOKED)) && !retries && ses->password2) {
@@ -2521,7 +2520,7 @@ retry_new_session:
 	mutex_lock(&ses->session_mutex);
 	rc = cifs_negotiate_protocol(xid, ses, server);
 	if (!rc)
-		rc = cifs_setup_session(xid, ses, server, ctx->local_nls);
+		rc = cifs_setup_session(xid, ses, server);
 	mutex_unlock(&ses->session_mutex);
 
 	/* each channel uses a different signing key */
@@ -4093,10 +4092,8 @@ retry:
 	return rc;
 }
 
-int
-cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
-		   struct TCP_Server_Info *server,
-		   struct nls_table *nls_info)
+int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
+		       struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	struct TCP_Server_Info *pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;

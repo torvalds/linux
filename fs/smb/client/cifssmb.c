@@ -163,7 +163,7 @@ again:
 			return -EHOSTDOWN;
 		goto again;
 	}
-	rc = cifs_setup_session(0, ses, server, ses->local_nls);
+	rc = cifs_setup_session(0, ses, server);
 	if ((rc == -EACCES) || (rc == -EHOSTDOWN) || (rc == -EKEYREVOKED)) {
 		/*
 		 * Try alternate password for next reconnect if an alternate

@@ -290,8 +290,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon);
 int cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 			    struct TCP_Server_Info *server);
 int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
-		       struct TCP_Server_Info *server,
-		       struct nls_table *nls_info);
+		       struct TCP_Server_Info *server);
 int cifs_enable_signing(struct TCP_Server_Info *server,
 			bool mnt_sign_required);
 

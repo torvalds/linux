@@ -620,7 +620,7 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 
 	rc = cifs_negotiate_protocol(xid, ses, chan->server);
 	if (!rc)
-		rc = cifs_setup_session(xid, ses, chan->server, ses->local_nls);
+		rc = cifs_setup_session(xid, ses, chan->server);
 
 	mutex_unlock(&ses->session_mutex);
 
