@@ -106,8 +106,7 @@ unicode_oslm_strings(char **pbcc_area, const struct nls_table *nls_cp)
 	*pbcc_area = bcc_ptr;
 }
 
-static void
-ascii_oslm_strings(char **pbcc_area, const struct nls_table *nls_cp)
+static void ascii_oslm_strings(char **pbcc_area)
 {
 	char *bcc_ptr = *pbcc_area;
 
@@ -213,7 +212,7 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB check for overflow here */
 
 	ascii_domain_string(&bcc_ptr, ses, nls_cp);
-	ascii_oslm_strings(&bcc_ptr, nls_cp);
+	ascii_oslm_strings(&bcc_ptr);
 
 	*pbcc_area = bcc_ptr;
 }
@@ -595,7 +594,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		unicode_oslm_strings(&bcc_ptr, sess_data->nls_cp);
 		unicode_domain_string(&bcc_ptr, ses, sess_data->nls_cp);
 	} else {
-		ascii_oslm_strings(&bcc_ptr, sess_data->nls_cp);
+		ascii_oslm_strings(&bcc_ptr);
 		ascii_domain_string(&bcc_ptr, ses, sess_data->nls_cp);
 	}
 
@@ -694,7 +693,7 @@ _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 		}
 		unicode_oslm_strings(&bcc_ptr, sess_data->nls_cp);
 	} else {
-		ascii_oslm_strings(&bcc_ptr, sess_data->nls_cp);
+		ascii_oslm_strings(&bcc_ptr);
 	}
 
 	sess_data->iov[2].iov_len = (long) bcc_ptr -
