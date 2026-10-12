@@ -10,7 +10,6 @@ extern crate proc_macro;
 
 use core::ops::{Range, RangeBounds};
 use proc_macro::{Literal, Span};
-use std::path::PathBuf;
 
 pub fn byte_range(this: &Span) -> Range<usize> {
     this.byte_range()
@@ -30,14 +29,6 @@ pub fn line(this: &Span) -> usize {
 
 pub fn column(this: &Span) -> usize {
     this.column()
-}
-
-pub fn file(this: &Span) -> String {
-    this.file()
-}
-
-pub fn local_file(this: &Span) -> Option<PathBuf> {
-    this.local_file()
 }
 
 pub fn join(this: &Span, other: Span) -> Option<Span> {

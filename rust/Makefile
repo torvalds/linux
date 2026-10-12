@@ -99,6 +99,7 @@ zerocopy-envs := \
 proc_macro2-cfgs := \
     feature="proc-macro" \
     wrap_proc_macro \
+    proc_macro_span \
     $(if $(call rustc-min-version,108800),proc_macro_span_file proc_macro_span_location)
 
 proc_macro2-flags := \
