@@ -44,7 +44,6 @@
 #include <acpi/cppc_acpi.h>
 
 #include <asm/msr.h>
-#include <asm/processor.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
 
@@ -90,46 +89,6 @@ static bool amd_pstate_prefcore = true;
 static struct quirk_entry *quirks;
 
 /*
- * AMD Energy Preference Performance (EPP)
- * The EPP is used in the CCLK DPM controller to drive
- * the frequency that a core is going to operate during
- * short periods of activity. EPP values will be utilized for
- * different OS profiles (balanced, performance, power savings)
- * display strings corresponding to EPP index in the
- * energy_perf_strings[]
- *	index		String
- *-------------------------------------
- *	0		default
- *	1		performance
- *	2		balance_performance
- *	3		balance_power
- *	4		power
- *	5		custom (for raw EPP values)
- *	6		dynamic (platform profile driven selection)
- */
-enum energy_perf_value_index {
-	EPP_INDEX_DEFAULT = 0,
-	EPP_INDEX_PERFORMANCE,
-	EPP_INDEX_BALANCE_PERFORMANCE,
-	EPP_INDEX_BALANCE_POWERSAVE,
-	EPP_INDEX_POWERSAVE,
-	EPP_INDEX_CUSTOM,
-	EPP_INDEX_DYNAMIC,
-	EPP_INDEX_MAX,
-};
-
-static const char * const energy_perf_strings[] = {
-	[EPP_INDEX_DEFAULT] = "default",
-	[EPP_INDEX_PERFORMANCE] = "performance",
-	[EPP_INDEX_BALANCE_PERFORMANCE] = "balance_performance",
-	[EPP_INDEX_BALANCE_POWERSAVE] = "balance_power",
-	[EPP_INDEX_POWERSAVE] = "power",
-	[EPP_INDEX_CUSTOM] = "custom",
-	[EPP_INDEX_DYNAMIC] = "dynamic",
-};
-static_assert(ARRAY_SIZE(energy_perf_strings) == EPP_INDEX_MAX);
-
-/*
  * The numeric EPP value programmed for each named preference. First dimension
  * is CPU type (TOPO_CPU_TYPE_ANY for non-hybrid, TOPO_CPU_TYPE_PERFORMANCE/
  * EFFICIENCY/LOW_POWER for hybrid). The initializer holds the legacy values
@@ -159,7 +118,7 @@ static_assert(ARRAY_SIZE(epp_values) == TOPO_CPU_TYPE_LOW_POWER + 1,
  * Non-hybrid systems use TOPO_CPU_TYPE_ANY; hybrid systems use the CPU's
  * actual type (PERFORMANCE/EFFICIENCY/LOW_POWER).
  */
-static inline u8 *amd_pstate_cpu_epp_values(enum x86_topology_cpu_type cpu_type)
+u8 *amd_pstate_cpu_epp_values(enum x86_topology_cpu_type cpu_type)
 {
 	switch (cpu_type) {
 	case TOPO_CPU_TYPE_PERFORMANCE:
@@ -170,6 +129,7 @@ static inline u8 *amd_pstate_cpu_epp_values(enum x86_topology_cpu_type cpu_type)
 		return epp_values[TOPO_CPU_TYPE_ANY];
 	}
 }
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_cpu_epp_values);
 
 /**
  * struct amd_pstate_epp_values - EPP values for the four named preferences
@@ -211,7 +171,7 @@ static const struct amd_pstate_epp_soc epp_soc_zen6_client __initconst = {
 		.performance		= 25,
 		.balance_performance	= 51,
 		.balance_power		= 64,
-		.power			= 64,
+		.power			= 115,
 	},
 	.efficiency_core = {
 		.performance		= 25,
@@ -221,9 +181,9 @@ static const struct amd_pstate_epp_soc epp_soc_zen6_client __initconst = {
 	},
 	.low_power_core = {
 		.performance		= 25,
-		.balance_performance	= 51,
+		.balance_performance	= 64,
 		.balance_power		= 64,
-		.power			= 115,
+		.power			= 64,
 	},
 };
 
@@ -555,11 +515,13 @@ static int msr_init_perf(struct amd_cpudata *cpudata)
 	if (ret)
 		return ret;
 
-	ret = amd_get_boost_ratio_numerator(cpudata->cpu, &numerator);
-	if (ret)
+	ret = amd_get_effective_highest_perf(cpudata->cpu);
+	if (ret < 0)
 		return ret;
 
-	ret = rdmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
+	numerator = ret;
+
+	ret = rdmsrq_safe_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
 	if (ret)
 		return ret;
 
@@ -590,9 +552,11 @@ static int shmem_init_perf(struct amd_cpudata *cpudata)
 	if (ret)
 		return ret;
 
-	ret = amd_get_boost_ratio_numerator(cpudata->cpu, &numerator);
-	if (ret)
+	ret = amd_get_effective_highest_perf(cpudata->cpu);
+	if (ret < 0)
 		return ret;
+
+	numerator = ret;
 
 	perf.highest_perf = numerator;
 	perf.max_limit_perf = numerator;
@@ -609,8 +573,10 @@ static int shmem_init_perf(struct amd_cpudata *cpudata)
 		return 0;
 	}
 
-	ret = cppc_set_auto_sel(cpudata->cpu,
-			(cppc_state == AMD_PSTATE_PASSIVE) ? 0 : 1);
+	if ((cppc_state != AMD_PSTATE_PASSIVE) == auto_sel)
+		return 0;
+
+	ret = cppc_set_auto_sel(cpudata->cpu, !auto_sel);
 
 	if (ret)
 		pr_warn("failed to set auto_sel, ret: %d\n", ret);
@@ -772,7 +738,10 @@ static void amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	struct amd_cpudata *cpudata = policy->driver_data;
 	union perf_cached perf = READ_ONCE(cpudata->perf);
 
-	perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
+	if (policy->max >= READ_ONCE(cpudata->max_freq))
+		perf.max_limit_perf = perf.highest_perf;
+	else
+		perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
@@ -1098,8 +1067,10 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
 
 	WRITE_ONCE(cpudata->nominal_freq, nominal_freq);
 
-	/* max_freq is calculated according to (nominal_freq * highest_perf)/nominal_perf */
-	max_freq = perf_to_freq(perf, nominal_freq, perf.highest_perf);
+	/* try to look up from BIOS/quirk first, fall back to (nominal_freq * highest_perf)/nominal_perf */
+	max_freq = amd_get_max_frequency(cpudata->cpu) * 1000;
+	if (!max_freq)
+		max_freq = perf_to_freq(perf, nominal_freq, perf.highest_perf);
 	WRITE_ONCE(cpudata->max_freq, max_freq);
 
 	lowest_nonlinear_freq = perf_to_freq(perf, nominal_freq, perf.lowest_nonlinear_perf);
@@ -1381,8 +1352,10 @@ static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 		return ret;
 
 	cpudata->profile_name = kasprintf(GFP_KERNEL, "amd-pstate-epp-cpu%d", cpudata->cpu);
-	if (!cpudata->profile_name)
-		return -ENOMEM;
+	if (!cpudata->profile_name) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
 
 	cpudata->ppdev = platform_profile_register(get_cpu_device(policy->cpu),
 						   cpudata->profile_name,
@@ -1809,6 +1782,7 @@ static int amd_pstate_unregister_driver(int dummy)
 static int amd_pstate_change_mode_without_dvr_change(int mode)
 {
 	int cpu = 0;
+	int ret;
 
 	cppc_state = mode;
 
@@ -1816,7 +1790,9 @@ static int amd_pstate_change_mode_without_dvr_change(int mode)
 		return 0;
 
 	for_each_online_cpu(cpu) {
-		cppc_set_auto_sel(cpu, (cppc_state == AMD_PSTATE_PASSIVE) ? 0 : 1);
+		ret = cppc_set_auto_sel(cpu, (cppc_state == AMD_PSTATE_PASSIVE) ? 0 : 1);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1824,6 +1800,7 @@ static int amd_pstate_change_mode_without_dvr_change(int mode)
 
 static int amd_pstate_change_driver_mode(int mode)
 {
+	int old_mode = cppc_state;
 	int ret;
 
 	lockdep_assert_held(&amd_pstate_driver_lock);
@@ -1833,10 +1810,16 @@ static int amd_pstate_change_driver_mode(int mode)
 		return ret;
 
 	ret = amd_pstate_register_driver(mode);
-	if (ret)
-		return ret;
+	if (ret) {
+		pr_err("Failed to register %s mode, restoring %s mode\n",
+		       amd_pstate_get_mode_string(mode),
+		       amd_pstate_get_mode_string(old_mode));
+		if (amd_pstate_register_driver(old_mode))
+			pr_err("Failed to restore %s mode\n",
+			       amd_pstate_get_mode_string(old_mode));
+	}
 
-	return 0;
+	return ret;
 }
 
 static cppc_mode_transition_fn mode_state_machine[AMD_PSTATE_MAX][AMD_PSTATE_MAX] = {
@@ -1882,6 +1865,7 @@ EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_status);
 
 int amd_pstate_update_status(const char *buf, size_t size)
 {
+	cppc_mode_transition_fn fn;
 	int mode_idx;
 
 	if (size > strlen("passive") || size < strlen("active"))
@@ -1891,10 +1875,12 @@ int amd_pstate_update_status(const char *buf, size_t size)
 	if (mode_idx < 0)
 		return mode_idx;
 
-	if (mode_state_machine[cppc_state][mode_idx]) {
-		guard(mutex)(&amd_pstate_driver_lock);
-		return mode_state_machine[cppc_state][mode_idx](mode_idx);
-	}
+	guard(mutex)(&amd_pstate_driver_lock);
+
+	/* Resolve the transition under the lock; cppc_state is only stable while held. */
+	fn = mode_state_machine[cppc_state][mode_idx];
+	if (fn)
+		return fn(mode_idx);
 
 	return 0;
 }
