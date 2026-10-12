@@ -8347,8 +8347,10 @@ static int load_conn_subrate(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_param->cont_num = cont_num;
 		hci_param->rate_supv_timeout = supv_timeout;
 
-		/* If the device is connected as central check if the
-		 * connection rate parameters need to be updated.
+		/* If the device is connected check if the connection rate
+		 * parameters need to be updated, either role can initiate the
+		 * Connection Rate Update procedure, e.g. a HID device acting
+		 * as peripheral once the HID host requests a HID SCI mode.
 		 */
 		if (!i && param_count == 1) {
 			struct hci_conn *conn;
@@ -8357,7 +8359,6 @@ static int load_conn_subrate(struct sock *sk, struct hci_dev *hdev, void *data,
 						       &hci_param->addr,
 						       addr_type);
 			if (conn && conn->state == BT_CONNECTED &&
-			    conn->role == HCI_ROLE_MASTER &&
 			    (conn->le_rate_interval < min ||
 			     conn->le_rate_interval > max ||
 			     conn->le_subrate < subrate_min ||
