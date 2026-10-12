@@ -2780,7 +2780,8 @@ static void filemap_mark_hot(struct folio *folio)
 	    folio_test_readahead(folio) || folio_test_dropbehind(folio) ||
 	    folio_test_unevictable(folio))
 		return;
-	folio_test_set_rcu_free(folio);
+	if (!folio_test_set_rcu_free(folio))
+		count_vm_events(PGFREE_RCU_MARK, folio_nr_pages(folio));
 }
 
 /*
