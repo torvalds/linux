@@ -4566,15 +4566,21 @@ static void bpf_task_work_ctx_put(struct bpf_task_work_ctx *ctx)
 	}
 }
 
-static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx)
+static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx,
+				 struct task_struct *task)
 {
 	/*
 	 * Scheduled task_work callback holds ctx ref, so if we successfully
 	 * cancelled, we put that ref on callback's behalf. If we couldn't
 	 * cancel, callback will inevitably run or has already completed
 	 * running, and it would have taken care of its ctx ref itself.
+	 *
+	 * The caller passes the task explicitly: the scheduling handler must
+	 * not read ctx->task after the work is published (the callback may
+	 * have reset it), while in the asynchronous cancellation path
+	 * ctx->task is stable, see bpf_task_work_cancel_scheduled().
 	 */
-	if (task_work_cancel(ctx->task, &ctx->work))
+	if (task_work_cancel(task, &ctx->work))
 		bpf_task_work_ctx_put(ctx);
 }
 
@@ -4615,6 +4621,7 @@ static void bpf_task_work_callback(struct callback_head *cb)
 static void bpf_task_work_irq(struct irq_work *irq_work)
 {
 	struct bpf_task_work_ctx *ctx = container_of(irq_work, struct bpf_task_work_ctx, irq_work);
+	struct task_struct *task;
 	enum bpf_task_work_state state;
 	int err;
 
@@ -4625,7 +4632,16 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 		return;
 	}
 
-	err = task_work_add(ctx->task, &ctx->work, ctx->mode);
+	/*
+	 * Capture the task pointer before the work is published: once the
+	 * callback runs, it may reset ctx->task. The capture happens while
+	 * this round's task reference is held, and every path that can
+	 * release it runs after this handler entered its rcu read-side
+	 * section. bpf_task_release() is put_task_struct_rcu_user(), so the
+	 * task_struct itself cannot be freed before this section ends.
+	 */
+	task = ctx->task;
+	err = task_work_add(task, &ctx->work, ctx->mode);
 	if (err) {
 		bpf_task_work_ctx_reset(ctx);
 		/*
@@ -4639,14 +4655,14 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 
 	/*
 	 * It's technically possible for just scheduled task_work callback to
-	 * complete running by now, going SCHEDULING -> RUNNING and then
-	 * dropping its ctx refcount. Instead of capturing an extra ref just
-	 * to protect below ctx->state access, we rely on rcu_read_lock
-	 * above to prevent kfree_rcu from freeing ctx before we return.
+	 * complete running by now, going SCHEDULING -> RUNNING, resetting
+	 * ctx->task and dropping its ctx refcount. The rcu read-side section
+	 * above keeps both the ctx memory and the captured task pointer
+	 * valid until this handler returns.
 	 */
 	state = cmpxchg(&ctx->state, BPF_TW_SCHEDULING, BPF_TW_SCHEDULED);
 	if (state == BPF_TW_FREED)
-		bpf_task_work_cancel(ctx); /* clean up if we switched into FREED state */
+		bpf_task_work_cancel(ctx, task); /* clean up if we switched into FREED state */
 }
 
 static struct bpf_task_work_ctx *bpf_task_work_fetch_ctx(struct bpf_task_work *tw,
@@ -5006,7 +5022,13 @@ static void bpf_task_work_cancel_scheduled(struct irq_work *irq_work)
 {
 	struct bpf_task_work_ctx *ctx = container_of(irq_work, struct bpf_task_work_ctx, irq_work);
 
-	bpf_task_work_cancel(ctx); /* this might put task_work callback's ref */
+	/*
+	 * Deletion observed SCHEDULED and won against the callback's
+	 * transition to RUNNING. The callback takes its FREED exit without
+	 * resetting ctx->task, and the transferred map reference prevents
+	 * destruction until cancellation completes.
+	 */
+	bpf_task_work_cancel(ctx, ctx->task); /* this might put task_work callback's ref */
 	bpf_task_work_ctx_put(ctx); /* and here we put map's own ref that was transferred to us */
 }
 
