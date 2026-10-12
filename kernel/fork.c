@@ -1619,7 +1619,12 @@ static int copy_exec_state(u64 clone_flags, struct task_struct *tsk)
 	return task_exec_state_copy(tsk);
 }
 
-static int copy_fs(u64 clone_flags, struct task_struct *tsk, bool umh)
+enum copy_fs_flags_t {
+	COPY_FS_UMH	= (1 << 0),
+};
+
+static int copy_fs(u64 clone_flags, struct task_struct *tsk,
+		   enum copy_fs_flags_t flags)
 {
 	struct fs_struct *fs;
 
@@ -1629,7 +1634,7 @@ static int copy_fs(u64 clone_flags, struct task_struct *tsk, bool umh)
 	 * filesystem state, or be started from a non-initial mount
 	 * namespace.
 	 */
-	if (umh) {
+	if (flags & COPY_FS_UMH) {
 		if (clone_flags & (CLONE_NEWNS | CLONE_FS))
 			return -EINVAL;
 		if (current->nsproxy->mnt_ns != &init_mnt_ns)
@@ -2299,7 +2304,7 @@ __latent_entropy struct task_struct *copy_process(
 	retval = copy_files(clone_flags, p, args->no_files);
 	if (retval)
 		goto bad_fork_cleanup_semundo;
-	retval = copy_fs(clone_flags, p, args->umh);
+	retval = copy_fs(clone_flags, p, args->umh ? COPY_FS_UMH : 0);
 	if (retval)
 		goto bad_fork_cleanup_files;
 	retval = copy_sighand(clone_flags, p);
