@@ -297,7 +297,11 @@ int mnt_get_count(struct mount *mnt)
 	/* puts first, so a put counted here has its get counted below */
 	for_each_possible_cpu(cpu)
 		puts += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_puts;
-	smp_mb();	/* pairs with the smp_wmb() in mntput_no_expire() */
+	/*
+	 * Pairs with the smp_wmb() in mntput_no_expire() and with the
+	 * smp_mb() in __legitimize_mnt().
+	 */
+	smp_mb();
 	for_each_possible_cpu(cpu)
 		gets += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_gets;
 
@@ -782,7 +786,7 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 		return 0;
 	mnt = real_mount(bastard);
 	mnt_inc_count(mnt);
-	smp_mb();	/* see mntput_no_expire_slowpath() and do_umount() */
+	smp_mb();	/* pairs with the smp_mb() in mnt_get_count() */
 	if (likely(!read_seqretry(&mount_lock, seq)))
 		return 0;
 	lock_mount_hash();
@@ -1419,11 +1423,6 @@ static void noinline mntput_no_expire_slowpath(struct mount *mnt)
 
 	VFS_BUG_ON(mnt->mnt_ns);
 	lock_mount_hash();
-	/*
-	 * make sure that if __legitimize_mnt() has not seen us grab
-	 * mount_lock, we'll see their refcount increment here.
-	 */
-	smp_mb();
 	mnt_dec_count(mnt);
 	count = mnt_get_count(mnt);
 	if (count != 0) {
@@ -2006,7 +2005,6 @@ static int do_umount(struct mount *mnt, int flags)
 		umount_tree(mnt, UMOUNT_PROPAGATE);
 		retval = 0;
 	} else {
-		smp_mb(); // paired with __legitimize_mnt()
 		shrink_submounts(mnt);
 		retval = -EBUSY;
 		if (!propagate_mount_busy(mnt, 2)) {
