@@ -29,8 +29,9 @@ REQUISITES
 ----------
 Shell tests run perf, that maps ring buffers, so they are taken to need room
 in the per user budget set in kernel.perf_event_mlock_kb, shared by the tests
-running at the same time.  Tests state what they need, or waive, in a comma
-separated list in the parens ending their description line, e.g.:
+running at the same time, that take turns using it.  Tests state what they
+need, or waive, in a comma separated list in the parens ending their
+description line, e.g.:
 
 	# perf stat tests (no_mlock)
 
