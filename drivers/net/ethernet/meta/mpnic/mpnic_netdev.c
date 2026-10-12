@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/types.h>
+#include <net/netdev_lock.h>
 
 #include "mpnic.h"
 #include "mpnic_netdev.h"
@@ -146,6 +147,77 @@ static const struct net_device_ops mpnic_netdev_ops = {
 	.ndo_get_stats64	= mpnic_get_stats64,
 };
 
+static void mpnic_get_queue_stats_rx(struct net_device *dev, int idx,
+				     struct netdev_queue_stats_rx *rx)
+{
+	struct mpnic_net *mpn = netdev_priv(dev);
+	struct mpnic_ring *rxr = mpn->rx[idx];
+	struct mpnic_queue_stats *stats;
+	unsigned int start;
+	u64 bytes, packets;
+
+	if (!rxr)
+		return;
+
+	stats = &rxr->stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		bytes = u64_stats_read(&stats->rcq.bytes);
+		packets = u64_stats_read(&stats->rcq.packets);
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	rx->bytes = bytes;
+	rx->packets = packets;
+}
+
+static void mpnic_get_queue_stats_tx(struct net_device *dev, int idx,
+				     struct netdev_queue_stats_tx *tx)
+{
+	struct mpnic_net *mpn = netdev_priv(dev);
+	struct mpnic_ring *txr = mpn->tx[idx];
+	struct mpnic_queue_stats *stats;
+	struct mpnic_q_triad *qt;
+	unsigned int start;
+	u64 bytes, packets;
+
+	if (!txr)
+		return;
+
+	qt = container_of(txr, struct mpnic_q_triad, sub0);
+
+	stats = &qt->cmpl.stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		bytes = u64_stats_read(&stats->tcq.bytes);
+		packets = u64_stats_read(&stats->tcq.packets);
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	tx->bytes = bytes;
+	tx->packets = packets;
+}
+
+static void mpnic_get_base_stats(struct net_device *dev,
+				 struct netdev_queue_stats_rx *rx,
+				 struct netdev_queue_stats_tx *tx)
+{
+	struct mpnic_net *mpn = netdev_priv(dev);
+	struct mpnic_base_stats *base;
+
+	base = netdev_lock_dereference(mpn->stats.base, dev);
+
+	tx->bytes = base->tx.bytes;
+	tx->packets = base->tx.packets;
+
+	rx->bytes = base->rx.bytes;
+	rx->packets = base->rx.packets;
+}
+
+static const struct netdev_stat_ops mpnic_stat_ops = {
+	.get_queue_stats_rx	= mpnic_get_queue_stats_rx,
+	.get_queue_stats_tx	= mpnic_get_queue_stats_tx,
+	.get_base_stats		= mpnic_get_base_stats,
+};
+
 /**
  * mpnic_netdev_free - Free the netdev associated with mpnic
  * @mpd: Driver specific structure to free netdev from
@@ -176,6 +248,7 @@ struct net_device *mpnic_netdev_alloc(struct mpnic_dev *mpd)
 	mpd->netdev = netdev;
 
 	netdev->netdev_ops = &mpnic_netdev_ops;
+	netdev->stat_ops = &mpnic_stat_ops;
 	netdev->request_ops_lock = true;
 
 	mpn = netdev_priv(netdev);
