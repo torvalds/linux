@@ -836,10 +836,8 @@ session_already_dead:
 	return rc;
 }
 
-int
-CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
-		 const char *fileName, __u16 type,
-		 const struct nls_table *nls_codepage, int remap)
+int CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
+		     const char *fileName, __u16 type, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -861,7 +859,7 @@ PsxDelete:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fileName,
-				       PATH_MAX, nls_codepage, remap);
+				       PATH_MAX, tcon->ses->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {

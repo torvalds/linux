@@ -38,8 +38,7 @@ int CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon);
 int CIFSSMBEcho(struct TCP_Server_Info *server);
 int CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses);
 int CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
-		     const char *fileName, __u16 type,
-		     const struct nls_table *nls_codepage, int remap);
+		     const char *fileName, __u16 type, int remap);
 int CIFSSMBDelFile(const unsigned int xid, struct cifs_tcon *tcon,
 		   const char *name, struct cifs_sb_info *cifs_sb,
 		   struct dentry *dentry);
