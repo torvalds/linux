@@ -1112,17 +1112,13 @@ static void __setattr_copy(struct mnt_idmap *idmap,
 			   struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
+	struct iattr sattr = *attr;
 
-	i_uid_update(idmap, attr, inode);
-	i_gid_update(idmap, attr, inode);
-	if (ia_valid & ATTR_ATIME)
-		inode_set_atime_to_ts(inode, attr->ia_atime);
-	if (ia_valid & ATTR_MTIME)
-		inode_set_mtime_to_ts(inode, attr->ia_mtime);
-	if (ia_valid & ATTR_CTIME)
-		inode_set_ctime_to_ts(inode, attr->ia_ctime);
+	sattr.ia_valid &= ~ATTR_MODE;
+
+	setattr_copy(idmap, inode, &sattr);
 	if (ia_valid & ATTR_MODE) {
-		umode_t mode = attr->ia_mode;
+		umode_t mode = sattr.ia_mode;
 
 		if (!in_group_or_capable(idmap, inode, i_gid_into_vfsgid(idmap, inode)))
 			mode &= ~S_ISGID;

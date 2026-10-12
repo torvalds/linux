@@ -5766,7 +5766,7 @@ static struct file_system_type f2fs_fs_type = {
 	.name		= "f2fs",
 	.init_fs_context = f2fs_init_fs_context,
 	.kill_sb	= kill_f2fs_super,
-	.fs_flags	= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
+	.fs_flags	= FS_REQUIRES_DEV | FS_ALLOW_IDMAP | FS_MGTIME,
 };
 MODULE_ALIAS_FS("f2fs");
 
