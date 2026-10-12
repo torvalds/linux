@@ -8,8 +8,10 @@
 
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 
+#include <linux/completion.h>
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 #include <linux/uuid.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svcauth.h>
@@ -28,6 +30,11 @@ struct nfs_file_localio;
 typedef struct {
 	uuid_t uuid;
 	unsigned nfs3_localio_probe_count;
+	/* Owner reference plus temporary references held by nfs_common */
+	refcount_t refs;
+	struct completion released;
+	/* Namespace registration order, protected by list_lock */
+	u64 seq;
 	/* this struct is over a cacheline, avoid bouncing */
 	spinlock_t ____cacheline_aligned lock;
 	struct list_head list;
@@ -46,6 +53,7 @@ void nfs_uuid_is_local(const uuid_t *, struct list_head *, spinlock_t *,
 
 void nfs_localio_enable_client(struct nfs_client *clp);
 void nfs_localio_disable_client(struct nfs_client *clp);
+void nfs_localio_free_client(struct nfs_client *clp);
 void nfs_localio_invalidate_clients(struct list_head *nn_local_clients,
 				    spinlock_t *nn_local_clients_lock);
 
@@ -115,6 +123,10 @@ static inline void nfsd_localio_ops_init(void)
 }
 struct nfs_client;
 static inline void nfs_localio_disable_client(struct nfs_client *clp)
+{
+}
+
+static inline void nfs_localio_free_client(struct nfs_client *clp)
 {
 }
 
