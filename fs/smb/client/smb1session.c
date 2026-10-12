@@ -145,8 +145,7 @@ static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses)
 	*pbcc_area = bcc_ptr;
 }
 
-static void ascii_domain_string(char **pbcc_area, struct cifs_ses *ses,
-				const struct nls_table *nls_cp)
+static void ascii_domain_string(char **pbcc_area, struct cifs_ses *ses)
 {
 	char *bcc_ptr = *pbcc_area;
 	int len;
@@ -211,7 +210,7 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 
 	/* BB check for overflow here */
 
-	ascii_domain_string(&bcc_ptr, ses, nls_cp);
+	ascii_domain_string(&bcc_ptr, ses);
 	ascii_oslm_strings(&bcc_ptr);
 
 	*pbcc_area = bcc_ptr;
@@ -595,7 +594,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		unicode_domain_string(&bcc_ptr, ses);
 	} else {
 		ascii_oslm_strings(&bcc_ptr);
-		ascii_domain_string(&bcc_ptr, ses, sess_data->nls_cp);
+		ascii_domain_string(&bcc_ptr, ses);
 	}
 
 	sess_data->iov[2].iov_len = (long) bcc_ptr -
