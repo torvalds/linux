@@ -3151,6 +3151,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_ARM)
 	mutex_lock(&early_pmc->powergates_lock);
+	early_pmc->rate = pmc->rate;
 	iounmap(early_pmc->base);
 	early_pmc->base = pmc->base;
 	mutex_unlock(&early_pmc->powergates_lock);
