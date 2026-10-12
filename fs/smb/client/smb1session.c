@@ -121,8 +121,7 @@ static void ascii_oslm_strings(char **pbcc_area)
 	*pbcc_area = bcc_ptr;
 }
 
-static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses,
-				   const struct nls_table *nls_cp)
+static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses)
 {
 	char *bcc_ptr = *pbcc_area;
 	int bytes_ret = 0;
@@ -138,7 +137,8 @@ static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses,
 		bytes_ret = 0;
 	} else
 		bytes_ret = cifs_strtoUTF16((__le16 *) bcc_ptr, ses->domainName,
-					    CIFS_MAX_DOMAINNAME_LEN, nls_cp);
+					    CIFS_MAX_DOMAINNAME_LEN,
+					    ses->local_nls);
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2;  /* account for null terminator */
 
@@ -184,7 +184,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
 
-	unicode_domain_string(&bcc_ptr, ses, nls_cp);
+	unicode_domain_string(&bcc_ptr, ses);
 	unicode_oslm_strings(&bcc_ptr, nls_cp);
 
 	*pbcc_area = bcc_ptr;
@@ -592,7 +592,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 			bcc_ptr++;
 		}
 		unicode_oslm_strings(&bcc_ptr, sess_data->nls_cp);
-		unicode_domain_string(&bcc_ptr, ses, sess_data->nls_cp);
+		unicode_domain_string(&bcc_ptr, ses);
 	} else {
 		ascii_oslm_strings(&bcc_ptr);
 		ascii_domain_string(&bcc_ptr, ses, sess_data->nls_cp);
