@@ -5278,6 +5278,14 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 		return STMMAC_XDP_CONSUMED;
 	}
 
+	/* Disable TX checksum offload for jumbo frames on cores where
+	 * checksum insertion is broken for oversized frames, matching the
+	 * stmmac_fix_features() workaround used by the skb path.
+	 */
+	if (priv->plat->bugged_jumbo &&
+	    xdp_get_frame_len(xdpf) > ETH_FRAME_LEN)
+		csum = false;
+
 	while (true) {
 		skb_frag_t *frag = i ? &sinfo->frags[i - 1] : NULL;
 		int len = frag ? skb_frag_size(frag) : xdpf->len;
