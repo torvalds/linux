@@ -4483,11 +4483,12 @@ static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 }
 
 /*
- * The dispatcher stores the final ops_state after dropping the DSQ lock, so @p
- * can be found on a DSQ while still %SCX_OPSS_DISPATCHING. Reenqueueing @p
- * before that store lands would have it clobber the new %SCX_OPSS_QUEUED.
+ * The dispatcher runs ops.dequeue() and stores the final ops_state after
+ * dropping the DSQ lock, so @p can be found on a DSQ while still
+ * %SCX_OPSS_DISPATCHING. Wait for the dispatch to finish before operating on
+ * @p.
  */
-void scx_reenq_wait_dispatching(struct task_struct *p)
+void scx_wait_dispatching(struct task_struct *p)
 {
 	if (unlikely(atomic_long_read_acquire(&p->scx.ops_state) == SCX_OPSS_DISPATCHING))
 		wait_ops_state(p, SCX_OPSS_DISPATCHING);
@@ -4536,7 +4537,7 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 		if (!local_task_should_reenq(rq, p, &reenq_flags, &reason))
 			continue;
 
-		scx_reenq_wait_dispatching(p);
+		scx_wait_dispatching(p);
 		scx_dispatch_dequeue(rq, p);
 
 		if (WARN_ON_ONCE(p->scx.flags & SCX_TASK_REENQ_REASON_MASK))
@@ -4660,7 +4661,7 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 		}
 
 		/* @p is on @dsq, its rq and @dsq are locked */
-		scx_reenq_wait_dispatching(p);
+		scx_wait_dispatching(p);
 		dispatch_dequeue_locked(p, dsq);
 		raw_spin_unlock(&dsq->lock);
 
