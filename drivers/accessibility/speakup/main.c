@@ -1980,7 +1980,7 @@ static int handle_goto(struct vc_data *vc, u_char type, u_char ch, u16 key)
 	maxlen = (*goto_buf >= '0') ? 3 : 4;
 	if ((ch == '+' || ch == '-') && num == 1)
 		return 1;
-	if (ch >= '0' && ch <= '9' && num < maxlen)
+	if (isdigit(ch) && num < maxlen)
 		return 1;
 	if (num < maxlen - 1 || num > maxlen)
 		goto oops;
