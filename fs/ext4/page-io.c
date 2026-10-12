@@ -458,6 +458,16 @@ submit_and_retry:
 		io_submit_init_bio(io, inode, folio, bh);
 	if (!bio_add_folio(io->io_bio, folio, bh->b_size, bh_offset(bh)))
 		goto submit_and_retry;
+
+	/*
+	 * Dropbehind folios can only be invalidated in task context. An
+	 * io_end with unwritten extents is completed from ext4's workqueue
+	 * anyway, so only ask the block layer to defer the others.
+	 */
+	if (folio_test_dropbehind(folio) &&
+	    !(io->io_end->flag & EXT4_IO_END_UNWRITTEN))
+		bio_set_flag(io->io_bio, BIO_COMPLETE_IN_TASK);
+
 	wbc_account_cgroup_owner(io->io_wbc, folio, bh->b_size);
 	io->io_next_block++;
 }
