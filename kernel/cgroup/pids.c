@@ -253,6 +253,11 @@ static void pids_event(struct pids_cgroup *pids_forking,
 	}
 	if (!cgroup_subsys_on_dfl(pids_cgrp_subsys) ||
 	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS) {
+		/*
+		 * pids.events reports the local counter on legacy hierarchies
+		 * and when pids_localevents is enabled.
+		 */
+		cgroup_file_notify(&p->events_file);
 		cgroup_file_notify(&p->events_local_file);
 		return;
 	}
