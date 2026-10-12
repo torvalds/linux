@@ -18,11 +18,14 @@
 #include <netdb.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <sys/sysinfo.h>
 
 #include "kselftest.h"
 #include "cgroup_util.h"
 
-#define MEMCG_SOCKSTAT_WAIT_RETRIES        30
+/* enough page updates for a memory.stat read to flush, see MAX_VMSTAT_ERROR in test_kmem.c */
+#define MEMCG_FLUSH_BYTES	\
+	(2 * sysconf(_SC_PAGESIZE) * MEMCG_CHARGE_BATCH * get_nprocs())
 
 static bool has_localevents;
 static bool has_recursiveprot;
@@ -1333,7 +1336,8 @@ static int tcp_client(const char *cgroup, unsigned short port)
 	const char server[] = "localhost";
 	struct addrinfo *ai;
 	char servport[6];
-	int retries = 0x10; /* nice round number */
+	long budget = 4 * MEMCG_FLUSH_BYTES;
+	int rcvbuf = 64 * 1024;
 	int sk, ret;
 	long allocated;
 
@@ -1347,17 +1351,25 @@ static int tcp_client(const char *cgroup, unsigned short port)
 	if (sk < 0)
 		goto free_ainfo;
 
+	/* keep the data in the server's socket, the one charged to the cgroup */
+	ret = setsockopt(sk, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+	if (ret < 0)
+		goto close_sk;
+
 	ret = connect(sk, ai->ai_addr, ai->ai_addrlen);
 	if (ret < 0)
 		goto close_sk;
 
 	ret = KSFT_FAIL;
-	while (retries--) {
+	while (budget > 0) {
 		uint8_t buf[0x100000];
 		long current, sock;
+		ssize_t len;
 
-		if (read(sk, buf, sizeof(buf)) <= 0)
+		len = read(sk, buf, sizeof(buf));
+		if (len <= 0)
 			goto close_sk;
+		budget -= len;
 
 		current = cg_read_long(cgroup, "memory.current");
 		sock = cg_read_key_long(cgroup, "memory.stat", "sock ");
@@ -1366,7 +1378,7 @@ static int tcp_client(const char *cgroup, unsigned short port)
 			goto close_sk;
 
 		/* exclude the memory not related to socket connection */
-		if (values_close(current - allocated, sock, 10)) {
+		if (sock > 0 && values_close(current - allocated, sock, 10)) {
 			ret = KSFT_PASS;
 			break;
 		}
@@ -1411,6 +1423,7 @@ static int test_memcg_sock(const char *root)
 	unsigned short port;
 	char *memcg;
 	long sock_post = -1;
+	int flush_rounds = 3;
 
 	if (memcg_sockets_disabled())
 		return KSFT_SKIP;
@@ -1468,21 +1481,15 @@ static int test_memcg_sock(const char *root)
 	if (cg_read_long(memcg, "memory.current") < 0)
 		goto cleanup;
 
-	/*
-	 * memory.stat is updated asynchronously via the memcg rstat
-	 * flushing worker, which runs periodically (every 2 seconds,
-	 * see FLUSH_TIME). On a busy system, the "sock " counter may
-	 * stay non-zero for a short period of time after the TCP
-	 * connection is closed and all socket memory has been
-	 * uncharged.
-	 *
-	 * Poll memory.stat for up to 3 seconds (~FLUSH_TIME plus some
-	 * scheduling slack) and require that the "sock " counter
-	 * eventually drops to zero.
-	 */
-	sock_post = cg_read_key_long_poll(memcg, "memory.stat", "sock ", 0,
-					 MEMCG_SOCKSTAT_WAIT_RETRIES,
-					 DEFAULT_WAIT_INTERVAL_US);
+	/* the uncharge is done, but a flush still walking the CPUs can hide it from a read */
+	while (flush_rounds--) {
+		if (cg_run(memcg, alloc_anon, (void *)MEMCG_FLUSH_BYTES))
+			goto cleanup;
+
+		sock_post = cg_read_key_long(memcg, "memory.stat", "sock ");
+		if (!sock_post)
+			break;
+	}
 	if (sock_post)
 		goto cleanup;
 
