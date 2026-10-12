@@ -78,8 +78,6 @@ __must_not_hold(&card->transactions.lock)
 
 	lockdep_assert_not_held(&card->transactions.lock);
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		list_for_each_entry_safe(t, tmp, &card->transactions.list, link) {
 			if (try_cancel_split_timeout(t))
@@ -140,9 +138,6 @@ __must_not_hold(&card->transactions.lock)
 
 	// If the request packet has already been sent, we need to see if the transaction is still
 	// pending and remove it in that case (e.g. the split transaction).
-	//
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (!find_and_pop_transaction_entry(card, iter == transaction))
 			return -ENOENT;
@@ -184,7 +179,7 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 
 	lockdep_assert_not_held(&card->transactions.lock);
 
-	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+	scoped_guard(spinlock, &card->transactions.lock) {
 		if (list_empty(&t->link))
 			return;
 		remove_transaction_entry(card, t);
@@ -227,14 +222,12 @@ __must_not_hold(&card->transactions.lock)
 	{
 		unsigned int delta;
 
-		scoped_guard(spinlock, &card->split_timeout.lock) {
+		scoped_guard(spinlock_irqsave, &card->split_timeout.lock) {
 			t->split_timeout_cycle =
 				compute_split_timeout_timestamp(card, packet->timestamp) & 0xffff;
 			delta = card->split_timeout.jiffies;
 		}
 
-		// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-		// local destination never runs in any type of IRQ context.
 		scoped_guard(spinlock_irqsave, &card->transactions.lock)
 			start_split_transaction_timeout(t, delta);
 		return;
@@ -259,8 +252,6 @@ __must_not_hold(&card->transactions.lock)
 		break;
 	}
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (!find_and_pop_transaction_entry(card, iter == t))
 			return;
@@ -431,8 +422,6 @@ __must_not_hold(&card->transactions.lock)
 	 * the list while holding the card spinlock.
 	 */
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock)
 		tlabel = allocate_tlabel(card);
 	if (tlabel < 0) {
@@ -458,15 +447,11 @@ __must_not_hold(&card->transactions.lock)
 	// The node_id field of fw_card can be updated when handling SelfIDComplete.
 	int node_id;
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->lock)
 		node_id = card->node_id;
 	fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, node_id, generation, speed,
 			offset, payload, length);
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock)
 		list_add_tail(&t->link, &card->transactions.list);
 
@@ -1232,8 +1217,6 @@ __must_not_hold(&card->transactions.lock)
 		break;
 	}
 
-	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
-	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		t = find_and_pop_transaction_entry(card,
 				iter->node_id == source && iter->tlabel == tlabel);
