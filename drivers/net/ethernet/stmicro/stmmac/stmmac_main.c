@@ -5303,7 +5303,7 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 			struct page *page;
 
 			page = frag ? skb_frag_page(frag)
-				    : virt_to_page(xdpf->data);
+				    : virt_to_head_page(xdpf->data);
 			dma_addr = page_pool_get_dma_addr(page);
 			if (frag)
 				dma_addr += skb_frag_off(frag);
