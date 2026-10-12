@@ -101,6 +101,7 @@ Andy Chiu <andybnac@gmail.com> <andy.chiu@sifive.com>
 Andy Chiu <andybnac@gmail.com> <taochiu@synology.com>
 Andy Shevchenko <andy@kernel.org> <andy@smile.org.ua>
 Andy Shevchenko <andy@kernel.org> <ext-andriy.shevchenko@nokia.com>
+Andy Yan <andyshrk@163.com> <andy.yan@rock-chips.com>
 Anilkumar Kolli <quic_akolli@quicinc.com> <akolli@codeaurora.org>
 Anirudh Ghayal <quic_aghayal@quicinc.com> <aghayal@codeaurora.org>
 Antoine Tenart <atenart@kernel.org> <antoine.tenart@bootlin.com>
@@ -461,7 +462,8 @@ Johan Hovold <johan@kernel.org> <jhovold@gmail.com>
 Johan Hovold <johan@kernel.org> <johan@hovoldconsulting.com>
 John Crispin <john@phrozen.org> <blogic@openwrt.org>
 John Fastabend <john.fastabend@gmail.com> <john.r.fastabend@intel.com>
-John Garry <john.g.garry@oracle.com> <john.garry@huawei.com>
+John Garry <john.garry@linux.dev> <john.garry@huawei.com>
+John Garry <john.garry@linux.dev> <john.g.garry@oracle.com>
 John Keeping <john@keeping.me.uk> <john@metanate.com>
 John Moon <john@jmoon.dev> <quic_johmoo@quicinc.com>
 John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
@@ -486,6 +488,7 @@ Juha Yrjola <juha.yrjola@nokia.com>
 Juha Yrjola <juha.yrjola@solidboot.com>
 Julien Thierry <julien.thierry.kdev@gmail.com> <julien.thierry@arm.com>
 Justin Iurman <justin.iurman@gmail.com> <justin.iurman@uliege.be>
+Imre Kaloz <kaloz@kernel.org> <kaloz@openwrt.org>
 Ira Weiny <iweiny@kernel.org> <ira.weiny@intel.com>
 Iskren Chernev <me@iskren.info> <iskren.chernev@gmail.com>
 Kalle Valo <kvalo@kernel.org> <kvalo@codeaurora.org>

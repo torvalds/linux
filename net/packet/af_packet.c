@@ -1911,7 +1911,8 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,
 
 	spkt = &PACKET_SKB_CB(skb)->sa.pkt;
 
-	skb_push(skb, skb->data - skb_mac_header(skb));
+	if (dev_has_header(dev))
+		skb_push(skb, skb->data - skb_mac_header(skb));
 
 	/*
 	 *	The SOCK_PACKET socket receives _all_ frames.
@@ -1942,8 +1943,7 @@ static void packet_parse_headers(struct sk_buff *skb, struct socket *sock)
 	/* On TX skb->data is the L2 header; anchor it for all socket types. */
 	skb_reset_mac_header(skb);
 
-	if ((!skb->protocol || skb->protocol == htons(ETH_P_ALL)) &&
-	    sock->type == SOCK_RAW)
+	if (!skb->protocol && sock->type == SOCK_RAW)
 		skb->protocol = dev_parse_header_protocol(skb);
 
 	skb_probe_transport_header(skb);
@@ -2613,7 +2613,8 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	struct page *page;
 	int err;
 
-	skb->protocol = proto;
+	if (proto != htons(ETH_P_ALL))
+		skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sockc->priority;
 	skb->mark = sockc->mark;
@@ -2676,8 +2677,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 
 	if (unlikely(!skb->len))
 		return -EINVAL;
-
-	packet_parse_headers(skb, sock);
 
 	return tp_len;
 }
@@ -2918,8 +2917,12 @@ tpacket_error:
 				tp_len = -EINVAL;
 				goto tpacket_error;
 			}
-			virtio_net_hdr_set_proto(skb, &vnet_hdr);
 		}
+
+		packet_parse_headers(skb, po->sk.sk_socket);
+
+		if (has_vnet_hdr)
+			virtio_net_hdr_set_proto(skb, &vnet_hdr);
 
 		uarg = kmalloc(sizeof(*uarg), GFP_KERNEL);
 		if (unlikely(!uarg)) {
@@ -3121,7 +3124,8 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out_free;
 	}
 
-	skb->protocol = proto;
+	if (proto != htons(ETH_P_ALL))
+		skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sockc.priority;
 	skb->mark = sockc.mark;
@@ -3130,15 +3134,17 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
 
-	packet_parse_headers(skb, sock);
-
 	if (vnet_hdr_sz) {
 		err = virtio_net_hdr_to_skb(skb, &vnet_hdr, vio_le());
 		if (err)
 			goto out_free;
 		len += vnet_hdr_sz;
-		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 	}
+
+	packet_parse_headers(skb, sock);
+
+	if (vnet_hdr_sz)
+		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 
 	err = packet_xmit(po, skb);
 

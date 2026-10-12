@@ -65,6 +65,13 @@ static int pfcp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	unparsed = pfcp_hdr(skb);
+	if (unparsed->flags & PFCP_SEID_FLAG) {
+		if (unlikely(!pskb_may_pull(skb, PFCP_HLEN +
+					    offsetofend(struct pfcphdr_session,
+							seid))))
+			goto drop;
+		unparsed = pfcp_hdr(skb);
+	}
 
 	ip_tunnel_flags_zero(flags);
 	tun_dst = udp_tun_rx_dst(skb, sk->sk_family, flags, 0,

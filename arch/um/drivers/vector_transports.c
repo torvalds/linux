@@ -209,6 +209,7 @@ static int raw_verify_header(
 	if ((vheader->flags & VIRTIO_NET_HDR_F_DATA_VALID) > 0)
 		return 1;
 
+	skb_set_network_header(skb, ETH_HLEN);
 	virtio_net_hdr_to_skb(skb, vheader, virtio_legacy_is_little_endian());
 	return 0;
 }

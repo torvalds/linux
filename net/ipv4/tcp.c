@@ -1908,6 +1908,8 @@ static bool can_map_frag(const skb_frag_t *frag)
 
 	if (skb_frag_size(frag) != PAGE_SIZE || skb_frag_off(frag))
 		return false;
+	if (skb_frag_is_net_iov(frag))
+		return false;
 
 	page = skb_frag_page(frag);
 

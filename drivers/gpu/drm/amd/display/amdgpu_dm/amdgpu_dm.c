@@ -3708,6 +3708,13 @@ static void amdgpu_dm_enable_self_refresh(struct amdgpu_display_manager *dm,
 	struct amdgpu_dm_connector *aconn =
 		(struct amdgpu_dm_connector *)acrtc_state->stream->dm_stream_context;
 
+	if (!acrtc_state->base.async_flip) {
+		amdgpu_dm_psr_set_event(dm, acrtc_state->stream, false,
+			psr_event_immediate_flip, false);
+		amdgpu_dm_replay_set_event(dm, acrtc_state->stream, false,
+			replay_event_immediate_flip, false);
+	}
+
 	/* Decrement skip count when SR is enabled and we're doing fast updates. */
 	if (acrtc_state->update_type == UPDATE_TYPE_FAST &&
 	    (psr->psr_feature_enabled || pr->replay_feature_enabled)) {
@@ -4118,6 +4125,18 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_commit *state,
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 		mutex_lock(&dm->dc_lock);
+		/*
+		 * Tearing (immediate) flips cannot work with panel self-refresh
+		 * features. The event is cleared by
+		 * amdgpu_dm_enable_self_refresh() once async flips stop.
+		 */
+		if (immediate_flip) {
+			dc_exit_ips_for_hw_access(dm->dc);
+			amdgpu_dm_psr_set_event(dm, acrtc_state->stream, true,
+				psr_event_immediate_flip, true);
+			amdgpu_dm_replay_set_event(dm, acrtc_state->stream, true,
+				replay_event_immediate_flip, true);
+		}
 		update_planes_and_stream_adapter(dm->dc,
 					 acrtc_state->update_type,
 					 planes_count,

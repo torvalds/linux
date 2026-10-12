@@ -74,6 +74,7 @@ enum qcomtee_object_type {
  * @QCOMTEE_ARG_TYPE_OO: output object (OO).
  * @QCOMTEE_ARG_TYPE_IB: input buffer (IB).
  * @QCOMTEE_ARG_TYPE_IO: input object (IO).
+ * @QCOMTEE_ARG_TYPE_NR: number of argument types.
  *
  * Use the invalid type to specify the end of the argument array.
  */

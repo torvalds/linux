@@ -2087,6 +2087,33 @@ all_done: // pure jump
 }
 
 /*
+ * Be careful in case the dentry is unlinked or renamed. Any mounts
+ * stacked on top of it are going away. We need to make sure that we
+ * don't reveal the underyling dentry during refwalk. In rcuwalk we
+ * catch this via d_seq and another lookup for the name. Give the same
+ * guarantee in refwalk.
+ */
+static bool unlink_may_reveal(struct nameidata *nd, int flags,
+			      struct path *path, struct dentry *dentry)
+{
+	/* ".." and LOOKUP_DOWN may land on an unhashed directory */
+	if (flags & WALK_NOFOLLOW)
+		return false;
+	if (nd->flags & LOOKUP_REVAL)
+		return false;
+	/* We crossed onto a mount and the name led us here while it still existed */
+	if (path->mnt != nd->path.mnt)
+		return false;
+	/* only a name on its way out is flagged */
+	if (likely(!cant_mount(dentry)))
+		return false;
+	if (!d_unlinked(dentry))
+		return false;
+	dput(no_free_ptr(path->dentry));
+	return true;
+}
+
+/*
  * Do we need to follow links? We _really_ want to be able
  * to do this check without having to look at inode->i_op,
  * so we keep a cache of "no, this doesn't need follow_link"
@@ -2115,6 +2142,8 @@ static noinline const char *step_into_slowpath(struct nameidata *nd, int flags,
 			if (unlikely(!inode))
 				return ERR_PTR(-ENOENT);
 		} else {
+			if (unlikely(unlink_may_reveal(nd, flags, &path, dentry)))
+				return ERR_PTR(-ESTALE);
 			dput(nd->path.dentry);
 			if (nd->path.mnt != path.mnt)
 				mntput(nd->path.mnt);

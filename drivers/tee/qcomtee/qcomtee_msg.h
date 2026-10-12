@@ -112,7 +112,7 @@ union qcomtee_msg_arg {
 
 /**
  * struct qcomtee_msg_object_invoke - Direct object invocation message.
- * @ctx: object ID hosted in QTEE.
+ * @cxt: object ID hosted in QTEE.
  * @op: operation for the object.
  * @counts: number of different types of arguments in @args.
  * @args: array of arguments.

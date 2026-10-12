@@ -137,8 +137,8 @@ static __always_inline void __vstate_csr_save(struct __riscv_v_ext_state *dest)
 		"csrr	%0, " __stringify(CSR_VSTART) "\n\t"
 		"csrr	%1, " __stringify(CSR_VTYPE) "\n\t"
 		"csrr	%2, " __stringify(CSR_VL) "\n\t"
-		: "=r" (dest->vstart), "=r" (dest->vtype), "=r" (dest->vl),
-		"=r" (dest->vcsr) : :);
+		: "=r" (dest->vstart), "=r" (dest->vtype), "=r" (dest->vl)
+		: :);
 
 	if (has_xtheadvector()) {
 		unsigned long status;
@@ -230,7 +230,7 @@ static inline void __riscv_v_vstate_save(struct __riscv_v_ext_state *save_to,
 			"add		%1, %1, %0\n\t"
 			"vse8.v		v24, (%1)\n\t"
 			".option pop\n\t"
-			: "=&r" (vl) : "r" (datap) : "memory");
+			: "=&r" (vl), "+r" (datap) : : "memory");
 	}
 	riscv_v_disable();
 }
@@ -266,7 +266,7 @@ static inline void __riscv_v_vstate_restore(struct __riscv_v_ext_state *restore_
 			"add		%1, %1, %0\n\t"
 			"vle8.v		v24, (%1)\n\t"
 			".option pop\n\t"
-			: "=&r" (vl) : "r" (datap) : "memory");
+			: "=&r" (vl), "+r" (datap) : : "memory");
 	}
 	__vstate_csr_restore(restore_from);
 	riscv_v_disable();

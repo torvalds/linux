@@ -5057,6 +5057,7 @@ out:
 static int ext4_check_journal_data_mode(struct super_block *sb)
 {
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+		printk(KERN_WARNING "EXT4-fs: The data=journal mount option is deprecated and support will be removed in January 2028\n");
 		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with "
 			    "data=journal disables delayed allocation, "
 			    "dioread_nolock, O_DIRECT and fast_commit support!\n");

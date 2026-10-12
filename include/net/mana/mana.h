@@ -377,7 +377,18 @@ struct mana_recv_buf_oob {
 #define MANA_RXBUF_PAD (SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) \
 			+ ETH_HLEN)
 
-#define MANA_XDP_MTU_MAX (PAGE_SIZE - MANA_RXBUF_PAD - XDP_PACKET_HEADROOM)
+/* Headroom an RX buffer has to reserve while XDP is attached: the XDP program
+ * needs XDP_PACKET_HEADROOM, and the TX path needs LL_RESERVED_SPACE() (see
+ * mana_get_rxbuf_headroom()). LL_RESERVED_SPACE() grows with MAX_SKB_FRAGS and
+ * exceeds XDP_PACKET_HEADROOM once CONFIG_MAX_SKB_FRAGS is 19 or more.
+ */
+static inline u32 mana_xdp_headroom(struct net_device *ndev)
+{
+	return max_t(u32, LL_RESERVED_SPACE(ndev), XDP_PACKET_HEADROOM);
+}
+
+#define MANA_XDP_MTU_MAX(ndev) \
+	(PAGE_SIZE - MANA_RXBUF_PAD - mana_xdp_headroom(ndev))
 
 struct mana_rxq {
 	struct gdma_queue *gdma_rq;
@@ -691,6 +702,7 @@ int mana_query_link_cfg(struct mana_port_context *apc);
 int mana_set_bw_clamp(struct mana_port_context *apc, u32 speed,
 		      int enable_clamping);
 void mana_query_phy_stats(struct mana_port_context *apc);
+bool mana_single_rxbuf_per_page_forced(struct mana_port_context *apc, u32 mtu);
 int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
 void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
 void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc);

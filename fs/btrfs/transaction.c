@@ -432,6 +432,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		spin_lock(&fs_info->fs_roots_radix_lock);
 		if (btrfs_get_root_last_trans(root) == trans->transid && !force) {
 			spin_unlock(&fs_info->fs_roots_radix_lock);
+			clear_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
 			return 0;
 		}
 		radix_tree_tag_set(&fs_info->fs_roots_radix,

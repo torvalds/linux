@@ -49,7 +49,7 @@ struct xfs_exchmaps_adjacent {
 	.right2 = { .br_startblock = HOLESTARTBLOCK }, \
 }
 
-/* Information to reset reflink flag / CoW fork state after an exchange. */
+/* Information to reset CoW fork state after an exchange. */
 
 /*
  * If the reflink flag is set on either inode, make sure it has an incore CoW
@@ -127,9 +127,7 @@ xmi_has_more_exchange_work(const struct xfs_exchmaps_intent *xmi)
 static inline bool
 xmi_has_postop_work(const struct xfs_exchmaps_intent *xmi)
 {
-	return xmi->xmi_flags & (XFS_EXCHMAPS_CLEAR_INO1_REFLINK |
-				 XFS_EXCHMAPS_CLEAR_INO2_REFLINK |
-				 __XFS_EXCHMAPS_INO2_SHORTFORM);
+	return xmi->xmi_flags & __XFS_EXCHMAPS_INO2_SHORTFORM;
 }
 
 /* Check all mappings to make sure we can actually exchange them. */
@@ -525,18 +523,6 @@ free:
 	return error;
 }
 
-/* Clear the reflink flag after an exchange. */
-static inline void
-xfs_exchmaps_clear_reflink(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip)
-{
-	trace_xfs_reflink_unset_inode_flag(ip);
-
-	ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-}
-
 /* Finish whatever work might come after an exchange operation. */
 static int
 xfs_exchmaps_do_postop_work(
@@ -555,16 +541,6 @@ xfs_exchmaps_do_postop_work(
 		xmi->xmi_flags &= ~__XFS_EXCHMAPS_INO2_SHORTFORM;
 		if (error)
 			return error;
-	}
-
-	if (xmi->xmi_flags & XFS_EXCHMAPS_CLEAR_INO1_REFLINK) {
-		xfs_exchmaps_clear_reflink(tp, xmi->xmi_ip1);
-		xmi->xmi_flags &= ~XFS_EXCHMAPS_CLEAR_INO1_REFLINK;
-	}
-
-	if (xmi->xmi_flags & XFS_EXCHMAPS_CLEAR_INO2_REFLINK) {
-		xfs_exchmaps_clear_reflink(tp, xmi->xmi_ip2);
-		xmi->xmi_flags &= ~XFS_EXCHMAPS_CLEAR_INO2_REFLINK;
 	}
 
 	return 0;
@@ -948,46 +924,14 @@ xfs_exchmaps_intent_destroy_cache(void)
 }
 
 /*
- * Decide if we will exchange the reflink flags between the two files after the
- * exchange.  The only time we want to do this is if we're exchanging all
- * mappings under EOF and the inode reflink flags have different states.
+ * Allocate and initialize a new incore intent item from a request.
  */
-static inline bool
-xmi_can_exchange_reflink_flags(
-	const struct xfs_exchmaps_req	*req,
-	unsigned int			reflink_state)
-{
-	struct xfs_mount		*mp = req->ip1->i_mount;
-
-	/*
-	 * The INO1_WRITTEN optimization can skip exchanging hole and
-	 * unwritten mappings, which means we cannot guarantee that all
-	 * shared extents actually moved to the other file.  Clearing the
-	 * reflink flag of an inode that still holds shared extents breaks
-	 * the CoW write path, so refuse to exchange the flags in that case.
-	 */
-	if (req->flags & XFS_EXCHMAPS_INO1_WRITTEN)
-		return false;
-
-	if (hweight32(reflink_state) != 1)
-		return false;
-	if (req->startoff1 != 0 || req->startoff2 != 0)
-		return false;
-	if (req->blockcount != XFS_B_TO_FSB(mp, req->ip1->i_disk_size))
-		return false;
-	if (req->blockcount != XFS_B_TO_FSB(mp, req->ip2->i_disk_size))
-		return false;
-	return true;
-}
-
-
-/* Allocate and initialize a new incore intent item from a request. */
 struct xfs_exchmaps_intent *
 xfs_exchmaps_init_intent(
 	const struct xfs_exchmaps_req	*req)
 {
 	struct xfs_exchmaps_intent	*xmi;
-	unsigned int			rs = 0;
+	struct xfs_mount		*mp = req->ip1->i_mount;
 
 	xmi = kmem_cache_zalloc(xfs_exchmaps_intent_cache,
 			GFP_NOFS | __GFP_NOFAIL);
@@ -1005,27 +949,18 @@ xfs_exchmaps_init_intent(
 		return xmi;
 	}
 
-	if (req->flags & XFS_EXCHMAPS_SET_SIZES) {
-		xmi->xmi_flags |= XFS_EXCHMAPS_SET_SIZES;
-		xmi->xmi_isize1 = req->ip2->i_disk_size;
-		xmi->xmi_isize2 = req->ip1->i_disk_size;
-	}
-
-	/* Record the state of each inode's reflink flag before the op. */
-	if (xfs_is_reflink_inode(req->ip1))
-		rs |= 1;
-	if (xfs_is_reflink_inode(req->ip2))
-		rs |= 2;
-
 	/*
-	 * Figure out if we're clearing the reflink flags (which effectively
-	 * exchanges them) after the operation.
+	 * If the caller wanted, set each file's size to that file's exchange
+	 * offset + length exchanged from the other file because the ranges in
+	 * each file might be different lengths.
 	 */
-	if (xmi_can_exchange_reflink_flags(req, rs)) {
-		if (rs & 1)
-			xmi->xmi_flags |= XFS_EXCHMAPS_CLEAR_INO1_REFLINK;
-		if (rs & 2)
-			xmi->xmi_flags |= XFS_EXCHMAPS_CLEAR_INO2_REFLINK;
+	if (req->flags & XFS_EXCHMAPS_SET_SIZES) {
+		loff_t	off1 = XFS_FSB_TO_B(mp, xmi->xmi_startoff1);
+		loff_t	off2 = XFS_FSB_TO_B(mp, xmi->xmi_startoff2);
+
+		xmi->xmi_flags |= XFS_EXCHMAPS_SET_SIZES;
+		xmi->xmi_isize1 = off1 + (req->ip2->i_disk_size - off2);
+		xmi->xmi_isize2 = off2 + (req->ip1->i_disk_size - off1);
 	}
 
 	if (S_ISDIR(VFS_I(xmi->xmi_ip2)->i_mode) ||

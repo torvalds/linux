@@ -520,7 +520,8 @@ static void __fput(struct file *file)
 	dput(dentry);
 	if (unlikely(mode & FMODE_NEED_UNMOUNT))
 		dissolve_on_fput(mnt);
-	mntput(mnt);
+	else
+		mntput(mnt);
 out:
 	file_free(file);
 }

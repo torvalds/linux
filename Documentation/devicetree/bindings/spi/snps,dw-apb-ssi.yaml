@@ -77,6 +77,7 @@ properties:
               - mscc,ocelot-spi
               - mscc,jaguar2-spi
               - sophgo,sg2042-spi
+              - syna,sl2610-spi
               - thead,th1520-spi
               - ultrarisc,dp1000-spi
           - const: snps,dw-apb-ssi

@@ -1360,8 +1360,10 @@ static DEFINE_KFIFO(aer_recover_ring, struct aer_recover_entry,
 
 static void aer_recover_work_func(struct work_struct *work)
 {
+	struct aer_capability_regs *regs;
 	struct aer_recover_entry entry;
 	struct pci_dev *pdev;
+	u32 err;
 
 	while (kfifo_get(&aer_recover_ring, &entry)) {
 		pdev = pci_get_domain_bus_and_slot(entry.domain, entry.bus,
@@ -1375,6 +1377,12 @@ static void aer_recover_work_func(struct work_struct *work)
 		}
 		pci_print_aer(pdev, entry.severity, entry.regs);
 
+		regs = entry.regs;
+		if (entry.severity == AER_CORRECTABLE)
+			err = regs->cor_status & ~regs->cor_mask;
+		else
+			err = regs->uncor_status & ~regs->uncor_mask;
+
 		/*
 		 * Memory for aer_capability_regs(entry.regs) is being
 		 * allocated from the ghes_estatus_pool to protect it from
@@ -1385,12 +1393,14 @@ static void aer_recover_work_func(struct work_struct *work)
 		ghes_estatus_pool_region_free((unsigned long)entry.regs,
 					    sizeof(struct aer_capability_regs));
 
-		if (entry.severity == AER_NONFATAL)
-			pcie_do_recovery(pdev, pci_channel_io_normal,
-					 aer_root_reset);
-		else if (entry.severity == AER_FATAL)
-			pcie_do_recovery(pdev, pci_channel_io_frozen,
-					 aer_root_reset);
+		if (err) {
+			if (entry.severity == AER_NONFATAL)
+				pcie_do_recovery(pdev, pci_channel_io_normal,
+						 aer_root_reset);
+			else if (entry.severity == AER_FATAL)
+				pcie_do_recovery(pdev, pci_channel_io_frozen,
+						 aer_root_reset);
+		}
 		pci_dev_put(pdev);
 	}
 }
