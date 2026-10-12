@@ -1229,7 +1229,7 @@ static struct mlx5_fs_pool *
 mlx5_fs_get_pr_encap_pool(struct mlx5_core_dev *dev, struct xarray *pr_pools,
 			  enum mlx5hws_action_type reformat_type, size_t size)
 {
-	struct mlx5_fs_pool *pr_pool;
+	struct mlx5_fs_pool *pr_pool, *old;
 	unsigned long index = size;
 	int err;
 
@@ -1243,13 +1243,14 @@ mlx5_fs_get_pr_encap_pool(struct mlx5_core_dev *dev, struct xarray *pr_pools,
 	err = mlx5_fs_hws_pr_pool_init(pr_pool, dev, size, reformat_type);
 	if (err)
 		goto free_pr_pool;
-	err = xa_insert(pr_pools, index, pr_pool, GFP_KERNEL);
-	if (err)
-		goto cleanup_pr_pool;
-	return pr_pool;
+	old = xa_cmpxchg(pr_pools, index, NULL, pr_pool, GFP_KERNEL);
+	if (!old)
+		return pr_pool;
 
-cleanup_pr_pool:
 	mlx5_fs_hws_pr_pool_cleanup(pr_pool);
+	kfree(pr_pool);
+	return xa_is_err(old) ? ERR_PTR(xa_err(old)) : old;
+
 free_pr_pool:
 	kfree(pr_pool);
 	return ERR_PTR(err);
