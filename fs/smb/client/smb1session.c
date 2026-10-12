@@ -189,8 +189,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses)
 	*pbcc_area = bcc_ptr;
 }
 
-static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
-				 const struct nls_table *nls_cp)
+static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses)
 {
 	char *bcc_ptr = *pbcc_area;
 	int len;
@@ -467,7 +466,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 		}
 		unicode_ssetup_strings(&bcc_ptr, ses);
 	} else {
-		ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+		ascii_ssetup_strings(&bcc_ptr, ses);
 	}
 
 
