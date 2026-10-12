@@ -275,9 +275,9 @@ static int ntfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			result.uint_32 == STREAMS_INTERFACE_WINDOWS;
 
 		if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE &&
-		    NVolStreamsWindows(vol) != streams_windows) {
-			ntfs_error(vol->sb,
-				   "Cannot change streams_interface on remount.");
+		    NVolStreamsWindows(NTFS_SB(fc->root->d_sb)) != streams_windows) {
+			ntfs_warning(fc->root->d_sb,
+				     "Cannot change streams_interface on remount.");
 			return -EINVAL;
 		}
 		if (streams_windows)
