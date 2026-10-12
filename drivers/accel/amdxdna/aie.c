@@ -118,6 +118,45 @@ void amdxdna_vbnv_init(struct amdxdna_dev *xdna)
 	amdxdna_update_vbnv(xdna, info->rev_vbnv_tbl, rev);
 }
 
+void amdxdna_io_stats_job_start(struct amdxdna_client *client)
+{
+	int depth;
+
+	guard(spinlock)(&client->io_stats.lock);
+
+	depth = client->io_stats.job_depth++;
+	if (!depth)
+		client->io_stats.start_time = ktime_get_ns();
+}
+
+void amdxdna_io_stats_job_done(struct amdxdna_client *client)
+{
+	u64 busy_ns;
+	int depth;
+
+	guard(spinlock)(&client->io_stats.lock);
+
+	depth = --client->io_stats.job_depth;
+	if (!depth) {
+		busy_ns = ktime_get_ns() - client->io_stats.start_time;
+		client->io_stats.start_time = 0;
+		client->io_stats.busy_time += busy_ns;
+	}
+}
+
+u64 amdxdna_io_stats_busy_time_ns(struct amdxdna_client *client)
+{
+	u64 busy_ns;
+
+	guard(spinlock)(&client->io_stats.lock);
+
+	busy_ns = client->io_stats.busy_time;
+	if (client->io_stats.job_depth)
+		busy_ns += ktime_get_ns() - client->io_stats.start_time;
+
+	return busy_ns;
+}
+
 int amdxdna_get_metadata(struct aie_device *aie,
 			 struct amdxdna_client *client,
 			 struct amdxdna_drm_get_info *args)
