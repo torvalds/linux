@@ -1070,7 +1070,7 @@ static int rcar_dmac_alloc_chan_resources(struct dma_chan *chan)
 	if (ret < 0)
 		return -ENOMEM;
 
-	return pm_runtime_get_sync(chan->device->dev);
+	return pm_runtime_resume_and_get(chan->device->dev);
 }
 
 static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
