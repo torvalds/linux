@@ -131,8 +131,7 @@ bool smb2_should_replay(struct cifs_tcon *tcon, int *pretries,
 int SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses,
 		   struct TCP_Server_Info *server);
 int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
-		    struct TCP_Server_Info *server,
-		    const struct nls_table *nls_cp);
+		    struct TCP_Server_Info *server);
 int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
 int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	      struct cifs_tcon *tcon, const struct nls_table *cp);

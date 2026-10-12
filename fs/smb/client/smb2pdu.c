@@ -1529,7 +1529,6 @@ struct SMB2_sess_data {
 	unsigned int xid;
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
-	struct nls_table *nls_cp;
 	void (*func)(struct SMB2_sess_data *);
 	int result;
 	u64 previous_session;
@@ -2002,10 +2001,8 @@ SMB2_select_sec(struct SMB2_sess_data *sess_data)
 	return 0;
 }
 
-int
-SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
-		struct TCP_Server_Info *server,
-		const struct nls_table *nls_cp)
+int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
+		    struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	struct SMB2_sess_data *sess_data;
@@ -2025,7 +2022,6 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	sess_data->ses = ses;
 	sess_data->server = server;
 	sess_data->buf0_type = CIFS_NO_BUFFER;
-	sess_data->nls_cp = (struct nls_table *) nls_cp;
 	sess_data->previous_session = ses->Suid;
 
 	rc = SMB2_select_sec(sess_data);

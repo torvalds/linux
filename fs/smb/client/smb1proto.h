@@ -271,8 +271,7 @@ void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
  * smb1session.c
  */
 int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
-		   struct TCP_Server_Info *server,
-		   const struct nls_table *nls_cp);
+		   struct TCP_Server_Info *server);
 
 /*
  * smb1transport.c

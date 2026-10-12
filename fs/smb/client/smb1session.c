@@ -20,7 +20,6 @@ struct sess_data {
 	unsigned int xid;
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
-	struct nls_table *nls_cp;
 	void (*func)(struct sess_data *);
 	int result;
 	unsigned int in_len;
@@ -588,7 +587,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
-		unicode_oslm_strings(&bcc_ptr, sess_data->nls_cp);
+		unicode_oslm_strings(&bcc_ptr, sess_data->ses->local_nls);
 		unicode_domain_string(&bcc_ptr, ses);
 	} else {
 		ascii_oslm_strings(&bcc_ptr);
@@ -686,7 +685,7 @@ _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
-		unicode_oslm_strings(&bcc_ptr, sess_data->nls_cp);
+		unicode_oslm_strings(&bcc_ptr, sess_data->ses->local_nls);
 	} else {
 		ascii_oslm_strings(&bcc_ptr);
 	}
@@ -948,8 +947,7 @@ static int select_sec(struct sess_data *sess_data)
 }
 
 int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
-		   struct TCP_Server_Info *server,
-		   const struct nls_table *nls_cp)
+		   struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	struct sess_data *sess_data;
@@ -967,7 +965,6 @@ int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	sess_data->ses = ses;
 	sess_data->server = server;
 	sess_data->buf0_type = CIFS_NO_BUFFER;
-	sess_data->nls_cp = (struct nls_table *) nls_cp;
 
 	rc = select_sec(sess_data);
 	if (rc)

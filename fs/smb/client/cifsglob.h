@@ -373,8 +373,7 @@ struct smb_version_operations {
 	unsigned int (*negotiate_rsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* setup smb sessionn */
 	int (*sess_setup)(const unsigned int, struct cifs_ses *,
-			  struct TCP_Server_Info *server,
-			  const struct nls_table *);
+			  struct TCP_Server_Info *server);
 	/* close smb session */
 	int (*logoff)(const unsigned int, struct cifs_ses *);
 	/* connect to a server share */

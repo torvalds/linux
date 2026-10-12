@@ -4188,7 +4188,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	if (!rc) {
 		if (server->ops->sess_setup)
-			rc = server->ops->sess_setup(xid, ses, server, nls_info);
+			rc = server->ops->sess_setup(xid, ses, server);
 		else
 			rc = -ENOSYS;
 	}
