@@ -193,7 +193,7 @@ do {										\
 	ptr__ = PERCPU_PTR(&(pcp));						\
 	if (__builtin_constant_p(val__) &&					\
 	    ((szcast)val__ > -129) && ((szcast)val__ < 128)) {			\
-		asm volatile(							\
+		asm_inline volatile(						\
 			__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 				      "%[pair__]","%N[pair__]")			\
 			op2 "   0(%N[pair__]),%[val__]\n"			\
@@ -206,7 +206,7 @@ do {										\
 			  "m" (((struct lowcore *)0)->percpu_offset)		\
 			: "cc");						\
 	} else {								\
-		asm volatile(							\
+		asm_inline volatile(						\
 			__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 				     "%[pair__]","%N[pair__]")			\
 			op1 "   %[old__],%[val__],0(%N[pair__])\n"		\
