@@ -203,14 +203,18 @@ void test_prog_tests_framework_compare_text(void)
 	}
 
 	if (test__start_subtest("compare_text_mismatch")) {
-		err = compare_text_to_expected("line two\n", "line one\n");
-		fflush(stdout);
+		if (!env.subtest_state->stdout_saved) {
+			test__skip();
+		} else {
+			err = compare_text_to_expected("line two\n", "line one\n");
+			fflush(stdout);
 
-		ASSERT_EQ(err, -1, "mismatch_rc");
-		ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "-line one",
-				  "diff_has_expected");
-		ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "+line two",
-				  "diff_has_actual");
+			ASSERT_EQ(err, -1, "mismatch_rc");
+			ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "-line one",
+					  "diff_has_expected");
+			ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "+line two",
+					  "diff_has_actual");
+		}
 		test__end_subtest();
 	}
 }
