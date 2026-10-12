@@ -112,7 +112,7 @@ int probe_get_fixup_type(u16 *insn)
 		case 0xf6: /* crb   */
 		case 0xf7: /* clrb  */
 		case 0xfc: /* cgib  */
-		case 0xfd: /* cglib */
+		case 0xfd: /* clgib */
 		case 0xfe: /* cib   */
 		case 0xff: /* clib  */
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
