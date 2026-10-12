@@ -374,11 +374,6 @@ void ivpu_hw_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
 
 void ivpu_irq_handlers_init(struct ivpu_device *vdev)
 {
-	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
-		vdev->hw->irq.ip_irq_handler = ivpu_hw_ip_irq_handler_37xx;
-	else
-		vdev->hw->irq.ip_irq_handler = ivpu_hw_ip_irq_handler_40xx;
-
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
 		vdev->hw->irq.btrs_irq_handler = ivpu_hw_btrs_irq_handler_mtl;
 	else
