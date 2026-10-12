@@ -888,7 +888,9 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_uid_probe(xe);
 
-	xe_pat_init_early(xe);
+	err = xe_pat_init_early(xe);
+	if (err)
+		return err;
 
 	err = xe_sriov_init(xe);
 	if (err)
