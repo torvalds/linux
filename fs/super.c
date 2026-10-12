@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/memcontrol.h>
-#include <linux/rhashtable.h>
+#include <linux/hashtable.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/writeback.h>		/* for the emergency remount stuff */
@@ -274,8 +274,6 @@ static unsigned long super_cache_count(struct shrinker *shrink,
 	return total_objects;
 }
 
-static struct super_dev *super_dev_alloc(dev_t dev, struct super_block *sb);
-
 static void destroy_super_work(struct work_struct *work)
 {
 	struct super_block *s = container_of(work, struct super_block,
@@ -283,8 +281,6 @@ static void destroy_super_work(struct work_struct *work)
 	fsnotify_sb_free(s);
 	security_sb_free(s);
 	put_user_ns(s->s_user_ns);
-	/* Only an unregistered entry is still owned by the superblock. */
-	kfree(s->s_super_dev);
 	kfree(s->s_subtype);
 	for (int i = 0; i < SB_FREEZE_LEVELS; i++)
 		percpu_free_rwsem(&s->s_writers.rw_sem[i]);
@@ -398,9 +394,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 		goto fail;
 	if (list_lru_init_memcg(&s->s_inode_lru, s->s_shrink))
 		goto fail;
-	s->s_super_dev = super_dev_alloc(0, s);
-	if (!s->s_super_dev)
-		goto fail;
 
 	s->s_min_writeback_pages = MIN_WRITEBACK_PAGES;
 	return s;
@@ -435,110 +428,92 @@ void put_super(struct super_block *s)
 	}
 }
 
-struct super_dev {
-	dev_t			sd_dev;
-	struct super_block	*sd_sb;
-	refcount_t		sd_ref;
-	struct rhlist_head	sd_node;
-	struct rcu_head		sd_rcu;
-};
+/*
+ * Superblocks hashed by the devices they claim: s_dev from sget_fc() to
+ * kill_super_notify() and every block device opened through
+ * fs_bdev_file_open_by_{dev,path}(). Walks keep their place with a cursor, an
+ * entry without a superblock.
+ */
+#define SUPER_DEV_HASH_BITS 8
+static DEFINE_HASHTABLE(super_dev_hash, SUPER_DEV_HASH_BITS);
+static DEFINE_SPINLOCK(super_dev_lock);
 
-static struct rhltable super_dev_table;
-static const struct rhashtable_params super_dev_params = {
-	.key_len	= sizeof(dev_t),
-	.key_offset	= offsetof(struct super_dev, sd_dev),
-	.head_offset	= offsetof(struct super_dev, sd_node),
-};
-
-static struct super_dev *super_dev_alloc(dev_t dev, struct super_block *sb)
+static void super_dev_add(struct super_dev *sd, struct super_block *sb, dev_t dev)
 {
-	struct super_dev *fsd;
+	lockdep_assert_held(&super_dev_lock);
 
-	fsd = kzalloc_obj(*fsd);
-	if (!fsd)
-		return NULL;
-	fsd->sd_dev = dev;
-	fsd->sd_sb = sb;
-	refcount_set(&fsd->sd_ref, 1);
-	return fsd;
+	sd->sd_sb = sb;
+	sd->sd_dev = dev;
+	sd->sd_claims = 1;
+	refcount_inc(&sb->s_passive);
+	hash_add(super_dev_hash, &sd->sd_hash, dev);
 }
 
-static void super_dev_put(struct super_dev *fsd)
+/* Drop a claim, the last one unhashes the entry. */
+static void super_dev_put(struct super_dev *sd)
 {
-	/* Unlink only once unpinned, so a cursor never resumes from a removed node. */
-	if (fsd && refcount_dec_and_test(&fsd->sd_ref)) {
-		rhltable_remove(&super_dev_table, &fsd->sd_node, super_dev_params);
-		put_super(fsd->sd_sb);
-		kfree_rcu(fsd, sd_rcu);
+	struct super_block *sb = sd->sd_sb;
+
+	scoped_guard(spinlock, &super_dev_lock) {
+		if (--sd->sd_claims)
+			return;
+		hash_del(&sd->sd_hash);
+	}
+	if (sd != &sb->s_super_dev)
+		kfree(sd);
+	put_super(sb);
+}
+
+/*
+ * Return the superblock of the next claim behind @cursor with a passive
+ * reference and put @prev. The mount of a superblock that isn't born yet may
+ * still drop its claim, so wait for it to be born or to die and look again.
+ */
+static struct super_block *super_dev_next(struct super_dev *cursor,
+					  struct super_block *prev)
+{
+	struct super_block *sb;
+	struct super_dev *sd;
+
+	if (prev)
+		put_super(prev);
+
+	for (;;) {
+		scoped_guard(spinlock, &super_dev_lock) {
+			if (!hash_hashed(&cursor->sd_hash))
+				hash_add(super_dev_hash, &cursor->sd_hash, cursor->sd_dev);
+			sd = cursor;
+			hlist_for_each_entry_continue(sd, sd_hash) {
+				if (sd->sd_sb && sd->sd_dev == cursor->sd_dev)
+					break;
+			}
+			if (!sd) {
+				hash_del(&cursor->sd_hash);
+				return NULL;
+			}
+
+			sb = sd->sd_sb;
+			refcount_inc(&sb->s_passive);
+			if (super_flags(sb, SB_BORN | SB_DYING)) {
+				hash_del(&cursor->sd_hash);
+				hlist_add_behind(&cursor->sd_hash, &sd->sd_hash);
+				return sb;
+			}
+		}
+		wait_var_event(&sb->s_flags, super_flags(sb, SB_BORN | SB_DYING));
+		put_super(sb);
 	}
 }
 
-void __init super_dev_init(void)
+/* Unhash the cursor of a walk that stops early. */
+static void super_dev_walk_end(struct super_dev *cursor)
 {
-	if (rhltable_init(&super_dev_table, &super_dev_params))
-		panic("VFS: Cannot initialise super_dev_table\n");
+	guard(spinlock)(&super_dev_lock);
+	hash_del(&cursor->sd_hash);
 }
 
-static int super_dev_insert(struct super_dev *fsd)
-{
-	int err;
-
-	err = rhltable_insert(&super_dev_table, &fsd->sd_node, super_dev_params);
-	if (!err)
-		refcount_inc(&fsd->sd_sb->s_passive);
-	return err;
-}
-
-/* Register @sb under @sb->s_dev as the final fallible act of a set callback. */
-static int super_dev_register(struct super_block *sb)
-{
-	struct super_dev *fsd = sb->s_super_dev;
-	int err;
-
-	lockdep_assert_held(&sb_lock);
-	VFS_WARN_ON_ONCE(!sb->s_dev);
-	VFS_WARN_ON_ONCE(!fsd || fsd->sd_dev);
-
-	fsd->sd_dev = sb->s_dev;
-	err = super_dev_insert(fsd);
-	if (err)
-		fsd->sd_dev = 0;
-	return err;
-}
-
-static struct super_dev *super_dev_get(struct rhlist_head *pos)
-{
-	struct super_dev *sb_dev;
-
-	for (; pos; pos = rcu_dereference_all(pos->next)) {
-		sb_dev = container_of(pos, struct super_dev, sd_node);
-		if (refcount_inc_not_zero(&sb_dev->sd_ref))
-			return sb_dev;
-	}
-	return NULL;
-}
-
-static struct super_dev *super_dev_first(dev_t dev)
-{
-	struct super_dev *sb_dev;
-
-	rcu_read_lock();
-	sb_dev = super_dev_get(rhltable_lookup(&super_dev_table, &dev, super_dev_params));
-	rcu_read_unlock();
-	return sb_dev;
-}
-
-static struct super_dev *super_dev_next(struct super_dev *prev)
-{
-	struct super_dev *sb_dev;
-
-	rcu_read_lock();
-	sb_dev = super_dev_get(rcu_dereference_all(prev->sd_node.next));
-	rcu_read_unlock();
-
-	super_dev_put(prev);
-	return sb_dev;
-}
+#define for_each_dev_super(sb, cursor) \
+	for (sb = super_dev_next(cursor, NULL); sb; sb = super_dev_next(cursor, sb))
 
 static void kill_super_notify(struct super_block *sb)
 {
@@ -548,11 +523,8 @@ static void kill_super_notify(struct super_block *sb)
 	if (sb->s_flags & SB_DEAD)
 		return;
 
-	/* Drop sget_fc()'s claim; a never-registered entry stays with the sb. */
-	if (sb->s_super_dev->sd_dev) {
-		super_dev_put(sb->s_super_dev);
-		sb->s_super_dev = NULL;
-	}
+	/* Drop sget_fc()'s claim on s_dev. */
+	super_dev_put(&sb->s_super_dev);
 
 	/*
 	 * Let concurrent mounts know that this thing is really dead.
@@ -880,13 +852,12 @@ retry:
 	s->s_fs_info = fc->s_fs_info;
 	err = set(s, fc);
 	if (err) {
-		VFS_WARN_ON_ONCE(s->s_super_dev->sd_dev);
 		s->s_fs_info = NULL;
 		spin_unlock(&sb_lock);
 		destroy_unused_super(s);
 		return ERR_PTR(err);
 	}
-	VFS_WARN_ON_ONCE(!s->s_super_dev->sd_dev);
+	VFS_WARN_ON_ONCE(!s->s_dev);
 	fc->s_fs_info = NULL;
 	s->s_type = fc->fs_type;
 	s->s_iflags |= fc->s_iflags;
@@ -899,6 +870,8 @@ retry:
 	list_add_tail(&s->s_list, &super_blocks);
 	hlist_add_head(&s->s_instances, &s->s_type->fs_supers);
 	spin_unlock(&sb_lock);
+	scoped_guard(spinlock, &super_dev_lock)
+		super_dev_add(&s->s_super_dev, s, s->s_dev);
 	get_filesystem(s->s_type);
 	shrinker_register(s->s_shrink);
 	return s;
@@ -1042,18 +1015,14 @@ EXPORT_SYMBOL(iterate_supers_type);
 
 struct super_block *user_get_super(dev_t dev, bool excl)
 {
-	struct super_dev *sb_dev;
+	struct super_dev cursor = { .sd_dev = dev };
+	struct super_block *sb;
 
-	for (sb_dev = super_dev_first(dev); sb_dev; sb_dev = super_dev_next(sb_dev)) {
-		struct super_block *sb = sb_dev->sd_sb;
-
-		if (!super_lock(sb, excl))
-			continue;
-
-		/* The pinned entry holds a passive reference, take our own. */
-		refcount_inc(&sb->s_passive);
-		super_dev_put(sb_dev);
-		return sb;
+	for_each_dev_super(sb, &cursor) {
+		if (super_lock(sb, excl)) {
+			super_dev_walk_end(&cursor);
+			return sb;
+		}
 	}
 	return NULL;
 }
@@ -1336,16 +1305,7 @@ EXPORT_SYMBOL(free_anon_bdev);
 
 int set_anon_super(struct super_block *s, void *data)
 {
-	int error;
-
-	error = get_anon_bdev(&s->s_dev);
-	if (error)
-		return error;
-
-	error = super_dev_register(s);
-	if (error)
-		free_anon_bdev(s->s_dev);
-	return error;
+	return get_anon_bdev(&s->s_dev);
 }
 EXPORT_SYMBOL(set_anon_super);
 
@@ -1442,7 +1402,7 @@ EXPORT_SYMBOL(get_tree_keyed);
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_dev = *(dev_t *)data;
-	return super_dev_register(s);
+	return 0;
 }
 
 static int super_s_dev_set(struct super_block *s, struct fs_context *fc)
@@ -1502,14 +1462,12 @@ static int fs_super_thaw(struct super_block *sb)
 
 static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
-	struct super_dev *sb_dev;
-	dev_t dev = bdev->bd_dev;
+	struct super_dev cursor = { .sd_dev = bdev->bd_dev };
+	struct super_block *sb;
 
 	mutex_unlock(&bdev->bd_holder_lock);
 
-	for (sb_dev = super_dev_first(dev); sb_dev; sb_dev = super_dev_next(sb_dev)) {
-		struct super_block *sb = sb_dev->sd_sb;
-
+	for_each_dev_super(sb, &cursor) {
 		if (!super_lock_shared(sb))
 			continue;
 		if (sb->s_root && (sb->s_flags & SB_ACTIVE)) {
@@ -1529,14 +1487,12 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 
 static void fs_bdev_sync(struct block_device *bdev)
 {
-	struct super_dev *sb_dev;
-	dev_t dev = bdev->bd_dev;
+	struct super_dev cursor = { .sd_dev = bdev->bd_dev };
+	struct super_block *sb;
 
 	mutex_unlock(&bdev->bd_holder_lock);
 
-	for (sb_dev = super_dev_first(dev); sb_dev; sb_dev = super_dev_next(sb_dev)) {
-		struct super_block *sb = sb_dev->sd_sb;
-
+	for_each_dev_super(sb, &cursor) {
 		if (!super_lock_shared(sb))
 			continue;
 		if (sb->s_root && (sb->s_flags & SB_ACTIVE))
@@ -1559,8 +1515,8 @@ static void fs_bdev_sync(struct block_device *bdev)
  */
 static int fs_bdev_freeze(struct block_device *bdev)
 {
-	dev_t dev = bdev->bd_dev;
-	struct super_dev *sb_dev;
+	struct super_dev cursor = { .sd_dev = bdev->bd_dev };
+	struct super_block *sb;
 	unsigned int count = 0;
 	int error = 0, err;
 
@@ -1568,13 +1524,13 @@ static int fs_bdev_freeze(struct block_device *bdev)
 
 	mutex_unlock(&bdev->bd_holder_lock);
 
-	for (sb_dev = super_dev_first(dev); sb_dev; sb_dev = super_dev_next(sb_dev)) {
-		if (!get_active_super(sb_dev->sd_sb))
+	for_each_dev_super(sb, &cursor) {
+		if (!get_active_super(sb))
 			continue;
-		err = fs_super_freeze(sb_dev->sd_sb);
+		err = fs_super_freeze(sb);
 		if (err && !error)
 			error = err;
-		deactivate_super(sb_dev->sd_sb);
+		deactivate_super(sb);
 		count++;
 	}
 
@@ -1604,8 +1560,8 @@ static int fs_bdev_freeze(struct block_device *bdev)
  */
 static int fs_bdev_thaw(struct block_device *bdev)
 {
-	dev_t dev = bdev->bd_dev;
-	struct super_dev *sb_dev;
+	struct super_dev cursor = { .sd_dev = bdev->bd_dev };
+	struct super_block *sb;
 	unsigned int count = 0;
 	int error = 0, err;
 
@@ -1613,13 +1569,13 @@ static int fs_bdev_thaw(struct block_device *bdev)
 
 	mutex_unlock(&bdev->bd_holder_lock);
 
-	for (sb_dev = super_dev_first(dev); sb_dev; sb_dev = super_dev_next(sb_dev)) {
-		if (!get_active_super(sb_dev->sd_sb))
+	for_each_dev_super(sb, &cursor) {
+		if (!get_active_super(sb))
 			continue;
-		err = fs_super_thaw(sb_dev->sd_sb);
+		err = fs_super_thaw(sb);
 		if (err && !error)
 			error = err;
-		deactivate_super(sb_dev->sd_sb);
+		deactivate_super(sb);
 		count++;
 	}
 
@@ -1636,55 +1592,39 @@ static const struct blk_holder_ops fs_holder_ops = {
 	.thaw			= fs_bdev_thaw,
 };
 
-static struct super_dev *super_dev_lookup(dev_t dev, struct super_block *sb)
+static struct super_dev *super_dev_find(dev_t dev, const struct super_block *sb)
 {
-	struct super_dev *it;
-	struct rhlist_head *list, *pos;
+	struct super_dev *sd;
 
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "suspicious super_dev_lookup() usage");
-	VFS_WARN_ON_ONCE(!dev);
-	VFS_WARN_ON_ONCE(!sb);
+	lockdep_assert_held(&super_dev_lock);
 
-	list = rhltable_lookup(&super_dev_table, &dev, super_dev_params);
-	rhl_for_each_entry_rcu(it, pos, list, sd_node) {
-		if (it->sd_sb == sb)
-			return it;
+	hash_for_each_possible(super_dev_hash, sd, sd_hash, dev) {
+		if (sd->sd_dev == dev && sd->sd_sb == sb)
+			return sd;
 	}
-
 	return NULL;
 }
 
-static int fs_bdev_register(struct file *bdev_file, struct super_block *sb)
+static int fs_bdev_register(struct block_device *bdev, struct super_block *sb)
 {
-	struct super_dev *sb_dev __free(kfree) = NULL;
-	dev_t dev = file_bdev(bdev_file)->bd_dev;
-	int err;
+	struct super_dev *new __free(kfree) = NULL;
+	struct super_dev *sd;
 
-	scoped_guard(rcu) {
-		sb_dev = super_dev_lookup(dev, sb);
-		if (sb_dev && refcount_inc_not_zero(&sb_dev->sd_ref)) {
-			retain_and_null_ptr(sb_dev);
-			return 0;
-		}
+	new = kzalloc_obj(*new);
+
+	guard(spinlock)(&super_dev_lock);
+	sd = super_dev_find(bdev->bd_dev, sb);
+	if (sd) {
+		sd->sd_claims++;
+		return 0;
 	}
-
-	sb_dev = super_dev_alloc(dev, sb);
-	if (!sb_dev)
+	/* bdev_freeze() raises the count before its walk takes the lock. */
+	if (atomic_read(&bdev->bd_fsfreeze_count) > 0)
+		return -EBUSY;
+	if (!new)
 		return -ENOMEM;
-
-	err = super_dev_insert(sb_dev);
-	if (err)
-		return err;
-
-	/* Publish the entry before reading the count; pairs with bdev_freeze(). */
-	smp_mb();
-	if (atomic_read(&file_bdev(bdev_file)->bd_fsfreeze_count) > 0) {
-		err = -EBUSY;
-		super_dev_put(sb_dev);
-	}
-
-	retain_and_null_ptr(sb_dev);
-	return err;
+	super_dev_add(no_free_ptr(new), sb, bdev->bd_dev);
+	return 0;
 }
 
 /**
@@ -1711,7 +1651,7 @@ struct file *fs_bdev_file_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 	if (IS_ERR(bdev_file))
 		return bdev_file;
 
-	err = fs_bdev_register(bdev_file, sb);
+	err = fs_bdev_register(file_bdev(bdev_file), sb);
 	if (err) {
 		bdev_fput(bdev_file);
 		return ERR_PTR(err);
@@ -1745,7 +1685,7 @@ struct file *fs_bdev_file_open_by_path(const char *path, blk_mode_t mode,
 	if (IS_ERR(bdev_file))
 		return bdev_file;
 
-	err = fs_bdev_register(bdev_file, sb);
+	err = fs_bdev_register(file_bdev(bdev_file), sb);
 	if (err) {
 		bdev_fput(bdev_file);
 		return ERR_PTR(err);
@@ -1760,21 +1700,20 @@ EXPORT_SYMBOL_GPL(fs_bdev_file_open_by_path);
  * @sb: superblock the device was claimed for
  *
  * The inverse of fs_bdev_register(): drop one claim on the {dev, @sb} entry
- * (the last claim unregisters it; a pinning cursor defers the actual unlink)
- * without closing the device.  A caller that must act on the still-open device
- * between unregistering and closing - e.g. re-allow freezing one denied for a
- * membership change - pairs this with bdev_fput().  fs_bdev_file_release() is
- * the common unregister-and-close.
+ * (the last claim unregisters it) without closing the device.  A caller that
+ * must act on the still-open device between unregistering and closing - e.g.
+ * re-allow freezing one denied for a membership change - pairs this with
+ * bdev_fput().  fs_bdev_file_release() is the common unregister-and-close.
  */
 void fs_bdev_unregister(struct file *bdev_file, struct super_block *sb)
 {
-	dev_t dev = file_bdev(bdev_file)->bd_dev;
-	struct super_dev *sb_dev;
+	struct super_dev *sd;
 
-	rcu_read_lock();
-	sb_dev = super_dev_lookup(dev, sb);
-	rcu_read_unlock();
-	super_dev_put(sb_dev);
+	/* The claim we're dropping keeps the entry hashed. */
+	scoped_guard(spinlock, &super_dev_lock)
+		sd = super_dev_find(file_bdev(bdev_file)->bd_dev, sb);
+	if (sd)
+		super_dev_put(sd);
 }
 EXPORT_SYMBOL_GPL(fs_bdev_unregister);
 
@@ -1817,8 +1756,7 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 		return -EACCES;
 	}
 
-	/* The sget_fc() entry is already published; pairs with bdev_freeze(). */
-	smp_mb();
+	/* sget_fc() hashed @sb, super_dev_lock orders that against bdev_freeze(). */
 	if (atomic_read(&bdev->bd_fsfreeze_count) > 0) {
 		if (fc)
 			warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
