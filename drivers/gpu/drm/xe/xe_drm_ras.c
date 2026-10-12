@@ -16,6 +16,17 @@
 static const char * const error_components[] = DRM_XE_RAS_ERROR_COMPONENT_NAMES;
 static const char * const error_severity[] = DRM_XE_RAS_ERROR_SEVERITY_NAMES;
 
+static bool drm_ras_counter_is_valid(u32 severity, u32 component)
+{
+	if (!in_range(severity, DRM_XE_RAS_ERR_SEV_CORRECTABLE, DRM_XE_RAS_ERR_SEV_MAX))
+		return false;
+
+	if (!in_range(component, DRM_XE_RAS_ERR_COMP_CORE_COMPUTE, DRM_XE_RAS_ERR_COMP_MAX - 1))
+		return false;
+
+	return true;
+}
+
 static int query_error_counter(struct xe_device *xe,
 			       enum drm_xe_ras_error_severity severity,
 			       u32 error_id, const char **name, u32 *val)
@@ -231,7 +242,7 @@ null_info:
 void xe_drm_ras_event(struct xe_device *xe, u32 component, u32 severity, u32 value)
 {
 	struct xe_drm_ras *ras = &xe->ras;
-	struct xe_drm_ras_counter *info = ras->info[severity];
+	struct xe_drm_ras_counter *info;
 	struct drm_ras_node *node;
 	int ret;
 
@@ -239,7 +250,11 @@ void xe_drm_ras_event(struct xe_device *xe, u32 component, u32 severity, u32 val
 	if (!xe->info.has_drm_ras)
 		return;
 
+	if (!drm_ras_counter_is_valid(severity, component))
+		return;
+
 	node = &ras->node[severity];
+	info = ras->info[severity];
 
 	if (!info || !info[component].name)
 		return;
