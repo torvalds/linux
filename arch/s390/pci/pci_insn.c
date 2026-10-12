@@ -18,11 +18,13 @@
 #include <asm/asm.h>
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
+#define ZPCI_ERR_INSN_DATA_SIZE 32
 
 struct zpci_err_insn_data {
 	u8 insn;
 	u8 cc;
 	u8 status;
+	u8 pad0[5];
 	union {
 		struct {
 			u64 req;
@@ -33,7 +35,10 @@ struct zpci_err_insn_data {
 			u64 len;
 		};
 	};
-} __packed;
+	u64 pad1;
+};
+
+static_assert(sizeof(struct zpci_err_insn_data) <= ZPCI_ERR_INSN_DATA_SIZE);
 
 static inline void zpci_err_insn_req(int lvl, u8 insn, u8 cc, u8 status,
 				     u64 req, u64 offset)
