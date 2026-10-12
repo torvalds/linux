@@ -1229,12 +1229,11 @@ access_flags_to_smbopen_mode(const int access_flags)
 		return SMBOPEN_READ;
 }
 
-int
-SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
-	    const char *fileName, const int openDisposition,
-	    const int access_flags, const int create_options, __u16 *netfid,
-	    int *pOplock, FILE_ALL_INFO *pfile_info,
-	    const struct nls_table *nls_codepage, int remap)
+int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
+		  const char *fileName, const int openDisposition,
+		  const int access_flags, const int create_options,
+		  __u16 *netfid, int *pOplock, FILE_ALL_INFO *pfile_info,
+		  int remap)
 {
 	int rc;
 	OPENX_REQ *pSMB = NULL;
@@ -1257,7 +1256,8 @@ OldOpenRetry:
 		count = 1;      /* account for one byte pad to word boundary */
 		name_len =
 		   cifsConvertToUTF16((__le16 *) (pSMB->fileName + 1),
-				      fileName, PATH_MAX, nls_codepage, remap);
+				      fileName, PATH_MAX,
+				      tcon->ses->local_nls, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 	} else {

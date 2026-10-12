@@ -55,7 +55,7 @@ int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 		  const char *fileName, const int openDisposition,
 		  const int access_flags, const int create_options,
 		  __u16 *netfid, int *pOplock, FILE_ALL_INFO *pfile_info,
-		  const struct nls_table *nls_codepage, int remap);
+		  int remap);
 int CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms,
 	      int *oplock, FILE_ALL_INFO *buf);
 int cifs_async_readv(struct cifs_io_subrequest *rdata);
