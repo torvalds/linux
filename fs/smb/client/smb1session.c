@@ -163,8 +163,7 @@ static void ascii_domain_string(char **pbcc_area, struct cifs_ses *ses)
 	*pbcc_area = bcc_ptr;
 }
 
-static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
-				   const struct nls_table *nls_cp)
+static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses)
 {
 	char *bcc_ptr = *pbcc_area;
 	int bytes_ret = 0;
@@ -178,13 +177,14 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		*(bcc_ptr+1) = 0;
 	} else {
 		bytes_ret = cifs_strtoUTF16((__le16 *) bcc_ptr, ses->user_name,
-					    CIFS_MAX_USERNAME_LEN, nls_cp);
+					    CIFS_MAX_USERNAME_LEN,
+					    ses->local_nls);
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
 
 	unicode_domain_string(&bcc_ptr, ses);
-	unicode_oslm_strings(&bcc_ptr, nls_cp);
+	unicode_oslm_strings(&bcc_ptr, ses->local_nls);
 
 	*pbcc_area = bcc_ptr;
 }
@@ -465,7 +465,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
-		unicode_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+		unicode_ssetup_strings(&bcc_ptr, ses);
 	} else {
 		ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
 	}
