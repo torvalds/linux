@@ -844,6 +844,7 @@ static void rcar_dmac_chan_reinit(struct rcar_dmac_chan *chan)
 
 	list_for_each_entry_safe(desc, _desc, &descs, node) {
 		list_del(&desc->node);
+		dma_descriptor_unmap(&desc->async_tx);
 		rcar_dmac_desc_put(chan, desc);
 	}
 }
@@ -1653,6 +1654,7 @@ static irqreturn_t rcar_dmac_isr_channel_thread(int irq, void *dev)
 	while (!list_empty(&chan->desc.done)) {
 		desc = list_first_entry(&chan->desc.done, struct rcar_dmac_desc,
 					node);
+		dma_descriptor_unmap(&desc->async_tx);
 		dma_cookie_complete(&desc->async_tx);
 		list_del(&desc->node);
 
