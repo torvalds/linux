@@ -720,7 +720,13 @@ int hsmp_misc_register(struct device *dev)
 	 */
 	hsmp_pdev.mdev.parent	= dev;
 	hsmp_pdev.mdev.nodename	= HSMP_DEVNODE_NAME;
-	hsmp_pdev.mdev.mode	= 0644;
+	/*
+	 * hsmp_msg_desc_table[] only describes server messages. On client
+	 * platforms, msg_id mappings differ, making access checks unreliable.
+	 * Restrict /dev/hsmp to root until client-specific validation is
+	 * added.
+	 */
+	hsmp_pdev.mdev.mode	= is_client_platform() ? 0600 : 0644;
 
 	return misc_register(&hsmp_pdev.mdev);
 }

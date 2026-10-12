@@ -10,6 +10,9 @@
 #ifndef HSMP_H
 #define HSMP_H
 
+#include <asm/amd/hsmp.h>
+
+#include <linux/acpi.h>
 #include <linux/compiler_types.h>
 #include <linux/device.h>
 #include <linux/hwmon.h>
@@ -17,6 +20,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/processor.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
 #include <linux/sysfs.h>
@@ -31,6 +35,26 @@
 #define ACPI_HSMP_DEVICE_HID    "AMDI0097"
 
 #define DRIVER_VERSION		"2.6"
+
+/* True when the ACPI-reported PM profile indicates a client platform */
+static inline bool is_client_platform(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return false;
+
+#if IS_ENABLED(CONFIG_ACPI)
+	switch (acpi_gbl_FADT.preferred_profile) {
+	case PM_DESKTOP:
+	case PM_MOBILE:
+	case PM_TABLET:
+		return true;
+	default:
+		return false;
+	}
+#else
+	return false;
+#endif
+}
 
 struct hsmp_mbaddr_info {
 	u32 base_addr;
