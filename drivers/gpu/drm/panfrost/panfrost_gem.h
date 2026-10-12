@@ -164,8 +164,7 @@ int panfrost_gem_sync(struct drm_gem_object *obj, u32 type,
 void panfrost_gem_internal_set_label(struct drm_gem_object *obj, const char *label);
 
 #ifdef CONFIG_DEBUG_FS
-void panfrost_gem_debugfs_print_bos(struct panfrost_device *pfdev,
-				    struct seq_file *m);
+int panfrost_gem_debugfs_init(struct drm_minor *minor);
 #endif
 
 #endif /* __PANFROST_GEM_H__ */

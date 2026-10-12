@@ -561,3 +561,11 @@ EXPORT_GPL_DEV_PM_OPS(panfrost_pm_ops) = {
 	RUNTIME_PM_OPS(panfrost_device_runtime_suspend, panfrost_device_runtime_resume, NULL)
 	SYSTEM_SLEEP_PM_OPS(panfrost_device_suspend, panfrost_device_resume)
 };
+
+#ifdef CONFIG_DEBUG_FS
+void panfrost_device_debugfs_init(struct drm_minor *minor)
+{
+	panfrost_gem_debugfs_init(minor);
+	panfrost_sched_debugfs_init(minor);
+}
+#endif // CONFIG_DEBUG_FS

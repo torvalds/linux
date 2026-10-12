@@ -9,6 +9,7 @@
 #include <linux/dma-mapping.h>
 
 #include <drm/panfrost_drm.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_print.h>
 #include "panfrost_device.h"
 #include "panfrost_gem.h"
@@ -735,8 +736,8 @@ static void panfrost_gem_debugfs_bo_print(struct panfrost_gem_object *bo,
 		totals->reclaimable += resident_size;
 }
 
-void panfrost_gem_debugfs_print_bos(struct panfrost_device *pfdev,
-				    struct seq_file *m)
+static void panfrost_gem_debugfs_print_bos(struct panfrost_device *pfdev,
+					   struct seq_file *m)
 {
 	struct gem_size_totals totals = {0};
 	struct panfrost_gem_object *bo;
@@ -755,5 +756,29 @@ void panfrost_gem_debugfs_print_bos(struct panfrost_device *pfdev,
 	seq_puts(m, "===================================================================================================================================\n");
 	seq_printf(m, "Total size: %zd, Total resident: %zd, Total reclaimable: %zd\n",
 		   totals.size, totals.resident, totals.reclaimable);
+}
+
+static int panfrost_gems_show(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct panfrost_device *pfdev = to_panfrost_device(node->minor->dev);
+
+	panfrost_gem_debugfs_print_bos(pfdev, m);
+
+	return 0;
+}
+
+static struct drm_info_list panfrost_debugfs_list[] = {
+	{"gems",
+	 panfrost_gems_show, 0, NULL},
+};
+
+int panfrost_gem_debugfs_init(struct drm_minor *minor)
+{
+	drm_debugfs_create_files(panfrost_debugfs_list,
+				 ARRAY_SIZE(panfrost_debugfs_list),
+				 minor->debugfs_root, minor);
+
+	return 0;
 }
 #endif

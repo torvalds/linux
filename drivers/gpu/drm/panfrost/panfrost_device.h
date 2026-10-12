@@ -341,4 +341,8 @@ panfrost_device_schedule_reset(struct panfrost_device *pfdev)
 	queue_work(pfdev->reset.wq, &pfdev->reset.work);
 }
 
+#ifdef CONFIG_DEBUG_FS
+void panfrost_device_debugfs_init(struct drm_minor *minor);
+#endif // CONFIG_DEBUG_FS
+
 #endif
