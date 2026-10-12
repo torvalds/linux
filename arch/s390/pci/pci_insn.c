@@ -116,13 +116,14 @@ static inline u8 __rpcit(u64 fn, u64 addr, u64 range, u8 *status)
 	return CC_TRANSFORM(cc);
 }
 
-int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
+int zpci_refresh_trans(u32 fh, u64 addr, u64 range)
 {
+	u64 req = ZPCI_CREATE_REQ(fh, 0, 0);
 	bool retried = false;
 	u8 cc, status;
 
 	do {
-		cc = __rpcit(fn, addr, range, &status);
+		cc = __rpcit(req, addr, range, &status);
 		if (cc == 2) {
 			udelay(ZPCI_INSN_BUSY_DELAY);
 			if (!retried) {
