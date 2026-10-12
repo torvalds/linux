@@ -29,25 +29,6 @@ static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
 			   func, component->name, reg);
 }
 
-struct snd_soc_component *snd_soc_component_alloc(struct device *dev)
-{
-	struct snd_soc_component *component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
-
-	if (!component)
-		return NULL;
-
-	component->dev = dev;
-
-	return component;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_alloc);
-
-void snd_soc_component_set_name(struct snd_soc_component *component, const char *name)
-{
-	component->name = name;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_set_name);
-
 const char *snd_soc_component_name(struct snd_soc_component *component)
 {
 	return component->name;

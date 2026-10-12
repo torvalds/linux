@@ -1399,10 +1399,6 @@ int avs_register_component(struct device *dev, const char *name,
 	if (!acomp)
 		return -ENOMEM;
 
-	acomp->base = snd_soc_component_alloc(dev);
-	if (!acomp->base)
-		return -ENOMEM;
-
 	comp_name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!comp_name)
 		return -ENOMEM;
@@ -1411,10 +1407,13 @@ int avs_register_component(struct device *dev, const char *name,
 
 	drv->use_dai_pcm_id = !obsolete_card_names;
 
-	snd_soc_component_set_name(acomp->base, comp_name);
+	acomp->base = snd_soc_component_new(dev, comp_name, drv);
+	if (IS_ERR(acomp->base))
+		return PTR_ERR(acomp->base);
+
 	snd_soc_component_set_priv(acomp->base, acomp);
 
-	return snd_soc_register_component(acomp->base, drv, cpu_dais, num_cpu_dais);
+	return snd_soc_component_register(acomp->base, cpu_dais, num_cpu_dais);
 }
 
 static struct snd_soc_dai_driver dmic_cpu_dais[] = {

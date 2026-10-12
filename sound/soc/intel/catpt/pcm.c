@@ -1073,13 +1073,9 @@ int catpt_register_plat_component(struct catpt_dev *cdev)
 {
 	struct snd_soc_component *component;
 
-	component = snd_soc_component_alloc(cdev->dev);
-	if (!component)
-		return -ENOMEM;
+	component = snd_soc_component_new(cdev->dev, catpt_comp_driver.name, &catpt_comp_driver);
+	if (IS_ERR(component))
+		return PTR_ERR(component);
 
-	snd_soc_component_set_name(component, catpt_comp_driver.name);
-
-	return snd_soc_register_component(component,
-					  &catpt_comp_driver,
-					  dai_drivers, ARRAY_SIZE(dai_drivers));
+	return snd_soc_component_register(component, dai_drivers, ARRAY_SIZE(dai_drivers));
 }

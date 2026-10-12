@@ -2560,14 +2560,30 @@ static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 	list_del(&component->list);
 }
 
-static int soc_component_initialize(struct snd_soc_component *component,
-				    const struct snd_soc_component_driver *driver)
+struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
+						const struct snd_soc_component_driver *driver)
 {
-	struct device *dev = component->dev;
+	struct snd_soc_component *component;
+
+	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return ERR_PTR(-ENOMEM);
 
 	component->dapm = snd_soc_dapm_alloc(dev);
 	if (!component->dapm)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+
+	if (!name) {
+		name = snd_soc_fmt_single_name(dev, NULL);
+		if (!name) {
+			dev_err(dev, "ASoC: Failed to allocate name\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	component->dev = dev;
+	component->name = name;
+	component->driver = driver;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	INIT_LIST_HEAD(&component->dobj_list);
@@ -2576,22 +2592,13 @@ static int soc_component_initialize(struct snd_soc_component *component,
 	INIT_LIST_HEAD(&component->card_aux_list);
 	mutex_init(&component->io_mutex);
 
-	if (!component->name) {
-		component->name = snd_soc_fmt_single_name(dev, NULL);
-		if (!component->name) {
-			dev_err(dev, "ASoC: Failed to allocate name\n");
-			return -ENOMEM;
-		}
-	}
-
-	component->driver	= driver;
-
-	return 0;
+	return component;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_new);
 
-static int soc_component_add(struct snd_soc_component *component,
-			     struct snd_soc_dai_driver *dai_drv,
-			     int num_dai)
+int snd_soc_component_register(struct snd_soc_component *component,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai)
 {
 	struct snd_soc_card *card, *c;
 	int ret;
@@ -2630,36 +2637,22 @@ err_cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_register);
 
-int snd_soc_register_component_c(struct snd_soc_component *component,
-			const struct snd_soc_component_driver *component_driver,
-			struct snd_soc_dai_driver *dai_drv,
-			int num_dai)
-{
-	int ret;
-
-	ret = soc_component_initialize(component, component_driver);
-	if (ret < 0)
-		return ret;
-
-	return soc_component_add(component, dai_drv, num_dai);
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_component_c);
-
-int snd_soc_register_component_d(struct device *dev,
-				 const struct snd_soc_component_driver *component_driver,
-				 struct snd_soc_dai_driver *dai_drv,
-				 int num_dai)
+int snd_soc_register_component(struct device *dev,
+			       const struct snd_soc_component_driver *component_driver,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai)
 {
 	struct snd_soc_component *component;
 
-	component = snd_soc_component_alloc(dev);
-	if (!component)
-		return -ENOMEM;
+	component = snd_soc_component_new(dev, NULL, component_driver);
+	if (IS_ERR(component))
+		return PTR_ERR(component);
 
-	return snd_soc_register_component_c(component, component_driver, dai_drv, num_dai);
+	return snd_soc_component_register(component, dai_drv, num_dai);
 }
-EXPORT_SYMBOL_GPL(snd_soc_register_component_d);
+EXPORT_SYMBOL_GPL(snd_soc_register_component);
 
 /**
  * snd_soc_unregister_component_by_driver - Unregister component using a given driver
