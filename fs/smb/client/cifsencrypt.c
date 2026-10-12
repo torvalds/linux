@@ -235,8 +235,7 @@ static __le64 find_timestamp(struct cifs_ses *ses)
 	return cpu_to_le64(cifs_UnixTimeToNT(ts));
 }
 
-static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
-			    const struct nls_table *nls_cp)
+static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash)
 {
 	int len;
 	char nt_hash[CIFS_NTHASH_SIZE];
@@ -246,7 +245,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	wchar_t *server;
 
 	/* calculate md4 hash of password */
-	E_md4hash(ses->password, nt_hash, nls_cp);
+	E_md4hash(ses->password, nt_hash, ses->local_nls);
 
 	hmac_md5_init_usingrawkey(&hmac_ctx, nt_hash, CIFS_NTHASH_SIZE);
 	memzero_explicit(nt_hash, sizeof(nt_hash));
@@ -258,7 +257,8 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 		goto out_nomem;
 
 	if (len) {
-		len = cifs_strtoUTF16(user, ses->user_name, len, nls_cp);
+		len = cifs_strtoUTF16(user, ses->user_name, len,
+				      ses->local_nls);
 		UniStrupr(user);
 	} else {
 		*(u16 *)user = 0;
@@ -276,7 +276,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 			goto out_nomem;
 
 		len = cifs_strtoUTF16((__le16 *)domain, ses->domainName, len,
-				      nls_cp);
+				      ses->local_nls);
 		hmac_md5_update(&hmac_ctx, (const u8 *)domain, 2 * len);
 		kfree(domain);
 	} else {
@@ -287,7 +287,8 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 		if (server == NULL)
 			goto out_nomem;
 
-		len = cifs_strtoUTF16((__le16 *)server, ses->ip_addr, len, nls_cp);
+		len = cifs_strtoUTF16((__le16 *)server, ses->ip_addr, len,
+				      ses->local_nls);
 		hmac_md5_update(&hmac_ctx, (const u8 *)server, 2 * len);
 		kfree(server);
 	}
@@ -452,7 +453,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	}
 
 	/* calculate ntlmv2_hash */
-	rc = calc_ntlmv2_hash(ses, ntlmv2_hash, nls_cp);
+	rc = calc_ntlmv2_hash(ses, ntlmv2_hash);
 	if (rc) {
 		cifs_dbg(VFS, "Could not get NTLMv2 hash, rc=%d\n", rc);
 		goto unlock;
