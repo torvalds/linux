@@ -1089,13 +1089,8 @@ static inline void set_protect_slice(struct cfs_rq *cfs_rq, struct sched_entity 
 static inline void update_protect_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	u64 vruntime = min_vruntime(se->vruntime, avg_vruntime(cfs_rq));
-	u64 slice = normalized_sysctl_sched_base_slice;
-	u64 vprot;
-
-	if (sched_feat(RUN_TO_PARITY))
-		slice = cfs_rq_min_slice(cfs_rq);
-
-	vprot = min_vruntime(se->vprot, vruntime + calc_delta_fair(slice, se));
+	u64 slice = cfs_rq_min_slice(cfs_rq);
+	u64 vprot = min_vruntime(se->vprot, vruntime + calc_delta_fair(slice, se));
 
 	if (sched_feat(PREEMPT_SHORT) && slice != se->slice)
 		vprot = min_vruntime(vprot, ineligible_vruntime(cfs_rq));
