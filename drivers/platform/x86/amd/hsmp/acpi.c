@@ -567,8 +567,15 @@ static int init_acpi(struct device *dev)
 		return ret;
 	}
 
-	/* Exclude client platforms from the metric table DRAM base lookup */
-	if (!is_client_platform() && hsmp_pdev->proto_ver >= HSMP_PROTO_VER6) {
+	/*
+	 * proto_ver holds the Ryzen Master interface version on client
+	 * platforms, a separate numbering space from enum
+	 * hsmp_proto_versions; gate the two platforms on their own
+	 * version enum rather than relying on numeric coincidence
+	 * between the two.
+	 */
+	if ((is_client_platform() && hsmp_pdev->proto_ver >= RYZEN_MASTER_PROTO_VER1) ||
+	    (!is_client_platform() && hsmp_pdev->proto_ver >= HSMP_PROTO_VER6)) {
 		ret = hsmp_get_tbl_dram_base(sock_ind);
 		if (ret)
 			dev_info(dev, "Failed to init metric table\n");
