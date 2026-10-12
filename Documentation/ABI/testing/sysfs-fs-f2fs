@@ -1027,3 +1027,24 @@ Contact:	"Chao Yu" <chao@kernel.org>
 Description:	This is a writable entry to control writeback interval of
 		f2fs_writeback-x:y, the range is [100, 30000], by default the value
 		is 5000, unit is ms.
+
+What:		/sys/fs/f2fs/<disk>/cache_wb_dirty_threshold
+Date:		October 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a writable entry for metadata cache. f2fs_writeback-x:y
+		will be woken up for writeback once the number of dirty meta and
+		node caches reaches this value. 0 disables this check. By default
+		the value is 8192, unit is cache entries.
+
+What:		/sys/fs/f2fs/<disk>/cache_wb_total_threshold
+Date:		October 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a writable entry for metadata cache. f2fs_writeback-x:y
+		will be woken up for writeback only if the total number of cached
+		entries also reaches this value. 0 disables this check. By default
+		the value is 0, unit is cache entries.
+
+		If both cache_wb_dirty_threshold and cache_wb_total_threshold are
+		0, f2fs_writeback-x:y only runs every cache_wb_interval, unless
+		checkpoint is disabled, in which case it will still be woken up
+		once there are enough dirty caches to be gathered for writeback.

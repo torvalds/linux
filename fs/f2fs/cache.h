@@ -234,13 +234,19 @@ unsigned long f2fs_shrink_node_cache(struct f2fs_sb_info *sbi,
 #define MIN_DIRTY_CACHE_TIMEOUT 100
 #define MAX_DIRTY_CACHE_TIMEOUT 30000
 
+#define DEF_CACHE_WB_DIRTY_THRESH	(8192)
+
 struct f2fs_cache_kthread {
 	struct task_struct *cache_wb_task;
 	wait_queue_head_t cache_wb_wq;
 	unsigned int cache_wb_interval;
+	unsigned int cache_wb_dirty_threshold;
+	unsigned int cache_wb_total_threshold;
+	bool cache_wb_throttled;	/* last round made no progress */
 };
 
 int f2fs_start_cache_wb_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_cache_wb_thread(struct f2fs_sb_info *sbi);
+void f2fs_wake_up_cache_wb(struct f2fs_sb_info *sbi);
 
 #endif /* _LINUX_F2FS_CACHE_H */

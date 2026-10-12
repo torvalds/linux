@@ -4132,7 +4132,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from);
 int f2fs_truncate_xattr_node(struct inode *inode);
 int f2fs_wait_on_node_caches_writeback(struct f2fs_sb_info *sbi,
 					unsigned int seq_id);
-int f2fs_write_node_caches(struct f2fs_sb_info *sbi);
+int f2fs_write_node_caches(struct f2fs_sb_info *sbi, long *nr_written);
 int f2fs_remove_inode_cache(struct inode *inode);
 struct f2fs_cached_block *f2fs_new_inode_cache(struct inode *inode);
 struct f2fs_cached_block *f2fs_new_node_cache(struct dnode_of_data *dn, unsigned int ofs);
@@ -4151,7 +4151,8 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi);
 int f2fs_fsync_node_caches(struct f2fs_sb_info *sbi, struct inode *inode,
 					bool atomic, unsigned int *seq_id);
 int f2fs_writeback_node_caches(struct f2fs_sb_info *sbi, long nr_to_write,
-			bool sync, bool do_balance, enum iostat_type io_type);
+			bool sync, bool do_balance, enum iostat_type io_type,
+			long *nr_written);
 int f2fs_build_free_nids(struct f2fs_sb_info *sbi, bool sync, bool mount);
 bool f2fs_alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid);
 void f2fs_alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid);
@@ -4317,7 +4318,7 @@ int f2fs_ra_meta_caches(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			int type, bool sync);
 void f2fs_ra_meta_caches_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 							unsigned int ra_blocks);
-void f2fs_write_meta_caches(struct f2fs_sb_info *sbi);
+void f2fs_write_meta_caches(struct f2fs_sb_info *sbi, long *nr_written);
 long f2fs_sync_meta_caches(struct f2fs_sb_info *sbi, long nr_to_write,
 				bool sync, enum iostat_type io_type);
 void f2fs_add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
