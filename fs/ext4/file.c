@@ -354,6 +354,14 @@ static ssize_t ext4_buffered_write_iter(struct kiocb *iocb,
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		return -EOPNOTSUPP;
 
+	/*
+	 * Buffered I/O provides no torn-write protection. The direct I/O path
+	 * falls back here for inodes that can't do direct I/O at all, so an
+	 * atomic write must be rejected rather than silently done non-atomically.
+	 */
+	if (iocb->ki_flags & IOCB_ATOMIC)
+		return -EOPNOTSUPP;
+
 	inode_lock(inode);
 
 	/*

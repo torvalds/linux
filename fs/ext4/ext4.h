@@ -4137,12 +4137,18 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 	return buffer_uptodate(bh);
 }
 
+/*
+ * Atomic writes are only supported through direct I/O, so an inode that
+ * can't do direct I/O at all (journaled data, inline data, verity) can't do
+ * atomic writes either.
+ */
 static inline bool ext4_inode_can_atomic_write(struct inode *inode)
 {
 
 	return S_ISREG(inode->i_mode) &&
 		ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
-		EXT4_SB(inode->i_sb)->s_awu_min > 0;
+		EXT4_SB(inode->i_sb)->s_awu_min > 0 &&
+		ext4_dio_alignment(inode) != 0;
 }
 
 extern int ext4_block_write_begin(handle_t *handle, struct folio *folio,
