@@ -215,9 +215,8 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses)
 	*pbcc_area = bcc_ptr;
 }
 
-static void
-decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifs_ses *ses,
-		      const struct nls_table *nls_cp)
+static void decode_unicode_ssetup(char **pbcc_area, int bleft,
+				  struct cifs_ses *ses)
 {
 	int len;
 	char *data = *pbcc_area;
@@ -225,7 +224,8 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifs_ses *ses,
 	cifs_dbg(FYI, "bleft %d\n", bleft);
 
 	kfree(ses->serverOS);
-	ses->serverOS = cifs_strndup_from_utf16(data, bleft, true, nls_cp);
+	ses->serverOS = cifs_strndup_from_utf16(data, bleft, true,
+						ses->local_nls);
 	cifs_dbg(FYI, "serverOS=%s\n", ses->serverOS);
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
@@ -234,7 +234,8 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifs_ses *ses,
 		return;
 
 	kfree(ses->serverNOS);
-	ses->serverNOS = cifs_strndup_from_utf16(data, bleft, true, nls_cp);
+	ses->serverNOS = cifs_strndup_from_utf16(data, bleft, true,
+						 ses->local_nls);
 	cifs_dbg(FYI, "serverNOS=%s\n", ses->serverNOS);
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
@@ -243,7 +244,8 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifs_ses *ses,
 		return;
 
 	kfree(ses->serverDomain);
-	ses->serverDomain = cifs_strndup_from_utf16(data, bleft, true, nls_cp);
+	ses->serverDomain = cifs_strndup_from_utf16(data, bleft, true,
+						    ses->local_nls);
 	cifs_dbg(FYI, "serverDomain=%s\n", ses->serverDomain);
 
 	return;
@@ -504,8 +506,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 			++bcc_ptr;
 			--bytes_remaining;
 		}
-		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
-				      sess_data->nls_cp);
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses);
 	} else {
 		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
 				    sess_data->nls_cp);
@@ -640,8 +641,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 			++bcc_ptr;
 			--bytes_remaining;
 		}
-		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
-				      sess_data->nls_cp);
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses);
 	} else {
 		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
 				    sess_data->nls_cp);
@@ -891,8 +891,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 			++bcc_ptr;
 			--bytes_remaining;
 		}
-		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
-				      sess_data->nls_cp);
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses);
 	} else {
 		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
 				    sess_data->nls_cp);
