@@ -50,8 +50,7 @@ int CIFSSMBMkDir(const unsigned int xid, struct inode *inode, umode_t mode,
 int CIFSPOSIXCreate(const unsigned int xid, struct cifs_tcon *tcon,
 		    __u32 posix_flags, __u64 mode, __u16 *netfid,
 		    FILE_UNIX_BASIC_INFO *pRetData, __u32 *pOplock,
-		    const char *name, const struct nls_table *nls_codepage,
-		    int remap);
+		    const char *name, int remap);
 int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 		  const char *fileName, const int openDisposition,
 		  const int access_flags, const int create_options,

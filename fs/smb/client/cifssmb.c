@@ -1047,12 +1047,10 @@ MkDirRetry:
 	return rc;
 }
 
-int
-CIFSPOSIXCreate(const unsigned int xid, struct cifs_tcon *tcon,
-		__u32 posix_flags, __u64 mode, __u16 *netfid,
-		FILE_UNIX_BASIC_INFO *pRetData, __u32 *pOplock,
-		const char *name, const struct nls_table *nls_codepage,
-		int remap)
+int CIFSPOSIXCreate(const unsigned int xid, struct cifs_tcon *tcon,
+		    __u32 posix_flags, __u64 mode, __u16 *netfid,
+		    FILE_UNIX_BASIC_INFO *pRetData, __u32 *pOplock,
+		    const char *name, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -1075,7 +1073,7 @@ PsxCreat:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->FileName, name,
-				       PATH_MAX, nls_codepage, remap);
+				       PATH_MAX, tcon->ses->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {
