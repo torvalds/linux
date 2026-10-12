@@ -41,6 +41,7 @@ FILES=                                          \
          $(foreach arch,$(LIBUNWIND_ARCHS),test-libunwind-$(arch).bin test-libunwind-debug-frame-$(arch).bin) \
          test-pthread-attr-setaffinity-np.bin   \
          test-pthread-barrier.bin		\
+         test-pthread-mutex-robust.bin		\
          test-stackprotector-all.bin            \
          test-timerfd.bin                       \
          test-babeltrace2-ctf-writer.bin        \
@@ -126,6 +127,9 @@ $(OUTPUT)test-pthread-attr-setaffinity-np.bin:
 	$(BUILD) -D_GNU_SOURCE -lpthread
 
 $(OUTPUT)test-pthread-barrier.bin:
+	$(BUILD) -lpthread
+
+$(OUTPUT)test-pthread-mutex-robust.bin:
 	$(BUILD) -lpthread
 
 $(OUTPUT)test-stackprotector-all.bin:

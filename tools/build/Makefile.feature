@@ -85,6 +85,7 @@ FEATURE_TESTS_BASIC :=                  \
         libcpupower                     \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
+        pthread-mutex-robust		\
         reallocarray                    \
         stackprotector-all              \
         timerfd                         \

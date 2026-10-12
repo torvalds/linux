@@ -142,6 +142,12 @@ void mutex_init(struct mutex *mtx);
 void mutex_init_pshared(struct mutex *mtx);
 /* Initializes a mutex that may be recursively held on the same thread. */
 void mutex_init_recursive(struct mutex *mtx);
+/*
+ * As mutex_init_pshared(), plus the robust attribute: a process dying while
+ * holding it doesn't leave it locked, but the takeover isn't reported and the
+ * data it protects may be mid update.  Returns false when not available.
+ */
+bool mutex_init_pshared_robust(struct mutex *mtx);
 void mutex_destroy(struct mutex *mtx);
 
 void mutex_lock(struct mutex *mtx) EXCLUSIVE_LOCK_FUNCTION(*mtx);

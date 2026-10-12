@@ -90,6 +90,10 @@
 # include "test-pthread-barrier.c"
 #undef main
 
+#define main main_test_pthread_mutex_robust
+# include "test-pthread-mutex-robust.c"
+#undef main
+
 #define main main_test_scandirat
 # include "test-scandirat.c"
 #undef main
@@ -167,6 +171,7 @@ int main(int argc, char *argv[])
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
 	main_test_pthread_barrier();
+	main_test_pthread_mutex_robust();
 	main_test_lzma();
 	main_test_bpf();
 	main_test_scandirat();
