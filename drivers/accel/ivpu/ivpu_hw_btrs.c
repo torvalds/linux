@@ -45,9 +45,6 @@
 #define BTRS_MTL_TILE_FUSE_ENABLE_BOTH 0x0
 #define BTRS_MTL_TILE_SKU_BOTH         0x3630
 
-#define BTRS_LNL_TILE_MAX_NUM          6
-#define BTRS_LNL_TILE_MAX_MASK         0x3f
-
 #define WEIGHTS_DEFAULT                0xf711f711u
 #define WEIGHTS_ATS_DEFAULT            0x0000f711u
 
@@ -99,12 +96,8 @@ void ivpu_hw_btrs_freq_ratios_init(struct ivpu_device *vdev)
 
 static bool tile_disable_check(u32 config)
 {
-	/* Allowed values: 0 or one bit from range 0-5 (6 tiles) */
 	if (config == 0)
 		return true;
-
-	if (config > BIT(BTRS_LNL_TILE_MAX_NUM - 1))
-		return false;
 
 	if ((config & (config - 1)) == 0)
 		return true;
