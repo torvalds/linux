@@ -6,6 +6,8 @@
 #include <linux/fs_pin.h>
 
 extern struct file_system_type nullfs_fs_type;
+extern struct dentry *nullfs_new_file(struct super_block *sb);
+extern struct vfsmount *knullfs;
 extern struct list_head notify_list;
 
 struct mnt_namespace {
@@ -33,15 +35,19 @@ struct mnt_namespace {
 } __randomize_layout;
 
 struct mnt_pcp {
-	int mnt_count;
+	unsigned int mnt_gets;
+	unsigned int mnt_puts;
 	int mnt_writers;
 };
 
 struct mountpoint {
 	struct hlist_node m_hash;
 	struct dentry *m_dentry;
-	struct hlist_head m_list;
+	struct hlist_head m_list;	/* mounts on it and pins */
+	struct hlist_head m_covers;	/* covers of unmounted parents */
 };
+
+struct mnt_cover;
 
 struct mount {
 	struct hlist_node mnt_hash;
@@ -84,7 +90,7 @@ struct mount {
 	struct mountpoint *mnt_mp;	/* where is it mounted */
 	union {
 		struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
-		struct hlist_node mnt_umount;
+		struct hlist_node mnt_umount;	/* on the unmounted list */
 	};
 #ifdef CONFIG_FSNOTIFY
 	struct fsnotify_mark_connector __rcu *mnt_fsnotify_marks;
@@ -98,7 +104,8 @@ struct mount {
 	int mnt_group_id;		/* peer group identifier */
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	struct hlist_head mnt_pins;
-	struct hlist_head mnt_stuck_children;
+	struct mnt_cover *mnt_cover;	/* the one it may leave behind */
+	struct hlist_head mnt_covers;	/* left behind by its unmounted children */
 	struct hlist_node mnt_ns_visible; /* link in ns->mnt_visible_mounts */
 	struct mount *overmount;	/* mounted on ->mnt_root */
 } __randomize_layout;
@@ -233,6 +240,9 @@ static inline struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
 #ifdef CONFIG_FSNOTIFY
 static inline void mnt_notify_add(struct mount *m)
 {
+	/* queued already under this namespace_sem hold */
+	if (!list_empty(&m->to_notify))
+		return;
 	/* Optimize the case where there are no watches */
 	if ((m->mnt_ns && m->mnt_ns->n_fsnotify_marks) ||
 	    (m->prev_ns && m->prev_ns->n_fsnotify_marks))

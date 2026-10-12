@@ -903,6 +903,10 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark, void *obj,
 	if (WARN_ON(!fsnotify_valid_obj_type(obj_type)))
 		return -EINVAL;
 
+	/* the filesystem doesn't want its objects watched */
+	if (sb && (sb->s_type->fs_flags & FS_DISALLOW_NOTIFY))
+		return -EINVAL;
+
 	/*
 	 * Attach the sb info before attaching a connector to any object on sb.
 	 * The sb info will remain attached as long as sb lives.

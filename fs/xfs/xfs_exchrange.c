@@ -290,17 +290,20 @@ retry:
 		goto out_unlock;
 
 	/*
-	 * If the caller wanted us to exchange the contents of two complete
-	 * files of unequal length, exchange the incore sizes now.  This should
-	 * be safe because we flushed both files' page caches, exchanged all
-	 * the mappings, and updated the ondisk sizes.
+	 * If the caller wanted, set each file's size to that file's exchange
+	 * offset + length exchanged from the other file because the ranges in
+	 * each file might be different lengths.  This should be safe because
+	 * we flushed both files' page caches, exchanged all the mappings, and
+	 * updated the ondisk sizes.
 	 */
 	if (fxr->flags & XFS_EXCHANGE_RANGE_TO_EOF) {
-		loff_t	temp;
+		loff_t	old_ip1_size = i_size_read(VFS_I(ip1));
+		loff_t	old_ip2_size = i_size_read(VFS_I(ip2));
 
-		temp = i_size_read(VFS_I(ip2));
-		i_size_write(VFS_I(ip2), i_size_read(VFS_I(ip1)));
-		i_size_write(VFS_I(ip1), temp);
+		i_size_write(VFS_I(ip2), fxr->file2_offset +
+				(old_ip1_size - fxr->file1_offset));
+		i_size_write(VFS_I(ip1), fxr->file1_offset +
+				(old_ip2_size - fxr->file2_offset));
 	}
 
 out_unlock:
@@ -445,6 +448,30 @@ xfs_exchange_range_checks(
 	return blen == fxr->length ? 0 : -EINVAL;
 }
 
+/* Flush all relevant dirty pagecache near the range to be exchanged. */
+static inline int
+xfs_exchange_range_flush(
+	struct xfs_inode		*ip,
+	const struct xfs_exchrange	*fxr,
+	loff_t				offset)
+{
+	/*
+	 * If TO_EOF is set, the ondisk file size update logic depends on the
+	 * ondisk file size matching the incore file size.  Flush everything.
+	 */
+	if (fxr->flags & XFS_EXCHANGE_RANGE_TO_EOF)
+		return filemap_write_and_wait(VFS_I(ip)->i_mapping);
+
+	/*
+	 * Because we're updating the ondisk mappings, flush all dirty data
+	 * between the ondisk size and the exchange offset to reduce the chance
+	 * of zeroed file contents in that gap after a crash.
+	 */
+	return filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+			min(offset, ip->i_disk_size),
+			offset + fxr->length - 1);
+}
+
 /*
  * Check that the two inodes are eligible for range exchanges, the ranges make
  * sense, and then flush all dirty data.  Caller must ensure that the inodes
@@ -470,15 +497,11 @@ xfs_exchange_range_prep(
 	if (!same_inode)
 		inode_dio_wait(inode2);
 
-	error = filemap_write_and_wait_range(inode1->i_mapping,
-			fxr->file1_offset,
-			fxr->file1_offset + fxr->length - 1);
+	error = xfs_exchange_range_flush(XFS_I(inode1), fxr, fxr->file1_offset);
 	if (error)
 		return error;
 
-	error = filemap_write_and_wait_range(inode2->i_mapping,
-			fxr->file2_offset,
-			fxr->file2_offset + fxr->length - 1);
+	error = xfs_exchange_range_flush(XFS_I(inode2), fxr, fxr->file2_offset);
 	if (error)
 		return error;
 

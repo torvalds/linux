@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/if_tun.h>
+#include <netinet/tcp.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
@@ -540,6 +541,141 @@ TEST_F(tun, reattach_close_delete)
 	close(self->fd);
 	self->fd = -1;
 	EXPECT_EQ(tun_delete(self->ifname), 0);
+}
+
+FIXTURE(tun_vnet_gso)
+{
+	char ifname[IFNAMSIZ];
+	int fd;
+};
+
+FIXTURE_SETUP(tun_vnet_gso)
+{
+	int flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
+
+	memset(self->ifname, 0, sizeof(self->ifname));
+	self->fd = tun_open(self->ifname, flags, 0, 0, NULL);
+	ASSERT_GE(self->fd, 0);
+}
+
+FIXTURE_TEARDOWN(tun_vnet_gso)
+{
+	if (self->fd >= 0)
+		close(self->fd);
+}
+
+static int build_vlan_tcpv4_gso_packet(uint8_t *buf, int payload_len)
+{
+	uint16_t vlan_tag[2] = { htons(100), htons(ETH_P_IP) };
+	uint8_t *cur = buf + sizeof(struct virtio_net_hdr);
+	struct virtio_net_hdr vh = { 0 };
+	struct tcphdr tcph = { 0 };
+	uint32_t sum;
+
+	cur += build_eth(cur, ETH_P_8021Q, param_hwaddr_outer_src,
+			 param_hwaddr_outer_dst);
+
+	/* 802.1Q tag: VID=100, inner protocol=ETH_P_IP */
+	memcpy(cur, vlan_tag, sizeof(vlan_tag));
+	cur += sizeof(vlan_tag);
+
+	cur += build_ipv4_header(cur, IPPROTO_TCP,
+				 sizeof(tcph) + payload_len,
+				 &param_ipaddr4_outer_src,
+				 &param_ipaddr4_outer_dst);
+
+	tcph.source = htons(12345);
+	tcph.dest = htons(80);
+	tcph.seq = htonl(1);
+	tcph.doff = sizeof(tcph) / 4;
+	tcph.ack = 1;
+	tcph.window = htons(65535);
+	memcpy(cur, &tcph, sizeof(tcph));
+	memset(cur + sizeof(tcph), PKT_DATA, payload_len);
+
+	sum = add_csum((const uint8_t *)&param_ipaddr4_outer_src,
+		       sizeof(param_ipaddr4_outer_src));
+	sum += add_csum((const uint8_t *)&param_ipaddr4_outer_dst,
+			sizeof(param_ipaddr4_outer_dst));
+	sum += htons(IPPROTO_TCP) + htons(sizeof(tcph) + payload_len);
+	sum += add_csum(cur, sizeof(tcph) + payload_len);
+	tcph.check = finish_ip_csum(sum);
+	memcpy(cur, &tcph, sizeof(tcph));
+	cur += sizeof(tcph) + payload_len;
+
+	vh.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+	vh.gso_size = 1400;
+	vh.hdr_len = (cur - buf) - sizeof(vh) - payload_len;
+	memcpy(buf, &vh, sizeof(vh));
+
+	return cur - buf;
+}
+
+TEST_F(tun_vnet_gso, vlan_tcpv4_gso_no_csum)
+{
+	struct virtio_net_hdr vh;
+	uint8_t pkt[4096] = { 0 };
+	int len, ret;
+
+	len = build_vlan_tcpv4_gso_packet(pkt, 2800);
+	memcpy(&vh, pkt, sizeof(vh));
+
+	/* Valid VLAN-tagged TCPv4 GSO with flags = 0 (no NEEDS_CSUM) */
+	vh.flags = 0;
+	memcpy(pkt, &vh, sizeof(vh));
+	ret = write(self->fd, pkt, len);
+	ASSERT_EQ(ret, len);
+
+	/* Valid VLAN-tagged TCPv4 GSO with flags = DATA_VALID */
+	vh.flags = VIRTIO_NET_HDR_F_DATA_VALID;
+	memcpy(pkt, &vh, sizeof(vh));
+	ret = write(self->fd, pkt, len);
+	ASSERT_EQ(ret, len);
+
+	/* Mismatched GSO type (TCPV6 on VLAN-tagged IPv4 packet) */
+	vh.flags = 0;
+	vh.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+	memcpy(pkt, &vh, sizeof(vh));
+	ret = write(self->fd, pkt, len);
+	ASSERT_EQ(ret, -1);
+	ASSERT_EQ(errno, EINVAL);
+
+	/* TCP header truncated after 10 bytes, without NEEDS_CSUM.
+	 * Requires the transport header offset found by flow dissection:
+	 * pulling only sizeof(struct iphdr) + sizeof(struct tcphdr) bytes
+	 * from the mac header would accept this frame.
+	 */
+	vh.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+	vh.hdr_len = ETH_HLEN + 4 + sizeof(struct iphdr) + 10;
+	memcpy(pkt, &vh, sizeof(vh));
+	ret = write(self->fd, pkt, sizeof(vh) + vh.hdr_len);
+	ASSERT_EQ(ret, -1);
+	ASSERT_EQ(errno, EINVAL);
+}
+
+TEST_F(tun_vnet_gso, vlan_tcpv4_gso_no_csum_64k)
+{
+	/* Ethernet frame of 65540 bytes: skb->len is above U16_MAX when the
+	 * frame is flow-dissected, before eth_type_trans() pulls ETH_HLEN.
+	 */
+	const int payload_len = 65540 - ETH_HLEN - 4 -
+				sizeof(struct iphdr) - sizeof(struct tcphdr);
+	struct virtio_net_hdr vh;
+	uint8_t *pkt;
+	int len, ret;
+
+	pkt = calloc(1, sizeof(vh) + 65540);
+	ASSERT_NE(pkt, NULL);
+
+	len = build_vlan_tcpv4_gso_packet(pkt, payload_len);
+	ASSERT_EQ(len, sizeof(vh) + 65540);
+	memcpy(&vh, pkt, sizeof(vh));
+
+	vh.flags = 0;
+	memcpy(pkt, &vh, sizeof(vh));
+	ret = write(self->fd, pkt, len);
+	free(pkt);
+	ASSERT_EQ(ret, len);
 }
 
 FIXTURE(tun_vnet_udptnl)

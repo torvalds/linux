@@ -230,6 +230,7 @@ static int riscv_vr_set(struct task_struct *target,
 		return -ENODATA;
 
 	/* Copy rest of the vstate except datap */
+	memset(&ptrace_vstate, 0, sizeof(ptrace_vstate));
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ptrace_vstate, 0,
 				 sizeof(struct __riscv_v_regset_state));
 	if (unlikely(ret))
@@ -299,6 +300,9 @@ static int riscv_cfi_get(struct task_struct *target,
 	struct user_cfi_state user_cfi;
 	struct pt_regs *regs;
 
+	if (!is_user_lpad_enabled() && !is_user_shstk_enabled())
+		return -EINVAL;
+
 	memset(&user_cfi, 0, sizeof(user_cfi));
 	regs = task_pt_regs(target);
 
@@ -337,8 +341,12 @@ static int riscv_cfi_set(struct task_struct *target,
 	struct user_cfi_state user_cfi;
 	struct pt_regs *regs;
 
+	if (!is_user_lpad_enabled() && !is_user_shstk_enabled())
+		return -EINVAL;
+
 	regs = task_pt_regs(target);
 
+	memset(&user_cfi, 0, sizeof(user_cfi));
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &user_cfi, 0, -1);
 	if (ret)
 		return ret;

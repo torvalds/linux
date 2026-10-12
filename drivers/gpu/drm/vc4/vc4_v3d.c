@@ -9,6 +9,7 @@
 #include <linux/component.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/timer.h>
 
 #include <drm/drm_print.h>
 
@@ -172,46 +173,42 @@ static void vc4_v3d_init_hw(struct drm_device *dev)
 	V3D_WRITE(V3D_VPMBASE, 0);
 }
 
-int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
+static int bin_slot_try_alloc(struct vc4_dev *vc4)
 {
-	struct drm_device *dev = &vc4->base;
-	unsigned long irqflags;
 	int slot;
-	uint64_t seqno = 0;
-	struct vc4_exec_info *exec;
 
-	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
-		return -ENODEV;
+	guard(spinlock_irqsave)(&vc4->job_lock);
 
-try_again:
-	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	slot = ffs(~vc4->bin_alloc_used);
 	if (slot != 0) {
 		/* Switch from ffs() bit index to a 0-based index. */
 		slot--;
 		vc4->bin_alloc_used |= BIT(slot);
-		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-		return slot;
+	} else {
+		slot = -ENOMEM;
 	}
 
-	/* Couldn't find an open slot.  Wait for render to complete
-	 * and try again.
-	 */
-	exec = vc4_last_render_job(vc4);
-	if (exec)
-		seqno = exec->seqno;
-	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+	return slot;
+}
 
-	if (seqno) {
-		int ret = vc4_wait_for_seqno(dev, seqno, ~0ull, true);
+int vc4_v3d_get_bin_slot(struct vc4_dev *vc4, long timeout)
+{
+	int slot;
+	long ret;
 
-		if (ret == 0)
-			goto try_again;
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
+		return -ENODEV;
 
+	/* If the pool is full, wait for a job to release its slots. */
+	ret = wait_event_interruptible_timeout(vc4->job_wait_queue,
+					       (slot = bin_slot_try_alloc(vc4)) >= 0,
+					       timeout);
+	if (ret < 0)
 		return ret;
-	}
+	if (ret == 0)
+		return -ENOMEM;
 
-	return -ENOMEM;
+	return slot;
 }
 
 /*
@@ -396,6 +393,7 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 	vc4_v3d_init_hw(&vc4->base);
 
 	vc4_irq_enable(&vc4->base);
+	enable_irq(vc4->irq);
 
 	return 0;
 }
@@ -452,6 +450,12 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	vc4->irq = ret;
 
+	ret = vc4_irq_install(drm, vc4->irq);
+	if (ret) {
+		drm_err(drm, "Failed to install IRQ handler\n");
+		return ret;
+	}
+
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
 		return ret;
@@ -473,12 +477,6 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	V3D_WRITE(V3D_BPOA, 0);
 	V3D_WRITE(V3D_BPOS, 0);
 
-	ret = vc4_irq_install(drm, vc4->irq);
-	if (ret) {
-		drm_err(drm, "Failed to install IRQ handler\n");
-		goto err_put_runtime_pm;
-	}
-
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_put_autosuspend(dev);
@@ -497,7 +495,14 @@ static void vc4_v3d_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
+	/* A straggler vc4_reset() re-enables the interrupt. */
+	timer_shutdown_sync(&vc4->hangcheck.timer);
+	cancel_work_sync(&vc4->hangcheck.reset_work);
+
 	vc4_irq_uninstall(drm);
+
+	/* Flush rather than cancel, so queued completions release their jobs. */
+	flush_work(&vc4->job_done_work);
 
 	/* Disable the binner's overflow memory address, so the next
 	 * driver probe (if any) doesn't try to reuse our old

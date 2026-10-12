@@ -112,13 +112,19 @@ rel_put:
 	return;
 
 reschedule_work:
-	schedule_delayed_work(&rel->nested_in.notify_work, 1);
+	/* The work may have been queued again meanwhile, which took its own
+	 * reference. Drop ours in that case.
+	 */
+	if (!schedule_delayed_work(&rel->nested_in.notify_work, 1))
+		__devlink_rel_put(rel);
 }
 
 static void devlink_rel_nested_in_notify_work_schedule(struct devlink_rel *rel)
 {
 	__devlink_rel_get(rel);
-	schedule_delayed_work(&rel->nested_in.notify_work, 0);
+	/* The pending work holds a reference already, drop the new one. */
+	if (!schedule_delayed_work(&rel->nested_in.notify_work, 0))
+		__devlink_rel_put(rel);
 }
 
 static struct devlink_rel *devlink_rel_alloc(void)

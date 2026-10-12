@@ -564,8 +564,8 @@ f) Unmount semantics
    where 'A' is a mount mounted on mount 'B' at dentry 'b'.
 
    If mount 'B' is shared, then all most-recently-mounted mounts at dentry
-   'b' on mounts that receive propagation from mount 'B' and does not have
-   sub-mounts within them are unmounted.
+   'b' on mounts that receive propagation from mount 'B' are unmounted as
+   well, if every mount below them is also unmounted.
 
    Example: Let's say 'B1', 'B2', 'B3' are shared mounts that propagate to
    each other.
@@ -584,10 +584,18 @@ f) Unmount semantics
 
    So all 'C1', 'C2' and 'C3' should be unmounted.
 
-   If any of 'C2' or 'C3' has some child mounts, then that mount is not
-   unmounted, but all other mounts are unmounted. However if 'C1' is told
-   to be unmounted and 'C1' has some sub-mounts, the umount operation is
-   failed entirely.
+   If any of 'C2' or 'C3' has a child mount that cannot be unmounted
+   then that mount is not unmounted. But all other mounts are unmounted.
+   A child mount that is itself unmounted by the same unmount
+   propagation does not keep its parent mounted. However if 'C1' is
+   supposed to be unmounted and 'C1' has some sub-mounts, the unmount
+   fails.
+
+   A lazy umount (MNT_DETACH) takes a whole tree. Every mount of the
+   tree then propagates its unmount from its own parent as described
+   above, so the mounts that receive propagation lose the corresponding
+   trees as well. Documentation/filesystems/propagate_umount.txt has the
+   precise rules, including the ones for locked mounts.
 
 g) Clone Namespace
 

@@ -146,17 +146,19 @@ static void null_endofword(char *word)
 	*word = '\0';
 }
 
-static bool is_shared_mount(const char *path)
+/* Does the mount on @path carry the optional field @field in mountinfo? */
+static bool mount_has_field(const char *path, const char *field)
 {
 	size_t len = 0;
 	char *line = NULL;
 	FILE *f = NULL;
+	bool found = false;
 
 	f = fopen("/proc/self/mountinfo", "re");
 	if (!f)
 		return false;
 
-	while (getline(&line, &len, f) != -1) {
+	while (!found && getline(&line, &len, f) != -1) {
 		char *opts, *target;
 
 		target = get_field(line, 4);
@@ -172,15 +174,29 @@ static bool is_shared_mount(const char *path)
 		if (strcmp(target, path) != 0)
 			continue;
 
-		null_endofword(opts);
-		if (strstr(opts, "shared:"))
-			return true;
+		/* the optional fields end at the "-" separator */
+		while (opts && *opts != '-') {
+			char *next = strchr(opts, ' ');
+
+			if (next)
+				*next++ = '\0';
+			if (!strncmp(opts, field, strlen(field))) {
+				found = true;
+				break;
+			}
+			opts = next;
+		}
 	}
 
 	free(line);
 	fclose(f);
 
-	return false;
+	return found;
+}
+
+static bool is_shared_mount(const char *path)
+{
+	return mount_has_field(path, "shared:");
 }
 
 /* Attempt to de-conflict with the selftests tree. */
@@ -370,6 +386,52 @@ TEST_F(move_mount_set_group, complex_sharing_copying)
 
 	ASSERT_EQ(setns(ca_to.mntnsfd, CLONE_NEWNS), 0);
 	ASSERT_EQ(is_shared_mount(SET_GROUP_A), 1);
+}
+
+#define SET_GROUP_B "/tmp/B"
+#define SET_GROUP_C "/tmp/C"
+
+/*
+ * An unbindable mount is neither shared nor a slave, so it must not be
+ * accepted as the target: with a slave source it would end up unbindable
+ * and a slave at the same time.
+ */
+TEST_F(move_mount_set_group, unbindable_target)
+{
+	bool ret;
+
+	ret = move_mount_set_group_supported();
+	ASSERT_GE(ret, 0);
+	if (!ret)
+		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is not supported");
+
+	ASSERT_EQ(mount(NULL, SET_GROUP_A, NULL, MS_SHARED, 0), 0);
+
+	/* B: a slave of A's peer group */
+	ASSERT_EQ(mkdir(SET_GROUP_B, 0777), 0);
+	ASSERT_EQ(mount(SET_GROUP_A, SET_GROUP_B, NULL, MS_BIND, NULL), 0);
+	ASSERT_EQ(mount(NULL, SET_GROUP_B, NULL, MS_SLAVE, 0), 0);
+	ASSERT_TRUE(mount_has_field(SET_GROUP_B, "master:"));
+
+	/* C: unbindable */
+	ASSERT_EQ(mkdir(SET_GROUP_C, 0777), 0);
+	ASSERT_EQ(mount(SET_GROUP_A, SET_GROUP_C, NULL, MS_BIND, NULL), 0);
+	ASSERT_EQ(mount(NULL, SET_GROUP_C, NULL, MS_UNBINDABLE, 0), 0);
+	ASSERT_TRUE(mount_has_field(SET_GROUP_C, "unbindable"));
+
+	/* from a slave */
+	ASSERT_EQ(syscall(__NR_move_mount, AT_FDCWD, SET_GROUP_B,
+			  AT_FDCWD, SET_GROUP_C, MOVE_MOUNT_SET_GROUP), -1);
+	ASSERT_EQ(errno, EINVAL);
+	ASSERT_FALSE(mount_has_field(SET_GROUP_C, "master:"));
+	ASSERT_TRUE(mount_has_field(SET_GROUP_C, "unbindable"));
+
+	/* from a shared mount */
+	ASSERT_EQ(syscall(__NR_move_mount, AT_FDCWD, SET_GROUP_A,
+			  AT_FDCWD, SET_GROUP_C, MOVE_MOUNT_SET_GROUP), -1);
+	ASSERT_EQ(errno, EINVAL);
+	ASSERT_FALSE(mount_has_field(SET_GROUP_C, "shared:"));
+	ASSERT_TRUE(mount_has_field(SET_GROUP_C, "unbindable"));
 }
 
 TEST_HARNESS_MAIN

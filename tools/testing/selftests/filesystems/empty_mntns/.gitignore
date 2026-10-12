@@ -2,3 +2,6 @@
 clone3_empty_mntns_test
 empty_mntns_test
 overmount_chroot_test
+internal_sb_reconfigure_test
+nullfs_atime_test
+root_readdir_test

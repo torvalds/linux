@@ -622,18 +622,9 @@ int sparx5_ptp_init(struct sparx5 *sparx5)
 		sparx5->ptp = 1;
 	}
 
-	if (!sparx5->ptp)
-		return 0;
-
-	for (i = 0; i < SPARX5_PHC_COUNT; ++i) {
-		err = sparx5_ptp_phc_init(sparx5, i, &sparx5_ptp_clock_info);
-		if (err)
-			return err;
-	}
-
-	spin_lock_init(&sparx5->ptp_clock_lock);
-	spin_lock_init(&sparx5->ptp_ts_id_lock);
-	mutex_init(&sparx5->ptp_lock);
+	/* The base, non-PTP-capable lan969x variants need the
+	 * first TOD counter running to forward frames.
+	 */
 
 	/* Disable master counters */
 	spx5_wr(PTP_PTP_DOM_CFG_PTP_ENA_SET(0), sparx5, PTP_PTP_DOM_CFG);
@@ -656,6 +647,19 @@ int sparx5_ptp_init(struct sparx5 *sparx5)
 
 	/* Enable master counters */
 	spx5_wr(PTP_PTP_DOM_CFG_PTP_ENA_SET(0x7), sparx5, PTP_PTP_DOM_CFG);
+
+	if (!sparx5->ptp)
+		return 0;
+
+	for (i = 0; i < SPARX5_PHC_COUNT; ++i) {
+		err = sparx5_ptp_phc_init(sparx5, i, &sparx5_ptp_clock_info);
+		if (err)
+			return err;
+	}
+
+	spin_lock_init(&sparx5->ptp_clock_lock);
+	spin_lock_init(&sparx5->ptp_ts_id_lock);
+	mutex_init(&sparx5->ptp_lock);
 
 	for (i = 0; i < sparx5->data->consts->n_ports; i++) {
 		port = sparx5->ports[i];

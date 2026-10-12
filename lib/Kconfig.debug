@@ -2906,6 +2906,21 @@ config LIVEUPDATE_TEST
 
 	  If unsure, say N
 
+config DIMLIB_KUNIT_TEST
+	tristate "KUnit test for the DIM library" if !KUNIT_ALL_TESTS
+	depends on KUNIT && NET
+	select DIMLIB
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit test for the Dynamic Interrupt Moderation
+	  library (lib/dim/), which checks the rate statistics computed by
+	  dim_calc_stats().
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config CMDLINE_KUNIT_TEST
 	tristate "KUnit test for cmdline API" if !KUNIT_ALL_TESTS
 	depends on KUNIT

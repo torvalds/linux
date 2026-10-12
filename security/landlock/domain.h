@@ -242,9 +242,14 @@ struct landlock_domain {
 			 * to properly handle merged rulesets without
 			 * overlapping access rights.  These layers are set once
 			 * and never changed for the lifetime of the domain.
+			 *
+			 * Not annotated with __counted_by(num_layers): clang
+			 * miscomputes the counter address for a FAM nested in
+			 * an anonymous struct within a union, which trips
+			 * FORTIFY:
+			 * https://github.com/llvm/llvm-project/pull/228309
 			 */
-			struct access_masks
-				handled_masks[] __counted_by(num_layers);
+			struct access_masks handled_masks[];
 		};
 	};
 };

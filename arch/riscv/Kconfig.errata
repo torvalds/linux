@@ -46,7 +46,7 @@ config ERRATA_MIPS_P8700_PAUSE_OPCODE
 
 config ERRATA_SIFIVE
 	bool "SiFive errata"
-	depends on RISCV_ALTERNATIVE
+	depends on RISCV_ALTERNATIVE && 64BIT
 	help
 	  All SiFive errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all SiFive errata. Please say "Y"
@@ -95,6 +95,20 @@ config ERRATA_STARFIVE_JH7100
 
 	  Say "Y" if you want to support the BeagleV Starlight and/or
 	  StarFive VisionFive V1 boards.
+
+config ERRATA_SIFIVE_MAL_9092
+	bool "Apply SiFive HLV/HLVX/HSV fence errata"
+	depends on ERRATA_SIFIVE && 64BIT
+	default y
+	help
+	  This will apply the SiFive MAL-9092 errata to add fence.rw
+	  instructions around all HLV/HLVX/HSV instructions.
+
+	  Note: HSTATUS.HU is cleared during KVM initialization. If future
+	  changes enable HSTATUS.HU to allow hypervisor instructions in
+	  U-mode, additional errata handling may be required.
+
+	  If you don't know what to do here, say "Y".
 
 config ERRATA_THEAD
 	bool "T-HEAD errata"
@@ -146,6 +160,7 @@ config ERRATA_THEAD_PMU
 config ERRATA_THEAD_GHOSTWRITE
 	bool "Apply T-Head Ghostwrite errata"
 	depends on ERRATA_THEAD && RISCV_ISA_XTHEADVECTOR
+	select RISCV_ALTERNATIVE_EARLY
 	default y
 	help
 	  The T-Head C9xx cores have a vulnerability in the xtheadvector

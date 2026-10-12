@@ -192,18 +192,28 @@
 	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(49),		\
 	       __RD(0), RS1(gaddr), RS2(vmid))
 
+#define ALT_SIFIVE_MAL_9092_FENCE					\
+ALTERNATIVE("nop", "fence rw, rw", SIFIVE_VENDOR_ID,			\
+	    ERRATA_SIFIVE_MAL_9092, CONFIG_ERRATA_SIFIVE_MAL_9092)
+
 #define HLVX_HU(dest, addr)					\
+	ALT_SIFIVE_MAL_9092_FENCE "\n"				\
 	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(50),		\
-	       RD(dest), RS1(addr), __RS2(3))
+	       RD(dest), RS1(addr), __RS2(3)) "\n"		\
+	ALT_SIFIVE_MAL_9092_FENCE
 
 #define HLV_W(dest, addr)					\
+	ALT_SIFIVE_MAL_9092_FENCE "\n"				\
 	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(52),		\
-	       RD(dest), RS1(addr), __RS2(0))
+	       RD(dest), RS1(addr), __RS2(0)) "\n"		\
+	ALT_SIFIVE_MAL_9092_FENCE
 
 #ifdef CONFIG_64BIT
 #define HLV_D(dest, addr)					\
+	ALT_SIFIVE_MAL_9092_FENCE "\n"				\
 	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(54),		\
-	       RD(dest), RS1(addr), __RS2(0))
+	       RD(dest), RS1(addr), __RS2(0)) "\n"		\
+	ALT_SIFIVE_MAL_9092_FENCE
 #else
 #define HLV_D(dest, addr)					\
 	__ASM_STR(.error "hlv.d requires 64-bit support")

@@ -34,6 +34,7 @@ config ARCH_RENESAS
 config ARCH_SIFIVE
 	bool "SiFive SoCs"
 	select ERRATA_SIFIVE
+	depends on 64BIT
 	help
 	  This enables support for SiFive SoC platform hardware.
 

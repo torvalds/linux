@@ -585,10 +585,6 @@ void scx_rescue_flush(struct rq *rq)
 
 	lockdep_assert_rq_held(rq);
 
-	/* sched domain rebuilds call rq_offline with the CPU staying alive */
-	if (cpu_active(cpu_of(rq)))
-		return;
-
 	/* end the current rescue */
 	if (rq->scx.rescue.curr)
 		scx_task_slice_ended(rq, rq->scx.rescue.curr);

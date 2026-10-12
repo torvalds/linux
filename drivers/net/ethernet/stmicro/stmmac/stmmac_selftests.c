@@ -243,7 +243,7 @@ struct stmmac_test_priv {
 	int (*func)(struct sk_buff *skb, struct net_device *ndev,
 		    struct packet_type *pt, struct net_device *orig_ndev);
 	bool capture_all;
-	int double_vlan;
+	int svlan;
 	int vlan_id;
 	int ok;
 };
@@ -285,7 +285,7 @@ static int stmmac_test_loopback_validate(struct sk_buff *skb,
 	}
 
 	ihdr = ip_hdr(skb);
-	if (tpriv->double_vlan)
+	if (tpriv->svlan)
 		ihdr = (struct iphdr *)(skb_network_header(skb) + 4);
 
 	if (tpriv->packet->tcp) {
@@ -936,7 +936,7 @@ static int stmmac_test_vlan_validate(struct sk_buff *skb,
 	struct iphdr *ihdr;
 	u16 proto;
 
-	proto = tpriv->double_vlan ? ETH_P_8021AD : ETH_P_8021Q;
+	proto = tpriv->svlan ? ETH_P_8021AD : ETH_P_8021Q;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (!skb)
@@ -963,7 +963,7 @@ static int stmmac_test_vlan_validate(struct sk_buff *skb,
 	}
 
 	ihdr = ip_hdr(skb);
-	if (tpriv->double_vlan)
+	if (tpriv->svlan)
 		ihdr = (struct iphdr *)(skb_network_header(skb) + 4);
 	if (ihdr->protocol != IPPROTO_UDP)
 		goto out;
@@ -1080,7 +1080,7 @@ static int stmmac_test_vlanfilt_perfect(struct stmmac_priv *priv)
 	return ret;
 }
 
-static int __stmmac_test_dvlanfilt(struct stmmac_priv *priv)
+static int __stmmac_test_svlanfilt(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
 	struct stmmac_test_priv *tpriv;
@@ -1092,7 +1092,7 @@ static int __stmmac_test_dvlanfilt(struct stmmac_priv *priv)
 		return -ENOMEM;
 
 	tpriv->ok = false;
-	tpriv->double_vlan = true;
+	tpriv->svlan = true;
 	init_completion(&tpriv->comp);
 
 	tpriv->pt.type = htons(ETH_P_8021Q);
@@ -1155,15 +1155,15 @@ cleanup:
 	return ret;
 }
 
-static int stmmac_test_dvlanfilt(struct stmmac_priv *priv)
+static int stmmac_test_svlanfilt(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.vlhash)
 		return -EOPNOTSUPP;
 
-	return __stmmac_test_dvlanfilt(priv);
+	return __stmmac_test_svlanfilt(priv);
 }
 
-static int stmmac_test_dvlanfilt_perfect(struct stmmac_priv *priv)
+static int stmmac_test_svlanfilt_perfect(struct stmmac_priv *priv)
 {
 	int ret, prev_cap = priv->dma_cap.vlhash;
 
@@ -1171,7 +1171,7 @@ static int stmmac_test_dvlanfilt_perfect(struct stmmac_priv *priv)
 		return -EOPNOTSUPP;
 
 	priv->dma_cap.vlhash = 0;
-	ret = __stmmac_test_dvlanfilt(priv);
+	ret = __stmmac_test_svlanfilt(priv);
 	priv->dma_cap.vlhash = prev_cap;
 
 	return ret;
@@ -1372,7 +1372,7 @@ static int stmmac_test_vlanoff_common(struct stmmac_priv *priv, bool svlan)
 	proto = svlan ? ETH_P_8021AD : ETH_P_8021Q;
 
 	tpriv->ok = false;
-	tpriv->double_vlan = svlan;
+	tpriv->svlan = svlan;
 	init_completion(&tpriv->comp);
 
 	tpriv->pt.type = svlan ? htons(ETH_P_8021Q) : htons(ETH_P_IP);
@@ -1960,11 +1960,11 @@ static const struct stmmac_test {
 		.name = "VLAN Filtering (perf)      ",
 		.fn = stmmac_test_vlanfilt_perfect,
 	}, {
-		.name = "Double VLAN Filter         ",
-		.fn = stmmac_test_dvlanfilt,
+		.name = "SVLAN Filtering            ",
+		.fn = stmmac_test_svlanfilt,
 	}, {
-		.name = "Double VLAN Filter (perf)  ",
-		.fn = stmmac_test_dvlanfilt_perfect,
+		.name = "SVLAN Filtering (perf)     ",
+		.fn = stmmac_test_svlanfilt_perfect,
 	}, {
 		.name = "Flexible RX Parser         ",
 		.fn = stmmac_test_rxp,
