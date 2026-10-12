@@ -195,7 +195,6 @@ int CIFSSMBSetFileDisposition(const unsigned int xid, struct cifs_tcon *tcon,
 			      __u32 pid_of_opener);
 int CIFSSMBSetPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 		       const char *fileName, const FILE_BASIC_INFO *data,
-		       const struct nls_table *nls_codepage,
 		       struct cifs_sb_info *cifs_sb);
 int CIFSSMBUnixSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			   const struct cifs_unix_set_info_args *args, u16 fid,

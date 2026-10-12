@@ -867,8 +867,7 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 	cifsInode = CIFS_I(inode);
 	dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
 	info.Attributes = cpu_to_le32(dosattrs);
-	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb->local_nls,
-				cifs_sb);
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb);
 	if (rc == -EOPNOTSUPP || rc == -EINVAL)
 		rc = SMBSetInformation(xid, tcon, full_path,
 				       info.Attributes,
@@ -1022,8 +1021,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	if (open_file)
 		goto set_via_filehandle;
 
-	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
-				cifs_sb);
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb);
 	if (rc == 0) {
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 		goto out;
