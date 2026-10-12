@@ -77,6 +77,10 @@ int probe_get_fixup_type(u16 *insn)
 		if ((insn[0] & 0xff) == 0xb2)
 			fixup = FIXUP_NOT_REQUIRED;
 		break;
+	case 0xb9:	/* bctgr */
+		if ((insn[0] & 0xff) == 0x46)
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
+		break;
 	case 0xa7:	/* bras	*/
 		if ((insn[0] & 0x0f) == 0x05)
 			fixup |= FIXUP_RETURN_REGISTER;
@@ -85,6 +89,14 @@ int probe_get_fixup_type(u16 *insn)
 		if ((insn[0] & 0x0f) == 0x05)	/* brasl */
 			fixup |= FIXUP_RETURN_REGISTER;
 		break;
+	case 0xe3:
+		switch (insn[2] & 0xff) {
+		case 0x46: /* bctg */
+		case 0x47: /* bic  */
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			break;
+		}
+		break;
 	case 0xeb:
 		switch (insn[2] & 0xff) {
 		case 0x44: /* bxhg  */
@@ -92,10 +104,6 @@ int probe_get_fixup_type(u16 *insn)
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
 			break;
 		}
-		break;
-	case 0xe3:	/* bctg	*/
-		if ((insn[2] & 0xff) == 0x46)
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	case 0xec:
 		switch (insn[2] & 0xff) {
