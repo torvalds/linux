@@ -257,18 +257,18 @@ do {									\
 	typedef typeof(pcp) pcp_op_T__; 				\
 	union register_pair rp__;					\
 	pcp_op_T__ val__ = (val);					\
-	pcp_op_T__ old__, *ptr__;					\
+	pcp_op_T__ *ptr__;						\
 									\
 	ptr__ = PERCPU_PTR(&(pcp));					\
 	asm_inline volatile(						\
 		__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 			     "%[pair__]","%N[pair__]")			\
-		op "    %[old__],%[val__],0(%N[pair__])\n"		\
+		op "    %[val__],%[val__],0(%N[pair__])\n"		\
 		__PCPU_END("%[lcreg]")					\
-		: [old__] "=&d" (old__), [pair__] "=&a" (rp__.pair),	\
+		: [val__] "+&d" (val__), [pair__] "=&a" (rp__.pair),	\
 		  "+m" (*ptr__),					\
 		  "=m" (((struct lowcore *)0)->percpu_register)		\
-		: [val__] "d" (val__), [ptr__] "a" (ptr__),		\
+		: [ptr__] "a" (ptr__),					\
 		  [lcreg] "i" (LC_PERCPU_REGISTER),			\
 		  [lcoff] "i" (LC_PERCPU_OFFSET),			\
 		  "m" (((struct lowcore *)0)->percpu_offset)		\
