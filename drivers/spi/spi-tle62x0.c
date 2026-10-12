@@ -151,10 +151,10 @@ static ssize_t tle62x0_gpio_store(struct device *dev,
 	struct tle62x0_state *st = dev_get_drvdata(dev);
 	int gpio_num = to_gpio_num(attr);
 	unsigned long val;
-	char *endp;
+	int ret;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (buf == endp)
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
 		return -EINVAL;
 
 	dev_dbg(dev, "setting gpio %d to %ld\n", gpio_num, val);
