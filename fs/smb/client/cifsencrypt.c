@@ -100,8 +100,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
  * and client time (total five av pairs and + one end of fields indicator.
  * Allocate domain name which gets freed when session struct is deallocated.
  */
-static int
-build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
+static int build_avpair_blob(struct cifs_ses *ses)
 {
 	unsigned int dlen;
 	unsigned int size = 2 * sizeof(struct ntlmssp2_name);
@@ -141,7 +140,8 @@ build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_DOMAIN_NAME);
 	attrptr->length = cpu_to_le16(2 * dlen);
 	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	cifs_strtoUTF16((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
+	cifs_strtoUTF16((__le16 *)blobptr, ses->domainName, dlen,
+			ses->local_nls);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 		if (rc)
 			goto setup_ntlmv2_rsp_ret;
 	} else {
-		rc = build_avpair_blob(ses, nls_cp);
+		rc = build_avpair_blob(ses);
 		if (rc) {
 			cifs_dbg(VFS, "error %d building av pair blob\n", rc);
 			goto setup_ntlmv2_rsp_ret;
