@@ -1212,6 +1212,7 @@ const char * const vmstat_text[] = {
 	[I(NR_ZSPAGES)]				= "nr_zspages",
 #endif
 	[I(NR_FREE_CMA_PAGES)]			= "nr_free_cma",
+	[I(NR_FREE_RCU_PAGES)]			= "nr_free_rcu",
 #ifdef CONFIG_UNACCEPTED_MEMORY
 	[I(NR_UNACCEPTED)]			= "nr_unaccepted",
 #endif
@@ -1346,6 +1347,7 @@ const char * const vmstat_text[] = {
 	[I(PGFREE_RCU)]				= "pgfree_rcu",
 	[I(PGFREE_RCU_DONE)]			= "pgfree_rcu_done",
 	[I(PGFREE_RCU_MARK)]			= "pgfree_rcu_mark",
+	[I(PGFREE_RCU_DRAIN)]			= "pgfree_rcu_drain",
 
 	[I(PGFAULT)]				= "pgfault",
 	[I(PGMAJFAULT)]				= "pgmajfault",
@@ -2025,6 +2027,7 @@ static int vmstat_refresh(const struct ctl_table *table, int write,
 		switch (i) {
 		case NR_ZONE_WRITE_PENDING:
 		case NR_FREE_CMA_PAGES:
+		case NR_FREE_RCU_PAGES:
 			continue;
 		}
 		val = atomic_long_read(&vm_zone_stat[i]);
