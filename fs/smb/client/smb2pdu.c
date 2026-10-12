@@ -1917,8 +1917,7 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 	req->hdr.SessionId = cpu_to_le64(ses->Suid);
 
 	rc = build_ntlmssp_auth_blob(&ntlmssp_blob, &blob_length,
-				     ses, server,
-				     sess_data->nls_cp);
+				     ses, server);
 	if (rc) {
 		cifs_dbg(FYI, "build_ntlmssp_auth_blob failed %d\n", rc);
 		goto out;

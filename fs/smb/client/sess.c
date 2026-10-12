@@ -918,8 +918,7 @@ setup_ntlm_smb3_neg_ret:
 int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 					u16 *buflen,
 				   struct cifs_ses *ses,
-				   struct TCP_Server_Info *server,
-				   const struct nls_table *nls_cp)
+				   struct TCP_Server_Info *server)
 {
 	int rc;
 	AUTHENTICATE_MESSAGE *sec_blob;
@@ -988,19 +987,19 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 				      ses->domainName,
 				      CIFS_MAX_DOMAINNAME_LEN,
 				      *pbuffer, &tmp,
-				      nls_cp);
+				      ses->local_nls);
 
 	cifs_security_buffer_from_str(&sec_blob->UserName,
 				      ses->user_name,
 				      CIFS_MAX_USERNAME_LEN,
 				      *pbuffer, &tmp,
-				      nls_cp);
+				      ses->local_nls);
 
 	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
 				      ses->workstation_name,
 				      ntlmssp_workstation_name_size(ses),
 				      *pbuffer, &tmp,
-				      nls_cp);
+				      ses->local_nls);
 
 	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
 	    (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess) &&
