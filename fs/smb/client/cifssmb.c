@@ -3163,7 +3163,6 @@ struct inode *cifs_create_reparse_inode(struct cifs_open_info_data *data,
 					  &ea->ea_data[0],
 					  &ea->ea_data[ea->ea_name_length+1],
 					  le16_to_cpu(ea->ea_value_length),
-					  cifs_sb->local_nls,
 					  cifs_sb);
 			if (rc)
 				goto out_close;
@@ -6383,11 +6382,10 @@ QAllEAsOut:
 	return (ssize_t)rc;
 }
 
-int
-CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
-	     const char *fileName, const char *ea_name, const void *ea_value,
-	     const __u16 ea_value_len, const struct nls_table *nls_codepage,
-	     struct cifs_sb_info *cifs_sb)
+int CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
+		 const char *fileName, const char *ea_name,
+		 const void *ea_value, const __u16 ea_value_len,
+		 struct cifs_sb_info *cifs_sb)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -6412,7 +6410,7 @@ SetEARetry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fileName,
-				       PATH_MAX, nls_codepage, remap);
+				       PATH_MAX, tcon->ses->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {

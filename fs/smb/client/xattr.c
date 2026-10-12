@@ -155,7 +155,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		if (pTcon->ses->server->ops->set_EA) {
 			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
 				full_path, name, value, (__u16)size,
-				cifs_sb->local_nls, cifs_sb);
+				cifs_sb);
 			if (rc == 0)
 				inode_set_ctime_current(inode);
 		}
