@@ -1889,7 +1889,6 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 
 	/* rename the file */
 	rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, NULL,
-				   cifs_sb->local_nls,
 				   cifs_remap(cifs_sb));
 	if (rc != 0) {
 		rc = -EBUSY;
@@ -1931,7 +1930,7 @@ out:
 	 */
 undo_rename:
 	CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, dentry->d_name.name,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_remap(cifs_sb));
 undo_setattr:
 	if (dosattr != origattr) {
 		info_buf->Attributes = cpu_to_le32(origattr);
@@ -2522,7 +2521,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (rc == 0) {
 		rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid,
 				(const char *) to_dentry->d_name.name,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_remap(cifs_sb));
 		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

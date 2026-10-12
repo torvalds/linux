@@ -2545,8 +2545,7 @@ renameRetry:
 }
 
 int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
-		int netfid, const char *target_name,
-		const struct nls_table *nls_codepage, int remap)
+			  int netfid, const char *target_name, int remap)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct smb_com_transaction2_sfi_rsp *pSMBr = NULL;
@@ -2595,12 +2594,13 @@ int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
 		sprintf(dummy_string, "cifs%x", pSMB->hdr.Mid);
 		len_of_str =
 			cifsConvertToUTF16((__le16 *)rename_info->target_name,
-					dummy_string, 24, nls_codepage, remap);
+					dummy_string, 24,
+					pTcon->ses->local_nls, remap);
 	} else {
 		len_of_str =
 			cifsConvertToUTF16((__le16 *)rename_info->target_name,
-					target_name, PATH_MAX, nls_codepage,
-					remap);
+					target_name, PATH_MAX,
+					pTcon->ses->local_nls, remap);
 	}
 	rename_info->target_name_len = cpu_to_le32(2 * len_of_str);
 	count = sizeof(struct set_file_rename) + (2 * len_of_str);

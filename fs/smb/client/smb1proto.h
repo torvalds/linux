@@ -88,8 +88,7 @@ int CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
 		  struct dentry *source_dentry, const char *from_name,
 		  const char *to_name, struct cifs_sb_info *cifs_sb);
 int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
-			  int netfid, const char *target_name,
-			  const struct nls_table *nls_codepage, int remap);
+			  int netfid, const char *target_name, int remap);
 int CIFSUnixCreateSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 			  const char *fromName, const char *toName,
 			  const struct nls_table *nls_codepage, int remap);
