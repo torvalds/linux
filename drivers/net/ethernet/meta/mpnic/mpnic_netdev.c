@@ -28,6 +28,8 @@ static int mpnic_open(struct net_device *netdev)
 	if (err)
 		goto err_free_resources;
 
+	mpnic_stats_attach_rings(mpn);
+
 	mpnic_enable(mpn);
 	mpnic_fill(mpn);
 	mpnic_napi_enable(mpn);
@@ -60,6 +62,8 @@ static int mpnic_stop(struct net_device *netdev)
 	mpnic_wait_all_queues_idle(mpn->mpd);
 	mpnic_flush(mpn);
 
+	mpnic_stats_fold_rings(mpn);
+
 	mpnic_reset_netif_queues(mpn);
 	mpnic_free_resources(mpn);
 	mpnic_free_napi_vectors(mpn);
@@ -67,11 +71,79 @@ static int mpnic_stop(struct net_device *netdev)
 	return 0;
 }
 
+static void
+mpnic_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats64)
+{
+	struct mpnic_net *mpn = netdev_priv(dev);
+	u64 bytes, packets, dropped, errors;
+	struct mpnic_queue_stats *stats;
+	struct mpnic_base_stats *base;
+	unsigned int start, i;
+
+	rcu_read_lock();
+
+	base = rcu_dereference(mpn->stats.base);
+
+	stats64->tx_bytes = base->tx.bytes;
+	stats64->tx_packets = base->tx.packets;
+	stats64->tx_dropped = base->tx.dropped;
+
+	stats64->rx_bytes = base->rx.bytes;
+	stats64->rx_packets = base->rx.packets;
+	stats64->rx_dropped = base->rx.dropped;
+	stats64->rx_errors = base->rx.errors;
+
+	for (i = 0; i < base->num_tx_queues; i++) {
+		struct mpnic_ring *txr = base->txr[i];
+		struct mpnic_q_triad *qt;
+
+		qt = container_of(txr, struct mpnic_q_triad, sub0);
+
+		stats = &qt->cmpl.stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			bytes = u64_stats_read(&stats->tcq.bytes);
+			packets = u64_stats_read(&stats->tcq.packets);
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats = &txr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			dropped = u64_stats_read(&stats->twq.dropped);
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->tx_bytes += bytes;
+		stats64->tx_packets += packets;
+		stats64->tx_dropped += dropped;
+	}
+
+	for (i = 0; i < base->num_rx_queues; i++) {
+		struct mpnic_ring *rxr = base->rxr[i];
+
+		stats = &rxr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			bytes = u64_stats_read(&stats->rcq.bytes);
+			packets = u64_stats_read(&stats->rcq.packets);
+			dropped = u64_stats_read(&stats->rcq.dropped);
+			errors = u64_stats_read(&stats->rcq.errors);
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->rx_bytes += bytes;
+		stats64->rx_packets += packets;
+		stats64->rx_dropped += dropped;
+		stats64->rx_errors += errors;
+	}
+
+	rcu_read_unlock();
+}
+
 static const struct net_device_ops mpnic_netdev_ops = {
 	.ndo_open		= mpnic_open,
 	.ndo_stop		= mpnic_stop,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_start_xmit		= mpnic_xmit_frame,
+	.ndo_get_stats64	= mpnic_get_stats64,
 };
 
 /**
@@ -109,6 +181,10 @@ struct net_device *mpnic_netdev_alloc(struct mpnic_dev *mpd)
 	mpn = netdev_priv(netdev);
 	mpn->netdev = netdev;
 	mpn->mpd = mpd;
+
+	mpn->stats.buf[0].txr = mpn->tx;
+	mpn->stats.buf[0].rxr = mpn->rx;
+	RCU_INIT_POINTER(mpn->stats.base, &mpn->stats.buf[0]);
 
 	mpn->txq_size = MPNIC_TXQ_SIZE_DEFAULT;
 	mpn->hpq_size = MPNIC_HPQ_SIZE_DEFAULT;
