@@ -47,15 +47,9 @@ struct efi __read_mostly efi = {
 	.tpm_final_log		= EFI_INVALID_TABLE_ADDR,
 	.ovmf_debug_log         = EFI_INVALID_TABLE_ADDR,
 	.mem_reserve		= EFI_INVALID_TABLE_ADDR,
-#ifdef CONFIG_LOAD_UEFI_KEYS
 	.mokvar_table		= EFI_INVALID_TABLE_ADDR,
-#endif
-#ifdef CONFIG_EFI_COCO_SECRET
 	.coco_secret		= EFI_INVALID_TABLE_ADDR,
-#endif
-#ifdef CONFIG_UNACCEPTED_MEMORY
 	.unaccepted		= EFI_INVALID_TABLE_ADDR,
-#endif
 };
 EXPORT_SYMBOL(efi);
 
