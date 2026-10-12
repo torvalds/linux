@@ -105,7 +105,7 @@ static DEFINE_MUTEX(loop_validate_mutex);
  *
  * Since loop_validate_file() traverses on other "struct loop_device" if
  * is_loop_device() is true, we need a global lock for serializing concurrent
- * loop_configure()/loop_change_fd()/__loop_clr_fd() calls.
+ * loop_configure()/__loop_clr_fd() calls.
  */
 static int loop_global_lock_killable(struct loop_device *lo, bool global)
 {
@@ -535,109 +535,6 @@ static int loop_check_backing_file(struct file *file)
 		return -EINVAL;
 
 	return 0;
-}
-
-/*
- * loop_change_fd switched the backing store of a loopback device to
- * a new file. This is useful for operating system installers to free up
- * the original file and in High Availability environments to switch to
- * an alternative location for the content in case of server meltdown.
- * This can only work if the loop device is used read-only, and if the
- * new backing store is the same size and type as the old backing store.
- */
-static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
-			  unsigned int arg)
-{
-	struct file *file = fget(arg);
-	struct file *old_file;
-	unsigned int memflags;
-	int error;
-	bool partscan;
-	bool is_loop;
-
-	if (!file)
-		return -EBADF;
-
-	error = loop_check_backing_file(file);
-	if (error) {
-		fput(file);
-		return error;
-	}
-
-	/* suppress uevents while reconfiguring the device */
-	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 1);
-
-	is_loop = is_loop_device(file);
-	error = loop_global_lock_killable(lo, is_loop);
-	if (error)
-		goto out_putf;
-	error = -ENXIO;
-	if (lo->lo_state != Lo_bound)
-		goto out_err;
-
-	/* the loop device has to be read-only */
-	error = -EINVAL;
-	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY))
-		goto out_err;
-
-	error = loop_validate_file(file, bdev);
-	if (error)
-		goto out_err;
-
-	old_file = lo->lo_backing_file;
-
-	error = -EINVAL;
-
-	/* size of the new backing store needs to be the same */
-	if (lo_calculate_size(lo, file) != lo_calculate_size(lo, old_file))
-		goto out_err;
-
-	/*
-	 * We might switch to direct I/O mode for the loop device, write back
-	 * all dirty data the page cache now that so that the individual I/O
-	 * operations don't have to do that.
-	 */
-	vfs_fsync(file, 0);
-
-	/* and ... switch */
-	disk_force_media_change(lo->lo_disk);
-	memflags = blk_mq_freeze_queue(lo->lo_queue);
-	mapping_set_gfp_mask(old_file->f_mapping, lo->old_gfp_mask);
-	loop_assign_backing_file(lo, file);
-	loop_update_dio(lo);
-	blk_mq_unfreeze_queue(lo->lo_queue, memflags);
-	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
-	loop_global_unlock(lo, is_loop);
-
-	/*
-	 * Flush loop_validate_file() before fput(), for l->lo_backing_file
-	 * might be pointing at old_file which might be the last reference.
-	 */
-	if (!is_loop) {
-		mutex_lock(&loop_validate_mutex);
-		mutex_unlock(&loop_validate_mutex);
-	}
-	/*
-	 * We must drop file reference outside of lo_mutex as dropping
-	 * the file ref can take open_mutex which creates circular locking
-	 * dependency.
-	 */
-	fput(old_file);
-	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
-	if (partscan)
-		loop_reread_partitions(lo);
-
-	error = 0;
-done:
-	kobject_uevent(&disk_to_dev(lo->lo_disk)->kobj, KOBJ_CHANGE);
-	return error;
-
-out_err:
-	loop_global_unlock(lo, is_loop);
-out_putf:
-	fput(file);
-	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
-	goto done;
 }
 
 /* loop sysfs attributes */
@@ -1215,12 +1112,11 @@ static int loop_clr_fd(struct loop_device *lo)
 
 	/*
 	 * Since lo_ioctl() is called without locks held, it is possible that
-	 * loop_configure()/loop_change_fd() and loop_clr_fd() run in parallel.
+	 * loop_configure() and loop_clr_fd() run in parallel.
 	 *
 	 * Therefore, use global lock when setting Lo_rundown state in order to
 	 * make sure that loop_validate_file() will fail if the "struct file"
-	 * which loop_configure()/loop_change_fd() found via fget() was this
-	 * loop device.
+	 * which loop_configure() found via fget() was this loop device.
 	 */
 	err = loop_global_lock_killable(lo, true);
 	if (err)
@@ -1566,7 +1462,7 @@ static int lo_ioctl(struct block_device *bdev, blk_mode_t mode,
 		return loop_configure(lo, mode, bdev, &config);
 	}
 	case LOOP_CHANGE_FD:
-		return loop_change_fd(lo, bdev, arg);
+		return -EOPNOTSUPP;
 	case LOOP_CLR_FD:
 		return loop_clr_fd(lo);
 	case LOOP_SET_STATUS:
