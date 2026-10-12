@@ -1931,6 +1931,7 @@ int dso__load(struct dso *dso, struct map *map)
 			nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
 
 		if (bfdrc > 0) {
+			dso__set_symtab_type(dso, symtab_type);
 			ret = 1;
 			goto out_destroy;
 		}
