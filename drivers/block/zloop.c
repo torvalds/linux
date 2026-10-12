@@ -603,8 +603,13 @@ static int zloop_seq_write_prep(struct zloop_cmd *cmd)
 		}
 	} else {
 		if (cmd->sector != zone->wp) {
-			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
-			       zone_no, cmd->sector, zone->wp);
+			if (zone->wp == ULLONG_MAX)
+				pr_err("Zone %u: write to %s zone: sect %llu\n",
+				       zone_no, blk_zone_cond_str(zone->cond),
+				       cmd->sector);
+			else
+				pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
+				       zone_no, cmd->sector, zone->wp);
 			ret = -EIO;
 			goto out_unlock;
 		}
