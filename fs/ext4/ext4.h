@@ -4140,12 +4140,13 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 /*
  * Atomic writes are only supported through direct I/O, so an inode that
  * can't do direct I/O at all (journaled data, inline data, verity) can't do
- * atomic writes either.
+ * atomic writes either. DAX inodes bypass the direct I/O path entirely.
  */
 static inline bool ext4_inode_can_atomic_write(struct inode *inode)
 {
 
 	return S_ISREG(inode->i_mode) &&
+		!IS_DAX(inode) &&
 		ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
 		EXT4_SB(inode->i_sb)->s_awu_min > 0 &&
 		ext4_dio_alignment(inode) != 0;
