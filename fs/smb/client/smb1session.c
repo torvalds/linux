@@ -741,8 +741,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 
 	/* Build security blob before we assemble the request */
 	rc = build_ntlmssp_negotiate_blob(&ntlmsspblob,
-				     &blob_len, ses, server,
-				     sess_data->nls_cp);
+				     &blob_len, ses, server);
 	if (rc)
 		goto out_free_ntlmsspblob;
 

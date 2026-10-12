@@ -146,8 +146,7 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 			     struct cifs_ses *ses);
 int build_ntlmssp_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
 				 struct cifs_ses *ses,
-				 struct TCP_Server_Info *server,
-				 const struct nls_table *nls_cp);
+				 struct TCP_Server_Info *server);
 int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
 				      struct cifs_ses *ses,
 				      struct TCP_Server_Info *server,

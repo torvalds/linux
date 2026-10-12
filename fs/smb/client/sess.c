@@ -794,8 +794,7 @@ static inline void cifs_security_buffer_from_str(SECURITY_BUFFER *pbuf,
 int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
 				 u16 *buflen,
 				 struct cifs_ses *ses,
-				 struct TCP_Server_Info *server,
-				 const struct nls_table *nls_cp)
+				 struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	NEGOTIATE_MESSAGE *sec_blob;
@@ -835,13 +834,13 @@ int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
 				      NULL,
 				      CIFS_MAX_DOMAINNAME_LEN,
 				      *pbuffer, &tmp,
-				      nls_cp);
+				      ses->local_nls);
 
 	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
 				      NULL,
 				      CIFS_MAX_WORKSTATION_LEN,
 				      *pbuffer, &tmp,
-				      nls_cp);
+				      ses->local_nls);
 
 	*buflen = tmp - *pbuffer;
 setup_ntlm_neg_ret:
