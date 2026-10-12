@@ -111,6 +111,7 @@ enum pageflags {
 	PG_swapbacked,		/* Page is backed by RAM/swap */
 	PG_unevictable,		/* Page is "unevictable"  */
 	PG_dropbehind,		/* drop pages on IO completion */
+	PG_rcu_free,		/* free only after an RCU grace period */
 #ifdef CONFIG_MMU
 	PG_mlocked,		/* Page is vma mlocked */
 #endif
@@ -601,6 +602,24 @@ FOLIO_FLAG(readahead, FOLIO_HEAD_PAGE)
 FOLIO_FLAG(dropbehind, FOLIO_HEAD_PAGE)
 	FOLIO_TEST_CLEAR_FLAG(dropbehind, FOLIO_HEAD_PAGE)
 	__FOLIO_SET_FLAG(dropbehind, FOLIO_HEAD_PAGE)
+
+/*
+ * A folio with PG_rcu_free set is not returned to the page allocator until
+ * an RCU grace period after its refcount reached zero.  The flag is set by
+ * a holder of a reference, or copied by a split to the folios it makes,
+ * and cleared only when the folio is freed.
+ *
+ * A lockless lookup under rcu_read_lock() that sees the flag on a folio,
+ * and after that, with its load of the slot ordered after its load of the
+ * flag (smp_rmb()), still finds the folio where it looked it up, can
+ * access the folio's memory until rcu_read_unlock().
+ *
+ * Not for folios freed with free_pages_nolock(), or freed somewhere other
+ * than the page allocator (hugetlb).
+ */
+FOLIO_TEST_FLAG(rcu_free, FOLIO_HEAD_PAGE)
+	FOLIO_TEST_SET_FLAG(rcu_free, FOLIO_HEAD_PAGE)
+	__FOLIO_CLEAR_FLAG(rcu_free, FOLIO_HEAD_PAGE)
 
 #ifdef CONFIG_HIGHMEM
 /*

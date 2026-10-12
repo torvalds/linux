@@ -3743,6 +3743,7 @@ static void __split_folio_to_order(struct folio *folio, int old_order,
 #endif
 				 (1L << PG_dirty) |
 				 (1L << PG_dropbehind) |
+				 (1L << PG_rcu_free) |
 				 LRU_GEN_MASK | LRU_REFS_MASK));
 
 		new_folio->mapping = folio->mapping;

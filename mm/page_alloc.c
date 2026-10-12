@@ -1313,6 +1313,111 @@ static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
 
 #endif /* CONFIG_MEM_ALLOC_PROFILING */
 
+/*
+ * Folios with PG_rcu_free set wait here for an RCU grace period before
+ * they go back to the allocator.  They are linked through ->lru: a folio
+ * whose refcount has reached zero is on no LRU and not yet on the
+ * allocator's lists.
+ *
+ * Each CPU has at most one grace period in flight.  @batch holds the
+ * folios it covers: they were moved from @pending when queue_rcu_work()
+ * started it.  Folios freed meanwhile collect on @pending.  When the grace
+ * period ends, the work takes @batch, moves @pending to @batch and starts
+ * the next grace period, and then frees what it took.  The move and the
+ * queue_rcu_work() happen together under @lock, so no folio joins a batch
+ * after its grace period started.  A folio waits one to two grace periods.
+ *
+ * @batch is non-empty from the queue_rcu_work() until the work has taken
+ * it.  So @batch being empty means that no grace period is in flight and
+ * @rwork is not queued.
+ *
+ * Reclaim makes progress only when these frees complete, so the work must
+ * not wait for a new worker: the workqueue is WQ_MEM_RECLAIM.
+ *
+ * rcu_free_init() runs before vfs_caches_init(), so before anything can
+ * be mounted: no folio is in a page cache until the workqueue exists.
+ */
+struct rcu_free_pcpu {
+	spinlock_t lock;
+	struct list_head pending;
+	struct list_head batch;
+	struct rcu_work rwork;
+};
+static DEFINE_PER_CPU(struct rcu_free_pcpu, rcu_free_pcpu) = {
+	.lock = __SPIN_LOCK_UNLOCKED(rcu_free_pcpu.lock),
+};
+static struct workqueue_struct *rcu_free_wq __ro_after_init;
+
+/* Called with r->lock held */
+static void rcu_free_start(struct rcu_free_pcpu *r)
+{
+	/* A grace period is in flight: its work starts the next one */
+	if (!list_empty(&r->batch))
+		return;
+
+	list_splice_init(&r->pending, &r->batch);
+	if (!list_empty(&r->batch))
+		WARN_ON_ONCE(!queue_rcu_work(rcu_free_wq, &r->rwork));
+}
+
+static void rcu_free_pages(struct list_head *list)
+{
+	struct folio_batch fbatch;
+	struct folio *folio, *next;
+
+	folio_batch_init(&fbatch);
+	/* Freeing a folio reuses its ->lru: @next is read before that */
+	list_for_each_entry_safe(folio, next, list, lru) {
+		if (!folio_batch_add(&fbatch, folio)) {
+			free_unref_folios(&fbatch);
+			/* Unbounded: one truncate can put a whole file here */
+			cond_resched();
+		}
+	}
+	if (folio_batch_count(&fbatch))
+		free_unref_folios(&fbatch);
+}
+
+static void rcu_free_workfn(struct work_struct *work)
+{
+	struct rcu_free_pcpu *r = container_of(to_rcu_work(work),
+					       struct rcu_free_pcpu, rwork);
+	LIST_HEAD(done);
+
+	spin_lock_irq(&r->lock);
+	list_splice_init(&r->batch, &done);
+	rcu_free_start(r);
+	spin_unlock_irq(&r->lock);
+
+	rcu_free_pages(&done);
+}
+
+static void rcu_free_defer(struct folio *folio)
+{
+	struct rcu_free_pcpu *r = raw_cpu_ptr(&rcu_free_pcpu);
+	unsigned long flags;
+
+	spin_lock_irqsave(&r->lock, flags);
+	list_add_tail(&folio->lru, &r->pending);
+	rcu_free_start(r);
+	spin_unlock_irqrestore(&r->lock, flags);
+}
+
+static void __init rcu_free_init(void)
+{
+	int cpu;
+
+	rcu_free_wq = alloc_workqueue("rcu_free", WQ_MEM_RECLAIM | WQ_PERCPU, 0);
+
+	for_each_possible_cpu(cpu) {
+		struct rcu_free_pcpu *r = per_cpu_ptr(&rcu_free_pcpu, cpu);
+
+		INIT_LIST_HEAD(&r->pending);
+		INIT_LIST_HEAD(&r->batch);
+		INIT_RCU_WORK(&r->rwork, rcu_free_workfn);
+	}
+}
+
 static __always_inline bool __free_pages_prepare(struct page *page,
 		unsigned int order, fpi_t fpi_flags)
 {
@@ -1326,6 +1431,25 @@ static __always_inline bool __free_pages_prepare(struct page *page,
 		return true;
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
+
+	/*
+	 * Defer: rcu_free_pages() frees the folio after a grace period, and
+	 * it comes through here again with the flag clear.  rcu_free_defer()
+	 * takes a spinlock, so the flag must not be set on a folio freed
+	 * with free_pages_nolock() (FPI_NOLOCK).
+	 *
+	 * Not for a hwpoisoned order-0 page: it never reaches the allocator
+	 * (see below), and page_handle_poison() takes a reference on it right
+	 * after the put that brought it here, so rcu_free_pages() would free
+	 * a page that has a reference.
+	 */
+	if (unlikely(folio_test_rcu_free(folio)) &&
+	    !(PageHWPoison(page) && !order)) {
+		VM_WARN_ON_ONCE(fpi_flags & FPI_NOLOCK);
+		__folio_clear_rcu_free(folio);
+		rcu_free_defer(folio);
+		return false;
+	}
 
 	trace_mm_page_free(page, order);
 	kmsan_free_page(page, order);
@@ -6401,6 +6525,8 @@ void __init setup_per_cpu_pageset(void)
 	for_each_online_pgdat(pgdat)
 		pgdat->per_cpu_nodestats =
 			alloc_percpu(struct per_cpu_nodestat);
+
+	rcu_free_init();
 }
 
 __meminit void zone_pcp_init(struct zone *zone)
