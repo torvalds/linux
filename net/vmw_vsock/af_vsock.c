@@ -2889,6 +2889,9 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 
 	net = container_of(table->data, struct net, vsock.child_ns_mode);
 
+	if (!*lenp)
+		return 0;
+
 	ret = __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				      vsock_net_child_mode(net), &new_mode);
 	if (ret)

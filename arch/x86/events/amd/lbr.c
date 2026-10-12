@@ -184,13 +184,6 @@ void amd_pmu_lbr_read(void)
 		    entry.to.split.reserved)
 			continue;
 
-		perf_clear_branch_entry_bitfields(br + out);
-
-		br[out].from	= sign_ext_branch_ip(entry.from.split.ip);
-		br[out].to	= sign_ext_branch_ip(entry.to.split.ip);
-		br[out].mispred	= entry.from.split.mispredict;
-		br[out].predicted = !br[out].mispred;
-
 		/*
 		 * Set branch speculation information using the status of
 		 * the valid and spec bits.
@@ -208,7 +201,14 @@ void amd_pmu_lbr_read(void)
 		 * speculative and took the correct path
 		 */
 		idx = (entry.to.split.valid << 1) | entry.to.split.spec;
-		br[out].spec = lbr_spec_map[idx];
+
+		br[out] = (struct perf_branch_entry){
+			.from		= sign_ext_branch_ip(entry.from.split.ip),
+			.to		= sign_ext_branch_ip(entry.to.split.ip),
+			.mispred	= entry.from.split.mispredict,
+			.predicted	= !entry.from.split.mispredict,
+			.spec		= lbr_spec_map[idx],
+		};
 		out++;
 	}
 

@@ -74,18 +74,20 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 				return 0;
 		}
 
-		de = (struct iso_directory_record *) (bh->b_data + offset);
-
-		de_len = *(unsigned char *) de;
-		if (!de_len) {
+		de = (struct iso_directory_record *)(bh->b_data + offset);
+		/*
+		 * If we are at the end of the block or at its zero-padded
+		 * tail, move to the next block.
+		 */
+		if (offset >= bufsize || de->length[0] == 0) {
 			brelse(bh);
 			bh = NULL;
-			f_pos = (f_pos + ISOFS_BLOCK_SIZE) & ~(ISOFS_BLOCK_SIZE - 1);
-			block = f_pos >> bufbits;
+			block++;
+			f_pos = block << bufbits;
 			offset = 0;
 			continue;
 		}
-
+		de_len = de->length[0];
 		block_saved = bh->b_blocknr;
 		offset_saved = offset;
 		offset += de_len;

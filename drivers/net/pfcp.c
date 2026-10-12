@@ -105,6 +105,9 @@ drop:
 
 static void pfcp_del_sock(struct pfcp_dev *pfcp)
 {
+	if (!pfcp->sk)
+		return;
+
 	udp_tunnel_sock_release(pfcp->sk);
 	pfcp->sk = NULL;
 }

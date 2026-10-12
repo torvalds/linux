@@ -851,6 +851,8 @@ operations:
       name: bind-tx
       doc: Bind dmabuf to netdev for TX
       attribute-set: dmabuf
+      # Intentionally unprivileged (no admin-perm / uns-admin-perm); see
+      # comment above netdev_nl_bind_tx_doit().
       do:
         request:
           attributes:

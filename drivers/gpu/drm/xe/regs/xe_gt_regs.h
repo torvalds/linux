@@ -651,6 +651,7 @@
 #define   MEM_THERMAL_MASK			REG_BIT(2)
 #define   VR_THERMAL_MASK			REG_BIT(3)
 #define   ICCMAX_MASK				REG_BIT(4)
+#define   PWRBRK_MASK				REG_BIT(5)
 #define   SOC_AVG_THERMAL_MASK			REG_BIT(6)
 #define   FASTVMODE_MASK			REG_BIT(7)
 #define   PSYS_PL1_MASK				REG_BIT(12)

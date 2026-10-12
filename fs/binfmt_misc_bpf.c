@@ -141,14 +141,21 @@ __bpf_kfunc int bpf_binprm_set_interp(struct linux_binprm *bprm,
 	len = strnlen(path, path__sz);
 	if (len == path__sz)
 		return -EINVAL;
-	if (path[0] != '/')
-		return -EINVAL;
 	if (len >= PATH_MAX)
 		return -ENAMETOOLONG;
 
 	interp = kmemdup_nul(path, len, GFP_KERNEL);
 	if (!interp)
 		return -ENOMEM;
+
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so check the private copy and not the buffer it was made from.
+	 */
+	if (interp[0] != '/') {
+		kfree(interp);
+		return -EINVAL;
+	}
 
 	bm_bpf_stage_selection(bprm, interp, NULL);
 	return 0;
@@ -176,6 +183,7 @@ __bpf_kfunc int bpf_binprm_select_interp(struct linux_binprm *bprm,
 					 const char *name, size_t name__sz)
 {
 	const struct binfmt_misc_interp *interp;
+	char buf[BINFMT_MISC_INTERP_NAME_MAX + 1];
 	size_t len;
 	char *path;
 
@@ -184,8 +192,20 @@ __bpf_kfunc int bpf_binprm_select_interp(struct linux_binprm *bprm,
 	len = strnlen(name, name__sz);
 	if (len == name__sz || !len)
 		return -EINVAL;
+	/* No entry binds a longer name, so it cannot be found. */
+	if (len > BINFMT_MISC_INTERP_NAME_MAX)
+		return -ENOENT;
 
-	interp = binfmt_misc_find_interp(bprm->bpf_interps, name);
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so look the name up in a private copy and check that instead.
+	 */
+	memcpy(buf, name, len);
+	buf[len] = '\0';
+	if (!buf[0])
+		return -EINVAL;
+
+	interp = binfmt_misc_find_interp(bprm->bpf_interps, buf);
 	if (!interp)
 		return -ENOENT;
 
@@ -227,6 +247,15 @@ __bpf_kfunc int bpf_binprm_set_interp_arg(struct linux_binprm *bprm,
 	val = kmemdup_nul(arg, len, GFP_KERNEL);
 	if (!val)
 		return -ENOMEM;
+
+	/*
+	 * The program may pass memory that is written to while this runs,
+	 * so check the private copy and not the buffer it was made from.
+	 */
+	if (!val[0]) {
+		kfree(val);
+		return -EINVAL;
+	}
 
 	kfree(bprm->bpf_interp_arg);
 	bprm->bpf_interp_arg = val;

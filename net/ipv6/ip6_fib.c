@@ -1043,8 +1043,8 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 	struct fib6_table *table = rt->fib6_table;
 
 	/* Flush all cached dst in exception table */
-	rt6_flush_exceptions(rt);
 	fib6_drop_pcpu_from(rt);
+	rt6_flush_exceptions(rt);
 
 	if (rt->nh) {
 		spin_lock(&rt->nh->lock);

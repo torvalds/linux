@@ -171,9 +171,10 @@ struct landlock_ruleset {
 	 * @version: Counter incremented on each successful
 	 * landlock_add_rule(2), including when it only extends an existing
 	 * rule's access rights.  Used by tracepoints to correlate a domain with
-	 * the exact ruleset state it was created from.  Protected by @lock.
+	 * the exact successful rule history it was created from.  Protected by
+	 * @lock.
 	 */
-	u32 version;
+	u64 version;
 	/**
 	 * @id: Unique identifier for this ruleset, used for tracing.
 	 */

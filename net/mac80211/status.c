@@ -1164,6 +1164,73 @@ void ieee80211_tx_status_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_tx_status_skb);
 
+/*
+ * Check whether the HT/VHT rate information in a TX status entry is
+ * valid for its encoding.  This is not specific to any rate control
+ * algorithm; all status consumers rely on the values being sane.
+ */
+static bool ieee80211_tx_status_rate_info_valid(const struct rate_info *rate)
+{
+	if (rate->flags & RATE_INFO_FLAGS_MCS)
+		return rate->mcs < 32;
+
+	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
+		return rate->nss >= 1 && rate->nss <= 8 && rate->mcs <= 11;
+
+	return true;
+}
+
+static bool
+ieee80211_tx_status_tx_rate_valid(const struct ieee80211_tx_rate *rate)
+{
+	if (rate->flags & IEEE80211_TX_RC_MCS)
+		return rate->idx < 32;
+
+	if (rate->flags & IEEE80211_TX_RC_VHT_MCS)
+		return ieee80211_rate_get_vht_mcs(rate) <= 11;
+
+	return true;
+}
+
+/*
+ * Drop TX status rate entries that don't describe a valid rate.  The
+ * status information is used by rate control and by other mac80211
+ * code, and a malformed entry must not be able to corrupt state beyond
+ * the driver that reported it.
+ */
+static void
+ieee80211_tx_status_drop_invalid_rates(struct ieee80211_tx_status *status)
+{
+	int i;
+
+	for (i = 0; i < status->n_rates; i++) {
+		struct ieee80211_rate_status *rs = &status->rates[i];
+
+		if (ieee80211_tx_status_rate_info_valid(&rs->rate_idx))
+			continue;
+
+		rs->try_count = 0;
+		memset(&rs->rate_idx, 0, sizeof(rs->rate_idx));
+	}
+
+	if (!status->info)
+		return;
+
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		struct ieee80211_tx_rate *rate;
+
+		rate = &status->info->status.rates[i];
+		if (rate->idx < 0)
+			break;
+
+		if (ieee80211_tx_status_tx_rate_valid(rate))
+			continue;
+
+		rate->idx = -1;
+		rate->count = 0;
+	}
+}
+
 void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_status *status)
 {
@@ -1175,6 +1242,8 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	int rates_idx, retry_count;
 	bool acked, noack_success, ack_signal_valid;
 	u16 tx_time_est;
+
+	ieee80211_tx_status_drop_invalid_rates(status);
 
 	if (pubsta) {
 		sta = container_of(pubsta, struct sta_info, sta);
@@ -1300,6 +1369,7 @@ void ieee80211_tx_rate_update(struct ieee80211_hw *hw,
 		.sta = pubsta,
 	};
 
+	ieee80211_tx_status_drop_invalid_rates(&status);
 	rate_control_tx_status(local, &status);
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))

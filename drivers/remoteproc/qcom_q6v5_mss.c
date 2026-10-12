@@ -2079,7 +2079,16 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	if (desc->need_mem_protection && !qcom_pas_is_available())
+	/*
+	 * Memory protection is done through qcom_scm_assign_mem(), which needs
+	 * SCM but not PAS. Only the memory setup path issues PAS calls, so
+	 * requiring PAS for every need_mem_protection platform prevents the
+	 * modem from probing at all on TZ firmware that offers no PAS.
+	 */
+	if (desc->need_mem_protection && !qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
+	if (desc->need_pas_mem_setup && !qcom_pas_is_available())
 		return -EPROBE_DEFER;
 
 	mba_image = desc->hexagon_mba_image;

@@ -75,8 +75,10 @@ static inline u64 ___siphash_aligned(const __le64 *data, size_t len,
 /**
  * siphash - compute 64-bit siphash PRF value
  * @data: buffer to hash
- * @size: size of @data
+ * @len: size of @data
  * @key: the siphash key
+ *
+ * Returns: siphash PRF value
  */
 static inline u64 siphash(const void *data, size_t len,
 			  const siphash_key_t *key)
@@ -125,8 +127,10 @@ static inline u32 ___hsiphash_aligned(const __le32 *data, size_t len,
 /**
  * hsiphash - compute 32-bit hsiphash PRF value
  * @data: buffer to hash
- * @size: size of @data
+ * @len: size of @data
  * @key: the hsiphash key
+ *
+ * Returns: hsiphash PRF value
  */
 static inline u32 hsiphash(const void *data, size_t len,
 			   const hsiphash_key_t *key)

@@ -267,7 +267,8 @@ int dev_get_hwtstamp_phylib(struct net_device *dev,
 		    hwprov->phydev)
 			return phy_hwtstamp_get(hwprov->phydev, cfg);
 
-		if (hwprov->source == HWTSTAMP_SOURCE_NETDEV)
+		if (hwprov->source == HWTSTAMP_SOURCE_NETDEV &&
+		    dev->netdev_ops->ndo_hwtstamp_get)
 			return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
 
 		return -EOPNOTSUPP;
@@ -276,18 +277,17 @@ int dev_get_hwtstamp_phylib(struct net_device *dev,
 	if (phy_is_default_hwtstamp(dev->phydev))
 		return phy_hwtstamp_get(dev->phydev, cfg);
 
+	if (!dev->netdev_ops->ndo_hwtstamp_get)
+		return -EOPNOTSUPP;
+
 	return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
 }
 
 static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	struct kernel_hwtstamp_config kernel_cfg = {};
 	struct hwtstamp_config cfg;
 	int err;
-
-	if (!ops->ndo_hwtstamp_get)
-		return -EOPNOTSUPP;
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
@@ -359,12 +359,18 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 	cfg->source = phy_ts ? HWTSTAMP_SOURCE_PHYLIB : HWTSTAMP_SOURCE_NETDEV;
 
 	if (phy_ts && dev->see_all_hwtstamp_requests) {
+		if (!ops->ndo_hwtstamp_get)
+			return -EOPNOTSUPP;
+
 		err = ops->ndo_hwtstamp_get(dev, &old_cfg);
 		if (err)
 			return err;
 	}
 
 	if (!phy_ts || dev->see_all_hwtstamp_requests) {
+		if (!ops->ndo_hwtstamp_set)
+			return -EOPNOTSUPP;
+
 		err = ops->ndo_hwtstamp_set(dev, cfg, extack);
 		if (err) {
 			if (extack->_msg)
@@ -390,7 +396,6 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 
 static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	struct kernel_hwtstamp_config kernel_cfg = {};
 	struct netlink_ext_ack extack = {};
 	struct hwtstamp_config cfg;
@@ -412,9 +417,6 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 			netdev_err(dev, "%s\n", extack._msg);
 		return err;
 	}
-
-	if (!ops->ndo_hwtstamp_set)
-		return -EOPNOTSUPP;
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
@@ -441,14 +443,10 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 int generic_hwtstamp_get_lower(struct net_device *dev,
 			       struct kernel_hwtstamp_config *kernel_cfg)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
-
-	if (!ops->ndo_hwtstamp_get)
-		return -EOPNOTSUPP;
 
 	netdev_lock_ops(dev);
 	err = dev_get_hwtstamp_phylib(dev, kernel_cfg);
@@ -462,14 +460,10 @@ int generic_hwtstamp_set_lower(struct net_device *dev,
 			       struct kernel_hwtstamp_config *kernel_cfg,
 			       struct netlink_ext_ack *extack)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
-
-	if (!ops->ndo_hwtstamp_set)
-		return -EOPNOTSUPP;
 
 	netdev_lock_ops(dev);
 	err = dev_set_hwtstamp_phylib(dev, kernel_cfg, extack);

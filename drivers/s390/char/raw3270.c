@@ -420,7 +420,7 @@ struct raw3270_ua {	/* Query Reply structure for Usable Area */
 		char  flags0;
 		char  flags1;
 		short w;	/* Width of usable area */
-		short h;	/* Heigth of usavle area */
+		short h;	/* Height of usavle area */
 		char  units;	/* 0x00:in; 0x01:mm */
 		int   xr;
 		int   yr;

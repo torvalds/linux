@@ -112,6 +112,8 @@ struct nvmet_ns {
 
 	bool			buffered_io;
 	bool			enabled;
+#define NVMET_NS_IO_LIVE	0
+	unsigned long		flags;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
 

@@ -222,7 +222,7 @@ static const struct iio_chan_spec_ext_info sx9324_channel_ext_info[] = {
 	.scan_index = idx,					 \
 	.scan_type = {						 \
 		.sign = 's',					 \
-		.realbits = 12,					 \
+		.realbits = 16,					 \
 		.storagebits = 16,				 \
 		.endianness = IIO_BE,				 \
 	},							 \

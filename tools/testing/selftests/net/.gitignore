@@ -55,6 +55,7 @@ tools
 tun
 txring_overwrite
 txtimestamp
+udp_splice_checksum
 udpgso
 udpgso_bench_rx
 udpgso_bench_tx

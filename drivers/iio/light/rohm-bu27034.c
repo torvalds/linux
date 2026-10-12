@@ -137,6 +137,7 @@ static const struct iio_gain_sel_pair bu27034_gains[] = {
 #define BU27034_MEAS_MODE_200MS		2
 #define BU27034_MEAS_MODE_400MS		4
 
+#define BU27034_INT_TIME_US_MIN (55 * USEC_PER_MSEC)
 static const struct iio_itime_sel_mul bu27034_itimes[] = {
 	GAIN_SCALE_ITIME_US(400000, BU27034_MEAS_MODE_400MS, 8),
 	GAIN_SCALE_ITIME_US(200000, BU27034_MEAS_MODE_200MS, 4),
@@ -296,7 +297,7 @@ static int bu27034_get_gain(struct bu27034_data *data, int chan, int *gain)
 	return 0;
 }
 
-static int bu27034_get_int_time(struct bu27034_data *data)
+static int bu27034_get_int_time(struct bu27034_data *data, int *itime)
 {
 	int ret, sel;
 
@@ -304,24 +305,30 @@ static int bu27034_get_int_time(struct bu27034_data *data)
 	if (ret)
 		return ret;
 
-	return iio_gts_find_int_time_by_sel(&data->gts,
-					    sel & BU27034_MASK_MEAS_MODE);
+	ret = iio_gts_find_int_time_by_sel(&data->gts,
+					   sel & BU27034_MASK_MEAS_MODE);
+	if (ret < 0)
+		return ret;
+
+	*itime = ret;
+
+	return 0;
 }
 
 static int _bu27034_get_scale(struct bu27034_data *data, int channel, int *val,
 			      int *val2)
 {
-	int gain, ret;
+	int gain, itime, ret;
 
 	ret = bu27034_get_gain(data, channel, &gain);
 	if (ret)
 		return ret;
 
-	ret = bu27034_get_int_time(data);
-	if (ret < 0)
+	ret = bu27034_get_int_time(data, &itime);
+	if (ret)
 		return ret;
 
-	return iio_gts_get_scale(&data->gts, gain, ret, val, val2);
+	return iio_gts_get_scale(&data->gts, gain, itime, val, val2);
 }
 
 static int bu27034_get_scale(struct bu27034_data *data, int channel, int *val,
@@ -397,11 +404,9 @@ static int bu27034_try_set_int_time(struct bu27034_data *data, int time_us)
 	int ret, int_time_old, i;
 
 	guard(mutex)(&data->mutex);
-	ret = bu27034_get_int_time(data);
-	if (ret < 0)
+	ret = bu27034_get_int_time(data, &int_time_old);
+	if (ret)
 		return ret;
-
-	int_time_old = ret;
 
 	if (!iio_gts_valid_time(&data->gts, time_us)) {
 		dev_err(data->dev, "Unsupported integration time %u\n",
@@ -415,7 +420,7 @@ static int bu27034_try_set_int_time(struct bu27034_data *data, int time_us)
 	for (i = 0; i < numg; i++) {
 		ret = bu27034_get_gain(data, gains[i].chan, &gains[i].old_gain);
 		if (ret)
-			return 0;
+			return ret;
 
 		ret = iio_gts_find_new_gain_by_old_gain_time(&data->gts,
 							     gains[i].old_gain,
@@ -841,7 +846,7 @@ static int bu27034_meas_set(struct bu27034_data *data, bool en)
 static int bu27034_get_single_result(struct bu27034_data *data, int chan,
 				     int *val)
 {
-	int ret;
+	int ret, itime;
 
 	if (chan < BU27034_CHAN_DATA0 || chan > BU27034_CHAN_DATA1)
 		return -EINVAL;
@@ -850,11 +855,11 @@ static int bu27034_get_single_result(struct bu27034_data *data, int chan,
 	if (ret)
 		return ret;
 
-	ret = bu27034_get_int_time(data);
-	if (ret < 0)
+	ret = bu27034_get_int_time(data, &itime);
+	if (ret)
 		return ret;
 
-	msleep(ret / 1000);
+	msleep(itime / 1000);
 
 	return bu27034_read_result(data, chan, val);
 }
@@ -904,11 +909,9 @@ static int bu27034_calc_mlux(struct bu27034_data *data, __le16 *res, int *val)
 	if (ret)
 		return ret;
 
-	ret = bu27034_get_int_time(data);
-	if (ret < 0)
+	ret = bu27034_get_int_time(data, &meastime);
+	if (ret)
 		return ret;
-
-	meastime = ret;
 
 	d1_d0_ratio_scaled = (unsigned int)ch1 * (unsigned int)gain0 * 100;
 	helper64 = (u64)ch1 * (u64)gain0 * 100LLU;
@@ -970,9 +973,9 @@ static int bu27034_read_raw(struct iio_dev *idev,
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
 		*val = 0;
-		*val2 = bu27034_get_int_time(data);
-		if (*val2 < 0)
-			return *val2;
+		ret = bu27034_get_int_time(data, val2);
+		if (ret)
+			return ret;
 
 		return IIO_VAL_INT_PLUS_MICRO;
 
@@ -1157,11 +1160,20 @@ static int bu27034_buffer_thread(void *arg)
 {
 	struct iio_dev *idev = arg;
 	struct bu27034_data *data;
-	int wait_ms;
+	int wait_ms, ret;
 
 	data = iio_priv(idev);
 
-	wait_ms = bu27034_get_int_time(data);
+	/*
+	 * If reading the integration time fails, default to the minimum so we
+	 * don't lose samples. This may waste CPU cycles, but as a hardening
+	 * against theoretical, once-in-a-blue-moon error, this should be Ok.
+	 */
+	wait_ms = BU27034_INT_TIME_US_MIN;
+	ret = bu27034_get_int_time(data, &wait_ms);
+	if (ret)
+		dev_warn(data->dev, "Failed to get integration time\n");
+
 	wait_ms /= 1000;
 
 	wait_ms -= BU27034_MEAS_WAIT_PREMATURE_MS;

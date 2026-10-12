@@ -130,6 +130,34 @@ static int wx_ptp_settime64(struct ptp_clock_info *ptp,
 }
 
 /**
+ * __wx_ptp_detach_tx_skb - detach the skb tracking the Tx timestamp request
+ * @wx: the private board structure
+ *
+ * Detach the skb of the outstanding request and release the in-progress bit,
+ * so that a new request can be submitted.
+ *
+ * This performs no register access. Callers that need a timestamp the hardware
+ * may have left latched must unlatch it themselves, while the device is known
+ * to be alive. wx_ptp_quiesce() runs during PCIe error recovery, where MMIO is
+ * not reliable, and therefore deliberately skips the unlatch.
+ *
+ * Context: Expects wx->ptp_tx_lock to be held by the caller.
+ * Return: the detached skb, or NULL if no request was outstanding. The caller
+ * owns the returned reference and must release it once the lock is dropped.
+ */
+static struct sk_buff *__wx_ptp_detach_tx_skb(struct wx *wx)
+{
+	struct sk_buff *skb = wx->ptp_tx_skb;
+
+	lockdep_assert_held(&wx->ptp_tx_lock);
+
+	wx->ptp_tx_skb = NULL;
+	clear_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+
+	return skb;
+}
+
+/**
  * wx_ptp_clear_tx_timestamp - utility function to clear Tx timestamp state
  * @wx: the private board structure
  *
@@ -139,12 +167,16 @@ static int wx_ptp_settime64(struct ptp_clock_info *ptp,
  */
 static void wx_ptp_clear_tx_timestamp(struct wx *wx)
 {
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wx->ptp_tx_lock, flags);
+	/* Unlatch a timestamp the hardware may have left pending. */
 	rd32ptp(wx, WX_TSC_1588_STMPH);
-	if (wx->ptp_tx_skb) {
-		dev_kfree_skb_any(wx->ptp_tx_skb);
-		wx->ptp_tx_skb = NULL;
-	}
-	clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+	skb = __wx_ptp_detach_tx_skb(wx);
+	spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
+
+	dev_kfree_skb_any(skb);
 }
 
 /**
@@ -175,49 +207,54 @@ static void wx_ptp_convert_to_hwtstamp(struct wx *wx,
 }
 
 /**
- * wx_ptp_tx_hwtstamp - utility function which checks for TX time stamp
+ * wx_ptp_tx_hwtstamp_work - check for a pending Tx time stamp
  * @wx: the private board struct
  *
- * if the timestamp is valid, we convert it into the timecounter ns
- * value, then store that result into the shhwtstamps structure which
- * is passed up the network stack
+ * If a Tx timestamp request is outstanding and the hardware has latched a
+ * valid value, we convert it into the timecounter ns value, then store that
+ * result into the shhwtstamps structure which is passed up the network stack.
+ *
+ * Return: 0 when there is nothing left to poll for, -1 when the timestamp is
+ * not available yet and the caller should poll again.
  */
-static void wx_ptp_tx_hwtstamp(struct wx *wx)
-{
-	struct skb_shared_hwtstamps shhwtstamps;
-	struct sk_buff *skb = wx->ptp_tx_skb;
-	u64 regval = 0;
-
-	regval |= (u64)rd32ptp(wx, WX_TSC_1588_STMPL);
-	regval |= (u64)rd32ptp(wx, WX_TSC_1588_STMPH) << 32;
-
-	wx_ptp_convert_to_hwtstamp(wx, &shhwtstamps, regval);
-
-	wx->ptp_tx_skb = NULL;
-	clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
-	skb_tstamp_tx(skb, &shhwtstamps);
-	dev_kfree_skb_any(skb);
-	wx->tx_hwtstamp_pkts++;
-}
-
 static int wx_ptp_tx_hwtstamp_work(struct wx *wx)
 {
+	struct skb_shared_hwtstamps shhwtstamps;
+	unsigned long flags;
+	struct sk_buff *skb;
 	u32 tsynctxctl;
+	u64 regval = 0;
+
+	spin_lock_irqsave(&wx->ptp_tx_lock, flags);
 
 	/* we have to have a valid skb to poll for a timestamp */
 	if (!wx->ptp_tx_skb) {
-		wx_ptp_clear_tx_timestamp(wx);
+		rd32ptp(wx, WX_TSC_1588_STMPH);
+		__wx_ptp_detach_tx_skb(wx);
+		spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
 		return 0;
 	}
 
 	/* stop polling once we have a valid timestamp */
 	tsynctxctl = rd32ptp(wx, WX_TSC_1588_CTL);
-	if (tsynctxctl & WX_TSC_1588_CTL_VALID) {
-		wx_ptp_tx_hwtstamp(wx);
-		return 0;
+	if (!(tsynctxctl & WX_TSC_1588_CTL_VALID)) {
+		spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
+		return -1;
 	}
 
-	return -1;
+	regval |= (u64)rd32ptp(wx, WX_TSC_1588_STMPL);
+	regval |= (u64)rd32ptp(wx, WX_TSC_1588_STMPH) << 32;
+	skb = wx->ptp_tx_skb;
+	wx->ptp_tx_skb = NULL;
+	clear_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+	spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
+
+	wx_ptp_convert_to_hwtstamp(wx, &shhwtstamps, regval);
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
+	wx->tx_hwtstamp_pkts++;
+
+	return 0;
 }
 
 /**
@@ -296,24 +333,29 @@ static void wx_ptp_rx_hang(struct wx *wx)
  */
 static void wx_ptp_tx_hang(struct wx *wx)
 {
-	bool timeout = time_is_before_jiffies(wx->ptp_tx_start +
-					      WX_PTP_TX_TIMEOUT);
+	struct sk_buff *skb = NULL;
+	unsigned long flags;
 
-	if (!wx->ptp_tx_skb)
-		return;
-
-	if (!test_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state))
-		return;
+	spin_lock_irqsave(&wx->ptp_tx_lock, flags);
 
 	/* If we haven't received a timestamp within the timeout, it is
 	 * reasonable to assume that it will never occur, so we can unlock the
 	 * timestamp bit when this occurs.
 	 */
-	if (timeout) {
-		wx_ptp_clear_tx_timestamp(wx);
-		wx->tx_hwtstamp_timeouts++;
-		dev_warn(&wx->pdev->dev, "clearing Tx timestamp hang\n");
+	if (wx->ptp_tx_skb &&
+	    test_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state) &&
+	    time_is_before_jiffies(wx->ptp_tx_start + WX_PTP_TX_TIMEOUT)) {
+		rd32ptp(wx, WX_TSC_1588_STMPH);
+		skb = __wx_ptp_detach_tx_skb(wx);
 	}
+	spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
+
+	if (!skb)
+		return;
+
+	dev_kfree_skb_any(skb);
+	wx->tx_hwtstamp_timeouts++;
+	dev_warn(&wx->pdev->dev, "clearing Tx timestamp hang\n");
 }
 
 static long wx_ptp_do_aux_work(struct ptp_clock_info *ptp)
@@ -841,6 +883,9 @@ EXPORT_SYMBOL(wx_ptp_stop);
 
 void wx_ptp_quiesce(struct wx *wx)
 {
+	struct sk_buff *skb;
+	unsigned long flags;
+
 	if (!test_and_clear_bit(WX_STATE_PTP_RUNNING, wx->state))
 		return;
 
@@ -849,11 +894,14 @@ void wx_ptp_quiesce(struct wx *wx)
 	if (wx->ptp_clock)
 		ptp_cancel_worker_sync(wx->ptp_clock);
 
-	if (wx->ptp_tx_skb) {
-		dev_kfree_skb_any(wx->ptp_tx_skb);
-		wx->ptp_tx_skb = NULL;
-	}
-	clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+	/* Drop a pending Tx timestamp request. Do not touch the registers
+	 * here: quiesce runs during PCIe error recovery, where the device may
+	 * already be gone and MMIO is not reliable.
+	 */
+	spin_lock_irqsave(&wx->ptp_tx_lock, flags);
+	skb = __wx_ptp_detach_tx_skb(wx);
+	spin_unlock_irqrestore(&wx->ptp_tx_lock, flags);
+	dev_kfree_skb_any(skb);
 
 	if (wx->ptp_clock) {
 		ptp_clock_unregister(wx->ptp_clock);

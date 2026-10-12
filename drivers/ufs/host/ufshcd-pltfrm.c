@@ -206,7 +206,11 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 		dev_dbg(hba->dev,
 			"%s: failed to read lanes-per-direction, ret=%d\n",
 			__func__, ret);
-		hba->lanes_per_direction = UFSHCD_DEFAULT_LANES_PER_DIRECTION;
+		/* Old R-Car S4 DTBs lack "lanes-per-direction = <1>" */
+		if (of_device_is_compatible(dev->of_node, "renesas,r8a779f0-ufs"))
+			hba->lanes_per_direction = 1;
+		else
+			hba->lanes_per_direction = UFSHCD_DEFAULT_LANES_PER_DIRECTION;
 	}
 }
 

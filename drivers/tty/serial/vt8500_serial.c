@@ -656,6 +656,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(vt8500_port->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
+		clk_put(vt8500_port->clk);
 		return ret;
 	}
 

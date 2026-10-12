@@ -246,14 +246,13 @@ __perf_output_begin(struct perf_output_handle *handle,
 	handle->size = (1UL << page_shift) - offset;
 
 	if (unlikely(have_lost)) {
-		lost_event.header.size = sizeof(lost_event);
-		lost_event.header.type = PERF_RECORD_LOST;
-		lost_event.header.misc = 0;
 		lost_event.id          = event->id;
 		lost_event.lost        = local_xchg(&rb->lost, 0);
 
 		/* XXX mostly redundant; @data is already fully initializes */
-		perf_event_header__init_id(&lost_event.header, data, event);
+		perf_event_header__init(&lost_event.header, data,
+					PERF_RECORD_LOST, /* misc= */ 0,
+					sizeof(lost_event), event);
 		perf_output_put(handle, lost_event);
 		perf_event__output_id_sample(event, handle, data);
 	}

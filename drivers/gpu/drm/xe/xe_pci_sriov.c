@@ -82,16 +82,33 @@ static void pf_engine_activity_stats(struct xe_device *xe, unsigned int num_vfs,
 	}
 }
 
-static int resize_vf_vram_bar(struct xe_device *xe, int num_vfs)
+static int pf_resize_vf_vram_bar(struct xe_device *xe, int num_vfs)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	char buf[10];
 	u32 sizes;
+	int size;
+	int err;
+
+	if (!IS_DGFX(xe))
+		return 0;
 
 	sizes = pci_iov_vf_bar_get_sizes(pdev, VF_LMEM_BAR, num_vfs);
 	if (!sizes)
 		return 0;
 
-	return pci_iov_vf_bar_set_size(pdev, VF_LMEM_BAR, __fls(sizes));
+	size = __fls(sizes);
+	string_get_size(pci_rebar_size_to_bytes(size), 1, STRING_UNITS_2, buf, sizeof(buf));
+
+	err = pci_iov_vf_bar_set_size(pdev, VF_LMEM_BAR, size);
+	if (err) {
+		xe_sriov_notice(xe, "Failed to resize VF BAR %u to %s (%pe)\n",
+				VF_LMEM_BAR, buf, ERR_PTR(err));
+		return err;
+	}
+
+	xe_sriov_dbg(xe, "VF LMEM BAR resized to %s\n", buf);
+	return 0;
 }
 
 static int pf_prepare_vfs_enabling(struct xe_device *xe)
@@ -142,11 +159,7 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	if (err < 0)
 		goto failed;
 
-	if (IS_DGFX(xe)) {
-		err = resize_vf_vram_bar(xe, num_vfs);
-		if (err)
-			xe_sriov_info(xe, "Failed to set VF LMEM BAR size: %d\n", err);
-	}
+	pf_resize_vf_vram_bar(xe, num_vfs);
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err < 0)
@@ -164,6 +177,7 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 	return num_vfs;
 
 failed:
+	pf_resize_vf_vram_bar(xe, xe->sriov.pf.device_total_vfs);
 	xe_sriov_pf_unprovision_vfs(xe, num_vfs);
 	xe_pm_runtime_put(xe);
 	pf_finish_vfs_enabling(xe);
@@ -190,6 +204,8 @@ static int pf_disable_vfs(struct xe_device *xe)
 	xe_sriov_pf_sysfs_unlink_vfs(xe, num_vfs);
 
 	pci_disable_sriov(pdev);
+
+	pf_resize_vf_vram_bar(xe, xe->sriov.pf.device_total_vfs);
 
 	xe_sriov_pf_reprovision_default(xe);
 

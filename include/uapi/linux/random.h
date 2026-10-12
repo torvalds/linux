@@ -58,7 +58,7 @@ struct rand_pool_info {
 /**
  * struct vgetrandom_opaque_params - arguments for allocating memory for vgetrandom
  *
- * @size_per_opaque_state:	Size of each state that is to be passed to vgetrandom().
+ * @size_of_opaque_state:	Size of each state passed to vgetrandom().
  * @mmap_prot:			Value of the prot argument in mmap(2).
  * @mmap_flags:			Value of the flags argument in mmap(2).
  * @reserved:			Reserved for future use.

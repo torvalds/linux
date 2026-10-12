@@ -420,6 +420,9 @@ struct cpufreq_driver {
 	/* Will be called after the driver is fully initialized */
 	void		(*ready)(struct cpufreq_policy *policy);
 
+	/* Return the capacity reference frequency for policy. */
+	unsigned int	(*scale_freq_ref)(struct cpufreq_policy *policy);
+
 	struct freq_attr **attr;
 
 	/* platform specific boost support code */

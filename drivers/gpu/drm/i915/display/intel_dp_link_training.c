@@ -2825,14 +2825,14 @@ void intel_dp_link_training_cleanup(struct intel_dp_link_training *link_training
 const struct intel_dp_link_training_test_ops i915_display_dp_link_training_test_ops = {
 	INTEL_DP_LINK_TRAINING_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(i915_display_dp_link_training_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(i915_display_dp_link_training_test_ops);
 
 #else
 
 const struct intel_dp_link_training_test_ops intel_display_dp_link_training_test_ops = {
 	INTEL_DP_LINK_TRAINING_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(intel_display_dp_link_training_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(intel_display_dp_link_training_test_ops);
 
 #endif	/* I915 */
 

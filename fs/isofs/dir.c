@@ -110,25 +110,21 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 				return 0;
 		}
 
-		de = (struct iso_directory_record *) (bh->b_data + offset);
-
-		de_len = *(unsigned char *)de;
-
+		de = (struct iso_directory_record *)(bh->b_data + offset);
 		/*
-		 * If the length byte is zero, we should move on to the next
-		 * CDROM sector.  If we are at the end of the directory, we
-		 * kick out of the while loop.
+		 * If we are at the end of a block (or at its zero-padded
+		 * tail), move on to the next CDROM sector.  If we are at the
+		 * end of the directory, we'll abort the while loop.
 		 */
-
-		if (de_len == 0) {
+		if (offset >= bufsize || de->length[0] == 0) {
 			brelse(bh);
 			bh = NULL;
-			ctx->pos = (ctx->pos + ISOFS_BLOCK_SIZE) & ~(ISOFS_BLOCK_SIZE - 1);
-			block = ctx->pos >> bufbits;
+			block++;
+			ctx->pos = (loff_t)block << bufbits;
 			offset = 0;
 			continue;
 		}
-
+		de_len = de->length[0];
 		block_saved = block;
 		offset_saved = offset;
 		offset += de_len;

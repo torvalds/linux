@@ -10493,9 +10493,9 @@ FIXTURE_TEARDOWN_PARENT(trace_layout1)
 }
 
 /*
- * Verifies that check_rule_fs events include correct field values: domain, dev,
- * ino, access_request, and grants.  All values are verified against stat() of
- * the rule path on a deterministic tmpfs layout.
+ * Verifies that check_rule_inode events include correct field values: domain,
+ * dev, ino, access_request, and grants.  All values are verified against stat()
+ * of the rule path on a deterministic tmpfs layout.
  */
 TEST_F(trace_layout1, check_rule_fs_fields)
 {
@@ -10529,7 +10529,7 @@ TEST_F(trace_layout1, check_rule_fs_fields)
 	EXPECT_EQ(1,
 		  tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK)))
 	{
-		TH_LOG("Expected 1 check_rule_fs event\n%s", buf);
+		TH_LOG("Expected 1 check_rule_inode event\n%s", buf);
 	}
 
 	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
@@ -10570,8 +10570,8 @@ TEST_F(trace_layout1, check_rule_fs_fields)
 }
 
 /*
- * Verifies check_rule_fs behavior with multiple rules.  With rules at s1d1 and
- * s1d2 (a child of s1d1), accessing s1d2 produces only 1 event because the
+ * Verifies check_rule_inode behavior with multiple rules.  With rules at s1d1
+ * and s1d2 (a child of s1d1), accessing s1d2 produces only 1 event because the
  * pathwalk short-circuits after the first rule fully unmasks the single layer.
  */
 TEST_F(trace_layout1, check_rule_fs_multiple_rules)
@@ -10643,14 +10643,14 @@ TEST_F(trace_layout1, check_rule_fs_multiple_rules)
 	ASSERT_NE(NULL, buf);
 
 	/*
-	 * Only 1 check_rule_fs event: the rule on dir_s1d2 fully unmasked the
-	 * single layer, so the pathwalk short-circuits before reaching the
+	 * Only one check_rule_inode event: the rule on dir_s1d2 fully unmasks
+	 * the single layer, so the pathwalk short-circuits before reaching the
 	 * dir_s1d1 rule.
 	 */
 	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
 	EXPECT_EQ(1, count)
 	{
-		TH_LOG("Expected 1 check_rule_fs event, got %d\n%s", count,
+		TH_LOG("Expected 1 check_rule_inode event, got %d\n%s", count,
 		       buf);
 	}
 
@@ -10777,7 +10777,7 @@ TEST_F(trace_layout1, check_rule_fs_optional_access)
 	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
 	EXPECT_EQ(1, count)
 	{
-		TH_LOG("Expected 1 check_rule_fs event, got %d\n%s", count,
+		TH_LOG("Expected 1 check_rule_inode event, got %d\n%s", count,
 		       buf);
 	}
 
@@ -10796,7 +10796,7 @@ TEST_F(trace_layout1, check_rule_fs_optional_access)
 }
 
 /*
- * Verifies that check_rule_fs fires for a rule that matches the inode even when
+ * Verifies that check_rule_inode fires for a rule matching the inode even when
  * it grants none of the requested rights, so the grants set is empty.  Landlock
  * cannot know a rule ignores the request before reading it, so the event is
  * still emitted (grants={}), which lets a tracer see that the rule matched.
@@ -10884,7 +10884,7 @@ TEST_F(trace_layout1, check_rule_fs_empty_grant)
 	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
 	EXPECT_EQ(2, count)
 	{
-		TH_LOG("Expected 2 check_rule_fs events, got %d\n%s", count,
+		TH_LOG("Expected 2 check_rule_inode events, got %d\n%s", count,
 		       buf);
 	}
 
@@ -10894,7 +10894,7 @@ TEST_F(trace_layout1, check_rule_fs_empty_grant)
 		tracefs_count_matches(
 			buf,
 			TRACE_PREFIX(
-				TRACE_TASK) "landlock_check_rule_fs: domain=[0-9a-f]\\+ "
+				TRACE_TASK) "landlock_check_rule_inode: domain=[0-9a-f]\\+ "
 					    "access_request=read_dir "
 					    "dev=[0-9]\\+:[0-9]\\+ ino=[0-9]\\+ "
 					    "grants={}$"))
@@ -10908,7 +10908,7 @@ TEST_F(trace_layout1, check_rule_fs_empty_grant)
 		tracefs_count_matches(
 			buf,
 			TRACE_PREFIX(
-				TRACE_TASK) "landlock_check_rule_fs: domain=[0-9a-f]\\+ "
+				TRACE_TASK) "landlock_check_rule_inode: domain=[0-9a-f]\\+ "
 					    "access_request=read_dir "
 					    "dev=[0-9]\\+:[0-9]\\+ ino=[0-9]\\+ "
 					    "grants={read_dir}$"))

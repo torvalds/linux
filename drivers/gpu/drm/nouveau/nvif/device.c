@@ -39,6 +39,19 @@ nvif_device_time(struct nvif_device *device)
 }
 
 int
+nvif_device_gcx_ready(struct nvif_device *device)
+{
+	struct nv_device_gcx_ready_v0 args = {};
+	int ret;
+
+	ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_GCX_READY, &args, sizeof(args));
+	if (ret)
+		return ret;
+
+	return args.ready;
+}
+
+int
 nvif_device_map(struct nvif_device *device)
 {
 	return nvif_object_map(&device->object, NULL, 0);

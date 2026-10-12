@@ -554,7 +554,6 @@ struct leapraid_fw_evt_work {
 /**
  * struct leapraid_fw_evt_struct - Firmware event handling structure
  *
- * @fw_evt_name: Name of the firmware event.
  * @fw_evt_thread: Workqueue used for processing firmware events.
  * @fw_evt_lock: Spinlock protecting access to the firmware event list.
  * @fw_evt_list: Linked list of pending firmware events.
@@ -565,7 +564,6 @@ struct leapraid_fw_evt_work {
  */
 struct leapraid_fw_evt_struct {
 	u32 leapraid_evt_masks[4];
-	char fw_evt_name[48];
 	struct workqueue_struct *fw_evt_thread;
 	spinlock_t fw_evt_lock; /* protects firmware event */
 	struct list_head fw_evt_list;

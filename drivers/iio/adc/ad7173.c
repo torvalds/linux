@@ -775,9 +775,9 @@ static int ad7173_load_config(struct ad7173_state *st,
 
 	return ad_sd_write_reg(&st->sd, AD7173_REG_FILTER(free_cfg_slot), 2,
 			       FIELD_PREP(AD7173_FILTER_SINC3_MAP, 0) |
-			       FIELD_PREP(AD7173_FILTER_ENHFILT_MASK,
-					  post_filter_enable) |
 			       FIELD_PREP(AD7173_FILTER_ENHFILTEN,
+					  post_filter_enable) |
+			       FIELD_PREP(AD7173_FILTER_ENHFILT_MASK,
 					  post_filter_select) |
 			       FIELD_PREP(AD7173_FILTER_ORDER, 0) |
 			       FIELD_PREP(AD7173_FILTER_ODR_MASK,

@@ -136,6 +136,19 @@ ovpn_create_ns() {
 	ip netns add "ovpn_peer${1}"
 }
 
+ovpn_peer_vpn_addr() {
+	local peer="$1"
+	local file
+
+	if [ "${OVPN_PROTO}" == "UDP" ]; then
+		file="${OVPN_UDP_PEERS_FILE}"
+	else
+		file="${OVPN_TCP_PEERS_FILE}"
+	fi
+
+	awk -v peer="${peer}" '$1 == peer {print $NF; exit}' "${file}"
+}
+
 ovpn_setup_ns() {
 	local peer="ovpn_peer${1}"
 	local server_ns="ovpn_peer0"

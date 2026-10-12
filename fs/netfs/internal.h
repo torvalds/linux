@@ -80,6 +80,8 @@ ssize_t netfs_wait_for_write(struct netfs_io_request *rreq);
 void netfs_wait_for_paused_read(struct netfs_io_request *rreq);
 void netfs_wait_for_paused_write(struct netfs_io_request *rreq);
 void netfs_wait_for_put_ra_refs(struct netfs_io_request *rreq);
+int netfs_clear_stale_pre_isize(struct inode *inode, uoff_t from,
+				uoff_t to, bool nowait);
 
 /*
  * objects.c

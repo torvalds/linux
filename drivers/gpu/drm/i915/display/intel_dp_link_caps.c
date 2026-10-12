@@ -3,6 +3,8 @@
  * Copyright © 2026 Intel Corporation
  */
 
+#include <kunit/visibility.h>
+
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/log2.h>
@@ -1302,14 +1304,14 @@ void intel_dp_link_caps_cleanup(struct intel_dp_link_caps *link_caps)
 const struct intel_dp_link_caps_test_ops i915_display_dp_link_caps_test_ops = {
 	INTEL_DP_LINK_CAPS_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(i915_display_dp_link_caps_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(i915_display_dp_link_caps_test_ops);
 
 #else
 
 const struct intel_dp_link_caps_test_ops intel_display_dp_link_caps_test_ops = {
 	INTEL_DP_LINK_CAPS_TEST_OPS_INIT
 };
-EXPORT_SYMBOL(intel_display_dp_link_caps_test_ops);
+EXPORT_SYMBOL_IF_KUNIT(intel_display_dp_link_caps_test_ops);
 
 #endif	/* I915 */
 

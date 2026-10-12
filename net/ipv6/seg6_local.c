@@ -278,13 +278,43 @@ static bool decap_and_validate(struct sk_buff *skb, int proto)
 	return true;
 }
 
-static void advance_nextseg(struct ipv6_sr_hdr *srh, struct in6_addr *daddr)
+/* advance the SRH to the next segment and set the IPv6 DA accordingly.
+ * skb pointers may change: after this call, the caller must evaluate again
+ * any pointer into the packet data.
+ *
+ * This function returns:
+ *  - the SRH on success;
+ *  - NULL when the skb cannot be made writable. In this case, the function
+ *    sets the drop reason to SKB_DROP_REASON_NOMEM.
+ */
+static struct ipv6_sr_hdr *advance_nextseg(struct sk_buff *skb,
+					   struct ipv6_sr_hdr *srh,
+					   enum skb_drop_reason *reason)
 {
 	struct in6_addr *addr;
+	int srhoff;
+	int wlen;
+
+	srhoff = (unsigned char *)srh - skb->data;
+	/* we write only the Segment Left field and the IPv6 DA. The segment
+	 * list is only read, and seg6_get_srh() already pulled it into the
+	 * linear area.
+	 */
+	wlen = srhoff + sizeof(*srh);
+
+	if (unlikely(skb_ensure_writable(skb, wlen))) {
+		*reason = SKB_DROP_REASON_NOMEM;
+		return NULL;
+	}
+
+	/* skb_ensure_writable() may change skb pointers; evaluate srh again */
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 
 	srh->segments_left--;
 	addr = srh->segments + srh->segments_left;
-	*daddr = *addr;
+	ipv6_hdr(skb)->daddr = *addr;
+
+	return srh;
 }
 
 static int
@@ -382,12 +412,26 @@ static bool seg6_next_csid_is_arg_zero(const struct in6_addr *addr,
 	return true;
 }
 
-/* assume that DA.Argument length > 0 */
-static void seg6_next_csid_advance_arg(struct in6_addr *addr,
-				       const struct seg6_flavors_info *finfo)
+/* assume that DA.Argument length > 0.
+ * skb pointers may change: after this call, the caller must evaluate again
+ * any pointer into the packet data.
+ *
+ * This function returns:
+ *  - SKB_NOT_DROPPED_YET on success;
+ *  - SKB_DROP_REASON_NOMEM when the skb cannot be made writable.
+ */
+static enum skb_drop_reason
+seg6_next_csid_advance_arg(struct sk_buff *skb,
+			   const struct seg6_flavors_info *finfo)
 {
 	__u8 fnc_octects = seg6_flv_lcnode_func_octects(finfo);
 	__u8 blk_octects = seg6_flv_lcblock_octects(finfo);
+	struct in6_addr *addr;
+
+	if (unlikely(skb_ensure_writable(skb, sizeof(struct ipv6hdr))))
+		return SKB_DROP_REASON_NOMEM;
+
+	addr = &ipv6_hdr(skb)->daddr;
 
 	/* advance DA.Argument */
 	memmove(&addr->s6_addr[blk_octects],
@@ -395,6 +439,8 @@ static void seg6_next_csid_advance_arg(struct in6_addr *addr,
 		16 - blk_octects - fnc_octects);
 
 	memset(&addr->s6_addr[16 - fnc_octects], 0x00, fnc_octects);
+
+	return SKB_NOT_DROPPED_YET;
 }
 
 static int input_action_end_finish(struct sk_buff *skb,
@@ -408,31 +454,42 @@ static int input_action_end_finish(struct sk_buff *skb,
 static int input_action_end_core(struct sk_buff *skb,
 				 struct seg6_local_lwt *slwt)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	struct ipv6_sr_hdr *srh;
+	int err = -EINVAL;
 
 	srh = get_and_validate_srh(skb);
 	if (!srh)
 		goto drop;
 
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+	srh = advance_nextseg(skb, srh, &reason);
+	if (!srh) {
+		err = -ENOMEM;
+		goto drop;
+	}
 
 	return input_action_end_finish(skb, slwt);
 
 drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	kfree_skb_reason(skb, reason);
+	return err;
 }
 
 static int end_next_csid_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 {
 	const struct seg6_flavors_info *finfo = &slwt->flv_info;
 	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	enum skb_drop_reason reason;
 
 	if (seg6_next_csid_is_arg_zero(daddr, finfo))
 		return input_action_end_core(skb, slwt);
 
 	/* update DA */
-	seg6_next_csid_advance_arg(daddr, finfo);
+	reason = seg6_next_csid_advance_arg(skb, finfo);
+	if (reason) {
+		kfree_skb_reason(skb, reason);
+		return -ENOMEM;
+	}
 
 	return input_action_end_finish(skb, slwt);
 }
@@ -448,19 +505,25 @@ static int input_action_end_x_finish(struct sk_buff *skb,
 static int input_action_end_x_core(struct sk_buff *skb,
 				   struct seg6_local_lwt *slwt)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	struct ipv6_sr_hdr *srh;
+	int err = -EINVAL;
 
 	srh = get_and_validate_srh(skb);
 	if (!srh)
 		goto drop;
 
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+	srh = advance_nextseg(skb, srh, &reason);
+	if (!srh) {
+		err = -ENOMEM;
+		goto drop;
+	}
 
 	return input_action_end_x_finish(skb, slwt);
 
 drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	kfree_skb_reason(skb, reason);
+	return err;
 }
 
 static int end_x_next_csid_core(struct sk_buff *skb,
@@ -468,12 +531,17 @@ static int end_x_next_csid_core(struct sk_buff *skb,
 {
 	const struct seg6_flavors_info *finfo = &slwt->flv_info;
 	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	enum skb_drop_reason reason;
 
 	if (seg6_next_csid_is_arg_zero(daddr, finfo))
 		return input_action_end_x_core(skb, slwt);
 
 	/* update DA */
-	seg6_next_csid_advance_arg(daddr, finfo);
+	reason = seg6_next_csid_advance_arg(skb, finfo);
+	if (reason) {
+		kfree_skb_reason(skb, reason);
+		return -ENOMEM;
+	}
 
 	return input_action_end_x_finish(skb, slwt);
 }
@@ -760,10 +828,12 @@ pull:
  */
 static int end_flv8986_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	const struct seg6_flavors_info *finfo = &slwt->flv_info;
 	enum seg6_local_flv_action action;
 	enum seg6_local_pktinfo pinfo;
 	struct ipv6_sr_hdr *srh;
+	int err = -EINVAL;
 	__u32 flvmask;
 	int srhoff;
 
@@ -787,10 +857,18 @@ static int end_flv8986_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	switch (action) {
 	case SEG6_LOCAL_FLV_ACT_END:
 		/* process the packet as the "standard" End behavior */
-		advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+		srh = advance_nextseg(skb, srh, &reason);
+		if (!srh) {
+			err = -ENOMEM;
+			goto drop;
+		}
 		break;
 	case SEG6_LOCAL_FLV_ACT_PSP:
-		advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+		srh = advance_nextseg(skb, srh, &reason);
+		if (!srh) {
+			err = -ENOMEM;
+			goto drop;
+		}
 
 		if (unlikely(!seg6_pop_srh(skb, srhoff)))
 			goto drop;
@@ -807,8 +885,8 @@ static int end_flv8986_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	return input_action_end_finish(skb, slwt);
 
 drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	kfree_skb_reason(skb, reason);
+	return err;
 }
 
 /* regular endpoint function */
@@ -847,21 +925,27 @@ static int input_action_end_x(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 static int input_action_end_t(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	struct ipv6_sr_hdr *srh;
+	int err = -EINVAL;
 
 	srh = get_and_validate_srh(skb);
 	if (!srh)
 		goto drop;
 
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+	srh = advance_nextseg(skb, srh, &reason);
+	if (!srh) {
+		err = -ENOMEM;
+		goto drop;
+	}
 
 	seg6_lookup_nexthop(skb, NULL, slwt->table);
 
 	return dst_input(skb);
 
 drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	kfree_skb_reason(skb, reason);
+	return err;
 }
 
 /* decapsulate and forward inner L2 frame on specified interface */
@@ -1375,6 +1459,7 @@ drop:
 static int input_action_end_b6_encap(struct sk_buff *skb,
 				     struct seg6_local_lwt *slwt)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	struct ipv6_sr_hdr *srh;
 	int err = -EINVAL;
 
@@ -1382,7 +1467,11 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	if (!srh)
 		goto drop;
 
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+	srh = advance_nextseg(skb, srh, &reason);
+	if (!srh) {
+		err = -ENOMEM;
+		goto drop;
+	}
 
 	skb_reset_inner_headers(skb);
 	skb->encapsulation = 1;
@@ -1398,7 +1487,7 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	return dst_input(skb);
 
 drop:
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 	return err;
 }
 
@@ -1434,6 +1523,7 @@ static int input_action_end_bpf(struct sk_buff *skb,
 				struct seg6_local_lwt *slwt)
 {
 	struct seg6_bpf_srh_state *srh_state;
+	enum skb_drop_reason reason;
 	struct ipv6_sr_hdr *srh;
 	int ret;
 
@@ -1442,7 +1532,11 @@ static int input_action_end_bpf(struct sk_buff *skb,
 		kfree_skb(skb);
 		return -EINVAL;
 	}
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+	srh = advance_nextseg(skb, srh, &reason);
+	if (!srh) {
+		kfree_skb_reason(skb, reason);
+		return -ENOMEM;
+	}
 
 	/* The access to the per-CPU buffer srh_state is protected by running
 	 * always in softirq context (with disabled BH). On PREEMPT_RT the

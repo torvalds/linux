@@ -1589,7 +1589,7 @@ fail_start:
 
 	/* Signal listener thread to stop and wait for it */
 	if (linfo.stop_efd >= 0) {
-		write(linfo.stop_efd, &stop_val, sizeof(stop_val));
+		(void)!write(linfo.stop_efd, &stop_val, sizeof(stop_val));
 		pthread_join(listener, NULL);
 		close(linfo.stop_efd);
 		ublk_shmem_sock_destroy(dinfo->dev_id, linfo.sock_fd);

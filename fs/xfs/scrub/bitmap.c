@@ -122,8 +122,8 @@ xbitmap64_set(
 	uint64_t		start,
 	uint64_t		len)
 {
-	struct xbitmap64_node	*left;
-	struct xbitmap64_node	*right;
+	struct xbitmap64_node	*left = NULL;
+	struct xbitmap64_node	*right = NULL;
 	uint64_t		last = start + len - 1;
 	int			error;
 
@@ -131,6 +131,7 @@ xbitmap64_set(
 	left = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last);
 	if (left && left->bn_start <= start && left->bn_last >= last)
 		return 0;
+	left = NULL;
 
 	/* Clear out everything in the range we want to set. */
 	error = xbitmap64_clear(bitmap, start, len);
@@ -138,11 +139,15 @@ xbitmap64_set(
 		return error;
 
 	/* Do we have a left-adjacent extent? */
-	left = xbitmap64_tree_iter_first(&bitmap->xb_root, start - 1, start - 1);
+	if (start > 0)
+		left = xbitmap64_tree_iter_first(&bitmap->xb_root, start - 1,
+				start - 1);
 	ASSERT(!left || left->bn_last + 1 == start);
 
 	/* Do we have a right-adjacent extent? */
-	right = xbitmap64_tree_iter_first(&bitmap->xb_root, last + 1, last + 1);
+	if (last < U64_MAX)
+		right = xbitmap64_tree_iter_first(&bitmap->xb_root, last + 1,
+				last + 1);
 	ASSERT(!right || right->bn_start == last + 1);
 
 	if (left && right) {
@@ -397,8 +402,8 @@ xbitmap32_set(
 	uint32_t		start,
 	uint32_t		len)
 {
-	struct xbitmap32_node	*left;
-	struct xbitmap32_node	*right;
+	struct xbitmap32_node	*left = NULL;
+	struct xbitmap32_node	*right = NULL;
 	uint32_t		last = start + len - 1;
 	int			error;
 
@@ -406,6 +411,7 @@ xbitmap32_set(
 	left = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last);
 	if (left && left->bn_start <= start && left->bn_last >= last)
 		return 0;
+	left = NULL;
 
 	/* Clear out everything in the range we want to set. */
 	error = xbitmap32_clear(bitmap, start, len);
@@ -413,11 +419,15 @@ xbitmap32_set(
 		return error;
 
 	/* Do we have a left-adjacent extent? */
-	left = xbitmap32_tree_iter_first(&bitmap->xb_root, start - 1, start - 1);
+	if (start > 0)
+		left = xbitmap32_tree_iter_first(&bitmap->xb_root, start - 1,
+				start - 1);
 	ASSERT(!left || left->bn_last + 1 == start);
 
 	/* Do we have a right-adjacent extent? */
-	right = xbitmap32_tree_iter_first(&bitmap->xb_root, last + 1, last + 1);
+	if (last < U32_MAX)
+		right = xbitmap32_tree_iter_first(&bitmap->xb_root, last + 1,
+				last + 1);
 	ASSERT(!right || right->bn_start == last + 1);
 
 	if (left && right) {

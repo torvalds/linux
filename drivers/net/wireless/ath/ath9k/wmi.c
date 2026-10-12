@@ -146,6 +146,12 @@ void ath9k_wmi_event_tasklet(struct tasklet_struct *t)
 	unsigned long flags;
 	u16 cmd_id;
 
+	/* Check if ath9k_init_device() completed. */
+	if (!smp_load_acquire(&priv->initialized)) {
+		tasklet_schedule(t);
+		return;
+	}
+
 	do {
 		spin_lock_irqsave(&wmi->wmi_lock, flags);
 		skb = __skb_dequeue(&wmi->wmi_event_queue);
@@ -154,12 +160,6 @@ void ath9k_wmi_event_tasklet(struct tasklet_struct *t)
 			return;
 		}
 		spin_unlock_irqrestore(&wmi->wmi_lock, flags);
-
-		/* Check if ath9k_htc_probe_device() completed. */
-		if (!data_race(priv->initialized)) {
-			kfree_skb(skb);
-			continue;
-		}
 
 		hdr = (struct wmi_cmd_hdr *) skb->data;
 		cmd_id = be16_to_cpu(hdr->command_id);
@@ -206,9 +206,16 @@ static void ath9k_wmi_rsp_callback(struct wmi *wmi, struct sk_buff *skb)
 {
 	skb_pull(skb, sizeof(struct wmi_cmd_hdr));
 
-	if (wmi->cmd_rsp_buf != NULL && wmi->cmd_rsp_len != 0)
+	if (wmi->cmd_rsp_buf && wmi->cmd_rsp_len) {
+		if (skb->len < wmi->cmd_rsp_len) {
+			wmi->cmd_rsp_status = -EMSGSIZE;
+			goto complete;
+		}
 		memcpy(wmi->cmd_rsp_buf, skb->data, wmi->cmd_rsp_len);
+	}
+	wmi->cmd_rsp_status = 0;
 
+complete:
 	complete(&wmi->cmd_wait);
 }
 
@@ -300,6 +307,7 @@ static int ath9k_wmi_cmd_issue(struct wmi *wmi,
 	/* record the rsp buffer and length */
 	wmi->cmd_rsp_buf = rsp_buf;
 	wmi->cmd_rsp_len = rsp_len;
+	wmi->cmd_rsp_status = 0;
 
 	wmi->last_seq_id = wmi->tx_seq_id;
 	spin_unlock_irqrestore(&wmi->wmi_lock, flags);
@@ -356,9 +364,13 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 		return -ETIMEDOUT;
 	}
 
+	spin_lock_irqsave(&wmi->wmi_lock, flags);
+	ret = wmi->cmd_rsp_status;
+	spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+
 	mutex_unlock(&wmi->op_mutex);
 
-	return 0;
+	return ret;
 
 out:
 	ath_dbg(common, WMI, "WMI failure for: %s\n", wmi_cmd_to_name(cmd_id));

@@ -24,7 +24,7 @@ struct thread_info {
 
 /* thread information allocation */
 
-#ifdef CONFIG_IRQSTACKS
+#if defined(CONFIG_IRQSTACKS) && !defined(CONFIG_64BIT)
 #define THREAD_SIZE_ORDER	2 /* PA-RISC requires at least 16k stack */
 #else
 #define THREAD_SIZE_ORDER	3 /* PA-RISC requires at least 32k stack */

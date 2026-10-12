@@ -121,7 +121,8 @@ FIXTURE_SETUP(trace_fs)
 	}
 	self->tracefs_ok = 1;
 
-	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_FS_ENABLE, true));
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE,
+					  true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_DENY_ACCESS_FS_ENABLE, true));
 	ASSERT_EQ(0, tracefs_clear());
@@ -134,7 +135,7 @@ FIXTURE_TEARDOWN(trace_fs)
 		return;
 
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	tracefs_enable_event(TRACEFS_ADD_RULE_FS_ENABLE, false);
+	tracefs_enable_event(TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE, false);
 	tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, false);
 	tracefs_enable_event(TRACEFS_DENY_ACCESS_FS_ENABLE, false);
 	tracefs_fixture_teardown();
@@ -183,11 +184,11 @@ TEST_F(trace_fs, unsandboxed)
 }
 
 /*
- * Verifies that adding a filesystem rule emits a landlock_add_rule_fs trace
- * event with the expected path and field values: ruleset ID is non-zero,
- * access_rights is non-zero, and path matches.
+ * Verifies that adding a filesystem rule emits a landlock_add_rule_path_beneath
+ * event with the expected path and field values: the ruleset ID and
+ * access_rights are non-zero, and the path matches.
  */
-TEST_F(trace_fs, add_rule_fs)
+TEST_F(trace_fs, add_rule_path_beneath)
 {
 	struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE |
@@ -215,28 +216,30 @@ TEST_F(trace_fs, add_rule_fs)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	count = tracefs_count_matches(buf, REGEX_ADD_RULE_FS(TRACE_TASK));
+	count = tracefs_count_matches(buf,
+				      REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK));
 	EXPECT_EQ(1, count)
 	{
-		TH_LOG("Expected 1 add_rule_fs event, got %d\n%s", count, buf);
+		TH_LOG("Expected 1 add_rule_path_beneath event, got %d\n%s",
+		       count, buf);
 	}
 
 	/* Ruleset ID should be non-zero. */
-	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
-					   "ruleset", field_buf,
-					   sizeof(field_buf)));
+	ASSERT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK),
+			     "ruleset", field_buf, sizeof(field_buf)));
 	EXPECT_STRNE("0", field_buf);
 
 	/* Access rights should be non-zero. */
-	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
-					   "access_rights", field_buf,
-					   sizeof(field_buf)));
+	ASSERT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK),
+			     "access_rights", field_buf, sizeof(field_buf)));
 	EXPECT_STRNE("", field_buf);
 
 	/* Path should be /usr. */
-	ASSERT_EQ(0,
-		  tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
-					"path", field_buf, sizeof(field_buf)));
+	ASSERT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK),
+			     "path", field_buf, sizeof(field_buf)));
 	EXPECT_STREQ("/usr", field_buf);
 
 	free(buf);
@@ -246,7 +249,7 @@ TEST_F(trace_fs, add_rule_fs)
  * Verifies that a path whose escaping exceeds the trace scratch sequence does
  * not corrupt a sibling symbolic field.
  */
-TEST_F(trace_fs, add_rule_fs_escaped_path_overflow)
+TEST_F(trace_fs, add_rule_path_beneath_escaped_path_overflow)
 {
 	static const char access_prefix[] = "execute|write_file|read_file|";
 	static const char access_suffix[] = "|ioctl_dev|resolve_unix";
@@ -277,10 +280,12 @@ TEST_F(trace_fs, add_rule_fs_escaped_path_overflow)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	count = tracefs_count_matches(buf, REGEX_ADD_RULE_FS(TRACE_TASK));
+	count = tracefs_count_matches(buf,
+				      REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK));
 	EXPECT_EQ(1, count)
 	{
-		TH_LOG("Expected 1 add_rule_fs event, got %d\n%s", count, buf);
+		TH_LOG("Expected 1 add_rule_path_beneath event, got %d\n%s",
+		       count, buf);
 	}
 
 	/*
@@ -288,9 +293,9 @@ TEST_F(trace_fs, add_rule_fs_escaped_path_overflow)
 	 * field also catches scratch-sequence poisoning when the compiler
 	 * evaluates the overflowing path first, as GCC currently does.
 	 */
-	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
-					   "access_rights", field_buf,
-					   sizeof(field_buf)));
+	ASSERT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK),
+			     "access_rights", field_buf, sizeof(field_buf)));
 	EXPECT_EQ(0,
 		  strncmp(field_buf, access_prefix, sizeof(access_prefix) - 1));
 	EXPECT_EQ(NULL, strstr(field_buf, "|refer|"));
@@ -298,7 +303,8 @@ TEST_F(trace_fs, add_rule_fs_escaped_path_overflow)
 	ASSERT_LE(sizeof(access_suffix) - 1, field_len);
 	EXPECT_STREQ(access_suffix,
 		     field_buf + field_len - (sizeof(access_suffix) - 1));
-	expect_truncated_path(_metadata, buf, REGEX_ADD_RULE_FS(TRACE_TASK));
+	expect_truncated_path(_metadata, buf,
+			      REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK));
 
 	free(buf);
 }
@@ -542,7 +548,8 @@ TEST_F(trace_fs, check_rule_nested)
  */
 TEST_F(trace_fs, deny_access_fs_denied)
 {
-	char *buf;
+	const char *const event_regex = REGEX_DENY_ACCESS_FS(TRACE_TASK);
+	char *buf, blockers[64];
 	int count;
 
 	ASSERT_EQ(0, tracefs_clear_buf());
@@ -558,8 +565,77 @@ TEST_F(trace_fs, deny_access_fs_denied)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	count = tracefs_count_matches(buf, REGEX_DENY_ACCESS_FS(TRACE_TASK));
-	EXPECT_LE(1, count);
+	count = tracefs_count_matches(buf, event_regex);
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 access denial, got %d\n%s", count, buf);
+	}
+	ASSERT_EQ(0, tracefs_extract_field(buf, event_regex, "blockers",
+					   blockers, sizeof(blockers)));
+	EXPECT_STREQ("read_dir", blockers);
+
+	free(buf);
+}
+
+/*
+ * Verifies that a denied mount reports the singleton topology blocker rather
+ * than an empty access mask.
+ */
+TEST_F(trace_fs, deny_change_topology)
+{
+	const char *const event_regex = REGEX_DENY_ACCESS_FS(TRACE_TASK);
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_REFER,
+	};
+	char *buf, blockers[64];
+	int count, ruleset_fd, status;
+	pid_t pid;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	ASSERT_EQ(0, tracefs_clear_buf());
+
+	/* Ensure that Landlock is the only expected mount denial. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	pid = fork();
+	ASSERT_LE(0, pid);
+	if (pid == 0) {
+		if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+			close(ruleset_fd);
+			_exit(1);
+		}
+		if (landlock_restrict_self(ruleset_fd, 0)) {
+			close(ruleset_fd);
+			_exit(2);
+		}
+		close(ruleset_fd);
+
+		if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, NULL) != -1)
+			_exit(3);
+
+		if (errno != EPERM)
+			_exit(4);
+
+		_exit(0);
+	}
+	close(ruleset_fd);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+	count = tracefs_count_matches(buf, event_regex);
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 topology denial, got %d\n%s", count, buf);
+	}
+	ASSERT_EQ(0, tracefs_extract_field(buf, event_regex, "blockers",
+					   blockers, sizeof(blockers)));
+	EXPECT_STREQ("change_topology", blockers);
 
 	free(buf);
 }

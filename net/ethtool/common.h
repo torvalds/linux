@@ -163,6 +163,8 @@ ethtool_ioctl_needs_rtnl(const struct net_device *dev, u32 ethcmd)
 		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_RSS;
 	case ETHTOOL_GLINK:
 		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_GLINK;
+	case ETHTOOL_TEST:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_TEST;
 	}
 	return false;
 }

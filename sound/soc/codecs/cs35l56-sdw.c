@@ -265,11 +265,11 @@ static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
 	if (ret == 0)
 		prop->clk_stop_mode1 = !!clock_stop_1;
 
-	ports = devm_kcalloc(cs35l56->base.dev, 2, sizeof(*ports), GFP_KERNEL);
+	ports = devm_kcalloc(cs35l56->base.dev, 3, sizeof(*ports), GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;
 
-	prop->source_ports = BIT(CS35L56_SDW1_CAPTURE_PORT);
+	prop->source_ports = BIT(CS35L56_SDW1_CAPTURE_PORT) | BIT(CS35L56_OT25_CAPTURE_PORT);
 	prop->sink_ports = BIT(CS35L56_SDW1_PLAYBACK_PORT);
 	prop->paging_support = true;
 	prop->use_domain_irq = true;
@@ -286,6 +286,11 @@ static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
 	ports[1].num = CS35L56_SDW1_CAPTURE_PORT;
 	ports[1].type = SDW_DPN_FULL;
 	ports[1].ch_prep_timeout = 10;
+
+	/* DP4 - capture */
+	ports[2].num = CS35L56_OT25_CAPTURE_PORT;
+	ports[2].type = SDW_DPN_FULL;
+	ports[2].ch_prep_timeout = 10;
 	prop->src_dpn_prop = &ports[1];
 
 	dev_dbg(&peripheral->dev, "clock stop mode 1 supported: %s\n",
