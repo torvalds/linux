@@ -510,7 +510,7 @@ xrep_rtrefc_find_refcounts(
 out_bag:
 	rcbag_free(&rcstack);
 out_cur:
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 	return error;
 }
 

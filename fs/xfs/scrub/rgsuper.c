@@ -65,7 +65,7 @@ xchk_rgsuperblock(
 	 * signal that the group no longer exists.  Take the rtbitmap in shared
 	 * mode so that the group can't change while we're doing things.
 	 */
-	error = xchk_rtgroup_init_existing(sc, rgno, &sc->sr);
+	error = xchk_rtgroup_init_existing(sc, rgno);
 	if (!xchk_xref_process_error(sc, 0, 0, &error))
 		return error;
 
@@ -74,7 +74,7 @@ xchk_rgsuperblock(
 	else
 		flags = XFS_RTGLOCK_BITMAP_SHARED;
 
-	error = xchk_rtgroup_lock(sc, &sc->sr, flags);
+	error = xchk_rtgroup_lock(sc, flags);
 	if (error)
 		return error;
 

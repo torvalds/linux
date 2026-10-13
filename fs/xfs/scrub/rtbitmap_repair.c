@@ -357,7 +357,7 @@ xrep_rtbitmap_find_freespace(
 	}
 
 out:
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 	return error;
 }
 

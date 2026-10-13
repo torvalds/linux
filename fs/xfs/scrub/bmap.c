@@ -329,13 +329,12 @@ xchk_bmap_rt_iextent_xref(
 	int			error;
 
 	error = xchk_rtgroup_init_existing(info->sc,
-			xfs_rtb_to_rgno(ip->i_mount, irec->br_startblock),
-			&info->sc->sr);
+			xfs_rtb_to_rgno(ip->i_mount, irec->br_startblock));
 	if (!xchk_fblock_process_error(info->sc, info->whichfork,
 			irec->br_startoff, &error))
 		return;
 
-	error = xchk_rtgroup_lock(info->sc, &info->sc->sr, XCHK_RTGLOCK_ALL);
+	error = xchk_rtgroup_lock(info->sc, XCHK_RTGLOCK_ALL);
 	if (!xchk_fblock_process_error(info->sc, info->whichfork,
 			irec->br_startoff, &error))
 		goto out_free;
@@ -373,9 +372,9 @@ xchk_bmap_rt_iextent_xref(
 		break;
 	}
 out_cur:
-	xchk_rtgroup_btcur_free(&info->sc->sr);
+	xchk_rtgroup_btcur_free(info->sc);
 out_free:
-	xchk_rtgroup_free(info->sc, &info->sc->sr);
+	xchk_rtgroup_free(info->sc);
 }
 
 /* Cross-reference a single datadev extent record. */

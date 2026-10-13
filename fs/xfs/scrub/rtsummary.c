@@ -54,7 +54,7 @@ xchk_setup_rtsummary(
 		return -ENOMEM;
 	sc->buf = rts;
 
-	error = xchk_rtgroup_init(sc, sc->sm->sm_agno, &sc->sr);
+	error = xchk_rtgroup_init(sc, sc->sm->sm_agno);
 	if (error)
 		return error;
 
@@ -85,7 +85,7 @@ xchk_setup_rtsummary(
 	if (error)
 		return error;
 
-	error = xchk_rtgroup_lock(sc, &sc->sr, XFS_RTGLOCK_BITMAP);
+	error = xchk_rtgroup_lock(sc, XFS_RTGLOCK_BITMAP);
 	if (error)
 		return error;
 

@@ -230,7 +230,7 @@ xchk_teardown(
 	int			error)
 {
 	xchk_ag_free(sc);
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 
 	if (sc->tp) {
 		if (error == 0 && (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
@@ -240,7 +240,7 @@ xchk_teardown(
 		sc->tp = NULL;
 	}
 	if (sc->sr.rtg)
-		xchk_rtgroup_free(sc, &sc->sr);
+		xchk_rtgroup_free(sc);
 	if (sc->ip) {
 		if (sc->ilock_flags)
 			xchk_iunlock(sc, sc->ilock_flags);

@@ -822,8 +822,8 @@ xrep_dinode_count_rtgroup_rmaps(
 
 	error = xfs_rmap_query_all(sc->sr.rmap_cur, xrep_dinode_walk_rtrmap,
 			ri);
-	xchk_rtgroup_btcur_free(&sc->sr);
-	xchk_rtgroup_free(sc, &sc->sr);
+	xchk_rtgroup_btcur_free(sc);
+	xchk_rtgroup_free(sc);
 	return error;
 }
 

@@ -556,7 +556,7 @@ xrep_rtrmap_find_rmaps(
 	/* Find CoW staging extents. */
 	xrep_rtgroup_btcur_init(sc);
 	error = xrep_rtrmap_find_refcount_rmaps(rr);
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 	if (error)
 		return error;
 
@@ -576,7 +576,7 @@ xrep_rtrmap_find_rmaps(
 	 * do not take sb_internal.
 	 */
 	xchk_trans_cancel(sc);
-	xchk_rtgroup_unlock(&sc->sr);
+	xchk_rtgroup_unlock(sc);
 	xchk_trans_alloc_empty(sc);
 
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
@@ -600,7 +600,7 @@ xrep_rtrmap_find_rmaps(
 	error = xchk_setup_rt(sc);
 	if (error)
 		return error;
-	error = xchk_rtgroup_lock(sc, &sc->sr, XCHK_RTGLOCK_ALL);
+	error = xchk_rtgroup_lock(sc, XCHK_RTGLOCK_ALL);
 	if (error)
 		return error;
 

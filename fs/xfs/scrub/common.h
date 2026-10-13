@@ -135,32 +135,29 @@ xchk_ag_init_existing(
 				 XFS_RTGLOCK_RMAP | \
 				 XFS_RTGLOCK_REFCOUNT)
 
-int xchk_rtgroup_init(struct xfs_scrub *sc, xfs_rgnumber_t rgno,
-		struct xchk_rt *sr);
+int xchk_rtgroup_init(struct xfs_scrub *sc, xfs_rgnumber_t rgno);
 
 static inline int
 xchk_rtgroup_init_existing(
 	struct xfs_scrub	*sc,
-	xfs_rgnumber_t		rgno,
-	struct xchk_rt		*sr)
+	xfs_rgnumber_t		rgno)
 {
-	int			error = xchk_rtgroup_init(sc, rgno, sr);
+	int			error = xchk_rtgroup_init(sc, rgno);
 
 	return error == -ENOENT ? -EFSCORRUPTED : error;
 }
 
-int xchk_rtgroup_lock(struct xfs_scrub *sc, struct xchk_rt *sr,
-		unsigned int rtglock_flags);
-void xchk_rtgroup_unlock(struct xchk_rt *sr);
-void xchk_rtgroup_btcur_free(struct xchk_rt *sr);
-void xchk_rtgroup_free(struct xfs_scrub *sc, struct xchk_rt *sr);
+int xchk_rtgroup_lock(struct xfs_scrub *sc, unsigned int rtglock_flags);
+void xchk_rtgroup_unlock(struct xfs_scrub *sc);
+void xchk_rtgroup_btcur_free(struct xfs_scrub *sc);
+void xchk_rtgroup_free(struct xfs_scrub *sc);
 #else
-# define xchk_rtgroup_init(sc, rgno, sr)		(-EFSCORRUPTED)
-# define xchk_rtgroup_init_existing(sc, rgno, sr)	(-EFSCORRUPTED)
-# define xchk_rtgroup_lock(sc, sr, lockflags)		(-EFSCORRUPTED)
-# define xchk_rtgroup_unlock(sr)			do { } while (0)
-# define xchk_rtgroup_btcur_free(sr)			do { } while (0)
-# define xchk_rtgroup_free(sc, sr)			do { } while (0)
+# define xchk_rtgroup_init(sc, rgno)			(-EFSCORRUPTED)
+# define xchk_rtgroup_init_existing(sc, rgno)		(-EFSCORRUPTED)
+# define xchk_rtgroup_lock(sc, lockflags)		(-EFSCORRUPTED)
+# define xchk_rtgroup_unlock(sc)			do { } while (0)
+# define xchk_rtgroup_btcur_free(sc)			do { } while (0)
+# define xchk_rtgroup_free(sc)				do { } while (0)
 #endif /* CONFIG_XFS_RT */
 
 int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno);

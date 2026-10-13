@@ -433,8 +433,8 @@ xrep_cow_find_bad_rt(
 				xc->irec.br_blockcount);
 
 out_sr:
-	xchk_rtgroup_btcur_free(&sc->sr);
-	xchk_rtgroup_free(sc, &sc->sr);
+	xchk_rtgroup_btcur_free(sc);
+	xchk_rtgroup_free(sc);
 out_rtg:
 	xfs_rtgroup_put(rtg);
 	return error;
