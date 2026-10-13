@@ -5952,11 +5952,12 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	/* Xmit ELS RJT <err> response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0129 Xmit ELS RJT x%x response tag x%x "
-			 "xri x%x, did x%x, nlp_flag x%lx, nlp_state x%x, "
-			 "rpi x%x\n",
+			 "xri x%x, ndlp x%px, did x%x, nlp_flag x%lx, "
+			 "nlp_state x%x, rpi x%x ref_cnt %d\n",
 			 rejectError, elsiocb->iotag,
-			 get_job_ulpcontext(phba, elsiocb), ndlp->nlp_DID,
-			 ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+			 get_job_ulpcontext(phba, elsiocb), ndlp,
+			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
+			 ndlp->nlp_rpi, kref_read(&ndlp->kref));
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue LS_RJT:    did:x%x flg:x%lx err:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rejectError);
@@ -10457,6 +10458,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		      struct lpfc_vport *vport, struct lpfc_iocbq *elsiocb)
 {
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *alloc_ndlp = NULL;
 	struct ls_rjt stat;
 	u32 *payload, payload_len;
 	u32 cmd = 0, did = 0, newnode, status = 0;
@@ -10555,7 +10557,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 
 		phba->fc_stat.elsRcvPLOGI++;
+		alloc_ndlp = ndlp;
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
+
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    test_bit(FC_PT2PT, &phba->pport->fc_flag)) {
 			vport->fc_prevDID = vport->fc_myDID;
@@ -10871,13 +10875,28 @@ lsrjt:
 		stat.un.b.lsRjtRsnCodeExp = rjt_exp;
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, elsiocb, ndlp,
 				    NULL);
-		/* Remove the reference from above for new nodes. */
-		if (newnode)
-			lpfc_disc_state_machine(vport, ndlp, NULL,
-					NLP_EVT_DEVICE_RM);
+
+		/* Remove the safety reference from routine start. */
+		if (newnode) {
+			/* alloc_ndlp is assigned for an unsolicited PLOGI from
+			 * the ndlp allocated by this routine. The routine
+			 * lpfc_plogi_confirm_nport may have swapped the initial
+			 * ndlp to an existing ndlp. In that case, alloc_ndlp
+			 * is the pre-swap ndlp that needs a DEVICE_RM because
+			 * it is the newnode. For all other paths to lsrjt
+			 * (non-PLOGI ELS) that were rejected by the early
+			 * port_state check, alloc_ndlp is NULL and ndlp is
+			 * still the originally allocated node.
+			 */
+			lpfc_disc_state_machine(vport,
+						alloc_ndlp ? alloc_ndlp : ndlp,
+						NULL, NLP_EVT_DEVICE_RM);
+		}
 	}
 
-	/* Release the reference on this elsiocb, not the ndlp. */
+	/* This elsiocb is not the IOCB issued for a response. Remove
+	 * the safety reference allocated earlier.
+	 */
 	lpfc_nlp_put(elsiocb->ndlp);
 	elsiocb->ndlp = NULL;
 
