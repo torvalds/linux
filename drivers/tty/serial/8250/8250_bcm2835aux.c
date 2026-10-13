@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/console.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -50,12 +51,12 @@
 /**
  * struct bcm2835aux_data - driver private data of BCM2835 auxiliary UART
  * @clk: clock producer of the port's uartclk
- * @line: index of the port's serial8250_ports[] entry
+ * @uport: the underlying uart_8250_port
  * @cntl: cached copy of CNTL register
  */
 struct bcm2835aux_data {
 	struct clk *clk;
-	int line;
+	struct uart_8250_port *uport;
 	u32 cntl;
 };
 
@@ -316,12 +317,12 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	up.port.uartclk *= 2;
 
 	/* register the port */
-	ret = serial8250_register_8250_port(&up);
-	if (ret < 0) {
+	data->uport = serial8250_register_8250_port(&up);
+	if (IS_ERR(data->uport)) {
+		ret = PTR_ERR(data->uport);
 		dev_err_probe(&pdev->dev, ret, "unable to register 8250 port\n");
 		goto dis_clk;
 	}
-	data->line = ret;
 
 	return 0;
 
@@ -336,7 +337,7 @@ static void bcm2835aux_serial_remove(struct platform_device *pdev)
 {
 	struct bcm2835aux_data *data = platform_get_drvdata(pdev);
 
-	serial8250_unregister_port(data->line);
+	serial8250_unregister_port(data->uport);
 	clk_disable_unprepare(data->clk);
 	device_remove_software_node(&pdev->dev);
 }
@@ -376,12 +377,11 @@ MODULE_DEVICE_TABLE(acpi, bcm2835aux_serial_acpi_match);
 static bool bcm2835aux_can_disable_clock(struct device *dev)
 {
 	struct bcm2835aux_data *data = dev_get_drvdata(dev);
-	struct uart_8250_port *up = serial8250_get_port(data->line);
 
 	if (device_may_wakeup(dev))
 		return false;
 
-	if (uart_console(&up->port) && !console_suspend_enabled)
+	if (uart_console(&data->uport->port) && !console_suspend_enabled)
 		return false;
 
 	return true;
@@ -391,7 +391,7 @@ static int bcm2835aux_suspend(struct device *dev)
 {
 	struct bcm2835aux_data *data = dev_get_drvdata(dev);
 
-	serial8250_suspend_port(data->line);
+	serial8250_suspend_port(data->uport);
 
 	if (!bcm2835aux_can_disable_clock(dev))
 		return 0;
@@ -411,7 +411,7 @@ static int bcm2835aux_resume(struct device *dev)
 			return ret;
 	}
 
-	serial8250_resume_port(data->line);
+	serial8250_resume_port(data->uport);
 
 	return 0;
 }

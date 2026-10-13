@@ -337,7 +337,7 @@ struct ptp_ocp_signal {
 };
 
 struct ptp_ocp_serial_port {
-	int line;
+	struct uart_8250_port *uport;
 	int baud;
 };
 
@@ -2538,7 +2538,7 @@ out:
 	return err;
 }
 
-static int
+static struct uart_8250_port *
 ptp_ocp_serial_line(struct ptp_ocp *bp, struct ocp_resource *r)
 {
 	struct pci_dev *pdev = bp->pdev;
@@ -2566,9 +2566,11 @@ ptp_ocp_register_serial(struct ptp_ocp *bp, struct ocp_resource *r)
 	struct ptp_ocp_serial_port *p = (struct ptp_ocp_serial_port *)r->extra;
 	struct ptp_ocp_serial_port port = {};
 
-	port.line = ptp_ocp_serial_line(bp, r);
-	if (port.line < 0)
-		return port.line;
+	struct uart_8250_port *uport = ptp_ocp_serial_line(bp, r);
+	if (IS_ERR(uport))
+		return PTR_ERR(uport);
+
+	port.uport = uport;
 
 	if (p)
 		port.baud = p->baud;
@@ -3711,7 +3713,7 @@ ptp_ocp_tty_show(struct device *dev, struct device_attribute *attr, char *buf)
 	 * as a device path (e.g., "/dev/ttyS4"), and adding a newline would
 	 * break those applications. Do not add a newline to this output.
 	 */
-	return sysfs_emit(buf, "ttyS%d", bp->port[(uintptr_t)ea->var].line);
+	return sysfs_emit(buf, "ttyS%d", bp->port[(uintptr_t)ea->var].uport->port.line);
 }
 
 static umode_t
@@ -3728,7 +3730,7 @@ ptp_ocp_timecard_tty_is_visible(struct kobject *kobj, struct attribute *attr, in
 	dattr = container_of(attr, struct device_attribute, attr);
 	ea = container_of(dattr, struct dev_ext_attribute, attr);
 	port = &bp->port[(uintptr_t)ea->var];
-	return port->line == -1 ? 0 : 0444;
+	return port->uport ? 0444 : 0;
 }
 
 #define EXT_TTY_ATTR_RO(_name, _val)			\
@@ -4405,9 +4407,9 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 
 	seq_printf(s, "%7s: /dev/ptp%d\n", "PTP", ptp_clock_index(bp->ptp));
 	for (i = 0; i < __PORT_COUNT; i++) {
-		if (bp->port[i].line != -1)
+		if (bp->port[i].uport)
 			seq_printf(s, "%7s: /dev/ttyS%d\n", ptp_ocp_tty_port_name(i),
-				   bp->port[i].line);
+				   bp->port[i].uport->port.line);
 	}
 
 	memset(sma_val, 0xff, sizeof(sma_val));
@@ -4731,7 +4733,7 @@ ptp_ocp_device_init(struct ptp_ocp *bp, struct pci_dev *pdev)
 	spin_lock_init(&bp->lock);
 
 	for (i = 0; i < __PORT_COUNT; i++)
-		bp->port[i].line = -1;
+		bp->port[i].uport = NULL;
 
 	bp->pdev = pdev;
 
@@ -4820,10 +4822,10 @@ ptp_ocp_phc_info(struct ptp_ocp *bp)
 }
 
 static void
-ptp_ocp_serial_info(struct device *dev, const char *name, int port, int baud)
+ptp_ocp_serial_info(struct device *dev, const char *name, struct uart_8250_port *port, int baud)
 {
-	if (port != -1)
-		dev_info(dev, "%5s: /dev/ttyS%-2d @ %6d\n", name, port, baud);
+	if (port)
+		dev_info(dev, "%5s: /dev/ttyS%-2d @ %6d\n", name, port->port.line, baud);
 }
 
 static void
@@ -4841,14 +4843,14 @@ ptp_ocp_info(struct ptp_ocp *bp)
 	ptp_ocp_phc_info(bp);
 
 	for (i = 0; i < __PORT_COUNT; i++) {
-		if (i == PORT_NMEA && bp->nmea_out && bp->port[PORT_NMEA].line != -1) {
+		if (i == PORT_NMEA && bp->nmea_out && bp->port[PORT_NMEA].uport) {
 			bp->port[PORT_NMEA].baud = -1;
 
 			reg = ioread32(&bp->nmea_out->uart_baud);
 			if (reg < ARRAY_SIZE(nmea_baud))
 				bp->port[PORT_NMEA].baud = nmea_baud[reg];
 		}
-		ptp_ocp_serial_info(dev, ptp_ocp_tty_port_name(i), bp->port[i].line,
+		ptp_ocp_serial_info(dev, ptp_ocp_tty_port_name(i), bp->port[i].uport,
 				    bp->port[i].baud);
 	}
 }
@@ -4896,8 +4898,8 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 	for (i = 0; i < 4; i++)
 		ptp_ocp_unregister_ext(bp->signal_out[i]);
 	for (i = 0; i < __PORT_COUNT; i++)
-		if (bp->port[i].line != -1)
-			serial8250_unregister_port(bp->port[i].line);
+		if (bp->port[i].uport)
+			serial8250_unregister_port(bp->port[i].uport);
 	platform_device_unregister(bp->spi_flash);
 	platform_device_unregister(bp->i2c_ctrl);
 	if (bp->i2c_clk)

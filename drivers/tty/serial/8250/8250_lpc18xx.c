@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -29,7 +30,7 @@ struct lpc18xx_uart_data {
 	struct uart_8250_dma dma;
 	struct clk *clk_uart;
 	struct clk *clk_reg;
-	int line;
+	struct uart_8250_port *uport;
 };
 
 static int lpc18xx_rs485_config(struct uart_port *port, struct ktermios *termios,
@@ -160,13 +161,13 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 	uart.dma->rxconf.src_maxburst = 1;
 	uart.dma->txconf.dst_maxburst = 1;
 
-	ret = serial8250_register_8250_port(&uart);
-	if (ret < 0) {
+	data->uport = serial8250_register_8250_port(&uart);
+	if (IS_ERR(data->uport)) {
+		ret = PTR_ERR(data->uport);
 		dev_err(&pdev->dev, "unable to register 8250 port\n");
 		goto dis_uart_clk;
 	}
 
-	data->line = ret;
 	platform_set_drvdata(pdev, data);
 
 	return 0;
@@ -182,7 +183,7 @@ static void lpc18xx_serial_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_uart_data *data = platform_get_drvdata(pdev);
 
-	serial8250_unregister_port(data->line);
+	serial8250_unregister_port(data->uport);
 	clk_disable_unprepare(data->clk_uart);
 	clk_disable_unprepare(data->clk_reg);
 }

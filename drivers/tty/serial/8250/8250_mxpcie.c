@@ -9,6 +9,7 @@
 #include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -102,7 +103,7 @@
 #define MOXA_ODD_RS_MASK	GENMASK(7, 4)
 
 struct mxpcie8250_port {
-	int line;
+	struct uart_8250_port *uport;
 	u8 rx_trig_level;
 };
 
@@ -572,12 +573,12 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 		dev_dbg(dev, "Setup PCI port: port %lx, irq %d, type %d\n",
 			up.port.iobase, up.port.irq, up.port.iotype);
 
-		priv->port[i].line = serial8250_register_8250_port(&up);
-		if (priv->port[i].line < 0) {
+		priv->port[i].uport = serial8250_register_8250_port(&up);
+		if (IS_ERR(priv->port[i].uport)) {
 			dev_err(dev,
-				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
+				"Couldn't register serial port %lx, irq %d, type %d, error %pe\n",
 				up.port.iobase, up.port.irq,
-				up.port.iotype, priv->port[i].line);
+				up.port.iotype, priv->port[i].uport);
 			break;
 		}
 		priv->port[i].rx_trig_level = MOXA_PUART_RX_TRIG_DEFAULT;
@@ -592,7 +593,7 @@ static void mxpcie8250_remove(struct pci_dev *pdev)
 	struct mxpcie8250 *priv = pci_get_drvdata(pdev);
 
 	for (unsigned int i = 0; i < priv->nr; i++)
-		serial8250_unregister_port(priv->port[i].line);
+		serial8250_unregister_port(priv->port[i].uport);
 }
 
 static const struct pci_device_id mxpcie8250_pci_ids[] = {

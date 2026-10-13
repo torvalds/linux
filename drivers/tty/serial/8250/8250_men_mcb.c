@@ -2,6 +2,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mcb.h>
 #include <linux/serial.h>
@@ -42,7 +43,7 @@
 
 struct serial_8250_men_mcb_data {
 	int num_ports;
-	int line[MEN_Z025_MAX_UARTS];
+	struct uart_8250_port *uport[MEN_Z025_MAX_UARTS];
 	unsigned int offset[MEN_Z025_MAX_UARTS];
 };
 
@@ -218,14 +219,13 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 					    + data->offset[i];
 
 		/* ok, register the port */
-		res = serial8250_register_8250_port(&uart);
-		if (res < 0) {
+		data->uport[i] = serial8250_register_8250_port(&uart);
+		if (IS_ERR(data->uport[i])) {
 			dev_err(&mdev->dev, "unable to register UART port\n");
-			return res;
+			return PTR_ERR(data->uport[i]);
 		}
 
-		data->line[i] = res;
-		dev_info(&mdev->dev, "found MCB UART: ttyS%d\n", data->line[i]);
+		dev_info(&mdev->dev, "found MCB UART: ttyS%d\n", data->uport[i]->port.line);
 	}
 
 	return 0;
@@ -240,7 +240,7 @@ static void serial_8250_men_mcb_remove(struct mcb_device *mdev)
 		return;
 
 	for (i = 0; i < data->num_ports; i++)
-		serial8250_unregister_port(data->line[i]);
+		serial8250_unregister_port(data->uport[i]);
 }
 
 static const struct mcb_device_id serial_8250_men_mcb_ids[] = {

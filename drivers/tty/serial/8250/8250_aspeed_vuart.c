@@ -6,6 +6,7 @@
  *    Copyright (C) 2006 Arnd Bergmann <arnd@arndb.de>, IBM Corp.
  */
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -34,7 +35,6 @@
 
 struct aspeed_vuart {
 	struct device		*dev;
-	int			line;
 	struct timer_list	unthrottle_timer;
 	struct uart_8250_port	*port;
 };
@@ -484,12 +484,13 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "auto-flow-control"))
 		port.capabilities |= UART_CAP_AFE;
 
-	rc = serial8250_register_8250_port(&port);
-	if (rc < 0)
+	struct uart_8250_port *uport = serial8250_register_8250_port(&port);
+	if (IS_ERR(uport)) {
+		rc = PTR_ERR(uport);
 		goto err_sysfs_remove;
+	}
 
-	vuart->line = rc;
-	vuart->port = serial8250_get_port(vuart->line);
+	vuart->port = uport;
 
 	rc = of_parse_phandle_with_fixed_args(
 		np, "aspeed,sirq-polarity-sense", 2, 0,
@@ -553,7 +554,7 @@ static void aspeed_vuart_remove(struct platform_device *pdev)
 
 	timer_delete_sync(&vuart->unthrottle_timer);
 	aspeed_vuart_set_enabled(vuart, false);
-	serial8250_unregister_port(vuart->line);
+	serial8250_unregister_port(vuart->port);
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
 }
 

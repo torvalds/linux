@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/math.h>
@@ -258,7 +259,7 @@ struct exar8250 {
 	struct eeprom_93cx6	eeprom;
 	void __iomem		*virt;
 	struct platform_device	*gpio;
-	int			line[];
+	struct uart_8250_port	*uport[];
 };
 
 static inline void exar_write_reg(struct exar8250 *priv,
@@ -1460,7 +1461,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (nr_ports == 0)
 		return dev_err_probe(&pcidev->dev, -ENODEV, "failed to get number of ports\n");
 
-	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
+	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, uport, nr_ports), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1500,9 +1501,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		dev_dbg(&pcidev->dev, "Setup PCI port: port %lx, irq %d, type %d\n",
 			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
-		priv->line[i] = serial8250_register_8250_port(&uart);
-		if (priv->line[i] < 0) {
-			dev_err_probe(&pcidev->dev, priv->line[i],
+		priv->uport[i] = serial8250_register_8250_port(&uart);
+		if (IS_ERR(priv->uport[i])) {
+			dev_err_probe(&pcidev->dev, PTR_ERR(priv->uport[i]),
 				"Couldn't register serial port %lx, type %d, irq %d\n",
 				uart.port.iobase, uart.port.iotype, uart.port.irq);
 			break;
@@ -1519,7 +1520,7 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
-		serial8250_unregister_port(priv->line[i]);
+		serial8250_unregister_port(priv->uport[i]);
 
 	/* Ensure that every init quirk is properly torn down */
 	if (priv->board->exit)
@@ -1532,8 +1533,7 @@ static int exar_suspend(struct device *dev)
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_suspend_port(priv->line[i]);
+		serial8250_suspend_port(priv->uport[i]);
 
 	return 0;
 }
@@ -1546,8 +1546,7 @@ static int exar_resume(struct device *dev)
 	exar_misc_clear(priv);
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_resume_port(priv->line[i]);
+		serial8250_resume_port(priv->uport[i]);
 
 	return 0;
 }

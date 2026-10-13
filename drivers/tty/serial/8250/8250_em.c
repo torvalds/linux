@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
@@ -27,10 +28,6 @@
 #define UART_FCR_EM_HW 3
 
 #define UART_HCR0_EM_SW_RESET	BIT(7) /* SW Reset */
-
-struct serial8250_em_priv {
-	int line;
-};
 
 static void serial8250_em_serial_out_helper(struct uart_port *p, int offset,
 					    int value)
@@ -151,12 +148,11 @@ static void serial8250_em_serial_dl_write(struct uart_8250_port *up, u32 value)
 
 static int serial8250_em_probe(struct platform_device *pdev)
 {
-	struct serial8250_em_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port up;
 	struct resource *regs;
 	struct clk *sclk;
-	int irq, ret;
+	int irq;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -165,10 +161,6 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return dev_err_probe(dev, -EINVAL, "missing registers\n");
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
 
 	sclk = devm_clk_get_enabled(dev, "sclk");
 	if (IS_ERR(sclk))
@@ -180,7 +172,6 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	up.port.type = PORT_16750;
 	up.port.flags = UPF_FIXED_PORT | UPF_IOREMAP | UPF_FIXED_TYPE;
 	up.port.dev = dev;
-	up.port.private_data = priv;
 
 	up.port.uartclk = clk_get_rate(sclk);
 
@@ -190,20 +181,19 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	up.dl_read = serial8250_em_serial_dl_read;
 	up.dl_write = serial8250_em_serial_dl_write;
 
-	ret = serial8250_register_8250_port(&up);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "unable to register 8250 port\n");
+	struct uart_8250_port *uport = serial8250_register_8250_port(&up);
+	if (IS_ERR(uport))
+		return dev_err_probe(dev, PTR_ERR(uport), "unable to register 8250 port\n");
 
-	priv->line = ret;
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, uport);
 	return 0;
 }
 
 static void serial8250_em_remove(struct platform_device *pdev)
 {
-	struct serial8250_em_priv *priv = platform_get_drvdata(pdev);
+	struct uart_8250_port *up = platform_get_drvdata(pdev);
 
-	serial8250_unregister_port(priv->line);
+	serial8250_unregister_port(up);
 }
 
 static const struct of_device_id serial8250_em_dt_ids[] = {

@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/rational.h>
@@ -41,7 +42,7 @@ struct mid8250_board {
 };
 
 struct mid8250 {
-	int line;
+	struct uart_8250_port *uport;
 	int dma_index;
 	struct pci_dev *dma_dev;
 	struct uart_8250_dma dma;
@@ -335,11 +336,11 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err;
 
-	ret = serial8250_register_8250_port(&uart);
-	if (ret < 0)
+	mid->uport = serial8250_register_8250_port(&uart);
+	if (IS_ERR(mid->uport)) {
+		ret = PTR_ERR(mid->uport);
 		goto err;
-
-	mid->line = ret;
+	}
 
 	pci_set_drvdata(pdev, mid);
 	return 0;
@@ -354,7 +355,7 @@ static void mid8250_remove(struct pci_dev *pdev)
 {
 	struct mid8250 *mid = pci_get_drvdata(pdev);
 
-	serial8250_unregister_port(mid->line);
+	serial8250_unregister_port(mid->uport);
 
 	if (mid->board->exit)
 		mid->board->exit(mid);
