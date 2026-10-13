@@ -68,8 +68,6 @@ void odm_NHMBBInit(void *pDM_VOID)
 void odm_NHMBB(void *pDM_VOID)
 {
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
-	/* u8 test_status; */
-	/* struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt; */
 
 	pDM_Odm->NHMCurTxOkcnt =
 		*(pDM_Odm->pNumTxBytesUnicast)-pDM_Odm->NHMLastTxOkcnt;
@@ -83,7 +81,6 @@ void odm_NHMBB(void *pDM_VOID)
 	if ((pDM_Odm->NHMCurTxOkcnt) + 1 > (u64)(pDM_Odm->NHMCurRxOkcnt<<2) + 1) { /* Tx > 4*Rx possible for adaptivity test */
 		if (pDM_Odm->NHM_cnt_0 >= 190 || pDM_Odm->adaptivity_flag) {
 			/* Enable EDCCA since it is possible running Adaptivity testing */
-			/* test_status = 1; */
 			pDM_Odm->adaptivity_flag = true;
 			pDM_Odm->tolerance_cnt = 0;
 		} else {
@@ -91,24 +88,19 @@ void odm_NHMBB(void *pDM_VOID)
 				pDM_Odm->tolerance_cnt = pDM_Odm->tolerance_cnt + 1;
 			else
 				pDM_Odm->tolerance_cnt = 4;
-			/* test_status = 5; */
 			if (pDM_Odm->tolerance_cnt > 3) {
-				/* test_status = 3; */
 				pDM_Odm->adaptivity_flag = false;
 			}
 		}
 	} else { /*  TX<RX */
 		if (pDM_Odm->adaptivity_flag && pDM_Odm->NHM_cnt_0 <= 200) {
-			/* test_status = 2; */
 			pDM_Odm->tolerance_cnt = 0;
 		} else {
 			if (pDM_Odm->tolerance_cnt < 3)
 				pDM_Odm->tolerance_cnt = pDM_Odm->tolerance_cnt + 1;
 			else
 				pDM_Odm->tolerance_cnt = 4;
-			/* test_status = 5; */
 			if (pDM_Odm->tolerance_cnt > 3) {
-				/* test_status = 4; */
 				pDM_Odm->adaptivity_flag = false;
 			}
 		}
@@ -585,7 +577,6 @@ void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 		CurrentIGI = RSSI_Lower;
 
 	ODM_Write_DIG(pDM_Odm, CurrentIGI);
-	/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 }
 
 /* 3 ============================================================ */
@@ -708,10 +699,8 @@ u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 		if (pDM_DigTable->LargeFAHit != 3)
 			pDM_DigTable->LargeFAHit++;
 
-		/* if (pDM_DigTable->ForbiddenIGI < pDM_DigTable->CurIGValue) */
 		if (pDM_DigTable->ForbiddenIGI < CurrentIGI) {
 			pDM_DigTable->ForbiddenIGI = CurrentIGI;
-			/* pDM_DigTable->ForbiddenIGI = pDM_DigTable->CurIGValue; */
 			pDM_DigTable->LargeFAHit = 1;
 		}
 
