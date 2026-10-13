@@ -119,7 +119,7 @@ struct intel_tpmi_pm_feature {
  *			can find them again, for example during PCI error
  *			recovery.
  *
- * Stores the information for all TPMI devices enumerated from a single PCI device.
+ * Stores the information for all TPMI devices of one TPMI instance.
  */
 struct intel_tpmi_info {
 	struct intel_tpmi_pm_feature *tpmi_features;
@@ -742,7 +742,8 @@ static int tpmi_fetch_pfs_header(struct intel_tpmi_pm_feature *pfs, u64 start, i
 static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 {
 	struct intel_vsec_device *vsec_dev = auxdev_to_ivdev(auxdev);
-	struct pci_dev *pci_dev = to_pci_dev(vsec_dev->dev);
+	struct pci_dev *pci_dev = dev_is_pci(vsec_dev->dev) ?
+				  to_pci_dev(vsec_dev->dev) : NULL;
 	struct intel_tpmi_info *tpmi_info;
 	u64 pfs_start = 0;
 	int ret, i;
@@ -755,7 +756,14 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 	tpmi_info->parent = vsec_dev->dev;
 	tpmi_info->feature_count = vsec_dev->num_resources;
 	tpmi_info->resource = vsec_dev->resource;
-	tpmi_info->plat_info.bus_number = pci_dev->bus->number;
+
+	/*
+	 * Seed the bus number from the enumerating device. It is only a
+	 * fallback, tpmi_process_info() replaces it with the value the
+	 * TPMI_INFO feature reports.
+	 */
+	if (pci_dev)
+		tpmi_info->plat_info.bus_number = pci_dev->bus->number;
 
 	tpmi_info->tpmi_features = devm_kcalloc(&auxdev->dev, tpmi_info->feature_count,
 						sizeof(*tpmi_info->tpmi_features),
@@ -801,10 +809,16 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 			if (ret)
 				return ret;
 
-			ret = intel_vsec_set_mapping(&tpmi_info->plat_info,
-						     tpmi_info->parent);
-			if (ret)
-				return ret;
+			/*
+			 * The mapping is looked up by pci_dev, so it is only
+			 * meaningful for PCI enumerated TPMI instances.
+			 */
+			if (pci_dev) {
+				ret = intel_vsec_set_mapping(&tpmi_info->plat_info,
+							     &pci_dev->dev);
+				if (ret)
+					return ret;
+			}
 		}
 
 		if (pfs->pfs_header.tpmi_id == TPMI_CONTROL_ID)
