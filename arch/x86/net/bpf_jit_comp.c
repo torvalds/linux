@@ -1106,8 +1106,9 @@ static void emit_movsx_reg(u8 **pprog, int num_bits, bool is64, u32 dst_reg,
 	} else {
 		/* movs[b,w]l dst, src */
 		if (num_bits == 8) {
-			EMIT4(add_2mod(0x40, src_reg, dst_reg), 0x0f, 0xbe,
-			      add_2reg(0xC0, src_reg, dst_reg));
+			if (is_ereg(dst_reg) || is_ereg_8l(src_reg))
+				EMIT1(add_2mod(0x40, src_reg, dst_reg));
+			EMIT3(0x0f, 0xbe, add_2reg(0xC0, src_reg, dst_reg));
 		} else if (num_bits == 16) {
 			if (is_ereg(dst_reg) || is_ereg(src_reg))
 				EMIT1(add_2mod(0x40, src_reg, dst_reg));
@@ -1273,12 +1274,16 @@ static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 
 	switch (size) {
 	case BPF_B:
-		/* Emit 'movzx rax, byte ptr [rax + off]' */
-		EMIT3(add_2mod(0x48, src_reg, dst_reg), 0x0F, 0xB6);
+		/* Emit 'movzx eax, byte ptr [rax + off]' */
+		if (is_ereg(dst_reg) || is_ereg(src_reg))
+			EMIT1(add_2mod(0x40, src_reg, dst_reg));
+		EMIT2(0x0F, 0xB6);
 		break;
 	case BPF_H:
-		/* Emit 'movzx rax, word ptr [rax + off]' */
-		EMIT3(add_2mod(0x48, src_reg, dst_reg), 0x0F, 0xB7);
+		/* Emit 'movzx eax, word ptr [rax + off]' */
+		if (is_ereg(dst_reg) || is_ereg(src_reg))
+			EMIT1(add_2mod(0x40, src_reg, dst_reg));
+		EMIT2(0x0F, 0xB7);
 		break;
 	case BPF_W:
 		/* Emit 'mov eax, dword ptr [rax+0x14]' */
