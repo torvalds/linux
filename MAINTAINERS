@@ -8011,6 +8011,7 @@ F:	include/uapi/drm/ivpu_accel.h
 
 DRM ACCEL DRIVER FOR ROCKCHIP NPU
 M:	Tomeu Vizoso <tomeu@tomeuvizoso.net>
+R:	Heiko Stuebner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
