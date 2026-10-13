@@ -64,10 +64,9 @@ static void test_failure_map_no_btf(void)
 		goto out;
 
 	err = bpf_map__reuse_fd(skel->maps.array, map_fd);
-	if (!ASSERT_OK(err, "map reuse fd")) {
-		close(map_fd);
+	close(map_fd);
+	if (!ASSERT_OK(err, "map reuse fd"))
 		goto out;
-	}
 
 	insns = bpf_program__insns(skel->progs.test_map_no_btf);
 	if (!ASSERT_OK_PTR(insns, "insns ptr"))
