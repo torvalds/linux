@@ -182,15 +182,15 @@ xfs_end_ioend_write_zoned(
 		error = xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
 done:
 	/*
-	 * Put the open zone for all ioends merged into this one (if any).
+	 * Put the open zone references for all ioends merged into this one in
+	 * addition to the main one they were merged into.  If the submission
+	 * failed before xfs_zone_alloc_and_submit got called, there is no open
+	 * zone and at least in theory that could also happen for merged ioends.
 	 */
-	list_for_each_entry(tmp, &ioend->io_list, io_list)
-		xfs_open_zone_put(tmp->io_private);
-
-	/*
-	 * The main ioend might not have an open zone if the submission failed
-	 * before xfs_zone_alloc_and_submit got called.
-	 */
+	list_for_each_entry(tmp, &ioend->io_list, io_list) {
+		if (tmp->io_private)
+			xfs_open_zone_put(tmp->io_private);
+	}
 	if (oz)
 		xfs_open_zone_put(oz);
 	iomap_finish_ioends(ioend, error);
