@@ -1042,12 +1042,12 @@ static void neigh_periodic_work(struct work_struct *work)
 						lockdep_is_held(&tbl->lock));
 	}
 out:
-	/* Cycle through all hash buckets every BASE_REACHABLE_TIME/2 ticks.
+	/* Cycle through all hash buckets every max(HZ, BASE_REACHABLE_TIME/2) ticks.
 	 * ARP entry timeouts range from 1/2 BASE_REACHABLE_TIME to 3/2
 	 * BASE_REACHABLE_TIME.
 	 */
 	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
-			      NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME) >> 1);
+			   max(HZ, NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME) >> 1));
 	spin_unlock_bh(&tbl->lock);
 }
 
