@@ -656,16 +656,11 @@ from eBPF instruction set.
 Testing
 -------
 
-Next to the BPF toolchain, the kernel also ships a test module that contains
-various test cases for classic and eBPF that can be executed against
-the BPF interpreter and JIT compiler. It can be found in lib/test_bpf.c and
-enabled via Kconfig::
-
-  CONFIG_TEST_BPF=m
-
-After the module has been built and installed, the test suite can be executed
-via insmod or modprobe against 'test_bpf' module. Results of the test cases
-including timings in nsec can be found in the kernel log (dmesg).
+Next to the BPF toolchain, the BPF selftests under tools/testing/selftests/bpf
+ship instruction tests in test_progs, see jit_insns, which runs the eBPF
+instructions over a range of operand magnitudes and signs, register
+combinations, memory offsets and jump offsets against the BPF interpreter
+or the JIT compiler, depending on the net.core.bpf_jit_enable setting.
 
 Misc
 ----
