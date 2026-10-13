@@ -583,9 +583,7 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	for (i = 0, tmp = res; i < pfs->pfs_header.num_entries; i++, tmp++) {
 		u64 entry_size_bytes = pfs->pfs_header.entry_size * sizeof(u32);
 
-		tmp->start = pfs->vsec_offset + entry_size_bytes * i;
-		tmp->end = tmp->start + entry_size_bytes - 1;
-		tmp->flags = IORESOURCE_MEM;
+		*tmp = DEFINE_RES_MEM(pfs->vsec_offset + entry_size_bytes * i, entry_size_bytes);
 	}
 
 	feature_vsec_dev->dev = tpmi_info->parent;
