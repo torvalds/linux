@@ -845,12 +845,30 @@ static int wm8955_set_bias_level(struct snd_soc_component *component,
 #define WM8955_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 wm8955_selectable_formats[] = {
+	/* 1st priority */
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF,
+	/* 2nd priority */
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF,
+};
+
 static const struct snd_soc_dai_ops wm8955_dai_ops = {
 	.set_sysclk = wm8955_set_sysclk,
 	.set_fmt = wm8955_set_fmt,
 	.hw_params = wm8955_hw_params,
 	.mute_stream = wm8955_mute,
 	.no_capture_mute = 1,
+	.auto_selectable_formats	= wm8955_selectable_formats,
+	.num_auto_selectable_formats	= ARRAY_SIZE(wm8955_selectable_formats),
 };
 
 static struct snd_soc_dai_driver wm8955_dai = {
@@ -870,17 +888,7 @@ static int wm8955_probe(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8955_priv *wm8955 = snd_soc_component_get_drvdata(component);
 	struct wm8955_pdata *pdata = dev_get_platdata(component->dev);
-	int ret, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8955->supplies); i++)
-		wm8955->supplies[i].supply = wm8955_supply_names[i];
-
-	ret = devm_regulator_bulk_get(component->dev, ARRAY_SIZE(wm8955->supplies),
-				 wm8955->supplies);
-	if (ret != 0) {
-		dev_err(component->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
+	int ret;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8955->supplies),
 				    wm8955->supplies);
@@ -972,7 +980,7 @@ static const struct regmap_config wm8955_regmap = {
 static int wm8955_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8955_priv *wm8955;
-	int ret;
+	int i, ret;
 
 	wm8955 = devm_kzalloc(&i2c->dev, sizeof(struct wm8955_priv),
 			      GFP_KERNEL);
@@ -988,6 +996,16 @@ static int wm8955_i2c_probe(struct i2c_client *i2c)
 	}
 
 	i2c_set_clientdata(i2c, wm8955);
+
+	for (i = 0; i < ARRAY_SIZE(wm8955->supplies); i++)
+		wm8955->supplies[i].supply = wm8955_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8955->supplies),
+				      wm8955->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_wm8955, &wm8955_dai, 1);

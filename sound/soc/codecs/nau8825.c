@@ -345,10 +345,10 @@ static u32 nau8825_intlog10_dec3(u32 value)
 /**
  * nau8825_xtalk_sidetone - computes cross talk suppression sidetone gain.
  *
- * @sig_org: orignal signal level
+ * @sig_org: original signal level
  * @sig_cros: cross talk signal level
  *
- * The orignal and cross talk signal vlues need to be characterized.
+ * The original and cross talk signal values need to be characterized.
  * Once these values have been characterized, this sidetone value
  * can be converted to decibel with the equation below.
  * sidetone = 20 * log (original signal level / crosstalk signal level)
@@ -671,11 +671,11 @@ static void nau8825_xtalk_imm_stop(struct nau8825 *nau8825)
  * Thus, the measurement function has four states to complete whole sequence.
  * 1. Prepare state : Prepare the resource for detection and transfer to HPR
  *     IMM stat to make JKR1(HPR) impedance measure.
- * 2. HPR IMM state : Read out orignal signal level of JKR1(HPR) and transfer
+ * 2. HPR IMM state : Read out original signal level of JKR1(HPR) and transfer
  *     to HPL IMM state to make JKTIP(HPL) impedance measure.
  * 3. HPL IMM state : Read out cross talk signal level of JKTIP(HPL) and
  *     transfer to IMM state to determine suppression sidetone gain.
- * 4. IMM state : Computes cross talk suppression sidetone gain with orignal
+ * 4. IMM state : Computes cross talk suppression sidetone gain with original
  *     and cross talk signal level. Apply this gain and then restore codec
  *     configuration. Then transfer to Done state for ending.
  */
@@ -724,8 +724,8 @@ static void nau8825_xtalk_measure(struct nau8825 *nau8825)
 		nau8825->xtalk_state = NAU8825_XTALK_IMM;
 		break;
 	case NAU8825_XTALK_IMM:
-		/* In impedance measure state, the orignal and cross talk
-		 * signal level vlues are ready. The side tone gain is deter-
+		/* In impedance measure state, the original and cross talk
+		 * signal level values are ready. The side tone gain is deter-
 		 * mined with these signal level. After all, restore codec
 		 * configuration.
 		 */
@@ -771,7 +771,7 @@ static void nau8825_xtalk_work(struct work_struct *work)
 
 static void nau8825_xtalk_cancel(struct nau8825 *nau8825)
 {
-	/* If the crosstalk is eanbled and the process is on going,
+	/* If the crosstalk is enabled and the process is on going,
 	 * the driver forces to cancel the crosstalk task and
 	 * restores the configuration to original status.
 	 */
@@ -1303,7 +1303,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 			NAU8825_CLK_ADC_SRC_MASK,
 			osr->clk_src << NAU8825_CLK_ADC_SRC_SFT);
 
-	/* make BCLK and LRC divde configuration if the codec as master. */
+	/* make BCLK and LRC divide configuration if the codec as master. */
 	regmap_read(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2, &ctrl_val);
 	if (ctrl_val & NAU8825_I2S_MS_MASTER) {
 		/* get the bclk and fs ratio */
@@ -1507,11 +1507,22 @@ static int nau8825_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
+static const u64 nau8825_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops nau8825_dai_ops = {
 	.startup	= nau8825_dai_startup,
 	.hw_params	= nau8825_hw_params,
 	.set_fmt	= nau8825_set_dai_fmt,
 	.set_tdm_slot	= nau8825_set_tdm_slot,
+	.auto_selectable_formats	= &nau8825_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define NAU8825_RATES	SNDRV_PCM_RATE_8000_192000
@@ -2886,7 +2897,7 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 	nau8825->dev = dev;
 	nau8825->irq = i2c->irq;
 	/* Initiate parameters, semaphore and work queue which are needed in
-	 * cross talk suppression measurment function.
+	 * cross talk suppression measurement function.
 	 */
 	nau8825->xtalk_state = NAU8825_XTALK_DONE;
 	nau8825->xtalk_protect = false;

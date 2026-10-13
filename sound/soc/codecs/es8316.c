@@ -566,12 +566,21 @@ static int es8316_mute(struct snd_soc_dai *dai, int mute, int direction)
 #define ES8316_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 es8316_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops es8316_ops = {
 	.startup = es8316_pcm_startup,
 	.hw_params = es8316_pcm_hw_params,
 	.set_fmt = es8316_set_dai_fmt,
 	.set_sysclk = es8316_set_dai_sysclk,
 	.mute_stream = es8316_mute,
+	.auto_selectable_formats = &es8316_selectable_formats,
+	.num_auto_selectable_formats = 1,
 	.no_capture_mute = 1,
 };
 
@@ -762,14 +771,6 @@ static int es8316_probe(struct snd_soc_component *component)
 
 	es8316->component = component;
 
-	es8316->mclk = devm_clk_get_optional(component->dev, "mclk");
-	if (IS_ERR(es8316->mclk)) {
-		dev_err(component->dev, "unable to get mclk\n");
-		return PTR_ERR(es8316->mclk);
-	}
-	if (!es8316->mclk)
-		dev_warn(component->dev, "assuming static mclk\n");
-
 	ret = clk_prepare_enable(es8316->mclk);
 	if (ret) {
 		dev_err(component->dev, "unable to enable mclk\n");
@@ -810,9 +811,7 @@ static int es8316_resume(struct snd_soc_component *component)
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(es8316->regmap, false);
-	regcache_sync(es8316->regmap);
-
-	return 0;
+	return regcache_sync(es8316->regmap);
 }
 
 static int es8316_suspend(struct snd_soc_component *component)
@@ -873,6 +872,12 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c_client, es8316);
+
+	es8316->mclk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(es8316->mclk))
+		return dev_err_probe(dev, PTR_ERR(es8316->mclk), "unable to get mclk\n");
+	if (!es8316->mclk)
+		dev_warn(dev, "assuming static mclk\n");
 
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(es8316_supply_names),
 					     es8316_supply_names);

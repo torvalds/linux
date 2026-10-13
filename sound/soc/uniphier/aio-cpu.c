@@ -440,6 +440,11 @@ static int uniphier_aio_pxs2_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 uniphier_aio_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 const struct snd_soc_dai_ops uniphier_aio_i2s_ld11_ops = {
 	.probe		= uniphier_aio_ld11_probe,
 	.remove		= uniphier_aio_dai_remove,
@@ -451,6 +456,8 @@ const struct snd_soc_dai_ops uniphier_aio_i2s_ld11_ops = {
 	.hw_params	= uniphier_aio_hw_params,
 	.hw_free	= uniphier_aio_hw_free,
 	.prepare	= uniphier_aio_prepare,
+	.auto_selectable_formats	= &uniphier_aio_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 EXPORT_SYMBOL_GPL(uniphier_aio_i2s_ld11_ops);
 
@@ -492,6 +499,8 @@ const struct snd_soc_dai_ops uniphier_aio_i2s_pxs2_ops = {
 	.hw_params	= uniphier_aio_hw_params,
 	.hw_free	= uniphier_aio_hw_free,
 	.prepare	= uniphier_aio_prepare,
+	.auto_selectable_formats	= &uniphier_aio_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 EXPORT_SYMBOL_GPL(uniphier_aio_i2s_pxs2_ops);
 

@@ -151,7 +151,7 @@ static const char * const cs35l41_name_prefixes[] = { "WL", "WR", "TL", "TR" };
  * UID 0x2 -> TL
  * UID 0x3 -> TR
  * Note: If there are less than 4 Amps, UIDs still map to WL/WR/TL/TR. Dynamic code will only create
- * dai links for UIDs which exist, and ignore non-existant ones. Only 2 or 4 amps are expected.
+ * dai links for UIDs which exist, and ignore non-existent ones. Only 2 or 4 amps are expected.
  * Return number of codecs found.
  */
 static int cs35l41_compute_codec_conf(void)

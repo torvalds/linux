@@ -123,6 +123,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES8375
 	imply SND_SOC_ES8389
+	imply SND_SOC_ES9039Q2M
 	imply SND_SOC_ES9356
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
@@ -173,6 +174,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MT6660
 	imply SND_SOC_NAU8315
 	imply SND_SOC_NAU8325
+	imply SND_SOC_NAU8360
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
 	imply SND_SOC_NAU8821
@@ -255,6 +257,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_SIMPLE_MUX
 	imply SND_SOC_SMA1303
 	imply SND_SOC_SMA1307
+	imply SND_SOC_SN624X_SDCA_SDW
 	imply SND_SOC_SPDIF
 	imply SND_SOC_SRC4XXX_I2C
 	imply SND_SOC_SSM2305
@@ -1315,6 +1318,19 @@ config SND_SOC_ES8389
 	tristate "Everest Semi ES8389 CODEC"
 	depends on I2C
 
+config SND_SOC_ES9039Q2M
+	tristate "ESS Technology ES9039Q2M CODEC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the ESS Technology ES9039Q2M, a 32-bit
+	  two-channel audio DAC with an asynchronous sample rate converter,
+	  supporting PCM, DSD, DoP and S/PDIF input. This driver covers the
+	  I2C control interface, which the MODE pin selects.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-es9039q2m.
+
 config SND_SOC_ES9356
 	tristate "Everest Semi ES9356 CODEC SDW"
 	depends on SND_SOC_SDCA
@@ -2097,6 +2113,18 @@ config SND_SOC_SMA1307
 	  If you are using a system with an SMA1307 amplifier connected
 	  via I2C, enable this option.
 
+config SND_SOC_SN624X_SDCA_SDW
+	tristate "Senary SN624x SDCA Codec - SDW"
+	depends on SND_SOC_SDCA
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+	help
+	  Enable support for Senary SN624x SDCA SoundWire codecs.
+	  These multi-function devices provide headset jack, speaker
+	  amplifier, and digital microphone endpoints on the SoundWire
+	  bus.
+
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
 
@@ -2524,6 +2552,17 @@ config SND_SOC_WCD939X_SDW
 	  The WCD9390/9395 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8650.
 
+config SND_SOC_WCD9378_SDCA
+	tristate "Qualcomm Tambora (WCD9378) SDCA codec"
+	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA_CLASS
+	help
+	  This enables support for the Qualcomm Tambora (WCD9378) headset
+	  codec when driven via the SDCA class driver on ARM platforms
+	  without ACPI/DisCo tables. It provides the static SDCA topology
+	  and SoundWire data port properties transcribed from the factory
+	  ACPI tables.
+
 config SND_SOC_WM0010
 	tristate
 	depends on SPI_MASTER
@@ -2900,6 +2939,16 @@ config SND_SOC_NAU8824
 config SND_SOC_NAU8825
 	tristate
 	depends on I2C
+
+config SND_SOC_NAU8360
+	tristate "Nuvoton Technology Corporation NAU83G60 Stereo Smart Amplifier"
+	depends on I2C
+	select FW_LOADER
+	help
+	  The NAU83G60 is a stereo 30W+30W smart amplifier with integrated
+	  low-latency Advanced Audio DSP running the KCS (Klippel Controlled
+	  Sound) speaker control algorithm. KCS provides mechanical and
+	  thermal speaker protection with voltage and current sensing.
 
 config SND_SOC_NTPFW
 	tristate

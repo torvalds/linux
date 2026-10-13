@@ -33,11 +33,16 @@ struct es8326_priv {
 	 * while enabling or disabling or during an irq.
 	 */
 	struct mutex lock;
+	struct mutex hpf_lock;
 	u8 jack_pol;
 	u8 interrupt_src;
 	u8 interrupt_clk;
 	u8 hpl_vol;
 	u8 hpr_vol;
+	u8 hpfl;
+	u8 hpfr;
+	u32 hpf_freq;
+	u32 capture_rate;
 	bool jd_inverted;
 	unsigned int sysclk;
 
@@ -46,6 +51,48 @@ struct es8326_priv {
 	int hp;
 	int jack_remove_retry;
 };
+
+static const u32 hpf_table[10][10] = {
+	{1020, 754, 624, 559, 527, 511, 502, 498, 497, 496},
+	{754, 495, 368, 306, 274, 259, 251, 247, 246, 244},
+	{624, 368, 243, 182, 151, 136, 128, 124, 123, 121},
+	{559, 306, 182, 120, 90, 75, 68, 63, 62, 60},
+	{527, 274, 151, 90, 60, 45, 38, 33, 32, 31},
+	{511, 259, 136, 75, 45, 30, 23, 19, 18, 17},
+	{502, 251, 128, 68, 38, 23, 16, 13, 11, 11},
+	{498, 247, 124, 63, 33, 19, 13, 10, 8, 8},
+	{497, 246, 123, 62, 32, 18, 11, 8, 8, 0},
+	{496, 244, 121, 60, 31, 17, 11, 8, 0, 0}
+};
+
+static bool find_best_hpf_freq(u32 target_hz, u8 *hpf1, u8 *hpf2)
+{
+	int best_row = -1, best_col = -1;
+	u32 min_diff = U32_MAX;
+	u32 f, diff;
+	int i, j;
+
+	if (target_hz > 1020)
+		return false;
+
+	for (i = 0; i < 10; i++) {
+		for (j = i; j < 10; j++) {
+			f = hpf_table[i][j];
+
+			diff = (target_hz > f) ? (target_hz - f) : (f - target_hz);
+			if (diff < min_diff) {
+				min_diff = diff;
+				best_row = i;
+				best_col = j;
+			}
+		}
+	}
+
+	*hpf1 = best_col + ES8326_HPF_OFFSET;
+	*hpf2 = best_row + ES8326_HPF_OFFSET;
+
+	return true;
+}
 
 static int es8326_crosstalk1_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -189,6 +236,48 @@ static int es8326_hprvol_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int es8326_hpf_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = es8326->hpf_freq;
+	return 0;
+}
+
+static int es8326_hpf_set(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	u32 freq;
+	bool hpf;
+
+	if ((ucontrol->value.integer.value[0] > 1020) || (ucontrol->value.integer.value[0] < 0))
+		return -EBUSY;
+
+	if (es8326->hpf_freq == ucontrol->value.integer.value[0])
+		return 0;
+
+	if (es8326->capture_rate) {
+		guard(mutex)(&es8326->hpf_lock);
+		freq = (ucontrol->value.integer.value[0] * 48000) / es8326->capture_rate;
+
+		hpf = find_best_hpf_freq(freq, &es8326->hpfl, &es8326->hpfr);
+		if (!hpf)
+			return -EBUSY;
+
+		regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS1, 0x0f, es8326->hpfl);
+		regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS2, 0x0f, es8326->hpfr);
+	} else {
+		dev_dbg_ratelimited(component->dev, "PCM_STREAM_CAPTURE is not active.retain the input frequency\n");
+	}
+	es8326->hpf_freq = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9550, 50, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_vol_tlv, -9550, 50, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_analog_pga_tlv, 0, 300, 0);
@@ -269,6 +358,8 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 	SOC_ENUM("ALC Capture Winsize", alc_winsize),
 	SOC_SINGLE_TLV("ALC Capture Target Level", ES8326_ALC_LEVEL,
 			0, 0x0f, 0, drc_target_tlv),
+	SOC_SINGLE_EXT("ADC HPF Freq Select", SND_SOC_NOPM, 0, 1020, 0,
+				es8326_hpf_get, es8326_hpf_set),
 
 	SOC_SINGLE_EXT("CROSSTALK1", SND_SOC_NOPM, 0, 31, 0,
 			es8326_crosstalk1_get, es8326_crosstalk1_set),
@@ -353,8 +444,6 @@ static bool es8326_writeable_register(struct device *dev, unsigned int reg)
 	case ES8326_BIAS_SW2:
 	case ES8326_BIAS_SW3:
 	case ES8326_BIAS_SW4:
-	case ES8326_ADC_HPFS1:
-	case ES8326_ADC_HPFS2:
 		return false;
 	default:
 		return true;
@@ -558,6 +647,8 @@ static int es8326_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
 	u8 srate = 0;
 	int coeff, array;
+	u32 freq;
+	bool hpf;
 
 	if (es8326->version == 0) {
 		coeff_div =  coeff_div_v0;
@@ -612,6 +703,28 @@ static int es8326_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev_warn(component->dev, "Clock coefficients do not match");
 	}
 
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		es8326->capture_rate = params_rate(params);
+		freq = (es8326->hpf_freq * 48000) / params_rate(params);
+		hpf = find_best_hpf_freq(freq, &es8326->hpfl, &es8326->hpfr);
+		if (!hpf) {
+			dev_err(component->dev, "The HPF frequency is invalid\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int es8326_pcm_hw_free(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		es8326->capture_rate = 0;
+
 	return 0;
 }
 
@@ -636,6 +749,8 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 				regmap_update_bits(es8326->regmap, ES8326_VMIDSEL, 0x40, 0x40);
 				regmap_update_bits(es8326->regmap, ES8326_ANA_MICBIAS, 0x70, 0x30);
 			}
+			regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS1, 0x0f, 0x04);
+			regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS2, 0x0f, 0x04);
 		}
 	} else {
 		if (!es8326->calibrated) {
@@ -705,7 +820,8 @@ static int es8326_set_bias_level(struct snd_soc_component *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		regmap_write(es8326->regmap, ES8326_ANA_PDN, 0x3b);
+		regmap_write(es8326->regmap, ES8326_PGA_PDN, 0x58);
+		regmap_write(es8326->regmap, ES8326_ANA_PDN, 0x13);
 		regmap_update_bits(es8326->regmap, ES8326_CLK_CTL, 0x20, 0x00);
 		regmap_write(es8326->regmap, ES8326_SDINOUT1_IO, ES8326_IO_INPUT);
 		if (es8326->version > ES8326_VERSION_B) {
@@ -726,11 +842,21 @@ static int es8326_set_bias_level(struct snd_soc_component *codec,
 #define es8326_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
+static const u64 es8326_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
+
 static const struct snd_soc_dai_ops es8326_ops = {
 	.hw_params = es8326_pcm_hw_params,
+	.hw_free = es8326_pcm_hw_free,
 	.set_fmt = es8326_set_dai_fmt,
 	.set_sysclk = es8326_set_dai_sysclk,
 	.mute_stream = es8326_mute,
+	.auto_selectable_formats = &es8326_selectable_formats,
+	.num_auto_selectable_formats = 1,
 	.no_capture_mute = 0,
 };
 
@@ -781,6 +907,8 @@ static void es8326_capture_pop_handler(struct work_struct *work)
 	struct es8326_priv *es8326 =
 		container_of(work, struct es8326_priv, capture_pop_work.work);
 
+	regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS1, 0x0f, es8326->hpfl);
+	regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS2, 0x0f, es8326->hpfr);
 	regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
 					0x0F, 0x00);
 }
@@ -865,7 +993,7 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 	struct es8326_priv *es8326 =
 		container_of(work, struct es8326_priv, jack_detect_work.work);
 	struct snd_soc_component *comp = es8326->component;
-	unsigned int iface;
+	unsigned int iface, pga_status;
 
 	guard(mutex)(&es8326->lock);
 	iface = snd_soc_component_read(comp, ES8326_HPDET_STA);
@@ -961,12 +1089,19 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 			dev_dbg(comp->dev, "Headset detected\n");
 			snd_soc_jack_report(es8326->jack,
 					SND_JACK_HEADSET, SND_JACK_HEADSET);
-			regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
-					0x08, 0x08);
-			regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x00);
-			regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x00);
-			regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
-					0x08, 0x00);
+			pga_status = snd_soc_component_read(comp, ES8326_PGA_PDN);
+
+			if ((pga_status & 0x08) >> 3) {
+				regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x00);
+				regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x00);
+			} else {
+				regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
+						0x08, 0x08);
+				regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x00);
+				regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x00);
+				regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
+						0x08, 0x00);
+			}
 			usleep_range(10000, 15000);
 		}
 	}
@@ -1130,18 +1265,28 @@ static int es8326_resume(struct snd_soc_component *component)
 {
 	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
 	unsigned int reg;
+	int ret;
 
 	regcache_cache_only(es8326->regmap, false);
 	regcache_cache_bypass(es8326->regmap, true);
-	regmap_read(es8326->regmap, ES8326_CLK_RESAMPLE, &reg);
+	ret = regmap_read(es8326->regmap, ES8326_CLK_RESAMPLE, &reg);
 	regcache_cache_bypass(es8326->regmap, false);
-	/* reset internal clock state */
-	if (reg == 0x05)
-		regmap_write(es8326->regmap, ES8326_CLK_CTL, ES8326_CLK_ON);
-	else
-		es8326_init(component);
+	if (ret)
+		return ret;
 
-	regcache_sync(es8326->regmap);
+	/* reset internal clock state */
+	if (reg == 0x05) {
+		ret = regmap_write(es8326->regmap, ES8326_CLK_CTL,
+				   ES8326_CLK_ON);
+		if (ret)
+			return ret;
+	} else {
+		es8326_init(component);
+	}
+
+	ret = regcache_sync(es8326->regmap);
+	if (ret)
+		return ret;
 
 	es8326_irq(es8326->irq, es8326);
 	return 0;
@@ -1202,6 +1347,7 @@ static int es8326_probe(struct snd_soc_component *component)
 	}
 	dev_dbg(component->dev, "interrupt-clk %x", es8326->interrupt_clk);
 
+	es8326->hpf_freq = ES8326_HPF_DEFAULT;
 	es8326_init(component);
 	return 0;
 }
@@ -1288,6 +1434,7 @@ static int es8326_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, es8326);
 	es8326->i2c = i2c;
 	mutex_init(&es8326->lock);
+	mutex_init(&es8326->hpf_lock);
 	es8326->regmap = devm_regmap_init_i2c(i2c, &es8326_regmap_config);
 	if (IS_ERR(es8326->regmap)) {
 		ret = PTR_ERR(es8326->regmap);

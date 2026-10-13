@@ -2226,28 +2226,3 @@ struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp)
 
 	return tplg;
 }
-
-int avs_load_topology(struct snd_soc_component *comp, const char *filename)
-{
-	const struct firmware *fw __free(firmware) = NULL;
-	int ret;
-
-	ret = request_firmware(&fw, filename, comp->dev);
-	if (ret < 0) {
-		dev_err(comp->dev, "request topology \"%s\" failed: %d\n", filename, ret);
-		return ret;
-	}
-
-	ret = snd_soc_tplg_component_load(comp, &avs_tplg_ops, fw);
-	if (ret < 0)
-		dev_err(comp->dev, "load topology \"%s\" failed: %d\n", filename, ret);
-
-	return ret;
-}
-
-int avs_remove_topology(struct snd_soc_component *comp)
-{
-	snd_soc_tplg_component_remove(comp);
-
-	return 0;
-}

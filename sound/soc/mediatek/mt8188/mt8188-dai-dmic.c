@@ -143,10 +143,7 @@ static void mtk_dai_dmic_hw_gain_bypass(struct mtk_base_afe *afe,
 		return;
 	}
 
-	if (bypass)
-		regmap_set_bits(afe->regmap, reg->bypass, msk);
-	else
-		regmap_clear_bits(afe->regmap, reg->bypass, msk);
+	regmap_assign_bits(afe->regmap, reg->bypass, msk, bypass);
 }
 
 static void mtk_dai_dmic_hw_gain_on(struct mtk_base_afe *afe, unsigned int id,
@@ -157,10 +154,7 @@ static void mtk_dai_dmic_hw_gain_on(struct mtk_base_afe *afe, unsigned int id,
 	if (!reg)
 		return;
 
-	if (on)
-		regmap_set_bits(afe->regmap, reg->con0, DMIC_GAIN_CON0_GAIN_ON);
-	else
-		regmap_clear_bits(afe->regmap, reg->con0, DMIC_GAIN_CON0_GAIN_ON);
+	regmap_assign_bits(afe->regmap, reg->con0, DMIC_GAIN_CON0_GAIN_ON, on);
 }
 
 static const struct reg_sequence mtk_dai_dmic_iir_coeff_reg_defaults[] = {

@@ -744,6 +744,9 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 			sps->dsp_max_burst_size_in_ms = 1;
 	}
 
+	if (spcm->pcm.compress)
+		ipc4_copier->data.copier_feature_mask |= BIT(SOF_IPC4_COPIER_FAST_MODE);
+
 skip_gtw_cfg:
 	ipc4_copier->gtw_attr = kzalloc_obj(*ipc4_copier->gtw_attr);
 	if (!ipc4_copier->gtw_attr) {
@@ -1844,12 +1847,13 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 			       u32 linktype, u8 dir, u32 **dst, u32 *len)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct nhlt_specific_cfg *cfg;
+	struct nhlt_specific_cfg *cfg = NULL;
+	struct snd_ipc4_nhlt *entry = NULL;
 	int sample_rate, channel_count;
 	bool format_change = false;
 	int bit_depth, ret;
 	u32 nhlt_type;
-	int dev_type = 0;
+	int dev_type = -EINVAL;
 
 	/* convert to NHLT type */
 	switch (linktype) {
@@ -1880,10 +1884,17 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		 * Query the type for the port and then pass that information back
 		 * to the blob lookup function.
 		 */
-		dev_type = intel_nhlt_ssp_device_type(sdev->dev, ipc4_data->nhlt,
-						      dai_index);
-		if (dev_type < 0)
+		list_for_each_entry(entry, &ipc4_data->nhlt_list, list) {
+			dev_type = intel_nhlt_ssp_device_type(sdev->dev, entry->nhlt,
+							      dai_index);
+			if (dev_type >= 0)
+				break;
+		}
+		if (dev_type < 0) {
+			dev_err(sdev->dev, "%s: No match for SSP%d in NHLT table\n",
+				__func__, dai_index);
 			return dev_type;
+		}
 		break;
 	default:
 		return 0;
@@ -1893,9 +1904,14 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		dai_index, nhlt_type, dir, dev_type);
 
 	/* find NHLT blob with matching params */
-	cfg = intel_nhlt_get_endpoint_blob(sdev->dev, ipc4_data->nhlt, dai_index, nhlt_type,
-					   bit_depth, bit_depth, channel_count, sample_rate,
-					   dir, dev_type);
+	list_for_each_entry(entry, &ipc4_data->nhlt_list, list) {
+		cfg = intel_nhlt_get_endpoint_blob(sdev->dev, entry->nhlt, dai_index,
+						   nhlt_type, bit_depth, bit_depth,
+						   channel_count, sample_rate, dir,
+						   dev_type);
+		if (cfg)
+			break;
+	}
 
 	if (!cfg) {
 		bool get_new_blob = false;
@@ -1929,13 +1945,15 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		}
 
 		if (get_new_blob) {
-			cfg = intel_nhlt_get_endpoint_blob(sdev->dev, ipc4_data->nhlt,
-							   dai_index, nhlt_type,
-							   bit_depth, bit_depth,
-							   channel_count, sample_rate,
-							   dir, dev_type);
-			if (cfg)
-				goto out;
+			list_for_each_entry(entry, &ipc4_data->nhlt_list, list) {
+				cfg = intel_nhlt_get_endpoint_blob(sdev->dev, entry->nhlt,
+								   dai_index, nhlt_type,
+								   bit_depth, bit_depth,
+								   channel_count, sample_rate,
+								   dir, dev_type);
+				if (cfg)
+					goto out;
+			}
 		}
 
 		dev_err(sdev->dev,
@@ -3266,22 +3284,56 @@ static void sof_ipc4_add_init_ext_dp_memory_data(struct snd_sof_dev *sdev,
 						 u32 *payload, u32 *ext_pos,
 						 struct sof_ipc4_module_init_ext_object **hdr)
 {
-	/* Add memory_data if comp_domain indicates DP */
-	if (swidget->comp_domain == SOF_COMP_DOMAIN_DP) {
-		struct sof_ipc4_mod_init_ext_dp_memory_data *dp_mem_data;
+	struct sof_ipc4_mod_init_ext_dp_memory_data *dp_mem_data;
 
-		*hdr = (struct sof_ipc4_module_init_ext_object *)&payload[*ext_pos];
-		(*hdr)->header =
-			SOF_IPC4_MOD_INIT_EXT_OBJ_ID(SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA) |
-			SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS(DIV_ROUND_UP(sizeof(*dp_mem_data),
-								     sizeof(u32)));
-		*ext_pos += DIV_ROUND_UP(sizeof(**hdr), sizeof(u32));
-		dp_mem_data = (struct sof_ipc4_mod_init_ext_dp_memory_data *)&payload[*ext_pos];
-		dp_mem_data->domain_id = swidget->domain_id;
-		dp_mem_data->stack_bytes = swidget->stack_bytes;
-		dp_mem_data->heap_bytes = swidget->heap_bytes;
-		*ext_pos += DIV_ROUND_UP(sizeof(*dp_mem_data), sizeof(u32));
+	*hdr = (struct sof_ipc4_module_init_ext_object *)&payload[*ext_pos];
+	(*hdr)->header =
+		SOF_IPC4_MOD_INIT_EXT_OBJ_ID(SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA) |
+		SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS(DIV_ROUND_UP(sizeof(*dp_mem_data),
+							     sizeof(u32)));
+	*ext_pos += DIV_ROUND_UP(sizeof(**hdr), sizeof(u32));
+	dp_mem_data = (struct sof_ipc4_mod_init_ext_dp_memory_data *)&payload[*ext_pos];
+	dp_mem_data->domain_id = swidget->domain_id;
+	dp_mem_data->stack_bytes = swidget->stack_bytes;
+	dp_mem_data->heap_bytes = swidget->heap_bytes;
+	*ext_pos += DIV_ROUND_UP(sizeof(*dp_mem_data), sizeof(u32));
+}
+
+static int
+sof_ipc4_add_init_ext_module_data(struct snd_sof_dev *sdev,
+				  struct sof_ipc4_process *process,
+				  u32 *payload, u32 *ext_pos,
+				  struct sof_ipc4_module_init_ext_object **hdr)
+{
+	u32 data_size = process->init_ext_module_size;
+	void *data = process->init_ext_module_data;
+	size_t needed;
+
+	/*
+	 * Unlike the other objects, the module data is of variable size,
+	 * provided by the module which is being set up.
+	 * Make sure that the object fits into the payload buffer before any of
+	 * it is written.
+	 */
+	needed = ((size_t)*ext_pos + DIV_ROUND_UP(sizeof(**hdr), sizeof(u32)) +
+		  DIV_ROUND_UP(data_size, sizeof(u32))) * sizeof(u32);
+	if (needed > sdev->ipc->max_payload_size) {
+		dev_err(sdev->dev,
+			"Max ipc payload size %zu exceeded by module data: %zu\n",
+			sdev->ipc->max_payload_size, needed);
+		return -EINVAL;
 	}
+
+	*hdr = (struct sof_ipc4_module_init_ext_object *)&payload[*ext_pos];
+	(*hdr)->header = SOF_IPC4_MOD_INIT_EXT_OBJ_ID(SOF_IPC4_MOD_INIT_DATA_ID_MODULE_DATA) |
+		SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS(DIV_ROUND_UP(data_size, sizeof(u32)));
+	*ext_pos += DIV_ROUND_UP(sizeof(*(*hdr)), sizeof(u32));
+
+	memcpy(&payload[*ext_pos], data, data_size);
+
+	*ext_pos += DIV_ROUND_UP(data_size, sizeof(u32));
+
+	return 0;
 }
 
 static int sof_ipc4_widget_mod_init_msg_payload(struct snd_sof_dev *sdev,
@@ -3290,17 +3342,17 @@ static int sof_ipc4_widget_mod_init_msg_payload(struct snd_sof_dev *sdev,
 						void *ipc_data, u32 ipc_size,
 						void **new_data)
 {
-	struct sof_ipc4_module_init_ext_init *ext_init;
+	struct sof_ipc4_process *process = swidget->private;
 	struct sof_ipc4_module_init_ext_object *hdr = NULL;
+	struct sof_ipc4_module_init_ext_init *ext_init;
+	bool in_dp_domain = swidget->comp_domain == SOF_COMP_DOMAIN_DP;
+	bool has_ext_data = WIDGET_IS_PROCESS(swidget->id) && process->init_ext_module_size;
 	int new_size;
 	u32 *payload;
 	u32 ext_pos;
+	int ret;
 
-	/*
-	 * Only DP widgets currently add init-ext objects here. Avoid allocating
-	 * a max-sized payload buffer for widgets that will immediately return 0.
-	 */
-	if (swidget->comp_domain != SOF_COMP_DOMAIN_DP)
+	if (!in_dp_domain && !has_ext_data)
 		return 0;
 
 	payload = kzalloc(sdev->ipc->max_payload_size, GFP_KERNEL);
@@ -3309,25 +3361,24 @@ static int sof_ipc4_widget_mod_init_msg_payload(struct snd_sof_dev *sdev,
 
 	/* Add ext_init first and set objects array flag to 1 */
 	ext_init = (struct sof_ipc4_module_init_ext_init *)payload;
+	ext_init->word0 |= SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_MASK;
 	ext_pos = DIV_ROUND_UP(sizeof(*ext_init), sizeof(u32));
 
 	/* Add object array objects after ext_init */
+	if (in_dp_domain)
+		sof_ipc4_add_init_ext_dp_memory_data(sdev, swidget, payload,
+						     &ext_pos, &hdr);
 
-	sof_ipc4_add_init_ext_dp_memory_data(sdev, swidget, payload, &ext_pos, &hdr);
-
-	/* Add following object array items here */
-
-	if (!hdr) {
-		/*
-		 * NOTE: Remove this early bail out, when struct
-		 *       sof_ipc4_module_init_ext_init alone has some
-		 *       function.
-		 */
-		kfree(payload);
-		return 0;
+	if (has_ext_data) {
+		ret = sof_ipc4_add_init_ext_module_data(sdev, process, payload,
+							&ext_pos, &hdr);
+		if (ret) {
+			kfree(payload);
+			return ret;
+		}
 	}
 
-	ext_init->word0 |= SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_MASK;
+	/* Set last bit for the last object in the array */
 	hdr->header |= SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_MASK;
 
 	/* Calculate final size and check that it fits to max payload size */
@@ -3556,6 +3607,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		msg = &asrc->msg;
 		break;
 	}
+	case snd_soc_dapm_decoder:
+	case snd_soc_dapm_encoder:
 	case snd_soc_dapm_effect:
 	{
 		struct sof_ipc4_process *process = swidget->private;
@@ -4072,6 +4125,7 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_manifest_tlv *manifest_tlv;
+	struct snd_ipc4_nhlt *tplg_nhlt;
 	struct sof_manifest *manifest;
 	u32 size = le32_to_cpu(man->priv.size);
 	u8 *man_ptr = man->priv.data;
@@ -4107,13 +4161,20 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 
 		switch (le32_to_cpu(manifest_tlv->type)) {
 		case SOF_MANIFEST_DATA_TYPE_NHLT:
-			/* no NHLT in BIOS, so use the one from topology manifest */
-			if (ipc4_data->nhlt)
-				break;
-			ipc4_data->nhlt = devm_kmemdup(sdev->dev, manifest_tlv->data,
-						       le32_to_cpu(manifest_tlv->size), GFP_KERNEL);
-			if (!ipc4_data->nhlt)
+			/* Get the nhlt from topology manifest */
+			tplg_nhlt = devm_kzalloc(sdev->dev, sizeof(*tplg_nhlt), GFP_KERNEL);
+			if (!tplg_nhlt)
 				return -ENOMEM;
+
+			tplg_nhlt->nhlt = devm_kmemdup(sdev->dev, manifest_tlv->data,
+						       le32_to_cpu(manifest_tlv->size), GFP_KERNEL);
+			if (!tplg_nhlt->nhlt)
+				return -ENOMEM;
+
+			tplg_nhlt->from_acpi = false;
+
+			list_add(&tplg_nhlt->list, &ipc4_data->nhlt_list);
+
 			break;
 		default:
 			dev_warn(scomp->dev, "Skipping unknown manifest data type %d\n",
@@ -4328,6 +4389,15 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 				process_token_list, ARRAY_SIZE(process_token_list),
 				NULL, sof_ipc4_prepare_process_module,
 				NULL},
+	/* for all practical purposes a decoder is like an effect type widget */
+	[snd_soc_dapm_decoder] = {sof_ipc4_widget_setup_comp_process,
+				  sof_ipc4_widget_free_comp_process,
+				  process_token_list, ARRAY_SIZE(process_token_list),
+				  NULL, sof_ipc4_prepare_process_module, NULL},
+	[snd_soc_dapm_encoder] = {sof_ipc4_widget_setup_comp_process,
+				  sof_ipc4_widget_free_comp_process,
+				  process_token_list, ARRAY_SIZE(process_token_list),
+				  NULL, sof_ipc4_prepare_process_module, NULL},
 };
 
 const struct sof_ipc_tplg_ops ipc4_tplg_ops = {

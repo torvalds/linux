@@ -6,11 +6,16 @@
  *		Copyright 2013
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include <sound/soc.h>
+
+struct pcm5102a_priv {
+	struct gpio_desc *gpio_reset;
+};
 
 static struct snd_soc_dai_driver pcm5102a_dai = {
 	.name = "pcm5102a-hifi",
@@ -32,8 +37,30 @@ static const struct snd_soc_component_driver soc_component_dev_pcm5102a = {
 
 static int pcm5102a_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_component(&pdev->dev, &soc_component_dev_pcm5102a,
+	struct device *dev = &pdev->dev;
+	struct pcm5102a_priv *pcm5102a;
+
+	pcm5102a = devm_kzalloc(dev, sizeof(*pcm5102a), GFP_KERNEL);
+	if (!pcm5102a)
+		return -ENOMEM;
+
+	pcm5102a->gpio_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+
+	if (IS_ERR(pcm5102a->gpio_reset))
+		return dev_err_probe(dev, PTR_ERR(pcm5102a->gpio_reset),
+					"failed to acquire reset gpio\n");
+
+	platform_set_drvdata(pdev, pcm5102a);
+
+	return devm_snd_soc_register_component(dev, &soc_component_dev_pcm5102a,
 			&pcm5102a_dai, 1);
+}
+
+static void pcm5102a_remove(struct platform_device *pdev)
+{
+	struct pcm5102a_priv *priv = platform_get_drvdata(pdev);
+
+	gpiod_set_value_cansleep(priv->gpio_reset, 1);
 }
 
 static const struct of_device_id pcm5102a_of_match[] = {
@@ -44,6 +71,7 @@ MODULE_DEVICE_TABLE(of, pcm5102a_of_match);
 
 static struct platform_driver pcm5102a_codec_driver = {
 	.probe		= pcm5102a_probe,
+	.remove		= pcm5102a_remove,
 	.driver		= {
 		.name	= "pcm5102a-codec",
 		.of_match_table = pcm5102a_of_match,

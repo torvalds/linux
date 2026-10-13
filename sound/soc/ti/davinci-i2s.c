@@ -49,7 +49,7 @@
  *    incompatible with ASP and with either McBSP.
  *
  * In short:  this uses ASP to implement I2S, not McBSP.
- * And it won't be the only DaVinci implemention of I2S.
+ * And it won't be the only DaVinci implementation of I2S.
  */
 #define DAVINCI_MCBSP_DRR_REG	0x00
 #define DAVINCI_MCBSP_DXR_REG	0x04
@@ -743,6 +743,17 @@ static int davinci_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 davinci_i2s_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_CONT	|
+	SND_SOC_POSSIBLE_DAIFMT_GATED	|
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.probe		= davinci_i2s_dai_probe,
 	.shutdown	= davinci_i2s_shutdown,
@@ -752,7 +763,8 @@ static const struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.set_fmt	= davinci_i2s_set_dai_fmt,
 	.set_clkdiv	= davinci_i2s_dai_set_clkdiv,
 	.set_tdm_slot   = davinci_i2s_set_tdm_slot,
-
+	.auto_selectable_formats	= &davinci_i2s_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver davinci_i2s_dai = {

@@ -505,8 +505,8 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	int i, index;
 	int num_routes;
 
-	card->dai_link = devm_kzalloc(dev, sizeof(rockchip_dais),
-				      GFP_KERNEL);
+	card->dai_link = devm_kcalloc(dev, ARRAY_SIZE(rockchip_dais),
+				      sizeof(*card->dai_link), GFP_KERNEL);
 	if (!card->dai_link)
 		return -ENOMEM;
 

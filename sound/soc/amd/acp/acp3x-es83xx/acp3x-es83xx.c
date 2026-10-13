@@ -10,6 +10,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include <sound/soc-acpi.h>
+#include <acpi/acpi_bus.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -40,6 +41,11 @@ struct acp3x_es83xx_private {
 	struct acpi_gpio_mapping gpio_mapping[3];
 	struct snd_soc_dapm_route mic_map[2];
 };
+
+static void acp3x_es83xx_put_codec_device(void *data)
+{
+	put_device(data);
+}
 
 static const unsigned int channels[] = {
 	DUAL_CHANNEL,
@@ -428,7 +434,7 @@ static int acp3x_es83xx_probe(struct snd_soc_card *card)
 			return -ENXIO;
 		}
 
-		codec_dev = acpi_get_first_physical_node(adev);
+		codec_dev = acpi_bus_get_primary_device(adev);
 		acpi_dev_put(adev);
 		if (!codec_dev) {
 			dev_warn(dev, "Error cannot find codec device, will defer probe\n");
@@ -440,6 +446,12 @@ static int acp3x_es83xx_probe(struct snd_soc_card *card)
 			put_device(codec_dev);
 			return -ENOMEM;
 		}
+
+		ret = devm_add_action_or_reset(dev,
+					       acp3x_es83xx_put_codec_device,
+					       codec_dev);
+		if (ret)
+			return ret;
 
 		priv->codec_dev = codec_dev;
 		priv->quirk = (unsigned long)dmi_id->driver_data;

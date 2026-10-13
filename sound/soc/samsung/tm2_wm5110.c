@@ -518,19 +518,15 @@ static int tm2_probe(struct platform_device *pdev)
 	}
 
 	ret = snd_soc_of_parse_card_name(card, "model");
-	if (ret < 0) {
-		dev_err(dev, "Card name is not specified\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 	if (ret < 0) {
 		/* Backwards compatible way */
 		ret = snd_soc_of_parse_audio_routing(card, "samsung,audio-routing");
-		if (ret < 0) {
-			dev_err(dev, "Audio routing is not specified or invalid\n");
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	card->aux_dev[0].dlc.of_node = of_parse_phandle(dev->of_node,
@@ -609,10 +605,8 @@ static int tm2_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(dev, &tm2_component,
 				tm2_ext_dai, ARRAY_SIZE(tm2_ext_dai));
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component: %d\n", ret);
+	if (ret < 0)
 		goto dai_node_put;
-	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {

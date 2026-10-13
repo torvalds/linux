@@ -258,10 +258,16 @@ struct snd_soc_component {
 	void *priv;
 };
 
-#define for_each_component_dais(component, dai)\
-	list_for_each_entry(dai, &(component)->dai_list, list)
-#define for_each_component_dais_safe(component, dai, _dai)\
-	list_for_each_entry_safe(dai, _dai, &(component)->dai_list, list)
+#define for_each_component_dais(component, dai)				\
+	for (dai = snd_soc_dai_from_list((component)->dai_list.next);	\
+	     snd_soc_dai_to_list(dai) != &(component)->dai_list;	\
+	     dai = snd_soc_dai_from_list(snd_soc_dai_to_list(dai)->next))
+
+#define for_each_component_dais_safe(component, dai, _dai)			\
+	for (dai = snd_soc_dai_from_list((component)->dai_list.next),		\
+	     _dai = snd_soc_dai_from_list(snd_soc_dai_to_list(dai)->next);	\
+	     snd_soc_dai_to_list(dai) != &(component)->dai_list;		\
+	     dai = _dai, _dai = snd_soc_dai_from_list(snd_soc_dai_to_list(_dai)->next))
 
 /**
  * snd_soc_component_to_dapm() - Returns the DAPM context associated with a
@@ -286,9 +292,12 @@ static inline int snd_soc_component_cache_sync(
 	return regcache_sync(component->regmap);
 }
 
-struct snd_soc_component *snd_soc_component_alloc(struct device *dev);
+struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
+						const struct snd_soc_component_driver *driver);
+int snd_soc_component_register(struct snd_soc_component *component,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai);
 
-void snd_soc_component_set_name(struct snd_soc_component *component, const char *name);
 const char *snd_soc_component_name(struct snd_soc_component *component);
 
 void snd_soc_component_set_priv(struct snd_soc_component *component, void *priv);

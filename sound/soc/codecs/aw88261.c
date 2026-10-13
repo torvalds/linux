@@ -853,13 +853,13 @@ static int aw88261_set_tdm_slot(struct snd_soc_dai *dai,
 			return -EINVAL;
 
 		aw88261->rxl_slotvld_mask = chan << AW88261_I2S_RXL_SLOTVLD_START_BIT;
-	}
 
-	if ((rx_mask & ~BIT(chan)) != 0) {
-		if ((chan = __ffs(rx_mask & ~BIT(chan))) > 16)
-			return -EINVAL;
+		if ((rx_mask & ~BIT(chan)) != 0) {
+			if ((chan = __ffs(rx_mask & ~BIT(chan))) > 16)
+				return -EINVAL;
 
-		aw88261->rxr_slotvld_mask = chan << AW88261_I2S_RXR_SLOTVLD_START_BIT;
+			aw88261->rxr_slotvld_mask = chan << AW88261_I2S_RXR_SLOTVLD_START_BIT;
+		}
 	}
 
 	return 0;

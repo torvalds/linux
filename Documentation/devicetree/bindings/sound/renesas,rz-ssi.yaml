@@ -95,20 +95,20 @@ examples:
     ssi0: ssi@10049c00 {
         compatible = "renesas,r9a07g044-ssi",
                      "renesas,rz-ssi";
-            reg = <0x10049c00 0x400>;
-            interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 327 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 328 IRQ_TYPE_EDGE_RISING>;
-            interrupt-names = "int_req", "dma_rx", "dma_tx";
-            clocks = <&cpg CPG_MOD R9A07G044_SSI0_PCLK2>,
-                     <&cpg CPG_MOD R9A07G044_SSI0_PCLK_SFR>,
-                     <&audio_clk1>,
-                     <&audio_clk2>;
-            clock-names = "ssi", "ssi_sfr", "audio_clk1", "audio_clk2";
-            power-domains = <&cpg>;
-            resets = <&cpg R9A07G044_SSI0_RST_M2_REG>;
-            dmas = <&dmac 0x2655>,
-                   <&dmac 0x2656>;
-            dma-names = "tx", "rx";
-            #sound-dai-cells = <0>;
+        reg = <0x10049c00 0x400>;
+        interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 327 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 328 IRQ_TYPE_EDGE_RISING>;
+        interrupt-names = "int_req", "dma_rx", "dma_tx";
+        clocks = <&cpg CPG_MOD R9A07G044_SSI0_PCLK2>,
+                 <&cpg CPG_MOD R9A07G044_SSI0_PCLK_SFR>,
+                 <&audio_clk1>,
+                 <&audio_clk2>;
+        clock-names = "ssi", "ssi_sfr", "audio_clk1", "audio_clk2";
+        power-domains = <&cpg>;
+        resets = <&cpg R9A07G044_SSI0_RST_M2_REG>;
+        dmas = <&dmac 0x2655>,
+               <&dmac 0x2656>;
+        dma-names = "tx", "rx";
+        #sound-dai-cells = <0>;
     };

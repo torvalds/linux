@@ -233,7 +233,4 @@ struct avs_tplg_module {
 extern const struct snd_soc_tplg_ops avs_tplg_ops;
 struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp);
 
-int avs_load_topology(struct snd_soc_component *comp, const char *filename);
-int avs_remove_topology(struct snd_soc_component *comp);
-
 #endif

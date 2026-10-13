@@ -39,6 +39,7 @@ definitions:
     allOf:
       - $ref: /schemas/graph.yaml#/$defs/endpoint-base
       - $ref: /schemas/sound/dai-params.yaml#
+      - $ref: /schemas/sound/tdm-slot.yaml#
     properties:
       mclk-fs:
         $ref: simple-card.yaml#/definitions/mclk-fs
@@ -47,6 +48,9 @@ definitions:
         $ref: /schemas/types.yaml#/definitions/flag
       bitclock-inversion:
         description: dai-link uses bit clock inversion
+        $ref: /schemas/types.yaml#/definitions/flag
+      continuous-clock:
+        description: dai-link bit clock runs continuously rather than gated
         $ref: /schemas/types.yaml#/definitions/flag
       frame-master:
         description: Indicates dai-link frame master.
@@ -82,12 +86,6 @@ definitions:
             - msb
             - lsb
 
-      dai-tdm-slot-num:
-        description: Number of slots in use.
-        $ref: /schemas/types.yaml#/definitions/uint32
-      dai-tdm-slot-width:
-        description: Width in bits for each slot.
-        $ref: /schemas/types.yaml#/definitions/uint32
       dai-tdm-slot-width-map:
         description: Mapping of sample widths to slot widths. For hardware
           that cannot support a fixed slot width or a slot width always

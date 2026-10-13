@@ -192,6 +192,90 @@ static int rk3308_codec_pop_sound_set(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rk3308_codec_dac_output_vcm_event(struct snd_soc_dapm_widget *w,
+					     struct snd_kcontrol *kcontrol,
+					     int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
+	unsigned int val;
+
+	if (rk3308->codec_ver != ACODEC_VERSION_B)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Keep the DAC outputs at VCM while their reference is charged. */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15,
+				   RK3308_DAC_LINEOUT_POP_SOUND_L_MSK |
+				   RK3308_DAC_LINEOUT_POP_SOUND_R_MSK,
+				   RK3308_DAC_L_SEL_DC_FROM_VCM |
+				   RK3308_DAC_R_SEL_DC_FROM_VCM);
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
+				   RK3308_DAC_CURRENT_CHARGE_MSK, 1);
+		regmap_set_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
+				RK3308_DAC_VCM_LINEOUT_EN);
+		for (val = 1; val <= 0xf; val++) {
+			regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
+					   RK3308_DAC_CURRENT_CHARGE_MSK, val);
+			usleep_range(200, 400);
+		}
+		msleep(20);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15,
+				   RK3308_DAC_LINEOUT_POP_SOUND_L_MSK |
+				   RK3308_DAC_LINEOUT_POP_SOUND_R_MSK,
+				   RK3308_DAC_L_SEL_DC_FROM_INTERNAL |
+				   RK3308_DAC_R_SEL_DC_FROM_INTERNAL);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15,
+				   RK3308_DAC_LINEOUT_POP_SOUND_L_MSK |
+				   RK3308_DAC_LINEOUT_POP_SOUND_R_MSK,
+				   RK3308_DAC_L_SEL_DC_FROM_VCM |
+				   RK3308_DAC_R_SEL_DC_FROM_VCM);
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
+				   RK3308_DAC_CURRENT_CHARGE_MSK, 1);
+		regmap_clear_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
+				  RK3308_DAC_VCM_LINEOUT_EN);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_lineout_event(struct snd_soc_dapm_widget *w,
+				      struct snd_kcontrol *kcontrol,
+				      int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
+	unsigned int mask = RK3308_DAC_LINEOUT_POP_SOUND_L_MSK << w->shift;
+	unsigned int val;
+
+	if (rk3308->codec_ver != ACODEC_VERSION_B)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = RK3308_DAC_L_SEL_LINEOUT_FROM_INTERNAL << w->shift;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		val = RK3308_DAC_L_SEL_DC_FROM_INTERNAL << w->shift;
+		break;
+	default:
+		return 0;
+	}
+
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15, mask, val);
+	usleep_range(20, 40);
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget rk3308_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
@@ -322,6 +406,10 @@ static const struct snd_soc_dapm_widget rk3308_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("HPOUT_POP_SOUND_R", SND_SOC_NOPM, 4, 0, NULL, 0,
 			       rk3308_codec_pop_sound_set,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY("DAC_OUTPUT_VCM", SND_SOC_NOPM, 0, 0,
+			    rk3308_codec_dac_output_vcm_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			    SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUT_DRV("L_HPOUT_EN", RK3308_DAC_ANA_CON03, 1, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("R_HPOUT_EN", RK3308_DAC_ANA_CON03, 5, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("L_HPOUT_WORK", RK3308_DAC_ANA_CON03, 2, 0, NULL, 0),
@@ -329,8 +417,12 @@ static const struct snd_soc_dapm_widget rk3308_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPOUT_L"),
 	SND_SOC_DAPM_OUTPUT("HPOUT_R"),
 
-	SND_SOC_DAPM_OUT_DRV("L_LINEOUT_EN", RK3308_DAC_ANA_CON04, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("R_LINEOUT_EN", RK3308_DAC_ANA_CON04, 4, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV_E("L_LINEOUT_EN", RK3308_DAC_ANA_CON04, 0, 0,
+			       NULL, 0, rk3308_codec_lineout_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_OUT_DRV_E("R_LINEOUT_EN", RK3308_DAC_ANA_CON04, 4, 0,
+			       NULL, 0, rk3308_codec_lineout_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("LINEOUT_L"),
 	SND_SOC_DAPM_OUTPUT("LINEOUT_R"),
 };
@@ -466,6 +558,8 @@ static const struct snd_soc_dapm_route rk3308_codec_dapm_routes[] = {
 	{ "HPOUT_R", NULL, "DAC_BUF_REF_R" },
 	{ "L_HPOUT_EN", NULL, "DAC_L_HPMIX_SEL" },
 	{ "R_HPOUT_EN", NULL, "DAC_R_HPMIX_SEL" },
+	{ "L_HPOUT_EN", NULL, "DAC_OUTPUT_VCM" },
+	{ "R_HPOUT_EN", NULL, "DAC_OUTPUT_VCM" },
 	{ "L_HPOUT_WORK", NULL, "L_HPOUT_EN" },
 	{ "R_HPOUT_WORK", NULL, "R_HPOUT_EN" },
 	{ "HPOUT_POP_SOUND_L", NULL, "L_HPOUT_WORK" },
@@ -475,6 +569,8 @@ static const struct snd_soc_dapm_route rk3308_codec_dapm_routes[] = {
 
 	{ "L_LINEOUT_EN", NULL, "DAC_L_HPMIX_SEL" },
 	{ "R_LINEOUT_EN", NULL, "DAC_R_HPMIX_SEL" },
+	{ "L_LINEOUT_EN", NULL, "DAC_OUTPUT_VCM" },
+	{ "R_LINEOUT_EN", NULL, "DAC_OUTPUT_VCM" },
 	{ "LINEOUT_L", NULL, "L_LINEOUT_EN" },
 	{ "LINEOUT_R", NULL, "R_LINEOUT_EN" },
 };
@@ -679,9 +775,20 @@ static int rk3308_codec_hw_params(struct snd_pcm_substream *substream,
 		rk3308_codec_adc_dig_config(rk3308, params);
 }
 
+static const u64 rk3308_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops rk3308_codec_dai_ops = {
 	.hw_params = rk3308_codec_hw_params,
 	.set_fmt = rk3308_codec_set_dai_fmt,
+	.auto_selectable_formats = &rk3308_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver rk3308_codec_dai_driver = {
@@ -855,7 +962,7 @@ static int rk3308_codec_get_version(struct rk3308_codec_priv *rk3308)
 		break;
 	case 0x3308:
 		rk3308->codec_ver = ACODEC_VERSION_B;
-		return dev_err_probe(rk3308->dev, -EINVAL, "Chip version B not supported\n");
+		break;
 	case 0x3308c:
 		rk3308->codec_ver = ACODEC_VERSION_C;
 		break;

@@ -463,11 +463,21 @@ static int max98927_dai_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static const u64 max98927_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops max98927_dai_ops = {
 	.set_sysclk = max98927_dai_set_sysclk,
 	.set_fmt = max98927_dai_set_fmt,
 	.hw_params = max98927_dai_hw_params,
 	.set_tdm_slot = max98927_dai_tdm_slot,
+	.auto_selectable_formats = &max98927_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static int max98927_dac_event(struct snd_soc_dapm_widget *w,
@@ -662,7 +672,7 @@ static int max98927_probe(struct snd_soc_component *component)
 		     0x80);
 	regmap_write(max98927->regmap, MAX98927_R0026_PCM_TO_SPK_MONOMIX_B,
 		     0x1);
-	/* Set inital volume (+13dB) */
+	/* Set initial volume (+13dB) */
 	regmap_write(max98927->regmap, MAX98927_R0036_AMP_VOL_CTRL, 0x38);
 	regmap_write(max98927->regmap, MAX98927_R003C_SPK_GAIN, 0x05);
 	/* Enable DC blocker */
@@ -860,7 +870,7 @@ static int max98927_i2c_probe(struct i2c_client *i2c)
 	/* voltage/current slot configuration */
 	max98927_slot_config(i2c, max98927);
 
-	/* codec registeration */
+	/* codec registration */
 	ret = devm_snd_soc_register_component(&i2c->dev,
 		&soc_component_dev_max98927,
 		max98927_dai, ARRAY_SIZE(max98927_dai));

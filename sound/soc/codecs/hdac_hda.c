@@ -520,7 +520,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	/*
 	 * hdac_device core already sets the state to active and calls
 	 * get_noresume. So enable runtime and set the device to suspend.
-	 * pm_runtime_enable is also called during codec registeration
+	 * pm_runtime_enable is also called during codec registration
 	 */
 	pm_runtime_put(&hdev->dev);
 	pm_runtime_suspend(&hdev->dev);

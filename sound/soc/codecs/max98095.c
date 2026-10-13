@@ -1413,22 +1413,36 @@ static int max98095_set_bias_level(struct snd_soc_component *component,
 #define MAX98095_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98095_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
+static const u64 max98095_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops max98095_dai1_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai1_set_fmt,
 	.hw_params = max98095_dai1_hw_params,
+	.auto_selectable_formats = &max98095_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static const struct snd_soc_dai_ops max98095_dai2_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai2_set_fmt,
 	.hw_params = max98095_dai2_hw_params,
+	.auto_selectable_formats = &max98095_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static const struct snd_soc_dai_ops max98095_dai3_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai3_set_fmt,
 	.hw_params = max98095_dai3_hw_params,
+	.auto_selectable_formats = &max98095_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver max98095_dai[] = {
@@ -1991,11 +2005,6 @@ static int max98095_probe(struct snd_soc_component *component)
 	struct i2c_client *client;
 	int ret = 0;
 
-	max98095->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(max98095->mclk))
-		if (PTR_ERR(max98095->mclk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
 	/* reset the codec, the DSP core, and disable all interrupts */
 	max98095_reset(component);
 
@@ -2138,6 +2147,11 @@ static int max98095_i2c_probe(struct i2c_client *i2c)
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		return ret;
 	}
+
+	max98095->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(max98095->mclk))
+		if (PTR_ERR(max98095->mclk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 
 	max98095->devtype = (uintptr_t)i2c_get_match_data(i2c);
 	i2c_set_clientdata(i2c, max98095);

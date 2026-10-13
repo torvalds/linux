@@ -147,17 +147,15 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 	struct snd_soc_dai_link *links = NULL;
 	struct snd_soc_card *card = rtm->card;
 	struct hda_codec *codec;
-	struct hda_pcm *pcm;
-	int ret, pcm_count = 0;
+	int ret, pcm_count;
 
 	mach = dev_get_platdata(card->dev);
 	pdata = mach->pdata;
 	codec = pdata->codec;
+	pcm_count = list_count_nodes(&codec->pcm_list_head);
 
-	if (list_empty(&codec->pcm_list_head))
+	if (!pcm_count)
 		return -EINVAL;
-	list_for_each_entry(pcm, &codec->pcm_list_head, list)
-		pcm_count++;
 
 	ret = avs_create_dai_links(card->dev, codec, pcm_count, &links);
 	if (ret < 0) {

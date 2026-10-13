@@ -128,10 +128,16 @@ static int ak5386_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const u64 ak5386_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops ak5386_dai_ops = {
 	.set_fmt	= ak5386_set_dai_fmt,
 	.hw_params	= ak5386_hw_params,
 	.hw_free	= ak5386_hw_free,
+	.auto_selectable_formats	= &ak5386_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ak5386_dai = {

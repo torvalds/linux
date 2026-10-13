@@ -85,12 +85,11 @@ static int hda_codec_register_dais(struct hda_codec *codec, struct snd_soc_compo
 	struct snd_soc_dai_driver *drvs = NULL;
 	struct snd_soc_dapm_context *dapm;
 	struct hda_pcm *pcm;
-	int ret, pcm_count = 0;
+	int ret, pcm_count;
 
-	if (list_empty(&codec->pcm_list_head))
+	pcm_count = list_count_nodes(&codec->pcm_list_head);
+	if (!pcm_count)
 		return -EINVAL;
-	list_for_each_entry(pcm, &codec->pcm_list_head, list)
-		pcm_count++;
 
 	ret = hda_codec_create_dais(codec, pcm_count, &drvs);
 	if (ret < 0)

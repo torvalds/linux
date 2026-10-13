@@ -48,7 +48,17 @@ struct aic32x4_priv {
 	enum aic32x4_type type;
 
 	unsigned int fmt;
+
+	struct clk_bulk_data clocks[7];
 };
+
+#define AIC32X4_CLK_CODEC_CLKIN	0
+#define AIC32X4_CLK_PLL		1
+#define AIC32X4_CLK_NADC	2
+#define AIC32X4_CLK_MADC	3
+#define AIC32X4_CLK_NDAC	4
+#define AIC32X4_CLK_MDAC	5
+#define AIC32X4_CLK_BDIV	6
 
 static int aic32x4_reset_adc(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
@@ -591,14 +601,10 @@ static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_component *component = codec_dai->component;
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	struct clk *mclk;
-	struct clk *pll;
 
-	pll = devm_clk_get(component->dev, "pll");
-	if (IS_ERR(pll))
-		return PTR_ERR(pll);
-
-	mclk = clk_get_parent(pll);
+	mclk = clk_get_parent(aic32x4->clocks[AIC32X4_CLK_PLL].clk);
 
 	return clk_set_rate(mclk, freq);
 }
@@ -750,17 +756,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	unsigned long adc_clock_rate, dac_clock_rate;
 	int ret;
 
-	struct clk_bulk_data clocks[] = {
-		{ .id = "pll" },
-		{ .id = "nadc" },
-		{ .id = "madc" },
-		{ .id = "ndac" },
-		{ .id = "mdac" },
-		{ .id = "bdiv" },
-	};
-	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
-	if (ret)
-		return ret;
+	struct clk_bulk_data *clocks = &aic32x4->clocks[AIC32X4_CLK_PLL];
 
 	ret = aic32x4_configure_rate(component, sample_rate, &aosr,
 				     &adc_resource_class, &dac_resource_class,
@@ -876,17 +872,14 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	struct clk_bulk_data clocks[] = {
-		{ .id = "madc" },
-		{ .id = "mdac" },
-		{ .id = "bdiv" },
+		aic32x4->clocks[AIC32X4_CLK_MADC],
+		aic32x4->clocks[AIC32X4_CLK_MDAC],
+		aic32x4->clocks[AIC32X4_CLK_BDIV],
 	};
-
-	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
-	if (ret)
-		return ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -916,11 +909,19 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 			 | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_3LE \
 			 | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 aic32x4_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
 static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
 	.mute_stream = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,
 	.set_sysclk = aic32x4_set_dai_sysclk,
+	.auto_selectable_formats	= &aic32x4_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 
@@ -962,23 +963,16 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u32 tmp_reg;
-	int ret;
 
-	struct clk_bulk_data clocks[] = {
-		{ .id = "codec_clkin" },
-		{ .id = "pll" },
-		{ .id = "bdiv" },
-		{ .id = "mdac" },
-	};
-
-	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
-	if (ret)
-		return ret;
+	struct clk *codec_clkin = aic32x4->clocks[AIC32X4_CLK_CODEC_CLKIN].clk;
+	struct clk *pll = aic32x4->clocks[AIC32X4_CLK_PLL].clk;
+	struct clk *bdiv = aic32x4->clocks[AIC32X4_CLK_BDIV].clk;
+	struct clk *mdac = aic32x4->clocks[AIC32X4_CLK_MDAC].clk;
 
 	aic32x4_setup_gpios(component);
 
-	clk_set_parent(clocks[0].clk, clocks[1].clk);
-	clk_set_parent(clocks[2].clk, clocks[3].clk);
+	clk_set_parent(codec_clkin, pll);
+	clk_set_parent(bdiv, mdac);
 
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_MICBIAS_2075_LDOIN) {
@@ -1119,23 +1113,16 @@ static int aic32x4_tas2505_component_probe(struct snd_soc_component *component)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u32 tmp_reg;
-	int ret;
 
-	struct clk_bulk_data clocks[] = {
-		{ .id = "codec_clkin" },
-		{ .id = "pll" },
-		{ .id = "bdiv" },
-		{ .id = "mdac" },
-	};
-
-	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
-	if (ret)
-		return ret;
+	struct clk *codec_clkin = aic32x4->clocks[AIC32X4_CLK_CODEC_CLKIN].clk;
+	struct clk *pll = aic32x4->clocks[AIC32X4_CLK_PLL].clk;
+	struct clk *bdiv = aic32x4->clocks[AIC32X4_CLK_BDIV].clk;
+	struct clk *mdac = aic32x4->clocks[AIC32X4_CLK_MDAC].clk;
 
 	aic32x4_setup_gpios(component);
 
-	clk_set_parent(clocks[0].clk, clocks[1].clk);
-	clk_set_parent(clocks[2].clk, clocks[3].clk);
+	clk_set_parent(codec_clkin, pll);
+	clk_set_parent(bdiv, mdac);
 
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE)
@@ -1353,6 +1340,21 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
 	if (ret)
 		goto err_disable_regulators;
+
+	aic32x4->clocks[AIC32X4_CLK_CODEC_CLKIN].id = "codec_clkin";
+	aic32x4->clocks[AIC32X4_CLK_PLL].id = "pll";
+	aic32x4->clocks[AIC32X4_CLK_NADC].id = "nadc";
+	aic32x4->clocks[AIC32X4_CLK_MADC].id = "madc";
+	aic32x4->clocks[AIC32X4_CLK_NDAC].id = "ndac";
+	aic32x4->clocks[AIC32X4_CLK_MDAC].id = "mdac";
+	aic32x4->clocks[AIC32X4_CLK_BDIV].id = "bdiv";
+
+	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(aic32x4->clocks),
+				aic32x4->clocks);
+	if (ret) {
+		dev_err(dev, "Failed to get clocks\n");
+		goto err_disable_regulators;
+	}
 
 	switch (aic32x4->type) {
 	case AIC32X4_TYPE_TAS2505:

@@ -534,7 +534,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 
 	/* create compressed page table for audio firmware */
 	ret = snd_sof_create_page_table(sdev->dev, &priv->dmatb,
-					priv->dmatp.area, priv->dmatb.bytes);
+					&priv->dmatp, priv->dmatb.bytes);
 	if (ret < 0)
 		goto table_err;
 

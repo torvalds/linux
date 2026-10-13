@@ -23,6 +23,19 @@
 #define ACP71_PCI_REV			0x71
 #define ACP72_PCI_REV			0x72
 
+/**
+ * struct amd_pdm_pdata - platform data passed via mach->pdata to machine driver
+ * @pdm_sel: active PDM controller (ACP7X_PDM_DMIC0 or ACP7X_PDM_DMIC1),
+ *           non-zero when a PDM controller was identified via ACPI _DSD
+ *
+ * Carries the PDM controller selection for ACP7.B/7.F platforms, derived
+ * from the acp-audio-ep-port ACPI _DSD property and passed via mach->pdata
+ * to the machine driver.
+ */
+struct amd_pdm_pdata {
+	unsigned int pdm_sel;
+};
+
 #define SOC_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 #define ASOC_SDW_FOUR_SPK		BIT(4)
 #define ASOC_SDW_ACP_DMIC		BIT(5)
