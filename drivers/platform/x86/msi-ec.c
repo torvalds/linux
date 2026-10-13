@@ -1134,6 +1134,7 @@ static struct msi_ec_conf CONF13 __initdata = {
 };
 
 static const char * const ALLOWED_FW_14[] __initconst = {
+	"1571EMS1.106", // Creator Z16 A11UE
 	"1824EMS1.108", // Raider 18 HX AI A2XWJG (MS-1824)
 	"182LIMS1.108", // Vector A18 HX A9WHG
 	"182LIMS1.111", // MSI Raider A18 HX A9WJG / Vector A18 HX A9WHG
