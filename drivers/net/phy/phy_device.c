@@ -1811,6 +1811,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	get_device(d);
 
+	/* Set by every attach, with or without a netdev */
+	if (phydev->phy_link_change) {
+		phydev_err(phydev, "PHY already attached\n");
+		err = -EBUSY;
+		goto error_put_device;
+	}
+
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver.
 	 */
@@ -1836,12 +1843,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 		if (err)
 			goto error_module_put;
-	}
-
-	if (phydev->attached_dev) {
-		dev_err(&dev->dev, "PHY already attached\n");
-		err = -EBUSY;
-		goto error;
 	}
 
 	phydev->phy_link_change = phy_link_change;
