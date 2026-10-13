@@ -252,7 +252,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * We are binding to the generic drivers/hwmon/lm70.c device
 	 * driver.
 	 */
-	strcpy(pp->info.modalias, "lm70");
+	strscpy(pp->info.modalias, "lm70", sizeof(pp->info.modalias));
 	pp->info.max_speed_hz = 6 * 1000 * 1000;
 	pp->info.chip_select = 0;
 	pp->info.mode = SPI_3WIRE | SPI_MODE_0;
