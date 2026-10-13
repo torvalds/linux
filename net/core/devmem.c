@@ -8,6 +8,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/mm.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -50,6 +51,10 @@ static void net_iov_free_push(struct net_iov_area *area,
 	freelist[(*free_count)++] = net_iov_idx(niov);
 }
 
+static const struct dma_buf_attach_ops net_devmem_dmabuf_attach_ops = {
+	.allow_peer2peer = true,
+};
+
 static void net_devmem_dmabuf_binding_release(struct percpu_ref *ref)
 {
 	struct net_devmem_dmabuf_binding *binding =
@@ -69,8 +74,11 @@ void __net_devmem_dmabuf_binding_free(struct work_struct *wq)
 		     binding->area.num_niovs, binding->free_count);
 
 	kvfree(binding->area.niovs);
-	dma_buf_unmap_attachment_unlocked(binding->attachment, binding->sgt,
-					  binding->direction);
+	dma_resv_lock(binding->dmabuf->resv, NULL);
+	dma_buf_unmap_attachment(binding->attachment, binding->sgt,
+				 binding->direction);
+	dma_buf_unpin(binding->attachment);
+	dma_resv_unlock(binding->dmabuf->resv);
 	dma_buf_detach(binding->dmabuf, binding->attachment);
 	dma_buf_put(binding->dmabuf);
 	xa_destroy(&binding->bound_rxqs);
@@ -190,7 +198,7 @@ net_devmem_bind_dmabuf(struct net_device *dev, void *vdev,
 	unsigned int sg_idx;
 	size_t niov_idx;
 	size_t i;
-	int err;
+	long err;
 
 	if (!dma_dev) {
 		NL_SET_ERR_MSG(extack, "Device doesn't support DMA");
@@ -226,19 +234,35 @@ net_devmem_bind_dmabuf(struct net_device *dev, void *vdev,
 	binding->dmabuf = dmabuf;
 	binding->direction = direction;
 
-	binding->attachment = dma_buf_attach(binding->dmabuf, dma_dev);
+	binding->attachment =
+		dma_buf_dynamic_attach(binding->dmabuf, dma_dev,
+				       &net_devmem_dmabuf_attach_ops, binding);
 	if (IS_ERR(binding->attachment)) {
 		err = PTR_ERR(binding->attachment);
 		NL_SET_ERR_MSG(extack, "Failed to bind dmabuf to device");
 		goto err_exit_ref;
 	}
 
-	binding->sgt = dma_buf_map_attachment_unlocked(binding->attachment,
-						       direction);
+	dma_resv_lock(dmabuf->resv, NULL);
+	err = dma_buf_pin(binding->attachment);
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to pin dmabuf");
+		goto err_unlock;
+	}
+
+	binding->sgt = dma_buf_map_attachment(binding->attachment, direction);
 	if (IS_ERR(binding->sgt)) {
 		err = PTR_ERR(binding->sgt);
 		NL_SET_ERR_MSG(extack, "Failed to map dmabuf attachment");
-		goto err_detach;
+		goto err_unpin;
+	}
+	dma_resv_unlock(dmabuf->resv);
+
+	err = dma_resv_wait_timeout(dmabuf->resv, DMA_RESV_USAGE_KERNEL, true,
+				    MAX_SCHEDULE_TIMEOUT);
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Failed to wait for dmabuf fences");
+		goto err_unmap;
 	}
 
 	if (!IS_ALIGNED(dmabuf->size, niov_size)) {
@@ -332,9 +356,12 @@ err_free_freelist:
 	kvfree(binding->freelist);
 	kvfree(binding->tx_vec);
 err_unmap:
-	dma_buf_unmap_attachment_unlocked(binding->attachment, binding->sgt,
-					  direction);
-err_detach:
+	dma_resv_lock(dmabuf->resv, NULL);
+	dma_buf_unmap_attachment(binding->attachment, binding->sgt, direction);
+err_unpin:
+	dma_buf_unpin(binding->attachment);
+err_unlock:
+	dma_resv_unlock(dmabuf->resv);
 	dma_buf_detach(dmabuf, binding->attachment);
 err_exit_ref:
 	percpu_ref_exit(&binding->ref);
