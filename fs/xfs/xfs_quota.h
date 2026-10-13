@@ -151,6 +151,8 @@ void xfs_dqtrx_hook_setup(struct xfs_dqtrx_hook *hook, notifier_fn_t mod_fn,
 		xfs_trans_mod_dquot((tp), (dqp), (field), (delta))
 # endif /* CONFIG_XFS_LIVE_HOOKS */
 
+void __xfs_qm_update_secondary_sb(struct xfs_mount *mp,
+		const char *func);
 #else
 static inline int
 xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
@@ -216,7 +218,14 @@ static inline int xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
 #  define xfs_dqtrx_hook_disable()		((void)0)
 # endif /* CONFIG_XFS_LIVE_HOOKS */
 
+static inline void __xfs_qm_update_secondary_sb(struct xfs_mount *mp,
+		const char *func)
+{
+}
 #endif /* CONFIG_XFS_QUOTA */
+
+#define xfs_qm_update_secondary_sb(mp) \
+	__xfs_qm_update_secondary_sb((mp), __func__)
 
 static inline void
 xfs_quota_unreserve_blkres(struct xfs_inode *ip, uint64_t blocks)
