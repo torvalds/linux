@@ -172,6 +172,7 @@ enum emulation_result {
 					 BIT(KVM_FEATURE_PREEMPT) |	\
 					 BIT(KVM_FEATURE_STEAL_TIME) |	\
 					 BIT(KVM_FEATURE_USER_HCALL) |	\
+					 BIT(KVM_FEATURE_CRASH)	|	\
 					 BIT(KVM_FEATURE_VIRT_EXTIOI))
 
 struct kvm_vcpu_arch {
