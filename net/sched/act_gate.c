@@ -18,6 +18,13 @@
 
 static struct tc_action_ops act_gate_ops;
 
+/* A nested attribute's u16 nla_len caps it at 65532 bytes. tcf_gate_dump()
+ * emits each entry as 36 bytes (40 with the gate-open flag), so 4096 entries
+ * would need ~144-160 KiB and cannot be represented. 1024 matches the
+ * SJA1105 schedule-table capacity (SJA1110 provides 4096).
+ */
+#define GATE_ENTRIES_MAX	1024U
+
 static ktime_t gate_get_time(struct tcf_gate *gact)
 {
 	ktime_t mono = ktime_get();
@@ -275,6 +282,14 @@ static int parse_gate_list(struct nlattr *list_attr,
 		if (nla_type(n) != TCA_GATE_ONE_ENTRY) {
 			NL_SET_ERR_MSG(extack, "Attribute isn't type 'entry'");
 			continue;
+		}
+
+		if (i >= GATE_ENTRIES_MAX) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "Too many schedule entries, at most %u are supported",
+					   GATE_ENTRIES_MAX);
+			err = -E2BIG;
+			goto release_list;
 		}
 
 		entry = kzalloc_obj(*entry, GFP_ATOMIC);
