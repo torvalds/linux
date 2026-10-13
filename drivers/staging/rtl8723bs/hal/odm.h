@@ -29,12 +29,10 @@
 #define TXSCALE_TABLE_SIZE		37
 #define TXPWR_TRACK_TABLE_SIZE	30
 #define DELTA_SWINGIDX_SIZE     30
-#define BAND_NUM				4
 
 /* 3 PSD Handler */
 /* 3 ============================================================ */
 
-#define	AFH_PSD		1	/* 0:normal PSD scan, 1: only do 20 pts PSD */
 #define	MODE_40M		0	/* 0:20M, 1:40M */
 #define	PSD_TH2		3
 #define	PSD_CHMIN		20   /*  Minimum channel number for BT AFH */
@@ -46,7 +44,6 @@
 #define   Smooth_Size_3		20
 #define	Smooth_TH_3	4
 #define   Smooth_Step_Size 5
-#define	Adaptive_SIR	1
 #define	PSD_RESCAN		4
 #define	PSD_SCAN_INTERVAL	700 /* ms */
 
