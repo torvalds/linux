@@ -50,6 +50,7 @@ properties:
           - enum:
               - qcom,eliza-llcc-bwmon
               - qcom,hawi-llcc-bwmon
+              - qcom,milos-cpu-bwmon
               - qcom,qcs615-llcc-bwmon
               - qcom,qcs8300-llcc-bwmon
               - qcom,sa8775p-llcc-bwmon

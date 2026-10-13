@@ -7,7 +7,7 @@
 menu "Qualcomm firmware drivers"
 
 config QCOM_PAS
-	tristate "Qualcomm generic PAS interface driver"
+	tristate "Qualcomm generic PAS interface driver" if COMPILE_TEST
 	help
 	  Enable the generic Peripheral Authentication Service (PAS) provided
 	  by the firmware. It acts as the common layer with different TZ
@@ -16,6 +16,7 @@ config QCOM_PAS
 
 config QCOM_PAS_TEE
 	tristate "Qualcomm PAS TEE interface driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	select QCOM_PAS
 	depends on TEE
 	depends on !CPU_BIG_ENDIAN
@@ -26,6 +27,7 @@ config QCOM_PAS_TEE
 
 config QCOM_SCM
 	tristate "Qualcomm PAS SCM interface driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	select QCOM_PAS
 	select QCOM_TZMEM
 	default y if ARCH_QCOM

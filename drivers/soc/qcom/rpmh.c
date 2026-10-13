@@ -41,7 +41,7 @@
 #define ctrlr_to_drv(ctrlr) container_of(ctrlr, struct rsc_drv, client)
 
 /**
- * struct cache_req: the request object for caching
+ * struct cache_req - the request object for caching
  *
  * @addr: the address of the resource
  * @sleep_val: the sleep vote
@@ -56,7 +56,7 @@ struct cache_req {
 };
 
 /**
- * struct batch_cache_req - An entry in our batch catch
+ * struct batch_cache_req - An entry in our batch cache
  *
  * @list: linked list obj
  * @count: number of messages
@@ -76,6 +76,14 @@ static struct rpmh_ctrlr *get_rpmh_ctrlr(const struct device *dev)
 	return &drv->client;
 }
 
+/**
+ * rpmh_tx_done() - Signal the completion of a RPMH transfer.
+ * @msg: The request that was previously sent.
+ *
+ * Called by the RSC driver when an active-only transfer is complete.
+ * Signals any blocking waiter and frees the message if it was dynamically
+ * allocated.
+ */
 void rpmh_tx_done(const struct tcs_request *msg)
 {
 	struct rpmh_request *rpm_msg = container_of(msg, struct rpmh_request,
@@ -157,7 +165,7 @@ unlock:
 }
 
 /**
- * __rpmh_write: Cache and send the RPMH request
+ * __rpmh_write() - Cache and send the RPMH request.
  *
  * @dev: The device making the request
  * @state: Active/Sleep request type
@@ -166,6 +174,8 @@ unlock:
  * Cache the RPMH request and send if the state is ACTIVE_ONLY.
  * SLEEP/WAKE_ONLY requests are not sent to the controller at
  * this time. Use rpmh_flush() to send them to the controller.
+ *
+ * Return: 0 on success, negative error code on failure.
  */
 static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 			struct rpmh_request *rpm_msg)
@@ -248,7 +258,7 @@ int rpmh_read(const struct device *dev, struct tcs_cmd *cmd)
 EXPORT_SYMBOL_GPL(rpmh_read);
 
 /**
- * rpmh_write_async: Write a set of RPMH commands
+ * rpmh_write_async() - Write a set of RPMH commands.
  *
  * @dev: The device making the request
  * @state: Active/sleep set
@@ -257,6 +267,8 @@ EXPORT_SYMBOL_GPL(rpmh_read);
  *
  * Write a set of RPMH commands, the order of commands is maintained
  * and will be sent as a single shot.
+ *
+ * Return: 0 on success, negative error code on failure.
  */
 int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 n)
@@ -280,7 +292,7 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 EXPORT_SYMBOL_GPL(rpmh_write_async);
 
 /**
- * rpmh_write: Write a set of RPMH commands and block until response
+ * rpmh_write() - Write a set of RPMH commands and block until response
  *
  * @dev: The device making the request
  * @state: Active/sleep set
@@ -288,6 +300,8 @@ EXPORT_SYMBOL_GPL(rpmh_write_async);
  * @n: The number of elements in @cmd
  *
  * May sleep. Do not call from atomic contexts.
+ *
+ * Return: 0 on success, negative error code on failure.
  */
 int rpmh_write(const struct device *dev, enum rpmh_state state,
 	       const struct tcs_cmd *cmd, u32 n)
@@ -342,7 +356,7 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
 }
 
 /**
- * rpmh_write_batch: Write multiple sets of RPMH commands and wait for the
+ * rpmh_write_batch() - Write multiple sets of RPMH commands and wait for the
  * batch to finish.
  *
  * @dev: the device making the request
@@ -350,13 +364,15 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
  * @cmd: The payload data
  * @n: The array of count of elements in each batch, 0 terminated.
  *
- * Write a request to the RSC controller without caching. If the request
- * state is ACTIVE, then the requests are treated as completion request
- * and sent to the controller immediately. The function waits until all the
- * commands are complete. If the request was to SLEEP or WAKE_ONLY, then the
- * request is sent as fire-n-forget and no ack is expected.
+ * If the request state is ACTIVE_ONLY, the requests are sent to the
+ * controller immediately and the function waits until all commands are
+ * complete. If the state is SLEEP or WAKE_ONLY, the requests are cached
+ * and the function returns immediately; they are sent to the controller
+ * later by rpmh_flush().
  *
  * May sleep. Do not call from atomic contexts for ACTIVE_ONLY requests.
+ *
+ * Return: 0 on success, negative error code on failure.
  */
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n)
@@ -519,7 +535,7 @@ exit:
 }
 
 /**
- * rpmh_invalidate: Invalidate sleep and wake sets in batch_cache
+ * rpmh_invalidate() - Invalidate sleep and wake sets in batch_cache
  *
  * @dev: The device making the request
  *
