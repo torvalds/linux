@@ -926,7 +926,7 @@ xrep_rmap_find_rmaps(
 
 	error = xrep_rmap_find_log_rmaps(rr);
 end_agscan:
-	xchk_ag_btcur_free(&sc->sa);
+	xchk_ag_btcur_free(sc);
 	if (error)
 		return error;
 
@@ -1169,7 +1169,7 @@ xrep_rmap_reserve_space(
 	/* Emit rmaps for everything in the free space bitmap. */
 	xrep_ag_btcur_init(rr->sc);
 	error = xrep_rmap_stash_bitmap(rr, &freesp_blocks, &XFS_RMAP_OINFO_AG);
-	xchk_ag_btcur_free(&rr->sc->sa);
+	xchk_ag_btcur_free(rr->sc);
 
 out_bitmap:
 	xagb_bitmap_destroy(&freesp_blocks);

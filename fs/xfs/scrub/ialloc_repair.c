@@ -475,7 +475,7 @@ xrep_ibt_find_inodes(
 	/* Collect all reverse mappings for inode blocks. */
 	xrep_ag_btcur_init(sc);
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_ibt_walk_rmap, ri);
-	xchk_ag_btcur_free(&sc->sa);
+	xchk_ag_btcur_free(sc);
 	if (error)
 		return error;
 

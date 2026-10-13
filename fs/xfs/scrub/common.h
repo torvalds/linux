@@ -109,9 +109,8 @@ xchk_ino_dqattach(struct xfs_scrub *sc)
 int xchk_setup_fscounters(struct xfs_scrub *sc);
 int xchk_setup_nlinks(struct xfs_scrub *sc);
 
-void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
-int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		struct xchk_ag *sa);
+void xchk_ag_free(struct xfs_scrub *sc);
+int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno);
 int xchk_perag_drain_and_lock(struct xfs_scrub *sc);
 
 /*
@@ -122,10 +121,9 @@ int xchk_perag_drain_and_lock(struct xfs_scrub *sc);
 static inline int
 xchk_ag_init_existing(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	struct xchk_ag		*sa)
+	xfs_agnumber_t		agno)
 {
-	int			error = xchk_ag_init(sc, agno, sa);
+	int			error = xchk_ag_init(sc, agno);
 
 	return error == -ENOENT ? -EFSCORRUPTED : error;
 }
@@ -165,10 +163,9 @@ void xchk_rtgroup_free(struct xfs_scrub *sc, struct xchk_rt *sr);
 # define xchk_rtgroup_free(sc, sr)			do { } while (0)
 #endif /* CONFIG_XFS_RT */
 
-int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		struct xchk_ag *sa);
-void xchk_ag_btcur_free(struct xchk_ag *sa);
-void xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
+int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno);
+void xchk_ag_btcur_free(struct xfs_scrub *sc);
+void xchk_ag_btcur_init(struct xfs_scrub *sc);
 int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 

@@ -229,7 +229,7 @@ xchk_teardown(
 	struct xfs_scrub	*sc,
 	int			error)
 {
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	xchk_rtgroup_btcur_free(&sc->sr);
 
 	if (sc->tp) {

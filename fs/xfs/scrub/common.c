@@ -578,10 +578,10 @@ xchk_perag_drain_and_lock(
 int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	struct xchk_ag		*sa)
+	xfs_agnumber_t		agno)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xchk_ag		*sa = &sc->sa;
 
 	ASSERT(!sa->pag);
 	sa->pag = xfs_perag_get(mp, agno);
@@ -594,8 +594,10 @@ xchk_ag_read_headers(
 /* Release all the AG btree cursors. */
 void
 xchk_ag_btcur_free(
-	struct xchk_ag		*sa)
+	struct xfs_scrub	*sc)
 {
+	struct xchk_ag		*sa = &sc->sa;
+
 	if (sa->refc_cur)
 		xfs_btree_del_cursor(sa->refc_cur, XFS_BTREE_ERROR);
 	if (sa->rmap_cur)
@@ -620,10 +622,10 @@ xchk_ag_btcur_free(
 /* Initialize all the btree cursors for an AG. */
 void
 xchk_ag_btcur_init(
-	struct xfs_scrub	*sc,
-	struct xchk_ag		*sa)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xchk_ag		*sa = &sc->sa;
 
 	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
@@ -675,10 +677,11 @@ xchk_ag_btcur_init(
 /* Release the AG header context and btree cursors. */
 void
 xchk_ag_free(
-	struct xfs_scrub	*sc,
-	struct xchk_ag		*sa)
+	struct xfs_scrub	*sc)
 {
-	xchk_ag_btcur_free(sa);
+	struct xchk_ag		*sa = &sc->sa;
+
+	xchk_ag_btcur_free(sc);
 	xrep_reset_perag_resv(sc);
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
@@ -704,16 +707,15 @@ xchk_ag_free(
 int
 xchk_ag_init(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	struct xchk_ag		*sa)
+	xfs_agnumber_t		agno)
 {
 	int			error;
 
-	error = xchk_ag_read_headers(sc, agno, sa);
+	error = xchk_ag_read_headers(sc, agno);
 	if (error)
 		return error;
 
-	xchk_ag_btcur_init(sc, sa);
+	xchk_ag_btcur_init(sc);
 	return 0;
 }
 
@@ -958,7 +960,7 @@ xchk_setup_ag_btree(
 	if (error)
 		return error;
 
-	return xchk_ag_init(sc, sc->sm->sm_agno, &sc->sa);
+	return xchk_ag_init(sc, sc->sm->sm_agno);
 }
 
 /* Push everything out of the log onto disk. */

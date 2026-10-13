@@ -418,7 +418,7 @@ xrep_rtrmap_scan_ag(
 		return error;
 
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_rtrmap_walk_rmap, rr);
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 

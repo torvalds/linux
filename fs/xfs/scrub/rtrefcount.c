@@ -269,7 +269,7 @@ xchk_rtrefcount_count_agblocks(
 	xfs_filblks_t		agblocks = 0;
 	int			error;
 
-	error = xchk_ag_init_existing(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno);
 	if (error)
 		goto out_free;
 
@@ -290,7 +290,7 @@ xchk_rtrefcount_count_agblocks(
 
 	*blocks += agblocks;
 out_free:
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 

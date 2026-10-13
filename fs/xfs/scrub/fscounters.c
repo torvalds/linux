@@ -265,7 +265,7 @@ xchk_fscount_btreeblks(
 	xfs_filblks_t		blocks;
 	int			error;
 
-	error = xchk_ag_init_existing(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno);
 	if (error)
 		goto out_free;
 
@@ -280,7 +280,7 @@ xchk_fscount_btreeblks(
 	fsc->fdblocks += blocks - 1;
 
 out_free:
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 

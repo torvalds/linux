@@ -397,7 +397,7 @@ xchk_btree_check_block_owner(
 	 */
 	init_sa = bs->cur->bc_ops->type != XFS_BTREE_TYPE_AG;
 	if (init_sa) {
-		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
+		error = xchk_ag_init_existing(bs->sc, agno);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
 				level, &error))
 			goto out_free;
@@ -418,7 +418,7 @@ xchk_btree_check_block_owner(
 
 out_free:
 	if (init_sa)
-		xchk_ag_free(bs->sc, &bs->sc->sa);
+		xchk_ag_free(bs->sc);
 
 	return error;
 }

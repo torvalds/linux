@@ -406,7 +406,7 @@ xrep_abt_find_freespace(
 err_agfl:
 	xfs_trans_brelse(sc->tp, agfl_bp);
 err:
-	xchk_ag_btcur_free(&sc->sa);
+	xchk_ag_btcur_free(sc);
 	xagb_bitmap_destroy(&ra->not_allocbt_blocks);
 	return error;
 }

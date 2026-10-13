@@ -364,7 +364,7 @@ xrep_bmap_scan_ag(
 		return error;
 
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_bmap_walk_rmap, rb);
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 

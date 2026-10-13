@@ -340,7 +340,7 @@ xrep_cow_find_bad(
 				xc->irec.br_blockcount);
 
 out_sa:
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 out_pag:
 	xfs_perag_put(pag);
 	return error;
