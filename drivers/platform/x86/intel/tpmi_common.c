@@ -272,12 +272,12 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 	if (!tpmi_info->tpmi_control_mem)
 		return -EFAULT;
 
-	mutex_lock(&tpmi_dev_lock);
+	guard(mutex)(&tpmi_dev_lock);
 
 	/* Wait for owner bit set to 0 (none) */
 	ret = tpmi_wait_for_owner(tpmi_info, TPMI_OWNER_NONE);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	/* set command id to 0x10 for TPMI_GET_STATE */
 	data = FIELD_PREP(TMPI_CONTROL_DATA_CMD, TPMI_CONTROL_GET_STATE_CMD);
@@ -291,7 +291,7 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 	/* Wait for owner bit set to in-band */
 	ret = tpmi_wait_for_owner(tpmi_info, TPMI_OWNER_IN_BAND);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	/* Set Run Busy and packet length of 2 dwords */
 	control = TPMI_CONTROL_STATUS_RB;
@@ -322,9 +322,6 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 done_proc:
 	/* Set CPL "completion" bit */
 	writeq(TPMI_CONTROL_STATUS_CPL, tpmi_info->tpmi_control_mem + TPMI_CONTROL_STATUS_OFFSET);
-
-err_unlock:
-	mutex_unlock(&tpmi_dev_lock);
 
 	return ret;
 }
