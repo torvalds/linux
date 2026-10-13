@@ -3116,14 +3116,19 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 static int snd_pcm_delay(struct snd_pcm_substream *substream,
 			 snd_pcm_sframes_t *delay)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
+	/* Keep the DMA buffer alive through the sync below. */
+	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		err = do_pcm_hwsync(substream);
 		if (delay && !err)
 			*delay = snd_pcm_calc_delay(substream);
 	}
 	snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_CPU);
+	atomic_dec(&runtime->buffer_accessing);
 
 	return err;
 }
