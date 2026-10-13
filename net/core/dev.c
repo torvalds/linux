@@ -3888,16 +3888,33 @@ static bool skb_has_ipv6_extension_hdr(const struct sk_buff *skb)
 	return false;
 }
 
-static netdev_features_t gso_features_check(const struct sk_buff *skb,
-					    struct net_device *dev,
-					    netdev_features_t features)
+static unsigned int
+netif_get_gso_max_size(const struct net_device *dev, const struct sk_buff *skb)
 {
-	u16 gso_segs = skb_shinfo(skb)->gso_segs;
+	/* pairs with WRITE_ONCE() in netif_set_gso(_ipv4)_max_size() */
+	return vlan_get_protocol(skb) == htons(ETH_P_IPV6) ?
+	       READ_ONCE(dev->gso_max_size) :
+	       READ_ONCE(dev->gso_ipv4_max_size);
+}
 
-	if (gso_segs > READ_ONCE(dev->gso_max_segs))
-		return features & ~NETIF_F_GSO_MASK;
+static bool
+gso_within_dev_limits(const struct sk_buff *skb, const struct net_device *dev)
+{
+	if (skb_shinfo(skb)->gso_segs > READ_ONCE(dev->gso_max_segs))
+		return false;
 
 	if (unlikely(skb->len >= netif_get_gso_max_size(dev, skb)))
+		return false;
+
+	return true;
+}
+
+static netdev_features_t gso_features_check(const struct sk_buff *skb,
+					    struct net_device *dev,
+					    netdev_features_t features,
+					    bool check_limits)
+{
+	if (check_limits && !gso_within_dev_limits(skb, dev))
 		return features & ~NETIF_F_GSO_MASK;
 
 	if (!skb_shinfo(skb)->gso_type) {
@@ -3946,13 +3963,15 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 	return features;
 }
 
-netdev_features_t netif_skb_features(struct sk_buff *skb)
+netdev_features_t
+__netif_skb_features(struct sk_buff *skb, bool check_gso_limits)
 {
 	struct net_device *dev = skb->dev;
 	netdev_features_t features = dev->features;
 
 	if (skb_is_gso(skb))
-		features = gso_features_check(skb, dev, features);
+		features = gso_features_check(skb, dev, features,
+					      check_gso_limits);
 
 	/* If encapsulation offload request, verify we are testing
 	 * hardware encapsulation features instead of standard
@@ -3975,7 +3994,54 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 
 	return harmonize_features(skb, features);
 }
-EXPORT_SYMBOL(netif_skb_features);
+EXPORT_SYMBOL(__netif_skb_features);
+
+static unsigned int
+skb_gso_output_max_segs(struct sk_buff *skb, struct net_device *dev)
+{
+	unsigned int mss = skb_shinfo(skb)->gso_size;
+	unsigned int gso_max_size, hdr_len, max_segs;
+	netdev_features_t features;
+	struct tcphdr _tcph, *th;
+
+	if (!skb_is_gso(skb) || !skb_is_gso_tcp(skb) ||
+	    skb->encapsulation || skb_has_frag_list(skb))
+		return 0;
+
+	/*
+	 * The transport offset can be unset or stale, so hdr_len is only taken
+	 * from a header at the checksum start.
+	 */
+	if (!skb_transport_header_was_set(skb) ||
+	    skb_checksum_start(skb) != skb_transport_header(skb))
+		return 0;
+
+	th = skb_header_pointer(skb, skb_transport_offset(skb), sizeof(_tcph),
+				&_tcph);
+	if (!th || __tcp_hdrlen(th) < sizeof(*th))
+		return 0;
+
+	hdr_len = skb_transport_header(skb) - skb_mac_header(skb) +
+		  __tcp_hdrlen(th);
+
+	/* The output is still a GSO skb: recheck without the limit checks */
+	features = __netif_skb_features(skb, false) | NETIF_F_GSO_ROBUST;
+	if (!net_gso_ok(features, skb_shinfo(skb)->gso_type))
+		return 0;
+
+	gso_max_size = netif_get_gso_max_size(dev, skb);
+	gso_max_size = min(gso_max_size, GSO_LEGACY_MAX_SIZE);
+
+	/*
+	 * gso_within_dev_limits() accepts gso_segs == gso_max_segs but
+	 * rejects skb->len >= gso_max_size, so only the size limit needs the
+	 * - 1; the inner min() keeps that subtraction from wrapping.
+	 */
+	max_segs = (gso_max_size - min(gso_max_size, hdr_len + 1)) / mss;
+	max_segs = min(max_segs, READ_ONCE(dev->gso_max_segs));
+
+	return max_segs;
+}
 
 static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 		    struct netdev_queue *txq, bool more)
@@ -4140,9 +4206,13 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 		goto out_null;
 
 	if (netif_needs_gso(skb, features)) {
+		unsigned int max_segs = 0;
 		struct sk_buff *segs;
 
-		segs = skb_gso_segment(skb, features);
+		if (unlikely(!gso_within_dev_limits(skb, dev)))
+			max_segs = skb_gso_output_max_segs(skb, dev);
+
+		segs = __skb_gso_segment(skb, features, true, max_segs);
 		if (IS_ERR(segs)) {
 			goto out_kfree_skb;
 		} else if (segs) {

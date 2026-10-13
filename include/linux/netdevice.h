@@ -5500,7 +5500,14 @@ void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 netdev_features_t passthru_features_check(struct sk_buff *skb,
 					  struct net_device *dev,
 					  netdev_features_t features);
-netdev_features_t netif_skb_features(struct sk_buff *skb);
+netdev_features_t __netif_skb_features(struct sk_buff *skb,
+				       bool check_gso_limits);
+
+static inline netdev_features_t netif_skb_features(struct sk_buff *skb)
+{
+	return __netif_skb_features(skb, true);
+}
+
 void skb_warn_bad_offload(const struct sk_buff *skb);
 
 static inline bool net_gso_ok(netdev_features_t features, int gso_type)
@@ -5564,15 +5571,6 @@ netif_get_gro_max_size(const struct net_device *dev, const struct sk_buff *skb)
 	return skb->protocol == htons(ETH_P_IPV6) ?
 	       READ_ONCE(dev->gro_max_size) :
 	       READ_ONCE(dev->gro_ipv4_max_size);
-}
-
-static inline unsigned int
-netif_get_gso_max_size(const struct net_device *dev, const struct sk_buff *skb)
-{
-	/* pairs with WRITE_ONCE() in netif_set_gso(_ipv4)_max_size() */
-	return skb->protocol == htons(ETH_P_IPV6) ?
-	       READ_ONCE(dev->gso_max_size) :
-	       READ_ONCE(dev->gso_ipv4_max_size);
 }
 
 static inline bool netif_is_macsec(const struct net_device *dev)
