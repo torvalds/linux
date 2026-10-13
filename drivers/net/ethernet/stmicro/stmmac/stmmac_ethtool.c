@@ -89,7 +89,6 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(fatal_bus_error_irq),
 	/* Tx/Rx IRQ Events */
 	STMMAC_STAT(rx_early_irq),
-	STMMAC_STAT(threshold),
 	STMMAC_STAT(irq_receive_pmt_irq_n),
 	/* MMC info */
 	STMMAC_STAT(mmc_tx_irq_n),
@@ -289,6 +288,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 static const char stmmac_qstats_tx_string[][ETH_GSTRING_LEN] = {
 	"tx_pkt_n",
 	"tx_irq_n",
+	"tx_threshold",
 #define STMMAC_TXQ_STATS ARRAY_SIZE(stmmac_qstats_tx_string)
 };
 
@@ -496,6 +496,7 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 
 		*data++ = pkt_n;
 		*data++ = stmmac_get_tx_normal_irq_n(priv, q);
+		*data++ = priv->tx_threshold[q];
 	}
 
 	for (q = 0; q < rx_cnt; q++) {

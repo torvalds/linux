@@ -2633,7 +2633,6 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 */
 		txmode = SF_DMA_MODE;
 		rxmode = SF_DMA_MODE;
-		priv->xstats.threshold = SF_DMA_MODE;
 	} else {
 		rxmode = SF_DMA_MODE;
 	}
@@ -2836,7 +2835,6 @@ static void stmmac_bump_dma_threshold(struct stmmac_priv *priv, u32 chan)
 		stmmac_set_dma_operation_mode(priv, thresh, SF_DMA_MODE, chan);
 
 	priv->tx_threshold[chan] = thresh;
-	priv->xstats.threshold = thresh;
 }
 
 /**
@@ -8160,8 +8158,6 @@ static int __stmmac_dvr_probe(struct device *device,
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_TX;
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
-
-	priv->xstats.threshold = tc;
 
 	for (i = 0; i < MTL_MAX_TX_QUEUES; i++)
 		priv->tx_threshold[i] = tc;
