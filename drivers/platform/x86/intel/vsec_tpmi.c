@@ -104,25 +104,33 @@ struct intel_tpmi_pm_feature {
 /**
  * struct intel_tpmi_info - TPMI information for all IDs in an instance
  * @tpmi_features:	Pointer to a list of TPMI feature instances
- * @vsec_dev:		Pointer to intel_vsec_device structure for this TPMI device
  * @feature_count:	Number of TPMI of TPMI instances pointed by tpmi_features
  * @pfs_start:		Start of PFS offset for the TPMI instances in this device
  * @plat_info:		Stores platform info which can be used by the client drivers
  * @tpmi_control_mem:	Memory mapped IO for getting control information
  * @dbgfs_dir:		debugfs entry pointer
  * @resource:		Array of feature_count MMIO resources, one per PFS entry
+ * @tpmi_dev:		Device this TPMI instance is bound to. It backs the devm
+ *			allocations, holds this structure as its driver data and
+ *			the TPMI feature devices are created under it.
+ * @parent:		Device this TPMI instance was enumerated from. It names
+ *			the debugfs directory and becomes intel_vsec_device::dev
+ *			of every TPMI feature device, so that the enumerating bus
+ *			can find them again, for example during PCI error
+ *			recovery.
  *
  * Stores the information for all TPMI devices enumerated from a single PCI device.
  */
 struct intel_tpmi_info {
 	struct intel_tpmi_pm_feature *tpmi_features;
-	struct intel_vsec_device *vsec_dev;
 	int feature_count;
 	u64 pfs_start;
 	struct oobmsm_plat_info plat_info;
 	void __iomem *tpmi_control_mem;
 	struct dentry *dbgfs_dir;
 	struct resource *resource;
+	struct device *tpmi_dev;
+	struct device *parent;
 };
 
 /**
@@ -534,14 +542,12 @@ static const struct file_operations mem_write_ops = {
 	.release        = single_release,
 };
 
-#define tpmi_to_dev(info)	((info)->vsec_dev->dev)
-
 static void tpmi_dbgfs_register(struct intel_tpmi_info *tpmi_info)
 {
 	char name[64];
 	int i;
 
-	snprintf(name, sizeof(name), "tpmi-%s", dev_name(tpmi_to_dev(tpmi_info)));
+	snprintf(name, sizeof(name), "tpmi-%s", dev_name(tpmi_info->parent));
 	tpmi_info->dbgfs_dir = debugfs_create_dir(name, NULL);
 
 	debugfs_create_file("pfs_dump", 0444, tpmi_info->dbgfs_dir, tpmi_info, &tpmi_pfs_dbg_fops);
@@ -570,7 +576,7 @@ static void tpmi_set_control_base(struct auxiliary_device *auxdev,
 	if (!size)
 		return;
 
-	mem = devm_ioremap(&auxdev->dev, pfs->vsec_offset, size);
+	mem = devm_ioremap(tpmi_info->tpmi_dev, pfs->vsec_offset, size);
 	if (!mem)
 		return;
 
@@ -602,7 +608,6 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 			      struct intel_tpmi_pm_feature *pfs,
 			      u64 pfs_start)
 {
-	struct intel_vsec_device *vsec_dev = tpmi_info->vsec_dev;
 	struct intel_vsec_device *feature_vsec_dev;
 	struct tpmi_feature_state feature_state;
 	struct resource *res, *tmp;
@@ -639,7 +644,7 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 		tmp->flags = IORESOURCE_MEM;
 	}
 
-	feature_vsec_dev->dev = vsec_dev->dev;
+	feature_vsec_dev->dev = tpmi_info->parent;
 	feature_vsec_dev->priv_data = &tpmi_info->plat_info;
 	feature_vsec_dev->priv_data_size = sizeof(tpmi_info->plat_info);
 	feature_vsec_dev->ida = &intel_vsec_tpmi_ida;
@@ -653,7 +658,7 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	 * "name" must outlive the auxiliary device, as the auxiliary bus
 	 * stores the pointer rather than a copy of the string.
 	 */
-	return intel_vsec_add_aux(&vsec_dev->auxdev.dev, feature_vsec_dev, name);
+	return intel_vsec_add_aux(tpmi_info->tpmi_dev, feature_vsec_dev, name);
 }
 
 static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
@@ -747,7 +752,8 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 	if (!tpmi_info)
 		return -ENOMEM;
 
-	tpmi_info->vsec_dev = vsec_dev;
+	tpmi_info->tpmi_dev = &auxdev->dev;
+	tpmi_info->parent = vsec_dev->dev;
 	tpmi_info->feature_count = vsec_dev->num_resources;
 	tpmi_info->resource = vsec_dev->resource;
 	tpmi_info->plat_info.bus_number = pci_dev->bus->number;
@@ -796,7 +802,8 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 			if (ret)
 				return ret;
 
-			ret = intel_vsec_set_mapping(&tpmi_info->plat_info, vsec_dev->dev);
+			ret = intel_vsec_set_mapping(&tpmi_info->plat_info,
+						     tpmi_info->parent);
 			if (ret)
 				return ret;
 		}
