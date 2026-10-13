@@ -1348,6 +1348,13 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	desc.dev = dev;
 	desc.cpu = cpu;
 	desc.flags = CORESIGHT_DESC_CPU_BOUND;
+	/*
+	 * ETE isn't connected to TRBE with a link like other Coresight devices
+	 * and the TRBE driver has been written to always assume Perf mode, so
+	 * Prevent sysfs from being used.
+	 */
+	desc.flags |= CORESIGHT_DESC_NO_SYSFS_MODE;
+
 	trbe_csdev = coresight_register(&desc);
 	if (IS_ERR(trbe_csdev))
 		goto cpu_clear;

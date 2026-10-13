@@ -142,6 +142,8 @@ struct csdev_access {
 	})
 
 #define CORESIGHT_DESC_CPU_BOUND	BIT(0)
+/* Device can't be activated from sysfs, only via Perf. */
+#define CORESIGHT_DESC_NO_SYSFS_MODE	BIT(1)
 
 /**
  * struct coresight_desc - description of a component required from drivers
@@ -310,6 +312,8 @@ struct coresight_device {
 	struct list_head config_csdev_list;
 	raw_spinlock_t cscfg_csdev_lock;
 	void *active_cscfg_ctxt;
+	/* CORESIGHT_DESC_[x] flags */
+	u32 flags;
 };
 
 /*
