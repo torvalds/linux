@@ -2168,12 +2168,17 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 	if (ret < 0)
 		return ret;
 
-	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
+	/* The add has already been committed, so a notification failure
+	 * must not turn it into a reported failure (cf. tc_new_tfilter()).
+	 */
+	if (tcf_add_notify(net, n, actions, portid, attr_size, extack))
+		NL_SET_ERR_MSG(extack,
+			       "Action created; event notification could not be sent");
 
 	/* only put bound actions */
 	tca_put_bound_many(actions, init_res);
 
-	return ret;
+	return 0;
 }
 
 static const struct nla_policy tcaa_policy[TCA_ROOT_MAX + 1] = {
