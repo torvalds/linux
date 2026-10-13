@@ -49,24 +49,22 @@ static nokprobe_inline int __cmpxchg_key_small(void *address, unsigned int *uval
 		"20:	spka	0(%[key])\n"
 		"	llill	%[count],%[max_loops]\n"
 		"0:	l	%[prev],%[address]\n"
-		"1:	nr	%[prev],%[mask]\n"
+		"	nr	%[prev],%[mask]\n"
 		"	xilf	%[mask],0xffffffff\n"
 		"	or	%[new],%[prev]\n"
 		"	or	%[prev],%[tmp]\n"
-		"2:	lr	%[tmp],%[prev]\n"
-		"3:	cs	%[prev],%[new],%[address]\n"
-		"4:	jnl	5f\n"
+		"1:	lr	%[tmp],%[prev]\n"
+		"2:	cs	%[prev],%[new],%[address]\n"
+		"	jnl	3f\n"
 		"	xr	%[tmp],%[prev]\n"
 		"	xr	%[new],%[tmp]\n"
 		"	nr	%[tmp],%[mask]\n"
-		"	jnz	5f\n"
-		"	brct	%[count],2b\n"
-		"5:	spka	%[default_key]\n"
+		"	jnz	3f\n"
+		"	brct	%[count],1b\n"
+		"3:	spka	%[default_key]\n"
 		"21:\n"
-		EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
+		EX_TABLE_INSN_UA_LOAD_REG(0b, 3b, %[rc], %[prev])
+		EX_TABLE_INSN_UA_LOAD_REG(2b, 3b, %[rc], %[prev])
 		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "=&d" (prev),
@@ -133,8 +131,7 @@ int __kprobes __cmpxchg_key4(void *address, unsigned int *uval, unsigned int old
 		"0:	cs	%[prev],%[new],%[address]\n"
 		"1:	spka	%[default_key]\n"
 		"21:\n"
-		EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+		EX_TABLE_INSN_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
 		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),
@@ -160,8 +157,7 @@ int __kprobes __cmpxchg_key8(void *address, unsigned long *uval, unsigned long o
 		"0:	csg	%[prev],%[new],%[address]\n"
 		"1:	spka	%[default_key]\n"
 		"21:\n"
-		EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+		EX_TABLE_INSN_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
 		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),
@@ -187,8 +183,7 @@ int __kprobes __cmpxchg_key16(void *address, __uint128_t *uval, __uint128_t old,
 		"0:	cdsg	%[prev],%[new],%[address]\n"
 		"1:	spka	%[default_key]\n"
 		"21:\n"
-		EX_TABLE_UA_LOAD_REGPAIR(0b, 1b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REGPAIR(1b, 1b, %[rc], %[prev])
+		EX_TABLE_INSN_UA_LOAD_REGPAIR(0b, 1b, %[rc], %[prev])
 		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),

@@ -120,7 +120,7 @@ bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
 
-	ex = s390_search_extables(instruction_pointer(regs));
+	ex = s390_search_extables(get_trap_ip(regs));
 	if (!ex)
 		return false;
 	switch (ex->type) {

@@ -161,11 +161,11 @@ static inline int ____pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"	.insn	rre,0xb9d20000,%[data],%[req_off]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rre,0xb9d20000,%[data],%[req_off]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [data] "=d" (__data),
 		  [req_off] "+d" (req_off.pair), [exc] "+d" (exception)
 		:
@@ -230,11 +230,11 @@ static inline int __pcilg_mio(u64 *data, u64 ioaddr, u64 len, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"       .insn   rre,0xb9d60000,%[data],%[ioaddr_len]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rre,0xb9d60000,%[data],%[ioaddr_len]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [data] "=d" (__data),
 		  [ioaddr_len] "+d" (ioaddr_len.pair), [exc] "+d" (exception)
 		:
@@ -268,11 +268,11 @@ static inline int __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"	.insn	rre,0xb9d00000,%[data],%[req_off]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rre,0xb9d00000,%[data],%[req_off]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [req_off] "+d" (req_off.pair), [exc] "+d" (exception)
 		: [data] "d" (data)
 		: CC_CLOBBER);
@@ -322,11 +322,11 @@ static inline int __pcistg_mio(u64 data, u64 ioaddr, u64 len, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"       .insn   rre,0xb9d40000,%[data],%[ioaddr_len]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rre,0xb9d40000,%[data],%[ioaddr_len]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [ioaddr_len] "+d" (ioaddr_len.pair), [exc] "+d" (exception)
 		: [data] "d" (data)
 		: CC_CLOBBER_LIST("memory"));
@@ -357,11 +357,11 @@ static inline int __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"	.insn	rsy,0xeb00000000d0,%[req],%[offset],%[data]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rsy,0xeb00000000d0,%[req],%[offset],%[data]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [req] "+d" (req), [exc] "+d" (exception)
 		: [offset] "d" (offset), [data] "Q" (*data)
 		: CC_CLOBBER);
@@ -411,11 +411,11 @@ static inline int __pcistb_mio(const u64 *data, u64 ioaddr, u64 len, u8 *status)
 
 	exception = 1;
 	asm_inline volatile (
-		"       .insn   rsy,0xeb00000000d4,%[len],%[ioaddr],%[data]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rsy,0xeb00000000d4,%[len],%[ioaddr],%[data]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [len] "+d" (len), [exc] "+d" (exception)
 		: [ioaddr] "d" (ioaddr), [data] "Q" (*data)
 		: CC_CLOBBER);
