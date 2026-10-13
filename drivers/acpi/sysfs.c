@@ -420,6 +420,7 @@ static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
 	struct acpi_data_attr *data_attr;
 	void __iomem *base;
 	ssize_t size;
+	u64 end;
 
 	data_attr = container_of(bin_attr, struct acpi_data_attr, attr);
 	size = data_attr->attr.size;
@@ -433,13 +434,17 @@ static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
 	if (count > size - offset)
 		count = size - offset;
 
-	base = acpi_os_map_iomem(data_attr->addr, size);
+	/* acpi_os_map_iomem() can't handle a range that wraps around */
+	if (check_add_overflow(data_attr->addr, size, &end))
+		return -EINVAL;
+
+	base = acpi_os_map_iomem(data_attr->addr + offset, count);
 	if (!base)
 		return -ENOMEM;
 
-	memcpy_fromio(buf, base + offset, count);
+	memcpy_fromio(buf, base, count);
 
-	acpi_os_unmap_iomem(base, size);
+	acpi_os_unmap_iomem(base, count);
 
 	return count;
 }
