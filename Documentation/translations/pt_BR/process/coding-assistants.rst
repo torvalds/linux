@@ -38,23 +38,3 @@ A pessoa que envia é responsável por:
 * Garantir conformidade com os requisitos de licença
 * Acrescentar sua própria tag Signed-off-by para certificar o DCO
 * Assumir toda responsabilidade pela contribuição
-
-Atribuições
-===========
-
-Quando ferramentas de IA contribuírem para o desenvolvimento do kernel,
-a atribuição adequada ajuda a rastrear a função da IA no processo de
-desenvolvimento. Contribuições devem incluir a tag de assistência seguindo este
-formato::
-
-    Assisted-by: LLM [FERRAMENTA1] [FERRAMENTA2]
-
-* ``[FERRAMENTA1] [FERRAMENTA2]`` são ferramentas de análise especializada
-    opcionais (Exemplo: coccinelle, sparse, smatch, clang-tidy)
-
-Ferramentas básicas de desenvolvimento (git, gcc, make, editors) não são
-listadas.
-
-Exemplo::
-
-  Assisted-by: LLM coccinelle sparse

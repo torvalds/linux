@@ -650,16 +650,6 @@ bugzilla.kernel.org é um local público nesse sentido, mas os endereços de e-m
 usados lá são privados; portanto, não os exponha em tags, a menos que a pessoa
 os tenha usado em contribuições anteriores.
 
-Usando Assisted-by:
--------------------
-
-Se você usou qualquer tipo de ferramenta avançada de codificação na criação do seu patch,
-você precisa reconhecer esse uso adicionando uma tag Assisted-by. A falha em
-fazer isso pode impedir a aceitação do seu trabalho. Por favor, veja
-Documentation/process/coding-assistants.rst para detalhes sobre o
-reconhecimento de assistentes de codificação.
-
-
 .. _pt_BR_the_canonical_patch_format:
 
 O formato canônico do patch

@@ -655,7 +655,6 @@ our $signature_tags = qr{(?xi:
 	Reviewed-by:|
 	Reported-by:|
 	Suggested-by:|
-	Assisted-by:|
 	To:|
 	Cc:
 )};
@@ -3122,16 +3121,6 @@ sub process {
 					$fixed[$fixlinenr] =
 					    "$ucfirst_sign_off $email";
 				}
-			}
-
-			# Assisted-by uses a free-form value (e.g. "LLM"), not an
-			# email address, so skip the email format checks below.
-			if ($sign_off =~ /^Assisted-by:/i) {
-				if ($email =~ /^\s*$/) {
-					WARN("BAD_SIGN_OFF",
-					     "Assisted-by requires a value\n" . $herecurr);
-				}
-				next;
 			}
 
 			my ($email_name, $name_comment, $email_address, $comment) = parse_email($email);

@@ -503,13 +503,6 @@ Fixes: 指示補丁修復了之前提交中的一個缺陷。它可以便於確�
 的。注意，就此而言bugzilla.kernel.org是公開場所，但其中使用的電子郵件地址
 是私密的；因此不要在標籤中暴露它們，除非該人在先前的貢獻中使用過。
 
-使用Assisted-by:
-----------------
-
-如果您在建立補丁的過程中使用了任何進階編碼工具，您需要透過添加Assisted-by
-標籤來聲明這一使用。不這樣做可能會妨礙您的工作被接受。關於聲明編碼助手的
-細節，請參見 Documentation/process/coding-assistants.rst 。
-
 .. _tw_the_canonical_patch_format:
 
 標準補丁格式
