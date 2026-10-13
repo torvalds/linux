@@ -2848,6 +2848,11 @@ populate_extable:
 				 *   src_reg + insn->off > TASK_SIZE_MAX + PAGE_SIZE
 				 *   and
 				 *   src_reg + insn->off < VSYSCALL_ADDR
+				 *
+				 * The check is done on src_reg + insn->off - VSYSCALL_ADDR
+				 * against the next power of two above the limit. Addresses
+				 * between the limit and that power of two are non-canonical
+				 * and would fault anyway, so they get zeroed a bit earlier.
 				 */
 
 				u64 limit = TASK_SIZE_MAX + PAGE_SIZE - VSYSCALL_ADDR;
@@ -2864,16 +2869,11 @@ populate_extable:
 				emit_insn_suffix(&prog, src_reg, AUX_REG,
 						 insn->off - (s32)VSYSCALL_ADDR);
 
-				/* movabsq r10, limit */
-				emit_mov_imm64(&prog, BPF_REG_AX, (long)limit >> 32,
-					       (u32)(long)limit);
+				/* shr r11, fls64(limit) */
+				emit_shift_imm(&prog, BPF_RSH, AUX_REG, fls64(limit), true);
 
-				/* cmp r10, r11 */
-				maybe_emit_mod(&prog, AUX_REG, BPF_REG_AX, true);
-				EMIT2(0x39, add_2reg(0xC0, AUX_REG, BPF_REG_AX));
-
-				/* if unsigned '>', goto load */
-				EMIT2(X86_JA, 0);
+				/* if not zero, goto load */
+				EMIT2(X86_JNE, 0);
 				end_of_jmp = prog;
 
 				/* xor dst_reg, dst_reg */
@@ -2881,7 +2881,7 @@ populate_extable:
 				/* jmp byte_after_ldx */
 				EMIT2(0xEB, 0);
 
-				/* populate jmp_offset for JAE above to jump to start_of_ldx */
+				/* populate jmp_offset for JNE above to jump to start_of_ldx */
 				start_of_ldx = prog;
 				end_of_jmp[-1] = start_of_ldx - end_of_jmp;
 			} else if (!accesses_stack_only) {
