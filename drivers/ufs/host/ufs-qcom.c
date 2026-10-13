@@ -2438,6 +2438,7 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 static int ufs_qcom_config_esi(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ufs_qcom_irq *qi;
 	int nr_irqs, ret;
 
 	if (host->esi_enabled)
@@ -2456,8 +2457,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		return ret; /* Continue without ESI */
 	}
 
-	struct ufs_qcom_irq *qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
-
+	qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
 	if (!qi) {
 		platform_device_msi_free_irqs_all(hba->dev);
 		return -ENOMEM;
