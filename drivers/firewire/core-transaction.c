@@ -400,6 +400,8 @@ __must_hold(&card->transactions.lock)
  * than when the request packet actually hits the wire.  On the other hand,
  * transaction completion and hence execution of @callback may happen even
  * before fw_send_request() returns.
+ *
+ * Context: Any context.
  */
 void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 		int destination_id, int generation, int speed, unsigned long long offset,

@@ -286,13 +286,62 @@ struct fw_request;
 
 typedef void (*fw_packet_callback_t)(struct fw_packet *packet,
 				     struct fw_card *card, int status);
+
+/**
+ * typedef fw_transaction_callback_t - Function to handle the result of outgoing transaction.
+ * @card: the interface to send the request at
+ * @rcode: the response code
+ * @data: the data for the response subaction
+ * @length: the length of data
+ * @callback_data: the data registered with this callback
+ *
+ * This callback is called from a workqueue in process context after the outgoing transaction is
+ * completed successfully or unsuccessfully.
+ *
+ * Among its parameters is the response code which is either one of the rcodes per IEEE 1394 or, in
+ * case of internal errors, the firewire-core specific %RCODE_SEND_ERROR. The other firewire-core
+ * specific rcodes (%RCODE_CANCELLED, %RCODE_BUSY, %RCODE_GENERATION, %RCODE_NO_ACK) denote
+ * transaction timeout, busy responder, stale request generation, or missing ACK respectively.
+ *
+ * Context: Process context.
+ */
 typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
 					  void *data, size_t length,
 					  void *callback_data);
+
+/**
+ * typedef fw_transaction_callback_with_tstamp_t - Function to handle the result of outgoing
+ *						   transaction with hardware time stamps.
+ * @card: the interface to send the request at
+ * @rcode: the response code
+ * @request_tstamp: the time stamp at which the request subaction finished
+ * @response_tstamp: the time stamp at which the response subaction finished
+ * @data: the data for the response subaction
+ * @length: the length of data
+ * @callback_data: the data registered with this callback
+ *
+ * This callback is called from a workqueue in process context after the outgoing transaction is
+ * completed successfully or unsuccessfully.
+ *
+ * Among its parameters is the response code which is either one of the rcodes per IEEE 1394 or, in
+ * case of internal errors, the firewire-core specific %RCODE_SEND_ERROR. The other firewire-core
+ * specific rcodes (%RCODE_CANCELLED, %RCODE_BUSY, %RCODE_GENERATION, %RCODE_NO_ACK) denote
+ * transaction timeout, busy responder, stale request generation, or missing ACK respectively.
+ *
+ * The timestamp consists of the low order 3 bits of second field and the full 13 bits of count
+ * field of isochronous cycle time register.
+ *
+ * Context: Process context.
+ */
 typedef void (*fw_transaction_callback_with_tstamp_t)(struct fw_card *card, int rcode,
 					u32 request_tstamp, u32 response_tstamp, void *data,
 					size_t length, void *callback_data);
 
+/**
+ * union fw_transaction_callback - A union to store the outgoing transaction callback.
+ * @without_tstamp: Callback without hardware timestamps.
+ * @with_tstamp: Callback with hardware timestamps.
+ */
 union fw_transaction_callback {
 	fw_transaction_callback_t without_tstamp;
 	fw_transaction_callback_with_tstamp_t with_tstamp;
@@ -352,7 +401,15 @@ struct fw_packet {
 	void *driver_data;
 };
 
+/**
+ * struct fw_transaction - A structure to hold outgoing transaction state.
+ *
+ * All structure members are for internal use only. Once passed to __fw_send_request(), this
+ * structure holds the state of an outgoing transaction. It must not be freed until the callback
+ * reports the transaction result.
+ */
 struct fw_transaction {
+	/* private: */
 	int node_id; /* The generation is implied; it is always the current. */
 	int tlabel;
 	struct list_head link;
@@ -429,6 +486,8 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
  *
  * After the transaction is completed successfully or unsuccessfully, the @callback will be called
  * in process context.
+ *
+ * Context: Any context.
  */
 static inline void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 				   int destination_id, int generation, int speed,
@@ -461,6 +520,8 @@ static inline void fw_send_request(struct fw_card *card, struct fw_transaction *
  *
  * After the transaction is completed successfully or unsuccessfully, the @callback will be called
  * in process context.
+ *
+ * Context: Any context.
  */
 static inline void fw_send_request_with_tstamp(struct fw_card *card, struct fw_transaction *t,
 	int tcode, int destination_id, int generation, int speed, unsigned long long offset,

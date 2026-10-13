@@ -37,6 +37,9 @@ Firewire device probing and sysfs interfaces
 Firewire core transaction interfaces
 ====================================
 
+.. kernel-doc:: include/linux/firewire.h
+   :identifiers: fw_transaction fw_transaction_callback_t fw_transaction_callback_with_tstamp_t
+		 fw_transaction_callback fw_send_request fw_send_request_with_tstamp
 .. kernel-doc:: drivers/firewire/core-transaction.c
     :export:
 
