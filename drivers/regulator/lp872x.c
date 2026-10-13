@@ -468,82 +468,59 @@ static const struct regulator_ops lp8725_buck_ops = {
 	.get_current_limit = regulator_get_current_limit_regmap,
 };
 
+#define LP872X_LDO(_id, match, supply, _volt_table, _vsel_reg,		\
+		   _enable_reg, _enable_mask) {				\
+	.name = (match),						\
+	.supply_name = (supply),					\
+	.of_match = (match),						\
+	.id = _id,							\
+	.ops = &lp872x_ldo_ops,						\
+	.n_voltages = ARRAY_SIZE(_volt_table),				\
+	.volt_table = _volt_table,					\
+	.type = REGULATOR_VOLTAGE,					\
+	.owner = THIS_MODULE,						\
+	.vsel_reg = _vsel_reg,						\
+	.vsel_mask = LP872X_VOUT_M,					\
+	.enable_reg = _enable_reg,					\
+	.enable_mask = _enable_mask,					\
+}
+
+#define LP8720_LDO(ids, match, supply, _volt_table)			\
+	LP872X_LDO(LP8720_ID_##ids, match, supply, _volt_table,		\
+		   LP872X_##ids##_VOUT, LP8720_ENABLE, LP872X_EN_##ids##_M)
+
+#define LP8725_LDO(ids, match, supply)					\
+	LP872X_LDO(LP8725_ID_##ids, match, supply, lp872x_ldo_vtbl,	\
+		   LP872X_##ids##_VOUT, LP8725_LDO_CTRL, LP872X_EN_##ids##_M)
+
+#define LP8725_LILO(ids, match, supply)					\
+	LP872X_LDO(LP8725_ID_##ids, match, supply, lp8725_lilo_vtbl,	\
+		   LP8725_##ids##_VOUT, LP8725_LDO_CTRL, LP8725_EN_##ids##_M)
+
+#define LP8725_BUCK(ids, match) {					\
+	.name = (match),						\
+	.supply_name = "vinb",						\
+	.of_match = (match),						\
+	.id = LP8725_ID_##ids,						\
+	.ops = &lp8725_buck_ops,					\
+	.n_voltages = ARRAY_SIZE(lp8725_buck_vtbl),			\
+	.volt_table = lp8725_buck_vtbl,					\
+	.type = REGULATOR_VOLTAGE,					\
+	.owner = THIS_MODULE,						\
+	.enable_reg = LP872X_GENERAL_CFG,				\
+	.enable_mask = LP8725_##ids##_EN_M,				\
+	.curr_table = lp8725_buck_uA,					\
+	.n_current_limits = ARRAY_SIZE(lp8725_buck_uA),			\
+	.csel_reg = LP8725_##ids##_VOUT2,				\
+	.csel_mask = LP8725_BUCK_CL_M,					\
+}
+
 static const struct regulator_desc lp8720_regulator_desc[] = {
-	{
-		.name = "ldo1",
-		.supply_name = "vbatt",
-		.of_match = of_match_ptr("ldo1"),
-		.id = LP8720_ID_LDO1,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO1_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8720_ENABLE,
-		.enable_mask = LP872X_EN_LDO1_M,
-	},
-	{
-		.name = "ldo2",
-		.supply_name = "vin1",
-		.of_match = of_match_ptr("ldo2"),
-		.id = LP8720_ID_LDO2,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO2_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8720_ENABLE,
-		.enable_mask = LP872X_EN_LDO2_M,
-	},
-	{
-		.name = "ldo3",
-		.supply_name = "vin1",
-		.of_match = of_match_ptr("ldo3"),
-		.id = LP8720_ID_LDO3,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO3_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8720_ENABLE,
-		.enable_mask = LP872X_EN_LDO3_M,
-	},
-	{
-		.name = "ldo4",
-		.supply_name = "vin2",
-		.of_match = of_match_ptr("ldo4"),
-		.id = LP8720_ID_LDO4,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp8720_ldo4_vtbl),
-		.volt_table = lp8720_ldo4_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO4_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8720_ENABLE,
-		.enable_mask = LP872X_EN_LDO4_M,
-	},
-	{
-		.name = "ldo5",
-		.supply_name = "vin2",
-		.of_match = of_match_ptr("ldo5"),
-		.id = LP8720_ID_LDO5,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO5_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8720_ENABLE,
-		.enable_mask = LP872X_EN_LDO5_M,
-	},
+	LP8720_LDO(LDO1, "ldo1", "vbatt", lp872x_ldo_vtbl),
+	LP8720_LDO(LDO2, "ldo2", "vin1", lp872x_ldo_vtbl),
+	LP8720_LDO(LDO3, "ldo3", "vin1", lp872x_ldo_vtbl),
+	LP8720_LDO(LDO4, "ldo4", "vin2", lp8720_ldo4_vtbl),
+	LP8720_LDO(LDO5, "ldo5", "vin2", lp872x_ldo_vtbl),
 	{
 		.name = "buck",
 		.supply_name = "vinb",
@@ -560,145 +537,15 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 };
 
 static const struct regulator_desc lp8725_regulator_desc[] = {
-	{
-		.name = "ldo1",
-		.supply_name = "vin1",
-		.of_match = of_match_ptr("ldo1"),
-		.id = LP8725_ID_LDO1,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO1_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP872X_EN_LDO1_M,
-	},
-	{
-		.name = "ldo2",
-		.supply_name = "vin2",
-		.of_match = of_match_ptr("ldo2"),
-		.id = LP8725_ID_LDO2,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO2_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP872X_EN_LDO2_M,
-	},
-	{
-		.name = "ldo3",
-		.supply_name = "vin2",
-		.of_match = of_match_ptr("ldo3"),
-		.id = LP8725_ID_LDO3,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO3_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP872X_EN_LDO3_M,
-	},
-	{
-		.name = "ldo4",
-		.supply_name = "vin3",
-		.of_match = of_match_ptr("ldo4"),
-		.id = LP8725_ID_LDO4,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO4_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP872X_EN_LDO4_M,
-	},
-	{
-		.name = "ldo5",
-		.supply_name = "vin3",
-		.of_match = of_match_ptr("ldo5"),
-		.id = LP8725_ID_LDO5,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp872x_ldo_vtbl),
-		.volt_table = lp872x_ldo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP872X_LDO5_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP872X_EN_LDO5_M,
-	},
-	{
-		.name = "lilo1",
-		.supply_name = "vinlilo1",
-		.of_match = of_match_ptr("lilo1"),
-		.id = LP8725_ID_LILO1,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp8725_lilo_vtbl),
-		.volt_table = lp8725_lilo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP8725_LILO1_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP8725_EN_LILO1_M,
-	},
-	{
-		.name = "lilo2",
-		.supply_name = "vinlilo2",
-		.of_match = of_match_ptr("lilo2"),
-		.id = LP8725_ID_LILO2,
-		.ops = &lp872x_ldo_ops,
-		.n_voltages = ARRAY_SIZE(lp8725_lilo_vtbl),
-		.volt_table = lp8725_lilo_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.vsel_reg = LP8725_LILO2_VOUT,
-		.vsel_mask = LP872X_VOUT_M,
-		.enable_reg = LP8725_LDO_CTRL,
-		.enable_mask = LP8725_EN_LILO2_M,
-	},
-	{
-		.name = "buck1",
-		.supply_name = "vinb",
-		.of_match = of_match_ptr("buck1"),
-		.id = LP8725_ID_BUCK1,
-		.ops = &lp8725_buck_ops,
-		.n_voltages = ARRAY_SIZE(lp8725_buck_vtbl),
-		.volt_table = lp8725_buck_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.enable_reg = LP872X_GENERAL_CFG,
-		.enable_mask = LP8725_BUCK1_EN_M,
-		.curr_table = lp8725_buck_uA,
-		.n_current_limits = ARRAY_SIZE(lp8725_buck_uA),
-		.csel_reg = LP8725_BUCK1_VOUT2,
-		.csel_mask = LP8725_BUCK_CL_M,
-	},
-	{
-		.name = "buck2",
-		.supply_name = "vinb",
-		.of_match = of_match_ptr("buck2"),
-		.id = LP8725_ID_BUCK2,
-		.ops = &lp8725_buck_ops,
-		.n_voltages = ARRAY_SIZE(lp8725_buck_vtbl),
-		.volt_table = lp8725_buck_vtbl,
-		.type = REGULATOR_VOLTAGE,
-		.owner = THIS_MODULE,
-		.enable_reg = LP872X_GENERAL_CFG,
-		.enable_mask = LP8725_BUCK2_EN_M,
-		.curr_table = lp8725_buck_uA,
-		.n_current_limits = ARRAY_SIZE(lp8725_buck_uA),
-		.csel_reg = LP8725_BUCK2_VOUT2,
-		.csel_mask = LP8725_BUCK_CL_M,
-	},
+	LP8725_LDO(LDO1, "ldo1", "vin1"),
+	LP8725_LDO(LDO2, "ldo2", "vin2"),
+	LP8725_LDO(LDO3, "ldo3", "vin2"),
+	LP8725_LDO(LDO4, "ldo4", "vin3"),
+	LP8725_LDO(LDO5, "ldo5", "vin3"),
+	LP8725_LILO(LILO1, "lilo1", "vinlilo1"),
+	LP8725_LILO(LILO2, "lilo2", "vinlilo2"),
+	LP8725_BUCK(BUCK1, "buck1"),
+	LP8725_BUCK(BUCK2, "buck2"),
 };
 
 static int lp872x_init_dvs(struct lp872x *lp)
