@@ -912,7 +912,10 @@ start_journal_io:
 	stats.run.rs_blocks_logged++;
 	if (jbd2_has_feature_async_commit(journal) &&
 	    journal->j_flags & JBD2_BARRIER) {
-		blkdev_issue_flush(journal->j_dev);
+		int flush_err = blkdev_issue_flush(journal->j_dev);
+
+		if (!err)
+			err = flush_err;
 	}
 
 	if (err)
