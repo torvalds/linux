@@ -2853,22 +2853,16 @@ populate_extable:
 				u64 limit = TASK_SIZE_MAX + PAGE_SIZE - VSYSCALL_ADDR;
 				u8 *end_of_jmp;
 
-				/* movabsq r10, VSYSCALL_ADDR */
-				emit_mov_imm64(&prog, BPF_REG_AX, (long)VSYSCALL_ADDR >> 32,
-					       (u32)(long)VSYSCALL_ADDR);
-
-				/* mov src_reg, r11 */
-				EMIT_mov(AUX_REG, src_reg);
-
-				if (insn->off) {
-					/* add r11, insn->off */
-					maybe_emit_1mod(&prog, AUX_REG, true);
-					EMIT2_off32(0x81, add_1reg(0xC0, AUX_REG), insn->off);
-				}
-
-				/* sub r11, r10 */
-				maybe_emit_mod(&prog, AUX_REG, BPF_REG_AX, true);
-				EMIT2(0x29, add_2reg(0xC0, AUX_REG, BPF_REG_AX));
+				/*
+				 * lea r11, [src_reg + insn->off - VSYSCALL_ADDR]
+				 *
+				 * VSYSCALL_ADDR is a small negative number, so the
+				 * whole offset fits into the 32-bit displacement.
+				 */
+				BUILD_BUG_ON((long)(s32)VSYSCALL_ADDR != (long)VSYSCALL_ADDR);
+				EMIT2(add_2mod(0x48, src_reg, AUX_REG), 0x8D);
+				emit_insn_suffix(&prog, src_reg, AUX_REG,
+						 insn->off - (s32)VSYSCALL_ADDR);
 
 				/* movabsq r10, limit */
 				emit_mov_imm64(&prog, BPF_REG_AX, (long)limit >> 32,
