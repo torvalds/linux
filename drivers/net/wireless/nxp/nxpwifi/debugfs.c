@@ -6,6 +6,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/string_choices.h>
 
 #include "main.h"
 #include "cmdevt.h"
@@ -98,8 +99,8 @@ nxpwifi_info_read(struct file *file, char __user *ubuf,
 	p += sprintf(p, "num_rx_pkts_dropped = %lu\n", priv->stats.rx_dropped);
 	p += sprintf(p, "num_tx_pkts_err = %lu\n", priv->stats.tx_errors);
 	p += sprintf(p, "num_rx_pkts_err = %lu\n", priv->stats.rx_errors);
-	p += sprintf(p, "carrier %s\n", ((netif_carrier_ok(priv->netdev))
-					 ? "on" : "off"));
+	p += sprintf(p, "carrier %s\n",
+		     str_on_off(netif_carrier_ok(priv->netdev)));
 	p += sprintf(p, "tx queue");
 	for (i = 0; i < netdev->num_tx_queues; i++) {
 		txq = netdev_get_tx_queue(netdev, i);
