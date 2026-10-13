@@ -9,9 +9,6 @@
 #include "internal.h"
 #include "trace.h"
 
-static DEFINE_SPINLOCK(failed_read_lock);
-static struct bio_list failed_read_list = BIO_EMPTY_LIST;
-
 static u32 __iomap_read_end_io(struct bio *bio, int error)
 {
 	struct folio_iter fi;
@@ -27,50 +24,11 @@ static u32 __iomap_read_end_io(struct bio *bio, int error)
 	return folio_count;
 }
 
-static void
-iomap_fail_reads(
-	struct work_struct	*work)
-{
-	struct bio		*bio;
-	struct bio_list		tmp = BIO_EMPTY_LIST;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&failed_read_lock, flags);
-	bio_list_merge_init(&tmp, &failed_read_list);
-	spin_unlock_irqrestore(&failed_read_lock, flags);
-
-	while ((bio = bio_list_pop(&tmp)) != NULL) {
-		__iomap_read_end_io(bio, blk_status_to_errno(bio->bi_status));
-		cond_resched();
-	}
-}
-
-static DECLARE_WORK(failed_read_work, iomap_fail_reads);
-
-static void iomap_fail_buffered_read(struct bio *bio)
-{
-	unsigned long flags;
-
-	/*
-	 * Bounce I/O errors to a workqueue to avoid nested i_lock acquisitions
-	 * in the fserror code.  The caller no longer owns the bio reference
-	 * after the spinlock drops.
-	 */
-	spin_lock_irqsave(&failed_read_lock, flags);
-	if (bio_list_empty(&failed_read_list))
-		WARN_ON_ONCE(!schedule_work(&failed_read_work));
-	bio_list_add(&failed_read_list, bio);
-	spin_unlock_irqrestore(&failed_read_lock, flags);
-}
-
 static void iomap_read_end_io(struct bio *bio)
 {
-	if (bio->bi_status) {
-		iomap_fail_buffered_read(bio);
+	if (bio->bi_status && bio_complete_in_task(bio))
 		return;
-	}
-
-	__iomap_read_end_io(bio, 0);
+	__iomap_read_end_io(bio, blk_status_to_errno(bio->bi_status));
 }
 
 u32 iomap_finish_ioend_buffered_read(struct iomap_ioend *ioend)
