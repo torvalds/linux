@@ -1611,8 +1611,11 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	ret = sb_issue_zeroout(sb, blk, num, GFP_NOFS);
 	if (ret < 0)
 		goto err_out;
-	if (barrier)
-		blkdev_issue_flush(sb->s_bdev);
+	if (barrier) {
+		ret = blkdev_issue_flush(sb->s_bdev);
+		if (ret)
+			goto err_out;
+	}
 
 skip_zeroout:
 	ext4_lock_group(sb, group);

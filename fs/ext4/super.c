@@ -3835,7 +3835,8 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	if (!ret) {
 		start_time = ktime_get_ns();
 		ret = ext4_init_inode_table(sb, group,
-					    elr->lr_timeout ? 0 : 1);
+					    !elr->lr_timeout &&
+					    test_opt(sb, BARRIER));
 		trace_ext4_lazy_itable_init(sb, group);
 		if (elr->lr_timeout == 0) {
 			elr->lr_timeout = nsecs_to_jiffies((ktime_get_ns() - start_time) *
