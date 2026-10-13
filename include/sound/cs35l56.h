@@ -312,6 +312,7 @@ struct snd_ctl_elem_value;
 
 #define CS35L56_SDW1_PLAYBACK_PORT			1
 #define CS35L56_SDW1_CAPTURE_PORT			3
+#define CS35L56_OT25_CAPTURE_PORT			4
 
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5

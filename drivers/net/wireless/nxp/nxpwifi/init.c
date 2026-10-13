@@ -20,7 +20,7 @@ static int nxpwifi_add_bss_prio_tbl(struct nxpwifi_private *priv)
 	struct nxpwifi_bss_prio_node *bss_prio;
 	struct nxpwifi_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 
-	bss_prio = kzalloc_obj(*bss_prio, GFP_KERNEL);
+	bss_prio = kzalloc_obj(*bss_prio);
 	if (!bss_prio)
 		return -ENOMEM;
 
@@ -328,7 +328,7 @@ static void nxpwifi_invalidate_lists(struct nxpwifi_adapter *adapter)
 static void
 nxpwifi_adapter_cleanup(struct nxpwifi_adapter *adapter)
 {
-	timer_delete(&adapter->wakeup_timer);
+	timer_delete_sync(&adapter->wakeup_timer);
 	nxpwifi_cancel_all_pending_cmd(adapter);
 	wake_up_interruptible(&adapter->cmd_wait_q.wait);
 	wake_up_interruptible(&adapter->hs_activate_wait_q);

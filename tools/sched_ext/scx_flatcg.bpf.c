@@ -937,7 +937,7 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
 	if (!(from_cgc = find_cgrp_ctx(from)) || !(to_cgc = find_cgrp_ctx(to)))
 		return;
 
-	delta = time_delta(p->scx.dsq_vtime, from_cgc->tvtime_now);
+	delta = (s64)(p->scx.dsq_vtime - from_cgc->tvtime_now);
 	scx_bpf_task_set_dsq_vtime(p, to_cgc->tvtime_now + delta);
 }
 

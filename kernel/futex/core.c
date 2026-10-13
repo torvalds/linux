@@ -213,10 +213,12 @@ static bool __futex_pivot_hash(struct mm_struct *mm, struct futex_private_hash *
 		futex_rehash_private(fph, new);
 	}
 	new->state = FR_PERCPU;
-	scoped_guard(rcu) {
-		mmph->batches = get_state_synchronize_rcu();
-		rcu_assign_pointer(mmph->hash, new);
-	}
+	rcu_assign_pointer(mmph->hash, new);
+	/*
+	 * mmph->batches must reference a grace period which started after
+	 * mmph->hash was assigned. See futex_ref_drop().
+	 */
+	mmph->batches = get_state_synchronize_rcu();
 	kvfree_rcu(fph, rcu);
 	return true;
 }
@@ -1874,8 +1876,8 @@ static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 			free_percpu(ref);
 	}
 
-	fph = kvzalloc(struct_size(fph, queues, hash_slots),
-		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+	fph = kvzalloc_flex(*fph, queues, hash_slots,
+			    GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!fph)
 		return -ENOMEM;
 
@@ -2103,7 +2105,7 @@ static int __init futex_init(void)
 	size = sizeof(struct futex_hash_bucket) * hashsize;
 	order = get_order(size);
 
-	__futex_queues = kcalloc(nr_node_ids, sizeof(*__futex_queues), GFP_KERNEL);
+	__futex_queues = kzalloc_objs(*__futex_queues, nr_node_ids);
 	kmemleak_not_leak(__futex_queues);
 
 	runtime_const_init(shift, __futex_shift);

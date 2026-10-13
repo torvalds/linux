@@ -89,9 +89,11 @@ LIBOPCODES_LIBS := $(shell \
 		    "-lopcodes -lbfd" \
 		    "-lopcodes -lbfd -liberty" \
 		    "-lopcodes -lbfd -liberty -lz"; do \
-		echo 'extern void disassemble_init_for_target(void *);' \
-		     'int main(void) { disassemble_init_for_target(0); return 0; }' | \
-			$(HOSTCC) -xc - -o /dev/null $$libs 2>/dev/null && \
+		printf '%s\n' \
+		       '$(pound)include <bfd.h>' \
+		       '$(pound)include <dis-asm.h>' \
+		       'int main(void) { disassemble_init_for_target(0); return 0; }' | \
+			$(HOSTCC) $(HOSTCFLAGS) -DPACKAGE='"objtool"' -xc - -o /dev/null $$libs 2>/dev/null && \
 			echo "$$libs" && break; \
 	done)
 

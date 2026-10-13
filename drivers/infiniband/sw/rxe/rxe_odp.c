@@ -120,11 +120,15 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 }
 
 static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp, u64 iova,
-				       int length)
+				       int length, bool write)
 {
 	bool need_fault = false;
+	u64 access = HMM_PFN_VALID;
 	u64 addr;
 	int idx;
+
+	if (write)
+		access |= HMM_PFN_WRITE;
 
 	addr = iova & (~(BIT(umem_odp->page_shift) - 1));
 
@@ -132,7 +136,7 @@ static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp, u64 iova,
 	while (addr < iova + length) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 
-		if (!(umem_odp->map.pfn_list[idx] & HMM_PFN_VALID)) {
+		if ((umem_odp->map.pfn_list[idx] & access) != access) {
 			need_fault = true;
 			break;
 		}
@@ -155,6 +159,7 @@ static unsigned long rxe_odp_iova_to_page_offset(struct ib_umem_odp *umem_odp, u
 static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u32 flags)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	bool write = !(flags & RXE_PAGEFAULT_RDONLY);
 	bool need_fault;
 	int err;
 
@@ -163,7 +168,7 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 
 	mutex_lock(&umem_odp->umem_mutex);
 
-	need_fault = rxe_check_pagefault(umem_odp, iova, length);
+	need_fault = rxe_check_pagefault(umem_odp, iova, length, write);
 	if (need_fault) {
 		mutex_unlock(&umem_odp->umem_mutex);
 
@@ -173,7 +178,7 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 		if (err < 0)
 			return err;
 
-		need_fault = rxe_check_pagefault(umem_odp, iova, length);
+		need_fault = rxe_check_pagefault(umem_odp, iova, length, write);
 		if (need_fault) {
 			mutex_unlock(&umem_odp->umem_mutex);
 			return -EFAULT;
@@ -335,8 +340,9 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 	int err;
 	u8 *va;
 
+	/* A flush never modifies memory; read-only access suffices. */
 	err = rxe_odp_map_range_and_lock(mr, iova, length,
-					 RXE_PAGEFAULT_DEFAULT);
+					 RXE_PAGEFAULT_RDONLY);
 	if (err)
 		return err;
 

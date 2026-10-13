@@ -2,3 +2,4 @@
 dev_in_maps
 set_layers_via_fds
 idmapped_mounts
+automount_in_layer

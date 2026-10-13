@@ -910,6 +910,9 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	ath9k_init_leds(priv);
 	ath9k_start_rfkill_poll(priv);
 
+	/* signal completion to ath9k_htc_rxep() and ath9k_wmi_event_tasklet() */
+	smp_store_release(&priv->initialized, true);
+
 	return 0;
 
 err_world:
@@ -965,10 +968,6 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 		goto err_init;
 
 	htc_handle->drv_priv = priv;
-
-	/* Allow ath9k_wmi_event_tasklet() to operate. */
-	smp_wmb();
-	priv->initialized = true;
 
 	return 0;
 

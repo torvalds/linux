@@ -3692,8 +3692,6 @@ static const u32 gcc_hawi_critical_cbcrs[] = {
 	0x67084, /* GCC_PCIE_1_RSC_CORE_CLK */
 	0x43014, /* GCC_PCIE_LINK_XO_CLK */
 	0x6b088, /* GCC_PCIE_RSC_CORE_CLK */
-	0x52010, /* GCC_PCIE_RSCC_CFG_AHB_CLK */
-	0x52010, /* GCC_PCIE_RSCC_XO_CLK */
 	0x32004, /* GCC_VIDEO_AHB_CLK */
 	0x32028, /* GCC_VIDEO_XO_CLK */
 };
@@ -3763,6 +3761,10 @@ static const struct regmap_config gcc_hawi_regmap_config = {
 
 static void clk_hawi_regs_configure(struct device *dev, struct regmap *regmap)
 {
+	/* Keep clocks always enabled */
+	regmap_update_bits(regmap, 0x52010, BIT(20), BIT(20)); /* GCC_PCIE_RSCC_CFG_AHB_CLK */
+	regmap_update_bits(regmap, 0x52010, BIT(21), BIT(21)); /* GCC_PCIE_RSCC_XO_CLK */
+
 	/* FORCE_MEM_CORE_ON for ufs phy ice core clocks */
 	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
 }

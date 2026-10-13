@@ -1325,6 +1325,8 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			ip_hw_instance->kobj.kset = &ip_hw_id->hw_id_kset;
 			res = kobject_add(&ip_hw_instance->kobj, NULL,
 					  "%d", ip_hw_instance->num_instance);
+			if (res)
+				kobject_put(&ip_hw_instance->kobj);
 next_ip:
 			if (reg_base_64)
 				ip_offset += struct_size(ip, base_address_64,
@@ -1608,11 +1610,11 @@ int amdgpu_discovery_sysfs_early_init(struct amdgpu_device *adev, struct pci_dev
 
 	discovery_bin = adev->discovery.bin;
 
-	early_entry = kzalloc(sizeof(*early_entry), GFP_KERNEL);
+	early_entry = kzalloc_obj(*early_entry);
 	if (!early_entry)
 		return -ENOMEM;
 
-	ip_top = kzalloc(sizeof(*ip_top), GFP_KERNEL);
+	ip_top = kzalloc_obj(*ip_top);
 	if (!ip_top) {
 		kfree(early_entry);
 		return -ENOMEM;

@@ -205,7 +205,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, sockopt_t *opt)
 	 * iterator code to allocate and hand it back.
 	 */
 	npages = iov_iter_npages(&opt->iter_out, INT_MAX);
-	pages = kvmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, npages);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out;

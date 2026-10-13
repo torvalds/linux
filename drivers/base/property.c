@@ -526,7 +526,7 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	if (nval == 0)
 		return -ENODATA;
 
-	const char **values __free(kfree) = kcalloc(nval, sizeof(*values), GFP_KERNEL);
+	const char **values __free(kfree) = kzalloc_objs(*values, nval);
 	if (!values)
 		return -ENOMEM;
 

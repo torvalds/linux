@@ -759,6 +759,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 					    unsigned int index,
 					    enum drm_plane_type type)
 {
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_COVERAGE);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_display_hub *hub = tegra->hub;
 	struct tegra_shared_plane *plane;
@@ -797,6 +798,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(p, &tegra_shared_plane_helper_funcs);
+	drm_plane_create_blend_mode_property(p, blend_caps);
 	drm_plane_create_zpos_property(p, 0, 0, 255);
 
 	return p;

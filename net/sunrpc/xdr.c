@@ -371,8 +371,7 @@ int xdr_buf_to_sg_alloc(const struct xdr_buf *buf, unsigned int offset,
 		unsigned int overflow_nents = nsg - sg_head_nents + 1;
 		struct scatterlist *overflow;
 
-		overflow = kmalloc_array(overflow_nents, sizeof(*overflow),
-					 gfp);
+		overflow = kmalloc_objs(*overflow, overflow_nents, gfp);
 		if (!overflow)
 			return -ENOMEM;
 

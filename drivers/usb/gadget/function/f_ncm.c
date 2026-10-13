@@ -1766,7 +1766,7 @@ static struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 	int status;
 
 	/* allocate and initialize one new instance */
-	ncm = kzalloc(sizeof(*ncm), GFP_KERNEL);
+	ncm = kzalloc_obj(*ncm);
 	if (!ncm)
 		return ERR_PTR(-ENOMEM);
 

@@ -39,6 +39,7 @@ struct tcp_transport {
 static const struct ksmbd_transport_ops ksmbd_tcp_transport_ops;
 
 static void tcp_stop_kthread(struct task_struct *kthread);
+static void ksmbd_tcp_stop_listener(struct interface *iface);
 static struct interface *alloc_iface(char *ifname);
 static void ksmbd_tcp_disconnect(struct ksmbd_transport *t);
 
@@ -321,13 +322,20 @@ static int ksmbd_tcp_run_kthread(struct interface *iface)
 	int rc;
 	struct task_struct *kthread;
 
-	kthread = kthread_run(ksmbd_kthread_fn, (void *)iface, "ksmbd-%s",
-			      iface->name);
+	kthread = kthread_create(ksmbd_kthread_fn, (void *)iface, "ksmbd-%s",
+				 iface->name);
 	if (IS_ERR(kthread)) {
 		rc = PTR_ERR(kthread);
 		return rc;
 	}
+
+	/*
+	 * The listener can exit after its socket is shutdown, so keep the
+	 * task_struct alive until the caller has stopped it.
+	 */
+	get_task_struct(kthread);
 	iface->ksmbd_kthread = kthread;
+	wake_up_process(kthread);
 
 	return 0;
 }
@@ -598,12 +606,7 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 		if (iface && iface->state == IFACE_STATE_CONFIGURED) {
 			ksmbd_debug(CONN, "netdev-down event: netdev(%s) is going down\n",
 					iface->name);
-			kernel_sock_shutdown(iface->ksmbd_socket, SHUT_RDWR);
-			tcp_stop_kthread(iface->ksmbd_kthread);
-			iface->ksmbd_kthread = NULL;
-			sock_release(iface->ksmbd_socket);
-			iface->ksmbd_socket = NULL;
-
+			ksmbd_tcp_stop_listener(iface);
 			iface->state = IFACE_STATE_DOWN;
 			break;
 		}
@@ -631,9 +634,23 @@ static void tcp_stop_kthread(struct task_struct *kthread)
 	if (!kthread)
 		return;
 
-	ret = kthread_stop(kthread);
+	ret = kthread_stop_put(kthread);
 	if (ret)
 		pr_err("failed to stop forker thread\n");
+}
+
+static void ksmbd_tcp_stop_listener(struct interface *iface)
+{
+	if (iface->ksmbd_socket)
+		kernel_sock_shutdown(iface->ksmbd_socket, SHUT_RDWR);
+
+	tcp_stop_kthread(iface->ksmbd_kthread);
+	iface->ksmbd_kthread = NULL;
+
+	if (iface->ksmbd_socket) {
+		sock_release(iface->ksmbd_socket);
+		iface->ksmbd_socket = NULL;
+	}
 }
 
 void ksmbd_tcp_destroy(void)
@@ -643,6 +660,7 @@ void ksmbd_tcp_destroy(void)
 	unregister_netdevice_notifier(&ksmbd_netdev_notifier);
 
 	list_for_each_entry_safe(iface, tmp, &iface_list, entry) {
+		ksmbd_tcp_stop_listener(iface);
 		list_del(&iface->entry);
 		kfree(iface->name);
 		kfree(iface);

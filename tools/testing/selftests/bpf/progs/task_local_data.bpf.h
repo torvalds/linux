@@ -61,6 +61,7 @@
 #define TLD_ROUND_UP(x, y) ((((x) - 1) | TLD_ROUND_MASK(x, y)) + 1)
 
 #define TLD_MAX_DATA_CNT (__PAGE_SIZE / sizeof(struct tld_metadata) - 1)
+#define TLD_DATA_SIZE (__PAGE_SIZE - sizeof(__u64))
 
 #ifndef TLD_NAME_LEN
 #define TLD_NAME_LEN 62
@@ -189,6 +190,8 @@ static int __tld_fetch_key(struct tld_object *tld_obj, const char *name, int i_s
 			return start + off;
 
 		off += TLD_ROUND_UP(metadata[i].size, 8);
+		if (off > TLD_DATA_SIZE)
+			break;
 	}
 
 	return -cnt;

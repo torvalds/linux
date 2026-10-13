@@ -771,9 +771,5 @@ int get_address_map(struct addr_ctx *ctx)
 
 	dump_address_map(&ctx->map);
 
-	ret = validate_address_map(ctx);
-	if (ret)
-		return ret;
-
-	return ret;
+	return validate_address_map(ctx);
 }

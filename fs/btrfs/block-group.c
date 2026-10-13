@@ -3074,20 +3074,24 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		return ERR_PTR(ret);
 	}
 
+	/*
+	 * Ensure the corresponding space_info object is created and
+	 * assigned to our block group. We want our bg to be added to the rbtree
+	 * with its ->space_info set.
+	 *
+	 * On a zoned filesystem btrfs_add_new_free_space() ends up in
+	 * __btrfs_add_free_space_zoned(), which dereferences
+	 * block_group->space_info, so it has to be set beforehand.
+	 */
+	cache->space_info = space_info;
+	ASSERT(cache->space_info);
+
 	ret = btrfs_add_new_free_space(cache, chunk_offset, chunk_offset + size, NULL);
 	btrfs_free_excluded_extents(cache);
 	if (ret) {
 		btrfs_put_block_group(cache);
 		return ERR_PTR(ret);
 	}
-
-	/*
-	 * Ensure the corresponding space_info object is created and
-	 * assigned to our block group. We want our bg to be added to the rbtree
-	 * with its ->space_info set.
-	 */
-	cache->space_info = space_info;
-	ASSERT(cache->space_info);
 
 	ret = btrfs_add_block_group_cache(cache);
 	if (ret) {

@@ -230,8 +230,7 @@ static int qcomtee_user_object_dispatch(struct qcomtee_object_invoke_ctx *oic,
 	struct qcomtee_context_data *ctxdata = uo->ctx->data;
 	int errno;
 
-	struct qcomtee_ureq *ureq __free(kfree) = kzalloc(sizeof(*ureq),
-							  GFP_KERNEL);
+	struct qcomtee_ureq *ureq __free(kfree) = kzalloc_obj(*ureq);
 	if (!ureq)
 		return -ENOMEM;
 

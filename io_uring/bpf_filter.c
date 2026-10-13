@@ -253,6 +253,7 @@ void io_bpf_filter_clone(struct io_restriction *dst, struct io_restriction *src)
 	 * If the src filter is going away, just ignore it.
 	 */
 	if (refcount_inc_not_zero(&src->bpf_filters->refs)) {
+		src->bpf_filters_cow = true;
 		dst->bpf_filters = src->bpf_filters;
 		dst->bpf_filters_cow = true;
 	}

@@ -2149,4 +2149,43 @@ __naked int stack_misc_vs_scalar_in_a_loop(void)
 	);
 }
 
+__used
+static int loop_cb5(int i, __u64 *ctx)
+{
+	/* unsafe on a second iteration */
+	small_arr[*ctx] = i;
+	*ctx = 100500;
+	return 0;
+}
+
+SEC("raw_tp")
+__flag(BPF_F_TEST_STATE_FREQ)
+__failure __msg("memory access is {{.*}} and is outside of the object of size 64")
+__naked void loop_counter_precision_2nd_iter(void)
+{
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"*(u64 *)(r10 - 8) = 0;"
+		"r1 = 2;"
+		"if r0 == 42 goto +1;"
+		"r1 = 1;"
+		"r2 = loop_cb5 ll;"
+		"r3 = r10;"
+		"r3 += -8;"
+		"r4 = 0;"
+		/*
+		 * Explore with nr_loops=1 on a first path and nr_loops=2 on a second path.
+		 * Buggy verifier did not propagate r1 precision properly,
+		 * and thus checkpoints created for nr_loops=1 case matched nr_loops=2 case.
+		 */
+		"call %[bpf_loop];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_loop),
+		  __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
 char _license[] SEC("license") = "GPL";

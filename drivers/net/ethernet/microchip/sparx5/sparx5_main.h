@@ -392,6 +392,7 @@ struct sparx5 {
 	struct notifier_block switchdev_blocking_nb;
 	/* Switch state */
 	u8 base_mac[ETH_ALEN];
+	u8 base_mac_assign_type;
 	/* Associated bridge device (when bridged) */
 	struct net_device *hw_bridge_dev;
 	/* Bridged interfaces */

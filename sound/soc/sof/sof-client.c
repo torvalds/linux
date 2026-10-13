@@ -230,7 +230,7 @@ int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 	struct sof_client_dev *cdev;
 	int ret;
 
-	centry = kzalloc(sizeof(*centry), GFP_KERNEL);
+	centry = kzalloc_obj(*centry);
 	if (!centry)
 		return -ENOMEM;
 
@@ -576,7 +576,7 @@ void sof_client_unregister_ipc_rx_handler(struct sof_client_dev *cdev,
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 	struct sof_ipc_event_entry *event;
 
-	guard(mutex)(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->client_event_handler_mutex);
 
 	list_for_each_entry(event, &sdev->ipc_rx_handler_list, list) {
 		if (event->cdev == cdev && event->ipc_msg_type == ipc_msg_type) {
@@ -593,7 +593,7 @@ void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev)
 {
 	struct sof_state_event_entry *event;
 
-	guard(mutex)(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->client_event_handler_mutex);
 
 	list_for_each_entry(event, &sdev->fw_state_handler_list, list)
 		event->callback(event->cdev, sdev->fw_state);
@@ -628,7 +628,7 @@ void sof_client_unregister_fw_state_handler(struct sof_client_dev *cdev)
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 	struct sof_state_event_entry *event;
 
-	guard(mutex)(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->client_event_handler_mutex);
 
 	list_for_each_entry(event, &sdev->fw_state_handler_list, list) {
 		if (event->cdev == cdev) {

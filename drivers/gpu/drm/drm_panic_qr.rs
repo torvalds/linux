@@ -407,8 +407,8 @@ impl DecFifo {
         for i in (0..self.len).rev() {
             self.decimals[i + len] = self.decimals[i];
         }
-        for i in 0..len {
-            self.decimals[i] = (chunk % 10) as u8;
+        for decimal in &mut self.decimals[..len] {
+            *decimal = (chunk % 10) as u8;
             chunk = div10(chunk);
         }
         self.len += len;

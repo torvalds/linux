@@ -498,7 +498,6 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 	const struct iio_scan_type *scan_type = &indio_dev->channels[0].scan_type;
 	struct spi_transfer *xfer = sigma_delta->sample_xfer;
 	unsigned int i, slot, channel;
-	u8 *samples_buf;
 	int ret;
 
 	if (sigma_delta->num_slots == 1) {
@@ -530,7 +529,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 		xfer[1].bits_per_word = scan_type->realbits;
 		xfer[1].len = spi_bpw_to_bytes(scan_type->realbits);
 	} else {
-		unsigned int samples_buf_size, scan_size;
+		unsigned int scan_size;
 
 		if (sigma_delta->active_slots > 1) {
 			ret = ad_sigma_delta_append_status(sigma_delta, true);
@@ -538,17 +537,6 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 				return ret;
 		}
 
-		samples_buf_size =
-			ALIGN(slot * BITS_TO_BYTES(scan_type->storagebits),
-			      sizeof(s64));
-		samples_buf_size += sizeof(s64);
-		samples_buf = devm_krealloc(&sigma_delta->spi->dev,
-					    sigma_delta->samples_buf,
-					    samples_buf_size, GFP_KERNEL);
-		if (!samples_buf)
-			return -ENOMEM;
-
-		sigma_delta->samples_buf = samples_buf;
 		scan_size = BITS_TO_BYTES(scan_type->realbits + scan_type->shift);
 		/* For 24-bit data, there is an extra byte of padding. */
 		xfer[1].rx_buf = &sigma_delta->rx_buf[scan_size == 3 ? 1 : 0];
@@ -855,6 +843,23 @@ int devm_ad_sd_setup_buffer_and_trigger(struct device *dev, struct iio_dev *indi
 
 		indio_dev->setup_ops = &ad_sd_buffer_setup_ops;
 	} else {
+		const struct iio_scan_type *scan_type =
+			&indio_dev->channels[0].scan_type;
+		unsigned int samples_buf_size;
+
+		/*
+		 * Worst-case size: all sequencer slots can be active, capped
+		 * at num_slots by ad_sd_validate_scan_mask().
+		 */
+		samples_buf_size =
+			ALIGN(sigma_delta->num_slots *
+			      BITS_TO_BYTES(scan_type->storagebits),
+			      sizeof(s64));
+		samples_buf_size += sizeof(s64);
+		sigma_delta->samples_buf = devm_kzalloc(dev, samples_buf_size, GFP_KERNEL);
+		if (!sigma_delta->samples_buf)
+			return -ENOMEM;
+
 		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						      &iio_pollfunc_store_time,
 						      &ad_sd_trigger_handler,

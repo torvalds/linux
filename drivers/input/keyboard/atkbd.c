@@ -1070,7 +1070,7 @@ static int atkbd_get_keymap_from_fwnode(struct atkbd *atkbd)
 	if (n <= 0 || n > ATKBD_KEYMAP_SIZE)
 		return -ENXIO;
 
-	u32 *ptr __free(kfree) = kcalloc(n, sizeof(*ptr), GFP_KERNEL);
+	u32 *ptr __free(kfree) = kzalloc_objs(*ptr, n);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -1939,10 +1939,26 @@ static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 		.callback = atkbd_deactivate_fixup,
 	},
 	{
+		/* Lenovo IdeaPad Slim 3 15IWC11 (83RR) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83RR"),
+		},
+		.callback = atkbd_deactivate_fixup,
+	},
+	{
 		/* Xiaomi Book Pro 14 (TM2424) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "XIAOMI"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Xiaomi Book Pro 14"),
+		},
+		.callback = atkbd_deactivate_fixup,
+	},
+	{
+		/* Xiaomi Redmi Book Pro 16 2026 (TM2425) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "XIAOMI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "REDMI Book Pro 16 2026"),
 		},
 		.callback = atkbd_deactivate_fixup,
 	},

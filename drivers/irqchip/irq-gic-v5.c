@@ -974,7 +974,8 @@ static void gicv5_cpu_disable_interrupts(void)
 {
 	u64 cr0;
 
-	cr0 = FIELD_PREP(ICC_CR0_EL1_EN, 0);
+	cr0 = read_sysreg_s(SYS_ICC_CR0_EL1);
+	cr0 &= ~ICC_CR0_EL1_EN_MASK;
 	write_sysreg_s(cr0, SYS_ICC_CR0_EL1);
 	isb();
 }
@@ -991,7 +992,8 @@ static void gicv5_cpu_enable_interrupts(void)
 	pcr = FIELD_PREP(ICC_PCR_EL1_PRIORITY, GICV5_IRQ_PRI_MI);
 	write_sysreg_s(pcr, SYS_ICC_PCR_EL1);
 
-	cr0 = FIELD_PREP(ICC_CR0_EL1_EN, 1);
+	cr0 = read_sysreg_s(SYS_ICC_CR0_EL1);
+	cr0 |= ICC_CR0_EL1_EN_MASK;
 	write_sysreg_s(cr0, SYS_ICC_CR0_EL1);
 }
 

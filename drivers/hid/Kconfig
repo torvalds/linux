@@ -1210,7 +1210,8 @@ config HID_STEELSERIES
 	depends on USB_HID
 	help
 	Support for Steelseries SRW-S1 steering wheel, and the Steelseries
-	Arctis 1 Wireless for XBox headset.
+	Arctis 1 Wireless for XBox, Arctis 7 (2018), Arctis 9, and Arctis
+	Nova headsets.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
@@ -1253,7 +1254,7 @@ config HID_HYPERV_MOUSE
 
 config HID_HYPERV_MOUSE_KUNIT_TEST
 	bool "KUnit tests for Hyper-V mouse driver" if !KUNIT_ALL_TESTS
-	depends on KUNIT && HID_HYPERV_MOUSE
+	depends on KUNIT && (HID_HYPERV_MOUSE = KUNIT || KUNIT = y)
 	default KUNIT_ALL_TESTS
 	help
 	  Builds unit tests for the Hyper-V synthetic HID driver.

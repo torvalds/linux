@@ -1222,7 +1222,7 @@ FIXTURE_SETUP(trace_unix)
 	int ret;
 
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, unshare(CLONE_NEWNS | CLONE_NEWNET));
 	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
 
 	ret = tracefs_fixture_setup();
@@ -1252,6 +1252,11 @@ FIXTURE_TEARDOWN(trace_unix)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
+static const char
+	trace_unix_max_name[sizeof(((struct sockaddr_un *)0)->sun_path)] = {
+		[0 ... sizeof(trace_unix_max_name) - 2] = 'x',
+	};
+
 /* clang-format off */
 FIXTURE_VARIANT(trace_unix) {
 	/* clang-format on */
@@ -1259,6 +1264,8 @@ FIXTURE_VARIANT(trace_unix) {
 	bool sandbox;
 	bool sandbox_target; /* Peer owned by a domain: peer_domain != 0. */
 	int expect_denied;
+	const char *name; /* NULL generates a PID-based binary name. */
+	size_t name_len;
 };
 
 /* clang-format off */
@@ -1279,6 +1286,26 @@ FIXTURE_VARIANT_ADD(trace_unix, stream_denied_scoped_peer) {
 FIXTURE_VARIANT_ADD(trace_unix, stream_allowed) {
 	.sock_type = SOCK_STREAM, .sandbox = false,
 	.sandbox_target = false, .expect_denied = 0,
+};
+
+/* Stream: lower abstract-name length boundary. */
+FIXTURE_VARIANT_ADD(trace_unix, stream_denied_empty_name) {
+	.sock_type = SOCK_STREAM,
+	.sandbox = true,
+	.sandbox_target = false,
+	.expect_denied = 1,
+	.name = "",
+	.name_len = 0,
+};
+
+/* Stream: upper abstract-name length boundary. */
+FIXTURE_VARIANT_ADD(trace_unix, stream_denied_max_name) {
+	.sock_type = SOCK_STREAM,
+	.sandbox = true,
+	.sandbox_target = false,
+	.expect_denied = 1,
+	.name = trace_unix_max_name,
+	.name_len = sizeof(trace_unix_max_name) - 1,
 };
 
 /* Datagram: sandboxed client sendto() an unsandboxed peer (peer_domain=0). */
@@ -1304,12 +1331,11 @@ FIXTURE_VARIANT_ADD(trace_unix, dgram_allowed) {
 /*
  * A sandboxed thread reaching an abstract unix socket peer through connect(2)
  * (stream) or sendto(2) (datagram) is denied and emits
- * landlock_deny_scope_abstract_unix_socket.  The abstract name is crafted with
- * a space and an embedded NUL followed by an "END" marker to check the
- * tracepoint escaping and its length handling (a raw space would break the
- * sun_path field regex; strlen() would truncate at the NUL and drop "END").
- * peer_pid is only meaningful for a stream peer (a datagram peer has no
- * SO_PEERCRED), so it is asserted only there.
+ * landlock_deny_scope_abstract_unix_socket.  The default abstract name has a
+ * space and an embedded NUL followed by an "END" marker to check escaping and
+ * binary length handling.  Additional stream variants cover the minimum and
+ * maximum abstract-name lengths.  peer_pid is only meaningful for a stream peer
+ * (a datagram peer has no SO_PEERCRED), so it is asserted only there.
  */
 TEST_F(trace_unix, deny_scope_unix)
 {
@@ -1336,12 +1362,19 @@ TEST_F(trace_unix, deny_scope_unix)
 	ASSERT_LE(0, server_fd);
 
 	addr.sun_path[0] = '\0';
-	name_len = snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1,
-			    "landlock_trace_test_%d ", getpid());
-	addr.sun_path[1 + name_len] = '\0';
-	memcpy(addr.sun_path + 1 + name_len + 1, "END", 3);
-	addr_len =
-		offsetof(struct sockaddr_un, sun_path) + 1 + name_len + 1 + 3;
+	if (variant->name) {
+		ASSERT_LE(variant->name_len, sizeof(addr.sun_path) - 1);
+		memcpy(addr.sun_path + 1, variant->name, variant->name_len);
+		name_len = variant->name_len;
+	} else {
+		name_len = snprintf(addr.sun_path + 1,
+				    sizeof(addr.sun_path) - 1,
+				    "landlock_trace_test_%d ", getpid());
+		addr.sun_path[1 + name_len] = '\0';
+		memcpy(addr.sun_path + 1 + name_len + 1, "END", 3);
+		name_len += 1 + 3;
+	}
+	addr_len = offsetof(struct sockaddr_un, sun_path) + 1 + name_len;
 
 	ASSERT_EQ(0, bind(server_fd, (struct sockaddr *)&addr, addr_len));
 	if (variant->sock_type == SOCK_STREAM)
@@ -1430,19 +1463,18 @@ TEST_F(trace_unix, deny_scope_unix)
 		       count, buf);
 	}
 
-	/*
-	 * sun_path is escaped: a raw space would break this field's [^ ]*$
-	 * regex, so a successful extract proves the space was escaped, and its
-	 * full length is honored: the "END" marker after the embedded NUL must
-	 * survive (strlen() would truncate it at the NUL).
-	 */
 	ASSERT_EQ(0, tracefs_extract_field(
 			     buf,
 			     REGEX_DENY_SCOPE_ABSTRACT_UNIX_SOCKET(TRACE_TASK),
 			     "sun_path", field, sizeof(field)));
-	EXPECT_NE(NULL, strstr(field, "END"))
-	{
-		TH_LOG("sun_path truncated or unescaped: %s", field);
+	if (variant->name) {
+		EXPECT_STREQ(variant->name, field);
+	} else {
+		/* An embedded NUL must not truncate the following marker. */
+		EXPECT_NE(NULL, strstr(field, "END"))
+		{
+			TH_LOG("sun_path truncated or unescaped: %s", field);
+		}
 	}
 
 	/* peer_pid is the parent's PID for a stream peer (0 for datagram). */

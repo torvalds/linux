@@ -1209,7 +1209,7 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
  */
 static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
-	kfree(rcu_dereference_protected(inet_rsk(req)->ireq_opt, 1));
+	kfree_rcu(rcu_dereference_protected(inet_rsk(req)->ireq_opt, 1), rcu);
 }
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -2931,8 +2931,8 @@ static int bpf_iter_tcp_realloc_batch(struct bpf_tcp_iter_state *iter,
 {
 	union bpf_tcp_iter_batch_item *new_batch;
 
-	new_batch = kvmalloc_array(new_batch_sz, sizeof(*new_batch),
-				   flags | __GFP_NOWARN);
+	new_batch = kvmalloc_objs(*new_batch, new_batch_sz,
+				  flags | __GFP_NOWARN);
 	if (!new_batch)
 		return -ENOMEM;
 

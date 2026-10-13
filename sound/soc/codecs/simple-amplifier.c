@@ -371,7 +371,7 @@ static unsigned int *simple_amp_alloc_tlv_ranges(const struct simple_amp_ranges 
 	unsigned int *t;
 	unsigned int i;
 
-	tlv = kzalloc_objs(*tlv, 2 + ranges->nb_ranges * 6, GFP_KERNEL);
+	tlv = kzalloc_objs(*tlv, 2 + ranges->nb_ranges * 6);
 	if (!tlv)
 		return NULL;
 

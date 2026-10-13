@@ -53,10 +53,10 @@ int ntfs_cluster_free_from_rl_nolock(struct ntfs_volume *vol,
 		if (rl->lcn < 0)
 			continue;
 		err = ntfs_bitmap_clear_run(lcnbmp_vi, rl->lcn, rl->length);
-		if (unlikely(err && (!ret || ret == -ENOMEM) && ret != err))
-			ret = err;
-		else
+		if (likely(!err))
 			nr_freed += rl->length;
+		else if (!ret || ret == -ENOMEM)
+			ret = err;
 	}
 	ntfs_inc_free_clusters(vol, nr_freed);
 	ntfs_debug("Done.");
@@ -1045,8 +1045,9 @@ err_out:
 			"Failed to rollback (error %i).  Leaving inconsistent metadata!  Unmount and run chkdsk.",
 			(int)delta);
 		NVolSetErrors(vol);
+	} else {
+		ntfs_dec_free_clusters(vol, delta);
 	}
-	ntfs_dec_free_clusters(vol, delta);
 	up_write(&vol->lcnbmp_lock);
 	memalloc_nofs_restore(memalloc_flags);
 	ntfs_error(vol->sb, "Aborting (error %i).", err);

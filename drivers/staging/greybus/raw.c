@@ -178,7 +178,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	if (minor < 0)
 		return minor;
 
-	raw = kzalloc_obj(*raw, GFP_KERNEL);
+	raw = kzalloc_obj(*raw);
 	if (!raw) {
 		ida_free(&minors, minor);
 		return -ENOMEM;
