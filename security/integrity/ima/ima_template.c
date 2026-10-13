@@ -524,6 +524,13 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 				ret = -EINVAL;
 				break;
 			}
+		} else {
+			/*
+			 * If the template hash found in the kexec buffer is all
+			 * zeros, record it as a violation. Note that this can
+			 * be a false positive.
+			 */
+			atomic_long_inc(&ima_num_violations);
 		}
 
 		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
