@@ -149,13 +149,18 @@ struct tpmi_feature_state {
 } __packed;
 
 /*
- * The size from hardware is in u32 units. This size is from a trusted hardware,
- * but better to verify for pre silicon platforms. Set size to 0, when invalid.
+ * Return the size of a single feature interface instance in bytes. The
+ * hardware reports it in u32 units. The value comes from trusted hardware,
+ * but is still worth verifying on pre silicon platforms, so return 0 when
+ * it is out of range.
  */
-#define TPMI_GET_SINGLE_ENTRY_SIZE(pfs)							\
-({											\
-	pfs->pfs_header.entry_size > SZ_1K ? 0 : pfs->pfs_header.entry_size << 2;	\
-})
+static u32 tpmi_get_single_entry_size(const struct intel_tpmi_pm_feature *pfs)
+{
+	if (pfs->pfs_header.entry_size > SZ_1K)
+		return 0;
+
+	return pfs->pfs_header.entry_size * sizeof(u32);
+}
 
 /* Used during auxbus device creation */
 static DEFINE_IDA(intel_vsec_tpmi_ida);
@@ -397,7 +402,7 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 	u64 off;
 	u8 *buffer;
 
-	size = TPMI_GET_SINGLE_ENTRY_SIZE(pfs);
+	size = tpmi_get_single_entry_size(pfs);
 	if (!size)
 		return -EIO;
 
@@ -445,7 +450,7 @@ static ssize_t mem_write(struct file *file, const char __user *userbuf, size_t l
 	void __iomem *mem;
 	int ret;
 
-	size = TPMI_GET_SINGLE_ENTRY_SIZE(pfs);
+	size = tpmi_get_single_entry_size(pfs);
 	if (!size)
 		return -EIO;
 
@@ -531,7 +536,7 @@ static void tpmi_set_control_base(struct intel_tpmi_info *tpmi_info,
 	void __iomem *mem;
 	u32 size;
 
-	size = TPMI_GET_SINGLE_ENTRY_SIZE(pfs);
+	size = tpmi_get_single_entry_size(pfs);
 	if (!size)
 		return;
 
