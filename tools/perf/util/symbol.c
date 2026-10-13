@@ -1099,6 +1099,13 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				return -1;
 
 			dso__set_kernel(ndso, dso__kernel(dso));
+			if (dso__kernel(dso) == DSO_SPACE__KERNEL_GUEST) {
+				dso__set_binary_type(ndso, DSO_BINARY_TYPE__GUEST_KALLSYMS);
+				dso__set_symtab_type(ndso, DSO_BINARY_TYPE__GUEST_KALLSYMS);
+			} else {
+				dso__set_binary_type(ndso, DSO_BINARY_TYPE__KALLSYMS);
+				dso__set_symtab_type(ndso, DSO_BINARY_TYPE__KALLSYMS);
+			}
 			dso__set_loaded(ndso);
 
 			curr_map = map__new2(pos->start, ndso);
