@@ -910,7 +910,15 @@ int bnxt_qplib_init_res(struct bnxt_qplib_res *res)
 
 void bnxt_qplib_free_res(struct bnxt_qplib_res *res)
 {
-	kvfree(res->rcfw->qp_tbl);
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct bnxt_qplib_qp_node *qp_tbl;
+
+	/* The CREQ tasklet may still be running; unpublish the table first */
+	spin_lock_bh(&rcfw->tbl_lock);
+	qp_tbl = rcfw->qp_tbl;
+	rcfw->qp_tbl = NULL;
+	spin_unlock_bh(&rcfw->tbl_lock);
+	kvfree(qp_tbl);
 	bnxt_qplib_free_sgid_tbl(res, &res->sgid_tbl);
 	bnxt_qplib_free_pd_tbl(&res->pd_tbl);
 	bnxt_qplib_free_dpi_tbl(res, &res->dpi_tbl);
