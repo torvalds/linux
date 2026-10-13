@@ -5412,8 +5412,8 @@ err_out:
 	return ret;
 }
 
-static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
-			   u32 ei_lba, bool unmap, bool ndob)
+static int __resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
+			     u32 ei_lba, bool unmap, bool ndob, bool lbp)
 {
 	struct scsi_device *sdp = scp->device;
 	struct sdebug_dev_info *devip = (struct sdebug_dev_info *)sdp->hostdata;
@@ -5425,21 +5425,14 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 						scp->device->hostdata, true);
 	u8 *fs1p;
 	u8 *fsp;
-	bool meta_data_locked = false;
-	bool lbp = scsi_debug_lbp();
-
-	if (sdebug_dev_is_zoned(devip) || lbp) {
-		sdeb_meta_write_lock(sip);
-		meta_data_locked = true;
-	}
 
 	ret = check_device_access_params(scp, lba, num, true);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (unmap && lbp) {
 		unmap_region(sip, lba, num);
-		goto out;
+		return ret;
 	}
 	lbaa = lba;
 	block = do_div(lbaa, sdebug_store_sectors);
@@ -5475,9 +5468,28 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	ret = 0;
 unlock:
 	sdeb_data_write_unlock(sip);
-out:
-	if (meta_data_locked)
+	return ret;
+}
+
+static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num, u32 ei_lba,
+			   bool unmap, bool ndob)
+{
+	struct scsi_device *sdp = scp->device;
+	struct sdebug_dev_info *devip = sdp->hostdata;
+	struct sdeb_store_info *sip = devip2sip(devip, true);
+	const bool lbp = scsi_debug_lbp();
+	int ret;
+
+	if (sdebug_dev_is_zoned(devip) || lbp) {
+		sdeb_meta_write_lock(sip);
+		ret = __resp_write_same(scp, lba, num, ei_lba, unmap, ndob,
+					lbp);
 		sdeb_meta_write_unlock(sip);
+	} else {
+		ret = __resp_write_same(scp, lba, num, ei_lba, unmap, ndob,
+					lbp);
+	}
+
 	return ret;
 }
 
