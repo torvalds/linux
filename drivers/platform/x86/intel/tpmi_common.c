@@ -32,19 +32,28 @@
 #include <linux/array_size.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/bitfield.h>
-#include <linux/debugfs.h>
+#include <linux/bits.h>
 #include <linux/cleanup.h>
+#include <linux/compiler_attributes.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/export.h>
+#include <linux/idr.h>
 #include <linux/intel_tpmi.h>
 #include <linux/intel_vsec.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/security.h>
+#include <linux/seq_file.h>
 #include <linux/sizes.h>
+#include <linux/slab.h>
 #include <linux/string_helpers.h>
+#include <linux/time64.h>
+#include <linux/types.h>
 
 #include "tpmi_common.h"
 
