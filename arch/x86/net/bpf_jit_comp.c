@@ -473,6 +473,8 @@ static void emit_nops(u8 **pprog, int len)
  */
 static int emit_call(u8 **prog, void *func, void *ip);
 static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off);
+static void emit_mov_reg(u8 **pprog, bool is64, u32 dst_reg, u32 src_reg);
+static void emit_alu_imm(u8 **pprog, u32 op, u32 dst_reg, s32 imm, bool is64);
 
 static void emit_fineibt(u8 **pprog, u8 *ip, u32 hash, int arity)
 {
@@ -840,7 +842,7 @@ static void emit_bpf_tail_call_indirect(struct bpf_prog *bpf_prog,
 	 * if (index >= array->map.max_entries)
 	 *	goto out;
 	 */
-	EMIT2(0x89, 0xD2);                        /* mov edx, edx */
+	emit_mov_reg(&prog, false, BPF_REG_3, BPF_REG_3); /* mov edx, edx */
 	EMIT3(0x39, 0x56,                         /* cmp dword ptr [rsi + 16], edx */
 	      offsetof(struct bpf_array, map.max_entries));
 
@@ -894,8 +896,8 @@ static void emit_bpf_tail_call_indirect(struct bpf_prog *bpf_prog,
 	/* goto *(prog->bpf_func + X86_TAIL_CALL_OFFSET); */
 	EMIT4(0x48, 0x8B, 0x49,                   /* mov rcx, qword ptr [rcx + 32] */
 	      offsetof(struct bpf_prog, bpf_func));
-	EMIT4(0x48, 0x83, 0xC1,                   /* add rcx, X86_TAIL_CALL_OFFSET */
-	      X86_TAIL_CALL_OFFSET);
+	/* add rcx, X86_TAIL_CALL_OFFSET */
+	emit_alu_imm(&prog, BPF_ADD, BPF_REG_4, X86_TAIL_CALL_OFFSET, true);
 	/*
 	 * Now we're ready to jump into next BPF program
 	 * rdi == ctx (1st arg)
@@ -1204,6 +1206,67 @@ static void maybe_emit_1mod(u8 **pprog, u32 reg, bool is64)
 	*pprog = prog;
 }
 
+/* add/sub/and/or/xor dst_reg, imm with the imm8 and the rax short forms */
+static void emit_alu_imm(u8 **pprog, u32 op, u32 dst_reg, s32 imm, bool is64)
+{
+	/* ModR/M opcode extension and rax short form per operation */
+	static const u8 modrm[] = {
+		[BPF_ADD] = 0xC0, [BPF_SUB] = 0xE8, [BPF_AND] = 0xE0,
+		[BPF_OR] = 0xC8, [BPF_XOR] = 0xF0,
+	};
+	static const u8 short_op[] = {
+		[BPF_ADD] = 0x05, [BPF_SUB] = 0x2D, [BPF_AND] = 0x25,
+		[BPF_OR] = 0x0D, [BPF_XOR] = 0x35,
+	};
+	u8 *prog = *pprog;
+
+	maybe_emit_1mod(&prog, dst_reg, is64);
+	if (is_imm8(imm))
+		EMIT3(0x83, add_1reg(modrm[op], dst_reg), imm);
+	else if (is_axreg(dst_reg))
+		EMIT1_off32(short_op[op], imm);
+	else
+		EMIT2_off32(0x81, add_1reg(modrm[op], dst_reg), imm);
+
+	*pprog = prog;
+}
+
+/* add/sub/and/or/xor dst_reg, src_reg */
+static void emit_alu_reg(u8 **pprog, u32 op, u32 dst_reg, u32 src_reg, bool is64)
+{
+	u8 *prog = *pprog;
+
+	maybe_emit_mod(&prog, dst_reg, src_reg, is64);
+	EMIT2(simple_alu_opcodes[op], add_2reg(0xC0, dst_reg, src_reg));
+
+	*pprog = prog;
+}
+
+/* shl/shr/sar reg, imm */
+static void emit_shift_imm(u8 **pprog, u32 op, u32 reg, u8 imm, bool is64)
+{
+	u8 *prog = *pprog;
+
+	maybe_emit_1mod(&prog, reg, is64);
+	if (imm == 1)
+		EMIT2(0xD1, add_1reg(simple_alu_opcodes[op], reg));
+	else
+		EMIT3(0xC1, add_1reg(simple_alu_opcodes[op], reg), imm);
+
+	*pprog = prog;
+}
+
+/* neg dst_reg */
+static void emit_neg(u8 **pprog, u32 dst_reg, bool is64)
+{
+	u8 *prog = *pprog;
+
+	maybe_emit_1mod(&prog, dst_reg, is64);
+	EMIT2(0xF7, add_1reg(0xD8, dst_reg));
+
+	*pprog = prog;
+}
+
 static int emit_kasan_check(struct bpf_verifier_env *env, u8 **pprog,
 			    u32 addr_reg, s32 off, u32 bpf_size, u8 *ip,
 			    bool is_write)
@@ -1258,15 +1321,8 @@ static int emit_kasan_check(struct bpf_verifier_env *env, u8 **pprog,
 	EMIT_mov(BPF_REG_1, addr_reg);
 
 	/* add rdi, off (if offset is non-zero) */
-	if (off) {
-		if (is_imm8(off)) {
-			/* add rdi, imm8 */
-			EMIT4(0x48, 0x83, 0xC7, (u8)off);
-		} else {
-			/* add rdi, imm32 */
-			EMIT3_off32(0x48, 0x81, 0xC7, off);
-		}
-	}
+	if (off)
+		emit_alu_imm(&prog, BPF_ADD, BPF_REG_1, off, true);
 
 	/* Adjust ip to account for the instrumentation generated so far */
 	ip += (prog - *pprog);
@@ -2207,7 +2263,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
 		bool accesses_stack_only;
-		u8 b2 = 0, b3 = 0;
+		u8 b3 = 0;
 		u8 *start_of_ldx;
 		s64 jmp_offset;
 		s32 insn_off;
@@ -2247,10 +2303,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		case BPF_ALU64 | BPF_AND | BPF_X:
 		case BPF_ALU64 | BPF_OR | BPF_X:
 		case BPF_ALU64 | BPF_XOR | BPF_X:
-			maybe_emit_mod(&prog, dst_reg, src_reg,
-				       BPF_CLASS(insn->code) == BPF_ALU64);
-			b2 = simple_alu_opcodes[BPF_OP(insn->code)];
-			EMIT2(b2, add_2reg(0xC0, dst_reg, src_reg));
+			emit_alu_reg(&prog, BPF_OP(insn->code), dst_reg, src_reg,
+				     BPF_CLASS(insn->code) == BPF_ALU64);
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
@@ -2311,9 +2365,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 			/* neg dst */
 		case BPF_ALU | BPF_NEG:
 		case BPF_ALU64 | BPF_NEG:
-			maybe_emit_1mod(&prog, dst_reg,
-					BPF_CLASS(insn->code) == BPF_ALU64);
-			EMIT2(0xF7, add_1reg(0xD8, dst_reg));
+			emit_neg(&prog, dst_reg, BPF_CLASS(insn->code) == BPF_ALU64);
 			break;
 
 		case BPF_ALU | BPF_ADD | BPF_K:
@@ -2341,42 +2393,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 				break;
 			}
 
-			maybe_emit_1mod(&prog, dst_reg,
-					BPF_CLASS(insn->code) == BPF_ALU64);
-
-			/*
-			 * b3 holds 'normal' opcode, b2 short form only valid
-			 * in case dst is eax/rax.
-			 */
-			switch (BPF_OP(insn->code)) {
-			case BPF_ADD:
-				b3 = 0xC0;
-				b2 = 0x05;
-				break;
-			case BPF_SUB:
-				b3 = 0xE8;
-				b2 = 0x2D;
-				break;
-			case BPF_AND:
-				b3 = 0xE0;
-				b2 = 0x25;
-				break;
-			case BPF_OR:
-				b3 = 0xC8;
-				b2 = 0x0D;
-				break;
-			case BPF_XOR:
-				b3 = 0xF0;
-				b2 = 0x35;
-				break;
-			}
-
-			if (is_imm8(imm32))
-				EMIT3(0x83, add_1reg(b3, dst_reg), imm32);
-			else if (is_axreg(dst_reg))
-				EMIT1_off32(b2, imm32);
-			else
-				EMIT2_off32(0x81, add_1reg(b3, dst_reg), imm32);
+			emit_alu_imm(&prog, BPF_OP(insn->code), dst_reg, imm32,
+				     BPF_CLASS(insn->code) == BPF_ALU64);
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_K:
@@ -2429,7 +2447,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 				 * xor edx, edx
 				 * equivalent to 'xor rdx, rdx', but one byte less
 				 */
-				EMIT2(0x31, 0xd2);
+				emit_mov_imm32(&prog, false, BPF_REG_3, 0);
 
 				/* div src_reg */
 				maybe_emit_1mod(&prog, src_reg, is64);
@@ -2493,14 +2511,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		case BPF_ALU64 | BPF_LSH | BPF_K:
 		case BPF_ALU64 | BPF_RSH | BPF_K:
 		case BPF_ALU64 | BPF_ARSH | BPF_K:
-			maybe_emit_1mod(&prog, dst_reg,
-					BPF_CLASS(insn->code) == BPF_ALU64);
-
-			b3 = simple_alu_opcodes[BPF_OP(insn->code)];
-			if (imm32 == 1)
-				EMIT2(0xD1, add_1reg(b3, dst_reg));
-			else
-				EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
+			emit_shift_imm(&prog, BPF_OP(insn->code), dst_reg,
+				       imm32, BPF_CLASS(insn->code) == BPF_ALU64);
 			break;
 
 		case BPF_ALU | BPF_LSH | BPF_X:
@@ -4206,7 +4218,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 
 	if (flags & BPF_TRAMP_F_SKIP_FRAME) {
 		/* skip our return address and return to parent */
-		EMIT4(0x48, 0x83, 0xC4, 8); /* add rsp, 8 */
+		emit_add_rsp(&prog, 8); /* add rsp, 8 */
 	}
 	emit_return(&prog, image + (prog - (u8 *)rw_image));
 	/* Make sure the trampoline generation logic doesn't overflow */
