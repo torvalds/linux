@@ -248,7 +248,7 @@ neigh/default/unres_qlen - INTEGER
 
 neigh/default/interval_probe_time_ms - INTEGER
 	The probe interval for neighbor entries with NTF_MANAGED flag,
-	the min value is 1, and the max value is 86400000 (1 day).
+	the min value is 1000 (1s), and the max value is 86400000 (1 day).
 
 	Default: 5000
 

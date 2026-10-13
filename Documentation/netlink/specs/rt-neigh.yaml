@@ -342,7 +342,7 @@ attribute-sets:
         name: interval-probe-time-ms
         type: u64
         checks:
-          min: 1
+          min: 1000
           max: 86400000
 
 operations:
