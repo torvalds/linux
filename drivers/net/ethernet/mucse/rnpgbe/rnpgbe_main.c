@@ -2,6 +2,7 @@
 /* Copyright(c) 2020 - 2025 Mucse Corporation. */
 
 #include <linux/pci.h>
+#include <linux/skbuff.h>
 #include <net/rtnetlink.h>
 #include <linux/etherdevice.h>
 
@@ -27,6 +28,19 @@ static struct pci_device_id rnpgbe_pci_tbl[] = {
 };
 
 /**
+ * rnpgbe_configure - Configure the hardware
+ * @mucse: pointer to private structure
+ *
+ * Configure Tx registers in hardware.
+ *
+ * Return: 0 on success, negative errno if hardware configuration fails
+ **/
+static int rnpgbe_configure(struct mucse *mucse)
+{
+	return rnpgbe_configure_tx(mucse);
+}
+
+/**
  * rnpgbe_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -40,6 +54,9 @@ static int rnpgbe_open(struct net_device *netdev)
 	struct mucse *mucse = netdev_priv(netdev);
 	int err;
 
+	if (test_bit(__MUCSE_AXI_FAULT, &mucse->state))
+		return -EIO;
+
 	err = rnpgbe_request_irq(mucse);
 	if (err)
 		return err;
@@ -49,9 +66,19 @@ static int rnpgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_free_irqs;
 
+	err = rnpgbe_setup_all_tx_resources(mucse);
+	if (err)
+		goto err_free_irqs;
+
+	err = rnpgbe_configure(mucse);
+	if (err)
+		goto err_free_tx;
 	rnpgbe_up_complete(mucse);
 
 	return 0;
+err_free_tx:
+	rnpgbe_clean_all_tx_rings(mucse);
+	rnpgbe_free_all_tx_resources(mucse);
 err_free_irqs:
 	rnpgbe_free_irq(mucse);
 	return err;
@@ -72,6 +99,7 @@ static int rnpgbe_close(struct net_device *netdev)
 
 	rnpgbe_down(mucse);
 	rnpgbe_free_irq(mucse);
+	rnpgbe_free_all_tx_resources(mucse);
 
 	return 0;
 }
@@ -81,24 +109,43 @@ static int rnpgbe_close(struct net_device *netdev)
  * @skb: skb structure to be sent
  * @netdev: network interface device structure
  *
- * Return: NETDEV_TX_OK
+ * Return: NETDEV_TX_OK or NETDEV_TX_BUSY when insufficient descriptors
  **/
 static netdev_tx_t rnpgbe_xmit_frame(struct sk_buff *skb,
 				     struct net_device *netdev)
 {
 	struct mucse *mucse = netdev_priv(netdev);
+	struct mucse_ring *tx_ring;
 
-	dev_kfree_skb_any(skb);
-	mucse->stats.tx_dropped++;
+	tx_ring = mucse->tx_ring[skb_get_queue_mapping(skb)];
 
-	return NETDEV_TX_OK;
+	if (unlikely(skb_put_padto(skb, RNPGBE_TX_MIN_PKT_LEN))) {
+		atomic64_inc(&tx_ring->stats->dropped);
+		return NETDEV_TX_OK;
+	}
+
+	return rnpgbe_xmit_frame_ring(skb, tx_ring);
 }
 
 static const struct net_device_ops rnpgbe_netdev_ops = {
 	.ndo_open       = rnpgbe_open,
 	.ndo_stop       = rnpgbe_close,
 	.ndo_start_xmit = rnpgbe_xmit_frame,
+	.ndo_get_stats64 = rnpgbe_get_stats64,
 };
+
+static void rnpgbe_sw_init(struct mucse *mucse)
+{
+	int i;
+
+	mucse->tx_ring_item_count = M_DEFAULT_TXD;
+	mucse->tx_work_limit = M_DEFAULT_TX_WORK;
+
+	for (i = 0; i < RNPGBE_MAX_QUEUES; i++) {
+		u64_stats_init(&mucse->tx_stats[i].syncp);
+		atomic64_set(&mucse->tx_stats[i].dropped, 0);
+	}
+}
 
 /**
  * rnpgbe_add_adapter - Add netdev for this pci_dev
@@ -172,6 +219,7 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &rnpgbe_netdev_ops;
+	rnpgbe_sw_init(mucse);
 	err = rnpgbe_reset_hw(hw);
 	if (err) {
 		dev_err(&pdev->dev, "Hw reset failed %d\n", err);
@@ -206,6 +254,14 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 		goto err_clear_interrupt;
 	}
 
+	netdev->features |= NETIF_F_SG;
+	netdev->hw_features |= NETIF_F_SG;
+	if (dma_get_mask(&pdev->dev) > DMA_BIT_MASK(32)) {
+		netdev->features |= NETIF_F_HIGHDMA;
+		netdev->hw_features |= NETIF_F_HIGHDMA;
+	}
+
+	netif_carrier_off(netdev);
 	err = register_netdev(netdev);
 	if (err)
 		goto err_remove_mbx;
@@ -248,12 +304,7 @@ static int rnpgbe_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(56));
-	if (err) {
-		dev_err(&pdev->dev,
-			"No usable DMA configuration, aborting %d\n", err);
-		goto err_disable_dev;
-	}
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(56));
 
 	err = pci_request_mem_regions(pdev, rnpgbe_driver_name);
 	if (err) {
