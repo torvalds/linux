@@ -76,7 +76,7 @@ struct l2tp_session {
 	u8			peer_cookie[8];
 	int			peer_cookie_len;
 	u16			l2specific_type;
-	u16			hdr_len;
+	u16			hdr_len;	/* maximum L2TP header length */
 	u32			nr;		/* session NR state (receive) */
 	u32			ns;		/* session NR state (send) */
 	struct sk_buff_head	reorder_q;	/* receive reorder queue */
@@ -94,8 +94,8 @@ struct l2tp_session {
 
 	char			name[L2TP_SESSION_NAME_MAX]; /* for logging */
 	char			ifname[IFNAMSIZ];
+	bool			send_seq;	/* send packets with sequence numbers? */
 	unsigned int		recv_seq:1;	/* expect receive packets with sequence numbers? */
-	unsigned int		send_seq:1;	/* send packets with sequence numbers? */
 	unsigned int		lns_mode:1;	/* behave as LNS?
 						 * LAC enables sequence numbers under LNS control.
 						 */
@@ -257,8 +257,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
 /* Transmit path helpers for sending packets over the tunnel socket. */
-void l2tp_session_set_header_len(struct l2tp_session *session, int version,
-				 enum l2tp_encap_type encap);
 int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb);
 
 /* Pseudowire management.

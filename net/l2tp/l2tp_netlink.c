@@ -700,12 +700,9 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		session->recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
 
-	if (info->attrs[L2TP_ATTR_SEND_SEQ]) {
-		struct l2tp_tunnel *tunnel = session->tunnel;
-
-		session->send_seq = nla_get_u8(info->attrs[L2TP_ATTR_SEND_SEQ]);
-		l2tp_session_set_header_len(session, tunnel->version, tunnel->encap);
-	}
+	if (info->attrs[L2TP_ATTR_SEND_SEQ])
+		WRITE_ONCE(session->send_seq,
+			   nla_get_u8(info->attrs[L2TP_ATTR_SEND_SEQ]) & 1);
 
 	if (info->attrs[L2TP_ATTR_LNS_MODE])
 		session->lns_mode = nla_get_u8(info->attrs[L2TP_ATTR_LNS_MODE]);
@@ -748,7 +745,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    (session->peer_cookie_len &&
 	     nla_put(skb, L2TP_ATTR_PEER_COOKIE, session->peer_cookie_len, session->peer_cookie)) ||
 	    nla_put_u8(skb, L2TP_ATTR_RECV_SEQ, session->recv_seq) ||
-	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, session->send_seq) ||
+	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, READ_ONCE(session->send_seq)) ||
 	    nla_put_u8(skb, L2TP_ATTR_LNS_MODE, session->lns_mode) ||
 	    (l2tp_tunnel_uses_xfrm(tunnel) &&
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
