@@ -2544,35 +2544,18 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
 			if (insn_is_cast_user(insn)) {
-				if (dst_reg != src_reg)
-					/* 32-bit mov */
-					emit_mov_reg(&prog, false, dst_reg, src_reg);
-				/* shl dst_reg, 32 */
-				maybe_emit_1mod(&prog, dst_reg, true);
-				EMIT3(0xC1, add_1reg(0xE0, dst_reg), 32);
-
-				/* or dst_reg, user_vm_start */
-				maybe_emit_1mod(&prog, dst_reg, true);
-				if (is_axreg(dst_reg))
-					EMIT1_off32(0x0D,  user_vm_start >> 32);
-				else
-					EMIT2_off32(0x81, add_1reg(0xC8, dst_reg),  user_vm_start >> 32);
-
-				/* rol dst_reg, 32 */
-				maybe_emit_1mod(&prog, dst_reg, true);
-				EMIT3(0xC1, add_1reg(0xC0, dst_reg), 32);
-
-				/* xor r11, r11 */
-				EMIT3(0x4D, 0x31, 0xDB);
-
-				/* test dst_reg32, dst_reg32; check if lower 32-bit are zero */
+				/* mov dst_reg32, src_reg32 to zero extend the low half */
+				emit_mov_reg(&prog, false, dst_reg, src_reg);
+				/* mov r11, the high half of user_vm_start; or r11, dst_reg */
+				emit_mov_imm64(&prog, AUX_REG, user_vm_start >> 32, 0);
+				emit_alu_reg(&prog, BPF_OR, AUX_REG, dst_reg, true);
+				/* test dst_reg32, dst_reg32; a NULL pointer stays NULL */
 				maybe_emit_mod(&prog, dst_reg, dst_reg, false);
 				EMIT2(0x85, add_2reg(0xC0, dst_reg, dst_reg));
-
-				/* cmove r11, dst_reg; if so, set dst_reg to zero */
+				/* cmovne dst_reg, r11 */
 				/* WARNING: Intel swapped src/dst register encoding in CMOVcc !!! */
 				maybe_emit_mod(&prog, AUX_REG, dst_reg, true);
-				EMIT3(0x0F, 0x44, add_2reg(0xC0, AUX_REG, dst_reg));
+				EMIT3(0x0F, 0x45, add_2reg(0xC0, AUX_REG, dst_reg));
 				break;
 			} else if (insn_is_mov_percpu_addr(insn)) {
 				/* mov <dst>, <src> (if necessary) */
