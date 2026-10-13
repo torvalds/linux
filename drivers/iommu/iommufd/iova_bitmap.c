@@ -116,6 +116,9 @@ struct iova_bitmap {
 
 	/* length of the IOVA range for the whole bitmap */
 	size_t length;
+
+	/* first error from pinning a bitmap chunk; -EFAULT etc. */
+	int err;
 };
 
 /*
@@ -384,7 +387,9 @@ static int iova_bitmap_advance_to(struct iova_bitmap *bitmap,
 int iova_bitmap_for_each(struct iova_bitmap *bitmap, void *opaque,
 			 iova_bitmap_fn_t fn)
 {
-	return fn(bitmap, bitmap->iova, bitmap->length, opaque);
+	int ret = fn(bitmap, bitmap->iova, bitmap->length, opaque);
+
+	return ret ? ret : bitmap->err;
 }
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_for_each, "IOMMUFD");
 
@@ -411,8 +416,13 @@ update_indexes:
 		 * may fail if it's out of bounds, or pinning the pages
 		 * returns an error.
 		 */
-		if (iova_bitmap_advance_to(bitmap, iova))
+		int ret = iova_bitmap_advance_to(bitmap, iova);
+
+		if (ret) {
+			if (!bitmap->err)
+				bitmap->err = ret;
 			return;
+		}
 	}
 
 	last_page_idx = mapped->npages - 1;
