@@ -1420,8 +1420,7 @@ Field	17	DIRECT
 Field	16	EnI
 Res0	15:8
 Field	7	PAUSED
-Field	6	LASTFAILED
-Res0	5:0
+Res0	6:0
 EndSysreg
 
 Sysreg	BRBTS_EL1	2	1	9	0	2
@@ -2663,11 +2662,7 @@ Field	57	EPAN
 Field	56	EnALS
 Field	55	EnAS0
 Field	54	EnASR
-Field	53	TME
-Field	52	TME0
-Field	51	TMT
-Field	50	TMT0
-Res0	49:47
+Res0	53:47
 Field	46	TWEDEL
 Field	45	TWEDEn
 Field	44	DSSBS
@@ -2985,7 +2980,7 @@ Field	27	NSH
 Field	26	M
 Res0	25
 Field	24	SH
-Field	23	T
+Res0	23
 Field	22	RLK
 Field	21	RLU
 Field	20	RLH
