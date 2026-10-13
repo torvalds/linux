@@ -358,7 +358,7 @@ int kvm_arch_enable_virtualization_cpu(void)
 	write_csr_gcfg(0);
 	write_csr_gstat(0);
 	write_csr_gintc(0);
-	clear_csr_gtlbc(CSR_GTLBC_USETGID | CSR_GTLBC_TOTI);
+	clear_csr_gtlbc(CSR_GTLBC_TOTI | CSR_GTLBC_USETGID | CSR_GTLBC_USES2TGID);
 
 	/*
 	 * Enable virtualization features granting guest direct control of
@@ -381,6 +381,8 @@ int kvm_arch_enable_virtualization_cpu(void)
 
 	/* Enable using TGID  */
 	set_csr_gtlbc(CSR_GTLBC_USETGID);
+	if (cpu_has_guestid)
+		set_csr_gtlbc(CSR_GTLBC_USES2TGID);
 	kvm_debug("GCFG:%lx GSTAT:%lx GINTC:%lx GTLBC:%lx",
 		  read_csr_gcfg(), read_csr_gstat(), read_csr_gintc(), read_csr_gtlbc());
 
@@ -399,7 +401,7 @@ void kvm_arch_disable_virtualization_cpu(void)
 	write_csr_gcfg(0);
 	write_csr_gstat(0);
 	write_csr_gintc(0);
-	clear_csr_gtlbc(CSR_GTLBC_USETGID | CSR_GTLBC_TOTI);
+	clear_csr_gtlbc(CSR_GTLBC_TOTI | CSR_GTLBC_USETGID | CSR_GTLBC_USES2TGID);
 
 	/* Flush any remaining guest TLB entries */
 	kvm_flush_tlb_all();
