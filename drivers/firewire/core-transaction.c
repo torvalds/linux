@@ -623,6 +623,12 @@ static struct fw_address_handler *lookup_enclosing_address_handler(
 static DEFINE_SPINLOCK(address_handler_list_lock);
 static LIST_HEAD(address_handler_list);
 
+/**
+ * var fw_high_memory_region - An address range for high memory.
+ *
+ * Represents an address range within the Middle Address Space defined by the 1394 OHCI
+ * specification.
+ */
 const struct fw_address_region fw_high_memory_region =
 	{ .start = FW_MAX_PHYSICAL_RANGE, .end = 0xffffe0000000ULL, };
 EXPORT_SYMBOL(fw_high_memory_region);
@@ -658,21 +664,20 @@ static int put_address_handler(struct fw_address_handler *handler)
 }
 
 /**
- * fw_core_add_address_handler() - register for incoming requests
- * @handler:	callback
- * @region:	region in the IEEE 1212 node space address range
+ * fw_core_add_address_handler() - register a handler for incoming transaction requests to a
+ *				   specific address region.
+ * @handler: The handler including a callback function for an incoming transaction request.
+ * @region: The region in the IEEE 1212 node space address range.
  *
- * region->start, ->end, and handler->length have to be quadlet-aligned.
+ * &fw_address_handler.length, &fw_address_region.start, and &fw_address_region.end are specified
+ * in bytes and must be multiples of a quadlet. &fw_address_handler.offset is available after
+ * successful registration.
  *
  * When a request is received that falls within the specified address range, the specified callback
- * is invoked.  The parameters passed to the callback give the details of the particular request.
- *
- * The start offset of the handler's address region is determined by
- * fw_core_add_address_handler() and is returned in handler->offset.
+ * is invoked. The parameters passed to the callback give the details of the particular request.
  *
  * Address allocations are exclusive, except for the FCP registers.
  *
- * Context: Process context.
  * Returns: 0 on success, non-zero otherwise.
  */
 int fw_core_add_address_handler(struct fw_address_handler *handler,
@@ -714,13 +719,13 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
- * fw_core_remove_address_handler() - unregister an address handler
- * @handler: callback
+ * fw_core_remove_address_handler() - unregister an address handler for an incoming transaction
+ *				      request.
+ * @handler: The registered handler.
  *
- * To be called in process context.
+ * After this function returns, the handler's callback is guaranteed not to be running on any CPU.
  *
- * When fw_core_remove_address_handler() returns, @handler->callback() is
- * guaranteed to not run on any CPU anymore.
+ * Context: Process context.
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
@@ -955,8 +960,8 @@ __must_not_hold(&card->split_timeout.lock)
  * @request:	firewire request data for the transaction.
  * @rcode:	response code to send.
  *
- * Submit a response packet into the asynchronous response transmission queue. The @request
- * is going to be released when the transmission successfully finishes later.
+ * Submit a response packet into the asynchronous response transmission queue. The contents of
+ * @request are opaque to the caller. The @request is released when the transmission finishes.
  */
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode)

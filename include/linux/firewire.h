@@ -348,7 +348,7 @@ union fw_transaction_callback {
 };
 
 /**
- * typedef fw_address_callback_t - Function to handle the request of the asynchronous transaction.
+ * typedef fw_address_callback_t - Function to handle the request of the incoming transaction.
  * @card: the card instance which receives the request
  * @request: the request instance.
  * @tcode: the transaction code
@@ -362,8 +362,9 @@ union fw_transaction_callback {
  *
  * This callback handles an inbound request subaction.
  *
- * The callback is responsible that fw_send_response() is called on the @request, except for FCP
- * registers for which the core takes care of that.
+ * The contents of @request are opaque to the callback. The callback is responsible for calling
+ * fw_send_response() for @request, except for FCP registers, for which the core handles the
+ * response.
  *
  * Context: Process context.
  */
@@ -434,18 +435,37 @@ struct fw_transaction {
 	u32 response_timestamp;
 };
 
+/**
+ * struct fw_address_handler - A handler for incoming transaction requests to a registered address
+ *			       region.
+ * @offset: The registered offset, available after successful registration.
+ * @length: The length of the address region in bytes, a multiple of a quadlet.
+ * @address_callback: Callback invoked when a transaction request is received for the registered
+ *		      address region.
+ * @callback_data: Data passed to @address_callback.
+ *
+ * This structure represents a handler registered to receive incoming asynchronous requests to a
+ * specific region of the address space on the local node.
+ */
 struct fw_address_handler {
 	u64 offset;
 	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
 
-	// Only for core functions.
+	/* private: */
 	struct list_head link;
 	struct kref kref;
 	struct completion done;
 };
 
+/**
+ * struct fw_address_region - An address range.
+ * @start: The starting offset in bytes, a multiple of a quadlet.
+ * @end: The ending offset in bytes, a multiple of a quadlet.
+ *
+ * Represents a range of addresses in the local node's address space.
+ */
 struct fw_address_region {
 	u64 start;
 	u64 end;
