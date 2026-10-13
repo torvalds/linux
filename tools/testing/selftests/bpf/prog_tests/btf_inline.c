@@ -32,7 +32,8 @@ void test_btf_inline(void)
 		return;
 	}
 
-	base_addr = module_get_base_addr("bpf_testmod");
+	/* LOCSEC offsets are relative to the ELF section base. */
+	base_addr = module_get_base_addr_sec("bpf_testmod", ".text");
 	if (!ASSERT_NEQ(base_addr, 0, "base_addr_nonzero"))
 		return;
 
@@ -41,7 +42,7 @@ void test_btf_inline(void)
 		return;
 	if (!ASSERT_NEQ(caller_addr, 0, "caller_addr_nonzero"))
 		return;
-	if (!ASSERT_GT(caller_addr, base_addr, "caller_addr_gt_base_addr"))
+	if (!ASSERT_GE(caller_addr, base_addr, "caller_addr_ge_base_addr"))
 		return;
 	caller_addr -= base_addr;
 

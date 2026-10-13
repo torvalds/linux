@@ -264,6 +264,25 @@ unsigned long long module_get_base_addr(const char *module)
 	return base_addr;
 }
 
+unsigned long long module_get_base_addr_sec(const char *module, const char *sec)
+{
+	unsigned long long addr = 0;
+	char *path;
+	FILE *f;
+
+	if (asprintf(&path, "/sys/module/%s/sections/%s", module, sec) < 0)
+		return 0;
+	f = fopen(path, "r");
+	free(path);
+	if (!f)
+		return 0;
+
+	if (fscanf(f, "%llx", &addr) != 1)
+		addr = 0;
+	fclose(f);
+	return addr;
+}
+
 #ifdef PROCMAP_QUERY
 int env_verbosity __weak = 0;
 

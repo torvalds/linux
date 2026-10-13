@@ -4827,12 +4827,12 @@ static s32 btf_loc_param_check_meta(struct btf_verifier_env *env,
 	case BTF_LOC_PARAM_CONST | BTF_LOC_PARAM_SIGNED:
 	case BTF_LOC_PARAM_CONST | BTF_LOC_PARAM_ADDR:
 	case BTF_LOC_PARAM_CONST | BTF_LOC_PARAM_ADDR | BTF_LOC_PARAM_SIGNED:
-		if (vlen > 2)
+		if (vlen < 1 || vlen > 2)
+			goto invalid_vlen;
+		if (!size || size > sizeof(__u64))
 			goto invalid_vlen;
 		/* Ensure size/vlen are consistent */
-		if (size > sizeof(__u32) && vlen != 2)
-			goto invalid_vlen;
-		if (size > sizeof(__u64))
+		if (vlen != (size > sizeof(__u32) ? 2 : 1))
 			goto invalid_vlen;
 		break;
 	case BTF_LOC_PARAM_REG:
