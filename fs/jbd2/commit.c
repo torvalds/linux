@@ -800,8 +800,12 @@ start_journal_io:
 	 */
 	if ((commit_transaction->t_need_data_flush || update_tail) &&
 	    (journal->j_fs_dev != journal->j_dev) &&
-	    (journal->j_flags & JBD2_BARRIER))
-		blkdev_issue_flush(journal->j_fs_dev);
+	    (journal->j_flags & JBD2_BARRIER)) {
+		err = blkdev_issue_flush(journal->j_fs_dev);
+
+		if (err)
+			jbd2_journal_abort(journal, err);
+	}
 
 	/* Done it all: now write the commit record asynchronously. */
 	if (jbd2_has_feature_async_commit(journal)) {
