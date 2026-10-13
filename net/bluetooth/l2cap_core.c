@@ -3769,11 +3769,7 @@ done:
 				rfc.txwin_size = L2CAP_DEFAULT_TX_WINDOW;
 				remote_efs = 0;
 			} else {
-				if (!test_bit(CONF_EWS_RECV, &chan->conf_state))
-					chan->remote_tx_win = rfc.txwin_size;
-				else
-					rfc.txwin_size = L2CAP_DEFAULT_TX_WINDOW;
-
+				chan->remote_tx_win = rfc.txwin_size;
 				chan->remote_max_tx = rfc.max_transmit;
 				chan->remote_mps = size;
 			}
@@ -4512,7 +4508,7 @@ static int l2cap_connect_create_rsp(struct l2cap_conn *conn,
 		break;
 
 	case L2CAP_CR_PEND:
-		set_bit(CONF_CONNECT_PEND, &chan->conf_state);
+		/* Our request is still outstanding */
 		break;
 
 	default:
