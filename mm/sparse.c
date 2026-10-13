@@ -231,7 +231,7 @@ struct page __init *__populate_section_memmap(unsigned long pfn,
 {
 	unsigned long size = section_map_size();
 
-	return memmap_alloc(size, size, __pa(MAX_DMA_ADDRESS), nid, false);
+	return memmap_alloc(size, size, __pa(MAX_DMA_ADDRESS), nid);
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
