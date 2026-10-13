@@ -673,7 +673,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * propagate into the hardware. It takes exactly one tick of the
 	 * SCLK clock, but we will wait two SCLK clock just to be sure. The
 	 * effect of the delay it takes for the hardware to apply changes
-	 * is noticable if the SCLK clock run very slow. In such a case, if
+	 * is noticeable if the SCLK clock run very slow. In such a case, if
 	 * the polarity of SCLK should be inverted, the GPIO ChipSelect might
 	 * be asserted before the SCLK polarity changes, which would disrupt
 	 * the SPI communication as the device on the other end would consider
@@ -1467,8 +1467,8 @@ static int spi_imx_calculate_timeout(struct spi_imx_data *spi_imx, int size)
 static void spi_imx_dma_unmap(struct spi_imx_data *spi_imx,
 			      struct dma_data_package *dma_data)
 {
-	struct device *tx_dev = spi_imx->controller->dma_tx->device->dev;
-	struct device *rx_dev = spi_imx->controller->dma_rx->device->dev;
+	struct device *tx_dev = dmaengine_get_dma_device(spi_imx->controller->dma_tx);
+	struct device *rx_dev = dmaengine_get_dma_device(spi_imx->controller->dma_rx);
 
 	dma_unmap_single(tx_dev, dma_data->dma_tx_addr,
 			 DMA_CACHE_ALIGNED_LEN(dma_data->dma_len),
@@ -1526,8 +1526,8 @@ static int spi_imx_dma_map(struct spi_imx_data *spi_imx,
 			   struct dma_data_package *dma_data)
 {
 	struct spi_controller *controller = spi_imx->controller;
-	struct device *tx_dev = controller->dma_tx->device->dev;
-	struct device *rx_dev = controller->dma_rx->device->dev;
+	struct device *tx_dev = dmaengine_get_dma_device(controller->dma_tx);
+	struct device *rx_dev = dmaengine_get_dma_device(controller->dma_rx);
 	int ret;
 
 	dma_data->dma_tx_addr = dma_map_single(tx_dev, dma_data->dma_tx_buf,
@@ -1919,7 +1919,7 @@ static int spi_imx_dma_package_transfer(struct spi_imx_data *spi_imx,
 		return ret;
 
 	/* Trim the DMA RX buffer and copy the actual data to rx_buf */
-	dma_sync_single_for_cpu(controller->dma_rx->device->dev, dma_data->dma_rx_addr,
+	dma_sync_single_for_cpu(dmaengine_get_dma_device(controller->dma_rx), dma_data->dma_rx_addr,
 				dma_data->dma_len, DMA_FROM_DEVICE);
 	spi_imx_dma_rx_data_handle(spi_imx, dma_data, transfer->rx_buf + spi_imx->rx_offset,
 				   word_delay);

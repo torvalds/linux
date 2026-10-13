@@ -16,10 +16,15 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - amlogic,meson-gx-spicc # SPICC controller on Amlogic GX and compatible SoCs
-      - amlogic,meson-axg-spicc # SPICC controller on Amlogic AXG and compatible SoCs
-      - amlogic,meson-g12a-spicc # SPICC controller on Amlogic G12A and compatible SoCs
+    oneOf:
+      - items:
+          - enum:
+              - amlogic,t7-spicc
+          - const: amlogic,meson-g12a-spicc
+      - enum:
+          - amlogic,meson-gx-spicc # SPICC controller on Amlogic GX and compatible SoCs
+          - amlogic,meson-axg-spicc # SPICC controller on Amlogic AXG and compatible SoCs
+          - amlogic,meson-g12a-spicc # SPICC controller on Amlogic G12A and compatible SoCs
 
   interrupts:
     maxItems: 1

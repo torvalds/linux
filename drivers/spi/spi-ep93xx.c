@@ -273,6 +273,7 @@ ep93xx_spi_dma_prepare(struct spi_controller *host,
 	struct dma_async_tx_descriptor *txd;
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config conf;
+	struct device *dma_dev;
 	struct scatterlist *sg;
 	struct sg_table *sgt;
 	struct dma_chan *chan;
@@ -348,14 +349,15 @@ ep93xx_spi_dma_prepare(struct spi_controller *host,
 		return ERR_PTR(-EINVAL);
 	}
 
-	nents = dma_map_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
+	dma_dev = dmaengine_get_dma_device(chan);
+	nents = dma_map_sg(dma_dev, sgt->sgl, sgt->nents, dir);
 	if (!nents)
 		return ERR_PTR(-ENOMEM);
 
 	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, conf.direction,
 				      DMA_CTRL_ACK);
 	if (!txd) {
-		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
+		dma_unmap_sg(dma_dev, sgt->sgl, sgt->nents, dir);
 		return ERR_PTR(-ENOMEM);
 	}
 	return txd;
@@ -384,7 +386,7 @@ static void ep93xx_spi_dma_finish(struct spi_controller *host,
 		sgt = &espi->tx_sgt;
 	}
 
-	dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
+	dma_unmap_sg(dmaengine_get_dma_device(chan), sgt->sgl, sgt->nents, dir);
 }
 
 static void ep93xx_spi_dma_callback(void *callback_param)
