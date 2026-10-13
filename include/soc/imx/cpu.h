@@ -30,7 +30,7 @@
 #define MXC_CPU_VF600		0x600
 #define MXC_CPU_VF610		(MXC_CPU_VF600 | MXC_CPU_VFx10)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned int __mxc_cpu_type;
 #endif
 
