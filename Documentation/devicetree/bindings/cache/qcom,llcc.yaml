@@ -26,6 +26,7 @@ properties:
           - qcom,hawi-llcc
           - qcom,ipq5424-llcc
           - qcom,kaanapali-llcc
+          - qcom,nord-llcc
           - qcom,qcs615-llcc
           - qcom,qcs8300-llcc
           - qcom,qdu1000-llcc
@@ -56,11 +57,11 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 14
+    maxItems: 18
 
   reg-names:
     minItems: 1
-    maxItems: 14
+    maxItems: 18
 
   interrupts:
     maxItems: 1
@@ -355,6 +356,56 @@ allOf:
             - const: llcc3_base
             - const: llcc_broadcast_base
             - const: llcc_broadcast_and_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,nord-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC2 base register region
+            - description: LLCC3 base register region
+            - description: LLCC4 base register region
+            - description: LLCC5 base register region
+            - description: LLCC6 base register region
+            - description: LLCC7 base register region
+            - description: LLCC8 base register region
+            - description: LLCC9 base register region
+            - description: LLCC10 base register region
+            - description: LLCC11 base register region
+            - description: LLCC12 base register region
+            - description: LLCC13 base register region
+            - description: LLCC14 base register region
+            - description: LLCC15 base register region
+            - description: LLCC broadcast OR register region
+            - description: LLCC broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc2_base
+            - const: llcc3_base
+            - const: llcc4_base
+            - const: llcc5_base
+            - const: llcc6_base
+            - const: llcc7_base
+            - const: llcc8_base
+            - const: llcc9_base
+            - const: llcc10_base
+            - const: llcc11_base
+            - const: llcc12_base
+            - const: llcc13_base
+            - const: llcc14_base
+            - const: llcc15_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
+
   - if:
       properties:
         compatible:

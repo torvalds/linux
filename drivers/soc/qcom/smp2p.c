@@ -411,15 +411,9 @@ static int smp2p_set_irq_type(struct irq_data *irqd, unsigned int type)
 	if (!(type & IRQ_TYPE_EDGE_BOTH))
 		return -EINVAL;
 
-	if (type & IRQ_TYPE_EDGE_RISING)
-		set_bit(irq, entry->irq_rising);
-	else
-		clear_bit(irq, entry->irq_rising);
+	assign_bit(irq, entry->irq_rising, type & IRQ_TYPE_EDGE_RISING);
 
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		set_bit(irq, entry->irq_falling);
-	else
-		clear_bit(irq, entry->irq_falling);
+	assign_bit(irq, entry->irq_falling, type & IRQ_TYPE_EDGE_FALLING);
 
 	return 0;
 }
