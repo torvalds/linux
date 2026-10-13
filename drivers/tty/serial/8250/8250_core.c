@@ -743,45 +743,11 @@ static void serial_8250_overrun_backoff_work(struct work_struct *work)
 	serial_out(up, UART_IER, up->ier);
 }
 
-/**
- *	serial8250_register_8250_port - register a serial port
- *	@up: serial port template
- *
- *	Configure the serial port specified by the request. If the
- *	port exists and is in use, it is hung up and unregistered
- *	first.
- *
- *	The port is then probed and if necessary the IRQ is autodetected
- *	If this fails an error is returned.
- *
- *	On success the port is ready to use and the line number is returned.
- */
-int serial8250_register_8250_port(const struct uart_8250_port *up)
+static int __serial8250_register_8250_port(struct uart_8250_port *uart,
+					   const struct uart_8250_port *up)
 {
-	struct uart_8250_port *uart;
 	bool cons_flow;
 	int ret;
-
-	if (up->port.uartclk == 0)
-		return -EINVAL;
-
-	guard(mutex)(&serial_mutex);
-
-	uart = serial8250_find_match_or_unused(&up->port);
-	if (!uart) {
-		/*
-		 * If the port is past the initial isa ports, initialize a new
-		 * port and increment nr_uarts accordingly.
-		 */
-		uart = serial8250_setup_port(nr_uarts);
-		if (!uart)
-			return -ENOSPC;
-		nr_uarts++;
-	}
-
-	/* Check if it is CIR already. We check this below again, see there why. */
-	if (uart->port.type == PORT_8250_CIR)
-		return -ENODEV;
 
 	/* Preserve specified console flow control. */
 	cons_flow = uart_cons_flow_enabled(&uart->port);
@@ -826,7 +792,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		uart->port.dev = up->port.dev;
 		ret = uart_get_rs485_mode(&uart->port);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	if (up->port.flags & UPF_FIXED_TYPE)
@@ -838,12 +804,10 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 	 */
 	if (uart->port.dev && !has_acpi_companion(uart->port.dev)) {
 		struct mctrl_gpios *gpios = mctrl_gpio_init(&uart->port, 0);
-		if (IS_ERR(gpios)) {
-			ret = PTR_ERR(gpios);
-			goto err;
-		} else {
-			uart->gpios = gpios;
-		}
+		if (IS_ERR(gpios))
+			return PTR_ERR(gpios);
+
+		uart->gpios = gpios;
 	}
 
 	serial8250_set_defaults(uart);
@@ -900,7 +864,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		ret = uart_add_one_port(&serial8250_reg,
 					&uart->port);
 		if (ret)
-			goto err;
+			return ret;
 
 		ret = uart->port.line;
 	} else {
@@ -927,9 +891,51 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 	}
 
 	return ret;
+}
 
-err:
-	uart->port.dev = NULL;
+/**
+ *	serial8250_register_8250_port - register a serial port
+ *	@up: serial port template
+ *
+ *	Configure the serial port specified by the request. If the
+ *	port exists and is in use, it is hung up and unregistered
+ *	first.
+ *
+ *	The port is then probed and if necessary the IRQ is autodetected
+ *	If this fails an error is returned.
+ *
+ *	On success the port is ready to use and the line number is returned.
+ */
+int serial8250_register_8250_port(const struct uart_8250_port *up)
+{
+	struct uart_8250_port *uart;
+	int ret;
+
+	if (up->port.uartclk == 0)
+		return -EINVAL;
+
+	guard(mutex)(&serial_mutex);
+
+	uart = serial8250_find_match_or_unused(&up->port);
+	if (!uart) {
+		/*
+		 * If the port is past the initial isa ports, initialize a new
+		 * port and increment nr_uarts accordingly.
+		 */
+		uart = serial8250_setup_port(nr_uarts);
+		if (!uart)
+			return -ENOSPC;
+		nr_uarts++;
+	}
+
+	/* Check if it is CIR already. We check this below again, see there why. */
+	if (uart->port.type == PORT_8250_CIR)
+		return -ENODEV;
+
+	ret = __serial8250_register_8250_port(uart, up);
+	if (ret < 0)
+		uart->port.dev = NULL;
+
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);
