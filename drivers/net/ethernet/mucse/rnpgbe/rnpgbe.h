@@ -240,6 +240,9 @@ int rnpgbe_send_notify(struct mucse_hw *hw,
 		       bool enable,
 		       int mode);
 int rnpgbe_init_hw(struct mucse_hw *hw, int board_type);
+int rnpgbe_set_rx_mode(struct net_device *netdev,
+		       struct netdev_hw_addr_list *uc,
+		       struct netdev_hw_addr_list *mc);
 
 /* Device IDs */
 #define PCI_VENDOR_ID_MUCSE               0x8848

@@ -43,6 +43,13 @@ static int rnpgbe_configure(struct mucse *mucse)
 	if (err)
 		return err;
 
+	netif_addr_lock_bh(mucse->netdev);
+	err = rnpgbe_set_rx_mode(mucse->netdev, &mucse->netdev->uc,
+				 &mucse->netdev->mc);
+	netif_addr_unlock_bh(mucse->netdev);
+	if (err)
+		return err;
+
 	return rnpgbe_configure_rx(mucse);
 }
 
@@ -140,10 +147,11 @@ static netdev_tx_t rnpgbe_xmit_frame(struct sk_buff *skb,
 }
 
 static const struct net_device_ops rnpgbe_netdev_ops = {
-	.ndo_open       = rnpgbe_open,
-	.ndo_stop       = rnpgbe_close,
-	.ndo_start_xmit = rnpgbe_xmit_frame,
-	.ndo_get_stats64 = rnpgbe_get_stats64,
+	.ndo_open		 = rnpgbe_open,
+	.ndo_stop		 = rnpgbe_close,
+	.ndo_start_xmit		 = rnpgbe_xmit_frame,
+	.ndo_set_rx_mode_async = rnpgbe_set_rx_mode,
+	.ndo_get_stats64	 = rnpgbe_get_stats64,
 };
 
 static void rnpgbe_sw_init(struct mucse *mucse)
@@ -234,6 +242,7 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &rnpgbe_netdev_ops;
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 	rnpgbe_sw_init(mucse);
 	err = rnpgbe_reset_hw(hw);
 	if (err) {
