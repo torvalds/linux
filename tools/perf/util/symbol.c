@@ -967,23 +967,6 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 	return count;
 }
 
-static uint16_t machine_or_dso_e_machine(struct machine *machine, struct dso *dso)
-{
-	uint16_t e_machine = EM_NONE;
-	/* DSO should be most accurate */
-	if (dso)
-		e_machine = dso__e_machine(dso, machine, /*e_flags=*/NULL);
-
-	if (e_machine != EM_NONE)
-		return e_machine;
-
-	/* Check the global environment next. */
-	if (machine && machine->env && machine->env->e_machine != EM_NONE)
-		return machine->env->e_machine;
-
-	return perf_env__e_machine(machine ? machine->env : NULL, /*e_flags=*/NULL);
-}
-
 /*
  * Split the symbols into maps, making sure there are no overlaps, i.e. the
  * kernel range is broken in several maps, named [kernel].N, as we don't have
@@ -1005,7 +988,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 		return -1;
 
 	machine = maps__machine(kmaps);
-	e_machine = machine_or_dso_e_machine(machine, dso);
+	e_machine = perf_env__e_machine(machine->env, /*e_flags=*/NULL);
 
 	while (next) {
 		char *module;
@@ -1567,7 +1550,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		free(new_node);
 	}
 
-	if (machine_or_dso_e_machine(machine, dso) == EM_X86_64) {
+	if (perf_env__e_machine(machine->env, /*e_flags=*/NULL) == EM_X86_64) {
 		u64 addr;
 
 		/*
@@ -1855,7 +1838,7 @@ int dso__load(struct dso *dso, struct map *map)
 			ret = dso__load_guest_kernel_sym(dso, map);
 
 		machine = maps__machine(map__kmaps(map));
-		if (machine && machine_or_dso_e_machine(machine, dso) == EM_X86_64)
+		if (perf_env__e_machine(machine->env, /*e_flags=*/NULL) == EM_X86_64)
 			machine__map_x86_64_entry_trampolines(machine, dso);
 		goto out;
 	}
