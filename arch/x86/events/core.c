@@ -438,7 +438,7 @@ static void reserve_ext_regs_buffers(void)
 	for_each_possible_cpu(cpu) {
 		per_cpu(ext_regs_buf, cpu) = kzalloc_node(size, GFP_KERNEL,
 							  cpu_to_node(cpu));
-		if (WARN_ON_ONCE(!per_cpu(ext_regs_buf, cpu)))
+		if (!per_cpu(ext_regs_buf, cpu))
 			goto err;
 	}
 
