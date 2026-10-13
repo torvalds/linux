@@ -516,7 +516,6 @@ static int acpi_tables_sysfs_init(void)
 	struct acpi_table_header *table_header = NULL;
 	int table_index;
 	acpi_status status;
-	int ret;
 
 	tables_kobj = kobject_create_and_add("tables", acpi_kobj);
 	if (!tables_kobj)
@@ -541,13 +540,11 @@ static int acpi_tables_sysfs_init(void)
 
 		table_attr = kzalloc_obj(*table_attr);
 		if (!table_attr)
-			return -ENOMEM;
+			break;
 
-		ret = acpi_table_attr_init(tables_kobj,
-					   table_attr, table_header);
-		if (ret) {
+		if (acpi_table_attr_init(tables_kobj, table_attr, table_header)) {
 			kfree(table_attr);
-			return ret;
+			break;
 		}
 		list_add_tail(&table_attr->node, &acpi_table_attr_list);
 		acpi_table_data_init(table_header, table_attr);
