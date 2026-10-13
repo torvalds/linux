@@ -3006,6 +3006,43 @@ out_err:
 	return -ENOMEM;
 }
 
+static struct macb_context *macb_context_alloc(struct macb *bp,
+					       unsigned int mtu,
+					       unsigned int rx_ring_size,
+					       unsigned int tx_ring_size)
+{
+	struct macb_context *ctx;
+	int err;
+
+	ctx = kzalloc_obj(*ctx);
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
+
+	ctx->info = &bp->info;
+	ctx->rx_buffer_size = macb_rx_buffer_size(bp, mtu);
+	ctx->rx_ring_size = rx_ring_size;
+	ctx->tx_ring_size = tx_ring_size;
+
+	err = macb_alloc(ctx);
+	if (err) {
+		netdev_err(bp->netdev,
+			   "Unable to allocate DMA memory (error %d)\n", err);
+		goto free_ctx;
+	}
+
+	err = bp->macbgem_ops.mog_init_rings(ctx);
+	if (err)
+		goto free_rings;
+
+	return ctx;
+
+free_rings:
+	macb_free(ctx);
+free_ctx:
+	kfree(ctx);
+	return ERR_PTR(err);
+}
+
 static int gem_init_rx_ring(struct macb_context *ctx, unsigned int q)
 {
 	struct macb_rxq *rxq = &ctx->rxq[q];
@@ -3376,6 +3413,7 @@ static void macb_set_rx_mode(struct net_device *netdev)
 static int macb_open(struct net_device *netdev)
 {
 	struct macb *bp = netdev_priv(netdev);
+	struct macb_context *ctx;
 	int err;
 
 	netdev_dbg(bp->netdev, "open\n");
@@ -3384,30 +3422,18 @@ static int macb_open(struct net_device *netdev)
 	if (err < 0)
 		return err;
 
-	WRITE_ONCE(bp->ctx, kzalloc_obj(*bp->ctx));
-	wmb(); /* ensure IRQ enabled at quiesce end read the new context */
-	if (!bp->ctx) {
-		err = -ENOMEM;
+	ctx = macb_context_alloc(bp, netdev->mtu,
+				 bp->configured_rx_ring_size,
+				 bp->configured_tx_ring_size);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		bp->ctx = NULL;
 		goto pm_exit;
 	}
 
-	bp->ctx->info = &bp->info;
+	WRITE_ONCE(bp->ctx, ctx);
+	wmb(); /* ensure IRQ enabled at quiesce end read the new context */
 
-	/* RX buffers initialization */
-	bp->ctx->rx_buffer_size = macb_rx_buffer_size(bp, netdev->mtu);
-	bp->ctx->rx_ring_size = bp->configured_rx_ring_size;
-	bp->ctx->tx_ring_size = bp->configured_tx_ring_size;
-
-	err = macb_alloc(bp->ctx);
-	if (err) {
-		netdev_err(netdev, "Unable to allocate DMA memory (error %d)\n",
-			   err);
-		goto free_ctx;
-	}
-
-	err = bp->macbgem_ops.mog_init_rings(bp->ctx);
-	if (err)
-		goto free_rings;
 	macb_init_buffers(bp);
 
 	macb_quiesce_end(bp);
@@ -3441,9 +3467,7 @@ reset_hw:
 	macb_quiesce_start(bp);
 
 	macb_reset_hw(bp);
-free_rings:
 	macb_free(bp->ctx);
-free_ctx:
 	kfree(bp->ctx);
 	bp->ctx = NULL;
 pm_exit:
