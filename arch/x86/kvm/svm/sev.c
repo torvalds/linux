@@ -2421,7 +2421,7 @@ static int sev_gmem_post_populate(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 		void *dst_vaddr = kmap_local_pfn(pfn);
 
 		memcpy(src_vaddr, dst_vaddr, PAGE_SIZE);
-		set_page_dirty(src_page);
+		set_page_dirty_lock(src_page);
 
 		kunmap_local(dst_vaddr);
 		kunmap_local(src_vaddr);
