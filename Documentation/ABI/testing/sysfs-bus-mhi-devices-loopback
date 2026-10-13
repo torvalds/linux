@@ -1,0 +1,49 @@
+What:		/sys/bus/mhi/devices/mhi<N>_LOOPBACK/tre_size
+Date:		August 2026
+KernelVersion:	7.4
+Contact:	mhi@lists.linux.dev
+Description:
+		(RW) Size of each Transfer Ring Element (TRE) buffer in bytes
+		used for the loopback test. Valid range is 1 to the value
+		reported by max_tre_size. Default value is 32 bytes.
+
+What:		/sys/bus/mhi/devices/mhi<N>_LOOPBACK/max_tre_size
+Date:		August 2026
+KernelVersion:	7.4
+Contact:	mhi@lists.linux.dev
+Description:
+		(RO) Maximum allowed Transfer Ring Element (TRE) size in bytes.
+		Reading this file returns the upper bound for the tre_size
+		attribute.
+
+What:		/sys/bus/mhi/devices/mhi<N>_LOOPBACK/num_tre
+Date:		August 2026
+KernelVersion:	7.4
+Contact:	mhi@lists.linux.dev
+Description:
+		(RW) Number of Transfer Ring Elements (TREs) to use per
+		loopback test. Must be greater than zero and must not exceed
+		the value reported by max_num_tre. Default value is 1.
+
+What:		/sys/bus/mhi/devices/mhi<N>_LOOPBACK/max_num_tre
+Date:		August 2026
+KernelVersion:	7.4
+Contact:	mhi@lists.linux.dev
+Description:
+		(RO) Maximum number of Transfer Ring Elements (TREs) currently
+		available on the channel ring. Reading this file returns the
+		upper bound for the num_tre attribute.
+
+What:		/sys/bus/mhi/devices/mhi<N>_LOOPBACK/start
+Date:		August 2026
+KernelVersion:	7.4
+Contact:	mhi@lists.linux.dev
+Description:
+		(WO) Write any value to trigger a loopback test. The driver
+		sends random data to the endpoint using the configured tre_size
+		and num_tre parameters, waits for the endpoint to echo it back,
+		and verifies the received data matches what was sent.
+
+		This is a blocking write that returns when the test completes
+		or times out after 5 seconds. The write returns an error code
+		if the test fails or times out.

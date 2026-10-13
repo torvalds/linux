@@ -687,7 +687,7 @@ int mhi_pm_resume(struct mhi_controller *mhi_cntrl);
  * Resume the device irrespective of its MHI state. As per the MHI spec, devices
  * has to be in M3 state during resume. But some devices seem to be in a
  * different MHI state other than M3 but they continue working fine if allowed.
- * This API is intented to be used for such devices.
+ * This API is intended to be used for such devices.
  *
  * Return: 0 if the resume succeeds, a negative error code otherwise
  */
