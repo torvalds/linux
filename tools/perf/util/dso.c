@@ -1492,9 +1492,10 @@ uint16_t dso__e_machine_endian(struct dso *dso, struct machine *machine, uint32_
 			       bool *is_big_endian)
 {
 	uint16_t e_machine = EM_NONE;
+	enum dso_binary_type dbt = dso__find_binary_type(dso);
 	int fd;
 
-	switch (dso__binary_type(dso)) {
+	switch (dbt) {
 	case DSO_BINARY_TYPE__KALLSYMS:
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
 	case DSO_BINARY_TYPE__VMLINUX:
