@@ -1219,9 +1219,22 @@ static void emit_alu_imm(u8 **pprog, u32 op, u32 dst_reg, s32 imm, bool is64)
 		[BPF_OR] = 0x0D, [BPF_XOR] = 0x35,
 	};
 	u8 *prog = *pprog;
+	bool inc;
 
+	/* A non-negative mask clears the upper half like the 32-bit and does */
+	if (op == BPF_AND && imm >= 0)
+		is64 = false;
+	/* add 128 is sub -128 and the other way round, which fit into an imm8 */
+	if ((op == BPF_ADD || op == BPF_SUB) && imm == 128) {
+		op = op == BPF_ADD ? BPF_SUB : BPF_ADD;
+		imm = -128;
+	}
+	inc = op == BPF_ADD ? imm == 1 : imm == -1;
 	maybe_emit_1mod(&prog, dst_reg, is64);
-	if (is_imm8(imm))
+	/* inc or dec for +-1, the flags are not read across instructions */
+	if ((op == BPF_ADD || op == BPF_SUB) && (imm == 1 || imm == -1))
+		EMIT2(0xFF, add_1reg(inc ? 0xC0 : 0xC8, dst_reg));
+	else if (is_imm8(imm))
 		EMIT3(0x83, add_1reg(modrm[op], dst_reg), imm);
 	else if (is_axreg(dst_reg))
 		EMIT1_off32(short_op[op], imm);
@@ -1247,11 +1260,16 @@ static void emit_shift_imm(u8 **pprog, u32 op, u32 reg, u8 imm, bool is64)
 {
 	u8 *prog = *pprog;
 
-	maybe_emit_1mod(&prog, reg, is64);
-	if (imm == 1)
-		EMIT2(0xD1, add_1reg(simple_alu_opcodes[op], reg));
-	else
-		EMIT3(0xC1, add_1reg(simple_alu_opcodes[op], reg), imm);
+	/* The shift left by one is an add of the register to itself */
+	if (op == BPF_LSH && imm == 1) {
+		emit_alu_reg(&prog, BPF_ADD, reg, reg, is64);
+	} else {
+		maybe_emit_1mod(&prog, reg, is64);
+		if (imm == 1)
+			EMIT2(0xD1, add_1reg(simple_alu_opcodes[op], reg));
+		else
+			EMIT3(0xC1, add_1reg(simple_alu_opcodes[op], reg), imm);
+	}
 
 	*pprog = prog;
 }
