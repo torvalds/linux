@@ -4325,13 +4325,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	if (im)
 		im->ksym.fp_start = prog - (u8 *)rw_image;
 
-	if (!is_imm8(stack_size)) {
-		/* sub rsp, stack_size */
-		EMIT3_off32(0x48, 0x81, 0xEC, stack_size);
-	} else {
-		/* sub rsp, stack_size */
-		EMIT4(0x48, 0x83, 0xEC, stack_size);
-	}
+	/* sub rsp, stack_size */
+	emit_sub_rsp(&prog, stack_size);
 	if (flags & BPF_TRAMP_F_TAIL_CALL_CTX)
 		EMIT1(0x50);		/* push rax */
 	/* mov QWORD PTR [rbp - rbx_off], rbx */
