@@ -563,6 +563,44 @@ class Test(object):
         for event in self.result.values():
             event.tracking_moved_to_dummy = moved
 
+    def drop_other_core_pmu_events(self, devices='/sys/bus/event_source/devices'):
+        """
+        Leave out the events of the other core PMUs, which have their own
+        encodings, when the expectations name one of the core PMUs.
+        """
+        asked = set()
+        for event in self.expect.values():
+            types = event.get('type', '').split('|')
+            if '*' in types:
+                return
+            asked.update(types)
+
+        try:
+            names = os.listdir(devices)
+        except OSError:
+            return
+
+        core = set()
+        for name in names:
+            path = os.path.join(devices, name)
+            has_cpus = os.path.exists(os.path.join(path, 'cpus'))
+            if name not in ('cpu', 'cpum_cf') and not has_cpus:
+                continue
+            try:
+                with open(os.path.join(path, 'type'), encoding='utf-8') as f:
+                    core.add(f.read().strip())
+            except OSError:
+                pass
+
+        if not core & asked:
+            return
+
+        others = core - asked
+        for name, event in list(self.result.items()):
+            if event.get('type') in others:
+                log.debug("      dropping other core PMU event [%s]", name)
+                del self.result[name]
+
     def compare(self, expect, result, strict_groups=True):
         match = {}
 
@@ -645,6 +683,7 @@ class Test(object):
                 event.recorded = True
 
             self.drop_dummy_tracking_events()
+            self.drop_other_core_pmu_events()
 
             # resolve group_fd to event names
             self.resolve_groups(self.expect)
