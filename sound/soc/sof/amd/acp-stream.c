@@ -15,15 +15,6 @@
 #include "acp-dsp-offset.h"
 #include "acp.h"
 
-#define PTE_GRP1_OFFSET		0x00000000
-#define PTE_GRP2_OFFSET		0x00800000
-#define PTE_GRP3_OFFSET		0x01000000
-#define PTE_GRP4_OFFSET		0x01800000
-#define PTE_GRP5_OFFSET		0x02000000
-#define PTE_GRP6_OFFSET		0x02800000
-#define PTE_GRP7_OFFSET		0x03000000
-#define PTE_GRP8_OFFSET		0x03800000
-
 int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *stream)
 {
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);

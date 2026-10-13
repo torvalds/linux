@@ -37,6 +37,30 @@
 
 /* Registers from ACP_DSP_0 block */
 #define ACP_DSP0_RUNSTALL			0x414
+/*
+ * ATU group registers for groups 9 to 16.
+ * ACPAXI2AXI_ATU_CTRL (0xC40) sits between GRP_8 and GRP_9,
+ * so groups 9 to 16 are offset by 4 bytes relative to a simple stride.
+ */
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_9		0xC44
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_9		0xC48
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_10	0xC4C
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_10	0xC50
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_11	0xC54
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_11	0xC58
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_12	0xC5C
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_12	0xC60
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_13	0xC64
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_13	0xC68
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_14	0xC6C
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_14	0xC70
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_15	0xC74
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_15	0xC78
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_16	0xC7C
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_16	0xC80
+
+/* ATU page size value for 2 MB pages - used for carveout groups */
+#define PAGE_SIZE_2M_ENABLE			0x0
 
 /* Registers from ACP_AXI2AXIATU block */
 #define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1		0xC00
@@ -131,6 +155,40 @@
 #define ACP_SHA_TRANSFER_BYTE_CNT		0x1CC8
 #define ACP_SHA_DMA_INCLUDE_HDR         0x1CCC
 #define ACP_SHA_PSP_ACK                         0x1C74
+
+/* ACP7.B/7.F MALL/Carveout configuration registers (ACP MMIO offsets) */
+#define ACP7X_MALL_ADDR_VALID			0x114C
+#define ACP7X_MALL_BASE_ADDR_LOW		0x1150
+#define ACP7X_MALL_BASE_ADDR_HIGH		0x1154
+#define ACP7X_MALL_SIZE				0x1158
+#define ACP7X_MALL_VALID			0x115C
+
+/* ASP MPASP mailbox SMN addresses for ACP7.B/7.F carveout firmware load */
+#define MPASP_C2PMSG_173_REG			0x03810BB4
+#define MPASP_C2PMSG_174_REG			0x03810BB8
+#define MPASP_C2PMSG_175_REG			0x03810BBC
+#define MPASP_C2PMSG_73_REG			0x03810A24
+
+/* ASP mailbox command IDs */
+#define ASP_MBOX_CMD_VALIDATE_IMAGE		0x0001
+#define ASP_MBOX_CMD_CALC_HMAC			0x0002
+#define ASP_MBOX_CMD_VALIDATE_HMAC		0x0003
+#define ASP_MBOX_CMD_GET_CARVEOUT_ADDR		0x0004
+
+/* MPASP_C2PMSG_173 control register bit definitions */
+#define ASP_MBOX_READY_BIT			BIT(31)
+#define ASP_MBOX_CMD_ID_MASK			0xFFFF
+
+/* ASP mailbox timeout: 5 seconds per ASP firmware load specification */
+#define ASP_MBOX_TIMEOUT_US			5000000
+/* Short timeout for the initial GET_CARVEOUT_ADDR probe: fail fast when
+ * ASP does not support carveout rather than blocking probe for 5 seconds.
+ */
+#define ASP_MBOX_PROBE_TIMEOUT_US		50000
+#define ASP_MBOX_POLL_INTERVAL_US		1000
+
+/* ASP mailbox payload cookie "ACPB" */
+#define ASP_MBOX_COOKIE				0x41435042
 
 #define ACP_SCRATCH_REG_0			0x10000
 #define ACP6X_DSP_FUSION_RUNSTALL		0x0644

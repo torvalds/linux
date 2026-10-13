@@ -279,10 +279,17 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	unsigned int tx_count, fw_qualifier, val;
 	int ret;
 
-	if (!image_addr) {
+	if (!image_addr &&
+	    !adata->asp_carveout_base) {
 		dev_err(sdev->dev, "SHA DMA image address is NULL\n");
 		return -EINVAL;
 	}
+
+	/*
+	 * Flush the ATU cache before programming SHA DMA registers
+	 * to guarantee coherency at SHA DMA start time.
+	 */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD);
 	if (val & ACP_SHA_RUN) {
@@ -297,8 +304,13 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		}
 	}
 
-	if ((adata->quirks && adata->quirks->signed_fw_image) ||
-	    adata->acp_sof_signed_firmware_image)
+	/*
+	 * The signing header must NOT be included for the carveout path: ASP
+	 * stripped it when depositing the raw binary during VALIDATE_IMAGE.
+	 */
+	if (((adata->quirks && adata->quirks->signed_fw_image) ||
+	     adata->acp_sof_signed_firmware_image) &&
+	    !adata->asp_carveout_base)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_INCLUDE_HDR, ACP_SHA_HEADER);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_STRT_ADDR, start_addr);
@@ -316,7 +328,17 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		if (ret)
 			return ret;
 	}
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN);
+	/*
+	 * SHA_IOC_En triggers an interrupt-on-completion to ASP for source
+	 * address validation.  Only set it on the carveout path; enabling it
+	 * on the legacy ATU-window path breaks PSP validation.
+	 */
+	if (adata->asp_carveout_base) {
+		reinit_completion(&adata->sha_dma_complete);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN_WITH_IOC);
+	} else {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN);
+	}
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_SHA_TRANSFER_BYTE_CNT,
 					    tx_count, tx_count == image_length,
@@ -331,6 +353,23 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 		if (ret)
 			return ret;
+	}
+
+	if (adata->asp_carveout_base) {
+		/*
+		 * Wait for the SHA IOC interrupt which fires after ASP validates
+		 * the source address.  Use ASP_MBOX_TIMEOUT_US to match the
+		 * budget used for all other ASP mailbox operations.
+		 * usecs_to_jiffies() can round to 0 at low HZ so clamp to at
+		 * least 1 jiffy.
+		 */
+		unsigned long timeout_jiffies =
+			max(1UL, usecs_to_jiffies(ASP_MBOX_TIMEOUT_US));
+
+		if (!wait_for_completion_timeout(&adata->sha_dma_complete,
+						 timeout_jiffies))
+			dev_warn(sdev->dev,
+				 "SHA DMA interrupt not received within timeout, continuing\n");
 	}
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_SHA_DSP_FW_QUALIFIER,
@@ -674,9 +713,8 @@ static int sof_amd_check_and_handle_acp7x_sdw_wake_irq(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
-	unsigned int ext_intr_stat1;
-	unsigned int sdw_pme_stat, sdw_wake_en;
-	unsigned int i;
+	u32 ext_intr_stat1, sdw_pme_stat, sdw_wake_en;
+	u32 i;
 	bool sdw_wake_irq = false;
 
 	ext_intr_stat1 = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat1);
@@ -769,6 +807,20 @@ static irqreturn_t acp7x_irq_handler(int irq, void *dev_id)
 
 	if (adata->sdw)
 		wake_irq_flag = sof_amd_check_and_handle_acp7x_sdw_wake_irq(sdev);
+	/*
+	 * SHA DMA completion interrupt (ACP_SHA_STAT, bit 15 of ext_intr_stat).
+	 * ACP_SHA_STAT has no dedicated mask bit in ACP_EXTERNAL_INTR_CNTL;
+	 * it is always enabled by default and fires only when SHA DMA completes
+	 * with SHA_IOC_En set.  SHA DMA is triggered exclusively during firmware
+	 * loading, so this interrupt is only asserted in that context.
+	 * Acknowledge and signal sha_dma_complete so configure_and_run_sha_dma()
+	 * can proceed to poll ACP_SHA_DSP_FW_QUALIFIER.
+	 */
+	if (ext_intr_stat & ACP_SHA_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_SHA_STAT);
+		complete(&adata->sha_dma_complete);
+		irq_flag = 1;
+	}
 
 	if (ext_intr_stat & ACP7X_ERROR_IRQ) {
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP7X_ERROR_IRQ);
@@ -1198,7 +1250,10 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	adata->addr = addr;
 	adata->reg_range = chip->reg_end_addr - chip->reg_start_addr;
 	adata->pci_rev = pci->revision;
+	adata->subsystem_vendor = pci->subsystem_vendor;
+	adata->subsystem_device = pci->subsystem_device;
 	mutex_init(&adata->acp_lock);
+	init_completion(&adata->sha_dma_complete);
 	sdev->pdata->hw_pdata = adata;
 
 	ret = acp_init(sdev);
@@ -1335,7 +1390,10 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 	adata->addr = addr;
 	adata->reg_range = chip->reg_end_addr - chip->reg_start_addr;
 	adata->pci_rev = pci->revision;
+	adata->subsystem_vendor = pci->subsystem_vendor;
+	adata->subsystem_device = pci->subsystem_device;
 	mutex_init(&adata->acp_lock);
+	init_completion(&adata->sha_dma_complete);
 	sdev->pdata->hw_pdata = adata;
 
 	ret = acp_init(sdev);
@@ -1408,6 +1466,20 @@ skip_soundwire:
 	acp_memory_init(sdev);
 	acp_dsp_stream_init(sdev);
 
+	/*
+	 * Carveout is the only supported signed firmware load path on
+	 * ACP7.B/7.F. Query ASP now when signed firmware is enabled so
+	 * probe fails cleanly if carveout is unavailable.
+	 */
+	if (adata->acp_sof_signed_firmware_image) {
+		ret = acp7x_query_asp_carveout(sdev);
+		if (ret) {
+			dev_err(sdev->dev,
+				"ASP carveout unavailable, cannot load firmware: %d\n", ret);
+			goto free_ipc_irq;
+		}
+	}
+
 	return 0;
 
 free_ipc_irq:
@@ -1441,10 +1513,7 @@ static void handle_amd_sof_acp7x_sdw_pme_event(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata;
 	struct amd_sdw_manager *amd_manager;
-	u32 sdw_pme_stat;
-	u32 sdw_wake_en;
-	u32 pme_reg;
-	u32 wake_mask;
+	u32 sdw_pme_stat, sdw_wake_en, pme_reg, wake_mask;
 	unsigned int instance;
 
 	adata = sdev->pdata->hw_pdata;
