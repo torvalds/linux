@@ -665,7 +665,7 @@ int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 		return -EFAULT;
 	}
 
-	is_hugetlb = is_vm_hugetlb_page(vma);
+	is_hugetlb = vma_is_hugetlb(vma);
 	if (is_hugetlb)
 		vma_pageshift = huge_page_shift(hstate_vma(vma));
 	else

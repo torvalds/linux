@@ -109,7 +109,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw, unsigned long pte_nr)
 	unsigned long pfn;
 	pte_t ptent;
 
-	if (is_vm_hugetlb_page(pvmw->vma))
+	if (vma_is_hugetlb(pvmw->vma))
 		ptent = huge_ptep_get(pvmw->vma->vm_mm, pvmw->address,
 				      pvmw->pte);
 	else
@@ -206,7 +206,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	if (pvmw->pmd && !pvmw->pte)
 		return not_found(pvmw);
 
-	if (unlikely(is_vm_hugetlb_page(vma))) {
+	if (unlikely(vma_is_hugetlb(vma))) {
 		struct hstate *hstate = hstate_vma(vma);
 		unsigned long size = huge_page_size(hstate);
 		/* The only possible mapping was handled on last iteration */

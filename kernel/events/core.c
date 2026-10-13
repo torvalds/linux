@@ -9818,7 +9818,7 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 
 	if (vma->vm_flags & VM_LOCKED)
 		flags |= MAP_LOCKED;
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		flags |= MAP_HUGETLB;
 
 	if (file) {

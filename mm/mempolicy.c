@@ -2018,7 +2018,7 @@ bool vma_migratable(struct vm_area_struct *vma)
 	if (vma_is_dax(vma))
 		return false;
 
-	if (is_vm_hugetlb_page(vma) &&
+	if (vma_is_hugetlb(vma) &&
 		!hugepage_migration_supported(hstate_vma(vma)))
 		return false;
 

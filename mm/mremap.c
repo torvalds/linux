@@ -812,7 +812,7 @@ unsigned long move_page_tables(struct pagetable_move_control *pmc)
 	if (!pmc->len_in)
 		return 0;
 
-	if (is_vm_hugetlb_page(pmc->old))
+	if (vma_is_hugetlb(pmc->old))
 		return move_hugetlb_page_tables(pmc->old, pmc->new, pmc->old_addr,
 						pmc->new_addr, pmc->len_in);
 
@@ -1769,7 +1769,7 @@ static bool vma_multi_allowed(struct vm_area_struct *vma)
 	/* Known good. */
 	if (vma_is_shmem(vma))
 		return true;
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return true;
 	if (file->f_op->get_unmapped_area == thp_get_unmapped_area)
 		return true;
@@ -1792,7 +1792,7 @@ static int check_prep_vma(struct vma_remap_struct *vrm)
 		return -EPERM;
 
 	/* Align to hugetlb page size, if required. */
-	if (is_vm_hugetlb_page(vma) && !align_hugetlb(vrm))
+	if (vma_is_hugetlb(vma) && !align_hugetlb(vrm))
 		return -EINVAL;
 
 	vrm_set_delta(vrm);

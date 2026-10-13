@@ -237,7 +237,7 @@ static int mfill_get_vma(struct mfill_state *state)
 	if ((flags & MFILL_ATOMIC_WP) && !(dst_vma->vm_flags & VM_UFFD_WP))
 		goto out_unlock;
 
-	if (is_vm_hugetlb_page(dst_vma))
+	if (vma_is_hugetlb(dst_vma))
 		return 0;
 
 	ops = vma_uffd_ops(dst_vma);
@@ -804,7 +804,7 @@ retry:
 		}
 
 		err = -ENOENT;
-		if (!is_vm_hugetlb_page(dst_vma))
+		if (!vma_is_hugetlb(dst_vma))
 			goto out_unlock_vma;
 
 		err = -EINVAL;
@@ -967,7 +967,7 @@ static __always_inline ssize_t mfill_atomic(struct userfaultfd_ctx *ctx,
 	/*
 	 * If this is a HUGETLB vma, pass off to appropriate routine
 	 */
-	if (is_vm_hugetlb_page(state.vma))
+	if (vma_is_hugetlb(state.vma))
 		return  mfill_atomic_hugetlb(ctx, state.vma, dst_start,
 					     src_start, len, flags);
 
@@ -1114,7 +1114,7 @@ static int mwriteprotect_range(struct userfaultfd_ctx *ctx, unsigned long start,
 			break;
 		}
 
-		if (is_vm_hugetlb_page(dst_vma)) {
+		if (vma_is_hugetlb(dst_vma)) {
 			err = -EINVAL;
 			page_mask = vma_kernel_pagesize(dst_vma) - 1;
 			if ((start & page_mask) || (len & page_mask))
@@ -1172,7 +1172,7 @@ int mrwprotect_range(struct userfaultfd_ctx *ctx, unsigned long start,
 		if (!userfaultfd_rwp(dst_vma))
 			return -ENOENT;
 
-		if (is_vm_hugetlb_page(dst_vma)) {
+		if (vma_is_hugetlb(dst_vma)) {
 			unsigned long page_mask;
 
 			page_mask = vma_kernel_pagesize(dst_vma) - 1;
@@ -2149,7 +2149,7 @@ static bool vma_can_userfault(struct vm_area_struct *vma, vm_flags_t vm_flags,
 	if (vma->vm_flags & (VM_DROPPABLE | VM_SHADOW_STACK))
 		return false;
 
-	if (!is_vm_hugetlb_page(vma) && (vma->vm_flags & VM_SPECIAL))
+	if (!vma_is_hugetlb(vma) && (vma->vm_flags & VM_SPECIAL))
 		return false;
 
 	vm_flags &= __VM_UFFD_FLAGS;
@@ -2319,7 +2319,7 @@ static int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 		 */
 		userfaultfd_set_ctx(vma, ctx, vm_flags);
 
-		if (is_vm_hugetlb_page(vma) && uffd_disable_huge_pmd_share(vma))
+		if (vma_is_hugetlb(vma) && uffd_disable_huge_pmd_share(vma))
 			hugetlb_unshare_all_pmds(vma);
 
 skip:
@@ -2895,7 +2895,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * (sleepable) vma lock can modify the current task state, that
 	 * must be before explicitly calling set_current_state().
 	 */
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		hugetlb_vma_lock_read(vma);
 
 	spin_lock_irq(&ctx->fault_pending_wqh.lock);
@@ -2912,7 +2912,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	set_current_state(blocking_state);
 	spin_unlock_irq(&ctx->fault_pending_wqh.lock);
 
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		must_wait = userfaultfd_huge_must_wait(ctx, vmf, reason);
 		hugetlb_vma_unlock_read(vma);
 	} else {
@@ -3744,7 +3744,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	 * If the first vma contains huge pages, make sure start address
 	 * is aligned to huge page size.
 	 */
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		unsigned long vma_hpagesize = vma_kernel_pagesize(vma);
 
 		if (start & (vma_hpagesize - 1))
@@ -3795,7 +3795,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		 * If this vma contains ending address, and huge pages
 		 * check alignment.
 		 */
-		if (is_vm_hugetlb_page(cur) && end <= cur->vm_end &&
+		if (vma_is_hugetlb(cur) && end <= cur->vm_end &&
 		    end > cur->vm_start) {
 			unsigned long vma_hpagesize = vma_kernel_pagesize(cur);
 
@@ -3831,7 +3831,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		/*
 		 * Note vmas containing huge pages
 		 */
-		if (is_vm_hugetlb_page(cur))
+		if (vma_is_hugetlb(cur))
 			basic_ioctls = true;
 
 		found = true;
@@ -3917,7 +3917,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	 * If the first vma contains huge pages, make sure start address
 	 * is aligned to huge page size.
 	 */
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		unsigned long vma_hpagesize = vma_kernel_pagesize(vma);
 
 		if (start & (vma_hpagesize - 1))

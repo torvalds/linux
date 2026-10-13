@@ -1142,7 +1142,7 @@ drm_gpusvm_range_find_or_insert(struct drm_gpusvm *gpusvm,
 	 * have to change.
 	 */
 	migrate_devmem = ctx->devmem_possible &&
-		vma_is_anonymous(vas) && !is_vm_hugetlb_page(vas);
+		vma_is_anonymous(vas) && !vma_is_hugetlb(vas);
 
 	chunk_size = drm_gpusvm_range_chunk_size(gpusvm, notifier, vas,
 						 fault_addr, gpuva_start,

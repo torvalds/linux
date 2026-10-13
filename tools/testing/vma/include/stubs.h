@@ -193,7 +193,7 @@ static inline bool mapping_can_writeback(struct address_space *mapping)
 	return true;
 }
 
-static inline bool is_vm_hugetlb_page(struct vm_area_struct *vma)
+static inline bool vma_is_hugetlb(struct vm_area_struct *vma)
 {
 	return false;
 }

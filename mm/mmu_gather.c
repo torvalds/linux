@@ -480,7 +480,7 @@ void tlb_gather_mmu_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 {
 	tlb_gather_mmu(tlb, vma->vm_mm);
 	tlb_update_vma_flags(tlb, vma);
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		/* All entries have the same size. */
 		tlb_change_page_size(tlb, huge_page_size(hstate_vma(vma)));
 }

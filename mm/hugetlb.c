@@ -1148,7 +1148,7 @@ static inline struct resv_map *inode_resv_map(struct inode *inode)
 
 static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!is_vm_hugetlb_page(vma), vma);
+	VM_WARN_ON_ONCE_VMA(!vma_is_hugetlb(vma), vma);
 	if (vma->vm_flags & VM_MAYSHARE) {
 		struct address_space *mapping = vma->vm_file->f_mapping;
 		struct inode *inode = mapping->host;
@@ -1163,7 +1163,7 @@ static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
 
 static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
 {
-	VM_WARN_ON_ONCE_VMA(!is_vm_hugetlb_page(vma), vma);
+	VM_WARN_ON_ONCE_VMA(!vma_is_hugetlb(vma), vma);
 	VM_WARN_ON_ONCE_VMA(vma_test(vma, VMA_MAYSHARE_BIT), vma);
 
 	set_vma_private_data(vma, (unsigned long)map);
@@ -1171,7 +1171,7 @@ static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
 
 static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
 {
-	VM_WARN_ON_ONCE_VMA(!is_vm_hugetlb_page(vma), vma);
+	VM_WARN_ON_ONCE_VMA(!vma_is_hugetlb(vma), vma);
 	VM_WARN_ON_ONCE_VMA(vma_test(vma, VMA_MAYSHARE_BIT), vma);
 
 	set_vma_private_data(vma, get_vma_private_data(vma) | flags);
@@ -1179,7 +1179,7 @@ static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
 
 static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
 {
-	VM_BUG_ON_VMA(!is_vm_hugetlb_page(vma), vma);
+	VM_WARN_ON_ONCE_VMA(!vma_is_hugetlb(vma), vma);
 
 	return (get_vma_private_data(vma) & flag) != 0;
 }
@@ -1193,7 +1193,7 @@ bool __vma_private_lock(struct vm_area_struct *vma)
 
 void hugetlb_dup_vma_private(struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!is_vm_hugetlb_page(vma), vma);
+	VM_WARN_ON_ONCE_VMA(!vma_is_hugetlb(vma), vma);
 	/*
 	 * Clear vm_private_data
 	 * - For shared mappings this is a per-vma semaphore that may be
@@ -5277,7 +5277,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	unsigned long last_addr_mask;
 
 	i_mmap_assert_write_locked(vma->vm_file->f_mapping);
-	WARN_ON(!is_vm_hugetlb_page(vma));
+	WARN_ON(!vma_is_hugetlb(vma));
 	BUG_ON(start & ~huge_page_mask(h));
 	BUG_ON(end & ~huge_page_mask(h));
 
@@ -7563,7 +7563,7 @@ void hugetlb_unshare_all_pmds(struct vm_area_struct *vma)
  */
 void fixup_hugetlb_reservations(struct vm_area_struct *vma)
 {
-	if (!is_vm_hugetlb_page(vma))
+	if (!vma_is_hugetlb(vma))
 		return;
 
 	/*

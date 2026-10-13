@@ -599,7 +599,7 @@ __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * boundary.
 	 */
 	vma_adjust_trans_huge(vma, vma->vm_start, addr, NULL);
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		hugetlb_split(vma, addr);
 
 	if (new_below) {
@@ -2251,7 +2251,7 @@ bool vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot)
 	 * Do we need to track softdirty? hugetlb does not support softdirty
 	 * tracking yet.
 	 */
-	if (vma_soft_dirty_enabled(vma) && !is_vm_hugetlb_page(vma))
+	if (vma_soft_dirty_enabled(vma) && !vma_is_hugetlb(vma))
 		return true;
 
 	/* Do we need write faults for uffd-wp tracking? */
@@ -2370,7 +2370,7 @@ int mm_take_all_locks(struct mm_struct *mm)
 		if (signal_pending(current))
 			goto out_unlock;
 		if (vma->vm_file && vma->vm_file->f_mapping &&
-				is_vm_hugetlb_page(vma))
+				vma_is_hugetlb(vma))
 			vm_lock_mapping(mm, vma->vm_file->f_mapping);
 	}
 
@@ -2379,7 +2379,7 @@ int mm_take_all_locks(struct mm_struct *mm)
 		if (signal_pending(current))
 			goto out_unlock;
 		if (vma->vm_file && vma->vm_file->f_mapping &&
-				!is_vm_hugetlb_page(vma))
+				!vma_is_hugetlb(vma))
 			vm_lock_mapping(mm, vma->vm_file->f_mapping);
 	}
 

@@ -3515,7 +3515,7 @@ static int should_skip_vma(unsigned long start, unsigned long end, struct mm_wal
 	if (!vma_is_accessible(vma))
 		return true;
 
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return true;
 
 	if (!vma_has_recency(vma))

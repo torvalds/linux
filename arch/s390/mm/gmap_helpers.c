@@ -102,7 +102,7 @@ __context_unsafe(/* pte_unmap_unlock() not instrumented */)
 
 	/* Find the vm address for the guest address */
 	vma = vma_lookup(mm, vmaddr);
-	if (!vma || is_vm_hugetlb_page(vma))
+	if (!vma || vma_is_hugetlb(vma))
 		return;
 
 	/* Get pointer to the page table entry */
@@ -139,7 +139,7 @@ void gmap_helper_discard(struct mm_struct *mm, unsigned long vmaddr, unsigned lo
 		vma = find_vma_intersection(mm, vmaddr, end);
 		if (!vma)
 			return;
-		if (!is_vm_hugetlb_page(vma))
+		if (!vma_is_hugetlb(vma))
 			zap_vma_range(vma, vmaddr, min(end, vma->vm_end) - vmaddr);
 		vmaddr = vma->vm_end;
 	}
@@ -247,7 +247,7 @@ static int __gmap_helper_unshare_zeropages(struct mm_struct *mm)
 		 * proof to catch unexpected zeropages in other mappings and
 		 * fail.
 		 */
-		if ((vma->vm_flags & VM_PFNMAP) || is_vm_hugetlb_page(vma))
+		if ((vma->vm_flags & VM_PFNMAP) || vma_is_hugetlb(vma))
 			continue;
 		addr = vma->vm_start;
 

@@ -882,7 +882,7 @@ bool madvise_dontneed_free_valid_vma(struct madvise_behavior *madv_behavior)
 	int behavior = madv_behavior->behavior;
 	struct madvise_behavior_range *range = &madv_behavior->range;
 
-	if (!is_vm_hugetlb_page(vma)) {
+	if (!vma_is_hugetlb(vma)) {
 		unsigned int forbidden = VM_PFNMAP;
 
 		if (behavior != MADV_DONTNEED_LOCKED)
@@ -1415,7 +1415,7 @@ static int madvise_vma_behavior(struct madvise_behavior *madv_behavior)
 		new_flags |= VM_DONTDUMP;
 		break;
 	case MADV_DODUMP:
-		if ((!is_vm_hugetlb_page(vma) && (new_flags & VM_SPECIAL)) ||
+		if ((!vma_is_hugetlb(vma) && (new_flags & VM_SPECIAL)) ||
 		    (new_flags & VM_DROPPABLE))
 			return -EINVAL;
 		new_flags &= ~VM_DONTDUMP;

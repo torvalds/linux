@@ -252,14 +252,14 @@ extern void __hugetlb_zap_end(struct vm_area_struct *vma,
 static inline void hugetlb_zap_begin(struct vm_area_struct *vma,
 				     unsigned long *start, unsigned long *end)
 {
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		__hugetlb_zap_begin(vma, start, end);
 }
 
 static inline void hugetlb_zap_end(struct vm_area_struct *vma,
 				   struct zap_details *details)
 {
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		__hugetlb_zap_end(vma, details);
 }
 

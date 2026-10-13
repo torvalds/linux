@@ -627,7 +627,7 @@ void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmadd
 {
 #ifdef CONFIG_HUGETLB_PAGE
 	/* need the return fix for nohash.c */
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return radix__local_flush_hugetlb_page(vma, vmaddr);
 #endif
 	radix__local_flush_tlb_page_psize(vma->vm_mm, vmaddr, mmu_virtual_psize);
@@ -945,7 +945,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return radix__flush_hugetlb_page(vma, vmaddr);
 #endif
 	radix__flush_tlb_page_psize(vma->vm_mm, vmaddr, mmu_virtual_psize);
@@ -1113,7 +1113,7 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return radix__flush_hugetlb_tlb_range(vma, start, end);
 #endif
 

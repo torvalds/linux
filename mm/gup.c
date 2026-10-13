@@ -621,7 +621,7 @@ static struct page *no_page_table(struct vm_area_struct *vma,
 	 * But we can only make this optimization where a hole would surely
 	 * be zero-filled if handle_mm_fault() actually did handle it.
 	 */
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		struct hstate *h = hstate_vma(vma);
 
 		if (!hugetlbfs_pagecache_present(h, vma, address))
@@ -1213,7 +1213,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
 	if ((gup_flags & FOLL_LONGTERM) && vma_is_fsdax(vma))
 		return -EOPNOTSUPP;
 
-	if ((gup_flags & FOLL_SPLIT_PMD) && is_vm_hugetlb_page(vma))
+	if ((gup_flags & FOLL_SPLIT_PMD) && vma_is_hugetlb(vma))
 		return -EOPNOTSUPP;
 
 	if (vma_is_secretmem(vma))

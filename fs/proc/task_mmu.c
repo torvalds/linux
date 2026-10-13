@@ -2986,7 +2986,7 @@ static int pagemap_scan_pte_hole(unsigned long addr, unsigned long end,
 	 * hugetlb differs, see pagemap_hugetlb_category().
 	 */
 	categories = p->cur_vma_category;
-	if (userfaultfd_wp(vma) && !is_vm_hugetlb_page(vma))
+	if (userfaultfd_wp(vma) && !vma_is_hugetlb(vma))
 		categories |= PAGE_IS_WRITTEN;
 
 	if (!pagemap_scan_is_interesting_page(categories, p))
@@ -2999,7 +2999,7 @@ static int pagemap_scan_pte_hole(unsigned long addr, unsigned long end,
 	if (~p->arg.flags & PM_SCAN_WP_MATCHING)
 		return ret;
 
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		err = pagemap_scan_hugetlb_hole_wp(vma, addr, end);
 	else
 		err = uffd_wp_range(vma, addr, end - addr, true);
@@ -3441,7 +3441,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 		seq_puts(m, " stack");
 	}
 
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		seq_puts(m, " huge");
 
 	/* Skip walking pages if gate VMA */
@@ -3470,7 +3470,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 	if (md->swapcache)
 		seq_printf(m, " swapcache=%lu", md->swapcache);
 
-	if (md->active < md->pages && !is_vm_hugetlb_page(vma))
+	if (md->active < md->pages && !vma_is_hugetlb(vma))
 		seq_printf(m, " active=%lu", md->active);
 
 	if (md->writeback)

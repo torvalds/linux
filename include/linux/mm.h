@@ -1610,15 +1610,28 @@ static inline bool vma_is_shared_maywrite(const struct vm_area_struct *vma)
 	return is_shared_maywrite(&vma->flags);
 }
 
-static inline bool is_vma_hugetlb_flags(const vma_flags_t *flags)
+/**
+ * vma_flags_is_hugetlb() - Do the specified VMA flags indicate that the
+ * VMA is a hugetlb mapping?
+ * @flags: The VMA flags to test.
+ *
+ * Returns: true if the flags indicate a hugetlb mapping, false otherwise.
+ */
+static inline bool vma_flags_is_hugetlb(const vma_flags_t *flags)
 {
 	return IS_ENABLED(CONFIG_HUGETLB_PAGE) &&
 	       vma_flags_test(flags, VMA_HUGETLB_BIT);
 }
 
-static inline bool is_vm_hugetlb_page(const struct vm_area_struct *vma)
+/**
+ * vma_is_hugetlb() - Is @vma a hugetlb mapping?
+ * @vma: The VMA to test.
+ *
+ * Returns: true if @vma is a hugetlb mapping, false otherwise.
+ */
+static inline bool vma_is_hugetlb(const struct vm_area_struct *vma)
 {
-	return is_vma_hugetlb_flags(&vma->flags);
+	return vma_flags_is_hugetlb(&vma->flags);
 }
 
 /**

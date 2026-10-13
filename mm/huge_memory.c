@@ -4783,7 +4783,7 @@ static inline bool vma_not_suitable_for_thp_split(struct vm_area_struct *vma)
 		return true;
 	if (vma_test(vma, VMA_IO_BIT))
 		return true;
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return true;
 
 	return false;

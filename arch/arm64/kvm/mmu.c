@@ -1470,7 +1470,7 @@ transparent_hugepage_adjust(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 static int get_vma_page_shift(struct vm_area_struct *vma)
 {
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return huge_page_shift(hstate_vma(vma));
 
 	return PAGE_SHIFT;

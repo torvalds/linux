@@ -1564,7 +1564,7 @@ copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	if (!vma_needs_copy(dst_vma, src_vma))
 		return 0;
 
-	if (is_vm_hugetlb_page(src_vma))
+	if (vma_is_hugetlb(src_vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, dst_vma, src_vma);
 
 	/*
@@ -2178,7 +2178,7 @@ static void __zap_vma_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	if (vma->vm_file && !reaping)
 		uprobe_munmap(vma, start, end);
 
-	if (unlikely(is_vm_hugetlb_page(vma))) {
+	if (unlikely(vma_is_hugetlb(vma))) {
 		zap_flags_t zap_flags = details ? details->zap_flags : 0;
 
 		VM_WARN_ON_ONCE(reaping);
@@ -2313,7 +2313,7 @@ void zap_vma_range_batched(struct mmu_gather *tlb,
 	 */
 	__zap_vma_range(tlb, vma, address, end, details);
 	mmu_notifier_invalidate_range_end(&range);
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		/*
 		 * flush tlb and free resources before hugetlb_zap_end(), to
 		 * avoid concurrent page faults' allocation failure.
@@ -6937,7 +6937,7 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 
 	lru_gen_enter_fault(vma);
 
-	if (unlikely(is_vm_hugetlb_page(vma)))
+	if (unlikely(vma_is_hugetlb(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
 	else
 		ret = __handle_mm_fault(vma, address, flags);
@@ -7821,12 +7821,12 @@ void ptlock_free(struct ptdesc *ptdesc)
 
 void vma_pgtable_walk_begin(struct vm_area_struct *vma)
 {
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		hugetlb_vma_lock_read(vma);
 }
 
 void vma_pgtable_walk_end(struct vm_area_struct *vma)
 {
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		hugetlb_vma_unlock_read(vma);
 }
