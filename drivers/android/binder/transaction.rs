@@ -136,7 +136,11 @@ impl TransactionLogEntry {
             offsets_size: info.offsets_size,
             return_error_line: if failed { info.error_line } else { None },
             return_error: if failed { info.reply } else { 0 },
-            return_error_param: if failed { info.errno } else { 0 },
+            return_error_param: if failed {
+                info.errno.map_or(0, |e| e.to_errno())
+            } else {
+                0
+            },
             context_name,
         }
     }
@@ -254,7 +258,7 @@ pub(crate) struct TransactionInfo {
     pub(crate) offsets_size: usize,
     pub(crate) buffers_size: usize,
     pub(crate) target_handle: u32,
-    pub(crate) errno: i32,
+    pub(crate) errno: Option<Error>,
     pub(crate) reply: u32,
     pub(crate) error_line: Option<ErrorLocation>,
     pub(crate) oneway_spam_suspect: bool,

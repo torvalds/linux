@@ -1333,8 +1333,8 @@ impl Thread {
             if err.reply != BR_TRANSACTION_COMPLETE {
                 info.reply = err.reply;
                 info.error_line = Some(err.line);
-                if let Some(source) = &err.source {
-                    info.errno = source.to_errno();
+                if let Some(source) = err.source {
+                    info.errno = Some(source);
 
                     {
                         let mut inner = self.inner.lock();
@@ -1476,7 +1476,7 @@ impl Thread {
             orig.from
                 .deliver_reply(Err(BR_FAILED_REPLY), &orig, Some(ee));
             info.reply = BR_FAILED_REPLY;
-            info.errno = param;
+            info.errno = err.source;
             info.error_line = Some(err.line);
             err.reply = BR_TRANSACTION_COMPLETE;
             err
