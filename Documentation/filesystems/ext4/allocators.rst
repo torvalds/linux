@@ -38,7 +38,11 @@ file's data blocks to begin I/O operations.
 The fourth trick is that all the inodes in a directory are placed in the
 same block group as the directory, when feasible. The working assumption
 here is that all the files in a directory might be related, therefore it
-is useful to try to keep them all together.
+is useful to try to keep them all together. With flex_bg, the files of a
+directory are kept in the directory's flex group instead, in a block
+group chosen by the directory's inode number, so that the files of
+different directories in the same flex group are less likely to share
+inode table blocks.
 
 The fifth trick is that the disk volume is cut up into 128MB block
 groups; these mini-containers are used as outlined above to try to

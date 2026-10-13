@@ -569,11 +569,70 @@ fallback_retry:
 	return -1;
 }
 
+static bool ext4_group_has_free_inode(struct super_block *sb, ext4_group_t g)
+{
+	struct ext4_group_desc *desc = ext4_get_group_desc(sb, g, NULL);
+
+	return desc && ext4_free_inodes_count(sb, desc);
+}
+
+/*
+ * Pick a group with a free inode in the flex group that starts at @first.
+ * First try the group chosen by the parent's inode number, so that the
+ * files of different directories in a flex group are less likely to share
+ * an inode bitmap and inode table blocks. Once that group is full, keep
+ * using @last, the group last picked for this directory, if it is in this
+ * flex group, then prefer a group with no inode in use, which no other
+ * directory uses yet, then take any group with a free inode. Return -1 if
+ * no group in the flex group has a free inode.
+ */
+static int find_group_in_flex(struct super_block *sb, struct inode *parent,
+			      ext4_group_t first, ext4_group_t last,
+			      int flex_size, ext4_group_t *group)
+{
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
+	ext4_group_t n = min_t(ext4_group_t, flex_size, ngroups - first);
+	ext4_group_t start = (unsigned int)parent->i_ino % n;
+	ext4_group_t i, g, avail = ngroups;
+
+	if (ext4_group_has_free_inode(sb, first + start)) {
+		*group = first + start;
+		return 0;
+	}
+	if (last >= first && last < first + n &&
+	    ext4_group_has_free_inode(sb, last)) {
+		*group = last;
+		return 0;
+	}
+	for (i = 1; i < n; i++) {
+		struct ext4_group_desc *desc;
+		unsigned int nr_free;
+
+		if (++start == n)
+			start = 0;
+		g = first + start;
+		desc = ext4_get_group_desc(sb, g, NULL);
+		if (!desc)
+			continue;
+		nr_free = ext4_free_inodes_count(sb, desc);
+		if (nr_free == EXT4_INODES_PER_GROUP(sb)) {
+			*group = g;
+			return 0;
+		}
+		if (nr_free && avail == ngroups)
+			avail = g;
+	}
+	if (avail == ngroups)
+		return -1;
+	*group = avail;
+	return 0;
+}
+
 static int find_group_other(struct super_block *sb, struct inode *parent,
 			    ext4_group_t *group, umode_t mode)
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
-	ext4_group_t i, last, ngroups = ext4_get_groups_count(sb);
+	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 	struct ext4_group_desc *desc;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(sb));
 
@@ -585,34 +644,34 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 * group for future allocations.
 	 */
 	if (flex_size > 1) {
+		ext4_group_t last_alloc = EXT4_I(parent)->i_last_alloc_group;
 		int retry = 0;
 
 	try_again:
 		parent_group &= ~(flex_size-1);
-		last = parent_group + flex_size;
-		if (last > ngroups)
-			last = ngroups;
-		for  (i = parent_group; i < last; i++) {
-			desc = ext4_get_group_desc(sb, i, NULL);
-			if (desc && ext4_free_inodes_count(sb, desc)) {
-				*group = i;
-				return 0;
-			}
-		}
-		if (!retry && EXT4_I(parent)->i_last_alloc_group != ~0) {
+		if (!find_group_in_flex(sb, parent, parent_group, last_alloc,
+					flex_size, group))
+			return 0;
+		if (!retry && last_alloc < ngroups) {
 			retry = 1;
-			parent_group = EXT4_I(parent)->i_last_alloc_group;
+			parent_group = last_alloc;
 			goto try_again;
 		}
 		/*
 		 * If this didn't work, use the Orlov search algorithm
 		 * to find a new flex group; we pass in the mode to
-		 * avoid the topdir algorithms.
+		 * avoid the topdir algorithms. Then pick the group inside
+		 * the flex group Orlov chose the same way as above.
 		 */
 		*group = parent_group + flex_size;
-		if (*group > ngroups)
+		if (*group >= ngroups)
 			*group = 0;
-		return find_group_orlov(sb, parent, group, mode, NULL);
+		if (find_group_orlov(sb, parent, group, mode, NULL))
+			return -1;
+		/* Keep Orlov's group if its flex group has no free inode now */
+		find_group_in_flex(sb, parent, *group & ~(flex_size - 1),
+				   last_alloc, flex_size, group);
+		return 0;
 	}
 
 	/*
