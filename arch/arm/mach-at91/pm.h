@@ -25,7 +25,7 @@
 #define AT91_PM_ULP1		0x03
 #define	AT91_PM_BACKUP		0x04
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct at91_pm_data {
 	void __iomem *pmc;
 	void __iomem *ramc[2];
