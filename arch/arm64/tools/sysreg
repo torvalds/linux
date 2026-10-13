@@ -434,7 +434,7 @@ EndEnum
 UnsignedEnum	7:4	State1
 	0b0000	NI
 	0b0001	THUMB
-	0b0010	THUMB2
+	0b0011	THUMB2
 EndEnum
 UnsignedEnum	3:0	State0
 	0b0000	NI
@@ -469,7 +469,7 @@ UnsignedEnum	15:12	Virtualization
 EndEnum
 UnsignedEnum	11:8	MProgMod
 	0b0000	NI
-	0b0001	IMP
+	0b0010	IMP
 EndEnum
 Enum	7:4	Security
 	0b0000	NI
@@ -4652,7 +4652,7 @@ Enum	15:14	TG0
 EndEnum
 Enum	13:12	SH0
 	0b00	NONE
-	0b01	OUTER
+	0b10	OUTER
 	0b11	INNER
 EndEnum
 Enum	11:10	ORGN0
