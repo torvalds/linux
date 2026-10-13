@@ -1902,7 +1902,7 @@ static int applespi_resume(struct device *dev)
 }
 
 static const struct acpi_device_id applespi_acpi_match[] = {
-	{ "APP000D", 0 },
+	{ .id = "APP000D" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, applespi_acpi_match);
