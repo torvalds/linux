@@ -833,34 +833,149 @@ void dso__data_close(struct dso *dso)
 	mutex_unlock(dso__data_open_lock());
 }
 
-static void try_to_open_dso(struct dso *dso, struct machine *machine)
-	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
+static int dso__find_binary_type_locked(struct dso *dso)
+	EXCLUSIVE_LOCKS_REQUIRED(dso__lock(dso))
 {
 	enum dso_binary_type binary_type_data[] = {
 		DSO_BINARY_TYPE__BUILD_ID_CACHE,
 		DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
+		dso__symtab_type(dso),
 		DSO_BINARY_TYPE__NOT_FOUND,
 	};
 	int i = 0;
-	struct dso_data *dso_data = dso__data(dso);
+	char *path;
+	bool found = false;
+	bool decomp = false;
+	int saved_errno;
 
-	if (dso_data->fd >= 0)
-		return;
+	if (dso__bintype_searched(dso))
+		return dso__binary_type(dso);
+	dso__set_bintype_searched(dso);
 
-	if (dso__binary_type(dso) != DSO_BINARY_TYPE__NOT_FOUND) {
-		dso_data->fd = open_dso(dso, machine);
-		goto out;
+	switch (dso__binary_type(dso)) {
+	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+		/* Nothing to do with kernel images */
+		WARN_ON(!dso__kernel(dso));
+		return dso__binary_type(dso);
+	case DSO_BINARY_TYPE__BPF_PROG_INFO:
+	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
+	case DSO_BINARY_TYPE__JAVA_JIT:
+		/* Same for the special DSOs */
+		return dso__binary_type(dso);
+	case DSO_BINARY_TYPE__GUEST_KMODULE:
+	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+		/* We don't expect these are set; fall through */
+	case DSO_BINARY_TYPE__NOT_FOUND:
+		/* Let's find it out (for user DSOs or kernel modules) */
+		break;
+	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
+	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+	case DSO_BINARY_TYPE__GNU_DEBUGDATA:
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	default:
+		/* Unexpected binary types (usually debug only) */
+		break;
 	}
 
 	do {
 		dso__set_binary_type(dso, binary_type_data[i++]);
 
-		dso_data->fd = open_dso(dso, machine);
-		if (dso_data->fd >= 0)
-			goto out;
+		errno = 0;
+		path = dso__get_filename(dso, "", &decomp, dso__binary_type(dso));
+		if (path == NULL) {
+			if (errno == EMFILE)
+				goto open_err;
+			continue;
+		}
+
+		errno = 0;
+		found = filename__has_section(path, ".text");
+		if (!found)
+			saved_errno = errno;
+		dso__put_filename(dso, path, decomp);
+
+		if (found)
+			return dso__binary_type(dso);
+		else if (saved_errno == EMFILE)
+			goto open_err;
 
 	} while (dso__binary_type(dso) != DSO_BINARY_TYPE__NOT_FOUND);
-out:
+
+	return dso__binary_type(dso);
+
+open_err:
+	/* Too many open files.  Allow retry after closing one. */
+	RC_CHK_ACCESS(dso)->bintype_searched = 0;
+	dso__set_binary_type(dso, DSO_BINARY_TYPE__NOT_FOUND);
+	return -1;
+}
+
+#define FIND_MAX_RETRY  3
+static int __dso__find_binary_type(struct dso *dso)
+	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
+{
+	int ret;
+	int retry = 0;
+
+again:
+	mutex_lock(dso__lock(dso));
+	ret = dso__find_binary_type_locked(dso);
+	mutex_unlock(dso__lock(dso));
+
+	if (ret == -1 && retry++ < FIND_MAX_RETRY) {
+		if (dso__data_open_cnt) {
+			close_first_dso();
+			goto again;
+		}
+	}
+
+	if (ret == -1) {
+		mutex_lock(dso__lock(dso));
+		ret = dso__binary_type(dso);
+		dso__set_bintype_searched(dso);
+		mutex_unlock(dso__lock(dso));
+	}
+
+	return ret;
+}
+#undef FIND_MAX_RETRY
+
+enum dso_binary_type dso__find_binary_type(struct dso *dso)
+{
+	int ret;
+
+	mutex_lock(dso__data_open_lock());
+	ret = __dso__find_binary_type(dso);
+	mutex_unlock(dso__data_open_lock());
+
+	return ret;
+}
+
+static void try_to_open_dso(struct dso *dso, struct machine *machine)
+	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
+{
+	struct dso_data *dso_data = dso__data(dso);
+
+	if (dso_data->fd >= 0)
+		return;
+
+	__dso__find_binary_type(dso);
+	dso_data->fd = open_dso(dso, machine);
+
 	if (dso_data->fd >= 0)
 		dso_data->status = DSO_DATA_STATUS_OK;
 	else

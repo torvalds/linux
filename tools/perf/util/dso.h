@@ -349,6 +349,7 @@ DECLARE_RC_STRUCT(dso) {
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
+	u8		 bintype_searched:1;
 	u8		 debuginfo_searched:1;
 	bool		 sorted_by_name;
 	bool		 loaded;
@@ -957,6 +958,8 @@ void dso__reset_find_symbol_cache(struct dso *dso);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
 size_t dso__fprintf(struct dso *dso, FILE *fp);
 
+enum dso_binary_type dso__find_binary_type(struct dso *dso);
+
 static inline enum dso_binary_type dso__binary_type(const struct dso *dso)
 {
 	return RC_CHK_ACCESS(dso)->binary_type;
@@ -965,6 +968,16 @@ static inline enum dso_binary_type dso__binary_type(const struct dso *dso)
 static inline void dso__set_binary_type(struct dso *dso, enum dso_binary_type bt)
 {
 	RC_CHK_ACCESS(dso)->binary_type = bt;
+}
+
+static inline bool dso__bintype_searched(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->bintype_searched;
+}
+
+static inline void dso__set_bintype_searched(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->bintype_searched = 1;
 }
 
 static inline bool dso__is_vmlinux(const struct dso *dso)
