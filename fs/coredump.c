@@ -1000,7 +1000,7 @@ static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
 		return false;
 	}
 
-	helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv), GFP_KERNEL);
+	helper_argv = kmalloc_objs(*helper_argv, argc + 1);
 	if (!helper_argv) {
 		coredump_report_failure("%s failed to allocate memory", __func__);
 		return false;

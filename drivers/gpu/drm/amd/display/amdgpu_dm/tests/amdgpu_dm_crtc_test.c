@@ -436,7 +436,7 @@ static void dm_test_crtc_set_vupdate_irq_no_otg(struct kunit *test)
  * dm_test_crtc_set_vupdate_irq_dc_busy - Test vupdate irq when DC rejects request
  * @test: The KUnit test context
  *
- * With an OTG instance assigned but no DC attached, dc_interrupt_set() returns
+ * With an OTG instance assigned but no DC attached, amdgpu_dm_irq_set() returns
  * false and the function must report the request as busy (-EBUSY).
  */
 static void dm_test_crtc_set_vupdate_irq_dc_busy(struct kunit *test)
@@ -453,12 +453,12 @@ static void dm_test_crtc_set_vupdate_irq_dc_busy(struct kunit *test)
 	acrtc->base.dev = &adev->ddev;
 	acrtc->otg_inst = 0;
 
-	/* adev->dm.dc is NULL, so dc_interrupt_set() returns false. */
+	/* adev->dm.dc is NULL, so amdgpu_dm_irq_set() returns false. */
 	KUNIT_EXPECT_EQ(test,
 			amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, true), -EBUSY);
 }
 
-/* Per-source funcs let dc_interrupt_set() succeed without register access. */
+/* Per-source funcs let amdgpu_dm_irq_set() succeed without register access. */
 static bool dm_test_vupdate_irq_src_set(struct irq_service *irq_service,
 					const struct irq_source_info *info,
 					bool enable)
@@ -477,7 +477,7 @@ static struct irq_source_info_funcs dm_test_vupdate_irq_src_funcs = {
 	.ack = dm_test_vupdate_irq_src_ack,
 };
 
-/* A .set that fails so dc_interrupt_set() reports the source as busy. */
+/* A .set that fails so amdgpu_dm_irq_set() reports the source as busy. */
 static bool dm_test_vupdate_irq_src_set_busy(struct irq_service *irq_service,
 					     const struct irq_source_info *info,
 					     bool enable)
@@ -519,7 +519,9 @@ static void dm_test_crtc_set_vupdate_irq_enable(struct kunit *test)
 	irqs = kunit_kzalloc(test, sizeof(*irqs), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, irqs);
 
-	/* Populate the per-source info table so dc_interrupt_set() succeeds. */
+	/*
+	 * Populate the per-source info table so amdgpu_dm_irq_set() succeeds.
+	 */
 	info = kunit_kzalloc(test, sizeof(*info) * DAL_IRQ_SOURCES_NUMBER,
 			     GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, info);
@@ -1018,7 +1020,9 @@ static void dm_test_crtc_enable_vblank_vupdate_busy(struct kunit *test)
 	irqs = kunit_kzalloc(test, sizeof(*irqs), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, irqs);
 
-	/* Per-source .set fails so dc_interrupt_set() reports the source busy. */
+	/*
+	 * Per-source .set fails so amdgpu_dm_irq_set() reports the source busy.
+	 */
 	info = kunit_kzalloc(test, sizeof(*info) * DAL_IRQ_SOURCES_NUMBER,
 			     GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, info);
@@ -1445,7 +1449,7 @@ static void dm_test_crtc_destroy_state_no_stream(struct kunit *test)
 	struct dm_crtc_state *dm_state;
 
 	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
-	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	dm_state = kzalloc_obj(*dm_state);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
 
 	amdgpu_dm_crtc_destroy_state(NULL, &dm_state->base);
@@ -1475,7 +1479,7 @@ static void dm_test_crtc_destroy_state_releases_stream(struct kunit *test)
 	kref_get(&stream->refcount);
 
 	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
-	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	dm_state = kzalloc_obj(*dm_state);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
 	dm_state->stream = stream;
 
@@ -1569,7 +1573,7 @@ static void dm_test_crtc_handle_vblank_completes_cursor_only(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
 
 	/* drm_crtc_send_vblank_event() consumes (kfree()s) the event. */
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 
 	acrtc->base.dev = &adev->ddev;
@@ -1628,7 +1632,7 @@ dm_test_vblank_control_worker_setup(struct kunit *test, bool enable,
 	kref_get(&stream->refcount);
 
 	/* Worker kfree()s the work item, so it must be a plain allocation. */
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, work);
 	work->dm = &adev->dm;
 	work->acrtc = acrtc;

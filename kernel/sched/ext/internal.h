@@ -259,6 +259,9 @@ struct scx_cgroup_init_args {
 	u64			bw_period_us;
 	u64			bw_quota_us;
 	u64			bw_burst_us;
+
+	/* whether the cgroup is configured SCHED_IDLE via cpu.idle */
+	bool			sched_idle;
 };
 
 enum scx_cpu_preempt_reason {
@@ -442,7 +445,7 @@ struct sched_ext_ops {
 	 *
 	 * Note that this callback may be called from a CPU other than the
 	 * one the task is going to run on. This can happen when a task
-	 * property is changed (i.e., affinity), since scx_next_task_scx(),
+	 * property is changed (i.e., affinity), since set_next_task_scx(),
 	 * which triggers this callback, may run on a CPU different from
 	 * the task's assigned CPU.
 	 *
@@ -569,6 +572,12 @@ struct sched_ext_ops {
 	 *
 	 * Specify the %SCX_OPS_KEEP_BUILTIN_IDLE flag to keep the built-in idle
 	 * tracking.
+	 *
+	 * Only actual transitions are reported. A CPU that is claimed with an
+	 * idle pick and kicked but dispatches no task returns to idle without a
+	 * transition. A scheduler tracking idle CPUs itself must restore the
+	 * idle state from ops.dispatch() when it returns without the next task
+	 * to run.
 	 */
 	void (*update_idle)(s32 cpu, bool idle);
 
@@ -753,7 +762,7 @@ struct sched_ext_ops {
 	 * @burst_us: bandwidth control burst
 	 *
 	 * Update @cgrp's bandwidth control parameters. This is from the cpu.max
-	 * cgroup interface.
+	 * cgroup interface. This operation may block.
 	 *
 	 * @quota_us / @period_us determines the CPU bandwidth @cgrp is entitled
 	 * to. For example, if @period_us is 1_000_000 and @quota_us is
@@ -1552,6 +1561,7 @@ struct scx_sched {
 	 * and passes it to the callback's __arena argument.
 	 */
 	struct scx_cmask * __percpu *set_cmask_scratch;
+	struct scx_cmask *online_cmask;
 
 	DECLARE_BITMAP(has_op, SCX_OPI_END);
 
@@ -2001,6 +2011,27 @@ struct scx_bstr_buf {
 	char			line[SCX_EXIT_MSG_LEN];
 };
 
+/* Internal helper for DEFINE_SCX_COMPAT_MARKER(). */
+#define DECLARE_SCX_COMPAT_MARKER(func)						\
+	extern void scx_compat_marker_##func(void)
+
+/**
+ * DEFINE_SCX_COMPAT_MARKER() - define a userspace capability marker
+ * @func: marker suffix; the defined symbol is scx_compat_marker_@func
+ *
+ * Emit an empty, callerless function that is retained in the kernel's BTF.
+ * Its presence is part of the kernel<->userspace contract: userspace probes
+ * scx_compat_marker_@func (e.g. via BTF) to detect that this kernel supports
+ * the corresponding feature.
+ *
+ * The leading declaration suppresses the missing-prototype warning; the
+ * trailing declaration consumes the semicolon at the use site.
+ */
+#define DEFINE_SCX_COMPAT_MARKER(func)						\
+	DECLARE_SCX_COMPAT_MARKER(func);					\
+	__used __retain void scx_compat_marker_##func(void) {}			\
+	DECLARE_SCX_COMPAT_MARKER(func)
+
 extern struct scx_sched __rcu *scx_root;
 DECLARE_PER_CPU(struct rq *, scx_locked_rq_state);
 
@@ -2057,7 +2088,7 @@ void scx_disable_and_exit_task(struct scx_sched *sch, struct task_struct *p);
 void scx_cgroup_lock(void);
 void scx_cgroup_unlock(void);
 #endif
-s32 scx_set_cmask_scratch_alloc(struct scx_sched *sch);
+s32 scx_alloc_kern_arena_objs(struct scx_sched *sch);
 void scx_disable_bypass_dsp(struct scx_sched *sch);
 void scx_bypass(struct scx_sched *sch, bool bypass);
 s32 scx_link_sched(struct scx_sched *sch);

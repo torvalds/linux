@@ -994,7 +994,7 @@ int aie2_cmdlist_multi_execbuf(struct amdxdna_hwctx *hwctx,
 	}
 
 	ccnt = payload->command_count;
-	if (payload_len < struct_size(payload, data, ccnt)) {
+	if (!ccnt || payload_len < struct_size(payload, data, ccnt)) {
 		XDNA_DBG(xdna, "Invalid command count %d", ccnt);
 		return -EINVAL;
 	}

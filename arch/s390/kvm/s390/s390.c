@@ -2168,7 +2168,7 @@ static int kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(*keys), GFP_KERNEL_ACCOUNT);
+	keys = kvmalloc_objs(*keys, args->count, GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 
@@ -2205,7 +2205,7 @@ static int kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(*keys), GFP_KERNEL_ACCOUNT);
+	keys = kvmalloc_objs(*keys, args->count, GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 

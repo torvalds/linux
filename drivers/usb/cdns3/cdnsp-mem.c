@@ -394,13 +394,6 @@ static struct cdnsp_ring *cdnsp_ring_alloc(struct cdnsp_device *pdev,
 	if (ret)
 		goto fail;
 
-	/* Only event ring does not use link TRB. */
-	if (type != TYPE_EVENT)
-		ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |=
-			cpu_to_le32(LINK_TOGGLE);
-
-	cdnsp_initialize_ring_info(ring);
-	trace_cdnsp_ring_alloc(ring);
 	return ring;
 fail:
 	kfree(ring);
@@ -603,6 +596,7 @@ int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
 		if (!cur_ring)
 			goto cleanup_rings;
 
+		cdnsp_ring_init(pdev, cur_ring);
 		cur_ring->stream_id = cur_stream;
 		cur_ring->trb_address_map = &stream_info->trb_address_map;
 
@@ -697,6 +691,8 @@ static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev)
 	pdev->eps[0].ring = cdnsp_ring_alloc(pdev, 2, TYPE_CTRL, 0, GFP_ATOMIC);
 	if (!pdev->eps[0].ring)
 		goto fail;
+
+	cdnsp_ring_init(pdev, pdev->eps[0].ring);
 
 	/* Point to output device context in dcbaa. */
 	pdev->dcbaa->dev_context_ptrs[1] = cpu_to_le64(pdev->out_ctx.dma);
@@ -991,6 +987,8 @@ int cdnsp_endpoint_init(struct cdnsp_device *pdev,
 	if (!pep->ring)
 		return -ENOMEM;
 
+	cdnsp_ring_init(pdev, pep->ring);
+
 	pep->skip = false;
 
 	/* Fill the endpoint context */
@@ -1094,28 +1092,6 @@ void cdnsp_mem_cleanup(struct cdnsp_device *pdev)
 	memset(&pdev->eusb_port, 0, sizeof(struct cdnsp_port));
 	memset(&pdev->usb3_port, 0, sizeof(struct cdnsp_port));
 	pdev->active_port = NULL;
-}
-
-static void cdnsp_set_event_deq(struct cdnsp_device *pdev)
-{
-	dma_addr_t deq;
-	u64 temp;
-
-	deq = cdnsp_trb_virt_to_dma(pdev->event_ring->deq_seg,
-				    pdev->event_ring->dequeue);
-
-	/* Update controller event ring dequeue pointer */
-	temp = cdnsp_read_64(&pdev->ir_set->erst_dequeue);
-	temp &= ERST_PTR_MASK;
-
-	/*
-	 * Don't clear the EHB bit (which is RW1C) because
-	 * there might be more events to service.
-	 */
-	temp &= ~ERST_EHB;
-
-	cdnsp_write_64(((u64)deq & (u64)~ERST_PTR_MASK) | temp,
-		       &pdev->ir_set->erst_dequeue);
 }
 
 static void cdnsp_add_in_port(struct cdnsp_device *pdev,
@@ -1226,6 +1202,36 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 	return 0;
 }
 
+static void cdnsp_initialize_ring_segments(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
+{
+	struct cdnsp_segment *seg;
+
+	/* Only event ring does not use link TRB. */
+	if (ring->type == TYPE_EVENT)
+		return;
+
+	seg = ring->first_seg;
+
+	while (seg) {
+		struct cdnsp_segment *next = seg->next;
+
+		cdnsp_link_segments(pdev, seg, next, ring->type);
+		if (next == ring->first_seg)
+			break;
+
+		seg = next;
+	}
+
+	ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |= cpu_to_le32(LINK_TOGGLE);
+}
+
+void cdnsp_ring_init(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
+{
+	cdnsp_initialize_ring_segments(pdev, ring);
+	cdnsp_initialize_ring_info(ring);
+	trace_cdnsp_ring_alloc(ring);
+}
+
 /*
  * Initialize memory for CDNSP (one-time init).
  *
@@ -1237,20 +1243,14 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 {
 	struct device *dev = pdev->dev;
 	int ret = -ENOMEM;
-	unsigned int val;
 	dma_addr_t dma;
 	u32 page_size;
-	u64 val_64;
 
 	/*
 	 * Use 4K pages, since that's common and the minimum the
 	 * controller supports
 	 */
 	page_size = 1 << 12;
-
-	val = readl(&pdev->op_regs->config_reg);
-	val |= ((val & ~MAX_DEVS) | CDNSP_DEV_MAX_SLOTS) | CONFIG_U3E;
-	writel(val, &pdev->op_regs->config_reg);
 
 	/*
 	 * Doorbell array must be physically contiguous
@@ -1262,8 +1262,6 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 		return -ENOMEM;
 
 	pdev->dcbaa->dma = dma;
-
-	cdnsp_write_64(dma, &pdev->op_regs->dcbaa_ptr);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
@@ -1290,17 +1288,6 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	if (!pdev->cmd_ring)
 		goto destroy_device_pool;
 
-	/* Set the address in the Command Ring Control register */
-	val_64 = cdnsp_read_64(&pdev->op_regs->cmd_ring);
-	val_64 = (val_64 & (u64)CMD_RING_RSVD_BITS) |
-		 (pdev->cmd_ring->first_seg->dma & (u64)~CMD_RING_RSVD_BITS) |
-		 pdev->cmd_ring->cycle_state;
-	cdnsp_write_64(val_64, &pdev->op_regs->cmd_ring);
-
-	val = readl(&pdev->cap_regs->db_off);
-	val &= DBOFF_MASK;
-	pdev->dba = (void __iomem *)pdev->cap_regs + val;
-
 	/* Set ir_set to interrupt register set 0 */
 	pdev->ir_set = &pdev->run_regs->ir_set[0];
 
@@ -1316,21 +1303,6 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	ret = cdnsp_alloc_erst(pdev, pdev->event_ring, &pdev->erst);
 	if (ret)
 		goto free_event_ring;
-
-	/* Set ERST count with the number of entries in the segment table. */
-	val = readl(&pdev->ir_set->erst_size);
-	val &= ERST_SIZE_MASK;
-	val |= ERST_NUM_SEGS;
-	writel(val, &pdev->ir_set->erst_size);
-
-	/* Set the segment table base address. */
-	val_64 = cdnsp_read_64(&pdev->ir_set->erst_base);
-	val_64 &= ERST_PTR_MASK;
-	val_64 |= (pdev->erst.erst_dma_addr & (u64)~ERST_PTR_MASK);
-	cdnsp_write_64(val_64, &pdev->ir_set->erst_base);
-
-	/* Set the event ring dequeue address. */
-	cdnsp_set_event_deq(pdev);
 
 	ret = cdnsp_setup_port_arrays(pdev);
 	if (ret)

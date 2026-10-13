@@ -76,6 +76,7 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 	li	a3, 9*SZREG-1 /* size must >= (word_copy stride + SZREG-1) */
 	bltu	a2, a3, .Lbyte_copy_tail
 
+#if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 	/*
 	 * Copy first bytes until dst is aligned to word boundary.
 	 * a0 - start of dst
@@ -103,7 +104,7 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 	/* a1 - start of src */
 	andi	a3, a1, SZREG-1
 	bnez	a3, .Lshift_copy
-
+#endif
 .Lword_copy:
         /*
 	 * Both src and dst are aligned, unrolled word copy
@@ -137,6 +138,7 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 	addi	t0, t0, 8*SZREG /* revert to original value */
 	j	.Lbyte_copy_tail
 
+#if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 .Lshift_copy:
 
 	/*
@@ -189,6 +191,7 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 
 	/* Revert src to original unaligned value  */
 	add	a1, a1, a3
+#endif
 
 .Lbyte_copy_tail:
 	/*

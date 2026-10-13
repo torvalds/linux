@@ -172,6 +172,12 @@ void test_rhash(void)
 	if (test__start_subtest("test_rhash_delete_nonexistent"))
 		rhash_run("test_rhash_delete_nonexistent");
 
+	if (test__start_subtest("test_rhash_kptr_update"))
+		rhash_run("test_rhash_kptr_update");
+
+	if (test__start_subtest("test_rhash_kptr_delete"))
+		rhash_run("test_rhash_kptr_delete");
+
 	if (test__start_subtest("test_rhash_map_extra_presize"))
 		rhash_map_extra_presize();
 

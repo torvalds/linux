@@ -356,6 +356,32 @@ __naked void arena_ptr(void)
 	: __clobber_all);
 }
 
+/*
+ * Result of a 32-bit cmpxchg is always explicitly zero extended.
+ * Check that this holds for arenas (BPF_PROBE_ATOMIC instruction flavor).
+ */
+SEC("socket")
+__success
+__xlated("probe r0 = atomic_cmpxchg((u32 *)(r1 +0), r0, r2)")
+__xlated("w0 = w0")
+__naked void zext_arena_cmpxchg32(void)
+{
+	asm volatile ("					\
+	r9 = %[arena] ll;	/* associate the arena with the program */ \
+	r1 = 0;						\
+	r1 = addr_space_cast(r1, 0, 1);			\
+	r0 = 0;						\
+	r2 = 0;						\
+	.8byte %[cmpxchg32];				\
+	r0 >>= 32;		/* make the upper half live */ \
+	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm_insn(cmpxchg32,
+		     BPF_ATOMIC_OP(BPF_W, BPF_CMPXCHG, BPF_REG_1, BPF_REG_2, 0))
+	: __clobber_all);
+}
+
 #endif
 
 /* Check if probe mem loads keep their zero extension. */

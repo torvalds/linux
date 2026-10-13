@@ -59,10 +59,32 @@ void serial_test_timer_mim(void)
 	int err;
 
 	old_print_fn = libbpf_set_print(NULL);
-	timer_reject_skel = timer_mim_reject__open_and_load();
-	libbpf_set_print(old_print_fn);
-	if (!ASSERT_ERR_PTR(timer_reject_skel, "timer_reject_skel_load"))
+	timer_reject_skel = timer_mim_reject__open();
+	if (!ASSERT_OK_PTR(timer_reject_skel, "timer_reject_skel_open"))
 		goto cleanup;
+	bpf_program__set_autoload(timer_reject_skel->progs.test1, true);
+	err = timer_mim_reject__load(timer_reject_skel);
+	ASSERT_ERR(err, "timer_reject_skel_load");
+	timer_mim_reject__destroy(timer_reject_skel);
+
+	timer_reject_skel = timer_mim_reject__open();
+	if (!ASSERT_OK_PTR(timer_reject_skel, "callback_reject_skel_open"))
+		goto cleanup;
+	bpf_program__set_autoload(timer_reject_skel->progs.callback_map_uid_mismatch, true);
+	err = timer_mim_reject__load(timer_reject_skel);
+	ASSERT_ERR(err, "callback_reject_skel_load");
+	timer_mim_reject__destroy(timer_reject_skel);
+
+	timer_reject_skel = timer_mim_reject__open();
+	if (!ASSERT_OK_PTR(timer_reject_skel, "callback_accept_skel_open"))
+		goto cleanup;
+	bpf_program__set_autoload(timer_reject_skel->progs.callback_map_uid_match, true);
+	err = timer_mim_reject__load(timer_reject_skel);
+	if (!ASSERT_OK(err, "callback_accept_skel_load"))
+		goto cleanup;
+	timer_mim_reject__destroy(timer_reject_skel);
+	timer_reject_skel = NULL;
+	libbpf_set_print(old_print_fn);
 
 	timer_skel = timer_mim__open_and_load();
 	if (!timer_skel && errno == EOPNOTSUPP) {
@@ -75,6 +97,7 @@ void serial_test_timer_mim(void)
 	err = timer_mim(timer_skel);
 	ASSERT_OK(err, "timer_mim");
 cleanup:
+	libbpf_set_print(old_print_fn);
 	timer_mim__destroy(timer_skel);
 	timer_mim_reject__destroy(timer_reject_skel);
 }

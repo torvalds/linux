@@ -1169,13 +1169,13 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			mqd_mgr = q->device->dqm->mqd_mgrs[mqd_type];
 			size = mqd_mgr->mqd_stride(mqd_mgr,
 							&q->properties);
-		}
 
-		for (xcc = 0; xcc < num_xccs; xcc++) {
-			mqd = q->mqd + size * xcc;
-			r = mqd_mgr->debugfs_show_mqd(m, mqd);
-			if (r != 0)
-				break;
+			for (xcc = 0; xcc < num_xccs; xcc++) {
+				mqd = q->mqd + size * xcc;
+				r = mqd_mgr->debugfs_show_mqd(m, mqd);
+				if (r != 0)
+					break;
+			}
 		}
 	}
 

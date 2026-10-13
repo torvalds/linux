@@ -93,7 +93,7 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	num_mmus = atomic_read(&kvm->online_vcpus) * S2_MMU_PER_VCPU;
 
 	if (num_mmus > kvm->arch.nested_mmus_size) {
-		tmp = kvcalloc(num_mmus, sizeof(*tmp), GFP_KERNEL_ACCOUNT);
+		tmp = kvzalloc_objs(*tmp, num_mmus, GFP_KERNEL_ACCOUNT);
 		if (!tmp)
 			return -ENOMEM;
 

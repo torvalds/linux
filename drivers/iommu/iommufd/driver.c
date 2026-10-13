@@ -49,7 +49,7 @@ int _iommufd_alloc_mmap(struct iommufd_ctx *ictx, struct iommufd_object *owner,
 	if (!length || !PAGE_ALIGNED(length))
 		return -EINVAL;
 
-	immap = kzalloc(sizeof(*immap), GFP_KERNEL);
+	immap = kzalloc_obj(*immap);
 	if (!immap)
 		return -ENOMEM;
 	immap->owner = owner;

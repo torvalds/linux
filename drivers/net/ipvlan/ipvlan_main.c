@@ -848,7 +848,6 @@ static int ipvlan_device_event(struct notifier_block *unused,
 				__ipvlan_link_delete(net, ipvlan->dev, &lst_kill);
 		}
 
-		unregister_netdevice_many(&lst_kill);
 		break;
 	}
 	case NETDEV_FEAT_CHANGE:
@@ -898,6 +897,9 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	}
 
 	mutex_unlock(&port->pnodes_lock);
+
+	/* Avoid invoking nested netdevice notifiers under pnodes_lock. */
+	unregister_netdevice_many(&lst_kill);
 
 	ipvlan_port_put(port);
 

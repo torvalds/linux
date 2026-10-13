@@ -69,7 +69,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 		err = -ENODEV;
 		goto __error2;
 	}
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (ctl == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -174,7 +174,7 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 					goto _found;
 				}
 			}
-			ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
+			ev = kzalloc_obj(*ev, GFP_ATOMIC);
 			if (ev) {
 				ev->id = *id;
 				ev->mask = mask;
@@ -871,7 +871,7 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 			     unsigned int cmd, void __user *arg)
 {
 	struct snd_ctl_card_info *info __free(kfree) =
-		kzalloc(sizeof(*info), GFP_KERNEL);
+		kzalloc_obj(*info);
 	ssize_t n;
 
 	if (! info)

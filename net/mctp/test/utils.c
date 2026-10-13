@@ -88,7 +88,7 @@ struct mctp_test_dev *mctp_test_create_dev_with_addr(mctp_eid_t addr)
 	if (!dev)
 		return NULL;
 
-	dev->mdev->addrs = kmalloc_objs(u8, 1, GFP_KERNEL);
+	dev->mdev->addrs = kmalloc_objs(u8, 1);
 	if (!dev->mdev->addrs) {
 		mctp_test_destroy_dev(dev);
 		return NULL;

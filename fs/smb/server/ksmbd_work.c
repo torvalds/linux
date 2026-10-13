@@ -30,7 +30,7 @@ static int ksmbd_reserve_iov(struct ksmbd_work *work, int need_iov_cnt)
 	} while (new_alloc_cnt < work->iov_cnt + need_iov_cnt);
 
 	if (work->iov == work->iov_inline) {
-		new = kcalloc(new_alloc_cnt, sizeof(*new), KSMBD_DEFAULT_GFP);
+		new = kzalloc_objs(*new, new_alloc_cnt, KSMBD_DEFAULT_GFP);
 		if (!new)
 			return -ENOMEM;
 

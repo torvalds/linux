@@ -1444,7 +1444,7 @@ static int _cs46xx_playback_open_channel (struct snd_pcm_substream *substream,in
 	struct snd_cs46xx_pcm * cpcm;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	cpcm = kzalloc(sizeof(*cpcm), GFP_KERNEL);
+	cpcm = kzalloc_obj(*cpcm);
 	if (cpcm == NULL)
 		return -ENOMEM;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,

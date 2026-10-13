@@ -235,10 +235,8 @@ static int highbank_mc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	res = devm_request_irq(&pdev->dev, irq, highbank_mc_err_handler,
 			       0, dev_name(&pdev->dev), mci);
-	if (res < 0) {
-		dev_err(&pdev->dev, "Unable to request irq %d\n", irq);
+	if (res < 0)
 		goto err2;
-	}
 
 	devres_close_group(&pdev->dev, NULL);
 	return 0;

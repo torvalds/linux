@@ -1071,14 +1071,8 @@ struct hdspm {
 
 
 static const struct pci_device_id snd_hdspm_ids[] = {
-	{
-	 .vendor = PCI_VENDOR_ID_XILINX,
-	 .device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI,
-	 .subvendor = PCI_ANY_ID,
-	 .subdevice = PCI_ANY_ID,
-	 .class = 0,
-	 .class_mask = 0,
-	 .driver_data = 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI) },
+	{ PCI_DEVICE(0x1d18, 0x3fc6) }, /* RME HDSPe AIO PCI express audio */
 	{0,}
 };
 

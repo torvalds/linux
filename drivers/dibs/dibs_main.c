@@ -251,12 +251,18 @@ static int __init dibs_init(void)
 
 	rc = class_register(&dibs_class);
 	if (rc)
-		return rc;
+		goto err;
 
 	rc = dibs_loopback_init();
 	if (rc)
-		pr_err("%s fails with %d\n", __func__, rc);
+		goto err_unregister;
 
+	return rc;
+
+err_unregister:
+	class_unregister(&dibs_class);
+err:
+	pr_err("%s fails with %d\n", __func__, rc);
 	return rc;
 }
 

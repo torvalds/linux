@@ -523,7 +523,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	} else if (boot_cpu_data.x86 == 0x1a) {
 		switch (boot_cpu_data.x86_model) {
-		case 0x00 ... 0x2f:	/* Zen5 Turin */
+		case 0x00 ... 0x1f:	/* Zen5 Turin */
 			data->ccd_offset = 0x1F0;
 			k10temp_get_ccd_support(data, 16);
 			break;

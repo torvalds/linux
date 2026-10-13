@@ -3254,7 +3254,7 @@ errout:
 	tcf_chain_put(chain);
 errout_block:
 	tcf_block_release(q, block, true);
-	if (err == -EAGAIN)
+	if (err == -EAGAIN && n->nlmsg_type == RTM_NEWCHAIN)
 		/* Replay the request. */
 		goto replay;
 	return err;

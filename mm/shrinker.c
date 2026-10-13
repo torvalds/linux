@@ -227,6 +227,8 @@ static int shrinker_memcg_alloc(struct shrinker *shrinker)
 {
 	int id;
 
+	shrinker->id = -1;
+
 	if (mem_cgroup_disabled())
 		return -ENOSYS;
 	if (mem_cgroup_kmem_disabled() && !(shrinker->flags & SHRINKER_NONSLAB))

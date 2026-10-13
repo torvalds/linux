@@ -155,6 +155,7 @@ int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	helper->fb = buffer->fb;
 
 	fbi->fbops = &msm_fb_ops;
+	fbi->flags |= FBINFO_VIRTFB; /* system memory */
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 

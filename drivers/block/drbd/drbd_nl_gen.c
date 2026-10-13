@@ -656,7 +656,7 @@ static int __drbd_cfg_context_from_attrs(struct drbd_cfg_context *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DRBD_CFG_CONTEXT_CTX_PEER_ADDR + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DRBD_CFG_CONTEXT_CTX_PEER_ADDR + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_drbd_cfg_context_nl_policy, NULL);
@@ -714,7 +714,7 @@ static int __disk_conf_from_attrs(struct disk_conf *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DISK_CONF_DISABLE_WRITE_SAME + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DISK_CONF_DISABLE_WRITE_SAME + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_disk_conf_nl_policy, NULL);
@@ -871,7 +871,7 @@ static int __res_opts_from_attrs(struct res_opts *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_RES_OPTS_ON_NO_DATA + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_RES_OPTS_ON_NO_DATA + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_res_opts_nl_policy, NULL);
@@ -921,7 +921,7 @@ static int __net_conf_from_attrs(struct net_conf *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_NET_CONF_SOCK_CHECK_TIMEO + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_NET_CONF_SOCK_CHECK_TIMEO + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_net_conf_nl_policy, NULL);
@@ -1087,7 +1087,7 @@ static int __set_role_parms_from_attrs(struct set_role_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_SET_ROLE_PARMS_ASSUME_UPTODATE + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_SET_ROLE_PARMS_ASSUME_UPTODATE + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_set_role_parms_nl_policy, NULL);
@@ -1133,7 +1133,7 @@ static int __resize_parms_from_attrs(struct resize_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_RESIZE_PARMS_AL_STRIPE_SIZE + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_RESIZE_PARMS_AL_STRIPE_SIZE + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_resize_parms_nl_policy, NULL);
@@ -1195,7 +1195,7 @@ static int __start_ov_parms_from_attrs(struct start_ov_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_START_OV_PARMS_OV_STOP_SECTOR + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_START_OV_PARMS_OV_STOP_SECTOR + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_start_ov_parms_nl_policy, NULL);
@@ -1245,7 +1245,7 @@ static int __new_c_uuid_parms_from_attrs(struct new_c_uuid_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_NEW_C_UUID_PARMS_CLEAR_BM + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_NEW_C_UUID_PARMS_CLEAR_BM + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_new_c_uuid_parms_nl_policy, NULL);
@@ -1291,7 +1291,7 @@ static int __disconnect_parms_from_attrs(struct disconnect_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DISCONNECT_PARMS_FORCE_DISCONNECT + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DISCONNECT_PARMS_FORCE_DISCONNECT + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_disconnect_parms_nl_policy, NULL);
@@ -1337,7 +1337,7 @@ static int __detach_parms_from_attrs(struct detach_parms *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DETACH_PARMS_FORCE_DETACH + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DETACH_PARMS_FORCE_DETACH + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_detach_parms_nl_policy, NULL);
@@ -1383,7 +1383,7 @@ static int __resource_info_from_attrs(struct resource_info *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_RESOURCE_INFO_RES_SUSP_FEN + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_RESOURCE_INFO_RES_SUSP_FEN + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_resource_info_nl_policy, NULL);
@@ -1441,7 +1441,7 @@ static int __device_info_from_attrs(struct device_info *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DEVICE_INFO_DEV_DISK_STATE + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DEVICE_INFO_DEV_DISK_STATE + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_device_info_nl_policy, NULL);
@@ -1487,7 +1487,7 @@ static int __connection_info_from_attrs(struct connection_info *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_CONNECTION_INFO_CONN_ROLE + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_CONNECTION_INFO_CONN_ROLE + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_connection_info_nl_policy, NULL);
@@ -1537,7 +1537,8 @@ static int __peer_device_info_from_attrs(struct peer_device_info *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_PEER_DEVICE_INFO_PEER_RESYNC_SUSP_DEPENDENCY + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb,
+			   DRBD_A_PEER_DEVICE_INFO_PEER_RESYNC_SUSP_DEPENDENCY + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_peer_device_info_nl_policy, NULL);
@@ -1599,7 +1600,8 @@ static int __resource_statistics_from_attrs(struct resource_statistics *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_RESOURCE_STATISTICS_RES_STAT_WRITE_ORDERING + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb,
+			   DRBD_A_RESOURCE_STATISTICS_RES_STAT_WRITE_ORDERING + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_resource_statistics_nl_policy, NULL);
@@ -1645,7 +1647,7 @@ static int __device_statistics_from_attrs(struct device_statistics *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_DEVICE_STATISTICS_HISTORY_UUIDS + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb, DRBD_A_DEVICE_STATISTICS_HISTORY_UUIDS + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_device_statistics_nl_policy, NULL);
@@ -1743,7 +1745,8 @@ static int __connection_statistics_from_attrs(struct connection_statistics *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_CONNECTION_STATISTICS_CONN_CONGESTED + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb,
+			   DRBD_A_CONNECTION_STATISTICS_CONN_CONGESTED + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_connection_statistics_nl_policy, NULL);
@@ -1789,7 +1792,8 @@ static int __peer_device_statistics_from_attrs(struct peer_device_statistics *s,
 		*ret_nested_attribute_table = NULL;
 	if (!tla)
 		return -ENOMSG;
-	ntb = kcalloc(DRBD_A_PEER_DEVICE_STATISTICS_PEER_DEV_FLAGS + 1, sizeof(*ntb), GFP_KERNEL);
+	ntb = kzalloc_objs(*ntb,
+			   DRBD_A_PEER_DEVICE_STATISTICS_PEER_DEV_FLAGS + 1);
 	if (!ntb)
 		return -ENOMEM;
 	err = nla_parse_nested_deprecated(ntb, maxtype, tla, drbd_peer_device_statistics_nl_policy, NULL);

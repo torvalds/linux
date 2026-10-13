@@ -1582,13 +1582,14 @@ static void arm_cmn_claim_wp_idx(struct arm_cmn_dtm *dtm,
 
 static u32 arm_cmn_wp_config(struct perf_event *event, int wp_idx)
 {
+	struct arm_cmn *cmn = to_cmn(event->pmu);
 	u32 config;
 	u32 dev = CMN_EVENT_WP_DEV_SEL(event);
 	u32 chn = CMN_EVENT_WP_CHN_SEL(event);
 	u32 grp = CMN_EVENT_WP_GRP(event);
 	u32 exc = CMN_EVENT_WP_EXCLUSIVE(event);
 	u32 combine = CMN_EVENT_WP_COMBINE(event);
-	bool is_cmn600 = to_cmn(event->pmu)->part == PART_CMN600;
+	bool is_cmn600 = cmn->part == PART_CMN600;
 
 	/* CMN-600 supports only primary and secondary matching groups */
 	if (is_cmn600)
@@ -1596,8 +1597,11 @@ static u32 arm_cmn_wp_config(struct perf_event *event, int wp_idx)
 
 	config = FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL, dev) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_CHN_SEL, chn) |
-		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_GRP, grp) |
-		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL2, dev >> 1);
+		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_GRP, grp);
+
+	if (!cmn->multi_dtm)
+		config |= FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL2, dev >> 1);
+
 	if (exc)
 		config |= is_cmn600 ? CMN600_WPn_CONFIG_WP_EXCLUSIVE :
 				      CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE;

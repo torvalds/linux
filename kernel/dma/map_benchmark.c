@@ -51,8 +51,7 @@ struct dma_single_map_param {
 
 static void *dma_single_map_benchmark_prepare(struct map_benchmark_data *map)
 {
-	struct dma_single_map_param *params __free(kfree) = kzalloc(sizeof(*params),
-								    GFP_KERNEL);
+	struct dma_single_map_param *params __free(kfree) = kzalloc_obj(*params);
 	if (!params)
 		return NULL;
 

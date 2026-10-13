@@ -62,6 +62,104 @@ int timer_sleepable_prog(void *ctx)
 	return 0;
 }
 
+static int timer_sys_bpf_cb(void *map, int *key, struct bpf_timer *timer)
+{
+	__u64 attr = 0;
+
+	bpf_sys_bpf(BPF_MAP_FREEZE, &attr, sizeof(attr));
+	return 0;
+}
+
+SEC("syscall")
+__failure __msg("sleepable helper bpf_sys_bpf#{{[0-9]+}} in non-sleepable prog")
+int timer_sys_bpf_prog(void *ctx)
+{
+	struct timer_elem *val;
+	int key = 0;
+
+	val = bpf_map_lookup_elem(&timer_map, &key);
+	if (!val)
+		return 0;
+
+	bpf_timer_init(&val->t, &timer_map, 0);
+	bpf_timer_set_callback(&val->t, timer_sys_bpf_cb);
+	return 0;
+}
+
+static int timer_sys_close_cb(void *map, int *key, struct bpf_timer *timer)
+{
+	bpf_sys_close(0);
+	return 0;
+}
+
+SEC("syscall")
+__failure __msg("sleepable helper bpf_sys_close#{{[0-9]+}} in non-sleepable prog")
+int timer_sys_close_prog(void *ctx)
+{
+	struct timer_elem *val;
+	int key = 0;
+
+	val = bpf_map_lookup_elem(&timer_map, &key);
+	if (!val)
+		return 0;
+
+	bpf_timer_init(&val->t, &timer_map, 0);
+	bpf_timer_set_callback(&val->t, timer_sys_close_cb);
+	return 0;
+}
+
+static int timer_btf_find_cb(void *map, int *key, struct bpf_timer *timer)
+{
+	char name[] = "task_struct";
+
+	bpf_btf_find_by_name_kind(name, sizeof(name), BTF_KIND_STRUCT, 0);
+	return 0;
+}
+
+SEC("syscall")
+__failure __msg("sleepable helper bpf_btf_find_by_name_kind#{{[0-9]+}} in non-sleepable prog")
+int timer_btf_find_prog(void *ctx)
+{
+	struct timer_elem *val;
+	int key = 0;
+
+	val = bpf_map_lookup_elem(&timer_map, &key);
+	if (!val)
+		return 0;
+
+	bpf_timer_init(&val->t, &timer_map, 0);
+	bpf_timer_set_callback(&val->t, timer_btf_find_cb);
+	return 0;
+}
+
+SEC("syscall")
+__success
+int syscall_sys_bpf_prog(void *ctx)
+{
+	__u64 attr = 0;
+
+	bpf_sys_bpf(BPF_MAP_FREEZE, &attr, sizeof(attr));
+	return 0;
+}
+
+SEC("syscall")
+__success
+int syscall_sys_close_prog(void *ctx)
+{
+	bpf_sys_close(0);
+	return 0;
+}
+
+SEC("syscall")
+__success
+int syscall_btf_find_prog(void *ctx)
+{
+	char name[] = "task_struct";
+
+	bpf_btf_find_by_name_kind(name, sizeof(name), BTF_KIND_STRUCT, 0);
+	return 0;
+}
+
 /* Workqueue tests */
 
 struct wq_elem {

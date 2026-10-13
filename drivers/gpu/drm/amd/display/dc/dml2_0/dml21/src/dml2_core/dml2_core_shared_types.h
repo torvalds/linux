@@ -1819,8 +1819,8 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_param
 	bool UnboundedRequestEnabled;
 	unsigned int CompressedBufferSizeInkByte;
 	bool max_outstanding_when_urgent_expected;
-	const unsigned int max_outstanding_requests;
-	const unsigned int max_request_size_bytes;
+	unsigned int max_outstanding_requests;
+	unsigned int max_request_size_bytes;
 	const unsigned int *meta_row_height_l;
 	const unsigned int *meta_row_height_c;
 	const enum dml2_pstate_method *uclk_pstate_switch_modes;

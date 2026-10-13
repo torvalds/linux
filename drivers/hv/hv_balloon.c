@@ -939,7 +939,7 @@ static unsigned long process_hot_add(unsigned long pg_start,
 	 */
 
 	if (rg_size != 0) {
-		ha_region = kzalloc(sizeof(struct hv_hotadd_state), GFP_KERNEL);
+		ha_region = kzalloc_obj(struct hv_hotadd_state);
 		if (!ha_region)
 			return 0;
 

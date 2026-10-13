@@ -6,8 +6,10 @@
  */
 
 #define _GNU_SOURCE
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/landlock.h>
 #include <sched.h>
 #include <stdio.h>
@@ -22,6 +24,63 @@
 #include "trace.h"
 
 #define TRACE_TASK "trace_fs_test"
+
+/* Mirrors TRACE_SEQ_SIZE, conservatively larger than the usable buffer. */
+#define TRACE_SEQUENCE_SIZE 8192
+#define OCTAL_ESCAPE_LEN 4
+#define LONG_PATH_COMPONENT_COUNT 11
+#define LONG_PATH_COMPONENT_LEN 240
+#define LONG_PATH_LEN                                                \
+	(LONG_PATH_COMPONENT_COUNT * (LONG_PATH_COMPONENT_LEN + 1) + \
+	 sizeof("/tmp"))
+#define LONG_ESCAPED_PATH_LEN \
+	(LONG_PATH_COMPONENT_COUNT * LONG_PATH_COMPONENT_LEN * OCTAL_ESCAPE_LEN)
+
+static_assert(LONG_ESCAPED_PATH_LEN > TRACE_SEQUENCE_SIZE,
+	      "escaped path must exceed the trace sequence");
+static_assert(LONG_PATH_LEN < PATH_MAX, "path must fit in PATH_MAX");
+
+static void create_long_path(struct __test_metadata *const _metadata,
+			     char *path)
+{
+	size_t path_len;
+
+	strcpy(path, "/tmp");
+	path_len = strlen(path);
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount("tmpfs", "/tmp", "tmpfs", 0, NULL));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	for (int i = 0; i < LONG_PATH_COMPONENT_COUNT; i++) {
+		path[path_len++] = '/';
+		memset(path + path_len, ' ', LONG_PATH_COMPONENT_LEN);
+		path_len += LONG_PATH_COMPONENT_LEN;
+		path[path_len] = '\0';
+		ASSERT_EQ(0, mkdir(path, 0700));
+	}
+}
+
+static void expect_truncated_path(struct __test_metadata *const _metadata,
+				  const char *const trace,
+				  const char *const event_regex)
+{
+	static const char marker[] = "\xe2\x80\xa6";
+	char *path;
+	size_t path_len;
+
+	path = malloc(TRACE_SEQUENCE_SIZE);
+	ASSERT_NE(NULL, path);
+	ASSERT_EQ(0, tracefs_extract_field(trace, event_regex, "path", path,
+					   TRACE_SEQUENCE_SIZE));
+	EXPECT_EQ(path, strstr(path, "/tmp/"));
+	EXPECT_NE(NULL, strstr(path, "\\040"));
+
+	path_len = strlen(path);
+	ASSERT_LE(sizeof(marker) - 1, path_len);
+	EXPECT_STREQ(marker, path + path_len - (sizeof(marker) - 1));
+	free(path);
+}
 
 /*
  * Like REGEX_DENY_ACCESS_FS(), but pins the logged field to a specific value
@@ -179,6 +238,107 @@ TEST_F(trace_fs, add_rule_fs)
 		  tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
 					"path", field_buf, sizeof(field_buf)));
 	EXPECT_STREQ("/usr", field_buf);
+
+	free(buf);
+}
+
+/*
+ * Verifies that a path whose escaping exceeds the trace scratch sequence does
+ * not corrupt a sibling symbolic field.
+ */
+TEST_F(trace_fs, add_rule_fs_escaped_path_overflow)
+{
+	static const char access_prefix[] = "execute|write_file|read_file|";
+	static const char access_suffix[] = "|ioctl_dev|resolve_unix";
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	struct landlock_path_beneath_attr path_beneath = {
+		.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	char path[PATH_MAX];
+	char *buf, field_buf[256];
+	size_t field_len;
+	int ruleset_fd, count;
+
+	create_long_path(_metadata, path);
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	path_beneath.parent_fd = open(path, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath.parent_fd);
+
+	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				       &path_beneath, 0));
+	ASSERT_EQ(0, close(path_beneath.parent_fd));
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_ADD_RULE_FS(TRACE_TASK));
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 add_rule_fs event, got %d\n%s", count, buf);
+	}
+
+	/*
+	 * The marker catches a full revert with any compiler.  The symbolic
+	 * field also catches scratch-sequence poisoning when the compiler
+	 * evaluates the overflowing path first, as GCC currently does.
+	 */
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_ADD_RULE_FS(TRACE_TASK),
+					   "access_rights", field_buf,
+					   sizeof(field_buf)));
+	EXPECT_EQ(0,
+		  strncmp(field_buf, access_prefix, sizeof(access_prefix) - 1));
+	EXPECT_EQ(NULL, strstr(field_buf, "|refer|"));
+	field_len = strlen(field_buf);
+	ASSERT_LE(sizeof(access_suffix) - 1, field_len);
+	EXPECT_STREQ(access_suffix,
+		     field_buf + field_len - (sizeof(access_suffix) - 1));
+	expect_truncated_path(_metadata, buf, REGEX_ADD_RULE_FS(TRACE_TASK));
+
+	free(buf);
+}
+
+/*
+ * Verifies that an overflowing denied path does not corrupt its sibling
+ * symbolic blockers field.
+ */
+TEST_F(trace_fs, deny_access_fs_escaped_path_overflow)
+{
+	char path[PATH_MAX];
+	char *buf, field_buf[64];
+	int count, err;
+
+	create_long_path(_metadata, path);
+	ASSERT_EQ(0, tracefs_clear_buf());
+
+	sandbox_child_fs_access(_metadata, "/usr", LANDLOCK_ACCESS_FS_READ_DIR,
+				LANDLOCK_ACCESS_FS_READ_DIR, path);
+
+	buf = tracefs_read_buf();
+	ASSERT_NE(NULL, buf);
+
+	count = tracefs_count_matches(buf, REGEX_DENY_ACCESS_FS(TRACE_TASK));
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 deny_access_fs event, got %d\n%s", count,
+		       buf);
+	}
+
+	/*
+	 * The marker catches a full revert with any compiler.  The symbolic
+	 * field also catches scratch-sequence poisoning when the compiler
+	 * evaluates the overflowing path first, as GCC currently does.
+	 */
+	err = tracefs_extract_field(buf, REGEX_DENY_ACCESS_FS(TRACE_TASK),
+				    "blockers", field_buf, sizeof(field_buf));
+	ASSERT_EQ(0, err);
+	EXPECT_STREQ("read_dir", field_buf);
+	expect_truncated_path(_metadata, buf, REGEX_DENY_ACCESS_FS(TRACE_TASK));
 
 	free(buf);
 }

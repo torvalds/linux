@@ -6,6 +6,7 @@
  * Copyright © 2026 Cloudflare, Inc.
  */
 
+#include <kunit/test.h>
 #include <linux/cleanup.h>
 #include <linux/dcache.h>
 #include <linux/err.h>
@@ -183,3 +184,184 @@ void landlock_trace_denial(
 		break;
 	}
 }
+
+#ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
+
+static void test_trace_seq_init(struct trace_seq *const seq, const size_t size)
+{
+	memset(seq, 0, sizeof(*seq));
+	seq_buf_init(&seq->seq, seq->buffer, size);
+}
+
+static void test_untrusted_str_data(struct kunit *const test)
+{
+	const char binary[] = { 'a', '\0', '<' };
+	static const char ellipsis[] = "\xe2\x80\xa6";
+	struct trace_seq *const seq =
+		kunit_kzalloc(test, sizeof(*seq), GFP_KERNEL);
+	const char *output;
+
+	KUNIT_ASSERT_NOT_NULL(test, seq);
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, "<too_long>", 10);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, "<too_long>");
+
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, binary, sizeof(binary));
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, "a\\000<");
+
+	/* Input ellipsis bytes are escaped and cannot mimic the raw marker. */
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, ellipsis,
+					     sizeof(ellipsis) - 1);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, "\\342\\200\\246");
+}
+
+static void test_untrusted_str_boundaries(struct kunit *const test)
+{
+	static const char escaped_space[] = "\\040";
+	const size_t output_size = TRACE_UNTRUSTED_STR_OUTPUT_SIZE;
+	const size_t marker_len = sizeof(TRACE_TRUNCATION_MARKER) - 1;
+	const size_t escape_len = sizeof(escaped_space) - 1;
+	const size_t exact_prefix_len =
+		output_size - marker_len - 1 - escape_len;
+	const size_t short_prefix_len = exact_prefix_len + 1;
+	struct trace_seq *const seq =
+		kunit_kzalloc(test, sizeof(*seq), GFP_KERNEL);
+	char *const input = kunit_kmalloc(test, output_size + 1, GFP_KERNEL);
+	char *const expected = kunit_kmalloc(test, output_size, GFP_KERNEL);
+	const char *output;
+
+	KUNIT_ASSERT_NOT_NULL(test, seq);
+	KUNIT_ASSERT_NOT_NULL(test, input);
+	KUNIT_ASSERT_NOT_NULL(test, expected);
+
+	/* The escaped string and its trailing NUL exactly fit the limit. */
+	memset(input, 'a', output_size - 1);
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, input, output_size - 1);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_EQ(test, seq->seq.len, output_size);
+	KUNIT_EXPECT_EQ(test, memcmp(output, input, output_size - 1), 0);
+
+	/* Stop before a four-byte escape when only three bytes remain. */
+	memset(input, 'a', short_prefix_len);
+	input[short_prefix_len] = ' ';
+	memset(input + short_prefix_len + 1, 'b', 5);
+	memset(expected, 'a', short_prefix_len);
+	memcpy(expected + short_prefix_len, TRACE_TRUNCATION_MARKER,
+	       marker_len + 1);
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, input, short_prefix_len + 6);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, expected);
+
+	/* Include a four-byte escape that exactly fills the prefix capacity. */
+	memset(input, 'a', exact_prefix_len);
+	input[exact_prefix_len] = ' ';
+	memset(input + exact_prefix_len + 1, 'b', marker_len + 1);
+	memset(expected, 'a', exact_prefix_len);
+	memcpy(expected + exact_prefix_len, escaped_space, escape_len);
+	memcpy(expected + exact_prefix_len + escape_len,
+	       TRACE_TRUNCATION_MARKER, marker_len + 1);
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, input,
+					     exact_prefix_len + marker_len + 2);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, expected);
+
+	/* Literal backslashes remain escaped in complete output. */
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	output = __trace_print_untrusted_str(seq, "/\\000", 5);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, "/\\\\000");
+}
+
+static void test_untrusted_str_cursor(struct kunit *const test)
+{
+	const size_t padding_len =
+		TRACE_SEQ_BUFFER_SIZE - TRACE_UNTRUSTED_STR_OUTPUT_SIZE + 1;
+	struct trace_seq *const seq =
+		kunit_kzalloc(test, sizeof(*seq), GFP_KERNEL);
+	char *const padding = kunit_kzalloc(test, padding_len, GFP_KERNEL);
+	const char *output;
+
+	KUNIT_ASSERT_NOT_NULL(test, seq);
+	KUNIT_ASSERT_NOT_NULL(test, padding);
+
+	/* Accept available space exactly equal to the fixed reservation. */
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	trace_seq_putmem(seq, padding, padding_len - 1);
+	output = __trace_print_untrusted_str(seq, "/a", 2);
+	KUNIT_ASSERT_NOT_NULL(test, output);
+	KUNIT_EXPECT_STREQ(test, output, "/a");
+	KUNIT_EXPECT_EQ(test, seq->seq.len, padding_len - 1 + sizeof("/a"));
+
+	/* Reject one byte less without changing the scratch cursor. */
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	trace_seq_putmem(seq, padding, padding_len);
+	output = __trace_print_untrusted_str(seq, "/a", 2);
+	KUNIT_EXPECT_NULL(test, output);
+	KUNIT_EXPECT_EQ(test, seq->seq.len, padding_len);
+}
+
+static void test_untrusted_str_composition(struct kunit *const test)
+{
+	static const struct trace_print_flags flags[] = {
+		{ .mask = 1, .name = "read" },
+	};
+	const size_t output_size = TRACE_UNTRUSTED_STR_OUTPUT_SIZE;
+	const size_t prefix_len = output_size - sizeof(TRACE_TRUNCATION_MARKER);
+	struct trace_seq *const seq =
+		kunit_kzalloc(test, sizeof(*seq), GFP_KERNEL);
+	char *const expected = kunit_kmalloc(test, output_size, GFP_KERNEL);
+	char *const path = kunit_kmalloc(test, output_size, GFP_KERNEL);
+	const char *flags_output, *path_output;
+
+	KUNIT_ASSERT_NOT_NULL(test, seq);
+	KUNIT_ASSERT_NOT_NULL(test, expected);
+	KUNIT_ASSERT_NOT_NULL(test, path);
+	memset(path, 'a', output_size);
+	memset(expected, 'a', prefix_len);
+	memcpy(expected + prefix_len, TRACE_TRUNCATION_MARKER,
+	       sizeof(TRACE_TRUNCATION_MARKER));
+
+	/* Exercise both legal TP_printk() sibling evaluation orders. */
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	path_output = __trace_print_untrusted_str(seq, path, output_size);
+	flags_output =
+		trace_print_flags_seq(seq, "|", 1, flags, ARRAY_SIZE(flags));
+	KUNIT_ASSERT_NOT_NULL(test, path_output);
+	KUNIT_EXPECT_STREQ(test, path_output, expected);
+	KUNIT_EXPECT_STREQ(test, flags_output, "read");
+
+	test_trace_seq_init(seq, TRACE_SEQ_BUFFER_SIZE);
+	flags_output =
+		trace_print_flags_seq(seq, "|", 1, flags, ARRAY_SIZE(flags));
+	path_output = __trace_print_untrusted_str(seq, path, output_size);
+	KUNIT_ASSERT_NOT_NULL(test, path_output);
+	KUNIT_EXPECT_STREQ(test, path_output, expected);
+	KUNIT_EXPECT_STREQ(test, flags_output, "read");
+}
+
+static struct kunit_case test_cases[] = {
+	/* clang-format off */
+	KUNIT_CASE(test_untrusted_str_data),
+	KUNIT_CASE(test_untrusted_str_boundaries),
+	KUNIT_CASE(test_untrusted_str_cursor),
+	KUNIT_CASE(test_untrusted_str_composition),
+	{}
+	/* clang-format on */
+};
+
+static struct kunit_suite test_suite = {
+	.name = "landlock_trace",
+	.test_cases = test_cases,
+};
+
+kunit_test_suite(test_suite);
+
+#endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */

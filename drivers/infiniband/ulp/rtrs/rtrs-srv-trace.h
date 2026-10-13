@@ -61,7 +61,7 @@ TRACE_EVENT(send_io_resp_imm,
 		__entry->msg_id = id->msg_id;
 		__entry->wr_cnt = atomic_read(&con->c.wr_cnt);
 		__entry->signal_interval = s->signal_interval;
-		memcpy(__entry->sessname, kobject_name(&srv_path->kobj), NAME_MAX);
+		strscpy(__entry->sessname, kobject_name(&srv_path->kobj) ?: "", NAME_MAX);
 	),
 
 	TP_printk("sess='%s' state='%s' dir=%s err='%d' inval='%d' glob-inval='%d' msgid='%u' wrcnt='%d' sig-interval='%u'",

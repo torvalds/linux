@@ -439,8 +439,7 @@ int eea_adminq_dev_status(struct eea_net *enet,
 	q_num = enet->cfg.rx_ring_num + enet->cfg.tx_ring_num + 1;
 	io_num = enet->cfg.rx_ring_num + enet->cfg.tx_ring_num;
 
-	req = kcalloc(q_num, sizeof(struct eea_aq_queue_drv_status),
-		      GFP_KERNEL);
+	req = kzalloc_objs(struct eea_aq_queue_drv_status, q_num);
 	if (!req)
 		return -ENOMEM;
 
@@ -486,11 +485,11 @@ void eea_adminq_config_host_info(struct eea_net *enet)
 	struct eea_aq_host_info_rep *rep;
 	int rc = -ENOMEM;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return;
 
-	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kzalloc_obj(*rep);
 	if (!rep)
 		goto err_free_cfg;
 

@@ -113,4 +113,82 @@ int with_valid_ctx_access_test6(struct bpf_nf_ctx *ctx)
 	return th->dest == bpf_htons(22) ? NF_ACCEPT : NF_DROP;
 }
 
+SEC("netfilter")
+__description("netfilter test prog with skb write access")
+__failure __msg("only read is supported")
+int skb_len_write(struct bpf_nf_ctx *ctx)
+{
+	ctx->skb->len = 1;
+	return 1;
+}
+
+SEC("netfilter")
+__description("netfilter test prog with skb data write access")
+__failure __msg("cannot write into rdonly_untrusted_mem")
+int skb_data_write(struct bpf_nf_ctx *ctx)
+{
+	ctx->skb->data[0] = 0;
+	return 1;
+}
+
+SEC("netfilter")
+__description("netfilter test prog with bpf_dynptr_write")
+__success __failure_unpriv
+__retval(0)
+int with_dynptr_write(struct bpf_nf_ctx *ctx)
+{
+	struct __sk_buff *skb = (struct __sk_buff *)ctx->skb;
+	struct bpf_dynptr ptr;
+	u8 buffer[1] = {};
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr))
+		return 1;
+
+	if (bpf_dynptr_write(&ptr, 0, buffer, sizeof(buffer), 0))
+		return 0; /* must always fail */
+
+	return 1;
+}
+
+SEC("netfilter")
+__description("netfilter test prog with bpf_dynptr_slice_rdwr")
+__failure __msg("the prog does not allow writes to packet data")
+int with_dynptr_rdwr(struct bpf_nf_ctx *ctx)
+{
+	struct __sk_buff *skb = (struct __sk_buff *)ctx->skb;
+	u8 buffer_iph[20] = {};
+	struct bpf_dynptr ptr;
+	struct iphdr *iph;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr))
+		return 1;
+
+	iph = bpf_dynptr_slice_rdwr(&ptr, 0, buffer_iph, sizeof(buffer_iph));
+	if (!iph)
+		return 0;
+
+	return 1;
+}
+
+SEC("netfilter")
+__description("netfilter test prog with bpf_dynptr_slice + write")
+__failure __msg("cannot write into rdonly_mem")
+int with_dynptr_store(struct bpf_nf_ctx *ctx)
+{
+	struct __sk_buff *skb = (struct __sk_buff *)ctx->skb;
+	u8 buffer_iph[20] = {};
+	struct bpf_dynptr ptr;
+	struct iphdr *iph;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr))
+		return 1;
+
+	iph = bpf_dynptr_slice(&ptr, 0, buffer_iph, sizeof(buffer_iph));
+	if (!iph)
+		return 0;
+	iph->protocol = 42;
+
+	return 1;
+}
+
 char _license[] SEC("license") = "GPL";

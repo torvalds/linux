@@ -116,7 +116,7 @@ static inline void *get_index(void *start, int entsize, int index)
 }
 
 static int extable_ent_size;
-static int long_size;
+static int long_size __maybe_unused;
 
 #define ERRSTR_MAXSZ	256
 

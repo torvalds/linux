@@ -261,7 +261,6 @@ static inline int xchk_nothing(struct xfs_scrub *sc)
 }
 
 /* Metadata scrubbers */
-int xchk_tester(struct xfs_scrub *sc);
 int xchk_superblock(struct xfs_scrub *sc);
 int xchk_agf(struct xfs_scrub *sc);
 int xchk_agfl(struct xfs_scrub *sc);

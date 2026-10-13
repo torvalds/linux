@@ -10,6 +10,7 @@
 #![no_std]
 #![allow(
     clippy::all,
+    clippy::as_underscore,
     clippy::cast_lossless,
     clippy::ptr_as_ptr,
     clippy::ref_as_ptr,
@@ -23,7 +24,8 @@
     unreachable_pub,
     unsafe_op_in_unsafe_fn
 )]
-#![cfg_attr(CONFIG_RUSTC_HAS_UNNECESSARY_TRANSMUTES, allow(unnecessary_transmutes))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_UNNECESSARY_TRANSMUTES), allow(unknown_lints))]
+#![allow(unnecessary_transmutes)]
 #![cfg_attr(
     CONFIG_RUSTC_HAS_SUSPICIOUS_RUNTIME_SYMBOL_DEFINITIONS,
     allow(suspicious_runtime_symbol_definitions)
