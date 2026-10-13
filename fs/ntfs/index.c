@@ -812,6 +812,9 @@ static int ntfs_icx_parent_dec(struct ntfs_index_context *icx)
  * after the search @key, i.e. this is the position in the index at which
  * an index entry with a key of @key would need to be inserted.
  *
+ * If the index cannot be searched, a negative error code other than -ENOENT
+ * is returned and @icx does not describe a valid index entry.
+ *
  * When finished with the entry and its data, call ntfs_index_ctx_put() to free
  * the context and other associated resources.
  *
@@ -877,7 +880,7 @@ int ntfs_index_lookup(const void *key, const u32 key_len, struct ntfs_index_cont
 	/* Child node present, descend into it. */
 	icx->ia_ni = ntfs_ia_open(icx, ni);
 	if (!icx->ia_ni) {
-		err = -ENOENT;
+		err = -EIO;
 		goto err_out;
 	}
 
