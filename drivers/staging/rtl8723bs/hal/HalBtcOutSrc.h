@@ -10,28 +10,13 @@
 #define NORMAL_EXEC		false
 #define FORCE_EXEC		true
 
-#define BTC_RF_OFF		0x0
-#define BTC_RF_ON		0x1
-
 #define BTC_RF_A		0x0
-#define BTC_RF_B		0x1
-#define BTC_RF_C		0x2
-#define BTC_RF_D		0x3
 
 #define BTC_SMSP		SINGLEMAC_SINGLEPHY
-#define BTC_DMDP		DUALMAC_DUALPHY
-#define BTC_DMSP		DUALMAC_SINGLEPHY
-#define BTC_MP_UNKNOWN		0xff
 
 #define BT_COEX_ANT_TYPE_PG	0
 #define BT_COEX_ANT_TYPE_ANTDIV		1
 #define BT_COEX_ANT_TYPE_DETECTED	2
-
-#define BTC_MIMO_PS_STATIC	0	/*  1ss */
-#define BTC_MIMO_PS_DYNAMIC	1	/*  2ss */
-
-#define BTC_RATE_DISABLE	0
-#define BTC_RATE_ENABLE		1
 
 /*  single Antenna definition */
 #define BTC_ANT_PATH_WIFI	0
@@ -40,9 +25,6 @@
 /*  dual Antenna definition */
 #define BTC_ANT_WIFI_AT_MAIN	0
 #define BTC_ANT_WIFI_AT_AUX	1
-/*  coupler Antenna definition */
-#define BTC_ANT_WIFI_AT_CPL_MAIN	0
-#define BTC_ANT_WIFI_AT_CPL_AUX		1
 
 enum {
 	BTC_PS_WIFI_NATIVE	= 0,	/*  wifi original power save behavior */
@@ -71,7 +53,6 @@ enum btc_chip_interface {
 /*  following is for wifi link status */
 #define WIFI_STA_CONNECTED				BIT(0)
 #define WIFI_AP_CONNECTED				BIT(1)
-#define WIFI_HS_CONNECTED				BIT(2)
 #define WIFI_P2P_GO_CONNECTED			BIT(3)
 #define WIFI_P2P_GC_CONNECTED			BIT(4)
 
@@ -94,7 +75,6 @@ enum {
 };
 #define BTC_RSSI_HIGH(_rssi_)	((_rssi_ == BTC_RSSI_STATE_HIGH || _rssi_ == BTC_RSSI_STATE_STAY_HIGH) ? true : false)
 #define BTC_RSSI_MEDIUM(_rssi_)	((_rssi_ == BTC_RSSI_STATE_MEDIUM || _rssi_ == BTC_RSSI_STATE_STAY_MEDIUM) ? true : false)
-#define BTC_RSSI_LOW(_rssi_)	((_rssi_ == BTC_RSSI_STATE_LOW || _rssi_ == BTC_RSSI_STATE_STAY_LOW) ? true : false)
 
 enum {
 	BTC_WIFI_BW_LEGACY			= 0x0,
