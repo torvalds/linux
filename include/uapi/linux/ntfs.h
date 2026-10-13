@@ -86,7 +86,7 @@ struct ntfs_stream_entry {
 	__aligned_u64 alloc_size;
 	__u32 name_len;
 	__u32 name_offset;
-	__u32 reserved;
+	__aligned_u64 reserved;
 	__u8 name[];
 };
 
