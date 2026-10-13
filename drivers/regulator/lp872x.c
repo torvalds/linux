@@ -471,6 +471,7 @@ static const struct regulator_ops lp8725_buck_ops = {
 static const struct regulator_desc lp8720_regulator_desc[] = {
 	{
 		.name = "ldo1",
+		.supply_name = "vbatt",
 		.of_match = of_match_ptr("ldo1"),
 		.id = LP8720_ID_LDO1,
 		.ops = &lp872x_ldo_ops,
@@ -485,6 +486,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo2",
+		.supply_name = "vin1",
 		.of_match = of_match_ptr("ldo2"),
 		.id = LP8720_ID_LDO2,
 		.ops = &lp872x_ldo_ops,
@@ -499,6 +501,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo3",
+		.supply_name = "vin1",
 		.of_match = of_match_ptr("ldo3"),
 		.id = LP8720_ID_LDO3,
 		.ops = &lp872x_ldo_ops,
@@ -513,6 +516,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo4",
+		.supply_name = "vin2",
 		.of_match = of_match_ptr("ldo4"),
 		.id = LP8720_ID_LDO4,
 		.ops = &lp872x_ldo_ops,
@@ -527,6 +531,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "ldo5",
+		.supply_name = "vin2",
 		.of_match = of_match_ptr("ldo5"),
 		.id = LP8720_ID_LDO5,
 		.ops = &lp872x_ldo_ops,
@@ -541,6 +546,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 	},
 	{
 		.name = "buck",
+		.supply_name = "vinb",
 		.of_match = of_match_ptr("buck"),
 		.id = LP8720_ID_BUCK,
 		.ops = &lp8720_buck_ops,
@@ -556,6 +562,7 @@ static const struct regulator_desc lp8720_regulator_desc[] = {
 static const struct regulator_desc lp8725_regulator_desc[] = {
 	{
 		.name = "ldo1",
+		.supply_name = "vin1",
 		.of_match = of_match_ptr("ldo1"),
 		.id = LP8725_ID_LDO1,
 		.ops = &lp872x_ldo_ops,
@@ -570,6 +577,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo2",
+		.supply_name = "vin2",
 		.of_match = of_match_ptr("ldo2"),
 		.id = LP8725_ID_LDO2,
 		.ops = &lp872x_ldo_ops,
@@ -584,6 +592,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo3",
+		.supply_name = "vin2",
 		.of_match = of_match_ptr("ldo3"),
 		.id = LP8725_ID_LDO3,
 		.ops = &lp872x_ldo_ops,
@@ -598,6 +607,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo4",
+		.supply_name = "vin3",
 		.of_match = of_match_ptr("ldo4"),
 		.id = LP8725_ID_LDO4,
 		.ops = &lp872x_ldo_ops,
@@ -612,6 +622,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "ldo5",
+		.supply_name = "vin3",
 		.of_match = of_match_ptr("ldo5"),
 		.id = LP8725_ID_LDO5,
 		.ops = &lp872x_ldo_ops,
@@ -626,6 +637,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "lilo1",
+		.supply_name = "vinlilo1",
 		.of_match = of_match_ptr("lilo1"),
 		.id = LP8725_ID_LILO1,
 		.ops = &lp872x_ldo_ops,
@@ -640,6 +652,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "lilo2",
+		.supply_name = "vinlilo2",
 		.of_match = of_match_ptr("lilo2"),
 		.id = LP8725_ID_LILO2,
 		.ops = &lp872x_ldo_ops,
@@ -654,6 +667,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "buck1",
+		.supply_name = "vinb",
 		.of_match = of_match_ptr("buck1"),
 		.id = LP8725_ID_BUCK1,
 		.ops = &lp8725_buck_ops,
@@ -670,6 +684,7 @@ static const struct regulator_desc lp8725_regulator_desc[] = {
 	},
 	{
 		.name = "buck2",
+		.supply_name = "vinb",
 		.of_match = of_match_ptr("buck2"),
 		.id = LP8725_ID_BUCK2,
 		.ops = &lp8725_buck_ops,
@@ -745,6 +760,7 @@ static const struct regmap_config lp872x_regmap_config = {
 static int lp872x_probe(struct i2c_client *cl)
 {
 	struct device *dev = &cl->dev;
+	const char *in_supply_name;
 	struct lp872x *lp;
 	int ret;
 
@@ -760,6 +776,12 @@ static int lp872x_probe(struct i2c_client *cl)
 	if (IS_ERR(lp->regmap))
 		return dev_err_probe(dev, PTR_ERR(lp->regmap),
 				     "Failed to init regmap\n");
+
+	/* LDO0 parent supplies chip itself */
+	in_supply_name = lp->info->rdesc[0].supply_name;
+	ret = devm_regulator_get_enable(dev, in_supply_name);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable supply regulator\n");
 
 	lp->dev = dev;
 	i2c_set_clientdata(cl, lp);
