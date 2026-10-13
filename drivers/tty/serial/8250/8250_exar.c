@@ -799,7 +799,7 @@ static int cti_rs485_config_mpio_tristate(struct uart_port *port,
 					struct ktermios *termios,
 					struct serial_rs485 *rs485)
 {
-	struct exar8250 *priv = (struct exar8250 *)port->private_data;
+	struct exar8250 *priv = port->private_data;
 	int ret;
 
 	ret = generic_rs485_config(port, termios, rs485);
@@ -837,7 +837,7 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	if (ret)
 		return ret;
 
-	port->port.private_data = (void *)priv;
+	port->port.private_data = priv;
 	port->port.pm = exar_pm;
 	port->port.shutdown = exar_shutdown;
 
