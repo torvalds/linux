@@ -157,7 +157,8 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 		 */
 		local = fib_get_table(net, RT_TABLE_LOCAL);
 		if (local &&
-		    !fib_table_lookup(local, &fl4, &res, FIB_LOOKUP_NOREF) &&
+		    !fib_table_lookup(net, local, &fl4, &res,
+				      FIB_LOOKUP_NOREF) &&
 		    res.type == RTN_LOCAL)
 			result = FIB_RES_DEV(res);
 	} else {

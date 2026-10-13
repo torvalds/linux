@@ -1415,8 +1415,9 @@ bool fib_lookup_good_nhc(const struct fib_nh_common *nhc, int fib_flags,
 }
 
 /* should be called with rcu_read_lock */
-int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
-		     struct fib_result *res, int fib_flags)
+int fib_table_lookup(struct net *net, struct fib_table *tb,
+		     const struct flowi4 *flp, struct fib_result *res,
+		     int fib_flags)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1433,7 +1434,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 
 	n = get_child_rcu(pn, cindex);
 	if (!n) {
-		trace_fib_table_lookup(tb->tb_id, flp, NULL, -EAGAIN);
+		trace_fib_table_lookup(tb->tb_id, flp, NULL, -EAGAIN, net);
 		return -EAGAIN;
 	}
 
@@ -1520,7 +1521,8 @@ backtrace:
 				 */
 				if (IS_TRIE(pn)) {
 					trace_fib_table_lookup(tb->tb_id, flp,
-							       NULL, -EAGAIN);
+							       NULL, -EAGAIN,
+							       net);
 					return -EAGAIN;
 				}
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1567,7 +1569,7 @@ out_reject:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, NULL, err);
+			trace_fib_table_lookup(tb->tb_id, flp, NULL, err, net);
 			return err;
 		}
 		if (fi->fib_flags & RTNH_F_DEAD)
@@ -1608,7 +1610,7 @@ set_result:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, nhc, err);
+			trace_fib_table_lookup(tb->tb_id, flp, nhc, err, net);
 
 			return err;
 		}

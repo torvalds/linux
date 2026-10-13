@@ -34,6 +34,7 @@ TRACE_EVENT(fib6_table_lookup,
 		__field(        u8,	rt_type		)
 		__array(		char,	name,	IFNAMSIZ )
 		__array(		__u8,	gw,	16	 )
+		__field(	u64,	net_cookie	)
 	),
 
 	TP_fast_assign(
@@ -76,13 +77,16 @@ TRACE_EVENT(fib6_table_lookup,
 			in6 = (struct in6_addr *)__entry->gw;
 			*in6 = res->nh->fib_nh_gw6;
 		}
+
+		__entry->net_cookie = net->net_cookie;
 	),
 
-	TP_printk("table %3u oif %d iif %d proto %u %pI6c/%u -> %pI6c/%u flowlabel %#x tos %d scope %d flags %x ==> dev %s gw %pI6c err %d",
+	TP_printk("table %3u oif %d iif %d proto %u %pI6c/%u -> %pI6c/%u flowlabel %#x tos %d scope %d flags %x ==> dev %s gw %pI6c err %d net_cookie %llu",
 		  __entry->tb_id, __entry->oif, __entry->iif, __entry->proto,
 		  __entry->src, __entry->sport, __entry->dst, __entry->dport,
 		  __entry->flowlabel, __entry->tos, __entry->scope,
-		  __entry->flags, __entry->name, __entry->gw, __entry->err)
+		  __entry->flags, __entry->name, __entry->gw, __entry->err,
+		  __entry->net_cookie)
 );
 
 #endif /* _TRACE_FIB6_H */

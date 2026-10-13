@@ -6413,7 +6413,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 		if (unlikely(!tb))
 			return BPF_FIB_LKUP_RET_NOT_FWDED;
 
-		err = fib_table_lookup(tb, &fl4, &res, FIB_LOOKUP_NOREF);
+		err = fib_table_lookup(net, tb, &fl4, &res, FIB_LOOKUP_NOREF);
 	} else {
 		if (flags & BPF_FIB_LOOKUP_MARK)
 			fl4.flowi4_mark = params->mark;
