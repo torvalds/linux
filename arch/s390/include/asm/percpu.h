@@ -5,6 +5,7 @@
 #include <linux/preempt.h>
 #include <asm/cmpxchg.h>
 #include <asm/march.h>
+#include <asm/asm.h>
 
 /*
  * s390 uses its own implementation for per cpu data, the offset of
@@ -188,12 +189,12 @@ do {										\
 	typedef typeof(pcp) pcp_op_T__;						\
 	union register_pair rp__;						\
 	pcp_op_T__ val__ = (val);						\
-	pcp_op_T__ old__, *ptr__;						\
+	pcp_op_T__ *ptr__;							\
 										\
 	ptr__ = PERCPU_PTR(&(pcp));						\
 	if (__builtin_constant_p(val__) &&					\
 	    ((szcast)val__ > -129) && ((szcast)val__ < 128)) {			\
-		asm volatile(							\
+		asm_inline volatile(						\
 			__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 				      "%[pair__]","%N[pair__]")			\
 			op2 "   0(%N[pair__]),%[val__]\n"			\
@@ -206,15 +207,15 @@ do {										\
 			  "m" (((struct lowcore *)0)->percpu_offset)		\
 			: "cc");						\
 	} else {								\
-		asm volatile(							\
+		asm_inline volatile(						\
 			__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 				     "%[pair__]","%N[pair__]")			\
-			op1 "   %[old__],%[val__],0(%N[pair__])\n"		\
+			op1 "   %[val__],%[val__],0(%N[pair__])\n"		\
 			__PCPU_END("%[lcreg]")					\
-			: [old__] "=&d" (old__), [pair__] "=&a" (rp__.pair),	\
+			: [val__] "+&d" (val__), [pair__] "=&a" (rp__.pair),	\
 			  "+m" (*ptr__),					\
 			  "=m" (((struct lowcore *)0)->percpu_register)		\
-			: [val__] "d" (val__), [ptr__] "a" (ptr__),		\
+			: [ptr__] "a" (ptr__),					\
 			  [lcreg] "i" (LC_PERCPU_REGISTER),			\
 			  [lcoff] "i" (LC_PERCPU_OFFSET),			\
 			  "m" (((struct lowcore *)0)->percpu_offset)		\
@@ -257,18 +258,18 @@ do {									\
 	typedef typeof(pcp) pcp_op_T__; 				\
 	union register_pair rp__;					\
 	pcp_op_T__ val__ = (val);					\
-	pcp_op_T__ old__, *ptr__;					\
+	pcp_op_T__ *ptr__;						\
 									\
 	ptr__ = PERCPU_PTR(&(pcp));					\
 	asm_inline volatile(						\
 		__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
 			     "%[pair__]","%N[pair__]")			\
-		op "    %[old__],%[val__],0(%N[pair__])\n"		\
+		op "    %[val__],%[val__],0(%N[pair__])\n"		\
 		__PCPU_END("%[lcreg]")					\
-		: [old__] "=&d" (old__), [pair__] "=&a" (rp__.pair),	\
+		: [val__] "+&d" (val__), [pair__] "=&a" (rp__.pair),	\
 		  "+m" (*ptr__),					\
 		  "=m" (((struct lowcore *)0)->percpu_register)		\
-		: [val__] "d" (val__), [ptr__] "a" (ptr__),		\
+		: [ptr__] "a" (ptr__),					\
 		  [lcreg] "i" (LC_PERCPU_REGISTER),			\
 		  [lcoff] "i" (LC_PERCPU_OFFSET),			\
 		  "m" (((struct lowcore *)0)->percpu_offset)		\
@@ -403,6 +404,44 @@ do {									\
 		: "memory", "cc");					\
 	old__;								\
 })
+
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+
+#define arch_this_cpu_try_cmpxchg(pcp, ovalp, nval, op)			\
+({									\
+	typedef typeof(pcp) pcp_op_T__;					\
+	typeof(ovalp) ovalp__ = (ovalp);				\
+	pcp_op_T__ old__ = *ovalp__;					\
+	pcp_op_T__ new__ = (nval);					\
+	union register_pair rp__;					\
+	pcp_op_T__ *ptr__;						\
+	int cc__;							\
+									\
+	ptr__ = PERCPU_PTR(&(pcp));					\
+	asm_inline volatile(						\
+		__PCPU_BEGIN("%[lcreg]","%[lcoff]","%[ptr__]",		\
+			     "%[pair__]","%N[pair__]")			\
+		op "	%[old__],%[new__],0(%N[pair__])\n"		\
+		__PCPU_END("%[lcreg]")					\
+		: [old__] "+&d" (old__), [pair__] "=&a" (rp__.pair),	\
+		  "+m" (*ptr__), "=@cc" (cc__),				\
+		  "=m" (((struct lowcore *)0)->percpu_register)		\
+		: [new__] "d" (new__), [ptr__] "a" (ptr__),		\
+		  [lcreg] "i" (LC_PERCPU_REGISTER),			\
+		  [lcoff] "i" (LC_PERCPU_OFFSET),			\
+		  "m" (((struct lowcore *)0)->percpu_offset)		\
+		: "memory");						\
+	if (unlikely(cc__))						\
+		*ovalp__ = old__;					\
+	likely(cc__ == 0);						\
+})
+
+#define this_cpu_try_cmpxchg_4(pcp, ovalp, nval) arch_this_cpu_try_cmpxchg(pcp, ovalp, nval, "cs")
+#define this_cpu_try_cmpxchg_8(pcp, ovalp, nval) arch_this_cpu_try_cmpxchg(pcp, ovalp, nval, "csg")
+
+#define this_cpu_try_cmpxchg64(pcp, ovalp, nval) this_cpu_try_cmpxchg_8(pcp, ovalp, nval)
+
+#endif /* __HAVE_ASM_FLAG_OUTPUTS__ */
 
 #define arch_this_cpu_xchg_simple(pcp, nval)				\
 ({									\
