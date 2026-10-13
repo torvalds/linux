@@ -132,6 +132,7 @@ static struct snd_soc_acpi_mach *amd_sof_sdw_machine_select(struct snd_sof_dev *
 	struct snd_soc_acpi_mach *mach;
 	const struct snd_soc_acpi_link_adr *link;
 	struct acp_dev_data *acp_data = sdev->pdata->hw_pdata;
+	struct amd_pdm_pdata *pdm_pdata;
 	int ret, i;
 
 	if (acp_data->info.count) {
@@ -161,6 +162,16 @@ static struct snd_soc_acpi_mach *amd_sof_sdw_machine_select(struct snd_sof_dev *
 			mach->mach_params.links = mach->links;
 			mach->mach_params.link_mask = mach->link_mask;
 			mach->mach_params.platform = dev_name(sdev->dev);
+
+			if (acp_data->pdm_sel) {
+				pdm_pdata = devm_kzalloc(sdev->dev,
+							 sizeof(*pdm_pdata),
+							 GFP_KERNEL);
+				if (!pdm_pdata)
+					return NULL;
+				pdm_pdata->pdm_sel = acp_data->pdm_sel;
+				mach->pdata = pdm_pdata;
+			}
 
 			dev_dbg(sdev->dev, "SSID %x%04x\n", mach->mach_params.subsystem_vendor,
 				mach->mach_params.subsystem_device);
