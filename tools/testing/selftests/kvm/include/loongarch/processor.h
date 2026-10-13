@@ -79,6 +79,7 @@
 #define  CPUCFG2_LASX			BIT(7)
 #define  CPUCFG2_LLFTP			BIT(14)
 #define  CPUCFG2_LLFTPREV		GENMASK(17, 15)
+#define  CPUCFG2_PTW			BIT(24)
 
 /* LoongArch Basic CSR registers */
 #define LOONGARCH_CSR_CRMD		0x0 /* Current mode info */
@@ -128,6 +129,8 @@
 #define LOONGARCH_CSR_PGD		0x1b
 #define LOONGARCH_CSR_PWCTL0		0x1c
 #define LOONGARCH_CSR_PWCTL1		0x1d
+#define  CSR_PWCTL1_PTW_SHIFT		24
+#define  CSR_PWCTL1_PTW			BIT_ULL(CSR_PWCTL1_PTW_SHIFT)
 #define LOONGARCH_CSR_STLBPGSIZE	0x1e
 #define LOONGARCH_CSR_CPUID		0x20
 #define LOONGARCH_CSR_KS0		0x30
