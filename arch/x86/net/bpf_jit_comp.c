@@ -3080,10 +3080,26 @@ populate_extable:
 
 		case BPF_JMP | BPF_JSET | BPF_K:
 		case BPF_JMP32 | BPF_JSET | BPF_K:
+			if ((u32)imm32 <= U8_MAX) {
+				/*
+				 * test dst_reg8, imm8: with the upper bits of the
+				 * mask clear the result only depends on the low byte.
+				 */
+				if (is_ereg_8l(dst_reg))
+					EMIT1(add_1mod(0x40, dst_reg));
+				if (is_axreg(dst_reg))
+					EMIT2(0xA8, imm32);
+				else
+					EMIT3(0xF6, add_1reg(0xC0, dst_reg), imm32);
+				goto emit_cond_jmp;
+			}
 			/* test dst_reg, imm32 */
 			maybe_emit_1mod(&prog, dst_reg,
 					BPF_CLASS(insn->code) == BPF_JMP);
-			EMIT2_off32(0xF7, add_1reg(0xC0, dst_reg), imm32);
+			if (is_axreg(dst_reg))
+				EMIT1_off32(0xA9, imm32);
+			else
+				EMIT2_off32(0xF7, add_1reg(0xC0, dst_reg), imm32);
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JEQ | BPF_K:
@@ -3120,6 +3136,8 @@ populate_extable:
 
 			if (is_imm8(imm32))
 				EMIT3(0x83, add_1reg(0xF8, dst_reg), imm32);
+			else if (is_axreg(dst_reg))
+				EMIT1_off32(0x3D, imm32);
 			else
 				EMIT2_off32(0x81, add_1reg(0xF8, dst_reg), imm32);
 
