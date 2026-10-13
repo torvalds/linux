@@ -279,11 +279,12 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 	if (ret)
 		return ret;
 
-	/* set command id to 0x10 for TPMI_GET_STATE */
-	data = FIELD_PREP(TMPI_CONTROL_DATA_CMD, TPMI_CONTROL_GET_STATE_CMD);
-
-	/* 32 bits for DATA offset and +8 for feature_id field */
-	data |= FIELD_PREP(TPMI_CONTROL_DATA_VAL_FEATURE, feature_id);
+	/*
+	 * Set command id to 0x10 for TPMI_GET_STATE, with the feature id 32
+	 * bits into the DATA offset, +8 for the feature_id field.
+	 */
+	data = FIELD_PREP(TMPI_CONTROL_DATA_CMD, TPMI_CONTROL_GET_STATE_CMD) |
+	       FIELD_PREP(TPMI_CONTROL_DATA_VAL_FEATURE, feature_id);
 
 	/* Write at command offset for qword access */
 	writeq(data, tpmi_info->tpmi_control_mem + TPMI_COMMAND_OFFSET);
@@ -294,8 +295,8 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 		return ret;
 
 	/* Set Run Busy and packet length of 2 dwords */
-	control = TPMI_CONTROL_STATUS_RB;
-	control |= FIELD_PREP(TPMI_CONTROL_STATUS_LEN, TPMI_CMD_PKT_LEN);
+	control = TPMI_CONTROL_STATUS_RB |
+		  FIELD_PREP(TPMI_CONTROL_STATUS_LEN, TPMI_CMD_PKT_LEN);
 
 	/* Write at status offset for qword access */
 	writeq(control, tpmi_info->tpmi_control_mem + TPMI_CONTROL_STATUS_OFFSET);
