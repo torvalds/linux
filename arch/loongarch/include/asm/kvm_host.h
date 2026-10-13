@@ -233,8 +233,8 @@ struct kvm_vcpu_arch {
 	/* Cache for pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
 
-	/* vcpu's vpid */
-	u64 vpid;
+	/* vCPU's vpid & tgid */
+	unsigned long vpid, tgid;
 	gpa_t flush_gpa;
 
 	/* Frequency of stable timer in Hz */

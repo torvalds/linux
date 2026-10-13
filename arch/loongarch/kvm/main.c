@@ -225,7 +225,7 @@ static void kvm_update_vpid(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.vpid = vpid;
 }
 
-void kvm_check_vpid(struct kvm_vcpu *vcpu)
+static void __kvm_check_vpid(struct kvm_vcpu *vcpu)
 {
 	int cpu;
 	bool migrated;
@@ -253,7 +253,6 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 		kvm_update_vpid(vcpu, cpu);
 		trace_kvm_vpid_change(vcpu, vcpu->arch.vpid);
 		vcpu->cpu = cpu;
-		kvm_clear_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
 
 		/*
 		 * LLBCTL is a separated guest CSR register from host, a general
@@ -277,6 +276,23 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 		vpid = (vcpu->arch.vpid & vpid_mask) << CSR_GSTAT_GID_SHIFT;
 		change_csr_gstat(vpid_mask << CSR_GSTAT_GID_SHIFT, vpid);
 	}
+}
+
+static void __kvm_check_vmid(struct kvm_vcpu *vcpu)
+{
+	unsigned long vmid;
+
+	vmid = vcpu->arch.vpid & vpid_mask;
+	if (vcpu->arch.tgid != vmid) {
+		vcpu->arch.tgid = vcpu->arch.vpid & vpid_mask;
+		kvm_clear_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
+	}
+}
+
+void kvm_check_vpid(struct kvm_vcpu *vcpu)
+{
+	__kvm_check_vpid(vcpu);
+	__kvm_check_vmid(vcpu);
 }
 
 void kvm_init_vmcs(struct kvm *kvm)
