@@ -197,3 +197,14 @@ int mucse_mbx_get_macaddr(struct mucse_hw *hw, int pfvfnum,
 
 	return 0;
 }
+
+/**
+ * mucse_fw_irq_handler - Deferred firmware mailbox notification hook
+ * @hw: pointer to the HW structure
+ *
+ * No asynchronous firmware events are enabled until link status support is
+ * added.
+ **/
+void mucse_fw_irq_handler(struct mucse_hw *hw)
+{
+}
