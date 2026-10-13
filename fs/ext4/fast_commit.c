@@ -1425,8 +1425,12 @@ static int ext4_fc_perform_commit(journal_t *journal, tid_t commit_tid)
 	 * Step 5: If file system device is different from journal device,
 	 * issue a cache flush before we start writing fast commit blocks.
 	 */
-	if (journal->j_fs_dev != journal->j_dev)
-		blkdev_issue_flush(journal->j_fs_dev);
+	if (journal->j_fs_dev != journal->j_dev &&
+	    journal->j_flags & JBD2_BARRIER) {
+		ret = blkdev_issue_flush(journal->j_fs_dev);
+		if (ret)
+			return ret;
+	}
 
 	blk_start_plug(&plug);
 	alloc_ctx = ext4_fc_lock(sb);
