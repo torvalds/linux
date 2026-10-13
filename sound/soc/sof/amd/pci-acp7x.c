@@ -26,8 +26,8 @@
 #define ACP7X_REG_START			0x1240000
 #define ACP7X_REG_END			0x125C000
 
-static const struct sof_amd_acp_desc acp7x_chip_info = {
-	.name		= "acp7x",
+static const struct sof_amd_acp_desc acp7f_chip_info = {
+	.name		= "acp7f",
 	.pgfsm_base	= ACP7X_PGFSM_BASE,
 	.ext_intr_enb	= ACP6X_EXTERNAL_INTR_ENB,
 	.ext_intr_cntl	= ACP7X_EXTERNAL_INTR_CNTL,
@@ -45,13 +45,13 @@ static const struct sof_amd_acp_desc acp7x_chip_info = {
 	.reg_end_addr	= ACP7X_REG_END,
 };
 
-static const struct sof_dev_desc acp7x_desc = {
-	.machines		= snd_soc_acpi_amd_acp7x_sof_machines,
+static const struct sof_dev_desc acp7f_desc = {
+	.machines		= snd_soc_acpi_amd_acp7f_sof_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
-	.chip_info		= &acp7x_chip_info,
+	.chip_info		= &acp7f_chip_info,
 	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
 	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path	= {
@@ -61,7 +61,7 @@ static const struct sof_dev_desc acp7x_desc = {
 		[SOF_IPC_TYPE_3] = "amd/sof-tplg",
 	},
 	.default_fw_filename	= {
-		[SOF_IPC_TYPE_3] = "sof-acp7x.ri",
+		[SOF_IPC_TYPE_3] = "sof-acp7f.ri",
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_acp7x_ops,
@@ -95,7 +95,7 @@ static void acp7x_pci_remove(struct pci_dev *pci)
 /* PCI IDs */
 static const struct pci_device_id acp7x_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID),
-	.driver_data = (unsigned long)&acp7x_desc},
+	.driver_data = (unsigned long)&acp7f_desc},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, acp7x_pci_ids);
