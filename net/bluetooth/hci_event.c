@@ -1269,8 +1269,6 @@ static u8 hci_cc_le_read_conn_interval(struct hci_dev *hdev, void *data,
 				       struct sk_buff *skb)
 {
 	struct hci_rp_le_read_conn_interval *rp = data;
-	u16 min_interval = 0;
-	int i;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
@@ -1283,17 +1281,11 @@ static u8 hci_cc_le_read_conn_interval(struct hci_dev *hdev, void *data,
 		return HCI_ERROR_UNSPECIFIED;
 	}
 
-	/* Store the smallest minimum supported connection interval reported by
-	 * the controller so the default rate parameters can be clamped to it.
+	/* Store the minimum supported connection interval so the default rate
+	 * parameters can be clamped to it. It is reported on its own rather
+	 * than derived from the groups, as there may be none.
 	 */
-	for (i = 0; i < rp->num_grps; i++) {
-		u16 min = le16_to_cpu(rp->grps[i].min);
-
-		if (!min_interval || min < min_interval)
-			min_interval = min;
-	}
-
-	hdev->le_min_rate_interval = min_interval;
+	hdev->le_min_rate_interval = rp->min;
 
 	return rp->status;
 }
