@@ -31,13 +31,19 @@ static struct pci_device_id rnpgbe_pci_tbl[] = {
  * rnpgbe_configure - Configure the hardware
  * @mucse: pointer to private structure
  *
- * Configure Tx registers in hardware.
+ * Configure Tx and Rx registers in hardware.
  *
  * Return: 0 on success, negative errno if hardware configuration fails
  **/
 static int rnpgbe_configure(struct mucse *mucse)
 {
-	return rnpgbe_configure_tx(mucse);
+	int err;
+
+	err = rnpgbe_configure_tx(mucse);
+	if (err)
+		return err;
+
+	return rnpgbe_configure_rx(mucse);
 }
 
 /**
@@ -69,13 +75,18 @@ static int rnpgbe_open(struct net_device *netdev)
 	err = rnpgbe_setup_all_tx_resources(mucse);
 	if (err)
 		goto err_free_irqs;
+	err = rnpgbe_setup_all_rx_resources(mucse);
+	if (err)
+		goto err_free_tx;
 
 	err = rnpgbe_configure(mucse);
 	if (err)
-		goto err_free_tx;
+		goto err_free_rx;
 	rnpgbe_up_complete(mucse);
 
 	return 0;
+err_free_rx:
+	rnpgbe_free_all_rx_resources(mucse);
 err_free_tx:
 	rnpgbe_clean_all_tx_rings(mucse);
 	rnpgbe_free_all_tx_resources(mucse);
@@ -100,6 +111,7 @@ static int rnpgbe_close(struct net_device *netdev)
 	rnpgbe_down(mucse);
 	rnpgbe_free_irq(mucse);
 	rnpgbe_free_all_tx_resources(mucse);
+	rnpgbe_free_all_rx_resources(mucse);
 
 	return 0;
 }
@@ -139,11 +151,14 @@ static void rnpgbe_sw_init(struct mucse *mucse)
 	int i;
 
 	mucse->tx_ring_item_count = M_DEFAULT_TXD;
+	mucse->rx_ring_item_count = M_DEFAULT_RXD;
 	mucse->tx_work_limit = M_DEFAULT_TX_WORK;
 
 	for (i = 0; i < RNPGBE_MAX_QUEUES; i++) {
 		u64_stats_init(&mucse->tx_stats[i].syncp);
 		atomic64_set(&mucse->tx_stats[i].dropped, 0);
+		u64_stats_init(&mucse->rx_stats[i].syncp);
+		atomic64_set(&mucse->rx_stats[i].dropped, 0);
 	}
 }
 

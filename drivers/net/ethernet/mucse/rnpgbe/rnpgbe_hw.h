@@ -21,6 +21,8 @@
 #define TX_AXI_RW_EN                   0xc
 /* DMA_STATUS_REG[23:20]: tx_wr, tx_rd, rx_wr, rx_rd done status. */
 #define RNPGBE_DMA_TX_STATUS           GENMASK_U32(23, 22)
+#define RNPGBE_DMA_RX_STATUS           GENMASK_U32(21, 20)
+#define RX_AXI_RW_EN                   0x03
 #define RNPGBE_DMA_AXI_EN              0x0010
 #define RNPGBE_TX_MIN_PKT_LEN          33
 

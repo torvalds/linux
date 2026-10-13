@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/timer.h>
 #include <linux/if.h>
 #include <linux/workqueue.h>
 
@@ -62,7 +63,32 @@ struct rnpgbe_tx_desc {
 #define M_TXD_CMD_EOP         0x010000 /* End of Packet */
 };
 
+union rnpgbe_rx_desc {
+	struct {
+		__le64 pkt_addr; /* Packet buffer address */
+		__le64 resv_cmd; /* cmd status */
+	};
+	struct {
+		__le32 rss_hash; /* RSS HASH */
+		__le16 mark; /* mark info */
+		__le16 rev1;
+		__le16 len; /* Packet length */
+		__le16 padding_len;
+		__le16 vlan; /* VLAN tag */
+		__le16 cmd; /* cmd status */
+#define M_RXD_STAT_DD         BIT(1) /* Descriptor Done */
+#define M_RXD_STAT_EOP        BIT(0) /* End of Packet */
+	} wb;
+};
+
 #define M_TX_DESC(R, i) (&(((struct rnpgbe_tx_desc *)((R)->desc))[i]))
+#define M_RX_DESC(R, i) (&(((union rnpgbe_rx_desc *)((R)->desc))[i]))
+
+static inline __le16 rnpgbe_test_staterr(union rnpgbe_rx_desc *rx_desc,
+					 const u16 stat_err_bits)
+{
+	return rx_desc->wb.cmd & cpu_to_le16(stat_err_bits);
+}
 
 struct mucse_tx_buffer {
 	struct rnpgbe_tx_desc *next_to_watch;
@@ -77,17 +103,35 @@ struct mucse_tx_buffer {
 struct mucse_queue_stats {
 	u64 packets;
 	u64 bytes;
+	u64 length_errors;
 	atomic64_t dropped;
 	struct u64_stats_sync syncp;
 } ____cacheline_aligned_in_smp;
+
+struct mucse_rx_buffer {
+	struct sk_buff *skb;
+	dma_addr_t dma;
+	struct page *page;
+	u32 page_offset;
+};
+
+enum mucse_rx_drop_reason {
+	MUCSE_RX_DROP_NONE,
+	MUCSE_RX_DROP_RESOURCE,
+	MUCSE_RX_DROP_LENGTH,
+};
 
 struct mucse_ring {
 	struct mucse_ring *next;
 	struct mucse_q_vector *q_vector;
 	struct net_device *netdev;
 	struct device *dev;
+	struct page_pool *page_pool;
 	void *desc;
-	struct mucse_tx_buffer *tx_buffer_info;
+	union {
+		struct mucse_tx_buffer *tx_buffer_info;
+		struct mucse_rx_buffer *rx_buffer_info;
+	};
 	void __iomem *ring_addr;
 	void __iomem *tail;
 	void __iomem *irq_mask;
@@ -101,8 +145,13 @@ struct mucse_ring {
 	u16 next_to_clean;
 	dma_addr_t dma;
 	unsigned int size;
+	u32 drop_bytes; /* bytes in the current frame being dropped */
 	struct mucse_queue_stats *stats;
+	enum mucse_rx_drop_reason drop_reason;
 } ____cacheline_internodealigned_in_smp;
+
+/* Refill RX descriptors in batches of this size. */
+#define M_RX_BUFFER_WRITE	16
 
 static inline u16 mucse_desc_unused(struct mucse_ring *ring)
 {
@@ -110,6 +159,18 @@ static inline u16 mucse_desc_unused(struct mucse_ring *ring)
 	u16 ntu = ring->next_to_use;
 
 	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
+}
+
+static inline u16 mucse_desc_unused_rx(struct mucse_ring *ring)
+{
+	u16 ntc = ring->next_to_clean;
+	u16 ntu = ring->next_to_use;
+
+	/* Keep M_RX_BUFFER_WRITE descriptors unused so the ring is not filled
+	 * completely. Refill is attempted once at least this many descriptors
+	 * are available.
+	 */
+	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - M_RX_BUFFER_WRITE;
 }
 
 static inline __le64 build_ctob(u32 vlan_cmd, u32 mac_ip_len, u32 size)
@@ -134,6 +195,7 @@ struct mucse_q_vector {
 	int hw_vector;
 	struct mucse_ring_container rx, tx;
 	struct napi_struct napi;
+	struct timer_list rx_alloc_timer;
 	char name[IFNAMSIZ + 18];
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct mucse_ring ring[] ____cacheline_internodealigned_in_smp;
@@ -142,6 +204,7 @@ struct mucse_q_vector {
 #define MAX_Q_VECTORS 8
 
 #define M_DEFAULT_TXD     512
+#define M_DEFAULT_RXD     512
 #define M_DEFAULT_TX_WORK 256
 
 enum mucse_state_t {
@@ -157,11 +220,13 @@ struct mucse {
 	struct mucse_ring *rx_ring[RNPGBE_MAX_QUEUES]
 		____cacheline_aligned_in_smp;
 	struct mucse_queue_stats tx_stats[RNPGBE_MAX_QUEUES];
+	struct mucse_queue_stats rx_stats[RNPGBE_MAX_QUEUES];
 	struct mucse_q_vector *q_vector[MAX_Q_VECTORS];
 	int tx_ring_item_count;
 	int tx_work_limit;
 	int num_tx_queues;
 	int num_q_vectors;
+	int rx_ring_item_count;
 	int num_rx_queues;
 	char mbx_name[32];
 	bool mbx_irq_requested;

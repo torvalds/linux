@@ -20,6 +20,7 @@ config MGBE
 	tristate "Mucse(R) 1GbE PCI Express adapters support"
 	depends on PCI
 	depends on PCI_MSI
+	select PAGE_POOL
 	help
 	  This driver supports Mucse(R) 1GbE PCI Express family of
 	  adapters.
