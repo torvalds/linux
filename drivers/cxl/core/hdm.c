@@ -477,6 +477,8 @@ static const char *cxl_mode_name(enum cxl_partition_mode mode)
 		return "ram";
 	case CXL_PARTMODE_PMEM:
 		return "pmem";
+	case CXL_PARTMODE_DYNAMIC_RAM:
+		return "dynamic_ram";
 	default:
 		return "";
 	};
@@ -486,6 +488,7 @@ static const char *cxl_mode_name(enum cxl_partition_mode mode)
 int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info)
 {
 	struct device *dev = cxlds->dev;
+	int dc_nth = 0;
 
 	guard(rwsem_write)(&cxl_rwsem.dpa);
 
@@ -498,14 +501,33 @@ int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info)
 		return 0;
 	}
 
+	/* Verify partitions are in expected order. */
+	for (int i = 1; i < info->nr_partitions; i++) {
+		if (info->part[i].mode < info->part[i - 1].mode) {
+			dev_err(dev, "Partition order mismatch: %d (%s) follows %d (%s)\n",
+				i, cxl_mode_name(info->part[i].mode),
+				i - 1, cxl_mode_name(info->part[i - 1].mode));
+			return -EINVAL;
+		}
+	}
+
 	cxlds->dpa_res = DEFINE_RES_MEM(0, info->size);
 
 	for (int i = 0; i < info->nr_partitions; i++) {
 		const struct cxl_dpa_part_info *part = &info->part[i];
+		const char *name = cxl_mode_name(part->mode);
 		int rc;
+
+		if (part->mode == CXL_PARTMODE_DYNAMIC_RAM) {
+			name = devm_kasprintf(dev, GFP_KERNEL, "%s_%d", name,
+					      ++dc_nth);
+			if (!name)
+				return -ENOMEM;
+		}
 
 		cxlds->part[i].perf.qos_class = CXL_QOS_CLASS_INVALID;
 		cxlds->part[i].mode = part->mode;
+		cxlds->part[i].handle = part->handle;
 
 		/* Require ordered + contiguous partitions */
 		if (i) {
@@ -516,7 +538,7 @@ int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info)
 		}
 		rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->part[i].res,
 				 part->range.start, range_len(&part->range),
-				 cxl_mode_name(part->mode));
+				 name);
 		if (rc)
 			return rc;
 		cxlds->nr_partitions++;
