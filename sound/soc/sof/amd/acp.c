@@ -674,9 +674,8 @@ static int sof_amd_check_and_handle_acp7x_sdw_wake_irq(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
-	unsigned int ext_intr_stat1;
-	unsigned int sdw_pme_stat, sdw_wake_en;
-	unsigned int i;
+	u32 ext_intr_stat1, sdw_pme_stat, sdw_wake_en;
+	u32 i;
 	bool sdw_wake_irq = false;
 
 	ext_intr_stat1 = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat1);
@@ -1445,10 +1444,7 @@ static void handle_amd_sof_acp7x_sdw_pme_event(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata;
 	struct amd_sdw_manager *amd_manager;
-	u32 sdw_pme_stat;
-	u32 sdw_wake_en;
-	u32 pme_reg;
-	u32 wake_mask;
+	u32 sdw_pme_stat, sdw_wake_en, pme_reg, wake_mask;
 	unsigned int instance;
 
 	adata = sdev->pdata->hw_pdata;
