@@ -421,7 +421,7 @@ static void pop_callee_regs(u8 **pprog, bool *callee_regs_used)
 }
 
 /* add rsp, depth */
-static void emit_add_rsp(u8 **pprog, u16 depth)
+static void emit_add_rsp(u8 **pprog, u32 depth)
 {
 	u8 *prog = *pprog;
 
@@ -435,7 +435,7 @@ static void emit_add_rsp(u8 **pprog, u16 depth)
 }
 
 /* sub rsp, depth */
-static void emit_sub_rsp(u8 **pprog, u16 depth)
+static void emit_sub_rsp(u8 **pprog, u32 depth)
 {
 	u8 *prog = *pprog;
 
@@ -472,6 +472,7 @@ static void emit_nops(u8 **pprog, int len)
  * in arch/x86/kernel/alternative.c
  */
 static int emit_call(u8 **prog, void *func, void *ip);
+static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off);
 
 static void emit_fineibt(u8 **pprog, u8 *ip, u32 hash, int arity)
 {
@@ -607,8 +608,7 @@ static void emit_prologue(u8 **pprog, u8 *ip, u32 stack_depth, bool ebpf_from_cb
 	EMIT_ENDBR();
 
 	/* sub rsp, rounded_stack_depth */
-	if (stack_depth)
-		EMIT3_off32(0x48, 0x81, 0xEC, round_up(stack_depth, 8));
+	emit_sub_rsp(&prog, round_up(stack_depth, 8));
 	if (tail_call_reachable)
 		emit_prologue_tail_call(&prog, is_subprog);
 	*pprog = prog;
@@ -851,7 +851,8 @@ static void emit_bpf_tail_call_indirect(struct bpf_prog *bpf_prog,
 	 * if ((*tcc_ptr)++ >= MAX_TAIL_CALL_CNT)
 	 *	goto out;
 	 */
-	EMIT3_off32(0x48, 0x8B, 0x85, tcc_ptr_off); /* mov rax, qword ptr [rbp - tcc_ptr_off] */
+	/* mov rax, qword ptr [rbp - tcc_ptr_off] */
+	emit_ldx(&prog, BPF_DW, BPF_REG_0, BPF_REG_FP, tcc_ptr_off);
 	EMIT4(0x48, 0x83, 0x38, MAX_TAIL_CALL_CNT); /* cmp qword ptr [rax], MAX_TAIL_CALL_CNT */
 
 	offset = ctx->tail_call_indirect_label - (prog + 2 - start);
@@ -888,9 +889,7 @@ static void emit_bpf_tail_call_indirect(struct bpf_prog *bpf_prog,
 	 * Pop tail_call_cnt_ptr, if it's subprog.
 	 */
 	EMIT1(0x58);                              /* pop rax */
-	if (stack_depth)
-		EMIT3_off32(0x48, 0x81, 0xC4,     /* add rsp, sd */
-			    round_up(stack_depth, 8));
+	emit_add_rsp(&prog, round_up(stack_depth, 8)); /* add rsp, sd */
 
 	/* goto *(prog->bpf_func + X86_TAIL_CALL_OFFSET); */
 	EMIT4(0x48, 0x8B, 0x49,                   /* mov rcx, qword ptr [rcx + 32] */
@@ -923,7 +922,8 @@ static void emit_bpf_tail_call_direct(struct bpf_prog *bpf_prog,
 	 * if ((*tcc_ptr)++ >= MAX_TAIL_CALL_CNT)
 	 *	goto out;
 	 */
-	EMIT3_off32(0x48, 0x8B, 0x85, tcc_ptr_off);   /* mov rax, qword ptr [rbp - tcc_ptr_off] */
+	/* mov rax, qword ptr [rbp - tcc_ptr_off] */
+	emit_ldx(&prog, BPF_DW, BPF_REG_0, BPF_REG_FP, tcc_ptr_off);
 	EMIT4(0x48, 0x83, 0x38, MAX_TAIL_CALL_CNT);   /* cmp qword ptr [rax], MAX_TAIL_CALL_CNT */
 
 	offset = ctx->tail_call_direct_label - (prog + 2 - start);
@@ -955,8 +955,7 @@ static void emit_bpf_tail_call_direct(struct bpf_prog *bpf_prog,
 	 * Pop tail_call_cnt_ptr, if it's subprog.
 	 */
 	EMIT1(0x58);                                  /* pop rax */
-	if (stack_depth)
-		EMIT3_off32(0x48, 0x81, 0xC4, round_up(stack_depth, 8));
+	emit_add_rsp(&prog, round_up(stack_depth, 8));
 
 	emit_nops(&prog, X86_PATCH_SIZE);
 
@@ -1857,7 +1856,7 @@ static void emit_priv_frame_ptr(u8 **pprog, void __percpu *priv_frame_ptr)
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
 
 #define __LOAD_TCC_PTR(off)			\
-	EMIT3_off32(0x48, 0x8B, 0x85, off)
+	emit_ldx(&prog, BPF_DW, BPF_REG_0, BPF_REG_FP, off)
 /* mov rax, qword ptr [rbp - rounded_stack_depth - 16] */
 #define LOAD_TAIL_CALL_CNT_PTR(stack)				\
 	__LOAD_TCC_PTR(BPF_TAIL_CALL_CNT_PTR_STACK_OFF(stack))
@@ -2958,8 +2957,10 @@ populate_extable:
 
 			func = (u8 *) __bpf_call_base + imm32;
 			if (src_reg == BPF_PSEUDO_CALL && tail_call_reachable) {
+				u8 *tcc_load = prog;
+
 				LOAD_TAIL_CALL_CNT_PTR(stack_depth);
-				ip += 7;
+				ip += prog - tcc_load;
 			}
 			if (!imm32)
 				return -EINVAL;
