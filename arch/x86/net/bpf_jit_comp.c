@@ -1120,18 +1120,26 @@ static void emit_movsx_reg(u8 **pprog, int num_bits, bool is64, u32 dst_reg,
 	*pprog = prog;
 }
 
+/*
+ * rbp and r13 as base register always need a displacement, since mod 00
+ * with r/m 101 encodes a RIP-relative disp32 and with SIB base 101 a
+ * disp32 without base instead.
+ */
+static bool base_needs_disp(u32 reg)
+{
+	return reg2hex[reg] == 5;
+}
+
 /* Emit the suffix (ModR/M etc) for addressing *(ptr_reg + off) and val_reg */
 static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 {
 	u8 *prog = *pprog;
 
-	if (is_imm8(off)) {
-		/* 1-byte signed displacement.
-		 *
-		 * If off == 0 we could skip this and save one extra byte, but
-		 * special case of x86 R13 which always needs an offset is not
-		 * worth the hassle
-		 */
+	if (!off && !base_needs_disp(ptr_reg)) {
+		/* No displacement */
+		EMIT1(add_2reg(0x00, ptr_reg, val_reg));
+	} else if (is_imm8(off)) {
+		/* 1-byte signed displacement */
 		EMIT2(add_2reg(0x40, ptr_reg, val_reg), off);
 	} else {
 		/* 4-byte signed displacement */
@@ -1144,7 +1152,10 @@ static void emit_insn_suffix_SIB(u8 **pprog, u32 ptr_reg, u32 val_reg, u32 index
 {
 	u8 *prog = *pprog;
 
-	if (is_imm8(off)) {
+	if (!off && !base_needs_disp(ptr_reg)) {
+		EMIT2(add_2reg(0x04, BPF_REG_0, val_reg),
+		      add_2reg(0, ptr_reg, index_reg) /* SIB */);
+	} else if (is_imm8(off)) {
 		EMIT3(add_2reg(0x44, BPF_REG_0, val_reg), add_2reg(0, ptr_reg, index_reg) /* SIB */, off);
 	} else {
 		EMIT2_off32(add_2reg(0x84, BPF_REG_0, val_reg), add_2reg(0, ptr_reg, index_reg) /* SIB */, off);
@@ -1507,11 +1518,7 @@ static void emit_st(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
 		break;
 	}
 
-	if (is_imm8(insn_off))
-		EMIT2(add_1reg(0x40, dst_reg), insn_off);
-	else
-		EMIT1_off32(add_1reg(0x80, dst_reg), insn_off);
-
+	emit_insn_suffix(&prog, dst_reg, BPF_REG_0, insn_off);
 	EMIT(imm32, bpf_size_to_x86_bytes(BPF_SIZE(insn->code)));
 	*pprog = prog;
 }
