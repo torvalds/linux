@@ -26,8 +26,6 @@ capout=""
 cappid=""
 ns1=""
 ns2=""
-iptables="iptables"
-ip6tables="ip6tables"
 timeout_poll=30
 timeout_test=$((timeout_poll * 2 + 1))
 capture=false
@@ -99,41 +97,16 @@ unset add_addr_tx_nr
 unset add_addr_echo_tx_nr
 unset add_addr_drop_tx_nr
 
-# generated using "nfbpf_compile '(ip && (ip[54] & 0xf0) == 0x30) ||
-#				  (ip6 && (ip6[74] & 0xf0) == 0x30)'"
-CBPF_MPTCP_SUBOPTION_ADD_ADDR="14,
-			       48 0 0 0,
-			       84 0 0 240,
-			       21 0 3 64,
-			       48 0 0 54,
-			       84 0 0 240,
-			       21 6 7 48,
-			       48 0 0 0,
-			       84 0 0 240,
-			       21 0 4 96,
-			       48 0 0 74,
-			       84 0 0 240,
-			       21 0 1 48,
-			       6 0 0 65535,
-			       6 0 0 0"
-
-# IPv4: TCP hdr of 48B, a first suboption of 12B (DACK8), the RM_ADDR suboption
-# generated using "nfbpf_compile '(ip[32] & 0xf0) == 0xc0 && ip[53] == 0x0c &&
-#				  (ip[66] & 0xf0) == 0x40'"
-CBPF_MPTCP_SUBOPTION_RM_ADDR="13,
-			      48 0 0 0,
-			      84 0 0 240,
-			      21 0 9 64,
-			      48 0 0 32,
-			      84 0 0 240,
-			      21 0 6 192,
-			      48 0 0 53,
-			      21 0 4 12,
-			      48 0 0 66,
-			      84 0 0 240,
-			      21 0 1 64,
-			      6 0 0 65535,
-			      6 0 0 0"
+# nft cannot process the RM_ADDR option because it stops parsing after matching
+# the first DSS option. Use hard-coded byte offsets to match RM_ADDR messages.
+# A tcpdump capture of the RM_ADDR message looks like:
+#  [TCP header: 20 bytes] [nop] [nop] [timestamp: 10 bytes]
+#  [MPTCP DSS: 12 bytes] [MPTCP RM_ADDR: 4 bytes]
+#
+# - TCP Data Offset (12 x 4 = 48 bytes)
+# - DSS (TCP[32] x 8) kind (MPTCP 0x1e), length (0x0c) and subtype (2)
+# - RM_ADDR (TCP[44] x 8) kind (MPTCP 0x1e), variable length and subtype (4)
+RM_ADDR_OFFSETS="tcp doff 12 @th,256,20 == 0x1e0c2 @th,352,8 == 0x1e @th,368,4 == 4"
 
 init_partial()
 {
@@ -184,6 +157,26 @@ init_shapers()
 	done
 }
 
+init_nftables()
+{
+	local netns table
+	for netns in "$ns1" "$ns2"; do
+		for table in ip ip6; do
+			ip netns exec "$netns" nft -f - <<-EOF
+				add table $table filter
+				add chain $table filter INPUT \
+					{ type filter hook input priority filter; policy accept; }
+				add chain $table filter OUTPUT \
+					{ type filter hook output priority filter; policy accept; }
+
+				add table $table mangle
+				add chain $table mangle OUTPUT \
+					{ type route hook output priority mangle; policy accept; }
+			EOF
+		done
+	done
+}
+
 cleanup_partial()
 {
 	rm -f "$capout"
@@ -196,7 +189,7 @@ init() {
 
 	mptcp_lib_check_mptcp
 	mptcp_lib_check_kallsyms
-	mptcp_lib_check_tools ip tc ss "${iptables}" "${ip6tables}"
+	mptcp_lib_check_tools ip tc ss nft
 
 	sin=$(mktemp)
 	sout=$(mktemp)
@@ -380,24 +373,18 @@ reset_with_cookies()
 # $1: test name
 reset_with_add_addr_timeout()
 {
-	local ip="${2:-4}"
-	local tables
+	local ip="${2:-}"
 
 	reset "${1}" || return 1
-
-	tables="${iptables}"
-	if [ $ip -eq 6 ]; then
-		tables="${ip6tables}"
-	fi
+	init_nftables
 
 	# set a maximum, to avoid too long timeout with exponential backoff
 	ip netns exec $ns1 sysctl -q net.mptcp.add_addr_timeout=1
 
-	if ! ip netns exec $ns2 $tables -A OUTPUT -p tcp \
-			-m tcp --tcp-option 30 \
-			-m bpf --bytecode \
-			"$CBPF_MPTCP_SUBOPTION_ADD_ADDR" \
-			-j DROP; then
+	if ! ip netns exec "$ns2" nft add rule \
+			ip"$ip" filter OUTPUT meta l4proto tcp \
+			tcp option mptcp subtype add-addr \
+			drop; then
 		mark_as_skipped "unable to set the 'add addr' rule"
 		return 1
 	fi
@@ -449,22 +436,14 @@ setup_fail_rules()
 	check_invert=1
 	validate_checksum=true
 	local i="$1"
-	local ip="${2:-4}"
-	local tables
+	local ip="${2:-}"
 
-	tables="${iptables}"
-	if [ $ip -eq 6 ]; then
-		tables="${ip6tables}"
-	fi
-
-	ip netns exec $ns2 $tables \
-		-t mangle \
-		-A OUTPUT \
-		-o ns2eth$i \
-		-p tcp \
-		-m length --length 150:9999 \
-		-m statistic --mode nth --packet 1 --every 99999 \
-		-j MARK --set-mark 42 || return ${KSFT_SKIP}
+	init_nftables
+	ip netns exec "$ns2" nft add rule \
+		ip"$ip" mangle OUTPUT oifname ns2eth$i \
+		meta l4proto tcp \
+		meta length 150-9999 numgen inc mod 99999 1 \
+		meta mark set 42 || return ${KSFT_SKIP}
 
 	tc -n $ns2 qdisc add dev ns2eth$i clsact || return ${KSFT_SKIP}
 	tc -n $ns2 filter add dev ns2eth$i egress \
@@ -510,16 +489,15 @@ reset_with_tcp_filter()
 	reset "${1}" || return 1
 	shift
 
+	init_nftables
+
 	local ns="${!1}"
 	local src="${2}"
 	local target="${3}"
 	local chain="${4:-INPUT}"
 
-	if ! ip netns exec "${ns}" ${iptables} \
-			-A "${chain}" \
-			-s "${src}" \
-			-p tcp \
-			-j "${target}"; then
+	if ! ip netns exec "$ns" nft add rule ip filter "${chain}" \
+			ip saddr "${src}" meta l4proto tcp "${target,,}"; then
 		mark_as_skipped "unable to set the filter rules"
 		return 1
 	fi
@@ -4313,12 +4291,15 @@ userspace_tests()
 		chk_mptcp_info subflows 1 subflows 1
 		chk_subflows_total 2 2
 
+		init_nftables
 		# force quick loss
 		ip netns exec $ns2 sysctl -q net.ipv4.tcp_syn_retries=1
-		if ip netns exec "${ns1}" ${iptables} -A INPUT -s "10.0.1.2" \
-		      -p tcp --tcp-option 30 -j REJECT --reject-with tcp-reset &&
-		   ip netns exec "${ns2}" ${iptables} -A INPUT -d "10.0.1.2" \
-		      -p tcp --tcp-option 30 -j REJECT --reject-with tcp-reset; then
+		if ip netns exec "${ns1}" nft add rule ip filter INPUT \
+				ip saddr "10.0.1.2" meta l4proto tcp \
+				tcp option mptcp exists reject with tcp reset &&
+		   ip netns exec "${ns2}" nft add rule ip filter INPUT \
+				ip daddr "10.0.1.2" meta l4proto tcp \
+				tcp option mptcp exists reject with tcp reset; then
 			wait_event ns2 MPTCP_LIB_EVENT_SUB_CLOSED 1
 			wait_event ns1 MPTCP_LIB_EVENT_SUB_CLOSED 1
 			chk_subflows_total 1 1
@@ -4393,7 +4374,7 @@ endpoint_tests()
 		chk_subflow_nr "after new reject" 2
 		chk_mptcp_info subflows 1 subflows 1
 
-		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
+		ip netns exec "${ns2}" nft flush chain ip filter OUTPUT
 		pm_nl_del_endpoint $ns2 3 10.0.3.2
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
 		wait_mpj 3
@@ -4402,12 +4383,10 @@ endpoint_tests()
 
 		# To make sure RM_ADDR are sent over a different subflow, but
 		# allow the rest to quickly and cleanly close the subflow
-		local ipt=1
-		ip netns exec "${ns2}" ${iptables} -I OUTPUT -s "10.0.1.2" \
-			-p tcp -m tcp --tcp-option 30 \
-			-m bpf --bytecode \
-			"$CBPF_MPTCP_SUBOPTION_RM_ADDR" \
-			-j DROP || ipt=0
+		local nft=1
+		ip netns exec "${ns2}" nft insert rule ip filter OUTPUT \
+			ip saddr 10.0.1.2 meta l4proto tcp \
+			"${RM_ADDR_OFFSETS}" drop || nft=0
 		local i
 		for i in $(seq 3); do
 			pm_nl_del_endpoint $ns2 1 10.0.1.2
@@ -4420,7 +4399,7 @@ endpoint_tests()
 			chk_subflow_nr "after re-add id 0 ($i)" 3
 			chk_mptcp_info subflows 3 subflows 3
 		done
-		[ ${ipt} = 1 ] && ip netns exec "${ns2}" ${iptables} -D OUTPUT 1
+		[ "${nft}" = 1 ] && ip netns exec "${ns2}" nft flush chain ip filter OUTPUT
 
 		mptcp_lib_kill_group_wait $tests_pid
 
@@ -4480,20 +4459,19 @@ endpoint_tests()
 		chk_mptcp_info subflows 2 subflows 2
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 
+		init_nftables
 		# To make sure RM_ADDR are sent over a different subflow, but
 		# allow the rest to quickly and cleanly close the subflow
-		local ipt=1
-		ip netns exec "${ns1}" ${iptables} -I OUTPUT -s "10.0.1.1" \
-			-p tcp -m tcp --tcp-option 30 \
-			-m bpf --bytecode \
-			"$CBPF_MPTCP_SUBOPTION_RM_ADDR" \
-			-j DROP || ipt=0
+		local nft=1
+		ip netns exec "${ns1}" nft insert rule ip filter OUTPUT \
+			ip saddr 10.0.1.1 meta l4proto tcp \
+			"${RM_ADDR_OFFSETS}" drop || nft=0
 		pm_nl_del_endpoint $ns1 42 10.0.1.1
 		sleep 0.5
 		chk_subflow_nr "after delete ID 0" 2
 		chk_mptcp_info subflows 2 subflows 2
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
-		[ ${ipt} = 1 ] && ip netns exec "${ns1}" ${iptables} -D OUTPUT 1
+		[ "${nft}" = 1 ] && ip netns exec "${ns1}" nft flush chain ip filter OUTPUT
 
 		pm_nl_add_endpoint $ns1 10.0.1.1 id 42 flags signal
 		wait_mpj 4
@@ -4555,7 +4533,7 @@ endpoint_tests()
 		pm_nl_flush_endpoint $ns2
 		pm_nl_flush_endpoint $ns1
 		wait_rm_addr $ns2 0
-		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
+		ip netns exec "${ns2}" nft flush chain ip filter OUTPUT
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
 		wait_mpj 1
 		pm_nl_add_endpoint $ns1 10.0.3.1 id 2 flags signal
