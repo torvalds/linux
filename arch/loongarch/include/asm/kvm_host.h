@@ -167,7 +167,6 @@ enum emulation_result {
 #define KVM_LARCH_SWCSR_LATEST	(0x1 << 3)
 #define KVM_LARCH_HWCSR_USABLE	(0x1 << 4)
 
-#define LOONGARCH_PV_FEAT_UPDATED	BIT_ULL(63)
 #define LOONGARCH_PV_FEAT_MASK		(BIT(KVM_FEATURE_IPI) |		\
 					 BIT(KVM_FEATURE_PREEMPT) |	\
 					 BIT(KVM_FEATURE_STEAL_TIME) |	\
@@ -245,6 +244,8 @@ struct kvm_vcpu_arch {
 	u64 timer_mhz;
 	ktime_t expire;
 
+	/* vCPU has run at least once */
+	bool has_run;
 	/* Last CPU the vCPU state was loaded on */
 	int last_sched_cpu;
 	/* mp state */
