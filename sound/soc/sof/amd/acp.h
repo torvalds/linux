@@ -296,6 +296,8 @@ struct acp_dev_data {
 	unsigned int pdm_sel;
 	bool is_sdw_dev;
 	unsigned int pci_rev;
+	u32 subsystem_vendor;
+	u32 subsystem_device;
 	int acp_sof_signed_firmware_image;
 };
 
