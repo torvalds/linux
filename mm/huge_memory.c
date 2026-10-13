@@ -215,11 +215,10 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 	 * khugepaged moves data from VMAs once collapsed, after they have been
 	 * faulted in, relying on refaulting for file-backed memory.
 	 *
-	 * Mappings not managed by core mm cannot be reliably reconstructed from
-	 * page faults, and fixed mappings (including hugetlb) may well be
-	 * mm-managed - precisely the mappings which cannot be merged.
+	 * Only mm-backed mappings can be reliably reconstructed from page
+	 * faults, and hugetlb mappings cannot be collapsed.
 	 */
-	if (!in_pf && !smaps && !vma_can_merge(vma))
+	if (!in_pf && !smaps && (!vma_is_mm_backed(vma) || vma_is_hugetlb(vma)))
 		return 0;
 
 	/*
