@@ -280,7 +280,7 @@ xrep_newbt_alloc_ag_blocks(
 			.mp		= mp,
 			.oinfo		= xnr->oinfo,
 			.minlen		= 1,
-			.maxlen		= nr_blocks,
+			.maxlen		= min(XFS_MAX_BMBT_EXTLEN, nr_blocks),
 			.prod		= 1,
 			.resv		= xnr->resv,
 		};
@@ -354,7 +354,7 @@ xrep_newbt_alloc_file_blocks(
 			.mp		= mp,
 			.oinfo		= xnr->oinfo,
 			.minlen		= 1,
-			.maxlen		= nr_blocks,
+			.maxlen		= min(XFS_MAX_BMBT_EXTLEN, nr_blocks),
 			.prod		= 1,
 			.resv		= xnr->resv,
 		};
