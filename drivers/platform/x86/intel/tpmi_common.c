@@ -601,6 +601,14 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	return intel_vsec_add_aux(tpmi_info->tpmi_dev, feature_vsec_dev, name);
 }
 
+/*
+ * Create a device for every feature in the PFS that has one.
+ *
+ * A feature that is not supported is reported as -EOPNOTSUPP and skipped.
+ * Any other error fails the driver load. intel_vsec_add_aux() is resource
+ * managed, so the devices created before such a failure need no clean up
+ * here.
+ */
 static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 {
 	int ret;
@@ -608,14 +616,9 @@ static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 	for (int i = 0; i < tpmi_info->feature_count; i++) {
 		ret = tpmi_create_device(tpmi_info, &tpmi_info->tpmi_features[i],
 					 tpmi_info->pfs_start);
-		/*
-		 * Fail, if the supported features fails to create device,
-		 * otherwise, continue. Even if one device failed to create,
-		 * fail the loading of driver. Since intel_vsec_add_aux()
-		 * is resource managed, no clean up is required for the
-		 * successfully created devices.
-		 */
-		if (ret && ret != -EOPNOTSUPP)
+		if (ret == -EOPNOTSUPP)
+			continue;
+		if (ret)
 			return ret;
 	}
 
