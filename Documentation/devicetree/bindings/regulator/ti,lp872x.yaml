@@ -47,10 +47,12 @@ properties:
 
   ti,update-config:
     type: boolean
+    deprecated: true
     description: define it when LP872X_GENERAL_CFG register should be set
 
   ti,dvs-gpio:
     maxItems: 1
+    deprecated: true
     description: GPIO specifier for external DVS pin control of LP872x devices.
 
   ti,dvs-vsel:
@@ -67,6 +69,10 @@ properties:
     maxItems: 1
     description: GPIO specifier for EN pin control of LP872x devices.
 
+  dvs-gpios:
+    description: GPIO specifier for external DVS pin control.
+    maxItems: 1
+
   buck:
     type: object
     $ref: regulator.yaml#
@@ -75,6 +81,16 @@ properties:
       Single BUCK regulator for LP8720.
 
 patternProperties:
+  "^(vbatt|vin([1-3]|b|lilo[1-2]))-supply$":
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      vbatt - input supply for ldo1 and all internal circuitry (lp8720 only).
+      vin1 - input supply for ldo2 - ldo3 (lp8720) or ldo1 (lp8725).
+      vin2 - input supply for ldo4 - ldo5 (lp8720) or ldo2 - ldo3 (lp8725).
+      vin3 - input supply for ldo4 - ldo5 (lp8725).
+      vinb - input supply for buck.
+      vinlilo1 and vinlilo2 - input supply for lilo1 and lilo2.
+
   "^(buck[1-2]?|ldo[1-5]|lilo[1-2])$":
     type: object
     $ref: regulator.yaml#
@@ -95,6 +111,7 @@ allOf:
         reg:
           const: 0x7d
       patternProperties:
+        "^(vin(3|lilo[1-2]))-supply$": false
         "^(buck[1-2]|lilo[1-2])$": false
 
   - if:
@@ -106,6 +123,7 @@ allOf:
       properties:
         reg:
           const: 0x7a
+        vbatt-supply: false
         buck: false
 
 additionalProperties: false
