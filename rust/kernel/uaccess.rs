@@ -520,14 +520,14 @@ impl UserSliceWriter {
     ///
     /// fn copy_dma_to_user(
     ///     mut writer: UserSliceWriter,
-    ///     alloc: &Coherent<[u8]>,
+    ///     alloc: &Coherent<'_, [u8]>,
     /// ) -> Result {
     ///     writer.write_dma(alloc, 0, 256)
     /// }
     /// ```
     pub fn write_dma<T: KnownSize + AsBytes + ?Sized>(
         &mut self,
-        alloc: &Coherent<T>,
+        alloc: &Coherent<'_, T>,
         offset: usize,
         count: usize,
     ) -> Result {
@@ -558,6 +558,7 @@ impl UserSliceWriter {
     /// truncates the write to the boundaries of `self` and `data`.
     ///
     /// On success, returns the number of bytes written.
+    #[inline]
     pub fn write_slice_partial(&mut self, data: &[u8], offset: usize) -> Result<usize> {
         let end = offset.saturating_add(self.len()).min(data.len());
 
@@ -623,6 +624,19 @@ impl UserSliceWriter {
         self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         Ok(())
+    }
+
+    /// Writes as much of the provided value as fits in the remaining buffer.
+    ///
+    /// Copies `min(size_of::<T>(), self.len())` bytes to userspace. Returns the number of bytes
+    /// actually written. This is useful for versioned structs where an older userspace may provide
+    /// a smaller buffer than the current kernel struct.
+    ///
+    /// Fails with [`EFAULT`] if the write happens on a bad address. This call may modify the
+    /// associated userspace slice even if it returns an error.
+    #[inline]
+    pub fn write_truncated<T: AsBytes>(&mut self, value: &T) -> Result<usize> {
+        self.write_slice_partial(value.as_bytes(), 0)
     }
 }
 

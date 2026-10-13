@@ -19,6 +19,7 @@ mod export;
 mod fmt;
 mod for_lt;
 mod helpers;
+mod io;
 mod kunit;
 mod module;
 mod paste;
@@ -478,6 +479,14 @@ pub fn paste(input: TokenStream) -> TokenStream {
     tokens
         .into_iter()
         .collect::<proc_macro2::TokenStream>()
+        .into()
+}
+
+#[doc(hidden)] // Documented in `kernel` crate.
+#[proc_macro]
+pub fn register(input: TokenStream) -> TokenStream {
+    io::register::register(parse_macro_input!(input))
+        .unwrap_or_else(|e| e.into_compile_error())
         .into()
 }
 

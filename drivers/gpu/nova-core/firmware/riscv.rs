@@ -13,7 +13,7 @@ use kernel::{
 use crate::firmware::tlv::Tlv;
 
 /// A parsed firmware for a RISC-V core, ready to be loaded and run.
-pub(crate) struct RiscvFirmware {
+pub(crate) struct RiscvFirmware<'a> {
     /// Offset at which the code starts in the firmware image.
     pub(crate) code_offset: u32,
     /// Offset at which the data starts in the firmware image.
@@ -23,12 +23,12 @@ pub(crate) struct RiscvFirmware {
     /// Application version.
     pub(crate) app_version: u32,
     /// Device-mapped firmware image.
-    pub(crate) ucode: Coherent<[u8]>,
+    pub(crate) ucode: Coherent<'a, [u8]>,
 }
 
-impl RiscvFirmware {
+impl<'a> RiscvFirmware<'a> {
     /// Parses the RISC-V firmware image contained in `fw`.
-    pub(crate) fn new(dev: &device::Device<device::Bound>, fw: &Firmware) -> Result<Self> {
+    pub(crate) fn new(dev: &'a device::Device<device::Bound>, fw: &Firmware) -> Result<Self> {
         let tlv = Tlv::new(fw.data())?;
         dev_dbg!(
             dev,

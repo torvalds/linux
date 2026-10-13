@@ -226,10 +226,18 @@ impl Flags {
     /// Resource represents a memory region that must be ioremaped using `ioremap_np`.
     pub const IORESOURCE_MEM_NONPOSTED: Flags = Flags::new(bindings::IORESOURCE_MEM_NONPOSTED);
 
+    /// Memory region uses a 64-bit address (consumes two consecutive PCI resource slots).
+    pub const IORESOURCE_MEM_64: Flags = Flags::new(bindings::IORESOURCE_MEM_64);
+
     // Always inline to optimize out error path of `build_assert`.
     #[inline(always)]
     const fn new(value: u32) -> Self {
         build_assert!(value as u64 <= c_ulong::MAX as u64);
         Flags(value as c_ulong)
+    }
+
+    /// Wrap a raw `c_ulong` value returned by a C API into [`Flags`].
+    pub(crate) const fn from_raw(value: c_ulong) -> Self {
+        Flags(value)
     }
 }

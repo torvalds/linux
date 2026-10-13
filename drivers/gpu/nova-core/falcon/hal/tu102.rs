@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 use core::marker::PhantomData;
 
 use kernel::{
     io::{
         poll::read_poll_timeout,
-        register::WithBase,
+        register::Array,
         Io, //
     },
     prelude::*,
@@ -24,11 +25,31 @@ use crate::{
 
 use super::FalconHal;
 
-pub(super) struct Tu102<E: FalconEngine>(PhantomData<E>);
+/// Writes the trigger register available on GA100 and more recent.
+pub(super) fn retrigger_ga100<E: FalconEngine>(falcon: &Falcon<'_, E>) {
+    falcon.pfalcon.write(
+        Array::at(0),
+        regs::NV_PFALCON_FALCON_INTR_RETRIGGER::zeroed().with_trigger(true),
+    );
+}
+
+/// The falcon HAL for Turing and GA100. GA100 boots like a Turing, but unlike Turing, it has a
+/// retrigger register.
+pub(super) struct Tu102<E: FalconEngine> {
+    /// If `true`, the falcons have `NV_PFALCON_FALCON_INTR_RETRIGGER`.
+    has_intr_retrigger: bool,
+    _engine: PhantomData<E>,
+}
 
 impl<E: FalconEngine> Tu102<E> {
-    pub(super) fn new() -> Self {
-        Self(PhantomData)
+    /// Creates a new HAL.
+    ///
+    /// `has_intr_retrigger` indicates whether the retrigger register can be used.
+    pub(super) fn new(has_intr_retrigger: bool) -> Self {
+        Self {
+            has_intr_retrigger,
+            _engine: PhantomData,
+        }
     }
 }
 
@@ -50,8 +71,8 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
 
     fn is_riscv_active(&self, falcon: &Falcon<'_, E>) -> bool {
         falcon
-            .bar
-            .read(regs::NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS::of::<E>())
+            .pfalcon2
+            .read(regs::NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS)
             .active_stat()
     }
 
@@ -62,7 +83,7 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
     fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 10ms.
         read_poll_timeout(
-            || Ok(falcon.bar.read(regs::NV_PFALCON_FALCON_DMACTL::of::<E>())),
+            || Ok(falcon.pfalcon.read(regs::NV_PFALCON_FALCON_DMACTL)),
             |r| r.mem_scrubbing_done(),
             Delta::ZERO,
             Delta::from_millis(10),
@@ -71,7 +92,7 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
     }
 
     fn reset_eng(&self, falcon: &Falcon<'_, E>) -> Result {
-        regs::NV_PFALCON_FALCON_ENGINE::reset_engine::<E>(falcon.bar);
+        regs::NV_PFALCON_FALCON_ENGINE::reset_engine(falcon.pfalcon);
         self.reset_wait_mem_scrubbing(falcon)?;
 
         Ok(())
@@ -79,5 +100,23 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
 
     fn load_method(&self) -> LoadMethod {
         LoadMethod::Pio
+    }
+
+    fn host_routed_causes(
+        &self,
+        falcon: &Falcon<'_, E>,
+        latched: regs::NV_PFALCON_FALCON_IRQSTAT,
+    ) -> regs::NV_PFALCON_FALCON_IRQSTAT {
+        let pfalcon2 = falcon.pfalcon2;
+        let mask = pfalcon2.read(regs::tu102::NV_PRISCV_RISCV_IRQMASK).value();
+        let dest = pfalcon2.read(regs::tu102::NV_PRISCV_RISCV_IRQDEST).value();
+
+        regs::NV_PFALCON_FALCON_IRQSTAT::from(latched.into_raw() & mask & dest)
+    }
+
+    fn retrigger(&self, falcon: &Falcon<'_, E>) {
+        if self.has_intr_retrigger {
+            retrigger_ga100(falcon);
+        }
     }
 }

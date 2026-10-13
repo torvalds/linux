@@ -11,6 +11,10 @@ use core::{
 
 use crate::{
     bindings,
+    mem::{
+        AsRepr,
+        AsReprMut, //
+    },
     prelude::*,
     ptr::{
         Alignment,
@@ -226,6 +230,17 @@ fn io_view<'a, IO: Io<'a>, U>(
     Ok(unsafe { IO::Backend::project_view(view, projected_ptr) })
 }
 
+/// Returns the primitive view of a I/O view.
+#[inline]
+fn io_view_as_repr<'a, IO: Io<'a, Target = T>, T: AsRepr>(
+    this: IO,
+) -> <IO::Backend as IoBackend>::View<'a, T::Repr> {
+    let view = this.as_view();
+
+    // SAFETY: `AsRepr` guarantees layout compatibility.
+    unsafe { IO::Backend::project_view(view, IO::Backend::as_ptr(view).cast::<T::Repr>()) }
+}
+
 /// I/O backends.
 ///
 /// This is an abstract representation to be implemented by arbitrary I/O
@@ -353,15 +368,12 @@ pub trait IoCopyable: IoBackend {
 ///
 /// - The valid `Base` to operate on. For most registers, this should be [`Region`].
 /// - The offset to access (returned by [`IoLoc::offset`]),
-/// - The width of the access (determined by [`IoLoc::IoType`]),
-/// - The type `T` in which the raw data is returned or provided.
+/// - The type `T` in which the data is returned or provided.
 ///
-/// `T` and `IoLoc::IoType` may differ: for instance, a typed register has `T` = the register type
-/// with its bitfields, and `IoType` = its backing primitive (e.g. `u32`).
+/// `T` is not necessarily the type for underlying I/O operation. Methods that take `IoLoc` have `T:
+/// AsRepr` bound and the `<T as AsRepr>::Repr` type would be used to perform I/O and converted to
+/// `T` instead.
 pub trait IoLoc<Base: ?Sized, T> {
-    /// Size ([`u8`], [`u16`], etc) of the I/O performed on the returned [`offset`](IoLoc::offset).
-    type IoType: Into<T> + From<T>;
-
     /// Consumes `self` and returns the offset of this location.
     fn offset(self) -> usize;
 }
@@ -372,8 +384,6 @@ macro_rules! impl_usize_ioloc {
     ($($ty:ty),*) => {
         $(
             impl<const SIZE: usize> IoLoc<Region<SIZE>, $ty> for usize {
-                type IoType = $ty;
-
                 #[inline(always)]
                 fn offset(self) -> usize {
                     self
@@ -437,6 +447,45 @@ pub trait Io<'a>: IoBase<'a> {
         self.len() == 0
     }
 
+    /// Convert into a different typed I/O view.
+    ///
+    /// The target type must be known (statically) to be of the same or smaller size to current
+    /// type, and the current view must be properly aligned for the target type.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     io_project,
+    ///     Mmio,
+    ///     Io,
+    ///     Region,
+    /// };
+    /// #[derive(FromBytes, IntoBytes)]
+    /// #[repr(C)]
+    /// struct MyStruct { field: u32, }
+    ///
+    /// # fn test(mmio: &Mmio<'_, Region<0x1000>>) {
+    /// // let mmio: Mmio<'_, Region<0x1000>>;
+    /// let whole: Mmio<'_, MyStruct> = mmio.cast();
+    /// # }
+    /// ```
+    #[inline]
+    fn cast<U>(self) -> <Self::Backend as IoBackend>::View<'a, U>
+    where
+        Self::Target: FromBytes + IntoBytes,
+        U: FromBytes + IntoBytes,
+    {
+        let view = self.as_view();
+        let ptr = Self::Backend::as_ptr(view);
+
+        const_assert!(size_of::<U>() <= Self::Target::MIN_SIZE);
+        const_assert!(align_of::<U>() <= Self::Target::MIN_ALIGN.as_usize());
+
+        // SAFETY: We have checked bounds and alignment, so this is a valid projection.
+        unsafe { Self::Backend::project_view(view, ptr.cast()) }
+    }
+
     /// Try to convert into a different typed I/O view.
     ///
     /// A runtime check is performed to ensure that the target type is of same or smaller size to
@@ -498,10 +547,10 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline]
     fn read_val(self) -> Self::Target
     where
-        Self::Backend: IoCapable<Self::Target>,
-        Self::Target: Sized,
+        Self::Target: AsReprMut,
+        Self::Backend: IoCapable<<Self::Target as AsRepr>::Repr>,
     {
-        Self::Backend::io_read(self.as_view())
+        Self::Target::from_repr(Self::Backend::io_read(io_view_as_repr(self)))
     }
 
     /// Write a value to I/O.
@@ -520,10 +569,10 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline]
     fn write_val(self, value: Self::Target)
     where
-        Self::Backend: IoCapable<Self::Target>,
-        Self::Target: Sized,
+        Self::Target: AsRepr,
+        Self::Backend: IoCapable<<Self::Target as AsRepr>::Repr>,
     {
-        Self::Backend::io_write(self.as_view(), value)
+        Self::Backend::io_write(io_view_as_repr(self), Self::Target::into_repr(value))
     }
 
     /// Copy-read from I/O memory.
@@ -645,7 +694,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_read8(self, offset: usize) -> Result<u8>
     where
-        usize: IoLoc<Self::Target, u8, IoType = u8>,
+        usize: IoLoc<Self::Target, u8>,
         Self::Backend: IoCapable<u8>,
     {
         self.try_read(offset)
@@ -655,7 +704,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_read16(self, offset: usize) -> Result<u16>
     where
-        usize: IoLoc<Self::Target, u16, IoType = u16>,
+        usize: IoLoc<Self::Target, u16>,
         Self::Backend: IoCapable<u16>,
     {
         self.try_read(offset)
@@ -665,7 +714,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_read32(self, offset: usize) -> Result<u32>
     where
-        usize: IoLoc<Self::Target, u32, IoType = u32>,
+        usize: IoLoc<Self::Target, u32>,
         Self::Backend: IoCapable<u32>,
     {
         self.try_read(offset)
@@ -675,7 +724,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_read64(self, offset: usize) -> Result<u64>
     where
-        usize: IoLoc<Self::Target, u64, IoType = u64>,
+        usize: IoLoc<Self::Target, u64>,
         Self::Backend: IoCapable<u64>,
     {
         self.try_read(offset)
@@ -685,7 +734,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write8(self, value: u8, offset: usize) -> Result
     where
-        usize: IoLoc<Self::Target, u8, IoType = u8>,
+        usize: IoLoc<Self::Target, u8>,
         Self::Backend: IoCapable<u8>,
     {
         self.try_write(offset, value)
@@ -695,7 +744,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write16(self, value: u16, offset: usize) -> Result
     where
-        usize: IoLoc<Self::Target, u16, IoType = u16>,
+        usize: IoLoc<Self::Target, u16>,
         Self::Backend: IoCapable<u16>,
     {
         self.try_write(offset, value)
@@ -705,7 +754,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write32(self, value: u32, offset: usize) -> Result
     where
-        usize: IoLoc<Self::Target, u32, IoType = u32>,
+        usize: IoLoc<Self::Target, u32>,
         Self::Backend: IoCapable<u32>,
     {
         self.try_write(offset, value)
@@ -715,7 +764,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write64(self, value: u64, offset: usize) -> Result
     where
-        usize: IoLoc<Self::Target, u64, IoType = u64>,
+        usize: IoLoc<Self::Target, u64>,
         Self::Backend: IoCapable<u64>,
     {
         self.try_write(offset, value)
@@ -727,7 +776,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn read8(self, offset: usize) -> u8
     where
-        usize: IoLoc<Self::Target, u8, IoType = u8>,
+        usize: IoLoc<Self::Target, u8>,
         Self::Backend: IoCapable<u8>,
     {
         self.read(offset)
@@ -739,7 +788,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn read16(self, offset: usize) -> u16
     where
-        usize: IoLoc<Self::Target, u16, IoType = u16>,
+        usize: IoLoc<Self::Target, u16>,
         Self::Backend: IoCapable<u16>,
     {
         self.read(offset)
@@ -751,7 +800,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn read32(self, offset: usize) -> u32
     where
-        usize: IoLoc<Self::Target, u32, IoType = u32>,
+        usize: IoLoc<Self::Target, u32>,
         Self::Backend: IoCapable<u32>,
     {
         self.read(offset)
@@ -763,7 +812,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn read64(self, offset: usize) -> u64
     where
-        usize: IoLoc<Self::Target, u64, IoType = u64>,
+        usize: IoLoc<Self::Target, u64>,
         Self::Backend: IoCapable<u64>,
     {
         self.read(offset)
@@ -775,7 +824,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write8(self, value: u8, offset: usize)
     where
-        usize: IoLoc<Self::Target, u8, IoType = u8>,
+        usize: IoLoc<Self::Target, u8>,
         Self::Backend: IoCapable<u8>,
     {
         self.write(offset, value)
@@ -787,7 +836,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write16(self, value: u16, offset: usize)
     where
-        usize: IoLoc<Self::Target, u16, IoType = u16>,
+        usize: IoLoc<Self::Target, u16>,
         Self::Backend: IoCapable<u16>,
     {
         self.write(offset, value)
@@ -799,7 +848,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write32(self, value: u32, offset: usize)
     where
-        usize: IoLoc<Self::Target, u32, IoType = u32>,
+        usize: IoLoc<Self::Target, u32>,
         Self::Backend: IoCapable<u32>,
     {
         self.write(offset, value)
@@ -811,7 +860,7 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write64(self, value: u64, offset: usize)
     where
-        usize: IoLoc<Self::Target, u64, IoType = u64>,
+        usize: IoLoc<Self::Target, u64>,
         Self::Backend: IoCapable<u64>,
     {
         self.write(offset, value)
@@ -843,11 +892,11 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_read<T, L>(self, location: L) -> Result<T>
     where
+        T: AsReprMut,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
-        let view = io_view::<Self, L::IoType>(self, location.offset())?;
-        Ok(Self::Backend::io_read(view).into())
+        Ok(io_read!(self, try: location))
     }
 
     /// Generic fallible write with runtime bounds check.
@@ -876,12 +925,11 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write<T, L>(self, location: L, value: T) -> Result
     where
+        T: AsRepr,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
-        let view = io_view::<Self, L::IoType>(self, location.offset())?;
-        let io_value = value.into();
-        Self::Backend::io_write(view, io_value);
+        io_write!(self, try: location, value);
         Ok(())
     }
 
@@ -900,6 +948,8 @@ pub trait Io<'a>: IoBase<'a> {
     /// };
     ///
     /// register! {
+    ///     base: Region;
+    ///
     ///     VERSION(u32) @ 0x100 {
     ///         15:8 major;
     ///         7:0  minor;
@@ -920,9 +970,10 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_write_reg<T, L, V>(self, value: V) -> Result
     where
+        T: AsRepr,
         L: IoLoc<Self::Target, T>,
         V: LocatedRegister<Self::Target, Location = L, Value = T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
         let (location, value) = value.into_io_op();
 
@@ -954,16 +1005,13 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn try_update<T, L, F>(self, location: L, f: F) -> Result
     where
+        T: AsReprMut,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
         F: FnOnce(T) -> T,
     {
-        let view = io_view::<Self, L::IoType>(self, location.offset())?;
-
-        let value: T = Self::Backend::io_read(view).into();
-        let io_value = f(value).into();
-        Self::Backend::io_write(view, io_value);
-
+        let view = io_project!(self, try: location);
+        view.write_val(f(view.read_val()));
         Ok(())
     }
 
@@ -991,11 +1039,11 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn read<T, L>(self, location: L) -> T
     where
+        T: AsReprMut,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
-        let view = io_view_assert::<Self, L::IoType>(self, location.offset());
-        Self::Backend::io_read(view).into()
+        io_read!(self, build: location)
     }
 
     /// Generic infallible write with compile-time bounds check.
@@ -1022,12 +1070,11 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write<T, L>(self, location: L, value: T)
     where
+        T: AsRepr,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
-        let view = io_view_assert::<Self, L::IoType>(self, location.offset());
-        let io_value = value.into();
-        Self::Backend::io_write(view, io_value);
+        io_write!(self, build: location, value);
     }
 
     /// Generic infallible write of a fully-located register value.
@@ -1045,6 +1092,8 @@ pub trait Io<'a>: IoBase<'a> {
     /// };
     ///
     /// register! {
+    ///     base: Region<0x1000>;
+    ///
     ///     VERSION(u32) @ 0x100 {
     ///         15:8 major;
     ///         7:0  minor;
@@ -1064,9 +1113,10 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn write_reg<T, L, V>(self, value: V)
     where
+        T: AsRepr,
         L: IoLoc<Self::Target, T>,
         V: LocatedRegister<Self::Target, Location = L, Value = T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
     {
         let (location, value) = value.into_io_op();
 
@@ -1098,14 +1148,13 @@ pub trait Io<'a>: IoBase<'a> {
     #[inline(always)]
     fn update<T, L, F>(self, location: L, f: F)
     where
+        T: AsReprMut,
         L: IoLoc<Self::Target, T>,
-        Self::Backend: IoCapable<L::IoType>,
+        Self::Backend: IoCapable<<T as AsRepr>::Repr>,
         F: FnOnce(T) -> T,
     {
-        let view = io_view_assert::<Self, L::IoType>(self, location.offset());
-        let value: T = Self::Backend::io_read(view).into();
-        let io_value = f(value).into();
-        Self::Backend::io_write(view, io_value);
+        let view = io_project!(self, build: location);
+        view.write_val(f(view.read_val()));
     }
 }
 
@@ -1649,6 +1698,25 @@ where
         // SAFETY: Per safety requirement.
         unsafe { T::Backend::project_view::<T::Target, _>(self.0, ptr) }
     }
+
+    #[inline(always)]
+    pub fn try_project_loc<U, L>(
+        self,
+        location: L,
+    ) -> Result<<T::Backend as IoBackend>::View<'a, U>>
+    where
+        L: IoLoc<T::Target, U>,
+    {
+        io_view::<_, U>(self.0, location.offset())
+    }
+
+    #[inline(always)]
+    pub fn project_loc<U, L>(self, location: L) -> <T::Backend as IoBackend>::View<'a, U>
+    where
+        L: IoLoc<T::Target, U>,
+    {
+        io_view_assert::<_, U>(self.0, location.offset())
+    }
 }
 
 /// Project an I/O type to a subview of it.
@@ -1656,26 +1724,54 @@ where
 /// The syntax is of form `io_project!(io, proj)` where `io` is an expression to a type that
 /// implements [`Io`] and `proj` is a [projection specification](kernel::ptr::project!).
 ///
+/// `io_project!` can also project to a subview of registers defined with [`register!`] macro.
+/// Register projection has syntax `io_project!(io, try: REGISTER)` for fallible projection and
+/// `io_project!(io, build: REGISTER)` for infallible projection.
+///
 /// # Examples
 ///
 /// ```
 /// use kernel::io::{
 ///     io_project,
+///     register,
 ///     Mmio,
 /// };
 /// #[repr(C)]
 /// struct MyStruct { field: u32, }
+///
+/// register! {
+///     base: MyStruct;
+///     FIELD(u32) @ 0 {
+///         31:0 val;
+///     }
+/// }
 ///
 /// # fn test(mmio: Mmio<'_, [MyStruct]>) -> Result {
 /// // let mmio: Mmio<[MyStruct]>;
 /// let field: Mmio<'_, u32> = io_project!(mmio, [try: 1].field);
 /// let whole: Mmio<'_, MyStruct> = io_project!(mmio, [try: 2]);
 /// let nested: Mmio<'_, u32> = io_project!(whole, .field);
+/// let reg: Mmio<'_, FIELD> = io_project!(whole, build: FIELD);
 /// # Ok::<(), Error>(()) }
 /// ```
 #[macro_export]
 #[doc(hidden)]
 macro_rules! io_project {
+    // Register projection
+    ($io:expr, try: $ioloc:expr) => {{
+        #[allow(unused)]
+        use $crate::io::IoBase as _;
+        let view = $crate::io::ProjectHelper($io.as_view());
+        view.try_project_loc($ioloc)?
+    }};
+    ($io:expr, build: $ioloc:expr) => {{
+        #[allow(unused)]
+        use $crate::io::IoBase as _;
+        let view = $crate::io::ProjectHelper($io.as_view());
+        view.project_loc($ioloc)
+    }};
+
+    // Field or index projection
     ($io:expr, $($proj:tt)*) => {{
         #[allow(unused)]
         use $crate::io::IoBase as _;
@@ -1745,6 +1841,12 @@ macro_rules! io_write {
     };
     (@parse [$io:expr] [$($proj:tt)*] [[$flavor:ident: $index:expr] $($rest:tt)*]) => {
         $crate::io_write!(@parse [$io] [$($proj)* [$flavor: $index]] [$($rest)*])
+    };
+    (@parse [$io:expr] [] [try: $ioloc:expr, $($rest:tt)*]) => {
+        $crate::io_write!(@parse [$io] [try: $ioloc] [, $($rest)*])
+    };
+    (@parse [$io:expr] [] [build: $ioloc:expr, $($rest:tt)*]) => {
+        $crate::io_write!(@parse [$io] [build: $ioloc] [, $($rest)*])
     };
     ($io:expr, $($rest:tt)*) => {
         $crate::io_write!(@parse [$io] [] [$($rest)*])

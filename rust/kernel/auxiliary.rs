@@ -305,6 +305,10 @@ impl Device<device::Bound> {
     /// `F` is the [`ForLt`](trait@ForLt) encoding of the data type. The closure receives a pinned
     /// reference to the registration data.
     ///
+    /// The outer reference carries the `&self` lifetime while the inner type carries the HRTB
+    /// lifetime `'a`, implying `'a` outlives `&self`. This allows the closure to coerce covariant
+    /// sub-fields (e.g. `&'a T` to the caller's lifetime) and return them directly in `R`.
+    ///
     /// For covariant types that implement [`trait@CovariantForLt`], prefer
     /// [`registration_data`](Self::registration_data) which returns a direct reference.
     ///
@@ -314,13 +318,14 @@ impl Device<device::Bound> {
     /// Returns [`ENOENT`] if no registration data has been set, e.g. when the device was
     /// registered by a C driver.
     #[inline]
-    pub fn registration_data_with<F: ForLt + 'static, R>(
-        &self,
-        f: impl for<'a> FnOnce(Pin<&'a F::Of<'a>>) -> R,
+    pub fn registration_data_with<'this, F: ForLt + 'static, R>(
+        &'this self,
+        f: impl for<'a> FnOnce(Pin<&'this F::Of<'a>>) -> R,
     ) -> Result<R> {
-        // SAFETY: The HRTB closure prevents the caller from smuggling in references with a
-        // concrete short lifetime, making the round-trip from `'static` sound regardless of
-        // variance.
+        // SAFETY: The HRTB on the inner type prevents the caller from exploiting a specific
+        // choice of `'a`. Covariant sub-fields can be safely coerced to `'this`, while
+        // invariant fields cannot be coerced and thus cannot escape with an incorrect
+        // lifetime.
         let pinned = unsafe { self.registration_data_pinned::<F>()? };
 
         Ok(f(pinned))

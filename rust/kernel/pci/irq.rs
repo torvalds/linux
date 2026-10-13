@@ -13,27 +13,26 @@ use crate::{
 };
 use core::num::NonZero;
 
-/// IRQ type flags for PCI interrupt allocation.
-#[derive(Debug, Clone, Copy)]
-pub enum IrqType {
-    /// INTx interrupts.
-    Intx,
-    /// Message Signaled Interrupts (MSI).
-    Msi,
-    /// Extended Message Signaled Interrupts (MSI-X).
-    MsiX,
-}
+crate::impl_flags!(
+    /// Set of IRQ types that can be used for PCI interrupt allocation.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct IrqTypes(u32);
+
+    /// IRQ type flags for PCI interrupt allocation.
+    #[derive(Debug, Clone, Copy)]
+    pub enum IrqType {
+        /// INTx interrupts.
+        Intx = bindings::PCI_IRQ_INTX,
+
+        /// Message Signaled Interrupts (MSI).
+        Msi = bindings::PCI_IRQ_MSI,
+
+        /// Extended Message Signaled Interrupts (MSI-X).
+        MsiX = bindings::PCI_IRQ_MSIX,
+    }
+);
 
 impl IrqType {
-    /// Convert to the corresponding kernel flags.
-    const fn as_raw(self) -> u32 {
-        match self {
-            IrqType::Intx => bindings::PCI_IRQ_INTX,
-            IrqType::Msi => bindings::PCI_IRQ_MSI,
-            IrqType::MsiX => bindings::PCI_IRQ_MSIX,
-        }
-    }
-
     /// Construct from raw value.
     #[inline]
     const fn from_raw(raw: u32) -> Self {
@@ -45,33 +44,10 @@ impl IrqType {
     }
 }
 
-/// Set of IRQ types that can be used for PCI interrupt allocation.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct IrqTypes(u32);
-
 impl IrqTypes {
     /// Create a set containing all IRQ types (MSI-X, MSI, and INTx).
     pub const fn all() -> Self {
-        Self(bindings::PCI_IRQ_ALL_TYPES)
-    }
-
-    /// Build a set of IRQ types.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// // Create a set with only MSI and MSI-X (no INTx interrupts).
-    /// let msi_only = IrqTypes::default()
-    ///     .with(IrqType::Msi)
-    ///     .with(IrqType::MsiX);
-    /// ```
-    pub const fn with(self, irq_type: IrqType) -> Self {
-        Self(self.0 | irq_type.as_raw())
-    }
-
-    /// Get the raw flags value.
-    const fn as_raw(self) -> u32 {
-        self.0
+        Self(Self::all_bits())
     }
 }
 
@@ -205,9 +181,7 @@ impl Device<device::Bound> {
     /// let vectors = dev.alloc_irq_vectors(1, 32, pci::IrqTypes::all())?;
     ///
     /// // Allocate MSI or MSI-X only (no INTx interrupts).
-    /// let msi_only = pci::IrqTypes::default()
-    ///     .with(pci::IrqType::Msi)
-    ///     .with(pci::IrqType::MsiX);
+    /// let msi_only = pci::IrqType::Msi | pci::IrqType::MsiX;
     /// let vectors = dev.alloc_irq_vectors(4, 16, msi_only)?;
     /// # Ok(())
     /// # }
@@ -224,7 +198,7 @@ impl Device<device::Bound> {
         // - `pci_alloc_irq_vectors` internally validates all other parameters
         //   and returns error codes.
         let ret = unsafe {
-            bindings::pci_alloc_irq_vectors(self.as_raw(), min_vecs, max_vecs, irq_types.as_raw())
+            bindings::pci_alloc_irq_vectors(self.as_raw(), min_vecs, max_vecs, u32::from(irq_types))
         };
         to_result(ret)?;
 

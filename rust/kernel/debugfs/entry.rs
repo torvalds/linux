@@ -74,7 +74,7 @@ impl Entry<'static> {
                 parent.as_ptr(),
                 core::ptr::from_ref(data) as *mut c_void,
                 core::ptr::null(),
-                &**file_ops,
+                file_ops.fops(),
             )
         };
 
@@ -127,7 +127,7 @@ impl<'a> Entry<'a> {
                 parent.as_ptr(),
                 core::ptr::from_ref(data) as *mut c_void,
                 core::ptr::null(),
-                &**file_ops,
+                file_ops.fops(),
             )
         };
 

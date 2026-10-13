@@ -58,7 +58,7 @@ impl GspMbox {
     fn lockdown_released_or_error(
         &self,
         gsp_falcon: &Falcon<'_, GspEngine>,
-        fmc_boot_params: &Coherent<GspFmcBootParams>,
+        fmc_boot_params: &Coherent<'_, GspFmcBootParams>,
     ) -> bool {
         // GSP-FMC normally clears the boot parameters address from the mailboxes early during
         // boot. If the address is still there, keep polling rather than treating it as an error.
@@ -75,7 +75,7 @@ impl GspMbox {
 fn wait_for_gsp_lockdown_release(
     dev: &device::Device<device::Bound>,
     gsp_falcon: &Falcon<'_, GspEngine>,
-    fmc_boot_params: &Coherent<GspFmcBootParams>,
+    fmc_boot_params: &Coherent<'_, GspFmcBootParams>,
 ) -> Result {
     dev_dbg!(dev, "Waiting for GSP lockdown release\n");
 
@@ -141,12 +141,12 @@ impl GspHal for Gh100 {
     ///
     /// This path uses FSP to establish a chain of trust and boot GSP-FMC. FSP handles
     /// the GSP boot internally - no manual GSP reset/boot is needed.
-    fn boot(
+    fn boot<'gpu>(
         &self,
-        gsp: &Gsp,
-        ctx: &mut GspBootContext<'_, '_>,
-        gsp_fw: &GspFirmware,
-    ) -> Result<Option<crate::gsp::UnloadBundle>> {
+        gsp: &Gsp<'gpu>,
+        ctx: &mut GspBootContext<'_, 'gpu>,
+        gsp_fw: &GspFirmware<'gpu>,
+    ) -> Result<Option<crate::gsp::UnloadBundle<'gpu>>> {
         let dev = ctx.dev();
         let chipset = ctx.chipset;
         let gsp_falcon = ctx.gsp_falcon;
@@ -159,7 +159,7 @@ impl GspHal for Gh100 {
         let args = FmcBootArgs::new(dev, chipset, wpr_meta, &gsp.libos, false)?;
 
         let unload_bundle = crate::gsp::UnloadBundle(
-            KBox::new(FspUnloadBundle, GFP_KERNEL)? as KBox<dyn UnloadBundle>
+            KBox::new(FspUnloadBundle, GFP_KERNEL)? as KBox<dyn UnloadBundle + 'gpu>
         );
 
         // Wait for the GSP RISC-V core to halt in case of error. We create this guard after `args`

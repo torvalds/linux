@@ -4,110 +4,37 @@
 use kernel::{
     io::{
         register,
-        register::WithBase,
-        Io, //
+        Io,
+        Mmio, //
     },
-    prelude::*,
     sizes::SizeConstants,
     time, //
 };
+use pin_init::Zeroable;
 
 use crate::{
-    driver::Bar0,
+    driver::NovaRegisters,
     falcon::{
         DmaTrfCmdSize,
         FalconCoreRev,
         FalconCoreRevSubversion,
-        FalconEngine,
         FalconFbifMemType,
         FalconFbifTarget,
         FalconMem,
         FalconModSelAlgo,
         FalconSecurityModel,
-        PFalcon2Base,
-        PFalconBase,
+        PFalcon2Registers,
+        PFalconRegisters,
         PeregrineCoreSelect, //
     },
-    gpu::{
-        Architecture,
-        Chipset, //
-    },
+    mm::tlb::TlbAckMode, //
 };
-
-// PMC
-
-register! {
-    /// Basic revision information about the GPU.
-    pub(crate) NV_PMC_BOOT_0(u32) @ 0x00000000 {
-        /// Lower bits of the architecture.
-        28:24   architecture_0;
-        /// Implementation version of the architecture.
-        23:20   implementation;
-        /// MSB of the architecture.
-        8:8     architecture_1;
-        /// Major revision of the chip.
-        7:4     major_revision;
-        /// Minor revision of the chip.
-        3:0     minor_revision;
-    }
-
-    /// Extended architecture information.
-    pub(crate) NV_PMC_BOOT_42(u32) @ 0x00000a00 {
-        /// Architecture value.
-        29:24   architecture ?=> Architecture;
-        /// Implementation version of the architecture.
-        23:20   implementation;
-        /// Major revision of the chip.
-        19:16   major_revision;
-        /// Minor revision of the chip.
-        15:12   minor_revision;
-    }
-}
-
-impl NV_PMC_BOOT_0 {
-    pub(crate) fn is_older_than_fermi(self) -> bool {
-        // From https://github.com/NVIDIA/open-gpu-doc/tree/master/manuals :
-        const NV_PMC_BOOT_0_ARCHITECTURE_GF100: u32 = 0xc;
-
-        // Older chips left arch1 zeroed out. That, combined with an arch0 value that is less than
-        // GF100, means "older than Fermi".
-        self.architecture_1() == 0 && self.architecture_0() < NV_PMC_BOOT_0_ARCHITECTURE_GF100
-    }
-}
-
-impl NV_PMC_BOOT_42 {
-    /// Combines `architecture` and `implementation` to obtain a code unique to the chipset.
-    pub(crate) fn chipset(self) -> Result<Chipset> {
-        self.architecture()
-            .map(|arch| {
-                ((arch as u32) << Self::IMPLEMENTATION_RANGE.len())
-                    | u32::from(self.implementation())
-            })
-            .and_then(Chipset::try_from)
-    }
-
-    /// Returns the raw architecture value from the register.
-    fn architecture_raw(self) -> u8 {
-        ((self.into_raw() >> Self::ARCHITECTURE_RANGE.start())
-            & ((1 << Self::ARCHITECTURE_RANGE.len()) - 1)) as u8
-    }
-}
-
-impl kernel::fmt::Display for NV_PMC_BOOT_42 {
-    fn fmt(&self, f: &mut kernel::fmt::Formatter<'_>) -> kernel::fmt::Result {
-        write!(
-            f,
-            "boot42 = 0x{:08x} (architecture 0x{:x}, implementation 0x{:x})",
-            self.inner,
-            self.architecture_raw(),
-            self.implementation()
-        )
-    }
-}
 
 // PBUS
 
 register! {
+    base: NovaRegisters;
+
     pub(crate) NV_PBUS_SW_SCRATCH(u32)[64] @ 0x00001400 {}
 }
 
@@ -121,6 +48,8 @@ register! {
 // number.
 
 register! {
+    base: NovaRegisters;
+
     /// Boot Sequence Interface (BSI) register used to determine
     /// if GSP reload/resume has completed during the boot process.
     pub(crate) NV_PGC6_BSI_SECURE_SCRATCH_14(u32) @ 0x001180f8 {
@@ -175,6 +104,8 @@ impl NV_USABLE_FB_SIZE_IN_MB {
 pub(crate) const NV_FUSE_OPT_FPF_SIZE: usize = 16;
 
 register! {
+    base: NovaRegisters;
+
     pub(crate) NV_FUSE_OPT_FPF_NVDEC_UCODE1_VERSION(u32)[NV_FUSE_OPT_FPF_SIZE] @ 0x00824100 {
         15:0    data => u16;
     }
@@ -191,30 +122,46 @@ register! {
 // PFALCON
 
 register! {
-    pub(crate) NV_PFALCON_FALCON_IRQSCLR(u32) @ PFalconBase + 0x00000004 {
+    base: PFalconRegisters;
+
+    /// Clears the latch of every cause whose bit is written as `1`. Write-only.
+    ///
+    /// The write ends the latch and not the source, so a cause driven from outside the falcon
+    /// stays set. "Retriggering a falcon" in `Documentation/gpu/nova/core/interrupts.rst` names
+    /// those causes.
+    pub(crate) NV_PFALCON_FALCON_IRQSCLR(u32) @ 0x00000004 {
         6:6     swgen0 => bool;
         4:4     halt => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_MAILBOX0(u32) @ PFalconBase + 0x00000040 {
+    /// Interrupt causes latched in the falcon, one bit per cause, whichever target each is routed
+    /// to.
+    ///
+    /// The causes routed to the host are the ones also set in `NV_PRISCV_RISCV_IRQMASK` and
+    /// `NV_PRISCV_RISCV_IRQDEST`.
+    pub(crate) NV_PFALCON_FALCON_IRQSTAT(u32) @ 0x00000008 {
+        6:6     swgen0 => bool;
+    }
+
+    pub(crate) NV_PFALCON_FALCON_MAILBOX0(u32) @ 0x00000040 {
         31:0    value => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_MAILBOX1(u32) @ PFalconBase + 0x00000044 {
+    pub(crate) NV_PFALCON_FALCON_MAILBOX1(u32) @ 0x00000044 {
         31:0    value => u32;
     }
 
     /// Used to store version information about the firmware running
     /// on the Falcon processor.
-    pub(crate) NV_PFALCON_FALCON_OS(u32) @ PFalconBase + 0x00000080 {
+    pub(crate) NV_PFALCON_FALCON_OS(u32) @ 0x00000080 {
         31:0    value => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_RM(u32) @ PFalconBase + 0x00000084 {
+    pub(crate) NV_PFALCON_FALCON_RM(u32) @ 0x00000084 {
         31:0    value => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_HWCFG2(u32) @ PFalconBase + 0x000000f4 {
+    pub(crate) NV_PFALCON_FALCON_HWCFG2(u32) @ 0x000000f4 {
         /// Signal indicating that reset is completed (GA102+).
         31:31   reset_ready => bool;
         /// RISC-V branch privilege lockdown bit.
@@ -224,17 +171,17 @@ register! {
         10:10   riscv => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_CPUCTL(u32) @ PFalconBase + 0x00000100 {
+    pub(crate) NV_PFALCON_FALCON_CPUCTL(u32) @ 0x00000100 {
         6:6     alias_en => bool;
         4:4     halted => bool;
         1:1     startcpu => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_BOOTVEC(u32) @ PFalconBase + 0x00000104 {
+    pub(crate) NV_PFALCON_FALCON_BOOTVEC(u32) @ 0x00000104 {
         31:0    value => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMACTL(u32) @ PFalconBase + 0x0000010c {
+    pub(crate) NV_PFALCON_FALCON_DMACTL(u32) @ 0x0000010c {
         7:7     secure_stat => bool;
         6:3     dmaq_num;
         2:2     imem_scrubbing => bool;
@@ -242,15 +189,15 @@ register! {
         0:0     require_ctx => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMATRFBASE(u32) @ PFalconBase + 0x00000110 {
+    pub(crate) NV_PFALCON_FALCON_DMATRFBASE(u32) @ 0x00000110 {
         31:0    base => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMATRFMOFFS(u32) @ PFalconBase + 0x00000114 {
+    pub(crate) NV_PFALCON_FALCON_DMATRFMOFFS(u32) @ 0x00000114 {
         23:0    offs;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMATRFCMD(u32) @ PFalconBase + 0x00000118 {
+    pub(crate) NV_PFALCON_FALCON_DMATRFCMD(u32) @ 0x00000118 {
         16:16   set_dmtag;
         14:12   ctxdma;
         10:8    size ?=> DmaTrfCmdSize;
@@ -261,15 +208,15 @@ register! {
         0:0     full => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMATRFFBOFFS(u32) @ PFalconBase + 0x0000011c {
+    pub(crate) NV_PFALCON_FALCON_DMATRFFBOFFS(u32) @ 0x0000011c {
         31:0    offs => u32;
     }
 
-    pub(crate) NV_PFALCON_FALCON_DMATRFBASE1(u32) @ PFalconBase + 0x00000128 {
+    pub(crate) NV_PFALCON_FALCON_DMATRFBASE1(u32) @ 0x00000128 {
         8:0     base;
     }
 
-    pub(crate) NV_PFALCON_FALCON_HWCFG1(u32) @ PFalconBase + 0x0000012c {
+    pub(crate) NV_PFALCON_FALCON_HWCFG1(u32) @ 0x0000012c {
         /// Core revision subversion.
         7:6     core_rev_subversion => FalconCoreRevSubversion;
         /// Security model.
@@ -278,12 +225,12 @@ register! {
         3:0     core_rev ?=> FalconCoreRev;
     }
 
-    pub(crate) NV_PFALCON_FALCON_CPUCTL_ALIAS(u32) @ PFalconBase + 0x00000130 {
+    pub(crate) NV_PFALCON_FALCON_CPUCTL_ALIAS(u32) @ 0x00000130 {
         1:1     startcpu => bool;
     }
 
     /// IMEM access control register. Up to 4 ports are available for IMEM access.
-    pub(crate) NV_PFALCON_FALCON_IMEMC(u32)[4, stride = 16] @ PFalconBase + 0x00000180 {
+    pub(crate) NV_PFALCON_FALCON_IMEMC(u32)[4, stride = 16] @ 0x00000180 {
         /// Access secure IMEM.
         28:28     secure => bool;
         /// Auto-increment on write.
@@ -294,17 +241,17 @@ register! {
 
     /// IMEM data register. Reading/writing this register accesses IMEM at the address
     /// specified by the corresponding IMEMC register.
-    pub(crate) NV_PFALCON_FALCON_IMEMD(u32)[4, stride = 16] @ PFalconBase + 0x00000184 {
+    pub(crate) NV_PFALCON_FALCON_IMEMD(u32)[4, stride = 16] @ 0x00000184 {
         31:0      data;
     }
 
     /// IMEM tag register. Used to set the tag for the current IMEM block.
-    pub(crate) NV_PFALCON_FALCON_IMEMT(u32)[4, stride = 16] @ PFalconBase + 0x00000188 {
+    pub(crate) NV_PFALCON_FALCON_IMEMT(u32)[4, stride = 16] @ 0x00000188 {
         15:0      tag;
     }
 
     /// DMEM access control register. Up to 8 ports are available for DMEM access.
-    pub(crate) NV_PFALCON_FALCON_DMEMC(u32)[8, stride = 8] @ PFalconBase + 0x000001c0 {
+    pub(crate) NV_PFALCON_FALCON_DMEMC(u32)[8, stride = 8] @ 0x000001c0 {
         /// Auto-increment on write.
         24:24     aincw => bool;
         /// DMEM block and word offset.
@@ -313,29 +260,39 @@ register! {
 
     /// DMEM data register. Reading/writing this register accesses DMEM at the address
     /// specified by the corresponding DMEMC register.
-    pub(crate) NV_PFALCON_FALCON_DMEMD(u32)[8, stride = 8] @ PFalconBase + 0x000001c4 {
+    pub(crate) NV_PFALCON_FALCON_DMEMD(u32)[8, stride = 8] @ 0x000001c4 {
         31:0      data;
     }
 
     /// Actually known as `NV_PSEC_FALCON_ENGINE` and `NV_PGSP_FALCON_ENGINE` depending on the
     /// falcon instance.
-    pub(crate) NV_PFALCON_FALCON_ENGINE(u32) @ PFalconBase + 0x000003c0 {
+    pub(crate) NV_PFALCON_FALCON_ENGINE(u32) @ 0x000003c0 {
         0:0     reset => bool;
     }
 
-    pub(crate) NV_PFALCON_FBIF_TRANSCFG(u32)[8] @ PFalconBase + 0x00000600 {
+    /// Makes the falcon re-emit its host-routed causes into the interrupt tree. Write-only.
+    ///
+    /// Present from GA100 on. See "Retriggering a falcon" in
+    /// `Documentation/gpu/nova/core/interrupts.rst`.
+    ///
+    /// The hardware headers declare two elements, and OpenRM writes only the first.
+    pub(crate) NV_PFALCON_FALCON_INTR_RETRIGGER(u32)[2] @ 0x000003e8 {
+        0:0     trigger => bool;
+    }
+
+    pub(crate) NV_PFALCON_FBIF_TRANSCFG(u32)[8] @ 0x00000600 {
         2:2     mem_type => FalconFbifMemType;
         1:0     target ?=> FalconFbifTarget;
     }
 
-    pub(crate) NV_PFALCON_FBIF_CTL(u32) @ PFalconBase + 0x00000624 {
+    pub(crate) NV_PFALCON_FBIF_CTL(u32) @ 0x00000624 {
         7:7     allow_phys_no_ctx => bool;
     }
 
     // Falcon EMEM PIO registers (used by FSP on Hopper/Blackwell).
     // These provide the falcon external memory communication interface.
 
-    pub(crate) NV_PFALCON_FALCON_EMEMC(u32) @ PFalconBase + 0x00000ac0 {
+    pub(crate) NV_PFALCON_FALCON_EMEMC(u32) @ 0x00000ac0 {
         /// EMEM byte offset (4-byte aligned) within the block.
         7:2     offs;
         /// EMEM block to access.
@@ -346,7 +303,7 @@ register! {
         25:25   aincr => bool;
     }
 
-    pub(crate) NV_PFALCON_FALCON_EMEMD(u32) @ PFalconBase + 0x00000ac4 {
+    pub(crate) NV_PFALCON_FALCON_EMEMD(u32) @ 0x00000ac4 {
         31:0    data => u32;
     }
 }
@@ -372,13 +329,13 @@ impl NV_PFALCON_FALCON_DMATRFCMD {
 
 impl NV_PFALCON_FALCON_ENGINE {
     /// Resets the falcon
-    pub(crate) fn reset_engine<E: FalconEngine>(bar: Bar0<'_>) {
-        bar.update(Self::of::<E>(), |r| r.with_reset(true));
+    pub(crate) fn reset_engine(pfalcon: Mmio<'_, PFalconRegisters>) {
+        pfalcon.update(NV_PFALCON_FALCON_ENGINE, |r| r.with_reset(true));
 
         // TIMEOUT: falcon engine should not take more than 10us to reset.
         time::delay::fsleep(time::Delta::from_micros(10));
 
-        bar.update(Self::of::<E>(), |r| r.with_reset(false));
+        pfalcon.update(NV_PFALCON_FALCON_ENGINE, |r| r.with_reset(false));
     }
 }
 
@@ -392,21 +349,23 @@ impl NV_PFALCON_FALCON_HWCFG2 {
 /* PFALCON2 */
 
 register! {
-    pub(crate) NV_PFALCON2_FALCON_MOD_SEL(u32) @ PFalcon2Base + 0x00000180 {
+    base: PFalcon2Registers;
+
+    pub(crate) NV_PFALCON2_FALCON_MOD_SEL(u32) @ 0x00000180 {
         7:0     algo ?=> FalconModSelAlgo;
     }
 
-    pub(crate) NV_PFALCON2_FALCON_BROM_CURR_UCODE_ID(u32) @ PFalcon2Base + 0x00000198 {
+    pub(crate) NV_PFALCON2_FALCON_BROM_CURR_UCODE_ID(u32) @ 0x00000198 {
         7:0    ucode_id => u8;
     }
 
-    pub(crate) NV_PFALCON2_FALCON_BROM_ENGIDMASK(u32) @ PFalcon2Base + 0x0000019c {
+    pub(crate) NV_PFALCON2_FALCON_BROM_ENGIDMASK(u32) @ 0x0000019c {
         31:0    value => u32;
     }
 
     /// OpenRM defines this as a register array, but doesn't specify its size and only uses its
     /// first element. Be conservative until we know the actual size or need to use more registers.
-    pub(crate) NV_PFALCON2_FALCON_BROM_PARAADDR(u32)[1] @ PFalcon2Base + 0x00000210 {
+    pub(crate) NV_PFALCON2_FALCON_BROM_PARAADDR(u32)[1] @ 0x00000210 {
         31:0    value => u32;
     }
 }
@@ -414,21 +373,23 @@ register! {
 // PRISCV
 
 register! {
+    base: PFalcon2Registers;
+
     /// RISC-V status register for debug (Turing and GA100 only).
     /// Reflects current RISC-V core status.
-    pub(crate) NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS(u32) @ PFalcon2Base + 0x00000240 {
+    pub(crate) NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS(u32) @ 0x00000240 {
         /// RISC-V core active/inactive status.
         0:0     active_stat => bool;
     }
 
     /// GA102 and later.
-    pub(crate) NV_PRISCV_RISCV_CPUCTL(u32) @ PFalcon2Base + 0x00000388 {
+    pub(crate) NV_PRISCV_RISCV_CPUCTL(u32) @ 0x00000388 {
         7:7     active_stat => bool;
         4:4     halted => bool;
     }
 
     /// GA102 and later.
-    pub(crate) NV_PRISCV_RISCV_BCR_CTRL(u32) @ PFalcon2Base + 0x00000668 {
+    pub(crate) NV_PRISCV_RISCV_BCR_CTRL(u32) @ 0x00000668 {
         8:8     br_fetch => bool;
         4:4     core_select => PeregrineCoreSelect;
         0:0     valid => bool;
@@ -439,6 +400,8 @@ register! {
 // These registers manage falcon EMEM communication queues.
 
 register! {
+    base: NovaRegisters;
+
     pub(crate) NV_PFSP_QUEUE_HEAD(u32)[8] @ 0x008f2c00 {
         31:0    address => u32;
     }
@@ -462,11 +425,38 @@ register! {
 pub(crate) mod gm107 {
     use kernel::io::register;
 
+    use crate::driver::NovaRegisters;
+
     // FUSE
 
     register! {
+        base: NovaRegisters;
+
         pub(crate) NV_FUSE_STATUS_OPT_DISPLAY(u32) @ 0x00021c04 {
             0:0     display_disabled => bool;
+        }
+    }
+}
+
+pub(crate) mod tu102 {
+    use kernel::io::register;
+
+    use crate::falcon::PFalcon2Registers;
+
+    // The RISC-V interrupt routing registers, at the offsets that Turing and GA100 use.
+
+    register! {
+        base: PFalcon2Registers;
+
+        /// Enabled causes, one bit per cause. Read-only to the host.
+        pub(crate) NV_PRISCV_RISCV_IRQMASK(u32) @ 0x000002b4 {
+            31:0    value => u32;
+        }
+
+        /// Causes routed to the host, one bit per cause. A clear bit routes the cause to the
+        /// RISC-V core.
+        pub(crate) NV_PRISCV_RISCV_IRQDEST(u32) @ 0x000002b8 {
+            31:0    value => u32;
         }
     }
 }
@@ -474,11 +464,37 @@ pub(crate) mod gm107 {
 pub(crate) mod ga100 {
     use kernel::io::register;
 
+    use crate::driver::NovaRegisters;
+
     // FUSE
 
     register! {
+        base: NovaRegisters;
+
         pub(crate) NV_FUSE_STATUS_OPT_DISPLAY(u32) @ 0x00820c04 {
             0:0     display_disabled => bool;
+        }
+    }
+}
+
+pub(crate) mod ga102 {
+    use kernel::io::register;
+
+    use crate::falcon::PFalcon2Registers;
+
+    // The RISC-V interrupt routing registers, at the offsets that GA102 and later use.
+
+    register! {
+        base: PFalcon2Registers;
+
+        /// Same as [`super::tu102::NV_PRISCV_RISCV_IRQMASK`], at the GA102 offset.
+        pub(crate) NV_PRISCV_RISCV_IRQMASK(u32) @ 0x00000528 {
+            31:0    value => u32;
+        }
+
+        /// Same as [`super::tu102::NV_PRISCV_RISCV_IRQDEST`], at the GA102 offset.
+        pub(crate) NV_PRISCV_RISCV_IRQDEST(u32) @ 0x0000052c {
+            31:0    value => u32;
         }
     }
 }
@@ -488,9 +504,13 @@ pub(crate) const NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE_STATUS_SUCCESS: u32 = 0
 pub(crate) mod gh100 {
     use kernel::io::register;
 
+    use crate::driver::NovaRegisters;
+
     // PTHERM
 
     register! {
+        base: NovaRegisters;
+
         pub(crate) NV_THERM_I2CS_SCRATCH(u32) @ 0x000200bc {
             31:0    data;
         }
@@ -505,9 +525,13 @@ pub(crate) mod gh100 {
 pub(crate) mod gb202 {
     use kernel::io::register;
 
+    use crate::driver::NovaRegisters;
+
     // PTHERM
 
     register! {
+        base: NovaRegisters;
+
         pub(crate) NV_THERM_I2CS_SCRATCH(u32) @ 0x00ad00bc {
             31:0    data;
         }
@@ -516,5 +540,71 @@ pub(crate) mod gb202 {
         pub(crate) NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE(u32) => NV_THERM_I2CS_SCRATCH {
             31:0    fsp_boot_complete;
         }
+    }
+}
+
+// MMU TLB
+
+register! {
+    base: NovaRegisters;
+
+    /// TLB flush register: PDB address lower bits.
+    pub(crate) NV_TLB_FLUSH_PDB_LO(u32) @ 0x00b830a0 {
+        /// PDB address bits [39:8].
+        31:0    pdb_lo => u32;
+    }
+
+    /// TLB flush register: PDB address higher bits.
+    pub(crate) NV_TLB_FLUSH_PDB_HI(u32) @ 0x00b830a4 {
+        /// PDB address bits [47:40].
+        7:0     pdb_hi => u8;
+    }
+
+    /// TLB flush control register.
+    pub(crate) NV_TLB_FLUSH_CTRL(u32) @ 0x00b830b0 {
+        /// Invalidate every VA in the PDB selected by `NV_TLB_FLUSH_PDB_LO/HI`.
+        0:0     all_va => bool;
+        /// Invalidate TLBs for all PDBs (ignores `NV_TLB_FLUSH_PDB_LO/HI`).
+        1:1     all_pdb => bool;
+        /// Restrict the flush to the HUB MMU's TLBs; skip broadcasting to the
+        /// per-GPC L2 TLBs.
+        ///
+        /// The GPU MMU has a two-level TLB hierarchy:
+        /// 1. The *HUB MMU* sits at the top and serves memory requests from
+        ///    "host-side" engines: the host/channel interface, copy engines,
+        ///    display, and BAR1/BAR2 accesses.
+        /// 2. Each GPC (Graphics Processing Cluster — the block that houses
+        ///    shader cores / SMs) has its own L2 TLB that serves requests from
+        ///    the compute and graphics engines inside the cluster.
+        ///
+        /// When set, only the HUB TLBs are invalidated. This is a performance
+        /// optimization for flushes that only affect HUB-side mappings (e.g.
+        /// BAR1/BAR2 windows), where fanning the invalidation out to every
+        /// GPC's L2 TLB would be wasted work. Must be false when flushing
+        /// mappings that may be cached by compute/graphics engines.
+        2:2     hubtlb_only => bool;
+        /// Invalidation acknowledgment scope. See [`TlbAckMode`] for details.
+        8:7     ack ?=> TlbAckMode;
+        /// Write 1 to kick off the flush. Hardware clears this bit when the
+        /// flush completes; reads as 1 while the flush is in progress.
+        31:31   trigger => bool;
+    }
+}
+
+impl NV_TLB_FLUSH_PDB_LO {
+    /// Create a register value from a PDB address.
+    ///
+    /// Extracts bits [39:8] of the address and shifts it right by 8 bits.
+    pub(crate) fn from_pdb_addr(addr: u64) -> Self {
+        Self::zeroed().with_pdb_lo(((addr >> 8) & 0xFFFF_FFFF) as u32)
+    }
+}
+
+impl NV_TLB_FLUSH_PDB_HI {
+    /// Create a register value from a PDB address.
+    ///
+    /// Extracts bits [47:40] of the address and shifts it right by 40 bits.
+    pub(crate) fn from_pdb_addr(addr: u64) -> Self {
+        Self::zeroed().with_pdb_hi(((addr >> 40) & 0xFF) as u8)
     }
 }
