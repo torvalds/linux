@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/extable.h>
+#include <asm/lowcore.h>
 #include <asm/ptrace.h>
 #include <asm/idle.h>
 
@@ -63,6 +64,9 @@ long sys_s390_sthyi(unsigned long function_code, void __user *buffer, u64 __user
 
 unsigned long stack_alloc(void);
 void stack_free(unsigned long stack);
+
+extern int stack_invalid_lowcore_used;
+extern struct lowcore stack_invalid_lowcore;
 
 extern char kprobes_insn_page[];
 
