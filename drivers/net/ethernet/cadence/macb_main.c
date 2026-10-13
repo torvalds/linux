@@ -2059,6 +2059,12 @@ static void macb_quiesce_start(struct macb *bp)
 		napi_disable(&queue->napi_tx);
 	}
 
+	/* NAPI instances still access Rx/Tx rings after their
+	 * napi_complete_done() calls! Callers to macb_quiesce_start()
+	 * free rings, so wait for all NAPI handlers to be done.
+	 */
+	synchronize_net();
+
 	/* Must be done after napi_tx is disabled: its completion re-arms
 	 * the LPI timer.
 	 */
