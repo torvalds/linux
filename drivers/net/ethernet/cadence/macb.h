@@ -1358,6 +1358,8 @@ struct macb {
 	struct macb_queue	queues[MACB_MAX_QUEUES];
 
 	spinlock_t		lock;
+	/* Serializes context swap against phylink MAC callbacks. */
+	struct mutex		mac_cfg_lock;
 	struct clk		*pclk;
 	struct clk		*hclk;
 	struct clk		*tx_clk;
@@ -1419,9 +1421,12 @@ struct macb {
 	u32			tx_lpi_timer;
 
 	/* ISR must not drive NAPI & BH mechanisms. True when the interface
-	 * is closed. Protected by bp->lock.
+	 * is closed or during context-swap. Protected by bp->lock.
 	 */
 	bool			irq_quiesced;
+
+	/* Redundant to netif_carrier_ok(), but set under bp->mac_cfg_lock. */
+	bool			link_up;
 
 	u32	rx_intr_mask;
 
