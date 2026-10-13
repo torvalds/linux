@@ -106,6 +106,7 @@ pub use super::{
         Result, //
     },
     init::InPlaceInit,
+    num::cv,
     pr_alert,
     pr_alert_ratelimited,
     pr_crit,
