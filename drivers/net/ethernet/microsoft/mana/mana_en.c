@@ -346,7 +346,14 @@ clear_flag:
 	rtnl_unlock();
 }
 
-netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+/* skb->cb of the SKBs pending a TX completion */
+struct mana_skb_cb {
+	struct gdma_posted_wqe_info wqe_info;
+	bool xdp;
+};
+
+netdev_tx_t __mana_start_xmit(struct sk_buff *skb, struct net_device *ndev,
+			      bool xdp)
 {
 	enum mana_tx_pkt_format pkt_fmt = MANA_SHORT_PKT_FMT;
 	struct mana_port_context *apc = netdev_priv(ndev);
@@ -360,6 +367,7 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct gdma_queue *gdma_sq;
 	int err, len, num_gso_seg;
 	unsigned int csum_type;
+	struct mana_skb_cb *cb;
 	struct mana_txq *txq;
 	struct mana_cq *cq;
 
@@ -520,14 +528,16 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto free_sgl_ptr;
 	}
 
+	cb = (struct mana_skb_cb *)skb->cb;
+	cb->xdp = xdp;
+
 	skb_queue_tail(&txq->pending_skbs, skb);
 
 	len = skb->len;
 	num_gso_seg = skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	net_txq = netdev_get_tx_queue(ndev, txq_idx);
 
-	err = mana_gd_post_work_request(gdma_sq, &pkg.wqe_req,
-					(struct gdma_posted_wqe_info *)skb->cb);
+	err = mana_gd_post_work_request(gdma_sq, &pkg.wqe_req, &cb->wqe_info);
 	if (!mana_can_tx(gdma_sq)) {
 		netif_tx_stop_queue(net_txq);
 		apc->eth_stats.stop_queue++;
@@ -542,6 +552,14 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	err = NETDEV_TX_OK;
 	atomic_inc(&txq->pending_sends);
+
+	/* Account the skb in BQL before the doorbell lets the hardware
+	 * complete it. XDP frames bypass the qdisc and BQL can't hold them
+	 * back, so leave them out: XDP traffic could otherwise keep the
+	 * queue stopped, starving the stack and tripping the TX watchdog.
+	 */
+	if (!xdp)
+		netdev_tx_sent_queue(net_txq, len);
 
 	mana_gd_wq_ring_doorbell(gd->gdma_context, gdma_sq);
 
@@ -572,6 +590,11 @@ tx_drop_count:
 tx_drop:
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
+}
+
+netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+	return __mana_start_xmit(skb, ndev, false);
 }
 
 #if (MAX_SKB_FRAGS + 2 > MANA_MAX_TX_WQE_SGL_ENTRIES)
@@ -1938,9 +1961,10 @@ void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc)
 static void mana_poll_tx_cq(struct mana_cq *cq)
 {
 	struct gdma_comp *completions = cq->gdma_comp_buf;
-	struct gdma_posted_wqe_info *wqe_info;
 	unsigned int pkt_transmitted = 0;
 	unsigned int wqe_unit_cnt = 0;
+	unsigned int bql_bytes = 0;
+	unsigned int bql_pkts = 0;
 	unsigned int tx_bytes = 0;
 	struct mana_txq *txq = cq->txq;
 	struct mana_port_context *apc;
@@ -1948,6 +1972,7 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 	struct gdma_queue *gdma_wq;
 	unsigned int avail_space;
 	struct net_device *ndev;
+	struct mana_skb_cb *cb;
 	struct sk_buff *skb;
 	bool txq_stopped;
 	int comp_read;
@@ -2018,12 +2043,16 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 		if (WARN_ON_ONCE(!skb))
 			return;
 
-		wqe_info = (struct gdma_posted_wqe_info *)skb->cb;
-		wqe_unit_cnt += wqe_info->wqe_size_in_bu;
+		cb = (struct mana_skb_cb *)skb->cb;
+		wqe_unit_cnt += cb->wqe_info.wqe_size_in_bu;
 
 		mana_unmap_skb(skb, apc);
 
 		tx_bytes += skb->len;
+		if (!cb->xdp) {
+			bql_pkts++;
+			bql_bytes += skb->len;
+		}
 
 		napi_consume_skb(skb, cq->budget);
 
@@ -2038,10 +2067,12 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 	gdma_wq = txq->gdma_sq;
 	avail_space = mana_gd_wq_avail_space(gdma_wq);
 
+	net_txq = txq->net_txq;
+	netdev_tx_completed_queue(net_txq, bql_pkts, bql_bytes);
+
 	/* Ensure tail updated before checking q stop */
 	smp_mb();
 
-	net_txq = txq->net_txq;
 	txq_stopped = netif_tx_queue_stopped(net_txq);
 
 	/* Ensure checking txq_stopped before apc->port_is_up. */
@@ -2693,6 +2724,13 @@ static void mana_destroy_txq(struct mana_port_context *apc)
 			netif_napi_del_locked(napi);
 			apc->tx_qp[i]->txq.napi_initialized = false;
 		}
+
+		/* Forget the SKBs freed without being completed after a drain
+		 * timeout, now that NAPI can't complete any. Doing it here also
+		 * covers the queues that a lower channel count won't recreate,
+		 * which could otherwise stay stopped.
+		 */
+		netdev_tx_reset_queue(apc->tx_qp[i]->txq.net_txq);
 
 		if (apc->tx_qp[i]->tx_object != INVALID_MANA_HANDLE)
 			mana_destroy_wq_obj(apc, GDMA_SQ, apc->tx_qp[i]->tx_object);

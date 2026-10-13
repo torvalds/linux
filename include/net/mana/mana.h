@@ -672,6 +672,8 @@ struct mana_port_context {
 	u32 steer_cqe_coalescing;
 };
 
+netdev_tx_t __mana_start_xmit(struct sk_buff *skb, struct net_device *ndev,
+			      bool xdp);
 netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int mana_config_rss(struct mana_port_context *ac, enum TRI_STATE rx,
 		    bool update_hash, bool update_tab);
