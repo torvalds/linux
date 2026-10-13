@@ -2596,18 +2596,16 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 			switch (imm32) {
 			case 16:
-				/* Emit 'ror %ax, 8' to swap lower 2 bytes */
-				EMIT1(0x66);
+				/* Emit 'bswap eax' to swap lower 4 bytes */
 				if (is_ereg(dst_reg))
 					EMIT1(0x41);
-				EMIT3(0xC1, add_1reg(0xC8, dst_reg), 8);
+				EMIT2(0x0F, add_1reg(0xC8, dst_reg));
 
-				/* Emit 'movzwl eax, ax' */
-				if (is_ereg(dst_reg))
-					EMIT3(0x45, 0x0F, 0xB7);
-				else
-					EMIT2(0x0F, 0xB7);
-				EMIT1(add_2reg(0xC0, dst_reg, dst_reg));
+				/*
+				 * Emit 'shr eax, 16' to move the swapped lower
+				 * 2 bytes back down and zero extend
+				 */
+				emit_shift_imm(&prog, BPF_RSH, dst_reg, 16, false);
 				break;
 			case 32:
 				/* Emit 'bswap eax' to swap lower 4 bytes */
