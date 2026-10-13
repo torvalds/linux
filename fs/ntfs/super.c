@@ -997,6 +997,8 @@ static bool parse_ntfs_boot_sector(struct ntfs_volume *vol,
 				vol->mft_record_size_bits;
 	ntfs_debug("vol->mftmirr_size = %i", vol->mftmirr_size);
 	vol->serial_no = le64_to_cpu(b->volume_serial_number);
+	super_set_uuid(vol->sb, (const u8 *)&b->volume_serial_number,
+		       sizeof(b->volume_serial_number));
 	ntfs_debug("vol->serial_no = 0x%llx", vol->serial_no);
 
 	vol->sparse_compression_unit = 4;
