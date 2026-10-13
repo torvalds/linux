@@ -43,13 +43,10 @@ void dmsintc_inject_irq(struct kvm_vcpu *vcpu)
 	}
 }
 
-int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm,
-				struct kvm_vcpu *vcpu, u32 vector, int level)
+static int dmsintc_deliver_msi_to_vcpu(struct kvm_vcpu *vcpu, u32 vector)
 {
 	struct dmsintc_state *ds = &vcpu->arch.dmsintc_state;
 
-	if (!level)
-		return 0;
 	if (!vcpu || vector >= 256)
 		return -EINVAL;
 	if (!ds)
@@ -65,7 +62,7 @@ int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm,
 	return 0;
 }
 
-int dmsintc_set_irq(struct kvm *kvm, u64 addr, int data, int level)
+int dmsintc_set_irq(struct kvm *kvm, u64 addr, int data)
 {
 	unsigned int irq, cpu;
 	struct kvm_vcpu *vcpu;
@@ -78,7 +75,7 @@ int dmsintc_set_irq(struct kvm *kvm, u64 addr, int data, int level)
 	if (!vcpu)
 		return -EINVAL;
 
-	return dmsintc_deliver_msi_to_vcpu(kvm, vcpu, irq, level);
+	return dmsintc_deliver_msi_to_vcpu(vcpu, irq);
 }
 
 static int kvm_dmsintc_ctrl_access(struct kvm_device *dev,

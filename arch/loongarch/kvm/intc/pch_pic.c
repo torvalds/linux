@@ -68,20 +68,20 @@ void pch_pic_set_irq(struct loongarch_pch_pic *s, int irq, int level)
 }
 
 /* msi irq handler */
-int pch_msi_set_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e, int level)
+int pch_msi_set_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e)
 {
 	u64 msg_addr = (((u64)e->msi.address_hi) << 32) | e->msi.address_lo;
 
 	if (cpu_has_msgint && kvm->arch.dmsintc &&
 		msg_addr >= kvm->arch.dmsintc->msg_addr_base &&
 		msg_addr < (kvm->arch.dmsintc->msg_addr_base + kvm->arch.dmsintc->msg_addr_size)) {
-		return dmsintc_set_irq(kvm, msg_addr, e->msi.data, level);
+		return dmsintc_set_irq(kvm, msg_addr, e->msi.data);
 	}
 
 	if (e->msi.data >= EIOINTC_IRQS)
 		return -EINVAL;
 
-	eiointc_set_irq(kvm->arch.eiointc, e->msi.data, level);
+	eiointc_set_irq(kvm->arch.eiointc, e->msi.data, 1);
 
 	return 0;
 }
