@@ -371,8 +371,8 @@ xrep_cow_find_bad_rt(
 	if (!rtg)
 		return -EFSCORRUPTED;
 
-	error = xrep_rtgroup_init(sc, rtg, &sc->sr,
-			XFS_RTGLOCK_RMAP | XFS_RTGLOCK_REFCOUNT);
+	error = xrep_rtgroup_init(sc, rtg, XFS_RTGLOCK_RMAP |
+					   XFS_RTGLOCK_REFCOUNT);
 	if (error)
 		goto out_rtg;
 

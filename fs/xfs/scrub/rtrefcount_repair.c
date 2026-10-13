@@ -418,7 +418,7 @@ xrep_rtrefc_find_refcounts(
 		}
 	}
 
-	xrep_rtgroup_btcur_init(sc, &sc->sr);
+	xrep_rtgroup_btcur_init(sc);
 
 	/*
 	 * Set up a bag to store all the rmap records that we're tracking to

@@ -554,7 +554,7 @@ xrep_rtrmap_find_rmaps(
 	}
 
 	/* Find CoW staging extents. */
-	xrep_rtgroup_btcur_init(sc, &sc->sr);
+	xrep_rtgroup_btcur_init(sc);
 	error = xrep_rtrmap_find_refcount_rmaps(rr);
 	xchk_rtgroup_btcur_free(&sc->sr);
 	if (error)

@@ -456,10 +456,9 @@ xrep_bmap_scan_rtgroup(
 	if (!xfs_has_rtrmapbt(sc->mp))
 		return 0;
 
-	error = xrep_rtgroup_init(sc, rtg, &sc->sr,
-			XFS_RTGLOCK_RMAP |
-			XFS_RTGLOCK_REFCOUNT |
-			XFS_RTGLOCK_BITMAP_SHARED);
+	error = xrep_rtgroup_init(sc, rtg, XFS_RTGLOCK_RMAP |
+					   XFS_RTGLOCK_REFCOUNT |
+					   XFS_RTGLOCK_BITMAP_SHARED);
 	if (error)
 		return error;
 

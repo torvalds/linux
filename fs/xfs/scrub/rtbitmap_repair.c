@@ -339,7 +339,7 @@ xrep_rtbitmap_find_freespace(
 	/* Prepare a buffer of ones so that we can accelerate bulk setting. */
 	memset(rtb->words, 0xFF, mp->m_sb.sb_blocksize);
 
-	xrep_rtgroup_btcur_init(sc, &sc->sr);
+	xrep_rtgroup_btcur_init(sc);
 	error = xfs_rmap_query_all(sc->sr.rmap_cur, xrep_rtbitmap_walk_rtrmap,
 			rtb);
 	if (error)

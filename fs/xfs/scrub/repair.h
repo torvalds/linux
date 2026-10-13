@@ -105,13 +105,13 @@ void xrep_ag_btcur_init(struct xfs_scrub *sc);
 int xrep_ag_init(struct xfs_scrub *sc, struct xfs_perag *pag);
 #ifdef CONFIG_XFS_RT
 int xrep_rtgroup_init(struct xfs_scrub *sc, struct xfs_rtgroup *rtg,
-		struct xchk_rt *sr, unsigned int rtglock_flags);
-void xrep_rtgroup_btcur_init(struct xfs_scrub *sc, struct xchk_rt *sr);
+		unsigned int rtglock_flags);
+void xrep_rtgroup_btcur_init(struct xfs_scrub *sc);
 int xrep_require_rtext_inuse(struct xfs_scrub *sc, xfs_rgblock_t rgbno,
 		xfs_filblks_t len);
 xfs_extlen_t xrep_calc_rtgroup_resblks(struct xfs_scrub *sc);
 #else
-# define xrep_rtgroup_init(sc, rtg, sr, lockflags)	(-ENOSYS)
+# define xrep_rtgroup_init(sc, rtg, lockflags)		(-ENOSYS)
 # define xrep_calc_rtgroup_resblks(sc)			(0)
 #endif /* CONFIG_XFS_RT */
 

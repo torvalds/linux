@@ -816,7 +816,7 @@ xrep_dinode_count_rtgroup_rmaps(
 	struct xfs_scrub	*sc = ri->sc;
 	int			error;
 
-	error = xrep_rtgroup_init(sc, rtg, &sc->sr, XFS_RTGLOCK_RMAP);
+	error = xrep_rtgroup_init(sc, rtg, XFS_RTGLOCK_RMAP);
 	if (error)
 		return error;
 
