@@ -54,6 +54,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
 			.num_pool_tx_desc = 32768,
 			.rx_desc_count = 12288,
 			.rx_release_ring_size = 16384,
+			.rxdma_buf_ring_size = 8192,
 		},
 	},
 [ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
@@ -68,9 +69,39 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
 			.num_pool_tx_desc = 16384,
 			.rx_desc_count = 6144,
 			.rx_release_ring_size = 8192,
+			.rxdma_buf_ring_size = 4096,
 		},
 	},
 };
+
+/*
+ * On these machines the OS cannot control the WCN7850 hardware rfkill
+ * input, which reads as "radio off", so hardware rfkill must stay
+ * disabled. Ideally this would come from the connector node of the board
+ * DT, but that binding does not exist yet.
+ */
+static const struct ath12k_core_broken_rfkill_table {
+	enum ath12k_hw_rev hw_rev;
+	const char *compatible;
+} ath12k_core_broken_rfkill_table[] = {
+	{ ATH12K_HW_WCN7850_HW20, "microsoft,denali" },
+	{ ATH12K_HW_WCN7850_HW20, "microsoft,romulus13" },
+	{ ATH12K_HW_WCN7850_HW20, "microsoft,romulus15" },
+	{ /* Sentinel */ }
+};
+
+static bool ath12k_core_rfkill_is_broken(struct ath12k_base *ab)
+{
+	const struct ath12k_core_broken_rfkill_table *entry;
+
+	for (entry = ath12k_core_broken_rfkill_table; entry->compatible; entry++) {
+		if (ab->hw_rev == entry->hw_rev &&
+		    of_machine_is_compatible(entry->compatible))
+			return true;
+	}
+
+	return false;
+}
 
 static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 {
@@ -81,6 +112,9 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 		return 0;
 
 	if (ath12k_acpi_get_disable_rfkill(ab))
+		return 0;
+
+	if (ath12k_core_rfkill_is_broken(ab))
 		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
@@ -1537,8 +1571,7 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 			complete_all(&ar->thermal.wmi_sync);
 
 			wake_up(&ar->dp.tx_empty_waitq);
-			idr_for_each(&ar->txmgmt_idr,
-				     ath12k_mac_tx_mgmt_pending_free, ar);
+			ath12k_mac_tx_mgmt_pending_free(ar);
 			idr_destroy(&ar->txmgmt_idr);
 			wake_up(&ar->txmgmt_empty_waitq);
 
