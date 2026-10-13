@@ -3243,6 +3243,7 @@ static int change_curseg(struct f2fs_sb_info *sbi, int type)
 	if (IS_ERR(entry)) {
 		/* GC won't be able to use stale summary blocks by cp_error */
 		memset(curseg->sum_blk, 0, sbi->sum_entry_size);
+		reset_curseg_fields(curseg);
 		return PTR_ERR(entry);
 	}
 	sum_node = SUM_BLK_ENTRY_ADDR(sbi, entry, new_segno);
