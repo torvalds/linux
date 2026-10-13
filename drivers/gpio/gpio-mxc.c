@@ -474,8 +474,6 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	} else
 		port->mx_irq_handler = mx3_gpio_irq_handler;
 
-	mxc_update_irq_chained_handler(port, true);
-
 	config.dev = &pdev->dev;
 	config.sz = 4;
 	config.dat = port->base + GPIO_PSR;
@@ -524,6 +522,8 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		goto out_irqdomain_remove;
 
 	list_add_tail(&port->node, &mxc_gpio_ports);
+
+	mxc_update_irq_chained_handler(port, true);
 
 	platform_set_drvdata(pdev, port);
 	pm_runtime_put_autosuspend(&pdev->dev);
