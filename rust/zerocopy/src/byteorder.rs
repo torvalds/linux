@@ -87,7 +87,7 @@ use super::*;
 pub trait ByteOrder:
     Copy + Clone + Debug + Display + Eq + PartialEq + Ord + PartialOrd + Hash + private::Sealed
 {
-    #[doc(hidden)]
+    /// A value-level representation of byte order.
     const ORDER: Order;
 }
 
@@ -98,11 +98,12 @@ mod private {
     impl Sealed for super::LittleEndian {}
 }
 
-#[allow(missing_copy_implementations, missing_debug_implementations)]
-#[doc(hidden)]
-#[derive(PartialEq)]
+/// A value-level representation of [`ByteOrder`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Order {
+    /// A value-level representation of [`BigEndian`].
     BigEndian,
+    /// A value-level representation of [`LittleEndian`].
     LittleEndian,
 }
 
@@ -1235,7 +1236,7 @@ mod tests {
     impl_traits!(I32, i32, signed);
     impl_traits!(I64, i64, signed);
     impl_traits!(I128, i128, signed);
-    impl_traits!(Isize, isize, unsigned);
+    impl_traits!(Isize, isize, signed);
     impl_traits!(F32, f32, signed, @float);
     impl_traits!(F64, f64, signed, @float);
 
@@ -1381,6 +1382,18 @@ mod tests {
 
         call_for_all_types!(test_native, NativeEndian);
         call_for_all_types!(test_non_native, NonNativeEndian);
+    }
+
+    #[test]
+    fn test_float_bit_patterns() {
+        for bits in [0u32, 0x8000_0000, 0x7F80_0000, 0xFF80_0000, 0x7FC0_1234] {
+            let be = F32::<BE>::new(f32::from_bits(bits));
+            let le = F32::<LE>::new(f32::from_bits(bits));
+            assert_eq!(be.to_bytes(), bits.to_be_bytes());
+            assert_eq!(le.to_bytes(), bits.to_le_bytes());
+            assert_eq!(be.get().to_bits(), bits);
+            assert_eq!(le.get().to_bits(), bits);
+        }
     }
 
     #[test]
@@ -1551,6 +1564,17 @@ mod tests {
 
         test!(@unary Not, not, call_for_signed_types, call_for_unsigned_types);
         test!(@unary Neg, neg, call_for_signed_types, call_for_float_types);
+
+        for shift in [0u64, 1, 31, 63] {
+            let n = 0x0123_4567_89AB_CDEFu64;
+            let shift_u32: u32 = shift.try_into().unwrap();
+            let shl = n.checked_shl(shift_u32).unwrap();
+            let shr = n.checked_shr(shift_u32).unwrap();
+            assert_eq!(core::ops::Shl::shl(U64::<NativeEndian>::new(n), shift).get(), shl);
+            assert_eq!(core::ops::Shr::shr(U64::<NativeEndian>::new(n), shift).get(), shr);
+            assert_eq!(core::ops::Shl::shl(U64::<NonNativeEndian>::new(n), shift).get(), shl);
+            assert_eq!(core::ops::Shr::shr(U64::<NonNativeEndian>::new(n), shift).get(), shr);
+        }
     }
 
     #[test]
@@ -1578,6 +1602,13 @@ mod tests {
         assert!(val_be >= val_be);
         assert!(val_be <= val_be);
         assert_eq!(val_be.cmp(&val_be), core::cmp::Ordering::Equal);
+
+        let low = U16::<LE>::new(255);
+        let high = U16::<LE>::new(256);
+        assert!(low < high);
+        assert!(low < 256u16);
+        assert_eq!(low.cmp(&high), core::cmp::Ordering::Less);
+        assert!(I16::<LE>::new(-1) < I16::<LE>::new(0));
 
         // PartialOrd with native
         assert!(val_be == 1u16);

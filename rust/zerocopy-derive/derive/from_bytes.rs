@@ -89,6 +89,12 @@ pub(crate) fn find_zero_variant(enm: &DataEnum) -> Result<usize, bool> {
     Err(has_unknown_discriminants)
 }
 pub(crate) fn derive_from_zeros(ctx: &Ctx, top_level: Trait) -> Result<TokenStream, Error> {
+    if let Some(span) = ctx.invariant_span {
+        return ctx.error_or_skip(Error::new(
+            span,
+            "cannot derive `FromZeros` for a type with invariants",
+        ));
+    }
     let try_from_bytes = derive_try_from_bytes(ctx, top_level)?;
     let from_zeros = match &ctx.ast.data {
         Data::Struct(strct) => derive_from_zeros_struct(ctx, strct),
@@ -98,6 +104,12 @@ pub(crate) fn derive_from_zeros(ctx: &Ctx, top_level: Trait) -> Result<TokenStre
     Ok(IntoIterator::into_iter([try_from_bytes, from_zeros]).collect())
 }
 pub(crate) fn derive_from_bytes(ctx: &Ctx, top_level: Trait) -> Result<TokenStream, Error> {
+    if let Some(span) = ctx.invariant_span {
+        return ctx.error_or_skip(Error::new(
+            span,
+            "cannot derive `FromBytes` for a type with invariants",
+        ));
+    }
     let from_zeros = derive_from_zeros(ctx, top_level)?;
     let from_bytes = match &ctx.ast.data {
         Data::Struct(strct) => derive_from_bytes_struct(ctx, strct),

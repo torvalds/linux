@@ -1,0 +1,19 @@
+bench_ref_type_from_prefix_dynamic_size:
+	mov rax, rdi
+	cmp rdx, 4
+	setb cl
+	or cl, sil
+	test cl, 1
+	je .LBB5_2
+	xor esi, esi
+	mov qword ptr [rax], rsi
+	ret
+.LBB5_2:
+	movabs rcx, 9223372036854775806
+	and rcx, rdx
+	add rdx, -4
+	shr rdx
+	mov qword ptr [rax + 8], rcx
+	mov qword ptr [rax + 16], rdx
+	mov qword ptr [rax], rsi
+	ret

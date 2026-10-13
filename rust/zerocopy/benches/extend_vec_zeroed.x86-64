@@ -41,8 +41,8 @@ bench_extend_vec_zeroed:
 .LBB6_6:
 	mov r13, rsi
 	lea rcx, [rax + rax]
-	cmp r15, rcx
-	cmova rcx, r15
+	cmp rcx, r15
+	cmovbe rcx, r15
 	cmp rcx, 5
 	mov r14d, 4
 	cmovae r14, rcx

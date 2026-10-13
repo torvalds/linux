@@ -1,0 +1,4 @@
+bench_ref_type_bytes_dynamic_padding:
+	mov rax, qword ptr [rdi]
+	mov rdx, qword ptr [rdi + 8]
+	ret

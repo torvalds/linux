@@ -1,11 +1,11 @@
 Iterations:        100
-Instructions:      3700
+Instructions:      3600
 Total Cycles:      3486
-Total uOps:        4600
+Total uOps:        4500
 
 Dispatch Width:    4
-uOps Per Cycle:    1.32
-IPC:               1.06
+uOps Per Cycle:    1.29
+IPC:               1.03
 Block RThroughput: 12.0
 
 
@@ -47,8 +47,7 @@ Instruction Info:
  1      1     1.00           *            mov	qword ptr [rax + 8], rcx
  1      1     1.00           *            mov	qword ptr [rax + 16], rsi
  1      1     1.00                  U     ret
- 1      1     0.33                        movabs	rcx, -9223372036854775808
- 1      1     1.00           *            mov	qword ptr [rax], rcx
+ 1      1     1.00           *            mov	qword ptr [rax], -1
  1      1     1.00                  U     ret
  1      1     0.33                        mov	ecx, 2
  1      1     1.00           *            mov	qword ptr [rax], rsi
@@ -70,31 +69,31 @@ Resources:
 
 Resource pressure per iteration:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
- -      -     6.99   6.99   12.00  10.02  8.00   9.00   
+ -      -     5.99   6.01   12.00  11.00  8.00   9.00   
 
 Resource pressure by instruction:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
- -      -     0.01   0.98    -     0.01    -      -     mov	rax, rdi
- -      -     0.98   0.02    -      -      -      -     movabs	rcx, 1537228672809129301
- -      -     0.02   0.98    -      -      -      -     cmp	rsi, rcx
+ -      -     0.97   0.02    -     0.01    -      -     mov	rax, rdi
+ -      -     0.02   0.98    -      -      -      -     movabs	rcx, 1537228672809129301
+ -      -     0.97   0.03    -      -      -      -     cmp	rsi, rcx
  -      -      -      -      -     1.00    -      -     ja	.LBB5_5
- -      -     0.98    -      -     0.02    -      -     test	rsi, rsi
+ -      -     0.03   0.96    -     0.01    -      -     test	rsi, rsi
  -      -      -      -      -     1.00    -      -     je	.LBB5_2
  -      -      -      -     1.00    -      -     1.00   push	r15
  -      -      -      -     1.00    -     1.00    -     push	r14
  -      -      -      -     1.00    -      -     1.00   push	rbx
- -      -      -     1.00    -      -      -      -     lea	rcx, [rsi + rsi]
- -      -      -     1.00    -      -      -      -     lea	rbx, [rcx + 2*rcx]
- -      -     1.00    -      -      -      -      -     mov	r14, rax
- -      -     1.00    -      -      -      -      -     mov	r15, rsi
+ -      -     0.99   0.01    -      -      -      -     lea	rcx, [rsi + rsi]
+ -      -     0.99   0.01    -      -      -      -     lea	rbx, [rcx + 2*rcx]
+ -      -     0.01   0.99    -      -      -      -     mov	r14, rax
+ -      -     0.01   0.01    -     0.98    -      -     mov	r15, rsi
  -      -      -      -     1.00   1.00   2.00    -     call	qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
- -      -      -     0.01    -     0.99    -      -     mov	esi, 2
- -      -     0.01   0.99    -      -      -      -     mov	rdi, rbx
+ -      -      -     0.98    -     0.02    -      -     mov	esi, 2
+ -      -     0.96   0.02    -     0.02    -      -     mov	rdi, rbx
  -      -      -      -     1.00   1.00    -     2.00   call	qword ptr [rip + __rustc::__rust_alloc_zeroed@GOTPCREL]
- -      -     0.01    -      -     0.99    -      -     mov	rsi, r15
- -      -     0.99   0.01    -      -      -      -     mov	rcx, rax
- -      -      -     0.99    -     0.01    -      -     mov	rax, r14
- -      -     0.99   0.01    -      -      -      -     test	rcx, rcx
+ -      -     0.02   0.96    -     0.02    -      -     mov	rsi, r15
+ -      -     0.02   0.02    -     0.96    -      -     mov	rcx, rax
+ -      -     0.96   0.02    -     0.02    -      -     mov	rax, r14
+ -      -     0.02   0.02    -     0.96    -      -     test	rcx, rcx
  -      -      -      -      -      -      -     1.00   pop	rbx
  -      -      -      -      -      -     1.00    -     pop	r14
  -      -      -      -      -      -      -     1.00   pop	r15
@@ -103,10 +102,9 @@ Resource pressure by instruction:
  -      -      -      -     1.00    -      -     1.00   mov	qword ptr [rax + 8], rcx
  -      -      -      -     1.00    -     1.00    -     mov	qword ptr [rax + 16], rsi
  -      -      -      -      -     1.00    -      -     ret
- -      -     0.01   0.99    -      -      -      -     movabs	rcx, -9223372036854775808
- -      -      -      -     1.00    -      -     1.00   mov	qword ptr [rax], rcx
+ -      -      -      -     1.00    -      -     1.00   mov	qword ptr [rax], -1
  -      -      -      -      -     1.00    -      -     ret
- -      -     0.99   0.01    -      -      -      -     mov	ecx, 2
+ -      -     0.02   0.98    -      -      -      -     mov	ecx, 2
  -      -      -      -     1.00    -     1.00    -     mov	qword ptr [rax], rsi
  -      -      -      -     1.00    -      -     1.00   mov	qword ptr [rax + 8], rcx
  -      -      -      -     1.00    -     1.00    -     mov	qword ptr [rax + 16], rsi

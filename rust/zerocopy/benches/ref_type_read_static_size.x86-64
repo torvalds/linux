@@ -1,0 +1,7 @@
+bench_ref_type_read_static_size:
+	mov rax, qword ptr [rdi]
+	mov ecx, dword ptr [rax]
+	movzx eax, word ptr [rax + 4]
+	shl rax, 32
+	or rax, rcx
+	ret

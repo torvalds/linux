@@ -199,10 +199,8 @@ impl<Src, Dst: ?Sized + Unaligned, S, V> From<ConvertError<AlignmentError<Src, D
     #[inline]
     fn from(err: ConvertError<AlignmentError<Src, Dst>, S, V>) -> ConvertError<Infallible, S, V> {
         match err {
-            ConvertError::Alignment(e) => {
-                #[allow(unreachable_code)]
-                return ConvertError::Alignment(Infallible::from(e));
-            }
+            #[allow(unreachable_code)]
+            ConvertError::Alignment(e) => match Infallible::from(e) {},
             ConvertError::Size(e) => ConvertError::Size(e),
             ConvertError::Validity(e) => ConvertError::Validity(e),
         }
@@ -237,7 +235,7 @@ impl<A: fmt::Display, S: fmt::Display, V: fmt::Display> fmt::Display for Convert
 }
 
 #[cfg(any(not(no_zerocopy_core_error_1_81_0), feature = "std", test))]
-#[cfg_attr(doc_cfg, doc(cfg(all(rust = "1.81.0", feature = "std"))))]
+#[cfg_attr(doc_cfg, doc(cfg(any(rust = "1.81.0", feature = "std"))))]
 impl<A, S, V> Error for ConvertError<A, S, V>
 where
     A: fmt::Display + fmt::Debug,
@@ -410,7 +408,7 @@ where
 }
 
 #[cfg(any(not(no_zerocopy_core_error_1_81_0), feature = "std", test))]
-#[cfg_attr(doc_cfg, doc(cfg(all(rust = "1.81.0", feature = "std"))))]
+#[cfg_attr(doc_cfg, doc(cfg(any(rust = "1.81.0", feature = "std"))))]
 impl<Src, Dst: ?Sized> Error for AlignmentError<Src, Dst>
 where
     Src: Deref,
@@ -571,7 +569,7 @@ where
 }
 
 #[cfg(any(not(no_zerocopy_core_error_1_81_0), feature = "std", test))]
-#[cfg_attr(doc_cfg, doc(cfg(all(rust = "1.81.0", feature = "std"))))]
+#[cfg_attr(doc_cfg, doc(cfg(any(rust = "1.81.0", feature = "std"))))]
 impl<Src, Dst: ?Sized> Error for SizeError<Src, Dst>
 where
     Src: Deref,
@@ -707,7 +705,7 @@ where
 }
 
 #[cfg(any(not(no_zerocopy_core_error_1_81_0), feature = "std", test))]
-#[cfg_attr(doc_cfg, doc(cfg(all(rust = "1.81.0", feature = "std"))))]
+#[cfg_attr(doc_cfg, doc(cfg(any(rust = "1.81.0", feature = "std"))))]
 impl<Src, Dst: ?Sized> Error for ValidityError<Src, Dst> where Dst: KnownLayout + TryFromBytes {}
 
 impl<Src, Dst: ?Sized + TryFromBytes, A, S> From<ValidityError<Src, Dst>>

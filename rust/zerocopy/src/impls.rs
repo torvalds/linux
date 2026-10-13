@@ -111,7 +111,7 @@ assert_unaligned!(bool);
 //   pattern 0x01.
 const _: () = unsafe {
     unsafe_impl!(=> TryFromBytes for bool; |byte| {
-        let byte = byte.transmute_with::<u8, invariant::Valid, CastSizedExact, BecauseImmutable>();
+        let byte = byte.transmute_with::<u8, invariant::Safe, CastSizedExact, BecauseImmutable>();
         *byte.unaligned_as_ref() < 2
     })
 };
@@ -140,7 +140,7 @@ const _: () = unsafe { unsafe_impl!(char: Immutable, FromZeros, IntoBytes) };
 //   `char`.
 const _: () = unsafe {
     unsafe_impl!(=> TryFromBytes for char; |c| {
-        let c = c.transmute_with::<Unalign<u32>, invariant::Valid, CastSizedExact, BecauseImmutable>();
+        let c = c.transmute_with::<Unalign<u32>, invariant::Safe, CastSizedExact, BecauseImmutable>();
         let c = c.read().into_inner();
         char::from_u32(c).is_some()
     });
@@ -173,7 +173,7 @@ const _: () = unsafe { unsafe_impl!(str: Immutable, FromZeros, IntoBytes, Unalig
 //   Returns `Err` if the slice is not UTF-8.
 const _: () = unsafe {
     unsafe_impl!(=> TryFromBytes for str; |c| {
-        let c = c.transmute_with::<[u8], invariant::Valid, CastUnsized, BecauseImmutable>();
+        let c = c.transmute_with::<[u8], invariant::Safe, CastUnsized, BecauseImmutable>();
         let c = c.unaligned_as_ref();
         core::str::from_utf8(c).is_ok()
     })
@@ -183,7 +183,7 @@ macro_rules! unsafe_impl_try_from_bytes_for_nonzero {
     ($($nonzero:ident[$prim:ty]),*) => {
         $(
             unsafe_impl!(=> TryFromBytes for $nonzero; |n| {
-                let n = n.transmute_with::<Unalign<$prim>, invariant::Valid, CastSizedExact, BecauseImmutable>();
+                let n = n.transmute_with::<Unalign<$prim>, invariant::Safe, CastSizedExact, BecauseImmutable>();
                 $nonzero::new(n.read().into_inner()).is_some()
             });
         )*
@@ -421,15 +421,15 @@ mod atomics {
         ($($($tyvar:ident)? => $atomic:ty [$prim:ty]),*) => {{
             crate::util::macros::__unsafe();
 
-            use crate::pointer::{SizeEq, TransmuteFrom, invariant::Valid};
+            use crate::pointer::{SizeEq, TransmuteFrom, invariant::Safe};
 
             $(
                 // SAFETY: The caller promised that `$atomic` and `$prim` have
                 // the same size and bit validity.
-                unsafe impl<$($tyvar)?> TransmuteFrom<$atomic, Valid, Valid> for $prim {}
+                unsafe impl<$($tyvar)?> TransmuteFrom<$atomic, Safe, Safe> for $prim {}
                 // SAFETY: The caller promised that `$atomic` and `$prim` have
                 // the same size and bit validity.
-                unsafe impl<$($tyvar)?> TransmuteFrom<$prim, Valid, Valid> for $atomic {}
+                unsafe impl<$($tyvar)?> TransmuteFrom<$prim, Safe, Safe> for $atomic {}
 
                 impl<$($tyvar)?> SizeEq<ReadOnly<$atomic>> for ReadOnly<$prim> {
                     type CastFrom = $crate::pointer::cast::CastSizedExact;
@@ -444,9 +444,9 @@ mod atomics {
                 //   `UnsafeCell<T>` has the same in-memory representation as
                 //   its inner type `T`. A consequence of this guarantee is that
                 //   it is possible to convert between `T` and `UnsafeCell<T>`.
-                unsafe impl<$($tyvar)?> TransmuteFrom<$atomic, Valid, Valid> for core::cell::UnsafeCell<$prim> {}
+                unsafe impl<$($tyvar)?> TransmuteFrom<$atomic, Safe, Safe> for core::cell::UnsafeCell<$prim> {}
                 // SAFETY: See previous safety comment.
-                unsafe impl<$($tyvar)?> TransmuteFrom<core::cell::UnsafeCell<$prim>, Valid, Valid> for $atomic {}
+                unsafe impl<$($tyvar)?> TransmuteFrom<core::cell::UnsafeCell<$prim>, Safe, Safe> for $atomic {}
             )*
         }};
     }
@@ -758,7 +758,7 @@ const _: () = {
     pub enum value {}
 
     // SAFETY: See safety comment on `ProjectToTag`.
-    unsafe impl<T: ?Sized> HasTag for ManuallyDrop<T> {
+    unsafe impl<T: ?Sized, Client> HasTag<Client> for ManuallyDrop<T> {
         #[inline]
         fn only_derive_is_allowed_to_implement_this_trait()
         where
@@ -796,8 +796,8 @@ const _: () = {
     // private field, and because it is the name it is referred to in the public
     // documentation of `ManuallyDrop::new`, `ManuallyDrop::into_inner`,
     // `ManuallyDrop::take` and `ManuallyDrop::drop`.
-    unsafe impl<T: ?Sized>
-        HasField<value, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!(value) }>
+    unsafe impl<T: ?Sized, Client>
+        HasField<Client, value, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!(value) }>
         for ManuallyDrop<T>
     {
         #[inline]
@@ -849,7 +849,7 @@ impl_for_transmute_from!(T: ?Sized + IntoBytes => IntoBytes for UnsafeCell<T>[T]
 const _: () = unsafe { unsafe_impl!(T: ?Sized + Unaligned => Unaligned for UnsafeCell<T>) };
 assert_unaligned!(UnsafeCell<()>, UnsafeCell<u8>);
 
-// SAFETY: See safety comment in `is_bit_valid` impl.
+// SAFETY: See safety comment in `is_safe` impl.
 unsafe impl<T: TryFromBytes + ?Sized> TryFromBytes for UnsafeCell<T> {
     #[allow(clippy::missing_inline_in_public_items)]
     fn only_derive_is_allowed_to_implement_this_trait()
@@ -859,11 +859,11 @@ unsafe impl<T: TryFromBytes + ?Sized> TryFromBytes for UnsafeCell<T> {
     }
 
     #[inline(always)]
-    fn is_bit_valid<A>(candidate: Maybe<'_, Self, A>) -> bool
+    fn is_safe<A>(candidate: Maybe<'_, Self, A>) -> bool
     where
         A: invariant::Alignment,
     {
-        T::is_bit_valid(candidate.transmute::<_, _, BecauseImmutable>())
+        T::is_safe(candidate.transmute::<_, _, BecauseImmutable>())
     }
 }
 
@@ -897,10 +897,10 @@ const _: () = unsafe {
         let c: Ptr<'_, ReadOnly<[T]>, _> = c.cast::<_, crate::pointer::cast::CastUnsized, _>();
 
         // Note that this call may panic, but it would still be sound even if it
-        // did. `is_bit_valid` does not promise that it will not panic (in fact,
-        // it explicitly warns that it's a possibility), and we have not
-        // violated any safety invariants that we must fix before returning.
-        <[T] as TryFromBytes>::is_bit_valid(c)
+        // did. `is_safe` does not promise that it will not panic (in fact, it
+        // explicitly warns that it's a possibility), and we have not violated
+        // any safety invariants that we must fix before returning.
+        <[T] as TryFromBytes>::is_safe(c)
     });
     unsafe_impl!(const N: usize, T: FromZeros => FromZeros for [T; N]);
     unsafe_impl!(const N: usize, T: FromBytes => FromBytes for [T; N]);
@@ -924,14 +924,14 @@ const _: () = unsafe {
         //
         // In other words, the layout of a `[T] is a sequence of `T`s laid out
         // back-to-back with no bytes in between. If all elements in `candidate`
-        // are `is_bit_valid`, so too is `candidate`.
+        // are `is_safe`, so too is `candidate`.
         //
         // Note that any of the below calls may panic, but it would still be
-        // sound even if it did. `is_bit_valid` does not promise that it will
-        // not panic (in fact, it explicitly warns that it's a possibility), and
-        // we have not violated any safety invariants that we must fix before
+        // sound even if it did. `is_safe` does not promise that it will not
+        // panic (in fact, it explicitly warns that it's a possibility), and we
+        // have not violated any safety invariants that we must fix before
         // returning.
-        c.iter().all(<T as TryFromBytes>::is_bit_valid)
+        c.iter().all(<T as TryFromBytes>::is_safe)
     });
     unsafe_impl!(T: FromZeros => FromZeros for [T]);
     unsafe_impl!(T: FromBytes => FromBytes for [T]);
@@ -946,7 +946,7 @@ const _: () = unsafe {
 //   null pointers, so this is not a footgun.
 // - `TryFromBytes`: By the same reasoning as for `FromZeroes`, we can implement
 //   `TryFromBytes` for thin pointers provided that
-//   [`TryFromByte::is_bit_valid`] only produces `true` for zeroed bytes.
+//   [`TryFromBytes::is_safe`] only produces `true` for zeroed bytes.
 //
 // NOTE(#170): Implementing `FromBytes` and `IntoBytes` for raw pointers would
 // be sound, but carries provenance footguns. We want to support `FromBytes` and
@@ -1012,11 +1012,11 @@ mod tuples {
             // SAFETY: If all fields of the tuple `Self` are `Immutable`, so too is `Self`.
             unsafe_impl!($($head_T: Immutable,)* $next_T: Immutable => Immutable for ($($head_T,)* $next_T,));
 
-            // SAFETY: If all fields in `c` are `is_bit_valid`, so too is `c`.
+            // SAFETY: If all fields in `c` are `is_safe`, so too is `c`.
             unsafe_impl!($($head_T: TryFromBytes,)* $next_T: TryFromBytes => TryFromBytes for ($($head_T,)* $next_T,); |c| {
                 let mut c = c;
-                $(TryFromBytes::is_bit_valid(into_inner!(c.reborrow().project::<_, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!($head_I) }>())) &&)*
-                    TryFromBytes::is_bit_valid(into_inner!(c.reborrow().project::<_, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!($next_I) }>()))
+                $(TryFromBytes::is_safe(into_inner!(c.reborrow().project::<crate::project_clients::TryFromBytesDerive, _, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!($head_I) }>())) &&)*
+                    TryFromBytes::is_safe(into_inner!(c.reborrow().project::<crate::project_clients::TryFromBytesDerive, _, { crate::STRUCT_VARIANT_ID }, { crate::ident_id!($next_I) }>()))
             });
 
             // SAFETY: If all fields in `Self` are `FromZeros`, so too is `Self`.
@@ -1026,7 +1026,9 @@ mod tuples {
             unsafe_impl!($($head_T: FromBytes,)* $next_T: FromBytes => FromBytes for ($($head_T,)* $next_T,));
 
             // SAFETY: See safety comment on `ProjectToTag`.
-            unsafe impl<$($head_T,)* $next_T> crate::HasTag for ($($head_T,)* $next_T,) {
+            unsafe impl<Client, $($head_T,)* $next_T> crate::HasTag<Client>
+                for ($($head_T,)* $next_T,)
+            {
                 #[inline]
                 fn only_derive_is_allowed_to_implement_this_trait()
                 where
@@ -1077,7 +1079,8 @@ mod tuples {
             // - `()` has the same visibility as the `.$CurrI` field (ie, `.0`,
             //   `.1`, etc)
             // - `Type` has the same type as `$CurrI`; i.e., `$CurrT`.
-            unsafe impl<$($AllT),+> crate::HasField<
+            unsafe impl<Client, $($AllT),+> crate::HasField<
+                Client,
                 (),
                 { crate::STRUCT_VARIANT_ID },
                 { crate::ident_id!($CurrI)}
@@ -1103,7 +1106,8 @@ mod tuples {
             }
 
             // SAFETY: See comments on items.
-            unsafe impl<Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+            unsafe impl<Client, Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+                Client,
                 (),
                 (Aliasing, Alignment, crate::invariant::Uninit),
                 { crate::STRUCT_VARIANT_ID },
@@ -1129,7 +1133,8 @@ mod tuples {
             }
 
             // SAFETY: See comments on items.
-            unsafe impl<Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+            unsafe impl<Client, Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+                Client,
                 (),
                 (Aliasing, Alignment, crate::invariant::Initialized),
                 { crate::STRUCT_VARIANT_ID },
@@ -1155,9 +1160,10 @@ mod tuples {
             }
 
             // SAFETY: See comments on items.
-            unsafe impl<Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+            unsafe impl<Client, Aliasing, Alignment, $($AllT),+> crate::ProjectField<
+                Client,
                 (),
-                (Aliasing, Alignment, crate::invariant::Valid),
+                (Aliasing, Alignment, crate::invariant::Safe),
                 { crate::STRUCT_VARIANT_ID },
                 { crate::ident_id!($CurrI)}
             > for ($($AllT,)+)
@@ -1174,7 +1180,7 @@ mod tuples {
                 // SAFETY: Tuples are product types whose fields are
                 // well-aligned, so projection preserves both the alignment and
                 // validity invariants of the outer pointer.
-                type Invariants = (Aliasing, Alignment, crate::invariant::Valid);
+                type Invariants = (Aliasing, Alignment, crate::invariant::Safe);
 
                 // SAFETY: Tuples are product types and so projection is infallible;
                 type Error = core::convert::Infallible;
@@ -1389,10 +1395,9 @@ mod tests {
 
     #[test]
     fn test_impls() {
-        // A type that can supply test cases for testing
-        // `TryFromBytes::is_bit_valid`. All types passed to `assert_impls!`
-        // must implement this trait; that macro uses it to generate runtime
-        // tests for `TryFromBytes` impls.
+        // A type that can supply test cases for testing `TryFromBytes::is_safe`.
+        // All types passed to `assert_impls!` must implement this trait; that
+        // macro uses it to generate runtime tests for `TryFromBytes` impls.
         //
         // All `T: FromBytes` types are provided with a blanket impl. Other
         // types must implement `TryFromBytesTestable` directly (ie using
@@ -1574,19 +1579,15 @@ mod tests {
 
             pub(super) struct AutorefWrapper<T: ?Sized>(pub(super) PhantomData<T>);
 
-            pub(super) trait TestIsBitValidShared<T: ?Sized> {
+            pub(super) trait TestIsSafeShared<T: ?Sized> {
                 #[allow(clippy::needless_lifetimes)]
-                fn test_is_bit_valid_shared<'ptr>(&self, candidate: Maybe<'ptr, T>)
-                    -> Option<bool>;
+                fn test_is_safe_shared<'ptr>(&self, candidate: Maybe<'ptr, T>) -> Option<bool>;
             }
 
-            impl<T: TryFromBytes + Immutable + ?Sized> TestIsBitValidShared<T> for AutorefWrapper<T> {
+            impl<T: TryFromBytes + Immutable + ?Sized> TestIsSafeShared<T> for AutorefWrapper<T> {
                 #[allow(clippy::needless_lifetimes)]
-                fn test_is_bit_valid_shared<'ptr>(
-                    &self,
-                    candidate: Maybe<'ptr, T>,
-                ) -> Option<bool> {
-                    Some(T::is_bit_valid(candidate))
+                fn test_is_safe_shared<'ptr>(&self, candidate: Maybe<'ptr, T>) -> Option<bool> {
+                    Some(T::is_safe(candidate))
                 }
             }
 
@@ -1690,12 +1691,12 @@ mod tests {
                 #[allow(unused, non_local_definitions)]
                 impl AutorefWrapper<$ty> {
                     #[allow(clippy::needless_lifetimes)]
-                    fn test_is_bit_valid_shared<'ptr>(
+                    fn test_is_safe_shared<'ptr>(
                         &mut self,
                         candidate: Maybe<'ptr, $ty>,
                     ) -> Option<bool> {
                         assert_on_allowlist!(
-                            test_is_bit_valid_shared($ty):
+                            test_is_safe_shared($ty):
                             ManuallyDrop<UnsafeCell<()>>,
                             ManuallyDrop<[UnsafeCell<u8>]>,
                             ManuallyDrop<[UnsafeCell<bool>]>,
@@ -1799,9 +1800,9 @@ mod tests {
                     // necessarily `IntoBytes`, but that's the corner we've
                     // backed ourselves into by using `Ptr::from_ref`.
                     let c = unsafe { c.assume_initialized() };
-                    let res = w.test_is_bit_valid_shared(c);
+                    let res = w.test_is_safe_shared(c);
                     if let Some(res) = res {
-                        assert!(res, "{}::is_bit_valid (shared `Ptr`): got false, expected true", stringify!($ty));
+                        assert!(res, "{}::is_safe (shared `Ptr`): got false, expected true", stringify!($ty));
                     }
 
                     let c = Ptr::from_mut(&mut *val);
@@ -1810,8 +1811,8 @@ mod tests {
                     // necessarily `IntoBytes`, but that's the corner we've
                     // backed ourselves into by using `Ptr::from_ref`.
                     let mut c = unsafe { c.assume_initialized() };
-                    let res = <$ty as TryFromBytes>::is_bit_valid(c.reborrow_shared());
-                    assert!(res, "{}::is_bit_valid (exclusive `Ptr`): got false, expected true", stringify!($ty));
+                    let res = <$ty as TryFromBytes>::is_safe(c.reborrow_shared());
+                    assert!(res, "{}::is_safe (exclusive `Ptr`): got false, expected true", stringify!($ty));
 
                     // `bytes` is `Some(val.as_bytes())` if `$ty: IntoBytes +
                     // Immutable` and `None` otherwise.
@@ -2237,11 +2238,11 @@ mod tests {
 
         assert_impls!(ManuallyDrop<u8>: KnownLayout, Immutable, TryFromBytes, FromZeros, FromBytes, IntoBytes, Unaligned);
         // This test is important because it allows us to test our hand-rolled
-        // implementation of `<ManuallyDrop<T> as TryFromBytes>::is_bit_valid`.
+        // implementation of `<ManuallyDrop<T> as TryFromBytes>::is_safe`.
         assert_impls!(ManuallyDrop<bool>: KnownLayout, Immutable, TryFromBytes, FromZeros, IntoBytes, Unaligned, !FromBytes);
         assert_impls!(ManuallyDrop<[u8]>: KnownLayout, Immutable, TryFromBytes, FromZeros, FromBytes, IntoBytes, Unaligned);
         // This test is important because it allows us to test our hand-rolled
-        // implementation of `<ManuallyDrop<T> as TryFromBytes>::is_bit_valid`.
+        // implementation of `<ManuallyDrop<T> as TryFromBytes>::is_safe`.
         assert_impls!(ManuallyDrop<[bool]>: KnownLayout, Immutable, TryFromBytes, FromZeros, IntoBytes, Unaligned, !FromBytes);
         assert_impls!(ManuallyDrop<NotZerocopy>: !Immutable, !TryFromBytes, !KnownLayout, !FromZeros, !FromBytes, !IntoBytes, !Unaligned);
         assert_impls!(ManuallyDrop<[NotZerocopy]>: KnownLayout, !Immutable, !TryFromBytes, !FromZeros, !FromBytes, !IntoBytes, !Unaligned);
@@ -2255,14 +2256,14 @@ mod tests {
 
         assert_impls!(Wrapping<u8>: KnownLayout, Immutable, TryFromBytes, FromZeros, FromBytes, IntoBytes, Unaligned);
         // This test is important because it allows us to test our hand-rolled
-        // implementation of `<Wrapping<T> as TryFromBytes>::is_bit_valid`.
+        // implementation of `<Wrapping<T> as TryFromBytes>::is_safe`.
         assert_impls!(Wrapping<bool>: KnownLayout, Immutable, TryFromBytes, FromZeros, IntoBytes, Unaligned, !FromBytes);
         assert_impls!(Wrapping<NotZerocopy>: KnownLayout, !Immutable, !TryFromBytes, !FromZeros, !FromBytes, !IntoBytes, !Unaligned);
         assert_impls!(Wrapping<UnsafeCell<()>>: KnownLayout, TryFromBytes, FromZeros, FromBytes, IntoBytes, Unaligned, !Immutable);
 
         assert_impls!(Unalign<u8>: KnownLayout, Immutable, TryFromBytes, FromZeros, FromBytes, IntoBytes, Unaligned);
         // This test is important because it allows us to test our hand-rolled
-        // implementation of `<Unalign<T> as TryFromBytes>::is_bit_valid`.
+        // implementation of `<Unalign<T> as TryFromBytes>::is_safe`.
         assert_impls!(Unalign<bool>: KnownLayout, Immutable, TryFromBytes, FromZeros, IntoBytes, Unaligned, !FromBytes);
         assert_impls!(Unalign<NotZerocopy>: KnownLayout, Unaligned, !Immutable, !TryFromBytes, !FromZeros, !FromBytes, !IntoBytes);
 

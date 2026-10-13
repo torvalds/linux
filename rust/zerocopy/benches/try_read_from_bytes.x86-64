@@ -1,23 +1,11 @@
 bench_try_read_from_bytes_static_size:
-	mov ax, -16191
+	mov eax, 49345
 	cmp rsi, 6
-	jne .LBB5_1
-	mov ecx, dword ptr [rdi]
-	movzx edx, cx
-	cmp edx, 49344
-	jne .LBB5_4
-	movzx eax, word ptr [rdi + 4]
-	shl rax, 32
-	or rcx, rax
-	shr rcx, 16
-	mov ax, -16192
-.LBB5_4:
-	shl rcx, 16
-	movzx eax, ax
-	or rax, rcx
-	ret
-.LBB5_1:
-	shl rcx, 16
-	movzx eax, ax
-	or rax, rcx
+	jne .LBB5_3
+	cmp word ptr [rdi], -16192
+	jne .LBB5_3
+	mov eax, dword ptr [rdi + 2]
+	shl rax, 16
+	or rax, 49344
+.LBB5_3:
 	ret
