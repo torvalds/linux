@@ -393,32 +393,29 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 {
 	size_t row_size = MEM_DUMP_COLUMN_COUNT * sizeof(u32);
 	struct intel_tpmi_pm_feature *pfs = s->private;
-	int count, ret = 0;
 	void __iomem *mem;
+	int count;
 	u32 size;
 	u64 off;
-	u8 *buffer;
 
 	size = tpmi_get_single_entry_size(pfs);
 	if (!size)
 		return -EIO;
 
-	buffer = kmalloc(size, GFP_KERNEL);
+	u8 *buffer __free(kfree) = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
 	off = pfs->vsec_offset;
 
-	mutex_lock(&tpmi_dev_lock);
+	guard(mutex)(&tpmi_dev_lock);
 
 	for (count = 0; count < pfs->pfs_header.num_entries; ++count) {
 		seq_printf(s, "TPMI Instance:%d offset:0x%llx\n", count, off);
 
 		mem = ioremap(off, size);
-		if (!mem) {
-			ret = -ENOMEM;
-			break;
-		}
+		if (!mem)
+			return -ENOMEM;
 
 		memcpy_fromio(buffer, mem, size);
 
@@ -430,11 +427,7 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 		off += size;
 	}
 
-	mutex_unlock(&tpmi_dev_lock);
-
-	kfree(buffer);
-
-	return ret;
+	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(tpmi_mem_dump);
 
