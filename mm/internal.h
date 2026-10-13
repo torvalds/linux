@@ -214,36 +214,6 @@ static inline void *folio_raw_mapping(const struct folio *folio)
 }
 
 /*
- * This is a file-backed mapping, and is about to be memory mapped - invoke its
- * mmap hook and safely handle error conditions. On error, VMA hooks will be
- * mutated.
- *
- * @file: File which backs the mapping.
- * @vma:  VMA which we are mapping.
- *
- * Returns: 0 if success, error otherwise.
- */
-static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
-{
-	int err = vfs_mmap(file, vma);
-
-	/*
-	 * Either we tried to call the file hook for mmap() and an error arose
-	 * or a driver set vma->vm_ops = NULL intending there to be no VMA
-	 * operations.
-	 *
-	 * In the former case the VMA is in an inconsistent state and we mustn't
-	 * invoke any further hooks on it, in the latter case the hook actually
-	 * wanted no further hooks to be invoked, so fix both by setting dummy
-	 * VMA ops.
-	 */
-	if (unlikely(err || !vma->vm_ops))
-		vma->vm_ops = &vma_dummy_vm_ops;
-
-	return err;
-}
-
-/*
  * If the VMA has a close hook then close it, and since closing it might leave
  * it in an inconsistent state which makes the use of any hooks suspect, clear
  * them down by installing dummy empty hooks.
@@ -259,6 +229,48 @@ static inline void vma_close(struct vm_area_struct *vma)
 		 */
 		vma->vm_ops = &vma_dummy_vm_ops;
 	}
+}
+
+/*
+ * This is a file-backed mapping, and is about to be memory mapped - invoke its
+ * mmap hook and safely handle error conditions. On error, VMA hooks will be
+ * mutated.
+ *
+ * @file: File which backs the mapping.
+ * @vma:  VMA which we are mapping.
+ *
+ * Returns: 0 if success, error otherwise.
+ */
+static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
+{
+	const unsigned long orig_start = vma->vm_start;
+	const unsigned long orig_end = vma->vm_end;
+	const vma_flags_t orig_flags = vma->flags;
+	int err;
+
+	err = vfs_mmap(file, vma);
+	/*
+	 * Either we tried to call the file hook for mmap() and an error arose
+	 * or a driver set vma->vm_ops = NULL intending there to be no VMA
+	 * operations.
+	 *
+	 * In the former case the VMA is in an inconsistent state and we mustn't
+	 * invoke any further hooks on it, in the latter case the hook actually
+	 * wanted no further hooks to be invoked, so fix both by setting dummy
+	 * VMA ops.
+	 */
+	if (unlikely(err || !vma->vm_ops))
+		vma->vm_ops = &vma_dummy_vm_ops;
+	if (unlikely(err))
+		return err;
+
+	err = mmap_hook_validate(orig_start, orig_end, &orig_flags, vma);
+	if (unlikely(err)) {
+		vma->vm_start = orig_start;
+		vma->vm_end = orig_end;
+	}
+
+	return err;
 }
 
 /* unmap_vmas is in mm/memory.c */

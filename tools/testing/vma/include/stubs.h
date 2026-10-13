@@ -329,6 +329,10 @@ static inline void vma_close(struct vm_area_struct *vma)
 {
 }
 
+static inline void zap_vma(struct vm_area_struct *vma)
+{
+}
+
 static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
 {
 	return 0;
