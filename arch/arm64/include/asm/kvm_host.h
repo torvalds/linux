@@ -30,6 +30,9 @@
 #include <asm/vncr_mapping.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
+#define __KVM_HAVE_MSI
+#define __KVM_HAVE_READONLY_MEM
+#define __KVM_HAVE_VCPU_RUN_PID_CHANGE
 
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 

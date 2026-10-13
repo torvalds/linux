@@ -24,7 +24,6 @@ config KVM
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_MMIO
 	select KVM_GENERIC_HARDWARE_ENABLING
-	select HAVE_KVM_READONLY_MEM
 	help
 	  Support for hosting Guest kernels.
 

@@ -48,6 +48,9 @@
 #define kvm_file_to_kvm_arch x86
 
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
+#define __KVM_HAVE_MSI
+#define __KVM_HAVE_NO_POLL
+#define __KVM_HAVE_READONLY_MEM
 
 /*
  * CONFIG_KVM_MAX_NR_VCPUS is defined iff CONFIG_KVM!=n, provide a dummy max if

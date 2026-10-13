@@ -232,7 +232,6 @@ config KVM_MPIC
 	depends on KVM && PPC_E500
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQ_ROUTING
-	select HAVE_KVM_MSI
 	help
 	  Enable support for emulating MPIC devices inside the
 	  host kernel, rather than relying on userspace to emulate.
