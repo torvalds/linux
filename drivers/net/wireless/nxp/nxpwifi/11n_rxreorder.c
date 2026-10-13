@@ -205,11 +205,12 @@ void nxpwifi_11n_del_rx_reorder_tbl_by_ta(struct nxpwifi_private *priv, u8 *ta)
 		return;
 
 	for (i = 0; i < MAX_NUM_TID; i++) {
-		guard(rcu)();
-		list_for_each_entry_rcu(tbl, &priv->rx_reorder_tbl_ptr[i], list) {
-			if (!memcmp(tbl->ta, ta, ETH_ALEN)) {
-				INIT_LIST_HEAD(&tbl->tmp_list);
-				list_add_tail(&tbl->tmp_list, &to_delete);
+		scoped_guard(rcu) {
+			list_for_each_entry_rcu(tbl, &priv->rx_reorder_tbl_ptr[i], list) {
+				if (!memcmp(tbl->ta, ta, ETH_ALEN)) {
+					INIT_LIST_HEAD(&tbl->tmp_list);
+					list_add_tail(&tbl->tmp_list, &to_delete);
+				}
 			}
 		}
 

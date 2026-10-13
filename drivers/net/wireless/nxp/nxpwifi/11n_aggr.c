@@ -168,6 +168,7 @@ nxpwifi_11n_aggregate_pkt(struct nxpwifi_private *priv,
 
 		if (!nxpwifi_is_ralist_valid(priv, pra_list, ptrindex)) {
 			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
+			nxpwifi_write_data_complete(adapter, skb_aggr, 1, -1);
 			return -ENOENT;
 		}
 

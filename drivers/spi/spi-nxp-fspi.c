@@ -898,10 +898,10 @@ static int nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	/*
-	 * Per the FlexSPI reference manual (initialization sequence), MCR0 and
-	 * the DLL control registers should be configured while the module is in
-	 * stop mode (MCR0[MDIS] = 1). Enter stop mode before reconfiguring the
-	 * RX sample clock source and the DLL, then exit stop mode afterwards.
+	 * Per the FlexSPI reference manual (initialization sequence), MCR0
+	 * should be configured while the module is in stop mode (MCR0[MDIS] = 1).
+	 * Enter stop mode before reconfiguring the RX sample clock source, then
+	 * exit stop mode afterwards.
 	 */
 	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
 	fspi_writel(f, reg | FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
@@ -937,6 +937,16 @@ static int nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		return ret;
 
 	/*
+	 * Exit stop mode before running the DLL calibration. The DLL
+	 * reference clock is derived from the module clock domain, which is
+	 * gated while MCR0[MDIS] = 1. Calibrating the DLL in stop mode leaves
+	 * the STS2 lock bits stuck at 0 (the DLL never runs), so clear MDIS
+	 * first and let the module and reference clock run.
+	 */
+	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
+	fspi_writel(f, reg & ~FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
+
+	/*
 	 * If clock rate > 100MHz, then switch from DLL override mode to
 	 * DLL calibration mode.
 	 */
@@ -944,10 +954,6 @@ static int nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		nxp_fspi_dll_calibration(f);
 	else
 		nxp_fspi_dll_override(f);
-
-	/* Exit stop mode now that MCR0 and the DLL have been reconfigured. */
-	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
-	fspi_writel(f, reg & ~FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
 
 	f->pre_op_rate = op->max_freq;
 

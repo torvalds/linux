@@ -550,6 +550,10 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	if (asoc->add_common_snd_ops)
 		card->dai_link->ops = &tegra_machine_snd_ops;
 
+	err = snd_soc_of_parse_aux_devs(card, "nvidia,aux-devs");
+	if (err)
+		return err;
+
 	if (!card->owner)
 		card->owner = THIS_MODULE;
 	if (!card->driver_name)
