@@ -2011,6 +2011,54 @@ static int emit_kfunc_arena_args(struct bpf_prog *bpf_prog,
 	return prog - start;
 }
 
+/*
+ * A strict compare against 1 or 128 is the non-strict one against 0 or
+ * 127, a strict one against -129 or, with a signed condition, -1 the
+ * non-strict one against -128 or 0: the compare against 0 is a test
+ * without immediate, 127 and -128 fit into an imm8.
+ */
+static void adjust_cmp_imm(u32 *op, s32 *imm)
+{
+	if (*imm == 1 || *imm == 128) {
+		switch (*op) {
+		case BPF_JLT:
+			*op = BPF_JLE;
+			break;
+		case BPF_JGE:
+			*op = BPF_JGT;
+			break;
+		case BPF_JSLT:
+			*op = BPF_JSLE;
+			break;
+		case BPF_JSGE:
+			*op = BPF_JSGT;
+			break;
+		default:
+			return;
+		}
+		*imm -= 1;
+	} else if (*imm == -1 || *imm == -129) {
+		switch (*op) {
+		case BPF_JGT:
+		case BPF_JLE:
+			/* -1 is the largest unsigned value */
+			if (*imm == -1)
+				return;
+			*op = *op == BPF_JGT ? BPF_JGE : BPF_JLT;
+			break;
+		case BPF_JSGT:
+			*op = BPF_JSGE;
+			break;
+		case BPF_JSLE:
+			*op = BPF_JSLT;
+			break;
+		default:
+			return;
+		}
+		*imm += 1;
+	}
+}
+
 static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		  u8 *rw_image, int oldproglen, struct jit_context *ctx, bool jmp_padding)
 {
@@ -2153,6 +2201,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		u8 jmp_cond;
 		u8 *func;
 		int nops;
+		u32 jmp_op = BPF_OP(insn->code);
+		s32 cmp_imm;
 
 		if (priv_frame_ptr) {
 			if (src_reg == BPF_REG_FP)
@@ -3122,8 +3172,11 @@ populate_extable:
 		case BPF_JMP32 | BPF_JSLT | BPF_K:
 		case BPF_JMP32 | BPF_JSGE | BPF_K:
 		case BPF_JMP32 | BPF_JSLE | BPF_K:
+			cmp_imm = imm32;
+			adjust_cmp_imm(&jmp_op, &cmp_imm);
+
 			/* test dst_reg, dst_reg to save one extra byte */
-			if (imm32 == 0) {
+			if (cmp_imm == 0) {
 				maybe_emit_mod(&prog, dst_reg, dst_reg,
 					       BPF_CLASS(insn->code) == BPF_JMP);
 				EMIT2(0x85, add_2reg(0xC0, dst_reg, dst_reg));
@@ -3134,15 +3187,15 @@ populate_extable:
 			maybe_emit_1mod(&prog, dst_reg,
 					BPF_CLASS(insn->code) == BPF_JMP);
 
-			if (is_imm8(imm32))
-				EMIT3(0x83, add_1reg(0xF8, dst_reg), imm32);
+			if (is_imm8(cmp_imm))
+				EMIT3(0x83, add_1reg(0xF8, dst_reg), cmp_imm);
 			else if (is_axreg(dst_reg))
-				EMIT1_off32(0x3D, imm32);
+				EMIT1_off32(0x3D, cmp_imm);
 			else
-				EMIT2_off32(0x81, add_1reg(0xF8, dst_reg), imm32);
+				EMIT2_off32(0x81, add_1reg(0xF8, dst_reg), cmp_imm);
 
 emit_cond_jmp:		/* Convert BPF opcode to x86 */
-			switch (BPF_OP(insn->code)) {
+			switch (jmp_op) {
 			case BPF_JEQ:
 				jmp_cond = X86_JE;
 				break;
