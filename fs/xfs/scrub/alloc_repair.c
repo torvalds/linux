@@ -370,7 +370,7 @@ xrep_abt_find_freespace(
 
 	xagb_bitmap_init(&ra->not_allocbt_blocks);
 
-	xrep_ag_btcur_init(sc, &sc->sa);
+	xrep_ag_btcur_init(sc);
 
 	/*
 	 * Iterate all the reverse mappings to find gaps in the physical

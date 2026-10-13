@@ -919,10 +919,10 @@ xrep_reset_fork_to_extents(
  */
 void
 xrep_ag_btcur_init(
-	struct xfs_scrub	*sc,
-	struct xchk_ag		*sa)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xchk_ag		*sa = &sc->sa;
 
 	/* Set up a bnobt cursor for cross-referencing. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BNOBT &&
@@ -1021,9 +1021,9 @@ xrep_reinit_pagi(
 int
 xrep_ag_init(
 	struct xfs_scrub	*sc,
-	struct xfs_perag	*pag,
-	struct xchk_ag		*sa)
+	struct xfs_perag	*pag)
 {
+	struct xchk_ag		*sa = &sc->sa;
 	int			error;
 
 	ASSERT(!sa->pag);
@@ -1038,7 +1038,7 @@ xrep_ag_init(
 
 	/* Grab our own passive reference from the caller's ref. */
 	sa->pag = xfs_perag_hold(pag);
-	xrep_ag_btcur_init(sc, sa);
+	xrep_ag_btcur_init(sc);
 	return 0;
 }
 

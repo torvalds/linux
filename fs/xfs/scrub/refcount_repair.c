@@ -412,7 +412,7 @@ xrep_refc_find_refcounts(
 	bool			have;
 	int			error;
 
-	xrep_ag_btcur_init(sc, &sc->sa);
+	xrep_ag_btcur_init(sc);
 
 	/*
 	 * Set up a bag to store all the rmap records that we're tracking to

@@ -280,7 +280,7 @@ xrep_cow_find_bad(
 	if (!pag)
 		return -EFSCORRUPTED;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		goto out_pag;
 

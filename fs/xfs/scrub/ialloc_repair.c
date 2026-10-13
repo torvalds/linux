@@ -473,7 +473,7 @@ xrep_ibt_find_inodes(
 	ri->rie.ir_startino = NULLAGINO;
 
 	/* Collect all reverse mappings for inode blocks. */
-	xrep_ag_btcur_init(sc, &sc->sa);
+	xrep_ag_btcur_init(sc);
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_ibt_walk_rmap, ri);
 	xchk_ag_btcur_free(&sc->sa);
 	if (error)

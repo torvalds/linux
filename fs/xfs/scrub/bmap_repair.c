@@ -359,7 +359,7 @@ xrep_bmap_scan_ag(
 	struct xfs_scrub	*sc = rb->sc;
 	int			error;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		return error;
 

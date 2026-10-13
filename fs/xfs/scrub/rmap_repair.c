@@ -910,7 +910,7 @@ xrep_rmap_find_rmaps(
 	int			error;
 
 	/* Find all the per-AG metadata. */
-	xrep_ag_btcur_init(sc, &sc->sa);
+	xrep_ag_btcur_init(sc);
 
 	error = xrep_rmap_find_inode_rmaps(rr);
 	if (error)
@@ -1167,7 +1167,7 @@ xrep_rmap_reserve_space(
 	} while (!done);
 
 	/* Emit rmaps for everything in the free space bitmap. */
-	xrep_ag_btcur_init(rr->sc, &rr->sc->sa);
+	xrep_ag_btcur_init(rr->sc);
 	error = xrep_rmap_stash_bitmap(rr, &freesp_blocks, &XFS_RMAP_OINFO_AG);
 	xchk_ag_btcur_free(&rr->sc->sa);
 

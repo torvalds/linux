@@ -413,7 +413,7 @@ xrep_rtrmap_scan_ag(
 	struct xfs_scrub	*sc = rr->sc;
 	int			error;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		return error;
 

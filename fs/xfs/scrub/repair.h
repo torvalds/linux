@@ -101,9 +101,8 @@ int xrep_setup_ag_allocbt(struct xfs_scrub *sc);
 struct xfs_imap;
 int xrep_setup_inode(struct xfs_scrub *sc, const struct xfs_imap *imap);
 
-void xrep_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
-int xrep_ag_init(struct xfs_scrub *sc, struct xfs_perag *pag,
-		struct xchk_ag *sa);
+void xrep_ag_btcur_init(struct xfs_scrub *sc);
+int xrep_ag_init(struct xfs_scrub *sc, struct xfs_perag *pag);
 #ifdef CONFIG_XFS_RT
 int xrep_rtgroup_init(struct xfs_scrub *sc, struct xfs_rtgroup *rtg,
 		struct xchk_rt *sr, unsigned int rtglock_flags);
