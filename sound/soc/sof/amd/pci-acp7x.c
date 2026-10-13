@@ -68,23 +68,25 @@ static const struct sof_dev_desc acp7f_desc = {
 	.ops_init		= sof_acp7x_ops_init,
 };
 
+static const struct pci_device_id acp7f_pci_id = {
+	PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID),
+	.driver_data = (unsigned long)&acp7f_desc,
+};
+
 static int acp7x_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	unsigned int flag;
-
-	switch (pci->revision) {
-	case ACP7B_PCI_ID:
-	case ACP7F_PCI_ID:
-		break;
-	default:
-		return -ENODEV;
-	}
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)
 		return -ENODEV;
 
-	return sof_pci_probe(pci, pci_id);
+	switch (pci->revision) {
+	case ACP7F_PCI_ID:
+		return sof_pci_probe(pci, &acp7f_pci_id);
+	default:
+		return -ENODEV;
+	}
 }
 
 static void acp7x_pci_remove(struct pci_dev *pci)
@@ -94,8 +96,7 @@ static void acp7x_pci_remove(struct pci_dev *pci)
 
 /* PCI IDs */
 static const struct pci_device_id acp7x_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID),
-	.driver_data = (unsigned long)&acp7f_desc},
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, acp7x_pci_ids);
