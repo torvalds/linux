@@ -1129,6 +1129,20 @@ static bool base_needs_disp(u32 reg)
 	return reg2hex[reg] == 5;
 }
 
+static void emit_movzx_reg(u8 **pprog, int num_bits, u32 dst_reg, u32 src_reg)
+{
+	u8 *prog = *pprog;
+
+	/* movz[b,w]l dst, src */
+	if (is_ereg(dst_reg) ||
+	    (num_bits == 8 ? is_ereg_8l(src_reg) : is_ereg(src_reg)))
+		EMIT1(add_2mod(0x40, src_reg, dst_reg));
+	EMIT3(0x0F, num_bits == 8 ? 0xB6 : 0xB7,
+	      add_2reg(0xC0, src_reg, dst_reg));
+
+	*pprog = prog;
+}
+
 /* Emit the suffix (ModR/M etc) for addressing *(ptr_reg + off) and val_reg */
 static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 {
@@ -2312,6 +2326,21 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		case BPF_ALU64 | BPF_AND | BPF_K:
 		case BPF_ALU64 | BPF_OR | BPF_K:
 		case BPF_ALU64 | BPF_XOR | BPF_K:
+			if (BPF_OP(insn->code) == BPF_AND &&
+			    (imm32 == 0xff || imm32 == 0xffff)) {
+				/* movzx dst_reg, dst_reg8/16 */
+				emit_movzx_reg(&prog, imm32 == 0xff ? 8 : 16,
+					       dst_reg, dst_reg);
+				break;
+			}
+			if (BPF_OP(insn->code) == BPF_XOR && imm32 == -1) {
+				/* not dst_reg */
+				maybe_emit_1mod(&prog, dst_reg,
+						BPF_CLASS(insn->code) == BPF_ALU64);
+				EMIT2(0xF7, add_1reg(0xD0, dst_reg));
+				break;
+			}
+
 			maybe_emit_1mod(&prog, dst_reg,
 					BPF_CLASS(insn->code) == BPF_ALU64);
 
@@ -2573,11 +2602,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 				 * Emit 'movzwl eax, ax' to zero extend 16-bit
 				 * into 64 bit
 				 */
-				if (is_ereg(dst_reg))
-					EMIT3(0x45, 0x0F, 0xB7);
-				else
-					EMIT2(0x0F, 0xB7);
-				EMIT1(add_2reg(0xC0, dst_reg, dst_reg));
+				emit_movzx_reg(&prog, 16, dst_reg, dst_reg);
 				break;
 			case 32:
 				/* Emit 'mov eax, eax' to clear upper 32-bits */
