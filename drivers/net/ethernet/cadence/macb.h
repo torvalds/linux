@@ -1267,23 +1267,12 @@ struct macb_queue {
 	unsigned int		ENST_ON_TIME;
 	unsigned int		ENST_OFF_TIME;
 
-	/* Lock to protect tx_head and tx_tail */
+	/* Lock to protect ctx->txq[q].head and ctx->txq[q].tail */
 	spinlock_t		tx_ptr_lock;
-	unsigned int		tx_head, tx_tail;
-	struct macb_dma_desc	*tx_ring;
-	struct macb_tx_skb	*tx_skb;
-	dma_addr_t		tx_ring_dma;
 	struct work_struct	tx_error_task;
 	bool			txubr_pending;
 	struct napi_struct	napi_tx;
 
-	dma_addr_t		rx_ring_dma;
-	dma_addr_t		rx_buffers_dma;
-	unsigned int		rx_tail;
-	unsigned int		rx_prepared_head;
-	struct macb_dma_desc	*rx_ring;
-	struct sk_buff		**rx_skbuff;
-	void			*rx_buffers;
 	struct napi_struct	napi_rx;
 	struct queue_stats stats;
 };
@@ -1298,6 +1287,32 @@ struct ethtool_rx_fs_list {
 	unsigned int count;
 };
 
+struct macb_rxq {
+	struct macb_dma_desc	*ring;		/* MACB & GEM */
+	dma_addr_t		ring_dma;	/* MACB & GEM */
+	unsigned int		tail;		/* MACB & GEM */
+	unsigned int		prepared_head;	/* GEM */
+	struct sk_buff		**skbuff;	/* GEM */
+	dma_addr_t		buffers_dma;	/* MACB */
+	void			*buffers;	/* MACB */
+};
+
+struct macb_txq {
+	unsigned int		head;
+	unsigned int		tail;
+	struct macb_dma_desc	*ring;
+	dma_addr_t		ring_dma;
+	struct macb_tx_skb	*skb;
+};
+
+struct macb_context {
+	unsigned int		rx_buffer_size;
+	unsigned int		rx_ring_size;
+	unsigned int		tx_ring_size;
+	struct macb_rxq		rxq[MACB_MAX_QUEUES];
+	struct macb_txq		txq[MACB_MAX_QUEUES];
+};
+
 struct macb {
 	void __iomem		*regs;
 	bool			native_io;
@@ -1306,12 +1321,16 @@ struct macb {
 	u32	(*macb_reg_readl)(struct macb *bp, int offset);
 	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
+	/*
+	 * Context stores all its parameters.
+	 * But we must remember them across closure.
+	 */
+	unsigned int		configured_rx_ring_size;
+	unsigned int		configured_tx_ring_size;
+	struct macb_context	*ctx;
+
 	struct macb_dma_desc	*rx_ring_tieoff;
 	dma_addr_t		rx_ring_tieoff_dma;
-	size_t			rx_buffer_size;
-
-	unsigned int		rx_ring_size;
-	unsigned int		tx_ring_size;
 
 	unsigned int		num_queues;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
