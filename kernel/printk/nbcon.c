@@ -2005,7 +2005,8 @@ void nbcon_kdb_release(struct nbcon_write_context *wctxt)
 }
 
 /**
- * nbcon_is_braille - Checks whether the nbcon write context is using Braille console
+ * nbcon_write_context_is_braille - Checks whether the nbcon write context
+ *                                  is using Braille console
  *
  * @wctxt:	checked nbcon write context
  *
