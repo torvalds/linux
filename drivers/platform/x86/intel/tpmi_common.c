@@ -359,11 +359,11 @@ static int tpmi_pfs_dbg_show(struct seq_file *s, void *unused)
 	int locked, disabled, read_blocked, write_blocked;
 	struct tpmi_feature_state feature_state;
 	struct intel_tpmi_pm_feature *pfs;
-	int ret, i;
+	int ret;
 
 	seq_printf(s, "tpmi PFS start offset 0x:%llx\n", tpmi_info->pfs_start);
 	seq_puts(s, "tpmi_id\t\tentries\t\tsize\t\tcap_offset\tattribute\tvsec_offset\tlocked\tdisabled\tread_blocked\twrite_blocked\n");
-	for (i = 0; i < tpmi_info->feature_count; ++i) {
+	for (int i = 0; i < tpmi_info->feature_count; i++) {
 		pfs = &tpmi_info->tpmi_features[i];
 		ret = tpmi_read_feature_status(tpmi_info, pfs->pfs_header.tpmi_id, &feature_state);
 		if (ret) {
@@ -395,7 +395,6 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 	size_t row_size = MEM_DUMP_COLUMN_COUNT * sizeof(u32);
 	struct intel_tpmi_pm_feature *pfs = s->private;
 	void __iomem *mem;
-	int count;
 	u32 size;
 	u64 off;
 
@@ -411,7 +410,7 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 
 	guard(mutex)(&tpmi_dev_lock);
 
-	for (count = 0; count < pfs->pfs_header.num_entries; ++count) {
+	for (int count = 0; count < pfs->pfs_header.num_entries; count++) {
 		seq_printf(s, "TPMI Instance:%d offset:0x%llx\n", count, off);
 
 		mem = ioremap(off, size);
@@ -490,14 +489,13 @@ DEFINE_SHOW_STORE_ATTRIBUTE(mem_write);
 static void tpmi_dbgfs_register(struct intel_tpmi_info *tpmi_info)
 {
 	char name[64];
-	int i;
 
 	scnprintf(name, sizeof(name), "tpmi-%s", dev_name(tpmi_info->parent));
 	tpmi_info->dbgfs_dir = debugfs_create_dir(name, NULL);
 
 	debugfs_create_file("pfs_dump", 0444, tpmi_info->dbgfs_dir, tpmi_info, &tpmi_pfs_dbg_fops);
 
-	for (i = 0; i < tpmi_info->feature_count; ++i) {
+	for (int i = 0; i < tpmi_info->feature_count; i++) {
 		struct intel_tpmi_pm_feature *pfs;
 		struct dentry *dir;
 
@@ -554,9 +552,9 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 {
 	struct intel_vsec_device *feature_vsec_dev;
 	struct tpmi_feature_state feature_state;
-	struct resource *res, *tmp;
+	struct resource *res;
 	const char *name;
-	int i, ret;
+	int ret;
 
 	ret = tpmi_read_feature_status(tpmi_info, pfs->pfs_header.tpmi_id, &feature_state);
 	if (ret)
@@ -580,10 +578,10 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	feature_vsec_dev->num_resources = pfs->pfs_header.num_entries;
 	res = feature_vsec_dev->resource;
 
-	for (i = 0, tmp = res; i < pfs->pfs_header.num_entries; i++, tmp++) {
+	for (int i = 0; i < pfs->pfs_header.num_entries; i++) {
 		u64 entry_size_bytes = pfs->pfs_header.entry_size * sizeof(u32);
 
-		*tmp = DEFINE_RES_MEM(pfs->vsec_offset + entry_size_bytes * i, entry_size_bytes);
+		res[i] = DEFINE_RES_MEM(pfs->vsec_offset + entry_size_bytes * i, entry_size_bytes);
 	}
 
 	feature_vsec_dev->dev = tpmi_info->parent;
@@ -605,9 +603,9 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 
 static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 {
-	int ret, i;
+	int ret;
 
-	for (i = 0; i < tpmi_info->feature_count; i++) {
+	for (int i = 0; i < tpmi_info->feature_count; i++) {
 		ret = tpmi_create_device(tpmi_info, &tpmi_info->tpmi_features[i],
 					 tpmi_info->pfs_start);
 		/*
@@ -701,7 +699,7 @@ int intel_tpmi_init(struct intel_tpmi_info *tpmi_info, struct device *tpmi_dev,
 {
 	struct pci_dev *pci_dev = dev_is_pci(parent) ? to_pci_dev(parent) : NULL;
 	u64 pfs_start = 0;
-	int ret, i;
+	int ret;
 
 	tpmi_info->tpmi_dev = tpmi_dev;
 	tpmi_info->parent = parent;
@@ -722,7 +720,7 @@ int intel_tpmi_init(struct intel_tpmi_info *tpmi_info, struct device *tpmi_dev,
 	if (!tpmi_info->tpmi_features)
 		return -ENOMEM;
 
-	for (i = 0; i < tpmi_info->feature_count; i++) {
+	for (int i = 0; i < tpmi_info->feature_count; i++) {
 		struct intel_tpmi_pm_feature *pfs;
 		struct resource *res;
 		u64 res_start;
