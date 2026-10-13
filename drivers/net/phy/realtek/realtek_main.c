@@ -2720,10 +2720,35 @@ exit:
 	return ret;
 }
 
-static int rtl8224_mdi_config_order(struct phy_device *phydev)
+static int rtl8224_get_base_addr(struct phy_device *phydev, u32 *base_addr)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct device_node *np;
+	int ret;
+
+	*base_addr = phydev->mdio.addr & ~3;
+	np = of_get_parent(dev->of_node);
+	if (of_node_name_eq(np, "ethernet-phy-package")) {
+		ret = of_property_read_u32(np, "reg", base_addr);
+		of_node_put(np);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Missing or invalid PHY package reg\n");
+
+		if (phydev->mdio.addr < *base_addr ||
+		    phydev->mdio.addr - *base_addr >= 4)
+			return dev_err_probe(dev, -EINVAL,
+					     "PHY address outside RTL8224 package\n");
+	} else {
+		of_node_put(np);
+	}
+
+	return 0;
+}
+
+static int rtl8224_mdi_config_order(struct phy_device *phydev, u8 port_offset)
 {
 	struct device_node *np = phydev->mdio.dev.of_node;
-	u8 port_offset = phydev->mdio.addr & 3;
 	u32 order = 0;
 	int ret;
 
@@ -2745,10 +2770,10 @@ static int rtl8224_mdi_config_order(struct phy_device *phydev)
 					  order ? BIT(port_offset) : 0);
 }
 
-static int rtl8224_mdi_config_polarity(struct phy_device *phydev)
+static int rtl8224_mdi_config_polarity(struct phy_device *phydev, u8 port_offset)
 {
 	struct device_node *np = phydev->mdio.dev.of_node;
-	u8 offset = (phydev->mdio.addr & 3) * 4;
+	u8 offset = port_offset * 4;
 	u32 polarity = 0;
 	int ret;
 
@@ -2772,20 +2797,33 @@ static int rtl8224_mdi_config_polarity(struct phy_device *phydev)
 
 static int rtl8224_config_init(struct phy_device *phydev)
 {
+	u32 base_addr;
+	u8 port_offset;
 	int ret;
 
-	ret = rtl8224_mdi_config_order(phydev);
+	ret = rtl8224_get_base_addr(phydev, &base_addr);
 	if (ret)
 		return ret;
 
-	return rtl8224_mdi_config_polarity(phydev);
+	port_offset = phydev->mdio.addr - base_addr;
+	ret = rtl8224_mdi_config_order(phydev, port_offset);
+	if (ret)
+		return ret;
+
+	return rtl8224_mdi_config_polarity(phydev, port_offset);
 }
 
 static int rtl8224_probe(struct phy_device *phydev)
 {
-	/* Chip exposes 4 ports, join all of them in the same package */
-	return devm_phy_package_join(&phydev->mdio.dev, phydev,
-				     phydev->mdio.addr & ~3, 0);
+	struct device *dev = &phydev->mdio.dev;
+	u32 base_addr;
+	int ret;
+
+	ret = rtl8224_get_base_addr(phydev, &base_addr);
+	if (ret)
+		return ret;
+
+	return devm_phy_package_join(dev, phydev, base_addr, 0);
 }
 
 static bool rtlgen_supports_2_5gbps(struct phy_device *phydev)
