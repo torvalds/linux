@@ -432,7 +432,8 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(tpmi_mem_dump);
 
-static ssize_t mem_write(struct file *file, const char __user *userbuf, size_t len, loff_t *ppos)
+static ssize_t mem_write_write(struct file *file, const char __user *userbuf, size_t len,
+			       loff_t *ppos)
 {
 	struct seq_file *m = file->private_data;
 	struct intel_tpmi_pm_feature *pfs = m->private;
@@ -484,19 +485,7 @@ static int mem_write_show(struct seq_file *s, void *unused)
 {
 	return 0;
 }
-
-static int mem_write_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mem_write_show, inode->i_private);
-}
-
-static const struct file_operations mem_write_ops = {
-	.open           = mem_write_open,
-	.read           = seq_read,
-	.write          = mem_write,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_STORE_ATTRIBUTE(mem_write);
 
 static void tpmi_dbgfs_register(struct intel_tpmi_info *tpmi_info)
 {
@@ -517,7 +506,7 @@ static void tpmi_dbgfs_register(struct intel_tpmi_info *tpmi_info)
 		dir = debugfs_create_dir(name, tpmi_info->dbgfs_dir);
 
 		debugfs_create_file("mem_dump", 0444, dir, pfs, &tpmi_mem_dump_fops);
-		debugfs_create_file("mem_write", 0644, dir, pfs, &mem_write_ops);
+		debugfs_create_file("mem_write", 0644, dir, pfs, &mem_write_fops);
 	}
 }
 
