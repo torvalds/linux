@@ -2539,8 +2539,12 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		case BPF_ALU64 | BPF_LSH | BPF_X:
 		case BPF_ALU64 | BPF_RSH | BPF_X:
 		case BPF_ALU64 | BPF_ARSH | BPF_X:
-			/* BMI2 shifts aren't better when shift count is already in rcx */
-			if (boot_cpu_has(X86_FEATURE_BMI2) && src_reg != BPF_REG_4) {
+			/*
+			 * BMI2 shifts take the count from any register and,
+			 * unlike the cl forms, are a single uop on Intel, so
+			 * prefer them also when the count already is in rcx.
+			 */
+			if (boot_cpu_has(X86_FEATURE_BMI2)) {
 				/* shrx/sarx/shlx dst_reg, dst_reg, src_reg */
 				bool w = (BPF_CLASS(insn->code) == BPF_ALU64);
 				u8 op;
