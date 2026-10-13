@@ -426,6 +426,17 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		break;
 	}
 
+	switch (params->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (wdev->valid_links)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+
 	/*
 	 * Per Wi-Fi Aware v4.0 section 7.1.2, NAN Data interfaces
 	 * shall only use CCMP-128 or GCMP-256.
