@@ -596,18 +596,13 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 		tcf_action_update_hw_stats(p);
 
 		nest = nla_nest_start_noflag(skb, n_i);
-		if (!nest) {
-			index--;
+		if (!nest)
 			goto nla_put_failure;
-		}
 		err = (act_flags & TCA_ACT_FLAG_TERSE_DUMP) ?
 			tcf_action_dump_terse(skb, p, true) :
 			tcf_action_dump_1(skb, p, 0, 0);
-		if (err < 0) {
-			index--;
-			nlmsg_trim(skb, nest);
-			goto done;
-		}
+		if (err < 0)
+			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 		n_i++;
 		if (!(act_flags & TCA_ACT_FLAG_LARGE_DUMP_ON) &&
@@ -623,10 +618,21 @@ done:
 		if (act_flags & TCA_ACT_FLAG_LARGE_DUMP_ON)
 			cb->args[1] = n_i;
 	}
-	return n_i;
+
+	/* A positive count means the skb filled up before this action was
+	 * complete, so netlink retries it in a fresh skb. An action that
+	 * does not fit even in an empty dump skb (nothing dumped) must be
+	 * reported as -EMSGSIZE by netlink instead of ending the dump.
+	 */
+	return n_i ?: err;
 
 nla_put_failure:
+	index--;
 	nla_nest_cancel(skb, nest);
+	err = -EMSGSIZE;
+	if (!n_i)
+		NL_SET_ERR_MSG(cb->extack,
+			       "TC action is too large for the dump buffer");
 	goto done;
 }
 
@@ -2346,7 +2352,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 out_module_put:
 	module_put(a_o->owner);
 	nlmsg_trim(skb, b);
-	return skb->len;
+	return ret;
 }
 
 static const struct rtnl_msg_handler tc_action_rtnl_msg_handlers[] __initconst = {
