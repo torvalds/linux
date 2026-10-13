@@ -21,13 +21,6 @@ struct gb_fw_core {
 
 static struct spilib_ops *spilib_ops;
 
-struct gb_connection *to_fw_mgmt_connection(struct device *dev)
-{
-	struct gb_fw_core *fw_core = dev_get_drvdata(dev);
-
-	return fw_core->mgmt_connection;
-}
-
 static int gb_fw_spi_connection_init(struct gb_connection *connection)
 {
 	int ret;
