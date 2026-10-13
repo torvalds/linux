@@ -1490,7 +1490,7 @@ xrep_dinode_ensure_forkoff(
 
 			/* Otherwise, just slide the attr fork up. */
 			before = XFS_DFORK_APTR(dip);
-			dip->di_forkoff = bmdr_minsz >> 3;
+			dip->di_forkoff = XFS_B_TO_FORKOFFT(bmdr_minsz);
 			after = XFS_DFORK_APTR(dip);
 			memmove(after, before, XFS_DFORK_ASIZE(dip, sc->mp));
 		}
@@ -1522,7 +1522,7 @@ xrep_dinode_ensure_forkoff(
 			 * fork is empty, so we don't have any old contents to
 			 * move here.
 			 */
-			dip->di_forkoff = (lit_sz - bmdr_minsz) >> 3;
+			dip->di_forkoff = XFS_B_TO_FORKOFFT(lit_sz - bmdr_minsz);
 		}
 	}
 }

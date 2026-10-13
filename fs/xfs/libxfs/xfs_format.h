@@ -1096,7 +1096,11 @@ enum xfs_dinode_fmt {
 /*
  * Inode data & attribute fork sizes, per inode.
  */
-#define XFS_DFORK_BOFF(dip)		((int)((dip)->di_forkoff << 3))
+#define XFS_B_TO_FORKOFFT(b)		((b) >> 3)
+#define XFS_B_TO_FORKOFF(b)		XFS_B_TO_FORKOFFT((b) + 7)
+#define XFS_FORKOFF_TO_B(f)		((int)(f) << 3)
+
+#define XFS_DFORK_BOFF(dip)		XFS_FORKOFF_TO_B((dip)->di_forkoff)
 
 #define XFS_DFORK_DSIZE(dip,mp) \
 	((dip)->di_forkoff ? XFS_DFORK_BOFF(dip) : XFS_LITINO(mp))

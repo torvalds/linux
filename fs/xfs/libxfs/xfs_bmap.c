@@ -221,7 +221,7 @@ xfs_bmap_forkoff_reset(
 	if (whichfork == XFS_ATTR_FORK &&
 	    ip->i_df.if_format != XFS_DINODE_FMT_DEV &&
 	    ip->i_df.if_format != XFS_DINODE_FMT_BTREE) {
-		uint	dfl_forkoff = xfs_default_attroffset(ip) >> 3;
+		uint	dfl_forkoff = xfs_inode_default_forkoff(ip);
 
 		if (dfl_forkoff > ip->i_forkoff)
 			ip->i_forkoff = dfl_forkoff;
@@ -997,7 +997,7 @@ xfs_bmap_set_attrforkoff(
 	struct xfs_inode	*ip,
 	int			size)
 {
-	int			default_size = xfs_default_attroffset(ip) >> 3;
+	int			default_size = xfs_inode_default_forkoff(ip);
 
 	switch (ip->i_df.if_format) {
 	case XFS_DINODE_FMT_DEV:

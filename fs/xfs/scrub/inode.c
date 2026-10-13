@@ -607,7 +607,7 @@ xchk_dinode(
 	}
 
 	/* di_forkoff */
-	if (dip->di_forkoff >= (XFS_LITINO(mp) >> 3))
+	if (dip->di_forkoff >= XFS_B_TO_FORKOFFT(XFS_LITINO(mp)))
 		xchk_ino_set_corrupt(sc, ino);
 	if (naextents != 0 && dip->di_forkoff == 0)
 		xchk_ino_set_corrupt(sc, ino);

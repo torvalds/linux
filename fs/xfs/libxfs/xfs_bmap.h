@@ -213,6 +213,12 @@ void	xfs_bmap_del_extent_cow(struct xfs_inode *ip,
 		struct xfs_iext_cursor *cur, struct xfs_bmbt_irec *got,
 		struct xfs_bmbt_irec *del);
 uint	xfs_default_attroffset(struct xfs_inode *ip);
+
+static inline uint xfs_inode_default_forkoff(struct xfs_inode *ip)
+{
+	return XFS_B_TO_FORKOFFT(xfs_default_attroffset(ip));
+}
+
 int	xfs_bmap_collapse_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
 		bool *done);

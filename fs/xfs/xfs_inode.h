@@ -132,7 +132,7 @@ xfs_ifork_ptr(
 
 static inline unsigned int xfs_inode_fork_boff(struct xfs_inode *ip)
 {
-	return ip->i_forkoff << 3;
+	return XFS_FORKOFF_TO_B(ip->i_forkoff);
 }
 
 static inline unsigned int xfs_inode_data_fork_size(struct xfs_inode *ip)
