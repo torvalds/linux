@@ -2306,25 +2306,6 @@ int snd_soc_add_controls(struct snd_card *card, struct device *dev,
 }
 
 /**
- * snd_soc_add_component_controls - Add an array of controls to a component.
- *
- * @component: Component to add controls to
- * @controls: Array of controls to add
- * @num_controls: Number of elements in the array
- *
- * Return: 0 for success, else error.
- */
-int snd_soc_add_component_controls(struct snd_soc_component *component,
-	const struct snd_kcontrol_new *controls, unsigned int num_controls)
-{
-	struct snd_card *card = component->card->snd_card;
-
-	return snd_soc_add_controls(card, component->dev, controls,
-			num_controls, component->name_prefix, component);
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_component_controls);
-
-/**
  * snd_soc_add_card_controls - add an array of controls to a SoC card.
  * Convenience function to add a list of controls.
  *

@@ -12,6 +12,7 @@
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <linux/bitops.h>
+#include "soc-internal.h"
 
 #define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
 static inline int _soc_component_ret(struct snd_soc_component *component, const char *func, int ret)
@@ -319,6 +320,26 @@ int snd_soc_component_probe(struct snd_soc_component *component)
 
 	return soc_component_ret(component, ret);
 }
+
+/**
+ * snd_soc_component_add_controls - Add an array of controls to a component.
+ *
+ * @component: Component to add controls to
+ * @controls: Array of controls to add
+ * @num_controls: Number of elements in the array
+ *
+ * Return: 0 for success, else error.
+ */
+int snd_soc_component_add_controls(struct snd_soc_component *component,
+				   const struct snd_kcontrol_new *controls,
+				   unsigned int num_controls)
+{
+	struct snd_card *card = component->card->snd_card;
+
+	return snd_soc_add_controls(card, component->dev, controls,
+				    num_controls, component->name_prefix, component);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_add_controls);
 
 int snd_soc_component_fixup_controls(struct snd_soc_component *component)
 {

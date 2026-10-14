@@ -545,8 +545,6 @@ static inline int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 				  void *data, const char *long_name,
 				  const char *prefix);
-int snd_soc_add_component_controls(struct snd_soc_component *component,
-	const struct snd_kcontrol_new *controls, unsigned int num_controls);
 int snd_soc_add_card_controls(struct snd_soc_card *soc_card,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
@@ -1542,5 +1540,6 @@ static inline void _snd_soc_dpcm_mutex_assert_held_r(struct snd_soc_pcm_runtime 
 #define snd_soc_add_dai_controls			snd_soc_dai_add_controls
 #define snd_soc_register_dai				snd_soc_dai_register
 #define snd_soc_unregister_dai				snd_soc_dai_unregister
+#define snd_soc_add_component_controls			snd_soc_component_add_controls
 
 #endif

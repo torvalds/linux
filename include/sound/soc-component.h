@@ -358,6 +358,9 @@ void snd_soc_component_init_regmap(struct snd_soc_component *component,
 void snd_soc_component_exit_regmap(struct snd_soc_component *component);
 #endif
 
+int snd_soc_component_add_controls(struct snd_soc_component *component,
+				const struct snd_kcontrol_new *controls, unsigned int num_controls);
+
 #define snd_soc_component_module_get_when_probe(component)\
 	snd_soc_component_module_get(component, NULL, 0)
 #define snd_soc_component_module_get_when_open(component, substream)	\
