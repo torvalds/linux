@@ -143,7 +143,7 @@ static void destroy_record(struct tls_record_info *record)
 	int i;
 
 	for (i = 0; i < record->num_frags; i++)
-		__skb_frag_unref(&record->frags[i], false);
+		put_netmem(skb_frag_netmem(&record->frags[i]));
 	kfree(record);
 }
 
