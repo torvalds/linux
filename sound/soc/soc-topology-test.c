@@ -24,8 +24,12 @@ static struct device *test_dev;
 
 static int snd_soc_tplg_test_init(struct kunit *test)
 {
-	test_dev = kunit_device_register(test, "sound-soc-topology-test");
-	test_dev = get_device(test_dev);
+	struct device *dev;
+
+	dev = kunit_device_register(test, "sound-soc-topology-test");
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	test_dev = get_device(dev);
 	if (!test_dev)
 		return -ENODEV;
 
