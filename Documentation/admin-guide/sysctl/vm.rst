@@ -539,6 +539,13 @@ watermark[WMARK_MIN] value for each lowmem zone in the system.
 Each lowmem zone gets a number of reserved free pages based
 proportionally on its size.
 
+By default, the kernel sets this value based on the amount of lowmem
+and recalculates it on memory hotplug.  When Transparent Hugepage (THP)
+support is enabled through global or per-size controls, the kernel may
+also raise it to help keep pageblocks free and reduce fragmentation for
+THP allocations.  Once a value is written to this file, the kernel no
+longer adjusts it automatically.
+
 Some minimal amount of memory is needed to satisfy PF_MEMALLOC
 allocations; if you set this to lower than 1024KB, your system will
 become subtly broken, and prone to deadlock under high loads.
