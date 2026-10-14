@@ -2590,6 +2590,7 @@ __perf_remove_from_context(struct perf_event *event,
 	enum perf_event_state state = PERF_EVENT_STATE_OFF;
 	unsigned long flags = (unsigned long)info;
 
+	perf_pmu_disable(pmu_ctx->pmu);
 	ctx_time_update(cpuctx, ctx);
 
 	/*
@@ -2602,6 +2603,13 @@ __perf_remove_from_context(struct perf_event *event,
 		state = PERF_EVENT_STATE_REVOKED;
 	if (flags & DETACH_DEAD)
 		state = PERF_EVENT_STATE_DEAD;
+
+	/*
+	 * When disabling a group leader, the whole group becomes ineligible
+	 * to run, so schedule out the full group.
+	 */
+	if (!(flags & DETACH_GROUP) && event == event->group_leader)
+		group_sched_out(event, ctx);
 
 	__event_disable(event, ctx, state);
 
@@ -2632,6 +2640,7 @@ __perf_remove_from_context(struct perf_event *event,
 			cpuctx->task_ctx = NULL;
 		}
 	}
+	perf_pmu_enable(pmu_ctx->pmu);
 }
 
 /*
