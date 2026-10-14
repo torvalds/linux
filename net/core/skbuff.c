@@ -65,6 +65,7 @@
 #include <linux/kcov.h>
 #include <linux/iov_iter.h>
 #include <linux/crc32.h>
+#include <kunit/visibility.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -4450,6 +4451,7 @@ onlymerged:
 
 	return shiftlen;
 }
+EXPORT_SYMBOL_IF_KUNIT(skb_shift);
 
 /**
  * skb_prepare_seq_read - Prepare a sequential read of skb data
