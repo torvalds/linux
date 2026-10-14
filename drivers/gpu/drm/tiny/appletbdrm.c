@@ -590,7 +590,7 @@ static const struct drm_mode_config_funcs appletbdrm_mode_config_funcs = {
 };
 
 static const struct drm_connector_funcs appletbdrm_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
+	.atomic_create_state = drm_atomic_helper_connector_create_state,
 	.destroy = drm_connector_cleanup,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
