@@ -182,6 +182,7 @@ allOf:
             contains:
               enum:
                 - fsl,imx28-lcdif
+                - fsl,imx6ul-lcdif
     then:
       properties:
         dmas: false

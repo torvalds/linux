@@ -28,9 +28,11 @@ properties:
     const: ldb
 
   reg:
+    minItems: 1
     maxItems: 2
 
   reg-names:
+    minItems: 1
     items:
       - const: ldb
       - const: lvds
@@ -83,15 +85,6 @@ allOf:
         ports:
           properties:
             port@2: false
-  - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              const: fsl,imx6sx-ldb
-    then:
-      required:
-        - reg-names
 
   - if:
       properties:
@@ -100,7 +93,19 @@ allOf:
             const: fsl,imx6sx-ldb
     then:
       properties:
+        reg:
+          maxItems: 1
+        reg-names:
+          maxItems: 1
         nxp,enable-termination-resistor: false
+    else:
+      required:
+        - reg-names
+      properties:
+        reg:
+          minItems: 2
+        reg-names:
+          minItems: 2
 
 additionalProperties: false
 

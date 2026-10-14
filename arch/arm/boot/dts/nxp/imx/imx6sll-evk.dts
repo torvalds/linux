@@ -633,7 +633,7 @@
 		>;
 	};
 
-	pinctrl_wdog1: wdog1grp	{
+	pinctrl_wdog1: wdog1grp {
 		fsl,pins = <
 			MX6SLL_PAD_WDOG_B__WDOG1_B   0x170b0
 		>;

@@ -284,7 +284,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3_tsc2004>;
 		interrupts-extended = <&gpio3 4 IRQ_TYPE_EDGE_FALLING>;
-		wakeup-gpios = <&gpio3 4 GPIO_ACTIVE_LOW>;
 	};
 };
 

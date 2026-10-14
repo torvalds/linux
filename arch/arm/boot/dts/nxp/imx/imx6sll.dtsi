@@ -624,17 +624,6 @@
 				reg = <0x020e4000 0x4000>;
 			};
 
-			csi: csi@20e8000 {
-				compatible = "fsl,imx6sll-csi", "fsl,imx6s-csi";
-				reg = <0x020e8000 0x4000>;
-				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_DUMMY>,
-					 <&clks IMX6SLL_CLK_CSI>,
-					 <&clks IMX6SLL_CLK_DUMMY>;
-				clock-names = "disp-axi", "csi_mclk", "disp_dcic";
-				status = "disabled";
-			};
-
 			sdma: dma-controller@20ec000 {
 				compatible = "fsl,imx6sll-sdma", "fsl,imx6ul-sdma";
 				reg = <0x020ec000 0x4000>;
