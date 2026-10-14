@@ -831,8 +831,8 @@ bool kho_bootmem_overlap(phys_addr_t phys, size_t size)
  */
 static void __init kho_reserve_bootmem(void)
 {
+	int nid, i = 0, max_nr_bootmem;
 	phys_addr_t addr, size;
-	int nid, i = 0;
 
 	if (!kho_enable)
 		return;
@@ -840,8 +840,8 @@ static void __init kho_reserve_bootmem(void)
 	bootmem_size_update();
 
 	/* FIXME: deal with node hot-plug/remove */
-	kho_bootmem_cnt = nodes_weight(node_states[N_MEMORY]) + 2;
-	size = kho_bootmem_cnt * sizeof(*kho_bootmem);
+	max_nr_bootmem = nodes_weight(node_states[N_MEMORY]) + 2;
+	size = max_nr_bootmem * sizeof(*kho_bootmem);
 	kho_bootmem = memblock_alloc(size, PAGE_SIZE);
 	if (!kho_bootmem) {
 		pr_err("Failed to reserve bootmem array\n");
@@ -882,6 +882,9 @@ static void __init kho_reserve_bootmem(void)
 	 */
 	for_each_node_state(nid, N_MEMORY) {
 		size = bootmem_size_node(nid);
+		if (!size)
+			continue;
+
 		addr = memblock_alloc_range_nid(size, BOOTMEM_ALIGNMENT_BYTES,
 						0, MEMBLOCK_ALLOC_ACCESSIBLE,
 						nid, true);
@@ -895,13 +898,19 @@ static void __init kho_reserve_bootmem(void)
 		i++;
 	}
 
+	/*
+	 * Nodes that needed no bootmem were skipped, so fewer areas than
+	 * initially estimated may have been reserved.
+	 */
+	kho_bootmem_cnt = i;
+
 	return;
 
 err_free_bootmem_areas:
 	for (i--; i >= 0; i--)
 		memblock_phys_free(kho_bootmem[i].addr, kho_bootmem[i].size);
 err_free_bootmem_desc:
-	memblock_free(kho_bootmem, kho_bootmem_cnt * sizeof(*kho_bootmem));
+	memblock_free(kho_bootmem, max_nr_bootmem * sizeof(*kho_bootmem));
 err_disable_kho:
 	pr_warn("Failed to reserve bootmem, disabling kexec handover\n");
 	kho_enable = false;
