@@ -266,7 +266,7 @@ $(OUTPUT)/migration: LDLIBS += -lnuma
 $(OUTPUT)/rmap: LDLIBS += -lnuma
 
 local_config.mk local_config.h_gen: check_config.sh
-	$(call msg,CHK,config,$@)
+	@{ $(patsubst @%,%,$(call msg,CHK,config,$@)) :; } >&2
 	$(Q)CC="$(CC)" CFLAGS="$(CFLAGS)" ./check_config.sh
 
 EXTRA_CLEAN += local_config.mk local_config.h_gen
