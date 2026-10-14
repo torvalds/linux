@@ -182,6 +182,62 @@ __naked void global_callee_arg(void)
 	::: __clobber_all);
 }
 
+__noinline int global_int_arg(int x)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __log_level(2)
+__msg("stack use/def subprog#0 global_noop_int_arg (d0,cs0):")
+__msg_next("  0: (bf) r1 = r10{{$}}")
+__msg_next("  1: (07) r1 += -8{{$}}")
+__msg_next("  2: (1f) r1 -= r10{{$}}")
+__msg_next("  3: (85) call pc+1{{$}}")
+__msg_next("  4: (95) exit")
+__naked void global_noop_int_arg(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"r1 -= r10;"		/* This is a scalar now. */
+	"call global_int_arg;"	/* And should not be tracked as stack effect. */
+	"exit;"
+	::: __clobber_all);
+}
+
+static char global_dynptr_buf[8];
+
+__noinline int global_noop_dynptr_arg(struct bpf_dynptr *p)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __log_level(2)
+/* A global dynptr argument may read/write only its 16 bytes, with no definite write. */
+__msg("stack use/def subprog#0 global_callee_dynptr_arg (d0,cs0):")
+__msg("  7: (bf) r1 = r10{{$}}")
+__msg_next("  8: (07) r1 += -32{{$}}")
+__msg_next("  9: (85) call pc+1{{ +}}; use: fp0-24 fp0-32 may_def: fp0-24 fp0-32{{$}}")
+__msg_next(" 10: (95) exit{{$}}")
+__naked void global_callee_dynptr_arg(void)
+{
+	asm volatile (
+	"r1 = %[global_dynptr_buf] ll;"
+	"r2 = 8;"
+	"r3 = 0;"
+	"r4 = r10;"
+	"r4 += -32;"
+	"call %[bpf_dynptr_from_mem];"
+	"r1 = r10;"
+	"r1 += -32;"
+	"call global_noop_dynptr_arg;"
+	"exit;"
+	:: __imm_addr(global_dynptr_buf), __imm(bpf_dynptr_from_mem)
+	: __clobber_all);
+}
+
 struct task_struct { int pid; };
 
 __noinline int global_noop_btf_arg(struct task_struct *p __arg_untrusted)
