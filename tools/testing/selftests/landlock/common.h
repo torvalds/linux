@@ -9,10 +9,12 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <linux/nsfs.h>
 #include <linux/securebits.h>
 #include <sys/capability.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -128,6 +130,17 @@ static void __maybe_unused clear_ambient_cap(
 	EXPECT_EQ(1, cap_get_ambient(cap));
 	_change_cap(_metadata, CAP_INHERITABLE, cap, CAP_CLEAR);
 	EXPECT_EQ(0, cap_get_ambient(cap));
+}
+
+/* Returns true if the current process is in the initial user namespace. */
+static bool __maybe_unused is_in_init_user_ns(void)
+{
+	struct stat user_ns;
+
+	if (stat("/proc/self/ns/user", &user_ns))
+		return false;
+
+	return user_ns.st_ino == USER_NS_INIT_INO;
 }
 
 /* Receives an FD from a UNIX socket. Returns the received FD, or -errno. */
