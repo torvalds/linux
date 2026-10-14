@@ -556,4 +556,3 @@ free_bin:
 	return ret;
 }
 EXPORT_SYMBOL_NS(acp7x_load_firmware_carveout, "SND_SOC_SOF_AMD_COMMON");
-
