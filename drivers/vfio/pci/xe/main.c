@@ -577,9 +577,12 @@ static void xe_vfio_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id xe_vfio_pci_table[] = {
+	INTEL_BMG_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_CRI_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_NVLS_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_NVLP_IDS(INTEL_PCI_VFIO_DEVICE),
 	INTEL_PTL_IDS(INTEL_PCI_VFIO_DEVICE),
 	INTEL_WCL_IDS(INTEL_PCI_VFIO_DEVICE),
-	INTEL_BMG_IDS(INTEL_PCI_VFIO_DEVICE),
 	{}
 };
 MODULE_DEVICE_TABLE(pci, xe_vfio_pci_table);
