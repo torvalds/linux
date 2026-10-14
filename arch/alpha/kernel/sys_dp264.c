@@ -533,6 +533,7 @@ monet_init_pci(void)
 static void __init
 clipper_init_pci(void)
 {
+	tsunami_check_console_data_log();
 	common_init_pci();
 	locate_and_init_vga(NULL);
 }

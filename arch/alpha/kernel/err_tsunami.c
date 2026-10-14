@@ -6,9 +6,11 @@
  * Register definitions: 21272 Hardware Reference Manual, revision 4.0.
  */
 #include <linux/init.h>
+#include <linux/printk.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <asm/io.h>
+#include <asm/hwrpb.h>
 #include <asm/core_tsunami.h>
 #include <asm/smp.h>
 #include <asm/err_common.h>
@@ -489,4 +491,198 @@ clipper_machine_check(unsigned long vector, unsigned long la_ptr)
 	wrmces(0x7);
 	/* Complete acknowledgment before returning from the event. */
 	mb();
+}
+
+static struct el_subpacket * __init
+tsunami_process_subpacket(struct el_subpacket *packet)
+{
+	struct el_common *frame;
+	size_t offset = offsetof(struct el_subpacket, by_type.regatta_frame.data_start);
+	int status;
+
+	/* Raw dumps consume whole quadwords, and the next packet must advance. */
+	if (packet->length < offsetof(struct el_subpacket, by_type) ||
+	    (packet->length & 7))
+		return NULL;
+	if (packet->revision != 1) {
+		el_annotate_subpacket(packet);
+		return (void *)packet + packet->length;
+	}
+
+	switch (packet->type) {
+	case EL_TYPE__REGATTA__PROCESSOR_ERROR_FRAME:
+	case EL_TYPE__REGATTA__PROCESSOR_DBL_ERROR_HALT:
+	case EL_TYPE__REGATTA__SYSTEM_ERROR_FRAME:
+	case EL_TYPE__REGATTA__SYSTEM_DBL_ERROR_HALT:
+		if (packet->length < offset + sizeof(*frame))
+			return NULL;
+		frame = (void *)packet + offset;
+		if (frame->size > packet->length - offset || frame->size < sizeof(*frame))
+			return NULL;
+		if (packet->type == EL_TYPE__REGATTA__PROCESSOR_ERROR_FRAME ||
+		    packet->type == EL_TYPE__REGATTA__PROCESSOR_DBL_ERROR_HALT) {
+			printk("%s  ** Occurred on CPU %d:\n", err_print_prefix,
+			       (int)packet->by_type.regatta_frame.cpuid);
+			status = ev6_process_logout_frame(frame, 0);
+			if (status != MCHK_DISPOSITION_DISMISS)
+				ev6_process_logout_frame(frame, 1);
+		} else {
+			tsunami_process_logout_frame(frame, 1);
+		}
+		break;
+	case EL_TYPE__REGATTA__ENVIRONMENTAL_FRAME:
+		/*
+		 * ES40 Table D-18 gives sys_offset=0x20, but places the
+		 * summary at frame+0x18. Preserve the complete packet until
+		 * the console layout is verified; do not apply the live layout.
+		 */
+		printk("%s  Console environmental layout unverified; raw packet follows\n",
+		       err_print_prefix);
+		el_annotate_subpacket(packet);
+		break;
+	default:
+		el_annotate_subpacket(packet);
+		break;
+	}
+	return (void *)packet + packet->length;
+}
+
+/*
+ * Clipper console logs have an HWRPB byte count. Do not use the generic
+ * unbounded dispatcher: a rejected record must not acknowledge the log.
+ */
+static bool __init
+tsunami_console_log(void *data, size_t remaining)
+{
+	struct el_subpacket *packet;
+	unsigned char *pos = data;
+	size_t size, length;
+	u32 count;
+	union el_timestamp timestamp;
+	const char *name;
+
+	while (remaining >= offsetof(struct el_subpacket, by_type)) {
+		packet = (void *)pos;
+		size = packet->length;
+		if (size < offsetof(struct el_subpacket, by_type) ||
+		    size > remaining || (size & 7))
+			return false;
+		if (packet->class == EL_CLASS__TERMINATION)
+			return packet->type == EL_TYPE__TERMINATION__TERMINATION;
+		if (packet->class != EL_CLASS__HEADER || packet->revision != 1)
+			return false;
+
+		timestamp.as_int = 0;
+		/* Check each header's extent before accessing its union member. */
+#define CONSOLE_HEADER_SIZE(member) \
+	(offsetof(struct el_subpacket, by_type.member) + \
+	 sizeof(packet->by_type.member))
+		switch (packet->type) {
+		case EL_TYPE__HEADER__SYSTEM_ERROR_FRAME:
+			if (size < CONSOLE_HEADER_SIZE(sys_err))
+				return false;
+			name = "SYSTEM ERROR";
+			length = packet->by_type.sys_err.frame_length;
+			count = packet->by_type.sys_err.frame_packet_count;
+			break;
+		case EL_TYPE__HEADER__SYSTEM_EVENT_FRAME:
+			if (size < CONSOLE_HEADER_SIZE(sys_event))
+				return false;
+			name = "SYSTEM EVENT";
+			timestamp = packet->by_type.sys_event.timestamp;
+			length = packet->by_type.sys_event.frame_length;
+			count = packet->by_type.sys_event.frame_packet_count;
+			break;
+		case EL_TYPE__HEADER__HALT_FRAME:
+			if (size < CONSOLE_HEADER_SIZE(err_halt))
+				return false;
+			name = "ERROR HALT";
+			timestamp = packet->by_type.err_halt.timestamp;
+			length = packet->by_type.err_halt.frame_length;
+			count = packet->by_type.err_halt.frame_packet_count;
+			break;
+		case EL_TYPE__HEADER__LOGOUT_FRAME:
+			if (size < CONSOLE_HEADER_SIZE(logout_header))
+				return false;
+			name = "LOGOUT FRAME";
+			length = packet->by_type.logout_header.frame_length;
+			count = 1;
+			break;
+		default:
+			return false;
+		}
+#undef CONSOLE_HEADER_SIZE
+		if (length > remaining - size || (length & 7) ||
+		    count > length / offsetof(struct el_subpacket, by_type))
+			return false;
+		printk("%s*** %s: CLASS %u, TYPE %u\n", err_print_prefix,
+		       name, packet->class, packet->type);
+		el_print_timestamp(&timestamp);
+		if (packet->type == EL_TYPE__HEADER__HALT_FRAME)
+			printk("%s  HALT CODE: %04x\n", err_print_prefix,
+			       packet->by_type.err_halt.halt_code);
+		pos += size;
+		remaining -= size + length;
+		while (count--) {
+			if (length < offsetof(struct el_subpacket, by_type))
+				return false;
+			packet = (void *)pos;
+			size = packet->length;
+			if (size < offsetof(struct el_subpacket, by_type) ||
+			    size > length || (size & 7) ||
+			    packet->class != EL_CLASS__REGATTA_FAMILY)
+				return false;
+			/* This handler checks embedded logout-frame bounds. */
+			if (tsunami_process_subpacket(packet) != (void *)pos + size)
+				return false;
+			pos += size;
+			length -= size;
+		}
+		if (length)
+			return false;
+	}
+	/* Exhaustion without a complete termination packet is incomplete. */
+	return false;
+}
+
+static void __init
+tsunami_console_data_log(int cpu, struct percpu_struct *pcpu)
+{
+	unsigned char *data = (void *)(IDENT_ADDR | pcpu->console_data_log_pa);
+	size_t length = pcpu->console_data_log_length;
+	size_t dump = length < 1024 ? length : 1024;
+
+	printk("%sConsole data log for CPU %d (%zu bytes):\n",
+	       err_print_prefix, cpu, length);
+	if (!(pcpu->console_data_log_pa & 7) &&
+	    length <= ~0UL - (unsigned long)data &&
+	    tsunami_console_log(data, length)) {
+		/* Acknowledge only after reaching a valid termination packet. */
+		pcpu->console_data_log_pa = 0;
+		return;
+	}
+	printk("%s  Incomplete console log; retaining firmware pointer\n",
+	       err_print_prefix);
+	/* Byte reads preserve partial headers without rounding beyond length. */
+	if (dump > ~0UL - (unsigned long)data)
+		return;
+	print_hex_dump(err_print_prefix, "  ", DUMP_PREFIX_OFFSET, 16, 1,
+		       data, dump, false);
+	if (dump < length)
+		printk("%s  Raw console log truncated to %zu bytes\n",
+		       err_print_prefix, dump);
+}
+
+void __init
+tsunami_check_console_data_log(void)
+{
+	struct percpu_struct *pcpu;
+	unsigned long cpu;
+
+	for (cpu = 0; cpu < hwrpb->nr_processors; cpu++) {
+		pcpu = (void *)hwrpb + hwrpb->processor_offset +
+			cpu * hwrpb->processor_size;
+		if (pcpu->console_data_log_pa)
+			tsunami_console_data_log(cpu, pcpu);
+	}
 }
