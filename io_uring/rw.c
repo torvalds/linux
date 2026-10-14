@@ -23,6 +23,7 @@
 #include "rsrc.h"
 #include "poll.h"
 #include "rw.h"
+#include "dma-buf.h"
 
 static void io_complete_rw(struct kiocb *kiocb, long res);
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res);
@@ -358,13 +359,18 @@ static int io_init_rw_fixed(struct io_kiocb *req, unsigned int issue_flags,
 	struct io_async_rw *io = req->async_data;
 	int ret;
 
-	if (io->bytes_done)
-		return 0;
+	if (!io->bytes_done) {
+		ret = __io_import_reg_buf(req, &io->iter, rw->addr, rw->len, ddir,
+					  issue_flags, IO_REGBUF_IMPORT_ALLOW_DMABUF);
+		if (ret)
+			return ret;
+		iov_iter_save_state(&io->iter, &io->iter_state);
+	}
 
-	ret = io_import_reg_buf(req, &io->iter, rw->addr, rw->len, ddir,
-				issue_flags);
-	iov_iter_save_state(&io->iter, &io->iter_state);
-	return ret;
+	ret = io_attach_dmabuf_map(req, &io->iter, issue_flags);
+	if (ret)
+		return ret;
+	return 0;
 }
 
 int io_prep_read_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -577,6 +583,8 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 	struct io_rw *rw = container_of(kiocb, struct io_rw, kiocb);
 	struct io_kiocb *req = cmd_to_io_kiocb(rw);
 
+	io_detach_dmabuf_map(req);
+
 	/* ring owner may block in freeze_super() before task_work runs */
 	if (kiocb->ki_flags & IOCB_WRITE)
 		io_req_end_write(req);
@@ -698,7 +706,7 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 	    !(kiocb->ki_filp->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 	if ((req->flags & REQ_F_BUF_NODE) &&
-	     (req->buf_node->buf->flags & IO_REGBUF_F_KBUF))
+	     (req->buf_node->buf->flags & (IO_REGBUF_F_KBUF|IO_REGBUF_F_DMABUF)))
 		return -EFAULT;
 
 	ppos = io_kiocb_ppos(kiocb);
@@ -1226,7 +1234,10 @@ int io_read_fixed(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(ret))
 		return ret;
 
-	return io_read(req, issue_flags);
+	ret = io_read(req, issue_flags);
+	if (ret != -EIOCBQUEUED)
+		io_detach_dmabuf_map(req);
+	return ret;
 }
 
 int io_write_fixed(struct io_kiocb *req, unsigned int issue_flags)
@@ -1237,7 +1248,11 @@ int io_write_fixed(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(ret))
 		return ret;
 
-	return io_write(req, issue_flags);
+	ret = io_write(req, issue_flags);
+	if (ret != -EIOCBQUEUED)
+		io_detach_dmabuf_map(req);
+	return ret;
+
 }
 
 void io_rw_fail(struct io_kiocb *req)
