@@ -272,16 +272,7 @@ struct snd_soc_component {
 	     snd_soc_dai_to_list(dai) != &(component)->dai_list;		\
 	     dai = _dai, _dai = snd_soc_dai_from_list(snd_soc_dai_to_list(_dai)->next))
 
-/**
- * snd_soc_component_to_dapm() - Returns the DAPM context associated with a
- *  component
- * @component: The component for which to get the DAPM context
- */
-static inline struct snd_soc_dapm_context *snd_soc_component_to_dapm(
-	struct snd_soc_component *component)
-{
-	return component->dapm;
-}
+struct snd_soc_dapm_context *snd_soc_component_to_dapm(struct snd_soc_component *component);
 
 /**
  * snd_soc_component_cache_sync() - Sync the register cache with the hardware

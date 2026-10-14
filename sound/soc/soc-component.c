@@ -49,6 +49,12 @@ void *snd_soc_component_to_priv(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_to_priv);
 
+struct snd_soc_dapm_context *snd_soc_component_to_dapm(struct snd_soc_component *component)
+{
+	return component->dapm;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_to_dapm);
+
 /*
  * We might want to check substream by using list.
  * In such case, we can update these macros.
