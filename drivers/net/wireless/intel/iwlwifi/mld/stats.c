@@ -43,10 +43,15 @@ iwl_mld_fill_stats_from_oper_notif(struct iwl_mld *mld,
 	const struct iwl_stats_ntfy_per_sta *per_sta;
 	struct ieee80211_link_sta *link_sta;
 	struct iwl_mld_link_sta *mld_link_sta;
+	u8 notif_ver = iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
+					       STATISTICS_OPER_NOTIF, 3);
 
-	if (iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
-				    STATISTICS_OPER_NOTIF, 3) >= 4) {
+	if (notif_ver >= 5) {
 		const struct iwl_system_statistics_notif_oper *notif =
+			(void *)&pkt->data;
+		per_sta = &notif->per_sta[fw_sta_id];
+	} else if (notif_ver == 4) {
+		const struct iwl_system_statistics_notif_oper_v4 *notif =
 			(void *)&pkt->data;
 		per_sta = &notif->per_sta[fw_sta_id];
 	} else {
@@ -581,14 +586,36 @@ void iwl_mld_handle_stats_oper_notif(struct iwl_mld *mld,
 	struct iwl_system_statistics_notif_oper *_notif __free(kfree) = NULL;
 	const struct iwl_system_statistics_notif_oper *notif =
 		(void *)&pkt->data;
+	u8 notif_ver = iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
+					       STATISTICS_OPER_NOTIF, 3);
 
 	BUILD_BUG_ON(ARRAY_SIZE(notif->per_sta) != IWL_STATION_COUNT_MAX);
 	BUILD_BUG_ON(ARRAY_SIZE(notif->per_link) <
 		     ARRAY_SIZE(mld->fw_id_to_bss_conf));
 
-	if (iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
-				    STATISTICS_OPER_NOTIF, 3) == 3) {
+	if (notif_ver == 3) {
 		const struct iwl_system_statistics_notif_oper_v3 *stats =
+			(void *)&pkt->data;
+		_notif = kzalloc_obj(*_notif);
+
+		if (!_notif)
+			return;
+
+		_notif->time_stamp = stats->time_stamp;
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_link); i++)
+			_notif->per_link[i] = stats->per_link[i];
+
+		BUILD_BUG_ON(sizeof(_notif->per_phy[0]) <
+			     sizeof(stats->per_phy[0]));
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_phy); i++)
+			memcpy(&_notif->per_phy[i], &stats->per_phy[i],
+			       sizeof(stats->per_phy[i]));
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_sta); i++)
+			_notif->per_sta[i] = stats->per_sta[i];
+
+		notif = _notif;
+	} else if (notif_ver == 4) {
+		const struct iwl_system_statistics_notif_oper_v4 *stats =
 			(void *)&pkt->data;
 		_notif = kzalloc_obj(*_notif);
 

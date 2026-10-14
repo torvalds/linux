@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright(c) 2018, 2020-2021, 2025 Intel Corporation
+ * Copyright(c) 2018, 2020-2021, 2025-2026 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -16,7 +16,6 @@
 #include <linux/unaligned.h>
 
 #include "iwl-trans.h"
-#include "iwl-io.h"
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"
@@ -482,17 +481,17 @@ static void iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     CT_CARD_DISABLED)) {
 
-		iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
-			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
+		iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
+				  CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
+		iwl_trans_write_direct32(priv->trans, HBUS_TARG_MBX_C,
+					 HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
-				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
+			iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+					  CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
+			iwl_trans_write_direct32(priv->trans, HBUS_TARG_MBX_C,
+						 HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 		if (flags & CT_CARD_DISABLED)
 			iwl_tt_enter_ct_kill(priv);

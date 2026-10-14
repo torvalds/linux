@@ -616,7 +616,7 @@ struct iwl_stats_ntfy_coex {
 } __packed; /* STATISTICS_FW_NTFY_COEX_TELEMETRY_API_S_VER_1 */
 
 /**
- * struct iwl_stats_ntfy_per_phy - per PHY statistics
+ * struct iwl_stats_ntfy_per_phy_v2 - per PHY statistics
  * @channel_load: channel load
  * @channel_load_by_us: device contribution to MCLM
  * @channel_load_not_by_us: other devices' contribution to MCLM
@@ -632,7 +632,7 @@ struct iwl_stats_ntfy_coex {
  * @last_tx_ch_width_indx: last txed frame channel width index
  * @coex: coex related data
  */
-struct iwl_stats_ntfy_per_phy {
+struct iwl_stats_ntfy_per_phy_v2 {
 	__le32 channel_load;
 	__le32 channel_load_by_us;
 	__le32 channel_load_not_by_us;
@@ -645,6 +645,43 @@ struct iwl_stats_ntfy_per_phy {
 	__le32 last_tx_ch_width_indx;
 	struct iwl_stats_ntfy_coex coex;
 } __packed; /* STATISTICS_NTFY_PER_PHY_API_S_VER_2 */
+
+/**
+ * struct iwl_stats_ntfy_per_phy - per PHY statistics
+ * @channel_load: channel load
+ * @channel_load_by_us: device contribution to MCLM
+ * @channel_load_not_by_us: other devices' contribution to MCLM
+ * @clt: CLT HW timer (TIM_CH_LOAD2)
+ * @act: active accumulator SW
+ * @elp: elapsed time accumulator SW
+ * @rx_detected_per_ch_width: number of deferred TX per channel width,
+ *	0 - 20, 1/2/3 - 40/80/160
+ * @success_per_ch_width: number of frames that got ACK/BACK/CTS
+ *	per channel BW. note, BACK counted as 1
+ * @fail_per_ch_width: number of frames that didn't get ACK/BACK/CTS
+ *	per channel BW. note BACK counted as 1
+ * @last_tx_ch_width_indx: last txed frame channel width index
+ * @coex: coex related data
+ * @channel_load_npca_by_us: device NPCA contribution to MCLM
+ * @channel_load_npca_obss: the time FW identified for NPCA, not necessarily
+ *	entered to NPCA state, but can be used as an indication for NPCA
+ *	opportunities in the environment
+ */
+struct iwl_stats_ntfy_per_phy {
+	__le32 channel_load;
+	__le32 channel_load_by_us;
+	__le32 channel_load_not_by_us;
+	__le32 clt;
+	__le32 act;
+	__le32 elp;
+	__le32 rx_detected_per_ch_width[IWL_STATS_MAX_BW_INDEX];
+	__le32 success_per_ch_width[IWL_STATS_MAX_BW_INDEX];
+	__le32 fail_per_ch_width[IWL_STATS_MAX_BW_INDEX];
+	__le32 last_tx_ch_width_indx;
+	struct iwl_stats_ntfy_coex coex;
+	__le32 channel_load_npca_by_us;
+	__le32 channel_load_npca_obss;
+} __packed; /* STATISTICS_NTFY_PER_PHY_API_S_VER_3 */
 
 /* unknown channel load (due to not being active on channel) */
 #define IWL_STATS_UNKNOWN_CHANNEL_LOAD	0xffffffff
@@ -676,11 +713,26 @@ struct iwl_system_statistics_notif_oper_v3 {
 } __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_3 */
 
 /**
+ * struct iwl_system_statistics_notif_oper_v4 - statistics notification
+ *
+ * @time_stamp: time when the notification is sent from firmware
+ * @per_link: per link statistics, &struct iwl_stats_ntfy_per_link
+ * @per_phy: per phy statistics, &struct iwl_stats_ntfy_per_phy_v2
+ * @per_sta: per sta statistics, &struct iwl_stats_ntfy_per_sta
+ */
+struct iwl_system_statistics_notif_oper_v4 {
+	__le32 time_stamp;
+	struct iwl_stats_ntfy_per_link per_link[IWL_FW_MAX_LINKS];
+	struct iwl_stats_ntfy_per_phy_v2 per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
+	struct iwl_stats_ntfy_per_sta per_sta[IWL_STATION_COUNT_MAX];
+} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_4 */
+
+/**
  * struct iwl_system_statistics_notif_oper - statistics notification
  *
  * @time_stamp: time when the notification is sent from firmware
  * @per_link: per link statistics, &struct iwl_stats_ntfy_per_link
- * @per_phy: per phy statistics, &struct iwl_stats_ntfy_per_phy_v1
+ * @per_phy: per phy statistics, &struct iwl_stats_ntfy_per_phy
  * @per_sta: per sta statistics, &struct iwl_stats_ntfy_per_sta
  */
 struct iwl_system_statistics_notif_oper {
@@ -688,7 +740,7 @@ struct iwl_system_statistics_notif_oper {
 	struct iwl_stats_ntfy_per_link per_link[IWL_FW_MAX_LINKS];
 	struct iwl_stats_ntfy_per_phy per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
 	struct iwl_stats_ntfy_per_sta per_sta[IWL_STATION_COUNT_MAX];
-} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_4 */
+} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_5 */
 
 /**
  * struct iwl_system_statistics_part1_notif_oper - part1 stats notification

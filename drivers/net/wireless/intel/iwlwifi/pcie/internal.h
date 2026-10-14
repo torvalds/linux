@@ -18,11 +18,21 @@
 #include "iwl-fh.h"
 #include "iwl-csr.h"
 #include "iwl-trans.h"
+#include "iwl-devtrace.h"
 #include "iwl-debug.h"
-#include "iwl-io.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
-#include "pcie/iwl-context-info.h"
+#include "iwl-context-info.h"
+
+/* transport-specific register accessors (bus implementation) */
+void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);
+void iwl_trans_pcie_write32(struct iwl_trans *trans, u32 ofs, u32 val);
+u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs);
+u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg);
+void iwl_pcie_write_prph_no_grab(struct iwl_trans *trans, u32 addr, u32 val);
+
+/* bus-specific transport operations table */
+extern const struct iwl_trans_ops iwl_trans_pcie_ops;
 
 /*
  * RX related structures and functions
@@ -206,23 +216,6 @@ static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-/**
- * enum iwl_fw_mon_dbgfs_state - the different states of the monitor_data
- * debugfs file
- *
- * @IWL_FW_MON_DBGFS_STATE_CLOSED: the file is closed.
- * @IWL_FW_MON_DBGFS_STATE_OPEN: the file is open.
- * @IWL_FW_MON_DBGFS_STATE_DISABLED: the file is disabled, once this state is
- *	set the file can no longer be used.
- */
-enum iwl_fw_mon_dbgfs_state {
-	IWL_FW_MON_DBGFS_STATE_CLOSED,
-	IWL_FW_MON_DBGFS_STATE_OPEN,
-	IWL_FW_MON_DBGFS_STATE_DISABLED,
-};
-#endif
-
 /**
  * enum iwl_shared_irq_flags - level of sharing for irq
  * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves non rx causes.
@@ -244,26 +237,6 @@ enum iwl_image_response_code {
 	IWL_IMAGE_RESP_SUCCESS		= 1,
 	IWL_IMAGE_RESP_FAIL		= 2,
 };
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-/**
- * struct cont_rec: continuous recording data structure
- * @prev_wr_ptr: the last address that was read in monitor_data
- *	debugfs file
- * @prev_wrap_cnt: the wrap count that was used during the last read in
- *	monitor_data debugfs file
- * @state: the state of monitor_data debugfs file as described
- *	in &iwl_fw_mon_dbgfs_state enum
- * @mutex: locked while reading from monitor_data debugfs file
- */
-struct cont_rec {
-	u32 prev_wr_ptr;
-	u32 prev_wrap_cnt;
-	u8  state;
-	/* Used to sync monitor_data debugfs file with driver unload flow */
-	struct mutex mutex;
-};
-#endif
 
 enum iwl_pcie_fw_reset_state {
 	FW_RESET_IDLE,
@@ -451,7 +424,6 @@ struct iwl_pcie_txqs {
  * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
- * @fw_mon_data: fw continuous recording data
  * @cmd_hold_nic_awake: indicates NIC is held awake for APMG workaround
  *	during commands in flight
  * @msix_entries: array of MSI-X entries
@@ -577,10 +549,6 @@ struct iwl_trans_pcie {
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct cont_rec fw_mon_data;
-#endif
-
 	struct msix_entry msix_entries[IWL_MAX_RX_HW_QUEUES];
 	bool msix_enabled;
 	u8 shared_vec_mask;
@@ -635,7 +603,7 @@ static inline void iwl_pcie_clear_irq(struct iwl_trans *trans, int queue)
 	 * write 1 clear (W1C) register, meaning that it's being clear
 	 * by writing 1 to the bit.
 	 */
-	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(queue));
+	iwl_trans_pcie_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(queue));
 }
 
 static inline struct iwl_trans *
@@ -892,7 +860,7 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 }
 
 static inline struct iwl_device_tx_cmd *
-iwl_pcie_gen1_2_alloc_tx_cmd(struct iwl_trans *trans)
+iwl_pcie_alloc_tx_cmd(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -900,8 +868,8 @@ iwl_pcie_gen1_2_alloc_tx_cmd(struct iwl_trans *trans)
 }
 
 static inline void
-iwl_pcie_gen1_2_free_tx_cmd(struct iwl_trans *trans,
-			    struct iwl_device_tx_cmd *dev_cmd)
+iwl_pcie_free_tx_cmd(struct iwl_trans *trans,
+		     struct iwl_device_tx_cmd *dev_cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -931,18 +899,18 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans->status);
 	if (!trans_pcie->msix_enabled) {
 		/* disable interrupts from uCode/NIC to host */
-		iwl_write32(trans, CSR_INT_MASK, 0x00000000);
+		iwl_trans_pcie_write32(trans, CSR_INT_MASK, 0x00000000);
 
 		/* acknowledge/clear/reset any interrupts still pending
 		 * from uCode or flow handler (Rx/Tx DMA) */
-		iwl_write32(trans, CSR_INT, 0xffffffff);
-		iwl_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
+		iwl_trans_pcie_write32(trans, CSR_INT, 0xffffffff);
+		iwl_trans_pcie_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
 	} else {
 		/* disable all the interrupt we might use */
-		iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
-			    trans_pcie->fh_init_mask);
-		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
-			    trans_pcie->hw_init_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
+				       trans_pcie->fh_init_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
+				       trans_pcie->hw_init_mask);
 		trans_pcie->fh_mask = 0;
 		trans_pcie->hw_mask = 0;
 	}
@@ -1000,7 +968,7 @@ static inline void _iwl_enable_interrupts(struct iwl_trans *trans)
 	set_bit(STATUS_INT_ENABLED, &trans->status);
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INI_SET_MASK;
-		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+		iwl_trans_pcie_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 	} else {
 		/*
 		 * fh/hw_mask keeps all the unmasked causes.
@@ -1008,10 +976,10 @@ static inline void _iwl_enable_interrupts(struct iwl_trans *trans)
 		 */
 		trans_pcie->hw_mask = trans_pcie->hw_init_mask;
 		trans_pcie->fh_mask = trans_pcie->fh_init_mask;
-		iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
-			    ~trans_pcie->fh_mask);
-		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
-			    ~trans_pcie->hw_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
+				       ~trans_pcie->fh_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
+				       ~trans_pcie->hw_mask);
 	}
 }
 
@@ -1027,7 +995,7 @@ static inline void iwl_enable_hw_int_msk_msix(struct iwl_trans *trans, u32 msk)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD, ~msk);
+	iwl_trans_pcie_write32(trans, CSR_MSIX_HW_INT_MASK_AD, ~msk);
 	trans_pcie->hw_mask = msk;
 }
 
@@ -1035,7 +1003,7 @@ static inline void iwl_enable_fh_int_msk_msix(struct iwl_trans *trans, u32 msk)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~msk);
+	iwl_trans_pcie_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~msk);
 	trans_pcie->fh_mask = msk;
 }
 
@@ -1046,10 +1014,10 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	IWL_DEBUG_ISR(trans, "Enabling FW load interrupt\n");
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INT_BIT_FH_TX;
-		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+		iwl_trans_pcie_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 	} else {
-		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
-			    trans_pcie->hw_init_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
+				       trans_pcie->hw_init_mask);
 		iwl_enable_fh_int_msk_msix(trans,
 					   MSIX_FH_INT_CAUSES_D2S_CH0_NUM);
 	}
@@ -1076,7 +1044,7 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans,
 		else
 			trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE |
 						 CSR_INT_BIT_FH_RX;
-		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+		iwl_trans_pcie_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 	} else {
 		u32 val = top_reset ? MSIX_HW_INT_CAUSES_REG_RESET_DONE
 				    : MSIX_HW_INT_CAUSES_REG_ALIVE;
@@ -1123,10 +1091,10 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INT_BIT_RF_KILL;
-		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+		iwl_trans_pcie_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 	} else {
-		iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
-			    trans_pcie->fh_init_mask);
+		iwl_trans_pcie_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
+				       trans_pcie->fh_init_mask);
 		trans_pcie->fh_mask = 0;
 		iwl_enable_hw_int_msk_msix(trans,
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
@@ -1138,8 +1106,8 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 		 * when we power down the device we need set the bit to allow it
 		 * to wake up the PCI-E bus for RF-kill interrupts.
 		 */
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
+		iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
 	}
 }
 
@@ -1154,7 +1122,7 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 	if (trans_pcie->debug_rfkill == 1)
 		return true;
 
-	return !(iwl_read32(trans, CSR_GP_CNTRL) &
+	return !(iwl_trans_pcie_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }
 
@@ -1167,7 +1135,6 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
-void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans);
 #else
 static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 #endif
@@ -1175,20 +1142,16 @@ static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common trans ops for all generations transports */
-void iwl_pcie_gen1_2_op_mode_enter(struct iwl_trans *trans);
+void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans);
 int _iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
-void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);
-void iwl_trans_pcie_write32(struct iwl_trans *trans, u32 ofs, u32 val);
-u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs);
-u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg);
-void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr, u32 val);
 int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 			    void *buf, int dwords);
 int iwl_trans_pcie_read_mem_no_grab(struct iwl_trans *trans, u32 addr,
 				    void *buf, u32 dwords);
 int iwl_trans_pcie_sw_reset(struct iwl_trans *trans, bool retake_ownership);
+void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
 struct iwl_trans_dump_data *
 iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
 			 const struct iwl_dump_sanitize_ops *sanitize_ops,
@@ -1204,14 +1167,11 @@ int iwl_trans_pcie_read_config32(struct iwl_trans *trans, u32 ofs,
 				 u32 *val);
 bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
 void iwl_trans_pcie_resched_with_nic_access(struct iwl_trans *trans);
-void __releases(nic_access_nobh)
-iwl_trans_pcie_release_nic_access(struct iwl_trans *trans);
+void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans);
 void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power);
-int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
-			 const struct pci_device_id *ent,
-			 const struct iwl_mac_cfg *mac_cfg,
-			 u8 __iomem *hw_base, u32 hw_rev);
-void iwl_pcie_gen1_2_remove(struct iwl_trans *trans);
+int _iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent,
+		   const struct iwl_mac_cfg *mac_cfg,
+		   u8 __iomem *hw_base, u32 hw_rev);
 
 /* transport gen 1 exported functions */
 void iwl_trans_pcie_fw_alive(struct iwl_trans *trans);
@@ -1236,7 +1196,7 @@ int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 void iwl_pcie_apply_destination(struct iwl_trans *trans);
-int iwl_pcie_gen1_2_activate_nic(struct iwl_trans *trans);
+int iwl_pcie_activate_nic(struct iwl_trans *trans);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -1266,7 +1226,7 @@ static inline bool iwl_pcie_gen1_is_pm_supported(struct iwl_trans *trans)
 	return trans_pcie->pm_support;
 }
 
-static inline bool iwl_pcie_gen1_2_is_ltr_enabled(struct iwl_trans *trans)
+static inline bool iwl_pcie_is_ltr_enabled(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 

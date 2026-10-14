@@ -10,7 +10,7 @@
 #include <net/cfg80211.h>
 #include "runtime.h"
 #include "iwl-prph.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "file.h"
 #include "error-dump.h"
 #include "api/commands.h"

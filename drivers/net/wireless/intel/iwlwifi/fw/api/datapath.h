@@ -522,16 +522,33 @@ struct iwl_rx_baid_cfg_cmd_alloc {
 } __packed; /* RX_BAID_ALLOCATION_ADD_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
+ * struct iwl_rx_baid_cfg_cmd_modify_v2 - BAID modification data
  * @old_sta_id_mask: old station ID mask
  * @new_sta_id_mask: new station ID mask
  * @tid: TID of the BAID
  */
-struct iwl_rx_baid_cfg_cmd_modify {
+struct iwl_rx_baid_cfg_cmd_modify_v2 {
 	__le32 old_sta_id_mask;
 	__le32 new_sta_id_mask;
 	__le32 tid;
 } __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
+ * @old_sta_id_mask: old station ID mask
+ * @new_sta_id_mask: new station ID mask
+ * @tid: TID of the BAID
+ * @reserved: reserved
+ * @win_size: RX BA session window size to apply to the modified BAID,
+ *	0 means keep the current one
+ */
+struct iwl_rx_baid_cfg_cmd_modify {
+	__le32 old_sta_id_mask;
+	__le32 new_sta_id_mask;
+	u8 tid;
+	u8 reserved;
+	__le16 win_size;
+} __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_rx_baid_cfg_cmd_remove_v1 - BAID removal data
@@ -555,7 +572,8 @@ struct iwl_rx_baid_cfg_cmd_remove {
  * struct iwl_rx_baid_cfg_cmd - BAID allocation/config command
  * @action: the action, from &enum iwl_rx_baid_action
  * @alloc: allocation data
- * @modify: modify data
+ * @modify_v2: modify data (version 2)
+ * @modify: modify data (version 3)
  * @remove_v1: remove data (version 1)
  * @remove: remove data
  */
@@ -563,11 +581,12 @@ struct iwl_rx_baid_cfg_cmd {
 	__le32 action;
 	union {
 		struct iwl_rx_baid_cfg_cmd_alloc alloc;
+		struct iwl_rx_baid_cfg_cmd_modify_v2 modify_v2;
 		struct iwl_rx_baid_cfg_cmd_modify modify;
 		struct iwl_rx_baid_cfg_cmd_remove_v1 remove_v1;
 		struct iwl_rx_baid_cfg_cmd_remove remove;
-	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_2 */
-} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_2 */
+	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_3 */
+} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_rx_baid_cfg_resp - BAID allocation response
@@ -590,6 +609,16 @@ enum iwl_scd_queue_cfg_operation {
 };
 
 /**
+ * enum iwl_scd_queue_modify_flags - scheduler queue modify flags
+ * @IWL_SCD_QUEUE_MODIFY_FLAG_RD_PTR: update the read pointer
+ * @IWL_SCD_QUEUE_MODIFY_FLAG_STA_MSK: update the station mask
+ */
+enum iwl_scd_queue_modify_flags {
+	IWL_SCD_QUEUE_MODIFY_FLAG_RD_PTR	= BIT(0),
+	IWL_SCD_QUEUE_MODIFY_FLAG_STA_MSK	= BIT(1),
+};
+
+/**
  * struct iwl_scd_queue_cfg_cmd - scheduler queue allocation command
  * @operation: the operation, see &enum iwl_scd_queue_cfg_operation
  * @u: union depending on command usage
@@ -606,6 +635,8 @@ enum iwl_scd_queue_cfg_operation {
  * @u.modify.old_sta_mask: old station mask for modify
  * @u.modify.tid: TID of queue to modify
  * @u.modify.new_sta_mask: new station mask for modify
+ * @u.modify.rd_ptr: new read pointer to set for the queue (version 4)
+ * @u.modify.flags: &enum iwl_scd_queue_modify_flags (version 4)
  */
 struct iwl_scd_queue_cfg_cmd {
 	__le32 operation;
@@ -627,9 +658,11 @@ struct iwl_scd_queue_cfg_cmd {
 			__le32 old_sta_mask;
 			__le32 tid;
 			__le32 new_sta_mask;
-		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
-	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
-} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */
+			__le16 rd_ptr;
+			__le16 flags;
+		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1, _VER_2 */
+	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1, _VER_2 */
+} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3, _VER_4 */
 
 /**
  * enum iwl_sec_key_flags - security key command key flags
@@ -643,6 +676,7 @@ struct iwl_scd_queue_cfg_cmd {
  * @IWL_SEC_KEY_FLAG_MFP: MFP is in used for this key
  * @IWL_SEC_KEY_FLAG_MCAST_KEY: this is a multicast key
  * @IWL_SEC_KEY_FLAG_SPP_AMSDU: SPP A-MSDU should be used
+ * @IWL_SEC_KEY_FLAG_ASSOC_ENC: use this key for (Re)Assoc Req/Resp encryption
  */
 enum iwl_sec_key_flags {
 	IWL_SEC_KEY_FLAG_CIPHER_MASK	= 0x07,
@@ -655,6 +689,7 @@ enum iwl_sec_key_flags {
 	IWL_SEC_KEY_FLAG_MFP		= 0x20,
 	IWL_SEC_KEY_FLAG_MCAST_KEY	= 0x40,
 	IWL_SEC_KEY_FLAG_SPP_AMSDU	= 0x80,
+	IWL_SEC_KEY_FLAG_ASSOC_ENC	= 0x200,
 };
 
 #define IWL_SEC_WEP_KEY_OFFSET	3
