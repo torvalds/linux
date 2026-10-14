@@ -708,9 +708,6 @@ struct bpf_loop_exit {
 	int to; /* instruction outside the loop */
 };
 
-/* SCEV/widening register space: r0..r10 plus every stack slot of a frame. */
-#define BPF_SCEV_REGS_NUM (MAX_BPF_REG + MAX_BPF_STACK_SLOTS)
-
 struct bpf_loop {
 	struct bpf_backedge backedges[MAX_BACKEDGES];
 	/* edges exiting from this loop, includes edges from nested loops */
