@@ -680,7 +680,7 @@ nxpwifi_sdio_poll_card_status(struct nxpwifi_adapter *adapter, u8 bits)
 
 	nxpwifi_dbg(adapter, ERROR, "poll card status failed, tries = %d\n", tries);
 
-	return ret;
+	return ret ?: -ETIMEDOUT;
 }
 
 /* Disable SDIO host interrupt and release IRQ. */

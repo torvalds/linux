@@ -5,6 +5,7 @@
  * Copyright 2011-2024 NXP
  */
 
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 
 #include "main.h"
@@ -1094,8 +1095,8 @@ void nxpwifi_drv_info_dump(struct nxpwifi_adapter *adapter)
 			     atomic_read(&priv->wmm_tx_pending[3]));
 		p += sprintf(p, "media_state=\"%s\"\n", !priv->media_connected ?
 			     "Disconnected" : "Connected");
-		p += sprintf(p, "carrier %s\n", (netif_carrier_ok(priv->netdev)
-			     ? "on" : "off"));
+		p += sprintf(p, "carrier %s\n",
+			     str_on_off(netif_carrier_ok(priv->netdev)));
 		for (idx = 0; idx < priv->netdev->num_tx_queues; idx++) {
 			txq = netdev_get_tx_queue(priv->netdev, idx);
 			p += sprintf(p, "tx queue %d:%s  ", idx,
