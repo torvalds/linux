@@ -133,6 +133,44 @@ build successfully; make will abort as soon as any target fails::
 This applies to both the ``all`` and ``install`` targets and is useful in
 CI environments where a silent partial build would be misleading.
 
+Recording suite build results
+=============================
+
+Since the build succeeds as long as one target builds, the exit status of
+make does not show which targets failed. Set ``KSFT_BUILD_REPORT`` to the
+absolute path of a file to have the ``all`` and ``install`` targets append
+a tab-separated record for each target they process::
+
+  $ : > /tmp/ksft-build.tsv
+  $ make -C tools/testing/selftests O=/tmp/kernel-build \
+        KSFT_BUILD_REPORT=/tmp/ksft-build.tsv install
+
+Each record holds the phase (``all`` or ``install``), a name and the exit
+status of that step. Recording does not change which targets are built or
+installed, or the exit status of make, also with ``FORCE_TARGETS=1``. The
+caller creates or truncates the report before a build; the rules only
+append to it. Nothing is recorded by ``make -n``, ``-t`` or ``-q``.
+
+The same name can appear several times: ``install`` builds the targets
+again, and generating ``kselftest-list.txt`` is recorded as part of the
+``install`` phase. Targets that are added automatically as installation
+dependencies of other targets, such as ``net/lib``, are recorded too.
+Suites that are built from several subdirectories may also record each
+subdirectory under its path, for example ``arm64/tags``; a failure there
+means that the suite was built or installed only partially. A record
+belongs to the target with the longest name that is equal to the record
+name or followed by ``/`` in it.
+
+A target was built and installed successfully only if all of its records
+have a zero status. Missing records do not show that a target was built.
+A successful target that installs no tests has no entries in
+``kselftest-list.txt``. Install the kernel headers with ``make headers``
+before building: a suite that fails because the headers are missing is
+recorded as failed even if a later step installs them.
+
+``KSFT_BUILD_REPORT_VERSION`` in tools/testing/selftests/Makefile gives the
+version of this format, currently ``1``.
+
 Running the full range hotplug selftests
 ========================================
 
