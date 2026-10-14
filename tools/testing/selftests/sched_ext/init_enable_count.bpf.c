@@ -15,6 +15,8 @@ char _license[] SEC("license") = "GPL";
 u64 init_task_cnt, exit_task_cnt, enable_cnt, disable_cnt;
 u64 init_fork_cnt, init_transition_cnt;
 
+UEI_DEFINE(uei);
+
 s32 BPF_STRUCT_OPS_SLEEPABLE(cnt_init_task, struct task_struct *p,
 			     struct scx_init_task_args *args)
 {
@@ -43,11 +45,17 @@ void BPF_STRUCT_OPS(cnt_disable, struct task_struct *p)
 	__sync_fetch_and_add(&disable_cnt, 1);
 }
 
+void BPF_STRUCT_OPS(cnt_exit, struct scx_exit_info *ei)
+{
+	UEI_RECORD(uei, ei);
+}
+
 SEC(".struct_ops.link")
 struct sched_ext_ops init_enable_count_ops = {
 	.init_task	= (void *) cnt_init_task,
 	.exit_task	= (void *) cnt_exit_task,
 	.enable		= (void *) cnt_enable,
 	.disable	= (void *) cnt_disable,
+	.exit		= (void *) cnt_exit,
 	.name		= "init_enable_count",
 };

@@ -12,6 +12,8 @@ char _license[] SEC("license") = "GPL";
 
 u32 nr_lifecycle_tests;
 
+UEI_DEFINE(uei);
+
 void BPF_STRUCT_OPS(create_dsq_exit_task, struct task_struct *p,
 		    struct scx_exit_task_args *args)
 {
@@ -84,10 +86,16 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(create_dsq_init)
 	return 0;
 }
 
+void BPF_STRUCT_OPS(create_dsq_exit, struct scx_exit_info *ei)
+{
+	UEI_RECORD(uei, ei);
+}
+
 SEC(".struct_ops.link")
 struct sched_ext_ops create_dsq_ops = {
 	.init_task		= (void *) create_dsq_init_task,
 	.exit_task		= (void *) create_dsq_exit_task,
 	.init			= (void *) create_dsq_init,
+	.exit			= (void *) create_dsq_exit,
 	.name			= "create_dsq",
 };

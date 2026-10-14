@@ -108,6 +108,24 @@ void scx_test_register(struct scx_test *test);
 #define SCX_ASSERT(_x) SCX_FAIL_IF(!(_x), "Expected %s to be true (%lu)",		\
 				   #_x, (u64)(_x))
 
+/*
+ * SCX_ASSERT_ALIVE - Fail the test if the scheduler under test exited
+ * on its own between attach and this check, e.g. from a runtime error.
+ * A scheduler that dies mid-test freezes whatever state the test is
+ * about to assert on, which can make the assertions pass vacuously.
+ * uei.msg carries the actual error text, so print it alongside the
+ * recorded kind and exit code.
+ */
+#define SCX_ASSERT_ALIVE(__skel, __uei)						\
+	do {									\
+		if (UEI_EXITED(__skel, __uei))					\
+			SCX_FAIL("Scheduler exited unexpectedly"		\
+				 " (kind=%llu code=%lld msg='%s')",		\
+				 (unsigned long long)(__skel)->data->__uei.kind, \
+				 (long long)(__skel)->data->__uei.exit_code,	\
+				 (__skel)->data->__uei.msg);			\
+	} while (0)
+
 #define SCX_ECODE_VAL(__ecode) ({						\
         u64 __val = 0;								\
 	bool __found = false;							\
