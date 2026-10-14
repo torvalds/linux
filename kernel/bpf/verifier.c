@@ -2354,7 +2354,7 @@ static void reg_bounds_sync(struct bpf_reg_state *reg)
 	 * potentially w/o intersection, or intersecting after N
 	 * tnum_step()'s, where N can be large. On the other hand,
 	 * step+base *must* be in sync with r64 in order for
-	 * array traversal logic starting at reg_umin() to be sound.
+	 * array traversal logic starting at reg_smin() to be sound.
 	 * Hence, place this as a final step in the reg_bounds_sync().
 	 */
 	__update_bounds_from_step(reg);
