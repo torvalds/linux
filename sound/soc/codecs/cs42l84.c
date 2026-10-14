@@ -662,11 +662,17 @@ static int cs42l84_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
+static const u64 cs42l84_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops cs42l84_ops = {
 	.hw_params	= cs42l84_pcm_hw_params,
 	.set_fmt	= cs42l84_set_dai_fmt,
 	.set_sysclk	= cs42l84_set_sysclk,
 	.mute_stream	= cs42l84_mute_stream,
+	.auto_selectable_formats	= &cs42l84_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define CS42L84_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\

@@ -41,11 +41,13 @@
 #include <sound/soc-topology.h>
 #include <sound/soc-link.h>
 #include <sound/initval.h>
+#include "soc-internal.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/asoc.h>
 
-static DEFINE_MUTEX(client_mutex);
+DEFINE_MUTEX(client_mutex);
+
 static LIST_HEAD(component_list);
 static LIST_HEAD(unbind_card_list);
 
@@ -232,22 +234,6 @@ static inline void snd_soc_debugfs_exit(void) { }
 
 #endif
 
-static int snd_soc_is_match_dai_args(const struct of_phandle_args *args1,
-				     const struct of_phandle_args *args2)
-{
-	if (!args1 || !args2)
-		return 0;
-
-	if (args1->np != args2->np)
-		return 0;
-
-	for (int i = 0; i < args1->args_count; i++)
-		if (args1->args[i] != args2->args[i])
-			return 0;
-
-	return 1;
-}
-
 static inline int snd_soc_dlc_component_is_empty(struct snd_soc_dai_link_component *dlc)
 {
 	return !(dlc->dai_args || dlc->name || dlc->of_node);
@@ -262,50 +248,6 @@ static inline int snd_soc_dlc_dai_is_empty(struct snd_soc_dai_link_component *dl
 {
 	return !(dlc->dai_args || dlc->dai_name);
 }
-
-static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
-				   struct snd_soc_dai *dai)
-{
-	if (!dlc)
-		return 0;
-
-	if (dlc->dai_args)
-		return snd_soc_is_match_dai_args(dai->driver->dai_args, dlc->dai_args);
-
-	if (!dlc->dai_name)
-		return 1;
-
-	/* see snd_soc_dai_name_get() */
-
-	if (dai->driver->name &&
-	    strcmp(dlc->dai_name, dai->driver->name) == 0)
-		return 1;
-
-	if (strcmp(dlc->dai_name, dai->name) == 0)
-		return 1;
-
-	if (dai->component->name &&
-	    strcmp(dlc->dai_name, dai->component->name) == 0)
-		return 1;
-
-	return 0;
-}
-
-const char *snd_soc_dai_name_get(const struct snd_soc_dai *dai)
-{
-	/* see snd_soc_is_matching_dai() */
-	if (dai->driver->name)
-		return dai->driver->name;
-
-	if (dai->name)
-		return dai->name;
-
-	if (dai->component->name)
-		return dai->component->name;
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_dai_name_get);
 
 static int snd_soc_rtd_add_component(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_soc_component *component)
@@ -868,7 +810,7 @@ static int snd_soc_is_matching_component(
 		struct snd_soc_dai *dai;
 
 		for_each_component_dais(component, dai)
-			if (snd_soc_is_matching_dai(dlc, dai))
+			if (snd_soc_dai_matches_dlc(dai, dlc))
 				return 1;
 		return 0;
 	}
@@ -928,7 +870,7 @@ struct snd_soc_dai *snd_soc_find_dai(
 	for_each_component(component)
 		if (snd_soc_is_matching_component(dlc, component))
 			for_each_component_dais(component, dai)
-				if (snd_soc_is_matching_dai(dlc, dai))
+				if (snd_soc_dai_matches_dlc(dai, dlc))
 					return dai;
 
 	return NULL;
@@ -1859,7 +1801,7 @@ match:
 			}
 
 			dev_dbg(card->dev, "info: override BE DAI link %s\n",
-				card->dai_link[i].name);
+				dai_link->name);
 
 			/* override platform component */
 			if (!dai_link->platforms) {
@@ -2343,9 +2285,9 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 }
 EXPORT_SYMBOL_GPL(snd_soc_cnew);
 
-static int snd_soc_add_controls(struct snd_card *card, struct device *dev,
-	const struct snd_kcontrol_new *controls, int num_controls,
-	const char *prefix, void *data)
+int snd_soc_add_controls(struct snd_card *card, struct device *dev,
+			 const struct snd_kcontrol_new *controls, int num_controls,
+			 const char *prefix, void *data)
 {
 	int i;
 
@@ -2401,26 +2343,6 @@ int snd_soc_add_card_controls(struct snd_soc_card *soc_card,
 			NULL, soc_card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_card_controls);
-
-/**
- * snd_soc_add_dai_controls - add an array of controls to a DAI.
- * Convenience function to add a list of controls.
- *
- * @dai: DAI to add controls to
- * @controls: array of controls to add
- * @num_controls: number of elements in the array
- *
- * Return 0 for success, else error.
- */
-int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
-	const struct snd_kcontrol_new *controls, int num_controls)
-{
-	struct snd_card *card = dai->component->card->snd_card;
-
-	return snd_soc_add_controls(card, dai->dev, controls, num_controls,
-			NULL, dai);
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
 
 /**
  * snd_soc_register_card - Register a card with the ASoC core
@@ -2480,7 +2402,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_card);
  * Simplify DAI link configuration by removing ".-1" from device names
  * and sanitizing names.
  */
-static char *fmt_single_name(struct device *dev, int *id)
+char *snd_soc_fmt_single_name(struct device *dev, int *id)
 {
 	const char *devname = dev_name(dev);
 	char *found, *name;
@@ -2529,8 +2451,7 @@ static char *fmt_single_name(struct device *dev, int *id)
  * Simplify DAI link naming for single devices with multiple DAIs by removing
  * any ".-1" and using the DAI name (instead of device name).
  */
-static inline char *fmt_multiple_name(struct device *dev,
-		struct snd_soc_dai_driver *dai_drv)
+char *snd_soc_fmt_multiple_name(struct device *dev, struct snd_soc_dai_driver *dai_drv)
 {
 	if (dai_drv->name == NULL) {
 		dev_err(dev,
@@ -2541,74 +2462,6 @@ static inline char *fmt_multiple_name(struct device *dev,
 
 	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
-
-void snd_soc_unregister_dai(struct snd_soc_dai *dai)
-{
-	lockdep_assert_held(&client_mutex);
-
-	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
-	list_del(&dai->list);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
-
-/**
- * snd_soc_register_dai - Register a DAI dynamically & create its widgets
- *
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAI
- * @legacy_dai_naming: if %true, use legacy single-name format;
- * 	if %false, use multiple-name format;
- *
- * Topology can use this API to register DAIs when probing a component.
- * These DAIs's widgets will be freed in the card cleanup and the DAIs
- * will be freed in the component cleanup.
- */
-struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
-					 struct snd_soc_dai_driver *dai_drv,
-					 bool legacy_dai_naming)
-{
-	struct device *dev = component->dev;
-	struct snd_soc_dai *dai;
-
-	lockdep_assert_held(&client_mutex);
-
-	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
-	if (dai == NULL)
-		return NULL;
-
-	/*
-	 * Back in the old days when we still had component-less DAIs,
-	 * instead of having a static name, component-less DAIs would
-	 * inherit the name of the parent device so it is possible to
-	 * register multiple instances of the DAI. We still need to keep
-	 * the same naming style even though those DAIs are not
-	 * component-less anymore.
-	 */
-	if (legacy_dai_naming &&
-	    (dai_drv->id == 0 || dai_drv->name == NULL)) {
-		dai->name = fmt_single_name(dev, &dai->id);
-	} else {
-		dai->name = fmt_multiple_name(dev, dai_drv);
-		if (dai_drv->id)
-			dai->id = dai_drv->id;
-		else
-			dai->id = component->num_dai;
-	}
-	if (!dai->name)
-		return NULL;
-
-	dai->component = component;
-	dai->dev = dev;
-	dai->driver = dai_drv;
-
-	/* see for_each_component_dais */
-	list_add_tail(&dai->list, &component->dai_list);
-	component->num_dai++;
-
-	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
-	return dai;
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 /**
  * snd_soc_unregister_dais - Unregister DAIs from the ASoC core
@@ -2707,14 +2560,30 @@ static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 	list_del(&component->list);
 }
 
-static int soc_component_initialize(struct snd_soc_component *component,
-				    const struct snd_soc_component_driver *driver)
+struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
+						const struct snd_soc_component_driver *driver)
 {
-	struct device *dev = component->dev;
+	struct snd_soc_component *component;
+
+	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return ERR_PTR(-ENOMEM);
 
 	component->dapm = snd_soc_dapm_alloc(dev);
 	if (!component->dapm)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+
+	if (!name) {
+		name = snd_soc_fmt_single_name(dev, NULL);
+		if (!name) {
+			dev_err(dev, "ASoC: Failed to allocate name\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	component->dev = dev;
+	component->name = name;
+	component->driver = driver;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	INIT_LIST_HEAD(&component->dobj_list);
@@ -2723,22 +2592,13 @@ static int soc_component_initialize(struct snd_soc_component *component,
 	INIT_LIST_HEAD(&component->card_aux_list);
 	mutex_init(&component->io_mutex);
 
-	if (!component->name) {
-		component->name = fmt_single_name(dev, NULL);
-		if (!component->name) {
-			dev_err(dev, "ASoC: Failed to allocate name\n");
-			return -ENOMEM;
-		}
-	}
-
-	component->driver	= driver;
-
-	return 0;
+	return component;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_new);
 
-static int soc_component_add(struct snd_soc_component *component,
-			     struct snd_soc_dai_driver *dai_drv,
-			     int num_dai)
+int snd_soc_component_register(struct snd_soc_component *component,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai)
 {
 	struct snd_soc_card *card, *c;
 	int ret;
@@ -2777,36 +2637,22 @@ err_cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_register);
 
-int snd_soc_register_component_c(struct snd_soc_component *component,
-			const struct snd_soc_component_driver *component_driver,
-			struct snd_soc_dai_driver *dai_drv,
-			int num_dai)
-{
-	int ret;
-
-	ret = soc_component_initialize(component, component_driver);
-	if (ret < 0)
-		return ret;
-
-	return soc_component_add(component, dai_drv, num_dai);
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_component_c);
-
-int snd_soc_register_component_d(struct device *dev,
-				 const struct snd_soc_component_driver *component_driver,
-				 struct snd_soc_dai_driver *dai_drv,
-				 int num_dai)
+int snd_soc_register_component(struct device *dev,
+			       const struct snd_soc_component_driver *component_driver,
+			       struct snd_soc_dai_driver *dai_drv,
+			       int num_dai)
 {
 	struct snd_soc_component *component;
 
-	component = snd_soc_component_alloc(dev);
-	if (!component)
-		return -ENOMEM;
+	component = snd_soc_component_new(dev, NULL, component_driver);
+	if (IS_ERR(component))
+		return PTR_ERR(component);
 
-	return snd_soc_register_component_c(component, component_driver, dai_drv, num_dai);
+	return snd_soc_component_register(component, dai_drv, num_dai);
 }
-EXPORT_SYMBOL_GPL(snd_soc_register_component_d);
+EXPORT_SYMBOL_GPL(snd_soc_register_component);
 
 /**
  * snd_soc_unregister_component_by_driver - Unregister component using a given driver
@@ -3477,7 +3323,7 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 				id--;
 			}
 
-			dlc->dai_name	= snd_soc_dai_name_get(dai);
+			dlc->dai_name	= snd_soc_dai_name(dai);
 		} else if (ret) {
 			/*
 			 * if another error than ENOTSUPP is returned go on and
@@ -3552,7 +3398,7 @@ struct snd_soc_dai *snd_soc_get_dai_via_args(const struct of_phandle_args *dai_a
 
 	for_each_component(component) {
 		for_each_component_dais(component, dai)
-			if (snd_soc_is_match_dai_args(dai->driver->dai_args, dai_args))
+			if (snd_soc_dai_matches_args(dai, dai_args))
 				return dai;
 	}
 	return NULL;

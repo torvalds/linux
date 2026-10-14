@@ -58,13 +58,18 @@ struct sof_ipc4_fw_library {
 	struct sof_ipc4_fw_module *modules;
 };
 
+struct snd_ipc4_nhlt {
+	struct list_head list;
+	void *nhlt;
+	bool from_acpi;
+};
+
 /**
  * struct sof_ipc4_fw_data - IPC4-specific data
  * @manifest_fw_hdr_offset: FW header offset in the manifest
  * @fw_lib_xa: XArray for firmware libraries, including basefw (ID = 0)
  *	       Used to store the FW libraries and to manage the unique IDs of the
  *	       libraries.
- * @nhlt: NHLT table either from the BIOS or the topology manifest
  * @mtrace_type: mtrace type supported on the booted platform
  * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
  * @num_playback_streams: max number of playback DMAs, needed for CHAIN_DMA offset
@@ -74,14 +79,16 @@ struct sof_ipc4_fw_library {
  *		    base firmware
  * @fw_context_save: Firmware supports full context save and restore
  * @libraries_restored: The libraries have been retained during firmware boot
+ * @nhlt_list: The NHLT tables from the BIOS and the topology manifest
  *
+ * @codec_info: Information about the available codecs in booted firmware. The
+ *		data is to be used by the code for compressed support.
  * @load_library: Callback function for platform dependent library loading
  * @pipeline_state_mutex: Mutex to protect pipeline triggers, ref counts, states and deletion
  */
 struct sof_ipc4_fw_data {
 	u32 manifest_fw_hdr_offset;
 	struct xarray fw_lib_xa;
-	void *nhlt;
 	enum sof_ipc4_mtrace_type mtrace_type;
 	u32 mtrace_log_bytes;
 	int num_playback_streams;
@@ -90,6 +97,9 @@ struct sof_ipc4_fw_data {
 	u32 max_libs_count;
 	bool fw_context_save;
 	bool libraries_restored;
+	struct list_head nhlt_list;
+
+	void *codec_info;
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
@@ -98,11 +108,37 @@ struct sof_ipc4_fw_data {
 	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
 };
 
+/**
+ * struct sof_ipc4_timestamp_info - IPC4 timestamp info
+ * @host_copier: the host copier of the pcm stream
+ * @dai_copier: the dai copier of the pcm stream
+ * @stream_start_offset: reported by fw in memory window (converted to
+ *                       frames at host_copier sampling rate)
+ * @stream_end_offset: reported by fw in memory window (converted to
+ *                     frames at host_copier sampling rate)
+ * @llp_offset: llp offset in memory window
+ * @delay: Calculated and stored in pointer callback. The stored value is
+ *         returned in the delay callback. Expressed in frames at host copier
+ *         sampling rate.
+ */
+struct sof_ipc4_timestamp_info {
+	struct sof_ipc4_copier *host_copier;
+	struct sof_ipc4_copier *dai_copier;
+	u64 stream_start_offset;
+	u64 stream_end_offset;
+	u32 llp_offset;
+
+	snd_pcm_sframes_t delay;
+};
+
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
 extern const struct sof_ipc_tplg_ops ipc4_tplg_ops;
 extern const struct sof_ipc_tplg_control_ops tplg_ipc4_control_ops;
 extern const struct sof_ipc_pcm_ops ipc4_pcm_ops;
 extern const struct sof_ipc_fw_tracing_ops ipc4_mtrace_ops;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
+extern const struct snd_compress_ops sof_ipc4_compressed_ops;
+#endif
 
 int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 state);
 int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core);
@@ -128,5 +164,20 @@ void sof_ipc4_mic_privacy_state_change(struct snd_sof_dev *sdev, bool state);
 
 enum sof_ipc4_pipeline_state;
 const char *sof_ipc4_pipeline_state_str(enum sof_ipc4_pipeline_state state);
+
+struct sof_ipc4_timestamp_info *sof_ipc4_sps_to_time_info(struct snd_sof_pcm_stream *sps);
+void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sps);
+int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
+				     struct snd_pcm_substream *substream,
+				     struct snd_sof_pcm_stream *sps,
+				     struct sof_ipc4_timestamp_info *time_info);
+u64 sof_ipc4_frames_dai_to_host(struct sof_ipc4_timestamp_info *time_info, u64 value);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
+void sof_ipc4_compr_drain_done(struct snd_sof_dev *sdev, void *ipc_message);
+#else
+static inline void sof_ipc4_compr_drain_done(struct snd_sof_dev *sdev,
+					     void *ipc_message) { }
+#endif
 
 #endif

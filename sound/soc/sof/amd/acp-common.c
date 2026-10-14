@@ -16,6 +16,7 @@
 #include "acp.h"
 #include "acp-dsp-offset.h"
 #include <sound/sof/xtensa.h>
+#include "../../amd/acp/soc_amd_sdw_common.h"
 
 /**
  * amd_sof_ipc_dump() - This function is called when IPC tx times out.
@@ -177,6 +178,7 @@ struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
 	struct acp_dev_data *acp_data = sdev->pdata->hw_pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct snd_soc_acpi_mach *mach = NULL;
+	struct amd_pdm_pdata *pdm_pdata;
 
 	if (desc->machines)
 		mach = snd_soc_acpi_find_machine(desc->machines);
@@ -188,7 +190,22 @@ struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
 		}
 	}
 
+	mach = devm_kmemdup(sdev->dev, mach, sizeof(*mach), GFP_KERNEL);
+	if (!mach) {
+		dev_err(sdev->dev, "failed to allocate machine entry copy\n");
+		return NULL;
+	}
+
 	mach->mach_params.subsystem_rev = acp_data->pci_rev;
+
+	if (acp_data->pdm_sel) {
+		pdm_pdata = devm_kzalloc(sdev->dev, sizeof(*pdm_pdata), GFP_KERNEL);
+		if (!pdm_pdata)
+			return NULL;
+		pdm_pdata->pdm_sel = acp_data->pdm_sel;
+		mach->pdata = pdm_pdata;
+	}
+
 	sof_pdata->tplg_filename = mach->sof_tplg_filename;
 	sof_pdata->fw_filename = mach->fw_filename;
 

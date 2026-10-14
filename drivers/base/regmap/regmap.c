@@ -2722,7 +2722,7 @@ EXPORT_SYMBOL_GPL(regmap_multi_reg_write_bypassed);
  * If supported by the underlying bus the write will be scheduled
  * asynchronously, helping maximise I/O speed on higher speed buses
  * like SPI.  regmap_async_complete() can be called to ensure that all
- * asynchrnous writes have been completed.
+ * asynchronous writes have been completed.
  *
  * A value of zero will be returned on success, a negative errno will
  * be returned in error cases.

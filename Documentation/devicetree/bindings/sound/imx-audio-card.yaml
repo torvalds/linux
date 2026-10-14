@@ -105,10 +105,10 @@ examples:
             format = "i2s";
             fsl,mclk-equal-bclk;
             cpu {
-                 sound-dai = <&sai1>;
+                sound-dai = <&sai1>;
             };
             codec {
-                 sound-dai = <&ak4458_1>, <&ak4458_2>;
+                sound-dai = <&ak4458_1>, <&ak4458_2>;
             };
         };
         fe-dai-link {

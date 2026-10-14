@@ -12,88 +12,8 @@
 #include "sof-utils.h"
 #include "ops.h"
 
-static void sof_set_transferred_bytes(struct sof_compr_stream *sstream,
-				      u64 host_pos, u64 buffer_size)
-{
-	u64 prev_pos;
-	unsigned int copied;
-
-	div64_u64_rem(sstream->copied_total, buffer_size, &prev_pos);
-
-	if (host_pos < prev_pos)
-		copied = (buffer_size - prev_pos) + host_pos;
-	else
-		copied = host_pos - prev_pos;
-
-	sstream->copied_total += copied;
-}
-
-static void snd_sof_compr_fragment_elapsed_work(struct work_struct *work)
-{
-	struct snd_sof_pcm_stream *sps =
-		container_of(work, struct snd_sof_pcm_stream,
-			     period_elapsed_work);
-
-	snd_compr_fragment_elapsed(sps->cstream);
-}
-
-void snd_sof_compr_init_elapsed_work(struct work_struct *work)
-{
-	INIT_WORK(work, snd_sof_compr_fragment_elapsed_work);
-}
-
-/*
- * sof compr fragment elapse, this could be called in irq thread context
- */
-void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream)
-{
-	struct snd_soc_pcm_runtime *rtd;
-	struct snd_compr_runtime *crtd;
-	struct snd_soc_component *component;
-	struct sof_compr_stream *sstream;
-	struct snd_sof_pcm *spcm;
-
-	if (!cstream)
-		return;
-
-	rtd = cstream->private_data;
-	crtd = cstream->runtime;
-	sstream = crtd->private_data;
-	component = snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
-
-	spcm = snd_sof_find_spcm_dai(component, rtd);
-	if (!spcm) {
-		dev_err(component->dev,
-			"fragment elapsed called for unknown stream!\n");
-		return;
-	}
-
-	sof_set_transferred_bytes(sstream, spcm->stream[cstream->direction].posn.host_posn,
-				  crtd->buffer_size);
-
-	/* use the same workqueue-based solution as for PCM, cf. snd_sof_pcm_elapsed */
-	schedule_work(&spcm->stream[cstream->direction].period_elapsed_work);
-}
-
-static int create_page_table(struct snd_soc_component *component,
-			     struct snd_compr_stream *cstream,
-			     unsigned char *dma_area, size_t size)
-{
-	struct snd_dma_buffer *dmab = cstream->runtime->dma_buffer_p;
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	int dir = cstream->direction;
-	struct snd_sof_pcm *spcm;
-
-	spcm = snd_sof_find_spcm_dai(component, rtd);
-	if (!spcm)
-		return -EINVAL;
-
-	return snd_sof_create_page_table(component->dev, dmab,
-					 spcm->stream[dir].page_table.area, size);
-}
-
-static int sof_compr_open(struct snd_soc_component *component,
-			  struct snd_compr_stream *cstream)
+static int sof_ipc3_compr_open(struct snd_soc_component *component,
+			       struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_compr_runtime *crtd = cstream->runtime;
@@ -128,8 +48,8 @@ static int sof_compr_open(struct snd_soc_component *component,
 	return 0;
 }
 
-static int sof_compr_free(struct snd_soc_component *component,
-			  struct snd_compr_stream *cstream)
+static int sof_ipc3_compr_free(struct snd_soc_component *component,
+			       struct snd_compr_stream *cstream)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct sof_compr_stream *sstream = cstream->runtime->private_data;
@@ -159,8 +79,9 @@ static int sof_compr_free(struct snd_soc_component *component,
 	return ret;
 }
 
-static int sof_compr_set_params(struct snd_soc_component *component,
-				struct snd_compr_stream *cstream, struct snd_compr_params *params)
+static int sof_ipc3_compr_set_params(struct snd_soc_component *component,
+				     struct snd_compr_stream *cstream,
+				     struct snd_compr_params *params)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -213,7 +134,7 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	if (ret < 0)
 		goto out;
 
-	ret = create_page_table(component, cstream, crtd->dma_area, crtd->dma_bytes);
+	ret = snd_sof_compr_create_page_table(component, cstream, crtd->dma_area, crtd->dma_bytes);
 	if (ret < 0)
 		goto out;
 
@@ -265,8 +186,9 @@ out:
 	return ret;
 }
 
-static int sof_compr_get_params(struct snd_soc_component *component,
-				struct snd_compr_stream *cstream, struct snd_codec *params)
+static int sof_ipc3_compr_get_params(struct snd_soc_component *component,
+				     struct snd_compr_stream *cstream,
+				     struct snd_codec *params)
 {
 	struct sof_compr_stream *sstream = cstream->runtime->private_data;
 
@@ -275,8 +197,8 @@ static int sof_compr_get_params(struct snd_soc_component *component,
 	return 0;
 }
 
-static int sof_compr_trigger(struct snd_soc_component *component,
-			     struct snd_compr_stream *cstream, int cmd)
+static int sof_ipc3_compr_trigger(struct snd_soc_component *component,
+				  struct snd_compr_stream *cstream, int cmd)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -312,8 +234,8 @@ static int sof_compr_trigger(struct snd_soc_component *component,
 	return sof_ipc_tx_message_no_reply(sdev->ipc, &stream, sizeof(stream));
 }
 
-static int sof_compr_copy_playback(struct snd_compr_runtime *rtd,
-				   char __user *buf, size_t count)
+static int sof_ipc3_compr_copy_playback(struct snd_compr_runtime *rtd,
+					char __user *buf, size_t count)
 {
 	void *ptr;
 	unsigned int offset, n;
@@ -333,8 +255,8 @@ static int sof_compr_copy_playback(struct snd_compr_runtime *rtd,
 	return count - ret;
 }
 
-static int sof_compr_copy_capture(struct snd_compr_runtime *rtd,
-				  char __user *buf, size_t count)
+static int sof_ipc3_compr_copy_capture(struct snd_compr_runtime *rtd,
+				       char __user *buf, size_t count)
 {
 	void *ptr;
 	unsigned int offset, n;
@@ -354,9 +276,9 @@ static int sof_compr_copy_capture(struct snd_compr_runtime *rtd,
 	return count - ret;
 }
 
-static int sof_compr_copy(struct snd_soc_component *component,
-			  struct snd_compr_stream *cstream,
-			  char __user *buf, size_t count)
+static int sof_ipc3_compr_copy(struct snd_soc_component *component,
+			       struct snd_compr_stream *cstream,
+			       char __user *buf, size_t count)
 {
 	struct snd_compr_runtime *rtd = cstream->runtime;
 
@@ -364,14 +286,14 @@ static int sof_compr_copy(struct snd_soc_component *component,
 		count = rtd->buffer_size;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
-		return sof_compr_copy_playback(rtd, buf, count);
+		return sof_ipc3_compr_copy_playback(rtd, buf, count);
 	else
-		return sof_compr_copy_capture(rtd, buf, count);
+		return sof_ipc3_compr_copy_capture(rtd, buf, count);
 }
 
-static int sof_compr_pointer(struct snd_soc_component *component,
-			     struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp64 *tstamp)
+static int sof_ipc3_compr_pointer(struct snd_soc_component *component,
+				  struct snd_compr_stream *cstream,
+				  struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_sof_pcm *spcm;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -392,13 +314,12 @@ static int sof_compr_pointer(struct snd_soc_component *component,
 	return 0;
 }
 
-struct snd_compress_ops sof_compressed_ops = {
-	.open		= sof_compr_open,
-	.free		= sof_compr_free,
-	.set_params	= sof_compr_set_params,
-	.get_params	= sof_compr_get_params,
-	.trigger	= sof_compr_trigger,
-	.pointer	= sof_compr_pointer,
-	.copy		= sof_compr_copy,
+const struct snd_compress_ops sof_ipc3_compressed_ops = {
+	.open		= sof_ipc3_compr_open,
+	.free		= sof_ipc3_compr_free,
+	.set_params	= sof_ipc3_compr_set_params,
+	.get_params	= sof_ipc3_compr_get_params,
+	.trigger	= sof_ipc3_compr_trigger,
+	.pointer	= sof_ipc3_compr_pointer,
+	.copy		= sof_ipc3_compr_copy,
 };
-EXPORT_SYMBOL(sof_compressed_ops);

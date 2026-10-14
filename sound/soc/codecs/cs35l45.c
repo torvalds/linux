@@ -6,6 +6,7 @@
 //
 // Author: James Schulman <james.schulman@cirrus.com>
 
+#include <linux/bitfield.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -193,6 +194,44 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &kcontrol->id);
 
 	return 0;
+}
+
+static int cs35l45_sync_en_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->sync_en;
+
+	return 0;
+}
+
+static int cs35l45_sync_en_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_to_dapm(component);
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if ((bool)ucontrol->value.integer.value[0] == cs35l45->sync_en) {
+		snd_soc_dapm_mutex_unlock(dapm);
+		return 0;
+	}
+
+	regmap_assign_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2, CS35L45_SYNC_EN_MASK,
+			   (bool)ucontrol->value.integer.value[0]);
+
+	cs35l45->sync_en = (bool)ucontrol->value.integer.value[0];
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return 1;
 }
 
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
@@ -591,6 +630,18 @@ static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
 static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 1000, 300, 0);
 static const DECLARE_TLV_DB_SCALE(cs35l45_dig_pcm_vol_tlv, -10225, 25, true);
 
+static const struct snd_kcontrol_new cs35l45_sync_controls[] = {
+	SOC_SINGLE_BOOL_EXT("SYNC Switch", 0, cs35l45_sync_en_get, cs35l45_sync_en_put),
+	SOC_SINGLE("SYNC LSW RX Switch", CS35L45_SYNC_TX_RX_ENABLES,
+			CS35L45_SYNC_LSW_RX_EN_SHIFT, 1, 0),
+	SOC_SINGLE("SYNC LSW TX Switch", CS35L45_SYNC_TX_RX_ENABLES,
+			CS35L45_SYNC_LSW_TX_EN_SHIFT, 1, 0),
+	SOC_SINGLE("SYNC SW RX Switch", CS35L45_SYNC_TX_RX_ENABLES,
+			CS35L45_SYNC_SW_RX_EN_SHIFT, 1, 0),
+	SOC_SINGLE("SYNC SW TX Switch", CS35L45_SYNC_TX_RX_ENABLES,
+			CS35L45_SYNC_SW_TX_EN_SHIFT, 1, 0),
+};
+
 static const struct snd_kcontrol_new cs35l45_controls[] = {
 	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
 		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
@@ -846,12 +897,22 @@ static int cs35l45_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
+static const u64 cs35l45_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops cs35l45_asp_dai_ops = {
 	.set_fmt = cs35l45_asp_set_fmt,
 	.hw_params = cs35l45_asp_hw_params,
 	.set_tdm_slot = cs35l45_asp_set_tdm_slot,
 	.set_sysclk = cs35l45_asp_set_sysclk,
 	.mute_stream = cs35l45_mute_stream,
+	.auto_selectable_formats	= &cs35l45_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver cs35l45_dai[] = {
@@ -880,6 +941,19 @@ static struct snd_soc_dai_driver cs35l45_dai[] = {
 static int cs35l45_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	ret = snd_soc_add_component_controls(component, cs35l45_controls,
+					     ARRAY_SIZE(cs35l45_controls));
+	if (ret < 0)
+		return ret;
+
+	if (cs35l45->sync_pin_set) {
+		ret = snd_soc_add_component_controls(component, cs35l45_sync_controls,
+						     ARRAY_SIZE(cs35l45_sync_controls));
+		if (ret < 0)
+			return ret;
+	}
 
 	return wm_adsp2_component_probe(&cs35l45->dsp, component);
 }
@@ -900,9 +974,6 @@ static const struct snd_soc_component_driver cs35l45_component = {
 
 	.dapm_routes = cs35l45_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(cs35l45_dapm_routes),
-
-	.controls = cs35l45_controls,
-	.num_controls = ARRAY_SIZE(cs35l45_controls),
 
 	.name = "cs35l45",
 
@@ -1064,6 +1135,95 @@ static int cs35l45_sys_resume(struct device *dev)
 	return 0;
 }
 
+static void cs35l45_apply_sync_property_config(struct cs35l45_private *cs35l45)
+{
+	unsigned int val;
+
+	if (device_property_read_u32(cs35l45->dev, "cirrus,sync-lsw-txid", &val) == 0)
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
+				   CS35L45_SYNC_LSW_TXID_MASK, val << CS35L45_SYNC_LSW_TXID_SHIFT);
+
+	if (device_property_read_u32(cs35l45->dev, "cirrus,sync-sw-txid", &val) == 0)
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
+				   CS35L45_SYNC_SW_TXID_MASK, val);
+}
+
+static int cs35l45_apply_ldpm_config(struct cs35l45_private *cs35l45)
+{
+	char prop_name[CS35L45_LDPM_PROP_NAME_MAX];
+	int i, ret;
+	u32 val;
+
+	for (i = LDPM_GROUP1; i < NUM_LDPM_GROUP; i++) {
+		sprintf(prop_name, "cirrus,ldpm-group%d-pcm-threshold-db", i);
+		if (device_property_read_u32(cs35l45->dev, prop_name, &val) == 0) {
+			ret = cs35l45_get_ldpm_pcm_thld((s32)val);
+			if (ret == -EINVAL)
+				return -EINVAL;
+
+			switch (i) {
+			case LDPM_GROUP1:
+				regmap_update_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG,
+						   CS35L45_LDPM_GP1_PCM_THLD_MASK,
+						   FIELD_PREP(CS35L45_LDPM_GP1_PCM_THLD_MASK,
+						   ret));
+				break;
+			case LDPM_GROUP2:
+				regmap_update_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG,
+						   CS35L45_LDPM_GP2_PCM_THLD_MASK,
+						   FIELD_PREP(CS35L45_LDPM_GP2_PCM_THLD_MASK,
+						   ret));
+				break;
+			default:
+				return -EINVAL;
+			}
+		}
+
+		sprintf(prop_name, "cirrus,ldpm-group%d-delay-ms", i);
+		if (device_property_read_u32(cs35l45->dev, prop_name, &val) == 0) {
+			ret = cs35l45_get_ldpm_delay(val);
+			if (ret == -EINVAL)
+				return -EINVAL;
+
+			switch (i) {
+			case LDPM_GROUP1:
+				regmap_update_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG,
+						   CS35L45_LDPM_GP1_DELAY_MASK,
+						   FIELD_PREP(CS35L45_LDPM_GP1_DELAY_MASK, ret));
+				break;
+			case LDPM_GROUP2:
+				regmap_update_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG,
+						   CS35L45_LDPM_GP2_DELAY_MASK,
+						   FIELD_PREP(CS35L45_LDPM_GP2_DELAY_MASK, ret));
+				break;
+			default:
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (device_property_read_bool(cs35l45->dev, "cirrus,ldpm-group1-boost-select"))
+		regmap_set_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG, CS35L45_LDPM_GP1_BOOST_SEL);
+
+	if (device_property_read_u32(cs35l45->dev, "cirrus,boost-low-power-mode", &val) == 0)
+		regmap_write(cs35l45->regmap, CS35L45_BOOST_LPMODE_CFG, val);
+
+	if (device_property_read_bool(cs35l45->dev, "cirrus,ldpm-group1-amp-select"))
+		regmap_set_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG, CS35L45_LDPM_GP1_AMP_SEL);
+
+	if ((device_property_read_u32(cs35l45->dev, "cirrus,amplifier-low-power-mode", &val) == 0)
+				      && (val == 0))
+		regmap_clear_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES, CS35L45_NFR_EN_MASK);
+
+	if (device_property_read_bool(cs35l45->dev, "cirrus,ldpm-group2-vmon-select"))
+		regmap_set_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG, CS35L45_LDPM_GP2_VMON_SEL);
+
+	if (device_property_read_bool(cs35l45->dev, "cirrus,ldpm-group2-imon-select"))
+		regmap_set_bits(cs35l45->regmap, CS35L45_LDPM_CONFIG, CS35L45_LDPM_GP2_IMON_SEL);
+
+	return 0;
+}
+
 static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 {
 	struct device_node *node = cs35l45->dev->of_node;
@@ -1110,10 +1270,15 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 					   val << CS35L45_GPIO_POL_SHIFT);
 
 		ret = of_property_read_u32(child, "gpio-ctrl", &val);
-		if (!ret)
+		if (!ret) {
+			if ((i == 0) && (val == CS35L45_GP1_CTRL_MDSYNC)) {
+				cs35l45->sync_pin_set = true;
+				cs35l45_apply_sync_property_config(cs35l45);
+			}
 			regmap_update_bits(cs35l45->regmap, pad_regs[i],
 					   CS35L45_GPIO_CTRL_MASK,
 					   val << CS35L45_GPIO_CTRL_SHIFT);
+		}
 
 		ret = of_property_read_u32(child, "gpio-invert", &val);
 		if (!ret) {
@@ -1133,6 +1298,10 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 				   CS35L45_ASP_DOUT_HIZ_CTRL_MASK,
 				   val << CS35L45_ASP_DOUT_HIZ_CTRL_SHIFT);
 	}
+
+	ret = cs35l45_apply_ldpm_config(cs35l45);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }

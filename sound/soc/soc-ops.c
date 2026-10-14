@@ -305,8 +305,8 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
  * Callback to provide information about a single mixer control, or a double
  * mixer control that spans 2 registers of the SX TLV type. SX TLV controls
  * have a range that represents both positive and negative values either side
- * of zero but without a sign bit. min is the minimum register value, max is
- * the number of steps.
+ * of zero but without a sign bit. min is the register value representing the
+ * minimum volume, max is the number of volume steps.
  *
  * Returns 0 for success.
  */

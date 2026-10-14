@@ -219,12 +219,14 @@ static inline int simple_util_parse_aux_devs(struct simple_util_priv *priv, char
 int simple_util_init_jack(struct snd_soc_card *card,
 			       struct simple_util_jack *sjack,
 			       int is_hp, char *prefix, char *pin);
+void simple_util_remove_jack(struct simple_util_jack *sjack);
 int simple_util_init_aux_jacks(struct snd_soc_card *card, char *prefix);
 int simple_util_init_priv(struct simple_util_priv *priv,
 			       struct link_info *li);
 void simple_util_remove(struct platform_device *pdev);
 
 int graph_util_card_probe(struct snd_soc_card *card);
+int graph_util_card_remove(struct snd_soc_card *card);
 int graph_util_is_ports0(struct device_node *port);
 int graph_util_parse_dai(struct simple_util_priv *priv, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);

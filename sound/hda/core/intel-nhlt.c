@@ -351,7 +351,7 @@ int intel_nhlt_ssp_device_type(struct device *dev, struct nhlt_acpi_table *nhlt,
 	int i;
 
 	if (!nhlt) {
-		dev_err(dev, "%s: NHLT table is missing (query for SSP%d)\n",
+		dev_dbg(dev, "%s: NHLT table is missing (query for SSP%d)\n",
 			__func__, virtual_bus_id);
 		return -EINVAL;
 	}
@@ -369,7 +369,7 @@ int intel_nhlt_ssp_device_type(struct device *dev, struct nhlt_acpi_table *nhlt,
 		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
 	}
 
-	dev_err(dev, "%s: No match for SSP%d in NHLT table\n", __func__,
+	dev_dbg(dev, "%s: No match for SSP%d in NHLT table\n", __func__,
 		virtual_bus_id);
 
 	dev_dbg(dev, "Available endpoints:\n");

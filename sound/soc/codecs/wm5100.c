@@ -1501,9 +1501,19 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const u64 wm5100_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops wm5100_dai_ops = {
 	.set_fmt = wm5100_set_fmt,
 	.hw_params = wm5100_hw_params,
+	.auto_selectable_formats	= &wm5100_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,

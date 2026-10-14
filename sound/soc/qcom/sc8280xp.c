@@ -58,6 +58,25 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
+enum sc8280xp_jack_setup {
+	SC8280XP_JACK_SETUP_NONE,
+	SC8280XP_JACK_SETUP_CODEC,
+	SC8280XP_JACK_SETUP_WCD,
+};
+
+struct sc8280xp_dai_data {
+	unsigned int id;
+	unsigned int mclk_rate;
+	bool codec_sysclk_set;
+	bool mi2s_mclk_enable;
+	bool mi2s_bclk_enable;
+	enum sc8280xp_jack_setup jack_setup;
+};
+
+#define SC8280XP_DAI_DATA(...) \
+	.dai_data = (const struct sc8280xp_dai_data[]) { __VA_ARGS__ }, \
+	.num_dai_data = ARRAY_SIZE(((const struct sc8280xp_dai_data[]) { __VA_ARGS__ }))
+
 struct qcom_snd_soc_common {
 	const char *driver_name;
 	const struct snd_soc_dapm_widget *dapm_widgets;
@@ -71,6 +90,8 @@ struct qcom_snd_soc_common {
 	bool mi2s_mclk_enable;
 	bool mi2s_bclk_enable;
 	bool wcd_jack;
+	const struct sc8280xp_dai_data *dai_data;
+	size_t num_dai_data;
 	int (*snd_prepare)(struct snd_pcm_substream *substream);
 };
 
@@ -82,6 +103,20 @@ struct sc8280xp_snd_data {
 	const struct qcom_snd_soc_common *priv;
 	bool jack_setup;
 };
+
+static const struct sc8280xp_dai_data *
+sc8280xp_get_dai_data(const struct qcom_snd_soc_common *common,
+		      unsigned int id)
+{
+	size_t i;
+
+	for (i = 0; i < common->num_dai_data; i++) {
+		if (common->dai_data[i].id == id)
+			return &common->dai_data[i];
+	}
+
+	return NULL;
+}
 
 static inline int sc8280xp_get_mclk_freq(struct snd_pcm_hw_params *params)
 {
@@ -112,12 +147,21 @@ static int sc8280xp_tdm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	const struct sc8280xp_dai_data *dai_data;
 	struct snd_soc_dai *codec_dai;
 	struct qcom_snd_tdm_slot_cfg cpu_cfg;
 	struct qcom_snd_tdm_slot_cfg codec_cfg;
+	bool codec_sysclk_set = data->priv->codec_sysclk_set;
+	bool mi2s_bclk_enable = data->priv->mi2s_bclk_enable;
 	int bclk_freq;
 	int ret;
 	int i;
+
+	dai_data = sc8280xp_get_dai_data(data->priv, cpu_dai->id);
+	if (dai_data) {
+		codec_sysclk_set = dai_data->codec_sysclk_set;
+		mi2s_bclk_enable = dai_data->mi2s_bclk_enable;
+	}
 
 	ret = qcom_snd_get_dai_tdm_slots(rtd, &cpu_cfg, &codec_cfg);
 	if (ret)
@@ -147,7 +191,7 @@ static int sc8280xp_tdm_hw_params(struct snd_pcm_substream *substream,
 	if (bclk_freq <= 0)
 		return -EINVAL;
 
-	if (data->priv->mi2s_bclk_enable) {
+	if (mi2s_bclk_enable) {
 		ret = snd_soc_dai_set_sysclk(cpu_dai, LPAIF_MI2S_BCLK, bclk_freq,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP) {
@@ -157,7 +201,7 @@ static int sc8280xp_tdm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (data->priv->codec_sysclk_set) {
+	if (codec_sysclk_set) {
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			ret = snd_soc_dai_set_sysclk(codec_dai, 0, bclk_freq,
 						     SND_SOC_CLOCK_IN);
@@ -176,9 +220,12 @@ static int sc8280xp_snd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	const struct sc8280xp_dai_data *dai_data;
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_jack *dp_jack  = NULL;
 	int dp_pcm_id = 0;
+
+	dai_data = sc8280xp_get_dai_data(data->priv, cpu_dai->id);
 
 	switch (cpu_dai->id) {
 	case WSA_CODEC_DMA_RX_0:
@@ -209,10 +256,24 @@ static int sc8280xp_snd_init(struct snd_soc_pcm_runtime *rtd)
 	if (dp_jack)
 		return qcom_snd_dp_jack_setup(rtd, dp_jack, dp_pcm_id);
 
-	if (data->priv->wcd_jack)
-		return qcom_snd_wcd_jack_setup(rtd, &data->jack, &data->jack_setup);
+	if (!dai_data) {
+		if (data->priv->wcd_jack)
+			return qcom_snd_wcd_jack_setup(rtd, &data->jack,
+						       &data->jack_setup);
 
-	return 0;
+		return 0;
+	}
+
+	switch (dai_data->jack_setup) {
+	case SC8280XP_JACK_SETUP_CODEC:
+		return qcom_snd_headset_jack_setup(rtd, &data->jack,
+					   &data->jack_setup);
+	case SC8280XP_JACK_SETUP_WCD:
+		return qcom_snd_wcd_jack_setup(rtd, &data->jack,
+					       &data->jack_setup);
+	default:
+		return 0;
+	}
 }
 
 static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -251,15 +312,30 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
-	int mclk_freq = sc8280xp_get_mclk_freq(params);
+	const struct sc8280xp_dai_data *dai_data;
+	bool codec_sysclk_set = data->priv->codec_sysclk_set;
+	bool mi2s_mclk_enable = data->priv->mi2s_mclk_enable;
+	bool mi2s_bclk_enable = data->priv->mi2s_bclk_enable;
+	int mclk_freq;
 	int bclk_freq = sc8280xp_get_bclk_freq(params);
 	int ret;
+
+	dai_data = sc8280xp_get_dai_data(data->priv, cpu_dai->id);
+	mclk_freq = sc8280xp_get_mclk_freq(params);
+	if (dai_data) {
+		codec_sysclk_set = dai_data->codec_sysclk_set;
+		mi2s_mclk_enable = dai_data->mi2s_mclk_enable;
+		mi2s_bclk_enable = dai_data->mi2s_bclk_enable;
+		if (dai_data->mclk_rate)
+			mclk_freq = dai_data->mclk_rate;
+	}
 
 	switch (cpu_dai->id) {
 	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
 	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
 	case SENARY_MI2S_RX ... SENARY_MI2S_TX:
 	case LPI_MI2S_RX_0 ... LPI_MI2S_TX_4:
+	case AIF_MI2S_RX_0 ... AIF_MI2S_TX_12:
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_BP_FP);
 		if (ret && ret != -ENOTSUPP)
 			return ret;
@@ -271,7 +347,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 				return ret;
 		}
 
-		if (data->priv->mi2s_mclk_enable) {
+		if (mi2s_mclk_enable) {
 			ret = snd_soc_dai_set_sysclk(cpu_dai,
 						     LPAIF_MI2S_MCLK, mclk_freq,
 						     SND_SOC_CLOCK_OUT);
@@ -279,7 +355,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 				return ret;
 		}
 
-		if (data->priv->mi2s_bclk_enable) {
+		if (mi2s_bclk_enable) {
 			ret = snd_soc_dai_set_sysclk(cpu_dai,
 						     LPAIF_MI2S_BCLK, bclk_freq,
 						     SND_SOC_CLOCK_OUT);
@@ -287,7 +363,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 				return ret;
 		}
 
-		if (data->priv->codec_sysclk_set) {
+		if (codec_sysclk_set) {
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     0, mclk_freq,
 						     SND_SOC_CLOCK_IN);
@@ -296,6 +372,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 		}
 		break;
 	case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
+	case AIF_TDM_RX_0 ... AIF_TDM_TX_12:
 		return sc8280xp_tdm_hw_params(substream, params);
 	default:
 		break;
@@ -368,6 +445,19 @@ static int sc8280xp_snd_hw_free(struct snd_pcm_substream *substream)
 	return qcom_snd_sdw_hw_free(substream, &data->stream_prepared[cpu_dai->id]);
 }
 
+static void sc8280xp_snd_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	const struct sc8280xp_dai_data *dai_data;
+
+	dai_data = sc8280xp_get_dai_data(data->priv, cpu_dai->id);
+	if (dai_data && dai_data->jack_setup == SC8280XP_JACK_SETUP_CODEC) {
+		qcom_snd_headset_jack_cleanup(rtd);
+		data->jack_setup = false;
+	}
+}
+
 static const struct snd_soc_ops sc8280xp_be_ops = {
 	.startup = qcom_snd_sdw_startup,
 	.shutdown = qcom_snd_sdw_shutdown,
@@ -384,6 +474,7 @@ static void sc8280xp_add_be_ops(struct snd_soc_card *card)
 	for_each_card_prelinks(card, i, link) {
 		if (link->no_pcm == 1) {
 			link->init = sc8280xp_snd_init;
+			link->exit = sc8280xp_snd_exit;
 			link->be_hw_params_fixup = sc8280xp_be_hw_params_fixup;
 			link->ops = &sc8280xp_be_ops;
 		}
@@ -488,6 +579,28 @@ static const struct qcom_snd_soc_common qcs6490_priv_data = {
 	.wcd_jack = true,
 };
 
+static const struct qcom_snd_soc_common rubikpi3_priv_data = {
+	.driver_name = "qcs6490",
+	.dapm_widgets = sc8280xp_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sc8280xp_dapm_widgets),
+	.codec_dai_fmt = SND_SOC_DAIFMT_I2S |
+			 SND_SOC_DAIFMT_NB_NF |
+			 SND_SOC_DAIFMT_BC_FC,
+	SC8280XP_DAI_DATA({
+			.id = PRIMARY_MI2S_RX,
+			.mclk_rate = 19200000,
+			.codec_sysclk_set = true,
+			.mi2s_bclk_enable = true,
+			.jack_setup = SC8280XP_JACK_SETUP_CODEC,
+		}, {
+			.id = PRIMARY_MI2S_TX,
+			.mclk_rate = 19200000,
+			.codec_sysclk_set = true,
+			.mi2s_bclk_enable = true,
+		}
+	),
+};
+
 static const struct qcom_snd_soc_common qcs8275_priv_data = {
 	.driver_name = "qcs8300",
 	.dapm_widgets = max98090_dapm_widgets,
@@ -567,6 +680,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{ .compatible = "qcom,qcm6490-idp-sndcard", .data = &qcm6490_priv_data },
 	{ .compatible = "qcom,qcs615-sndcard", .data = &qcs615_priv_data },
 	{ .compatible = "qcom,qcs6490-rb3gen2-sndcard", .data = &qcs6490_priv_data },
+	{ .compatible = "thundercomm,qcs6490-rubikpi3-sndcard", .data = &rubikpi3_priv_data },
 	{ .compatible = "qcom,qcs8275-sndcard", .data = &qcs8275_priv_data },
 	{ .compatible = "qcom,qcs9075-sndcard", .data = &qcs9100_priv_data },
 	{ .compatible = "qcom,qcs9100-sndcard", .data = &qcs9100_priv_data },

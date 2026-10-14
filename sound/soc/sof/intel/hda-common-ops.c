@@ -57,6 +57,14 @@ const struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 	.pcm_ack	= hda_dsp_pcm_ack,
 
+	.compr_open = hda_dsp_compr_open,
+	.compr_hw_params = hda_dsp_compr_hw_params,
+	.compr_hw_free = hda_dsp_stream_compr_hw_free,
+	.compr_close = hda_dsp_compr_close,
+	.compr_trigger = hda_dsp_compr_trigger,
+	.compr_pointer = hda_dsp_compr_pointer,
+	.compr_get_dai_frame_counter = hda_dsp_compr_get_stream_llp,
+
 	.get_dai_frame_counter = hda_dsp_get_stream_llp,
 	.get_host_byte_counter = hda_dsp_get_stream_ldp,
 

@@ -156,5 +156,22 @@
 #define ACP7X_IDMA_ERROR_MASK			0x1FF9FF
 #define ACP7X_ZSC_DSP_CTRL			0x001014
 #define ACP7X_PME_EN				ACP70_PME_EN
+/* SW enable base for SDW0; manager N uses ACP7X_SW_EN + (N * 0x2000) */
+#define ACP7X_SW_EN				0x5200
+
+/* ACP7X SoundWire IO registers (non-gsync, up to 4 managers SW0-SW3) */
+#define ACP7X_EXTERNAL_SW_INTR_STAT		0x001A24
+#define ACP7X_SW_WAKE_EN			0x001458
+#define ACP7X_SW_PME_STS			0x001474
+#define ACP7X_SDW_STAT				BIT(23)
+#define ACP7X_ERROR_IRQ				BIT(29)
+#define ACP7X_SW_WAKE_EN_MASK			BIT(0)
+#define ACP7X_SW_HOST_WAKE_MASK			BIT(22)
+#define ACP7X_SDW_HOST_WAKE_STAT		BIT(24)
+#define ACP7X_SW_FIFO_ERROR_REASON		0x50C4
+#define ACP7X_SW_ERROR_REASON1			0x50CC
+#define ACP7X_SW_ERROR_REASON2			0x50D4
+#define ACP7X_EXTERNAL_SDW_STAT			BIT(16)
+#define ACP7X_SW_ERR_STAT_MASK			BIT(11)
 
 #endif

@@ -97,6 +97,7 @@ struct tas2783_prv {
 	u8 rca_binaryname[64];
 	u8 dev_name[32];
 	bool hw_init;
+	unsigned int fw_version;
 	/* wq for firmware download */
 	wait_queue_head_t fw_wait;
 	bool fw_dl_task_done;
@@ -185,35 +186,17 @@ static const struct reg_default tas2783_reg_default[] = {
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x01, 1), 0x1},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x0b, 1), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x01, 0), 0x1},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x06, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x07, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x09, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x0a, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS24, 0x02, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS21, 0x02, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS26, 0x02, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS28, 0x02, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PDE23, 0x1, 0), 0x3},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_SAPU29, 0x05, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x06, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU26, 0x06, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT21, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT21, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT29, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT29, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT26, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT26, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT28, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT28, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT24, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT24, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT23, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT23, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT25, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT25, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT28, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT28, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 1), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 2), 0x0},
@@ -222,40 +205,28 @@ static const struct reg_default tas2783_reg_default[] = {
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 5), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 6), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x01, 7), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x06, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x04, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x01, 0), 0x1},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x01, 1), 0x1},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x01, 2), 0x1},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x0b, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x0b, 1), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x0b, 2), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS127, 0x02, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x01, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x04, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x05, 0), 0x1},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x08, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x01, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x04, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x05, 0), 0x1},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x08, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU23, 0x10, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x10, 0), 0x1},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x12, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x13, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x14, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x15, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x16, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS24, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS21, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS26, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS28, 0x10, 0), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PDE23, 0x10, 0), 0x3},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_UDMPU23, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_SAPU29, 0x10, 0), 0x1},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_SAPU29, 0x11, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_SAPU29, 0x12, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x11, 0), 0x0},
@@ -286,7 +257,6 @@ static const struct reg_default tas2783_reg_default[] = {
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x12, 5), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x12, 6), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x12, 7), 0x0},
-	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_CS127, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x10, 0), 0x0},
 	{SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x11, 0), 0x0},
@@ -346,8 +316,10 @@ static int tas2783_sdca_mbq_size(struct device *dev, u32 reg)
 	case 0x300 ... 0x340: /* Data port 3. */
 	case 0x400 ... 0x440: /* Data port 4. */
 	case 0x500 ... 0x540: /* Data port 5. */
-	case 0x800000 ... 0x803fff: /* Page 0 ~ 127. */
-	case 0x807e80 ... 0x807eff: /* Page 253. */
+	case TASDEV_REG_SDW(0, 0, 0) ... TASDEV_REG_SDW(0x00, 0x01, 0x80):
+	case TASDEV_REG_SDW(0, 0xfd, 0) ... TASDEV_REG_SDW(0, 0xfd, 0x80):
+	case PRAM_ADDR_START ... PRAM_ADDR_END:
+	case YRAM_ADDR_START ... YRAM_ADDR_END:
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_UDMPU23,
 			  TAS2783_SDCA_CTL_UDMPU_CLUSTER, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU21, TAS2783_SDCA_CTL_FU_MUTE,
@@ -364,7 +336,6 @@ static int tas2783_sdca_mbq_size(struct device *dev, u32 reg)
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU26, 0x11, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_TG23, 0x10, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x01, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x08, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x0a, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x10, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x14, 0):
@@ -450,7 +421,6 @@ static int tas2783_sdca_mbq_size(struct device *dev, u32 reg)
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x0b, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x0b, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x0b, 1):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x07, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x09, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x12, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x12, 0):
@@ -462,27 +432,8 @@ static int tas2783_sdca_mbq_size(struct device *dev, u32 reg)
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT21, 0x11, 0):
 		return 2;
 
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU23, 0x10, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT21, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT26, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT28, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_IT29, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT23, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT24, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT25, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT28, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_OT127, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MU26, 0x06, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU127, 0x10, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU26, 0x10, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x06, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x12, 0):
 	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_XU22, 0x13, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU21, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_MFPU26, 0x08, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_SAPU29, 0x05, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x06, 0):
-	case SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU26, 0x06, 0):
 		return 4;
 
 	default:
@@ -495,59 +446,52 @@ static bool tas2783_readable_register(struct device *dev, unsigned int reg)
 	return tas2783_sdca_mbq_size(dev, reg) > 0;
 }
 
-static bool tas2783_writeable_register(struct device *dev, unsigned int reg)
+/*
+ * The read-only SDCA Controls the driver describes: the Clock Valid of every
+ * Clock Source, the actual power state of the Power Domain Entity, the
+ * protection status and the algorithm ready flags.  None of them is a
+ * setting; every one is a reading of device state.
+ */
+static bool tas2783_read_only_control(unsigned int reg)
 {
-	/*
-	 * The Latency Control of every Entity, together with the Power Domain
-	 * actual state and the protection status, is read-only. They are
-	 * listed in tas2783_reg_default[] with a placeholder value, so without
-	 * this a regcache_sync() would try to write them back and the
-	 * peripheral would reject the transaction, aborting the sync.
-	 */
 	switch (reg) {
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_FU21, 0x10, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_FU23, 0x10, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_FU26, 0x10, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_XU22, 0x06, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_XU22, 0x07, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_XU22, 0x08, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS24, 0x02, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS21, 0x02, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS25, 0x02, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS26, 0x02, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS28, 0x02, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_PDE23, 0x10, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_UDMPU23, 0x06, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_SAPU29, 0x05, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_SAPU29, 0x11, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_PPU21, 0x06, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_PPU26, 0x06, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_IT21, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_IT29, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_IT26, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_IT28, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_OT24, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_OT23, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_OT25, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_OT28, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_MU26, 0x06, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_OT127, 0x08, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_FU127, 0x10, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_CS127, 0x02, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_MFPU21, 0x08, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_MFPU21, 0x04, 0):
-	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_MFPU26, 0x08, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_MFPU26, 0x04, 0):
-		return false;
+		return true;
 
 	default:
-		return tas2783_sdca_mbq_size(dev, reg) > 0;
+		return false;
 	}
+}
+
+static bool tas2783_writeable_register(struct device *dev, unsigned int reg)
+{
+	if (tas2783_read_only_control(reg))
+		return false;
+
+	return tas2783_sdca_mbq_size(dev, reg) > 0;
 }
 
 static bool tas2783_volatile_register(struct device *dev, u32 reg)
 {
+	if (tas2783_read_only_control(reg))
+		return true;
+
 	switch (reg) {
+	/*
+	 * The File Download Status is a handshake: the device raises its own
+	 * bits on its own schedule and the host writes back a response, so it
+	 * is writable, but it must never be answered from the cache.
+	 */
+	case SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, TAS2783_SDCA_ENT_XU22, 0x14, 0):
 	case 0x000 ... 0x080: /* Data port 0. */
 	case 0x100 ... 0x140: /* Data port 1. */
 	case 0x200 ... 0x240: /* Data port 2. */
@@ -564,13 +508,19 @@ static bool tas2783_volatile_register(struct device *dev, u32 reg)
 
 static const struct regmap_config tas_regmap = {
 	.reg_bits = 32,
-	.val_bits = 8,
+	/*
+	 * tas2783_sdca_mbq_size() declares registers of one, two and four
+	 * bytes. val_bits has to cover the widest of those: the SoundWire MBQ
+	 * bus rejects any register whose declared size exceeds val_bits, which
+	 * would make every multi-byte register unreachable in both directions.
+	 */
+	.val_bits = 32,
 	.readable_reg = tas2783_readable_register,
 	.writeable_reg = tas2783_writeable_register,
 	.volatile_reg = tas2783_volatile_register,
 	.reg_defaults = tas2783_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(tas2783_reg_default),
-	.max_register = 0x41008000 + TASDEV_REG_SDW(0xa1, 0x60, 0x7f),
+	.max_register = 0x41000000 + PRAM_ADDR_END,
 	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
@@ -667,9 +617,9 @@ static s32 tas2783_validate_calibdata(struct tas2783_prv *tas_dev,
 
 static void tas2783_set_calib_params_to_device(struct tas2783_prv *tas_dev, u32 *cali_data)
 {
-	u32 dev_count, offset, i, device_num;
+	u32 dev_count, offset, i, j, device_num;
 	u32 reg_value;
-	u8 buf[4];
+	s32 ret;
 
 	dev_count = cali_data[1];
 	offset = 3;
@@ -683,12 +633,25 @@ static void tas2783_set_calib_params_to_device(struct tas2783_prv *tas_dev, u32 
 
 		for (i = 0; i < ARRAY_SIZE(tas2783_cali_reg); i++) {
 			reg_value = cali_data[offset + i];
-			buf[0] = reg_value >> 24;
-			buf[1] = reg_value >> 16;
-			buf[2] = reg_value >> 8;
-			buf[3] = reg_value & 0xff;
-			regmap_bulk_write(tas_dev->regmap, tas2783_cali_reg[i],
-					  buf, sizeof(u32));
+
+			/*
+			 * A calibration value occupies four consecutive
+			 * single-byte registers, most significant byte first.
+			 * Write them one by one: these registers are declared
+			 * as one byte wide by tas2783_sdca_mbq_size(), so a
+			 * multi-byte regmap access would not match the layout.
+			 */
+			for (j = 0; j < sizeof(u32); j++) {
+				ret = regmap_write(tas_dev->regmap,
+						   tas2783_cali_reg[i] + j,
+						   (reg_value >> (24 - 8 * j)) & 0xff);
+				if (ret) {
+					dev_err(tas_dev->dev,
+						"calib write to 0x%x failed, err=%d\n",
+						tas2783_cali_reg[i] + j, ret);
+					break;
+				}
+			}
 		}
 		break;
 	}
@@ -785,6 +748,7 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 	const u8 *buf = NULL;
 	s32  img_sz, ret = 0, cur_file = 0;
 	s32 offset = 0;
+	u32 val[4], fw_version;
 
 	struct tas_fw_hdr *hdr __free(kfree) = kzalloc_obj(*hdr);
 	struct tas_fw_file *file __free(kfree) = kzalloc_obj(*file);
@@ -826,6 +790,11 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 	}
 
 	mutex_lock(&tas_dev->pde_lock);
+	ret = regmap_bulk_read(tas_dev->regmap, TAS2783_FW_VERSION, &val, 4);
+	fw_version = (val[0] << 24) | (val[1] << 16) | (val[2] << 8) | val[3];
+	dev_dbg(tas_dev->dev, "Get Firmware version: %08x == %08x?, err=%d",
+		fw_version, tas_dev->fw_version, ret);
+
 	while (offset < (img_sz - FW_FL_HDR)) {
 		offset += tas_fw_get_next_file(&buf[offset], file);
 		dev_dbg(tas_dev->dev,
@@ -834,6 +803,13 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			file->version, file->length,
 			file->dest_addr, file->fw_data);
 
+		if (tas_dev->fw_version == fw_version &&
+		    file->dest_addr >= PRAM_ADDR_START &&
+		    (file->dest_addr + file->length) <= PRAM_ADDR_END) {
+			cur_file++;
+			dev_dbg(tas_dev->dev, "Ignore PRAM block");
+			continue;
+		}
 		ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
 				       file->dest_addr,
 				       file->length,
@@ -841,17 +817,34 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 		if (ret < 0) {
 			dev_err(tas_dev->dev,
 				"FW download failed: %d", ret);
-			break;
+			/*
+			 * We do retry here for some special case of download
+			 * failed after Power-On.
+			 */
+			ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
+					       file->dest_addr,
+					       file->length,
+					       file->fw_data);
+			if (ret < 0) {
+				dev_err(tas_dev->dev,
+					"FW download failed again: %d", ret);
+				break;
+			}
 		}
 		cur_file++;
 	}
 	mutex_unlock(&tas_dev->pde_lock);
+	regcache_drop_region(tas_dev->regmap, 0, UINT_MAX);
 
 	if (cur_file == 0) {
 		dev_err(tas_dev->dev, "fw with no files");
 		ret = -EINVAL;
 	} else {
 		tas2783_update_calibdata(tas_dev);
+		ret = regmap_bulk_read(tas_dev->regmap, TAS2783_FW_VERSION,
+					&val, 4);
+		tas_dev->fw_version = (val[0] << 24) | (val[1] << 16) |
+				       (val[2] << 8) | val[3];
 	}
 
 out:
@@ -1002,30 +995,6 @@ static s32 tas_sdw_hw_params(struct snd_pcm_substream *substream,
 	snd_sdw_params_to_config(substream, params,
 				 &stream_config, &port_config);
 
-	/*
-	 * The two mono amps each render one channel of the stereo stream:
-	 * snd_sdw_params_to_config() hands every codec the full mask for
-	 * playback, which leaves the pair in mirror mode and one channel
-	 * unreproduced.  Claim a single channel instead, keyed off the
-	 * machine-assigned component prefix rather than the SoundWire
-	 * address, which is board-specific: soc_sdw_ti_amp.c names the amps
-	 * tas2783-1..4.
-	 *
-	 * Which side an amp then renders does not follow from the bit that
-	 * is set - sdw_compute_slave_ports() advances the payload offset by
-	 * the popcount of ch_mask and never looks at which bit it is - but
-	 * from the amp's position in the codec order of the DAI link, which
-	 * on these boards matches the prefix numbering.
-	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-	    params_channels(params) == 2 && component->name_prefix) {
-		const char *idx_str = strrchr(component->name_prefix, '-');
-		unsigned long idx;
-
-		if (idx_str && !kstrtoul(idx_str + 1, 10, &idx) && idx)
-			port_config.ch_mask = (idx & 1) ? BIT(0) : BIT(1);
-	}
-
 	/* port 1 for playback */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		port_config.num = 1;
@@ -1114,7 +1083,7 @@ static const struct snd_soc_component_driver soc_codec_driver_tasdevice = {
 	.num_dapm_widgets = ARRAY_SIZE(tas_dapm_widgets),
 	.dapm_routes = tas_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(tas_audio_map),
-	.idle_bias_on = 1,
+	.idle_bias_on = 0,
 	.endianness = 1,
 };
 
@@ -1274,6 +1243,8 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 			ret = regmap_multi_reg_write(tas_dev->regmap, tas2783_init_seq,
 						     ARRAY_SIZE(tas2783_init_seq));
 
+		/* Re-active AMP after resume. */
+		regmap_write(tas_dev->regmap, TASDEV_REG_SDW(0, 0, 2), 0);
 		if (ret)
 			dev_err(tas_dev->dev,
 				"init writes failed, err=%d", ret);
@@ -1453,6 +1424,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	tas_dev->dev = dev;
 	tas_dev->sdw_peripheral = peripheral;
 	tas_dev->hw_init = false;
+	tas_dev->fw_version = 0;
 	mutex_init(&tas_dev->calib_lock);
 	mutex_init(&tas_dev->pde_lock);
 

@@ -199,28 +199,28 @@ examples:
   - |
     #include <dt-bindings/sound/cs42l42.h>
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      cs42l42: cs42l42@48 {
-          compatible = "cirrus,cs42l42";
-          reg = <0x48>;
-          VA-supply = <&dummy_vreg>;
-          VP-supply = <&dummy_vreg>;
-          VCP-supply = <&dummy_vreg>;
-          VD_FILT-supply = <&dummy_vreg>;
-          VL-supply = <&dummy_vreg>;
+        audio-codec@48 {
+            compatible = "cirrus,cs42l42";
+            reg = <0x48>;
+            VA-supply = <&dummy_vreg>;
+            VP-supply = <&dummy_vreg>;
+            VCP-supply = <&dummy_vreg>;
+            VD_FILT-supply = <&dummy_vreg>;
+            VL-supply = <&dummy_vreg>;
 
-          reset-gpios = <&axi_gpio_0 1 0>;
-          interrupt-parent = <&gpio0>;
-          interrupts = <55 8>;
+            reset-gpios = <&axi_gpio_0 1 0>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <55 8>;
 
-          cirrus,ts-inv = <CS42L42_TS_INV_DIS>;
-          cirrus,ts-dbnc-rise = <CS42L42_TS_DBNCE_1000>;
-          cirrus,ts-dbnc-fall = <CS42L42_TS_DBNCE_0>;
-          cirrus,btn-det-init-dbnce = <100>;
-          cirrus,btn-det-event-dbnce = <10>;
-          cirrus,bias-lvls = <0x0F 0x08 0x04 0x01>;
-          cirrus,hs-bias-ramp-rate = <CS42L42_HSBIAS_RAMP_SLOW>;
-      };
+            cirrus,ts-inv = <CS42L42_TS_INV_DIS>;
+            cirrus,ts-dbnc-rise = <CS42L42_TS_DBNCE_1000>;
+            cirrus,ts-dbnc-fall = <CS42L42_TS_DBNCE_0>;
+            cirrus,btn-det-init-dbnce = <100>;
+            cirrus,btn-det-event-dbnce = <10>;
+            cirrus,bias-lvls = <0x0F 0x08 0x04 0x01>;
+            cirrus,hs-bias-ramp-rate = <CS42L42_HSBIAS_RAMP_SLOW>;
+        };
     };

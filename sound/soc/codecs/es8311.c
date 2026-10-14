@@ -800,12 +800,29 @@ static int es8311_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static const u64 es8311_selectable_formats[] = {
+	/* Hi Priority */
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF,
+	/* Low Priority */
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF,
+};
+
 static const struct snd_soc_dai_ops es8311_dai_ops = {
 	.startup = es8311_startup,
 	.hw_params = es8311_hw_params,
 	.mute_stream = es8311_mute,
 	.set_sysclk = es8311_set_sysclk,
 	.set_fmt = es8311_set_dai_fmt,
+	.auto_selectable_formats = es8311_selectable_formats,
+	.num_auto_selectable_formats = ARRAY_SIZE(es8311_selectable_formats),
 	.no_capture_mute = 1,
 };
 
@@ -889,12 +906,6 @@ static int es8311_component_probe(struct snd_soc_component *component)
 
 	es8311 = snd_soc_component_get_drvdata(component);
 
-	es8311->mclk = devm_clk_get_optional(component->dev, "mclk");
-	if (IS_ERR(es8311->mclk)) {
-		dev_err(component->dev, "invalid mclk\n");
-		return PTR_ERR(es8311->mclk);
-	}
-
 	es8311->mclk_freq = clk_get_rate(es8311->mclk);
 	if (es8311->mclk_freq > 0 && es8311->mclk_freq < ES8311_MCLK_MAX_FREQ)
 		es8311_set_sysclk_constraints(es8311->mclk_freq, es8311);
@@ -942,6 +953,10 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client)
 	es8311 = devm_kzalloc(dev, sizeof(*es8311), GFP_KERNEL);
 	if (es8311 == NULL)
 		return -ENOMEM;
+
+	es8311->mclk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(es8311->mclk))
+		return dev_err_probe(dev, PTR_ERR(es8311->mclk), "invalid mclk\n");
 
 	es8311->regmap =
 		devm_regmap_init_i2c(i2c_client, &es8311_regmap_config);

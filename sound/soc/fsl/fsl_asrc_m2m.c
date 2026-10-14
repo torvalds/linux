@@ -320,7 +320,7 @@ static int fsl_asrc_m2m_comp_open(struct snd_compr_stream *stream)
 	if (ret)
 		goto error_alloc_out_buf;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to power up asrc\n");
 		goto err_pm_runtime;
@@ -466,6 +466,7 @@ static int fsl_asrc_m2m_comp_task_create(struct snd_compr_stream *stream,
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 	struct device *dev = &asrc->pdev->dev;
+	struct dma_chan *tmp_chan;
 	int ret;
 
 	exp_info_in.ops = &fsl_asrc_m2m_dma_buf_ops;
@@ -502,19 +503,21 @@ static int fsl_asrc_m2m_comp_task_create(struct snd_compr_stream *stream,
 	}
 
 	/* Request dma channels */
-	pair->dma_chan[IN] = asrc->get_dma_channel(pair, IN);
-	if (!pair->dma_chan[IN]) {
+	tmp_chan = asrc->get_dma_channel(pair, IN);
+	ret = PTR_ERR_OR_ZERO(tmp_chan);
+	if (ret) {
 		dev_err(dev, "[ctx%d] failed to get input DMA channel\n", pair->index);
-		ret = -EBUSY;
 		goto err_dma_channel_in;
 	}
+	pair->dma_chan[IN] = tmp_chan;
 
-	pair->dma_chan[OUT] = asrc->get_dma_channel(pair, OUT);
-	if (!pair->dma_chan[OUT]) {
+	tmp_chan = asrc->get_dma_channel(pair, OUT);
+	ret = PTR_ERR_OR_ZERO(tmp_chan);
+	if (ret) {
 		dev_err(dev, "[ctx%d] failed to get output DMA channel\n", pair->index);
-		ret = -EBUSY;
 		goto err_dma_channel_out;
 	}
+	pair->dma_chan[OUT] = tmp_chan;
 
 	return 0;
 

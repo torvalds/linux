@@ -1366,26 +1366,11 @@ static int aic31xx_set_jack(struct snd_soc_component *component,
 static int aic31xx_codec_probe(struct snd_soc_component *component)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
-	int i, ret;
+	int ret;
 
 	dev_dbg(aic31xx->dev, "## %s\n", __func__);
 
 	aic31xx->component = component;
-
-	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++) {
-		aic31xx->disable_nb[i].nb.notifier_call =
-			aic31xx_regulator_event;
-		aic31xx->disable_nb[i].aic31xx = aic31xx;
-		ret = devm_regulator_register_notifier(
-						aic31xx->supplies[i].consumer,
-						&aic31xx->disable_nb[i].nb);
-		if (ret) {
-			dev_err(component->dev,
-				"Failed to request regulator notifier: %d\n",
-				ret);
-			return ret;
-		}
-	}
 
 	regcache_cache_only(aic31xx->regmap, true);
 	regcache_mark_dirty(aic31xx->regmap);
@@ -1422,11 +1407,22 @@ static const struct snd_soc_component_driver soc_codec_driver_aic31xx = {
 	.endianness		= 1,
 };
 
+static const u64 aic31xx_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 	.hw_params	= aic31xx_hw_params,
 	.set_sysclk	= aic31xx_set_dai_sysclk,
 	.set_fmt	= aic31xx_set_dai_fmt,
 	.mute_stream	= aic31xx_dac_mute,
+	.auto_selectable_formats	= &aic31xx_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 
@@ -1790,6 +1786,19 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 				      aic31xx->supplies);
 	if (ret)
 		return dev_err_probe(aic31xx->dev, ret, "Failed to request supplies\n");
+
+	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++) {
+		aic31xx->disable_nb[i].nb.notifier_call = aic31xx_regulator_event;
+		aic31xx->disable_nb[i].aic31xx = aic31xx;
+		ret = devm_regulator_register_notifier(aic31xx->supplies[i].consumer,
+						       &aic31xx->disable_nb[i].nb);
+		if (ret) {
+			dev_err(aic31xx->dev,
+				"Failed to request regulator notifier: %d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	aic31xx_configure_ocmv(aic31xx);
 

@@ -40,6 +40,8 @@ static const struct sof_amd_acp_desc acp7x_chip_info = {
 	.fusion_dsp_offset = ACP7X_DSP_FUSION_RUNSTALL,
 	.probe_reg_offset = ACP7X_FUTURE_REG_ACLK_0,
 	.reg_start_addr	= ACP7X_REG_START,
+	.sdw_max_link_count = ACP7X_SDW_MAX_MANAGER_COUNT,
+	.sdw_acpi_dev_addr = SDW_ACPI_ADDR_ACP7X,
 	.reg_end_addr	= ACP7X_REG_END,
 };
 

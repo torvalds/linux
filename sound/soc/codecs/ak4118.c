@@ -236,9 +236,16 @@ static int ak4118_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/* NOTE: Common formats only are auto detected */
+static const u64 ak4118_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops ak4118_dai_ops = {
 	.hw_params = ak4118_hw_params,
 	.set_fmt   = ak4118_set_dai_fmt,
+	.auto_selectable_formats	= &ak4118_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ak4118_dai = {

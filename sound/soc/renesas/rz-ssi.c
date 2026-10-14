@@ -900,6 +900,13 @@ static int rz_ssi_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 rz_ssi_dai_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops rz_ssi_dai_ops = {
 	.probe		= rz_ssi_dai_probe,
 	.startup	= rz_ssi_startup,
@@ -907,6 +914,8 @@ static const struct snd_soc_dai_ops rz_ssi_dai_ops = {
 	.trigger	= rz_ssi_dai_trigger,
 	.set_fmt	= rz_ssi_dai_set_fmt,
 	.hw_params	= rz_ssi_dai_hw_params,
+	.auto_selectable_formats	= &rz_ssi_dai_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static const struct snd_pcm_hardware rz_ssi_pcm_hardware = {

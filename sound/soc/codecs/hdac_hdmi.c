@@ -1753,7 +1753,7 @@ static int hdmi_codec_resume(struct device *dev)
 	/*
 	 * As the ELD notify callback request is not entertained while the
 	 * device is in suspend state. Need to manually check detection of
-	 * all pins here. pin capablity change is not support, so use the
+	 * all pins here. pin capability change is not support, so use the
 	 * already set pin caps.
 	 *
 	 * NOTE: this is safe to call even if the codec doesn't actually resume.

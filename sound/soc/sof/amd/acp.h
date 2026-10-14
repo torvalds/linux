@@ -125,6 +125,17 @@
 #define ACP_SRAM_PAGE_COUNT			128
 #define ACP6X_SDW_MAX_MANAGER_COUNT		2
 #define ACP70_SDW_MAX_MANAGER_COUNT		ACP6X_SDW_MAX_MANAGER_COUNT
+/* ACPI _DSD acp-audio-ep-port values for PDM controller selection */
+#define ACP_DEV_PORT_PDM			4
+#define ACP_DEV_PORT_PDM2			5
+#define SDW_ACPI_ADDR_ACP7X			SDW_ACPI_ADDR_ACP63
+#define ACP7X_SDW_MAX_MANAGER_COUNT		4
+
+/* ACPI child device address for the ACP7x PDM/DMIC device */
+#define ACP7X_DMIC_ADDR				2
+/* ACP7X PDM controller selection values for acp_dev_data.pdm_sel; 0 = not set */
+#define ACP7X_PDM_DMIC0				1
+#define ACP7X_PDM_DMIC1				2
 #define ACP_DSP_MSG_SET				1
 #define ACP_DSP_ACK_SET				1
 
@@ -279,6 +290,11 @@ struct acp_dev_data {
 	bool acp70_sdw0_wake_event;
 	/* acp70_sdw1_wake_event flag set to true when wake irq asserted for SW1 instance */
 	bool acp70_sdw1_wake_event;
+	/* per-manager wake event flags; indexed by SoundWire manager instance (0-3) */
+	bool acp7x_sdw_wake_event[ACP7X_SDW_MAX_MANAGER_COUNT];
+	/* PDM controller index selected from ACPI acp-audio-ep-port; passed to machine driver */
+	unsigned int pdm_sel;
+	bool is_sdw_dev;
 	unsigned int pci_rev;
 	int acp_sof_signed_firmware_image;
 };

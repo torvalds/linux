@@ -1673,7 +1673,7 @@ static const struct regmap_config rx_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32, /* 8 but with 32 bit read/write */
 	.reg_stride = 4,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = RX_MAX_OFFSET,
 	.writeable_reg = rx_is_writeable_register,
 	.volatile_reg = rx_is_volatile_register,
@@ -3732,8 +3732,8 @@ static int rx_macro_register_mclk_output(struct rx_macro *rx)
 	struct device *dev = rx->dev;
 	const char *parent_clk_name = NULL;
 	const char *clk_name = "lpass-rx-mclk";
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (rx->npl)
@@ -3851,6 +3851,8 @@ static int rx_macro_probe(struct platform_device *pdev)
 		dev_err(dev, "Unsupported Codec version (%d)\n", rx->codec_version);
 		return -EINVAL;
 	}
+
+	regcache_sort_defaults(reg_defaults, def_count);
 
 	struct regmap_config *reg_config __free(kfree) = kmemdup(&rx_regmap_config,
 								 sizeof(*reg_config),

@@ -29,6 +29,7 @@ struct cs35l56_shared_test_priv {
 	struct faux_device *gpio_dev;
 	struct cs35l56_shared_test_mock_gpio *gpio_priv;
 	struct regmap *registers;
+	const struct regmap_config *regmap_config;
 	unsigned int reg_offset;
 	struct cs35l56_base *cs35l56_base;
 	u8 applied_pad_pull_state[CS35L56_MAX_GPIO];
@@ -614,6 +615,55 @@ static void cs35l56_shared_test_get_speaker_id_from_host_gpio(struct kunit *test
 	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), param->spkid);
 }
 
+static void cs35l56_shared_test_sorted_regmap_defaults(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	const struct reg_default *defaults;
+	int i;
+
+	KUNIT_ASSERT_NOT_NULL(test, priv->regmap_config);
+	defaults = priv->regmap_config->reg_defaults;
+	KUNIT_ASSERT_NOT_NULL(test, defaults);
+	KUNIT_ASSERT_NE(test, priv->regmap_config->num_reg_defaults, 0);
+
+	for (i = 1; i < priv->regmap_config->num_reg_defaults; i++)
+		KUNIT_EXPECT_LT(test, defaults[i - 1].reg, defaults[i].reg);
+}
+
+static void cs35l56_shared_test_regmap_defaults_not_volatile(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	struct cs35l56_base *cs35l56_base = priv->cs35l56_base;
+	const struct regmap_config *config = priv->regmap_config;
+	int i;
+
+	KUNIT_ASSERT_NOT_NULL(test, config);
+	KUNIT_ASSERT_NOT_NULL(test, config->volatile_reg);
+
+	for (i = 0; i < config->num_reg_defaults; i++) {
+		KUNIT_EXPECT_FALSE(test,
+				   config->volatile_reg(cs35l56_base->dev,
+							config->reg_defaults[i].reg));
+	}
+}
+
+static void cs35l56_shared_test_regmap_defaults_readable(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	struct cs35l56_base *cs35l56_base = priv->cs35l56_base;
+	const struct regmap_config *config = priv->regmap_config;
+	int i;
+
+	KUNIT_ASSERT_NOT_NULL(test, config);
+	KUNIT_ASSERT_NOT_NULL(test, config->readable_reg);
+
+	for (i = 0; i < config->num_reg_defaults; i++) {
+		KUNIT_EXPECT_TRUE(test,
+				  config->readable_reg(cs35l56_base->dev,
+						       config->reg_defaults[i].reg));
+	}
+}
+
 static int cs35l56_shared_test_case_regmap_init(struct kunit *test,
 						const struct regmap_config *regmap_config)
 {
@@ -644,6 +694,8 @@ static int cs35l56_shared_test_case_regmap_init(struct kunit *test,
 	KUNIT_ASSERT_EQ(test, 0,
 			kunit_add_action_or_reset(test, regmap_exit_wrapper,
 						  cs35l56_base->regmap));
+
+	priv->regmap_config = regmap_config;
 
 	return 0;
 }
@@ -861,6 +913,10 @@ static struct kunit_case cs35l56_shared_test_cases[] = {
 	KUNIT_CASE_PARAM_ATTR(cs35l56_shared_test_get_speaker_id_from_host_gpio,
 			      cs35l56_shared_test_host_gpio_spkid_gen_params,
 			      { KUNIT_SPEED_SLOW }),
+
+	KUNIT_CASE(cs35l56_shared_test_sorted_regmap_defaults),
+	KUNIT_CASE(cs35l56_shared_test_regmap_defaults_not_volatile),
+	KUNIT_CASE(cs35l56_shared_test_regmap_defaults_readable),
 
 	{ }
 };

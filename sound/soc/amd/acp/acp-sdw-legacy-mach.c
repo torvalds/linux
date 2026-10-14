@@ -265,6 +265,14 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			if (!soc_end->dai_info->direction[stream])
 				continue;
 
+			/*
+			 * skip adding reference stream for amp type
+			 * as legacy AMD doesn't use the DSP.
+			 */
+			if (soc_end->dai_info->dai_type == SOC_SDW_DAI_TYPE_AMP &&
+			    stream == SNDRV_PCM_STREAM_CAPTURE)
+				continue;
+
 			int link_num = ffs(soc_end->link_mask) - 1;
 
 			cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
@@ -447,6 +455,30 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 		return ret;
 
 	sdw_be_num = ret;
+
+	/*
+	 * Legacy AMD has no DSP, so AMP reference capture streams are not
+	 * supported. Subtract them from num_devs so create_sdw_dailink()
+	 * uses the correct count directly, and decrement sdw_be_num when
+	 * all capture endpoints on a DAI are AMP type.
+	 */
+	for (int i = 0; i < num_ends; i++) {
+		struct asoc_sdw_dailink *d = &soc_dais[i];
+		struct asoc_sdw_endpoint *e;
+
+		if (!d->initialised)
+			break;
+		if (!d->num_devs[SNDRV_PCM_STREAM_CAPTURE])
+			continue;
+
+		list_for_each_entry(e, &d->endpoints, list) {
+			if (e->dai_info->direction[SNDRV_PCM_STREAM_CAPTURE] &&
+			    e->dai_info->dai_type == SOC_SDW_DAI_TYPE_AMP)
+				d->num_devs[SNDRV_PCM_STREAM_CAPTURE]--;
+		}
+		if (!d->num_devs[SNDRV_PCM_STREAM_CAPTURE])
+			sdw_be_num--;
+	}
 
 	/* enable dmic */
 	if (soc_sdw_quirk & ASOC_SDW_ACP_DMIC)

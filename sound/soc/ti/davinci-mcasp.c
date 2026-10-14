@@ -799,6 +799,7 @@ static int __davinci_mcasp_set_clkdiv(struct davinci_mcasp *mcasp, int div_id,
 		break;
 
 	default:
+		pm_runtime_put(mcasp->dev);
 		return -EINVAL;
 	}
 
@@ -1818,7 +1819,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	    !mcasp->async_mode)
 		max_channels = mcasp->channels;
 	/*
-	 * But we can always allow channels upto the amount of
+	 * But we can always allow channels up to the amount of
 	 * the available tdm_slots.
 	 */
 	if (max_channels < tdm_slots)
@@ -1993,6 +1994,18 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 davinci_mcasp_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_AC97	|
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF;
+
 static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 	.probe		= davinci_mcasp_dai_probe,
 	.startup	= davinci_mcasp_startup,
@@ -2004,6 +2017,8 @@ static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 	.set_clkdiv	= davinci_mcasp_set_clkdiv,
 	.set_sysclk	= davinci_mcasp_set_sysclk,
 	.set_tdm_slot	= davinci_mcasp_set_tdm_slot,
+	.auto_selectable_formats	= &davinci_mcasp_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define DAVINCI_MCASP_RATES	SNDRV_PCM_RATE_8000_192000
