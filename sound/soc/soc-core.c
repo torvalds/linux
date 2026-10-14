@@ -771,18 +771,6 @@ static void soc_resume_init(struct snd_soc_card *card)
 static inline void soc_resume_init(struct snd_soc_card *card) { }
 #endif
 
-static struct device_node
-*soc_component_to_node(struct snd_soc_component *component)
-{
-	struct device_node *of_node;
-
-	of_node = component->dev->of_node;
-	if (!of_node && component->dev->parent)
-		of_node = component->dev->parent->of_node;
-
-	return of_node;
-}
-
 struct of_phandle_args *snd_soc_copy_dai_args(struct device *dev,
 					      const struct of_phandle_args *args)
 {
@@ -815,7 +803,7 @@ static int snd_soc_is_matching_component(
 		return 0;
 	}
 
-	component_of_node = soc_component_to_node(component);
+	component_of_node = snd_soc_component_to_node(component);
 
 	if (dlc->of_node && component_of_node != dlc->of_node)
 		return 0;
@@ -1339,7 +1327,7 @@ err:
 static void soc_set_name_prefix(struct snd_soc_card *card,
 				struct snd_soc_component *component)
 {
-	struct device_node *of_node = soc_component_to_node(component);
+	struct device_node *of_node = snd_soc_component_to_node(component);
 	const char *str;
 	int ret, i;
 
@@ -3268,7 +3256,7 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 	guard(mutex)(&client_mutex);
 
 	for_each_component(pos) {
-		struct device_node *component_of_node = soc_component_to_node(pos);
+		struct device_node *component_of_node = snd_soc_component_to_node(pos);
 
 		if (component_of_node != args->np || !pos->num_dai)
 			continue;

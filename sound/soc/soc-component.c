@@ -1276,3 +1276,14 @@ int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream)
 
 	return 0;
 }
+
+struct device_node *snd_soc_component_to_node(struct snd_soc_component *component)
+{
+	struct device_node *of_node;
+
+	of_node = component->dev->of_node;
+	if (!of_node && component->dev->parent)
+		of_node = component->dev->parent->of_node;
+
+	return of_node;
+}
