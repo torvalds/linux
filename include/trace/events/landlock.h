@@ -278,11 +278,12 @@ static inline const char *__trace_landlock_print_layers(
  * Every denial event shares three fields.  domain is the ID of the
  * innermost domain that blocked the access.  same_exec tells whether the
  * current task is the same executable that entered that domain.  logged is
- * the domain's audit-logging decision for this denial (its log_status is
- * enabled and the per-execution flag selected by same_exec is set); a
- * stateless ftrace filter can select the denials the domain submits to
- * audit with logged==1, without reconstructing it from the per-execution
- * log flags.  Denial events order their shared fields as domain, same_exec,
+ * the complete audit-submission selection for this denial: the domain's
+ * log_status and per-execution flag, per-object or per-member quiet rules,
+ * and request-specific no-audit options.  This excludes global audit state
+ * and audit-side filters.  A stateless ftrace filter can select the denials
+ * the domain submits to audit with logged==1, without reconstructing those
+ * inputs.  Denial events order their shared fields as domain, same_exec,
  * and logged.  Access and permission denial events follow these with the
  * blockers verdict input, type-specific fields, and any variable-length field.
  *

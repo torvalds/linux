@@ -33,14 +33,14 @@
  * (and that they have tested with a kernel that supported them all).
  *
  * @quiet_access_fs and @quiet_access_net are bitmasks of actions for which a
- * denial by this layer will not trigger a log if the corresponding object (or
- * its children, for filesystem rules) is marked with the "quiet" bit via
- * %LANDLOCK_ADD_RULE_QUIET, even if logging would normally take place per
+ * denial by this layer will not trigger an audit record if the corresponding
+ * object (or its children, for filesystem rules) is marked with the "quiet" bit
+ * via %LANDLOCK_ADD_RULE_QUIET, even if logging would normally take place per
  * landlock_restrict_self() flags.  @quiet_scoped is similar, except that it
  * does not require marking any objects as quiet - if the ruleset is created
  * with any bits set in @quiet_scoped, then denial of such scoped resources will
- * not trigger any log.  These 3 fields are available since Landlock ABI version
- * 10.
+ * not trigger an audit record.  These three fields are available since Landlock
+ * ABI version 10.
  *
  * @quiet_access_fs, @quiet_access_net and @quiet_scoped must be a subset of
  * @handled_access_fs, @handled_access_net and @scoped respectively.
@@ -66,16 +66,17 @@ struct landlock_ruleset_attr {
 	__u64 scoped;
 	/**
 	 * @quiet_access_fs: Bitmask of filesystem actions which should not be
-	 * logged if per-object quiet flag is set.
+	 * submitted to audit if the per-object quiet flag is set.
 	 */
 	__u64 quiet_access_fs;
 	/**
 	 * @quiet_access_net: Bitmask of network actions which should not be
-	 * logged if per-object quiet flag is set.
+	 * submitted to audit if the per-object quiet flag is set.
 	 */
 	__u64 quiet_access_net;
 	/**
-	 * @quiet_scoped: Bitmask of scoped actions which should not be logged.
+	 * @quiet_scoped: Bitmask of scoped actions which should not be
+	 * submitted to audit.
 	 */
 	__u64 quiet_scoped;
 	/**

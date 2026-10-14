@@ -7,7 +7,7 @@ Landlock: system-wide management
 ================================
 
 :Author: Mickaël Salaün
-:Date: August 2026
+:Date: October 2026
 
 Landlock can leverage the audit framework to log events.
 
@@ -20,10 +20,12 @@ Audit
 Denied access requests are logged by default for a sandboxed program if `audit`
 is enabled.  This default behavior can be changed with the
 sys_landlock_restrict_self() flags (cf.
-Documentation/userspace-api/landlock.rst), or suppressed on a per-object
-basis by using ``LANDLOCK_ADD_RULE_QUIET`` (ABI 10+).  Landlock logs can
-also be masked thanks to audit rules.  Landlock can generate 2 audit
-record types.
+Documentation/userspace-api/landlock.rst), suppressed on a per-object
+basis by using ``LANDLOCK_ADD_RULE_QUIET`` (ABI 10+), or suppressed for
+specific capability or namespace members with the corresponding permission
+rule's ``quiet_*`` field (ABI 12+).  Quiet rules only suppress audit submission;
+they do not suppress denial trace events.  Landlock logs can also be masked
+thanks to audit rules.  Landlock can generate two audit record types.
 
 Record types
 ------------
@@ -65,14 +67,28 @@ AUDIT_LANDLOCK_ACCESS
         - scope.abstract_unix_socket - Abstract UNIX socket connection denied
         - scope.signal - Signal sending denied
 
+    **namespace.*** - Namespace restrictions (ABI 12+):
+        - namespace.use - Namespace use was denied (creation via
+          :manpage:`unshare(2)`, :manpage:`clone(2)`, :manpage:`clone3(2)`,
+          :manpage:`open_tree(2)`, or :manpage:`fsmount(2)`, or joining via
+          :manpage:`setns(2)`);
+          ``namespace_type`` indicates the type (hex ``CLONE_NEW*`` bitmask),
+          and ``namespace_id`` identifies the target namespace for
+          :manpage:`setns(2)` operations (zero for creation)
+
+    **capability.*** - Capability restrictions (ABI 12+):
+        - capability.use - Capability use was denied;
+          ``capability`` indicates the capability number
+
     Multiple blockers can appear in a single event (comma-separated) when
     multiple access rights are missing. For example, creating a regular file
     in a directory that lacks both ``make_reg`` and ``refer`` rights would show
     ``blockers=fs.make_reg,fs.refer``.
 
-    The object identification fields (path, dev, ino for filesystem; opid,
-    ocomm for signals) depend on the type of access being blocked and provide
-    context about what resource was involved in the denial.
+    The object identification fields depend on the type of access being blocked:
+    ``path``, ``dev``, ``ino`` for filesystem; ``opid``, ``ocomm`` for signals;
+    ``namespace_type`` and ``namespace_id`` for namespace operations;
+    ``capability`` for capability use.
 
 
 AUDIT_LANDLOCK_DOMAIN
@@ -178,8 +194,9 @@ If you get spammed with audit logs related to Landlock, this is either an
 attack attempt or a bug in the security policy.  We can put in place some
 filters to limit noise with two complementary ways:
 
-- with sys_landlock_restrict_self()'s flags, or
-  ``LANDLOCK_ADD_RULE_QUIET`` (ABI 10+) if we can fix the sandboxed
+- with sys_landlock_restrict_self()'s flags,
+  ``LANDLOCK_ADD_RULE_QUIET`` (ABI 10+), or the permission rules'
+  per-member ``quiet_*`` fields (ABI 12+) if we can fix the sandboxed
   programs,
 - or with audit rules (see :manpage:`auditctl(8)`).
 
@@ -243,8 +260,10 @@ with these exceptions:
 
 - **NOAUDIT hooks**: Some LSM hooks suppress logging for speculative
   permission probes (e.g., reading ``/proc/<pid>/status`` uses
-  ``PTRACE_MODE_NOAUDIT``).  When NOAUDIT is set, neither audit records
-  nor trace events are emitted, and the denial is not counted in
+  ``PTRACE_MODE_NOAUDIT``, and :manpage:`listxattr(2)` probes
+  ``CAP_SYS_ADMIN`` with ``CAP_OPT_NOAUDIT`` to decide whether to list
+  ``trusted.*`` extended attributes).  When NOAUDIT is set, neither audit
+  records nor trace events are emitted, and the denial is not counted in
   ``denials``.  The denial is still enforced.  This avoids performance
   overhead and noise from speculative probes that test permissions
   without performing an actual access.
@@ -269,7 +288,8 @@ Observability security considerations
 
 Both audit records and trace events expose information about all
 Landlock-sandboxed processes on the system, including filesystem paths
-being accessed, network ports, and process identities.  System
+being accessed, network ports, capability numbers, namespace types and IDs,
+and process identities.  System
 administrators must ensure that access to audit logs (controlled by the
 audit subsystem configuration) and to trace events (requiring
 ``CAP_SYS_ADMIN`` or ``CAP_BPF`` + ``CAP_PERFMON``) is restricted to
