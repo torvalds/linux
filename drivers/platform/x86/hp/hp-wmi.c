@@ -239,6 +239,7 @@ static const char * const omen_timed_thermal_profile_boards[] = {
 static const char * const victus_thermal_profile_boards[] = {
 	"88F8",
 	"8A25",
+	"8A26",
 };
 
 /* DMI board-specific feature data for Omen and Victus laptops. */
