@@ -2252,6 +2252,11 @@ struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
 			}
 			if (!(flag & CL_COPY_MNT_NS_FILE) &&
 			    is_mnt_ns_file(src_mnt->mnt.mnt_root)) {
+				if (src_mnt->mnt.mnt_flags & MNT_LOCKED) {
+					/* Both a mount namespace file and locked. */
+					dst_mnt = ERR_PTR(-EPERM);
+					goto out;
+				}
 				src_mnt = skip_mnt_tree(src_mnt);
 				continue;
 			}
@@ -3647,8 +3652,9 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * @mnt_to:   mount under which to mount
  * @mp:   mountpoint of @mnt_to
  *
- * - Make sure that the caller can unmount the topmost mount ensuring
- *   that the caller could reveal the underlying mountpoint.
+ * - Make sure that @mnt_from can take over the lock of @mnt_to. A
+ *   mount of a mount namespace file is left out of a copy of the tree
+ *   and can't.
  * - Ensure that nothing has been mounted on top of @mnt_from before we
  *   grabbed @namespace_sem to avoid creating pointless shadow mounts.
  * - Prevent mounting beneath a mount if the propagation relationship
@@ -3663,6 +3669,15 @@ static int can_move_mount_beneath(const struct mount *mnt_from,
 				  struct pinned_mountpoint *mp)
 {
 	struct mount *parent_mnt_to = mnt_to->mnt_parent;
+
+	/*
+	 * @mnt_from takes over the lock of @mnt_to. copy_tree() leaves a
+	 * mount of a mount namespace file out of every copy made without
+	 * CL_COPY_MNT_NS_FILE, together with what is mounted on it, so it
+	 * can't keep anything hidden.
+	 */
+	if (IS_MNT_LOCKED(mnt_to) && is_mnt_ns_file(mnt_from->mnt.mnt_root))
+		return -EINVAL;
 
 	/* Avoid creating shadow mounts during mount propagation. */
 	if (mnt_from->overmount)
