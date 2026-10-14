@@ -182,11 +182,11 @@ struct landlock_ruleset {
 #endif /* CONFIG_TRACEPOINTS */
 
 	/**
-	 * @quiet_masks: Stores the quiet flags for an unmerged ruleset.  For a
+	 * @quiet_access: Stores the quiet flags for an unmerged ruleset.  For a
 	 * merged domain, this is stored in each layer's struct
 	 * landlock_hierarchy instead.
 	 */
-	struct access_masks quiet_masks;
+	struct access_masks quiet_access;
 	/**
 	 * @handled_masks: Contains the subset of filesystem and network actions
 	 * that are handled by this ruleset.

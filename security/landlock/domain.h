@@ -130,10 +130,10 @@ struct landlock_hierarchy {
 		 */
 		log_new_exec : 1;
 	/**
-	 * @quiet_masks: Bitmasks of access that should be quieted (i.e. not
+	 * @quiet_access: Bitmasks of access that should be quieted (i.e. not
 	 * logged) if the related object is marked as quiet.
 	 */
-	struct access_masks quiet_masks;
+	struct access_masks quiet_access;
 #endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 };
 
