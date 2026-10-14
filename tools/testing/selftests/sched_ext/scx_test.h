@@ -126,6 +126,23 @@ void scx_test_register(struct scx_test *test);
 				 (__skel)->data->__uei.msg);			\
 	} while (0)
 
+/*
+ * SCX_TIMED_WAIT_UEI - Wait for the scheduler under test to exit, i.e.
+ * its uei to be filled in, for up to @__ms iterations at ~1ms each.
+ * Returns true if the scheduler exited and false on timeout, so a
+ * scheduler that never exits fails the test instead of hanging it.
+ * The bound is iteration-based rather than wall-clock and stretches
+ * on a loaded system instead of failing early.
+ */
+#define SCX_TIMED_WAIT_UEI(__skel, __uei, __ms)					\
+	({									\
+		s64 __left = (__ms);						\
+										\
+		while (__left-- > 0 && !UEI_EXITED(__skel, __uei))		\
+			usleep(1000);						\
+		UEI_EXITED(__skel, __uei) != 0;					\
+	})
+
 #define SCX_ECODE_VAL(__ecode) ({						\
         u64 __val = 0;								\
 	bool __found = false;							\

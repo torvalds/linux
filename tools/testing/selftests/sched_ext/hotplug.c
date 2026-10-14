@@ -85,8 +85,10 @@ static enum scx_test_status test_hotplug(bool onlining, bool cbs_defined)
 	if (toggle_online_status(onlining ? 1 : 0))
 		goto out_destroy_link;
 
-	while (!UEI_EXITED(skel, uei))
-		sched_yield();
+	if (!SCX_TIMED_WAIT_UEI(skel, uei, 10000)) {
+		SCX_ERR("Timed out waiting for scheduler to exit");
+		goto out_destroy_link;
+	}
 
 	SCX_EQ(skel->data->uei.kind, kind);
 	SCX_EQ(UEI_REPORT(skel, uei), code);
@@ -130,8 +132,10 @@ static enum scx_test_status test_hotplug_attach(void)
 		goto out_destroy_link;
 
 	SCX_ASSERT(link);
-	while (!UEI_EXITED(skel, uei))
-		sched_yield();
+	if (!SCX_TIMED_WAIT_UEI(skel, uei, 10000)) {
+		SCX_ERR("Timed out waiting for scheduler to exit");
+		goto out_destroy_link;
+	}
 
 	kind = SCX_KIND_VAL(SCX_EXIT_UNREG_KERN);
 	code = SCX_ECODE_VAL(SCX_ECODE_ACT_RESTART) |
