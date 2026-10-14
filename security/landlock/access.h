@@ -42,14 +42,17 @@ static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_FS);
 static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_NET);
 /* Makes sure all scoped rights can be stored. */
 static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_SCOPE);
+/* Makes sure all permissions can be stored. */
+static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_PERMISSION);
 /* Makes sure for_each_set_bit() and for_each_clear_bit() calls are OK. */
 static_assert(sizeof(unsigned long) >= sizeof(access_mask_t));
 
-/* Access masks (bitfields only). */
+/* Access and permission masks (bitfields only). */
 struct access_masks {
 	access_mask_t fs : LANDLOCK_NUM_ACCESS_FS;
 	access_mask_t net : LANDLOCK_NUM_ACCESS_NET;
 	access_mask_t scope : LANDLOCK_NUM_SCOPE;
+	access_mask_t permissions : LANDLOCK_NUM_PERMISSION;
 } __packed __aligned(sizeof(u32));
 
 union access_masks_all {
@@ -62,15 +65,33 @@ static_assert(sizeof(typeof_member(union access_masks_all, masks)) ==
 	      sizeof(typeof_member(union access_masks_all, all)));
 
 /**
+ * struct permission_masks - Per-permission member bitmasks
+ */
+struct permission_masks {
+	/**
+	 * @ns_types: Namespace type member mask, indexed in FOR_EACH_NS_TYPE()
+	 * order.
+	 */
+	u64 ns_types : LANDLOCK_NUM_NAMESPACE_TYPE;
+} __packed __aligned(sizeof(u64));
+
+static_assert(sizeof(struct permission_masks) == sizeof(u64));
+
+/**
  * struct layer_config - Per-layer access configuration
  *
  * A ruleset stores one mutable layer and a domain stores a flexible array of
- * immutable layers.
+ * immutable layers.  Unlike filesystem and network access rights, namespace
+ * types use a flat bitmask because their keyspace is small and bounded.
  */
 struct layer_config {
 	/**
-	 * @handled: Bitmask of access rights handled (i.e. restricted) by this
-	 * layer.
+	 * @allowed: Members allowed by each handled permission.
+	 */
+	struct permission_masks allowed;
+	/**
+	 * @handled: Bitmask of access rights and permissions handled (i.e.
+	 * restricted) by this layer.
 	 */
 	struct access_masks handled;
 };

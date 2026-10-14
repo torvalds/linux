@@ -62,7 +62,7 @@ void landlock_trace_free_domain(const struct landlock_hierarchy *const hierarchy
  *
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
- * @missing: The final missing access subset, when applicable.
+ * @missing: The final missing access or permission subset, when applicable.
  * @same_exec: Whether the policy subject is the same executable that called
  *             landlock_restrict_self() for the denying domain, as computed
  *             by landlock_log_denial().
@@ -81,6 +81,19 @@ void landlock_trace_denial(
 	const access_mask_t missing, const bool same_exec, const bool logged)
 {
 	switch (request->type) {
+	case LANDLOCK_REQUEST_NAMESPACE:
+		if (trace_landlock_deny_permission_namespace_enabled()) {
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
+
+			trace_landlock_deny_permission_namespace(
+				youngest_denied, same_exec, logged, &blockers,
+				request->audit.u.ns.ns_type,
+				request->audit.u.ns.ns_id);
+		}
+		break;
 	case LANDLOCK_REQUEST_FS_ACCESS:
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 		if (trace_landlock_deny_access_fs_enabled()) {

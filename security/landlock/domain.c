@@ -480,6 +480,7 @@ landlock_merge_ruleset(struct landlock_domain *const parent,
 
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG
 	new_dom->hierarchy->quiet_access = ruleset->quiet_access;
+	new_dom->hierarchy->quiet_permission = ruleset->quiet_permission;
 #endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	return no_free_ptr(new_dom);

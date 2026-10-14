@@ -134,6 +134,11 @@ struct landlock_hierarchy {
 	 * logged) if the related object is marked as quiet.
 	 */
 	struct access_masks quiet_access;
+	/**
+	 * @quiet_permission: Per-member quiet bitmasks for permission types in
+	 * this layer.
+	 */
+	struct permission_masks quiet_permission;
 #endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 };
 
@@ -326,6 +331,62 @@ static inline void landlock_get_domain(struct landlock_domain *const domain)
 {
 	if (domain)
 		refcount_inc(&domain->usage);
+}
+
+/**
+ * landlock_permission_is_denied - Check if a permission request is denied
+ *
+ * @domain: The enforced domain.
+ * @permission_bit: The LANDLOCK_PERMISSION_* flag to check.  Must have
+ *                  exactly one bit set.
+ * @request_value: Compact bitmask to look for (e.g. the result of
+ *                 landlock_ns_type_to_bit()).  Must have exactly one bit set.
+ *
+ * Iterate from the youngest layer to the oldest.  For each layer that handles
+ * @permission_bit, check whether @request_value is present in the layer's
+ * allowed bitmask.  Return on the first (youngest) denying layer.
+ *
+ * Return: The youngest denying layer + 1, or 0 if allowed.
+ */
+static inline size_t
+landlock_permission_is_denied(const struct landlock_domain *const domain,
+			      const access_mask_t permission_bit,
+			      const u64 request_value)
+{
+	ssize_t layer;
+
+	BUILD_BUG_ON(sizeof(permission_bit) > sizeof(u32));
+
+	if (WARN_ON_ONCE(hweight32(permission_bit) != 1) ||
+	    WARN_ON_ONCE(hweight64(request_value) != 1))
+		return domain->num_layers;
+
+	for (layer = domain->num_layers - 1; layer >= 0; layer--) {
+		u64 allowed;
+
+		if (!(domain->layers[layer].handled.permissions &
+		      permission_bit))
+			continue;
+
+		/*
+		 * Current callers pass only permission types with an explicit
+		 * case below.  The default catches a new caller missing its
+		 * member mask.
+		 */
+		switch (permission_bit) {
+		case LANDLOCK_PERMISSION_NAMESPACE_USE:
+			allowed = domain->layers[layer].allowed.ns_types;
+			break;
+		default:
+			WARN_ONCE(1, "Unknown permission %u\n",
+				  (unsigned int)permission_bit);
+			return layer + 1;
+		}
+
+		if (!(allowed & request_value))
+			return layer + 1;
+	}
+	return 0;
 }
 
 #endif /* _SECURITY_LANDLOCK_DOMAIN_H */

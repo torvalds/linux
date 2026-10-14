@@ -17,6 +17,7 @@
 #include "domain.h"
 #include "limits.h"
 #include "log.h"
+#include "ns.h"
 #include "ruleset.h"
 #include "trace.h"
 
@@ -382,6 +383,31 @@ static bool is_valid_request(const struct landlock_request *const request)
 	if (WARN_ON_ONCE(!(!!request->layer_plus_one ^ !!request->access)))
 		return false;
 
+	if (WARN_ON_ONCE(request->access && request->permission))
+		return false;
+
+	switch (request->type) {
+	case LANDLOCK_REQUEST_NAMESPACE:
+		if (WARN_ON_ONCE(request->permission !=
+				 LANDLOCK_PERMISSION_NAMESPACE_USE) ||
+		    WARN_ON_ONCE(request->audit.type != LSM_AUDIT_DATA_NS))
+			return false;
+		break;
+	case LANDLOCK_REQUEST_PTRACE:
+	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
+	case LANDLOCK_REQUEST_FS_ACCESS:
+	case LANDLOCK_REQUEST_NET_ACCESS:
+	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
+	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
+		if (WARN_ON_ONCE(request->permission))
+			return false;
+		break;
+	default:
+		WARN_ONCE(1, "Unknown Landlock request type %d\n",
+			  request->type);
+		return false;
+	}
+
 	if (request->access) {
 		if (WARN_ON_ONCE(!(!!request->layer_masks ^
 				   !!request->all_existing_optional_access)))
@@ -442,8 +468,8 @@ is_denial_quieted(const struct landlock_request *const request,
 	}
 
 	/*
-	 * Either the object is not quiet, or this is a scope request.  We check
-	 * request->type to distinguish between the two cases.
+	 * Per-object quieting did not apply.  Check request->type for scope and
+	 * permission quieting; ptrace and topology requests are never quiet.
 	 */
 	switch (request->type) {
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
@@ -452,6 +478,9 @@ is_denial_quieted(const struct landlock_request *const request,
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 		return !!(youngest_denied->quiet_access.scope &
 			  LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
+	case LANDLOCK_REQUEST_NAMESPACE:
+		return !!(youngest_denied->quiet_permission.ns_types &
+			  landlock_ns_type_to_bit(request->audit.u.ns.ns_type));
 	/*
 	 * Leave LANDLOCK_REQUEST_PTRACE and LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY
 	 * unhandled for now - they are never quiet.
@@ -508,8 +537,8 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 	if (!is_valid_request(request))
 		return;
 
-	missing = request->access;
-	if (missing) {
+	missing = request->access ? request->access : request->permission;
+	if (request->access) {
 		/* Gets the nearest domain that denies the request. */
 		if (request->layer_masks) {
 			youngest_layer = get_denied_layer(subject->domain,

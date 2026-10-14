@@ -101,7 +101,8 @@
 	"ruleset=[0-9a-f]\\+\\.[0-9]\\+ " \
 	"handled_fs=[a-z_|]* "            \
 	"handled_net=[a-z_|]* "           \
-	"scoped=[a-z_|]*$"
+	"scoped=[a-z_|]* "                \
+	"handled_permissions=[a-z._|]*$"
 
 #define REGEX_CREATE_DOMAIN(task)  \
 	TRACE_PREFIX(task)         \

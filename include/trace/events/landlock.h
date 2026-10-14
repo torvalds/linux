@@ -36,6 +36,7 @@ static_assert(sizeof(access_mask_t) <= sizeof(u64));
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE);
 
 #ifdef CREATE_TRACE_POINTS
 
@@ -280,9 +281,9 @@ static inline const char *__trace_landlock_print_layers(
  * enabled and the per-execution flag selected by same_exec is set); a
  * stateless ftrace filter can select the denials the domain submits to
  * audit with logged==1, without reconstructing it from the per-execution
- * log flags.  Denial events order their fields as domain, same_exec,
- * logged, then blockers (deny_access events only), then the type-specific
- * object fields, then any variable-length field.
+ * log flags.  Denial events order their shared fields as domain, same_exec,
+ * and logged.  Access and permission denial events follow these with the
+ * blockers verdict input, type-specific fields, and any variable-length field.
  *
  * Relational referents
  * ~~~~~~~~~~~~~~~~~~~~~
@@ -302,9 +303,9 @@ static inline const char *__trace_landlock_print_layers(
  * Blocker fields
  * ~~~~~~~~~~~~~~
  *
- * The filesystem and network blocker arguments identify the request type
- * and carry its final missing access subset when applicable.  The type
- * determines how to interpret the access value.
+ * Blocker arguments identify the request type and carry its final missing
+ * access subset when applicable.  The type determines how to interpret the
+ * access value.
  */
 
 /*
@@ -343,11 +344,12 @@ TRACE_EVENT(landlock_create_ruleset,
 	TP_ARGS(ruleset),
 
 	TP_STRUCT__entry(
-		__field(	u64,		ruleset_id	)
-		__field(	u64,		ruleset_version	)
-		__field(	access_mask_t,	handled_fs	)
-		__field(	access_mask_t,	handled_net	)
-		__field(	access_mask_t,	scoped		)
+		__field(	u64,		ruleset_id		)
+		__field(	u64,		ruleset_version		)
+		__field(	access_mask_t,	handled_fs		)
+		__field(	access_mask_t,	handled_net		)
+		__field(	access_mask_t,	scoped			)
+		__field(	access_mask_t,	handled_permissions	)
 	),
 
 	TP_fast_assign(
@@ -356,13 +358,17 @@ TRACE_EVENT(landlock_create_ruleset,
 		__entry->handled_fs	= ruleset->layer.handled.fs;
 		__entry->handled_net	= ruleset->layer.handled.net;
 		__entry->scoped		= ruleset->layer.handled.scope;
+		__entry->handled_permissions =
+			ruleset->layer.handled.permissions;
 	),
 
-	TP_printk("ruleset=%llx.%llu handled_fs=%s handled_net=%s scoped=%s",
+	TP_printk("ruleset=%llx.%llu handled_fs=%s handled_net=%s scoped=%s handled_permissions=%s",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->handled_fs, "|", _LANDLOCK_ACCESS_FS_NAMES),
 		__print_flags(__entry->handled_net, "|", _LANDLOCK_ACCESS_NET_NAMES),
-		__print_flags(__entry->scoped, "|", _LANDLOCK_SCOPE_NAMES))
+		__print_flags(__entry->scoped, "|", _LANDLOCK_SCOPE_NAMES),
+		__print_flags(__entry->handled_permissions, "|",
+			      _LANDLOCK_PERMISSION_NAMES))
 );
 
 /**
@@ -494,6 +500,56 @@ TRACE_EVENT(landlock_add_rule_net_port,
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->port)
+);
+
+/**
+ * landlock_add_rule_namespace - Namespace rule added to a ruleset
+ *
+ * @ruleset: Source ruleset (never NULL).
+ * @flags: Complete validated landlock_add_rule_flags value supplied by this
+ *         successful call, not the rule's accumulated quiet state.
+ * @permissions: Validated permission mask from the rule attribute.
+ * @allowed_namespace_types: Effective known namespace types allowed by this
+ *                           call, using CLONE_NEW* values.
+ * @quiet_namespace_types: Effective known namespace types quieted by this
+ *                         call, using CLONE_NEW* values.
+ *
+ * Emitted by sys_landlock_add_rule() under the modified ruleset's lock, so
+ * the reported ruleset is a stable snapshot that no concurrent writer can
+ * change.
+ */
+TRACE_EVENT(landlock_add_rule_namespace,
+
+	TP_PROTO(const struct landlock_ruleset *ruleset, u32 flags,
+		 u64 permissions, u64 allowed_namespace_types,
+		 u64 quiet_namespace_types),
+
+	TP_ARGS(ruleset, flags, permissions, allowed_namespace_types,
+		quiet_namespace_types),
+
+	TP_STRUCT__entry(
+		__field(	u64,		ruleset_id		)
+		__field(	u64,		ruleset_version		)
+		__field(	access_mask_t,	permissions		)
+		__field(	u64,		allowed_namespace_types	)
+		__field(	u64,		quiet_namespace_types	)
+	),
+
+	TP_fast_assign(
+		lockdep_assert_held(&ruleset->lock);
+		__entry->ruleset_id		= ruleset->id;
+		__entry->ruleset_version	= ruleset->version;
+		__entry->permissions		= permissions;
+		__entry->allowed_namespace_types = allowed_namespace_types;
+		__entry->quiet_namespace_types	= quiet_namespace_types;
+	),
+
+	TP_printk("ruleset=%llx.%llu permissions=%s allowed_namespace_types=0x%llx quiet_namespace_types=0x%llx",
+		__entry->ruleset_id, __entry->ruleset_version,
+		__print_flags(__entry->permissions, "|",
+			      _LANDLOCK_PERMISSION_NAMES),
+		__entry->allowed_namespace_types,
+		__entry->quiet_namespace_types)
 );
 
 /**
@@ -871,6 +927,57 @@ TRACE_EVENT(landlock_deny_access_net,
 			  __print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_NET_NAMES) :
 			  "unknown",
 		  __entry->port)
+);
+
+/**
+ * landlock_deny_permission_namespace - Namespace use denied
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: Whether this denial was selected for audit logging.
+ * @blockers: Request type and final missing permission subset (never NULL).
+ * @namespace_type: CLONE_NEW* namespace type that was denied.
+ * @namespace_id: Namespace ID, or 0 when creation was denied.
+ *
+ * Emitted when a Landlock domain denies namespace use.
+ */
+TRACE_EVENT(landlock_deny_permission_namespace,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, const struct landlock_blockers *blockers,
+		 u32 namespace_type, u64 namespace_id),
+
+	TP_ARGS(hierarchy, same_exec, logged, blockers, namespace_type,
+		namespace_id),
+
+	TP_STRUCT__entry(
+		__field(	u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	enum landlock_request_type, blockers_type	)
+		__field(	access_mask_t,	blockers_access	)
+		__field(	u32,		namespace_type	)
+		__field(	u64,		namespace_id	)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->blockers_type	= blockers->type;
+		__entry->blockers_access = blockers->access;
+		__entry->namespace_type	= namespace_type;
+		__entry->namespace_id	= namespace_id;
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s namespace_type=0x%x namespace_id=%llu",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE ?
+			__print_flags(__entry->blockers_access, "|",
+				      _LANDLOCK_PERMISSION_BLOCKER_NAMES) :
+			"unknown",
+		__entry->namespace_type, __entry->namespace_id)
 );
 
 /**

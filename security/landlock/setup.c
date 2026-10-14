@@ -17,6 +17,7 @@
 #include "fs.h"
 #include "id.h"
 #include "net.h"
+#include "ns.h"
 #include "setup.h"
 #include "task.h"
 
@@ -68,6 +69,7 @@ static int __init landlock_init(void)
 	landlock_add_task_hooks();
 	landlock_add_fs_hooks();
 	landlock_add_net_hooks();
+	landlock_add_ns_hooks();
 	landlock_init_id();
 	landlock_initialized = true;
 	pr_info("Up and running.\n");

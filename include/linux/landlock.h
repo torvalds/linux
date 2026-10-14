@@ -13,14 +13,16 @@
 #include <uapi/linux/landlock.h>
 
 /*
- * Access-right and scope names, shared between the audit records (get_blocker()
- * in security/landlock/audit.c) and the trace events
+ * Access-right, scope, and permission names, shared between the audit records
+ * (get_blocker() in security/landlock/audit.c) and the trace events
  * (include/trace/events/landlock.h).  A consumer defines
  * _LANDLOCK_NAME_ENTRY(mask, name) before expanding a list and undefines it
  * afterwards: audit maps each entry to a "[bit] = name" slot for O(1) lookup,
  * the trace events map it to a __print_flags() { mask, name } pair.  The bit
  * value lives only in the LANDLOCK_* UAPI constant each entry references.
- * Names are unprefixed; audit prepends the "fs."/"net."/"scope." category.
+ * Access-right and scope names are unprefixed; audit prepends the
+ * "fs."/"net."/"scope." category.  Permission entries carry an action and a
+ * domain for the qualified and bare views below.
  */
 #define _LANDLOCK_ACCESS_FS_NAMES \
 	_LANDLOCK_NAME_ENTRY(LANDLOCK_ACCESS_FS_EXECUTE, "execute"), \
@@ -52,5 +54,23 @@
 	_LANDLOCK_NAME_ENTRY(LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET, \
 			     "abstract_unix_socket"), \
 	_LANDLOCK_NAME_ENTRY(LANDLOCK_SCOPE_SIGNAL, "signal")
+
+#define _LANDLOCK_PERMISSION_NAMESPACE_NAME "namespace"
+
+#define _LANDLOCK_PERMISSION_LIST(entry) \
+	entry(LANDLOCK_PERMISSION_NAMESPACE_USE, "use", \
+	      _LANDLOCK_PERMISSION_NAMESPACE_NAME)
+
+#define _LANDLOCK_PERMISSION_QUALIFIED_ENTRY(mask, action, domain) \
+	_LANDLOCK_NAME_ENTRY(mask, domain "." action)
+
+#define _LANDLOCK_PERMISSION_BARE_ENTRY(mask, action, ...) \
+	_LANDLOCK_NAME_ENTRY(mask, action)
+
+#define _LANDLOCK_PERMISSION_NAMES \
+	_LANDLOCK_PERMISSION_LIST(_LANDLOCK_PERMISSION_QUALIFIED_ENTRY)
+
+#define _LANDLOCK_PERMISSION_BLOCKER_NAMES \
+	_LANDLOCK_PERMISSION_LIST(_LANDLOCK_PERMISSION_BARE_ENTRY)
 
 #endif /* _LINUX_LANDLOCK_H */
