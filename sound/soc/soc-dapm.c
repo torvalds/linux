@@ -2869,6 +2869,7 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
  */
 void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 {
+	struct snd_soc_dapm_context *d;
 	struct snd_soc_dapm_path *p, *next_p;
 	enum snd_soc_dapm_direction dir;
 
@@ -2889,6 +2890,22 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 
 	dapm_debugfs_free_widget(w);
 
+	if (w->dapm) {
+		if (w->dapm->card) {
+			for_each_card_dapms(w->dapm->card, d) {
+				if (d->wcache_sink == w)
+					d->wcache_sink = NULL;
+				if (d->wcache_source == w)
+					d->wcache_source = NULL;
+			}
+		} else {
+			if (w->dapm->wcache_sink == w)
+				w->dapm->wcache_sink = NULL;
+			if (w->dapm->wcache_source == w)
+				w->dapm->wcache_source = NULL;
+		}
+	}
+
 	kfree(w->kcontrols);
 	kfree_const(w->name);
 	kfree_const(w->sname);
@@ -2906,9 +2923,6 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 			continue;
 		snd_soc_dapm_free_widget(w);
 	}
-
-	dapm->wcache_sink	= NULL;
-	dapm->wcache_source	= NULL;
 }
 
 static struct snd_soc_dapm_widget *dapm_find_widget(
