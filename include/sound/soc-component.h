@@ -273,19 +273,6 @@ struct snd_soc_component {
 	     dai = _dai, _dai = snd_soc_dai_from_list(snd_soc_dai_to_list(_dai)->next))
 
 struct snd_soc_dapm_context *snd_soc_component_to_dapm(struct snd_soc_component *component);
-
-/**
- * snd_soc_component_cache_sync() - Sync the register cache with the hardware
- * @component: COMPONENT to sync
- *
- * Note: This function will call regcache_sync()
- */
-static inline int snd_soc_component_cache_sync(
-	struct snd_soc_component *component)
-{
-	return regcache_sync(component->regmap);
-}
-
 struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
 						const struct snd_soc_component_driver *driver);
 int snd_soc_component_register(struct snd_soc_component *component,
@@ -343,6 +330,7 @@ int snd_soc_component_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level);
 
 int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component);
+int snd_soc_component_regmap_cache_sync(struct snd_soc_component *component);
 #ifdef CONFIG_REGMAP
 void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap);
@@ -454,5 +442,8 @@ void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream);
 void snd_soc_pcm_component_delay(struct snd_pcm_substream *substream,
 				 snd_pcm_sframes_t *cpu_delay, snd_pcm_sframes_t *codec_delay);
+
+/* REMOVE ME */
+#define snd_soc_component_cache_sync			snd_soc_component_regmap_cache_sync
 
 #endif /* __SOC_COMPONENT_H */
