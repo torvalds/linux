@@ -142,6 +142,25 @@ TEST(errata)
 	ASSERT_EQ(EINVAL, errno);
 }
 
+#define PERMISSION_LAST LANDLOCK_PERMISSION_CAPABILITY_USE
+
+TEST(ruleset_with_unknown_permission)
+{
+	__u64 permission_mask;
+
+	for (permission_mask = 1ULL << 63; permission_mask != PERMISSION_LAST;
+	     permission_mask >>= 1) {
+		struct landlock_ruleset_attr ruleset_attr = {
+			.handled_permissions = permission_mask,
+		};
+
+		/* Unknown handled_permissions values must be rejected. */
+		ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
+						      sizeof(ruleset_attr), 0));
+		ASSERT_EQ(EINVAL, errno);
+	}
+}
+
 /* Tests ordering of syscall argument checks. */
 TEST(create_ruleset_checks_ordering)
 {

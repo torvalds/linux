@@ -33,6 +33,8 @@
 	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_net_port/enable"
 #define TRACEFS_ADD_RULE_NAMESPACE_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_namespace/enable"
+#define TRACEFS_ADD_RULE_CAPABILITY_ENABLE \
+	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_capability/enable"
 #define TRACEFS_CHECK_RULE_FS_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_check_rule_inode/enable"
 #define TRACEFS_CHECK_RULE_NET_ENABLE \
@@ -43,6 +45,8 @@
 	TRACEFS_LANDLOCK_DIR "/landlock_deny_access_net/enable"
 #define TRACEFS_DENY_PERMISSION_NAMESPACE_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_deny_permission_namespace/enable"
+#define TRACEFS_DENY_PERMISSION_CAPABILITY_ENABLE \
+	TRACEFS_LANDLOCK_DIR "/landlock_deny_permission_capability/enable"
 #define TRACEFS_DENY_PTRACE_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_deny_ptrace/enable"
 #define TRACEFS_DENY_SCOPE_SIGNAL_ENABLE \
@@ -110,6 +114,17 @@
 #define REGEX_ADD_RULE_NAMESPACE(task) \
 	REGEX_ADD_RULE_NAMESPACE_VERSION(task, "[0-9]\\+")
 
+#define REGEX_ADD_RULE_CAPABILITY_VERSION(task, version) \
+	TRACE_PREFIX(task)                               \
+	"landlock_add_rule_capability: "                 \
+	"ruleset=[0-9a-f]\\+\\." version " "             \
+	"permissions=[a-z._|]* "                         \
+	"allowed_capabilities=0x[0-9a-f]\\+ "            \
+	"quiet_capabilities=0x[0-9a-f]\\+$"
+
+#define REGEX_ADD_RULE_CAPABILITY(task) \
+	REGEX_ADD_RULE_CAPABILITY_VERSION(task, "[0-9]\\+")
+
 #define REGEX_CREATE_RULESET(task)        \
 	TRACE_PREFIX(task)                \
 	"landlock_create_ruleset: "       \
@@ -172,6 +187,15 @@
 	"blockers=[a-z_|]* "                   \
 	"namespace_type=0x[0-9a-f]\\+ "        \
 	"namespace_id=[0-9]\\+$"
+
+#define REGEX_DENY_PERMISSION_CAPABILITY(task)  \
+	TRACE_PREFIX(task)                      \
+	"landlock_deny_permission_capability: " \
+	"domain=[0-9a-f]\\+ "                   \
+	"same_exec=[01] "                       \
+	"logged=[01] "                          \
+	"blockers=[a-z_|]* "                    \
+	"capability=[0-9]\\+$"
 
 #define REGEX_DENY_PTRACE(task)      \
 	TRACE_PREFIX(task)           \
