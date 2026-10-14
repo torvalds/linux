@@ -1708,7 +1708,7 @@ static int tdx_sept_map_leaf_spte(struct kvm *kvm, gfn_t gfn, enum pg_level leve
 	WARN_ON_ONCE((new_spte & VMX_EPT_RWX_MASK) != VMX_EPT_RWX_MASK);
 
 	/*
-	 * Ensure pre_fault_allowed is read by kvm_arch_vcpu_pre_fault_memory()
+	 * Ensure pre_fault_allowed is read by kvm_arch_pre_fault_allowed()
 	 * before kvm_tdx->state.  Userspace must not be allowed to pre-fault
 	 * arbitrary memory until the initial memory image is finalized.  Pairs
 	 * with the smp_wmb() in tdx_td_finalize().

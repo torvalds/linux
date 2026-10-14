@@ -75,6 +75,17 @@ static void vcpu_inject_serror(struct kvm_vcpu *vcpu)
 	vcpu_events_set(vcpu, &events);
 }
 
+static void vcpu_assert_serror_pending(struct kvm_vcpu *vcpu, bool pending)
+{
+	struct kvm_vcpu_events events;
+
+	vcpu_events_get(vcpu, &events);
+	TEST_ASSERT_EQ(events.exception.serror_pending, pending);
+
+	if (pending && vcpu_has_ras(vcpu))
+		TEST_ASSERT_EQ(events.exception.serror_esr, EXPECTED_SERROR_ISS);
+}
+
 static void __vcpu_run_expect(struct kvm_vcpu *vcpu, unsigned int cmd)
 {
 	struct ucall uc;
@@ -134,6 +145,7 @@ static void test_mmio_abort(void)
 
 	vcpu_inject_sea(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 
@@ -162,6 +174,7 @@ static void test_mmio_nisv(void)
 
 	TEST_ASSERT(_vcpu_run(vcpu), "Expected nonzero return code from KVM_RUN");
 	TEST_ASSERT_EQ(errno, ENOSYS);
+	vcpu_assert_serror_pending(vcpu, false);
 
 	kvm_vm_free(vm);
 }
@@ -185,6 +198,7 @@ static void test_mmio_nisv_abort(void)
 
 	vcpu_inject_sea(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 
@@ -212,6 +226,7 @@ static void test_serror_masked(void)
 
 	vcpu_inject_serror(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, true);
 	kvm_vm_free(vm);
 }
 
@@ -247,6 +262,7 @@ static void test_serror(void)
 
 	vcpu_inject_serror(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 
@@ -288,6 +304,7 @@ static void test_s1ptw_abort(void)
 	*ptep |= bad_pa;
 
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 
@@ -313,6 +330,7 @@ static void test_serror_emulated(void)
 	vcpu_run_expect_sync(vcpu);
 	vcpu_inject_serror(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 
@@ -339,7 +357,7 @@ static void test_mmio_ease(void)
 	pfr1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
 	if (!SYS_FIELD_GET(ID_AA64PFR1_EL1, DF2, pfr1)) {
 		pr_debug("Skipping %s\n", __func__);
-		return;
+		goto done;
 	}
 
 	/*
@@ -356,6 +374,8 @@ static void test_mmio_ease(void)
 
 	vcpu_inject_sea(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
+done:
 	kvm_vm_free(vm);
 }
 
@@ -394,6 +414,7 @@ static void test_serror_amo(void)
 	vcpu_run_expect_sync(vcpu);
 	vcpu_inject_serror(vcpu);
 	vcpu_run_expect_done(vcpu);
+	vcpu_assert_serror_pending(vcpu, false);
 	kvm_vm_free(vm);
 }
 

@@ -31,7 +31,12 @@
 #define VGIC_MAX_SPI		1019
 #define VGIC_MAX_RESERVED	1023
 #define VGIC_MIN_LPI		8192
-#define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
+
+/*
+ * The common IRQ routing table must accommodate all GIC types. GICv2 and
+ * GICv3 need 988 pins, while GICv5 needs 1024 pins.
+ */
+#define KVM_IRQCHIP_NUM_PINS	1024
 
 /*
  * GICv5 supports 128 PPIs, but only the first 64 are architected. We only
@@ -40,6 +45,8 @@
  * in KVM for now. At a future stage, this can be bumped up to 128, if required.
  */
 #define VGIC_V5_NR_PRIVATE_IRQS	64
+#define VGIC_V5_DEFAULT_NR_SPIS	32
+#define VGIC_V5_MAX_NR_SPIS	BIT(10)
 
 #define is_v5_type(t, i)	(FIELD_GET(GICV5_HWIRQ_TYPE, (i)) == (t))
 
@@ -132,6 +139,19 @@ enum vgic_type {
 	VGIC_V5,		/* Newer, fancier GICv5 */
 };
 
+struct vgic_v5_irs_caps {
+	/* Base address of the host IRS's CONFIG_FRAME */
+	void __iomem	*irs_base;
+
+	/* Raw host IRS ID registers */
+	u32		idr2;
+	u32		idr3;
+	u32		idr4;
+
+	/* Is the IRS coherent with us, or not? */
+	bool		non_coherent;
+};
+
 /* same for all guests, as depending only on the _host's_ GIC model */
 struct vgic_global {
 	/* type of the host GIC */
@@ -159,8 +179,15 @@ struct vgic_global {
 	/* Maintenance IRQ number */
 	unsigned int		maint_irq;
 
-	/* maximum number of VCPUs allowed (GICv2 limits us to 8) */
+	/*
+	 * Maximum number of VCPUs exposed before userspace has selected a
+	 * VGIC model. Individual VGIC models can impose a lower limit
+	 * (GICv2 limits us to 8).
+	 */
 	int			max_gic_vcpus;
+
+	/* Maximum number of VCPUs allowed for a GICv5 VM. */
+	int			max_gicv5_vcpus;
 
 	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
 	bool			can_emulate_gicv2;
@@ -182,6 +209,9 @@ struct vgic_global {
 	struct {
 		DECLARE_BITMAP(impl_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
 	} vgic_v5_ppi_caps;
+
+	/* GICv5 IRS capabilities */
+	struct vgic_v5_irs_caps vgic_v5_irs_caps;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -215,6 +245,12 @@ struct irq_ops {
 	 * peaking into the physical GIC.
 	 */
 	bool (*get_input_level)(int vintid);
+
+	/*
+	 * Function pointer to directly update hardware pending state after the
+	 * VGIC shadow pending state has changed.
+	 */
+	bool (*set_pending_state)(struct kvm_vcpu *vcpu, struct vgic_irq *irq);
 
 	/*
 	 * Function pointer to override the queuing of an IRQ.
@@ -287,7 +323,8 @@ enum iodev_type {
 	IODEV_CPUIF,
 	IODEV_DIST,
 	IODEV_REDIST,
-	IODEV_ITS
+	IODEV_ITS,
+	IODEV_GICV5_IRS
 };
 
 struct vgic_io_device {
@@ -345,7 +382,11 @@ struct vgic_redist_region {
 	struct list_head list;
 };
 
+#define VGIC_V5_VM_ID_INVAL		(-1)
+
 struct vgic_v5_vm {
+	struct kvm		*kvm;
+
 	/*
 	 * We only expose a subset of PPIs to the guest. This subset is a
 	 * combination of the PPIs that are actually implemented and what we
@@ -363,6 +404,96 @@ struct vgic_v5_vm {
 	 * convenient way to do that).
 	 */
 	DECLARE_BITMAP(vgic_ppi_hmr, VGIC_V5_NR_PRIVATE_IRQS);
+
+	struct fwnode_handle	*fwnode;
+	struct irq_domain	*domain;
+	int			vpe_db_base;
+	u32			vm_id;
+	bool			vmte_allocated;
+};
+
+/*** GICv5 ***/
+struct vgic_v5_irs {
+	/* base addresses in guest physical address space: */
+	gpa_t vgic_v5_irs_base;
+
+	struct vgic_io_device iodev;
+	struct kvm_device *dev;
+
+	/* IRS state - used for registers etc */
+	struct {
+		u8 domain;
+		u8 pa_range;
+		bool virt;
+		bool setlpi;
+		bool mec;
+		bool mpam;
+		bool swe;
+		u16 irs_id;
+	} idr0;
+
+	struct {
+		/* PE_CNT is populated from online_vcpus at runtime */
+		u8 priority_bits;
+	} idr1;
+
+	struct {
+		u8 id_bits;
+		u8 min_lpi_id_bits;
+		bool ist_levels;
+		u8 ist_l2sz;
+		bool istmd;
+		u8 istmd_sz;
+	} idr2;
+
+	struct {
+		u32 spi_range;
+	} idr5;
+
+	struct {
+		u32 spi_irs_range;
+	} idr6;
+
+	struct {
+		u32 spi_base;
+	} idr7;
+
+	struct {
+		u8 sh;
+		u8 oc;
+		u8 ic;
+		bool ist_ra;
+		bool ist_wa;
+		bool vmt_ra;
+		bool vpet_ra;
+		bool vmd_ra;
+		bool vmd_wa;
+		bool vped_ra;
+		bool vped_wa;
+	} cr1;
+
+	struct {
+		u32 id;
+	} spi_selr;
+
+	struct {
+		u32 iaffid;
+	} pe_selr;
+
+	struct {
+		u8 lpi_id_bits;
+		u8 l2sz;
+		u8 istsz;
+		bool structure;
+	} ist_cfgr;
+
+	struct {
+		bool valid;
+		u64 addr;
+	} ist_baser;
+
+	/* A valid userspace-restored BASER still needs its host LPI IST. */
+	bool lpi_ist_restore_pending;
 };
 
 struct vgic_dist {
@@ -442,6 +573,11 @@ struct vgic_dist {
 	 * GICv5 per-VM data.
 	 */
 	struct vgic_v5_vm	gicv5_vm;
+
+	/*
+	 * GICv5 IRS data. Dynamically allocated due to the size.
+	 */
+	struct vgic_v5_irs	*vgic_v5_irs_data;
 };
 
 struct vgic_v2_cpu_if {
@@ -491,6 +627,9 @@ struct vgic_v5_cpu_if {
 	 * it is the hyp's responsibility to keep the state constistent.
 	 */
 	u64	vgic_icsr;
+
+	/* The contextr used to make VPEs resident and non-resident */
+	u64	vgic_contextr;
 
 	struct gicv5_vpe gicv5_vpe;
 };
@@ -598,10 +737,11 @@ void kvm_vgic_process_async_update(struct kvm_vcpu *vcpu);
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1);
 
 /**
- * kvm_vgic_get_max_vcpus - Get the maximum number of VCPUs allowed by HW
+ * kvm_vgic_get_max_vcpus - Get the pre-VGIC-selection VCPU limit
  *
- * The host's GIC naturally limits the maximum amount of VCPUs a guest
- * can use.
+ * Userspace can query KVM_CAP_MAX_VCPUS before selecting a VGIC model, so
+ * expose the highest model-specific limit and let kvm_vgic_create() enforce
+ * the selected model's actual limit.
  */
 static inline int kvm_vgic_get_max_vcpus(void)
 {
@@ -627,7 +767,66 @@ int vgic_v4_load(struct kvm_vcpu *vcpu);
 void vgic_v4_commit(struct kvm_vcpu *vcpu);
 int vgic_v4_put(struct kvm_vcpu *vcpu);
 
-int vgic_v5_finalize_ppi_state(struct kvm *kvm);
+static inline u8 vgic_v5_irs_ist_id_bits(const struct vgic_v5_irs_caps *caps)
+{
+	return FIELD_GET(GICV5_IRS_IDR2_ID_BITS, caps->idr2);
+}
+
+static inline u8 vgic_v5_irs_min_lpi_id_bits(const struct vgic_v5_irs_caps *caps)
+{
+	return FIELD_GET(GICV5_IRS_IDR2_MIN_LPI_ID_BITS, caps->idr2);
+}
+
+static inline bool vgic_v5_irs_ist_levels(const struct vgic_v5_irs_caps *caps)
+{
+	return !!(caps->idr2 & GICV5_IRS_IDR2_IST_LEVELS);
+}
+
+static inline u8 vgic_v5_irs_ist_l2sz(const struct vgic_v5_irs_caps *caps)
+{
+	return FIELD_GET(GICV5_IRS_IDR2_IST_L2SZ, caps->idr2);
+}
+
+static inline bool vgic_v5_irs_istmd(const struct vgic_v5_irs_caps *caps)
+{
+	return !!(caps->idr2 & GICV5_IRS_IDR2_ISTMD);
+}
+
+static inline u8 vgic_v5_irs_istmd_sz(const struct vgic_v5_irs_caps *caps)
+{
+	return FIELD_GET(GICV5_IRS_IDR2_ISTMD_SZ, caps->idr2);
+}
+
+static inline u32 vgic_v5_irs_max_vms(const struct vgic_v5_irs_caps *caps)
+{
+	return BIT(FIELD_GET(GICV5_IRS_IDR3_VM_ID_BITS, caps->idr3));
+}
+
+static inline bool vgic_v5_irs_two_level_vmt_support(const struct vgic_v5_irs_caps *caps)
+{
+	return !!(caps->idr3 & GICV5_IRS_IDR3_VMT_LEVELS);
+}
+
+static inline u16 vgic_v5_irs_vmd_size(const struct vgic_v5_irs_caps *caps)
+{
+	if (!(caps->idr3 & GICV5_IRS_IDR3_VMD))
+		return 0;
+
+	return BIT(FIELD_GET(GICV5_IRS_IDR3_VMD_SZ, caps->idr3));
+}
+
+static inline u16 vgic_v5_irs_vped_size(const struct vgic_v5_irs_caps *caps)
+{
+	return BIT(FIELD_GET(GICV5_IRS_IDR4_VPED_SZ, caps->idr4));
+}
+
+static inline u32 vgic_v5_irs_max_vpes(const struct vgic_v5_irs_caps *caps)
+{
+	/* Field stores VPE_ID_BITS - 1 */
+	return BIT(FIELD_GET(GICV5_IRS_IDR4_VPE_ID_BITS, caps->idr4) + 1);
+}
+
+int vgic_v5_finalize_ppi_state(struct kvm_vcpu *vcpu);
 bool vgic_v5_ppi_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
 				  unsigned long flags);
 void vgic_v5_set_ppi_dvi(struct kvm_vcpu *vcpu, struct vgic_irq *irq, bool dvi);

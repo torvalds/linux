@@ -135,7 +135,7 @@ after selecting a hardware PMU.
 Request that the VCPU uses the specified hardware PMU when creating guest events
 for the purpose of PMU emulation. The PMU identifier can be read from the "type"
 file for the desired PMU instance under /sys/devices (or, equivalent,
-/sys/bus/even_source). This attribute is particularly useful on heterogeneous
+/sys/bus/event_source). This attribute is particularly useful on heterogeneous
 systems where there are at least two CPU PMUs on the system. The PMU that is set
 for one VCPU will be used by all the other VCPUs. It isn't possible to set a PMU
 if a PMU event filter is already present.
@@ -231,7 +231,8 @@ Returns:
 Specifies the base address of the stolen time structure for this VCPU. The
 base address must be 64 byte aligned and exist within a valid guest memory
 region. See Documentation/virt/kvm/arm/pvtime.rst for more information
-including the layout of the stolen time structure.
+including the layout of the stolen time structure. Stolen time is not
+supported for protected VMs (see Documentation/virt/kvm/arm/pkvm.rst).
 
 4. GROUP: KVM_VCPU_TSC_CTRL
 ===========================

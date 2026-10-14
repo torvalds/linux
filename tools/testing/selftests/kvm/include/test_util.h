@@ -172,6 +172,7 @@ struct vm_mem_backing_src_alias {
 bool thp_configured(void);
 size_t get_trans_hugepagesz(void);
 size_t get_def_hugetlb_pagesz(void);
+size_t get_free_hugepages(size_t page_size);
 const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(u32 i);
 size_t get_backing_src_pagesz(u32 i);
 bool is_backing_src_hugetlb(u32 i);
