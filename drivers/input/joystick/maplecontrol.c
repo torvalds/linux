@@ -58,6 +58,8 @@ static void dc_pad_callback(struct mapleq *mq)
 	input_report_abs(dev, ABS_Y,      res[13]);
 	input_report_abs(dev, ABS_RX,     res[14]);
 	input_report_abs(dev, ABS_RY,     res[15]);
+
+	input_sync(dev);
 }
 
 static int dc_pad_open(struct input_dev *dev)
