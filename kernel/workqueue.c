@@ -212,7 +212,7 @@ struct worker_pool {
 	 * but w/ pool->lock held. The readers grab pool->lock and are
 	 * guaranteed to see if the counter reached zero.
 	 */
-	int			nr_running;
+	int __data_racy nr_running;
 
 	struct list_head	worklist;	/* L: list of pending works */
 
