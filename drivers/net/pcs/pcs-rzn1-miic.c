@@ -693,15 +693,38 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	memset(dt_val, MIIC_MODCTRL_CONF_NONE,
 	       sizeof(*dt_val) * miic->of_data->conf_conv_count);
 
-	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0)
+	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0) {
+		if (conf >= miic->of_data->conf_to_string_count) {
+			dev_err(miic->dev, "Port input configuration out of range: %d\n",
+				conf);
+			ret = -EINVAL;
+			goto err;
+		}
 		dt_val[0] = conf;
+	}
 
 	for_each_available_child_of_node(np, conv) {
 		if (of_property_read_u32(conv, "reg", &port))
 			continue;
 
+		if (port < miic->of_data->miic_port_start ||
+		    port > miic->of_data->miic_port_last) {
+			dev_err(miic->dev, "Port number out of range: %d\n", port);
+			of_node_put(conv);
+			ret = -EINVAL;
+			goto err;
+		}
+
 		if (of_property_read_u32(conv, "renesas,miic-input", &conf))
 			continue;
+
+		if (conf >= miic->of_data->conf_to_string_count) {
+			dev_err(miic->dev, "Port %d configuration out of range: %d\n",
+				port, conf);
+			of_node_put(conv);
+			ret = -EINVAL;
+			goto err;
+		}
 
 		/* Adjust for 0 based index */
 		dt_val[port + !miic->of_data->miic_port_start] = conf;
@@ -712,6 +735,7 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	}
 
 	ret = miic_match_dt_conf(miic, dt_val, mode_cfg);
+err:
 	kfree(dt_val);
 
 	return ret;
