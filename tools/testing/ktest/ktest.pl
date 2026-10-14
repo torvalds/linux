@@ -2652,7 +2652,7 @@ sub apply_min_config {
 	}
 	close IN;
     }
-    foreach my $config (keys %force_config) {
+    foreach my $config (sort keys %force_config) {
 	print OUT "$force_config{$config}\n";
     }
     close OUT;
@@ -3325,7 +3325,7 @@ sub save_config {
 
     open(OUT, ">$file") or dodie "Can not write to $file";
 
-    foreach my $config (keys %configs) {
+    foreach my $config (sort keys %configs) {
 	print OUT "$configs{$config}\n";
     }
     close(OUT);
@@ -4137,7 +4137,7 @@ sub make_min_config {
 	    if (defined($ignore_config)) {
 		open (OUT, ">$temp_config") or
 		    dodie "Can't write to $temp_config";
-		foreach my $config (keys %save_configs) {
+		foreach my $config (sort keys %save_configs) {
 		    print OUT "$save_configs{$config}\n";
 		}
 		close OUT;
@@ -4165,10 +4165,10 @@ sub make_min_config {
 	    # Save off all the current mandatory configs
 	    open (OUT, ">$temp_config") or
 		dodie "Can't write to $temp_config";
-	    foreach my $config (keys %keep_configs) {
+	    foreach my $config (sort keys %keep_configs) {
 		print OUT "$keep_configs{$config}\n";
 	    }
-	    foreach my $config (keys %min_configs) {
+	    foreach my $config (sort keys %min_configs) {
 		print OUT "$min_configs{$config}\n";
 	    }
 	    close OUT;
