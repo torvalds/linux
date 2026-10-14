@@ -377,7 +377,7 @@ static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,
 		return -ENOMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
-	mask = ruleset->handled_masks.fs;
+	mask = ruleset->layer.handled.fs;
 	if ((path_beneath_attr.allowed_access | mask) != mask)
 		return -EINVAL;
 
@@ -418,7 +418,7 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
 		return -ENOMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
-	mask = ruleset->handled_masks.net;
+	mask = ruleset->layer.handled.net;
 	if ((net_port_attr.allowed_access | mask) != mask)
 		return -EINVAL;
 

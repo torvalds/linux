@@ -353,9 +353,9 @@ TRACE_EVENT(landlock_create_ruleset,
 	TP_fast_assign(
 		__entry->ruleset_id	= ruleset->id;
 		__entry->ruleset_version = ruleset->version;
-		__entry->handled_fs	= ruleset->handled_masks.fs;
-		__entry->handled_net	= ruleset->handled_masks.net;
-		__entry->scoped		= ruleset->handled_masks.scope;
+		__entry->handled_fs	= ruleset->layer.handled.fs;
+		__entry->handled_net	= ruleset->layer.handled.net;
+		__entry->scoped		= ruleset->layer.handled.scope;
 	),
 
 	TP_printk("ruleset=%llx.%llu handled_fs=%s handled_net=%s scoped=%s",

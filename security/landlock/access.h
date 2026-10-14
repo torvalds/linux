@@ -19,9 +19,9 @@
 
 /*
  * All access rights that are denied by default whether they are handled or not
- * by a ruleset/layer.  This must be ORed with all domain->handled_masks[]
- * entries when we need to get the absolute handled access masks, see
- * landlock_upgrade_handled_access_masks().
+ * by a ruleset/layer.  This must be ORed with the .handled field of all
+ * domain->layers[] entries when we need to get the absolute handled access
+ * masks, see landlock_upgrade_handled_layer_config().
  */
 /* clang-format off */
 #define _LANDLOCK_ACCESS_FS_INITIALLY_DENIED ( \
@@ -45,7 +45,7 @@ static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_SCOPE);
 /* Makes sure for_each_set_bit() and for_each_clear_bit() calls are OK. */
 static_assert(sizeof(unsigned long) >= sizeof(access_mask_t));
 
-/* Ruleset access masks. */
+/* Access masks (bitfields only). */
 struct access_masks {
 	access_mask_t fs : LANDLOCK_NUM_ACCESS_FS;
 	access_mask_t net : LANDLOCK_NUM_ACCESS_NET;
@@ -60,6 +60,20 @@ union access_masks_all {
 /* Makes sure all fields are covered. */
 static_assert(sizeof(typeof_member(union access_masks_all, masks)) ==
 	      sizeof(typeof_member(union access_masks_all, all)));
+
+/**
+ * struct layer_config - Per-layer access configuration
+ *
+ * A ruleset stores one mutable layer and a domain stores a flexible array of
+ * immutable layers.
+ */
+struct layer_config {
+	/**
+	 * @handled: Bitmask of access rights handled (i.e. restricted) by this
+	 * layer.
+	 */
+	struct access_masks handled;
+};
 
 #define _LANDLOCK_LAYER_MASK_PADDING                              \
 	(BITS_PER_TYPE(access_mask_t) - LANDLOCK_NUM_ACCESS_MAX - \
@@ -131,17 +145,17 @@ static_assert(BITS_PER_TYPE(deny_masks_t) >=
 static_assert(HWEIGHT(LANDLOCK_MAX_NUM_LAYERS) == 1);
 
 /* Upgrades with all initially denied by default access rights. */
-static inline struct access_masks
-landlock_upgrade_handled_access_masks(struct access_masks access_masks)
+static inline struct layer_config
+landlock_upgrade_handled_layer_config(struct layer_config layer_config)
 {
 	/*
 	 * All access rights that are denied by default whether they are
 	 * explicitly handled or not.
 	 */
-	if (access_masks.fs)
-		access_masks.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
+	if (layer_config.handled.fs)
+		layer_config.handled.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 
-	return access_masks;
+	return layer_config;
 }
 
 /* Checks the subset relation between access masks. */

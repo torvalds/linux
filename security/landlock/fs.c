@@ -342,7 +342,7 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 
 	/* Transforms relative access rights to absolute ones. */
 	access_rights |= LANDLOCK_MASK_ACCESS_FS &
-			 ~(ruleset->handled_masks.fs |
+			 ~(ruleset->layer.handled.fs |
 			   _LANDLOCK_ACCESS_FS_INITIALLY_DENIED);
 	id.key.object = get_inode_object(d_backing_inode(path->dentry));
 	if (IS_ERR(id.key.object))

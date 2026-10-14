@@ -64,20 +64,20 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 					   LANDLOCK_MASK_ACCESS_FS;
 
 		WARN_ON_ONCE(fs_access_mask != mask);
-		new_ruleset->handled_masks.fs |= mask;
+		new_ruleset->layer.handled.fs |= mask;
 	}
 	if (net_access_mask) {
 		const access_mask_t mask = net_access_mask &
 					   LANDLOCK_MASK_ACCESS_NET;
 
 		WARN_ON_ONCE(net_access_mask != mask);
-		new_ruleset->handled_masks.net |= mask;
+		new_ruleset->layer.handled.net |= mask;
 	}
 	if (scope_mask) {
 		const access_mask_t mask = scope_mask & LANDLOCK_MASK_SCOPE;
 
 		WARN_ON_ONCE(scope_mask != mask);
-		new_ruleset->handled_masks.scope |= mask;
+		new_ruleset->layer.handled.scope |= mask;
 	}
 	return new_ruleset;
 }

@@ -50,7 +50,7 @@ static struct landlock_domain *create_domain(const u32 num_layers)
 	struct landlock_domain *new_domain;
 
 	build_check_domain();
-	new_domain = kzalloc_flex(*new_domain, handled_masks, num_layers,
+	new_domain = kzalloc_flex(*new_domain, layers, num_layers,
 				  GFP_KERNEL_ACCOUNT);
 	if (!new_domain)
 		return ERR_PTR(-ENOMEM);
@@ -328,8 +328,8 @@ static int merge_ruleset(struct landlock_domain *const dst,
 	if (WARN_ON_ONCE(dst->num_layers < 1))
 		return -EINVAL;
 
-	dst->handled_masks[dst->num_layers - 1] =
-		landlock_upgrade_handled_access_masks(src->handled_masks);
+	dst->layers[dst->num_layers - 1] =
+		landlock_upgrade_handled_layer_config(src->layer);
 
 	/* Merges the @src inode tree. */
 	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
@@ -404,8 +404,8 @@ static int inherit_ruleset(struct landlock_domain *const parent,
 	/*
 	 * Copies the parent layer stack and leaves a space for the new layer.
 	 */
-	memcpy(child->handled_masks, parent->handled_masks,
-	       flex_array_size(parent, handled_masks, parent->num_layers));
+	memcpy(child->layers, parent->layers,
+	       flex_array_size(parent, layers, parent->num_layers));
 
 	if (WARN_ON_ONCE(!parent->hierarchy))
 		return -EINVAL;

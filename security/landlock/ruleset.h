@@ -188,10 +188,9 @@ struct landlock_ruleset {
 	 */
 	struct access_masks quiet_access;
 	/**
-	 * @handled_masks: Contains the subset of filesystem and network actions
-	 * that are handled by this ruleset.
+	 * @layer: Access configuration for this ruleset's single mutable layer.
 	 */
-	struct access_masks handled_masks;
+	struct layer_config layer;
 };
 
 struct landlock_ruleset *

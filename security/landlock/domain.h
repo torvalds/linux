@@ -217,7 +217,7 @@ struct landlock_domain {
 		 * @work_free: Enables to free a domain within a lockless
 		 * section.  This is only used by landlock_put_domain_deferred()
 		 * when @usage reaches zero.  The fields @usage, @num_layers and
-		 * @handled_masks are then unused.
+		 * @layers are then unused.
 		 */
 		struct work_struct work_free;
 		struct {
@@ -233,15 +233,14 @@ struct landlock_domain {
 			 */
 			u32 num_layers;
 			/**
-			 * @handled_masks: Contains the subset of filesystem and
-			 * network actions that are restricted by a domain.  A
-			 * domain saves all layers of merged rulesets in a stack
-			 * (FAM), starting from the first layer to the last one.
-			 * These layers are used when merging rulesets, for user
-			 * space backward compatibility (i.e. future-proof), and
-			 * to properly handle merged rulesets without
-			 * overlapping access rights.  These layers are set once
-			 * and never changed for the lifetime of the domain.
+			 * @layers: Per-layer access configuration.  A domain
+			 * saves all layers of merged rulesets in a stack (FAM),
+			 * starting from the first layer to the last one.  These
+			 * layers are used when merging rulesets, for user space
+			 * backward compatibility (i.e. future-proof), and to
+			 * properly handle merged rulesets without overlapping
+			 * access rights.  These layers are set once and never
+			 * changed for the lifetime of the domain.
 			 *
 			 * Not annotated with __counted_by(num_layers): clang
 			 * miscomputes the counter address for a FAM nested in
@@ -249,7 +248,7 @@ struct landlock_domain {
 			 * FORTIFY:
 			 * https://github.com/llvm/llvm-project/pull/228309
 			 */
-			struct access_masks handled_masks[];
+			struct layer_config layers[];
 		};
 	};
 };
@@ -259,7 +258,7 @@ landlock_get_fs_access_mask(const struct landlock_domain *const domain,
 			    const u16 layer_level)
 {
 	/* Handles all initially denied by default access rights. */
-	return domain->handled_masks[layer_level].fs |
+	return domain->layers[layer_level].handled.fs |
 	       _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 }
 
@@ -267,14 +266,14 @@ static inline access_mask_t
 landlock_get_net_access_mask(const struct landlock_domain *const domain,
 			     const u16 layer_level)
 {
-	return domain->handled_masks[layer_level].net;
+	return domain->layers[layer_level].handled.net;
 }
 
 static inline access_mask_t
 landlock_get_scope_mask(const struct landlock_domain *const domain,
 			const u16 layer_level)
 {
-	return domain->handled_masks[layer_level].scope;
+	return domain->layers[layer_level].handled.scope;
 }
 
 /**
@@ -293,7 +292,7 @@ landlock_union_access_masks(const struct landlock_domain *const domain)
 
 	for (layer_level = 0; layer_level < domain->num_layers; layer_level++) {
 		union access_masks_all layer = {
-			.masks = domain->handled_masks[layer_level],
+			.masks = domain->layers[layer_level].handled,
 		};
 
 		matches.all |= layer.all;
