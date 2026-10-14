@@ -12,7 +12,6 @@
 / {
 	chassis-type = "embedded";
 	compatible = "gocontroll,moduline-mini-111", "karo,tx8m-1610", "fsl,imx8mm";
-	hardware = "Moduline Mini V1.11";
 	model = "GOcontroll Moduline Mini";
 
 	aliases {

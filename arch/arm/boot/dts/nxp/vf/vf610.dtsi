@@ -14,6 +14,9 @@
 		reg = <0x40006000 0x1000>;
 		cache-unified;
 		cache-level = <2>;
+		cache-line-size = <32>;
+		cache-sets = <2048>;
+		cache-size = <0x80000>;
 		arm,data-latency = <3 3 3>;
 		arm,tag-latency = <2 2 2>;
 	};

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 Marek Vasut
+ */
+
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-mi0700a2t-30.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-edm-mod-imx8mm-lvds-single.dtsi"
+
+&mipi_dsi {
+	samsung,burst-clock-frequency = <216000000>;	/* RX ByteClock ~27 MHz */
+	samsung,esc-clock-frequency = <10000000>;
+};

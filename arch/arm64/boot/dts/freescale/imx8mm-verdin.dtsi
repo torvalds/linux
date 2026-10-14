@@ -353,7 +353,7 @@
 
 &gpio5 {
 	gpio-line-names = "SODIMM_131",
-			  "",
+			  "SODIMM_256",
 			  "SODIMM_91",
 			  "SODIMM_16",
 			  "SODIMM_15",

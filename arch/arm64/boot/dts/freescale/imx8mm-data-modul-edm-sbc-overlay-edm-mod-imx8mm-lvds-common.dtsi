@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 Marek Vasut
+ */
+
+&{/} {
+	reg_lt9211_vcc18: regulator-lt9211-vcc18 {
+		compatible = "regulator-fixed";
+		regulator-name = "LT9211_VCC18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&buck5_reg>;	/* X400 pin 51, +1V8_S0 */
+	};
+};
+
+&i2c_display {	/* Display connector I2C */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;
+
+	lt9211_codec: bridge@2d {
+		compatible = "lontium,lt9211";
+		reg = <0x2d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_panel_expansion>;
+		interrupts-extended = <&gpio2 3 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+		vccio-supply = <&reg_lt9211_vcc18>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lt9211_a: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&mipi_dsi_bridge1_out>;
+				};
+			};
+		};
+	};
+
+	gpio_display: io-expander@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "SEL_12V", "SEL_5V", "SEL_PWM", "SEL_EN";
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&reg_backlight_en_level {
+	gpios = <&gpio_display 3 GPIO_ACTIVE_HIGH>; /* SEL_EN */
+};
+
+&reg_backlight_pwm_level {
+	gpios = <&gpio_display 2 GPIO_ACTIVE_HIGH>; /* SEL_PWM */
+};
+
+&reg_panel_bl {
+	gpio = <&gpio3 0 0>;
+};
+
+&iomuxc {
+	/* Free &pinctrl_panel_expansion from hog for lt9211_codec above */
+	pinctrl-0 = <&pinctrl_hog_misc>, <&pinctrl_hog_feature>,
+		    <&pinctrl_hog_panel>, <&pinctrl_hog_sbc>;
+};
+
+&mipi_dsi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			mipi_dsi_bridge1_out: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				/* Clock and data lanes have DN/DP swapped */
+				lane-polarities = <1 1 1 1 1>;
+				remote-endpoint = <&lt9211_a>;
+			};
+		};
+	};
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&reg_panel_vcc {
+	/*
+	 * AP63300 voltage divider settings:
+	 *   R1=16k2
+	 *   R2=5k23 with optional series Rs=7k68 (5V) or Rt=1k5 (12V)
+	 *
+	 * 1 / Rx = (1 / R2) [ + (1 / Rs)][ + (1 / Rt)]
+	 * Vout = 0.8 * ((R1 / Rx) + 1)
+	 */
+	gpios = <&gpio_display 1 GPIO_ACTIVE_HIGH>,	/* 5V */
+		<&gpio_display 0 GPIO_ACTIVE_HIGH>;	/* 12V */
+	states = <3300000 0x0>,
+		 <5000000 0x1>,
+		 <12000000 0x2>,
+		 <3900000 0x3>;
+};

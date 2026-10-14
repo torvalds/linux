@@ -49,7 +49,7 @@
 				regulator-ramp-delay = <3125>;
 			};
 
-			buck2: BUCK2  {
+			buck2: BUCK2 {
 				nxp,dvs-run-voltage = <950000>;
 				nxp,dvs-standby-voltage = <850000>;
 				regulator-always-on;

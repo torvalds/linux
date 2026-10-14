@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+&cfg_eeprom {
+	cfg_eeprom_layout: nvmem-layout {
+		compatible = "fixed-layout";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		vhip-signature@0 {
+			reg = <0x0 0x4>;
+		};
+
+		vhip-version@4 {
+			reg = <0x4 0x4>;
+		};
+
+		vhip-size@8 {
+			reg = <0x8 0x4>;
+		};
+
+		device-serial@c {
+			reg = <0xc 0x10>;
+		};
+
+		order-number@1c {
+			reg = <0x1c 0x20>;
+		};
+
+		article-name@3c {
+			reg = <0x3c 0x40>;
+		};
+
+		article-rev@7c {
+			reg = <0x7c 0x4>;
+		};
+
+		hardware-rev@80 {
+			reg = <0x80 0x4>;
+		};
+
+		product-type@84 {
+			reg = <0x84 0x20>;
+		};
+
+		software-compatibility@a4 {
+			reg = <0xa4 0x4>;
+		};
+
+		manufacturing-date@a8 {
+			reg = <0xa8 0x20>;
+		};
+
+		production-order-number@c8 {
+			reg = <0xc8 0x20>;
+		};
+
+		/* Each MAC address is padded to 8 Bytes */
+		cfg_eeprom_mac1: mac-address-1@e8 {
+			reg = <0xe8 0x8>;
+		};
+
+		cfg_eeprom_mac2: mac-address-2@f0 {
+			reg = <0xf0 0x8>;
+		};
+
+		cfg_eeprom_mac3: mac-address-3@f8 {
+			reg = <0xf8 0x8>;
+		};
+
+		cfg_eeprom_mac4: mac-address-4@100 {
+			reg = <0x100 0x8>;
+		};
+
+		cfg_eeprom_mac5: mac-address-5@108 {
+			reg = <0x108 0x8>;
+		};
+
+		cfg_eeprom_mac6: mac-address-6@110 {
+			reg = <0x110 0x8>;
+		};
+
+		cfg_eeprom_mac7: mac-address-7@118 {
+			reg = <0x118 0x8>;
+		};
+
+		cfg_eeprom_mac8: mac-address-8@120 {
+			reg = <0x120 0x8>;
+		};
+
+		next-block-offset@128 {
+			reg = <0x128 0x4>;
+		};
+
+		section-crc@12c {
+			reg = <0x12c 0x4>;
+		};
+	};
+};

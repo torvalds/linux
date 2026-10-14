@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2022-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mm-data-modul-edm-sbc-overlay-edm-mod-imx8mm-common.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-edm-mod-imx8mm-lvds-common.dtsi"
+
+&{/} {
+	reg_panel_bl_supply: regulator-panel-bl-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "BKLT0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+};
+
+&lcdif1 {
+	status = "okay";
+};
+
+&lt9211_codec {
+	interrupts-extended = <&gpio4 19 IRQ_TYPE_EDGE_FALLING>;
+	reset-gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+};
+
+&reg_panel_bl {
+	vin-supply = <&reg_panel_bl_supply>;
+};
+
+&reg_panel_vcc {
+	enable-gpios = <&gpio3 6 0>;
+};

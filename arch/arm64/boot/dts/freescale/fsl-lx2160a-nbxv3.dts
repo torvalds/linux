@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Free Mobile Nodebox v3 CPU Module (LX2160A)
+ *
+ * Copyright 2026 Free Mobile, Vincent Jardin
+ */
+
+/dts-v1/;
+
+#include "fsl-lx2160a-rev2.dtsi"
+#include "fsl-lx2160a-nbxv3.dtsi"
+
+/ {
+	compatible = "freemobile,nbxv3", "fsl,lx2160a";
+	model = "Free Mobile Nodebox v3 CPU Module (LX2160A)";
+};
+
+&fspi {
+	pinctrl-0 = <&fspi_dqs_sck_cs10_pins>, <&fspi_data30_pins>;
+	pinctrl-names = "default";
+};
+
+&gpio1 {
+	pinctrl-0 = <&gpio1_31_28_pins>;
+	pinctrl-names = "default";
+};
+
+&pcs_mdio13 {
+	status = "okay";
+};
+
+&pcs_mdio14 {
+	status = "okay";
+};

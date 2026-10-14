@@ -23,6 +23,7 @@
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		rtc0 = &bbnsm_rtc;
+		rtc1 = &pcf2131;
 		serial0 = &lpuart1;
 	};
 
@@ -75,11 +76,36 @@
 		mux-gpios = <&pcal6524 9 GPIO_ACTIVE_HIGH>;
 	};
 
+	exp_mux: mux-controller-3 {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+		#mux-state-cells = <1>;
+		mux-gpios = <&pcal6524 22 GPIO_ACTIVE_HIGH>;
+	};
+
+	sai3_tx_rx_mux: mux-controller-4 {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+		#mux-state-cells = <1>;
+		mux-gpios = <&pcal6524 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	sai3_en_mux: mux-controller-5 {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+		#mux-state-cells = <1>;
+		mux-gpios = <&pcal6524 23 GPIO_ACTIVE_HIGH>;
+	};
+
 	pinctrl-gpiomux {
 		compatible = "pinctrl-multiplexer";
 
 		can_fun: can-grp {
 			mux-states = <&can_mux 1>;
+		};
+
+		gpio_fun: exp-grp {
+			mux-states = <&exp_mux 0>;
 		};
 
 		m2_fun: m2-grp {
@@ -101,6 +127,32 @@
 		sai1_fun: sai1-grp {
 			mux-states = <&sai1_mux 0>;
 		};
+
+		sai3_enable: sai3-enable-grp {
+			mux-states = <&sai3_en_mux 0>;
+		};
+
+		sai3_tx_fun: sai3-tx-grp {
+			mux-states = <&sai3_tx_rx_mux 0>;
+		};
+	};
+
+	reg_exp_3v3: regulator-exp-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "EXP_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pcal6524 21 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_exp_5v: regulator-exp-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "EXP_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pcal6524 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	reg_vref_1v8: regulator-adc-vref {

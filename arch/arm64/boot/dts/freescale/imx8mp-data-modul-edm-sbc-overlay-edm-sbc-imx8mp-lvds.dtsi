@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mm-data-modul-edm-sbc-overlay-edm-mod-imx8mm-common.dtsi"
+
+&{/} {
+	reg_panel_bl_supply: regulator-panel-bl-supply {
+		compatible = "regulator-gpio";
+		regulator-type = "voltage";
+		regulator-name = "PANEL_BL_SUPPLY";
+		enable-gpios = <&gpiolvds 0 0>;
+		enable-active-high;
+		status = "okay";
+
+		/*
+		 * MP2328 voltage divider settings:
+		 *   R1=51k1
+		 *   R2=5k62 with optional series Rs=2k21 (12V)
+		 *
+		 * 1 / Rx = (1 / R2) [ + (1 / Rs)][ + (1 / Rt)]
+		 * Vout = 0.5 + ((R1 / Rx) * 0.5)
+		 */
+		gpios = <&gpiolvds 1 GPIO_ACTIVE_HIGH>;	/* 12V */
+		states = <5000000 0x0>,
+			 <12000000 0x1>;
+
+		/* Default setting: lowest supported voltage. */
+		gpios-states = <1>;	/* Default GPIO state is HIGH, so 12V0 out */
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&lvds_bridge {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&reg_backlight_en_level {
+	gpios = <&gpiolvds 5 GPIO_ACTIVE_HIGH>; /* SEL_EN */
+};
+
+&reg_backlight_pwm_level {
+	gpios = <&gpiolvds 4 GPIO_ACTIVE_HIGH>; /* SEL_PWM */
+};
+
+&reg_panel_bl {
+	gpio = <&gpiowifi 0 0>;
+	vin-supply = <&reg_panel_bl_supply>;
+};
+
+&reg_panel_vcc {
+	enable-gpios = <&gpiowifi 4 0>;
+	/*
+	 * MP2328 voltage divider settings:
+	 *   R1=51k1
+	 *   R2=9k09 with optional series Rs=14k7 (5V) or Rt=2k94 (12V)
+	 *
+	 * 1 / Rx = (1 / R2) [ + (1 / Rs)][ + (1 / Rt)]
+	 * Vout = 0.5 + ((R1 / Rx) * 0.5)
+	 */
+	gpios = <&gpiolvds 2 GPIO_ACTIVE_HIGH>,	/* 5V */
+		<&gpiolvds 3 GPIO_ACTIVE_HIGH>;	/* 12V */
+	states = <3300000 0x0>,
+		 <5000000 0x1>,
+		 <12000000 0x2>,
+		 <14000000 0x3>;
+};

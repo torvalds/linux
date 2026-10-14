@@ -12,7 +12,7 @@
 	status = "okay";
 };
 
-&panel_lvds1{
+&panel_lvds1 {
 	compatible = "tianma,tm070jvhg33";
 	status = "okay";
 

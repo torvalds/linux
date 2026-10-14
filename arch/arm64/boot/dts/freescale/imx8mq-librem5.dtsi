@@ -1025,7 +1025,7 @@
 	sda-gpios = <&gpio5 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
-	magnetometer: magnetometer@1e	{
+	magnetometer: magnetometer@1e {
 		compatible = "st,lsm9ds1-magn";
 		reg = <0x1e>;
 		pinctrl-names = "default";
@@ -1060,7 +1060,7 @@
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 	};
 
-	accel_gyro: accel-gyro@6a	{
+	accel_gyro: accel-gyro@6a {
 		compatible = "st,lsm9ds1-imu";
 		reg = <0x6a>;
 		vdd-supply = <&reg_vdd_sen>;
