@@ -196,9 +196,9 @@ CONCAT3(.Lchacha_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 .text
 .set	reorder
 .set	noat
-.globl	chacha_crypt_arch
-.ent	chacha_crypt_arch
-chacha_crypt_arch:
+.globl	chacha_crypt_mips
+.ent	chacha_crypt_mips
+chacha_crypt_mips:
 	.frame	$sp, STACK_SIZE, $ra
 
 	/* Load number of rounds */
@@ -414,7 +414,7 @@ chacha_crypt_arch:
 
 	/* Jump table */
 	FOR_EACH_WORD(JMPTBL_UNALIGNED)
-.end chacha_crypt_arch
+.end chacha_crypt_mips
 .set at
 
 /* Input arguments
