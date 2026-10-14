@@ -98,6 +98,24 @@ struct collapse_control {
 
 	/* Each bit marks a PTE the scan accepted as a collapse source */
 	DECLARE_BITMAP(eligible_ptes, MAX_PTRS_PER_PTE);
+
+	/*
+	 * What a scan found and the collapse after it needs.  Live only between
+	 * the two, and read by nobody else.
+	 */
+
+	/* Anonymous only: orders to try, referenced and swap PTE counts */
+	unsigned long scan_orders;
+	int scan_referenced;
+	int scan_unmapped;
+
+	/*
+	 * File only.  A file collapse works on the page cache and never sees a
+	 * VMA, so the scan takes a reference to the file while it still has
+	 * one, and the collapse gives it back.
+	 */
+	struct file *scan_file;
+	pgoff_t scan_pgoff;
 };
 
 #endif	/* __MM_COLLAPSE_H */
