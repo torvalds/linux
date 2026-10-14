@@ -63,22 +63,23 @@ static int thermal_of_get_trip_type(struct device_node *np,
 static int thermal_of_populate_trip(struct device_node *np,
 				    struct thermal_trip *trip)
 {
-	int prop;
+	u32 hysteresis;
+	s32 temperature;
 	int ret;
 
-	ret = of_property_read_u32(np, "temperature", &prop);
+	ret = of_property_read_s32(np, "temperature", &temperature);
 	if (ret < 0) {
 		pr_err("missing temperature property\n");
 		return ret;
 	}
-	trip->temperature = prop;
+	trip->temperature = temperature;
 
-	ret = of_property_read_u32(np, "hysteresis", &prop);
+	ret = of_property_read_u32(np, "hysteresis", &hysteresis);
 	if (ret < 0) {
 		pr_err("missing hysteresis property\n");
 		return ret;
 	}
-	trip->hysteresis = prop;
+	trip->hysteresis = hysteresis;
 
 	ret = thermal_of_get_trip_type(np, &trip->type);
 	if (ret < 0) {

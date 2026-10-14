@@ -707,22 +707,20 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	ret = check_power_actors(tz, params);
 	if (ret < 0) {
 		dev_warn(&tz->device, "power_allocator: binding failed\n");
-		kfree(params);
-		return ret;
+		goto free_params;
 	}
 
 	ret = allocate_actors_buffer(params, ret);
 	if (ret) {
 		dev_warn(&tz->device, "power_allocator: allocation failed\n");
-		kfree(params);
-		return ret;
+		goto free_params;
 	}
 
 	if (!tz->tzp) {
 		tz->tzp = kzalloc_obj(*tz->tzp);
 		if (!tz->tzp) {
 			ret = -ENOMEM;
-			goto free_params;
+			goto free_power;
 		}
 
 		params->allocated_tzp = true;
@@ -746,8 +744,9 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 
 	return 0;
 
-free_params:
+free_power:
 	kfree(params->power);
+free_params:
 	kfree(params);
 
 	return ret;

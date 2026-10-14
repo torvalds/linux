@@ -11,13 +11,13 @@
 
 /**
  * thermal_fwnode_cooling_device_register() - register an thermal cooling device
- * @np:		a pointer to a device tree node.
- * @of_index:	a cooling device index in the cooling controller
+ * @fwnode:	a pointer to a firmware node.
+ * @fwn_index:	a cooling device index in the cooling controller
  * @type:	the thermal cooling device type.
  * @devdata:	device private data.
  * @ops:		standard thermal cooling devices callbacks.
  *
- * This function will register a cooling device with device tree node reference.
+ * This function will register a cooling device with a firmware node reference.
  * This interface function adds a new thermal cooling device (fan/processor/...)
  * to /sys/class/thermal/ folder as cooling_device[0-*]. It tries to bind itself
  * to all the thermal zone devices registered at the same time.
@@ -71,7 +71,7 @@ __devm_thermal_fwnode_cooling_device_register(struct device *dev, struct fwnode_
 /**
  * devm_thermal_fwnode_cooling_device_register() - register a thermal cooling device
  * @dev:	a valid struct device pointer of a sensor device.
- * @fw_index:	a cooling device index in the cooling controller
+ * @fwn_index:	a cooling device index in the cooling controller
  * @type:	the thermal cooling device type.
  * @devdata:	device private data.
  * @ops:	standard thermal cooling devices callbacks.
