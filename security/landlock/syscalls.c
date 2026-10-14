@@ -31,6 +31,7 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/landlock.h>
 
+#include "cap.h"
 #include "cred.h"
 #include "domain.h"
 #include "fs.h"
@@ -101,8 +102,9 @@ static void build_check_abi(void)
 	struct landlock_path_beneath_attr path_beneath_attr;
 	struct landlock_net_port_attr net_port_attr;
 	struct landlock_namespace_attr namespace_attr;
+	struct landlock_capability_attr capability_attr;
 	size_t ruleset_size, path_beneath_size, net_port_size;
-	size_t namespace_size;
+	size_t namespace_size, capability_size;
 
 	/*
 	 * For each user space ABI structures, first checks that there is no
@@ -134,6 +136,12 @@ static void build_check_abi(void)
 	namespace_size += sizeof(namespace_attr.quiet_namespace_types);
 	BUILD_BUG_ON(sizeof(namespace_attr) != namespace_size);
 	BUILD_BUG_ON(sizeof(namespace_attr) != 24);
+
+	capability_size = sizeof(capability_attr.permissions);
+	capability_size += sizeof(capability_attr.allowed_capabilities);
+	capability_size += sizeof(capability_attr.quiet_capabilities);
+	BUILD_BUG_ON(sizeof(capability_attr) != capability_size);
+	BUILD_BUG_ON(sizeof(capability_attr) != 24);
 }
 
 /* Ruleset handling */
@@ -527,14 +535,88 @@ static int add_rule_namespace(struct landlock_ruleset *const ruleset,
 	return 0;
 }
 
+static int add_rule_capability(struct landlock_ruleset *const ruleset,
+			       const void __user *const rule_attr,
+			       const u32 flags)
+{
+	struct landlock_capability_attr cap_attr;
+	access_mask_t mask;
+	u64 allowed_caps, quiet_caps;
+	int ret;
+
+	/*
+	 * Capability rules support no add-rule flags.  In particular,
+	 * LANDLOCK_ADD_RULE_QUIET is filesystem/network only.
+	 */
+	if (flags)
+		return -EINVAL;
+
+	/* Copies raw user space buffer. */
+	ret = copy_from_user(&cap_attr, rule_attr, sizeof(cap_attr));
+	if (ret)
+		return -EFAULT;
+
+	/* Informs about useless rule: empty permissions. */
+	if (!cap_attr.permissions)
+		return -ENOMSG;
+
+	/*
+	 * The permissions selector must match
+	 * LANDLOCK_PERMISSION_CAPABILITY_USE.  The valid set is a single bit
+	 * today, so this is an exact match now; the check broadens to a subset
+	 * test once another supported permission is added.
+	 */
+	if (cap_attr.permissions != LANDLOCK_PERMISSION_CAPABILITY_USE)
+		return -EINVAL;
+
+	/*
+	 * Checks that permissions match the ruleset constraints.  This also
+	 * makes quieting require the category to be handled.
+	 */
+	mask = landlock_get_permission_mask(ruleset);
+	if (!(mask & LANDLOCK_PERMISSION_CAPABILITY_USE))
+		return -EINVAL;
+
+	/*
+	 * Informs about useless rule: neither allows nor quiets anything.  A
+	 * quiet-only rule (empty allowed set) is legal.
+	 */
+	if (!cap_attr.allowed_capabilities && !cap_attr.quiet_capabilities)
+		return -ENOMSG;
+
+	/*
+	 * Stores only the capabilities this kernel knows about.  Unknown bits
+	 * are silently accepted for forward compatibility: user space compiled
+	 * against newer headers can pass new CAP_* bits without getting EINVAL
+	 * on older kernels.  Unknown bits have no effect because no hook checks
+	 * them.  The quiet bitmask suppresses logging of denials attributed to
+	 * this layer; see landlock_log_denial().
+	 */
+	allowed_caps = cap_attr.allowed_capabilities & CAP_VALID_MASK;
+	quiet_caps = cap_attr.quiet_capabilities & CAP_VALID_MASK;
+
+	mutex_lock(&ruleset->lock);
+	ruleset->layer.allowed.caps |= landlock_caps_to_bits(allowed_caps);
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+	ruleset->quiet_permission.caps |= landlock_caps_to_bits(quiet_caps);
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
+#ifdef CONFIG_TRACEPOINTS
+	ruleset->version++;
+#endif /* CONFIG_TRACEPOINTS */
+	trace_landlock_add_rule_capability(ruleset, flags, cap_attr.permissions,
+					   allowed_caps, quiet_caps);
+	mutex_unlock(&ruleset->lock);
+	return 0;
+}
+
 /**
  * sys_landlock_add_rule - Add a new rule to a ruleset
  *
  * @ruleset_fd: File descriptor tied to the ruleset that should be extended
  *		with the new rule.
  * @rule_type: Identify the structure type pointed to by @rule_attr:
- *             %LANDLOCK_RULE_PATH_BENEATH, %LANDLOCK_RULE_NET_PORT, or
- *             %LANDLOCK_RULE_NAMESPACE.
+ *             %LANDLOCK_RULE_PATH_BENEATH, %LANDLOCK_RULE_NET_PORT,
+ *             %LANDLOCK_RULE_NAMESPACE, or %LANDLOCK_RULE_CAPABILITY.
  * @rule_attr: Pointer to a rule (matching the @rule_type).
  * @flags: Must be 0 or %LANDLOCK_ADD_RULE_QUIET.
  *
@@ -553,6 +635,8 @@ static int add_rule_namespace(struct landlock_ruleset *const ruleset,
  *   handled accesses)
  * - %EINVAL: A nonzero &landlock_namespace_attr.permissions is not
  *   %LANDLOCK_PERMISSION_NAMESPACE_USE or is not handled by the ruleset;
+ * - %EINVAL: A nonzero &landlock_capability_attr.permissions is not
+ *   %LANDLOCK_PERMISSION_CAPABILITY_USE or is not handled by the ruleset;
  * - %EINVAL: &landlock_net_port_attr.port is greater than 65535;
  * - %EINVAL: LANDLOCK_ADD_RULE_QUIET is passed but the ruleset has no
  *   quiet access bits set for the corresponding rule type.
@@ -561,6 +645,9 @@ static int add_rule_namespace(struct landlock_ruleset *const ruleset,
  * - %ENOMSG: &landlock_namespace_attr.permissions is 0, or both
  *   &landlock_namespace_attr.allowed_namespace_types and
  *   &landlock_namespace_attr.quiet_namespace_types are 0;
+ * - %ENOMSG: &landlock_capability_attr.permissions is 0, or both
+ *   &landlock_capability_attr.allowed_capabilities and
+ *   &landlock_capability_attr.quiet_capabilities are 0;
  * - %EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
  *   member of @rule_attr is not a file descriptor as expected;
  * - %EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
@@ -595,6 +682,8 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		return add_rule_net_port(ruleset, rule_attr, flags);
 	case LANDLOCK_RULE_NAMESPACE:
 		return add_rule_namespace(ruleset, rule_attr, flags);
+	case LANDLOCK_RULE_CAPABILITY:
+		return add_rule_capability(ruleset, rule_attr, flags);
 	default:
 		return -EINVAL;
 	}

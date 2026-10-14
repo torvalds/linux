@@ -81,6 +81,7 @@ get_blocker(const enum landlock_request_type type,
 		return scope_strings[BIT_INDEX(LANDLOCK_SCOPE_SIGNAL)];
 
 	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_CAPABILITY:
 		if (WARN_ON_ONCE(access_bit >= ARRAY_SIZE(permission_strings)))
 			return "unknown";
 		return permission_strings[access_bit];
@@ -116,6 +117,9 @@ blocker_prefix(const enum landlock_request_type type)
 
 	case LANDLOCK_REQUEST_NAMESPACE:
 		return _LANDLOCK_PERMISSION_NAMESPACE_NAME ".";
+
+	case LANDLOCK_REQUEST_CAPABILITY:
+		return _LANDLOCK_PERMISSION_CAPABILITY_NAME ".";
 	}
 
 	WARN_ON_ONCE(1);

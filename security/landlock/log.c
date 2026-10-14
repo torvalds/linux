@@ -12,6 +12,7 @@
 
 #include "access.h"
 #include "audit.h"
+#include "cap.h"
 #include "common.h"
 #include "cred.h"
 #include "domain.h"
@@ -393,6 +394,12 @@ static bool is_valid_request(const struct landlock_request *const request)
 		    WARN_ON_ONCE(request->audit.type != LSM_AUDIT_DATA_NS))
 			return false;
 		break;
+	case LANDLOCK_REQUEST_CAPABILITY:
+		if (WARN_ON_ONCE(request->permission !=
+				 LANDLOCK_PERMISSION_CAPABILITY_USE) ||
+		    WARN_ON_ONCE(request->audit.type != LSM_AUDIT_DATA_CAP))
+			return false;
+		break;
 	case LANDLOCK_REQUEST_PTRACE:
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 	case LANDLOCK_REQUEST_FS_ACCESS:
@@ -481,6 +488,9 @@ is_denial_quieted(const struct landlock_request *const request,
 	case LANDLOCK_REQUEST_NAMESPACE:
 		return !!(youngest_denied->quiet_permission.ns_types &
 			  landlock_ns_type_to_bit(request->audit.u.ns.ns_type));
+	case LANDLOCK_REQUEST_CAPABILITY:
+		return !!(youngest_denied->quiet_permission.caps &
+			  landlock_cap_to_bit(request->audit.u.cap));
 	/*
 	 * Leave LANDLOCK_REQUEST_PTRACE and LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY
 	 * unhandled for now - they are never quiet.

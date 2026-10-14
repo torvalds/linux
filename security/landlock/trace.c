@@ -94,6 +94,18 @@ void landlock_trace_denial(
 				request->audit.u.ns.ns_id);
 		}
 		break;
+	case LANDLOCK_REQUEST_CAPABILITY:
+		if (trace_landlock_deny_permission_capability_enabled()) {
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
+
+			trace_landlock_deny_permission_capability(
+				youngest_denied, same_exec, logged, &blockers,
+				request->audit.u.cap);
+		}
+		break;
 	case LANDLOCK_REQUEST_FS_ACCESS:
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 		if (trace_landlock_deny_access_fs_enabled()) {

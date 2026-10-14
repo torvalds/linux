@@ -377,6 +377,9 @@ landlock_permission_is_denied(const struct landlock_domain *const domain,
 		case LANDLOCK_PERMISSION_NAMESPACE_USE:
 			allowed = domain->layers[layer].allowed.ns_types;
 			break;
+		case LANDLOCK_PERMISSION_CAPABILITY_USE:
+			allowed = domain->layers[layer].allowed.caps;
+			break;
 		default:
 			WARN_ONCE(1, "Unknown permission %u\n",
 				  (unsigned int)permission_bit);

@@ -73,16 +73,24 @@ struct permission_masks {
 	 * order.
 	 */
 	u64 ns_types : LANDLOCK_NUM_NAMESPACE_TYPE;
+	/**
+	 * @caps: Capability member mask, indexed by CAP_* values.
+	 */
+	u64 caps : LANDLOCK_NUM_CAPABILITY;
 } __packed __aligned(sizeof(u64));
 
 static_assert(sizeof(struct permission_masks) == sizeof(u64));
+/* All permission_masks bitfields must fit in a single u64. */
+static_assert(LANDLOCK_NUM_CAPABILITY + LANDLOCK_NUM_NAMESPACE_TYPE <=
+	      BITS_PER_TYPE(u64));
 
 /**
  * struct layer_config - Per-layer access configuration
  *
  * A ruleset stores one mutable layer and a domain stores a flexible array of
  * immutable layers.  Unlike filesystem and network access rights, namespace
- * types use a flat bitmask because their keyspace is small and bounded.
+ * types and capabilities use flat bitmasks because their keyspaces are small
+ * and bounded.
  */
 struct layer_config {
 	/**
