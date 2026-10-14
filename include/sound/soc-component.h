@@ -196,11 +196,13 @@ struct snd_soc_component_driver {
 	unsigned int endianness:1;
 	unsigned int legacy_dai_naming:1;
 
+	/* use DAI link PCM ID as PCM device number */
+	unsigned int use_dai_pcm_id:1;
+
 	/* this component uses topology and ignore machine driver FEs */
 	const char *ignore_machine;
 	const char *topology_name_prefix;
 
-	bool use_dai_pcm_id;	/* use DAI link PCM ID as PCM device number */
 	int be_pcm_base;	/* base device ID for all BE PCMs */
 
 	const char *debugfs_prefix;
