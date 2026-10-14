@@ -32,6 +32,7 @@ struct sdw_slave;
 struct cs35l56_private {
 	struct wm_adsp dsp; /* must be first member */
 	struct cs35l56_base base;
+	struct work_struct component_register_work;
 	struct work_struct dsp_work;
 	struct workqueue_struct *dsp_wq;
 	struct snd_soc_component *component;
@@ -41,6 +42,7 @@ struct cs35l56_private {
 	const char *fallback_fw_suffix;
 	bool soft_resetting;
 	bool sdw_attached;
+	bool component_registered;
 	struct completion init_completion;
 
 	int speaker_id;

@@ -765,8 +765,7 @@ out_nofix:
 out_teardown:
 	error = xchk_teardown(sc, error);
 out_sc:
-	if (error != -ENOENT)
-		xchk_stats_merge(mp, sm, &run);
+	xchk_stats_merge(mp, sm, error, &run);
 	kfree(sc);
 out:
 	trace_xchk_done(XFS_I(file_inode(file)), sm, error);

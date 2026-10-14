@@ -123,6 +123,7 @@ static inline void free_tgts(struct cache_entry *ce)
 		kfree(t);
 	}
 
+	ce->numtgts = 0;
 	WRITE_ONCE(ce->tgthint, NULL);
 }
 
@@ -388,13 +389,6 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 	struct cache_dfs_tgt *target;
 	int i;
 
-	ce->ttl = max_t(int, refs[0].ttl, CACHE_MIN_TTL);
-	ce->etime = get_expire_time(ce->ttl);
-	ce->srvtype = refs[0].server_type;
-	ce->hdr_flags = refs[0].flags;
-	ce->ref_flags = refs[0].ref_flag;
-	ce->path_consumed = refs[0].path_consumed;
-
 	for (i = 0; i < numrefs; i++) {
 		struct cache_dfs_tgt *t;
 
@@ -409,12 +403,19 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 		} else {
 			list_add_tail(&t->list, &ce->tlist);
 		}
-		ce->numtgts++;
 	}
 
 	target = list_first_entry_or_null(&ce->tlist, struct cache_dfs_tgt,
 					  list);
+
 	WRITE_ONCE(ce->tgthint, target);
+	ce->ttl = max_t(int, refs[0].ttl, CACHE_MIN_TTL);
+	ce->etime = get_expire_time(ce->ttl);
+	ce->srvtype = refs[0].server_type;
+	ce->hdr_flags = refs[0].flags;
+	ce->ref_flags = refs[0].ref_flag;
+	ce->path_consumed = refs[0].path_consumed;
+	ce->numtgts = numrefs;
 
 	return 0;
 }
@@ -634,7 +635,6 @@ static int update_cache_entry_locked(struct cache_entry *ce, const struct dfs_in
 	}
 
 	free_tgts(ce);
-	ce->numtgts = 0;
 
 	rc = copy_ref_data(refs, numrefs, ce, th);
 

@@ -1199,50 +1199,39 @@ void mlx5e_stats_rmon_get(struct mlx5e_priv *priv,
 void mlx5e_stats_ts_get(struct mlx5e_priv *priv,
 			struct ethtool_ts_stats *ts_stats)
 {
-	int i, j;
+	u16 nch = mlx5e_stats_nch_read(priv);
+	int i, tc;
 
-	mutex_lock(&priv->state_lock);
+	ts_stats->pkts = 0;
 
+	for (i = 0; i < nch; i++) {
+		struct mlx5e_channel_stats *channel_stats =
+			priv->channel_stats[i];
+
+		for (tc = 0; tc < priv->max_opened_tc; tc++)
+			ts_stats->pkts += channel_stats->sq[tc].timestamps;
+	}
+
+	/* Accumulate DMA and port timestamp counters so values stay monotonic
+	 * across channel teardown and mode switches.
+	 */
 	if (priv->tx_ptp_opened) {
-		struct mlx5e_ptp *ptp = priv->channels.ptp;
-
-		ts_stats->pkts = 0;
+		/* Err and Lost stats are only relevant for port timestamping,
+		 * as the DMA layer will always successfully timestamp packets.
+		 */
 		ts_stats->err = 0;
 		ts_stats->lost = 0;
 
-		if (!ptp)
-			goto out;
-
-		/* Aggregate stats across all TCs */
-		for (i = 0; i < ptp->num_tc; i++) {
+		for (tc = 0; tc < priv->max_opened_tc; tc++) {
 			struct mlx5e_ptp_cq_stats *stats =
-				ptp->ptpsq[i].cq_stats;
+				&priv->ptp_stats.cq[tc];
 
 			ts_stats->pkts += stats->cqe;
 			ts_stats->err += stats->abort + stats->err_cqe +
-				stats->late_cqe;
+					stats->late_cqe;
 			ts_stats->lost += stats->lost_cqe;
 		}
-	} else {
-		/* DMA layer will always successfully timestamp packets. Other
-		 * counters do not make sense for this layer.
-		 */
-		ts_stats->pkts = 0;
-
-		/* Aggregate stats across all SQs */
-		for (j = 0; j < priv->channels.num; j++) {
-			struct mlx5e_channel *c = priv->channels.c[j];
-
-			for (i = 0; i < c->num_tc; i++) {
-				struct mlx5e_sq_stats *stats = c->sq[i].stats;
-
-				ts_stats->pkts += stats->timestamps;
-			}
-		}
 	}
-
-out:
-	mutex_unlock(&priv->state_lock);
 }
 
 #define PPORT_PHY_LAYER_OFF(c) \

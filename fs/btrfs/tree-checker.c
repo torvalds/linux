@@ -1909,6 +1909,16 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 
+	if (unlikely(btrfs_is_fstree(btrfs_header_owner(leaf)) &&
+	     (key->offset < BTRFS_FIRST_FREE_OBJECTID ||
+	      key->offset > BTRFS_LAST_FREE_OBJECTID))) {
+		inode_ref_err(leaf, slot,
+			      "invalid offset for ref key, have %llu expect [%llu, %lld]",
+			      key->offset, BTRFS_FIRST_FREE_OBJECTID,
+			      BTRFS_LAST_FREE_OBJECTID);
+		return -EUCLEAN;
+	}
+
 	ptr = btrfs_item_ptr_offset(leaf, slot);
 	end = ptr + btrfs_item_size(leaf, slot);
 	while (ptr < end) {
@@ -1952,12 +1962,14 @@ static int check_inode_extref(struct extent_buffer *leaf,
 {
 	unsigned long ptr = btrfs_item_ptr_offset(leaf, slot);
 	unsigned long end = ptr + btrfs_item_size(leaf, slot);
+	const bool is_fstree = btrfs_is_fstree(btrfs_header_owner(leaf));
 
 	if (unlikely(!check_prev_ino(leaf, key, slot, prev_key)))
 		return -EUCLEAN;
 
 	while (ptr < end) {
 		struct btrfs_inode_extref *extref = (struct btrfs_inode_extref *)ptr;
+		u64 parent;
 		u16 namelen;
 
 		if (unlikely(ptr + sizeof(*extref) > end)) {
@@ -1967,7 +1979,24 @@ static int check_inode_extref(struct extent_buffer *leaf,
 			return -EUCLEAN;
 		}
 
+		parent = btrfs_inode_extref_parent(leaf, extref);
+		if (unlikely(is_fstree && (parent < BTRFS_FIRST_FREE_OBJECTID ||
+					   parent > BTRFS_LAST_FREE_OBJECTID))) {
+			inode_ref_err(leaf, slot,
+		      "invalid parent for extref key, have %llu expect [%llu, %lld]",
+			      parent, BTRFS_FIRST_FREE_OBJECTID,
+				      BTRFS_LAST_FREE_OBJECTID);
+			return -EUCLEAN;
+		}
+
 		namelen = btrfs_inode_extref_name_len(leaf, extref);
+		if (unlikely(namelen == 0 || namelen > BTRFS_NAME_LEN)) {
+			inode_ref_err(leaf, slot,
+				"invalid inode extref name length, has %u expect [1, %u]",
+				namelen, BTRFS_NAME_LEN);
+			return -EUCLEAN;
+		}
+
 		if (unlikely(ptr + sizeof(*extref) + namelen > end)) {
 			inode_ref_err(leaf, slot,
 				"inode extref overflow, ptr %lu end %lu namelen %u",

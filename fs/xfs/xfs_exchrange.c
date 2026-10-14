@@ -504,6 +504,9 @@ xfs_exchange_range_finish(
 {
 	int			error;
 
+	if (fxr->flags & XFS_EXCHANGE_RANGE_DRY_RUN)
+		return 0;
+
 	error = file_remove_privs(fxr->file1);
 	if (error)
 		return error;
@@ -783,9 +786,12 @@ xfs_exchange_range(
 	if (ret)
 		return ret;
 
-	fsnotify_modify(fxr->file1);
-	if (fxr->file2 != fxr->file1)
-		fsnotify_modify(fxr->file2);
+	if (!(fxr->flags & XFS_EXCHANGE_RANGE_DRY_RUN)) {
+		fsnotify_modify(fxr->file1);
+		if (fxr->file2 != fxr->file1)
+			fsnotify_modify(fxr->file2);
+	}
+
 	return 0;
 }
 

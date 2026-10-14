@@ -106,6 +106,11 @@ static int idpf_dev_init(struct idpf_adapter *adapter,
  */
 static void idpf_decfg_device(struct idpf_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (pcie_ptm_enabled(pdev))
+		pci_disable_ptm(pdev);
+
 	libie_pci_unmap_all_mmio_regions(&adapter->ctlq_ctx.mmio_info);
 }
 
