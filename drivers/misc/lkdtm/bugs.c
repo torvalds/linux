@@ -676,7 +676,7 @@ static void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
 
 static void lkdtm_UNSET_SMEP(void)
 {
-#if IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_UML)
+#if IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_UML) && IS_BUILTIN(CONFIG_LKDTM)
 #define MOV_CR4_DEPTH	64
 	void (*direct_write_cr4)(unsigned long val);
 	unsigned char *insn;
@@ -737,7 +737,7 @@ static void lkdtm_UNSET_SMEP(void)
 		native_write_cr4(cr4);
 	}
 #else
-	pr_err("XFAIL: this test is x86_64-only\n");
+	pr_err("XFAIL: this test is x86_64-only and requires CONFIG_LKDTM=y\n");
 #endif
 }
 
