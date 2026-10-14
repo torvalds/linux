@@ -1828,6 +1828,13 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	flow_action_for_each(i, fa, &fr->action) {
 		struct efx_tc_action_set save;
 
+		if (!act) {
+			/* more actions after a non-pipe action */
+			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
+			rc = -EINVAL;
+			goto release;
+		}
+
 		switch (fa->id) {
 		case FLOW_ACTION_REDIRECT:
 		case FLOW_ACTION_MIRRED:
