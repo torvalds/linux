@@ -14,6 +14,7 @@
 #include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/ctype.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -2219,7 +2220,7 @@ uart_parse_options(const char *options, int *baud, int *parity,
 	const char *s = options;
 
 	*baud = simple_strtoul(s, NULL, 10);
-	while (*s >= '0' && *s <= '9')
+	while (isdigit(*s))
 		s++;
 	if (*s)
 		*parity = *s++;
