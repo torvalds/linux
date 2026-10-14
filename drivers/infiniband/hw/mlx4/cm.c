@@ -301,10 +301,20 @@ static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id,
 	spin_lock_irqsave(&sriov->going_down_lock, flags);
 	/*make sure that there is no schedule inside the scheduled work.*/
 	if (!sriov->is_going_down || id->scheduled_delete) {
+		/*
+		 * Do not requeue timeout work that is already executing. The
+		 * timeout handler may be waiting for id_map_lock and will free
+		 * this entry after the caller releases it.
+		 */
+		if (id->scheduled_delete &&
+		    !cancel_delayed_work(&id->timeout))
+			goto out;
+
 		id->scheduled_delete = 1;
 		id->rtu_timeout = rtu_timeout;
 		mod_delayed_work(cm_wq, &id->timeout, timeout);
 	}
+out:
 	spin_unlock_irqrestore(&sriov->going_down_lock, flags);
 }
 
