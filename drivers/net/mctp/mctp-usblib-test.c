@@ -386,12 +386,18 @@ static const struct mctp_usblib_test_pkt_span mctp_usblib_test_pkt_spans[] = {
 	{ "1p2x-split-mctphdr", 1, { 16 }, 2, { 6, 10 } },
 	/* Single packet split over 3 transfers, middle entirely continuation */
 	{ "1p3x-split", 1, { 12 }, 3, { 4, 4, 4 } },
+	/* A packet split over 5 transfers, splitting on and between each header. */
+	{ "1p5x-split", 1, { 12 }, 5, { 3, 1, 1, 3, 4}},
 	/* Max-sized single transfer */
 	{ "1p1x-large", 1, { 8191 }, 1, { 8191 } },
 	/* Two large packets, split at the worst-case for allocation, with a
 	 * single byte continuing the span
 	 */
-	{ "2p2x-large-split", 2, { 8190, 8190 }, 2, { 8191, 8189 } },
+	{ "2p2x-large-split", 2, { 8190, 8191 }, 2, { 8191, 8190 } },
+	/* Three large packets, split at the worst-case for allocation,
+	 * with a single byte continuing each span
+	 */
+	{ "3p3x-large-split", 3, { 8190, 8191, 8191 }, 3, { 8191, 8191, 8190 } },
 };
 
 KUNIT_ARRAY_PARAM(mctp_usblib_test_rx_pkt_span, mctp_usblib_test_pkt_spans,
