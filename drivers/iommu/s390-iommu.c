@@ -788,7 +788,7 @@ static struct iommu_device *s390_iommu_probe_device(struct device *dev)
 
 static int zpci_refresh_all(struct zpci_dev *zdev)
 {
-	return zpci_refresh_trans((u64)zdev->fh << 32, zdev->start_dma,
+	return zpci_refresh_trans(zdev->fh, zdev->start_dma,
 				  zdev->end_dma - zdev->start_dma + 1);
 }
 
@@ -819,8 +819,7 @@ static void s390_iommu_iotlb_sync(struct iommu_domain *domain,
 	rcu_read_lock();
 	list_for_each_entry_rcu(zdev, &s390_domain->devices, iommu_list) {
 		atomic64_inc(&s390_domain->ctrs.sync_rpcits);
-		zpci_refresh_trans((u64)zdev->fh << 32, gather->start,
-				   size);
+		zpci_refresh_trans(zdev->fh, gather->start, size);
 	}
 	rcu_read_unlock();
 }
@@ -837,8 +836,7 @@ static int s390_iommu_iotlb_sync_map(struct iommu_domain *domain,
 		if (!zdev->tlb_refresh)
 			continue;
 		atomic64_inc(&s390_domain->ctrs.sync_map_rpcits);
-		ret = zpci_refresh_trans((u64)zdev->fh << 32,
-					 iova, size);
+		ret = zpci_refresh_trans(zdev->fh, iova, size);
 		/*
 		 * let the hypervisor discover invalidated entries
 		 * allowing it to free IOVAs and unpin pages
