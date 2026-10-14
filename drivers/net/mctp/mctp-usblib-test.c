@@ -202,11 +202,9 @@ mctp_usblib_test_rx_init(struct kunit *test, bool span)
 	int rc;
 
 	rx = kzalloc_obj(*rx);
-	if (rx) {
-		rc = kunit_add_action_or_reset(test, action_rx_fini, rx);
-		KUNIT_ASSERT_EQ(test, rc, 0);
-	}
 	KUNIT_ASSERT_NOT_NULL(test, rx);
+	rc = kunit_add_action_or_reset(test, action_rx_fini, rx);
+	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	rc = mctp_usblib_rx_init(rx, ep_maxpacket, span);
 	KUNIT_ASSERT_EQ(test, rc, 0);
