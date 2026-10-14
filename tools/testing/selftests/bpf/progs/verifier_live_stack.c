@@ -249,7 +249,11 @@ SEC("socket")
 __success __log_level(2)
 /* Untrusted BTF pointer arguments need no caller stack state. */
 __msg("stack use/def subprog#0 global_callee_btf_arg (d0,cs0):")
-__msg("3: (85) call pc+{{[0-9]+}}\n")
+__msg_next("  0: (7a) *(u64 *)(r10 -8) = 0{{.*}}")
+__msg_next("  1: (bf) r1 = r10{{$}}")
+__msg_next("  2: (07) r1 += -8{{$}}")
+__msg_next("  3: (85) call pc+1{{$}}")
+__msg_next("  4: (95) exit{{$}}")
 __naked void global_callee_btf_arg(void)
 {
 	asm volatile (
