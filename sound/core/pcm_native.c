@@ -580,29 +580,6 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 }
 EXPORT_SYMBOL(snd_pcm_hw_refine);
 
-static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params __user * _params)
-{
-	int err;
-	struct snd_pcm_hw_params *params __free(kfree) =
-		memdup_user(_params, sizeof(*params));
-
-	if (IS_ERR(params))
-		return PTR_ERR(params);
-
-	err = snd_pcm_hw_refine(substream, params);
-	if (err < 0)
-		return err;
-
-	err = fixup_unreferenced_params(substream, params);
-	if (err < 0)
-		return err;
-
-	if (copy_to_user(_params, params, sizeof(*params)))
-		return -EFAULT;
-	return 0;
-}
-
 static int period_to_usecs(struct snd_pcm_runtime *runtime)
 {
 	int usecs;
@@ -799,6 +776,22 @@ static void pcm_qos_req_update(struct snd_pcm_substream *substream, int usecs)
 					    usecs);
 }
 
+static int hw_params_state_check(struct snd_pcm_substream *substream)
+{
+	guard(pcm_stream_lock_irq)(substream);
+	switch (substream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+	case SNDRV_PCM_STATE_SETUP:
+	case SNDRV_PCM_STATE_PREPARED:
+		if (!is_oss_stream(substream) &&
+		    atomic_read(&substream->mmap_count))
+			return -EBADFD;
+		return 0;
+	default:
+		return -EBADFD;
+	}
+}
+
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
@@ -813,20 +806,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	err = snd_pcm_buffer_access_lock(runtime);
 	if (err < 0)
 		return err;
-	scoped_guard(pcm_stream_lock_irq, substream) {
-		switch (runtime->state) {
-		case SNDRV_PCM_STATE_OPEN:
-		case SNDRV_PCM_STATE_SETUP:
-		case SNDRV_PCM_STATE_PREPARED:
-			if (!is_oss_stream(substream) &&
-			    atomic_read(&substream->mmap_count))
-				err = -EBADFD;
-			break;
-		default:
-			err = -EBADFD;
-			break;
-		}
-	}
+	err = hw_params_state_check(substream);
 	if (err)
 		goto unlock;
 
@@ -945,6 +925,57 @@ static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 	if (copy_to_user(_params, params, sizeof(*params)))
 		return -EFAULT;
 	return err;
+}
+
+/*
+ * call snd_pcm_hw_refine() after buffer lock and sanity check;
+ * this one should be used for ioctls and other external paths instead of
+ * direct call of snd_pcm_hw_refine()
+ */
+static int snd_pcm_hw_refine_with_lock(struct snd_pcm_substream *substream,
+				       struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_runtime *runtime;
+	int err;
+
+	if (PCM_RUNTIME_CHECK(substream))
+		return -ENXIO;
+	runtime = substream->runtime;
+	err = snd_pcm_buffer_access_lock(runtime);
+	if (err < 0)
+		return err;
+	err = hw_params_state_check(substream);
+	if (err)
+		goto unlock;
+
+	err = snd_pcm_hw_refine(substream, params);
+
+ unlock:
+	snd_pcm_buffer_access_unlock(runtime);
+	return err;
+}
+
+static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params __user * _params)
+{
+	int err;
+	struct snd_pcm_hw_params *params __free(kfree) =
+		memdup_user(_params, sizeof(*params));
+
+	if (IS_ERR(params))
+		return PTR_ERR(params);
+
+	err = snd_pcm_hw_refine_with_lock(substream, params);
+	if (err < 0)
+		return err;
+
+	err = fixup_unreferenced_params(substream, params);
+	if (err < 0)
+		return err;
+
+	if (copy_to_user(_params, params, sizeof(*params)))
+		return -EFAULT;
+	return 0;
 }
 
 static int do_hw_free(struct snd_pcm_substream *substream)
@@ -4212,7 +4243,7 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 	if (IS_ERR(oparams))
 		return PTR_ERR(oparams);
 	snd_pcm_hw_convert_from_old_params(params, oparams);
-	err = snd_pcm_hw_refine(substream, params);
+	err = snd_pcm_hw_refine_with_lock(substream, params);
 	if (err < 0)
 		return err;
 

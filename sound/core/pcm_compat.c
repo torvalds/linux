@@ -252,7 +252,7 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 		return -EFAULT;
 
 	if (refine) {
-		err = snd_pcm_hw_refine(substream, data);
+		err = snd_pcm_hw_refine_with_lock(substream, data);
 		if (err < 0)
 			return err;
 		err = fixup_unreferenced_params(substream, data);
