@@ -139,6 +139,30 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		sram1: sram@30000000 {
+			compatible = "mmio-sram";
+			reg = <0x30000000 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30000000 0x4000>;
+		};
+
+		sram2: sram@30004000 {
+			compatible = "mmio-sram";
+			reg = <0x30004000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30004000 0x2000>;
+		};
+
+		sram3: sram@30006000 {
+			compatible = "mmio-sram";
+			reg = <0x30006000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30006000 0x2000>;
+		};
+
 		timers2: timer@40000000 {
 			#address-cells = <1>;
 			#size-cells = <0>;

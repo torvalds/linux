@@ -39,6 +39,17 @@ properties:
   "#clock-cells":
     const: 0
 
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+patternProperties:
+  "^phy@2[48]00$":
+    type: object
+    $ref: /schemas/phy/st,stm32-usb2phy.yaml
+
 required:
   - compatible
   - reg
@@ -54,13 +65,30 @@ allOf:
     then:
       required:
         - clocks
+    else:
+      properties:
+        clocks: false
   - if:
       properties:
         compatible:
-          const: st,stm32mp25-syscfg
+          contains:
+            enum:
+              - st,stm32mp23-syscfg
+              - st,stm32mp25-syscfg
     then:
       required:
+        - "#address-cells"
         - "#clock-cells"
+        - "#size-cells"
+        - phy@2400
+        - phy@2800
+    else:
+      properties:
+        '#address-cells': false
+        '#clock-cells': false
+        '#size-cells': false
+        phy@2400: false
+        phy@2800: false
 
 additionalProperties: false
 

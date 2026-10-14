@@ -180,6 +180,7 @@
 &usbh_ehci {
 	hub@1 {
 		vdd-supply = <&scmi_v3v3>;
+		vdda-supply = <&scmi_v3v3>;
 	};
 };
 

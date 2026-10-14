@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/*
+ * Copyright (C) 2025-2026 Marek Vasut <marex@nabladev.com>
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include "stm32mp25-pinctrl.dtsi"
+#include "stm32mp25xxak-pinctrl.dtsi"
+#include "stm32mp2xxx-dhcos-som.dtsi"
+
+/ {
+	model = "DH electronics STM32MP25xx DHCOS SoM";
+	compatible = "dh,stm32mp251a-dhcos-som", "st,stm32mp251";
+
+	aliases {
+		serial1 = &uart8;
+		serial2 = &uart9;
+	};
+};
+
+&rv3032 {
+	interrupts-extended = <&gpioi 10 IRQ_TYPE_EDGE_FALLING>;
+};
+
+/* Bluetooth */
+&uart8 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&uart8_pins_a>;
+	pinctrl-1 = <&uart8_sleep_pins_a>;
+	pinctrl-2 = <&uart8_idle_pins_a>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "infineon,cyw55572-bt";
+		brcm,requires-autobaud-mode;
+		max-speed = <3000000>;
+		shutdown-gpios = <&ioexp 2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&uart9 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&uart9_pins_a>;
+	pinctrl-1 = <&uart9_sleep_pins_a>;
+	pinctrl-2 = <&uart9_idle_pins_a>;
+	uart-has-rtscts;
+	status = "okay";
+};
