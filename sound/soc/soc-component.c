@@ -418,6 +418,20 @@ int snd_soc_component_regmap_cache_sync(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_regmap_cache_sync);
 
+/**
+ * snd_soc_component_regmap_async_complete() - Ensure asynchronous I/O has completed
+ * @component: Component for which to wait
+ *
+ * This function blocks until all asynchronous I/O which has previously been
+ * scheduled using snd_soc_component_update_bits_async() has completed.
+ */
+void snd_soc_component_regmap_async_complete(struct snd_soc_component *component)
+{
+	if (component->regmap)
+		regmap_async_complete(component->regmap);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_regmap_async_complete);
+
 #ifdef CONFIG_REGMAP
 
 /**
@@ -921,20 +935,6 @@ int snd_soc_component_write_field(struct snd_soc_component *component,
 	return snd_soc_component_update_bits(component, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_write_field);
-
-/**
- * snd_soc_component_async_complete() - Ensure asynchronous I/O has completed
- * @component: Component for which to wait
- *
- * This function blocks until all asynchronous I/O which has previously been
- * scheduled using snd_soc_component_update_bits_async() has completed.
- */
-void snd_soc_component_async_complete(struct snd_soc_component *component)
-{
-	if (component->regmap)
-		regmap_async_complete(component->regmap);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_async_complete);
 
 /**
  * snd_soc_component_test_bits - Test register for change
