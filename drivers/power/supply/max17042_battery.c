@@ -1233,7 +1233,7 @@ static int max17042_parse_dt(struct max17042_chip *chip)
 	if (of_property_read_u32(np, "maxim,over-volt", &prop))
 		chip->vmax = INT_MAX;
 	else
-		chip->vmin = prop;
+		chip->vmax = prop;
 
 	return 0;
 }
