@@ -123,15 +123,22 @@ static int cc2_enable(struct cc2_data *data)
 {
 	int ret;
 
+	if (data->irq_ready > 0) {
+		scoped_guard(mutex, &data->irq_lock)
+			data->process_irqs = false;
+
+		synchronize_irq(data->irq_ready);
+
+		scoped_guard(mutex, &data->irq_lock)
+			reinit_completion(&data->complete);
+	}
+
 	/* exclusive regulator, check in case a disable failed */
 	if (data->regulator_enabled) {
 		scoped_guard(mutex, &data->irq_lock)
 			data->process_irqs = true;
 		return 0;
 	}
-
-	/* clear any pending completion */
-	try_wait_for_completion(&data->complete);
 
 	ret = regulator_enable(data->regulator);
 	if (ret < 0)
@@ -161,6 +168,9 @@ static void cc2_disable(struct cc2_data *data)
 	/* ignore alarms triggered by voltage toggling when powering up */
 	scoped_guard(mutex, &data->irq_lock)
 		data->process_irqs = false;
+
+	if (data->irq_ready > 0)
+		synchronize_irq(data->irq_ready);
 
 	/* exclusive regulator, check in case an enable failed */
 	if (!data->regulator_enabled)
@@ -510,8 +520,10 @@ static irqreturn_t cc2_ready_interrupt(int irq, void *data)
 {
 	struct cc2_data *cc2 = data;
 
-	if (cc2->process_irqs)
-		complete(&cc2->complete);
+	scoped_guard(mutex, &cc2->irq_lock) {
+		if (cc2->process_irqs)
+			complete(&cc2->complete);
+	}
 
 	return IRQ_HANDLED;
 }
