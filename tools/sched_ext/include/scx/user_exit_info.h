@@ -52,6 +52,7 @@
 enum scx_exit_code {
 	/* Reasons */
 	SCX_ECODE_RSN_HOTPLUG		= 1LLU << 32,
+	SCX_ECODE_RSN_CGROUP_OFFLINE	= 2LLU << 32,
 
 	/* Actions */
 	SCX_ECODE_ACT_RESTART		= 1LLU << 48,
