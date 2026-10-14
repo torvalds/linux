@@ -3467,7 +3467,7 @@ static void stmmac_set_tx_queue_weight(struct stmmac_priv *priv)
  *  @priv: driver private structure
  *  Description: It is used for configuring CBS in AVB TX queues
  */
-static void stmmac_configure_cbs(struct stmmac_priv *priv)
+void stmmac_configure_cbs(struct stmmac_priv *priv)
 {
 	u8 tx_queues_count = priv->plat->tx_queues_to_use;
 	u32 mode_to_use;
@@ -7752,14 +7752,6 @@ int stmmac_reinit_queues(struct net_device *dev, u8 rx_cnt, u8 tx_cnt)
 	if (priv->xmit_qdisc.enabled &&
 	    tx_cnt < priv->xmit_qdisc.num_tx_queues)
 		return -EINVAL;
-
-	if (priv->xmit_qdisc.prio_offload) {
-		for (i = priv->plat->tx_queues_to_use; i < tx_cnt; i++) {
-			if (priv->plat->tx_queues_cfg[i].mode_to_use ==
-			    MTL_QUEUE_AVB)
-				return -EINVAL;
-		}
-	}
 
 	if (netif_running(dev))
 		stmmac_release(dev);
