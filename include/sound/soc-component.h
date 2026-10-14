@@ -365,11 +365,7 @@ static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
 	return dev_get_drvdata(c->dev);
 }
 
-static inline unsigned int
-snd_soc_component_active(struct snd_soc_component *component)
-{
-	return component->active;
-}
+unsigned int snd_soc_component_active(struct snd_soc_component *component);
 
 /* component controls */
 struct snd_kcontrol *snd_soc_component_get_kcontrol(struct snd_soc_component *component,
