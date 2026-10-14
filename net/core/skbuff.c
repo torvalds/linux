@@ -1133,7 +1133,7 @@ static void skb_release_data(struct sk_buff *skb, enum skb_drop_reason reason)
 	int i;
 
 	if (!skb_data_unref(skb, shinfo))
-		goto exit;
+		return;
 
 	if (skb_zcopy(skb)) {
 		bool skip_unref = shinfo->flags & SKBFL_MANAGED_FRAG_REFS;
@@ -1152,17 +1152,6 @@ free_head:
 		kfree_skb_list_reason(shinfo->frag_list, reason);
 
 	skb_free_head(skb);
-exit:
-	/* When we clone an SKB we copy the reycling bit. The pp_recycle
-	 * bit is only set on the head though, so in order to avoid races
-	 * while trying to recycle fragments on skb_netmem_unref() we need
-	 * to make one SKB responsible for triggering the recycle path.
-	 * So disable the recycling bit if an SKB is cloned and we have
-	 * additional references to the fragmented part of the SKB.
-	 * Eventually the last SKB will have the recycling bit set and it's
-	 * dataref set to 0, which will trigger the recycling
-	 */
-	skb->pp_recycle = 0;
 }
 
 /*
@@ -2292,9 +2281,10 @@ struct sk_buff *__pskb_copy_fclone(struct sk_buff *skb, int headroom,
 			n = NULL;
 			goto out;
 		}
+		n->pp_recycle = skb->pp_recycle;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
-			skb_frag_ref(skb, i);
+			skb_frag_ref(n, i);
 		}
 		skb_shinfo(n)->nr_frags = i;
 		skb_shinfo(n)->flags |= skb_shinfo(skb)->flags & SKBFL_SHARED_FRAG;
@@ -3958,6 +3948,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 	if (len <= skb_tailroom(to))
 		return skb_copy_bits(from, 0, skb_put(to, len), len);
 
+	to->pp_recycle = from->pp_recycle;
 	if (hlen) {
 		ret = skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
 		if (unlikely(ret))
@@ -3970,14 +3961,14 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 			offset = from->data - (unsigned char *)page_address(page);
 			__skb_fill_netmem_desc(to, 0, page_to_netmem(page),
 					       offset, plen);
-			get_page(page);
+			skb_frag_ref(to, 0);
 			j = 1;
 			len -= plen;
 		}
 	}
 
 	if (!skb_frags_readable(from) && j > 0 && len) {
-		put_page(page);
+		skb_frag_unref(to, 0);
 		return -EFAULT;
 	}
 
@@ -3985,7 +3976,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 
 	if (unlikely(skb_orphan_frags(from, GFP_ATOMIC))) {
 		if (j > 0)
-			put_page(page);
+			skb_frag_unref(to, 0);
 		return -ENOMEM;
 	}
 	skb_zerocopy_clone(to, from, GFP_ATOMIC);
@@ -4297,7 +4288,7 @@ static inline void skb_split_no_header(struct sk_buff *skb,
 				 *    where splitting is expensive.
 				 * 2. Split is accurately. We make this.
 				 */
-				skb_frag_ref(skb, i);
+				skb_frag_ref(skb1, k);
 				skb_frag_off_add(&skb_shinfo(skb1)->frags[0], len - pos);
 				skb_frag_size_sub(&skb_shinfo(skb1)->frags[0], len - pos);
 				skb_frag_size_set(&skb_shinfo(skb)->frags[i], len - pos);
@@ -4328,6 +4319,7 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 
 	skb_shinfo(skb1)->flags |= skb_shinfo(skb)->flags & zc_flags;
 	skb_zerocopy_clone(skb1, skb, 0);
+	skb1->pp_recycle = skb->pp_recycle;
 	if (len < pos)	/* Split line is inside header. */
 		skb_split_inside_header(skb, skb1, len, pos);
 	else		/* Second chunk has no header, nothing to copy. */
@@ -4388,8 +4380,8 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 	/* Actual merge is delayed until the point when we know we can
 	 * commit all, so that we don't have to undo partial changes
 	 */
-	if (!skb_can_coalesce(tgt, to, skb_frag_page(fragfrom),
-			      skb_frag_off(fragfrom))) {
+	if (!skb_can_coalesce_netmem(tgt, to, skb_frag_netmem(fragfrom),
+				     skb_frag_off(fragfrom))) {
 		merge = -1;
 	} else {
 		merge = to - 1;
@@ -4436,8 +4428,8 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 			to++;
 
 		} else {
-			__skb_frag_ref(fragfrom);
 			skb_frag_page_copy(fragto, fragfrom);
+			skb_frag_ref(tgt, to);
 			skb_frag_off_copy(fragto, fragfrom);
 			skb_frag_size_set(fragto, todo);
 
@@ -5117,6 +5109,16 @@ normal:
 
 		while (pos < offset + len) {
 			if (i >= nfrags) {
+				if (skb_shinfo(nskb)->nr_frags &&
+				    nskb->pp_recycle != list_skb->pp_recycle) {
+					nskb->data_len = pos - offset - hsize;
+					nskb->len += nskb->data_len;
+					nskb->truesize += nskb->data_len;
+					if (__skb_linearize(nskb))
+						goto err;
+					hsize = pos - offset;
+					nskb_frag = skb_shinfo(nskb)->frags;
+				}
 				if (skb_orphan_frags(list_skb, GFP_ATOMIC) ||
 				    skb_zerocopy_clone(nskb, list_skb,
 						       GFP_ATOMIC))
@@ -5159,8 +5161,10 @@ normal:
 				goto err;
 			}
 
+			if (!skb_shinfo(nskb)->nr_frags)
+				nskb->pp_recycle = frag_skb->pp_recycle;
 			*nskb_frag = (i < 0) ? skb_head_frag_to_page_desc(frag_skb) : *frag;
-			__skb_frag_ref(nskb_frag);
+			skb_frag_ref(nskb, skb_shinfo(nskb)->nr_frags);
 			size = skb_frag_size(nskb_frag);
 
 			if (pos < offset) {
@@ -6389,7 +6393,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 	 */
 	if (skb_pp_frag_ref(from)) {
 		for (i = 0; i < from_shinfo->nr_frags; i++)
-			__skb_frag_ref(&from_shinfo->frags[i]);
+			get_netmem(skb_frag_netmem(&from_shinfo->frags[i]));
 	}
 
 	to->truesize += delta;

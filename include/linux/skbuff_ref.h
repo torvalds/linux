@@ -12,26 +12,36 @@
 bool napi_pp_get_page(netmem_ref netmem);
 
 /**
- * __skb_frag_ref - take an addition reference on a paged fragment.
- * @frag: the paged fragment
+ * skb_netmem_ref - acquire a fragment reference on a netmem
+ * @netmem: netmem to reference
+ * @recycle: whether page_pool recycling is enabled (e.g. skb->pp_recycle)
  *
- * Takes an additional reference on the paged fragment @frag.
+ * Acquires pp_ref_count via napi_pp_get_page() if @recycle is true and
+ * @netmem belongs to a page_pool; otherwise acquires a non-pp backing
+ * reference via get_netmem(). Counterpart to skb_netmem_unref().
  */
-static __always_inline void __skb_frag_ref(skb_frag_t *frag)
+static __always_inline void skb_netmem_ref(netmem_ref netmem, bool recycle)
 {
-	get_netmem(skb_frag_netmem(frag));
+#ifdef CONFIG_PAGE_POOL
+	if (recycle && napi_pp_get_page(netmem))
+		return;
+#endif
+	get_netmem(netmem);
 }
 
 /**
- * skb_frag_ref - take an addition reference on a paged fragment of an skb.
+ * skb_frag_ref - acquire a reference on a paged fragment of an skb
  * @skb: the buffer
- * @f: the fragment offset.
+ * @f: the fragment offset
  *
- * Takes an additional reference on the @f'th paged fragment of @skb.
+ * Acquires a reference on the @f'th fragment of @skb via skb_netmem_ref()
+ * (pp_ref_count if skb->pp_recycle and page_pool-backed, else non-pp
+ * backing refcount). Counterpart to skb_frag_unref().
  */
 static __always_inline void skb_frag_ref(struct sk_buff *skb, int f)
 {
-	__skb_frag_ref(&skb_shinfo(skb)->frags[f]);
+	skb_netmem_ref(skb_frag_netmem(&skb_shinfo(skb)->frags[f]),
+		       skb->pp_recycle);
 }
 
 bool napi_pp_put_page(netmem_ref netmem);
