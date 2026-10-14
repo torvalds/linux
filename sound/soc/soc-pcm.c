@@ -1206,7 +1206,9 @@ static int __soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto out;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		unsigned int tdm_mask = snd_soc_dai_tdm_mask_get(codec_dai, substream->stream);
+		unsigned int ch_mask = snd_soc_dai_tdm_mask_get(codec_dai, substream->stream);
+		struct snd_soc_dai_link_ch_map *ch_maps;
+		int j;
 
 		/*
 		 * Skip CODECs which don't support the current stream type,
@@ -1228,9 +1230,15 @@ static int __soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		/* copy params for each codec */
 		tmp_params = *params;
 
-		/* fixup params based on TDM slot masks */
-		if (tdm_mask)
-			soc_pcm_codec_params_fixup(&tmp_params, tdm_mask);
+		/* fixup params based on TDM or ch_map masks */
+		if (!ch_mask) {
+			for_each_rtd_ch_maps(rtd, j, ch_maps)
+				if (ch_maps->codec == i)
+					ch_mask |= ch_maps->codec_ch_mask;
+		}
+
+		if (ch_mask)
+			soc_pcm_codec_params_fixup(&tmp_params, ch_mask);
 
 		ret = snd_soc_dai_hw_params(codec_dai, substream,
 					    &tmp_params);
@@ -1264,7 +1272,7 @@ static int __soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		 */
 		for_each_rtd_ch_maps(rtd, j, ch_maps)
 			if (ch_maps->cpu == i)
-				ch_mask |= ch_maps->ch_mask;
+				ch_mask |= ch_maps->cpu_ch_mask;
 
 		/* fixup cpu channel number */
 		if (ch_mask)

@@ -226,6 +226,7 @@ void ksmbd_stop_durable_scavenger(void);
 bool ksmbd_durable_scavenger_active(void);
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work);
 void ksmbd_close_session_fds(struct ksmbd_work *work);
+void ksmbd_wake_session_blocked_works(struct ksmbd_session *sess);
 int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);

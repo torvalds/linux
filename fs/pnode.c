@@ -410,19 +410,99 @@ bool propagation_would_overmount(const struct mount *from,
 	return false;
 }
 
+/* Does @m receive propagation from @parent? */
+static bool receives_from(struct mount *m, struct mount *parent)
+{
+	if (m == parent)
+		return false;
+	for (; m; m = m->mnt_master)
+		if (m == parent || peers(m, parent))
+			return true;
+	return false;
+}
+
+/*
+ * Does @m receive propagation from the victim's parent as well? If so, then
+ * the mount at the victim's mountpoint inside of @m is a umount candidate as
+ * well. So it's the next candidate in the chain. Otherwise the chain ends at
+ * @m.
+ */
+static struct mount *next_candidate(struct mount *m, struct mount *victim)
+{
+	if (!receives_from(m, victim->mnt_parent))
+		return NULL;
+	return __lookup_mnt(&m->mnt, victim->mnt_mountpoint);
+}
+
+/*
+ * Would propagate_umount() pull out a mount of the chain of candidates that
+ * starts at @c, and does that mount have references beyond its own?
+ *
+ * This mirrors how trim_one(), trim_ancestors() and handle_locked() handle a
+ * synchronous umount:
+ *
+ * - single victim
+ * - without children
+ * - with MNT_LOCKED already cleared on every candidate by propagate_mount_unlock()
+ *
+ * A copy of the victim gets unmounted when each of its children is
+ * the next candidate in the chain or its overmount, unless the next
+ * unmount candidate is not its overmount and some unmount candidate further
+ * down has a child outside the chain.  Keep this in sync with
+ * Documentation/filesystems/propagate_umount.txt.
+ */
+static bool chain_busy(struct mount *c, struct mount *victim)
+{
+	struct mount *m, *n, *next, *deepest = NULL;
+	bool above;
+
+	/* the deepest candidate with a child outside the chain */
+	for (m = c; m; m = next) {
+		next = next_candidate(m, victim);
+		list_for_each_entry(n, &m->mnt_mounts, mnt_child) {
+			if (n != next && n != victim) {
+				deepest = m;
+				break;
+			}
+		}
+	}
+
+	above = deepest != NULL;	/* @deepest is at or below @m */
+	for (m = c; m; m = next) {
+		bool goes = true;
+
+		next = next_candidate(m, victim);
+		list_for_each_entry(n, &m->mnt_mounts, mnt_child) {
+			if (n != next && n != m->overmount && n != victim) {
+				goes = false;
+				break;
+			}
+		}
+		if (goes && next && next != m->overmount && above && m != deepest)
+			goes = false;
+		if (m == deepest)
+			above = false;
+		if (goes && do_refcount_check(m, 1))
+			return true;
+	}
+	return false;
+}
+
 /*
  * check if the mount 'mnt' can be unmounted successfully.
  * @mnt: the mount to be checked for unmount
  * NOTE: unmounting 'mnt' would naturally propagate to all
  * other mounts its parent propagates to.
- * Check if any of these mounts that **do not have submounts**
- * have more references than 'refcnt'. If so return busy.
+ * Check if any of the mounts that propagate_umount() would pull out
+ * along with it have more references than their own. If so return busy.
  *
  * vfsmount lock must be held for write
  */
 int propagate_mount_busy(struct mount *mnt, int refcnt)
 {
 	struct mount *parent = mnt->mnt_parent;
+	struct dentry *mp = mnt->mnt_mountpoint;
+	struct mount *m;
 
 	/*
 	 * quickly check if the current mount can be unmounted.
@@ -435,24 +515,16 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 	if (mnt == parent)
 		return 0;
 
-	for (struct mount *m = propagation_next(parent, parent); m;
-	     		m = propagation_next(m, parent)) {
-		struct list_head *head;
-		struct mount *child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
+	/* the candidates are the mounts at @mp below the receivers */
+	for (m = propagation_next(parent, parent); m;
+	     m = propagation_next(m, parent)) {
+		struct mount *c = __lookup_mnt(&m->mnt, mp);
 
-		if (!child)
+		/* each chain once, from its top: skip receivers that are candidates */
+		if (!c || (mnt_has_parent(m) && m->mnt_mountpoint == mp &&
+			   receives_from(m->mnt_parent, parent)))
 			continue;
-
-		head = &child->mnt_mounts;
-		if (!list_empty(head)) {
-			/*
-			 * a mount that covers child completely wouldn't prevent
-			 * it being pulled out; any other would.
-			 */
-			if (!list_is_singular(head) || !child->overmount)
-				continue;
-		}
-		if (do_refcount_check(child, 1))
+		if (chain_busy(c, mnt))
 			return 1;
 	}
 	return 0;
@@ -625,8 +697,8 @@ static void handle_locked(struct mount *m, struct list_head *to_umount)
  * the same parent and mountpoint; that will be remedied as soon as we
  * return from propagate_umount() - its caller (umount_tree()) will detach
  * the stack from the parent it (and now @m) is attached to.  umount_tree()
- * might choose to keep unmounted pieces stuck to each other, but it always
- * detaches them from the mounts that remain in the tree.
+ * detaches every unmounted mount from its parent, whether that parent
+ * remains in the tree or not.
  */
 static void reparent(struct mount *m)
 {

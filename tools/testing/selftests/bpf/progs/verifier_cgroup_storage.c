@@ -305,4 +305,33 @@ __naked void cpu_cgroup_storage_access_6(void)
 	: __clobber_all);
 }
 
+/*
+ * Verification takes two paths: with r2 being scalar zero on path (1)
+ * and with r2 being some other scalar on path (2).
+ * Check that the verifier does not use checkpoints created
+ * on path (1) to prune path (2).
+ */
+SEC("cgroup/skb")
+__failure
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("get_local_storage() doesn't support non-zero flags")
+__naked void non_zero_flags_on_a_pruned_path(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	/* r2 is 0 on the path explored first, 1 on the other */\
+	r2 = 1;						\
+	if r0 == 0 goto 1f;				\
+	r2 = 0;						\
+1:	r1 = %[cgroup_storage] ll;			\
+	call %[bpf_get_local_storage];			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_get_local_storage),
+	  __imm_addr(cgroup_storage)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

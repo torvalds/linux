@@ -1,0 +1,78 @@
+[
+    {
+        "id": "e3b1",
+        "name": "Failed action batch releases a bound action reference",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC filter add dev $DEV1 protocol all ingress prio 1 matchall action gact index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action pass index 1 action goto chain 42 index 3",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 1.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "e3b2",
+        "name": "Failed action batch releases entries after a bound action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC filter add dev $DEV1 protocol all ingress prio 1 matchall action gact index 1",
+            [
+                "$TC actions replace action pass index 1 action pass index 2 action goto chain 42 index 3",
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pass index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 2.*index 1 ref 2 bind 1.*index 2 ref 1 bind 0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "e3b3",
+        "name": "Failed action batch releases repeated references to a bound action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC filter add dev $DEV1 protocol all ingress prio 1 matchall action gact index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action pass index 1 action pass index 1 action goto chain 42 index 3",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 1.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    }
+]

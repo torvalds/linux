@@ -73,6 +73,11 @@ struct serial_struct;
  * @TTY_DRIVER_NO_WORKQUEUE:
  *	Do not create workqueue when tty_register_driver(). Whenever set, flip
  *	buffer workqueue can be set by tty_port_link_wq() for every port.
+ *
+ * @TTY_DRIVER_RESET_SAVED_TERMIOS:
+ *	Reset any saved termios settings on device registration when reusing a
+ *	minor number. Must only be set by drivers that guarantee that the minor
+ *	number is no longer in use.
  */
 enum tty_driver_flag {
 	TTY_DRIVER_INSTALLED		= BIT(0),
@@ -84,6 +89,7 @@ enum tty_driver_flag {
 	TTY_DRIVER_DYNAMIC_ALLOC	= BIT(6),
 	TTY_DRIVER_UNNUMBERED_NODE	= BIT(7),
 	TTY_DRIVER_NO_WORKQUEUE		= BIT(8),
+	TTY_DRIVER_RESET_SAVED_TERMIOS	= BIT(9),
 };
 
 enum tty_driver_type {

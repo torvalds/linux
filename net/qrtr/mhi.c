@@ -183,6 +183,7 @@ static int __maybe_unused qcom_mhi_qrtr_pm_suspend_late(struct device *dev)
 static int __maybe_unused qcom_mhi_qrtr_pm_resume_early(struct device *dev)
 {
 	struct mhi_device *mhi_dev = container_of(dev, struct mhi_device, dev);
+	struct qrtr_mhi_dev *qdev = dev_get_drvdata(dev);
 	enum mhi_state state;
 	int rc;
 
@@ -201,7 +202,13 @@ static int __maybe_unused qcom_mhi_qrtr_pm_resume_early(struct device *dev)
 		return rc;
 	}
 
-	return qcom_mhi_qrtr_queue_dl_buffers(mhi_dev);
+	rc = qcom_mhi_qrtr_queue_dl_buffers(mhi_dev);
+	if (rc)
+		return rc;
+
+	qrtr_endpoint_hello(&qdev->ep);
+
+	return 0;
 }
 
 static const struct dev_pm_ops qcom_mhi_qrtr_pm_ops = {

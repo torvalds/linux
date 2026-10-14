@@ -1105,7 +1105,7 @@ mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			mlink = &msta->deflink;
 			is_deflink = true;
 		} else {
-			mlink = kzalloc(sizeof(*mlink), GFP_KERNEL);
+			mlink = kzalloc_obj(*mlink);
 			if (!mlink) {
 				err = -ENOMEM;
 				break;
@@ -2293,6 +2293,18 @@ mt7925_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	mvif->valid_links = new_links;
+
+	/* Restore the legacy BSS after disabling MLO */
+	if (old_links && !new_links) {
+		mt792x_mac_link_bss_remove(dev, &mvif->bss_conf,
+					   &mvif->sta.deflink);
+		err = mt7925_mac_link_bss_add(dev, &vif->bss_conf,
+					      &mvif->sta.deflink);
+		if (err < 0) {
+			mt792x_mutex_release(dev);
+			return err;
+		}
+	}
 
 	mt792x_mutex_release(dev);
 

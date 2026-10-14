@@ -706,8 +706,7 @@ static int mm81x_hw_scan_h_init_chan_list(struct mm81x_hw_scan_params *params,
 
 	params->num_chans = 0;
 	params->allocated_chans = 0;
-	params->channels = kcalloc(chans_to_allocate, sizeof(*params->channels),
-				   GFP_KERNEL);
+	params->channels = kzalloc_objs(*params->channels, chans_to_allocate);
 	if (!params->channels)
 		return -ENOMEM;
 
@@ -728,8 +727,8 @@ static int mm81x_hw_scan_h_init_chan_list(struct mm81x_hw_scan_params *params,
 		}
 	}
 
-	params->powers_qdbm = kmalloc_array(
-		num_pwrs_coarse, sizeof(*params->powers_qdbm), GFP_KERNEL);
+	params->powers_qdbm = kmalloc_objs(*params->powers_qdbm,
+					   num_pwrs_coarse);
 	if (!params->powers_qdbm)
 		return -ENOMEM;
 
@@ -822,7 +821,7 @@ __mm81x_hw_scan_h_init_params(struct mm81x *mors)
 	struct mm81x_hw_scan_params *params = mors->hw_scan.params;
 
 	if (!params) {
-		params = kzalloc_obj(*params, GFP_KERNEL);
+		params = kzalloc_obj(*params);
 		if (params)
 			mors->hw_scan.params = params;
 	} else {

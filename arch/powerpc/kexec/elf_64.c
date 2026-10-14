@@ -94,6 +94,8 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 		cmdline = modified_cmdline;
 	}
 
+	kexec_dprintk("Command line: %s", cmdline ? cmdline : "");
+
 	if (initrd != NULL) {
 		kbuf.buffer = initrd;
 		kbuf.bufsz = kbuf.memsz = initrd_len;

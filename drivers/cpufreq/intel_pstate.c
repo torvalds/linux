@@ -1135,6 +1135,14 @@ static bool hybrid_clear_max_perf_cpu(void)
 	return ret;
 }
 
+static unsigned int intel_pstate_scale_freq_ref(struct cpufreq_policy *policy)
+{
+	if (READ_ONCE(all_cpu_data[policy->cpu]->capacity_perf))
+		return policy->cpuinfo.max_freq;
+
+	return 0;
+}
+
 static void intel_pstate_update_freq_limits(struct cpudata *cpu)
 {
 	int scaling = cpu->pstate.scaling;
@@ -3088,6 +3096,7 @@ static struct cpufreq_driver intel_pstate = {
 	.offline	= intel_pstate_cpu_offline,
 	.online		= intel_pstate_cpu_online,
 	.update_limits	= intel_pstate_update_limits,
+	.scale_freq_ref = intel_pstate_scale_freq_ref,
 	.name		= "intel_pstate",
 };
 
@@ -3411,6 +3420,7 @@ static struct cpufreq_driver intel_cpufreq = {
 	.suspend	= intel_cpufreq_suspend,
 	.resume		= intel_pstate_resume,
 	.update_limits	= intel_pstate_update_limits,
+	.scale_freq_ref = intel_pstate_scale_freq_ref,
 	.name		= "intel_cpufreq",
 };
 

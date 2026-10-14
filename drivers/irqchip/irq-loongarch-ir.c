@@ -331,7 +331,7 @@ static int redirect_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		struct irq_data *irq_data = irq_domain_get_irq_data(domain, virq + i);
 		struct redirect_item *item;
 
-		item = kzalloc(sizeof(*item), GFP_KERNEL);
+		item = kzalloc_obj(*item);
 		if (!item) {
 			pr_err("Alloc redirect descriptor failed\n");
 			goto out_free_resources;

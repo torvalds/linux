@@ -749,6 +749,36 @@ const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb)
 	return has_metadata_uuid ? sb->metadata_uuid : sb->fsid;
 }
 
+static bool should_rename_device(const struct btrfs_device *dev)
+{
+	bool ret;
+	const char *old_name;
+
+	rcu_read_lock();
+	old_name = rcu_dereference(dev->name);
+	/*
+	 * For systems booted without an initramfs, the rootfs has the device
+	 * name "/dev/root".
+	 *
+	 * Although using btrfs without an initramfs is not recommended (if a
+	 * new device is added to the rootfs, the system can no longer boot, as
+	 * there is no way to register all devices), there is still a minority
+	 * of users doing this.
+	 *
+	 * And after the system is up, a later device scan on the real block
+	 * device file will never get this device's name updated, as the
+	 * device->devt is still the same.
+	 *
+	 * Here we add one and only one exception for "/dev/root", to allow the
+	 * device name to be updated even if the new path points to the same
+	 * block device.
+	 */
+	ret = (strcmp(old_name, "/dev/root") == 0);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 /*
  * Add new device to list of registered devices
  *
@@ -869,7 +899,8 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 				MAJOR(path_devt), MINOR(path_devt),
 				current->comm, task_pid_nr(current));
 
-	} else if (!device->name || device->devt != path_devt) {
+	} else if (!device->name || device->devt != path_devt ||
+		   should_rename_device(device)) {
 		const char *old_name;
 
 		/*
@@ -3117,7 +3148,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 error_sysfs:
 	btrfs_sysfs_remove_device(device);
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	if (seeding_dev)
+		btrfs_assign_next_active_device(device, seed_devices->latest_dev);
 	mutex_lock(&fs_info->chunk_mutex);
+	if (!list_empty(&device->post_commit_list))
+		list_del_init(&device->post_commit_list);
 	list_del_rcu(&device->dev_list);
 	list_del(&device->dev_alloc_list);
 	fs_info->fs_devices->num_devices--;

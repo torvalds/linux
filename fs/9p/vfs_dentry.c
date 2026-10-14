@@ -113,8 +113,7 @@ void v9fs_dentry_fid_remove(struct dentry *dentry)
  */
 static int v9fs_dentry_init(struct dentry *dentry)
 {
-	struct v9fs_dentry *v9fs_dentry = kzalloc(sizeof(*v9fs_dentry),
-						  GFP_KERNEL);
+	struct v9fs_dentry *v9fs_dentry = kzalloc_obj(*v9fs_dentry);
 
 	if (!v9fs_dentry)
 		return -ENOMEM;

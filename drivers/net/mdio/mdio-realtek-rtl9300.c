@@ -88,6 +88,8 @@
 #define RTL9310_SMI_INDRT_ACCESS_BC_PHYID_CTRL	0x0c14
 #define   RTL9310_BC_PORT_ID			GENMASK(10, 5)
 #define RTL9310_SMI_INDRT_ACCESS_CTRL_1		0x0c04
+#define   RTL9310_SMI_INDRT_EXT_PAGE		GENMASK(8, 0)
+#define   RTL9310_SMI_INDRT_EXT_PAGE_NO_CHANGE	0x1ff
 #define RTL9310_SMI_INDRT_ACCESS_CTRL_2_LOW	0x0c08
 #define RTL9310_SMI_INDRT_ACCESS_CTRL_2_HIGH	0x0c0c
 #define RTL9310_SMI_INDRT_ACCESS_CTRL_3		0x0c10 /* I/O fields flipped */
@@ -325,6 +327,8 @@ static int otto_emdio_9310_read_c22(struct mii_bus *bus, int port, int regnum, u
 		.broadcast	= FIELD_PREP(RTL9310_BC_PORT_ID, port),
 		.c22_data	= FIELD_PREP(RTL9310_PHY_CTRL_REG_ADDR, regnum) |
 				  FIELD_PREP(RTL9310_PHY_CTRL_MAIN_PAGE, RAW_PAGE(priv)),
+		.ext_page	= FIELD_PREP(RTL9310_SMI_INDRT_EXT_PAGE,
+					     RTL9310_SMI_INDRT_EXT_PAGE_NO_CHANGE),
 	};
 
 	return otto_emdio_read_cmd(bus, RTL9310_PHY_CTRL_TYPE_C22, &cmd_data,
@@ -337,6 +341,8 @@ static int otto_emdio_9310_write_c22(struct mii_bus *bus, int port, int regnum, 
 	struct otto_emdio_cmd_regs cmd_data = {
 		.c22_data	= FIELD_PREP(RTL9310_PHY_CTRL_REG_ADDR, regnum) |
 				  FIELD_PREP(RTL9310_PHY_CTRL_MAIN_PAGE, RAW_PAGE(priv)),
+		.ext_page	= FIELD_PREP(RTL9310_SMI_INDRT_EXT_PAGE,
+					     RTL9310_SMI_INDRT_EXT_PAGE_NO_CHANGE),
 		.io_data	= FIELD_PREP(RTL9310_PHY_CTRL_INDATA, value),
 		.port_mask_high	= (u32)(BIT_ULL(port) >> 32),
 		.port_mask_low	= (u32)(BIT_ULL(port)),

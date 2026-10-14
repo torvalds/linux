@@ -112,25 +112,7 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 
 	if (plane_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
 		plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE) {
-		static const uint32_t alpha_formats[] = {
-			DRM_FORMAT_ARGB8888,
-			DRM_FORMAT_RGBA8888,
-			DRM_FORMAT_ABGR8888,
-			DRM_FORMAT_ARGB2101010,
-			DRM_FORMAT_ABGR2101010,
-			DRM_FORMAT_ARGB16161616,
-			DRM_FORMAT_ABGR16161616,
-			DRM_FORMAT_ARGB16161616F,
-		};
-		uint32_t format = plane_state->fb->format->format;
-		unsigned int i;
-
-		for (i = 0; i < ARRAY_SIZE(alpha_formats); ++i) {
-			if (format == alpha_formats[i]) {
-				*per_pixel_alpha = true;
-				break;
-			}
-		}
+		*per_pixel_alpha = plane_state->fb->format->has_alpha;
 
 		if (*per_pixel_alpha && plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE)
 			*pre_multiplied_alpha = false;
@@ -2208,15 +2190,40 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	if (res)
 		return res;
 
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY &&
-	    plane_cap && plane_cap->per_pixel_alpha) {
+	/* Blend mode support varies on DCE generations according to HW caps
+	 * and number of planes per CRTC. However, as current driver
+	 * implementation only creates one primary and one cursor plane per
+	 * CRTC for DCE (overlay is only created if
+	 * DC_PLANE_TYPE_DCN_UNIVERSAL), the primary plane blend mode is
+	 * ignored across DCE versions. Keep PREMULTI to avoid uAPI
+	 * regressions: it was the default/mandatory mode for many years and,
+	 * with no overlay plane, primary composes on top of a black
+	 * background, where PREMULTI and PIXEL_NONE are equivalent.
+	 */
+	if (plane_cap && plane_cap->type != DC_PLANE_TYPE_DCN_UNIVERSAL) {
+		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					  BIT(DRM_MODE_BLEND_PREMULTI);
+
+		drm_plane_create_blend_mode_property(plane, blend_caps);
+	} else if ((plane->type == DRM_PLANE_TYPE_OVERLAY ||
+		    plane->type == DRM_PLANE_TYPE_PRIMARY) &&
+		   plane_cap && plane_cap->per_pixel_alpha) {
 		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 					  BIT(DRM_MODE_BLEND_PREMULTI) |
 					  BIT(DRM_MODE_BLEND_COVERAGE);
 
-		drm_plane_create_alpha_property(plane);
 		drm_plane_create_blend_mode_property(plane, blend_caps);
+
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+			drm_plane_create_alpha_property(plane);
 	}
+
+	/* Cursor color format is set to CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA
+	 * by default, so only advertise DRM_MODE_BLEND_PREMULTI blend mode for
+	 * this type of plane.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+		drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_PREMULTI));
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		/*

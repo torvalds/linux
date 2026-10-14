@@ -1134,7 +1134,7 @@ static int __init xive_init_ipis(void)
 	if (!ipi_domain)
 		goto out_free_fwnode;
 
-	xive_ipis = kzalloc_objs(*xive_ipis, nr_node_ids, GFP_KERNEL);
+	xive_ipis = kzalloc_objs(*xive_ipis, nr_node_ids);
 	if (!xive_ipis)
 		goto out_free_domain;
 

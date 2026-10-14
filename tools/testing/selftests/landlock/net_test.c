@@ -3481,13 +3481,14 @@ TEST_F(trace_net, deny_access_net_bind)
 }
 
 /*
- * Anchors the denial fields shared by every deny_access_net event so a field
- * test proves more than sport/dport: the denying domain, the same-exec bit, the
- * audit-logging verdict, and the blocked access all stay populated.
+ * Anchors the denial fields shared by every deny_access_net event so a port
+ * test also proves the denying domain, execution status, logging verdict, and
+ * exact blocked access.
  */
 static void
 expect_net_deny_common_fields(struct __test_metadata *const _metadata,
-			      const char *const buf)
+			      const char *const buf,
+			      const char *const expected_blockers)
 {
 	char field[64];
 
@@ -3511,18 +3512,21 @@ expect_net_deny_common_fields(struct __test_metadata *const _metadata,
 	ASSERT_EQ(0,
 		  tracefs_extract_field(buf, REGEX_DENY_ACCESS_NET(TRACE_TASK),
 					"blockers", field, sizeof(field)));
-	EXPECT_STRNE("", field);
+	EXPECT_STREQ(expected_blockers, field);
 }
 
-/* Connect and field-check tests use a separate fixture without variants. */
+enum trace_net_operation {
+	TRACE_NET_BIND,
+	TRACE_NET_SEND,
+};
 
 /* clang-format off */
-FIXTURE(trace_net_connect) {
+FIXTURE(trace_net_address) {
 	/* clang-format on */
 	int tracefs_ok;
 };
 
-FIXTURE_SETUP(trace_net_connect)
+FIXTURE_SETUP(trace_net_address)
 {
 	int ret;
 
@@ -3547,7 +3551,7 @@ FIXTURE_SETUP(trace_net_connect)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-FIXTURE_TEARDOWN(trace_net_connect)
+FIXTURE_TEARDOWN(trace_net_address)
 {
 	if (!self->tracefs_ok)
 		return;
@@ -3559,160 +3563,183 @@ FIXTURE_TEARDOWN(trace_net_connect)
 }
 
 /* clang-format off */
-FIXTURE_VARIANT(trace_net_connect) {
+FIXTURE_VARIANT(trace_net_address) {
 	/* clang-format on */
-	/* handled_access_net, also the access allowed on the base port. */
-	__u64 handled;
-	/* Bind the allowed base port before the denied operation. */
-	bool bind_base_first;
-	/* Denied operation on the next port: connect (true) or bind (false). */
-	bool deny_connect;
+	int socket_family;
+	int socket_type;
+	enum trace_net_operation operation;
+	int address_family;
+	socklen_t addrlen;
+	__u64 handled_access;
+	const char *expected_blockers;
+	bool address_port_zero;
+	bool expected_address_port;
+	int expected_port;
 };
 
 /* clang-format off */
-
-/* Denied connect(): sport=0, dport=<denied port>. */
-FIXTURE_VARIANT_ADD(trace_net_connect, connect_denied) {
-	.handled = LANDLOCK_ACCESS_NET_CONNECT_TCP,
-	.bind_base_first = false,
-	.deny_connect = true,
+FIXTURE_VARIANT_ADD(trace_net_address, ipv4_tcp_bind) {
+	/* clang-format on */
+	.socket_family = AF_INET,
+	.socket_type = SOCK_STREAM,
+	.operation = TRACE_NET_BIND,
+	.address_family = AF_INET,
+	.addrlen = sizeof(struct sockaddr_in),
+	.handled_access = LANDLOCK_ACCESS_NET_BIND_TCP,
+	.expected_blockers = "bind_tcp",
+	.expected_address_port = true,
 };
 
-/* Denied bind(): sport=<denied port>, dport=0. */
-FIXTURE_VARIANT_ADD(trace_net_connect, bind_fields) {
-	.handled = LANDLOCK_ACCESS_NET_BIND_TCP,
-	.bind_base_first = false,
-	.deny_connect = false,
+/* Explicit bind(0) has a checked zero port. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_net_address, ipv4_udp_bind_zero) {
+	/* clang-format on */
+	.socket_family = AF_INET,
+	.socket_type = SOCK_DGRAM,
+	.operation = TRACE_NET_BIND,
+	.address_family = AF_INET,
+	.addrlen = sizeof(struct sockaddr_in),
+	.handled_access = LANDLOCK_ACCESS_NET_BIND_UDP,
+	.expected_blockers = "bind_udp",
+	.address_port_zero = true,
+	.expected_port = 0,
 };
 
-/* Denied connect() after an allowed bind(): the connect fields (sport=0). */
-FIXTURE_VARIANT_ADD(trace_net_connect, connect_after_bind) {
-	.handled = LANDLOCK_ACCESS_NET_BIND_TCP | LANDLOCK_ACCESS_NET_CONNECT_TCP,
-	.bind_base_first = true,
-	.deny_connect = true,
+/* A UDP send can deny its synthetic unspecified bind endpoint. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_net_address, ipv6_udp_autobind) {
+	/* clang-format on */
+	.socket_family = AF_INET6,
+	.socket_type = SOCK_DGRAM,
+	.operation = TRACE_NET_SEND,
+	.address_family = AF_INET6,
+	.addrlen = sizeof(struct sockaddr_in6),
+	.handled_access = LANDLOCK_ACCESS_NET_BIND_UDP,
+	.expected_blockers = "bind_udp",
+	.expected_port = 0,
 };
 
-/* clang-format on */
+/* A family-only address has no checked port. */
+/* clang-format off */
+FIXTURE_VARIANT_ADD(trace_net_address, ipv6_unspec_udp_send_min) {
+	/* clang-format on */
+	.socket_family = AF_INET6,
+	.socket_type = SOCK_DGRAM,
+	.operation = TRACE_NET_SEND,
+	.address_family = AF_UNSPEC,
+	.addrlen = sizeof(sa_family_t),
+	.handled_access = LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP,
+	.expected_blockers = "connect_send_udp",
+	.expected_port = -1,
+};
 
-/*
- * A denied TCP bind(2) or connect(2) emits one deny_access_net event.  The port
- * is reported in the field matching the denied operation, in host endianness
- * (the UAPI landlock_net_port_attr.port convention): a connect denial reports
- * sport=0 dport=<port>, a bind denial reports sport=<port> dport=0, so a
- * byte-order or field-swap bug is caught.  A prior allowed bind
- * (connect_after_bind) does not change the connect denial's fields.
- */
-TEST_F(trace_net_connect, deny_access_net)
+static void set_trace_net_address(struct sockaddr_storage *const storage,
+				  const int socket_family,
+				  const int address_family,
+				  const unsigned short port)
 {
-	pid_t child;
-	int status;
-	char *buf;
+	memset(storage, 0, sizeof(*storage));
+
+	if (socket_family == AF_INET) {
+		struct sockaddr_in *const addr4 = (struct sockaddr_in *)storage;
+
+		addr4->sin_family = address_family;
+		addr4->sin_port = htons(port);
+		addr4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	} else {
+		struct sockaddr_in6 *const addr6 =
+			(struct sockaddr_in6 *)storage;
+
+		addr6->sin6_family = address_family;
+		addr6->sin6_port = htons(port);
+		addr6->sin6_addr = in6addr_loopback;
+	}
+}
+
+/* Verifies the actionable signed port for representative checked shapes. */
+TEST_F(trace_net_address, deny_access_net)
+{
+	const char *const event_regex = REGEX_DENY_ACCESS_NET(TRACE_TASK);
+	const unsigned short address_port =
+		variant->address_port_zero ? 0 : sock_port_start + 1;
+	const int expected_port = variant->expected_address_port ?
+					  address_port :
+					  variant->expected_port;
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_net = variant->handled_access,
+	};
+	struct sockaddr_storage address;
 	char field[64], expected[16];
+	char *buf;
+	int count, ret, ruleset_fd, socket_fd, status;
+	pid_t child;
 
 	if (!self->tracefs_ok)
 		SKIP(return, "tracefs not available");
 
+	set_trace_net_address(&address, variant->socket_family,
+			      variant->address_family, address_port);
+	socket_fd = socket(variant->socket_family,
+			   variant->socket_type | SOCK_CLOEXEC, 0);
+	ASSERT_LE(0, socket_fd);
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	ASSERT_EQ(0, tracefs_clear_buf());
+
 	child = fork();
 	ASSERT_LE(0, child);
-
 	if (child == 0) {
-		struct landlock_ruleset_attr ruleset_attr = {
-			.handled_access_net = variant->handled,
-		};
-		struct landlock_net_port_attr port_attr = {
-			.allowed_access = variant->handled,
-			.port = sock_port_start,
-		};
-		struct sockaddr_in addr = {
-			.sin_family = AF_INET,
-			.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
-		};
-		int ruleset_fd, sock_fd, optval = 1, ret;
-
-		ruleset_fd = landlock_create_ruleset(&ruleset_attr,
-						     sizeof(ruleset_attr), 0);
-		if (ruleset_fd < 0)
+		if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
 			_exit(1);
-		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
-				      &port_attr, 0)) {
-			close(ruleset_fd);
-			_exit(1);
-		}
-		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-		if (landlock_restrict_self(ruleset_fd, 0)) {
-			close(ruleset_fd);
-			_exit(1);
-		}
+		if (landlock_restrict_self(ruleset_fd, 0))
+			_exit(2);
 		close(ruleset_fd);
 
-		sock_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-		if (sock_fd < 0)
-			_exit(1);
-
-		/* Bind the allowed base port first (succeeds, no event). */
-		if (variant->bind_base_first) {
-			setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &optval,
-				   sizeof(optval));
-			addr.sin_port = htons(sock_port_start);
-			if (bind(sock_fd, (struct sockaddr *)&addr,
-				 sizeof(addr))) {
-				close(sock_fd);
-				_exit(1);
-			}
-		}
-
-		/* Denied operation on the next port. */
-		addr.sin_port = htons(sock_port_start + 1);
-		if (variant->deny_connect)
-			ret = connect(sock_fd, (struct sockaddr *)&addr,
-				      sizeof(addr));
-		else
-			ret = bind(sock_fd, (struct sockaddr *)&addr,
-				   sizeof(addr));
-		if (ret == 0) {
-			close(sock_fd);
-			_exit(2);
-		}
-		if (errno != EACCES) {
-			close(sock_fd);
+		switch (variant->operation) {
+		case TRACE_NET_BIND:
+			ret = bind(socket_fd, (const struct sockaddr *)&address,
+				   variant->addrlen);
+			break;
+		case TRACE_NET_SEND:
+			ret = sendto(socket_fd, "A", 1, MSG_NOSIGNAL,
+				     (const struct sockaddr *)&address,
+				     variant->addrlen);
+			break;
+		default:
 			_exit(3);
 		}
-		close(sock_fd);
+		if (ret >= 0 || errno != EACCES)
+			_exit(4);
+		close(socket_fd);
+
 		_exit(0);
 	}
+	close(ruleset_fd);
+	close(socket_fd);
 
 	ASSERT_EQ(child, waitpid(child, &status, 0));
 	ASSERT_TRUE(WIFEXITED(status));
-	EXPECT_EQ(0, WEXITSTATUS(status));
+	ASSERT_EQ(0, WEXITSTATUS(status));
 
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
+	count = tracefs_count_matches(buf, event_regex);
+	if (count != 1)
+		TH_LOG("Expected 1 denial event, got %d\n%s", count, buf);
+	ASSERT_EQ(1, count);
+	expect_net_deny_common_fields(_metadata, buf,
+				      variant->expected_blockers);
 
-	EXPECT_EQ(1, tracefs_count_matches(buf,
-					   REGEX_DENY_ACCESS_NET(TRACE_TASK)));
-
-	expect_net_deny_common_fields(_metadata, buf);
-
-	/*
-	 * The denied operation's port field carries the port; the other is 0.
-	 */
-	snprintf(expected, sizeof(expected), "%llu",
-		 (unsigned long long)(sock_port_start + 1));
-
-	ASSERT_EQ(0,
-		  tracefs_extract_field(buf, REGEX_DENY_ACCESS_NET(TRACE_TASK),
-					"sport", field, sizeof(field)));
-	EXPECT_STREQ(variant->deny_connect ? "0" : expected, field);
-
-	ASSERT_EQ(0,
-		  tracefs_extract_field(buf, REGEX_DENY_ACCESS_NET(TRACE_TASK),
-					"dport", field, sizeof(field)));
-	EXPECT_STREQ(variant->deny_connect ? expected : "0", field);
+	ASSERT_EQ(0, tracefs_extract_field(buf, event_regex, "port", field,
+					   sizeof(field)));
+	snprintf(expected, sizeof(expected), "%d", expected_port);
+	EXPECT_STREQ(expected, field);
 
 	free(buf);
 }
 
-/* Field verification for the check_rule_net event on an allowed access. */
+/* Field verification for the check_rule_net_port event on an allowed access. */
 
 /* clang-format off */
 FIXTURE(trace_net_check_rule) {
@@ -3757,10 +3784,11 @@ FIXTURE_TEARDOWN(trace_net_check_rule)
 
 /*
  * Verifies that an allowed bind matching a net-port rule emits exactly one
- * landlock_check_rule_net event with the enforcing domain, the requested
+ * landlock_check_rule_net_port event with the enforcing domain, the requested
  * access, the checked port (host endianness), and the per-layer grants.  The
- * whole event is anchored to exact values so a revert of the check_rule_net
- * emit (or a byte-order or field-plumbing regression) fails the test.
+ * whole event is anchored to exact values so removing the check_rule_net_port
+ * emission or introducing a byte-order or field-plumbing regression fails the
+ * test.
  */
 TEST_F(trace_net_check_rule, check_rule_net_fields)
 {
@@ -3832,7 +3860,7 @@ TEST_F(trace_net_check_rule, check_rule_net_fields)
 	EXPECT_EQ(1,
 		  tracefs_count_matches(buf, REGEX_CHECK_RULE_NET(TRACE_TASK)))
 	{
-		TH_LOG("Expected 1 check_rule_net event\n%s", buf);
+		TH_LOG("Expected 1 check_rule_net_port event\n%s", buf);
 	}
 
 	ASSERT_EQ(0,
@@ -3865,12 +3893,5 @@ TEST_F(trace_net_check_rule, check_rule_net_fields)
 
 	free(buf);
 }
-
-/*
- * IPv6 network trace tests are intentionally elided.  IPv6 hook dispatch uses
- * the same current_check_access_socket() code path as IPv4, validated by the
- * audit tests in this file.  The trace events use the same blockers/sport/dport
- * fields regardless of address family.
- */
 
 TEST_HARNESS_MAIN

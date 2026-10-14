@@ -724,8 +724,14 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 	bool is_guilty_fence;
 	bool is_guilty_context;
 
-	last_seq = amdgpu_fence_read(ring) & ring->fence_drv.num_fences_mask;
-	seq = ring->fence_drv.sync_seq & ring->fence_drv.num_fences_mask;
+	last_seq = amdgpu_fence_read(ring);
+	seq = ring->fence_drv.sync_seq;
+
+	/* Hardware completion can precede the interrupt which signals fences. */
+	if (last_seq == seq) {
+		amdgpu_fence_process(ring);
+		return;
+	}
 
 	/* If there is nothing to reemit, return early and set an error on the fence
 	 * if applicable. If all of the fences are siganlled, this will be a nop.
@@ -733,7 +739,9 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 	 * we are skipping it on purpose.
 	 */
 	if (!ring->ring_backup_entries_to_copy) {
-		amdgpu_fence_driver_force_completion(ring, &guilty_fence->base);
+		if (guilty_fence)
+			amdgpu_fence_driver_force_completion(ring,
+						     &guilty_fence->base);
 		return;
 	}
 	ring->reemit = true;
@@ -741,9 +749,8 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 	spin_lock_irqsave(&ring->fence_drv.lock, flags);
 	do {
 		last_seq++;
-		last_seq &= ring->fence_drv.num_fences_mask;
 
-		ptr = &ring->fence_drv.fences[last_seq];
+		ptr = &ring->fence_drv.fences[last_seq & ring->fence_drv.num_fences_mask];
 		rcu_read_lock();
 		unprocessed = rcu_dereference(*ptr);
 
@@ -800,26 +807,24 @@ void amdgpu_ring_backup_unprocessed_commands(struct amdgpu_ring *ring,
 	struct amdgpu_fence *fence;
 	u32 seq, last_seq;
 
-	last_seq = amdgpu_fence_read(ring) & ring->fence_drv.num_fences_mask;
-	seq = ring->fence_drv.sync_seq & ring->fence_drv.num_fences_mask;
+	last_seq = amdgpu_fence_read(ring);
+	seq = ring->fence_drv.sync_seq;
 	ring->ring_backup_entries_to_copy = 0;
 
-	/* if we've already seen this fence, return early.
-	 * ring->ring_backup_entries_to_copy is set to 0 so
-	 * the reemit helper will return early as well to
-	 * avoid getting stuck in a reemit loop.
+	/*
+	 * Avoid replay loops for a repeated guilty fence. NULL identifies a
+	 * collateral ring, whose pending commands still need backup.
 	 */
-	if (ring->guilty_fence == guilty_fence) {
+	if (guilty_fence && ring->guilty_fence == guilty_fence) {
 		ring->guilty_fence = NULL;
 		return;
 	}
 	ring->guilty_fence = guilty_fence;
 
-	do {
+	while (last_seq != seq) {
 		last_seq++;
-		last_seq &= ring->fence_drv.num_fences_mask;
 
-		ptr = &ring->fence_drv.fences[last_seq];
+		ptr = &ring->fence_drv.fences[last_seq & ring->fence_drv.num_fences_mask];
 		rcu_read_lock();
 		unprocessed = rcu_dereference(*ptr);
 
@@ -829,7 +834,7 @@ void amdgpu_ring_backup_unprocessed_commands(struct amdgpu_ring *ring,
 			amdgpu_ring_backup_unprocessed_command(ring, fence);
 		}
 		rcu_read_unlock();
-	} while (last_seq != seq);
+	}
 }
 
 struct amdgpu_fence *

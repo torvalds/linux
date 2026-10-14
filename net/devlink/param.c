@@ -330,13 +330,12 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 	int err;
 	int i;
 
-	default_value = kcalloc(DEVLINK_PARAM_CMODE_MAX + 1,
-				sizeof(*default_value), GFP_KERNEL);
+	default_value = kzalloc_objs(*default_value,
+				     DEVLINK_PARAM_CMODE_MAX + 1);
 	if (!default_value)
 		return -ENOMEM;
 
-	param_value = kcalloc(DEVLINK_PARAM_CMODE_MAX + 1,
-			      sizeof(*param_value), GFP_KERNEL);
+	param_value = kzalloc_objs(*param_value, DEVLINK_PARAM_CMODE_MAX + 1);
 	if (!param_value) {
 		kfree(default_value);
 		return -ENOMEM;

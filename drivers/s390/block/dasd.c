@@ -87,7 +87,7 @@ struct dasd_device *dasd_alloc_device(void)
 {
 	struct dasd_device *device;
 
-	device = kzalloc_obj(struct dasd_device, GFP_KERNEL);
+	device = kzalloc_obj(struct dasd_device);
 	if (!device)
 		return ERR_PTR(-ENOMEM);
 

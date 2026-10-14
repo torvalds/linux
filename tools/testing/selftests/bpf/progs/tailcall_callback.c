@@ -45,6 +45,13 @@ int callback_loop(int index, void **cb_ctx)
 }
 
 static __noinline
+int callback_tail(int index, void **cb_ctx)
+{
+	bpf_tail_call_static(*cb_ctx, &jmp_table, 0);
+	return 0;
+}
+
+static __noinline
 int callback_empty(int index, void *data)
 {
 	return 0;
@@ -75,6 +82,15 @@ int tailcall_callback_2(struct __sk_buff *skb)
 	__sink(ret);
 
 	bpf_loop(1, callback_empty, NULL, 0);
+	return 0;
+}
+
+/* callback with a direct tail call is rejected without a verifier bug */
+SEC("tc")
+__failure __msg("cannot tail call within callback")
+int tailcall_callback_3(struct __sk_buff *skb)
+{
+	bpf_loop(1, callback_tail, &skb, 0);
 	return 0;
 }
 

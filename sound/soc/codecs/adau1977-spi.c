@@ -53,18 +53,18 @@ static const struct spi_device_id adau1977_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, adau1977_spi_ids);
 
-static const struct of_device_id adau1977_spi_of_match[] __maybe_unused = {
-        { .compatible = "adi,adau1977" },
-        { .compatible = "adi,adau1978" },
-        { .compatible = "adi,adau1979" },
-        { },
+static const struct of_device_id adau1977_spi_of_match[] = {
+	{ .compatible = "adi,adau1977" },
+	{ .compatible = "adi,adau1978" },
+	{ .compatible = "adi,adau1979" },
+	{ },
 };
 MODULE_DEVICE_TABLE(of, adau1977_spi_of_match);
 
 static struct spi_driver adau1977_spi_driver = {
 	.driver = {
 		.name = "adau1977",
-		.of_match_table = of_match_ptr(adau1977_spi_of_match),
+		.of_match_table = adau1977_spi_of_match,
 	},
 	.probe = adau1977_spi_probe,
 	.id_table = adau1977_spi_ids,

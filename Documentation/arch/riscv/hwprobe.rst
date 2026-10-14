@@ -155,7 +155,8 @@ The following keys are defined:
     defined in version 1.0 of the RISC-V Cryptography Extensions Volume II.
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZFH`: The Zfh extension version 1.0 is supported
-    as defined in the RISC-V ISA manual.
+       as defined in the RISC-V ISA manual. Zfh is a superset of Zfhmin, so
+       RISCV_HWPROBE_EXT_ZFHMIN is reported whenever RISCV_HWPROBE_EXT_ZFH is.
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZFHMIN`: The Zfhmin extension version 1.0 is
     supported as defined in the RISC-V ISA manual.
@@ -164,8 +165,9 @@ The following keys are defined:
     is supported as defined in the RISC-V ISA manual.
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZVFH`: The Zvfh extension is supported as
-    defined in the RISC-V Vector manual starting from commit e2ccd0548d6c
-    ("Remove draft warnings from Zvfh[min]").
+       defined in the RISC-V Vector manual starting from commit e2ccd0548d6c
+       ("Remove draft warnings from Zvfh[min]"). Zvfh is a superset of Zvfhmin,
+       so RISCV_HWPROBE_EXT_ZVFHMIN is reported whenever RISCV_HWPROBE_EXT_ZVFH is.
 
   * :c:macro:`RISCV_HWPROBE_EXT_ZVFHMIN`: The Zvfhmin extension is supported as
     defined in the RISC-V Vector manual starting from commit e2ccd0548d6c

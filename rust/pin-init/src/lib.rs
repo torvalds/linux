@@ -490,13 +490,7 @@ macro_rules! stack_pin_init {
     (let $var:ident $(: $t:ty)? = $val:expr) => {
         let val = $val;
         let mut $var = ::core::pin::pin!($crate::__internal::StackInit$(::<$t>)?::uninit());
-        let mut $var = match $crate::__internal::StackInit::init($var, val) {
-            Ok(res) => res,
-            Err(x) => {
-                let x: ::core::convert::Infallible = x;
-                match x {}
-            }
-        };
+        let Ok(mut $var) = $crate::__internal::StackInit::init($var, val);
     };
 }
 

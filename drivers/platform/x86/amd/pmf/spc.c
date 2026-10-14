@@ -17,7 +17,6 @@
 #include <linux/units.h>
 #include "pmf.h"
 
-#ifdef CONFIG_AMD_PMF_DEBUG
 u32 amd_pmf_get_ta_custom_bios_inputs(struct ta_pmf_enact_table *in, int index)
 {
 	switch (index) {
@@ -31,6 +30,7 @@ u32 amd_pmf_get_ta_custom_bios_inputs(struct ta_pmf_enact_table *in, int index)
 }
 EXPORT_SYMBOL(amd_pmf_get_ta_custom_bios_inputs);
 
+#ifdef CONFIG_AMD_PMF_DEBUG
 void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in)
 {
 	int i;

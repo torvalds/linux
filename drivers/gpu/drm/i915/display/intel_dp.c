@@ -3409,12 +3409,22 @@ intel_dp_audio_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	pipe_config->has_audio =
 		intel_dp_has_audio(encoder, conn_state) &&
 		intel_audio_compute_config(encoder, pipe_config, conn_state);
 
 	pipe_config->sdp_split_enable = pipe_config->has_audio &&
 					intel_dp_is_uhbr(pipe_config);
+
+	/*
+	 * SDP splitting for UHBR audio requires explicit sink capability in
+	 * SST mode, whereas in MST mode it is inherently supported.
+	 */
+	if (pipe_config->sdp_split_enable &&
+	    !intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST))
+		pipe_config->sdp_split_enable = intel_dp->sst_split_sdp_support;
 }
 
 void
@@ -4462,14 +4472,23 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 			    str_enable_disable(tmp));
 }
 
-static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
+static u8 intel_dp_read_dprx_feature_enum(struct intel_dp *intel_dp)
 {
 	u8 dprx = 0;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
-			      &dprx) != 1)
-		return false;
+	drm_dp_dpcd_read_data(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
+			      &dprx, sizeof(dprx));
+	return dprx;
+}
+
+static bool intel_dp_get_colorimetry_status(u8 dprx)
+{
 	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
+}
+
+static bool intel_dp_get_sst_split_sdp_status(u8 dprx)
+{
+	return dprx & DP_SST_SPLIT_SDP_CAP;
 }
 
 static int intel_dp_read_dsc_dpcd(struct drm_dp_aux *aux,
@@ -4771,6 +4790,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int ret;
+	u8 dprx;
 
 	/* this function is meant to be called only once */
 	drm_WARN_ON(display->drm, intel_dp->dpcd[DP_DPCD_REV] != 0);
@@ -4782,8 +4802,13 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 			 drm_dp_is_branch(intel_dp->dpcd));
 	intel_init_dpcd_quirks(intel_dp, &intel_dp->desc.ident);
 
+	dprx = intel_dp_read_dprx_feature_enum(intel_dp);
+
 	intel_dp->colorimetry_support =
-		intel_dp_get_colorimetry_status(intel_dp);
+		intel_dp_get_colorimetry_status(dprx);
+
+	intel_dp->sst_split_sdp_support =
+		intel_dp_get_sst_split_sdp_status(dprx);
 
 	/*
 	 * Read the eDP display control registers.
@@ -4874,13 +4899,20 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * the OUI/ID since we know it won't change.
 	 */
 	if (!intel_dp_is_edp(intel_dp)) {
+		u8 dprx;
+
 		drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
 				 drm_dp_is_branch(intel_dp->dpcd));
 
 		intel_init_dpcd_quirks(intel_dp, &intel_dp->desc.ident);
 
+		dprx = intel_dp_read_dprx_feature_enum(intel_dp);
+
 		intel_dp->colorimetry_support =
-			intel_dp_get_colorimetry_status(intel_dp);
+			intel_dp_get_colorimetry_status(dprx);
+
+		intel_dp->sst_split_sdp_support =
+			intel_dp_get_sst_split_sdp_status(dprx);
 
 		intel_dp_update_sink_caps(intel_dp);
 	}

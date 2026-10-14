@@ -2007,6 +2007,11 @@ out:
 	return ret;
 }
 
+static bool ksmbd_vfs_copy_range_valid(loff_t offset, size_t len)
+{
+	return offset >= 0 && (loff_t)len <= MAX_LFS_FILESIZE - offset;
+}
+
 int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 			       struct ksmbd_file *src_fp,
 			       struct ksmbd_file *dst_fp,
@@ -2041,6 +2046,10 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 			src_off = le64_to_cpu(chunks[i].SourceOffset);
 			dst_off = le64_to_cpu(chunks[i].TargetOffset);
 			len = le32_to_cpu(chunks[i].Length);
+
+			if (!ksmbd_vfs_copy_range_valid(src_off, len) ||
+			    !ksmbd_vfs_copy_range_valid(dst_off, len))
+				return -E2BIG;
 
 			if (check_lock_range(src_fp->filp, src_off,
 					     src_off + len - 1, READ))
@@ -2134,7 +2143,8 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		len = le32_to_cpu(chunks[i].Length);
 		copy_len = len;
 
-		if (src_off < 0)
+		if (!ksmbd_vfs_copy_range_valid(src_off, len) ||
+		    !ksmbd_vfs_copy_range_valid(dst_off, len))
 			return -E2BIG;
 
 		if (src_off > src_file_size || len > src_file_size - src_off) {

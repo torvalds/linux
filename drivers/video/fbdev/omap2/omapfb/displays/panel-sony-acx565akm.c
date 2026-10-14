@@ -210,12 +210,13 @@ static void set_display_state(struct panel_drv_data *ddata, int enabled)
 
 static int panel_enabled(struct panel_drv_data *ddata)
 {
+	__be32 disp_status_be;
 	u32 disp_status;
 	int enabled;
 
 	acx565akm_read(ddata, MIPID_CMD_READ_DISP_STATUS,
-			(u8 *)&disp_status, 4);
-	disp_status = __be32_to_cpu(disp_status);
+			(u8 *)&disp_status_be, 4);
+	disp_status = __be32_to_cpu(disp_status_be);
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&ddata->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",

@@ -208,11 +208,10 @@ will use the corresponding aligned address.
   tracer's space cannot be accessed or does not have valid tags.
 - ``-EPERM`` - the specified process cannot be traced.
 - ``-EIO`` - the tracee's address range cannot be accessed (e.g. invalid
-  address) and no tags copied. ``iov_len`` not updated.
+  address) or does not have valid tags (not mapped with the ``PROT_MTE``
+  flag) and no tags copied. ``iov_len`` not updated.
 - ``-EFAULT`` - fault on accessing the tracer's memory (``struct iovec``
   or ``iov_base`` buffer) and no tags copied. ``iov_len`` not updated.
-- ``-EOPNOTSUPP`` - the tracee's address does not have valid tags (never
-  mapped with the ``PROT_MTE`` flag). ``iov_len`` not updated.
 
 **Note**: There are no transient errors for the requests above, so user
 programs should not retry in case of a non-zero system call return.

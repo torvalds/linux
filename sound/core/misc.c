@@ -125,7 +125,7 @@ int snd_fasync_helper(int fd, struct file *file, int on,
 	struct snd_fasync *fasync = NULL;
 
 	if (on) {
-		fasync = kzalloc(sizeof(*fasync), GFP_KERNEL);
+		fasync = kzalloc_obj(*fasync);
 		if (!fasync)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&fasync->list);

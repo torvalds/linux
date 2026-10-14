@@ -353,5 +353,76 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 parent root drr"
         ]
+    },
+    {
+        "id": "70fd",
+        "name": "Add u32 filter when node ID pool is exhausted (4096th filter rejected)",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY clsact",
+            "bash -c 'for i in {1..4095}; do echo filter add dev $DUMMY ingress prio 1 protocol ip u32 match u8 0 0 at 0; done | $TC -b -'"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY ingress prio 1 protocol ip u32 match u8 0 0 at 0",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -d filter show dev $DUMMY ingress",
+        "matchPattern": "fh 800::",
+        "matchCount": "4095",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY clsact"
+        ]
+    },
+    {
+        "id": "35fc",
+        "name": "u32 manual table then auto table: auto allocation must not alias a live manual handle",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 ingress protocol ip pref 1 handle 801: u32 divisor 16"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol ip pref 2 u32 divisor 16",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -d filter show dev $DEV1 ingress",
+        "matchPattern": "fh 801:",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "a6e8",
+        "name": "u32 manual table add/del does not leak its idr entry (re-adding the same handle succeeds)",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 ingress protocol ip pref 1 u32 divisor 16",
+            "$TC filter add dev $DEV1 ingress protocol ip pref 5 handle 901: u32 divisor 1",
+            "$TC filter del dev $DEV1 ingress protocol ip pref 5 handle 901: u32"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol ip pref 6 handle 901: u32 divisor 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -d filter show dev $DEV1 ingress",
+        "matchPattern": "fh 901: ht divisor 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
     }
 ]

@@ -320,6 +320,8 @@ static struct fixed31_32 interp_tf_pts(const struct fixed31_32 *output_tf_channe
 	return value;
 }
 
+#define NUM_DEGAMMA_REGIONS    9
+
 bool cm3_helper_translate_curve_to_degamma_hw_format(
 				const struct dc_transfer_func *output_tf,
 				struct pwl_params *lut_params)
@@ -343,31 +345,15 @@ bool cm3_helper_translate_curve_to_degamma_hw_format(
 	memset(lut_params, 0, sizeof(struct pwl_params));
 	memset(seg_distr, 0, sizeof(seg_distr));
 
-	if (output_tf->tf == TRANSFER_FUNCTION_PQ ||
-	    output_tf->tf == TRANSFER_FUNCTION_SRGB) {
-		/* 9 segments
-		 * segments are from 2^-9 to 0
-		 */
-		const uint8_t SEG_COUNT = 9;
-		seg_distr[0] = 0; // Since we only have one point in darkest region
-		for (k = 1; k < SEG_COUNT; k++)
-			seg_distr[k] = k - 1; // 2^(k-1) points per region; halves as k decreases
+	/* 9 segments
+	 * segments are from 2^-9 to 2^0
+	 */
+	seg_distr[0] = 0; // Since we only have one point in darkest region
+	for (k = 1; k < NUM_DEGAMMA_REGIONS; k++)
+		seg_distr[k] = k - 1; // 2^(k-1) points per region; halves as k decreases
 
-		region_start = -SEG_COUNT;
-		region_end = 0;
-	} else {
-		/* 12 segments
-		 * segments are from 2^-12 to 2^0
-		 * There are less than 256 points, for optimization
-		 */
-		const uint8_t SEG_COUNT = 12;
-
-		for (i = 0; i < SEG_COUNT; i++)
-			seg_distr[i] = 4;
-
-		region_start = -SEG_COUNT;
-		region_end = 0;
-	}
+	region_start = -NUM_DEGAMMA_REGIONS;
+	region_end = 0;
 
 	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)
 		seg_distr[i] = -1;
