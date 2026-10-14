@@ -4052,24 +4052,27 @@ static inline struct sdeb_store_info *devip2sip(struct sdebug_dev_info *devip,
 
 static inline void
 sdeb_read_lock(rwlock_t *lock)
+	__acquires_shared(lock)
 {
 	if (sdebug_no_rwlock)
-		__acquire(lock);
+		__acquire_shared(lock);
 	else
 		read_lock(lock);
 }
 
 static inline void
 sdeb_read_unlock(rwlock_t *lock)
+	__releases_shared(lock)
 {
 	if (sdebug_no_rwlock)
-		__release(lock);
+		__release_shared(lock);
 	else
 		read_unlock(lock);
 }
 
 static inline void
 sdeb_write_lock(rwlock_t *lock)
+	__acquires(lock)
 {
 	if (sdebug_no_rwlock)
 		__acquire(lock);
@@ -4079,6 +4082,7 @@ sdeb_write_lock(rwlock_t *lock)
 
 static inline void
 sdeb_write_unlock(rwlock_t *lock)
+	__releases(lock)
 {
 	if (sdebug_no_rwlock)
 		__release(lock);
@@ -4088,6 +4092,7 @@ sdeb_write_unlock(rwlock_t *lock)
 
 static inline void
 sdeb_data_read_lock(struct sdeb_store_info *sip)
+	__acquires_shared(&sip->macc_data_lck)
 {
 	BUG_ON(!sip);
 
@@ -4096,6 +4101,7 @@ sdeb_data_read_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_read_unlock(struct sdeb_store_info *sip)
+	__releases_shared(&sip->macc_data_lck)
 {
 	BUG_ON(!sip);
 
@@ -4104,6 +4110,7 @@ sdeb_data_read_unlock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_write_lock(struct sdeb_store_info *sip)
+	__acquires(&sip->macc_data_lck)
 {
 	BUG_ON(!sip);
 
@@ -4112,6 +4119,7 @@ sdeb_data_write_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_write_unlock(struct sdeb_store_info *sip)
+	__releases(&sip->macc_data_lck)
 {
 	BUG_ON(!sip);
 
@@ -4120,6 +4128,7 @@ sdeb_data_write_unlock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_sector_read_lock(struct sdeb_store_info *sip)
+	__acquires_shared(&sip->macc_sector_lck)
 {
 	BUG_ON(!sip);
 
@@ -4128,6 +4137,7 @@ sdeb_data_sector_read_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_sector_read_unlock(struct sdeb_store_info *sip)
+	__releases_shared(&sip->macc_sector_lck)
 {
 	BUG_ON(!sip);
 
@@ -4136,6 +4146,7 @@ sdeb_data_sector_read_unlock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_sector_write_lock(struct sdeb_store_info *sip)
+	__acquires(&sip->macc_sector_lck)
 {
 	BUG_ON(!sip);
 
@@ -4144,6 +4155,7 @@ sdeb_data_sector_write_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_sector_write_unlock(struct sdeb_store_info *sip)
+	__releases(&sip->macc_sector_lck)
 {
 	BUG_ON(!sip);
 
@@ -4165,50 +4177,67 @@ sdeb_data_sector_write_unlock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_data_lock(struct sdeb_store_info *sip, bool atomic)
+	__acquires(&sip->macc_data_lck)
 {
-	if (atomic)
+	if (atomic) {
 		sdeb_data_write_lock(sip);
-	else
+	} else {
 		sdeb_data_read_lock(sip);
+		__release_shared(&sip->macc_data_lck);
+		__acquire(&sip->macc_data_lck);
+	}
 }
 
 static inline void
 sdeb_data_unlock(struct sdeb_store_info *sip, bool atomic)
+	__releases(&sip->macc_data_lck)
 {
-	if (atomic)
+	if (atomic) {
 		sdeb_data_write_unlock(sip);
-	else
+	} else {
+		__release(&sip->macc_data_lck);
+		__acquire_shared(&sip->macc_data_lck);
 		sdeb_data_read_unlock(sip);
+	}
 }
 
 /* Allow many reads but only 1x write per sector */
 static inline void
 sdeb_data_sector_lock(struct sdeb_store_info *sip, bool do_write)
+	__acquires(&sip->macc_sector_lck)
 {
-	if (do_write)
+	if (do_write) {
 		sdeb_data_sector_write_lock(sip);
-	else
+	} else {
 		sdeb_data_sector_read_lock(sip);
+		__release_shared(&sip->macc_sector_lck);
+		__acquire(&sip->macc_sector_lck);
+	}
 }
 
 static inline void
 sdeb_data_sector_unlock(struct sdeb_store_info *sip, bool do_write)
+	__releases(&sip->macc_sector_lck)
 {
-	if (do_write)
+	if (do_write) {
 		sdeb_data_sector_write_unlock(sip);
-	else
+	} else {
+		__release(&sip->macc_sector_lck);
+		__acquire_shared(&sip->macc_sector_lck);
 		sdeb_data_sector_read_unlock(sip);
+	}
 }
 
 static inline void
 sdeb_meta_read_lock(struct sdeb_store_info *sip)
+	__acquires_shared(&sip->macc_meta_lck)
+	__context_unsafe(/*
+			  * Can't be annotated with
+			  * __{acquire,release}(,_shared}() without triggering
+			  * undefined behavior.
+			  */)
 {
-	if (sdebug_no_rwlock) {
-		if (sip)
-			__acquire(&sip->macc_meta_lck);
-		else
-			__acquire(&sdeb_fake_rw_lck);
-	} else {
+	if (!sdebug_no_rwlock) {
 		if (sip)
 			read_lock(&sip->macc_meta_lck);
 		else
@@ -4218,13 +4247,14 @@ sdeb_meta_read_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_meta_read_unlock(struct sdeb_store_info *sip)
+	__releases_shared(&sip->macc_meta_lck)
+	__context_unsafe(/*
+			  * Can't be annotated with
+			  * __{acquire,release}(,_shared}() without triggering
+			  * undefined behavior.
+			  */)
 {
-	if (sdebug_no_rwlock) {
-		if (sip)
-			__release(&sip->macc_meta_lck);
-		else
-			__release(&sdeb_fake_rw_lck);
-	} else {
+	if (!sdebug_no_rwlock) {
 		if (sip)
 			read_unlock(&sip->macc_meta_lck);
 		else
@@ -4234,13 +4264,14 @@ sdeb_meta_read_unlock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_meta_write_lock(struct sdeb_store_info *sip)
+	__acquires(&sip->macc_meta_lck)
+	__context_unsafe(/*
+			  * Can't be annotated with
+			  * __{acquire,release}(,_shared}() without triggering
+			  * undefined behavior.
+			  */)
 {
-	if (sdebug_no_rwlock) {
-		if (sip)
-			__acquire(&sip->macc_meta_lck);
-		else
-			__acquire(&sdeb_fake_rw_lck);
-	} else {
+	if (!sdebug_no_rwlock) {
 		if (sip)
 			write_lock(&sip->macc_meta_lck);
 		else
@@ -4250,13 +4281,14 @@ sdeb_meta_write_lock(struct sdeb_store_info *sip)
 
 static inline void
 sdeb_meta_write_unlock(struct sdeb_store_info *sip)
+	__releases(&sip->macc_meta_lck)
+	__context_unsafe(/*
+			  * Can't be annotated with
+			  * __{acquire,release}(,_shared}() without triggering
+			  * undefined behavior.
+			  */)
 {
-	if (sdebug_no_rwlock) {
-		if (sip)
-			__release(&sip->macc_meta_lck);
-		else
-			__release(&sdeb_fake_rw_lck);
-	} else {
+	if (!sdebug_no_rwlock) {
 		if (sip)
 			write_unlock(&sip->macc_meta_lck);
 		else
@@ -4608,6 +4640,70 @@ static int resp_read_tape(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return 0;
 }
 
+/*
+ * Returns 0 upon success or -1 with *scsi_status set to a SCSI status code upon
+ * failure.
+ */
+static int __resp_read_dt0_dix(struct scsi_cmnd *scp, u64 lba, u32 num,
+			       u32 ei_lba, int *scsi_status)
+{
+	const u8 *const cmd = scp->cmnd;
+
+	switch (prot_verify_read(scp, lba, num, ei_lba)) {
+	case 1: /* Guard tag error */
+		if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
+			mk_sense_buffer(scp, ABORTED_COMMAND,
+					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
+			*scsi_status = check_condition_result;
+			return -1;
+		}
+		if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
+			mk_sense_buffer(scp, ILLEGAL_REQUEST,
+					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
+			*scsi_status = illegal_condition_result;
+			return -1;
+		}
+		break;
+	case 3: /* Reference tag error */
+		if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
+			mk_sense_buffer(scp, ABORTED_COMMAND,
+				LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
+			*scsi_status = check_condition_result;
+			return -1;
+		}
+		if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
+			mk_sense_buffer(scp, ILLEGAL_REQUEST,
+				LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
+			*scsi_status = illegal_condition_result;
+			return -1;
+		}
+		break;
+	}
+	return 0;
+}
+
+/*
+ * Returns the number of bytes transferred, or -1 with *scsi_status set to a
+ * SCSI status code on failure.
+ */
+static int __resp_read_dt0(struct scsi_cmnd *scp, struct sdeb_store_info *sip,
+			   u64 lba, u32 num, u32 ei_lba, int *scsi_status)
+{
+	int ret;
+
+	/* DIX + T10 DIF */
+	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
+		ret = __resp_read_dt0_dix(scp, lba, num, ei_lba, scsi_status);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = do_device_access(sip, scp, 0, lba, num, 0, false, false);
+	if (ret < 0)
+		*scsi_status = DID_ERROR << 16;
+	return ret;
+}
+
 static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 {
 	bool check_prot;
@@ -4617,7 +4713,7 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u64 lba;
 	struct sdeb_store_info *sip = devip2sip(devip, true);
 	u8 *cmd = scp->cmnd;
-	bool meta_data_locked = false;
+	int scsi_status;
 
 	switch (cmd[0]) {
 	case READ_16:
@@ -4699,48 +4795,16 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	}
 
 	if (sdebug_dev_is_zoned(devip) ||
-	    (sdebug_dix && scsi_prot_sg_count(scp)))  {
+	    (sdebug_dix && scsi_prot_sg_count(scp))) {
 		sdeb_meta_read_lock(sip);
-		meta_data_locked = true;
-	}
-
-	/* DIX + T10 DIF */
-	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
-		switch (prot_verify_read(scp, lba, num, ei_lba)) {
-		case 1: /* Guard tag error */
-			if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
-				sdeb_meta_read_unlock(sip);
-				mk_sense_buffer(scp, ABORTED_COMMAND,
-					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
-				return check_condition_result;
-			} else if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
-				sdeb_meta_read_unlock(sip);
-				mk_sense_buffer(scp, ILLEGAL_REQUEST,
-					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
-				return illegal_condition_result;
-			}
-			break;
-		case 3: /* Reference tag error */
-			if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
-				sdeb_meta_read_unlock(sip);
-				mk_sense_buffer(scp, ABORTED_COMMAND,
-				      LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
-				return check_condition_result;
-			} else if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
-				sdeb_meta_read_unlock(sip);
-				mk_sense_buffer(scp, ILLEGAL_REQUEST,
-				      LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
-				return illegal_condition_result;
-			}
-			break;
-		}
-	}
-
-	ret = do_device_access(sip, scp, 0, lba, num, 0, false, false);
-	if (meta_data_locked)
+		ret = __resp_read_dt0(scp, sip, lba, num, ei_lba, &scsi_status);
 		sdeb_meta_read_unlock(sip);
-	if (unlikely(ret == -1))
-		return DID_ERROR << 16;
+	} else {
+		ret = __resp_read_dt0(scp, sip, lba, num, ei_lba, &scsi_status);
+	}
+
+	if (unlikely(ret < 0))
+		return scsi_status;
 
 	scsi_set_resid(scp, scsi_bufflen(scp) - ret);
 
@@ -4984,37 +5048,25 @@ static int resp_write_tape(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return 0;
 }
 
-static int corrupt_lbas(struct sdebug_dev_info *devip, u64 lba, u32 num,
-		u32 nr_bit_errors, s32 reftag_adjust)
+static int __corrupt_lbas(struct sdeb_store_info *sip, u64 lba, u32 num,
+			  u32 nr_bit_errors, s32 reftag_adjust, bool lbp)
 {
-	struct sdeb_store_info *sip = devip2sip(devip, false);
-	bool meta_data_locked = false;
-	bool lbp = scsi_debug_lbp();
 	u32 block, num_mapped, b, i;
-	int error = 0;
-
-	if (sdebug_dev_is_zoned(devip) || sdebug_dix || lbp) {
-		sdeb_meta_write_lock(sip);
-		meta_data_locked = true;
-	}
 
 	if (!sip) {
 		pr_err("can't corrupt with fake_rw\n");
-		error = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	if (num > sdebug_capacity || lba > sdebug_capacity - num) {
 		pr_err("logical blocks out of bounds: %llu:%u", lba, num);
-		error = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	if (lbp && (!map_state(sip, lba, &num_mapped) || num > num_mapped)) {
 		pr_err("can't modify unmapped logical blocks: %llu:%u",
 			lba, num);
-		error = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	/*
@@ -5052,10 +5104,105 @@ static int corrupt_lbas(struct sdebug_dev_info *devip, u64 lba, u32 num,
 	}
 	sdeb_data_unlock(sip, false);
 
-out_unlock:
-	if (meta_data_locked)
+	return 0;
+}
+
+static int corrupt_lbas(struct sdebug_dev_info *devip, u64 lba, u32 num,
+			u32 nr_bit_errors, s32 reftag_adjust)
+{
+	struct sdeb_store_info *sip = devip2sip(devip, false);
+	const bool lbp = scsi_debug_lbp();
+	int error = 0;
+
+	if (sdebug_dev_is_zoned(devip) || sdebug_dix || lbp) {
+		sdeb_meta_write_lock(sip);
+		error = __corrupt_lbas(sip, lba, num, nr_bit_errors,
+				       reftag_adjust, lbp);
 		sdeb_meta_write_unlock(sip);
+	} else {
+		error = __corrupt_lbas(sip, lba, num, nr_bit_errors,
+				       reftag_adjust, lbp);
+	}
 	return error;
+}
+
+/*
+ * Returns 0 upon success or -1 with *scsi_status set to a SCSI status code upon
+ * failure.
+ */
+static int __resp_write_dt0_dix(struct scsi_cmnd *scp,
+				u64 lba, u32 num,
+				u32 ei_lba, int *scsi_status)
+{
+	switch (prot_verify_write(scp, lba, num, ei_lba)) {
+	case 1: /* Guard tag error */
+		if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
+			mk_sense_buffer(scp, ILLEGAL_REQUEST,
+					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
+			*scsi_status = illegal_condition_result;
+			return -1;
+		}
+		if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
+			mk_sense_buffer(scp, ABORTED_COMMAND,
+					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
+			*scsi_status = check_condition_result;
+			return -1;
+		}
+		break;
+	case 3: /* Reference tag error */
+		if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
+			mk_sense_buffer(scp, ILLEGAL_REQUEST,
+				LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
+			*scsi_status = illegal_condition_result;
+			return -1;
+		}
+		if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
+			mk_sense_buffer(scp, ABORTED_COMMAND,
+				LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
+			*scsi_status = check_condition_result;
+			return -1;
+		}
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * Returns the number of bytes transferred, or -1 with *scsi_status set to a
+ * SCSI status code on failure.
+ */
+static int __resp_write_dt0(struct scsi_cmnd *scp,
+			    struct sdebug_dev_info *devip,
+			    struct sdeb_store_info *sip, u64 lba, u32 num,
+			    u32 ei_lba, u8 group, bool lbp, int *scsi_status)
+{
+	int ret;
+
+	*scsi_status = check_device_access_params(scp, lba, num, true);
+	if (*scsi_status)
+		return -1;
+
+	/* DIX + T10 DIF */
+	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
+		ret = __resp_write_dt0_dix(scp, lba, num, ei_lba,
+					   scsi_status);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = do_device_access(sip, scp, 0, lba, num, group, true, false);
+	if (ret < 0)
+		*scsi_status = DID_ERROR << 16;
+
+	if (unlikely(lbp))
+		map_region(sip, lba, num);
+
+	/* If ZBC zone then bump its write pointer */
+	if (sdebug_dev_is_zoned(devip) && ret > 0)
+		zbc_inc_wp(devip, lba, ret >> ilog2(sdebug_sector_size));
+
+	return ret;
 }
 
 static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
@@ -5068,7 +5215,7 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u64 lba;
 	struct sdeb_store_info *sip = devip2sip(devip, true);
 	u8 *cmd = scp->cmnd;
-	bool meta_data_locked = false;
+	int scsi_status = DID_ERROR << 16;
 	bool lbp = scsi_debug_lbp();
 
 	if (unlikely(sdebug_opts & SDEBUG_OPT_UNALIGNED_WRITE &&
@@ -5138,60 +5285,16 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	if (sdebug_dev_is_zoned(devip) ||
 	    (sdebug_dix && scsi_prot_sg_count(scp)) || lbp) {
 		sdeb_meta_write_lock(sip);
-		meta_data_locked = true;
-	}
-
-	ret = check_device_access_params(scp, lba, num, true);
-	if (ret) {
-		if (meta_data_locked)
-			sdeb_meta_write_unlock(sip);
-		return ret;
-	}
-
-	/* DIX + T10 DIF */
-	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
-		switch (prot_verify_write(scp, lba, num, ei_lba)) {
-		case 1: /* Guard tag error */
-			if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
-				sdeb_meta_write_unlock(sip);
-				mk_sense_buffer(scp, ILLEGAL_REQUEST,
-					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
-				return illegal_condition_result;
-			} else if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
-				sdeb_meta_write_unlock(sip);
-				mk_sense_buffer(scp, ABORTED_COMMAND,
-					LOGICAL_BLOCK_GUARD_CHECK_FAILED);
-				return check_condition_result;
-			}
-			break;
-		case 3: /* Reference tag error */
-			if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
-				sdeb_meta_write_unlock(sip);
-				mk_sense_buffer(scp, ILLEGAL_REQUEST,
-					LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
-				return illegal_condition_result;
-			} else if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
-				sdeb_meta_write_unlock(sip);
-				mk_sense_buffer(scp, ABORTED_COMMAND,
-					LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED);
-				return check_condition_result;
-			}
-			break;
-		}
-	}
-
-	ret = do_device_access(sip, scp, 0, lba, num, group, true, false);
-	if (unlikely(lbp))
-		map_region(sip, lba, num);
-
-	/* If ZBC zone then bump its write pointer over the data written */
-	if (sdebug_dev_is_zoned(devip) && ret > 0)
-		zbc_inc_wp(devip, lba, ret >> ilog2(sdebug_sector_size));
-	if (meta_data_locked)
+		ret = __resp_write_dt0(scp, devip, sip, lba, num, ei_lba, group,
+				       lbp, &scsi_status);
 		sdeb_meta_write_unlock(sip);
+	} else {
+		ret = __resp_write_dt0(scp, devip, sip, lba, num, ei_lba, group,
+				       lbp, &scsi_status);
+	}
 
 	if (unlikely(-1 == ret))
-		return DID_ERROR << 16;
+		return scsi_status;
 	else if (unlikely(sdebug_verbose &&
 			  (ret < (num * sdebug_sector_size))))
 		sdev_printk(KERN_INFO, scp->device,
@@ -5412,8 +5515,8 @@ err_out:
 	return ret;
 }
 
-static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
-			   u32 ei_lba, bool unmap, bool ndob)
+static int __resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
+			     u32 ei_lba, bool unmap, bool ndob, bool lbp)
 {
 	struct scsi_device *sdp = scp->device;
 	struct sdebug_dev_info *devip = (struct sdebug_dev_info *)sdp->hostdata;
@@ -5425,21 +5528,14 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 						scp->device->hostdata, true);
 	u8 *fs1p;
 	u8 *fsp;
-	bool meta_data_locked = false;
-	bool lbp = scsi_debug_lbp();
-
-	if (sdebug_dev_is_zoned(devip) || lbp) {
-		sdeb_meta_write_lock(sip);
-		meta_data_locked = true;
-	}
 
 	ret = check_device_access_params(scp, lba, num, true);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (unmap && lbp) {
 		unmap_region(sip, lba, num);
-		goto out;
+		return ret;
 	}
 	lbaa = lba;
 	block = do_div(lbaa, sdebug_store_sectors);
@@ -5455,7 +5551,7 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 
 	if (-1 == ret) {
 		ret = DID_ERROR << 16;
-		goto out;
+		goto unlock;
 	} else if (sdebug_verbose && !ndob && (ret < lb_size))
 		sdev_printk(KERN_INFO, scp->device,
 			    "%s: %s: lb size=%u, IO sent=%d bytes\n",
@@ -5472,11 +5568,31 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	/* If ZBC zone then bump its write pointer */
 	if (sdebug_dev_is_zoned(devip))
 		zbc_inc_wp(devip, lba, num);
-	sdeb_data_write_unlock(sip);
 	ret = 0;
-out:
-	if (meta_data_locked)
+unlock:
+	sdeb_data_write_unlock(sip);
+	return ret;
+}
+
+static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num, u32 ei_lba,
+			   bool unmap, bool ndob)
+{
+	struct scsi_device *sdp = scp->device;
+	struct sdebug_dev_info *devip = sdp->hostdata;
+	struct sdeb_store_info *sip = devip2sip(devip, true);
+	const bool lbp = scsi_debug_lbp();
+	int ret;
+
+	if (sdebug_dev_is_zoned(devip) || lbp) {
+		sdeb_meta_write_lock(sip);
+		ret = __resp_write_same(scp, lba, num, ei_lba, unmap, ndob,
+					lbp);
 		sdeb_meta_write_unlock(sip);
+	} else {
+		ret = __resp_write_same(scp, lba, num, ei_lba, unmap, ndob,
+					lbp);
+	}
+
 	return ret;
 }
 
@@ -6268,16 +6384,16 @@ static int resp_atomic_write(struct scsi_cmnd *scp,
 	if (scsi_bufflen(scp) < len * sdebug_sector_size)
 		return DID_ERROR << 16;
 
-	if (lbp)
-		sdeb_meta_write_lock(sip);
-
-	ret = do_device_access(sip, scp, 0, lba, len, 0, true, true);
 	if (lbp) {
+		sdeb_meta_write_lock(sip);
+		ret = do_device_access(sip, scp, 0, lba, len, 0, true, true);
 		map_region(sip, lba, len);
 		sdeb_meta_write_unlock(sip);
+	} else {
+		ret = do_device_access(sip, scp, 0, lba, len, 0, true, true);
 	}
 
-	if (unlikely(ret == -1))
+	if (unlikely(ret < 0))
 		return DID_ERROR << 16;
 	if (unlikely(ret != len * sdebug_sector_size))
 		return DID_ERROR << 16;
