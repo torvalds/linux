@@ -47,12 +47,7 @@
 #include <trace/events/asoc.h>
 
 DEFINE_MUTEX(client_mutex);
-
-static LIST_HEAD(component_list);
 static LIST_HEAD(unbind_card_list);
-
-#define for_each_component(component)			\
-	list_for_each_entry(component, &component_list, list)
 
 /*
  * This is used if driver don't need to have CPU/Codec/Platform
@@ -2396,7 +2391,7 @@ int snd_soc_component_register(struct snd_soc_component *component,
 	}
 
 	/* see for_each_component */
-	list_add(&component->list, &component_list);
+	list_add(&component->list, snd_soc_component_get_list_head());
 
 	list_for_each_entry_safe(card, c, &unbind_card_list, list)
 		call_soc_bind_card(card);

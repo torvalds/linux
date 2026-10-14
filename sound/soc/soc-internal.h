@@ -44,5 +44,9 @@ bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
 				   const struct snd_soc_dai_link_component *dlc);
 void snd_soc_component_remove(struct snd_soc_component *component, int probed);
 int snd_soc_component_probe(struct snd_soc_component *component, struct snd_soc_card *card);
+struct list_head *snd_soc_component_get_list_head(void);
+
+#define for_each_component(component)					\
+	list_for_each_entry(component, snd_soc_component_get_list_head(), list)
 
 #endif /* __SOC_INTERNAL_H */

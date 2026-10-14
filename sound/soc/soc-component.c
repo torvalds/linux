@@ -31,6 +31,12 @@ static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
 			   func, component->name, reg);
 }
 
+static LIST_HEAD(component_list);
+struct list_head *snd_soc_component_get_list_head(void)
+{
+	return &component_list;
+}
+
 const char *snd_soc_component_name(struct snd_soc_component *component)
 {
 	return component->name;
