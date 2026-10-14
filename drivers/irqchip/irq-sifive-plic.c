@@ -538,8 +538,8 @@ static const struct of_device_id plic_match[] = {
 #ifdef CONFIG_ACPI
 
 static const struct acpi_device_id plic_acpi_match[] = {
-	{ "RSCV0001", 0 },
-	{}
+	{ .id = "RSCV0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, plic_acpi_match);
 
