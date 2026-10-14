@@ -1881,7 +1881,7 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 	if (oldtb->tb_data == oldtb->__data)
 		return oldtb;
 
-	local_tb = fib_trie_table(RT_TABLE_LOCAL, NULL);
+	local_tb = fib_trie_table(oldtb->tb_net, RT_TABLE_LOCAL, NULL);
 	if (!local_tb)
 		return NULL;
 
@@ -2378,7 +2378,8 @@ void __init fib_trie_init(void)
 					   0, SLAB_PANIC | SLAB_ACCOUNT, NULL);
 }
 
-struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
+struct fib_table *fib_trie_table(struct net *net, u32 id,
+				 struct fib_table *alias)
 {
 	struct fib_table *tb;
 	struct trie *t;
@@ -2391,6 +2392,7 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
 	if (!tb)
 		return NULL;
 
+	tb->tb_net = net;
 	tb->tb_id = id;
 	tb->tb_num_default = 0;
 	tb->tb_data = (alias ? alias->__data : tb->__data);
