@@ -69,7 +69,7 @@ static int snd_soc_ac97_gpio_direction_in(struct gpio_chip *chip,
 {
 	struct snd_soc_component *component = gpio_to_component(chip);
 
-	dev_dbg(component->dev, "set gpio %d to output\n", offset);
+	dev_dbg(component->dev, "set gpio %d to input\n", offset);
 	return snd_soc_component_update_bits(component, AC97_GPIO_CFG,
 				   1 << offset, 1 << offset);
 }
