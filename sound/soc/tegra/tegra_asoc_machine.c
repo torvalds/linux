@@ -122,6 +122,8 @@ static const struct snd_soc_dapm_widget tegra_machine_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("Line In Jack", NULL),
 	SND_SOC_DAPM_LINE("Line In", NULL),
 	SND_SOC_DAPM_LINE("LineIn", NULL),
+	SND_SOC_DAPM_LINE("Line Out", NULL),
+	SND_SOC_DAPM_INPUT("FM Radio"),
 };
 
 static const struct snd_kcontrol_new tegra_machine_controls[] = {
