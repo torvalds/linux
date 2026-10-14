@@ -78,7 +78,7 @@ static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable() ||
 	    bytes <= CHACHA_BLOCK_SIZE) {
 		chacha_doarm(dst, src, bytes, state, nrounds);
-		state->x[12] += DIV_ROUND_UP(bytes, CHACHA_BLOCK_SIZE);
+		state->x[12] += DIV_ROUND_UP_POW2(bytes, CHACHA_BLOCK_SIZE);
 		return;
 	}
 

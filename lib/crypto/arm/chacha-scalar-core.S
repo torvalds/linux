@@ -163,7 +163,7 @@
 
 	// Use slow path if fewer than 64 bytes remain.
 	cmp		r11, #64
-	blt		.Lxor_slowpath\@
+	blo		.Lxor_slowpath\@
 
 	// Use slow path if IN and/or OUT isn't 4-byte aligned.  Needed even on
 	// ARMv6+, since ldmia and stmia (used below) still require alignment.
@@ -324,8 +324,8 @@
 	ldr		r14, [sp, #160]		// OUT
 	cmp		r9, #64
 	  mov		r0, sp
-	movle		r1, r9
-	movgt		r1, #64
+	movls		r1, r9
+	movhi		r1, #64
 	// r1 is number of bytes to XOR, in range [1, 64]
 
 .if __LINUX_ARM_ARCH__ < 6
@@ -360,7 +360,7 @@
 .Lxor_slowpath_done\@:
 	subs		r9, #64
 	add		sp, #96
-	bgt		.Lprepare_for_next_block\@
+	bhi		.Lprepare_for_next_block\@
 
 .Ldone\@:
 .endm	// _chacha
