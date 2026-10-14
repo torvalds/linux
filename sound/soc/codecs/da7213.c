@@ -2091,16 +2091,6 @@ static int da7213_probe(struct snd_soc_component *component)
 
 	pm_runtime_put_sync(component->dev);
 
-	/* Check if MCLK provided */
-	da7213->mclk = devm_clk_get_optional(component->dev, "mclk");
-	if (IS_ERR(da7213->mclk))
-		return PTR_ERR(da7213->mclk);
-	if (da7213->mclk)
-		/* Do automatic PLL handling assuming fixed clock until
-		 * set_pll() has been called. This makes the codec usable
-		 * with the simple-audio-card driver. */
-		da7213->fixed_clk_auto_pll = true;
-
 	/* Default infinite tone gen, start/stop by Kcontrol */
 	snd_soc_component_write(component, DA7213_TONE_GEN_CYCLES, DA7213_BEEP_CYCLES_MASK);
 
@@ -2228,6 +2218,19 @@ static int da7213_i2c_probe(struct i2c_client *i2c)
 	}
 
 	mutex_init(&da7213->ctrl_lock);
+
+	/* Check if MCLK provided */
+	da7213->mclk = devm_clk_get_optional(&i2c->dev, "mclk");
+	if (IS_ERR(da7213->mclk))
+		return dev_err_probe(&i2c->dev, PTR_ERR(da7213->mclk),
+				      "failed to get mclk\n");
+	if (da7213->mclk)
+		/*
+		 * Do automatic PLL handling assuming fixed clock until
+		 * set_pll() has been called. This makes the codec usable
+		 * with the simple-audio-card driver.
+		 */
+		da7213->fixed_clk_auto_pll = true;
 
 	pm_runtime_set_autosuspend_delay(&i2c->dev, 100);
 	pm_runtime_use_autosuspend(&i2c->dev);
