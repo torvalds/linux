@@ -366,7 +366,7 @@
 .endm	// _chacha
 
 /*
- * void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
+ * void chacha_doarm(u8 *dst, const u8 *src, size_t bytes,
  *		     const struct chacha_state *state, int nrounds);
  */
 ENTRY(chacha_doarm)
