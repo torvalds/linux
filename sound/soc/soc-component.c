@@ -1287,3 +1287,30 @@ struct device_node *snd_soc_component_to_node(struct snd_soc_component *componen
 
 	return of_node;
 }
+
+bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
+				   const struct snd_soc_dai_link_component *dlc)
+{
+	struct device_node *component_of_node;
+
+	if (!dlc)
+		return false;
+
+	if (dlc->dai_args) {
+		struct snd_soc_dai *dai;
+
+		for_each_component_dais(component, dai)
+			if (snd_soc_dai_matches_dlc(dai, dlc))
+				return true;
+		return false;
+	}
+
+	component_of_node = snd_soc_component_to_node(component);
+
+	if (dlc->of_node && component_of_node != dlc->of_node)
+		return false;
+	if (dlc->name && strcmp(component->name, dlc->name))
+		return false;
+
+	return true;
+}

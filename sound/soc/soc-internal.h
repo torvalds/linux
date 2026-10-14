@@ -40,6 +40,7 @@ void snd_soc_dai_active_update(struct snd_soc_dai *dai, int stream, int action);
  * In soc-component
  */
 struct device_node *snd_soc_component_to_node(struct snd_soc_component *component);
-
+bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
+				   const struct snd_soc_dai_link_component *dlc);
 
 #endif /* __SOC_INTERNAL_H */

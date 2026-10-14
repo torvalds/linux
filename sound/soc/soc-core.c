@@ -785,34 +785,6 @@ struct of_phandle_args *snd_soc_copy_dai_args(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(snd_soc_copy_dai_args);
 
-static int snd_soc_is_matching_component(
-	const struct snd_soc_dai_link_component *dlc,
-	struct snd_soc_component *component)
-{
-	struct device_node *component_of_node;
-
-	if (!dlc)
-		return 0;
-
-	if (dlc->dai_args) {
-		struct snd_soc_dai *dai;
-
-		for_each_component_dais(component, dai)
-			if (snd_soc_dai_matches_dlc(dai, dlc))
-				return 1;
-		return 0;
-	}
-
-	component_of_node = snd_soc_component_to_node(component);
-
-	if (dlc->of_node && component_of_node != dlc->of_node)
-		return 0;
-	if (dlc->name && strcmp(component->name, dlc->name))
-		return 0;
-
-	return 1;
-}
-
 static struct snd_soc_component *soc_find_component(
 	const struct snd_soc_dai_link_component *dlc)
 {
@@ -829,7 +801,7 @@ static struct snd_soc_component *soc_find_component(
 	 *	CPU component and generic DMAEngine component
 	 */
 	for_each_component(component)
-		if (snd_soc_is_matching_component(dlc, component))
+		if (snd_soc_component_matches_dlc(component, dlc))
 			return component;
 
 	return NULL;
@@ -856,7 +828,7 @@ struct snd_soc_dai *snd_soc_find_dai(
 
 	/* Find CPU DAI from registered DAIs */
 	for_each_component(component)
-		if (snd_soc_is_matching_component(dlc, component))
+		if (snd_soc_component_matches_dlc(component, dlc))
 			for_each_component_dais(component, dai)
 				if (snd_soc_dai_matches_dlc(dai, dlc))
 					return dai;
@@ -1155,7 +1127,7 @@ static int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 	/* Find PLATFORM from registered PLATFORMs */
 	for_each_link_platforms(dai_link, i, platform) {
 		for_each_component(component) {
-			if (!snd_soc_is_matching_component(platform, component))
+			if (!snd_soc_component_matches_dlc(component, platform))
 				continue;
 
 			if (snd_soc_component_is_dummy(component) && component->num_dai)
@@ -1334,7 +1306,7 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
 
-		if (snd_soc_is_matching_component(&map->dlc, component) &&
+		if (snd_soc_component_matches_dlc(component, &map->dlc) &&
 		    map->name_prefix) {
 			component->name_prefix = map->name_prefix;
 			return;
