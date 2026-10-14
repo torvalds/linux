@@ -56,6 +56,11 @@ properties:
               - qcom,rpmcc-shikra
           - const: qcom,rpmcc-qcm2290
           - const: qcom,rpmcc
+      - items:
+          - enum:
+              - qcom,rpmcc-msm8952
+          - const: qcom,rpmcc-msm8976
+          - const: qcom,rpmcc
 
   '#clock-cells':
     const: 1

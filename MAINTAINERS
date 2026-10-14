@@ -22367,6 +22367,7 @@ F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CLOCK DRIVERS
 M:	Bjorn Andersson <andersson@kernel.org>
+R:	Abel Vesa <abelvesa@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux.git

@@ -19,6 +19,17 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_ELIZA_CAMCC
+	tristate "Eliza Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_ELIZA_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Eliza devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 config CLK_ELIZA_DISPCC
 	tristate "Eliza Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -38,6 +49,16 @@ config CLK_ELIZA_GCC
 	  Support for the global clock controller on Eliza devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
+
+config CLK_ELIZA_GPUCC
+	tristate "Eliza Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_ELIZA_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the graphics clock controller on Eliza devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
 
 config CLK_ELIZA_TCSRCC
 	tristate "Eliza TCSR Clock Controller"
@@ -59,6 +80,16 @@ config CLK_GLYMUR_CAMCC
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config CLK_ELIZA_VIDEOCC
+	tristate "Eliza Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_ELIZA_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the video clock controller on Eliza devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config CLK_GLYMUR_DISPCC
 	tristate "Glymur Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -73,7 +104,6 @@ config CLK_GLYMUR_DISPCC
 config CLK_GLYMUR_EVACC
 	tristate "Glymur EVA Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	default m if ARCH_QCOM
 	select CLK_GLYMUR_GCC
 	default m if ARCH_QCOM
 	help
@@ -96,6 +126,7 @@ config CLK_GLYMUR_GPUCC
 	tristate "Glymur Graphics Clock Controller"
 	depends on ARM64 || COMPILE_TEST
 	select CLK_GLYMUR_GCC
+	default m if ARCH_QCOM
 	help
 	  Support for the graphics clock controller on Glymur devices.
 	  Say Y if you want to support graphics controller devices and
@@ -181,6 +212,27 @@ config CLK_KAANAPALI_VIDEOCC
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config CLK_KUNO_GCC
+	tristate "Kuno Global Clock Controller"
+	depends on ARM || COMPILE_TEST
+	select QCOM_GDSC
+	default ARCH_QCOM
+	help
+	  Support for the global clock controller (GCC) on Kuno devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SD, PCIe and Ethernet on the Kuno SoC. This clock
+	  controller supplies the clocks and resets to those peripherals.
+
+config CLK_MAILI_VIDEOCC
+	tristate "Maili Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_HAWI_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the video clock controller on Maili devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
+
 config CLK_NORD_DISPCC
 	tristate "Nord Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -192,15 +244,16 @@ config CLK_NORD_DISPCC
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
-config CLK_MAILI_VIDEOCC
-	tristate "Maili Video Clock Controller"
+config CLK_NORD_CAMCC
+	tristate "Nord Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	select CLK_HAWI_GCC
+	select CLK_NORD_GCC
 	default m if ARCH_QCOM
 	help
-	  Support for the video clock controller on Maili devices.
-	  Say Y if you want to support video devices and functionality such as
-	  video encode/decode.
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Nord devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
 
 config CLK_NORD_GCC
 	tristate "Nord Global Clock Controller"
@@ -213,26 +266,6 @@ config CLK_NORD_GCC
 	  SPI, I2C, USB, SD/UFS, PCIe etc. The clock controller is a combination
 	  of GCC, SE_GCC, NE_GCC and NW_GCC.
 
-config CLK_SHIKRA_AUDIOCORECC
-	tristate "Shikra Audio Core Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select CLK_SHIKRA_GCC
-	default m if ARCH_QCOM
-	help
-	  Support for the Audio Core clock controller on Qualcomm Shikra devices.
-	  Say Y if you want to use AudioCoreCC clocks required to support audio
-	  devices and it's functionality.
-
-config CLK_SHIKRA_GCC
-	tristate "Shikra Global Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select QCOM_GDSC
-	default ARCH_QCOM
-	help
-	  Support for the global clock controller on Shikra devices.
-	  Say Y if you want to use multimedia devices or peripheral
-	  devices such as Camera, Video, UART, SPI, I2C, USB, SD/eMMC etc.
-
 config CLK_NORD_GPUCC
 	tristate "Nord Graphics Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -243,6 +276,45 @@ config CLK_NORD_GPUCC
 	  graphics clock controllers on Nord SoC.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config CLK_NORD_TCSRCC
+	tristate "Nord TCSR Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	default m if ARCH_QCOM
+	help
+	  Support for the TCSR clock controller on Nord devices.
+	  Say Y if you want to use peripheral devices such as PCIe, USB, UFS etc.
+
+config CLK_SHIKRA_AUDIOCORECC
+	tristate "Shikra Audio Core Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_SHIKRA_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the Audio Core clock controller on Qualcomm Shikra devices.
+	  Say Y if you want to use AudioCoreCC clocks required to support audio
+	  devices and it's functionality.
+
+config CLK_NORD_VIDEOCC
+	tristate "Nord VIDEO Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_NORD_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  Nord devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
+
+config CLK_SHIKRA_GCC
+	tristate "Shikra Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	default ARCH_QCOM
+	help
+	  Support for the global clock controller on Shikra devices.
+	  Say Y if you want to use multimedia devices or peripheral
+	  devices such as Camera, Video, UART, SPI, I2C, USB, SD/eMMC etc.
 
 config CLK_X1E80100_CAMCC
 	tristate "X1E80100 Camera Clock Controller"
@@ -423,6 +495,17 @@ config QCOM_CLK_RPMH
 	 Say Y if you want to support the clocks exposed by RPMh on
 	 platforms such as SDM845.
 
+config CLK_HAWI_CAMCC
+	tristate "Hawi Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_HAWI_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Hawi devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 config CLK_HAWI_GCC
 	tristate "Hawi Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -432,6 +515,18 @@ config CLK_HAWI_GCC
 	  Support for the global clock controller on Hawi devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SD/eMMC, PCIe, etc.
+
+config CLK_HAWI_GPUCC
+	tristate "Hawi Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_HAWI_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the graphics clock controller on Hawi devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics. It also provides GX clock
+	  domain control required for GPU power management on Hawi-based
+	  devices.
 
 config CLK_HAWI_TCSRCC
 	tristate "Hawi TCSR Clock Controller"
@@ -694,6 +789,16 @@ config MSM_GCC_8939
 	  Say Y if you want to use devices such as UART, SPI i2c, USB,
 	  SD/eMMC, display, graphics, camera etc.
 
+config MSM_GCC_8952
+	tristate "MSM8952 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	default ARCH_QCOM
+	help
+	  Support for the global clock controller on MSM8952 devices.
+	  Say Y if you want to use devices such as UART, SPI i2c, USB,
+	  SD/eMMC, display, graphics, camera etc.
+
 config MSM_GCC_8960
 	tristate "APQ8064/MSM8960 Global Clock Controller"
 	depends on ARM || COMPILE_TEST
@@ -894,14 +999,6 @@ config QCS_GCC_404
 	  Support for the global clock controller on QCS404 devices.
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
-
-config CLK_NORD_TCSRCC
-	tristate "Nord TCSR Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	default m if ARCH_QCOM
-	help
-	  Support for the TCSR clock controller on Nord devices.
-	  Say Y if you want to use peripheral devices such as PCIe, USB, UFS etc.
 
 config SA_CAMCC_8775P
 	tristate "SA8775P Camera Clock Controller"

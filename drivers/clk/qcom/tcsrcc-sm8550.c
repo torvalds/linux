@@ -191,17 +191,7 @@ static struct platform_driver tcsr_cc_sm8550_driver = {
 	},
 };
 
-static int __init tcsr_cc_sm8550_init(void)
-{
-	return platform_driver_register(&tcsr_cc_sm8550_driver);
-}
-subsys_initcall(tcsr_cc_sm8550_init);
-
-static void __exit tcsr_cc_sm8550_exit(void)
-{
-	platform_driver_unregister(&tcsr_cc_sm8550_driver);
-}
-module_exit(tcsr_cc_sm8550_exit);
+subsys_platform_driver(tcsr_cc_sm8550_driver);
 
 MODULE_DESCRIPTION("QTI TCSRCC SM8550 Driver");
 MODULE_LICENSE("GPL");
