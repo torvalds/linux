@@ -34,14 +34,14 @@ void poly1305_init(struct poly1305_desc_ctx *desc,
 }
 EXPORT_SYMBOL(poly1305_init);
 
-void poly1305_update(struct poly1305_desc_ctx *desc,
-		     const u8 *src, unsigned int nbytes)
+void poly1305_update(struct poly1305_desc_ctx *desc, const u8 *src,
+		     size_t nbytes)
 {
-	if (desc->buflen + nbytes >= POLY1305_BLOCK_SIZE) {
-		unsigned int bulk_len;
+	if (nbytes >= POLY1305_BLOCK_SIZE - desc->buflen) {
+		size_t bulk_len;
 
 		if (desc->buflen) {
-			unsigned int l = POLY1305_BLOCK_SIZE - desc->buflen;
+			size_t l = POLY1305_BLOCK_SIZE - desc->buflen;
 
 			memcpy(&desc->buf[desc->buflen], src, l);
 			src += l;

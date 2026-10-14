@@ -90,7 +90,7 @@ static void poly1305_block_init(struct poly1305_block_state *state,
 }
 
 static void poly1305_blocks(struct poly1305_block_state *state, const u8 *inp,
-			    unsigned int len, u32 padbit)
+			    size_t len, u32 padbit)
 {
 	struct poly1305_arch_internal *ctx =
 		container_of(&state->h.h, struct poly1305_arch_internal, h);
@@ -115,7 +115,7 @@ static void poly1305_blocks(struct poly1305_block_state *state, const u8 *inp,
 	}
 
 	do {
-		const unsigned int bytes = min(len, SZ_4K);
+		const size_t bytes = min(len, SZ_4K);
 
 		kernel_fpu_begin();
 		if (static_branch_likely(&poly1305_use_avx512))

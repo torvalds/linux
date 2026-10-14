@@ -32,7 +32,7 @@ EXPORT_SYMBOL(poly1305_core_setkey);
 
 void poly1305_core_blocks(struct poly1305_state *state,
 			  const struct poly1305_core_key *key, const void *src,
-			  unsigned int nblocks, u32 hibit)
+			  size_t nblocks, u32 hibit)
 {
 	const u8 *input = src;
 	u64 hibit64;
