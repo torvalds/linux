@@ -9,6 +9,10 @@
 #ifndef __ACP_MACH_COMMON_H
 #define __ACP_MACH_COMMON_H
 
+/* ACP7X PDM controller selection values for pdm_sel; 0 = not set */
+#define ACP7X_PDM_DMIC0			1
+#define ACP7X_PDM_DMIC1			2
+
 /**
  * struct amd_pdm_pdata - PDM controller platform data passed via mach->pdata
  * @pdm_sel: active PDM controller (ACP7X_PDM_DMIC0 or ACP7X_PDM_DMIC1),
