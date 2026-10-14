@@ -868,6 +868,47 @@ static void mctp_usblib_test_tx_multi_push(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, i, ARRAY_SIZE(sends));
 }
 
+static void mctp_usblib_test_append_failure(struct kunit *test)
+{
+	struct mctp_usblib_test_ctx *ctx;
+	struct rtnl_link_stats64 stats;
+	struct mctp_usblib_tx_ops ops;
+	struct mctp_usblib_tx *tx;
+	struct net_device *ndev;
+	struct sk_buff *skb;
+	u64 tx_dropped;
+	size_t i;
+	u8 *buf;
+	int rc;
+
+	const size_t packet_count = 3;
+	const size_t len = (MCTP_USB_1_0_XFER_SIZE / packet_count) + 1
+			   - sizeof(struct mctp_usb_hdr);
+	static_assert(len >= MCTP_USB_BTU);
+
+	ctx = mctp_usblib_test_init(test);
+	ndev = ctx->dev->ndev;
+
+	ops.send = mctp_usblib_test_tx_send_fail;
+
+	tx = mctp_usblib_test_tx_init(test, &ops, ctx, false);
+	buf = mctp_usblib_test_init_buf(test, len);
+
+	for (i = 0; i < packet_count; i++) {
+		tx_dropped = dev_get_stats(ndev, &stats)->tx_dropped;
+		KUNIT_EXPECT_EQ(test, tx_dropped, 0);
+		skb = mctp_usblib_test_init_skb(test, len, ndev, buf);
+
+		rc = mctp_usblib_tx_push(ndev, tx, skb, i != packet_count - 1);
+		KUNIT_EXPECT_EQ(test, rc, 0);
+		KUNIT_EXPECT_TRUE(test, list_empty(&ctx->tx_xfers));
+	}
+
+	tx_dropped = dev_get_stats(ndev, &stats)->tx_dropped;
+	KUNIT_EXPECT_EQ(test, tx_dropped, packet_count);
+	KUNIT_EXPECT_NULL(test, tx->cur_ctx);
+}
+
 static struct kunit_case mctp_usblib_test_cases[] = {
 	KUNIT_CASE(mctp_usblib_test_rx_single),
 	KUNIT_CASE_PARAM(mctp_usblib_test_rx_pkt_span,
@@ -880,6 +921,7 @@ static struct kunit_case mctp_usblib_test_cases[] = {
 	KUNIT_CASE(mctp_usblib_test_tx_pkt_span),
 	KUNIT_CASE(mctp_usblib_test_tx_multi_push),
 	KUNIT_CASE(mctp_usblib_test_tx_failing_send),
+	KUNIT_CASE(mctp_usblib_test_append_failure),
 	{}
 };
 
