@@ -114,6 +114,7 @@ int long_array_in_bounds(void *ctx)
  */
 SEC("syscall")
 __failure
+__flag(BPF_F_ANY_ALIGNMENT)
 __msg("invalid variable offset access into struct outer")
 int byte_array_size_spanning(void *ctx)
 {

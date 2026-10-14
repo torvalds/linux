@@ -2354,7 +2354,7 @@ static void reg_bounds_sync(struct bpf_reg_state *reg)
 	 * potentially w/o intersection, or intersecting after N
 	 * tnum_step()'s, where N can be large. On the other hand,
 	 * step+base *must* be in sync with r64 in order for
-	 * array traversal logic starting at reg_umin() to be sound.
+	 * array traversal logic starting at reg_smin() to be sound.
 	 * Hence, place this as a final step in the reg_bounds_sync().
 	 */
 	__update_bounds_from_step(reg);
@@ -14871,7 +14871,7 @@ bpf_global_subprog_stack_access_bytes(struct bpf_verifier_env *env, struct bpf_i
 
 	switch (base_type(sub->args[arg].arg_type)) {
 	case ARG_UNUSED:	/* Not an argument slot. */
-	case ARG_ANYTHING:	/* A scalar, the callee can't dereference it. */
+	case ARG_SCALAR:	/* A scalar, the callee can't dereference it. */
 		return (struct arg_access_info) {};
 	case ARG_PTR_TO_BTF_ID:
 		/*
@@ -14886,6 +14886,10 @@ bpf_global_subprog_stack_access_bytes(struct bpf_verifier_env *env, struct bpf_i
 			info.size = sub->args[arg].mem_size;
 			info.must_write = true;
 		}
+		return info;
+	case ARG_PTR_TO_DYNPTR:
+		/* The callee may adjust the view, but cannot reinitialize the dynptr. */
+		info.size = BPF_DYNPTR_SIZE;
 		return info;
 	default:
 		return info;
