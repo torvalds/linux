@@ -133,38 +133,6 @@ static const struct attribute_group *soc_dev_attr_groups[] = {
 struct dentry *snd_soc_debugfs_root;
 EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
 
-static void soc_init_component_debugfs(struct snd_soc_component *component)
-{
-	if (!component->card->debugfs_card_root)
-		return;
-
-	if (component->driver->debugfs_prefix) {
-		char *name;
-
-		name = kasprintf(GFP_KERNEL, "%s:%s",
-			component->driver->debugfs_prefix, component->name);
-		if (name) {
-			component->debugfs_root = debugfs_create_dir(name,
-				component->card->debugfs_card_root);
-			kfree(name);
-		}
-	} else {
-		component->debugfs_root = debugfs_create_dir(component->name,
-				component->card->debugfs_card_root);
-	}
-
-	snd_soc_dapm_debugfs_init(snd_soc_component_to_dapm(component),
-		component->debugfs_root);
-}
-
-static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
-{
-	if (!component->debugfs_root)
-		return;
-	debugfs_remove_recursive(component->debugfs_root);
-	component->debugfs_root = NULL;
-}
-
 static int dai_list_show(struct seq_file *m, void *v)
 {
 	struct snd_soc_component *component;
@@ -225,8 +193,6 @@ static void snd_soc_debugfs_exit(void)
 
 #else
 
-static inline void soc_init_component_debugfs(struct snd_soc_component *component) { }
-static inline void soc_cleanup_component_debugfs(struct snd_soc_component *component) { }
 static inline void soc_init_card_debugfs(struct snd_soc_card *card) { }
 static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card) { }
 static inline void snd_soc_debugfs_init(void) { }
@@ -1296,143 +1262,6 @@ err:
 	return ret;
 }
 
-static void soc_set_name_prefix(struct snd_soc_card *card,
-				struct snd_soc_component *component)
-{
-	struct device_node *of_node = snd_soc_component_to_node(component);
-	const char *str;
-	int ret, i;
-
-	for (i = 0; i < card->num_configs; i++) {
-		struct snd_soc_codec_conf *map = &card->codec_conf[i];
-
-		if (snd_soc_component_matches_dlc(component, &map->dlc) &&
-		    map->name_prefix) {
-			component->name_prefix = map->name_prefix;
-			return;
-		}
-	}
-
-	/*
-	 * If there is no configuration table or no match in the table,
-	 * check if a prefix is provided in the node
-	 */
-	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
-	if (ret < 0)
-		return;
-
-	component->name_prefix = str;
-}
-
-static void soc_remove_component(struct snd_soc_component *component,
-				 int probed)
-{
-
-	if (!component->card)
-		return;
-
-	if (probed)
-		snd_soc_component_remove(component);
-
-	list_del_init(&component->card_list);
-	snd_soc_dapm_free(snd_soc_component_to_dapm(component));
-	soc_cleanup_component_debugfs(component);
-	component->card = NULL;
-	snd_soc_component_module_put_when_remove(component);
-}
-
-static int soc_probe_component(struct snd_soc_card *card,
-			       struct snd_soc_component *component)
-{
-	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
-	struct snd_soc_dai *dai;
-	int probed = 0;
-	int ret;
-
-	if (snd_soc_component_is_dummy(component))
-		return 0;
-
-	if (component->card) {
-		if (component->card != card) {
-			dev_err(component->dev,
-				"Trying to bind component \"%s\" to card \"%s\" but is already bound to card \"%s\"\n",
-				component->name, card->name, component->card->name);
-			return -ENODEV;
-		}
-		return 0;
-	}
-
-	ret = snd_soc_component_module_get_when_probe(component);
-	if (ret < 0)
-		return ret;
-
-	component->card = card;
-	soc_set_name_prefix(card, component);
-
-	soc_init_component_debugfs(component);
-
-	snd_soc_dapm_init(dapm, card, component);
-
-	ret = snd_soc_dapm_new_controls(dapm,
-					component->driver->dapm_widgets,
-					component->driver->num_dapm_widgets);
-
-	if (ret != 0) {
-		dev_err(component->dev,
-			"Failed to create new controls %d\n", ret);
-		goto err_probe;
-	}
-
-	for_each_component_dais(component, dai) {
-		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
-		if (ret != 0) {
-			dev_err(component->dev,
-				"Failed to create DAI widgets %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	ret = snd_soc_component_probe(component);
-	if (ret < 0)
-		goto err_probe;
-
-	WARN(!snd_soc_dapm_get_idle_bias(dapm) &&
-	     snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_OFF,
-	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
-	     component->name);
-	probed = 1;
-
-	/*
-	 * machine specific init
-	 * see
-	 *	snd_soc_component_set_aux()
-	 */
-	ret = snd_soc_component_init(component);
-	if (ret < 0)
-		goto err_probe;
-
-	ret = snd_soc_add_component_controls(component,
-					     component->driver->controls,
-					     component->driver->num_controls);
-	if (ret < 0)
-		goto err_probe;
-
-	ret = snd_soc_dapm_add_routes(dapm,
-				      component->driver->dapm_routes,
-				      component->driver->num_dapm_routes);
-	if (ret < 0)
-		goto err_probe;
-
-	/* see for_each_card_components */
-	list_add(&component->card_list, &card->component_dev_list);
-
-err_probe:
-	if (ret < 0)
-		soc_remove_component(component, probed);
-
-	return ret;
-}
-
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -1475,7 +1304,7 @@ static void soc_remove_link_components(struct snd_soc_card *card)
 				if (component->driver->remove_order != order)
 					continue;
 
-				soc_remove_component(component, 1);
+				snd_soc_component_remove(component, 1);
 			}
 		}
 	}
@@ -1493,7 +1322,7 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 				if (component->driver->probe_order != order)
 					continue;
 
-				ret = soc_probe_component(card, component);
+				ret = snd_soc_component_probe(component, card);
 				if (ret < 0)
 					return ret;
 			}
@@ -1545,7 +1374,7 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 			if (component->driver->probe_order != order)
 				continue;
 
-			ret = soc_probe_component(card,	component);
+			ret = snd_soc_component_probe(component, card);
 			if (ret < 0)
 				return ret;
 		}
@@ -1562,7 +1391,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	for_each_comp_order(order) {
 		for_each_card_auxs_safe(card, comp, _comp) {
 			if (comp->driver->remove_order == order)
-				soc_remove_component(comp, 1);
+				snd_soc_component_remove(comp, 1);
 		}
 	}
 }

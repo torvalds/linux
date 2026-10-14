@@ -8,6 +8,7 @@
 // Mark Brown <broonie@opensource.wolfsonmicro.com>
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
@@ -309,22 +310,6 @@ void snd_soc_component_resume(struct snd_soc_component *component)
 int snd_soc_component_is_suspended(struct snd_soc_component *component)
 {
 	return component->suspended;
-}
-
-int snd_soc_component_probe(struct snd_soc_component *component)
-{
-	int ret = 0;
-
-	if (component->driver->probe)
-		ret = component->driver->probe(component);
-
-	return soc_component_ret(component, ret);
-}
-
-void snd_soc_component_remove(struct snd_soc_component *component)
-{
-	if (component->driver->remove)
-		component->driver->remove(component);
 }
 
 /**
@@ -1313,4 +1298,177 @@ bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
 		return false;
 
 	return true;
+}
+
+#ifdef CONFIG_DEBUG_FS
+static void snd_soc_component_debugfs_init(struct snd_soc_component *component)
+{
+	if (!component->card->debugfs_card_root)
+		return;
+
+	if (component->driver->debugfs_prefix) {
+		char *name;
+
+		name = kasprintf(GFP_KERNEL, "%s:%s",
+				 component->driver->debugfs_prefix, component->name);
+		if (name) {
+			component->debugfs_root = debugfs_create_dir(name,
+							component->card->debugfs_card_root);
+			kfree(name);
+		}
+	} else {
+		component->debugfs_root = debugfs_create_dir(component->name,
+							     component->card->debugfs_card_root);
+	}
+
+	snd_soc_dapm_debugfs_init(snd_soc_component_to_dapm(component),
+				  component->debugfs_root);
+}
+
+static void snd_soc_component_debugfs_cleanup(struct snd_soc_component *component)
+{
+	if (!component->debugfs_root)
+		return;
+	debugfs_remove_recursive(component->debugfs_root);
+	component->debugfs_root = NULL;
+}
+#else
+static inline void snd_soc_component_debugfs_init(struct snd_soc_component *component) { }
+static inline void snd_soc_component_debugfs_cleanup(struct snd_soc_component *component) { }
+#endif /* CONFIG_DEBUG_FS */
+
+static void snd_soc_component_set_name_prefix(struct snd_soc_component *component)
+{
+	struct snd_soc_card *card = component->card;
+	struct device_node *of_node = snd_soc_component_to_node(component);
+	const char *str;
+	int ret, i;
+
+	for (i = 0; i < card->num_configs; i++) {
+		struct snd_soc_codec_conf *map = &card->codec_conf[i];
+
+		if (snd_soc_component_matches_dlc(component, &map->dlc) &&
+		    map->name_prefix) {
+			component->name_prefix = map->name_prefix;
+			return;
+		}
+	}
+
+	/*
+	 * If there is no configuration table or no match in the table,
+	 * check if a prefix is provided in the node
+	 */
+	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
+	if (ret < 0)
+		return;
+
+	component->name_prefix = str;
+}
+
+void snd_soc_component_remove(struct snd_soc_component *component, int probed)
+{
+	if (!component->card)
+		return;
+
+	if (probed && component->driver->remove)
+		component->driver->remove(component);
+
+	list_del_init(&component->card_list);
+	snd_soc_dapm_free(snd_soc_component_to_dapm(component));
+	snd_soc_component_debugfs_cleanup(component);
+	component->card = NULL;
+	snd_soc_component_module_put_when_remove(component);
+}
+
+int snd_soc_component_probe(struct snd_soc_component *component, struct snd_soc_card *card)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	struct snd_soc_dai *dai;
+	int probed = 0;
+	int ret;
+
+	if (snd_soc_component_is_dummy(component))
+		return 0;
+
+	if (component->card) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component \"%s\" to card \"%s\" but is already bound to card \"%s\"\n",
+				component->name, card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
+	ret = snd_soc_component_module_get_when_probe(component);
+	if (ret < 0)
+		return ret;
+
+	component->card = card;
+	snd_soc_component_set_name_prefix(component);
+
+	snd_soc_component_debugfs_init(component);
+
+	snd_soc_dapm_init(dapm, card, component);
+
+	ret = snd_soc_dapm_new_controls(dapm,
+					component->driver->dapm_widgets,
+					component->driver->num_dapm_widgets);
+
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create new controls %d\n", ret);
+		goto err_probe;
+	}
+
+	for_each_component_dais(component, dai) {
+		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	if (component->driver->probe) {
+		ret = component->driver->probe(component);
+		if (ret < 0)
+			goto err_probe;
+	}
+
+	WARN(!snd_soc_dapm_get_idle_bias(dapm) &&
+	     snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_OFF,
+	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
+	     component->name);
+	probed = 1;
+
+	/*
+	 * machine specific init
+	 * see
+	 *	snd_soc_component_set_aux()
+	 */
+	ret = snd_soc_component_init(component);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_component_add_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
+
+	/* see for_each_card_components */
+	list_add(&component->card_list, &card->component_dev_list);
+
+err_probe:
+	if (ret < 0)
+		snd_soc_component_remove(component, probed);
+
+	return ret;
 }
