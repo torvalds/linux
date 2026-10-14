@@ -53,7 +53,11 @@ static enum scx_test_status run(void *ctx)
 	SCX_FAIL_IF(err, "Failed to create thread 0");
 
 	err = pthread_create(&threads[1], NULL, do_reload_loop, NULL);
-	SCX_FAIL_IF(err, "Failed to create thread 1");
+	if (err) {
+		force_exit = true;
+		pthread_join(threads[0], NULL);
+		SCX_FAIL("Failed to create thread 1");
+	}
 
 	SCX_FAIL_IF(pthread_join(threads[0], &ret), "thread 0 failed");
 	SCX_FAIL_IF(pthread_join(threads[1], &ret), "thread 1 failed");
