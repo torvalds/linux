@@ -520,6 +520,14 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ivpu_fw_boot_params_setup(vdev, ivpu_bo_vaddr(vdev->fw->mem_bp));
 	vdev->fw->last_boot_mode = vdev->fw->next_boot_mode;
 
+	if (!ivpu_fw_is_warm_boot(vdev)) {
+		ret = ivpu_fw_load(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Failed to load the firmware: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = ivpu_hw_boot_fw(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to start the firmware: %d\n", ret);
