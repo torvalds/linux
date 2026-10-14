@@ -289,6 +289,11 @@ void snd_soc_component_set_aux(struct snd_soc_component *component,
 int snd_soc_component_init(struct snd_soc_component *component);
 int snd_soc_component_is_dummy(struct snd_soc_component *component);
 
+struct snd_soc_component *snd_soc_component_lookup_nolock(struct device *dev,
+							  const char *driver_name);
+struct snd_soc_component *snd_soc_component_lookup(struct device *dev, const char *driver_name);
+struct snd_soc_component *snd_soc_component_lookup_by_name(const char *component_name);
+
 /* component IO */
 unsigned int snd_soc_component_read(struct snd_soc_component *component,
 				      unsigned int reg);
@@ -441,5 +446,8 @@ void snd_soc_pcm_component_delay(struct snd_pcm_substream *substream,
 
 /* REMOVE ME */
 #define snd_soc_component_cache_sync			snd_soc_component_regmap_cache_sync
+#define snd_soc_lookup_component_nolocked		snd_soc_component_lookup_nolock
+#define snd_soc_lookup_component			snd_soc_component_lookup
+#define snd_soc_lookup_component_by_name		snd_soc_component_lookup_by_name
 
 #endif /* __SOC_COMPONENT_H */

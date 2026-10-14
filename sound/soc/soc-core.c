@@ -261,54 +261,6 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(snd_soc_rtdcom_lookup);
 
-struct snd_soc_component
-*snd_soc_lookup_component_nolocked(struct device *dev, const char *driver_name)
-{
-	struct snd_soc_component *component;
-
-	for_each_component(component) {
-		if (dev != component->dev)
-			continue;
-
-		if (!driver_name)
-			return component;
-
-		if (!component->driver->name)
-			continue;
-
-		if (component->driver->name == driver_name)
-			return component;
-
-		if (strcmp(component->driver->name, driver_name) == 0)
-			return component;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_lookup_component_nolocked);
-
-struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
-						   const char *driver_name)
-{
-	guard(mutex)(&client_mutex);
-
-	return snd_soc_lookup_component_nolocked(dev, driver_name);
-}
-EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
-
-struct snd_soc_component *snd_soc_lookup_component_by_name(const char *component_name)
-{
-	struct snd_soc_component *component;
-
-	guard(mutex)(&client_mutex);
-	for_each_component(component)
-		if (strstr(component->name, component_name))
-			return component;
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_lookup_component_by_name);
-
 struct snd_soc_pcm_runtime
 *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 			 struct snd_soc_dai_link *dai_link)

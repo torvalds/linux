@@ -457,11 +457,6 @@ int devm_snd_soc_register_component(struct device *dev,
 #define snd_soc_unregister_component(dev) snd_soc_unregister_component_by_driver(dev, NULL)
 void snd_soc_unregister_component_by_driver(struct device *dev,
 			 const struct snd_soc_component_driver *component_driver);
-struct snd_soc_component *snd_soc_lookup_component_nolocked(struct device *dev,
-							    const char *driver_name);
-struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
-						   const char *driver_name);
-struct snd_soc_component *snd_soc_lookup_component_by_name(const char *component_name);
 
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd);
 #ifdef CONFIG_SND_SOC_COMPRESS
