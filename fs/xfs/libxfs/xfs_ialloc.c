@@ -2843,6 +2843,11 @@ xfs_ialloc_count_ondisk(
 		error = xfs_inobt_get_rec(cur, &irec, &has_record);
 		if (error)
 			return error;
+		if (XFS_IS_CORRUPT(cur->bc_mp, has_record != 1)) {
+			xfs_btree_mark_sick(cur);
+			return -EFSCORRUPTED;
+		}
+
 		if (irec.ir_startino > high)
 			break;
 
