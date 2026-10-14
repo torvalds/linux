@@ -119,6 +119,13 @@ properties:
           - const: marvell,armada-ap807
 
       - description:
+          Sophos XGS 87/107 network processing unit (Armada CN9130 SoC
+          with an 88E6193X switch)
+        items:
+          - const: sophos,xgs107w-npu
+          - const: marvell,cn9130
+
+      - description:
           SolidRun CN9130 SoM based single-board computers
         items:
           - enum:
