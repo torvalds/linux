@@ -97,7 +97,7 @@ static bool wait_for_state(struct kick *skel, u32 wanted)
 	for (i = 0; i < WAIT_LOOPS; i++) {
 		if (__atomic_load_n(&skel->bss->state, __ATOMIC_ACQUIRE) == wanted)
 			return true;
-		if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE))
+		if (UEI_EXITED(skel, uei))
 			return false;
 		usleep(1000);
 	}
@@ -111,7 +111,7 @@ static bool wait_for_counter(struct kick *skel, const u64 *counter, u64 wanted)
 	for (i = 0; i < WAIT_LOOPS; i++) {
 		if (__atomic_load_n(counter, __ATOMIC_ACQUIRE) >= wanted)
 			return true;
-		if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE))
+		if (UEI_EXITED(skel, uei))
 			return false;
 		usleep(1000);
 	}
@@ -421,7 +421,9 @@ static enum scx_test_status invalid_one(struct kick_ctx *ctx, u32 scenario)
 	enum scx_test_status ret = SCX_TEST_FAIL;
 	int cpu = ctx->target_cpu;
 	int i;
+	u64 error_kind;
 
+	error_kind = EXIT_KIND(SCX_EXIT_ERROR);
 	victim = scx_test_spawn_gated_worker(cpu, false);
 	if (victim.pid < 0)
 		return SCX_TEST_FAIL;
@@ -440,7 +442,7 @@ static enum scx_test_status invalid_one(struct kick_ctx *ctx, u32 scenario)
 		goto out;
 
 	for (i = 0; i < WAIT_LOOPS; i++) {
-		if (skel->data->uei.kind == EXIT_KIND(SCX_EXIT_ERROR)) {
+		if (UEI_EXITED(skel, uei) == error_kind) {
 			ret = SCX_TEST_PASS;
 			break;
 		}

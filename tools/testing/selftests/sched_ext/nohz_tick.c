@@ -165,7 +165,7 @@ static bool wait_for_counter(struct nohz_tick *skel, const u64 *counter, u64 val
 	for (elapsed = 0; elapsed < timeout_ms; elapsed++) {
 		if (__atomic_load_n(counter, __ATOMIC_RELAXED) >= value)
 			return true;
-		if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE))
+		if (UEI_EXITED(skel, uei))
 			return false;
 		usleep(1000);
 	}
@@ -182,7 +182,7 @@ static bool wait_for_tick_stop(struct nohz_tick *skel, const u64 *counter, int t
 		u64 curr;
 
 		usleep(1000);
-		if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE))
+		if (UEI_EXITED(skel, uei))
 			return false;
 		curr = __atomic_load_n(counter, __ATOMIC_RELAXED);
 		if (curr == prev) {
@@ -461,7 +461,7 @@ static enum scx_test_status run(void *ctx_ptr)
 	scx_test_stop_gated_worker(&challenger);
 
 check_exit:
-	if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE)) {
+	if (UEI_EXITED(skel, uei)) {
 		SCX_ERR("Scheduler exited unexpectedly (kind=%llu code=%lld)",
 			(unsigned long long)skel->data->uei.kind,
 			(long long)skel->data->uei.exit_code);

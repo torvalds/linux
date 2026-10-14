@@ -400,7 +400,7 @@ static enum scx_test_status run(void *arg)
 	    !wait_nr_cpus(&ctx, ctx.leaf, nr_child, "leaf after cpuset disable"))
 		goto out;
 
-	if (ctx.skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE)) {
+	if (UEI_EXITED(ctx.skel, uei)) {
 		SCX_ERR("Scheduler exited unexpectedly");
 		goto out;
 	}

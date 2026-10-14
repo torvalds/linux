@@ -149,7 +149,7 @@ static enum scx_test_status run(void *ctx)
 
 	/* Just sleeping is fine, plenty of scheduling events happening. */
 	sleep(1);
-	if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE)) {
+	if (UEI_EXITED(skel, uei)) {
 		SCX_ERR("Scheduler exited unexpectedly");
 		goto out;
 	}

@@ -18,8 +18,6 @@ enum scx_test_status {
 	SCX_TEST_FAIL,
 };
 
-#define EXIT_KIND(__ent) __COMPAT_ENUM_OR_ZERO("scx_exit_kind", #__ent)
-
 struct scx_test {
 	/**
 	 * name - The name of the testcase.
@@ -119,13 +117,25 @@ void scx_test_register(struct scx_test *test);
 	(s64)__val;								\
 })
 
+/*
+ * SCX_KIND_VAL - Resolve an scx_exit_kind enumerator from kernel BTF.
+ *
+ * Unlike __COMPAT_ENUM_OR_ZERO(), a missing enumerator fails the test
+ * loudly instead of silently resolving to 0 (== SCX_EXIT_NONE), which
+ * would make the comparison vacuous.
+ */
 #define SCX_KIND_VAL(__kind) ({							\
-        u64 __val = 0;								\
-	bool __found = false;							\
+	u64 __val = 0;								\
 										\
-	__found = __COMPAT_read_enum("scx_exit_kind", #__kind, &__val);		\
-	SCX_ASSERT(__found);							\
+	if (!__COMPAT_read_enum("scx_exit_kind", #__kind, &__val))		\
+		SCX_FAIL("scx_exit_kind.%s not found in kernel BTF", #__kind);	\
 	__val;									\
 })
+
+/*
+ * EXIT_KIND - Alias of SCX_KIND_VAL() for resolving scx_exit_kind
+ * enumerator values, kept for readability at the EXIT_KIND() call sites.
+ */
+#define EXIT_KIND(__ent) SCX_KIND_VAL(__ent)
 
 #endif  // # __SCX_TEST_H__
