@@ -235,8 +235,9 @@ static const char * const omen_timed_thermal_profile_boards[] = {
 	"8BAD",
 };
 
-/* DMI Board names of Victus 16-d laptops */
+/* DMI Board names of Victus 16-d and 16-e laptops */
 static const char * const victus_thermal_profile_boards[] = {
+	"88EE",
 	"88F8",
 	"8A25",
 	"8A26",
