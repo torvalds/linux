@@ -14,6 +14,8 @@
 #include <net/mctpdevice.h>
 #include <linux/usb/mctp-usb.h>
 
+#define HDR_LEN sizeof(struct mctp_usb_hdr)
+
 struct mctp_usblib_test_dev {
 	struct net_device *ndev;
 	struct mctp_dev *mdev;
@@ -378,12 +380,6 @@ static const struct mctp_usblib_test_pkt_span mctp_usblib_test_pkt_spans[] = {
 	{ "1p1x-complete", 1, { 8 }, 1, { 8 } },
 	/* Two small packets combined within one transfer */
 	{ "2p1x-combined", 2, { 8, 8 }, 1, { 16 } },
-	/* A packet split over two transfers, at the MCTP payload */
-	{ "1p2x-split-payload", 1, { 16 }, 2, { 8, 8 } },
-	/* A packet split over two transfers, at the USB transport header */
-	{ "1p2x-split-usbhdr", 1, { 16 }, 2, { 2, 14 } },
-	/* A packet split over two transfers, at the MCTP header */
-	{ "1p2x-split-mctphdr", 1, { 16 }, 2, { 6, 10 } },
 	/* Single packet split over 3 transfers, middle entirely continuation */
 	{ "1p3x-split", 1, { 12 }, 3, { 4, 4, 4 } },
 	/* A packet split over 5 transfers, splitting on and between each header. */
@@ -403,10 +399,73 @@ static const struct mctp_usblib_test_pkt_span mctp_usblib_test_pkt_spans[] = {
 KUNIT_ARRAY_PARAM(mctp_usblib_test_rx_pkt_span, mctp_usblib_test_pkt_spans,
 		  mctp_usblib_test_pkt_span_to_desc);
 
+static void mctp_usblib_test_rx_split_header(struct kunit *test, size_t offset,
+					     struct mctp_usblib_test_dev *dev,
+					     struct mctp_usblib_rx *rx)
+{
+	struct sk_buff *skb;
+	size_t buflen, len;
+	u8 packet[16];
+	void *buf;
+	int rc;
+
+	len = sizeof(packet);
+	mctp_usblib_test_init_pkt(packet, len, len);
+
+	rc = mctp_usblib_rx_prepare(dev->ndev, rx, &buf, &buflen, GFP_KERNEL);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+	KUNIT_ASSERT_GE(test, buflen, len);
+
+	memcpy(buf, packet, offset);
+	mctp_usblib_test_rx_complete(dev->ndev, rx, offset);
+
+	rc = mctp_usblib_rx_prepare(dev->ndev, rx, &buf, &buflen,
+				    GFP_KERNEL);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+	KUNIT_ASSERT_GE(test, buflen, len);
+	KUNIT_ASSERT_EQ(test, dev->rx_pkts.qlen, 0);
+
+	memcpy(buf, packet + offset, len - offset);
+	rc = mctp_usblib_test_rx_complete(dev->ndev, rx, len - offset);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+	KUNIT_EXPECT_EQ(test, dev->rx_pkts.qlen, 1);
+
+	skb = __skb_dequeue(&dev->rx_pkts);
+	KUNIT_EXPECT_NOT_NULL(test, skb);
+	if (skb) {
+		KUNIT_EXPECT_EQ(test, skb->len, len - HDR_LEN);
+		kfree_skb(skb);
+	}
+}
+
+static void mctp_usblib_test_rx_header_splits(struct kunit *test)
+{
+	struct mctp_usblib_test_dev *dev;
+	struct mctp_usblib_test_ctx *ctx;
+	struct mctp_usblib_rx *rx;
+
+	ctx = mctp_usblib_test_init(test);
+	rx = mctp_usblib_test_rx_init(test, true);
+	dev = ctx->dev;
+
+	/* Unrolling here so stack traces point to the invocation with the
+	 * failing length.
+	 */
+	mctp_usblib_test_rx_split_header(test, 1, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 2, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 3, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 4, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 5, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 6, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 7, dev, rx);
+	mctp_usblib_test_rx_split_header(test, 8, dev, rx);
+}
+
 static struct kunit_case mctp_usblib_test_cases[] = {
 	KUNIT_CASE(mctp_usblib_test_rx_single),
 	KUNIT_CASE_PARAM(mctp_usblib_test_rx_pkt_span,
 			 mctp_usblib_test_rx_pkt_span_gen_params),
+	KUNIT_CASE(mctp_usblib_test_rx_header_splits),
 	{}
 };
 
