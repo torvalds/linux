@@ -47,7 +47,7 @@ DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
  * - FIEN: no way we let a guest have access to the RAS "Common Fault
  *   Injection" thing, whatever that does
  */
-#define NV_HCR_GUEST_EXCLUDE	(HCR_TGE | HCR_API | HCR_APK | HCR_FIEN)
+#define NV_HCR_GUEST_EXCLUDE	(HCR_EL2_TGE | HCR_EL2_API | HCR_EL2_APK | HCR_EL2_FIEN)
 
 static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 {
@@ -65,10 +65,10 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 	if (is_hyp_ctxt(vcpu)) {
 		host_data_set_flag(VCPU_IN_HYP_CONTEXT);
 
-		hcr |= HCR_NV | HCR_NV2 | HCR_AT | HCR_TTLB;
+		hcr |= HCR_EL2_NV | HCR_EL2_NV2 | HCR_EL2_AT | HCR_EL2_TTLB;
 
 		if (!vcpu_el2_e2h_is_set(vcpu))
-			hcr |= HCR_NV1;
+			hcr |= HCR_EL2_NV1;
 
 		/* Publish the guest's view of HCR_EL2 to the HW */
 		if (cpus_have_final_cap(ARM64_HAS_NV3) && vcpu_el2_e2h_is_set(vcpu))
@@ -91,7 +91,7 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 		host_data_clear_flag(VCPU_IN_HYP_CONTEXT);
 
 		guest_hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
-		if (guest_hcr & HCR_NV) {
+		if (guest_hcr & HCR_EL2_NV) {
 			u64 va = __fix_to_virt(vncr_fixmap(smp_processor_id()));
 
 			/* Inherit the low bits from the actual register */
@@ -99,14 +99,14 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 			write_sysreg_s(va, SYS_VNCR_EL2);
 
 			/* Force NV2 in case the guest is forgetful... */
-			guest_hcr |= HCR_NV2;
+			guest_hcr |= HCR_EL2_NV2;
 		}
 
 		/*
 		 * Exclude the guest's TWED configuration if it hasn't set TWE
 		 * to avoid potentially delaying traps for the host.
 		 */
-		if (!(guest_hcr & HCR_TWE))
+		if (!(guest_hcr & HCR_EL2_TWE))
 			guest_hcr &= ~(HCR_EL2_TWEDEn | HCR_EL2_TWEDEL);
 	}
 

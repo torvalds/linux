@@ -650,11 +650,11 @@ static void vcpu_set_pauth_traps(struct kvm_vcpu *vcpu)
 		u64 val;
 
 		val = __vcpu_sys_reg(vcpu, HCR_EL2);
-		val &= (HCR_API | HCR_APK);
-		vcpu->arch.hcr_el2 &= ~(HCR_API | HCR_APK);
+		val &= (HCR_EL2_API | HCR_EL2_APK);
+		vcpu->arch.hcr_el2 &= ~(HCR_EL2_API | HCR_EL2_APK);
 		vcpu->arch.hcr_el2 |= val;
 	} else {
-		vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
+		vcpu->arch.hcr_el2 |= (HCR_EL2_API | HCR_EL2_APK);
 	}
 
 	/*
@@ -662,7 +662,7 @@ static void vcpu_set_pauth_traps(struct kvm_vcpu *vcpu)
 	 * to use pauth, as the entry code will reload the guest
 	 * keys in that case.
 	 */
-	if (vcpu->arch.hcr_el2 & (HCR_API | HCR_APK)) {
+	if (vcpu->arch.hcr_el2 & (HCR_EL2_API | HCR_EL2_APK)) {
 		struct kvm_cpu_context *ctxt;
 
 		ctxt = this_cpu_ptr_hyp_sym(kvm_hyp_ctxt);
@@ -736,14 +736,14 @@ static void vcpu_put_mmu(struct kvm_vcpu *vcpu)
 static void vcpu_set_wfx_traps(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vcpu_should_clear_twe(vcpu))
-		vcpu->arch.hcr_el2 &= ~HCR_TWE;
+		vcpu->arch.hcr_el2 &= ~HCR_EL2_TWE;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TWE;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TWE;
 
 	if (kvm_vcpu_should_clear_twi(vcpu))
-		vcpu->arch.hcr_el2 &= ~HCR_TWI;
+		vcpu->arch.hcr_el2 &= ~HCR_EL2_TWI;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TWI;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TWI;
 }
 
 static void vcpu_load_pvtime(struct kvm_vcpu *vcpu)
@@ -963,7 +963,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
  */
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	bool irq_lines = *vcpu_hcr(v) & (HCR_VI | HCR_VF | HCR_VSE);
+	bool irq_lines = *vcpu_hcr(v) & (HCR_EL2_VI | HCR_EL2_VF | HCR_EL2_VSE);
 
 	irq_lines |= (!irqchip_in_kernel(v->kvm) &&
 		      (kvm_timer_should_notify_user(v) ||
@@ -1592,9 +1592,9 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 	unsigned long *hcr;
 
 	if (number == KVM_ARM_IRQ_CPU_IRQ)
-		bit_index = __ffs(HCR_VI);
+		bit_index = __ffs(HCR_EL2_VI);
 	else /* KVM_ARM_IRQ_CPU_FIQ */
-		bit_index = __ffs(HCR_VF);
+		bit_index = __ffs(HCR_EL2_VF);
 
 	hcr = vcpu_hcr(vcpu);
 	if (level)
@@ -2384,12 +2384,12 @@ static void __init cpu_prepare_hyp_mode(int cpu, u32 hyp_va_bits)
 		params->hcr_el2 = HCR_HOST_NVHE_FLAGS;
 
 	if (system_supports_mte())
-		params->hcr_el2 |= HCR_ATA;
+		params->hcr_el2 |= HCR_EL2_ATA;
 	else
-		params->hcr_el2 |= HCR_TID5;
+		params->hcr_el2 |= HCR_EL2_TID5;
 
 	if (cpus_have_final_cap(ARM64_KVM_HVHE))
-		params->hcr_el2 |= HCR_E2H;
+		params->hcr_el2 |= HCR_EL2_E2H;
 	params->vttbr = params->vtcr = 0;
 
 	/*

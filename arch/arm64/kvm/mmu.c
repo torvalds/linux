@@ -2988,18 +2988,18 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If this is the first time we do a S/W operation
-	 * (i.e. HCR_TVM not set) flush the whole memory, and set the
+	 * (i.e. HCR_EL2_TVM not set) flush the whole memory, and set the
 	 * VM trapping.
 	 *
 	 * Otherwise, rely on the VM trapping to wait for the MMU +
 	 * Caches to be turned off. At that point, we'll be able to
 	 * clean the caches again.
 	 */
-	if (!(hcr & HCR_TVM)) {
+	if (!(hcr & HCR_EL2_TVM)) {
 		trace_kvm_set_way_flush(*vcpu_pc(vcpu),
 					vcpu_has_cache_enabled(vcpu));
 		stage2_flush_vm(vcpu->kvm);
-		*vcpu_hcr(vcpu) = hcr | HCR_TVM;
+		*vcpu_hcr(vcpu) = hcr | HCR_EL2_TVM;
 	}
 }
 
@@ -3017,7 +3017,7 @@ void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled)
 
 	/* Caches are now on, stop trapping VM ops (until a S/W op) */
 	if (now_enabled)
-		*vcpu_hcr(vcpu) &= ~HCR_TVM;
+		*vcpu_hcr(vcpu) &= ~HCR_EL2_TVM;
 
 	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, now_enabled);
 }

@@ -43,30 +43,30 @@ static void pkvm_vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
 
 	if (has_hvhe())
-		vcpu->arch.hcr_el2 |= HCR_E2H;
+		vcpu->arch.hcr_el2 |= HCR_EL2_E2H;
 
 	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
-		vcpu->arch.hcr_el2 |= HCR_TEA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TEA;
 		/* trap error record accesses */
-		vcpu->arch.hcr_el2 |= HCR_TERR;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TERR;
 	}
 
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		vcpu->arch.hcr_el2 |= HCR_FWB;
+		vcpu->arch.hcr_el2 |= HCR_EL2_FWB;
 
 	if (cpus_have_final_cap(ARM64_HAS_EVT) &&
 	    !cpus_have_final_cap(ARM64_MISMATCHED_CACHE_TYPE) &&
 	    kvm_read_vm_id_reg(vcpu->kvm, SYS_CTR_EL0) == read_cpuid(CTR_EL0))
-		vcpu->arch.hcr_el2 |= HCR_TID4;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID4;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TID2;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID2;
 
 	if (vcpu_has_ptrauth(vcpu))
-		vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
+		vcpu->arch.hcr_el2 |= (HCR_EL2_API | HCR_EL2_APK);
 
 	if (kvm_has_mte(vcpu->kvm))
-		vcpu->arch.hcr_el2 |= HCR_ATA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_ATA;
 }
 
 static void pvm_init_traps_hcr(struct kvm_vcpu *vcpu)
@@ -75,30 +75,30 @@ static void pvm_init_traps_hcr(struct kvm_vcpu *vcpu)
 	u64 val = vcpu->arch.hcr_el2;
 
 	/* No support for AArch32. */
-	val |= HCR_RW;
+	val |= HCR_EL2_RW;
 
 	/*
 	 * Always trap:
 	 * - Feature id registers: to control features exposed to guests
 	 * - Implementation-defined features
 	 */
-	val |= HCR_TACR | HCR_TIDCP | HCR_TID3 | HCR_TID1;
+	val |= HCR_EL2_TACR | HCR_EL2_TIDCP | HCR_EL2_TID3 | HCR_EL2_TID1;
 
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP)) {
-		val |= HCR_TERR | HCR_TEA;
-		val &= ~(HCR_FIEN);
+		val |= HCR_EL2_TERR | HCR_EL2_TEA;
+		val &= ~(HCR_EL2_FIEN);
 	}
 
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, IMP))
-		val &= ~(HCR_AMVOFFEN);
+		val &= ~(HCR_EL2_AMVOFFEN);
 
 	if (!kvm_has_mte(kvm)) {
-		val |= HCR_TID5;
-		val &= ~(HCR_DCT | HCR_ATA);
+		val |= HCR_EL2_TID5;
+		val &= ~(HCR_EL2_DCT | HCR_EL2_ATA);
 	}
 
 	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, LO, IMP))
-		val |= HCR_TLOR;
+		val |= HCR_EL2_TLOR;
 
 	vcpu->arch.hcr_el2 = val;
 }

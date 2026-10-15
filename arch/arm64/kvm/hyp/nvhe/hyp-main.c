@@ -708,9 +708,9 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 		if (vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY))
 			flush_hyp_vcpu_state(hyp_vcpu);
 
-		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_TWI | HCR_TWE);
+		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_EL2_TWI | HCR_EL2_TWE);
 		hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2) &
-							 (HCR_TWI | HCR_TWE);
+							 (HCR_EL2_TWI | HCR_EL2_TWE);
 
 		hyp_vcpu->vcpu.arch.mdcr_el2 = host_vcpu->arch.mdcr_el2;
 		hyp_vcpu->vcpu.arch.iflags = host_vcpu->arch.iflags;
@@ -723,8 +723,8 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	 * A host-injected vSError is masked by the guest's own PSTATE.A, so it
 	 * applies to protected guests too.
 	 */
-	hyp_vcpu->vcpu.arch.hcr_el2 &= ~HCR_VSE;
-	hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2) & HCR_VSE;
+	hyp_vcpu->vcpu.arch.hcr_el2 &= ~HCR_EL2_VSE;
+	hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2) & HCR_EL2_VSE;
 	hyp_vcpu->vcpu.arch.vsesr_el2 = host_vcpu->arch.vsesr_el2;
 
 	flush_hyp_vgic_state(hyp_vcpu);
@@ -811,8 +811,8 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 	}
 
 	/* Cleared by hardware once the guest takes the vSError. */
-	host_vcpu->arch.hcr_el2 &= ~HCR_VSE;
-	host_vcpu->arch.hcr_el2 |= hyp_vcpu->vcpu.arch.hcr_el2 & HCR_VSE;
+	host_vcpu->arch.hcr_el2 &= ~HCR_EL2_VSE;
+	host_vcpu->arch.hcr_el2 |= hyp_vcpu->vcpu.arch.hcr_el2 & HCR_EL2_VSE;
 
 	sync_hyp_vgic_state(hyp_vcpu);
 	sync_hyp_timer_state(hyp_vcpu);
@@ -836,8 +836,8 @@ DEFINE_KVM_HOST_HCALL(void, __pkvm_vcpu_load,
 		u64 dfr0 = read_sysreg(id_aa64dfr0_el1);
 
 		/* Propagate WFx trapping flags */
-		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_TWE | HCR_TWI);
-		hyp_vcpu->vcpu.arch.hcr_el2 |= hcr_el2 & (HCR_TWE | HCR_TWI);
+		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_EL2_TWE | HCR_EL2_TWI);
+		hyp_vcpu->vcpu.arch.hcr_el2 |= hcr_el2 & (HCR_EL2_TWE | HCR_EL2_TWI);
 
 		/* HPMN == 0 is reserved without FEAT_HPMN0. */
 		if (pmuv3_implemented(SYS_FIELD_GET(ID_AA64DFR0_EL1, PMUVer, dfr0)))
@@ -1739,12 +1739,12 @@ static bool handle_host_mte(u64 esr)
 	case SYS_TFSR_EL1:
 	case SYS_TFSRE0_EL1:
 		/* If we're here for any reason other than MTE, it's a bug. */
-		if (read_sysreg(HCR_EL2) & HCR_ATA)
+		if (read_sysreg(HCR_EL2) & HCR_EL2_ATA)
 			return false;
 		break;
 	case SYS_GMID_EL1:
 		/* If we're here for any reason other than MTE, it's a bug. */
-		if (!(read_sysreg(HCR_EL2) & HCR_TID5))
+		if (!(read_sysreg(HCR_EL2) & HCR_EL2_TID5))
 			return false;
 		break;
 	default:
