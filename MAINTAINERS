@@ -17273,6 +17273,8 @@ F:	Documentation/admin-guide/mm/
 F:	Documentation/core-api/memory-allocation.rst
 F:	Documentation/core-api/mm-api.rst
 F:	Documentation/mm/
+X:	Documentation/admin-guide/mm/damon/
+X:	Documentation/mm/damon/
 F:	mm/char-mem.c
 F:	include/linux/cma.h
 F:	include/linux/dmapool.h
