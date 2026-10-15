@@ -2,7 +2,7 @@
 # Hyper-V para-virtualized IOMMU driver for Linux guests
 config HYPERV_PVIOMMU
 	bool "Microsoft Hyper-V para-virtualized IOMMU driver for Linux guests"
-	depends on X86_64 && HYPERV
+	depends on X86_64 && HYPERV && PCI
 	select IOMMU_DMA
 	select GENERIC_PT
 	select IOMMU_PT
