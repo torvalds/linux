@@ -3955,7 +3955,9 @@ F:	arch/arm64/
 F:	drivers/firmware/arm_rmm/
 F:	drivers/virt/coco/arm-cca-guest/
 F:	drivers/virt/coco/pkvm-guest/
+F:	include/linux/arm-rmi-cmds.h
 F:	include/linux/arm-rsi-cmds.h
+F:	include/linux/arm-smccc-rmi.h
 F:	include/linux/arm-smccc-rsi.h
 F:	tools/testing/selftests/arm64/
 X:	arch/arm64/boot/dts/

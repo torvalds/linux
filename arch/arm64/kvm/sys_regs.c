@@ -2163,6 +2163,8 @@ static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 	 */
 	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
 
+	val &= ~ID_AA64PFR0_EL1_RME_MASK;
+
 	return val;
 }
 
