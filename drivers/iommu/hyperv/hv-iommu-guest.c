@@ -22,7 +22,7 @@
 #include "iommu.h"
 #include "../iommu-pages.h"
 
-struct hv_iommu_dev *hv_iommu_device;
+static struct hv_iommu_dev *hv_iommu_device;
 
 /*
  * Identity and blocking domains are static singletons: identity is a 1:1
