@@ -55,9 +55,13 @@ Documentação relacionada à segurança:
 Inicializando o kernel
 ----------------------
 
+.. toctree::
+   :maxdepth: 1
+
+   bootconfig
+
 Todolist:
 
-*   bootconfig
 *   kernel-parameters
 *   efi-stub
 *   initrd
