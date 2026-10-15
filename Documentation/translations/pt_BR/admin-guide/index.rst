@@ -59,10 +59,10 @@ Inicializando o kernel
    :maxdepth: 1
 
    bootconfig
+   kernel-parameters
 
 Todolist:
 
-*   kernel-parameters
 *   efi-stub
 *   initrd
 
