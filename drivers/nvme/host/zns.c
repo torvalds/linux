@@ -48,12 +48,12 @@ int nvme_query_zone_info(struct nvme_ns *ns, unsigned lbaf,
 			NVME_CMD_EFFECTS_CSUPP)) {
 		if (test_and_clear_bit(NVME_NS_FORCE_RO, &ns->flags))
 			dev_warn(ns->ctrl->device,
-				 "Zone Append supported for zoned namespace:%d. Remove read-only mode\n",
+				 "Zone Append supported for zoned namespace:%u. Remove read-only mode\n",
 				 ns->head->ns_id);
 	} else {
 		set_bit(NVME_NS_FORCE_RO, &ns->flags);
 		dev_warn(ns->ctrl->device,
-			 "Zone Append not supported for zoned namespace:%d. Forcing to read-only mode\n",
+			 "Zone Append not supported for zoned namespace:%u. Forcing to read-only mode\n",
 			 ns->head->ns_id);
 	}
 

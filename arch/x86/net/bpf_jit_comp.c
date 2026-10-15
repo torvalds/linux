@@ -13,6 +13,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/memory.h>
 #include <linux/sort.h>
+#include <linux/execmem.h>
 #include <asm/extable.h>
 #include <asm/ftrace.h>
 #include <asm/set_memory.h>
@@ -3818,15 +3819,16 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	 *
 	 * We cannot use kvmalloc here, because we need image to be in
 	 * module memory range.
-	 * Since it must be writable use bpf_jit_alloc_exec_rw().
+	 * Since it must be writable use execmem_alloc(EXECMEM_MODULE_DATA)
+	 * that returns writable memory in the module address space.
 	 */
-	image = bpf_jit_alloc_exec_rw(PAGE_SIZE);
+	image = execmem_alloc(EXECMEM_MODULE_DATA, PAGE_SIZE);
 	if (!image)
 		return -ENOMEM;
 
 	ret = __arch_prepare_bpf_trampoline(&im, image, image + PAGE_SIZE, image,
 					    m, flags, tnodes, func_addr);
-	bpf_jit_free_exec(image);
+	execmem_free(image);
 	return ret;
 }
 

@@ -796,7 +796,7 @@ static inline struct arm_smmu_invs *arm_smmu_invs_alloc(size_t num_invs)
 {
 	struct arm_smmu_invs *new_invs;
 
-	new_invs = kzalloc(struct_size(new_invs, inv, num_invs), GFP_KERNEL);
+	new_invs = kzalloc_flex(*new_invs, inv, num_invs);
 	if (!new_invs)
 		return NULL;
 	new_invs->max_invs = num_invs;

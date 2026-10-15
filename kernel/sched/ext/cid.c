@@ -98,16 +98,16 @@ static struct scx_cid_tables *scx_cid_alloc_tables(void)
 	u32 npossible = num_possible_cpus();
 	struct scx_cid_tables *tbls;
 
-	tbls = kzalloc_obj(*tbls, GFP_KERNEL);
+	tbls = kzalloc_obj(*tbls);
 	if (!tbls)
 		return NULL;
 
-	tbls->cid_to_cpu = kvcalloc(npossible, sizeof(*tbls->cid_to_cpu), GFP_KERNEL);
-	tbls->cpu_to_cid = kvcalloc(nr_cpu_ids, sizeof(*tbls->cpu_to_cid), GFP_KERNEL);
-	tbls->cid_to_shard = kvcalloc(npossible, sizeof(*tbls->cid_to_shard), GFP_KERNEL);
-	tbls->shard_node = kvcalloc(npossible, sizeof(*tbls->shard_node), GFP_KERNEL);
-	tbls->shard_ranges = kvcalloc(npossible, sizeof(*tbls->shard_ranges), GFP_KERNEL);
-	tbls->topo = kvcalloc(npossible, sizeof(*tbls->topo), GFP_KERNEL);
+	tbls->cid_to_cpu = kvzalloc_objs(*tbls->cid_to_cpu, npossible);
+	tbls->cpu_to_cid = kvzalloc_objs(*tbls->cpu_to_cid, nr_cpu_ids);
+	tbls->cid_to_shard = kvzalloc_objs(*tbls->cid_to_shard, npossible);
+	tbls->shard_node = kvzalloc_objs(*tbls->shard_node, npossible);
+	tbls->shard_ranges = kvzalloc_objs(*tbls->shard_ranges, npossible);
+	tbls->topo = kvzalloc_objs(*tbls->topo, npossible);
 
 	if (!tbls->cid_to_cpu || !tbls->cpu_to_cid || !tbls->cid_to_shard ||
 	    !tbls->shard_node || !tbls->shard_ranges || !tbls->topo) {
@@ -490,7 +490,7 @@ __bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid__arena, u32 cpu_to_c
 	 * region that arena fault recovery covers.
 	 */
 	alloced = zalloc_cpumask_var(&seen, GFP_KERNEL);
-	node_counts = kcalloc(nr_node_ids, sizeof(*node_counts), GFP_KERNEL);
+	node_counts = kzalloc_objs(*node_counts, nr_node_ids);
 	if (cpu_to_cid_cnt == nr_cpu_ids)
 		cpu_to_cid = kmemdup(cpu_to_cid__arena, cpu_to_cid_cnt * sizeof(s32),
 				     GFP_KERNEL);
@@ -912,30 +912,36 @@ bool scx_cmask_empty(const struct scx_cmask *m)
 /**
  * scx_bpf_cid_topo - Copy out per-cid topology info
  * @cid: cid to look up
- * @out__uninit: where to copy the topology info; fully written by this call
+ * @out: where to copy the topology info
+ * @out__sz: size of @out, the program's sizeof(struct scx_cid_topo)
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
- * Fill @out__uninit with the topology info for @cid. Trigger scx_error() if
- * @cid is out of range. If @cid is valid but in the no-topo section, all fields
- * are set to -1. All fields are also set to -1 when no cid tables have been
- * published yet, which a program may observe while racing the root enable.
+ * Fill @out with the topology info for @cid. Trigger scx_error() if @cid is out
+ * of range. If @cid is valid but in the no-topo section, all fields are set to
+ * -1. All fields are also set to -1 when no cid tables have been published yet,
+ * which a program may observe while racing the root enable.
+ *
+ * The program's struct may be older or newer than the kernel's. The smaller of
+ * @out__sz and the kernel's size is copied and the rest of @out is set to -1.
  */
-__bpf_kfunc void scx_bpf_cid_topo(s32 cid, struct scx_cid_topo *out__uninit,
+__bpf_kfunc void scx_bpf_cid_topo(s32 cid, struct scx_cid_topo *out, size_t out__sz,
 				  const struct bpf_prog_aux *aux)
 {
+	size_t len = min(out__sz, sizeof(*out));
 	struct scx_cid_topo *topo;
 	struct scx_sched *sch;
+
+	/* the error cases and fields the kernel lacks read as -1 */
+	memset(out, 0xff, out__sz);
 
 	guard(rcu)();
 
 	sch = scx_prog_sched(aux);
 	topo = rcu_dereference(scx_cid_topo);
-	if (unlikely(!sch) || !cid_valid(sch, cid) || unlikely(!topo)) {
-		*out__uninit = SCX_CID_TOPO_NEG;
+	if (unlikely(!sch) || !cid_valid(sch, cid) || unlikely(!topo))
 		return;
-	}
 
-	*out__uninit = topo[cid];
+	memcpy(out, &topo[cid], len);
 }
 
 __bpf_kfunc_end_defs();

@@ -2988,7 +2988,7 @@ static int smu7_init_voltage_dependency_on_display_clock_table(struct pp_hwmgr *
 	if (!amdgpu_device_ip_get_ip_block(hwmgr->adev, AMD_IP_BLOCK_TYPE_DCE))
 		return 0;
 
-	table = kzalloc(struct_size(table, entries, 4), GFP_KERNEL);
+	table = kzalloc_flex(*table, entries, 4);
 	if (!table)
 		return -ENOMEM;
 

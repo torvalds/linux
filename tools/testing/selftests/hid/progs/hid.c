@@ -98,7 +98,7 @@ struct hid_bpf_ops change_report_id = {
 
 struct hid_hw_request_syscall_args {
 	/* data needs to come at offset 0 so we can use it in calls */
-	__u8 data[10];
+	__u8 data[128];
 	unsigned int hid;
 	int retval;
 	size_t size;
@@ -253,6 +253,32 @@ int BPF_PROG(hid_rdesc_fixup_get_data_overflow, struct hid_bpf_ctx *hid_ctx)
 SEC(".struct_ops.link")
 struct hid_bpf_ops rdesc_fixup_get_data_overflow = {
 	.hid_rdesc_fixup = (void *)hid_rdesc_fixup_get_data_overflow,
+};
+
+SEC("?struct_ops.s/hid_rdesc_fixup")
+int BPF_PROG(hid_rdesc_fixup_change_uniq_name_phys, struct hid_bpf_ctx *hid_ctx)
+{
+#define HID_BPF_MEMCPY(target, str) \
+	__builtin_memcpy(target, str, sizeof(str))
+
+	HID_BPF_MEMCPY(hid_ctx->hid->name, "name coming from bpf");
+	HID_BPF_MEMCPY(hid_ctx->hid->uniq, "uniq:coming:from:bpf");
+	/* hid_bpf relies on a phys being a rand % 1024 */
+	for (int i = 0; i < 5; i++) {
+		if (!hid_ctx->hid->phys[i]) {
+			HID_BPF_MEMCPY(hid_ctx->hid->phys + i, " phys:coming:from:bpf");
+			break;
+		}
+	}
+
+#undef HID_BPF_MEMCPY
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops rdesc_fixup_change_uniq_name_phys = {
+	.hid_rdesc_fixup = (void *)hid_rdesc_fixup_change_uniq_name_phys,
 };
 
 SEC("?struct_ops/hid_device_event")

@@ -330,7 +330,7 @@ void amdgpu_amdkfd_clear_kfd_mapping(struct amdgpu_device *adev)
 	struct kfd_dev *kfd = adev->kfd.dev;
 	unsigned int i;
 
-	if (!kfd)
+	if (!kfd || !kfd->init_complete)
 		return;
 
 	for (i = 0; i < kfd->num_nodes; i++) {

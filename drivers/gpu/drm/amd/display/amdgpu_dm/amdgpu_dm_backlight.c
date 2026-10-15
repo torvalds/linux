@@ -534,8 +534,12 @@ void amdgpu_dm_update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	else if (!IS_ERR_OR_NULL(panel_backlight_quirk) &&
 		 panel_backlight_quirk->force_pwm)
 		caps->aux_support = false;
-	if (caps->aux_support)
-		aconnector->dc_link->backlight_control_type = BACKLIGHT_CONTROL_AMD_AUX;
+	if (caps->aux_support) {
+		if (aconnector->dc_link->dpcd_caps.panel_luminance_control)
+			aconnector->dc_link->backlight_control_type = BACKLIGHT_CONTROL_VESA_AUX;
+		else
+			aconnector->dc_link->backlight_control_type = BACKLIGHT_CONTROL_AMD_AUX;
+	}
 
 	luminance_range = &conn_base->display_info.luminance_range;
 

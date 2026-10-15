@@ -412,6 +412,19 @@ static const unsigned int riscv_zvbb_exts[] = {
 	RISCV_ISA_EXT_ZVKB
 };
 
+/*
+ * The RISC-V ISA manual specifies that Zfh implies Zfhmin and Zvfh implies
+ * Zvfhmin. Report the implied subset extensions whenever the supersets are
+ * detected (see https://github.com/riscv/riscv-isa-manual/pull/3070).
+ */
+static const unsigned int riscv_zfh_exts[] = {
+	RISCV_ISA_EXT_ZFHMIN
+};
+
+static const unsigned int riscv_zvfh_exts[] = {
+	RISCV_ISA_EXT_ZVFHMIN
+};
+
 #define RISCV_ISA_EXT_ZVE64F_IMPLY_LIST	\
 	RISCV_ISA_EXT_ZVE64X,		\
 	RISCV_ISA_EXT_ZVE32F,		\
@@ -550,7 +563,8 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA(zawrs, RISCV_ISA_EXT_ZAWRS),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zfa, RISCV_ISA_EXT_ZFA, riscv_ext_f_depends),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zfbfmin, RISCV_ISA_EXT_ZFBFMIN, riscv_ext_f_depends),
-	__RISCV_ISA_EXT_DATA_VALIDATE(zfh, RISCV_ISA_EXT_ZFH, riscv_ext_f_depends),
+	__RISCV_ISA_EXT_SUPERSET_VALIDATE(zfh, RISCV_ISA_EXT_ZFH,
+					  riscv_zfh_exts, riscv_ext_f_depends),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zfhmin, RISCV_ISA_EXT_ZFHMIN, riscv_ext_f_depends),
 	__RISCV_ISA_EXT_DATA(zca, RISCV_ISA_EXT_ZCA),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zcb, RISCV_ISA_EXT_ZCB, riscv_ext_zca_depends),
@@ -586,7 +600,9 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_SUPERSET_VALIDATE(zve64x, RISCV_ISA_EXT_ZVE64X, riscv_zve64x_exts, riscv_ext_vector_x_validate),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zvfbfmin, RISCV_ISA_EXT_ZVFBFMIN, riscv_vector_f_validate),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zvfbfwma, RISCV_ISA_EXT_ZVFBFWMA, riscv_ext_zvfbfwma_validate),
-	__RISCV_ISA_EXT_DATA(zvfh, RISCV_ISA_EXT_ZVFH),
+	__RISCV_ISA_EXT_SUPERSET_VALIDATE(zvfh, RISCV_ISA_EXT_ZVFH,
+					  riscv_zvfh_exts,
+					  riscv_ext_vector_float_validate),
 	__RISCV_ISA_EXT_DATA(zvfhmin, RISCV_ISA_EXT_ZVFHMIN),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zvkb, RISCV_ISA_EXT_ZVKB, riscv_ext_vector_crypto_validate),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zvkg, RISCV_ISA_EXT_ZVKG, riscv_ext_vector_crypto_validate),

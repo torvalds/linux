@@ -511,7 +511,7 @@ static int bpf_ma_set_dtor(struct bpf_map *map, struct bpf_mem_alloc *ma,
 	if (IS_ERR_OR_NULL(map->record))
 		return 0;
 
-	hrec = kzalloc(sizeof(*hrec), GFP_KERNEL);
+	hrec = kzalloc_obj(*hrec);
 	if (!hrec)
 		return -ENOMEM;
 	hrec->key_size = map->key_size;
@@ -529,6 +529,9 @@ static int htab_map_check_btf(struct bpf_map *map, const struct btf *btf,
 			      const struct btf_type *key_type, const struct btf_type *value_type)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+
+	if (btf_type_is_void(key_type))
+		return -EINVAL;
 
 	if (htab_is_prealloc(htab))
 		return 0;
@@ -1025,7 +1028,7 @@ static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
 	} else {
 		u32 size = round_up(htab->map.value_size, 8);
 		void *val;
-		int cpu;
+		int cpu, off = 0;
 
 		if (map_flags & BPF_F_CPU) {
 			cpu = map_flags >> 32;
@@ -1037,9 +1040,10 @@ static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
 
 		for_each_possible_cpu(cpu) {
 			ptr = per_cpu_ptr(pptr, cpu);
-			val = (map_flags & BPF_F_ALL_CPUS) ? value : value + size * cpu;
+			val = (map_flags & BPF_F_ALL_CPUS) ? value : value + off;
 			copy_map_value(&htab->map, ptr, val);
 			bpf_obj_cancel_fields(&htab->map, ptr);
+			off += size;
 		}
 	}
 }
@@ -1050,14 +1054,17 @@ static void pcpu_init_value(struct bpf_htab *htab, void __percpu *pptr,
 	/* When not setting the initial value on all cpus, zero-fill element
 	 * values for other cpus. Otherwise, bpf program has no way to ensure
 	 * known initial values for cpus other than current one
-	 * (onallcpus=false always when coming from bpf prog).
+	 * (onallcpus=false always when coming from bpf prog,
+	 *  map_flags & BPF_F_CPU when coming from syscall but setting
+	 *  only one cpu).
 	 */
-	if (!onallcpus) {
-		int current_cpu = raw_smp_processor_id();
+	if (!onallcpus || (map_flags & BPF_F_CPU)) {
+		int init_cpu = (map_flags & BPF_F_CPU) ? map_flags >> 32 :
+			       raw_smp_processor_id();
 		int cpu;
 
 		for_each_possible_cpu(cpu) {
-			if (cpu == current_cpu)
+			if (cpu == init_cpu)
 				copy_map_value(&htab->map, per_cpu_ptr(pptr, cpu), value);
 			else /* Since elem is preallocated, we cannot touch special fields */
 				zero_map_value(&htab->map, per_cpu_ptr(pptr, cpu));
@@ -1768,6 +1775,12 @@ static int htab_lru_percpu_map_lookup_and_delete_elem(struct bpf_map *map,
 						 flags);
 }
 
+/*
+ * Max consecutive empty buckets to walk in one RCU +
+ * instrumentation-disabled section before rescheduling.
+ */
+#define HTAB_BATCH_EMPTY_RESCHED 64
+
 static int
 __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 				   const union bpf_attr *attr,
@@ -1789,6 +1802,7 @@ __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 	unsigned long flags = 0;
 	bool locked = false;
 	struct htab_elem *l;
+	u32 empty_cnt = 0;
 	struct bucket *b;
 	int ret = 0;
 
@@ -1967,30 +1981,41 @@ again_nocopy:
 	}
 
 next_batch:
-	/* If we are not copying data, we can go to next bucket and avoid
-	 * unlocking the rcu.
+	/*
+	 * If we are not copying data, we can go to next bucket and avoid
+	 * unlocking the rcu. Bound the walk though: after
+	 * HTAB_BATCH_EMPTY_RESCHED consecutive empty buckets, fully exit
+	 * the critical section (no locks are held here) and reschedule.
 	 */
 	if (!bucket_cnt && (batch + 1 < htab->n_buckets)) {
 		batch++;
-		goto again_nocopy;
+		if (++empty_cnt < HTAB_BATCH_EMPTY_RESCHED)
+			goto again_nocopy;
+		empty_cnt = 0;
+		rcu_read_unlock();
+		bpf_enable_instrumentation();
+		cond_resched_tasks_rcu_qs();
+		goto again;
 	}
 
 	rcu_read_unlock();
 	bpf_enable_instrumentation();
-	if (bucket_cnt && (copy_to_user(ukeys + total * key_size, keys,
-	    key_size * bucket_cnt) ||
-	    copy_to_user(uvalues + total * value_size, values,
-	    value_size * bucket_cnt))) {
+	if (bucket_cnt && (copy_to_user(ukeys + (size_t)total * key_size, keys,
+	    (size_t)key_size * bucket_cnt) ||
+	    copy_to_user(uvalues + (size_t)total * value_size, values,
+	    (size_t)value_size * bucket_cnt))) {
 		ret = -EFAULT;
 		goto after_loop;
 	}
 
 	total += bucket_cnt;
+	empty_cnt = 0;
 	batch++;
 	if (batch >= htab->n_buckets) {
 		ret = -ENOENT;
 		goto after_loop;
 	}
+	cond_resched_tasks_rcu_qs();
 	goto again;
 
 after_loop:
@@ -2864,16 +2889,6 @@ static int rhtab_map_alloc_check(union bpf_attr *attr)
 	return htab_map_alloc_check(attr);
 }
 
-static void rhtab_check_and_free_fields(struct bpf_rhtab *rhtab,
-					struct rhtab_elem *elem)
-{
-	if (IS_ERR_OR_NULL(rhtab->map.record))
-		return;
-
-	bpf_obj_free_fields(rhtab->map.record,
-			    rhtab_elem_value(elem, rhtab->map.key_size));
-}
-
 static void rhtab_mem_dtor(void *obj, void *ctx)
 {
 	struct htab_btf_record *hrec = ctx;
@@ -2963,8 +2978,8 @@ static int rhtab_delete_elem(struct bpf_rhtab *rhtab, struct rhtab_elem *elem, v
 		rhtab_read_elem_value(&rhtab->map, copy, elem, flags);
 		check_and_init_map_value(&rhtab->map, copy);
 	}
-	/* Release internal structs: kptr, bpf_timer, task_work, wq */
-	rhtab_check_and_free_fields(rhtab, elem);
+	bpf_obj_cancel_fields(&rhtab->map,
+			      rhtab_elem_value(elem, rhtab->map.key_size));
 	bpf_mem_cache_free_rcu(&rhtab->ma, elem);
 	return 0;
 }
@@ -3005,7 +3020,6 @@ static int rhtab_map_lookup_and_delete_elem(struct bpf_map *map, void *key, void
 static long rhtab_map_update_existing(struct bpf_map *map, struct rhtab_elem *elem, void *value,
 				      u64 map_flags)
 {
-	struct bpf_rhtab *rhtab = container_of(map, struct bpf_rhtab, map);
 	void *old_val = rhtab_elem_value(elem, map->key_size);
 
 	if (map_flags & BPF_NOEXIST)
@@ -3025,7 +3039,7 @@ static long rhtab_map_update_existing(struct bpf_map *map, struct rhtab_elem *el
 	 * kptrs/etc. still sit in the slot. Cancel them after the copy
 	 * to match arraymap's update semantics.
 	 */
-	rhtab_check_and_free_fields(rhtab, elem);
+	bpf_obj_cancel_fields(map, old_val);
 	return 0;
 }
 
@@ -3066,7 +3080,6 @@ static long rhtab_map_update_elem(struct bpf_map *map, void *key, void *value, u
 
 	memcpy(elem->data, key, map->key_size);
 	copy_map_value(map, rhtab_elem_value(elem, map->key_size), value);
-	check_and_init_map_value(map, rhtab_elem_value(elem, map->key_size));
 
 	/* Prevent deadlock for NMI programs attempting to take bucket lock */
 	bpf_disable_instrumentation();
@@ -3109,6 +3122,9 @@ static int rhtab_map_check_btf(struct bpf_map *map, const struct btf *btf,
 			       const struct btf_type *value_type)
 {
 	struct bpf_rhtab *rhtab = container_of(map, struct bpf_rhtab, map);
+
+	if (btf_type_is_void(key_type))
+		return -EINVAL;
 
 	return bpf_ma_set_dtor(map, &rhtab->ma, rhtab_mem_dtor);
 }

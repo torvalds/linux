@@ -131,6 +131,77 @@ drop_noovpn:
 	return 0;
 }
 
+static bool ovpn_route_key_equal(const struct ovpn_route_key *a,
+				 const struct ovpn_route_key *b)
+{
+	return a->mark == b->mark && a->sport == b->sport;
+}
+
+/**
+ * ovpn_dst_cache_check_key - reset peer dst cache after key changes
+ * @peer: the peer owning the dst cache
+ * @cache: the cache that might need to be reset
+ * @key: the route key for the packet being transmitted
+ *
+ * Reset the peer dst cache if it was populated for a different route key.
+ */
+static void ovpn_dst_cache_check_key(struct ovpn_peer *peer,
+				     struct dst_cache *cache,
+				     const struct ovpn_route_key *key)
+{
+	struct ovpn_route_key old_key;
+	unsigned int seq;
+
+	/* snapshot the saved key before deciding whether the cache matches */
+	do {
+		seq = read_seqcount_begin(&peer->route_key_seq);
+		old_key = peer->route_key;
+	} while (read_seqcount_retry(&peer->route_key_seq, seq));
+
+	/* nothing changed: the current cache can be reused */
+	if (likely(ovpn_route_key_equal(&old_key, key)))
+		return;
+
+	/* recheck under lock because another path may have updated the key */
+	spin_lock_bh(&peer->lock);
+	if (!ovpn_route_key_equal(&peer->route_key, key)) {
+		write_seqcount_begin(&peer->route_key_seq);
+		peer->route_key = *key;
+		dst_cache_reset(cache);
+		write_seqcount_end(&peer->route_key_seq);
+	}
+	spin_unlock_bh(&peer->lock);
+}
+
+/**
+ * ovpn_dst_cache_current - check whether a route lookup matches peer state
+ * @peer: the peer owning the bind and dst cache
+ * @bind: the RCU bind used for the route lookup
+ * @key: the route key used for the route lookup
+ *
+ * Check that @bind is still the current peer bind and that @key still matches
+ * the peer route key. The caller must hold @peer->lock. The TX path keeps
+ * @bind inside an RCU read-side critical section, so pointer identity is enough
+ * to detect whether the bind was replaced while the route lookup was running.
+ *
+ * Return: true if the lookup result still matches the current peer state and
+ * may update the dst cache or replace the bind.
+ */
+static bool ovpn_dst_cache_current(const struct ovpn_peer *peer,
+				   const struct ovpn_bind *bind,
+				   const struct ovpn_route_key *key)
+{
+	const struct ovpn_bind *curr_bind;
+
+	lockdep_assert_held(&peer->lock);
+
+	curr_bind = rcu_dereference_protected(peer->bind,
+					      lockdep_is_held(&peer->lock));
+
+	return curr_bind == bind &&
+	       ovpn_route_key_equal(key, &peer->route_key);
+}
+
 /**
  * ovpn_udp4_output - send IPv4 packet over udp socket
  * @peer: the destination peer
@@ -138,21 +209,26 @@ drop_noovpn:
  * @cache: dst cache
  * @sk: the socket to send the packet over
  * @skb: the packet to send
+ * @key: the route key snapshot used for cache validation and flow lookup
  *
  * Return: 0 on success or a negative error code otherwise
  */
 static int ovpn_udp4_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 			    struct dst_cache *cache, struct sock *sk,
-			    struct sk_buff *skb)
+			    struct sk_buff *skb,
+			    const struct ovpn_route_key *key)
 {
+	struct sockaddr_storage remote;
+	struct in_addr local = {};
+	bool reset_local = false;
 	struct rtable *rt;
 	struct flowi4 fl = {
 		.saddr = bind->local.ipv4.s_addr,
 		.daddr = bind->remote.in4.sin_addr.s_addr,
-		.fl4_sport = inet_sk(sk)->inet_sport,
+		.fl4_sport = key->sport,
 		.fl4_dport = bind->remote.in4.sin_port,
 		.flowi4_proto = sk->sk_protocol,
-		.flowi4_mark = sk->sk_mark,
+		.flowi4_mark = key->mark,
 	};
 	int ret;
 
@@ -161,26 +237,19 @@ static int ovpn_udp4_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 	if (rt)
 		goto transmit;
 
-	if (unlikely(!inet_confirm_addr(sock_net(sk), NULL, 0, fl.saddr,
-					RT_SCOPE_HOST))) {
-		/* we may end up here when the cached address is not usable
-		 * anymore. In this case we reset address/cache and perform a
-		 * new look up
+	if (fl.saddr && unlikely(!inet_confirm_addr(sock_net(sk), NULL, 0,
+						    fl.saddr, RT_SCOPE_HOST))) {
+		/* The learned local address is not usable anymore.
+		 * Retry with source address autoselection.
 		 */
 		fl.saddr = 0;
-		spin_lock_bh(&peer->lock);
-		bind->local.ipv4.s_addr = 0;
-		spin_unlock_bh(&peer->lock);
-		dst_cache_reset(cache);
+		reset_local = true;
 	}
 
 	rt = ip_route_output_flow(sock_net(sk), &fl, sk);
 	if (IS_ERR(rt) && PTR_ERR(rt) == -EINVAL) {
 		fl.saddr = 0;
-		spin_lock_bh(&peer->lock);
-		bind->local.ipv4.s_addr = 0;
-		spin_unlock_bh(&peer->lock);
-		dst_cache_reset(cache);
+		reset_local = true;
 
 		rt = ip_route_output_flow(sock_net(sk), &fl, sk);
 	}
@@ -193,7 +262,30 @@ static int ovpn_udp4_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 				    ret);
 		goto err;
 	}
-	dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
+
+	/* avoid storing a stale cache or local address */
+	spin_lock_bh(&peer->lock);
+	if (likely(ovpn_dst_cache_current(peer, bind, key))) {
+		if (!reset_local) {
+			dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
+			spin_unlock_bh(&peer->lock);
+			goto transmit;
+		}
+
+		/* invalidate per-CPU dst entries that may still carry
+		 * the stale source
+		 */
+		dst_cache_reset(cache);
+
+		/* preserve the current remote */
+		memcpy(&remote, &bind->remote, sizeof(struct sockaddr_in));
+		/* The current packet already has a valid wildcard-source route.
+		 * If replacing the bind fails, leave the stale local in place;
+		 * a later cache miss will retry the repair.
+		 */
+		ovpn_peer_reset_sockaddr(peer, &remote, &local);
+	}
+	spin_unlock_bh(&peer->lock);
 
 transmit:
 	udp_tunnel_xmit_skb(rt, sk, skb, fl.saddr, fl.daddr, 0,
@@ -213,23 +305,28 @@ err:
  * @cache: dst cache
  * @sk: the socket to send the packet over
  * @skb: the packet to send
+ * @key: the route key snapshot used for cache validation and flow lookup
  *
  * Return: 0 on success or a negative error code otherwise
  */
 static int ovpn_udp6_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 			    struct dst_cache *cache, struct sock *sk,
-			    struct sk_buff *skb)
+			    struct sk_buff *skb,
+			    const struct ovpn_route_key *key)
 {
+	struct in6_addr local = in6addr_any;
+	struct sockaddr_storage remote;
+	bool reset_local = false;
 	struct dst_entry *dst;
 	int ret;
 
 	struct flowi6 fl = {
 		.saddr = bind->local.ipv6,
 		.daddr = bind->remote.in6.sin6_addr,
-		.fl6_sport = inet_sk(sk)->inet_sport,
+		.fl6_sport = key->sport,
 		.fl6_dport = bind->remote.in6.sin6_port,
 		.flowi6_proto = sk->sk_protocol,
-		.flowi6_mark = sk->sk_mark,
+		.flowi6_mark = key->mark,
 		.flowi6_oif = bind->remote.in6.sin6_scope_id,
 	};
 
@@ -238,16 +335,13 @@ static int ovpn_udp6_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 	if (dst)
 		goto transmit;
 
-	if (unlikely(!ipv6_chk_addr(sock_net(sk), &fl.saddr, NULL, 0))) {
-		/* we may end up here when the cached address is not usable
-		 * anymore. In this case we reset address/cache and perform a
-		 * new look up
+	if (!ipv6_addr_any(&fl.saddr) &&
+	    unlikely(!ipv6_chk_addr(sock_net(sk), &fl.saddr, NULL, 0))) {
+		/* The learned local address is not usable anymore.
+		 * Retry with source address autoselection.
 		 */
 		fl.saddr = in6addr_any;
-		spin_lock_bh(&peer->lock);
-		bind->local.ipv6 = in6addr_any;
-		spin_unlock_bh(&peer->lock);
-		dst_cache_reset(cache);
+		reset_local = true;
 	}
 
 	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl, NULL);
@@ -258,7 +352,30 @@ static int ovpn_udp6_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 				    &bind->remote.in6, ret);
 		goto err;
 	}
-	dst_cache_set_ip6(cache, dst, &fl.saddr);
+
+	/* avoid storing a stale cache or local address */
+	spin_lock_bh(&peer->lock);
+	if (likely(ovpn_dst_cache_current(peer, bind, key))) {
+		if (!reset_local) {
+			dst_cache_set_ip6(cache, dst, &fl.saddr);
+			spin_unlock_bh(&peer->lock);
+			goto transmit;
+		}
+
+		/* invalidate per-CPU dst entries that may still carry
+		 * the stale source
+		 */
+		dst_cache_reset(cache);
+
+		/* preserve the current remote */
+		memcpy(&remote, &bind->remote, sizeof(struct sockaddr_in6));
+		/* The current packet already has a valid wildcard-source route.
+		 * If replacing the bind fails, leave the stale local in place;
+		 * a later cache miss will retry the repair.
+		 */
+		ovpn_peer_reset_sockaddr(peer, &remote, &local);
+	}
+	spin_unlock_bh(&peer->lock);
 
 transmit:
 	/* user IPv6 packets may be larger than the transport interface
@@ -287,6 +404,7 @@ err:
  * @cache: dst cache
  * @sk: the socket to send the packet over
  * @skb: the packet to send
+ * @key: route key snapshot used for cache validation and flow lookup
  *
  * rcu_read_lock should be held on entry.
  * On return, the skb is consumed.
@@ -294,7 +412,8 @@ err:
  * Return: 0 on success or a negative error code otherwise
  */
 static int ovpn_udp_output(struct ovpn_peer *peer, struct dst_cache *cache,
-			   struct sock *sk, struct sk_buff *skb)
+			   struct sock *sk, struct sk_buff *skb,
+			   struct ovpn_route_key *key)
 {
 	struct ovpn_bind *bind;
 	int ret;
@@ -314,11 +433,11 @@ static int ovpn_udp_output(struct ovpn_peer *peer, struct dst_cache *cache,
 
 	switch (bind->remote.in4.sin_family) {
 	case AF_INET:
-		ret = ovpn_udp4_output(peer, bind, cache, sk, skb);
+		ret = ovpn_udp4_output(peer, bind, cache, sk, skb, key);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		ret = ovpn_udp6_output(peer, bind, cache, sk, skb);
+		ret = ovpn_udp6_output(peer, bind, cache, sk, skb, key);
 		break;
 #endif
 	default:
@@ -340,15 +459,21 @@ out:
 void ovpn_udp_send_skb(struct ovpn_peer *peer, struct sock *sk,
 		       struct sk_buff *skb)
 {
+	struct ovpn_route_key key = {
+		.mark = READ_ONCE(sk->sk_mark),
+		.sport = READ_ONCE(inet_sk(sk)->inet_sport),
+	};
 	int ret;
 
 	skb->dev = peer->ovpn->dev;
-	skb->mark = READ_ONCE(sk->sk_mark);
+	skb->mark = key.mark;
 	/* no checksum performed at this layer */
 	skb->ip_summed = CHECKSUM_NONE;
 
+	ovpn_dst_cache_check_key(peer, &peer->dst_cache, &key);
+
 	/* crypto layer -> transport (UDP) */
-	ret = ovpn_udp_output(peer, &peer->dst_cache, sk, skb);
+	ret = ovpn_udp_output(peer, &peer->dst_cache, sk, skb, &key);
 	if (unlikely(ret < 0))
 		kfree_skb(skb);
 }

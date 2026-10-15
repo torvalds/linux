@@ -188,7 +188,7 @@ static int snd_virmidi_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 	struct snd_virmidi *vmidi;
 
-	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
+	vmidi = kzalloc_obj(*vmidi);
 	if (vmidi == NULL)
 		return -ENOMEM;
 	vmidi->substream = substream;

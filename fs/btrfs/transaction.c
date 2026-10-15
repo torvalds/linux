@@ -458,8 +458,19 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		 * through btrfs_record_root_in_trans without having to take the
 		 * lock.  smp_wmb() makes sure that all the writes above are
 		 * done before we pop in the zero below
+		 *
+		 * If @force is true, it means the call is from
+		 * qgroup_account_snapshot(), which only requires radix tree
+		 * tracking.
+		 * We should not force reloc root creation here, as the root
+		 * may have already been modified, and in that case
+		 * root->commit_root has already been dropped.
+		 *
+		 * Using that commit root will cause the reloc root to refer
+		 * to a deleted extent, causing extent tree corruption.
 		 */
-		ret = btrfs_init_reloc_root(trans, root);
+		if (!force)
+			ret = btrfs_init_reloc_root(trans, root);
 		smp_mb__before_atomic();
 		clear_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
 	}
@@ -2583,6 +2594,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	ret = btrfs_write_and_wait_transaction(trans);
 	if (unlikely(ret)) {
 		btrfs_err(fs_info, "error while writing out transaction: %pe", ERR_PTR(ret));
+		/*
+		 * Abort before releasing tree_log_mutex, so a log sync waiting
+		 * on it sees the fs error and skips writing super_for_commit
+		 * for this failed transaction. See btrfs_sync_log().
+		 */
+		btrfs_abort_transaction(trans, ret);
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
 	}

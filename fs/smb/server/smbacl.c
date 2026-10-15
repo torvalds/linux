@@ -383,10 +383,10 @@ void free_acl_state(struct posix_acl_state *state)
 	kfree(state->groups);
 }
 
-static void parse_dacl(struct mnt_idmap *idmap,
-		       struct smb_acl *pdacl, char *end_of_acl,
-		       struct smb_sid *pownersid, struct smb_sid *pgrpsid,
-		       struct smb_fattr *fattr)
+static int parse_dacl(struct mnt_idmap *idmap,
+		      struct smb_acl *pdacl, char *end_of_acl,
+		      struct smb_sid *pownersid, struct smb_sid *pgrpsid,
+		      struct smb_fattr *fattr)
 {
 	int i, ret;
 	u16 num_aces = 0;
@@ -400,13 +400,13 @@ static void parse_dacl(struct mnt_idmap *idmap,
 	bool owner_found = false, group_found = false, others_found = false;
 
 	if (!pdacl)
-		return;
+		return 0;
 
 	/* validate that we do not go past end of acl */
 	if (end_of_acl < (char *)pdacl + sizeof(struct smb_acl) ||
 	    end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
 		pr_err("ACL too small to parse DACL\n");
-		return;
+		return -EINVAL;
 	}
 
 	ksmbd_debug(SMB, "DACL revision %d size %d num aces %d\n",
@@ -418,31 +418,31 @@ static void parse_dacl(struct mnt_idmap *idmap,
 
 	num_aces = le16_to_cpu(pdacl->num_aces);
 	if (num_aces <= 0)
-		return;
+		return 0;
 
 	dacl_size = le16_to_cpu(pdacl->size);
 	if (dacl_size < sizeof(struct smb_acl))
-		return;
+		return -EINVAL;
 
 	if (num_aces > (dacl_size - sizeof(struct smb_acl)) /
 			(offsetof(struct smb_ace, sid) +
 			 offsetof(struct smb_sid, sub_auth) + sizeof(__le16)))
-		return;
+		return -EINVAL;
 
 	ret = init_acl_state(&acl_state, num_aces);
 	if (ret)
-		return;
+		return ret;
 	ret = init_acl_state(&default_acl_state, num_aces);
 	if (ret) {
 		free_acl_state(&acl_state);
-		return;
+		return ret;
 	}
 
 	ppace = kmalloc_objs(struct smb_ace *, num_aces, KSMBD_DEFAULT_GFP);
 	if (!ppace) {
 		free_acl_state(&default_acl_state);
 		free_acl_state(&acl_state);
-		return;
+		return -ENOMEM;
 	}
 
 	/*
@@ -451,8 +451,10 @@ static void parse_dacl(struct mnt_idmap *idmap,
 	 * user/group/other have no permissions
 	 */
 	for (i = 0; i < num_aces; ++i) {
-		if (end_of_acl - acl_base < acl_size)
-			break;
+		if (end_of_acl - acl_base < acl_size) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		ppace[i] = (struct smb_ace *)(acl_base + acl_size);
 		acl_base = (char *)ppace[i];
@@ -465,8 +467,10 @@ static void parse_dacl(struct mnt_idmap *idmap,
 		    (end_of_acl - acl_base <
 		     acl_size + sizeof(__le32) * ppace[i]->sid.num_subauth) ||
 		    (le16_to_cpu(ppace[i]->size) <
-		     acl_size + sizeof(__le32) * ppace[i]->sid.num_subauth))
-			break;
+		     acl_size + sizeof(__le32) * ppace[i]->sid.num_subauth)) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		acl_size = le16_to_cpu(ppace[i]->size);
 		ppace[i]->access_req =
@@ -524,8 +528,8 @@ static void parse_dacl(struct mnt_idmap *idmap,
 			temp_fattr.cf_uid = INVALID_UID;
 			ret = sid_to_id(idmap, &ppace[i]->sid, SIDOWNER, &temp_fattr);
 			if (ret || uid_eq(temp_fattr.cf_uid, INVALID_UID)) {
-				pr_err("%s: Error %d mapping Owner SID to uid\n",
-				       __func__, ret);
+				pr_err_ratelimited("%s: Error %d mapping Owner SID to uid\n",
+						   __func__, ret);
 				continue;
 			}
 
@@ -541,7 +545,6 @@ static void parse_dacl(struct mnt_idmap *idmap,
 				((acl_mode & 0700) >> 6) | 0004;
 		}
 	}
-	kfree(ppace);
 
 	if (owner_found) {
 		/* The owner must be set to at least read-only. */
@@ -584,10 +587,12 @@ static void parse_dacl(struct mnt_idmap *idmap,
 			fattr->cf_acls =
 				posix_acl_alloc(acl_state.users->n +
 					acl_state.groups->n + 4, KSMBD_DEFAULT_GFP);
-			if (fattr->cf_acls) {
-				cf_pace = fattr->cf_acls->a_entries;
-				posix_state_to_acl(&acl_state, cf_pace);
+			if (!fattr->cf_acls) {
+				ret = -ENOMEM;
+				goto out;
 			}
+			cf_pace = fattr->cf_acls->a_entries;
+			posix_state_to_acl(&acl_state, cf_pace);
 		}
 	}
 
@@ -598,14 +603,20 @@ static void parse_dacl(struct mnt_idmap *idmap,
 			fattr->cf_dacls =
 				posix_acl_alloc(default_acl_state.users->n +
 				default_acl_state.groups->n + 4, KSMBD_DEFAULT_GFP);
-			if (fattr->cf_dacls) {
-				cf_pdace = fattr->cf_dacls->a_entries;
-				posix_state_to_acl(&default_acl_state, cf_pdace);
+			if (!fattr->cf_dacls) {
+				ret = -ENOMEM;
+				goto out;
 			}
+			cf_pdace = fattr->cf_dacls->a_entries;
+			posix_state_to_acl(&default_acl_state, cf_pdace);
 		}
 	}
+	ret = 0;
+out:
+	kfree(ppace);
 	free_acl_state(&acl_state);
 	free_acl_state(&default_acl_state);
+	return ret;
 }
 
 static void set_posix_acl_entries_dacl(struct mnt_idmap *idmap,
@@ -966,8 +977,10 @@ int parse_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		if (dacloffset < sizeof(struct smb_ntsd))
 			return -EINVAL;
 
-		parse_dacl(idmap, dacl_ptr, end_of_acl,
-			   owner_sid_ptr, group_sid_ptr, fattr);
+		rc = parse_dacl(idmap, dacl_ptr, end_of_acl,
+				owner_sid_ptr, group_sid_ptr, fattr);
+		if (rc)
+			return rc;
 	}
 
 	return 0;

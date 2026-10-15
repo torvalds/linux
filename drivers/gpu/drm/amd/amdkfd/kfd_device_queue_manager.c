@@ -770,10 +770,12 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto deallocate_vmid;
 	}
+
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		retval = allocate_hqd(dqm, q);
 		if (retval)
@@ -1454,6 +1456,14 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 
 		dqm_evict_mqd_bo(dqm, q);
 	}
+
+	/*
+	 * Heavy-weight TLB flush after MES removes queues to ensure
+	 * in-flight memory accesses complete before memory is freed/migrated.
+	 * HWS does this automatically, MES does not.
+	 */
+	if (dqm->dev->kfd->shared_resources.enable_mes)
+		kfd_flush_tlb(pdd);
 
 	if (!dqm->dev->kfd->shared_resources.enable_mes) {
 		pdd->last_evict_timestamp = get_jiffies_64();
@@ -2242,7 +2252,8 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto out_deallocate_doorbell;
 	}
@@ -3746,8 +3757,11 @@ int suspend_queues(struct kfd_process *p,
 		if (!per_device_suspended) {
 			dqm_unlock(dqm);
 			mutex_unlock(&p->event_mutex);
-			if (total_suspended)
+			if (total_suspended) {
 				amdgpu_amdkfd_debug_mem_fence(dqm->dev->adev);
+				/* Heavy-weight TLB flush after MES suspends queues */
+				kfd_flush_tlb(pdd);
+			}
 			continue;
 		}
 

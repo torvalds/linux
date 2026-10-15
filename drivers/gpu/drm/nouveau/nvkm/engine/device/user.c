@@ -27,6 +27,7 @@
 
 #include <core/client.h>
 #include <subdev/fb.h>
+#include <subdev/gsp.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
 
@@ -190,6 +191,38 @@ nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 }
 
 static int
+nvkm_udevice_gcx_ready(struct nvkm_udevice *udev, void *data, u32 size)
+{
+	struct nvkm_object *object = &udev->object;
+	struct nvkm_device *device = udev->device;
+	struct nvkm_gsp *gsp = device->gsp;
+	union {
+		struct nv_device_gcx_ready_v0 v0;
+	} *args = data;
+	int ret = -ENOSYS;
+
+	if (!gsp) {
+		args->v0.ready = NV_DEVICE_GC6_READY | NV_DEVICE_GCOFF_READY;
+		return 0;
+	}
+
+	nvif_ioctl(object, "device gcx ready size %d\n", size);
+	ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false);
+	if (!ret) {
+		nvif_ioctl(object, "device gcx ready vers %d\n", args->v0.version);
+
+		ret = nvkm_gsp_gcx_ready(gsp);
+		if (ret < 0)
+			return ret;
+
+		args->v0.ready = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int
 nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
@@ -199,6 +232,8 @@ nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		return nvkm_udevice_info(udev, data, size);
 	case NV_DEVICE_V0_TIME:
 		return nvkm_udevice_time(udev, data, size);
+	case NV_DEVICE_V0_GCX_READY:
+		return nvkm_udevice_gcx_ready(udev, data, size);
 	default:
 		break;
 	}

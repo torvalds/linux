@@ -145,7 +145,7 @@ static void nvmet_pr_add_resv_log(struct nvmet_ctrl *ctrl, u8 log_type,
 	log.nsid = cpu_to_le32(nsid);
 
 	if (!kfifo_put(&log_mgr->log_queue, log)) {
-		pr_info("a reservation log lost, cntlid:%d, log_type:%d, nsid:%d\n",
+		pr_info("a reservation log lost, cntlid:%d, log_type:%d, nsid:%u\n",
 			ctrl->cntlid, log_type, nsid);
 		log_mgr->lost_count++;
 	}

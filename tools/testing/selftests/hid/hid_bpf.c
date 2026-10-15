@@ -5,7 +5,7 @@
 #include <bpf/bpf.h>
 
 struct hid_hw_request_syscall_args {
-	__u8 data[10];
+	__u8 data[MAX_BUF_SIZE];
 	unsigned int hid;
 	int retval;
 	size_t size;
@@ -54,11 +54,27 @@ FIXTURE_TEARDOWN(hid_bpf) {
 	hid_bpf_teardown(_metadata, self, variant); \
 } while (0)
 
+FIXTURE_VARIANT(hid_bpf) {
+	__u8 *rdesc;
+	size_t rdesc_size;
+};
+
+FIXTURE_VARIANT_ADD(hid_bpf, numbered) {
+	.rdesc = rdesc,
+	.rdesc_size = sizeof(rdesc),
+};
+
+FIXTURE_VARIANT_ADD(hid_bpf, unnumbered) {
+	.rdesc = fido2_rdesc,
+	.rdesc_size = sizeof(fido2_rdesc),
+};
+
 FIXTURE_SETUP(hid_bpf)
 {
 	int err;
 
-	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a36, rdesc, sizeof(rdesc));
+	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a36,
+			 variant->rdesc, variant->rdesc_size);
 	ASSERT_OK(err);
 }
 
@@ -67,14 +83,17 @@ struct test_program {
 	int insert_head;
 };
 #define LOAD_PROGRAMS(progs) \
-	load_programs(progs, ARRAY_SIZE(progs), _metadata, self, variant)
+	load_programs(progs, ARRAY_SIZE(progs), false, _metadata, self, variant)
+#define LOAD_PROGRAMS_MAY_FAIL(progs) \
+	load_programs(progs, ARRAY_SIZE(progs), true, _metadata, self, variant)
 #define LOAD_BPF \
-	load_programs(NULL, 0, _metadata, self, variant)
-static void load_programs(const struct test_program programs[],
-			  const size_t progs_count,
-			  struct __test_metadata *_metadata,
-			  FIXTURE_DATA(hid_bpf) * self,
-			  const FIXTURE_VARIANT(hid_bpf) * variant)
+	load_programs(NULL, 0, false, _metadata, self, variant)
+static int load_programs(const struct test_program programs[],
+			 const size_t progs_count,
+			 bool load_may_fail,
+			 struct __test_metadata *_metadata,
+			 FIXTURE_DATA(hid_bpf) * self,
+			 const FIXTURE_VARIANT(hid_bpf) * variant)
 {
 	struct bpf_map *iter_map;
 	int err = -EINVAL;
@@ -128,6 +147,9 @@ static void load_programs(const struct test_program programs[],
 	}
 
 	err = hid__load(self->skel);
+	if (err && load_may_fail)
+		return err;
+
 	ASSERT_OK(err) TH_LOG("hid_skel_load failed: %d", err);
 
 	for (int i = 0; i < progs_count; i++) {
@@ -147,6 +169,7 @@ static void load_programs(const struct test_program programs[],
 
 	self->hidraw_fd = open_hidraw(&self->hid);
 	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
+	return 0;
 }
 
 /*
@@ -168,7 +191,7 @@ TEST_F(hid_bpf, raw_event)
 	const struct test_program progs[] = {
 		{ .name = "hid_first_event" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -219,7 +242,7 @@ TEST_F(hid_bpf, subprog_raw_event)
 	const struct test_program progs[] = {
 		{ .name = "hid_subprog_first_event" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -277,7 +300,7 @@ TEST_F(hid_bpf, test_attach_detach)
 		{ .name = "hid_second_event" },
 	};
 	struct bpf_link *link;
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err, link_fd;
 
 	LOAD_PROGRAMS(progs);
@@ -362,7 +385,7 @@ TEST_F(hid_bpf, test_hid_change_report)
 	const struct test_program progs[] = {
 		{ .name = "hid_change_report_id" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -389,21 +412,24 @@ TEST_F(hid_bpf, test_hid_user_input_report_call)
 {
 	struct hid_hw_request_syscall_args args = {
 		.retval = -1,
-		.size = 10,
+		.size = MAX_BUF_SIZE,
 	};
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
 			    .ctx_in = &args,
 			    .ctx_size_in = sizeof(args),
 	);
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err, prog_fd;
 
 	LOAD_BPF;
 
 	args.hid = self->hid.hid_id;
 	args.data[0] = 1; /* report ID */
-	args.data[1] = 2; /* report ID */
-	args.data[2] = 42; /* report ID */
+	args.data[1] = 2;
+	args.data[2] = 42;
+
+	if (variant->rdesc == fido2_rdesc)
+		args.data[0] = 0;
 
 	prog_fd = bpf_program__fd(self->skel->progs.hid_user_input_report);
 
@@ -421,8 +447,13 @@ TEST_F(hid_bpf, test_hid_user_input_report_call)
 	/* read the data from hidraw */
 	memset(buf, 0, sizeof(buf));
 	err = read(self->hidraw_fd, buf, sizeof(buf));
-	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
-	ASSERT_EQ(buf[0], 1);
+	if (variant->rdesc == rdesc) {
+		ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	} else {
+		ASSERT_EQ(err, 64)
+		TH_LOG("read_hidraw");
+	}
+	ASSERT_EQ(buf[0], args.data[0]);
 	ASSERT_EQ(buf[1], 2);
 	ASSERT_EQ(buf[2], 42);
 }
@@ -435,7 +466,7 @@ TEST_F(hid_bpf, test_hid_user_output_report_call)
 {
 	struct hid_hw_request_syscall_args args = {
 		.retval = -1,
-		.size = 10,
+		.size = MAX_BUF_SIZE,
 	};
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
 			    .ctx_in = &args,
@@ -448,8 +479,11 @@ TEST_F(hid_bpf, test_hid_user_output_report_call)
 
 	args.hid = self->hid.hid_id;
 	args.data[0] = 1; /* report ID */
-	args.data[1] = 2; /* report ID */
-	args.data[2] = 42; /* report ID */
+	args.data[1] = 2;
+	args.data[2] = 42;
+
+	if (variant->rdesc == fido2_rdesc)
+		args.data[0] = 0;
 
 	prog_fd = bpf_program__fd(self->skel->progs.hid_user_output_report);
 
@@ -465,9 +499,14 @@ TEST_F(hid_bpf, test_hid_user_output_report_call)
 	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
 	ASSERT_OK(cond_err) TH_LOG("error while calling waiting for the condition");
 
-	ASSERT_EQ(args.retval, 3);
+	if (variant->rdesc == rdesc) {
+		ASSERT_EQ(args.retval, 3);
+	} else if (variant->rdesc == fido2_rdesc) {
+		ASSERT_EQ(args.retval, 65)
+		TH_LOG("report size error, should have 64 + 1 extra byte for the report ID 0");
+	}
 
-	ASSERT_EQ(output_report[0], 1);
+	ASSERT_EQ(output_report[0], args.data[0]);
 	ASSERT_EQ(output_report[1], 2);
 	ASSERT_EQ(output_report[2], 42);
 
@@ -484,7 +523,7 @@ TEST_F(hid_bpf, test_hid_user_raw_request_call)
 		.retval = -1,
 		.type = HID_FEATURE_REPORT,
 		.request_type = HID_REQ_GET_REPORT,
-		.size = 10,
+		.size = MAX_BUF_SIZE,
 	};
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
 			    .ctx_in = &args,
@@ -517,7 +556,7 @@ TEST_F(hid_bpf, test_hid_filter_raw_request_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_filter_raw_request" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -570,7 +609,7 @@ TEST_F(hid_bpf, test_hid_change_raw_request_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_hidraw_raw_request" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -596,7 +635,7 @@ TEST_F(hid_bpf, test_hid_infinite_loop_raw_request_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_infinite_loop_raw_request" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -619,7 +658,7 @@ TEST_F(hid_bpf, test_hid_filter_output_report_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_filter_output_report" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -672,7 +711,7 @@ TEST_F(hid_bpf, test_hid_change_output_report_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_hidraw_output_report" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -696,7 +735,7 @@ TEST_F(hid_bpf, test_hid_infinite_loop_output_report_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_infinite_loop_output_report" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -722,7 +761,7 @@ TEST_F(hid_bpf, test_multiply_events_wq)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_multiply_events_wq" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -760,7 +799,7 @@ TEST_F(hid_bpf, test_multiply_events)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_multiply_events" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -794,7 +833,7 @@ TEST_F(hid_bpf, test_hid_infinite_loop_input_report_call)
 	const struct test_program progs[] = {
 		{ .name = "hid_test_infinite_loop_input_report" },
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -848,7 +887,7 @@ TEST_F(hid_bpf, test_hid_attach_flags)
 			.insert_head = 0,
 		},
 	};
-	__u8 buf[10] = {0};
+	__u8 buf[MAX_BUF_SIZE] = {0};
 	int err;
 
 	LOAD_PROGRAMS(progs);
@@ -879,6 +918,9 @@ TEST_F(hid_bpf, test_rdesc_fixup)
 	};
 	int err, desc_size;
 
+	if (variant->rdesc != rdesc)
+		SKIP(return, "not compatible report descriptor");
+
 	LOAD_PROGRAMS(progs);
 
 	/* check that hid_rdesc_fixup() was executed */
@@ -904,9 +946,37 @@ TEST_F(hid_bpf, test_rdesc_fixup_get_data_overflow)
 		{ .name = "hid_rdesc_fixup_get_data_overflow" },
 	};
 
-	LOAD_PROGRAMS(progs);
+	/* newer verifier can detect the overflow at load time */
+	if (LOAD_PROGRAMS_MAY_FAIL(progs))
+		return;
 
 	ASSERT_EQ(self->skel->bss->get_data_overflow_check, 1);
+}
+
+TEST_F(hid_bpf, test_rdesc_fixup_change_uniq_name_phys)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_rdesc_fixup_change_uniq_name_phys" },
+	};
+	char expected[256], buf[256] = {};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWNAME(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWNAME");
+	ASSERT_STREQ("name coming from bpf", buf);
+
+	snprintf(expected, sizeof(expected), "%d phys:coming:from:bpf", self->hid.dev_id);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWPHYS(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWPHYS");
+	ASSERT_STREQ(expected, buf);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWUNIQ(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWUNIQ");
+	ASSERT_STREQ("uniq:coming:from:bpf", buf);
+
 }
 
 static int libbpf_print_fn(enum libbpf_print_level level,

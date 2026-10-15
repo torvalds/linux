@@ -850,6 +850,27 @@ static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * A post configuration device descriptor read is needed to make the CM1A
+ * operational after reenumeration.
+ */
+static int snd_usb_cm1a_boot_quirk(struct usb_device *dev)
+{
+	struct usb_device_descriptor *desc __free(kfree) = kmalloc_obj(*desc);
+	int err;
+
+	if (!desc)
+		return -ENOMEM;
+
+	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, sizeof(*desc));
+	if (err < 0) {
+		dev_err(&dev->dev, "failed to read device descriptor: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/*
  * Some sound cards from Native Instruments are in fact compliant to the USB
  * audio standard of version 2 and other approved USB standards, even though
  * they come up as vendor-specific device when first connected.
@@ -1681,6 +1702,8 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 	switch (id) {
 	case USB_ID(0x07fd, 0x0008): /* MOTU M Series, 1st hardware version */
 		return snd_usb_motu_m_series_boot_quirk(dev);
+	case USB_ID(0x1397, 0x1234): /* Behringer CM1A */
+		return snd_usb_cm1a_boot_quirk(dev);
 	}
 
 	return 0;
@@ -2390,6 +2413,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_PLAYBACK_FIRST | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x1397, 0x050c, /* Behringer Flow 8 */
 		   QUIRK_FLAG_IFB_SILENCE_ON_EMPTY),
+	DEVICE_FLG(0x1397, 0x0510, /* Behringer UV1 */
+		   QUIRK_FLAG_PLAYBACK_FIRST | QUIRK_FLAG_GENERIC_IMPLICIT_FB),
 	DEVICE_FLG(0x13e5, 0x0001, /* Serato Phono */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
 	DEVICE_FLG(0x152a, 0x85dd, /* SMSL USB DAC */

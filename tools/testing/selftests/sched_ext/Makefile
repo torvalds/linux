@@ -164,10 +164,12 @@ all_test_bpfprogs := $(foreach prog,$(wildcard *.bpf.c),$(INCLUDE_DIR)/$(patsubs
 auto-test-targets :=			\
 	create_dsq			\
 	dequeue				\
+	dequeue_iter			\
 	enq_last_no_enq_fails		\
 	ddsp_bogus_dsq_fail		\
 	ddsp_vtimelocal_fail		\
 	dsp_local_on			\
+	enable_cmask			\
 	enq_select_cpu			\
 	exit				\
 	hotplug				\

@@ -359,7 +359,7 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 
 static int
 __hid_bpf_hw_check_params(struct hid_bpf_ctx *ctx, __u8 *buf, size_t *buf__sz,
-			  enum hid_report_type rtype)
+			  enum hid_report_type rtype, bool hw_request)
 {
 	struct hid_report_enum *report_enum;
 	struct hid_report *report;
@@ -387,6 +387,10 @@ __hid_bpf_hw_check_params(struct hid_bpf_ctx *ctx, __u8 *buf, size_t *buf__sz,
 		return -EINVAL;
 
 	report_len = hid_report_len(report);
+
+	/* unnumbered reports need to have a report ID reserved in the first byte */
+	if (hw_request && report_enum->numbered == 0)
+		report_len += 1;
 
 	if (*buf__sz > report_len)
 		*buf__sz = report_len;
@@ -420,7 +424,7 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		return -EDEADLOCK;
 
 	/* check arguments */
-	ret = __hid_bpf_hw_check_params(ctx, buf, &size, rtype);
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, rtype, true);
 	if (ret)
 		return ret;
 
@@ -480,7 +484,7 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
 		return -EDEADLOCK;
 
 	/* check arguments */
-	ret = __hid_bpf_hw_check_params(ctx, buf, &size, HID_OUTPUT_REPORT);
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, HID_OUTPUT_REPORT, true);
 	if (ret)
 		return ret;
 
@@ -506,7 +510,7 @@ __hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *b
 		return -EDEADLOCK;
 
 	/* check arguments */
-	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type);
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type, false);
 	if (ret)
 		return ret;
 

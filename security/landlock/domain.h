@@ -243,7 +243,8 @@ struct landlock_domain {
 			 * overlapping access rights.  These layers are set once
 			 * and never changed for the lifetime of the domain.
 			 */
-			struct access_masks handled_masks[];
+			struct access_masks
+				handled_masks[] __counted_by(num_layers);
 		};
 	};
 };

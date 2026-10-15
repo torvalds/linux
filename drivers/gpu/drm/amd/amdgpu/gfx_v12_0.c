@@ -1436,10 +1436,10 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
 		if (!adev->gfx.disable_uq &&
-		    adev->gfx.me_fw_version  >= 2780 &&
-		    adev->gfx.pfp_fw_version >= 2840 &&
-		    adev->gfx.mec_fw_version >= 3050 &&
-		    adev->mes.fw_version[0] >= 123) {
+		    adev->gfx.me_fw_version  >= 3090 &&
+		    adev->gfx.pfp_fw_version >= 3190 &&
+		    adev->gfx.mec_fw_version >= 3450 &&
+		    adev->mes.fw_version[0] >= 147) {
 			adev->userq_funcs[AMDGPU_HW_IP_GFX] = &userq_mes_funcs;
 			adev->userq_funcs[AMDGPU_HW_IP_COMPUTE] = &userq_mes_funcs;
 		}

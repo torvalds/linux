@@ -87,6 +87,7 @@ enum {
 	IPOIB_FLAG_INITIALIZED	  = 1,
 	IPOIB_FLAG_ADMIN_UP	  = 2,
 	IPOIB_PKEY_ASSIGNED	  = 3,
+	IPOIB_FLAG_MCAST_FLUSH	  = 4,
 	IPOIB_FLAG_SUBINTERFACE	  = 5,
 	IPOIB_STOP_REAPER	  = 7,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
@@ -413,6 +414,12 @@ struct ipoib_dev_priv {
 	unsigned int max_send_sge;
 	const struct net_device_ops	*rn_ops;
 };
+
+static inline bool ipoib_mcast_allowed(struct ipoib_dev_priv *priv)
+{
+	return test_bit(IPOIB_FLAG_OPER_UP, &priv->flags) &&
+	       !test_bit(IPOIB_FLAG_MCAST_FLUSH, &priv->flags);
+}
 
 struct ipoib_ah {
 	struct net_device *dev;

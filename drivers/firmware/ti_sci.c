@@ -2386,7 +2386,7 @@ static int ti_sci_set_irq(const struct ti_sci_handle *handle, u32 valid_params,
 	if (ret || !(info->fw_caps & MSG_FLAG_CAPS_LPM_IRQ_CONTEXT_LOST))
 		goto end;
 
-	irq = kzalloc_obj(*irq, GFP_KERNEL);
+	irq = kzalloc_obj(*irq);
 	if (!irq) {
 		ti_sci_manage_irq(handle, valid_params, src_id, src_index,
 				  dst_id, dst_host_irq, ia_id, vint,

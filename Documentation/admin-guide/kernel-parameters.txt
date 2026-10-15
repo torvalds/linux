@@ -589,6 +589,9 @@ Kernel parameters
 	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
 			Extension support
 
+	arm64.nowfxt    [ARM64] Unconditionally disable Wait For Event with
+			Timeout and Wait For Interrupt with Timeout support
+
 	ataflop=	[HW,M68k]
 
 	atarimouse=	[HW,MOUSE] Atari Mouse
@@ -3491,7 +3494,7 @@ Kernel parameters
 
 			* SATA link speed limit: 1.5Gbps or 3.0Gbps.
 
-			* Transfer mode: pio[0-7], mwdma[0-4] and udma[0-7].
+			* Transfer mode: pio[0-6], mwdma[0-4] and udma[0-7].
 			  udma[/][16,25,33,44,66,100,133] notation is also
 			  allowed.
 
@@ -3509,7 +3512,7 @@ Kernel parameters
 
 			* [no]ncqtrim: Enable or disable queued DSM TRIM.
 
-			* [no]ncqati: Enable or disable NCQ trim on ATI chipset.
+			* [no]ncqati: Enable or disable NCQ on ATI chipsets.
 
 			* [no]trim: Enable or disable (unqueued) TRIM.
 
@@ -3540,11 +3543,9 @@ Kernel parameters
 
 			* max_sec_128: Set transfer size limit to 128 sectors.
 
-			* max_sec_1024: Set or clear transfer size limit to
-			  1024 sectors.
+			* max_sec_1024: Set transfer size limit to 1024 sectors.
 
-			* max_sec_lba48: Set or clear transfer size limit to
-			  65535 sectors.
+			* max_sec_lba48: Set transfer size limit to 65535 sectors.
 
 			* external: Mark port as external (hotplug-capable).
 
@@ -4987,18 +4988,6 @@ Kernel parameters
 			Set to non-zero if a chip is present that snoops speed
 			changes.  Disabled by default.
 
-	pata_legacy.ht6560a=	[HW,LIBATA]
-			Format: <int>
-			Set to 1, 2, or 3 for HT 6560A on the primary channel,
-			the secondary channel, or both channels respectively.
-			Disabled by default.
-
-	pata_legacy.ht6560b=	[HW,LIBATA]
-			Format: <int>
-			Set to 1, 2, or 3 for HT 6560B on the primary channel,
-			the secondary channel, or both channels respectively.
-			Disabled by default.
-
 	pata_legacy.iordy_mask=	[HW,LIBATA]
 			Format: <int>
 			IORDY enable mask.  Set individual bits to allow IORDY
@@ -5010,18 +4999,6 @@ Kernel parameters
 			bus and the use of other driver options may interfere
 			with the sequence.  By default IORDY is allowed across
 			all channels.
-
-	pata_legacy.opti82c46x=	[HW,LIBATA]
-			Format: <int>
-			Set to 1, 2, or 3 for Opti 82c611A on the primary
-			channel, the secondary channel, or both channels
-			respectively.  Disabled by default.
-
-	pata_legacy.opti82c611a=	[HW,LIBATA]
-			Format: <int>
-			Set to 1, 2, or 3 for Opti 82c465MV on the primary
-			channel, the secondary channel, or both channels
-			respectively.  Disabled by default.
 
 	pata_legacy.pio_mask=	[HW,LIBATA]
 			Format: <int>
@@ -5045,19 +5022,6 @@ Kernel parameters
 			corresponding bits in the mask to 1.  Bit 0 is for
 			the first port in the list above (0x1f0), and so on.
 			By default all supported ports are probed.
-
-	pata_legacy.qdi=	[HW,LIBATA]
-			Format: <int>
-			Set to non-zero to probe QDI controllers.  By default
-			set to 1 if CONFIG_PATA_QDI_MODULE, 0 otherwise.
-
-	pata_legacy.winbond=	[HW,LIBATA]
-			Format: <int>
-			Set to non-zero to probe Winbond controllers.  Use
-			the standard I/O port (0x130) if 1, otherwise the
-			value given is the I/O port to use (typically 0x1b0).
-			By default set to 1 if CONFIG_PATA_WINBOND_VLB_MODULE,
-			0 otherwise.
 
 	pata_platform.pio_mask=	[HW,LIBATA]
 			Format: <int>

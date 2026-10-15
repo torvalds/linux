@@ -360,6 +360,15 @@ static const struct dmi_system_id sof_es8336_quirk_table[] = {
 		.driver_data = (void *)(SOF_ES8336_HEADPHONE_GPIO |
 					SOC_ES8336_HEADSET_MIC1)
 	},
+	{
+		.callback = sof_es8336_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HUAWEI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "NDZ-WXX9"),
+		},
+		.driver_data = (void *)(SOF_ES8336_HEADPHONE_GPIO |
+					SOC_ES8336_HEADSET_MIC1)
+	},
 	{}
 };
 

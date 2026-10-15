@@ -775,9 +775,12 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		s++;
 	}
 
+	adsp_dbg(dsp, "Try '%s'\n", fw->filename);
 	ret = wm_adsp_firmware_request(&fw->firmware, fw->filename, cs_dsp->dev);
 	if (ret < 0) {
-		adsp_dbg(dsp, "Failed to request '%s': %d\n", fw->filename, ret);
+		if (ret != -ENOENT)
+			adsp_dbg(dsp, "Failed to request '%s': %d\n", fw->filename, ret);
+
 		kfree(fw->filename);
 		fw->filename = NULL;
 		if (ret != -ENOENT)

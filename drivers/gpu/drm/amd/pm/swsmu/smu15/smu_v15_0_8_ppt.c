@@ -222,7 +222,7 @@ static int smu_v15_0_8_tables_init(struct smu_context *smu)
 
 	smu_table->metrics_time = 0;
 
-	driver_pptable = kzalloc(sizeof(PPTable_t), GFP_KERNEL);
+	driver_pptable = kzalloc_obj(PPTable_t);
 	if (!driver_pptable)
 		return -ENOMEM;
 
@@ -1026,7 +1026,7 @@ static int smu_v15_0_8_fru_get_product_info(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 
 	if (!adev->fru_info) {
-		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		adev->fru_info = kzalloc_obj(*adev->fru_info);
 		if (!adev->fru_info)
 			return -ENOMEM;
 	}

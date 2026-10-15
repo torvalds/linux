@@ -171,6 +171,11 @@ static inline bool write_fprobe_header(unsigned long *stack,
 static inline void read_fprobe_header(unsigned long *stack,
 					struct fprobe **fp, unsigned int *size_words)
 {
+	if (!*stack) {
+		*fp = NULL;
+		*size_words = 0;
+		return;
+	}
 	*fp = arch_decode_fprobe_header_fp(*stack);
 	*size_words = arch_decode_fprobe_header_size(*stack);
 }
@@ -202,6 +207,12 @@ static inline void read_fprobe_header(unsigned long *stack,
 					struct fprobe **fp, unsigned int *size_words)
 {
 	struct __fprobe_header *fph = (struct __fprobe_header *)stack;
+
+	if (!*stack) {
+		*fp = NULL;
+		*size_words = 0;
+		return;
+	}
 
 	*fp = fph->fp;
 	*size_words = fph->size_words;
@@ -635,6 +646,10 @@ static int fprobe_fgraph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops
 		}
 	}
 
+	/* Terminate the list, fgraph_reserve_data() does not clear it. */
+	if (used && used < reserved_words)
+		fgraph_data[used] = 0;
+
 	/* If any exit_handler is set, data must be used. */
 	return used != 0;
 }
@@ -945,7 +960,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	if (num < 0)
 		return num;
 
-	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
+	addrs = kzalloc_objs(*addrs, num);
 	if (!addrs)
 		return -ENOMEM;
 

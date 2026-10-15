@@ -312,7 +312,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 		return NULL;
 	}
 
-	node = kzalloc_flex(*node, page, tree->pages_per_bnode, GFP_KERNEL);
+	node = kzalloc_flex(*node, page, tree->pages_per_bnode);
 	if (!node)
 		return NULL;
 	node->tree = tree;

@@ -413,8 +413,13 @@ static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
 	 * if we're the first on the send_list and we can try to send
 	 * directly, otherwise queue io_work. Also, only do that if we
 	 * are on the same cpu, so we don't introduce contention.
+	 *
+	 * TLS kTLS send takes ctx->tx_lock while blk_mq holds set->srcu.
+	 * lockdep reports circular locking via elevator_lock.  Defer TLS
+	 * sends to the io workqueue instead of inline from this path.
 	 */
 	if (queue->io_cpu == raw_smp_processor_id() &&
+	    !nvme_tcp_queue_tls(queue) &&
 	    empty && mutex_trylock(&queue->send_mutex)) {
 		nvme_tcp_send_all(queue);
 		mutex_unlock(&queue->send_mutex);
@@ -682,6 +687,13 @@ static int nvme_tcp_handle_c2h_data(struct nvme_tcp_queue *queue,
 			"got bad c2hdata.command_id %#x on queue %d\n",
 			pdu->command_id, nvme_tcp_queue_id(queue));
 		return -ENOENT;
+	}
+
+	if (rq_data_dir(rq) != READ) {
+		dev_err(queue->ctrl->ctrl.device,
+			"queue %d tag %#x unexpected data for a write\n",
+			nvme_tcp_queue_id(queue), rq->tag);
+		return -EPROTO;
 	}
 
 	req = blk_mq_rq_to_pdu(rq);

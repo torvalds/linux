@@ -21,7 +21,7 @@ struct tpacket_kbdq_core {
 	unsigned int	hdrlen;
 	unsigned char	reset_pending_on_curr_blk;
 	unsigned short	kactive_blk_num;
-	unsigned short	blk_sizeof_priv;
+	unsigned int	blk_sizeof_priv;
 
 	unsigned short  version;
 

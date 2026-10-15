@@ -178,6 +178,8 @@ static int proc_show_ksmbd_stats(struct seq_file *m, void *v)
 	proc_show_runtime_totals(m);
 	seq_printf(m, "sessions:\t%lld\n",
 		   ksmbd_counter_sum(KSMBD_COUNTER_SESSIONS));
+	seq_printf(m, "session_timeouts:\t%lld\n",
+		   ksmbd_counter_sum(KSMBD_COUNTER_SESSION_TIMEOUTS));
 	seq_printf(m, "tree_connects:\t%lld\n",
 		   ksmbd_counter_sum(KSMBD_COUNTER_TREE_CONNS));
 	seq_printf(m, "requests:\t%lld\n",

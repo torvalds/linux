@@ -944,6 +944,7 @@ struct kernel_ethtool_ts_info {
 #define ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM	BIT(6)
 #define ETHTOOL_OP_NEEDS_RTNL_RSS		BIT(7)
 #define ETHTOOL_OP_NEEDS_RTNL_GLINK		BIT(8)
+#define ETHTOOL_OP_NEEDS_RTNL_TEST		BIT(9)
 
 /**
  * struct ethtool_ops - optional netdev operations
@@ -981,6 +982,7 @@ struct kernel_ethtool_ts_info {
  *	 - netdev_update_features()
  *	 - netif_set_real_num_tx_queues()
  *	 - ethtool_op_get_link() (syncs link watch under rtnl_lock)
+ *	 - netif_open() / netif_close() (used by @self_test)
  *
  * @get_drvinfo: Report driver/device information. Modern drivers no
  *	longer have to implement this callback. Most fields are
@@ -1057,6 +1059,12 @@ struct kernel_ethtool_ts_info {
  * @get_sset_count: Get number of strings that @get_strings will write.
  * @get_rxnfc: Get RX flow classification rules.  Returns a negative
  *	error code or zero.
+ *	Note that for %ETHTOOL_GRXCLSRLALL rule_cnt and size of the arrays
+ *	is user-provided, and not guaranteed to match what driver would
+ *	have reported via %ETHTOOL_GRXCLSRLCNT. Drivers must return -%EMSGSIZE
+ *	when rule_cnt is too small. rule_locs is %NULL when rule_cnt is zero.
+ *	On success drivers must set rule_cnt to the number of locations they
+ *	filled in, the core copies out exactly that many.
  * @set_rxnfc: Set RX flow classification rules.  Returns a negative
  *	error code or zero.
  * @flash_device: Write a firmware image to device's flash memory.

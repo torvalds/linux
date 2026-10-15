@@ -1976,7 +1976,8 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * Change. We handle this step in bxt_set_cdclk().
 		 */
 		/* 10. Program DDI_CLK_VALFREQ to match intended DDI clock frequency. */
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
+			       intel_ddi_link_symbol_clock(encoder, port_clock));
 
 		/* 11. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 1. */
 		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
@@ -2023,7 +2024,8 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     lane_phy_pulse_status,
 			     lane_phy_pulse_status);
 	} else {
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
+			       intel_ddi_link_symbol_clock(encoder, port_clock));
 	}
 
 	/*

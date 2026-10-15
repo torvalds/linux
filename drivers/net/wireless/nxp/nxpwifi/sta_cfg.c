@@ -245,7 +245,7 @@ int nxpwifi_bss_start(struct nxpwifi_private *priv, struct cfg80211_bss *bss,
 		return -EINVAL;
 
 	/* Allocate and fill new bss descriptor */
-	bss_desc = kzalloc_obj(*bss_desc, GFP_KERNEL);
+	bss_desc = kzalloc_obj(*bss_desc);
 	if (!bss_desc)
 		return -ENOMEM;
 

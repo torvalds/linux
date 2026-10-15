@@ -32,7 +32,7 @@ static struct nxpwifi_adapter *nxpwifi_register(void *card, struct device *dev,
 	int ret = 0;
 	int i;
 
-	adapter = kzalloc_obj(*adapter, GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter)
 		return ERR_PTR(-ENOMEM);
 
@@ -55,7 +55,7 @@ static struct nxpwifi_adapter *nxpwifi_register(void *card, struct device *dev,
 	for (i = 0; i < NXPWIFI_MAX_BSS_NUM; i++) {
 		/* Allocate memory for private structure */
 		adapter->priv[i] =
-			kzalloc_obj(struct nxpwifi_private, GFP_KERNEL);
+			kzalloc_obj(struct nxpwifi_private);
 		if (!adapter->priv[i]) {
 			ret = -ENOMEM;
 			goto error;
@@ -1106,7 +1106,7 @@ void nxpwifi_drv_info_dump(struct nxpwifi_adapter *adapter)
 			p += adapter->if_ops.reg_dump(adapter, p);
 	}
 	p += sprintf(p, "\n=== more debug information\n");
-	debug_info = kzalloc_obj(*debug_info, GFP_KERNEL);
+	debug_info = kzalloc_obj(*debug_info);
 	if (debug_info) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			if (!adapter->priv[i]->netdev)
@@ -1242,7 +1242,7 @@ void nxpwifi_init_priv_params(struct nxpwifi_private *priv,
 
 	if (GET_BSS_ROLE(priv) == NXPWIFI_BSS_ROLE_STA ||
 	    GET_BSS_ROLE(priv) == NXPWIFI_BSS_ROLE_UAP) {
-		priv->hist_data = kmalloc_obj(*priv->hist_data, GFP_KERNEL);
+		priv->hist_data = kmalloc_obj(*priv->hist_data);
 		if (priv->hist_data)
 			nxpwifi_hist_data_reset(priv);
 	}

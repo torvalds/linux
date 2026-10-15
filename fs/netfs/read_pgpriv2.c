@@ -54,8 +54,8 @@ static void netfs_pgpriv2_copy_folio(struct netfs_io_request *creq, struct folio
 
 	/* Attach the folio to the rolling buffer. */
 	if (rolling_buffer_append(&creq->buffer, folio, 0, creq->gfp) < 0) {
+		set_bit(NETFS_RREQ_CANCEL_CACHING, &creq->flags);
 		folio_end_private_2(folio);
-		clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &creq->flags);
 		return;
 	}
 
@@ -122,13 +122,14 @@ cancel_put:
 	netfs_put_failed_request(creq);
 cancel:
 	rreq->copy_to_cache = ERR_PTR(-ENOBUFS);
-	clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags);
+	set_bit(NETFS_RREQ_CANCEL_CACHING, &rreq->flags);
 	return ERR_PTR(-ENOBUFS);
 }
 
 /*
  * [DEPRECATED] Mark page as requiring copy-to-cache using PG_private_2 and add
- * it to the copy write request.
+ * it to the copy write request.  PG_private_2 should already be set on the
+ * folio.
  */
 void netfs_pgpriv2_copy_to_cache(struct netfs_io_request *rreq, struct folio *folio)
 {
@@ -136,11 +137,13 @@ void netfs_pgpriv2_copy_to_cache(struct netfs_io_request *rreq, struct folio *fo
 
 	if (!creq)
 		creq = netfs_pgpriv2_begin_copy_to_cache(rreq, folio);
-	if (IS_ERR(creq))
+	if (IS_ERR(creq)) {
+		set_bit(NETFS_RREQ_CANCEL_CACHING, &rreq->flags);
+		netfs_cancel_copy_to_cache(rreq, folio);
 		return;
+	}
 
-	trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
-	folio_start_private_2(folio);
+	trace_netfs_folio(folio, netfs_folio_trace_pgpriv2_copy);
 	netfs_pgpriv2_copy_folio(creq, folio);
 }
 
