@@ -91,7 +91,7 @@ static int elf_find_pbase(struct kimage *image, unsigned long kernel_len,
 	kbuf.memsz = ALIGN(kernel_len, PAGE_SIZE);
 	kbuf.cma = NULL;
 	kbuf.top_down = false;
-	ret = arch_kexec_locate_mem_hole(&kbuf);
+	ret = kexec_locate_mem_hole(&kbuf);
 	if (!ret) {
 		*old_pbase = lowest_paddr;
 		*new_pbase = kbuf.mem;
