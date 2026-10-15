@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 #
-# pylint: disable=R0903,R0912,R0913,R0914,R0917,C0301
+# pylint: disable=R0903,R0912,R0913,R0914,R0915,R0917,C0301
 
 """
 Install minimal supported requirements for different Sphinx versions
@@ -17,6 +17,8 @@ import re
 import sys
 import time
 import subprocess
+
+from textwrap import indent
 
 MIN_PYTHON_SUBVER = 9  # Currently, Python 3.9 is the minimal supported version
 
@@ -45,6 +47,7 @@ def get_min_python_bin(min_subver):
 
     return sorted(bins, key=lambda x: (3, int(x.split(".")[1])))[0]
 
+
 # Minimal python versions. Please notice that for 3.4.3, older python
 # versions would work with Sphinx, but kernel doc build is not compatible
 # with them anymore, due to Sphinx extensions and kernel-doc.
@@ -56,16 +59,16 @@ PYTHON_VER_CHANGES = {
 }
 
 DEFAULT_VERSIONS_TO_TEST = [
-    (3, 4, 3),   # Minimal supported version
-    (5, 3, 0),   # CentOS Stream 9 / AlmaLinux 9
-    (6, 1, 1),   # Debian 12
-    (7, 2, 1),   # openSUSE Leap 15.6
-    (7, 2, 6),   # Ubuntu 24.04 LTS
-    (7, 4, 7),   # Ubuntu 24.10
-    (7, 3, 0),   # openSUSE Tumbleweed
-    (8, 1, 3),   # Debian 13
-    (8, 2, 3),   # Ubuntu 26.04 LTS / Fedora 44
-    (9, 1, 0),   # Latest version
+    (3, 4, 3),  # Minimal supported version
+    (5, 3, 0),  # CentOS Stream 9 / AlmaLinux 9
+    (6, 1, 1),  # Debian 12
+    (7, 2, 1),  # openSUSE Leap 15.6
+    (7, 2, 6),  # Ubuntu 24.04 LTS
+    (7, 4, 7),  # Ubuntu 24.10
+    (7, 3, 0),  # openSUSE Tumbleweed
+    (8, 1, 3),  # Debian 13
+    (8, 2, 3),  # Ubuntu 26.04 LTS / Fedora 44
+    (9, 1, 0),  # Latest version
 ]
 
 # Sphinx versions to be installed and their incremental requirements
@@ -76,7 +79,6 @@ SPHINX_REQUIREMENTS = {
         "alabaster": "0.7.12",
         "babel": "2.8.0",
         "certifi": "2020.6.20",
-        "docutils": "0.16",
         "idna": "2.10",
         "imagesize": "1.2.0",
         "Jinja2": "2.11.2",
@@ -199,6 +201,7 @@ class AsyncCommands:
         self.fp = fp
 
     def log(self, out, verbose=True, is_info=True):
+        """Ancillary routine to output a message"""
         out = out.removesuffix('\n')
 
         if verbose:
@@ -227,7 +230,6 @@ class AsyncCommands:
 
     async def run(self, cmd, capture_output=False, check=False,
                   env=None, verbose=True):
-
         """
         Execute an arbitrary command, handling errors.
 
@@ -326,8 +328,8 @@ class SphinxVenv:
 
         # Pip install succeeded. Write requirements file
         if args.req_file:
-            with open(req_file, "w", encoding="utf-8") as fp:
-                fp.write(result.stdout)
+            with open(req_file, "w", encoding="utf-8") as fout:
+                fout.write(result.stdout)
 
         if args.build:
             start_time = time.time()
@@ -379,7 +381,7 @@ class SphinxVenv:
         """
 
         if args.log:
-            fp = open(args.log, "w", encoding="utf-8")
+            fp = open(args.log, "w", encoding="utf-8") # pylint: disable=R1732
             if not args.verbose:
                 args.verbose = False
         else:
@@ -440,15 +442,15 @@ class SphinxVenv:
         if fp:
             fp.close()
 
+
 def parse_version(ver_str):
     """Convert a version string into a tuple."""
 
     return tuple(map(int, ver_str.split(".")))
 
 
-DEFAULT_VERS = "    - "
-DEFAULT_VERS += "\n    - ".join(map(lambda v: f"{v[0]}.{v[1]}.{v[2]}",
-                                    DEFAULT_VERSIONS_TO_TEST))
+DEFAULT_VERS = indent("\n".join(map(lambda v: f"{v[0]}.{v[1]}.{v[2]}",
+                                    DEFAULT_VERSIONS_TO_TEST)), "    - ")
 
 SCRIPT = os.path.relpath(__file__)
 
@@ -492,6 +494,7 @@ MAKE_TARGETS = [
     "epubdocs",
     "xmldocs",
 ]
+
 
 async def main():
     """Main program"""
@@ -539,8 +542,6 @@ async def main():
 
     if not args.make_args:
         args.make_args = []
-
-    sphinx_versions = sorted(list(SPHINX_REQUIREMENTS.keys()))
 
     if args.full:
         args.versions += list(SPHINX_REQUIREMENTS.keys())
