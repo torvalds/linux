@@ -54,6 +54,7 @@ struct bq257xx_chip_info {
  * @chip: hw specific functions
  * @bq: parent MFD device
  * @charger: power supply device
+ * @dev: charger platform device
  * @online: charger input is present
  * @charging: charger is actively charging the battery
  * @fast_charge: charger is in fast charge mode
