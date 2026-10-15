@@ -40,6 +40,7 @@ TEST_PROGS = \
 	nk_netns.py \
 	nk_qlease.py \
 	ntuple.py \
+	pause.py \
 	pp_alloc_fail.py \
 	rss_api.py \
 	rss_ctx.py \
