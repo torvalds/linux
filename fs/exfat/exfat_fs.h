@@ -680,19 +680,29 @@ static inline int exfat_chain_advance(struct super_block *sb,
 		struct exfat_chain *chain, unsigned int step)
 {
 	unsigned int clu = chain->dir;
+	unsigned int i;
 
-	if (unlikely(chain->size < step))
-		return -EIO;
+	if (chain->flags == ALLOC_NO_FAT_CHAIN) {
+		if (unlikely(chain->size < step))
+			return -EIO;
 
-	if (exfat_cluster_walk(sb, &clu, step, chain->flags))
-		return -EIO;
+		chain->size -= step;
+		chain->dir = chain->size ? clu + step : EXFAT_EOF_CLUSTER;
+		return 0;
+	}
 
-	chain->size -= step;
+	/*
+	 * Only the FAT tells where a chain of this kind ends. The size can be
+	 * smaller than the chain, see commit 1e5654de0f51 ("exfat: handle
+	 * wrong stream entry size in exfat_readdir()").
+	 */
+	for (i = 0; i < step && clu != EXFAT_EOF_CLUSTER; i++) {
+		if (exfat_get_next_cluster(sb, &clu))
+			return -EIO;
+	}
 
-	if (chain->size == 0 && chain->flags == ALLOC_NO_FAT_CHAIN)
-		chain->dir = EXFAT_EOF_CLUSTER;
-	else
-		chain->dir = clu;
+	chain->size -= min(chain->size, step);
+	chain->dir = clu;
 
 	return 0;
 }
