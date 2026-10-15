@@ -14,7 +14,7 @@
 
 / {
 	model = "Samsung Exynos8855 SMDK board";
-	compatible = "samsung,exynos8855-smdk","samsung,exynos8855";
+	compatible = "samsung,exynos8855-smdk", "samsung,exynos8855";
 
 	chosen {
 	};
