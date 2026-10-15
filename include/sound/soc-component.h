@@ -154,6 +154,8 @@ struct snd_soc_component_driver {
 		   struct snd_pcm_substream *substream);
 	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream);
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params);
 
 	const struct snd_compress_ops *compress_ops;
 
@@ -194,12 +196,13 @@ struct snd_soc_component_driver {
 	unsigned int endianness:1;
 	unsigned int legacy_dai_naming:1;
 
+	/* use DAI link PCM ID as PCM device number */
+	unsigned int use_dai_pcm_id:1;
+
 	/* this component uses topology and ignore machine driver FEs */
 	const char *ignore_machine;
 	const char *topology_name_prefix;
-	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
-				  struct snd_pcm_hw_params *params);
-	bool use_dai_pcm_id;	/* use DAI link PCM ID as PCM device number */
+
 	int be_pcm_base;	/* base device ID for all BE PCMs */
 
 	const char *debugfs_prefix;
@@ -269,29 +272,7 @@ struct snd_soc_component {
 	     snd_soc_dai_to_list(dai) != &(component)->dai_list;		\
 	     dai = _dai, _dai = snd_soc_dai_from_list(snd_soc_dai_to_list(_dai)->next))
 
-/**
- * snd_soc_component_to_dapm() - Returns the DAPM context associated with a
- *  component
- * @component: The component for which to get the DAPM context
- */
-static inline struct snd_soc_dapm_context *snd_soc_component_to_dapm(
-	struct snd_soc_component *component)
-{
-	return component->dapm;
-}
-
-/**
- * snd_soc_component_cache_sync() - Sync the register cache with the hardware
- * @component: COMPONENT to sync
- *
- * Note: This function will call regcache_sync()
- */
-static inline int snd_soc_component_cache_sync(
-	struct snd_soc_component *component)
-{
-	return regcache_sync(component->regmap);
-}
-
+struct snd_soc_dapm_context *snd_soc_component_to_dapm(struct snd_soc_component *component);
 struct snd_soc_component *snd_soc_component_new(struct device *dev, const char *name,
 						const struct snd_soc_component_driver *driver);
 int snd_soc_component_register(struct snd_soc_component *component,
@@ -308,6 +289,11 @@ void snd_soc_component_set_aux(struct snd_soc_component *component,
 int snd_soc_component_init(struct snd_soc_component *component);
 int snd_soc_component_is_dummy(struct snd_soc_component *component);
 
+struct snd_soc_component *snd_soc_component_lookup_nolock(struct device *dev,
+							  const char *driver_name);
+struct snd_soc_component *snd_soc_component_lookup(struct device *dev, const char *driver_name);
+struct snd_soc_component *snd_soc_component_lookup_by_name(const char *component_name);
+
 /* component IO */
 unsigned int snd_soc_component_read(struct snd_soc_component *component,
 				      unsigned int reg);
@@ -319,7 +305,6 @@ int snd_soc_component_update_bits(struct snd_soc_component *component,
 int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 					unsigned int reg, unsigned int mask,
 					unsigned int val);
-void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 				unsigned int reg, unsigned int mask,
 				unsigned int value);
@@ -349,11 +334,17 @@ int snd_soc_component_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level);
 
 int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component);
+int snd_soc_component_regmap_cache_sync(struct snd_soc_component *component);
+void snd_soc_component_regmap_async_complete(struct snd_soc_component *component);
 #ifdef CONFIG_REGMAP
 void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap);
 void snd_soc_component_exit_regmap(struct snd_soc_component *component);
 #endif
+
+int snd_soc_component_fixup_controls(struct snd_soc_component *component);
+int snd_soc_component_add_controls(struct snd_soc_component *component,
+				const struct snd_kcontrol_new *controls, unsigned int num_controls);
 
 #define snd_soc_component_module_get_when_probe(component)\
 	snd_soc_component_module_get(component, NULL, 0)
@@ -379,11 +370,7 @@ static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
 	return dev_get_drvdata(c->dev);
 }
 
-static inline unsigned int
-snd_soc_component_active(struct snd_soc_component *component)
-{
-	return component->active;
-}
+unsigned int snd_soc_component_active(struct snd_soc_component *component);
 
 /* component controls */
 struct snd_kcontrol *snd_soc_component_get_kcontrol(struct snd_soc_component *component,
@@ -400,9 +387,6 @@ int snd_soc_component_close(struct snd_soc_component *component,
 void snd_soc_component_suspend(struct snd_soc_component *component);
 void snd_soc_component_resume(struct snd_soc_component *component);
 int snd_soc_component_is_suspended(struct snd_soc_component *component);
-int snd_soc_component_probe(struct snd_soc_component *component);
-int snd_soc_component_fixup_controls(struct snd_soc_component *component);
-void snd_soc_component_remove(struct snd_soc_component *component);
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 				      struct device_node *ep);
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
@@ -459,5 +443,12 @@ void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream);
 void snd_soc_pcm_component_delay(struct snd_pcm_substream *substream,
 				 snd_pcm_sframes_t *cpu_delay, snd_pcm_sframes_t *codec_delay);
+
+/* REMOVE ME */
+#define snd_soc_component_cache_sync			snd_soc_component_regmap_cache_sync
+#define snd_soc_component_async_complete		snd_soc_component_regmap_async_complete
+#define snd_soc_lookup_component_nolocked		snd_soc_component_lookup_nolock
+#define snd_soc_lookup_component			snd_soc_component_lookup
+#define snd_soc_lookup_component_by_name		snd_soc_component_lookup_by_name
 
 #endif /* __SOC_COMPONENT_H */

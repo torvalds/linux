@@ -36,4 +36,17 @@ struct clk *snd_soc_dai_get_bclk(struct snd_soc_dai *dai);
 unsigned int snd_soc_dai_get_bclk_ratio(struct snd_soc_dai *dai);
 void snd_soc_dai_active_update(struct snd_soc_dai *dai, int stream, int action);
 
+/*
+ * In soc-component
+ */
+struct device_node *snd_soc_component_to_node(struct snd_soc_component *component);
+bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
+				   const struct snd_soc_dai_link_component *dlc);
+void snd_soc_component_remove(struct snd_soc_component *component, int probed);
+int snd_soc_component_probe(struct snd_soc_component *component, struct snd_soc_card *card);
+struct list_head *snd_soc_component_get_list_head(void);
+
+#define for_each_component(component)					\
+	list_for_each_entry(component, snd_soc_component_get_list_head(), list)
+
 #endif /* __SOC_INTERNAL_H */
