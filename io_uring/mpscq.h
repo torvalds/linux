@@ -25,9 +25,10 @@
  * its predecessor. In between, the tail end of the queue is not yet reachable
  * from the head. mpscq_pop() detects this and returns NULL, while mpscq_empty()
  * reports false. The consumer must not treat such a NULL as "queue empty" - it
- * should retry later. The window is two instructions wide, but a producer can
- * be preempted inside it, so the consumer must not spin on it while holding
- * resources the producer might need to make progress.
+ * should retry later. The window is two instructions wide and the producer
+ * can't be preempted inside it, but it can be interrupted, so the consumer must
+ * not spin on it while holding resources the producer might need to make
+ * progress.
  *
  * The consumer side only supports a single consumer at a time, callers must
  * provide their own serialization for it. The stub node is what allows the
@@ -70,6 +71,12 @@ static inline bool mpscq_push(struct mpscq *q, struct llist_node *node)
 
 	node->next = NULL;
 	/*
+	 * All the consumer can do about a node that isn't linked yet is to try
+	 * again. If it is what preempted us, and we don't get to run as long
+	 * as it does, that never ends.
+	 */
+	preempt_disable();
+	/*
 	 * xchg() implies a full barrier, so the initialization of the
 	 * entry (including ->next above) is visible before the node can
 	 * be reached, either via ->tail or via ->next chasing from the
@@ -77,6 +84,7 @@ static inline bool mpscq_push(struct mpscq *q, struct llist_node *node)
 	 */
 	prev = xchg(&q->tail, node);
 	WRITE_ONCE(prev->next, node);
+	preempt_enable();
 	return prev == &q->stub;
 }
 
