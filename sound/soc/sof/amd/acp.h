@@ -159,9 +159,6 @@
 
 /* ACPI child device address for the ACP7x PDM/DMIC device */
 #define ACP7X_DMIC_ADDR				2
-/* ACP7X PDM controller selection values for acp_dev_data.pdm_sel; 0 = not set */
-#define ACP7X_PDM_DMIC0				1
-#define ACP7X_PDM_DMIC1				2
 #define ACP_DSP_MSG_SET				1
 #define ACP_DSP_ACK_SET				1
 
