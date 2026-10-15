@@ -32,9 +32,13 @@ Uma grande parte da interface administrativa do kernel são os sistemas de
 arquivos virtuais /proc e sysfs; estes documentos descrevem como interagir
 com eles.
 
+.. toctree::
+   :maxdepth: 1
+
+   sysfs-rules
+
 Todolist:
 
-*   sysfs-rules
 *   sysctl/index
 *   cputopology
 *   abi
