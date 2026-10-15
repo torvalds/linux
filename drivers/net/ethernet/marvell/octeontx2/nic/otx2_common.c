@@ -2117,7 +2117,7 @@ dma_addr_t otx2_dma_map_skb_frag(struct otx2_nic *pfvf,
 	/* Crypto hardware need write permission for ipsec crypto offload */
 	if (unlikely(xfrm_offload(skb))) {
 		dir = DMA_BIDIRECTIONAL;
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 	}
 
 	/* First segment is always skb->data */

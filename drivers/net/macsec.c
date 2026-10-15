@@ -644,7 +644,7 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 			return ERR_PTR(-ENOMEM);
 		}
 	} else {
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 		if (!skb) {
 			macsec_txsa_put(tx_sa);
 			return ERR_PTR(-ENOMEM);
@@ -953,7 +953,7 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 
 		aead_request_set_crypt(req, sg, sg, len, iv);
 		aead_request_set_ad(req, macsec_hdr_len(macsec_skb_cb(skb)->has_sci));
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 		if (!skb) {
 			aead_request_free(req);
 			return ERR_PTR(-ENOMEM);
@@ -1159,7 +1159,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	if (hdr->eth.h_proto != htons(ETH_P_MACSEC))
 		return handle_not_macsec(skb);
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	*pskb = skb;
 	if (!skb)
 		return RX_HANDLER_CONSUMED;

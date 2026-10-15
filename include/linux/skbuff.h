@@ -2131,14 +2131,14 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 }
 
 /*
- *	Copy shared buffers into a new sk_buff. We effectively do COW on
+ *	Copy cloned buffers into a new sk_buff. We effectively do COW on
  *	packets to handle cases where we have a local reader and forward
  *	and a couple of other messy ones. The normal one is tcpdumping
  *	a packet that's being forwarded.
  */
 
 /**
- *	skb_unshare - make a copy of a shared buffer
+ *	skb_unclone_full - make a private copy of a cloned buffer
  *	@skb: buffer to check
  *	@pri: priority for memory allocation
  *
@@ -2148,10 +2148,13 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
  *	the original buffer is returned. When called with a spinlock held or
  *	from interrupt state @pri must be %GFP_ATOMIC
  *
+ *	Unlike skb_unclone(), the paged data is copied as well. A buffer with
+ *	skb->users > 1 that is not a clone is returned as is, use
+ *	skb_share_check() for that case.
+ *
  *	%NULL is returned on a memory allocation failure.
  */
-static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
-					  gfp_t pri)
+static inline struct sk_buff *skb_unclone_full(struct sk_buff *skb, gfp_t pri)
 {
 	might_sleep_if(gfpflags_allow_blocking(pri));
 	if (skb_cloned(skb)) {

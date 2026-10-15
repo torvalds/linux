@@ -920,7 +920,7 @@ static int stmmac_test_vlan_validate(struct sk_buff *skb,
 
 	proto = tpriv->svlan ? ETH_P_8021AD : ETH_P_8021Q;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (!skb)
 		goto out;
 

@@ -427,8 +427,8 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
  *
@@ -458,8 +458,8 @@ static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
  *
@@ -480,8 +480,8 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Return: modified @skb on success, NULL on error (@skb is freed).
  */
@@ -524,8 +524,8 @@ static inline void __vlan_hwaccel_copy_tag(struct sk_buff *dst, const struct sk_
  *
  * Pushes the VLAN tag from @skb->vlan_tci inside to the payload.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  */
 static inline struct sk_buff *__vlan_hwaccel_push_inside(struct sk_buff *skb)
 {

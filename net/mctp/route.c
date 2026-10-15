@@ -396,7 +396,7 @@ static int mctp_frag_queue(struct mctp_sk_key *key, struct sk_buff *skb)
 		 * this will free the skb; callers can no longer access it
 		 * safely.
 		 */
-		key->reasm_head = skb_unshare(skb, GFP_ATOMIC);
+		key->reasm_head = skb_unclone_full(skb, GFP_ATOMIC);
 		if (!key->reasm_head)
 			return -ENOMEM;
 
