@@ -28,8 +28,10 @@
 #include "btbcm.h"
 #include "btrtl.h"
 #include "btmtk.h"
+#include "hci_uart.h"
+#include "btusb_qcom.h"
 
-#define VERSION "0.8"
+#define VERSION "1.0"
 
 static bool disable_scofix;
 static bool force_scofix;
@@ -68,7 +70,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_INTEL_NO_WBS_SUPPORT	BIT(26)
 #define BTUSB_ACTIONS_SEMI		BIT(27)
 #define BTUSB_BARROT			BIT(28)
-#define BTUSB_BROKEN_EXT_SCAN		BIT(29)
+#define BTUSB_QUALCOMM			BIT(30)
 
 static const struct usb_device_id btusb_table[] = {
 	/*
@@ -270,6 +272,10 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x0489, 0xe03c), .driver_info = BTUSB_ATH3012 },
 
 	/* QCA ROME chipset */
+	{ USB_DEVICE(0x0b05, 0x1825), .driver_info = BTUSB_QCA_ROME |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x0b05, 0x1868), .driver_info = BTUSB_QCA_ROME |
+						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x0cf3, 0x535b), .driver_info = BTUSB_QCA_ROME |
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x0cf3, 0xe007), .driver_info = BTUSB_QCA_ROME |
@@ -425,6 +431,10 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x2c7c, 0x0132), .driver_info = BTUSB_QCA_WCN6855 |
 						     BTUSB_WIDEBAND_SPEECH },
 
+	/* Qualcomm multi-subsystem chipset QCC2072 */
+	{ USB_DEVICE(0x0cf3, 0xea00), .driver_info = BTUSB_QUALCOMM |
+						     BTUSB_WIDEBAND_SPEECH },
+
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = BTUSB_BCM92035 },
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -506,6 +516,8 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x8087, 0x0038), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x0039), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x0040), .driver_info = BTUSB_INTEL_COMBINED }, /* Lizard Peak 2 */
+	/* Otter Peak 2 (AX231), Wildcat Lake */
+	{ USB_DEVICE(0x8087, 0x0043), .driver_info = BTUSB_INTEL_COMBINED },
 	{ USB_DEVICE(0x8087, 0x07da), .driver_info = BTUSB_CSR },
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL_COMBINED |
 						     BTUSB_INTEL_NO_WBS_SUPPORT |
@@ -527,6 +539,10 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3529), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3533), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3556), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3558), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Realtek 8822CE Bluetooth devices */
@@ -635,10 +651,6 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x0489, 0xe130), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
-
-	/* Realtek 8761BU Bluetooth devices */
-	{ USB_DEVICE(0x0bda, 0xa728), .driver_info = BTUSB_REALTEK |
-						     BTUSB_BROKEN_EXT_SCAN },
 
 	/* Realtek Bluetooth devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bda, 0xe0, 0x01, 0x01),
@@ -831,6 +843,8 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3630), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3631), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x2c7c, 0x7009), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
@@ -877,6 +891,8 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x2b89, 0x6275), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x37ad, 0x0600), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x14b0, 0x047a), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Additional Realtek 8761CU Bluetooth devices */
@@ -1001,6 +1017,9 @@ struct btqca_data {
 #define BTUSB_WAKEUP_BROKEN	18
 #define BTUSB_RESET		19
 
+#define BTUSB_PROTO_LEGACY	0x00
+#define BTUSB_PROTO_H4		0x01
+
 struct btusb_data {
 	struct hci_dev       *hdev;
 	struct usb_device    *udev;
@@ -1034,6 +1053,7 @@ struct btusb_data {
 	struct sk_buff *evt_skb;
 	struct sk_buff *acl_skb;
 	struct sk_buff *sco_skb;
+	struct sk_buff *rx_skb;
 
 	struct usb_endpoint_descriptor *intr_ep;
 	struct usb_endpoint_descriptor *bulk_tx_ep;
@@ -1047,6 +1067,7 @@ struct btusb_data {
 
 	__u8 cmdreq_type;
 	__u8 cmdreq;
+	__u8 proto;
 
 	unsigned int sco_num;
 	unsigned int air_mode;
@@ -1057,6 +1078,7 @@ struct btusb_data {
 
 	int (*recv_event)(struct hci_dev *hdev, struct sk_buff *skb);
 	int (*recv_acl)(struct hci_dev *hdev, struct sk_buff *skb);
+	int (*recv_intr)(struct btusb_data *data, void *buffer, int count);
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 
 	int (*setup_on_usb)(struct hci_dev *hdev);
@@ -1276,19 +1298,27 @@ static inline void btusb_free_frags(struct btusb_data *data)
 	dev_kfree_skb_irq(data->sco_skb);
 	data->sco_skb = NULL;
 
+	/* rx_skb may hold an ERR_PTR from a previous h4_recv_skb() call */
+	if (!IS_ERR(data->rx_skb))
+		dev_kfree_skb_irq(data->rx_skb);
+	data->rx_skb = NULL;
+
 	spin_unlock_irqrestore(&data->rxlock, flags);
 }
 
 static int btusb_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
+	int err;
+
+	err = data->recv_event(hdev, skb);
 
 	if (data->intr_interval) {
 		/* Trigger dequeue immediately if an event is received */
 		schedule_delayed_work(&data->rx_work, 0);
 	}
 
-	return data->recv_event(hdev, skb);
+	return err;
 }
 
 static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
@@ -1375,11 +1405,65 @@ static int btusb_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+static int btusb_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 pkt_type = hci_skb_pkt_type(skb);
+	int ret;
+
+	switch (pkt_type) {
+	case HCI_EVENT_PKT:
+		ret = btusb_recv_event(hdev, skb);
+		break;
+	case HCI_ACLDATA_PKT:
+		ret = btusb_recv_acl(hdev, skb);
+		break;
+	case HCI_SCODATA_PKT:
+	case HCI_ISODATA_PKT:
+		ret = hci_recv_frame(hdev, skb);
+		break;
+	default:
+		dev_kfree_skb_irq(skb);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/* Dispatch through the btusb_recv_* wrappers so that vendor specific
+ * handling (data->recv_event, data->recv_acl) is preserved in H:4 mode.
+ */
+static const struct h4_recv_pkt btusb_recv_pkts[] = {
+	{ H4_RECV_ACL,          .recv = btusb_recv_acl },
+	{ H4_RECV_SCO,          .recv = hci_recv_frame },
+	{ H4_RECV_EVENT,        .recv = btusb_recv_event },
+	{ H4_RECV_ISO,          .recv = hci_recv_frame },
+};
+
+static int btusb_recv_h4(struct btusb_data *data, void *buffer, int count)
+{
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&data->rxlock, flags);
+	data->rx_skb = h4_recv_skb(data->hdev, NULL, NULL, data->rx_skb, buffer,
+				   count, btusb_recv_pkts,
+				   ARRAY_SIZE(btusb_recv_pkts));
+	if (IS_ERR(data->rx_skb))
+		err = PTR_ERR(data->rx_skb);
+	spin_unlock_irqrestore(&data->rxlock, flags);
+
+	return err;
+}
+
 static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 {
 	struct sk_buff *skb;
 	unsigned long flags;
 	int err = 0;
+
+	if (data->proto == BTUSB_PROTO_H4)
+		return btusb_recv_h4(data, buffer, count);
 
 	spin_lock_irqsave(&data->rxlock, flags);
 	skb = data->acl_skb;
@@ -1533,7 +1617,7 @@ static void btusb_intr_complete(struct urb *urb)
 	if (urb->status == 0) {
 		hdev->stat.byte_rx += urb->actual_length;
 
-		if (btusb_recv_intr(data, urb->transfer_buffer,
+		if (data->recv_intr(data, urb->transfer_buffer,
 				    urb->actual_length) < 0) {
 			bt_dev_err(hdev, "corrupted event packet");
 			hdev->stat.err_rx++;
@@ -2058,12 +2142,14 @@ static int btusb_open(struct hci_dev *hdev)
 
 	data->intf->needs_remote_wakeup = 1;
 
-	if (test_and_set_bit(BTUSB_INTR_RUNNING, &data->flags))
-		goto done;
+	if (data->proto == BTUSB_PROTO_LEGACY) {
+		if (test_and_set_bit(BTUSB_INTR_RUNNING, &data->flags))
+			goto done;
 
-	err = btusb_submit_intr_urb(hdev, GFP_KERNEL);
-	if (err < 0)
-		goto failed;
+		err = btusb_submit_intr_urb(hdev, GFP_KERNEL);
+		if (err < 0)
+			goto failed;
+	}
 
 	err = btusb_submit_bulk_urb(hdev, GFP_KERNEL);
 	if (err < 0) {
@@ -2167,12 +2253,51 @@ static int btusb_flush(struct hci_dev *hdev)
 	return 0;
 }
 
+static struct urb *alloc_bulk_urb(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct btusb_data *data = hci_get_drvdata(hdev);
+	struct urb *urb;
+	unsigned int pipe;
+
+	if (!data->bulk_tx_ep)
+		return ERR_PTR(-ENODEV);
+
+	if (data->proto == BTUSB_PROTO_H4) {
+		/* The frame type is prepended in place, so the buffer must not
+		 * be shared with anyone else.
+		 */
+		if (skb_cow_head(skb, 1))
+			return ERR_PTR(-ENOMEM);
+	}
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return ERR_PTR(-ENOMEM);
+
+	pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
+
+	if (data->proto == BTUSB_PROTO_H4) {
+		/* Prepend skb with frame type */
+		memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
+	}
+
+	usb_fill_bulk_urb(urb, data->udev, pipe,
+			  skb->data, skb->len, btusb_tx_complete, skb);
+
+	skb->dev = (void *)hdev;
+
+	return urb;
+}
+
 static struct urb *alloc_ctrl_urb(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
 	unsigned int pipe;
+
+	if (data->proto == BTUSB_PROTO_H4)
+		return alloc_bulk_urb(hdev, skb);
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
@@ -2200,34 +2325,14 @@ static struct urb *alloc_ctrl_urb(struct hci_dev *hdev, struct sk_buff *skb)
 	return urb;
 }
 
-static struct urb *alloc_bulk_urb(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	struct btusb_data *data = hci_get_drvdata(hdev);
-	struct urb *urb;
-	unsigned int pipe;
-
-	if (!data->bulk_tx_ep)
-		return ERR_PTR(-ENODEV);
-
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb)
-		return ERR_PTR(-ENOMEM);
-
-	pipe = usb_sndbulkpipe(data->udev, data->bulk_tx_ep->bEndpointAddress);
-
-	usb_fill_bulk_urb(urb, data->udev, pipe,
-			  skb->data, skb->len, btusb_tx_complete, skb);
-
-	skb->dev = (void *)hdev;
-
-	return urb;
-}
-
 static struct urb *alloc_isoc_urb(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned int pipe;
+
+	if (data->proto == BTUSB_PROTO_H4)
+		return alloc_bulk_urb(hdev, skb);
 
 	if (!data->isoc_tx_ep)
 		return ERR_PTR(-ENODEV);
@@ -2300,6 +2405,22 @@ static int submit_or_queue_tx_urb(struct hci_dev *hdev, struct urb *urb)
 	return 0;
 }
 
+static int submit_sco_urb(struct hci_dev *hdev, struct urb *urb)
+{
+	struct btusb_data *data = hci_get_drvdata(hdev);
+
+	/* In H:4 mode SCO frames are carried over the bulk endpoint and
+	 * complete via btusb_tx_complete(), which decrements tx_in_flight, so
+	 * they have to be accounted for like any other bulk transfer.
+	 * Isochronous transfers use btusb_isoc_tx_complete() instead, which
+	 * does not, so they must not be counted.
+	 */
+	if (data->proto == BTUSB_PROTO_H4)
+		return submit_or_queue_tx_urb(hdev, urb);
+
+	return submit_tx_urb(hdev, urb);
+}
+
 static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct urb *urb;
@@ -2333,7 +2454,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 			return PTR_ERR(urb);
 
 		hdev->stat.sco_tx++;
-		return submit_tx_urb(hdev, urb);
+		return submit_sco_urb(hdev, urb);
 
 	case HCI_ISODATA_PKT:
 		urb = alloc_bulk_urb(hdev, skb);
@@ -2442,10 +2563,9 @@ static int btusb_switch_alt_setting(struct hci_dev *hdev, int new_alts)
 	return 0;
 }
 
-static struct usb_host_interface *btusb_find_altsetting(struct btusb_data *data,
-							int alt)
+static struct usb_host_interface *
+btusb_find_altsetting(struct usb_interface *intf, int alt)
 {
-	struct usb_interface *intf = data->isoc;
 	int i;
 
 	BT_DBG("Looking for Alt no :%d", alt);
@@ -2467,6 +2587,13 @@ static void btusb_work(struct work_struct *work)
 	struct hci_dev *hdev = data->hdev;
 	int new_alts = 0;
 	int err;
+
+	/* In H:4 mode SCO/ISO data is carried over the bulk endpoints, so
+	 * there is no isochronous interface to resume or to switch alternate
+	 * settings on.
+	 */
+	if (data->proto == BTUSB_PROTO_H4)
+		return;
 
 	if (data->sco_num > 0) {
 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
@@ -2501,9 +2628,9 @@ static void btusb_work(struct work_struct *work)
 			 * MTU >= 3 (packets) * 25 (size) - 3 (headers) = 72
 			 * see also Core spec 5, vol 4, B 2.1.1 & Table 2.1.
 			 */
-			if (btusb_find_altsetting(data, 6))
+			if (btusb_find_altsetting(data->isoc, 6))
 				new_alts = 6;
-			else if (btusb_find_altsetting(data, 3) &&
+			else if (btusb_find_altsetting(data->isoc, 3) &&
 				 hdev->sco_mtu >= 72 &&
 				 test_bit(BTUSB_USE_ALT3_FOR_WBS, &data->flags))
 				new_alts = 3;
@@ -2752,9 +2879,14 @@ static int btusb_recv_bulk_intel(struct btusb_data *data, void *buffer,
 	/* When the device is in bootloader mode, then it can send
 	 * events via the bulk endpoint. These events are treated the
 	 * same way as the ones received from the interrupt endpoint.
+	 *
+	 * In H:4 mode there is no interrupt endpoint and every frame on the
+	 * bulk endpoint carries an H:4 header, including the ones sent by the
+	 * bootloader, so the regular decoding applies.
 	 */
-	if (btintel_test_flag(hdev, INTEL_BOOTLOADER))
-		return btusb_recv_intr(data, buffer, count);
+	if (data->proto == BTUSB_PROTO_LEGACY &&
+	    btintel_test_flag(hdev, INTEL_BOOTLOADER))
+		return data->recv_intr(data, buffer, count);
 
 	return btusb_recv_bulk(data, buffer, count);
 }
@@ -2814,7 +2946,7 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 			return PTR_ERR(urb);
 
 		hdev->stat.sco_tx++;
-		return submit_tx_urb(hdev, urb);
+		return submit_sco_urb(hdev, urb);
 
 	case HCI_ISODATA_PKT:
 		urb = alloc_bulk_urb(hdev, skb);
@@ -3219,10 +3351,10 @@ struct qca_dump_hdr {
 	__le16 seqno;
 	u8 reserved;
 	union {
-		u8 data[0];
+		DECLARE_FLEX_ARRAY(u8, data);
 		struct {
 			__le32 ram_dump_size;
-			u8 data0[0];
+			DECLARE_FLEX_ARRAY(u8, data0);
 		} __packed;
 	};
 } __packed;
@@ -4033,8 +4165,11 @@ static ssize_t force_poll_sync_write(struct file *file,
 	if (err)
 		return err;
 
-	/* Only allow changes while the adapter is down */
-	if (test_bit(HCI_UP, &data->hdev->flags))
+	/* Only allow changes while the adapter is down and it is using legacy
+	 * protocol.
+	 */
+	if (test_bit(HCI_UP, &data->hdev->flags) ||
+	    data->proto != BTUSB_PROTO_LEGACY)
 		return -EPERM;
 
 	if (data->poll_sync == enable)
@@ -4133,7 +4268,7 @@ static int btusb_hci_drv_supported_altsettings(struct hci_dev *hdev, void *data,
 		goto done;
 
 	for (i = 0; i <= 6; i++) {
-		if (btusb_find_altsetting(drvdata, i))
+		if (btusb_find_altsetting(drvdata->isoc, i))
 			rp->altsettings[rp->num++] = i;
 	}
 
@@ -4183,10 +4318,74 @@ static struct hci_drv btusb_hci_drv = {
 	.specific_handlers	= btusb_hci_drv_specific_handlers,
 };
 
+/*
+ * ============================================================================
+ * Qualcomm support
+ * ============================================================================
+ */
+
+static int btusb_recv_intr_qcom(struct btusb_data *data, void *buffer, int count)
+{
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&data->rxlock, flags);
+	data->evt_skb = btusb_qcom_recv_intr(data->hdev, data->evt_skb, buffer, count,
+					     &err);
+	spin_unlock_irqrestore(&data->rxlock, flags);
+
+	return err;
+}
+
+static int btusb_recv_bulk_qcom(struct btusb_data *data, void *buffer, int count)
+{
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&data->rxlock, flags);
+	data->acl_skb = btusb_qcom_recv_bulk(data->hdev, data->acl_skb, buffer, count,
+					     &err);
+	spin_unlock_irqrestore(&data->rxlock, flags);
+
+	return err;
+}
+
+static int btusb_send_vendor_frame_qcom(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 pkt_type = hci_skb_pkt_type(skb);
+	struct urb *urb;
+
+	switch (pkt_type) {
+	case QPERI_COMMAND_PKT:
+		urb = alloc_ctrl_urb(hdev, skb);
+		break;
+
+	case QPERI_ACLDATA_PKT:
+		urb = alloc_bulk_urb(hdev, skb);
+		break;
+
+	default:
+		return -EILSEQ;
+	}
+
+	if (IS_ERR(urb))
+		return PTR_ERR(urb);
+
+	return submit_or_queue_tx_urb(hdev, urb);
+}
+
+/*
+ * ============================================================================
+ * Qualcomm support end
+ * ============================================================================
+ */
+
 static int btusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
 	struct gpio_desc *reset_gpio;
+	struct usb_host_interface *alt;
+	struct usb_endpoint_descriptor *bulk_rx_ep, *bulk_tx_ep, *intr_ep;
 	struct btusb_data *data;
 	struct hci_dev *hdev;
 	unsigned ifnum_base;
@@ -4228,10 +4427,38 @@ static int btusb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 
 	data->match_id = id;
+
+	/* Alternate setting 1 with a single pair of bulk endpoints and no
+	 * interrupt endpoint means the controller supports Bulk Serialization
+	 * Mode, in which every packet is prefixed with an H:4 header and
+	 * carried over the bulk endpoints.
+	 */
+	alt = btusb_find_altsetting(intf, 1);
+	if (alt && usb_find_int_in_endpoint(alt, &intr_ep) &&
+	    !usb_find_common_endpoints(alt, &bulk_rx_ep, &bulk_tx_ep, NULL,
+				       NULL)) {
+		err = usb_set_interface(interface_to_usbdev(intf), ifnum_base, 1);
+		if (!err)
+			data->proto = BTUSB_PROTO_H4;
+		else
+			dev_warn(&intf->dev,
+				 "failed to select alt setting 1 (%d), using legacy mode",
+				 err);
+	}
+
+	/* Check if all endpoints could be enumerated, legacy mode requires
+	 * interrupt and bulk endpoints while H4 mode only requires bulk
+	 * endpoints.
+	 */
 	err = usb_find_common_endpoints(intf->cur_altsetting, &data->bulk_rx_ep,
-					&data->bulk_tx_ep, &data->intr_ep, NULL);
-	if (err)
+					&data->bulk_tx_ep,
+					data->proto == BTUSB_PROTO_LEGACY ?
+						&data->intr_ep : NULL,
+					NULL);
+	if (err) {
+		dev_err(&intf->dev, "failed to enumerate endpoints\n");
 		goto err_free_data;
+	}
 
 	if (id->driver_info & BTUSB_AMP) {
 		data->cmdreq_type = USB_TYPE_CLASS | 0x01;
@@ -4262,6 +4489,7 @@ static int btusb_probe(struct usb_interface *intf,
 	spin_lock_init(&data->rxlock);
 
 	data->recv_event = hci_recv_frame;
+	data->recv_intr = btusb_recv_intr;
 	data->recv_bulk = btusb_recv_bulk;
 
 	if (id->driver_info & BTUSB_INTEL_COMBINED) {
@@ -4282,6 +4510,9 @@ static int btusb_probe(struct usb_interface *intf,
 	} else if (id->driver_info & BTUSB_QCA_WCN6855) {
 		/* Allocate extra space for QCA WCN6855 device */
 		priv_size += sizeof(struct btqca_data);
+	} else if (id->driver_info & BTUSB_QUALCOMM) {
+		/* Allocate extra space for Qualcomm device */
+		priv_size += btusb_qcom_hdev_priv_size();
 	}
 
 	data->recv_acl = hci_recv_frame;
@@ -4440,8 +4671,39 @@ static int btusb_probe(struct usb_interface *intf,
 		hci_set_msft_opcode(hdev, 0xFD70);
 	}
 
+	if (id->driver_info & BTUSB_QUALCOMM) {
+		struct btusb_qcom *xport_data;
+
+		if (!IS_ENABLED(CONFIG_BT_HCIBTUSB_QCOM)) {
+			err = -ENODEV;
+			bt_dev_err(hdev, "CONFIG_BT_HCIBTUSB_QCOM not enabled");
+			goto err_kill_tx_urbs;
+		}
+
+		xport_data = btusb_qcom_xport_data(hdev);
+		xport_data->reset_gpio = data->reset_gpio;
+		xport_data->prepare_reset = btusb_prepare_reset;
+		xport_data->recv_bt_frame = btusb_recv_frame;
+		xport_data->send_bt_frame = btusb_send_frame;
+		xport_data->send_vendor_frame = btusb_send_vendor_frame_qcom;
+
+		data->recv_intr = btusb_recv_intr_qcom;
+		data->recv_bulk = btusb_recv_bulk_qcom;
+		data->disconnect = btusb_qcom_disconnect;
+
+		hdev->manufacturer = 0x1d;
+		hdev->send  = btusb_qcom_send_frame;
+		hdev->setup = btusb_qcom_setup;
+	}
+
 	if (id->driver_info & BTUSB_AMP) {
 		/* AMP controllers do not support SCO packets */
+		data->isoc = NULL;
+	} else if (data->proto == BTUSB_PROTO_H4) {
+		/* In H:4 mode every packet, including SCO/ISO, is carried over
+		 * the bulk endpoints, so the isochronous interface must not be
+		 * claimed nor have its alternate settings switched.
+		 */
 		data->isoc = NULL;
 	} else {
 		/* Interface orders are hardcoded in the specification */
@@ -4489,9 +4751,6 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_INVALID_LE_STATES)
 		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_LE_STATES);
-
-	if (id->driver_info & BTUSB_BROKEN_EXT_SCAN)
-		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_EXT_SCAN);
 
 	if (id->driver_info & BTUSB_DIGIANSWER) {
 		data->cmdreq_type = USB_TYPE_VENDOR;
@@ -4552,7 +4811,8 @@ static int btusb_probe(struct usb_interface *intf,
 	if (enable_autosuspend)
 		usb_enable_autosuspend(data->udev);
 
-	data->poll_sync = enable_poll_sync;
+	if (data->proto == BTUSB_PROTO_LEGACY)
+		data->poll_sync = enable_poll_sync;
 
 	err = hci_register_dev(hdev);
 	if (err < 0)

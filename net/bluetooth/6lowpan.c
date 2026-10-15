@@ -706,6 +706,7 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_btle_dev **dev)
 		spin_lock(&devices_lock);
 		list_del_rcu(&(*dev)->list);
 		spin_unlock(&devices_lock);
+		synchronize_rcu();
 		free_netdev(netdev);
 		goto out;
 	}
@@ -722,6 +723,8 @@ out:
 }
 
 static inline void chan_ready_cb(struct l2cap_chan *chan)
+	__must_hold(&chan->lock)
+	__must_hold(&chan->conn->lock)
 {
 	struct lowpan_btle_dev *dev;
 	bool new_netdev = false;
@@ -912,18 +915,27 @@ static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 {
 	struct lowpan_peer *peer;
+	struct l2cap_chan *chan;
 
 	BT_DBG("conn %p dst type %u", conn, dst_type);
 
+	spin_lock(&devices_lock);
+
 	peer = lookup_peer(conn);
-	if (!peer)
+	if (!peer) {
+		spin_unlock(&devices_lock);
 		return -ENOENT;
+	}
 
-	BT_DBG("peer %p chan %p", peer, peer->chan);
+	chan = peer->chan;
+	l2cap_chan_hold(chan);
 
-	l2cap_chan_lock(peer->chan);
-	l2cap_chan_close(peer->chan, ENOENT);
-	l2cap_chan_unlock(peer->chan);
+	spin_unlock(&devices_lock);
+
+	BT_DBG("peer %p chan %p", peer, chan);
+
+	l2cap_chan_close_unlocked(chan, ENOENT);
+	l2cap_chan_put(chan);
 
 	return 0;
 }
@@ -1025,9 +1037,9 @@ static void disconnect_all_peers(void)
 	struct lowpan_peer *peer;
 	int nchans;
 
-	/* l2cap_chan_close() cannot be called from RCU, and lock ordering
-	 * chan->lock > devices_lock prevents taking write side lock, so copy
-	 * then close.
+	/* l2cap_chan_close_unlocked() cannot be called from RCU, and lock
+	 * ordering chan->lock > devices_lock prevents taking write side lock,
+	 * so copy then close.
 	 */
 
 	rcu_read_lock();
@@ -1062,9 +1074,7 @@ done:
 		spin_unlock(&devices_lock);
 
 		for (i = 0; i < nchans; ++i) {
-			l2cap_chan_lock(chans[i]);
-			l2cap_chan_close(chans[i], ENOENT);
-			l2cap_chan_unlock(chans[i]);
+			l2cap_chan_close_unlocked(chans[i], ENOENT);
 			l2cap_chan_put(chans[i]);
 		}
 	} while (nchans);
@@ -1082,9 +1092,7 @@ static void do_enable_set(bool flag)
 
 	mutex_lock(&set_lock);
 	if (listen_chan) {
-		l2cap_chan_lock(listen_chan);
-		l2cap_chan_close(listen_chan, 0);
-		l2cap_chan_unlock(listen_chan);
+		l2cap_chan_close_unlocked(listen_chan, 0);
 		l2cap_chan_put(listen_chan);
 	}
 
@@ -1132,9 +1140,7 @@ static ssize_t lowpan_control_write(struct file *fp,
 
 		mutex_lock(&set_lock);
 		if (listen_chan) {
-			l2cap_chan_lock(listen_chan);
-			l2cap_chan_close(listen_chan, 0);
-			l2cap_chan_unlock(listen_chan);
+			l2cap_chan_close_unlocked(listen_chan, 0);
 			l2cap_chan_put(listen_chan);
 			listen_chan = NULL;
 		}
@@ -1209,6 +1215,7 @@ static int lowpan_control_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations lowpan_control_fops = {
+	.owner		= THIS_MODULE,
 	.open		= lowpan_control_open,
 	.read		= seq_read,
 	.write		= lowpan_control_write,
@@ -1269,7 +1276,7 @@ static int device_event(struct notifier_block *unused,
 			if (entry->netdev == netdev) {
 				BT_DBG("Unregistered netdev %s %p",
 				       netdev->name, netdev);
-				list_del(&entry->list);
+				list_del_rcu(&entry->list);
 				break;
 			}
 		}
@@ -1303,10 +1310,9 @@ static void __exit bt_6lowpan_exit(void)
 	debugfs_remove(lowpan_control_debugfs);
 
 	if (listen_chan) {
-		l2cap_chan_lock(listen_chan);
-		l2cap_chan_close(listen_chan, 0);
-		l2cap_chan_unlock(listen_chan);
+		l2cap_chan_close_unlocked(listen_chan, 0);
 		l2cap_chan_put(listen_chan);
+		listen_chan = NULL;
 	}
 
 	disconnect_devices();

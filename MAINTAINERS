@@ -19659,6 +19659,8 @@ F:	include/linux/nvmem-consumer.h
 F:	include/linux/nvmem-provider.h
 
 NXP BLUETOOTH WIRELESS DRIVERS
+M:	Song Xue <song.xue_1@nxp.com>
+M:	Alex Zhou <alex.zhou@nxp.com>
 M:	Amitkumar Karwar <amitkumar.karwar@nxp.com>
 M:	Neeraj Kale <neeraj.sanjaykale@nxp.com>
 S:	Maintained
