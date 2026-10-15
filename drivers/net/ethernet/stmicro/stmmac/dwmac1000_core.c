@@ -312,6 +312,12 @@ static int dwmac1000_irq_status(struct stmmac_priv *priv,
 	if (intr_status & (PCS_ANE_IRQ | PCS_LINK_IRQ))
 		stmmac_integrated_pcs_irq(priv, intr_status, x);
 
+	/* Reading RGSMIIIS clears the interrupt the MAC reset unmasks. */
+	if (intr_status & PCS_RGSMIIIS_IRQ) {
+		readl(ioaddr + GMAC_RGSMIIIS);
+		x->irq_rgmii_n++;
+	}
+
 	return ret;
 }
 

@@ -8172,7 +8172,6 @@ F:	drivers/gpu/drm/tiny/hx8357d.c
 
 DRM DRIVER FOR HYPERV SYNTHETIC VIDEO DEVICE
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 M:	Saurabh Sengar <ssengar@linux.microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
@@ -12163,11 +12162,9 @@ S:	Maintained
 F:	drivers/media/i2c/hi847.c
 
 Hyper-V/Azure CORE AND DRIVERS
-M:	"K. Y. Srinivasan" <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
 M:	Wei Liu <wei.liu@kernel.org>
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
@@ -18831,6 +18828,7 @@ F:	drivers/net/ethernet/nebula-matrix/
 
 NETCONSOLE
 M:	Breno Leitao <leitao@debian.org>
+R:	Gustavo Luiz Duarte <gustavold@gmail.com>
 S:	Maintained
 F:	Documentation/networking/netconsole.rst
 F:	drivers/net/netconsole.c

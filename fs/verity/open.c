@@ -399,11 +399,22 @@ void fsverity_free_info(struct fsverity_info *vi)
 	kmem_cache_free(fsverity_info_cachep, vi);
 }
 
+static void fsverity_free_info_rcu(struct rcu_head *head)
+{
+	fsverity_free_info(container_of(head, struct fsverity_info, rcu_head));
+}
+
 void fsverity_remove_info(struct fsverity_info *vi)
 {
 	rhashtable_remove_fast(&fsverity_info_hash, &vi->rhash_head,
 			       fsverity_info_hash_params);
-	fsverity_free_info(vi);
+	/*
+	 * The freeing must be RCU-delayed because __fsverity_get_info() for a
+	 * *different* inode's fsverity_info in the same rhashtable hash chain
+	 * can still be accessing *this* fsverity_info's rhash_head and inode
+	 * fields as part of the RCU-protected hash chain search.
+	 */
+	call_rcu(&vi->rcu_head, fsverity_free_info_rcu);
 }
 
 void fsverity_cleanup_inode(struct inode *inode)
