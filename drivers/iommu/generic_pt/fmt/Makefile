@@ -25,6 +25,6 @@ $(eval $(foreach fmt,$(iommu_pt_fmt-m),$(call create_format,$(fmt),m)))
 # with -DGENERIC_PT_KUNIT
 $(obj)/kunit_iommu_%.o: $(src)/iommu_%.c FORCE
 	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
+	$(call if_changed_rule,cc_o_c)
 
 obj-$(CONFIG_IOMMU_PT_KUNIT_TEST) += $(IOMMU_PT_KUNIT_TEST)
