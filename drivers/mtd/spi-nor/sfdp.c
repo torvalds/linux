@@ -403,9 +403,12 @@ static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
  * @nor:	pointer to a 'struct spi_nor'
  * @bfpt_header:	pointer to the 'struct sfdp_parameter_header' describing
  *			the Basic Flash Parameter Table length and version
+ * @bfpt:	pointer to the 'struct sfdp_bfpt' to be fixed up
  *
  * Used to tweak various flash parameters when information provided by the SFDP
  * tables are wrong.
+ *
+ * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
 				    const struct sfdp_parameter_header *bfpt_header,
