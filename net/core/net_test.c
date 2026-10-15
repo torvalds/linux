@@ -34,6 +34,8 @@ enum gso_test_nr {
 	GSO_TEST_FRAG_LIST,
 	GSO_TEST_FRAG_LIST_PURE,
 	GSO_TEST_FRAG_LIST_NON_UNIFORM,
+	GSO_TEST_FRAG_LIST_HEAD_FRAG,
+	GSO_TEST_FRAG_LIST_NO_HEAD_FRAG,
 	GSO_TEST_GSO_BY_FRAGS,
 	GSO_TEST_RESEGMENT,
 	GSO_TEST_RESEGMENT_MULTI,
@@ -52,6 +54,10 @@ struct gso_test_case {
 	unsigned int nr_frag_skbs;
 	const unsigned int *frag_skbs;
 	unsigned int max_segs;
+	const unsigned int *frag_skb_frags;
+	unsigned int gso_type;
+	/* skbs from alloc_skb() instead of build_skb(), head_frag clear */
+	bool no_head_frag;
 
 	/* output as expected */
 	unsigned int nr_segs;
@@ -127,6 +133,37 @@ static struct gso_test_case cases[] = {
 		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE, 1, GSO_TEST_SIZE, 2 },
 		.nr_segs = 4,
 		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, GSO_TEST_SIZE, 3 },
+	},
+	{
+		/* commit 13acc94eff12: frag_list members with linear data in a
+		 * page fragment, shared as a page frag of the segment
+		 */
+		.id = GSO_TEST_FRAG_LIST_HEAD_FRAG,
+		.name = "frag_list_head_frag",
+		.linear_len = 8,
+		.nr_frags = 1,
+		.frags = (const unsigned int[]) { 64 },
+		.nr_frag_skbs = 1,
+		.frag_skbs = (const unsigned int[]) { 8 },
+		.frag_skb_frags = (const unsigned int[]) { 64 },
+		.gso_type = SKB_GSO_DODGY,
+		.nr_segs = 1,
+		.segs = (const unsigned int[]) { 144 },
+	},
+	{
+		/* commit 3dcbdb134f32: gso_size smaller than the linear data,
+		 * as after bpf_skb_change_proto() grew the header, with
+		 * frag_list members whose linear data is not in a page fragment
+		 */
+		.id = GSO_TEST_FRAG_LIST_NO_HEAD_FRAG,
+		.name = "frag_list_no_head_frag",
+		.linear_len = GSO_TEST_SIZE + 20,
+		.nr_frag_skbs = 1,
+		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE + 20 },
+		.gso_type = SKB_GSO_DODGY,
+		.no_head_frag = true,
+		.nr_segs = 3,
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, 40 },
 	},
 	{
 		/* commit 3953c46c3ac7 ("sk_buff: allow segmenting based on frag sizes") and
@@ -224,13 +261,18 @@ static void gso_test_func(struct kunit *test)
 
 	tcase = test->param_value;
 
-	page = alloc_page(GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, page);
-	skb = build_skb(page_address(page), sizeof(hdr) + tcase->linear_len + shinfo_size);
+	if (tcase->no_head_frag) {
+		skb = alloc_skb(sizeof(hdr) + tcase->linear_len, GFP_KERNEL);
+	} else {
+		page = alloc_page(GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, page);
+		skb = build_skb(page_address(page), sizeof(hdr) + tcase->linear_len + shinfo_size);
+	}
 	KUNIT_ASSERT_NOT_NULL(test, skb);
 	__skb_put(skb, sizeof(hdr) + tcase->linear_len);
 
 	__init_skb(skb);
+	skb_shinfo(skb)->gso_type = tcase->gso_type;
 
 	if (tcase->nr_frags) {
 		unsigned int pg_off = 0;
@@ -256,16 +298,30 @@ static void gso_test_func(struct kunit *test)
 		struct sk_buff *frag_skb, *prev = NULL;
 
 		for (i = 0; i < tcase->nr_frag_skbs; i++) {
-			unsigned int frag_size;
-
-			page = alloc_page(GFP_KERNEL);
-			KUNIT_ASSERT_NOT_NULL(test, page);
+			unsigned int frag_size, frag_len;
 
 			frag_size = tcase->frag_skbs[i];
-			frag_skb = build_skb(page_address(page),
-					     frag_size + shinfo_size);
+			if (tcase->no_head_frag) {
+				frag_skb = alloc_skb(frag_size, GFP_KERNEL);
+			} else {
+				page = alloc_page(GFP_KERNEL);
+				KUNIT_ASSERT_NOT_NULL(test, page);
+				frag_skb = build_skb(page_address(page),
+						     frag_size + shinfo_size);
+			}
 			KUNIT_ASSERT_NOT_NULL(test, frag_skb);
 			__skb_put(frag_skb, frag_size);
+
+			frag_len = tcase->frag_skb_frags ? tcase->frag_skb_frags[i] : 0;
+			if (frag_len) {
+				page = alloc_page(GFP_KERNEL);
+				KUNIT_ASSERT_NOT_NULL(test, page);
+				skb_fill_page_desc(frag_skb, 0, page, 0, frag_len);
+
+				frag_skb->data_len = frag_len;
+				frag_skb->len += frag_len;
+				frag_skb->truesize += frag_len;
+			}
 
 			if (prev)
 				prev->next = frag_skb;
@@ -273,7 +329,7 @@ static void gso_test_func(struct kunit *test)
 				skb_shinfo(skb)->frag_list = frag_skb;
 			prev = frag_skb;
 
-			total_size += frag_size;
+			total_size += frag_skb->len;
 			total_true_size += frag_skb->truesize;
 		}
 
