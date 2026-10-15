@@ -172,7 +172,6 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	}
 	return prog;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_alloc);
 
 int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog)
 {
@@ -1681,7 +1680,6 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__bpf_call_base);
 
 /* All UAPI available opcodes. */
 #define BPF_INSN_MAP(INSN_2, INSN_3)		\
@@ -2747,7 +2745,6 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
 	return __bpf_prog_select_runtime(NULL, fp, err);
 }
-EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
 static unsigned int __bpf_prog_ret1(const void *ctx,
 				    const struct bpf_insn *insn)
@@ -3138,7 +3135,6 @@ void bpf_prog_free(struct bpf_prog *fp)
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
 	schedule_work(&aux->work);
 }
-EXPORT_SYMBOL_GPL(bpf_prog_free);
 
 /* RNG for unprivileged user space with separated state from prandom_u32(). */
 static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);

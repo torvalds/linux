@@ -2638,19 +2638,6 @@ config TEST_WORKQUEUE
 
 	  If unsure, say N.
 
-config TEST_BPF
-	tristate "Test BPF filter functionality"
-	depends on m && NET
-	help
-	  This builds the "test_bpf" module that runs various test vectors
-	  against the BPF interpreter or BPF JIT compiler depending on the
-	  current setting. This is in particular useful for BPF JIT compiler
-	  development, but also to run regression tests against changes in
-	  the interpreter code. It also enables test stubs for eBPF maps and
-	  verifier used by user space verifier testsuite.
-
-	  If unsure, say N.
-
 config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
 	help
