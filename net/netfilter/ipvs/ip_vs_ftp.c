@@ -383,7 +383,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	buf_len = strlen(buf);
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct) {
+	if (ct && !nf_ct_is_template(ct)) {
 		bool mangled;
 
 		/* If mangling fails this function will return 0
