@@ -781,7 +781,7 @@
 		      "dvin", "rdma", "venci", "vencp",
 		      "vdac", "vdi6", "vencl", "vid_lock";
 	clocks = <&clkc CLKID_VPU>,
-	         <&clkc CLKID_VAPB>;
+		 <&clkc CLKID_VAPB>;
 	clock-names = "vpu", "vapb";
 	/*
 	 * VPU clocking is provided by two identical clock paths
