@@ -14,6 +14,10 @@ static void nvmet_execute_prop_set(struct nvmet_req *req)
 
 	if (!nvmet_check_transfer_len(req, 0))
 		return;
+	if (!nvmet_check_auth_status(req)) {
+		status = NVME_SC_AUTH_REQUIRED | NVME_STATUS_DNR;
+		goto out;
+	}
 
 	if (req->cmd->prop_set.attrib & 1) {
 		req->error_loc =
