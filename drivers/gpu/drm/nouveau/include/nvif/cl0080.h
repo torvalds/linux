@@ -4,6 +4,7 @@
 
 #define NV_DEVICE_V0_INFO                                                  0x00
 #define NV_DEVICE_V0_TIME                                                  0x01
+#define NV_DEVICE_V0_GCX_READY						   0x02
 
 struct nv_device_info_v0 {
 	__u8  version;
@@ -53,6 +54,15 @@ struct nv_device_time_v0 {
 	__u8  version;
 	__u8  pad01[7];
 	__u64 time;
+};
+
+#define NV_DEVICE_GC6_READY	BIT(0)
+#define NV_DEVICE_GCOFF_READY	BIT(1)
+
+struct nv_device_gcx_ready_v0 {
+	__u8 version;
+	__u8 pad01[6];
+	__u8 ready;
 };
 
 #define NV_DEVICE_INFO_UNIT                               (0xffffffffULL << 32)

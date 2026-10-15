@@ -157,6 +157,7 @@ struct wmi {
 	u16 tx_seq_id;
 	u8 *cmd_rsp_buf;
 	u32 cmd_rsp_len;
+	int cmd_rsp_status;
 	bool stopped;
 
 	struct list_head pending_tx_events;

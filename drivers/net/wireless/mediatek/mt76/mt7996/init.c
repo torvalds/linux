@@ -540,6 +540,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 	ieee80211_hw_set(hw, NO_VIRTUAL_MONITOR);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
+	ieee80211_hw_set(hw, CONNECTION_MONITOR);
 
 	hw->max_tx_fragments = 4;
 	wiphy->txq_memory_limit = 32 << 20; /* 32 MiB */
@@ -1247,7 +1248,7 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
 	adie_ver = u32_get_bits(regval, MT_ADIE_VERSION_MASK);
 	idx = MT7976C_EFUSE_OFFSET % MT7996_EEPROM_BLOCK_SIZE;
 	is_7976c = adie_ver == 0x8a10 || adie_ver == 0x8b00 ||
-		   adie_ver == 0x8c10 || buf[idx] == 0xc;
+		   adie_ver == 0x8c10 || (!ret && buf[idx] == 0xc);
 
 	adie_id = u32_get_bits(regval, MT_ADIE_CHIP_ID_MASK);
 	if (adie_id == 0x7975 || adie_id == 0x7979 ||

@@ -281,4 +281,34 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+SEC("xdp")
+__description("meta access, 8-aligned offset, check p, load a byte at p + 1 via p + 8")
+__failure __msg("invalid access to packet, off=51 size=1")
+__naked void meta_access_check_base_load_via_copy(void)
+{
+	asm volatile ("					\
+	r9 = r1;					\
+	call %[bpf_get_prandom_u32];			\
+	r4 = r0;					\
+	r4 &= 0x38;					\
+	if r4 > 50 goto l0_%=;				\
+	/* r4 is a multiple of 8, at most 48 */		\
+	r2 = *(u32*)(r9 + %[xdp_md_data_meta]);		\
+	r3 = *(u32*)(r9 + %[xdp_md_data]);		\
+	r5 = r2;					\
+	r5 += r4;					\
+	r6 = r5;					\
+	r6 += 8;					\
+	if r5 > r3 goto l0_%=;				\
+	/* r6 - 7 is r5 + 1 */				\
+	r0 = *(u8*)(r6 - 7);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

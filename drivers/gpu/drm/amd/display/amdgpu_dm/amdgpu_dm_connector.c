@@ -732,6 +732,24 @@ get_aspect_ratio(const struct drm_display_mode *mode_in)
 }
 EXPORT_IF_KUNIT(get_aspect_ratio);
 
+/*
+ * CTA-861 5.1: RGB video formats default to limited range except 640x480 (VIC 1).
+ * With Broadcast RGB left at Automatic follow that default, as i915 does.
+ */
+static bool rgb_output_is_limited_range(const struct dc_crtc_timing *dc_crtc_timing,
+					const struct drm_connector_state *connector_state)
+{
+	switch (connector_state->hdmi.broadcast_rgb) {
+	case DRM_HDMI_BROADCAST_RGB_FULL:
+		return false;
+	case DRM_HDMI_BROADCAST_RGB_LIMITED:
+		return true;
+	default:
+		return connector_state->connector->display_info.is_hdmi &&
+		       dc_crtc_timing->vic > 1;
+	}
+}
+
 enum dc_color_space
 amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 				 const struct drm_connector_state *connector_state)
@@ -757,7 +775,7 @@ amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 	case DRM_MODE_COLORIMETRY_BT2020_RGB:
 	case DRM_MODE_COLORIMETRY_BT2020_YCC:
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB) {
-			if (connector_state->hdmi.broadcast_rgb == DRM_HDMI_BROADCAST_RGB_LIMITED)
+			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state))
 				color_space = COLOR_SPACE_2020_RGB_LIMITEDRANGE;
 			else
 				color_space = COLOR_SPACE_2020_RGB_FULLRANGE;
@@ -769,7 +787,7 @@ amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 	default:
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB) {
 			color_space = COLOR_SPACE_SRGB;
-			if (connector_state->hdmi.broadcast_rgb == DRM_HDMI_BROADCAST_RGB_LIMITED)
+			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state))
 				color_space = COLOR_SPACE_SRGB_LIMITED;
 		/*
 		 * 27030khz is the separation point between HDTV and SDTV
@@ -994,10 +1012,15 @@ decide_crtc_timing_for_drm_display_mode(struct drm_display_mode *drm_mode,
 					const struct drm_display_mode *native_mode,
 					bool scale_enabled)
 {
+	/* Inserted modes copy the native sync; a sink mode with equal totals may not */
 	if (scale_enabled || (
 	    native_mode->clock == drm_mode->clock &&
 	    native_mode->htotal == drm_mode->htotal &&
-	    native_mode->vtotal == drm_mode->vtotal)) {
+	    native_mode->vtotal == drm_mode->vtotal &&
+	    native_mode->hsync_start == drm_mode->hsync_start &&
+	    native_mode->hsync_end == drm_mode->hsync_end &&
+	    native_mode->vsync_start == drm_mode->vsync_start &&
+	    native_mode->vsync_end == drm_mode->vsync_end)) {
 		if (native_mode->crtc_clock)
 			copy_crtc_timing_for_drm_display_mode(native_mode, drm_mode);
 	} else {
@@ -2256,8 +2279,8 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 	 * below gate which of these entries are actually attempted.
 	 */
 	static const enum dc_pixel_encoding encoding_order[] = {
-		PIXEL_ENCODING_YCBCR444,
 		PIXEL_ENCODING_RGB,
+		PIXEL_ENCODING_YCBCR444,
 		PIXEL_ENCODING_YCBCR422,
 		PIXEL_ENCODING_YCBCR420,
 	};

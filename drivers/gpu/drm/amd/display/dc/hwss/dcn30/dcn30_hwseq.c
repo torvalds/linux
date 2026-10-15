@@ -1064,10 +1064,12 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				 */
 				unsigned int denom = refresh_hz * 6528;
 				unsigned int stutter_period = dc->current_state->perf_params.stutter_period_us;
+				uint64_t num = (1000000LL + 2 * stutter_period * refresh_hz) *
+					(100LL + dc->debug.mall_additional_timer_percent);
+				uint64_t tmr_ticks;
 
-				tmr_delay = (uint32_t)(div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
-						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-						denom) - 64LL);
+				tmr_ticks = div_u64(num + denom - 1, denom);
+				tmr_delay = tmr_ticks > 64 ? (uint32_t)(tmr_ticks - 64) : 0;
 
 				/* In some cases the stutter period is really big (tiny modes) in these
 				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
@@ -1089,9 +1091,8 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					}
 
 					denom *= 2;
-					tmr_delay = (uint32_t)(div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
-							(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-							denom) - 64LL);
+					tmr_ticks = div_u64(num + denom - 1, denom);
+					tmr_delay = tmr_ticks > 64 ? (uint32_t)(tmr_ticks - 64) : 0;
 				}
 
 				/* Copy HW cursor */

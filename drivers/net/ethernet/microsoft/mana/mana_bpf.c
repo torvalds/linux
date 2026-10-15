@@ -91,7 +91,7 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 		goto out;
 
 	xdp_init_buff(xdp, PAGE_SIZE, &rxq->xdp_rxq);
-	xdp_prepare_buff(xdp, buf_va, XDP_PACKET_HEADROOM, pkt_len, true);
+	xdp_prepare_buff(xdp, buf_va, rxq->headroom, pkt_len, true);
 
 	act = bpf_prog_run_xdp(prog, xdp);
 
@@ -183,9 +183,9 @@ static int mana_xdp_set(struct net_device *ndev, struct bpf_prog *prog,
 	if (!old_prog && !prog)
 		return 0;
 
-	if (prog && ndev->mtu > MANA_XDP_MTU_MAX) {
+	if (prog && ndev->mtu > MANA_XDP_MTU_MAX(ndev)) {
 		netdev_err(ndev, "XDP: mtu:%u too large, mtu_max:%lu\n",
-			   ndev->mtu, MANA_XDP_MTU_MAX);
+			   ndev->mtu, MANA_XDP_MTU_MAX(ndev));
 		NL_SET_ERR_MSG_MOD(extack, "XDP: mtu too large");
 
 		return -EOPNOTSUPP;
@@ -238,7 +238,7 @@ static int mana_xdp_set(struct net_device *ndev, struct bpf_prog *prog,
 		bpf_prog_put(old_prog);
 
 	if (prog)
-		ndev->max_mtu = min_t(unsigned int, MANA_XDP_MTU_MAX,
+		ndev->max_mtu = min_t(unsigned int, MANA_XDP_MTU_MAX(ndev),
 				      gc->adapter_mtu - ETH_HLEN);
 	else
 		ndev->max_mtu = gc->adapter_mtu - ETH_HLEN;

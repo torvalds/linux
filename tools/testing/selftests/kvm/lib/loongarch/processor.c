@@ -278,6 +278,7 @@ static void loongarch_set_csr(struct kvm_vcpu *vcpu, u64 id, u64 val)
 
 void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
+	bool has_ptw;
 	int ret, width;
 	unsigned int cfg;
 	unsigned long val;
@@ -300,6 +301,12 @@ void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 	ret = __kvm_has_device_attr(vm->fd, KVM_LOONGARCH_VM_FEAT_CTRL, KVM_LOONGARCH_VM_FEAT_LASX);
 	if (!ret)
 		cfg |= CPUCFG2_LASX;
+	ret = __kvm_has_device_attr(vm->fd, KVM_LOONGARCH_VM_FEAT_CTRL, KVM_LOONGARCH_VM_FEAT_PTW);
+	if (!ret)
+		cfg |= CPUCFG2_PTW;
+
+	has_ptw = !ret;
+
 	loongarch_set_cpucfg(vcpu, LOONGARCH_CPUCFG2, cfg);
 	cfg = read_cpucfg(LOONGARCH_CPUCFG6);
 	loongarch_set_cpucfg(vcpu, LOONGARCH_CPUCFG6, cfg);
@@ -338,6 +345,9 @@ void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* PGD page shift and width */
 	val = (vm->page_shift + width * (vm->mmu.pgtable_levels - 1)) | width << 6;
+	if (has_ptw)
+		val |= CSR_PWCTL1_PTW;
+
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_PWCTL1, val);
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_PGDL, vm->mmu.pgd);
 
@@ -345,8 +355,10 @@ void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * Refill exception runs on real mode
 	 * Entry address should be physical address
 	 */
-	val = addr_gva2gpa(vm, (unsigned long)handle_tlb_refill);
-	loongarch_set_csr(vcpu, LOONGARCH_CSR_TLBRENTRY, val);
+	if (!has_ptw) {
+		val = addr_gva2gpa(vm, (unsigned long)handle_tlb_refill);
+		loongarch_set_csr(vcpu, LOONGARCH_CSR_TLBRENTRY, val);
+	}
 
 	/*
 	 * General exception runs on page-enabled mode

@@ -1166,12 +1166,17 @@ static int kvm_loongarch_cpucfg_set_attr(struct kvm_vcpu *vcpu,
 
 		/* All vCPUs need set the same PV features */
 		spin_lock(&kvm->arch.pv_setting_lock);
-		if ((kvm->arch.pv_features & LOONGARCH_PV_FEAT_UPDATED)
-				&& ((kvm->arch.pv_features & valid) != val)) {
+		if ((kvm->arch.pv_features & valid) == val) {
+			spin_unlock(&kvm->arch.pv_setting_lock);
+			return 0;
+		}
+
+		if (vcpu->arch.has_run) {
 			spin_unlock(&kvm->arch.pv_setting_lock);
 			return -EINVAL;
 		}
-		kvm->arch.pv_features = val | LOONGARCH_PV_FEAT_UPDATED;
+
+		kvm->arch.pv_features = val;
 		spin_unlock(&kvm->arch.pv_setting_lock);
 		return 0;
 	default:
@@ -1857,6 +1862,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	int r = -EINTR;
 	struct kvm_run *run = vcpu->run;
+
+	/* Mark vCPU has run at least once */
+	if (!vcpu->arch.has_run)
+		vcpu->arch.has_run = true;
 
 	if (vcpu->mmio_needed) {
 		if (!vcpu->mmio_is_write)

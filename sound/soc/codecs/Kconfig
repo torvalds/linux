@@ -524,13 +524,13 @@ config SND_SOC_ADAU1977
 	tristate
 
 config SND_SOC_ADAU1977_SPI
-	tristate
+	tristate "Analog Devices ADAU1977/ADAU1978/ADAU1979 CODEC - SPI"
 	depends on SPI_MASTER
 	select SND_SOC_ADAU1977
 	select REGMAP_SPI
 
 config SND_SOC_ADAU1977_I2C
-	tristate
+	tristate "Analog Devices ADAU1977/ADAU1978/ADAU1979 CODEC - I2C"
 	depends on I2C
 	select SND_SOC_ADAU1977
 	select REGMAP_I2C
@@ -1989,9 +1989,7 @@ config SND_SOC_RT715_SDCA_SDW
 config SND_SOC_RT766_SDCA_SDW
 	tristate "Realtek RT766 SDCA Codec - SDW"
 	depends on SOUNDWIRE
-	depends on SND_SOC_SDCA
-	select SND_SOC_SDCA_HID
-	select SND_SOC_SDCA_IRQ
+	depends on SND_SOC_SDCA_CLASS
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
 

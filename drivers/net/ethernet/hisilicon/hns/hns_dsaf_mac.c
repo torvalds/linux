@@ -793,6 +793,7 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 		dev_err(mac_cb->dev,
 			"mac%d mdio is NULL, dsaf will probe again later\n",
 			mac_cb->mac_id);
+		put_device(&pdev->dev);
 		return -EPROBE_DEFER;
 	}
 
@@ -800,6 +801,8 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 	if (!rc)
 		dev_dbg(mac_cb->dev, "mac%d register phy addr:%d\n",
 			mac_cb->mac_id, addr);
+
+	put_device(&pdev->dev);
 
 	return rc;
 }

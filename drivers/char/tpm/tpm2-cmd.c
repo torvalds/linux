@@ -281,8 +281,10 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 		}
 		tpm_buf_append_u16(buf, num_bytes);
 		err = tpm_buf_fill_hmac_session(chip, buf);
-		if (err)
+		if (err) {
+			tpm2_end_auth_session(chip);
 			return err;
+		}
 
 		err = tpm_transmit_cmd(chip, buf,
 				       offsetof(struct tpm2_get_random_out,
@@ -305,7 +307,7 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 		out = (struct tpm2_get_random_out *)&buf->data[offset];
 		recd = min_t(u32, be16_to_cpu(out->size), num_bytes);
 		if (tpm_buf_length(buf) <
-		    TPM_HEADER_SIZE +
+		    offset +
 		    offsetof(struct tpm2_get_random_out, buffer) +
 		    recd) {
 			tpm2_end_auth_session(chip);

@@ -1895,6 +1895,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 
 	if (hw->model == CTSB1270) {
 		/* Set up the PCM4220 ADC on Titanium HD */
+		data = hw_read_20kx(hw, GPIO_DATA);
 		data &= ~0x0C;
 		if (1 == info->msr)
 			data |= 0x00; /* Single Speed Mode 32-50kHz */
@@ -1903,6 +1904,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		else
 			data |= 0x04; /* Quad Speed Mode 108kHz-216kHz */
 		hw_write_20kx(hw, GPIO_DATA, data);
+		usleep_range(10000, 11000);
 	}
 
 	hw_adc_start(hw);

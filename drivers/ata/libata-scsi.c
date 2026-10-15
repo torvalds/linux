@@ -261,12 +261,18 @@ static void ata_scsi_set_passthru_sense_fields(struct ata_queued_cmd *qc)
 
 		/* descriptor format */
 		len = sb[7];
-		desc = (char *)scsi_sense_desc_find(sb, len + 8, 9);
+		desc = (char *)scsi_sense_desc_find(sb, SCSI_SENSE_BUFFERSIZE, 9);
 		if (!desc) {
-			if (SCSI_SENSE_BUFFERSIZE < len + 14)
+			/*
+			 * The descriptor is written at sb[8 + len] and is 14
+			 * bytes long, so it needs len + 22 bytes of buffer.
+			 */
+			if (len + 22 > SCSI_SENSE_BUFFERSIZE)
 				return;
 			sb[7] = len + 14;
 			desc = sb + 8 + len;
+		} else if (desc - sb > SCSI_SENSE_BUFFERSIZE - 14) {
+			return;
 		}
 		desc[0] = 9;
 		desc[1] = 12;
@@ -2297,10 +2303,9 @@ static unsigned int ata_scsiop_inq_89(struct ata_device *dev,
  * logical block, so it can hold at most sector_size / 512 pages.
  *
  * Return: the maximum number of 512-byte pages a single translated WRITE SAME
- * command may send to @dev (never less than one), that is the smaller of:
- *   - MAX PAGES PER DSM COMMAND (IDENTIFY DEVICE word 105), when the device
- *     reports a non-zero limit; and
- *   - the logical sector size expressed in 512-byte pages (see above).
+ * command may send to @dev, that is the smaller of MAX PAGES PER DSM COMMAND
+ * (IDENTIFY DEVICE word 105, when the device reports a non-zero limit) and
+ * the logical sector size expressed in 512-byte pages; never less than one.
  */
 static unsigned int ata_dsm_trim_pages(struct ata_device *dev)
 {
@@ -3054,10 +3059,15 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		if (qc->cdb[0] == ALLOW_MEDIUM_REMOVAL && qc->dev->sdev)
 			qc->dev->sdev->locked = 0;
 
-		if (cmd->result)
-			ata_scsi_qc_done(qc, false, 0);
-		else
-			ata_scsi_qc_done(qc, true, SAM_STAT_CHECK_CONDITION);
+		/*
+		 * Report CHECK CONDITION unless the command was terminated
+		 * with a host byte set. Only set the status byte, so that the
+		 * SCSI midlayer internal byte, which scsi_check_sense() may
+		 * have set from the sense data, is preserved.
+		 */
+		if (get_host_byte(cmd) == DID_OK)
+			set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
+		ata_scsi_qc_done(qc, false, 0);
 		goto schedule_deferred;
 	}
 

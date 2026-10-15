@@ -98,7 +98,7 @@ struct hid_bpf_ops change_report_id = {
 
 struct hid_hw_request_syscall_args {
 	/* data needs to come at offset 0 so we can use it in calls */
-	__u8 data[10];
+	__u8 data[128];
 	unsigned int hid;
 	int retval;
 	size_t size;

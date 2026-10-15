@@ -10,14 +10,19 @@
 #if !defined(_TRACE_LANDLOCK_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_LANDLOCK_H
 
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/landlock.h>
+#include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/string_helpers.h>
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 #include <net/af_unix.h>
 
+enum landlock_request_type;
 struct dentry;
+struct landlock_blockers;
 struct landlock_domain;
 struct landlock_hierarchy;
 struct landlock_rule;
@@ -25,6 +30,12 @@ struct landlock_ruleset;
 struct path;
 struct sock;
 struct task_struct;
+
+static_assert(sizeof(access_mask_t) <= sizeof(u64));
+
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
 
 #ifdef CREATE_TRACE_POINTS
 
@@ -108,7 +119,7 @@ __trace_print_untrusted_str(struct trace_seq *p, const char *src, size_t len)
  * Fills the dense per-domain-layer array layers (one access mask per layer,
  * indexed by level - 1) from rule's sparse layer stack, keeping only the
  * requested rights (access_request).  Layers with no matching rule entry get
- * a zero mask.  Shared by the check_rule_fs and check_rule_net events.
+ * a zero mask.  Shared by the check_rule_inode and check_rule_net_port events.
  *
  * rule->layers is sorted by ascending level, with levels in the domain's
  * [1, num_layers] range (see landlock_merge_ruleset()), so every entry maps
@@ -182,6 +193,9 @@ static inline const char *__trace_landlock_print_layers(
 /* Maps a shared _LANDLOCK_*_NAMES entry to a __print_flags() pair. */
 #define _LANDLOCK_NAME_ENTRY(mask, name) { mask, name }
 
+#define _LANDLOCK_FS_BLOCKER_TYPE_NAMES \
+	{ LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY, "change_topology" }
+
 /**
  * DOC: Landlock trace events
  *
@@ -192,22 +206,22 @@ static inline const char *__trace_landlock_print_layers(
  * Decision context
  * ~~~~~~~~~~~~~~~~
  *
- * A denial event, together with the lifecycle events, exposes the full
- * set of inputs the verdict consumed, so a consumer that tracked domain
- * creation (landlock_create_ruleset, landlock_create_domain) can verify
- * or reproduce the Landlock decision rather than merely observe it
- * happened.  In who/what/why terms: who is the denying domain (the domain
- * field, always the subject that enforced the policy, never the current
- * task), what is the operation and its object, and why is every other
- * input the verdict weighed.
+ * A denial event identifies the domain whose policy denied the request, the
+ * Landlock operation and policy object that were checked, and the blocker or
+ * domain relationship responsible for the denial.  When tracing starts with
+ * sandbox construction, ruleset and domain events provide the policy history
+ * needed to interpret these identifiers.  The denying domain is the subject
+ * that enforced the policy, not necessarily current.  Generic tracepoints can
+ * provide additional operational context.
  *
  * Lifecycle consistency
  * ~~~~~~~~~~~~~~~~~~~~~~
  *
- * Lifecycle events are balanced: a creation event always has a matching
- * deallocation event and vice versa, so an eBPF program can model object
- * lifetimes from the trace stream without reconciliation logic.  A creation
- * event fires while the object is still private to the calling thread
+ * Lifecycle emission is balanced: a creation event always has a matching
+ * deallocation event and vice versa.  A consumer that observes an object's
+ * complete lifetime can model it from this pair; one that attaches late or
+ * loses exported records must reconcile incomplete state.  A creation event
+ * fires while the object is still private to the calling thread
  * (landlock_create_ruleset fires before the ruleset's file descriptor is
  * installed, so it cannot race a concurrent :manpage:`close(2)`); if fd
  * installation later fails and the ruleset is freed, free_ruleset still
@@ -243,8 +257,8 @@ static inline const char *__trace_landlock_print_layers(
  * Field encoding
  * ~~~~~~~~~~~~~~
  *
- * Fields that mirror the Landlock UAPI use the same C types and endianness
- * (e.g. network ports are __u64 in host endianness, like
+ * Fields that mirror the Landlock UAPI preserve their widths and endianness
+ * (e.g. network ports are u64 in host endianness, like
  * landlock_net_port_attr.port).  Per-event details, such as where a value
  * is byte-swapped, live in the field's own kdoc.
  *
@@ -281,6 +295,16 @@ static inline const char *__trace_landlock_print_layers(
  * the two parties without kernel-internal state.  The ID is a scalar
  * snapshot, not a live domain pointer that could dangle: an optional
  * relational referent is a scalar (0 sentinel), not a nullable pointer.
+ * Nonzero IDs are unique within one boot.  For ptrace, same_exec instead
+ * describes the tracer, even for
+ * PTRACE_TRACEME, and may differ from the current task.
+ *
+ * Blocker fields
+ * ~~~~~~~~~~~~~~
+ *
+ * The filesystem and network blocker arguments identify the request type
+ * and carry its final missing access subset when applicable.  The type
+ * determines how to interpret the access value.
  */
 
 /*
@@ -319,8 +343,8 @@ TRACE_EVENT(landlock_create_ruleset,
 	TP_ARGS(ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	handled_fs	)
 		__field(	access_mask_t,	handled_net	)
 		__field(	access_mask_t,	scoped		)
@@ -334,7 +358,7 @@ TRACE_EVENT(landlock_create_ruleset,
 		__entry->scoped		= ruleset->handled_masks.scope;
 	),
 
-	TP_printk("ruleset=%llx.%u handled_fs=%s handled_net=%s scoped=%s",
+	TP_printk("ruleset=%llx.%llu handled_fs=%s handled_net=%s scoped=%s",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->handled_fs, "|", _LANDLOCK_ACCESS_FS_NAMES),
 		__print_flags(__entry->handled_net, "|", _LANDLOCK_ACCESS_NET_NAMES),
@@ -359,8 +383,8 @@ TRACE_EVENT(landlock_free_ruleset,
 	TP_ARGS(ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u64,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -368,17 +392,19 @@ TRACE_EVENT(landlock_free_ruleset,
 		__entry->ruleset_version = ruleset->version;
 	),
 
-	TP_printk("ruleset=%llx.%u",
+	TP_printk("ruleset=%llx.%llu",
 		__entry->ruleset_id, __entry->ruleset_version)
 );
 
 /**
- * landlock_add_rule_fs - Filesystem rule added to a ruleset
+ * landlock_add_rule_path_beneath - Path-beneath rule added to a ruleset
  *
  * @ruleset: Source ruleset (never NULL).
- * @access_rights: Effective access mask stored in the rule, not the raw
- *                 sys_landlock_add_rule() argument (unhandled rights
- *                 added).
+ * @flags: Complete validated landlock_add_rule_flags value supplied by this
+ *         successful call, not the rule's accumulated quiet state.
+ * @access_rights: Canonical per-call access mask passed to
+ *                 landlock_insert_rule() after normalization, not the raw
+ *                 sys_landlock_add_rule() argument or accumulated rule.
  * @path: Filesystem path for the rule (never NULL).
  * @pathname: Resolved absolute path string (never NULL; error placeholder
  *            on resolution failure).
@@ -387,17 +413,17 @@ TRACE_EVENT(landlock_free_ruleset,
  * the reported ruleset is a stable snapshot that no concurrent writer can
  * change.
  */
-TRACE_EVENT(landlock_add_rule_fs,
+TRACE_EVENT(landlock_add_rule_path_beneath,
 
-	TP_PROTO(const struct landlock_ruleset *ruleset,
-		 access_mask_t access_rights, const struct path *path,
+	TP_PROTO(const struct landlock_ruleset *ruleset, u32 flags,
+		 u64 access_rights, const struct path *path,
 		 const char *pathname),
 
-	TP_ARGS(ruleset, access_rights, path, pathname),
+	TP_ARGS(ruleset, flags, access_rights, path, pathname),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
@@ -418,7 +444,7 @@ TRACE_EVENT(landlock_add_rule_fs,
 		__assign_str(pathname);
 	),
 
-	TP_printk("ruleset=%llx.%u access_rights=%s dev=%u:%u ino=%lu path=%s",
+	TP_printk("ruleset=%llx.%llu access_rights=%s dev=%u:%u ino=%lu path=%s",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_FS_NAMES),
 		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
@@ -427,31 +453,33 @@ TRACE_EVENT(landlock_add_rule_fs,
 );
 
 /**
- * landlock_add_rule_net - Network port rule added to a ruleset
+ * landlock_add_rule_net_port - Network-port rule added to a ruleset
  *
  * @ruleset: Source ruleset (never NULL).
- * @access_rights: Effective access mask stored in the rule, not the raw
- *                 sys_landlock_add_rule() argument (unhandled rights
- *                 added).
- * @port: Network port, the landlock_net_port_attr.port UAPI value
- *        forwarded directly.
+ * @flags: Complete validated landlock_add_rule_flags value supplied by this
+ *         successful call, not the rule's accumulated quiet state.
+ * @access_rights: Canonical per-call access mask passed to
+ *                 landlock_insert_rule() after normalization, not the raw
+ *                 sys_landlock_add_rule() argument or accumulated rule.
+ * @port: Network port in host endianness, forwarded directly from
+ *        &landlock_net_port_attr.port.
  *
  * Emitted by sys_landlock_add_rule() under the modified ruleset's lock, so
  * the reported ruleset is a stable snapshot that no concurrent writer can
  * change.
  */
-TRACE_EVENT(landlock_add_rule_net,
+TRACE_EVENT(landlock_add_rule_net_port,
 
-	TP_PROTO(const struct landlock_ruleset *ruleset,
-		 access_mask_t access_rights, __u64 port),
+	TP_PROTO(const struct landlock_ruleset *ruleset, u32 flags,
+		 u64 access_rights, u64 port),
 
-	TP_ARGS(ruleset, access_rights, port),
+	TP_ARGS(ruleset, flags, access_rights, port),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		ruleset_id	)
+		__field(	u64,		ruleset_version	)
 		__field(	access_mask_t,	access_rights	)
-		__field(	__u64,		port		)
+		__field(	u64,		port		)
 	),
 
 	TP_fast_assign(
@@ -462,7 +490,7 @@ TRACE_EVENT(landlock_add_rule_net,
 		__entry->port		= port;
 	),
 
-	TP_printk("ruleset=%llx.%u access_rights=%s port=%llu",
+	TP_printk("ruleset=%llx.%llu access_rights=%s port=%llu",
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->port)
@@ -495,10 +523,10 @@ TRACE_EVENT(landlock_create_domain,
 	TP_ARGS(domain, ruleset),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
-		__field(	__u64,		parent_id	)
-		__field(	__u64,		ruleset_id	)
-		__field(	__u32,		ruleset_version	)
+		__field(	u64,		domain_id	)
+		__field(	u64,		parent_id	)
+		__field(	u64,		ruleset_id	)
+		__field(	u64,		ruleset_version	)
 	),
 
 	TP_fast_assign(
@@ -510,7 +538,7 @@ TRACE_EVENT(landlock_create_domain,
 		__entry->ruleset_version = ruleset->version;
 	),
 
-	TP_printk("domain=%llx parent=%llx ruleset=%llx.%u",
+	TP_printk("domain=%llx parent=%llx ruleset=%llx.%llu",
 		__entry->domain_id, __entry->parent_id,
 		__entry->ruleset_id, __entry->ruleset_version)
 );
@@ -557,7 +585,7 @@ TRACE_EVENT(landlock_enforce_domain,
 	TP_ARGS(domain, complete, process_wide, no_new_privs),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		complete	)
 		__field(	bool,		process_wide	)
 		__field(	bool,		no_new_privs	)
@@ -595,8 +623,8 @@ TRACE_EVENT(landlock_free_domain,
 	TP_ARGS(hierarchy),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
-		__field(	__u64,		denials		)
+		__field(	u64,		domain_id	)
+		__field(	u64,		denials		)
 	),
 
 	TP_fast_assign(
@@ -609,7 +637,7 @@ TRACE_EVENT(landlock_free_domain,
 );
 
 /**
- * landlock_check_rule_fs - Filesystem rule evaluated during access check
+ * landlock_check_rule_inode - Inode rule evaluated during access check
  *
  * @domain: Enforcing domain (never NULL).
  * @rule: Matching rule with per-layer access masks (never NULL).
@@ -622,16 +650,16 @@ TRACE_EVENT(landlock_free_domain,
  * domain layer.  See Documentation/trace/events-landlock.rst for how to
  * interpret it.
  */
-TRACE_EVENT(landlock_check_rule_fs,
+TRACE_EVENT(landlock_check_rule_inode,
 
 	TP_PROTO(const struct landlock_domain *domain,
 		 const struct landlock_rule *rule,
-		 access_mask_t access_request, const struct dentry *dentry),
+		 u64 access_request, const struct dentry *dentry),
 
 	TP_ARGS(domain, rule, access_request, dentry),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	access_mask_t,	access_request	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
@@ -648,7 +676,8 @@ TRACE_EVENT(landlock_check_rule_fs,
 		__trace_landlock_fill_layers(__get_dynamic_array(grants),
 					     __get_dynamic_array_len(grants) /
 						     sizeof(access_mask_t),
-					     rule, access_request);
+					     rule,
+					     (access_mask_t)access_request);
 	),
 
 	TP_printk("domain=%llx access_request=%s dev=%u:%u ino=%lu grants=%s",
@@ -659,7 +688,7 @@ TRACE_EVENT(landlock_check_rule_fs,
 );
 
 /**
- * landlock_check_rule_net - Network port rule evaluated during access check
+ * landlock_check_rule_net_port - Network port rule evaluated
  *
  * @domain: Enforcing domain (never NULL).
  * @rule: Matching rule with per-layer access masks (never NULL).
@@ -671,18 +700,18 @@ TRACE_EVENT(landlock_check_rule_fs,
  * layer.  See Documentation/trace/events-landlock.rst for how to
  * interpret it.
  */
-TRACE_EVENT(landlock_check_rule_net,
+TRACE_EVENT(landlock_check_rule_net_port,
 
 	TP_PROTO(const struct landlock_domain *domain,
 		 const struct landlock_rule *rule,
-		 access_mask_t access_request, __u64 port),
+		 u64 access_request, u64 port),
 
 	TP_ARGS(domain, rule, access_request, port),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	access_mask_t,	access_request	)
-		__field(	__u64,		port		)
+		__field(	u64,		port		)
 		__dynamic_array(access_mask_t,	grants,
 				domain->num_layers)
 	),
@@ -695,7 +724,8 @@ TRACE_EVENT(landlock_check_rule_net,
 		__trace_landlock_fill_layers(__get_dynamic_array(grants),
 					     __get_dynamic_array_len(grants) /
 						     sizeof(access_mask_t),
-					     rule, access_request);
+					     rule,
+					     (access_mask_t)access_request);
 	),
 
 	TP_printk("domain=%llx access_request=%s port=%llu grants=%s",
@@ -712,8 +742,7 @@ TRACE_EVENT(landlock_check_rule_net,
  *             domain field.
  * @same_exec: Whether the current task entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
- * @blockers: Access mask that was blocked (zero for a mount-topology
- *            change, whose only blocker is the operation itself).
+ * @blockers: Request type and final missing access subset (never NULL).
  * @path: Filesystem path that was denied (never NULL).
  * @pathname: Resolved path string (never NULL; an error placeholder on
  *            resolution failure).
@@ -723,16 +752,17 @@ TRACE_EVENT(landlock_check_rule_net,
 TRACE_EVENT(landlock_deny_access_fs,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
-		 bool logged, access_mask_t blockers, const struct path *path,
-		 const char *pathname),
+		 bool logged, const struct landlock_blockers *blockers,
+		 const struct path *path, const char *pathname),
 
 	TP_ARGS(hierarchy, same_exec, logged, blockers, path, pathname),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	access_mask_t,	blockers	)
+		__field(	enum landlock_request_type, blockers_type	)
+		__field(	access_mask_t,	blockers_access	)
 		__field(	dev_t,		dev		)
 		__field(	ino_t,		ino		)
 		__string(	pathname,	pathname	)
@@ -744,7 +774,8 @@ TRACE_EVENT(landlock_deny_access_fs,
 		__entry->domain_id	= hierarchy->id;
 		__entry->same_exec	= same_exec;
 		__entry->logged		= logged;
-		__entry->blockers	= blockers;
+		__entry->blockers_type	= blockers->type;
+		__entry->blockers_access = blockers->access;
 		__entry->dev		= path->dentry->d_sb->s_dev;
 		/*
 		 * A negative dentry has no backing inode, so mirror the
@@ -756,11 +787,19 @@ TRACE_EVENT(landlock_deny_access_fs,
 
 	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s dev=%u:%u ino=%lu path=%s",
 		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_FS_NAMES),
+		__entry->blockers_type == LANDLOCK_REQUEST_FS_ACCESS ?
+			__print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_FS_NAMES) :
+			__print_symbolic(__entry->blockers_type,
+					 _LANDLOCK_FS_BLOCKER_TYPE_NAMES),
 		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
 		__trace_print_untrusted_str(p, __get_str(pathname),
 					    __get_dynamic_array_len(pathname) - 1))
 );
+
+static_assert(offsetof(struct sockaddr_in, sin_port) ==
+	      offsetof(struct sockaddr_in6, sin6_port));
+static_assert(sizeof_field(struct sockaddr_in, sin_port) ==
+	      sizeof_field(struct sockaddr_in6, sin6_port));
 
 /**
  * landlock_deny_access_net - Network access denied
@@ -769,54 +808,69 @@ TRACE_EVENT(landlock_deny_access_fs,
  *             domain field.
  * @same_exec: Whether the current task entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
- * @blockers: Access mask that was blocked.
- * @sk: Socket object (never NULL), read without a socket lock, so its
- *      fields are a best-effort snapshot.  The denied endpoint is not
- *      available: the hook runs before :manpage:`bind(2)` /
- *      :manpage:`connect(2)` sets the socket addresses.
- * @sport: Source port in host endianness, set for bind denials (zero for
- *         an autobind/ephemeral port); zero for connect and send denials.
- * @dport: Destination port in host endianness, set for connect and send
- *         denials; zero for bind denials, and also zero for a UDP send to
- *         an AF_UNSPEC address on an IPv6 socket (indistinguishable from a
- *         real destination port 0).  The bind-vs-connect direction is
- *         given by @blockers, not by which port is set.
+ * @blockers: Request type and final missing access subset (never NULL).
+ * @sk: Socket object (never NULL), read without a socket lock, so its fields
+ *      are a best-effort snapshot.
+ * @socket_family: Socket-family snapshot used by the verdict.
+ * @address: Authoritative address checked by the verdict (never NULL).
+ *           The producer copies @addrlen bytes from the checked address and
+ *           zeroes the remaining storage before emission.  The
+ *           &sockaddr_in.sin_port or &sockaddr_in6.sin6_port member, when
+ *           present, remains in network endianness.
+ * @addrlen: Validated signed length of @address.
  *
- * Emitted when a Landlock domain denies a network operation.
- *
- * The port fields are converted from the socket's network byte order to
- * host endianness before emitting.
+ * Emitted when a Landlock domain denies a network operation.  The blocker
+ * identifies whether the address is a bind or connect/send policy object.
+ * The flattened port field is converted from the checked address to host
+ * endianness, or is -1 when no port was checked.  Zero is a valid checked
+ * port.
  */
 TRACE_EVENT(landlock_deny_access_net,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
-		 bool logged, access_mask_t blockers, const struct sock *sk,
-		 __u64 sport, __u64 dport),
+		 bool logged, const struct landlock_blockers *blockers,
+		 const struct sock *sk, u16 socket_family,
+		 const struct sockaddr_storage *address, int addrlen),
 
-	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, sport, dport),
+	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, socket_family,
+		address, addrlen),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	access_mask_t,	blockers	)
-		__field(	__u64,		sport		)
-		__field(	__u64,		dport		)
+		__field(	enum landlock_request_type, blockers_type	)
+		__field(	access_mask_t,	blockers_access	)
+		__field(	s64,		port		)
 	),
 
 	TP_fast_assign(
+		const struct sockaddr *const addr =
+			(const struct sockaddr *)address;
+		const bool has_port =
+			addrlen >= (int)offsetofend(struct sockaddr_in, sin_port) &&
+			(addr->sa_family == AF_INET ||
+			 addr->sa_family == AF_INET6 ||
+			 (addr->sa_family == AF_UNSPEC &&
+			  socket_family == AF_INET));
+
 		__entry->domain_id	= hierarchy->id;
 		__entry->same_exec	= same_exec;
 		__entry->logged		= logged;
-		__entry->blockers	= blockers;
-		__entry->sport		= sport;
-		__entry->dport		= dport;
+		__entry->blockers_type	= blockers->type;
+		__entry->blockers_access = blockers->access;
+		__entry->port		=
+			has_port ?
+				ntohs(((const struct sockaddr_in *)addr)->sin_port) :
+				-1;
 	),
 
-	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s sport=%llu dport=%llu",
-		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_NET_NAMES),
-		__entry->sport, __entry->dport)
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s port=%lld",
+		  __entry->domain_id, __entry->same_exec, __entry->logged,
+		  __entry->blockers_type == LANDLOCK_REQUEST_NET_ACCESS ?
+			  __print_flags(__entry->blockers_access, "|", _LANDLOCK_ACCESS_NET_NAMES) :
+			  "unknown",
+		  __entry->port)
 );
 
 /**
@@ -824,12 +878,14 @@ TRACE_EVENT(landlock_deny_access_net,
  *
  * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
  *             domain field.
- * @same_exec: Whether the current task entered the denying domain itself.
+ * @same_exec: Whether the tracer entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
  * @tracee_domain_id: The tracee's Landlock domain ID, or 0 if the tracee
  *                    is unsandboxed.
  * @tracee: The target task ptrace acted on (never NULL).  tracee_pid is
  *          the init-namespace TGID (like audit's opid).
+ * @tracer: The tracer or proposed tracer (never NULL); for PTRACE_TRACEME
+ *          this is the parent, not the syscall caller.
  *
  * Emitted when a Landlock domain denies a ptrace operation.
  */
@@ -837,15 +893,16 @@ TRACE_EVENT(landlock_deny_ptrace,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, u64 tracee_domain_id,
-		 const struct task_struct *tracee),
+		 const struct task_struct *tracee,
+		 const struct task_struct *tracer),
 
-	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee),
+	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee, tracer),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		tracee_domain_id)
+		__field(	u64,		tracee_domain_id)
 		__field(	pid_t,		tracee_pid	)
 		__string(	tracee_comm,	tracee->comm	)
 	),
@@ -872,12 +929,14 @@ TRACE_EVENT(landlock_deny_ptrace,
  *
  * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
  *             domain field.
- * @same_exec: Whether the current task entered the denying domain itself.
+ * @same_exec: Whether the policy subject entered the denying domain itself.
  * @logged: The domain's audit-logging decision for this denial.
  * @target_domain_id: The target's Landlock domain ID, or 0 if the target
  *                    is unsandboxed.
  * @target: The task the signal was aimed at (never NULL).  target_pid is
  *          the init-namespace TGID (like audit's opid).
+ * @signal: The signal selected by the denied check.  Zero is a permission
+ *          probe, not an absent value.
  *
  * Emitted when a Landlock domain denies signal delivery to a scoped-out
  * target.
@@ -886,15 +945,15 @@ TRACE_EVENT(landlock_deny_scope_signal,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, u64 target_domain_id,
-		 const struct task_struct *target),
+		 const struct task_struct *target, int signal),
 
-	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target),
+	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target, signal),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		target_domain_id)
+		__field(	u64,		target_domain_id)
 		__field(	pid_t,		target_pid	)
 		__string(	target_comm,	target->comm	)
 	),
@@ -940,10 +999,10 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 	TP_ARGS(hierarchy, same_exec, logged, peer_domain_id, peer),
 
 	TP_STRUCT__entry(
-		__field(	__u64,		domain_id	)
+		__field(	u64,		domain_id	)
 		__field(	bool,		same_exec	)
 		__field(	bool,		logged		)
-		__field(	__u64,		peer_domain_id	)
+		__field(	u64,		peer_domain_id	)
 		__field(	pid_t,		peer_pid	)
 		/*
 		 * Abstract socket names are untrusted binary data from
@@ -973,11 +1032,10 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 		__entry->logged		= logged;
 		__entry->peer_domain_id	= peer_domain_id;
 		/*
-		 * Best-effort (0 for a datagram peer).  sk_peer_pid is
-		 * canonically guarded by sk->sk_peer_lock, but the target
-		 * peer's peercred is set once and not updated concurrently in
-		 * these hooks, so this READ_ONCE() is safe; sun_path is the
-		 * reliable identifier.
+		 * Best-effort (0 for a datagram peer).  The caller holds the
+		 * peer's AF_UNIX state lock, serializing published peercred
+		 * updates.  The peer socket keeps a reference to sk_peer_pid
+		 * through pid_nr(); sun_path is the reliable identifier.
 		 */
 		peer_pid		= READ_ONCE(peer->sk_peer_pid);
 		__entry->peer_pid	= peer_pid ? pid_nr(peer_pid) : 0;
@@ -991,6 +1049,7 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 					    __get_dynamic_array_len(sun_path) - 1))
 );
 
+#undef _LANDLOCK_FS_BLOCKER_TYPE_NAMES
 #undef _LANDLOCK_NAME_ENTRY
 
 #endif /* _TRACE_LANDLOCK_H */

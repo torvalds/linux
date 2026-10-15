@@ -1012,11 +1012,14 @@ static int cifs_do_truncate(const unsigned int xid, struct dentry *dentry)
 	}
 	mapping_set_error(inode->i_mapping, rc);
 
+	netfs_wait_for_outstanding_io(inode);
+
 	cfile = find_writable_file(cinode, FIND_FSUID_ONLY);
 	rc = cifs_file_flush(xid, inode, cfile);
 	if (!rc) {
 		if (cfile) {
 			struct netfs_inode *ictx = netfs_inode(inode);
+			loff_t old_size = i_size_read(inode);
 
 			tcon = tlink_tcon(cfile->tlink);
 			server = tcon->ses->server;
@@ -1025,7 +1028,7 @@ static int cifs_do_truncate(const unsigned int xid, struct dentry *dentry)
 							cfile, 0, false);
 			if (!rc) {
 				netfs_resize_file(&cinode->netfs, 0, true);
-				cifs_setsize(inode, 0);
+				cifs_setsize(inode, old_size, 0);
 				cifs_invalidate_cache(inode, 0);
 			}
 			netfs_wb_end(ictx);
@@ -3354,8 +3357,8 @@ void cifs_oplock_break(struct work_struct *work)
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
 
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
+	tlink = cifs_get_tlink(cfile->tlink);
+	if (IS_ERR_OR_NULL(tlink)) {
 		/* drop the reference taken when the break was queued */
 		_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
 		goto out;

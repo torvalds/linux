@@ -388,20 +388,27 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		return ret;
+		goto err_pm;
 
 	ret = class_function_boot(drv);
 	if (ret)
-		return ret;
+		goto err_pm;
 
 	ret = devm_snd_soc_register_component(dev, cmp_drv, dais, num_dais);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to register component\n");
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to register component\n");
+		goto err_pm;
+	}
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
+
+err_pm:
+	pm_runtime_put_sync(dev);
+
+	return ret;
 }
 
 static void class_function_remove(struct auxiliary_device *auxdev)
@@ -490,14 +497,14 @@ static int class_function_suspend(struct device *dev)
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 	int ret;
 
-	drv->suspended = true;
-
 	/* Ensure runtime resume runs on resume */
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret) {
 		dev_err(dev, "failed to resume for suspend: %d\n", ret);
 		return ret;
 	}
+
+	drv->suspended = true;
 
 	sdca_irq_disable(drv->function, drv->core->irq_info);
 

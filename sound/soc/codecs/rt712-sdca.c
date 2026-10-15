@@ -73,13 +73,56 @@ static int rt712_sdca_index_update_bits(struct rt712_sdca_priv *rt712,
 	return rt712_sdca_index_write(rt712, nid, reg, tmp);
 }
 
+static void rt712_sdca_clk_patch(struct rt712_sdca_priv *rt712)
+{
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0000);
+	regmap_write(rt712->regmap, RT712_SDW_ROOT_CLK, 0x03);
+	usleep_range(1000, 1100);
+	regmap_write(rt712->regmap, RT712_SDW_ROOT_CLK, 0x02);
+	usleep_range(1000, 1100);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF2, 0x0080, 0x0000);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF2, 0x001f, 0x0017);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF3, 0x0010, 0x0000);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF1, 0x0081, 0x0001);
+	regmap_write(rt712->regmap, RT712_SDW_ROOT_CLK, 0x03);
+	usleep_range(1000, 1100);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF1, 0x0081, 0x0081);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF2, 0x0080, 0x0080);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF2, 0x001f, 0x0000);
+	regmap_update_bits(rt712->regmap, RT712_PLL2_CONF3, 0x0010, 0x0010);
+	usleep_range(1000, 1100);
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0081);
+}
+
+static void rt712_sdca_clk_patch2(struct rt712_sdca_priv *rt712)
+{
+	rt712_sdca_index_update_bits(rt712, RT712_VENDOR_REG, 0x49, 0x0800,
+		0x0000);
+	rt712_sdca_index_update_bits(rt712, RT712_VENDOR_REG, 0x49, 0xf000,
+		0x0000);
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0000);
+	rt712_sdca_index_update_bits(rt712, RT712_VENDOR_ANALOG_CTL, 0x0c, 0xc000,
+		0xc000);
+	rt712_sdca_index_update_bits(rt712, RT712_VENDOR_ANALOG_CTL, 0x00, 0xc000,
+		0xc000);
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0081);
+	regmap_write(rt712->regmap, RT712_SDW_ROOT_CLK, 0x02);
+	usleep_range(1000, 1100);
+	regmap_write(rt712->regmap, RT712_SDW_ROOT_CLK, 0x03);
+	usleep_range(1000, 1100);
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0000);
+}
+
 static int rt712_sdca_calibration(struct rt712_sdca_priv *rt712)
 {
 	unsigned int val, loop_rc = 0, loop_dc = 0;
 	struct device *dev;
 	struct regmap *regmap = rt712->regmap;
+	unsigned int clk_base;
 	int chk_cnt = 100;
 	int ret = 0;
+
+	regmap_read(rt712->regmap, RT712_SDW_ROOT_CLK, &clk_base);
 
 	mutex_lock(&rt712->calibrate_mutex);
 	dev = regmap_get_device(regmap);
@@ -109,8 +152,35 @@ static int rt712_sdca_calibration(struct rt712_sdca_priv *rt712)
 		if (ret < 0)
 			goto _cali_fail_;
 	}
-	if (loop_dc == chk_cnt)
-		dev_err(dev, "%s, calibration time-out!\n", __func__);
+
+	if (loop_dc == chk_cnt) {
+		if (clk_base == RT712_CLK_FREQ_24_576MHZ) {
+			rt712_sdca_clk_patch(rt712);
+			rt712_sdca_clk_patch2(rt712);
+		}
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_FSM_CTL, 0x4100);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_CALI,
+			RT712_DAC_DC_CALI_CTL1, 0x7883);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_CALI,
+			RT712_DAC_DC_CALI_CTL1, 0xf893);
+		rt712_sdca_index_read(rt712, RT712_VENDOR_CALI,
+			RT712_DAC_DC_CALI_CTL1, &val);
+
+		for (loop_dc = 0; loop_dc < chk_cnt &&
+			(val & RT712_DAC_DC_CALI_TRIGGER); loop_dc++) {
+			usleep_range(10000, 11000);
+			ret = rt712_sdca_index_read(rt712, RT712_VENDOR_CALI,
+					RT712_DAC_DC_CALI_CTL1, &val);
+
+			if (ret < 0)
+				goto _cali_fail_;
+		}
+
+		if (loop_dc == chk_cnt)
+			dev_err(dev, "%s, calibration time-out!\n", __func__);
+		else
+			dev_dbg(dev, "%s, calibration success!\n", __func__);
+	}
 
 	if (loop_dc == chk_cnt || loop_rc == chk_cnt)
 		ret = -ETIMEDOUT;
@@ -1759,9 +1829,13 @@ static void rt712_sdca_va_io_init(struct rt712_sdca_priv *rt712)
 
 static void rt712_sdca_vb_io_init(struct rt712_sdca_priv *rt712)
 {
-	int ret = 0;
 	unsigned int jack_func_status, mic_func_status, amp_func_status;
 	struct device *dev = &rt712->slave->dev;
+	unsigned int clk_base;
+	int ret = 0;
+
+	regmap_read(rt712->regmap, RT712_SDW_ROOT_CLK, &clk_base);
+	dev_dbg(dev, "%s clk_base=%x", __func__, clk_base);
 
 	regmap_read(rt712->regmap,
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0), &jack_func_status);
@@ -1773,6 +1847,12 @@ static void rt712_sdca_vb_io_init(struct rt712_sdca_priv *rt712)
 		__func__, jack_func_status, mic_func_status, amp_func_status);
 
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_JD_CTL3, 0x7778);
+
+	if (clk_base == RT712_CLK_FREQ_24_576MHZ) {
+		rt712_sdca_clk_patch(rt712);
+		rt712_sdca_clk_patch2(rt712);
+	}
+
 	/* DMIC */
 	if ((mic_func_status & FUNCTION_NEEDS_INITIALIZATION) || (!rt712->first_hw_init)) {
 		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_DMIC2_FU_IT_FLOAT_CTL, 0x1526);

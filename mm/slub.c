@@ -5969,7 +5969,8 @@ alloc_empty:
 	if (!allow_spin)
 		return NULL;
 
-	empty = alloc_empty_sheaf(s, GFP_NOWAIT, SLAB_ALLOC_DEFAULT);
+	/* Don't wake up kswapd, it will cause deadlock under pi_lock */
+	empty = alloc_empty_sheaf(s, __GFP_NOWARN, SLAB_ALLOC_DEFAULT);
 	if (empty)
 		goto got_empty;
 
@@ -6128,7 +6129,6 @@ bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj, unsigned int free_flags)
 		struct slab_sheaf *empty;
 		struct node_barn *barn;
 		unsigned int alloc_flags = to_alloc_flags(free_flags);
-		gfp_t gfp = allow_spin ? GFP_NOWAIT : __GFP_NOWARN;
 
 		/* Bootstrap or debug cache, fall back */
 		if (unlikely(!cache_has_sheaves(s))) {
@@ -6157,7 +6157,8 @@ bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj, unsigned int free_flags)
 
 		local_unlock(&s->cpu_sheaves->lock);
 
-		empty = alloc_empty_sheaf(s, gfp, alloc_flags);
+		/* Don't wake up kswapd, it will cause deadlock under pi_lock */
+		empty = alloc_empty_sheaf(s, __GFP_NOWARN, alloc_flags);
 
 		if (!empty)
 			goto fail;

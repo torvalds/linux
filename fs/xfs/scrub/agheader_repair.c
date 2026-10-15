@@ -1369,7 +1369,7 @@ xrep_iunlink_mark_ondisk(
 
 /*
  * Walk an iunlink bucket's inode list.  For each inode that should be on this
- * chain, clear its entry in in iunlink_bmp because it's ok and we don't need
+ * chain, clear its entry in iunlink_bmp because it's ok and we don't need
  * to touch it further.
  */
 STATIC int
