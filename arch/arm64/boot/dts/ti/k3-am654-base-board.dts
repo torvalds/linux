@@ -460,6 +460,7 @@
 &sdhci1 {
 	status = "okay";
 	vmmc-supply = <&vdd_mmc1_sd>;
+	power-off-delay-us = <650000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
