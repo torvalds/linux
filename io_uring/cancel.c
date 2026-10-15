@@ -694,8 +694,18 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 		io_uring_drop_tctx_refs(current);
 		/* only skip the sleep for local work this task may run */
 		xa_for_each(&tctx->xa, index, node) {
-			if (io_local_work_pending(node->ctx) &&
-			    io_allowed_defer_tw_run(node->ctx))
+			if (!(node->ctx->flags & IORING_SETUP_DEFER_TASKRUN) ||
+			    !io_allowed_defer_tw_run(node->ctx))
+				continue;
+			/*
+			 * The wake up io_uring_try_cancel_requests() asked for
+			 * may have been issued while we were still running. Ask
+			 * again now that it can't be missed.
+			 */
+			atomic_set(&node->ctx->cq_wait_nr, 1);
+			/* pairs with the xchg() in mpscq_push() */
+			smp_mb();
+			if (io_local_work_pending(node->ctx))
 				goto end_wait;
 		}
 		/*
