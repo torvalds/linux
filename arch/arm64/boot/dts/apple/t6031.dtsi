@@ -21,13 +21,12 @@
 
 	soc: soc {
 		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <2>;
-
 		ranges;
-		nonposted-mmio;
+		#address-cells = <2>;
 		/* Required to get >32-bit DMA via DARTs */
 		dma-ranges = <0 0 0 0 0xffffffff 0xffffc000>;
+		nonposted-mmio;
+		#size-cells = <2>;
 
 		// filled via templated includes at the end of the file
 	};
@@ -35,14 +34,13 @@
 
 #define DIE
 #define DIE_NO 0
+#define SOC_NODE soc
 
-&soc {
-	#include "t6031-die0.dtsi"
-	#include "t6031-dieX.dtsi"
-};
-
+#include "t6031-die0.dtsi"
+#include "t6031-dieX.dtsi"
 #include "t6031-gpio-pins.dtsi"
 #include "t6031-pmgr.dtsi"
 
 #undef DIE
 #undef DIE_NO
+#undef SOC_NODE

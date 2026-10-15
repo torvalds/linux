@@ -6,7 +6,7 @@
  * Copyright The Asahi Linux Contributors
  */
 
-
+&SOC_NODE {
 	nco: clock-controller@28e03c000 {
 		compatible = "apple,t6000-nco", "apple,nco";
 		reg = <0x2 0x8e03c000 0x0 0x14000>;
@@ -537,3 +537,4 @@
 			status = "disabled";
 		};
 	};
+};

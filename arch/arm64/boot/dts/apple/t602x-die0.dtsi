@@ -6,6 +6,7 @@
  * Copyright The Asahi Linux Contributors
  */
 
+&SOC_NODE {
 	nco: clock-controller@28e03c000 {
 		compatible = "apple,t6020-nco", "apple,t8103-nco";
 		reg = <0x2 0x8e03c000 0x0 0x14000>;
@@ -590,3 +591,4 @@
 		power-domains = <&ps_apcie_gp_sys>;
 		status = "disabled";
 	};
+};

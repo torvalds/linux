@@ -27,6 +27,7 @@ properties:
               - apple,t6030-i2c
               - apple,t6031-i2c
               - apple,t8122-i2c
+              - apple,t8132-i2c
           - const: apple,t8103-i2c
       - items:
           - enum:

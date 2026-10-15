@@ -5,6 +5,7 @@
  * Copyright The Asahi Linux Contributors
  */
 
+&SOC_NODE {
 	DIE_NODE(cpufreq_e): cpufreq@210e20000 {
 		compatible = "apple,t6020-cluster-cpufreq", "apple,t8112-cluster-cpufreq";
 		reg = <0x2 0x10e20000 0 0x1000>;
@@ -338,3 +339,4 @@
 		mode-switch;
 		power-domains = <&DIE_NODE(ps_atc3_usb)>;
 	};
+};
