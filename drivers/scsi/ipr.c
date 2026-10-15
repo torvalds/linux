@@ -5000,7 +5000,8 @@ static int ipr_eh_host_reset(struct scsi_cmnd *cmd)
 /**
  * ipr_device_reset - Reset the device
  * @ioa_cfg:	ioa config struct
- * @res:		resource entry struct
+ * @host:	scsi host struct
+ * @res:	resource entry struct
  *
  * This function issues a device reset to the affected device.
  * If the device is a SCSI device, a LUN reset will be sent
@@ -5043,6 +5044,7 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
 
 /**
  * __ipr_eh_dev_reset - Reset the device
+ * @host:	scsi host struct
  * @scsi_cmd:	scsi command struct
  *
  * This function issues a device reset to the affected device.
