@@ -475,8 +475,10 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	timeout->off = 0; /* noseq */
 	data = req->async_data;
+	/* for a multishot request this isn't a sequence, keep the repeats */
+	if (!(data->flags & IORING_TIMEOUT_MULTISHOT))
+		timeout->off = 0; /* noseq */
 	data->time = time;
 
 	list_add_tail(&timeout->list, &ctx->timeout_list);
