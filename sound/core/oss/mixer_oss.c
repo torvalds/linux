@@ -1272,6 +1272,7 @@ static void snd_mixer_oss_build(struct snd_mixer_oss *mixer)
 	};
 	unsigned int idx;
 	
+	guard(mutex)(&mixer->reg_mutex);
 	for (idx = 0; idx < ARRAY_SIZE(table); idx++)
 		snd_mixer_oss_build_input(mixer, &table[idx], 0, 0);
 	if (mixer->mask_recsrc) {
