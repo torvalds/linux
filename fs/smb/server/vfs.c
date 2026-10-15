@@ -1012,6 +1012,15 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 	char *zero_buf = NULL;
 	int err;
 
+	/*
+	 * A directory handle can hold FILE_WRITE_DATA (the add-file right),
+	 * so the caller access check does not exclude it. Writing zeroes to a
+	 * directory makes no sense and kernel_write() would warn on the
+	 * directory file (no FMODE_WRITE), so reject it here.
+	 */
+	if (S_ISDIR(file_inode(fp->filp)->i_mode))
+		return -EINVAL;
+
 	smb_break_all_levII_oplock(work, fp, 1);
 	if (!work->tcon->posix_extensions) {
 		loff_t size = i_size_read(file_inode(fp->filp));
