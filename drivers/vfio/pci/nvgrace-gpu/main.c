@@ -188,10 +188,8 @@ static int nvgrace_gpu_open_device(struct vfio_device *core_vdev)
 	if (ret)
 		return ret;
 
-	if (nvdev->usemem.memlength) {
-		nvgrace_gpu_init_fake_bar_emu_regs(core_vdev);
-		mutex_init(&nvdev->remap_lock);
-	}
+	nvgrace_gpu_init_fake_bar_emu_regs(core_vdev);
+	mutex_init(&nvdev->remap_lock);
 
 	/*
 	 * GPU readiness is checked by reading the BAR0 registers.
