@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+
+CONTEXT_ANALYSIS := y
+
 obj-$(CONFIG_SCSI_SNIC) += snic.o
 
 snic-y := \

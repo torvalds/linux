@@ -42,7 +42,8 @@ static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *);
 
-static void fcoe_ctlr_vn_start(struct fcoe_ctlr *);
+static void fcoe_ctlr_vn_start(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex);
 static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *, struct sk_buff *);
 static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *);
 static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *, u32, u8 *);
@@ -154,13 +155,14 @@ EXPORT_SYMBOL(fcoe_ctlr_init);
 
 /**
  * fcoe_sysfs_fcf_add() - Add a fcoe_fcf{,_device} to a fcoe_ctlr{,_device}
+ * @fip: The FCoE controller
  * @new: The newly discovered FCF
  *
  * Called with fip->ctlr_mutex held
  */
-static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
+static int fcoe_sysfs_fcf_add(struct fcoe_ctlr *fip, struct fcoe_fcf *new)
+	__must_hold(&fip->ctlr_mutex)
 {
-	struct fcoe_ctlr *fip = new->fip;
 	struct fcoe_ctlr_device *ctlr_dev;
 	struct fcoe_fcf_device *temp, *fcf_dev;
 	int rc = -ENOMEM;
@@ -227,13 +229,14 @@ out:
 
 /**
  * fcoe_sysfs_fcf_del() - Remove a fcoe_fcf{,_device} to a fcoe_ctlr{,_device}
+ * @fip: The FCoE controller
  * @new: The FCF to be removed
  *
  * Called with fip->ctlr_mutex held
  */
-static void fcoe_sysfs_fcf_del(struct fcoe_fcf *new)
+static void fcoe_sysfs_fcf_del(struct fcoe_ctlr *fip, struct fcoe_fcf *new)
+	__must_hold(&fip->ctlr_mutex)
 {
-	struct fcoe_ctlr *fip = new->fip;
 	struct fcoe_ctlr_device *cdev;
 	struct fcoe_fcf_device *fcf_dev;
 
@@ -268,13 +271,14 @@ static void fcoe_sysfs_fcf_del(struct fcoe_fcf *new)
  * Called with &fcoe_ctlr lock held.
  */
 static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *next;
 
 	fip->sel_fcf = NULL;
 	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
-		fcoe_sysfs_fcf_del(fcf);
+		fcoe_sysfs_fcf_del(fip, fcf);
 	}
 	WARN_ON(fip->fcf_count);
 
@@ -316,6 +320,8 @@ EXPORT_SYMBOL(fcoe_ctlr_destroy);
  * Called with neither ctlr_mutex nor ctlr_lock held.
  */
 static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
+	__must_not_hold(&fip->ctlr_mutex)
+	__must_not_hold(&fip->ctlr_lock)
 {
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
@@ -476,6 +482,7 @@ EXPORT_SYMBOL(fcoe_ctlr_link_up);
  * @fip:       The FCoE controller to reset
  */
 static void fcoe_ctlr_reset(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	fcoe_ctlr_reset_fcfs(fip);
 	timer_delete(&fip->timer);
@@ -817,6 +824,7 @@ EXPORT_SYMBOL(fcoe_ctlr_els_send);
  * Returns the time in jiffies for the next call.
  */
 static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *next;
@@ -866,7 +874,7 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 
 	list_for_each_entry_safe(fcf, next, &del_list, list) {
 		/* Removes fcf from current list */
-		fcoe_sysfs_fcf_del(fcf);
+		fcoe_sysfs_fcf_del(fip, fcf);
 	}
 
 	if (sel_time && !fip->sel_fcf && !fip->sel_time) {
@@ -1049,7 +1057,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 		memcpy(fcf, &new, sizeof(new));
 		fcf->fip = fip;
-		rc = fcoe_sysfs_fcf_add(fcf);
+		rc = fcoe_sysfs_fcf_add(fip, fcf);
 		if (rc) {
 			printk(KERN_ERR "Failed to allocate sysfs instance "
 			       "for FCF, fab %16.16llx mac %pM\n",
@@ -1612,6 +1620,7 @@ drop:
  * Called with lock held.
  */
 static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *best = fip->sel_fcf;
@@ -1664,6 +1673,8 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
  * Caller must verify that fip->sel_fcf is not NULL.
  */
 static int fcoe_ctlr_flogi_send_locked(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
+	__must_hold(&fip->ctlr_lock)
 {
 	struct sk_buff *skb;
 	struct sk_buff *skb_orig;
@@ -1733,6 +1744,7 @@ static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *fip)
  * Called with ctlr_mutex held.  The caller must not hold ctlr_lock.
  */
 static void fcoe_ctlr_flogi_send(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fcoe_fcf *fcf;
 
@@ -2012,6 +2024,7 @@ static inline struct fcoe_rport *fcoe_ctlr_rport(struct fc_rport_priv *rdata)
 static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
 			      enum fip_vn2vn_subcode sub,
 			      const u8 *dest, size_t min_len)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct sk_buff *skb;
 	struct fip_vn2vn_probe_frame {
@@ -2152,11 +2165,14 @@ static struct fc_rport_operations fcoe_ctlr_vn_rport_ops = {
 
 /**
  * fcoe_ctlr_disc_stop_locked() - stop discovery in VN2VN mode
+ * @fip: The FCoE controller
  * @lport: The local port
  *
  * Called with ctlr_mutex held.
  */
-static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
+static void fcoe_ctlr_disc_stop_locked(struct fcoe_ctlr *fip,
+				       struct fc_lport *lport)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fc_rport_priv *rdata;
 
@@ -2183,7 +2199,7 @@ static void fcoe_ctlr_disc_stop(struct fc_lport *lport)
 	struct fcoe_ctlr *fip = lport->disc.priv;
 
 	mutex_lock(&fip->ctlr_mutex);
-	fcoe_ctlr_disc_stop_locked(lport);
+	fcoe_ctlr_disc_stop_locked(fip, lport);
 	mutex_unlock(&fip->ctlr_mutex);
 }
 
@@ -2208,11 +2224,12 @@ static void fcoe_ctlr_disc_stop_final(struct fc_lport *lport)
  * Called with fcoe_ctlr lock held.
  */
 static void fcoe_ctlr_vn_restart(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	unsigned long wait;
 	u32 port_id;
 
-	fcoe_ctlr_disc_stop_locked(fip->lp);
+	fcoe_ctlr_disc_stop_locked(fip, fip->lp);
 
 	/*
 	 * Get proposed port ID.
@@ -2246,6 +2263,7 @@ static void fcoe_ctlr_vn_restart(struct fcoe_ctlr *fip)
  * Called with fcoe_ctlr lock held.
  */
 static void fcoe_ctlr_vn_start(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	fip->probe_tries = 0;
 	prandom_seed_state(&fip->rnd_state, fip->lp->wwpn);
@@ -2387,6 +2405,7 @@ len_err:
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_send_claim(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	fcoe_ctlr_vn_send(fip, FIP_SC_VN_CLAIM_NOTIFY, fcoe_all_vn2vn, 0);
 	fip->sol_time = jiffies;
@@ -2401,6 +2420,7 @@ static void fcoe_ctlr_vn_send_claim(struct fcoe_ctlr *fip)
  */
 static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 				   struct fcoe_rport *frport)
+	__must_hold(&fip->ctlr_mutex)
 {
 	if (frport->rdata.ids.port_id != fip->port_id)
 		return;
@@ -2452,6 +2472,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
  */
 static void fcoe_ctlr_vn_probe_reply(struct fcoe_ctlr *fip,
 				     struct fcoe_rport *frport)
+	__must_hold(&fip->ctlr_mutex)
 {
 	if (frport->rdata.ids.port_id != fip->port_id)
 		return;
@@ -2481,6 +2502,7 @@ static void fcoe_ctlr_vn_probe_reply(struct fcoe_ctlr *fip,
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fcoe_rport *new)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fc_lport *lport = fip->lp;
 	struct fc_rport_priv *rdata;
@@ -2564,6 +2586,7 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
  */
 static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 				      struct fcoe_rport *new)
+	__must_hold(&fip->ctlr_mutex)
 {
 	if (new->flags & FIP_FL_REC_OR_P2P) {
 		LIBFCOE_FIP_DBG(fip, "send probe req for P2P/REC\n");
@@ -2619,6 +2642,7 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
  */
 static void fcoe_ctlr_vn_claim_resp(struct fcoe_ctlr *fip,
 				    struct fcoe_rport *new)
+	__must_hold(&fip->ctlr_mutex)
 {
 	LIBFCOE_FIP_DBG(fip, "claim resp from from rport %x - state %s\n",
 			new->rdata.ids.port_id, fcoe_ctlr_state(fip->state));
@@ -2635,6 +2659,7 @@ static void fcoe_ctlr_vn_claim_resp(struct fcoe_ctlr *fip,
  */
 static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 				struct fcoe_rport *new)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fc_lport *lport = fip->lp;
 	struct fc_rport_priv *rdata;
@@ -2688,6 +2713,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
  * Returns the soonest time for next age-out or a time far in the future.
  */
 static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct fc_lport *lport = fip->lp;
 	struct fc_rport_priv *rdata;
@@ -2890,6 +2916,7 @@ len_err:
 static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
 			      enum fip_vlan_subcode sub,
 			      const u8 *dest)
+	__must_hold(&fip->ctlr_mutex)
 {
 	struct sk_buff *skb;
 	struct fip_vlan_notify_frame {
@@ -2951,6 +2978,7 @@ static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
  */
 static void fcoe_ctlr_vlan_disc_reply(struct fcoe_ctlr *fip,
 				      struct fcoe_rport *frport)
+	__must_hold(&fip->ctlr_mutex)
 {
 	enum fip_vlan_subcode sub = FIP_SC_VL_NOTE;
 

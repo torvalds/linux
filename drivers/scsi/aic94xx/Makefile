@@ -6,6 +6,8 @@
 # Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
 #
 
+CONTEXT_ANALYSIS := y
+
 ccflags-$(CONFIG_AIC94XX_DEBUG) := -DASD_DEBUG -DASD_ENTER_EXIT
 
 obj-$(CONFIG_SCSI_AIC94XX) += aic94xx.o

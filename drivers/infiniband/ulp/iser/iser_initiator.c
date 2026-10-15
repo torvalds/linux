@@ -604,7 +604,8 @@ static int iser_check_remote_inv(struct iser_conn *iser_conn, struct ib_wc *wc,
 			return -EPROTO;
 		}
 
-		task = iscsi_itt_to_ctask(iser_conn->iscsi_conn, hdr->itt);
+		task = iscsi_itt_to_ctask(iser_conn->iscsi_conn->session,
+					  iser_conn->iscsi_conn, hdr->itt);
 		if (likely(task)) {
 			struct iscsi_iser_task *iser_task = task->dd_data;
 			struct iser_fr_desc *desc;

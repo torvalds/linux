@@ -77,7 +77,8 @@ struct fc_fcp_internal {
 static void fc_fcp_recv_data(struct fc_fcp_pkt *, struct fc_frame *);
 static void fc_fcp_recv(struct fc_seq *, struct fc_frame *, void *);
 static void fc_fcp_resp(struct fc_fcp_pkt *, struct fc_frame *);
-static void fc_fcp_complete_locked(struct fc_fcp_pkt *);
+static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock);
 static void fc_tm_done(struct fc_seq *, struct fc_frame *, void *);
 static void fc_fcp_error(struct fc_fcp_pkt *, struct fc_frame *);
 static void fc_fcp_recovery(struct fc_fcp_pkt *, u8 code);
@@ -207,6 +208,7 @@ static void fc_fcp_pkt_destroy(struct fc_seq *seq, void *fsp)
  * needed.
  */
 static inline int fc_fcp_lock_pkt(struct fc_fcp_pkt *fsp)
+	__cond_acquires(0, &fsp->scsi_pkt_lock)
 {
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	if (fsp->state & FC_SRB_COMPL) {
@@ -224,6 +226,7 @@ static inline int fc_fcp_lock_pkt(struct fc_fcp_pkt *fsp)
  * @fsp: The FCP packet to be unlocked and decremented
  */
 static inline void fc_fcp_unlock_pkt(struct fc_fcp_pkt *fsp)
+	__releases(&fsp->scsi_pkt_lock)
 {
 	spin_unlock_bh(&fsp->scsi_pkt_lock);
 	fc_fcp_pkt_release(fsp);
@@ -243,6 +246,7 @@ static void fc_fcp_timer_set(struct fc_fcp_pkt *fsp, unsigned long delay)
 }
 
 static void fc_fcp_abort_done(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	fsp->state |= FC_SRB_ABORTED;
 	fsp->state &= ~FC_SRB_ABORT_PENDING;
@@ -259,6 +263,7 @@ static void fc_fcp_abort_done(struct fc_fcp_pkt *fsp)
  * @fsp: The FCP packet to abort exchanges on
  */
 static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	int rc;
 
@@ -296,6 +301,7 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
  * The SCSI-ml will retry the command.
  */
 static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp, int status_code)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	if (fsp->seq_ptr) {
 		fc_exch_done(fsp->seq_ptr);
@@ -470,6 +476,7 @@ static inline unsigned int get_fsp_rec_tov(struct fc_fcp_pkt *fsp)
  * @fp:	 The data frame
  */
 static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct scsi_cmnd *sc = fsp->cmd;
 	struct fc_lport *lport = fsp->lp;
@@ -588,6 +595,7 @@ err:
  */
 static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			    size_t offset, size_t seq_blen)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct fc_exch *ep;
 	struct scsi_cmnd *sc;
@@ -734,6 +742,7 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
  * @fp:	 The response frame
  */
 static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	int ba_done = 1;
 	struct fc_ba_rjt *brp;
@@ -846,6 +855,7 @@ out:
  * @fp:	 The response frame
  */
 static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct fc_frame_header *fh;
 	struct fcp_resp *fc_rp;
@@ -1242,6 +1252,7 @@ unlock:
  * Called to send an abort and then wait for abort completion
  */
 static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	int rc = FAILED;
 	unsigned long ticks_left;
@@ -1453,6 +1464,7 @@ unlock:
  * @fsp: The FCP packet to send the REC request on
  */
 static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct fc_lport *lport;
 	struct fc_frame *fp;
@@ -1690,6 +1702,7 @@ out:
  * @code: The FCP status code to set
  */
 static void fc_fcp_recovery(struct fc_fcp_pkt *fsp, u8 code)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	FC_FCP_DBG(fsp, "start recovery code %x\n", code);
 	fsp->status_code = code;
@@ -1712,6 +1725,7 @@ static void fc_fcp_recovery(struct fc_fcp_pkt *fsp, u8 code)
  * when expecting status but the request has timed out.
  */
 static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct fc_lport *lport = fsp->lp;
 	struct fc_rport *rport;
@@ -1950,6 +1964,7 @@ EXPORT_SYMBOL(fc_queuecommand);
  * The fcp packet lock must be held when calling.
  */
 static void fc_io_compl(struct fc_fcp_pkt *fsp)
+	__must_hold(&fsp->scsi_pkt_lock)
 {
 	struct fc_fcp_internal *si;
 	struct scsi_cmnd *sc_cmd;

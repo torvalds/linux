@@ -474,17 +474,26 @@ extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 			      char *, int);
-extern int __iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
-				char *, int);
+extern int __iscsi_complete_pdu(struct iscsi_session *session,
+				struct iscsi_conn *conn, struct iscsi_hdr *,
+				char *, int)
+	__must_hold(&session->back_lock);
 extern int iscsi_verify_itt(struct iscsi_conn *, itt_t);
-extern struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
-extern struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *, itt_t);
+struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_session *session,
+				      struct iscsi_conn *conn, itt_t itt)
+	__must_hold(&session->back_lock);
+struct iscsi_task *iscsi_itt_to_task(struct iscsi_session *session,
+				     struct iscsi_conn *conn, itt_t itt)
+	__must_hold(&session->back_lock);
 extern void iscsi_requeue_task(struct iscsi_task *task);
 extern void iscsi_put_task(struct iscsi_task *task);
-extern void __iscsi_put_task(struct iscsi_task *task);
+void __iscsi_put_task(struct iscsi_session *session, struct iscsi_task *task)
+	__must_hold(&session->back_lock);
 extern bool iscsi_get_task(struct iscsi_task *task);
-extern void iscsi_complete_scsi_task(struct iscsi_task *task,
-				     uint32_t exp_cmdsn, uint32_t max_cmdsn);
+void iscsi_complete_scsi_task(struct iscsi_session *session,
+			      struct iscsi_task *task,
+			      uint32_t exp_cmdsn, uint32_t max_cmdsn)
+	__must_hold(&session->back_lock);
 
 /*
  * generic helpers

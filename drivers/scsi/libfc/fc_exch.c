@@ -811,6 +811,7 @@ done:
  */
 static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 					struct fc_exch_mgr *mp)
+	__context_unsafe(/*conditionally acquires &_res->ex_lock*/)
 {
 	struct fc_exch *ep;
 	unsigned int cpu;
@@ -904,6 +905,7 @@ err:
  */
 static struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
 				     struct fc_frame *fp)
+	__context_unsafe(/*conditionally acquires &_res->ex_lock*/)
 {
 	struct fc_exch_mgr_anchor *ema;
 	struct fc_exch *ep;
@@ -996,6 +998,8 @@ static struct fc_exch *fc_exch_resp(struct fc_lport *lport,
 
 	ep = fc_exch_alloc(lport, fp);
 	if (ep) {
+		/* Acquired by fc_exch_alloc(). */
+		__acquire(&ep->ex_lock);
 		ep->class = fc_frame_class(fp);
 
 		/*
@@ -2191,6 +2195,8 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 		fc_frame_free(fp);
 		return NULL;
 	}
+	/* Acquired by fc_exch_alloc(). */
+	__acquire(&ep->ex_lock);
 	ep->esb_stat |= ESB_ST_SEQ_INIT;
 	fh = fc_frame_header_get(fp);
 	fc_exch_set_addr(ep, ntoh24(fh->fh_s_id), ntoh24(fh->fh_d_id));

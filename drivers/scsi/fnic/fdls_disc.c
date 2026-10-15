@@ -87,7 +87,8 @@ static void fnic_fdls_start_flogi(struct fnic_iport_s *iport);
 static struct fnic_tport_s *fdls_create_tport(struct fnic_iport_s *iport,
 					  uint32_t fcid,
 					  uint64_t wwpn);
-static void fdls_target_restart_nexus(struct fnic_tport_s *tport);
+static void fdls_target_restart_nexus(struct fnic_iport_s *iport,
+				      struct fnic_tport_s *tport);
 static void fdls_start_tport_timer(struct fnic_iport_s *iport,
 					struct fnic_tport_s *tport, int timeout);
 static void fdls_tport_timer_callback(struct timer_list *t);
@@ -417,6 +418,7 @@ static void fdls_reset_oxid_pool(struct fnic_iport_s *iport)
 }
 
 void fnic_del_fabric_timer_sync(struct fnic *fnic)
+	__must_hold(&fnic->fnic_lock)
 {
 	fnic->iport.fabric.del_timer_inprogress = 1;
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
@@ -425,8 +427,8 @@ void fnic_del_fabric_timer_sync(struct fnic *fnic)
 	fnic->iport.fabric.del_timer_inprogress = 0;
 }
 
-void fnic_del_tport_timer_sync(struct fnic *fnic,
-						struct fnic_tport_s *tport)
+void fnic_del_tport_timer_sync(struct fnic *fnic, struct fnic_tport_s *tport)
+	__must_hold(&fnic->fnic_lock)
 {
 	tport->del_timer_inprogress = 1;
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
@@ -437,6 +439,7 @@ void fnic_del_tport_timer_sync(struct fnic *fnic,
 
 static void
 fdls_start_fabric_timer(struct fnic_iport_s *iport, int timeout)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	u64 fabric_tov;
 	struct fnic *fnic = iport->fnic;
@@ -462,6 +465,7 @@ fdls_start_fabric_timer(struct fnic_iport_s *iport, int timeout)
 static void
 fdls_start_tport_timer(struct fnic_iport_s *iport,
 					   struct fnic_tport_s *tport, int timeout)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	u64 fabric_tov;
 	struct fnic *fnic = iport->fnic;
@@ -717,6 +721,7 @@ int fdls_send_ls_req_abts(struct fnic_iport_s *iport,
 void
 fdls_send_tport_abts(struct fnic_iport_s *iport,
 					 struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	uint8_t s_id[3];
@@ -760,7 +765,9 @@ fdls_send_tport_abts(struct fnic_iport_s *iport,
 	/* Even if fnic_send_fcoe_frame() fails we want to retry after timeout */
 	fdls_start_tport_timer(iport, tport, 2 * iport->e_d_tov);
 }
+
 static void fdls_send_fabric_abts(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	uint8_t s_id[3];
@@ -932,6 +939,7 @@ arm_timer:
 }
 
 static void fdls_send_fabric_flogi(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_flogi *pflogi;
@@ -992,6 +1000,7 @@ err_out:
 }
 
 static void fdls_send_fabric_plogi(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_flogi *pplogi;
@@ -1084,6 +1093,7 @@ err_out:
 }
 
 static void fdls_send_rpn_id(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_rpn_id *prpn_id;
@@ -1143,6 +1153,7 @@ err_out:
 }
 
 static void fdls_send_scr(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_scr *pscr;
@@ -1198,6 +1209,7 @@ err_out:
 }
 
 static void fdls_send_gpn_ft(struct fnic_iport_s *iport, int fdls_state)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_gpn_ft *pgpn_ft;
@@ -1257,6 +1269,7 @@ err_out:
 
 static void
 fdls_send_tgt_adisc(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_els_adisc *padisc;
@@ -1322,6 +1335,7 @@ err_out:
 }
 
 bool fdls_delete_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_tport_event_s *tport_del_evt;
 	struct fnic *fnic = iport->fnic;
@@ -1387,6 +1401,7 @@ bool fdls_delete_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
 
 static void
 fdls_send_tgt_plogi(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_flogi *pplogi;
@@ -1455,6 +1470,7 @@ fnic_fc_plogi_rsp_rdf(struct fnic_iport_s *iport,
 }
 
 static void fdls_send_register_fc4_types(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_rft_id *prft_id;
@@ -1522,6 +1538,7 @@ static void fdls_send_register_fc4_types(struct fnic_iport_s *iport)
 }
 
 static void fdls_send_register_fc4_features(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_rff_id *prff_id;
@@ -1581,6 +1598,7 @@ static void fdls_send_register_fc4_features(struct fnic_iport_s *iport)
 
 static void
 fdls_send_tgt_prli(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_els_prli *pprli;
@@ -1662,6 +1680,7 @@ err_out:
  * Currently this assumes to be called with fnic lock held.
  */
 void fdls_send_fabric_logo(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *frame;
 	struct fc_std_logo *plogo;
@@ -1761,6 +1780,7 @@ void fdls_tgt_logout(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
 }
 
 static void fdls_tgt_discovery_start(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_tport_s *tport, *next;
 	u32 old_link_down_cnt = iport->fnic->link_down_cnt;
@@ -1810,9 +1830,10 @@ static void fdls_tgt_discovery_start(struct fnic_iport_s *iport)
  * safely since the memory it is
  * pointing to it will be freed later
  */
-static void fdls_target_restart_nexus(struct fnic_tport_s *tport)
+static void fdls_target_restart_nexus(struct fnic_iport_s *iport,
+				      struct fnic_tport_s *tport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
-	struct fnic_iport_s *iport = tport->iport;
 	struct fnic_tport_s *new_tport = NULL;
 	uint32_t fcid;
 	uint64_t wwpn;
@@ -2617,6 +2638,7 @@ static void fdls_tport_timer_callback(struct timer_list *t)
 }
 
 static void fnic_fdls_start_flogi(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	iport->fabric.retry_counter = 0;
 	fdls_send_fabric_flogi(iport);
@@ -2625,6 +2647,7 @@ static void fnic_fdls_start_flogi(struct fnic_iport_s *iport)
 }
 
 static void fnic_fdls_start_plogi(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	iport->fabric.retry_counter = 0;
 	fdls_send_fabric_plogi(iport);
@@ -2643,6 +2666,7 @@ static void fnic_fdls_start_plogi(struct fnic_iport_s *iport)
 static void
 fdls_process_tgt_adisc_rsp(struct fnic_iport_s *iport,
 			   struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t tgt_fcid;
 	struct fnic_tport_s *tport;
@@ -2733,6 +2757,7 @@ fdls_process_tgt_adisc_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_tgt_plogi_rsp(struct fnic_iport_s *iport,
 			   struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t tgt_fcid;
 	struct fnic_tport_s *tport;
@@ -2767,7 +2792,7 @@ fdls_process_tgt_plogi_rsp(struct fnic_iport_s *iport,
 	if (tport->state != FDLS_TGT_STATE_PLOGI) {
 		FNIC_FCS_DBG(KERN_INFO, fnic,
 			     "PLOGI rsp recvd in wrong state. Drop the frame and restart nexus");
-		fdls_target_restart_nexus(tport);
+		fdls_target_restart_nexus(iport, tport);
 		return;
 	}
 
@@ -2854,9 +2879,11 @@ fdls_process_tgt_plogi_rsp(struct fnic_iport_s *iport,
 	fdls_set_tport_state(tport, FDLS_TGT_STATE_PRLI);
 	fdls_send_tgt_prli(iport, tport);
 }
+
 static void
 fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 			  struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t tgt_fcid;
 	struct fnic_tport_s *tport;
@@ -2893,7 +2920,7 @@ fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 	if (tport->state != FDLS_TGT_STATE_PRLI) {
 		FNIC_FCS_DBG(KERN_INFO, fnic,
 			     "PRLI rsp recvd in wrong state. Drop frame. Restarting nexus");
-		fdls_target_restart_nexus(tport);
+		fdls_target_restart_nexus(iport, tport);
 		return;
 	}
 
@@ -3025,6 +3052,7 @@ fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_rff_id_rsp(struct fnic_iport_s *iport,
 			struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic *fnic = iport->fnic;
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
@@ -3098,6 +3126,7 @@ fdls_process_rff_id_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_rft_id_rsp(struct fnic_iport_s *iport,
 			struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
 	struct fc_std_rft_id *rft_rsp = (struct fc_std_rft_id *) fchdr;
@@ -3173,6 +3202,7 @@ fdls_process_rft_id_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_rpn_id_rsp(struct fnic_iport_s *iport,
 			struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
 	struct fc_std_rpn_id *rpn_rsp = (struct fc_std_rpn_id *) fchdr;
@@ -3243,6 +3273,7 @@ fdls_process_rpn_id_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_scr_rsp(struct fnic_iport_s *iport,
 		     struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
 	struct fc_std_scr *scr_rsp = (struct fc_std_scr *) fchdr;
@@ -3315,6 +3346,7 @@ fdls_process_scr_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_gpn_ft_tgt_list(struct fnic_iport_s *iport,
 			     struct fc_frame_header *fchdr, int len)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_gpn_ft_rsp_iu *gpn_ft_tgt;
 	struct fnic_tport_s *tport, *next;
@@ -3413,6 +3445,7 @@ fdls_process_gpn_ft_tgt_list(struct fnic_iport_s *iport,
 static void
 fdls_process_gpn_ft_rsp(struct fnic_iport_s *iport,
 			struct fc_frame_header *fchdr, int len)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
 	struct fc_std_gpn_ft *gpn_ft_rsp = (struct fc_std_gpn_ft *) fchdr;
@@ -3549,6 +3582,7 @@ fdls_process_gpn_ft_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_fabric_logo_rsp(struct fnic_iport_s *iport,
 			     struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_std_flogi *flogo_rsp = (struct fc_std_flogi *) fchdr;
 	struct fnic_fdls_fabric_s *fdls = &iport->fabric;
@@ -3602,6 +3636,7 @@ fdls_process_fabric_logo_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_flogi_rsp(struct fnic_iport_s *iport,
 		       struct fc_frame_header *fchdr, void *rx_frame)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_fdls_fabric_s *fabric = &iport->fabric;
 	struct fc_std_flogi *flogi_rsp = (struct fc_std_flogi *) fchdr;
@@ -3741,6 +3776,7 @@ fdls_process_flogi_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_fabric_plogi_rsp(struct fnic_iport_s *iport,
 			      struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_std_flogi *plogi_rsp = (struct fc_std_flogi *) fchdr;
 	struct fc_std_els_rjt_rsp *els_rjt = (struct fc_std_els_rjt_rsp *) fchdr;
@@ -4002,6 +4038,7 @@ static void fdls_process_fdmi_abts_rsp(struct fnic_iport_s *iport,
 static void
 fdls_process_fabric_abts_rsp(struct fnic_iport_s *iport,
 			     struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t s_id;
 	struct fc_std_abts_ba_acc *ba_acc = (struct fc_std_abts_ba_acc *)fchdr;
@@ -4359,6 +4396,7 @@ fdls_process_els_req(struct fnic_iport_s *iport, struct fc_frame_header *fchdr,
 static void
 fdls_process_tgt_abts_rsp(struct fnic_iport_s *iport,
 			  struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t s_id;
 	struct fnic_tport_s *tport;
@@ -4548,6 +4586,7 @@ fdls_process_plogi_req(struct fnic_iport_s *iport,
 
 static void
 fdls_process_logo_req(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_std_logo *logo = (struct fc_std_logo *)fchdr;
 	uint32_t nport_id;
@@ -4625,6 +4664,7 @@ fdls_process_logo_req(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
 
 static void
 fdls_process_rscn(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_std_rscn *rscn;
 	struct fc_els_rscn_page *rscn_port = NULL;
@@ -4758,6 +4798,7 @@ fdls_process_rscn(struct fnic_iport_s *iport, struct fc_frame_header *fchdr)
 }
 
 void fnic_fdls_disc_start(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic *fnic = iport->fnic;
 
@@ -5102,6 +5143,7 @@ fnic_fdls_validate_and_get_frame_type(struct fnic_iport_s *iport,
 
 void fnic_fdls_recv_frame(struct fnic_iport_s *iport, void *rx_frame,
 						  int len, int fchdr_offset)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fc_frame_header *fchdr;
 	uint32_t s_id = 0;
@@ -5223,6 +5265,7 @@ void fnic_fdls_disc_init(struct fnic_iport_s *iport)
 }
 
 void fnic_fdls_link_down(struct fnic_iport_s *iport)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic_tport_s *tport, *next;
 	struct fnic *fnic = iport->fnic;

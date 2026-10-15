@@ -92,7 +92,8 @@ static void csio_hw_mbm_cleanup(struct csio_hw *);
 static void csio_hws_uninit(struct csio_hw *, enum csio_hw_ev);
 static void csio_hws_configuring(struct csio_hw *, enum csio_hw_ev);
 static void csio_hws_initializing(struct csio_hw *, enum csio_hw_ev);
-static void csio_hws_ready(struct csio_hw *, enum csio_hw_ev);
+static void csio_hws_ready(struct csio_hw *hw, enum csio_hw_ev)
+	__must_hold(&hw->lock);
 static void csio_hws_quiescing(struct csio_hw *, enum csio_hw_ev);
 static void csio_hws_quiesced(struct csio_hw *, enum csio_hw_ev);
 static void csio_hws_resetting(struct csio_hw *, enum csio_hw_ev);
@@ -914,6 +915,7 @@ csio_hw_dev_ready(struct csio_hw *hw)
  */
 static int
 csio_do_hello(struct csio_hw *hw, enum csio_dev_state *state)
+	__must_hold(&hw->lock)
 {
 	struct csio_mb	*mbp;
 	int	rv = 0;
@@ -2050,6 +2052,7 @@ leave:
  */
 static int
 csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
+	__must_hold(&hw->lock)
 {
 	struct csio_mb	*mbp = NULL;
 	struct fw_caps_config_cmd *caps_cmd;
@@ -2475,6 +2478,7 @@ static int csio_hw_check_fwver(struct csio_hw *hw)
  */
 static void
 csio_hw_configure(struct csio_hw *hw)
+	__must_hold(&hw->lock)
 {
 	int reset = 1;
 	int rv;
@@ -2604,6 +2608,7 @@ out:
  */
 static void
 csio_hw_initialize(struct csio_hw *hw)
+	__must_hold(&hw->lock)
 {
 	struct csio_mb	*mbp;
 	enum fw_retval retval;
@@ -2778,6 +2783,7 @@ csio_hw_fatal_err(struct csio_hw *hw)
  */
 static void
 csio_hws_uninit(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	hw->prev_evt = hw->cur_evt;
 	hw->cur_evt = evt;
@@ -2803,6 +2809,7 @@ csio_hws_uninit(struct csio_hw *hw, enum csio_hw_ev evt)
  */
 static void
 csio_hws_configuring(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	hw->prev_evt = hw->cur_evt;
 	hw->cur_evt = evt;
@@ -2879,6 +2886,7 @@ csio_hws_initializing(struct csio_hw *hw, enum csio_hw_ev evt)
  */
 static void
 csio_hws_ready(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	/* Remember the event */
 	hw->evtflag = evt;
@@ -2897,9 +2905,9 @@ csio_hws_ready(struct csio_hw *hw, enum csio_hw_ev evt)
 		/* cleanup all outstanding cmds */
 		if (evt == CSIO_HWE_HBA_RESET ||
 		    evt == CSIO_HWE_PCIERR_DETECTED)
-			csio_scsim_cleanup_io(csio_hw_to_scsim(hw), false);
+			csio_scsim_cleanup_io(hw, false);
 		else
-			csio_scsim_cleanup_io(csio_hw_to_scsim(hw), true);
+			csio_scsim_cleanup_io(hw, true);
 
 		csio_hw_intr_disable(hw);
 		csio_hw_mbm_cleanup(hw);
@@ -2988,6 +2996,7 @@ csio_hws_quiescing(struct csio_hw *hw, enum csio_hw_ev evt)
  */
 static void
 csio_hws_quiesced(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	hw->prev_evt = hw->cur_evt;
 	hw->cur_evt = evt;
@@ -3013,6 +3022,7 @@ csio_hws_quiesced(struct csio_hw *hw, enum csio_hw_ev evt)
  */
 static void
 csio_hws_resetting(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	hw->prev_evt = hw->cur_evt;
 	hw->cur_evt = evt;
@@ -3074,6 +3084,7 @@ csio_hws_removing(struct csio_hw *hw, enum csio_hw_ev evt)
  */
 static void
 csio_hws_pcierr(struct csio_hw *hw, enum csio_hw_ev evt)
+	__must_hold(&hw->lock)
 {
 	hw->prev_evt = hw->cur_evt;
 	hw->cur_evt = evt;
@@ -3763,6 +3774,7 @@ csio_hw_mb_timer(struct timer_list *t)
  */
 static void
 csio_hw_mbm_cleanup(struct csio_hw *hw)
+	__must_hold(&hw->lock)
 {
 	LIST_HEAD(cbfn_q);
 
@@ -3883,6 +3895,7 @@ csio_free_evt(struct csio_hw *hw, struct csio_evt_msg *evt_entry)
 
 void
 csio_evtq_flush(struct csio_hw *hw)
+	__must_hold(&hw->lock)
 {
 	uint32_t count;
 	count = 30;
@@ -4142,6 +4155,7 @@ csio_mgmt_tmo_handler(struct timer_list *t)
 
 static void
 csio_mgmtm_cleanup(struct csio_mgmtm *mgmtm)
+	__must_hold(&mgmtm->hw->lock)
 {
 	struct csio_hw *hw = mgmtm->hw;
 	struct csio_ioreq *io_req;

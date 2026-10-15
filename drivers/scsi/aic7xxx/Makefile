@@ -5,6 +5,8 @@
 # $Id: //depot/linux-aic79xx-2.5.0/drivers/scsi/aic7xxx/Makefile#8 $
 #
 
+CONTEXT_ANALYSIS := y
+
 # Let kbuild descend into aicasm when cleaning
 subdir-				+= aicasm
 

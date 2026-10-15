@@ -245,6 +245,7 @@ static int sg_allow_access(struct file *filp, unsigned char *cmd)
 
 static int
 open_wait(Sg_device *sdp, int flags)
+	__must_hold(&sdp->open_rel_lock)
 {
 	int retval = 0;
 

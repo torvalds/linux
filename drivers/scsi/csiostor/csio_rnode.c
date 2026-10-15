@@ -546,6 +546,7 @@ csio_rn_verify_rparams(struct csio_lnode *ln, struct csio_rnode *rn,
 
 static void
 __csio_reg_rnode(struct csio_rnode *rn)
+	__must_hold(&csio_lnode_to_hw(csio_rnode_to_lnode(rn))->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	struct csio_hw *hw = csio_lnode_to_hw(ln);
@@ -563,6 +564,7 @@ __csio_reg_rnode(struct csio_rnode *rn)
 
 static void
 __csio_unreg_rnode(struct csio_rnode *rn)
+	__must_hold(&csio_lnode_to_hw(csio_rnode_to_lnode(rn))->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	struct csio_hw *hw = csio_lnode_to_hw(ln);
@@ -586,8 +588,7 @@ __csio_unreg_rnode(struct csio_rnode *rn)
 
 	/* Cleanup I/Os that were waiting for rnode to unregister */
 	if (cmpl)
-		csio_scsi_cleanup_io_q(csio_hw_to_scsim(hw), &tmp_q);
-
+		csio_scsi_cleanup_io_q(hw, &tmp_q);
 }
 
 /*****************************************************************************/
@@ -602,6 +603,7 @@ __csio_unreg_rnode(struct csio_rnode *rn)
  */
 static void
 csio_rns_uninit(struct csio_rnode *rn, enum csio_rn_ev evt)
+	__must_hold(&csio_rnode_to_lnode(rn)->hwp->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	int ret = 0;
@@ -642,6 +644,7 @@ csio_rns_uninit(struct csio_rnode *rn, enum csio_rn_ev evt)
  */
 static void
 csio_rns_ready(struct csio_rnode *rn, enum csio_rn_ev evt)
+	__must_hold(&csio_rnode_to_lnode(rn)->hwp->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	int ret = 0;
@@ -727,6 +730,7 @@ csio_rns_ready(struct csio_rnode *rn, enum csio_rn_ev evt)
  */
 static void
 csio_rns_offline(struct csio_rnode *rn, enum csio_rn_ev evt)
+	__must_hold(&csio_rnode_to_lnode(rn)->hwp->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	int ret = 0;
@@ -786,6 +790,7 @@ csio_rns_offline(struct csio_rnode *rn, enum csio_rn_ev evt)
  */
 static void
 csio_rns_disappeared(struct csio_rnode *rn, enum csio_rn_ev evt)
+	__must_hold(&csio_rnode_to_lnode(rn)->hwp->lock)
 {
 	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
 	int ret = 0;
