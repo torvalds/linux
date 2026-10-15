@@ -1608,7 +1608,12 @@ typedef void (*usb_complete_t)(struct urb *);
  *
  * Completion Callbacks:
  *
- * The completion callback is made in_interrupt(), and one of the first
+ * The completion callback can occur in any context: process, interrupt,
+ * BH, or anything else.  Also, interrupts may or may not be disabled on
+ * the local CPU when the callback runs.  A completion handler routine
+ * must not depend on any particular properties of its environment.
+ *
+ * One of the first
  * things that a completion handler should do is check the status field.
  * The status field is provided for all URBs.  It is used to report
  * unlinked URBs, and status for all non-ISO transfers.  It should not
