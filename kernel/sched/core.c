@@ -636,7 +636,7 @@ int task_llc(const struct task_struct *p)
  *
  * p->is_blocked <- { 0, 1 }:
  *
- *   is set by try_to_block_task() and cleared by ttwu_do_wakeup() and tracks
+ *   is set by try_to_block_task() and cleared by unblock_task() and tracks
  *   if the task is blocked. Traditionally this would mirror p->on_rq, however
  *   due things like DELAY_DEQUEUE and PROXY_EXEC, this can diverge.
  *
@@ -3773,12 +3773,22 @@ ttwu_stat(struct task_struct *p, int cpu, int wake_flags)
 		__schedstat_inc(p->stats.nr_wakeups_sync);
 }
 
+static inline void unblock_task(struct task_struct *p)
+{
+	if (p->is_blocked && p->in_iowait) {
+		delayacct_blkio_end(p);
+		atomic_dec(&cpu_rq(p->iowait_cpu)->nr_iowait);
+	}
+
+	p->is_blocked = 0;
+}
+
 /*
  * Mark the task runnable.
  */
 static inline void ttwu_do_wakeup(struct task_struct *p)
 {
-	p->is_blocked = 0;
+	unblock_task(p);
 	WRITE_ONCE(p->__state, TASK_RUNNING);
 	trace_sched_wakeup(p);
 }
@@ -3889,10 +3899,6 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
 		en_flags |= ENQUEUE_RQ_SELECTED;
 	if (wake_flags & WF_MIGRATED)
 		en_flags |= ENQUEUE_MIGRATED;
-	else if (p->in_iowait) {
-		delayacct_blkio_end(p);
-		atomic_dec(&task_rq(p)->nr_iowait);
-	}
 
 	activate_task(rq, p, en_flags);
 	wakeup_preempt(rq, p, wake_flags);
@@ -4465,11 +4471,6 @@ int try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 		cpu = select_task_rq(p, p->wake_cpu, &wake_flags);
 		if (task_cpu(p) != cpu) {
-			if (p->in_iowait) {
-				delayacct_blkio_end(p);
-				atomic_dec(&task_rq(p)->nr_iowait);
-			}
-
 			wake_flags |= WF_MIGRATED;
 			psi_ttwu_dequeue(p);
 			set_task_cpu(p, cpu);
@@ -6813,6 +6814,12 @@ static bool try_to_block_task(struct rq *rq, struct task_struct *p,
 
 	p->is_blocked = 1;
 
+	if (p->in_iowait) {
+		p->iowait_cpu = cpu_of(rq);
+		atomic_inc(&rq->nr_iowait);
+		delayacct_blkio_start();
+	}
+
 	/*
 	 * We check should_block after signal_pending because we
 	 * will want to wake the task in that case. But if
@@ -7020,7 +7027,7 @@ find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 		if (!mutex) {
 			clear_task_blocked_on(p, mutex);
 			if (task_current(rq, p)) {
-				p->is_blocked = 0;
+				unblock_task(p);
 				return p;
 			}
 			goto deactivate;
@@ -7056,7 +7063,7 @@ find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 			 */
 			__clear_task_blocked_on(p, NULL);
 			if (task_current(rq, p)) {
-				p->is_blocked = 0;
+				unblock_task(p);
 				return p;
 			}
 			goto deactivate;
