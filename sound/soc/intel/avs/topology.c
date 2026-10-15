@@ -1720,6 +1720,10 @@ static int avs_tplg_parse_initial_configs(struct snd_soc_component *comp,
 					       AVS_TKN_INIT_CONFIG_ID_U32,
 					       mod_init_config_parsers,
 					       ARRAY_SIZE(mod_init_config_parsers));
+		if (ret)
+			return ret;
+		if (config->length > block_size)
+			return -EINVAL;
 
 		block_size -= esize;
 
@@ -1789,6 +1793,8 @@ static int avs_tplg_parse_nhlt_configs(struct snd_soc_component *comp,
 			return ret;
 		/* With tuples parsed, the blob shall be allocated. */
 		if (!config->blob)
+			return -EINVAL;
+		if (config->blob->capabilities_size > block_size)
 			return -EINVAL;
 
 		/* Consume the raw data and move to the next entry. */
