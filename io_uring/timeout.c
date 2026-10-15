@@ -458,6 +458,8 @@ static int io_linked_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	io = req->async_data;
 	if (hrtimer_try_to_cancel(&io->timer) == -1)
 		return -EALREADY;
+	if (mode == HRTIMER_MODE_ABS)
+		ts = timens_ktime_to_host(io_timeout_get_clock(io), ts);
 	hrtimer_setup(&io->timer, io_link_timeout_fn, io_timeout_get_clock(io), mode);
 	hrtimer_start(&io->timer, ts, mode);
 	return 0;
@@ -479,6 +481,8 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	/* for a multishot request this isn't a sequence, keep the repeats */
 	if (!(data->flags & IORING_TIMEOUT_MULTISHOT))
 		timeout->off = 0; /* noseq */
+	if (mode == HRTIMER_MODE_ABS)
+		time = timens_ktime_to_host(io_timeout_get_clock(data), time);
 	data->time = time;
 
 	list_add_tail(&timeout->list, &ctx->timeout_list);
@@ -511,7 +515,12 @@ int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 				  IORING_TIMEOUT_ABS |
 				  IORING_TIMEOUT_IMMEDIATE_ARG))
 			return -EINVAL;
-		ret = io_parse_user_time(&tr->time, READ_ONCE(sqe->addr2), tr->flags);
+		/*
+		 * The clock is that of the timeout to update, an absolute time
+		 * is converted to the host's view once that has been found.
+		 */
+		ret = io_parse_user_time(&tr->time, READ_ONCE(sqe->addr2),
+					 tr->flags & ~IORING_TIMEOUT_ABS);
 		if (ret)
 			return ret;
 	} else if (tr->flags) {
