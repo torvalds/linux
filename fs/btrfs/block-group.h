@@ -20,13 +20,6 @@ struct btrfs_fs_info;
 struct btrfs_inode;
 struct btrfs_trans_handle;
 
-enum btrfs_disk_cache_state {
-	BTRFS_DC_WRITTEN,
-	BTRFS_DC_ERROR,
-	BTRFS_DC_CLEAR,
-	BTRFS_DC_SETUP,
-};
-
 enum btrfs_block_group_size_class {
 	/* Unset */
 	BTRFS_BG_SZ_NONE,
@@ -131,7 +124,6 @@ struct btrfs_block_group {
 	u64 delalloc_bytes;
 	u64 bytes_super;
 	u64 flags;
-	u64 cache_generation;
 	u64 global_root_id;
 	u64 remap_bytes;
 	u32 identity_remap_count;
@@ -170,8 +162,6 @@ struct btrfs_block_group {
 	/* For raid56, this is a full stripe, without parity */
 	unsigned long full_stripe_len;
 	unsigned long runtime_flags;
-
-	enum btrfs_disk_cache_state disk_cache_state;
 
 	/* Cache tracking stuff */
 	enum btrfs_caching_type cached;
