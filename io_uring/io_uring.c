@@ -1486,28 +1486,40 @@ int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw)
 	return ret;
 }
 
-struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
+/*
+ * io-wq is done with @work. Returns true if it held the last reference, and
+ * hands out the next request of the link then. The caller has to make sure
+ * that cancellations can find the latter before it calls io_wq_free_work().
+ */
+bool io_wq_put_work(struct io_wq_work *work, struct io_wq_work **linked)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	struct io_kiocb *nxt = NULL;
 
-	if (req_ref_put_and_test_atomic(req)) {
-		/*
-		 * Only continue the link from here if the completion has been
-		 * posted. If it's still pending, io_free_req() completes the
-		 * request and the next link follows from there, after the CQE.
-		 */
-		if ((req->flags & IO_REQ_LINK_FLAGS) &&
-		    (req->flags & REQ_F_CQE_SKIP)) {
-			struct io_ring_ctx *ctx = req->ctx;
+	*linked = NULL;
+	if (!req_ref_put_and_test_atomic(req))
+		return false;
 
-			mutex_lock(&ctx->uring_lock);
-			nxt = io_req_find_next(req);
-			mutex_unlock(&ctx->uring_lock);
-		}
-		io_free_req(req);
+	/*
+	 * Only continue the link from here if the completion has been posted.
+	 * If it's still pending, io_free_req() completes the request and the
+	 * next link follows from there, after the CQE.
+	 */
+	if ((req->flags & IO_REQ_LINK_FLAGS) && (req->flags & REQ_F_CQE_SKIP)) {
+		struct io_ring_ctx *ctx = req->ctx;
+
+		mutex_lock(&ctx->uring_lock);
+		nxt = io_req_find_next(req);
+		mutex_unlock(&ctx->uring_lock);
 	}
-	return nxt ? &nxt->work : NULL;
+	if (nxt)
+		*linked = &nxt->work;
+	return true;
+}
+
+void io_wq_free_work(struct io_wq_work *work)
+{
+	io_free_req(container_of(work, struct io_kiocb, work));
 }
 
 void io_wq_submit_work(struct io_wq_work *work)
@@ -1518,7 +1530,7 @@ void io_wq_submit_work(struct io_wq_work *work)
 	bool needs_poll = false;
 	int ret = 0, err = -ECANCELED;
 
-	/* one will be dropped by io_wq_free_work() after returning to io-wq */
+	/* one will be dropped by io_wq_put_work() after returning to io-wq */
 	if (!(req->flags & REQ_F_REFCOUNT))
 		__io_req_set_refcount(req, 2);
 	else
