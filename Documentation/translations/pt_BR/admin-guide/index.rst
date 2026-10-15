@@ -36,10 +36,10 @@ com eles.
    :maxdepth: 1
 
    sysfs-rules
+   sysctl/index
 
 Todolist:
 
-*   sysctl/index
 *   cputopology
 *   abi
 
