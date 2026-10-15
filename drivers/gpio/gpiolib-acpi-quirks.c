@@ -358,6 +358,23 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 	},
 	{
 		/*
+		 * ACPI incorrectly declares GPIO 11 as an interrupt in _AEI,
+		 * although the EC uses the pin to control the Caps Lock LED.
+		 * Requesting the interrupt configures the pin as an input and
+		 * prevents the LED from working.
+		 * Found in BIOS R1QET54W (1.40).
+		 * https://lore.kernel.org/linux-gpio/CAAUQFRPW-rbcZV-=qV1NMjF_358sdJTiGvQuRxRqAsehY+J9Qg@mail.gmail.com/
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21AB"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
+		},
+	},
+	{
+		/*
 		 * Spurious wakeups from TP_ATTN# pin
 		 * Found in BIOS 5.35
 		 * https://gitlab.freedesktop.org/drm/amd/-/issues/4482
