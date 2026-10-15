@@ -4828,6 +4828,9 @@ static int hci_le_set_def_rate_sync(struct hci_dev *hdev)
 	struct hci_cp_le_set_def_rate cp;
 	u16 interval_min = 0x000a;	/* 1.25 ms */
 	u16 interval_max = 0x0078;	/* 15 ms */
+	u16 subrate_max = 0x0004;
+	u16 max_latency = 0x0000;
+	u32 supv_timeout;
 
 	if (!le_sci_capable(hdev))
 		return 0;
@@ -4852,10 +4855,31 @@ static int hci_le_set_def_rate_sync(struct hci_dev *hdev)
 	cp.interval_min = cpu_to_le16(interval_min);
 	cp.interval_max = cpu_to_le16(interval_max);
 	cp.subrate_min = cpu_to_le16(0x0001);
-	cp.subrate_max = cpu_to_le16(0x0004);
-	cp.max_latency = cpu_to_le16(0x0000);
+	cp.subrate_max = cpu_to_le16(subrate_max);
+	cp.max_latency = cpu_to_le16(max_latency);
 	cp.cont_num = cpu_to_le16(0x0001);
-	cp.supv_timeout = cpu_to_le16(0x000c);	/* 120 ms */
+
+	/* HOGP v1.2 recommends a Supervision_Timeout greater than or equal to
+	 * (1 + Max_Latency) x Subrate_Max x Connection_Interval_Max x 2, but
+	 * the Core spec treats the equality as invalid:
+	 *
+	 * BLUETOOTH CORE SPECIFICATION Version 6.3 | Vol 4, Part E
+	 * 7.8.158. LE Set Default Rate Parameters command
+	 *
+	 * If Connection_Interval_Max x Subrate_Max x (Max_Latency + 1) is
+	 * greater than or equal to Supervision_Timeout x 40, the Controller
+	 * shall return the error code Invalid HCI Command Parameters (0x12).
+	 *
+	 * So default to 2 s, 10x lower than the 20 s used for non-SCI
+	 * connections while still well above the minimum required, but make
+	 * sure it stays strictly above the minimum in case interval_max has
+	 * been raised.
+	 */
+	supv_timeout = (u32)interval_max * subrate_max * (max_latency + 1);
+	supv_timeout = supv_timeout / 40 + 1;
+	supv_timeout = clamp_t(u32, max_t(u32, supv_timeout, 0x00c8),
+			       0x000a, 0x0c80);
+	cp.supv_timeout = cpu_to_le16(supv_timeout);
 
 	/* The connection event length recommended in requests by a Peripheral
 	 * uses units of 125 us with a valid range of 0x0001 to 0x7CFF
