@@ -1243,7 +1243,7 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 {
 	struct cfg80211_registered_device *rdev;
 
-	ASSERT_RTNL();
+	lockdep_assert_held(&cfg80211_mutex);
 
 	if (!(chan->flags & IEEE80211_CHAN_RADAR))
 		return false;

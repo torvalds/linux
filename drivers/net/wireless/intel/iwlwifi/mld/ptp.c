@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2025 Intel Corporation
+ * Copyright (C) 2025 - 2026 Intel Corporation
  */
 
 #include "mld.h"
@@ -18,16 +18,6 @@
 #define IWL_PTP_GP2_WRAP	0x100000000ULL
 #define IWL_PTP_WRAP_TIME	(3600 * HZ)
 #define IWL_PTP_WRAP_THRESHOLD_USEC	(5000)
-
-static int iwl_mld_get_systime(struct iwl_mld *mld, u32 *gp2)
-{
-	*gp2 = iwl_read_prph(mld->trans, mld->trans->mac_cfg->base->gp2_reg_addr);
-
-	if (*gp2 == 0x5a5a5a5a)
-		return -EINVAL;
-
-	return 0;
-}
 
 static void iwl_mld_ptp_update_new_read(struct iwl_mld *mld, u32 gp2)
 {

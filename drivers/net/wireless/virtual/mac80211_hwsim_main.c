@@ -1133,6 +1133,8 @@ static ssize_t hwsim_background_cac_write(struct file *file,
 	if (copy_from_user(buf, user_buf, count))
 		return -EFAULT;
 
+	guard(wiphy)(data->hw->wiphy);
+
 	/* Check if background radar channel is configured */
 	if (!data->radar_background_chandef.chan)
 		return -ENOENT;
@@ -1150,6 +1152,7 @@ static ssize_t hwsim_background_cac_write(struct file *file,
 }
 
 static const struct file_operations hwsim_background_cac_ops = {
+	.owner = THIS_MODULE,
 	.write = hwsim_background_cac_write,
 	.open = simple_open,
 	.llseek = default_llseek,
@@ -1210,6 +1213,7 @@ static ssize_t hwsim_simulate_incumbent_signal_write(struct file *file,
 }
 
 static const struct file_operations hwsim_simulate_incumbent_signal_fops = {
+	.owner	= THIS_MODULE,
 	.open	= simple_open,
 	.write	= hwsim_simulate_incumbent_signal_write,
 };
@@ -5747,9 +5751,6 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		goto failed;
 	}
 
-	/* ieee80211_alloc_hw_nm may have used a default name */
-	param->hwname = wiphy_name(hw->wiphy);
-
 	if (info)
 		net = genl_info_net(info);
 	else
@@ -6013,6 +6014,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 			      NL80211_EXT_FEATURE_EXT_KEY_ID);
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_UPDATE_BEACON);
 
 	hw->wiphy->interface_modes = param->iftypes;
 
@@ -6235,6 +6237,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	list_add_tail(&data->list, &hwsim_radios);
 	hwsim_radios_generation++;
 	spin_unlock_bh(&hwsim_radio_lock);
+
+	/* alloc/register can change the name, we want the right one */
+	param->hwname = wiphy_name(hw->wiphy);
 
 	hwsim_mcast_new_radio(idx, wiphy_net(data->hw->wiphy), info, param);
 

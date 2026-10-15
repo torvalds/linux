@@ -147,6 +147,15 @@ out:
 	return err;
 }
 
+static void mt7925u_stop(struct ieee80211_hw *hw, bool suspend)
+{
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+
+	cancel_delayed_work_sync(&dev->mlo_pm_work);
+
+	mt792xu_stop(hw, suspend);
+}
+
 static int mt7925u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
@@ -193,7 +202,7 @@ static int mt7925u_probe(struct usb_interface *usb_intf,
 	if (!ops)
 		return -ENOMEM;
 
-	ops->stop = mt792xu_stop;
+	ops->stop = mt7925u_stop;
 
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
@@ -348,6 +357,19 @@ failed:
 }
 #endif /* CONFIG_PM */
 
+static void mt7925u_disconnect(struct usb_interface *usb_intf)
+{
+	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
+
+	/* mt792xu_disconnect() ends in mt76_free_device(), so the work has to
+	 * go before it rather than after mt76_unregister_device() as on PCI.
+	 */
+	if (dev)
+		cancel_work_sync(&dev->nan_deferred_work);
+
+	mt792xu_disconnect(usb_intf);
+}
+
 MODULE_DEVICE_TABLE(usb, mt7925u_device_table);
 MODULE_FIRMWARE(MT7925_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7925_ROM_PATCH);
@@ -356,7 +378,7 @@ static struct usb_driver mt7925u_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt7925u_device_table,
 	.probe		= mt7925u_probe,
-	.disconnect	= mt792xu_disconnect,
+	.disconnect	= mt7925u_disconnect,
 #ifdef CONFIG_PM
 	.suspend	= mt7925u_suspend,
 	.resume		= mt7925u_resume,

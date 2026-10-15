@@ -982,7 +982,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 	/* because last function modify RCR, so we update
 	 * rcr var here, or TP will unstable for receive_config
-	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
+	 * is wrong, RX RCR_ACRC32 will cause TP unstable & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	 */
 	rtlpci->receive_config = rtl_read_dword(rtlpriv, RCR);
@@ -2001,10 +2001,9 @@ static void rtl92se_update_hal_rate_table(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u32 ratr_value;
+	u32 ratr_value, ratr_mask;
 	u8 ratr_index = 0;
 	u8 nmode = mac->ht_enable;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
 	u16 shortgi_rate = 0;
 	u32 tmp_ratr_value = 0;
 	u8 curtxbw_40mhz = mac->bw_40;
@@ -2032,26 +2031,21 @@ static void rtl92se_update_hal_rate_table(struct ieee80211_hw *hw,
 	case WIRELESS_MODE_N_24G:
 	case WIRELESS_MODE_N_5G:
 		nmode = 1;
-		if (mimo_ps == IEEE80211_SMPS_STATIC) {
-			ratr_value &= 0x0007F005;
+
+		if (get_rf_type(rtlphy) == RF_1T2R ||
+		    get_rf_type(rtlphy) == RF_1T1R) {
+			if (curtxbw_40mhz)
+				ratr_mask = 0x000ff015;
+			else
+				ratr_mask = 0x000ff005;
 		} else {
-			u32 ratr_mask;
-
-			if (get_rf_type(rtlphy) == RF_1T2R ||
-			    get_rf_type(rtlphy) == RF_1T1R) {
-				if (curtxbw_40mhz)
-					ratr_mask = 0x000ff015;
-				else
-					ratr_mask = 0x000ff005;
-			} else {
-				if (curtxbw_40mhz)
-					ratr_mask = 0x0f0ff015;
-				else
-					ratr_mask = 0x0f0ff005;
-			}
-
-			ratr_value &= ratr_mask;
+			if (curtxbw_40mhz)
+				ratr_mask = 0x0f0ff015;
+			else
+				ratr_mask = 0x0f0ff005;
 		}
+
+		ratr_value &= ratr_mask;
 		break;
 	default:
 		if (rtlphy->rf_type == RF_1T2R)
@@ -2119,7 +2113,6 @@ static void rtl92se_update_hal_rate_mask(struct ieee80211_hw *hw,
 	u32 band = 0;
 	bool bmulticast = false;
 	u8 macid = 0;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
 
 	sta_entry = (struct rtl_sta_info *) sta->drv_priv;
 	wirelessmode = sta_entry->wireless_mode;
@@ -2167,41 +2160,32 @@ static void rtl92se_update_hal_rate_mask(struct ieee80211_hw *hw,
 		band |= (WIRELESS_11N | WIRELESS_11G | WIRELESS_11B);
 		ratr_index = RATR_INX_WIRELESS_NGB;
 
-		if (mimo_ps == IEEE80211_SMPS_STATIC) {
-			if (rssi_level == 1)
-				ratr_bitmap &= 0x00070000;
-			else if (rssi_level == 2)
-				ratr_bitmap &= 0x0007f000;
-			else
-				ratr_bitmap &= 0x0007f005;
-		} else {
-			if (rtlphy->rf_type == RF_1T2R ||
-				rtlphy->rf_type == RF_1T1R) {
-				if (rssi_level == 1) {
-						ratr_bitmap &= 0x000f0000;
-				} else if (rssi_level == 3) {
-					ratr_bitmap &= 0x000fc000;
-				} else if (rssi_level == 5) {
-						ratr_bitmap &= 0x000ff000;
-				} else {
-					if (curtxbw_40mhz)
-						ratr_bitmap &= 0x000ff015;
-					else
-						ratr_bitmap &= 0x000ff005;
-				}
+		if (rtlphy->rf_type == RF_1T2R ||
+		    rtlphy->rf_type == RF_1T1R) {
+			if (rssi_level == 1) {
+				ratr_bitmap &= 0x000f0000;
+			} else if (rssi_level == 3) {
+				ratr_bitmap &= 0x000fc000;
+			} else if (rssi_level == 5) {
+				ratr_bitmap &= 0x000ff000;
 			} else {
-				if (rssi_level == 1) {
-					ratr_bitmap &= 0x0f8f0000;
-				} else if (rssi_level == 3) {
-					ratr_bitmap &= 0x0f8fc000;
-				} else if (rssi_level == 5) {
-					ratr_bitmap &= 0x0f8ff000;
-				} else {
-					if (curtxbw_40mhz)
-						ratr_bitmap &= 0x0f8ff015;
-					else
-						ratr_bitmap &= 0x0f8ff005;
-				}
+				if (curtxbw_40mhz)
+					ratr_bitmap &= 0x000ff015;
+				else
+					ratr_bitmap &= 0x000ff005;
+			}
+		} else {
+			if (rssi_level == 1) {
+				ratr_bitmap &= 0x0f8f0000;
+			} else if (rssi_level == 3) {
+				ratr_bitmap &= 0x0f8fc000;
+			} else if (rssi_level == 5) {
+				ratr_bitmap &= 0x0f8ff000;
+			} else {
+				if (curtxbw_40mhz)
+					ratr_bitmap &= 0x0f8ff015;
+				else
+					ratr_bitmap &= 0x0f8ff005;
 			}
 		}
 
@@ -2366,8 +2350,10 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 
 }
 
-/* Is_wepkey just used for WEP used as group & pairwise key
- * if pairwise is AES ang group is WEP Is_wepkey == false.*/
+/*
+ * Is_wepkey just used for WEP used as group & pairwise key
+ * if pairwise is AES and group is WEP Is_wepkey == false.
+ */
 void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 	bool is_group, u8 enc_algo, bool is_wepkey, bool clear_all)
 {

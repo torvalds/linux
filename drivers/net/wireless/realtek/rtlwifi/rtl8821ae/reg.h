@@ -631,7 +631,7 @@
 #define	HWSET_MAX_SIZE				512
 #define   EFUSE_MAX_SECTION			64
 #define   EFUSE_REAL_CONTENT_LEN		256
-/* PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte.*/
+/* PG data exclude header, dummy 7 bytes from CP test and reserved 1byte. */
 #define		EFUSE_OOB_PROTECT_BYTES		18
 
 #define	EEPROM_DEFAULT_TSSI			0x0
@@ -1523,7 +1523,7 @@
 #define	ROFDM0_TXCOEFF5			0xcb4
 #define	ROFDM0_TXCOEFF6			0xcb8
 
-/*Path_A RFE cotrol */
+/* Path_A RFE control */
 #define	RA_RFE_CTRL_8812		0xcb8
 /*Path_B RFE control*/
 #define	RB_RFE_CTRL_8812		0xeb8
@@ -2336,7 +2336,7 @@
 
 #define	REG_UN_used_register		0x01bf
 
-/* Path_A RFE cotrol pinmux*/
+/* Path_A RFE control pinmux */
 #define		RA_RFE_PINMUX		0xcb0
 /* Path_B RFE control pinmux*/
 #define		RB_RFE_PINMUX		0xeb0
@@ -2345,17 +2345,17 @@
 #define		RB_RFE_INV		0xeb4
 
 /* RXIQC */
-/*RxIQ imblance matrix coeff. A & B*/
+/* RxIQ imbalance matrix coeff. A & B */
 #define RA_RXIQC_AB			0xc10
-/*RxIQ imblance matrix coeff. C & D*/
+/* RxIQ imbalance matrix coeff. C & D */
 #define	RA_RXIQC_CD			0xc14
 /* Pah_A TX scaling factor*/
 #define	RA_TXSCALE			0xc1c
 /* Path_B TX scaling factor*/
 #define	RB_TXSCALE			0xe1c
-/*RxIQ imblance matrix coeff. A & B*/
+/* RxIQ imbalance matrix coeff. A & B */
 #define	RB_RXIQC_AB			0xe10
-/*RxIQ imblance matrix coeff. C & D*/
+/* RxIQ imbalance matrix coeff. C & D */
 #define	RB_RXIQC_CD			0xe14
 /*bit mask for IQC matrix element A & C*/
 #define	RXIQC_AC			0x02ff

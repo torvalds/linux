@@ -805,6 +805,15 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 
 	buf[len] = '\0';
 
+	/*
+	 * Every command below drives PHY register writes. Refuse them while
+	 * the hardware is disabled (the interface is down): on the AR9271
+	 * that traffic hangs the firmware until the device is re-enumerated.
+	 * The reset control refuses on the same flag.
+	 */
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
+		return -EBUSY;
+
 	if (strncmp("trigger", buf, 7) == 0) {
 		ath9k_cmn_spectral_scan_trigger(common, spec_priv);
 	} else if (strncmp("background", buf, 10) == 0) {

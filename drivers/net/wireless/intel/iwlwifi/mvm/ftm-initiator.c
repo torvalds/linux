@@ -7,7 +7,7 @@
 #include <linux/math64.h>
 #include <net/cfg80211.h>
 #include "mvm.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "constants.h"
 
@@ -519,8 +519,9 @@ static int iwl_mvm_ftm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *hcmd)
 	return err;
 }
 
-static int iwl_mvm_ftm_start_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v5 cmd_v5;
 	struct iwl_host_cmd hcmd = {
@@ -545,8 +546,9 @@ static int iwl_mvm_ftm_start_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
 }
 
-static int iwl_mvm_ftm_start_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v7 cmd_v7;
 	struct iwl_host_cmd hcmd = {
@@ -575,8 +577,9 @@ static int iwl_mvm_ftm_start_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
 }
 
-static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v8 cmd;
 	struct iwl_host_cmd hcmd = {
@@ -601,8 +604,10 @@ static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
 }
 
-static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct cfg80211_pmsr_request *req)
+
+static int noinline_for_stack
+iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v9 cmd;
 	struct iwl_host_cmd hcmd = {
@@ -735,9 +740,10 @@ iwl_mvm_ftm_put_target_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					      &target->initiator_ap_flags);
 }
 
-static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
+		      struct ieee80211_vif *vif,
+		      struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v11 cmd;
 	struct iwl_host_cmd hcmd = {
@@ -807,9 +813,10 @@ iwl_mvm_ftm_put_target_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
+		      struct ieee80211_vif *vif,
+		      struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v12 cmd;
 	struct iwl_host_cmd hcmd = {
@@ -835,9 +842,10 @@ static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
 }
 
-static int iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
+		      struct ieee80211_vif *vif,
+		      struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd_v13 cmd;
 	struct iwl_host_cmd hcmd = {
@@ -951,9 +959,10 @@ iwl_mvm_ftm_put_target_v10(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwl_mvm_ftm_start_v14(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct cfg80211_pmsr_request *req)
+static int noinline_for_stack
+iwl_mvm_ftm_start_v14(struct iwl_mvm *mvm,
+		      struct ieee80211_vif *vif,
+		      struct cfg80211_pmsr_request *req)
 {
 	struct iwl_tof_range_req_cmd cmd;
 	struct iwl_host_cmd hcmd = {

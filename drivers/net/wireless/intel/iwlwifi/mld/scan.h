@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #ifndef __iwl_mld_scan_h__
 #define __iwl_mld_scan_h__
@@ -151,11 +151,13 @@ struct iwl_mld_scan {
  *
  * @time: time in ms the radio was on the channel
  * @time_busy: time in ms the channel was sensed busy
+ * @time_rx: time in ms the channel was sensed to carry Wi-Fi frames
  * @noise: channel noise in dBm
  */
 struct iwl_mld_survey_channel {
 	u32 time;
 	u32 time_busy;
+	u32 time_rx;
 	s8 noise;
 };
 

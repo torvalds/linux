@@ -982,7 +982,7 @@
 #define REG_NHM_TH3_TO_TH0_8723B	0x0898
 #define REG_NHM_TH7_TO_TH4_8723B	0x089c
 
-#define REG_FPGA0_XA_LSSI_READBACK	0x08a0	/* Tranceiver LSSI Readback */
+#define REG_FPGA0_XA_LSSI_READBACK	0x08a0	/* Transceiver LSSI Readback */
 #define REG_FPGA0_XB_LSSI_READBACK	0x08a4
 #define REG_FPGA0_PSD_REPORT		0x08b4
 #define REG_HSPI_XA_READBACK		0x08b8	/* Transceiver A HSPI read */

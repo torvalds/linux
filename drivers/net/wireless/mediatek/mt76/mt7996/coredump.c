@@ -202,11 +202,12 @@ static struct mt7996_coredump *mt7996_coredump_build(struct mt7996_dev *dev)
 	mt7996_coredump_fw_stack(dev, dump, exception);
 
 	/* gather memory content */
-	dump_mem = (struct mt7996_coredump_mem *)(buf + sofar);
-	dump_mem->len = crash_data->memdump_buf_len;
-	if (coredump_memdump && crash_data->memdump_buf_len)
+	if (coredump_memdump && crash_data->memdump_buf_len) {
+		dump_mem = (struct mt7996_coredump_mem *)(buf + sofar);
+		dump_mem->len = crash_data->memdump_buf_len;
 		memcpy(dump_mem->data, crash_data->memdump_buf,
 		       crash_data->memdump_buf_len);
+	}
 
 	mutex_unlock(&dev->dump_mutex);
 

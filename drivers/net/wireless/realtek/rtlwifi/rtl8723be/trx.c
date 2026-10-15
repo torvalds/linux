@@ -220,7 +220,7 @@ static void _rtl8723be_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	    (ether_addr_equal(praddr, rtlefuse->dev_addr));
 
 	/* YP: packet_beacon is not initialized,
-	 * this assignment is neccesary,
+	 * this assignment is necessary,
 	 * otherwise it counld be true in this case
 	 * the situation is much worse in Kernel 3.10
 	 */
@@ -360,7 +360,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 
 	/* hw will set status->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame.
-	 * So hw will not decryption robust managment frame
+	 * So hw will not decryption robust management frame
 	 * for IEEE80211w but still set status->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help

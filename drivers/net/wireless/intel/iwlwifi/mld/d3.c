@@ -5,6 +5,7 @@
 #include "mld.h"
 
 #include "d3.h"
+#include "tx.h"
 #include "power.h"
 #include "hcmd.h"
 #include "iface.h"
@@ -597,6 +598,37 @@ iwl_mld_convert_wowlan_notif_v5(const struct iwl_wowlan_info_notif_v5 *notif_v5,
 	}
 }
 
+static void
+iwl_mld_convert_wowlan_notif_v6(const struct iwl_wowlan_info_notif_v6 *notif_v6,
+				struct iwl_wowlan_info_notif *notif)
+{
+	/* v6 is identical to the new format, except that it has no CIGTK */
+	BUILD_BUG_ON(sizeof(notif->gtk) != sizeof(notif_v6->gtk));
+	BUILD_BUG_ON(sizeof(notif->igtk) != sizeof(notif_v6->igtk));
+	BUILD_BUG_ON(sizeof(notif->bigtk) != sizeof(notif_v6->bigtk));
+
+	memcpy(notif->gtk, notif_v6->gtk, sizeof(notif_v6->gtk));
+	memcpy(notif->igtk, notif_v6->igtk, sizeof(notif_v6->igtk));
+	memcpy(notif->bigtk, notif_v6->bigtk, sizeof(notif_v6->bigtk));
+
+	notif->replay_ctr = notif_v6->replay_ctr;
+	notif->pattern_number = notif_v6->pattern_number;
+	notif->qos_seq_ctr = notif_v6->qos_seq_ctr;
+	notif->wakeup_reasons = notif_v6->wakeup_reasons;
+	notif->num_of_gtk_rekeys = notif_v6->num_of_gtk_rekeys;
+	notif->transmitted_ndps = notif_v6->transmitted_ndps;
+	notif->received_beacons = notif_v6->received_beacons;
+	notif->tid_tear_down = notif_v6->tid_tear_down;
+	notif->station_id = notif_v6->station_id;
+	notif->num_mlo_link_keys = notif_v6->num_mlo_link_keys;
+	notif->tid_offloaded_tx = notif_v6->tid_offloaded_tx;
+
+	if (notif_v6->num_mlo_link_keys)
+		memcpy(notif->mlo_gtks, notif_v6->mlo_gtks,
+		       notif_v6->num_mlo_link_keys *
+		       sizeof(struct iwl_wowlan_mlo_gtk));
+}
+
 static bool iwl_mld_validate_wowlan_notif_size(struct iwl_mld *mld, u32 len,
 					       const void *notif_data,
 					       int version)
@@ -618,12 +650,23 @@ static bool iwl_mld_validate_wowlan_notif_size(struct iwl_mld *mld, u32 len,
 
 		num_mlo_keys = notif_v5->num_mlo_link_keys;
 	} else if (version == 6) {
+		const struct iwl_wowlan_info_notif_v6 *notif_v6 = notif_data;
+
+		expected_len = sizeof(*notif_v6);
+
+		if (IWL_FW_CHECK(mld, len < expected_len,
+				 "Invalid wowlan_info_notif v6 (expected=%u got=%u)\n",
+				 expected_len, len))
+			return false;
+
+		num_mlo_keys = notif_v6->num_mlo_link_keys;
+	} else if (version == 7) {
 		const struct iwl_wowlan_info_notif *notif = notif_data;
 
 		expected_len = sizeof(*notif);
 
 		if (IWL_FW_CHECK(mld, len < expected_len,
-				 "Invalid wowlan_info_notif v6 (expected=%u got=%u)\n",
+				 "Invalid wowlan_info_notif v7 (expected=%u got=%u)\n",
 				 expected_len, len))
 			return false;
 
@@ -682,9 +725,27 @@ iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 		iwl_mld_convert_wowlan_notif_v5(_notif, converted_notif);
 		notif = converted_notif;
 	} else if (wowlan_info_ver == 6) {
+		const struct iwl_wowlan_info_notif_v6 *_notif =
+			(void *)pkt->data;
+
+		if (!iwl_mld_validate_wowlan_notif_size(mld, len, _notif, 6))
+			return true;
+
+		converted_notif = kzalloc_flex(*converted_notif, mlo_gtks,
+					       _notif->num_mlo_link_keys,
+					       GFP_ATOMIC);
+		if (!converted_notif) {
+			IWL_ERR(mld,
+				"Failed to allocate memory for converted wowlan_info_notif\n");
+			return true;
+		}
+
+		iwl_mld_convert_wowlan_notif_v6(_notif, converted_notif);
+		notif = converted_notif;
+	} else if (wowlan_info_ver == 7) {
 		notif = (void *)pkt->data;
 
-		if (!iwl_mld_validate_wowlan_notif_size(mld, len, notif, 6))
+		if (!iwl_mld_validate_wowlan_notif_size(mld, len, notif, 7))
 			return true;
 	} else {
 		/* smaller versions are not supported */
@@ -1610,6 +1671,8 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 
 	iwl_mld_low_latency_stop(mld);
 
+	iwl_mld_tx_gp2_stop(mld);
+
 	ret = iwl_mld_update_device_power(mld, true);
 	if (ret) {
 		IWL_ERR(mld,
@@ -1662,6 +1725,8 @@ int iwl_mld_no_wowlan_resume(struct iwl_mld *mld)
 		return -ENODEV;
 
 	iwl_mld_low_latency_restart(mld);
+
+	iwl_mld_tx_gp2_start(mld);
 
 	return iwl_mld_update_device_power(mld, false);
 }
@@ -1829,9 +1894,12 @@ iwl_mld_send_kek_kck_cmd(struct iwl_mld *mld,
 			 struct iwl_mld_suspend_key_iter_data data,
 			 int ap_sta_id)
 {
-	struct iwl_wowlan_kek_kck_material_cmd_v4 kek_kck_cmd = {};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, WOWLAN_KEK_KCK_MATERIAL, 4);
+	struct iwl_wowlan_kek_kck_material_cmd kek_kck_cmd = {};
 	struct iwl_mld_rekey_data *rekey_data =
 		&mld_vif->wowlan_data.rekey_data;
+	u32 cmd_size = cmd_ver == 5 ? sizeof(kek_kck_cmd) :
+		sizeof(struct iwl_wowlan_kek_kck_material_cmd_v4);
 
 	memcpy(kek_kck_cmd.kck, rekey_data->kck,
 	       rekey_data->kck_len);
@@ -1850,7 +1918,7 @@ iwl_mld_send_kek_kck_cmd(struct iwl_mld *mld,
 			 rekey_data->akm);
 
 	return iwl_mld_send_cmd_pdu(mld, WOWLAN_KEK_KCK_MATERIAL,
-				    &kek_kck_cmd);
+				    &kek_kck_cmd, cmd_size);
 }
 
 static int

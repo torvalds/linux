@@ -605,9 +605,7 @@ void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_li
 
 void rtw89_cam_reset_keys(struct rtw89_dev *rtwdev)
 {
-	rcu_read_lock();
-	ieee80211_iter_keys_rcu(rtwdev->hw, NULL, rtw89_cam_reset_key_iter, rtwdev);
-	rcu_read_unlock();
+	ieee80211_iter_keys(rtwdev->hw, NULL, rtw89_cam_reset_key_iter, rtwdev);
 }
 
 static int rtw89_cam_get_avail_addr_cam(struct rtw89_dev *rtwdev,

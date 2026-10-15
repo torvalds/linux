@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include "mld.h"
+#include "tx.h"
 
 #include "fw/api/alive.h"
 #include "fw/api/scan.h"
@@ -45,6 +46,9 @@ static int iwl_mld_send_rss_cfg_cmd(struct iwl_mld *mld)
 	};
 
 	lockdep_assert_wiphy(mld->wiphy);
+
+	if (mld->trans->info.num_rxqs == 1)
+		return 0;
 
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (int i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
@@ -206,11 +210,11 @@ static void iwl_mld_print_alive_notif_timeout(struct iwl_mld *mld)
 
 	IWL_ERR(mld,
 		"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-		iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
-		iwl_read_umac_prph(trans,
-				   UMAG_SB_CPU_2_STATUS));
+		iwl_trans_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
+		iwl_trans_read_umac_prph(trans,
+					 UMAG_SB_CPU_2_STATUS));
 #define IWL_FW_PRINT_REG_INFO(reg_name) \
-	IWL_ERR(mld, #reg_name ": 0x%x\n", iwl_read_umac_prph(trans, reg_name))
+	IWL_ERR(mld, #reg_name ": 0x%x\n", iwl_trans_read_umac_prph(trans, reg_name))
 
 	IWL_FW_PRINT_REG_INFO(WFPM_LMAC1_PD_NOTIFICATION);
 
@@ -355,6 +359,8 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 {
 	lockdep_assert_wiphy(mld->wiphy);
 
+	iwl_mld_tx_gp2_stop(mld);
+
 	iwl_abort_notification_waits(&mld->notif_wait);
 
 	iwl_fw_dbg_stop_sync(&mld->fwrt);
@@ -396,8 +402,10 @@ void iwl_mld_send_recovery_cmd(struct iwl_mld *mld, u32 flags)
 
 	if (flags & ERROR_RECOVERY_UPDATE_DB) {
 		/* no buf was allocated upon NIC error */
-		if (!mld->error_recovery_buf)
+		if (!mld->error_recovery_buf) {
+			IWL_ERR(mld, "Recovering without recovery buffer. Expect bugs\n");
 			return;
+		}
 
 		cmd.data[1] = mld->error_recovery_buf;
 		cmd.len[1] =  error_log_size;
@@ -539,6 +547,8 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	ret = iwl_mld_init_mcc(mld);
 	if (ret)
 		goto error;
+
+	iwl_mld_tx_gp2_start(mld);
 
 	return 0;
 

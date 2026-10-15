@@ -262,6 +262,9 @@ int mm81x_cmd_add_if(struct mm81x *mors, u16 *vif_id, const u8 *addr,
 	case NL80211_IFTYPE_AP:
 		req.interface_type = cpu_to_le32(HOST_CMD_INTERFACE_TYPE_AP);
 		break;
+	case NL80211_IFTYPE_MONITOR:
+		req.interface_type = cpu_to_le32(HOST_CMD_INTERFACE_TYPE_MON);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -458,7 +461,7 @@ int mm81x_cmd_cfg_multicast_filter(struct mm81x *mors,
 				   struct mm81x_vif *mors_vif)
 {
 	struct host_cmd_req_mcast_filter *req;
-	struct mcast_filter *filter = mors->mcast_filter;
+	struct mm81x_mcast_filter *filter = mors->mcast_filter;
 	u16 filter_list_len = sizeof(filter->addr_list[0]) * filter->count;
 	u16 alloc_len = filter_list_len + sizeof(*req);
 	int ret = 0;

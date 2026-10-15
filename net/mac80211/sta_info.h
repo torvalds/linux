@@ -989,8 +989,14 @@ static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata,
 void sta_set_rate_info_tx(struct sta_info *sta,
 			  const struct ieee80211_tx_rate *rate,
 			  struct rate_info *rinfo);
-void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
-		   bool tidstats);
+int __sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
+		    bool tidstats, bool locked);
+
+static inline void sta_set_sinfo(struct sta_info *sta,
+				 struct station_info *sinfo, bool tidstats)
+{
+	__sta_set_sinfo(sta, sinfo, tidstats, true);
+}
 
 void sta_set_accumulated_removed_links_sinfo(struct sta_info *sta,
 					     struct station_info *sinfo);

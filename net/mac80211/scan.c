@@ -68,6 +68,14 @@ void ieee80211_inform_bss(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct inform_bss_update_data *update_data = data;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
+	struct ieee80211_elems_parse_params params = {
+		.mode = cbss->channel->band == NL80211_BAND_S1GHZ ?
+				IEEE80211_CONN_MODE_S1G :
+				IEEE80211_CONN_MODE_HIGHEST,
+		.start = ies->data,
+		.len = ies->len,
+		.link_id = -1,
+	};
 	struct ieee80211_rx_status *rx_status;
 	struct ieee802_11_elems *elems;
 	int clen, srlen;
@@ -76,11 +84,11 @@ void ieee80211_inform_bss(struct wiphy *wiphy,
 	if (!update_data)
 		return;
 
-	elems = ieee802_11_parse_elems(ies->data, ies->len,
-				       update_data->beacon ?
-					IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON :
-					IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP,
-				       NULL);
+	params.type = update_data->beacon ?
+			      IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON :
+			      IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP;
+
+	elems = ieee802_11_parse_elems_full(&params);
 	if (!elems)
 		return;
 

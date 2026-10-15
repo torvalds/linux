@@ -35,6 +35,17 @@ MODULE_IMPORT_NS("IWLWIFI");
 
 static const struct iwl_op_mode_ops iwl_mld_ops;
 
+int iwl_mld_get_systime(struct iwl_mld *mld, u32 *gp2)
+{
+	*gp2 = iwl_trans_read_prph(mld->trans,
+			     mld->trans->mac_cfg->base->gp2_reg_addr);
+
+	if (*gp2 == 0x5a5a5a5a)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int __init iwl_mld_init(void)
 {
 	int ret = iwl_opmode_register("iwlmld", &iwl_mld_ops);
@@ -425,6 +436,8 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 	/* Configure transport layer with the opmode specific params */
 	iwl_mld_configure_trans(op_mode);
 
+	iwl_mld_tx_gp2_init(mld);
+
 	/* needed for regulatory init */
 	rtnl_lock();
 	/* Needed for sending commands */
@@ -620,6 +633,13 @@ static void iwl_mld_read_error_recovery_buffer(struct iwl_mld *mld)
 	/* no recovery buffer size defined in a TLV */
 	if (!src_size)
 		return;
+
+	/*
+	 * If we have a the recovery buffer from a previous (failing) recovery -
+	 * free it here
+	 */
+	kfree(mld->error_recovery_buf);
+	mld->error_recovery_buf = NULL;
 
 	recovery_buf = kzalloc(src_size, GFP_ATOMIC);
 	if (!recovery_buf)

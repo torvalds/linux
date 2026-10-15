@@ -375,6 +375,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		}
 
 		map->rx.wm2_complete_mask = 0;
+		map->rx.all_complete_mask &= ~MT_INT_RX_DONE_WM2;
 		dev->irq_map = map;
 	}
 

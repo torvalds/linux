@@ -2786,6 +2786,9 @@ static int rtw89_mac_init_bfee_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 				       B_BE_CSIPRT_HESU_AID_EN |
 				       B_BE_CSIPRT_EHTSU_AID_EN);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_RESP_MODE, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_INIT_CLEAR_RX_STATE | B_BE_SHORT_CUT_MODE);
+
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_RRSC, mac_idx);
 	rtw89_write32(rtwdev, reg, CSI_RRSC_BMAP_BE);
 

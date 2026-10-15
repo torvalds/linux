@@ -7,7 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
 #include <net/mac80211.h>
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "fw-api.h"
 #include "mvm.h"
@@ -932,8 +932,8 @@ u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
 	u16 flags = 0;
 
 	if (rate_idx <= IWL_LAST_CCK_RATE)
-		flags |= is_new_rate ? IWL_MAC_BEACON_CCK
-			  : IWL_MAC_BEACON_CCK_V1;
+		flags |= is_new_rate ? (u16)IWL_MAC_BEACON_CCK
+			  : (u16)IWL_MAC_BEACON_CCK_V1;
 
 	if (iwl_fw_lookup_cmd_ver(fw, TX_CMD, 0) > 8)
 		flags |= iwl_mvm_rate_idx_to_fw_idx(fw, rate_idx);
@@ -1109,8 +1109,8 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 	if (iwl_mvm_enable_fils(mvm, vif, ctx)) {
 		flags |= iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD,
 					       0) > 10 ?
-			IWL_MAC_BEACON_FILS :
-			IWL_MAC_BEACON_FILS_V1;
+			(u16)IWL_MAC_BEACON_FILS :
+			(u16)IWL_MAC_BEACON_FILS_V1;
 		beacon_cmd.short_ssid =
 			cpu_to_le32(~crc32_le(~0, vif->cfg.ssid,
 					      vif->cfg.ssid_len));

@@ -1001,11 +1001,6 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 {
 	struct rate_control_ref *ref;
 
-	ASSERT_RTNL();
-
-	if (local->open_count)
-		return -EBUSY;
-
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
 		if (WARN_ON(!local->ops->set_rts_threshold))
 			return -EINVAL;

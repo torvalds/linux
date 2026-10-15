@@ -660,6 +660,7 @@ int iwl_mld_update_sta_baids(struct iwl_mld *mld,
 		.modify.new_sta_id_mask = cpu_to_le32(new_sta_mask),
 	};
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 2);
 	int baid;
 
 	/* mac80211 will remove sessions later, but we ignore all that */
@@ -667,6 +668,7 @@ int iwl_mld_update_sta_baids(struct iwl_mld *mld,
 		return 0;
 
 	BUILD_BUG_ON(sizeof(struct iwl_rx_baid_cfg_resp) != sizeof(baid));
+	BUILD_BUG_ON(sizeof(cmd.modify) != sizeof(cmd.modify_v2));
 
 	for (baid = 0; baid < ARRAY_SIZE(mld->fw_id_to_ba); baid++) {
 		struct iwl_mld_baid_data *data;
@@ -683,7 +685,10 @@ int iwl_mld_update_sta_baids(struct iwl_mld *mld,
 			  "BAID data for %d corrupted - expected 0x%x found 0x%x\n",
 			  baid, old_sta_mask, data->sta_mask);
 
-		cmd.modify.tid = cpu_to_le32(data->tid);
+		if (cmd_ver >= 3)
+			cmd.modify.tid = data->tid;
+		else
+			cmd.modify_v2.tid = cpu_to_le32(data->tid);
 
 		ret = iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd);
 		if (ret)

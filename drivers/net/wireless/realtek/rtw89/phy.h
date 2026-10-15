@@ -631,8 +631,19 @@ struct rtw89_bb_wrap_common_data {
 		} cim3k;
 		u32 rfsi_ct_opt[2];
 		u8 pb_tb;
+		u8 qam_th[3];
 	} bands[RFSI_CTRL_BAND_NUM];
-	u8 qam_th[6];
+};
+
+struct rtw89_bb_wrap_common_data_gen2 {
+	struct {
+		u8 mdpd_160m;
+		u8 mdpd_320m;
+		u8 oob_dpd_20m;
+		u8 oob_dpd_40m;
+		u8 oob_dpd_80m;
+		u8 cim3k;
+	} qam_th;
 };
 
 struct rtw89_bb_wrap_common_data_gen3 {
@@ -644,6 +655,7 @@ struct rtw89_bb_wrap_common_data_gen3 {
 
 struct rtw89_bb_wrap_data {
 	const struct rtw89_bb_wrap_common_data *common;
+	const struct rtw89_bb_wrap_common_data_gen2 *common_gen2;
 	const struct rtw89_bb_wrap_common_data_gen3 *common_gen3;
 	struct {
 		u16 qam_comp_th0[MAX_TX_RFSI_CTRL_OPT];
@@ -674,6 +686,7 @@ struct rtw89_phy_gen_def {
 	void (*preinit_rf_nctl)(struct rtw89_dev *rtwdev);
 	void (*bb_wrap_init)(struct rtw89_dev *rtwdev);
 	void (*ch_info_init)(struct rtw89_dev *rtwdev);
+	int (*btc_bttrx_en)(struct rtw89_dev *rtwdev, u8 bt_en_int, bool enable);
 
 	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
 				 const struct rtw89_chan *chan,
@@ -1039,9 +1052,9 @@ static inline void rtw89_phy_bb_wrap_init(struct rtw89_dev *rtwdev)
 		phy->bb_wrap_init(rtwdev);
 }
 
-void rtw89_phy_bb_wrap_set_rfsi_ct_opt(struct rtw89_dev *rtwdev,
-				       enum rtw89_rfsi_ctrl_band ctrl_band,
-				       enum rtw89_phy_idx phy_idx);
+void rtw89_phy_bb_wrap_tx_rfsi_ctrl_init_by_chan(struct rtw89_dev *rtwdev,
+						 const struct rtw89_chan *chan,
+						 u8 mac_idx);
 void rtw89_phy_bb_wrap_set_rfsi_bandedge_ch(struct rtw89_dev *rtwdev,
 					    const struct rtw89_chan *chan,
 					    enum rtw89_phy_idx phy_idx);
@@ -1052,6 +1065,17 @@ static inline void rtw89_phy_ch_info_init(struct rtw89_dev *rtwdev)
 
 	if (phy->ch_info_init)
 		phy->ch_info_init(rtwdev);
+}
+
+static inline
+int rtw89_phy_btc_bttrx_en(struct rtw89_dev *rtwdev, u8 bt_en_int, bool enable)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	if (!phy->btc_bttrx_en)
+		return 0;
+
+	return phy->btc_bttrx_en(rtwdev, bt_en_int, enable);
 }
 
 static inline

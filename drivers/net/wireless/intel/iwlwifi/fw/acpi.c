@@ -525,6 +525,83 @@ iwl_acpi_parse_chains_table(union acpi_object *table,
 	return 0;
 }
 
+static int
+iwl_acpi_parse_extended_sar_profiles(union acpi_object *wifi_pkg,
+				     struct iwl_sar_profile *sar_profiles,
+				     u8 num_sub_bands, bool has_cdb)
+{
+	int n_profiles, pos, ret;
+	bool enabled;
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
+	    wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER)
+		return -EINVAL;
+
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands >
+		    ARRAY_SIZE(sar_profiles[0].chains) *
+		    ARRAY_SIZE(sar_profiles[0].chains[0].subbands)))
+		return -EINVAL;
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	n_profiles = wifi_pkg->package.elements[2].integer.value;
+
+	if (n_profiles >= BIOS_SAR_MAX_PROFILE_NUM)
+		return -EINVAL;
+
+	/* the tables start at element 3 */
+	pos = 3;
+
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV0 != ACPI_SAR_NUM_CHAINS_REV1);
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV2 != 2 * ACPI_SAR_NUM_CHAINS_REV0);
+
+	/* parse non-cdb chains for all profiles */
+	for (int i = 0; i < n_profiles; i++) {
+		union acpi_object *table = &wifi_pkg->package.elements[pos];
+
+		ret = iwl_acpi_parse_chains_table(table,
+						  sar_profiles[i + 1].chains,
+						  ACPI_SAR_NUM_CHAINS_REV0,
+						  num_sub_bands);
+		if (ret < 0)
+			return ret;
+
+		/* go to the next table */
+		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
+	}
+
+	if (!has_cdb)
+		goto set_enabled;
+
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * 2 * num_sub_bands >
+		    ARRAY_SIZE(sar_profiles[0].chains) *
+		    ARRAY_SIZE(sar_profiles[0].chains[0].subbands)))
+		return -EINVAL;
+
+	/* parse cdb chains for all profiles */
+	for (int i = 0; i < n_profiles; i++) {
+		struct iwl_sar_profile_chain *chains;
+		union acpi_object *table;
+
+		table = &wifi_pkg->package.elements[pos];
+		chains = &sar_profiles[i + 1].chains[ACPI_SAR_NUM_CHAINS_REV0];
+		ret = iwl_acpi_parse_chains_table(table,
+						  chains,
+						  ACPI_SAR_NUM_CHAINS_REV0,
+						  num_sub_bands);
+		if (ret < 0)
+			return ret;
+
+		/* go to the next table */
+		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
+	}
+
+set_enabled:
+	for (int i = 0; i < n_profiles; i++)
+		sar_profiles[i + 1].enabled = enabled;
+
+	return 0;
+}
+
 int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *table, *data;
@@ -629,8 +706,12 @@ read_table:
 	 */
 	ret = iwl_acpi_parse_chains_table(table, fwrt->sar_profiles[0].chains,
 					  num_chains, num_sub_bands);
-	if (!ret && flags & IWL_SAR_ENABLE_MSK)
+	if (ret)
+		goto out_free;
+
+	if (flags & IWL_SAR_ENABLE_MSK)
 		fwrt->sar_profiles[0].enabled = true;
+	fwrt->wrds_table_revision = tbl_rev;
 
 out_free:
 	kfree(data);
@@ -640,8 +721,7 @@ out_free:
 int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
-	bool enabled;
-	int i, n_profiles, tbl_rev, pos;
+	int tbl_rev;
 	int ret = 0;
 	u8 num_sub_bands;
 
@@ -713,93 +793,147 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 	goto out_free;
 
 read_table:
-	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
-	    wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER) {
-		ret = -EINVAL;
+	ret = iwl_acpi_parse_extended_sar_profiles(wifi_pkg,
+						   fwrt->sar_profiles,
+						   num_sub_bands,
+						   tbl_rev >= 2);
+	if (ret)
 		goto out_free;
-	}
 
-	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands >
-		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
-		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	enabled = !!(wifi_pkg->package.elements[1].integer.value);
-	n_profiles = wifi_pkg->package.elements[2].integer.value;
-
-	/*
-	 * Check the validity of n_profiles.  The EWRD profiles start
-	 * from index 1, so the maximum value allowed here is
-	 * ACPI_SAR_PROFILES_NUM - 1.
-	 */
-	if (n_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	/* the tables start at element 3 */
-	pos = 3;
-
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV0 != ACPI_SAR_NUM_CHAINS_REV1);
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV2 != 2 * ACPI_SAR_NUM_CHAINS_REV0);
-
-	/* parse non-cdb chains for all profiles */
-	for (i = 0; i < n_profiles; i++) {
-		union acpi_object *table = &wifi_pkg->package.elements[pos];
-
-		/* The EWRD profiles officially go from 2 to 4, but we
-		 * save them in sar_profiles[1-3] (because we don't
-		 * have profile 0).  So in the array we start from 1.
-		 */
-		ret = iwl_acpi_parse_chains_table(table,
-						  fwrt->sar_profiles[i + 1].chains,
-						  ACPI_SAR_NUM_CHAINS_REV0,
-						  num_sub_bands);
-		if (ret < 0)
-			goto out_free;
-
-		/* go to the next table */
-		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
-	}
-
-	/* non-cdb table revisions */
-	if (tbl_rev < 2)
-		goto set_enabled;
-
-	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * 2 * num_sub_bands >
-		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
-		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	/* parse cdb chains for all profiles */
-	for (i = 0; i < n_profiles; i++) {
-		struct iwl_sar_profile_chain *chains;
-		union acpi_object *table;
-
-		table = &wifi_pkg->package.elements[pos];
-		chains = &fwrt->sar_profiles[i + 1].chains[ACPI_SAR_NUM_CHAINS_REV0];
-		ret = iwl_acpi_parse_chains_table(table,
-						  chains,
-						  ACPI_SAR_NUM_CHAINS_REV0,
-						  num_sub_bands);
-		if (ret < 0)
-			goto out_free;
-
-		/* go to the next table */
-		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
-	}
-
-set_enabled:
-	for (i = 0; i < n_profiles; i++)
-		fwrt->sar_profiles[i + 1].enabled = enabled;
+	fwrt->ewrd_table_revision = tbl_rev;
 
 out_free:
 	kfree(data);
 	return ret;
+}
+
+int iwl_acpi_get_wsss_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *data __free(kfree) = NULL;
+	union acpi_object *wifi_pkg, *table;
+	u8 num_chains, num_sub_bands;
+	int ret, tbl_rev;
+	u32 flags;
+
+	if (fwrt->wrds_table_revision == IWL_BIOS_REVISION_UNSET) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: WRDS table was not read\n");
+		return -EINVAL;
+	}
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WSSS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	switch (fwrt->wrds_table_revision) {
+	case 3:
+		wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+						 ACPI_WRDS_WIFI_DATA_SIZE_REV3,
+						 &tbl_rev);
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+		break;
+	case 2:
+		wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+						 ACPI_WRDS_WIFI_DATA_SIZE_REV2,
+						 &tbl_rev);
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (IS_ERR(wifi_pkg))
+		return PTR_ERR(wifi_pkg);
+
+	if (fwrt->wrds_table_revision != tbl_rev) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: WRDS/WSSS revision mismatch (WRDS rev %d, WSSS rev %d)\n",
+				fwrt->wrds_table_revision,
+				tbl_rev);
+		return -EINVAL;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+		return -EINVAL;
+
+	if (WARN_ON(num_chains * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_standalone_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_standalone_profiles[0].chains[0].subbands)))
+		return -EINVAL;
+
+	IWL_DEBUG_RADIO(fwrt, "Reading WSSS (WRDS Standalone) tbl_rev=%d\n",
+			tbl_rev);
+
+	flags = wifi_pkg->package.elements[1].integer.value;
+
+	/* position of the actual table */
+	table = &wifi_pkg->package.elements[2];
+
+	ret = iwl_acpi_parse_chains_table(table,
+					  fwrt->sar_standalone_profiles[0].chains,
+					  num_chains, num_sub_bands);
+	if (ret)
+		return ret;
+
+	if (flags & IWL_SAR_ENABLE_MSK)
+		fwrt->sar_standalone_profiles[0].enabled = true;
+
+	return ret;
+}
+
+int iwl_acpi_get_ewss_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *data __free(kfree) = NULL;
+	union acpi_object *wifi_pkg;
+	u8 num_sub_bands;
+	int tbl_rev;
+
+	if (fwrt->ewrd_table_revision == IWL_BIOS_REVISION_UNSET) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: EWRD table was not read\n");
+		return -EINVAL;
+	}
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_EWSS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	switch (fwrt->ewrd_table_revision) {
+	case 3:
+		wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+						 ACPI_EWRD_WIFI_DATA_SIZE_REV3,
+						 &tbl_rev);
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+		break;
+	case 2:
+		wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+						 ACPI_EWRD_WIFI_DATA_SIZE_REV2,
+						 &tbl_rev);
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (IS_ERR(wifi_pkg))
+		return PTR_ERR(wifi_pkg);
+
+	if (fwrt->ewrd_table_revision != tbl_rev) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Skipping standalone SAR: EWRD/EWSS revision mismatch (EWRD rev %d, EWSS rev %d)\n",
+				fwrt->ewrd_table_revision, tbl_rev);
+		return -EINVAL;
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Reading EWSS (EWRD Standalone) tbl_rev=%d\n",
+			tbl_rev);
+
+	return iwl_acpi_parse_extended_sar_profiles(wifi_pkg,
+						    fwrt->sar_standalone_profiles,
+						    num_sub_bands,
+						    fwrt->ewrd_table_revision >= 2);
 }
 
 int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
@@ -1153,7 +1287,8 @@ void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 	}
 
 	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
-	    wifi_pkg->package.elements[1].integer.value > ACPI_GLAI_MAX_STATUS)
+	    wifi_pkg->package.elements[1].integer.value >
+	    UEFI_CNV_GUID_TEST_MODE)
 		goto out_free;
 
 	fwrt->uefi_tables_lock_status =
@@ -1165,7 +1300,6 @@ void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 out_free:
 	kfree(data);
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_guid_lock_status);
 
 int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 {

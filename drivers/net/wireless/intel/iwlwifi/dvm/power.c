@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2019, 2025 Intel Corporation
+ * Copyright (C) 2019, 2025-2026 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
-#include "iwl-io.h"
 #include "iwl-debug.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"

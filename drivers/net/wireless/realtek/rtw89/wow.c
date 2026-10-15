@@ -16,10 +16,14 @@ void __rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	size_t hdr_len = offsetof(struct ieee80211_mgmt, u.assoc_req.variable);
 	const u8 *rsn, *ies = mgmt->u.assoc_req.variable;
 	struct rtw89_rsn_ie *rsn_ie;
 
-	rsn = cfg80211_find_ie(WLAN_EID_RSN, ies, skb->len);
+	if (skb->len < hdr_len)
+		return;
+
+	rsn = cfg80211_find_ie(WLAN_EID_RSN, ies, skb->len - hdr_len);
 	if (!rsn)
 		return;
 
@@ -473,10 +477,8 @@ static void rtw89_wow_construct_key_info(struct rtw89_dev *rtwdev)
 	struct ieee80211_vif *wow_vif = rtwvif_link_to_vif(rtwvif_link);
 	bool err = false;
 
-	rcu_read_lock();
-	ieee80211_iter_keys_rcu(rtwdev->hw, wow_vif,
-				rtw89_wow_get_key_info_iter, &err);
-	rcu_read_unlock();
+	ieee80211_iter_keys(rtwdev->hw, wow_vif,
+			    rtw89_wow_get_key_info_iter, &err);
 
 	if (err) {
 		rtw89_wow_key_clear(rtwdev);
@@ -548,6 +550,9 @@ static int rtw89_wow_get_aoac_rpt_reg(struct rtw89_dev *rtwdev)
 	aoac_rpt->key_idx =
 		u32_get_bits(c2h_info.u.c2hreg[0], RTW89_C2HREG_AOAC_RPT_1_W0_KEY_IDX);
 	key_idx = aoac_rpt->key_idx;
+	if (key_idx >= ARRAY_SIZE(aoac_rpt->gtk_rx_iv))
+		return -EINVAL;
+
 	aoac_rpt->gtk_rx_iv[key_idx][0] =
 		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_1_W1_IV_0);
 	aoac_rpt->gtk_rx_iv[key_idx][1] =
@@ -697,10 +702,8 @@ static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
 	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_key_conf *key;
 
-	rcu_read_lock();
-	ieee80211_iter_keys_rcu(rtwdev->hw, wow_vif,
-				rtw89_wow_set_key_info_iter, &data);
-	rcu_read_unlock();
+	ieee80211_iter_keys(rtwdev->hw, wow_vif,
+			    rtw89_wow_set_key_info_iter, &data);
 
 	if (data.error) {
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s error\n", __func__);
@@ -752,10 +755,12 @@ static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
-	if (rtw89_wow_mgd_linked(rtwdev))
+	if (rtw89_wow_mgd_linked(rtwdev)) {
 		rtw89_enter_lps(rtwdev, rtwvif_link->rtwvif, false);
-	else if (rtw89_wow_no_link(rtwdev))
+	} else if (rtw89_wow_no_link(rtwdev)) {
 		rtw89_fw_h2c_fwips(rtwdev, rtwvif_link, true);
+		rtw89_fw_h2c_lps_ch_ml_info_routing(rtwdev, rtwvif_link->rtwvif);
+	}
 }
 
 static void rtw89_wow_leave_ps(struct rtw89_dev *rtwdev, bool enable_wow)

@@ -6,14 +6,14 @@
  */
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
+#include <linux/delay.h>
 #include <linux/list.h>
 
 #include "iwl-trans.h"
 #include "iwl-drv.h"
+#include "iwl-prph.h"
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
-#include "pcie/gen1_2/internal.h"
-#include "pcie/iwl-context-info-v2.h"
 
 struct iwl_trans_dev_restart_data {
 	struct list_head list;
@@ -259,13 +259,14 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 		iwl_trans_schedule_reprobe(trans, 0);
 		break;
 	default:
-		iwl_trans_pcie_reset(trans, mode);
+		iwl_trans_reset(trans, mode);
 		break;
 	}
 }
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
+				  const struct iwl_trans_ops *ops,
 				  const struct iwl_mac_cfg *mac_cfg)
 {
 	struct iwl_trans *trans;
@@ -277,6 +278,7 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	if (!trans)
 		return NULL;
 
+	trans->ops = ops;
 	trans->mac_cfg = mac_cfg;
 
 #ifdef CONFIG_LOCKDEP
@@ -300,6 +302,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
+	if (WARN_ON_ONCE(!trans->ops->send_cmd))
+		return -EOPNOTSUPP;
+
 	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
@@ -319,7 +324,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			cmd->id = DEF_ID(cmd->id);
 	}
 
-	ret = iwl_trans_pcie_send_hcmd(trans, cmd);
+	ret = trans->ops->send_cmd(trans, cmd);
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
@@ -333,14 +338,18 @@ IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
 
 struct iwl_device_tx_cmd *iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
-	return iwl_pcie_gen1_2_alloc_tx_cmd(trans);
+	if (WARN_ON_ONCE(!trans->ops->alloc_tx_cmd))
+		return ERR_PTR(-EOPNOTSUPP);
+	return trans->ops->alloc_tx_cmd(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_alloc_tx_cmd);
 
 void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 			   struct iwl_device_tx_cmd *dev_cmd)
 {
-	iwl_pcie_gen1_2_free_tx_cmd(trans, dev_cmd);
+	if (WARN_ON_ONCE(!trans->ops->free_tx_cmd))
+		return;
+	trans->ops->free_tx_cmd(trans, dev_cmd);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_free_tx_cmd);
 
@@ -395,7 +404,9 @@ void iwl_trans_op_mode_enter(struct iwl_trans *trans,
 
 	WARN_ON_ONCE(!trans->conf.rx_mpdu_cmd);
 
-	iwl_pcie_gen1_2_op_mode_enter(trans);
+	if (WARN_ON_ONCE(!trans->ops->op_mode_enter))
+		return;
+	trans->ops->op_mode_enter(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_op_mode_enter);
 
@@ -405,7 +416,9 @@ int iwl_trans_start_hw(struct iwl_trans *trans)
 
 	clear_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status);
 
-	return iwl_trans_pcie_start_hw(trans);
+	if (WARN_ON_ONCE(!trans->ops->start_hw))
+		return -EOPNOTSUPP;
+	return trans->ops->start_hw(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_start_hw);
 
@@ -413,10 +426,8 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	if (trans->mac_cfg->gen2)
-		iwl_trans_pcie_gen2_op_mode_leave(trans);
-	else
-		iwl_trans_pcie_op_mode_leave(trans);
+	if (!WARN_ON_ONCE(!trans->ops->op_mode_leave))
+		trans->ops->op_mode_leave(trans);
 
 	cancel_delayed_work_sync(&trans->restart.wk);
 
@@ -427,42 +438,147 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 }
 IWL_EXPORT_SYMBOL(iwl_trans_op_mode_leave);
 
-void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
-{
-	iwl_trans_pcie_write8(trans, ofs, val);
-}
-
 void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 {
-	iwl_trans_pcie_write32(trans, ofs, val);
+	if (WARN_ON_ONCE(!trans->ops->write32))
+		return;
+	trans->ops->write32(trans, ofs, val);
 }
+IWL_EXPORT_SYMBOL(iwl_trans_write32);
 
 u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_trans_pcie_read32(trans, ofs);
+	if (WARN_ON_ONCE(!trans->ops->read32))
+		return 0;
+	return trans->ops->read32(trans, ofs);
 }
+IWL_EXPORT_SYMBOL(iwl_trans_read32);
+
+u32 iwl_trans_read_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+{
+	if (WARN_ON_ONCE(!trans->ops->read_prph))
+		return 0;
+	return trans->ops->read_prph(trans, ofs);
+}
+
+void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	if (WARN_ON_ONCE(!trans->ops->write_prph))
+		return;
+	trans->ops->write_prph(trans, ofs, val);
+}
+
+int iwl_trans_poll_bits_mask(struct iwl_trans *trans, u32 addr,
+			     u32 bits, u32 mask, int timeout)
+{
+	if (WARN_ON_ONCE(!trans->ops->poll_bits_mask))
+		return -EOPNOTSUPP;
+	return trans->ops->poll_bits_mask(trans, addr, bits, mask, timeout);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_poll_bits_mask);
+
+void iwl_trans_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
+{
+	if (iwl_trans_grab_nic_access(trans)) {
+		iwl_trans_write32(trans, reg, value);
+		iwl_trans_release_nic_access(trans);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_trans_write_direct32);
 
 u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_trans_pcie_read_prph(trans, ofs);
-}
+	if (iwl_trans_grab_nic_access(trans)) {
+		u32 val = iwl_trans_read_prph_no_grab(trans, ofs);
 
-void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
-{
-	return iwl_trans_pcie_write_prph(trans, ofs, val);
+		iwl_trans_release_nic_access(trans);
+
+		return val;
+	}
+
+	/* return as if we have a HW timeout/failure */
+	return 0x5a5a5a5a;
 }
+IWL_EXPORT_SYMBOL(iwl_trans_read_prph);
+
+void iwl_trans_write_prph_delay(struct iwl_trans *trans, u32 ofs, u32 val,
+				u32 delay_ms)
+{
+	if (iwl_trans_grab_nic_access(trans)) {
+		mdelay(delay_ms);
+		iwl_trans_write_prph_no_grab(trans, ofs, val);
+		iwl_trans_release_nic_access(trans);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_trans_write_prph_delay);
+
+void iwl_trans_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
+{
+	if (iwl_trans_grab_nic_access(trans)) {
+		iwl_trans_write_prph_no_grab(trans, ofs,
+					     iwl_trans_read_prph_no_grab(trans, ofs) |
+					     mask);
+		iwl_trans_release_nic_access(trans);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_trans_set_bits_prph);
+
+void iwl_trans_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
+				  u32 bits, u32 mask)
+{
+	if (iwl_trans_grab_nic_access(trans)) {
+		iwl_trans_write_prph_no_grab(trans, ofs,
+					     (iwl_trans_read_prph_no_grab(trans, ofs) &
+					      mask) | bits);
+		iwl_trans_release_nic_access(trans);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_trans_set_bits_mask_prph);
+
+void iwl_trans_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
+{
+	u32 val;
+
+	if (iwl_trans_grab_nic_access(trans)) {
+		val = iwl_trans_read_prph_no_grab(trans, ofs);
+		iwl_trans_write_prph_no_grab(trans, ofs, (val & ~mask));
+		iwl_trans_release_nic_access(trans);
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_trans_clear_bits_prph);
+
+void iwl_trans_force_nmi(struct iwl_trans *trans)
+{
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+		iwl_trans_write_prph_delay(trans, DEVICE_SET_NMI_REG,
+					   DEVICE_SET_NMI_VAL_DRV, 1);
+	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		iwl_trans_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
+					  UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
+	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		iwl_trans_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+					  UREG_DOORBELL_TO_ISR6_NMI_BIT);
+	else
+		iwl_trans_write32(trans, CSR_DOORBELL_VECTOR,
+				  UREG_DOORBELL_TO_ISR6_NMI_BIT);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_force_nmi);
 
 int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 		       void *buf, int dwords)
 {
-	return iwl_trans_pcie_read_mem(trans, addr, buf, dwords);
+	if (WARN_ON_ONCE(!trans->ops->read_mem))
+		return -EOPNOTSUPP;
+	return trans->ops->read_mem(trans, addr, buf, dwords);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_read_mem);
 
 int iwl_trans_read_mem_no_grab(struct iwl_trans *trans, u32 addr,
 			       void *buf, u32 dwords)
 {
-	return iwl_trans_pcie_read_mem_no_grab(trans, addr, buf, dwords);
+	if (WARN_ON_ONCE(!trans->ops->read_mem_no_grab))
+		return -EOPNOTSUPP;
+	return trans->ops->read_mem_no_grab(trans, addr, buf, dwords);
 }
 
 int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
@@ -472,10 +588,10 @@ int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
 	const u32 *vals = buf;
 
 	if (iwl_trans_grab_nic_access(trans)) {
-		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
+		iwl_trans_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
-			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
-				    vals ? vals[offs] : 0);
+			iwl_trans_write32(trans, HBUS_TARG_MEM_WDAT,
+					  vals ? vals[offs] : 0);
 		iwl_trans_release_nic_access(trans);
 	} else {
 		ret = -EBUSY;
@@ -495,7 +611,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_set_pmi);
 
 int iwl_trans_sw_reset(struct iwl_trans *trans)
 {
-	return iwl_trans_pcie_sw_reset(trans, true);
+	if (WARN_ON_ONCE(!trans->ops->sw_reset))
+		return -EOPNOTSUPP;
+	return trans->ops->sw_reset(trans, true);
 }
 
 struct iwl_trans_dump_data *
@@ -503,15 +621,19 @@ iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
 		    const struct iwl_dump_sanitize_ops *sanitize_ops,
 		    void *sanitize_ctx)
 {
-	return iwl_trans_pcie_dump_data(trans, dump_mask,
-					sanitize_ops, sanitize_ctx);
+	if (WARN_ON_ONCE(!trans->ops->dump_data))
+		return NULL;
+	return trans->ops->dump_data(trans, dump_mask,
+				     sanitize_ops, sanitize_ctx);
 }
 
 int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset)
 {
 	might_sleep();
 
-	return iwl_trans_pcie_d3_suspend(trans, reset);
+	if (WARN_ON_ONCE(!trans->ops->d3_suspend))
+		return -EOPNOTSUPP;
+	return trans->ops->d3_suspend(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_suspend);
 
@@ -519,54 +641,64 @@ int iwl_trans_d3_resume(struct iwl_trans *trans, bool reset)
 {
 	might_sleep();
 
-	return iwl_trans_pcie_d3_resume(trans, reset);
+	if (WARN_ON_ONCE(!trans->ops->d3_resume))
+		return -EOPNOTSUPP;
+	return trans->ops->d3_resume(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_resume);
 
-void iwl_trans_interrupts(struct iwl_trans *trans, bool enable)
-{
-	iwl_trans_pci_interrupts(trans, enable);
-}
-
 void iwl_trans_sync_nmi(struct iwl_trans *trans)
 {
-	iwl_trans_pcie_sync_nmi(trans);
+	if (WARN_ON_ONCE(!trans->ops->sync_nmi))
+		return;
+	trans->ops->sync_nmi(trans);
 }
 
 int iwl_trans_write_imr_mem(struct iwl_trans *trans, u32 dst_addr,
 			    u64 src_addr, u32 byte_cnt)
 {
-	return iwl_trans_pcie_copy_imr(trans, dst_addr, src_addr, byte_cnt);
+	if (WARN_ON_ONCE(!trans->ops->write_imr_mem))
+		return -EOPNOTSUPP;
+	return trans->ops->write_imr_mem(trans, dst_addr, src_addr, byte_cnt);
 }
 
 void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
 			     u32 mask, u32 value)
 {
-	iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
+	if (WARN_ON_ONCE(!trans->ops->set_bits_mask))
+		return;
+	trans->ops->set_bits_mask(trans, reg, mask, value);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_set_bits_mask);
 
 int iwl_trans_read_config32(struct iwl_trans *trans, u32 ofs,
 			    u32 *val)
 {
-	return iwl_trans_pcie_read_config32(trans, ofs, val);
+	if (WARN_ON_ONCE(!trans->ops->read_config32))
+		return -EOPNOTSUPP;
+	return trans->ops->read_config32(trans, ofs, val);
 }
 
 bool iwl_trans_grab_nic_access(struct iwl_trans *trans)
 {
-	return iwl_trans_pcie_grab_nic_access(trans);
+	if (WARN_ON_ONCE(!trans->ops->grab_nic_access))
+		return false;
+	return trans->ops->grab_nic_access(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_grab_nic_access);
 
 void iwl_trans_resched_with_nic_access(struct iwl_trans *trans)
 {
-	iwl_trans_pcie_resched_with_nic_access(trans);
+	if (WARN_ON_ONCE(!trans->ops->resched_with_nic_access))
+		return;
+	trans->ops->resched_with_nic_access(trans);
 }
 
-void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans)
+void iwl_trans_release_nic_access(struct iwl_trans *trans)
 {
-	iwl_trans_pcie_release_nic_access(trans);
+	if (WARN_ON_ONCE(!trans->ops->release_nic_access))
+		return;
+	trans->ops->release_nic_access(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_release_nic_access);
 
@@ -576,10 +708,8 @@ void iwl_trans_fw_alive(struct iwl_trans *trans)
 
 	trans->state = IWL_TRANS_FW_ALIVE;
 
-	if (trans->mac_cfg->gen2)
-		iwl_trans_pcie_gen2_fw_alive(trans);
-	else
-		iwl_trans_pcie_fw_alive(trans);
+	if (!WARN_ON_ONCE(!trans->ops->fw_alive))
+		trans->ops->fw_alive(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_fw_alive);
 
@@ -597,12 +727,10 @@ int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
 
 	clear_bit(STATUS_FW_ERROR, &trans->status);
 
-	if (trans->mac_cfg->gen2)
-		ret = iwl_trans_pcie_gen2_start_fw(trans, fw, img,
-						   run_in_rfkill);
-	else
-		ret = iwl_trans_pcie_start_fw(trans, fw, img,
-					      run_in_rfkill);
+	if (WARN_ON_ONCE(!trans->ops->start_fw))
+		return -EOPNOTSUPP;
+
+	ret = trans->ops->start_fw(trans, fw, img, run_in_rfkill);
 
 	if (ret == 0)
 		trans->state = IWL_TRANS_FW_STARTED;
@@ -643,10 +771,8 @@ void iwl_trans_stop_device(struct iwl_trans *trans)
 		iwl_op_mode_dump_error(trans->op_mode, &mode);
 	}
 
-	if (trans->mac_cfg->gen2)
-		iwl_trans_pcie_gen2_stop_device(trans);
-	else
-		iwl_trans_pcie_stop_device(trans);
+	if (!WARN_ON_ONCE(!trans->ops->stop_device))
+		trans->ops->stop_device(trans);
 
 	trans->state = IWL_TRANS_NO_FW;
 }
@@ -662,10 +788,10 @@ int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      "bad state = %d\n", trans->state))
 		return -EIO;
 
-	if (trans->mac_cfg->gen2)
-		return iwl_txq_gen2_tx(trans, skb, dev_cmd, queue);
+	if (WARN_ON_ONCE(!trans->ops->tx))
+		return -EOPNOTSUPP;
 
-	return iwl_trans_pcie_tx(trans, skb, dev_cmd, queue);
+	return trans->ops->tx(trans, skb, dev_cmd, queue);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_tx);
 
@@ -679,14 +805,18 @@ void iwl_trans_reclaim(struct iwl_trans *trans, int queue, int ssn,
 		      "bad state = %d\n", trans->state))
 		return;
 
-	iwl_pcie_reclaim(trans, queue, ssn, skbs, is_flush);
+	if (WARN_ON_ONCE(!trans->ops->reclaim))
+		return;
+	trans->ops->reclaim(trans, queue, ssn, skbs, is_flush);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_reclaim);
 
 void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
 			   bool configure_scd)
 {
-	iwl_trans_pcie_txq_disable(trans, queue, configure_scd);
+	if (WARN_ON_ONCE(!trans->ops->txq_disable))
+		return;
+	trans->ops->txq_disable(trans, queue, configure_scd);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_disable);
 
@@ -700,8 +830,10 @@ bool iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 		      "bad state = %d\n", trans->state))
 		return false;
 
-	return iwl_trans_pcie_txq_enable(trans, queue, ssn,
-					 cfg, queue_wdg_timeout);
+	if (WARN_ON_ONCE(!trans->ops->txq_enable))
+		return false;
+	return trans->ops->txq_enable(trans, queue, ssn,
+				     cfg, queue_wdg_timeout);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_enable_cfg);
 
@@ -714,7 +846,9 @@ int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
 		      "bad state = %d\n", trans->state))
 		return -EIO;
 
-	return iwl_trans_pcie_wait_txq_empty(trans, queue);
+	if (WARN_ON_ONCE(!trans->ops->wait_txq_empty))
+		return -EOPNOTSUPP;
+	return trans->ops->wait_txq_empty(trans, queue);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_wait_txq_empty);
 
@@ -724,7 +858,9 @@ int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans, u32 txqs)
 		      "bad state = %d\n", trans->state))
 		return -EIO;
 
-	return iwl_trans_pcie_wait_txqs_empty(trans, txqs);
+	if (WARN_ON_ONCE(!trans->ops->wait_txqs_empty))
+		return -EOPNOTSUPP;
+	return trans->ops->wait_txqs_empty(trans, txqs);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_wait_tx_queues_empty);
 
@@ -735,23 +871,20 @@ void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
 		      "bad state = %d\n", trans->state))
 		return;
 
-	iwl_pcie_freeze_txq_timer(trans, txqs, freeze);
+	if (WARN_ON_ONCE(!trans->ops->freeze_txq_timer))
+		return;
+	trans->ops->freeze_txq_timer(trans, txqs, freeze);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_freeze_txq_timer);
 
 void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 				   int txq_id, bool shared_mode)
 {
-	iwl_trans_pcie_txq_set_shared_mode(trans, txq_id, shared_mode);
+	if (WARN_ON_ONCE(!trans->ops->txq_set_shared_mode))
+		return;
+	trans->ops->txq_set_shared_mode(trans, txq_id, shared_mode);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_set_shared_mode);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_trans_debugfs_cleanup(struct iwl_trans *trans)
-{
-	iwl_trans_pcie_debugfs_cleanup(trans);
-}
-#endif
 
 void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue, int ptr)
 {
@@ -759,7 +892,9 @@ void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue, int ptr)
 		      "bad state = %d\n", trans->state))
 		return;
 
-	iwl_pcie_set_q_ptrs(trans, queue, ptr);
+	if (WARN_ON_ONCE(!trans->ops->set_q_ptrs))
+		return;
+	trans->ops->set_q_ptrs(trans, queue, ptr);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_set_q_ptrs);
 
@@ -772,49 +907,62 @@ int iwl_trans_txq_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 		      "bad state = %d\n", trans->state))
 		return -EIO;
 
-	return iwl_txq_dyn_alloc(trans, flags, sta_mask, tid,
-				 size, wdg_timeout);
+	if (WARN_ON_ONCE(!trans->ops->txq_alloc))
+		return -EOPNOTSUPP;
+	return trans->ops->txq_alloc(trans, flags, sta_mask, tid,
+				     size, wdg_timeout);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_alloc);
 
 void iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 {
-	iwl_txq_dyn_free(trans, queue);
+	if (WARN_ON_ONCE(!trans->ops->txq_free))
+		return;
+	trans->ops->txq_free(trans, queue);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_txq_free);
 
 int iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
 			       struct iwl_trans_rxq_dma_data *data)
 {
-	return iwl_trans_pcie_rxq_dma_data(trans, queue, data);
+	if (WARN_ON_ONCE(!trans->ops->rxq_dma_data))
+		return -EOPNOTSUPP;
+	return trans->ops->rxq_dma_data(trans, queue, data);
 }
 
 int iwl_trans_load_pnvm(struct iwl_trans *trans,
 			const struct iwl_pnvm_image *pnvm_data,
 			const struct iwl_ucode_capabilities *capa)
 {
-	return iwl_trans_pcie_ctx_info_v2_load_pnvm(trans, pnvm_data, capa);
+	if (WARN_ON_ONCE(!trans->ops->load_pnvm))
+		return -EOPNOTSUPP;
+	return trans->ops->load_pnvm(trans, pnvm_data, capa);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_load_pnvm);
 
 void iwl_trans_set_pnvm(struct iwl_trans *trans,
 			const struct iwl_ucode_capabilities *capa)
 {
-	iwl_trans_pcie_ctx_info_v2_set_pnvm(trans, capa);
+	if (WARN_ON_ONCE(!trans->ops->set_pnvm))
+		return;
+	trans->ops->set_pnvm(trans, capa);
 }
 
 int iwl_trans_load_reduce_power(struct iwl_trans *trans,
 				const struct iwl_pnvm_image *payloads,
 				const struct iwl_ucode_capabilities *capa)
 {
-	return iwl_trans_pcie_ctx_info_v2_load_reduce_power(trans, payloads,
-							      capa);
+	if (WARN_ON_ONCE(!trans->ops->load_reduce_power))
+		return -EOPNOTSUPP;
+	return trans->ops->load_reduce_power(trans, payloads, capa);
 }
 
 void iwl_trans_set_reduce_power(struct iwl_trans *trans,
 				const struct iwl_ucode_capabilities *capa)
 {
-	iwl_trans_pcie_ctx_info_v2_set_reduce_power(trans, capa);
+	if (WARN_ON_ONCE(!trans->ops->set_reduce_power))
+		return;
+	trans->ops->set_reduce_power(trans, capa);
 }
 
 bool iwl_trans_is_pm_supported(struct iwl_trans *trans)
@@ -822,19 +970,39 @@ bool iwl_trans_is_pm_supported(struct iwl_trans *trans)
 	if (WARN_ON(trans->mac_cfg->gen2))
 		return false;
 
-	return iwl_pcie_gen1_is_pm_supported(trans);
+	if (WARN_ON_ONCE(!trans->ops->is_pm_supported))
+		return false;
+	return trans->ops->is_pm_supported(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_is_pm_supported);
 
 bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans)
 {
-	return iwl_pcie_gen1_2_is_ltr_enabled(trans);
+	if (WARN_ON_ONCE(!trans->ops->is_ltr_enabled))
+		return false;
+	return trans->ops->is_ltr_enabled(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_is_ltr_enabled);
 
 int iwl_trans_activate_nic(struct iwl_trans *trans)
 {
-	return iwl_pcie_gen1_2_activate_nic(trans);
+	if (WARN_ON_ONCE(!trans->ops->activate_nic))
+		return -EOPNOTSUPP;
+	return trans->ops->activate_nic(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_activate_nic);
+
+
+void iwl_trans_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
+{
+	if (!WARN_ON_ONCE(!trans->ops->reset))
+		trans->ops->reset(trans, mode);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_reset);
+
+void iwl_trans_fw_reset_handshake(struct iwl_trans *trans)
+{
+	if (!WARN_ON_ONCE(!trans->ops->fw_reset_handshake))
+		trans->ops->fw_reset_handshake(trans);
+}
 

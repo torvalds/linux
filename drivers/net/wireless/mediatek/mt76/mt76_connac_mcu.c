@@ -2041,13 +2041,13 @@ int mt76_connac_mcu_sched_scan_enable(struct mt76_phy *phy,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sched_scan_enable);
 
-int mt76_connac_mcu_chip_config(struct mt76_dev *dev)
+int mt76_connac_mcu_chip_config(struct mt76_dev *dev, const char *cmd)
 {
 	struct mt76_connac_config req = {
 		.resp_type = 0,
 	};
 
-	strscpy(req.data, "assert");
+	strscpy(req.data, cmd);
 
 	return mt76_mcu_send_msg(dev, MCU_CE_CMD(CHIP_CONFIG),
 				 &req, sizeof(req), false);
@@ -2056,14 +2056,11 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_chip_config);
 
 int mt76_connac_mcu_set_deep_sleep(struct mt76_dev *dev, bool enable)
 {
-	struct mt76_connac_config req = {
-		.resp_type = 0,
-	};
+	char cmd[16];
 
-	snprintf(req.data, sizeof(req.data), "KeepFullPwr %d", !enable);
+	snprintf(cmd, sizeof(cmd), "KeepFullPwr %d", !enable);
 
-	return mt76_mcu_send_msg(dev, MCU_CE_CMD(CHIP_CONFIG),
-				 &req, sizeof(req), false);
+	return mt76_connac_mcu_chip_config(dev, cmd);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_set_deep_sleep);
 
@@ -2487,9 +2484,7 @@ int mt76_connac_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 	gtk_tlv->rekey_mode = 2;
 	gtk_tlv->option = 1;
 
-	rcu_read_lock();
-	ieee80211_iter_keys_rcu(hw, vif, mt76_connac_mcu_key_iter, gtk_tlv);
-	rcu_read_unlock();
+	ieee80211_iter_keys(hw, vif, mt76_connac_mcu_key_iter, gtk_tlv);
 
 	memcpy(gtk_tlv->kek, key->kek, NL80211_KEK_LEN);
 	memcpy(gtk_tlv->kck, key->kck, NL80211_KCK_LEN);
@@ -3127,7 +3122,7 @@ mt76_connac_mcu_send_phy_ram_firmware(struct mt76_dev *dev,
 		err = mt76_connac_mcu_init_download(dev, addr, len, mode);
 		if (err) {
 			dev_err(dev->dev,
-				"The request to dowload PHY firmware failed.\n");
+				"The request to download PHY firmware failed.\n");
 			return err;
 		}
 

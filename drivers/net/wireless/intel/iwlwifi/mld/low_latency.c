@@ -257,7 +257,8 @@ static bool iwl_mld_is_vo_vi_pkt(struct ieee80211_hdr *hdr)
 	if (tid >= IWL_MAX_TID_COUNT)
 		return false;
 
-	return tid_to_mac80211_ac[tid] < IEEE80211_AC_VI;
+	return tid_to_mac80211_ac[tid] == IEEE80211_AC_VI ||
+	       tid_to_mac80211_ac[tid] == IEEE80211_AC_VO;
 }
 
 void iwl_mld_low_latency_update_counters(struct iwl_mld *mld,

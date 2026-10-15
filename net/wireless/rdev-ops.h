@@ -183,6 +183,17 @@ static inline int rdev_change_beacon(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int rdev_update_beacon(struct cfg80211_registered_device *rdev,
+				     struct net_device *dev,
+				     struct cfg80211_ap_update *info)
+{
+	int ret;
+	trace_rdev_update_beacon(&rdev->wiphy, dev, info);
+	ret = rdev->ops->update_beacon(&rdev->wiphy, dev, info);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
 static inline int rdev_stop_ap(struct cfg80211_registered_device *rdev,
 			       struct net_device *dev, unsigned int link_id)
 {
@@ -237,6 +248,19 @@ static inline int rdev_get_station(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_get_station_unlocked(struct cfg80211_registered_device *rdev,
+			  struct wireless_dev *wdev, const u8 *mac,
+			  struct station_info *sinfo)
+{
+	int ret;
+
+	trace_rdev_get_station_unlocked(&rdev->wiphy, wdev, mac);
+	ret = rdev->ops->get_station_unlocked(&rdev->wiphy, wdev, mac, sinfo);
+	trace_rdev_return_int_station_info(&rdev->wiphy, ret, sinfo);
+	return ret;
+}
+
 static inline int rdev_dump_station(struct cfg80211_registered_device *rdev,
 				    struct wireless_dev *wdev, int idx, u8 *mac,
 				    struct station_info *sinfo)
@@ -244,6 +268,20 @@ static inline int rdev_dump_station(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_dump_station(&rdev->wiphy, wdev, idx, mac);
 	ret = rdev->ops->dump_station(&rdev->wiphy, wdev, idx, mac, sinfo);
+	trace_rdev_return_int_station_info(&rdev->wiphy, ret, sinfo);
+	return ret;
+}
+
+static inline int
+rdev_dump_station_unlocked(struct cfg80211_registered_device *rdev,
+			   struct wireless_dev *wdev, int idx, u8 *mac,
+			   struct station_info *sinfo)
+{
+	int ret;
+
+	trace_rdev_dump_station_unlocked(&rdev->wiphy, wdev, idx, mac);
+	ret = rdev->ops->dump_station_unlocked(&rdev->wiphy, wdev, idx, mac,
+					       sinfo);
 	trace_rdev_return_int_station_info(&rdev->wiphy, ret, sinfo);
 	return ret;
 }
@@ -770,6 +808,18 @@ static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, params);
 	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, params, cookie);
+	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
+	return ret;
+}
+
+static inline int
+rdev_mgmt_tx_unlocked(struct cfg80211_registered_device *rdev,
+		      struct wireless_dev *wdev,
+		      struct cfg80211_mgmt_tx_params *params, u64 cookie)
+{
+	int ret;
+	trace_rdev_mgmt_tx_unlocked(&rdev->wiphy, wdev, params);
+	ret = rdev->ops->mgmt_tx_unlocked(&rdev->wiphy, wdev, params, cookie);
 	trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	return ret;
 }

@@ -711,8 +711,10 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 	mpath = rhashtable_lookup_get_insert_fast(&tbl->rhead,
 						  &new_mpath->rhash,
 						  mesh_rht_params);
-	if (!mpath)
-		hlist_add_head(&new_mpath->walk_list, &tbl->walk_head);
+	if (!mpath) {
+		hlist_add_head_rcu(&new_mpath->walk_list, &tbl->walk_head);
+		sdata->u.mesh.mesh_paths_generation++;
+	}
 	spin_unlock_bh(&tbl->walk_lock);
 
 	if (mpath) {
@@ -725,7 +727,6 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 		new_mpath = mpath;
 	}
 
-	sdata->u.mesh.mesh_paths_generation++;
 	return new_mpath;
 }
 
@@ -760,8 +761,10 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 	ret = rhashtable_lookup_insert_fast(&tbl->rhead,
 					    &new_mpath->rhash,
 					    mesh_rht_params);
-	if (!ret)
+	if (!ret) {
 		hlist_add_head_rcu(&new_mpath->walk_list, &tbl->walk_head);
+		sdata->u.mesh.mpp_paths_generation++;
+	}
 	spin_unlock_bh(&tbl->walk_lock);
 
 	if (ret) {
@@ -771,7 +774,6 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 		mesh_fast_tx_flush_addr(sdata, dst);
 	}
 
-	sdata->u.mesh.mpp_paths_generation++;
 	return ret;
 }
 
@@ -833,10 +835,13 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
 	spin_lock_bh(&mpath->state_lock);
 	WRITE_ONCE(mpath->flags, mpath->flags | MESH_PATH_DELETED);
 	spin_unlock_bh(&mpath->state_lock);
-	if (tbl == &mpath->sdata->u.mesh.mpp_paths)
+	if (tbl == &mpath->sdata->u.mesh.mpp_paths) {
+		mpath->sdata->u.mesh.mpp_paths_generation++;
 		mesh_fast_tx_flush_addr(mpath->sdata, mpath->dst);
-	else
+	} else {
+		mpath->sdata->u.mesh.mesh_paths_generation++;
 		mesh_fast_tx_flush_mpath(mpath);
+	}
 	mesh_path_free_rcu(tbl, mpath);
 }
 
@@ -944,14 +949,10 @@ static int table_path_del(struct mesh_table *tbl,
  */
 int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 {
-	int err;
-
 	/* flush relevant mpp entries first */
 	mpp_flush_by_proxy(sdata, addr);
 
-	err = table_path_del(&sdata->u.mesh.mesh_paths, sdata, addr);
-	sdata->u.mesh.mesh_paths_generation++;
-	return err;
+	return table_path_del(&sdata->u.mesh.mesh_paths, sdata, addr);
 }
 
 /**

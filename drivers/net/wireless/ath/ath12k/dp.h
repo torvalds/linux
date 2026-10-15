@@ -31,6 +31,7 @@ struct ath12k_dp_profile_params {
 	u32 num_pool_tx_desc;
 	u32 rx_desc_count;
 	u32 rx_release_ring_size;
+	u32 rxdma_buf_ring_size;
 };
 
 #define DP_MON_PURGE_TIMEOUT_MS     100
@@ -210,7 +211,6 @@ struct ath12k_pdev_dp {
 #define DP_REO_EXCEPTION_RING_SIZE	128
 #define DP_REO_CMD_RING_SIZE		256
 #define DP_REO_STATUS_RING_SIZE		2048
-#define DP_RXDMA_BUF_RING_SIZE		4096
 #define DP_RX_MAC_BUF_RING_SIZE		4096
 #define DP_RXDMA_REFILL_RING_SIZE	2048
 #define DP_RXDMA_ERR_DST_RING_SIZE	1024
@@ -728,6 +728,12 @@ static inline u32
 ath12k_dp_rx_release_ring_size(const struct ath12k_dp_profile_params *p)
 {
 	return p->rx_release_ring_size;
+}
+
+static inline u32
+ath12k_dp_rxdma_buf_ring_size(const struct ath12k_dp_profile_params *p)
+{
+	return p->rxdma_buf_ring_size;
 }
 
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
