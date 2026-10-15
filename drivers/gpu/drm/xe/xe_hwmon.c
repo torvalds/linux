@@ -104,6 +104,9 @@ enum sensor_attr_power {
 /* Index of memory controller in READ_THERMAL_DATA output */
 #define TEMP_INDEX_MCTRL	2
 
+/* Mailbox sentinel reported for an unavailable temperature sensor */
+#define TEMP_MBX_INVALID	0xFF
+
 /* Mailbox temperature is sign-magnitude: bit 7 sign, bits 6:0 magnitude. */
 #define TEMP_MBX_SIGN		BIT(7)
 #define TEMP_MBX_MAG		GENMASK(6, 0)
@@ -852,6 +855,30 @@ static int xe_hwmon_pcode_read_thermal_info(struct xe_hwmon *hwmon)
 	hwmon->temp.count = REG_FIELD_GET(TEMP_MASK, config);
 
 	return ret;
+}
+
+static inline bool mmio_temp_valid(const struct xe_hwmon *hwmon, u32 value)
+{
+	/*
+	 * On platforms lacking temperature sentinel support, a value of 0 is treated
+	 * as invalid. While 0°C is theoretically possible, it is highly unlikely for
+	 * a discrete GPU in normal environments, making it a reasonable fallback
+	 * indicator for invalid or uninitialized temperature readings.
+	 * All-ones is returned when the device is off the bus, so reject it too.
+	 */
+	if (value == U32_MAX)
+		return false;
+
+	return hwmon->xe->info.has_temp_sentinel || value != 0;
+}
+
+/* Mailbox temperature is sign-magnitude (bit 7 sign, bits 6:0 magnitude). */
+static inline bool mbx_temp_valid(const struct xe_hwmon *hwmon, u8 value)
+{
+	if (value == TEMP_MBX_INVALID)
+		return false;
+
+	return hwmon->xe->info.has_temp_sentinel || value != 0;
 }
 
 /* Decode an 8-bit sign-magnitude mailbox temperature to degrees Celsius. */
