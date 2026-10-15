@@ -1086,6 +1086,21 @@ static const struct vfio_device_ops nvgrace_gpu_pci_ops = {
 	.detach_ioas	= vfio_iommufd_physical_detach_ioas,
 };
 
+static int nvgrace_gpu_core_open_device(struct vfio_device *core_vdev)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	int ret;
+
+	ret = vfio_pci_core_enable(vdev);
+	if (ret)
+		return ret;
+
+	vfio_pci_core_finish_enable(vdev);
+
+	return 0;
+}
+
 static const struct vfio_pci_device_ops nvgrace_gpu_pci_dev_core_ops = {
 	.get_dmabuf_phys = vfio_pci_core_get_dmabuf_phys,
 };
@@ -1094,7 +1109,7 @@ static const struct vfio_device_ops nvgrace_gpu_pci_core_ops = {
 	.name		= "nvgrace-gpu-vfio-pci-core",
 	.init		= vfio_pci_core_init_dev,
 	.release	= vfio_pci_core_release_dev,
-	.open_device	= nvgrace_gpu_open_device,
+	.open_device	= nvgrace_gpu_core_open_device,
 	.close_device	= vfio_pci_core_close_device,
 	.ioctl		= vfio_pci_core_ioctl,
 	.get_region_info_caps = vfio_pci_ioctl_get_region_info,
