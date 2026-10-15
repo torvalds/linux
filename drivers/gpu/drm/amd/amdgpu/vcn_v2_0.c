@@ -310,7 +310,7 @@ static int vcn_v2_0_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 
 error:
-	cancel_delayed_work_sync(&adev->vcn.inst->idle_work);
+	amdgpu_vcn_cancel_idle_work(adev->vcn.inst);
 	return r;
 }
 
@@ -326,7 +326,9 @@ static int vcn_v2_0_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vcn_inst *vinst = adev->vcn.inst;
 
-	cancel_delayed_work_sync(&vinst->idle_work);
+	/* Teardown cancelled it synchronously in early_fini */
+	if (!adev->shutdown)
+		amdgpu_vcn_cancel_idle_work(vinst);
 
 	if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
 	    (vinst->cur_state != AMD_PG_STATE_GATE &&
@@ -2103,6 +2105,7 @@ static const struct amd_ip_funcs vcn_v2_0_ip_funcs = {
 	.early_init = vcn_v2_0_early_init,
 	.sw_init = vcn_v2_0_sw_init,
 	.sw_fini = vcn_v2_0_sw_fini,
+	.early_fini = amdgpu_vcn_early_fini,
 	.hw_init = vcn_v2_0_hw_init,
 	.hw_fini = vcn_v2_0_hw_fini,
 	.suspend = vcn_v2_0_suspend,
