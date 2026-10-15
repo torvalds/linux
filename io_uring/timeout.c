@@ -690,7 +690,6 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	tail = data_race(ctx->cached_cq_tail) - atomic_read(&ctx->cq_timeouts);
-	timeout->target_seq = tail + off;
 
 	/*
 	 * Update the last seq here in case io_flush_timeouts() hasn't, it only
@@ -703,6 +702,15 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 	if (!first || io_is_timeout_noseq(cmd_to_io_kiocb(first)))
 		ctx->cq_last_tm_flush = tail;
 	base = ctx->cq_last_tm_flush;
+
+	/*
+	 * A fired timeout bumps ->cq_timeouts before its CQE is posted, which
+	 * leaves the sequence behind the last flush until it is. Nothing else
+	 * separates the two then, so count from the flush.
+	 */
+	if ((s32)(tail - base) < 0)
+		tail = base;
+	timeout->target_seq = tail + off;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
