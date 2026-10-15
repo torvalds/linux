@@ -1181,8 +1181,8 @@ F:	drivers/platform/x86/amd/hfi/
 
 AMD IOMMU (AMD-VI)
 M:	Joerg Roedel (AMD) <joro@8bytes.org>
+M:	Vasant Hegde <vasant.hegde@amd.com>
 R:	Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
-R:	Vasant Hegde <vasant.hegde@amd.com>
 L:	iommu@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
