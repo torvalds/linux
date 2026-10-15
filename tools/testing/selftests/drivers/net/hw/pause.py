@@ -84,6 +84,41 @@ def wait_for_aneg(cfg, link_drop=False, timeout=15):
 
     wait_for_link(cfg, timeout)
 
+def controllable_lp(cfg):
+    """ Whether the remote interface is the link partner of the local one.
+
+    For low level ethtool tests, we need to have the remote directly connected
+    to the local host (i.e. not through a switch).
+
+    This is tested by taking triggering a link renegotiation and checking the
+    carrier_changes counter on the partner.
+
+    :returns: True if the remote is our link partner
+    """
+    controllable = getattr(cfg, "lp_controllable", None)
+    if controllable is not None:
+        return controllable
+
+    before = int(cmd(f"cat /sys/class/net/{cfg.remote_ifname}/carrier_changes",
+                     host=cfg.remote).stdout)
+
+    ret, _ = ethtool_ret(f"-r {cfg.ifname}", is_get=False)
+    if ret != 0:
+        raise KsftSkipEx(f"ethtool -r {cfg.ifname} failed: {errno.errorcode.get(ret, ret)}")
+
+    wait_for_aneg(cfg, link_drop=True)
+
+    cfg.lp_controllable = int(cmd(f"cat /sys/class/net/{cfg.remote_ifname}/carrier_changes",
+                                  host=cfg.remote).stdout) > before
+    return cfg.lp_controllable
+
+def require_controllable_lp(cfg):
+    """ Skip if the remote isn't directly controllable, e.g. accessed through
+        a switch
+    """
+    if not controllable_lp(cfg):
+        raise KsftSkipEx(f"{cfg.remote_ifname} is not directly connected to {cfg.ifname}")
+
 def forced_link_settings(cfg):
     """ Returns a string to pass to ethtool -s with speed/duplex corresponding
         to the current settings.
@@ -108,6 +143,10 @@ def _ethtool_pause_use_to_linkmodes(use):
     else:
         return []
 
+def pause_to_linkmodes(rx, tx):
+    """ Convert the bool rx/tx pause into Pause/Asym """
+    return pauseparams_to_linkmodes[rx][tx]["linkmodes"]
+
 def set_local_pauseparams(cfg, rx, tx, aneg):
     """ set pauseparams : ethtool -A """
     rx_param = onoff(rx)
@@ -126,6 +165,27 @@ def set_local_pauseparams(cfg, rx, tx, aneg):
 def get_local_pauseparams(cfg):
     """ get pauseparams : ethtool -a """
     return ethtool_ret(f"-a {cfg.ifname}", is_get=True)
+
+def set_peer_pauseparams(cfg, rx, tx, aneg):
+    """ set pauseparams on peer : ethtool -A """
+    rx_param = onoff(rx)
+    tx_param = onoff(tx)
+    aneg_param = onoff(aneg)
+
+    ret, _ = ethtool_ret(f"-A {cfg.remote_ifname} rx {rx_param} tx {tx_param}"
+                         f" autoneg {aneg_param}",
+                         is_get = False, host=cfg.remote)
+
+    if ret != 0:
+        raise KsftSkipEx(f"Can't set pauseparams on peer: {errno.errorcode.get(ret, ret)}")
+
+    return ret
+
+def get_peer_pauseparams(cfg):
+    """ get pauseparams on peer : ethtool -a """
+
+    return ethtool_ret(f"-a {cfg.remote_ifname}", is_get=True,
+                       host=cfg.remote)
 
 def get_local_pause_supported(cfg):
     """ Return the errcode and the local pause supported linkmodes """
@@ -151,6 +211,61 @@ def get_local_pause_advertising(cfg):
 
     return ret, _ethtool_pause_use_to_linkmodes(data["advertised-pause-frame-use"])
 
+def get_local_pause_lp_advertising(cfg):
+    """ Return the errcode and the local pause lp_advertised linkmodes,
+        if any.
+    """
+
+    ret, data = ethtool_ret(f"{cfg.ifname}")
+    if ret != 0:
+        raise KsftFailEx(f"ethtool {cfg.ifname} failed: {errno.errorcode.get(ret, ret)}")
+
+    if "link-partner-advertised-pause-frame-use" in data:
+        return ret, _ethtool_pause_use_to_linkmodes(data["link-partner-advertised-pause-frame-use"])
+    else:
+        ksft_pr(f"Warning: {cfg.ifname} does not report the LP's advertising")
+        return errno.EOPNOTSUPP, None
+
+def get_peer_pause_supported(cfg):
+    """ Return the errcode and the remote pause supported linkmodes """
+
+    ret, data = ethtool_ret(f"{cfg.remote_ifname}", host = cfg.remote)
+    if ret != 0:
+        raise KsftFailEx(f"ethtool {cfg.remote_ifname} failed: {errno.errorcode.get(ret, ret)}")
+
+    if "supported-pause-frame-use" not in data:
+        raise KsftSkipEx(f"{cfg.remote_ifname} doesn't report its link modes")
+
+    return ret, _ethtool_pause_use_to_linkmodes(data["supported-pause-frame-use"])
+
+
+def get_peer_pause_advertising(cfg):
+    """ Return the errcode and the remote pause advertised linkmodes """
+
+    ret, data = ethtool_ret(f"{cfg.remote_ifname}", host = cfg.remote)
+    if ret != 0:
+        raise KsftFailEx(f"ethtool {cfg.remote_ifname} failed: {errno.errorcode.get(ret, ret)}")
+
+    if "advertised-pause-frame-use" not in data:
+        raise KsftSkipEx(f"{cfg.remote_ifname} doesn't report its link modes")
+
+    return ret, _ethtool_pause_use_to_linkmodes(data["advertised-pause-frame-use"])
+
+def get_peer_pause_lp_advertising(cfg):
+    """ Return the errcode and the peer pause lp_advertised linkmodes,
+        if any.
+    """
+
+    ret, data = ethtool_ret(f"{cfg.remote_ifname}", host = cfg.remote)
+    if ret != 0:
+        raise KsftFailEx(f"ethtool {cfg.remote_ifname} failed: {errno.errorcode.get(ret, ret)}")
+
+    if "link-partner-advertised-pause-frame-use" in data:
+        return ret, _ethtool_pause_use_to_linkmodes(data["link-partner-advertised-pause-frame-use"])
+    else:
+        ksft_pr(f"Warning: {cfg.remote_ifname} does not report the LP's advertising")
+        return errno.EOPNOTSUPP, None
+
 def require_pause_supported_allof(cfg, linkmodes):
     """ Skip if local device doesn't support all of the passed modes """
 
@@ -162,6 +277,18 @@ def require_pause_supported_allof(cfg, linkmodes):
     for lm in linkmodes:
         if lm not in pause_support:
             raise KsftSkipEx(f"Local device doesn't support {lm}")
+
+def require_peer_pause_supported_allof(cfg, linkmodes):
+    """ Skip if local device doesn't support all of the passed modes """
+
+    ret, _ = get_peer_pauseparams(cfg)
+    if ret != 0:
+        raise KsftSkipEx("Remote device doesn't allow getting pauseparams")
+
+    _, pause_support = get_peer_pause_supported(cfg)
+    for lm in linkmodes:
+        if lm not in pause_support:
+            raise KsftSkipEx(f"Remote device doesn't support {lm}")
 
 def expect_pauseparams_set(cfg, pauseparams, aneg, supported, note):
     """ ethtool -A must work or be refused depending on what the local
@@ -330,6 +457,7 @@ def pause_advertising_test(cfg, pauseparams):
 
     require_pause_supported_allof(cfg, pauseparams["linkmodes"])
     pause_setup(cfg)
+    lp = controllable_lp(cfg)
 
     tx = pauseparams["tx"]
     rx = pauseparams["rx"]
@@ -356,11 +484,191 @@ def pause_advertising_test(cfg, pauseparams):
         ksft_not_in(mode, linkmodes,
                     f"rx {rx} tx {tx} aneg on must not advertise {not_adv}")
 
+    if not lp:
+        return
+
+    returncode, remote_linkmodes = get_peer_pause_lp_advertising(cfg)
+    if returncode == errno.EOPNOTSUPP:
+        return
+
+    for mode in adv:
+        ksft_in(mode, remote_linkmodes, f"PHY does not advertise {adv}")
+
+    for mode in not_adv:
+        ksft_not_in(mode, remote_linkmodes,
+                    f"PHY incorrectly advertises {not_adv}")
+
+
+# Pause autonegotiation resolution : Resolved pause settings vs configured
+# pauseparams on local device and link partner
+@ksft_variants([
+    # We advertise nothing, all off
+    KsftNamedVariant("local rx off tx off, remote rx off tx off",
+        {"rx": 0, "tx": 0, "lp_rx": 0, "lp_tx": 0, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise nothing, all off
+    KsftNamedVariant("local rx off tx off, remote rx off tx on",
+        {"rx": 0, "tx": 0, "lp_rx": 0, "lp_tx": 1, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise nothing, all off
+    KsftNamedVariant("local rx off tx off, remote rx on tx off",
+        {"rx": 0, "tx": 0, "lp_rx": 1, "lp_tx": 0, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise nothing, all off
+    KsftNamedVariant("local rx off tx off, remote rx on tx on",
+        {"rx": 0, "tx": 0, "lp_rx": 1, "lp_tx": 1, "neg_rx": 0, "neg_tx": 0}),
+
+    # LP advertises nothing, all off
+    KsftNamedVariant("local rx off tx on, remote rx off tx off",
+        {"rx": 0, "tx": 1, "lp_rx": 0, "lp_tx": 0, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise Asym, LP advertises Asym, all off
+    KsftNamedVariant("local rx off tx on, remote rx off tx on",
+        {"rx": 0, "tx": 1, "lp_rx": 0, "lp_tx": 1, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise Asym, LP advertises Pause + Asym, tx on
+    KsftNamedVariant("local rx off tx on, remote rx on tx off",
+        {"rx": 0, "tx": 1, "lp_rx": 1, "lp_tx": 0, "neg_rx": 0, "neg_tx": 1}),
+
+    # Tricky case :
+    # We advertise Asym, LP advertises Pause, resolves to all off
+    KsftNamedVariant("local rx off tx on, remote rx on tx on",
+        {"rx": 0, "tx": 1, "lp_rx": 1, "lp_tx": 1, "neg_rx": 0, "neg_tx": 0}),
+
+    # LP advertises nothing, all off
+    KsftNamedVariant("local rx on tx off, remote rx off tx off",
+        {"rx": 1, "tx": 0, "lp_rx": 0, "lp_tx": 0, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise Pause + Asym , LP advertises Asym, rx on
+    KsftNamedVariant("local rx on tx off, remote rx off tx on",
+        {"rx": 1, "tx": 0, "lp_rx": 0, "lp_tx": 1, "neg_rx": 1, "neg_tx": 0}),
+
+    # Also tricky: Only rx enabled on both ends, but we negotiate rx/tx
+    # We advertise Pause + Asym, LP advertises Pause + Asym, all on
+    KsftNamedVariant("local rx on tx off, remote rx on tx off",
+        {"rx": 1, "tx": 0, "lp_rx": 1, "lp_tx": 0, "neg_rx": 1, "neg_tx": 1}),
+
+    # We advertise Pause + Asym, LP advertises Pause, all on
+    KsftNamedVariant("local rx on tx off, remote rx on tx on",
+        {"rx": 1, "tx": 0, "lp_rx": 1, "lp_tx": 1, "neg_rx": 1, "neg_tx": 1}),
+
+    # LP advertises nothing, all off
+    KsftNamedVariant("local rx on tx on, remote rx off tx off",
+        {"rx": 1, "tx": 1, "lp_rx": 0, "lp_tx": 0, "neg_rx": 0, "neg_tx": 0}),
+
+    # Tricky case :
+    # We advertise Pause, LP advertises Asym, resolves to all off
+    KsftNamedVariant("local rx on tx on, remote rx off tx on",
+        {"rx": 1, "tx": 1, "lp_rx": 0, "lp_tx": 1, "neg_rx": 0, "neg_tx": 0}),
+
+    # We advertise Pause, LP advertises Pause + Asym, all on
+    KsftNamedVariant("local rx on tx on, remote rx on tx off",
+        {"rx": 1, "tx": 1, "lp_rx": 1, "lp_tx": 0, "neg_rx": 1, "neg_tx": 1}),
+
+    # We advertise Pause, LP advertises Pause, all on
+    KsftNamedVariant("local rx on tx on, remote rx on tx on",
+        {"rx": 1, "tx": 1, "lp_rx": 1, "lp_tx": 1, "neg_rx": 1, "neg_tx": 1}),
+])
+@ksft_disruptive
+def pause_aneg_resolution(cfg, settings):
+    """ Verify that rx and tx pause parameters are negotiated according to 802.3
+
+    802.3 dictates the rules for pause negotiation, all 16 cases are tested, one
+    for each combination of Pause and Asym_Pause advertising on the local device
+    and the link-partner.
+
+    This test also verifies that the peer resolved the parameters correctly,
+    to ensure the negotiation is triggered correctly.
+
+    Failing this test can happen if :
+     - The MAC accepts the pause parameters but doesn't trigger a link
+       renegotiation
+     - that the PHY driver manually overwrites the Pause negotiation result
+     - that the MAC driver ignores the Pause resolution and sets its own
+       pause parameters regardless
+    """
+
+    expected_local_rx = settings["neg_rx"]
+    expected_local_tx = settings["neg_tx"]
+
+    required_local_linkmodes = pause_to_linkmodes(settings["rx"],
+                                                  settings["tx"])
+    required_remote_linkmodes = pause_to_linkmodes(settings["lp_rx"],
+                                                   settings["lp_tx"])
+
+    require_pause_supported_allof(cfg, required_local_linkmodes)
+    require_peer_pause_supported_allof(cfg, required_remote_linkmodes)
+    pause_setup(cfg)
+    require_controllable_lp(cfg)
+
+    # There's symmetry between local device and LP on pause negotiation:
+    # - if local resolves all off or all on, LP must resolve the same
+    # - if local resolves RX only, remote must resolve to TX only
+    # - if local resolves TX only, remote must resolve to RX only
+    if expected_local_rx == expected_local_tx:
+        expected_lp_rx = expected_local_rx
+        expected_lp_tx = expected_local_tx
+    else:
+        expected_lp_rx = expected_local_tx
+        expected_lp_tx = expected_local_rx
+
+    # Set pauseparams
+    ret = set_local_pauseparams(cfg, settings["rx"], settings["tx"], True)
+    if ret == errno.EOPNOTSUPP:
+        raise KsftSkipEx(f"RX {settings['rx']} TX {settings['tx']} not supported")
+
+    wait_for_aneg(cfg)
+
+    set_peer_pauseparams(cfg, settings["lp_rx"], settings["lp_tx"], True)
+
+    # Wait for link to re-negotiate
+    wait_for_aneg(cfg)
+
+    if get_local_pause_lp_advertising(cfg)[0] != 0:
+        raise KsftSkipEx("Local device doesn't report the LP's advertising")
+
+    ret, local_pauseparams = get_local_pauseparams(cfg)
+    if ret != 0 or "negotiated" not in local_pauseparams:
+        raise KsftSkipEx("Local device doesn't report the negotiated pause params")
+
+    # check adv
+    _, linkmodes = get_local_pause_advertising(cfg)
+    ksft_eq(linkmodes, required_local_linkmodes,
+            f"local rx {settings['rx']} tx {settings['tx']} must advertise "
+            f"{required_local_linkmodes}")
+
+    _, linkmodes = get_peer_pause_advertising(cfg)
+    ksft_eq(linkmodes, required_remote_linkmodes,
+            f"remote rx {settings['lp_rx']} tx {settings['lp_tx']} must advertise "
+            f"{required_remote_linkmodes}")
+
+    # check lp_adv if available
+    _, linkmodes = get_local_pause_lp_advertising(cfg)
+    ksft_eq(linkmodes, required_remote_linkmodes,
+            f"local lp_adv must show the remote's {required_remote_linkmodes}")
+
+    # check lp_adv on remote
+    ret, linkmodes = get_peer_pause_lp_advertising(cfg)
+    if ret == 0:
+        ksft_eq(linkmodes, required_local_linkmodes,
+                f"remote lp_adv must show our {required_local_linkmodes}")
+
+    # Check resolution
+    _, local_pauseparams = get_local_pauseparams(cfg)
+    ksft_eq(local_pauseparams["negotiated"]["rx"], expected_local_rx)
+    ksft_eq(local_pauseparams["negotiated"]["tx"], expected_local_tx)
+
+    ret, remote_pauseparams = get_peer_pauseparams(cfg)
+    if ret == 0 and "negotiated" in remote_pauseparams:
+        ksft_eq(remote_pauseparams["negotiated"]["rx"], expected_lp_rx)
+        ksft_eq(remote_pauseparams["negotiated"]["tx"], expected_lp_tx)
+
 def main():
     """ Entry point """
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         ksft_run([pause_test_support,
                   pause_advertising_test,
+                  pause_aneg_resolution,
                   ],
                  args=(cfg, ))
     ksft_exit()
