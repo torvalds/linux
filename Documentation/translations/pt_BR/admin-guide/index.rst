@@ -49,10 +49,10 @@ Documentação relacionada à segurança:
    :maxdepth: 1
 
    hw-vuln/index
+   LSM/index
 
 Todolist:
 
-*   LSM/index
 *   perf-security
 
 Inicializando o kernel
