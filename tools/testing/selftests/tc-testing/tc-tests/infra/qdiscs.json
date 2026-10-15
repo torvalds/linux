@@ -1555,6 +1555,7 @@
         },
         "setup": [
             "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH addrgenmode none || true",
             "$IP link set dev $ETH up || true",
             "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
             "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
@@ -1598,6 +1599,7 @@
         },
         "setup": [
             "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH addrgenmode none || true",
             "$IP link set dev $ETH up || true",
             "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
             "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
@@ -1640,6 +1642,7 @@
         },
         "setup": [
             "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH addrgenmode none || true",
             "$IP link set dev $ETH up || true",
             "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
             "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
@@ -1680,6 +1683,7 @@
         },
         "setup": [
             "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH addrgenmode none || true",
             "$IP link set dev $ETH up || true",
             "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
             "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",

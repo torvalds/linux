@@ -1408,7 +1408,7 @@
                 "packet": "Ether(type=0xED3E) / Raw(b'\\x00\\x02\\xaa')"
             }
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol all matchall action ife decode pipe index 10",
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol 0xED3E matchall action ife decode pipe index 10",
         "expExitCode": "0",
         "verifyCmd": "$TC -s -j actions get action ife index 10",
         "matchJSON": [
