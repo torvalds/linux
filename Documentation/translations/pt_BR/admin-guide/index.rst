@@ -60,10 +60,10 @@ Inicializando o kernel
 
    bootconfig
    kernel-parameters
+   efi-stub
 
 Todolist:
 
-*   efi-stub
 *   initrd
 
 Rastreando e identificando problemas
