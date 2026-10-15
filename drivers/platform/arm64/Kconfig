@@ -33,6 +33,22 @@ config EC_ACER_ASPIRE1
 	  laptop where this information is not properly exposed via the
 	  standard ACPI devices.
 
+config EC_ASUS_GLYMUR
+	tristate "ASUS Zenbook A16 (Qualcomm) Embedded Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on I2C
+	depends on HWMON
+	depends on INPUT
+	depends on PM
+	depends on THERMAL || THERMAL=n
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Say M or Y here to enable the EC driver for the Qualcomm Snapdragon-
+	  based ASUS Zenbook A16 (UX3607OA) and similar machines. It provides
+	  temperature sensors readout, fan monitoring, keyboard and EC event
+	  reporting.
+
 config EC_HUAWEI_GAOKUN
 	tristate "Huawei Matebook E Go Embedded Controller driver"
 	depends on ARCH_QCOM || COMPILE_TEST
