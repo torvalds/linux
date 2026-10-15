@@ -355,9 +355,9 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 4>,
-		             <1 14 4>,
-		             <1 11 4>,
-		             <1 10 4>;
+			     <1 14 4>,
+			     <1 11 4>,
+			     <1 10 4>;
 	};
 
 	pmu {
