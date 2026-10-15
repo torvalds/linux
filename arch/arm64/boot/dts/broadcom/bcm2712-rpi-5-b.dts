@@ -64,9 +64,29 @@
 };
 
 &rp1_gpio {
+	fan_pwm_default_state: fan-pwm-default-state {
+		function = "pwm1";
+		pins = "gpio45";
+		bias-pull-down;
+	};
+
 	usb_vbus_default_state: usb-vbus-default-state {
 		function = "vbus1";
 		groups = "vbus1";
+	};
+
+	rp1_spi0_default_state: rp1-spi0-default-state {
+		function = "spi0";
+		groups = "spi0";
+		bias-disable;
+		drive-strength = <12>;
+		slew-rate = <1>;
+	};
+
+	rp1_spi0_cs_default_state: rp1-spi0-cs-default-state {
+		function = "gpio";
+		pins = "gpio7", "gpio8";
+		bias-pull-up;
 	};
 
 	rp1_i2c4_default_state: rp1-i2c4-default-state {
@@ -92,6 +112,20 @@
 &rp1_i2c6 {
 	pinctrl-0 = <&rp1_i2c6_default_state>;
 	pinctrl-names = "default";
+};
+
+&rp1_spi0 {
+	pinctrl-0 = <&rp1_spi0_default_state &rp1_spi0_cs_default_state>;
+	pinctrl-names = "default";
+
+	num-cs = <2>;
+	cs-gpios = <&rp1_gpio 8 GPIO_ACTIVE_LOW &rp1_gpio 7 GPIO_ACTIVE_LOW>;
+};
+
+&rp1_pwm1 {
+	pinctrl-0 = <&fan_pwm_default_state>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &rp1_usb0 {
