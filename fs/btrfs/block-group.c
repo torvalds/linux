@@ -1268,7 +1268,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	spin_lock(&trans->transaction->dirty_bgs_lock);
 	WARN_ON(!list_empty(&block_group->dirty_list));
-	WARN_ON(!list_empty(&block_group->io_list));
 	spin_unlock(&trans->transaction->dirty_bgs_lock);
 
 	btrfs_remove_free_space_cache(block_group);
@@ -2454,7 +2453,6 @@ static struct btrfs_block_group *btrfs_create_block_group(
 	INIT_LIST_HEAD(&cache->ro_list);
 	INIT_LIST_HEAD(&cache->discard_list);
 	INIT_LIST_HEAD(&cache->dirty_list);
-	INIT_LIST_HEAD(&cache->io_list);
 	INIT_LIST_HEAD(&cache->active_bg_list);
 	btrfs_init_free_space_ctl(cache, cache->free_space_ctl);
 	atomic_set(&cache->frozen, 0);
@@ -4338,7 +4336,6 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 			block_group->inode = NULL;
 			spin_unlock(&block_group->lock);
 
-			ASSERT(block_group->io_ctl.inode == NULL);
 			iput(&inode->vfs_inode);
 		} else {
 			spin_unlock(&block_group->lock);
@@ -4475,7 +4472,6 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		btrfs_remove_free_space_cache(block_group);
 		ASSERT(block_group->cached != BTRFS_CACHE_STARTED);
 		ASSERT(list_empty(&block_group->dirty_list));
-		ASSERT(list_empty(&block_group->io_list));
 		ASSERT(list_empty(&block_group->bg_list));
 		ASSERT(refcount_read(&block_group->refs) == 1);
 		ASSERT(block_group->swap_extents == 0);

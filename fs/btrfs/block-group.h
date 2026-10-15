@@ -228,9 +228,6 @@ struct btrfs_block_group {
 
 	/* For dirty block groups */
 	struct list_head dirty_list;
-	struct list_head io_list;
-
-	struct btrfs_io_ctl io_ctl;
 
 	/*
 	 * Incremented when doing extent allocations and holding a read lock
