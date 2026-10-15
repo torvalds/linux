@@ -1818,17 +1818,27 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		 * A 128b op on a non-128b SQ requires mixed SQE support as
 		 * well as 2 contiguous entries.
 		 */
-		if (!(ctx->flags & IORING_SETUP_SQE_MIXED) || *left < 2 ||
+		if (!(ctx->flags & IORING_SETUP_SQE_MIXED) ||
 		    (unsigned)(sqe - ctx->sq_sqes) >= ctx->sq_entries - 1)
 			return io_init_fail_req(req, -EINVAL);
+		if (*left >= 2) {
+			/*
+			 * A 128b operation on a mixed SQ uses two entries, so
+			 * we have to increment the head and cached refs, and
+			 * decrement what's left.
+			 */
+			current->io_uring->cached_refs++;
+			(*left)--;
+		} else if (!(ctx->flags & IORING_SETUP_SQPOLL) ||
+			   !__io_sqring_entries(ctx)) {
+			return io_init_fail_req(req, -EINVAL);
+		}
 		/*
-		 * A 128b operation on a mixed SQ uses two entries, so we have
-		 * to increment the head and cached refs, and decrement what's
-		 * left.
+		 * else: the SQPOLL thread caps the number of entries it submits
+		 * in one go, which is none of the application's business. Take
+		 * the 2nd entry on top.
 		 */
-		current->io_uring->cached_refs++;
 		ctx->cached_sq_head++;
-		(*left)--;
 	}
 
 	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
