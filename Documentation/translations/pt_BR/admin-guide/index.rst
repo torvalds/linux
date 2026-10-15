@@ -37,10 +37,10 @@ com eles.
 
    sysfs-rules
    sysctl/index
+   cputopology
 
 Todolist:
 
-*   cputopology
 *   abi
 
 Documentação relacionada à segurança:
