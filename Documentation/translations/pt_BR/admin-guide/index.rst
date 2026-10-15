@@ -26,10 +26,7 @@ etc.
 
    README
    devices
-
-Todolist:
-
-*   features
+   features
 
 Uma grande parte da interface administrativa do kernel são os sistemas de
 arquivos virtuais /proc e sysfs; estes documentos descrevem como interagir
