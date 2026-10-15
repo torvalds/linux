@@ -8156,6 +8156,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = &rq->cfs;
 	unsigned long weight;
+	bool curr;
 
 	if (task_is_throttled(p) && enqueue_throttled_task(p))
 		return;
@@ -8184,14 +8185,25 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (p->in_iowait)
 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
 
+	curr = (cfs_rq->curr == se);
+	/*
+	 * This can actually happen with CFS_BANDWIDTH, a task can be throttled
+	 * and dequeued, unthrottled from another CPU and then enqueued again
+	 * before schedule().
+	 */
+	if (curr)
+		place_entity(cfs_rq, se, flags);
 
 	if (se->on_rq && se->sched_delayed)
 		requeue_delayed_entity(cfs_rq, se);
 
 	weight = enqueue_hierarchy(p, flags);
-	reweight_eevdf(cfs_rq, se, weight, false);
-	place_entity(cfs_rq, se, flags | ENQUEUE_QUEUED);
-	__enqueue_entity(cfs_rq, se);
+
+	if (!curr) {
+		reweight_eevdf(cfs_rq, se, weight, false);
+		place_entity(cfs_rq, se, flags | ENQUEUE_QUEUED);
+		__enqueue_entity(cfs_rq, se);
+	}
 
 	if (!rq_h_nr_queued && rq->cfs.h_nr_queued)
 		dl_server_start(&rq->fair_server);
