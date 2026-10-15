@@ -1017,6 +1017,21 @@ bool kvm_arch_intc_initialized(struct kvm *kvm)
 	return vgic_initialized(kvm);
 }
 
+void kvm_pause_vcpu(struct kvm_vcpu *vcpu)
+{
+	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS) = { };
+
+	atomic_inc(&vcpu->arch.pause);
+	__set_bit(vcpu->vcpu_idx, vcpu_bitmap);
+	kvm_make_vcpus_request_mask(vcpu->kvm, KVM_REQ_SLEEP, vcpu_bitmap);
+}
+
+void kvm_resume_vcpu(struct kvm_vcpu *vcpu)
+{
+	if (atomic_dec_and_test(&vcpu->arch.pause))
+		__kvm_vcpu_wake_up(vcpu);
+}
+
 void kvm_arm_halt_guest(struct kvm *kvm)
 {
 	unsigned long i;
@@ -1032,10 +1047,8 @@ void kvm_arm_resume_guest(struct kvm *kvm)
 	unsigned long i;
 	struct kvm_vcpu *vcpu;
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (atomic_dec_and_test(&vcpu->arch.pause))
-			__kvm_vcpu_wake_up(vcpu);
-	}
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_resume_vcpu(vcpu);
 }
 
 static void kvm_vcpu_sleep(struct kvm_vcpu *vcpu)
