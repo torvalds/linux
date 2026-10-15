@@ -507,6 +507,7 @@ int gud_plane_atomic_check(struct drm_plane *plane,
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc)
 			break;
+		connector_state = NULL;
 	}
 
 	/*

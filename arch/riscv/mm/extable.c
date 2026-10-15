@@ -68,8 +68,8 @@ ex_handler_load_unaligned_zeropad(const struct exception_table_entry *ex,
 
 	addr = regs_get_gpr(regs, reg_addr * sizeof(unsigned long));
 
-	offset = addr & 0x7UL;
-	addr &= ~0x7UL;
+	offset = addr & (sizeof(data) - 1);
+	addr &= ~(sizeof(data) - 1);
 
 	data = *(unsigned long *)addr >> (offset * 8);
 

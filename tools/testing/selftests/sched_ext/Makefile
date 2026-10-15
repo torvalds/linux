@@ -165,6 +165,7 @@ auto-test-targets :=			\
 	create_dsq			\
 	dequeue				\
 	dequeue_iter			\
+	dequeue_remote			\
 	enq_last_no_enq_fails		\
 	ddsp_bogus_dsq_fail		\
 	ddsp_vtimelocal_fail		\

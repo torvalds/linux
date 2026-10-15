@@ -2421,34 +2421,40 @@ static inline int macb_clear_csum(struct sk_buff *skb)
 	return 0;
 }
 
+static bool macb_needs_sw_fcs(struct sk_buff *skb, struct net_device *netdev)
+{
+	return netdev->features & NETIF_F_HW_CSUM &&
+	       skb->ip_summed != CHECKSUM_PARTIAL &&
+	       !skb_shinfo(skb)->gso_size && !ptp_one_step_sync(skb);
+}
+
 /* Returns a negative errno, or the FCS bytes appended (0 or ETH_FCS_LEN). */
-static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *netdev)
+static int macb_pad_and_fcs(struct sk_buff **skb, bool add_fcs)
 {
 	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb) ||
 		      skb_is_nonlinear(*skb);
 	int padlen = ETH_ZLEN - (*skb)->len;
 	int tailroom = skb_tailroom(*skb);
+	bool shared = skb_shared(*skb);
 	struct sk_buff *nskb;
 	u32 fcs;
 
-	if (!(netdev->features & NETIF_F_HW_CSUM) ||
-	    !((*skb)->ip_summed != CHECKSUM_PARTIAL) ||
-	    skb_shinfo(*skb)->gso_size || ptp_one_step_sync(*skb))
+	if (!add_fcs)
 		return 0;
 
 	if (padlen <= 0) {
-		/* FCS could be appeded to tailroom. */
-		if (tailroom >= ETH_FCS_LEN)
+		/* FCS could be appended to tailroom. */
+		if (!shared && !skb_is_nonlinear(*skb) &&
+		    tailroom >= ETH_FCS_LEN)
 			goto add_fcs;
-		/* No room for FCS, need to reallocate skb. */
-		else
-			padlen = ETH_FCS_LEN;
+		/* Reallocate with room for the FCS. */
+		padlen = ETH_FCS_LEN;
 	} else {
 		/* Add room for FCS. */
 		padlen += ETH_FCS_LEN;
 	}
 
-	if (cloned || tailroom < padlen) {
+	if (shared || cloned || tailroom < padlen) {
 		nskb = skb_copy_expand(*skb, 0, padlen, GFP_ATOMIC);
 		if (!nskb)
 			return -ENOMEM;
@@ -2481,27 +2487,15 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 	unsigned int desc_cnt, nr_frags, frag_size, f;
 	struct macb_queue *queue = &bp->queues[q];
 	netdev_tx_t ret = NETDEV_TX_OK;
-	unsigned int hdrlen;
+	unsigned int hdrlen, tx_len;
+	bool add_fcs, is_lso;
 	unsigned long flags;
 	int fcs_len;
-	bool is_lso;
 
-	if (macb_clear_csum(skb)) {
-		dev_kfree_skb_any(skb);
-		return ret;
-	}
-
-	fcs_len = macb_pad_and_fcs(&skb, netdev);
-	if (fcs_len < 0) {
-		dev_kfree_skb_any(skb);
-		return ret;
-	}
-
-	if (macb_dma_ptp(bp) &&
-	    (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-
+	add_fcs = macb_needs_sw_fcs(skb, netdev);
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
+	tx_len = add_fcs ? max_t(unsigned int, skb->len, ETH_ZLEN) +
+			   ETH_FCS_LEN : skb->len;
 
 	if (is_lso) {
 		/* length of headers */
@@ -2515,8 +2509,11 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 			/* if this is required, would need to copy to single buffer */
 			return NETDEV_TX_BUSY;
 		}
-	} else
+	} else if (add_fcs) {
+		hdrlen = umin(tx_len, bp->max_tx_length);
+	} else {
 		hdrlen = umin(skb_headlen(skb), bp->max_tx_length);
+	}
 
 #if defined(DEBUG) && defined(VERBOSE_DEBUG)
 	netdev_vdbg(bp->netdev,
@@ -2531,12 +2528,18 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 	 * socket buffer: skb fragments of jumbo frames may need to be
 	 * split into many buffer descriptors.
 	 */
-	if (is_lso && (skb_headlen(skb) > hdrlen))
+	if (add_fcs) {
+		/* macb_pad_and_fcs() linearizes the skb before adding the FCS. */
+		desc_cnt = DIV_ROUND_UP(tx_len, bp->max_tx_length);
+		nr_frags = 0;
+	} else if (is_lso && (skb_headlen(skb) > hdrlen)) {
 		/* extra header descriptor if also payload in first buffer */
 		desc_cnt = DIV_ROUND_UP((skb_headlen(skb) - hdrlen), bp->max_tx_length) + 1;
-	else
+		nr_frags = skb_shinfo(skb)->nr_frags;
+	} else {
 		desc_cnt = DIV_ROUND_UP(skb_headlen(skb), bp->max_tx_length);
-	nr_frags = skb_shinfo(skb)->nr_frags;
+		nr_frags = skb_shinfo(skb)->nr_frags;
+	}
 	for (f = 0; f < nr_frags; f++) {
 		frag_size = skb_frag_size(&skb_shinfo(skb)->frags[f]);
 		desc_cnt += DIV_ROUND_UP(frag_size, bp->max_tx_length);
@@ -2553,6 +2556,21 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 		ret = NETDEV_TX_BUSY;
 		goto unlock;
 	}
+
+	if (macb_clear_csum(skb)) {
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
+
+	fcs_len = macb_pad_and_fcs(&skb, add_fcs);
+	if (fcs_len < 0) {
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
+
+	if (macb_dma_ptp(bp) &&
+	    (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	/* Map socket buffer for DMA transfer */
 	if (macb_tx_map(bp, queue, skb, hdrlen, fcs_len)) {
