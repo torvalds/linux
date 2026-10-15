@@ -281,7 +281,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_32 &pmx_fanctrl_33 &pmx_fanctrl_34
-		             &pmx_fanalarm_35>;
+			     &pmx_fanalarm_35>;
 		pinctrl-names = "default";
 		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
 			 &gpio1 1 GPIO_ACTIVE_HIGH
@@ -301,7 +301,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
-		             &pmx_fanalarm_18>;
+			     &pmx_fanalarm_18>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
 			 &gpio0 16 GPIO_ACTIVE_HIGH
@@ -322,7 +322,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_32 &pmx_fanctrl_33 &pmx_fanctrl_34
-		             &pmx_fanalarm_35>;
+			     &pmx_fanalarm_35>;
 		pinctrl-names = "default";
 		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
 			 &gpio1 1 GPIO_ACTIVE_HIGH
@@ -343,7 +343,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
-		             &pmx_fanalarm_18>;
+			     &pmx_fanalarm_18>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
 			 &gpio0 16 GPIO_ACTIVE_HIGH
@@ -364,7 +364,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
-		             &pmx_fanalarm_35>;
+			     &pmx_fanalarm_35>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
 			 &gpio0 16 GPIO_ACTIVE_HIGH
@@ -385,7 +385,7 @@
 		status = "disabled";
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
-		             &pmx_fanalarm_35 &pmx_fanalarm_44 &pmx_fanalarm_45>;
+			     &pmx_fanalarm_35 &pmx_fanalarm_44 &pmx_fanalarm_45>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
 			 &gpio0 16 GPIO_ACTIVE_HIGH
