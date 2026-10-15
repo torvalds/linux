@@ -50,10 +50,7 @@ Documentação relacionada à segurança:
 
    hw-vuln/index
    LSM/index
-
-Todolist:
-
-*   perf-security
+   perf-security
 
 Inicializando o kernel
 ----------------------
