@@ -45,9 +45,13 @@ Todolist:
 
 Documentação relacionada à segurança:
 
+.. toctree::
+   :maxdepth: 1
+
+   hw-vuln/index
+
 Todolist:
 
-*   hw-vuln/index
 *   LSM/index
 *   perf-security
 
