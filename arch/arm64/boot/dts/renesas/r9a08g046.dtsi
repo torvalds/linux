@@ -1266,21 +1266,87 @@
 			};
 		};
 
+		ohci0: usb@11e10000 {
+			reg = <0 0x11e10000 0 0x100>;
+			/* placeholder */
+		};
+
+		ohci1: usb@11e90000 {
+			reg = <0 0x11e90000 0 0x100>;
+			/* placeholder */
+		};
+
+		ehci0: usb@11e10100 {
+			reg = <0 0x11e10100 0 0x100>;
+			/* placeholder */
+		};
+
+		ehci1: usb@11e90100 {
+			reg = <0 0x11e90100 0 0x100>;
+			/* placeholder */
+		};
+
+		hsusb0: usb@11e30000 {
+			reg = <0 0x11e30000 0 0x10000>;
+			/* placeholder */
+		};
+
 		pcie: pcie@11e40000 {
+			compatible = "renesas,r9a08g046-pcie";
 			reg = <0 0x11e40000 0 0x10000>;
 			ranges = <0x02000000 0 0x30000000 0 0x30000000 0 0x08000000>;
+			/* Map all possible DRAM ranges (4 GB). */
+			dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 1 0x00000000>;
+			bus-range = <0x0 0xff>;
+			interrupts = <GIC_SPI 483 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 484 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 485 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 486 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 487 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 488 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 489 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 490 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 491 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 492 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 493 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 494 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 495 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 497 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 498 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "serr", "serr_cor", "serr_nonfatal",
+					  "serr_fatal", "axi_err", "inta",
+					  "intb", "intc", "intd", "msi",
+					  "link_bandwidth", "pm_pme", "dma",
+					  "pcie_evt", "msg", "all";
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie 0 0 0 0>, /* INTA */
+					<0 0 0 2 &pcie 0 0 0 1>, /* INTB */
+					<0 0 0 3 &pcie 0 0 0 2>, /* INTC */
+					<0 0 0 4 &pcie 0 0 0 3>; /* INTD */
+			clocks = <&cpg CPG_MOD R9A08G046_PCI_ACLK>,
+				 <&cpg CPG_MOD R9A08G046_PCI_CLKL1PM>,
+				 <&cpg CPG_MOD R9A08G046_PCI_CLK_PMU>;
+			clock-names = "aclk", "pm", "pmu";
+			resets = <&cpg R9A08G046_PCI_ARESETN>;
+			reset-names = "aresetn";
+			power-domains = <&cpg>;
 			device_type = "pci";
 			#address-cells = <3>;
 			#size-cells = <2>;
-			/* placeholder */
+			renesas,sysc = <&sysc>;
+			status = "disabled";
 
 			pcie_port0: pcie@0,0 {
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				ranges;
 				device_type = "pci";
+				vendor-id = <0x1912>;
+				device-id = <0x0033>;
 				#address-cells = <3>;
 				#size-cells = <2>;
-				/* placeholder */
 			};
 		};
 

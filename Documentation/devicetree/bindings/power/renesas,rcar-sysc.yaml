@@ -13,8 +13,11 @@ maintainers:
 description: |
   The R-Car (RZ/G) System Controller provides power management for the CPU
   cores and various coprocessors.
-  The power domain IDs for consumers are defined in header files:
-  include/dt-bindings/power/r8*-sysc.h
+  The power domain IDs for consumers are defined in the below header files
+  (where the asterisk serves as a wildcard matching the specific SoC
+  identifier):
+  include/dt-bindings/power/r8*-sysc.h or
+  include/dt-bindings/power/renesas,r8*-sysc.h
 
 properties:
   compatible:

@@ -806,8 +806,8 @@
 			clocks = <&cpg CPG_MOD 624>, <&pcie0_clkref>;
 			clock-names = "core", "ref";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 624>;
-			reset-names = "pwr";
+			resets = <&cpg 624>, <&cpg 1121>;
+			reset-names = "pwr", "core";
 			max-link-speed = <4>;
 			msi-parent = <&its 0>;
 			msi-map = <0x0 &its 0x0 0x10000>;
@@ -855,8 +855,8 @@
 			clocks = <&cpg CPG_MOD 625>, <&pcie1_clkref>;
 			clock-names = "core", "ref";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 625>;
-			reset-names = "pwr";
+			resets = <&cpg 625>, <&cpg 1122>;
+			reset-names = "pwr", "core";
 			max-link-speed = <4>;
 			msi-parent = <&its 0>;
 			msi-map = <0x0 &its 0x0 0x10000>;
@@ -903,8 +903,8 @@
 			clocks = <&cpg CPG_MOD 624>, <&pcie0_clkref>;
 			clock-names = "core", "ref";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 624>;
-			reset-names = "pwr";
+			resets = <&cpg 624>, <&cpg 1121>;
+			reset-names = "pwr", "core";
 			max-link-speed = <4>;
 			num-lanes = <2>;
 			max-functions = /bits/ 8 <2>;
@@ -926,8 +926,8 @@
 			clocks = <&cpg CPG_MOD 625>, <&pcie1_clkref>;
 			clock-names = "core", "ref";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 625>;
-			reset-names = "pwr";
+			resets = <&cpg 625>, <&cpg 1122>;
+			reset-names = "pwr", "core";
 			max-link-speed = <4>;
 			num-lanes = <2>;
 			max-functions = /bits/ 8 <2>;
