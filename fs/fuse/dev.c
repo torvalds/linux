@@ -466,24 +466,27 @@ static bool fuse_dev_install_with_pq(struct fuse_dev *fud, struct fuse_chan *fch
 	struct fuse_chan *old_fch;
 
 	guard(spinlock)(&fch->lock);
-	/*
-	 * Pairs with:
-	 *  - xchg() in fuse_dev_release()
-	 *  - smp_load_acquire() in fuse_dev_fc_get()
-	 */
-	old_fch = cmpxchg(&fud->chan, NULL, fch);
-	if (old_fch) {
+	/* protect fud->pq.processing assignment */
+	scoped_guard(spinlock, &fud->pq.lock) {
 		/*
-		 * failed to set fud->chan because
-		 *  - it was already set to a different fc
-		 *  - it was set to disconneted
+		 * Pairs with:
+		 *  - xchg() in fuse_dev_release()
+		 *  - smp_load_acquire() in fuse_dev_fc_get()
 		 */
-		kfree(pq);
-		return false;
-	}
-	if (pq) {
-		WARN_ON(fud->pq.processing);
-		fud->pq.processing = pq;
+		old_fch = cmpxchg(&fud->chan, NULL, fch);
+		if (old_fch) {
+			/*
+			 * failed to set fud->chan because
+			 *  - it was already set to a different fc
+			 *  - it was set to disconneted
+			 */
+			kfree(pq);
+			return false;
+		}
+		if (pq) {
+			WARN_ON(fud->pq.processing);
+			fud->pq.processing = pq;
+		}
 	}
 	list_add_tail(&fud->entry, &fch->devices);
 	fuse_conn_get(fch->conn);
