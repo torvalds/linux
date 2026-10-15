@@ -1103,6 +1103,18 @@ void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 		rq = container_of(dsq, struct rq, scx.local_dsq);
 
 		/*
+		 * An inactive cpu's local DSQ holds only tasks that are bound
+		 * to it or are being moved off, so a reenq of it is pointless.
+		 * Once balance push is installed, queue_balance_callback() also
+		 * drops the callback that would run a reenq requested from
+		 * dispatch, and irq_work_queue_on() can't reach an offline cpu.
+		 * The reenq's node would then stay on this rq's list after
+		 * @sch's pcpu is freed.
+		 */
+		if (unlikely(!cpu_active(cpu_of(rq))))
+			return;
+
+		/*
 		 * A sub-sched lacking baseline access on the target cid has no
 		 * business triggering IPIs. The lockless test is fine: slipping
 		 * through right after a revoke is harmless and a wrong denial
@@ -10020,7 +10032,8 @@ __bpf_kfunc struct task_struct *scx_bpf_dsq_peek(u64 dsq_id,
  * - Local DSQs (%SCX_DSQ_LOCAL or %SCX_DSQ_LOCAL_ON | $cpu)
  * - User DSQs
  *
- * Re-enqueues are performed asynchronously. Can be called from anywhere.
+ * Re-enqueues are performed asynchronously. Can be called from anywhere. A
+ * re-enqueue of an inactive cpu's local DSQ is ignored.
  *
  * %SCX_DSQ_LOCAL resolves to the local DSQ of the rq the current scheduler
  * operation is locked to - e.g. the rq being dispatched for in ops.dispatch() -
