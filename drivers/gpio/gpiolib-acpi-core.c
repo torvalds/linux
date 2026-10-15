@@ -116,7 +116,8 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, const void *data)
 
 /**
  * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
- * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
+ * @parent:	parent ACPI handle to resolve relative path
+ * @path:	ACPI GPIO controller path name, (e.g. "\\_SB.GPO1" or "^GP01")
  * @pin:	ACPI GPIO pin number (0-based, controller-relative)
  *
  * Returns:
@@ -128,12 +129,12 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, const void *data)
  * controller does not have GPIO chip registered at the moment. This is to
  * support probe deferral.
  */
-static struct gpio_desc *acpi_get_gpiod(char *path, unsigned int pin)
+static struct gpio_desc *acpi_get_gpiod(acpi_handle parent, char *path, unsigned int pin)
 {
 	acpi_handle handle;
 	acpi_status status;
 
-	status = acpi_get_handle(NULL, path, &handle);
+	status = acpi_get_handle(parent, path, &handle);
 	if (ACPI_FAILURE(status))
 		return ERR_PTR(-ENODEV);
 
@@ -733,7 +734,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 		if (info->quirks & ACPI_GPIO_QUIRK_ABSOLUTE_NUMBER)
 			desc = gpio_to_desc(agpio->pin_table[pin_index]);
 		else
-			desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
+			desc = acpi_get_gpiod(acpi_device_handle(info->adev),
+					      agpio->resource_source.string_ptr,
 					      agpio->pin_table[pin_index]);
 		lookup->desc = desc;
 		info->pin_config = agpio->pin_config;
