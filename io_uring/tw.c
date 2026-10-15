@@ -165,7 +165,7 @@ void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 
 	/*
 	 * The xchg() in mpscq_push() implies a full barrier, which pairs with
-	 * the barrier in set_current_state() on the io_cqring_wait() side. This
+	 * the barrier in io_cq_wait_arm() on the io_cqring_wait() side. This
 	 * ensures that either we see the updated ->cq_wait_nr, or waiters going
 	 * to sleep will observe the work added to the list, which is similar to
 	 * the wait/wake task state sync.
