@@ -175,6 +175,11 @@ properties:
           - const: coolpi,pi-4b
           - const: rockchip,rk3588s
 
+      - description: DFRobot UNIHIKER M10 V1.2
+        items:
+          - const: dfrobot,unihiker-m10-v1.2
+          - const: rockchip,rk3308
+
       - description: Alientek CLRV1126F SoM based boards
         items:
           - enum:
@@ -347,6 +352,13 @@ properties:
               - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
 
+      - description: FriendlyElec NanoPi RK3528 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r28s
+              - friendlyarm,nanopi-zero2
+          - const: rockchip,rk3528
+
       - description: FriendlyElec NanoPi R3S
         items:
           - const: friendlyarm,nanopi-r3s
@@ -387,11 +399,6 @@ properties:
         items:
           - const: friendlyarm,nanopi-r76s
           - const: rockchip,rk3576
-
-      - description: FriendlyElec NanoPi Zero2
-        items:
-          - const: friendlyarm,nanopi-zero2
-          - const: rockchip,rk3528
 
       - description: FriendlyElec NanoPC T6 series boards
         items:
@@ -850,6 +857,11 @@ properties:
               - lunzn,fastrhino-r66s
               - lunzn,fastrhino-r68s
           - const: rockchip,rk3568
+
+      - description: MangoPi M28K
+        items:
+          - const: widora,mangopi-m28k
+          - const: rockchip,rk3528
 
       - description: mqmaker MiQi
         items:
