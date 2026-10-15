@@ -830,6 +830,8 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		hisi_femac_phy_reset(priv);
 	}
 
+	ndev->netdev_ops = &hisi_femac_netdev_ops;
+
 	phy = of_phy_get_and_connect(ndev, node, hisi_femac_adjust_link);
 	if (!phy) {
 		dev_err(dev, "connect to PHY failed!\n");
@@ -850,7 +852,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 
 	ndev->watchdog_timeo = 6 * HZ;
 	ndev->priv_flags |= IFF_UNICAST_FLT;
-	ndev->netdev_ops = &hisi_femac_netdev_ops;
 	ndev->ethtool_ops = &hisi_femac_ethtools_ops;
 	netif_napi_add_weight(ndev, &priv->napi, hisi_femac_poll,
 			      FEMAC_POLL_WEIGHT);

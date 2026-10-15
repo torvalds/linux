@@ -1225,6 +1225,8 @@ static int au1000_probe(struct platform_device *pdev)
 		goto err_mdiobus_reg;
 	}
 
+	dev->netdev_ops = &au1000_netdev_ops;
+
 	err = au1000_mii_probe(dev);
 	if (err != 0)
 		goto err_out;
@@ -1263,7 +1265,6 @@ static int au1000_probe(struct platform_device *pdev)
 
 	dev->base_addr = base->start;
 	dev->irq = irq;
-	dev->netdev_ops = &au1000_netdev_ops;
 	dev->ethtool_ops = &au1000_ethtool_ops;
 	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
