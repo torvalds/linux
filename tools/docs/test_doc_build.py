@@ -51,6 +51,8 @@ def get_min_python_bin(min_subver):
 PYTHON_VER_CHANGES = {
     (3, 4, 3): (3, MIN_PYTHON_SUBVER),
     (8, 0, 0): (3, 10),
+    (8, 1, 0): (3, 11),
+    (9, 1, 0): (3, 12),
 }
 
 DEFAULT_VERSIONS_TO_TEST = [
@@ -61,8 +63,9 @@ DEFAULT_VERSIONS_TO_TEST = [
     (7, 2, 6),   # Ubuntu 24.04 LTS
     (7, 4, 7),   # Ubuntu 24.10
     (7, 3, 0),   # openSUSE Tumbleweed
-    (8, 1, 3),   # Fedora 42
-    (8, 2, 3)    # Latest version - covers rolling distros
+    (8, 1, 3),   # Debian 13
+    (8, 2, 3),   # Ubuntu 26.04 LTS / Fedora 44
+    (9, 1, 0),   # Latest version
 ]
 
 # Sphinx versions to be installed and their incremental requirements
@@ -177,6 +180,10 @@ SPHINX_REQUIREMENTS = {
         "docutils": "0.21.2",
         "PyYAML": "6.0.1",
         "sphinxcontrib-serializinghtml": "1.1.9",
+    },
+    # from https://raw.githubusercontent.com/sphinx-doc/sphinx/v9.0.0/pyproject.toml
+    (9, 0, 0): {
+        "roman-numerals": "1.0.0",
     },
 }
 
