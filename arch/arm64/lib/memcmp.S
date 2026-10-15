@@ -103,10 +103,8 @@ L(last_bytes):
 
 	/* Compare data bytes and set return value to 0, -1 or 1.  */
 L(return):
-#ifndef __AARCH64EB__
 	rev	data1, data1
 	rev	data2, data2
-#endif
 	cmp	data1, data2
 L(ret_eq):
 	cset	result, ne

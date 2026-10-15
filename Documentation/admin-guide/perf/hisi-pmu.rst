@@ -128,6 +128,22 @@ channel with this option. The current supported channels are as follows:
 7. tt_en: NoC PMU supports counting only transactions that have tracetag set
 if this option is set. See the 2nd list for more information about tracetag.
 
+8. int_id: ITS PMU supports filtering by interrupt id, which is defined by
+hardware. Interrupt id takes up to 32 bits, and can be divided into 2 parts:
+
+- Upper 16 bits: DeviceID if counting LPI, PEID if counting SGI/PPI.
+- Lower 16 bits: EventID if counting LPI, IntID if counting SGI/PPI.
+
+int_id is a global configuration for each PMU instance: the filter applies to
+all counters, so the PMU can only run events that agree on it. An unfiltered
+event (int_en not set) cannot run concurrently with a filtered one, and two
+filtered events can run concurrently only if they filter the same int_id.
+perf time-multiplexes any events that cannot coexist, rather than corrupting
+the counts.
+
+9. int_en: A one-bit flag to tell if int_id is used to filter the statistics. It
+allows filtering 0 DeviceID and EventID.
+
 For HiSilicon uncore PMU v3 whose identifier is 0x40, some uncore PMUs are
 further divided into parts for finer granularity of tracing, each part has its
 own dedicated PMU, and all such PMUs together cover the monitoring job of events

@@ -6,6 +6,7 @@
  */
 
 #include <linux/arm-smccc.h>
+#include <linux/of.h>
 #include <linux/types.h>
 #include <linux/cpu.h>
 #include <asm/cpu.h>
@@ -13,6 +14,7 @@
 #include <asm/cpufeature.h>
 #include <asm/fpsimd.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_host.h>
 #include <asm/smp_plat.h>
 
 static u64 target_impl_cpu_num;
@@ -199,6 +201,33 @@ cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 {
 	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
 }
+
+#ifdef CONFIG_NXP_IMX8QM_ERRATUM_ERR050104
+static bool
+is_imx8qm_soc(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	static const char * const compats[] = {
+		"fsl,imx8qm",
+		"fsl,imx8qp",
+		NULL
+	};
+
+	return of_machine_compatible_match(compats);
+}
+
+static void
+cpu_enable_imx8qm_err050104(const struct arm64_cpu_capabilities *__unused)
+{
+	/* Trap the EL0 IC IVAU so that it can be upgraded to IC IALLUIS */
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
+
+	/*
+	 * TLB maintenance cannot be guaranteed correct for guests, so
+	 * disable KVM as if kvm-arm.mode=none was passed on the command line.
+	 */
+	kvm_force_disabled();
+}
+#endif
 
 #define CAP_MIDR_RANGE(model, v_min, r_min, v_max, r_max)	\
 	.matches = is_affected_midr_range,			\
@@ -971,7 +1000,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_ARM64_ERRATUM_4311569
 	{
 		.capability = ARM64_WORKAROUND_4311569,
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.type = ARM64_CPUCAP_SOC_ERRATUM,
 		.matches = need_arm_si_l1_workaround_4311569,
 	},
 #endif
@@ -1030,6 +1059,15 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_broken_gic_v3_seis,
 	},
+#ifdef CONFIG_NXP_IMX8QM_ERRATUM_ERR050104
+	{
+		.desc = "NXP erratum ERR050104",
+		.capability = ARM64_WORKAROUND_NXP_ERR050104,
+		.type = ARM64_CPUCAP_SOC_ERRATUM,
+		.matches = is_imx8qm_soc,
+		.cpu_enable = cpu_enable_imx8qm_err050104,
+	},
+#endif
 	{
 	}
 };

@@ -3159,6 +3159,11 @@ static int __init early_kvm_mode_cfg(char *arg)
 }
 early_param("kvm-arm.mode", early_kvm_mode_cfg);
 
+void kvm_force_disabled(void)
+{
+	kvm_mode = KVM_MODE_NONE;
+}
+
 static int __init early_kvm_wfx_trap_policy_cfg(char *arg, enum kvm_wfx_trap_policy *p)
 {
 	if (!arg)

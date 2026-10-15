@@ -106,7 +106,7 @@ static int check_child_tag_inheritance(char *ptr, int size, int mode)
 	} else if (child == 0) {
 		mte_initialize_current_context(mode, (uintptr_t)ptr, size);
 		/* Do copy on write */
-		memset(ptr, '1', size);
+		memset_safe(ptr, '1', size);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == true) {
 			fault = 1;
@@ -135,7 +135,7 @@ check_child_tag_inheritance_err:
 static int check_mte_memory(char *ptr, int size, int mode, int tag_check)
 {
 	mte_initialize_current_context(mode, (uintptr_t)ptr, size);
-	memset(ptr, '1', size);
+	memset_safe(ptr, '1', size);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid == true)
 		return KSFT_FAIL;

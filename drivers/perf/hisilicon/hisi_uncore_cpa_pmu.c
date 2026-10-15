@@ -295,7 +295,7 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 
 	/* Power Management should be disabled before using CPA PMU. */
 	hisi_cpa_pmu_disable_pm(cpa_pmu);
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state,
 				       &cpa_pmu->node);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
@@ -307,7 +307,7 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(cpa_pmu->dev, "PMU register failed\n");
 		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE, &cpa_pmu->node);
+			hisi_uncore_pmu_cpuhp_state, &cpa_pmu->node);
 		hisi_cpa_pmu_enable_pm(cpa_pmu);
 		return ret;
 	}
@@ -321,7 +321,7 @@ static void hisi_cpa_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *cpa_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&cpa_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state,
 					    &cpa_pmu->node);
 	hisi_cpa_pmu_enable_pm(cpa_pmu);
 }
@@ -336,33 +336,7 @@ static struct platform_driver hisi_cpa_pmu_driver = {
 	.remove = hisi_cpa_pmu_remove,
 };
 
-static int __init hisi_cpa_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
-				      "AP_PERF_ARM_HISI_CPA_ONLINE",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret) {
-		pr_err("setup hotplug failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = platform_driver_register(&hisi_cpa_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE);
-
-	return ret;
-}
-module_init(hisi_cpa_pmu_module_init);
-
-static void __exit hisi_cpa_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_cpa_pmu_driver);
-	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE);
-}
-module_exit(hisi_cpa_pmu_module_exit);
+module_platform_driver(hisi_cpa_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC CPA PMU driver");

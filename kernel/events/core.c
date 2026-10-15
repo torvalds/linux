@@ -10563,6 +10563,7 @@ void perf_event_itrace_started(struct perf_event *event)
 {
 	WRITE_ONCE(event->attach_state, event->attach_state | PERF_ATTACH_ITRACE);
 }
+EXPORT_SYMBOL_GPL(perf_event_itrace_started);
 
 static void perf_log_itrace_start(struct perf_event *event)
 {

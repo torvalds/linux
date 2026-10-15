@@ -85,14 +85,6 @@ SYM_FUNC_START(__pi_strlen)
 	cmp	tmp1, MIN_PAGE_SIZE - 16
 	b.gt	L(page_cross)
 	ldp	data1, data2, [srcin]
-#ifdef __AARCH64EB__
-	/* For big-endian, carry propagation (if the final byte in the
-	   string is 0x01) means we cannot use has_nul1/2 directly.
-	   Since we expect strings to be small and early-exit,
-	   byte-swap the data now so has_null1/2 will be correct.  */
-	rev	data1, data1
-	rev	data2, data2
-#endif
 	sub	tmp1, data1, zeroones
 	orr	tmp2, data1, REP8_7f
 	sub	tmp3, data2, zeroones
@@ -144,19 +136,7 @@ L(page_cross_entry):
 
 	/* Enter with C = has_nul1 == 0.  */
 L(tail):
-#ifdef __AARCH64EB__
-	/* For big-endian, carry propagation (if the final byte in the
-	   string is 0x01) means we cannot use has_nul1/2 directly.  The
-	   easiest way to get the correct byte is to byte-swap the data
-	   and calculate the syndrome a second time.  */
-	csel	data1, data1, data2, cc
-	rev	data1, data1
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, REP8_7f
-	bic	has_nul1, tmp1, tmp2
-#else
 	csel	has_nul1, has_nul1, has_nul2, cc
-#endif
 	sub	len, src, srcin
 	rev	has_nul1, has_nul1
 	add	tmp2, len, 8
@@ -194,13 +174,7 @@ L(page_cross):
 	ldp	data1, data2, [src]
 	lsl	tmp1, srcin, 3
 	mov	tmp4, -1
-#ifdef __AARCH64EB__
-	/* Big-endian.	Early bytes are at MSB.	 */
-	lsr	tmp1, tmp4, tmp1	/* Shift (tmp1 & 63).  */
-#else
-	/* Little-endian.  Early bytes are at LSB.  */
 	lsl	tmp1, tmp4, tmp1	/* Shift (tmp1 & 63).  */
-#endif
 	orr	tmp1, tmp1, REP8_80
 	orn	data1, data1, tmp1
 	orn	tmp2, data2, tmp1

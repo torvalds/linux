@@ -3,14 +3,35 @@
  * Copyright (C) 2023 ARM Ltd.
  */
 
-#ifndef __ASM_RSI_CMDS_H
-#define __ASM_RSI_CMDS_H
+#ifndef __LINUX_ARM_RSI_CMDS_H_
+#define __LINUX_ARM_RSI_CMDS_H_
 
-#include <linux/arm-smccc.h>
+#include <linux/arm-smccc-rsi.h>
+#include <linux/jump_label.h>
 #include <linux/string.h>
 #include <asm/memory.h>
 
-#include <asm/rsi_smc.h>
+#ifdef CONFIG_ARM_RMM_RSI
+DECLARE_STATIC_KEY_FALSE(rsi_present);
+
+void __init arm64_rsi_init(void);
+
+bool arm64_rsi_is_protected(phys_addr_t base, size_t size);
+
+static inline bool is_realm_world(void)
+{
+	return static_branch_unlikely(&rsi_present);
+}
+#else
+static inline void arm64_rsi_init(void) { }
+
+static inline bool arm64_rsi_is_protected(phys_addr_t base, size_t size)
+{
+	return false;
+}
+
+static inline bool is_realm_world(void) { return false; }
+#endif
 
 #define RSI_GRANULE_SHIFT		12
 #define RSI_GRANULE_SIZE		(_AC(1, UL) << RSI_GRANULE_SHIFT)
@@ -86,6 +107,51 @@ static inline long rsi_set_addr_range_state(phys_addr_t start,
 		return -EPERM;
 
 	return res.a0;
+}
+
+static inline int rsi_set_memory_range(phys_addr_t start, phys_addr_t end,
+				       enum ripas state, unsigned long flags)
+{
+	unsigned long ret;
+	phys_addr_t top;
+
+	while (start != end) {
+		ret = rsi_set_addr_range_state(start, end, state, flags, &top);
+		if (ret || top < start || top > end)
+			return -EINVAL;
+		start = top;
+	}
+
+	return 0;
+}
+
+/*
+ * Convert the specified range to RAM. Do not use this if you rely on the
+ * contents of a page that may already be in RAM state.
+ */
+static inline int rsi_set_memory_range_protected(phys_addr_t start,
+						 phys_addr_t end)
+{
+	return rsi_set_memory_range(start, end, RSI_RIPAS_RAM,
+				    RSI_CHANGE_DESTROYED);
+}
+
+/*
+ * Convert the specified range to RAM. Do not convert any pages that may have
+ * been DESTROYED, without our permission.
+ */
+static inline int rsi_set_memory_range_protected_safe(phys_addr_t start,
+						      phys_addr_t end)
+{
+	return rsi_set_memory_range(start, end, RSI_RIPAS_RAM,
+				    RSI_NO_CHANGE_DESTROYED);
+}
+
+static inline int rsi_set_memory_range_shared(phys_addr_t start,
+					      phys_addr_t end)
+{
+	return rsi_set_memory_range(start, end, RSI_RIPAS_EMPTY,
+				    RSI_CHANGE_DESTROYED);
 }
 
 #define RSI_ATTEST_CHALLENGE_MIN_SIZE	32
@@ -170,4 +236,4 @@ static inline unsigned long rsi_attestation_token_continue(phys_addr_t granule,
 	return res.a0;
 }
 
-#endif /* __ASM_RSI_CMDS_H */
+#endif /* __LINUX_ARM_RSI_CMDS_H_ */

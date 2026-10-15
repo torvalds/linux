@@ -20,11 +20,7 @@
 typedef union hyp_spinlock {
 	u32	__val;
 	struct {
-#ifdef __AARCH64EB__
-		u16 next, owner;
-#else
 		u16 owner, next;
-#endif
 	};
 } hyp_spinlock_t;
 

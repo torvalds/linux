@@ -23,6 +23,9 @@
 
 #define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
 
+enum cpuhp_state hisi_uncore_pmu_cpuhp_state;
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_cpuhp_state, "HISI_PMU");
+
 /*
  * PMU event attributes
  */
@@ -617,6 +620,28 @@ void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 	pmu->capabilities       = PERF_PMU_CAP_NO_EXCLUDE;
 }
 EXPORT_SYMBOL_NS_GPL(hisi_pmu_init, "HISI_PMU");
+
+static int __init hisi_uncore_pmu_init(void)
+{
+	int ret;
+
+	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "perf/hisi/uncore:online",
+				      hisi_uncore_pmu_online_cpu,
+				      hisi_uncore_pmu_offline_cpu);
+	if (ret < 0)
+		return ret;
+
+	hisi_uncore_pmu_cpuhp_state = ret;
+
+	return 0;
+}
+module_init(hisi_uncore_pmu_init);
+
+static void __exit hisi_uncore_pmu_exit(void)
+{
+	cpuhp_remove_multi_state(hisi_uncore_pmu_cpuhp_state);
+}
+module_exit(hisi_uncore_pmu_exit);
 
 MODULE_DESCRIPTION("HiSilicon SoC uncore Performance Monitor driver framework");
 MODULE_LICENSE("GPL v2");

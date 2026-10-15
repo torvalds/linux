@@ -890,6 +890,8 @@ static void arm_spe_pmu_start(struct perf_event *event, int flags)
 		return;
 	}
 
+	perf_event_itrace_started(event);
+
 	reg = arm_spe_event_to_pmsfcr(event);
 	write_sysreg_s(reg, SYS_PMSFCR_EL1);
 

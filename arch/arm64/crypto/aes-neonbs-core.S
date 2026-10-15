@@ -824,8 +824,8 @@ SYM_FUNC_START(aesbs_ctr_encrypt)
 	frame_push	0
 	ldp		x7, x8, [x5]
 	ld1		{v0.16b}, [x5]
-CPU_LE(	rev		x7, x7		)
-CPU_LE(	rev		x8, x8		)
+	rev		x7, x7
+	rev		x8, x8
 	adds		x8, x8, #1
 	adc		x7, x7, xzr
 

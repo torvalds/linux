@@ -620,9 +620,10 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 
 	/*
 	 * If we're in an interrupt or have no user context, we must not take
-	 * the fault.
+	 * the fault. EFI runtime services may execute with preemption enabled
+	 * and mm == &efi_mm, but faults need to be treated as kernel faults.
 	 */
-	if (faulthandler_disabled() || !mm)
+	if (faulthandler_disabled() || !mm || mm_is_efi(mm))
 		goto no_context;
 
 	if (user_mode(regs))

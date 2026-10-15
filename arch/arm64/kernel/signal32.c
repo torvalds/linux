@@ -70,22 +70,12 @@ static inline int get_sigset_t(sigset_t *set,
 
 /*
  * VFP save/restore code.
- *
- * We have to be careful with endianness, since the fpsimd context-switch
- * code operates on 128-bit (Q) register values whereas the compat ABI
- * uses an array of 64-bit (D) registers. Consequently, we need to swap
- * the two halves of each Q register when running on a big-endian CPU.
  */
 union __fpsimd_vreg {
 	__uint128_t	raw;
 	struct {
-#ifdef __AARCH64EB__
-		u64	hi;
-		u64	lo;
-#else
 		u64	lo;
 		u64	hi;
-#endif
 	};
 };
 
@@ -333,9 +323,6 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 
 	/* The IT state must be cleared for both ARM and Thumb-2 */
 	spsr &= ~PSR_AA32_IT_MASK;
-
-	/* Restore the original endianness */
-	spsr |= PSR_AA32_ENDSTATE;
 
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		retcode = ptr_to_compat(ka->sa.sa_restorer);

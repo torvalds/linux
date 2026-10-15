@@ -613,6 +613,8 @@ static void etm_event_start(struct perf_event *event, int flags)
 		perf_report_aux_output_id(event, hw_id);
 	}
 
+	perf_event_itrace_started(event);
+
 out:
 	/* Tell the perf core the event is alive */
 	event->hw.state = 0;

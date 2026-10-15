@@ -66,9 +66,9 @@
 
 #ifndef __ASSEMBLER__
 
+#include <linux/arm-rsi-cmds.h>
 #include <asm/cpufeature.h>
 #include <asm/pgtable-types.h>
-#include <asm/rsi.h>
 
 extern bool arm64_use_ng_mappings;
 extern unsigned long prot_ns_shared;
@@ -139,7 +139,7 @@ static inline bool __pure lpa2_is_enabled(void)
 
 /*
  * Page types used via Permission Indirection Extension (PIE). PIE uses
- * the USER, DBM, PXN and UXN bits to to generate an index which is used
+ * the USER, DBM, PXN and UXN bits to generate an index which is used
  * to look up the actual permission in PIR_ELx and PIRE0_EL1. We define
  * combinations we use on non-PIE systems with the same encoding, for
  * convenience these are listed here as comments as are the unallocated

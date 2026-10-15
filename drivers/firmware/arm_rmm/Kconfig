@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARCH_SUPPORTS_RMM
+	bool
+
+config ARM_RMM_RSI
+	bool "Realm Service Interface (RSI) Support"
+	depends on ARCH_SUPPORTS_RMM
+	default y
+	help
+	  Enable support for running Linux as a Realm guest under a Realm
+	  Management Monitor (RMM), as defined by the Arm Confidential
+	  Compute Architecture.
+
+	  The RMM exposes the Realm Service Interface (RSI) to Realm guests.
+	  Linux uses RSI to negotiate the interface version, obtain the Realm
+	  configuration, and manage the protected or shared state of guest
+	  memory.
