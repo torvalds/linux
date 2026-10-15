@@ -112,7 +112,7 @@ SPHINX_REQUIREMENTS = {
         "sphinxcontrib-applehelp": "1.0.4",
         "sphinxcontrib-htmlhelp": "2.0.1",
         "sphinxcontrib-serializinghtml": "1.1.5",
-        "urllib3": "2.0.0",
+        "urllib3": "2.0.2",
     },
 
     # Starting from here, ensure all docutils versions are covered with
