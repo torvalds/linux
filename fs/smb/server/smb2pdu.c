@@ -2564,6 +2564,11 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 	ksmbd_conn_lock(conn);
 	if (!req->hdr.SessionId) {
+		/* Bound abandoned SessionId-zero authentication exchanges. */
+		if (ksmbd_too_many_session_setups(conn)) {
+			rc = -ENOSPC;
+			goto out_err;
+		}
 		sess = ksmbd_smb2_session_create(conn);
 		if (!sess) {
 			rc = -ENOMEM;
@@ -3262,6 +3267,8 @@ int smb2_session_logoff(struct ksmbd_work *work)
 	up_write(&conn->session_lock);
 
 	ksmbd_all_conn_set_status(sess, KSMBD_SESS_NEED_SETUP);
+	/* Drop the table reference while work->sess pins the response keys. */
+	ksmbd_session_unregister(conn, sess);
 
 	if (err)
 		return err;

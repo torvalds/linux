@@ -657,6 +657,7 @@ static void ksmbd_session_expiration_worker(struct work_struct *work)
 		goto reschedule;
 
 	ksmbd_expire_sessions();
+	ksmbd_reclaim_ended_sessions();
 
 	/*
 	 * An old connection without a Valid or Expired session must be

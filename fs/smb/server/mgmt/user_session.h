@@ -53,6 +53,7 @@ struct ksmbd_session {
 	u64				kerberos_expiry;
 
 	struct hlist_node		hlist;
+	struct list_head		dispose_entry;
 	struct rw_semaphore		chann_lock;
 	struct xarray			ksmbd_chann_list;
 	struct xarray			tree_conns;
@@ -105,6 +106,7 @@ struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 					   unsigned long long id);
 bool is_ksmbd_session_in_connection(struct ksmbd_conn *conn,
 				     unsigned long long id);
+bool ksmbd_too_many_session_setups(struct ksmbd_conn *conn);
 int ksmbd_session_register(struct ksmbd_conn *conn,
 			   struct ksmbd_session *sess);
 void ksmbd_session_unregister(struct ksmbd_conn *conn,
@@ -112,6 +114,7 @@ void ksmbd_session_unregister(struct ksmbd_conn *conn,
 void ksmbd_conn_sessions_cleanup(struct ksmbd_conn *conn);
 bool ksmbd_conn_has_valid_or_expired_session(struct ksmbd_conn *conn);
 void ksmbd_expire_sessions(void);
+void ksmbd_reclaim_ended_sessions(void);
 struct ksmbd_session *__session_lookup(unsigned long long id);
 struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
 					       unsigned long long id);
