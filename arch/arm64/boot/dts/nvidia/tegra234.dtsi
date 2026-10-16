@@ -245,14 +245,14 @@
 				assigned-clock-rates = <81600000>;
 				status = "disabled";
 
-				#address-cells = <2>;
-				#size-cells = <2>;
-				ranges = <0x0 0x02900800 0x0 0x02900800 0x0 0x11800>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x02900000 0x0 0x02900000 0x20000>;
 
 				tegra_i2s1: i2s@2901000 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901000 0x0 0x100>;
+					reg = <0x2901000 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S1>,
 						 <&bpmp TEGRA234_CLK_I2S1_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -288,7 +288,7 @@
 				tegra_i2s2: i2s@2901100 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901100 0x0 0x100>;
+					reg = <0x2901100 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S2>,
 						 <&bpmp TEGRA234_CLK_I2S2_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -324,7 +324,7 @@
 				tegra_i2s3: i2s@2901200 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901200 0x0 0x100>;
+					reg = <0x2901200 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S3>,
 						 <&bpmp TEGRA234_CLK_I2S3_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -360,7 +360,7 @@
 				tegra_i2s4: i2s@2901300 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901300 0x0 0x100>;
+					reg = <0x2901300 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S4>,
 						 <&bpmp TEGRA234_CLK_I2S4_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -396,7 +396,7 @@
 				tegra_i2s5: i2s@2901400 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901400 0x0 0x100>;
+					reg = <0x2901400 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S5>,
 						 <&bpmp TEGRA234_CLK_I2S5_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -432,7 +432,7 @@
 				tegra_i2s6: i2s@2901500 {
 					compatible = "nvidia,tegra234-i2s",
 						     "nvidia,tegra210-i2s";
-					reg = <0x0 0x2901500 0x0 0x100>;
+					reg = <0x2901500 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_I2S6>,
 						 <&bpmp TEGRA234_CLK_I2S6_SYNC_INPUT>;
 					clock-names = "i2s", "sync_input";
@@ -468,7 +468,7 @@
 				tegra_sfc1: sfc@2902000 {
 					compatible = "nvidia,tegra234-sfc",
 						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902000 0x0 0x200>;
+					reg = <0x2902000 0x200>;
 					sound-name-prefix = "SFC1";
 
 					ports {
@@ -496,7 +496,7 @@
 				tegra_sfc2: sfc@2902200 {
 					compatible = "nvidia,tegra234-sfc",
 						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902200 0x0 0x200>;
+					reg = <0x2902200 0x200>;
 					sound-name-prefix = "SFC2";
 
 					ports {
@@ -524,7 +524,7 @@
 				tegra_sfc3: sfc@2902400 {
 					compatible = "nvidia,tegra234-sfc",
 						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902400 0x0 0x200>;
+					reg = <0x2902400 0x200>;
 					sound-name-prefix = "SFC3";
 
 					ports {
@@ -552,7 +552,7 @@
 				tegra_sfc4: sfc@2902600 {
 					compatible = "nvidia,tegra234-sfc",
 						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902600 0x0 0x200>;
+					reg = <0x2902600 0x200>;
 					sound-name-prefix = "SFC4";
 
 					ports {
@@ -580,7 +580,7 @@
 				tegra_amx1: amx@2903000 {
 					compatible = "nvidia,tegra234-amx",
 						     "nvidia,tegra194-amx";
-					reg = <0x0 0x2903000 0x0 0x100>;
+					reg = <0x2903000 0x100>;
 					sound-name-prefix = "AMX1";
 
 					ports {
@@ -632,7 +632,7 @@
 				tegra_amx2: amx@2903100 {
 					compatible = "nvidia,tegra234-amx",
 						     "nvidia,tegra194-amx";
-					reg = <0x0 0x2903100 0x0 0x100>;
+					reg = <0x2903100 0x100>;
 					sound-name-prefix = "AMX2";
 
 					ports {
@@ -684,7 +684,7 @@
 				tegra_amx3: amx@2903200 {
 					compatible = "nvidia,tegra234-amx",
 						     "nvidia,tegra194-amx";
-					reg = <0x0 0x2903200 0x0 0x100>;
+					reg = <0x2903200 0x100>;
 					sound-name-prefix = "AMX3";
 
 					ports {
@@ -736,7 +736,7 @@
 				tegra_amx4: amx@2903300 {
 					compatible = "nvidia,tegra234-amx",
 						     "nvidia,tegra194-amx";
-					reg = <0x0 0x2903300 0x0 0x100>;
+					reg = <0x2903300 0x100>;
 					sound-name-prefix = "AMX4";
 
 					ports {
@@ -788,7 +788,7 @@
 				tegra_adx1: adx@2903800 {
 					compatible = "nvidia,tegra234-adx",
 						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903800 0x0 0x100>;
+					reg = <0x2903800 0x100>;
 					sound-name-prefix = "ADX1";
 
 					ports {
@@ -840,7 +840,7 @@
 				tegra_adx2: adx@2903900 {
 					compatible = "nvidia,tegra234-adx",
 						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903900 0x0 0x100>;
+					reg = <0x2903900 0x100>;
 					sound-name-prefix = "ADX2";
 
 					ports {
@@ -892,7 +892,7 @@
 				tegra_adx3: adx@2903a00 {
 					compatible = "nvidia,tegra234-adx",
 						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903a00 0x0 0x100>;
+					reg = <0x2903a00 0x100>;
 					sound-name-prefix = "ADX3";
 
 					ports {
@@ -944,7 +944,7 @@
 				tegra_adx4: adx@2903b00 {
 					compatible = "nvidia,tegra234-adx",
 						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903b00 0x0 0x100>;
+					reg = <0x2903b00 0x100>;
 					sound-name-prefix = "ADX4";
 
 					ports {
@@ -997,7 +997,7 @@
 				tegra_dmic1: dmic@2904000 {
 					compatible = "nvidia,tegra234-dmic",
 						     "nvidia,tegra210-dmic";
-					reg = <0x0 0x2904000 0x0 0x100>;
+					reg = <0x2904000 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DMIC1>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC1>;
@@ -1031,7 +1031,7 @@
 				tegra_dmic2: dmic@2904100 {
 					compatible = "nvidia,tegra234-dmic",
 						     "nvidia,tegra210-dmic";
-					reg = <0x0 0x2904100 0x0 0x100>;
+					reg = <0x2904100 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DMIC2>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC2>;
@@ -1065,7 +1065,7 @@
 				tegra_dmic3: dmic@2904200 {
 					compatible = "nvidia,tegra234-dmic",
 						     "nvidia,tegra210-dmic";
-					reg = <0x0 0x2904200 0x0 0x100>;
+					reg = <0x2904200 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DMIC3>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC3>;
@@ -1099,7 +1099,7 @@
 				tegra_dmic4: dmic@2904300 {
 					compatible = "nvidia,tegra234-dmic",
 						     "nvidia,tegra210-dmic";
-					reg = <0x0 0x2904300 0x0 0x100>;
+					reg = <0x2904300 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DMIC4>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC4>;
@@ -1133,7 +1133,7 @@
 				tegra_dspk1: dspk@2905000 {
 					compatible = "nvidia,tegra234-dspk",
 						     "nvidia,tegra186-dspk";
-					reg = <0x0 0x2905000 0x0 0x100>;
+					reg = <0x2905000 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DSPK1>;
 					clock-names = "dspk";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DSPK1>;
@@ -1167,7 +1167,7 @@
 				tegra_dspk2: dspk@2905100 {
 					compatible = "nvidia,tegra234-dspk",
 						     "nvidia,tegra186-dspk";
-					reg = <0x0 0x2905100 0x0 0x100>;
+					reg = <0x2905100 0x100>;
 					clocks = <&bpmp TEGRA234_CLK_DSPK2>;
 					clock-names = "dspk";
 					assigned-clocks = <&bpmp TEGRA234_CLK_DSPK2>;
@@ -1201,23 +1201,23 @@
 				tegra_ope1: processing-engine@2908000 {
 					compatible = "nvidia,tegra234-ope",
 						     "nvidia,tegra210-ope";
-					reg = <0x0 0x2908000 0x0 0x100>;
+					reg = <0x2908000 0x100>;
 					sound-name-prefix = "OPE1";
 
-					#address-cells = <2>;
-					#size-cells = <2>;
+					#address-cells = <1>;
+					#size-cells = <1>;
 					ranges;
 
 					equalizer@2908100 {
 						compatible = "nvidia,tegra234-peq",
 							     "nvidia,tegra210-peq";
-						reg = <0x0 0x2908100 0x0 0x100>;
+						reg = <0x2908100 0x100>;
 					};
 
 					dynamic-range-compressor@2908200 {
 						compatible = "nvidia,tegra234-mbdrc",
 							     "nvidia,tegra210-mbdrc";
-						reg = <0x0 0x2908200 0x0 0x200>;
+						reg = <0x2908200 0x200>;
 					};
 
 					ports {
@@ -1247,7 +1247,7 @@
 				tegra_mvc1: mvc@290a000 {
 					compatible = "nvidia,tegra234-mvc",
 						     "nvidia,tegra210-mvc";
-					reg = <0x0 0x290a000 0x0 0x200>;
+					reg = <0x290a000 0x200>;
 					sound-name-prefix = "MVC1";
 
 					ports {
@@ -1275,7 +1275,7 @@
 				tegra_mvc2: mvc@290a200 {
 					compatible = "nvidia,tegra234-mvc",
 						     "nvidia,tegra210-mvc";
-					reg = <0x0 0x290a200 0x0 0x200>;
+					reg = <0x290a200 0x200>;
 					sound-name-prefix = "MVC2";
 
 					ports {
@@ -1303,7 +1303,7 @@
 				tegra_amixer: amixer@290bb00 {
 					compatible = "nvidia,tegra234-amixer",
 						     "nvidia,tegra210-amixer";
-					reg = <0x0 0x290bb00 0x0 0x800>;
+					reg = <0x290bb00 0x800>;
 					sound-name-prefix = "MIXER1";
 
 					ports {
@@ -1435,7 +1435,7 @@
 				tegra_admaif: admaif@290f000 {
 					compatible = "nvidia,tegra234-admaif",
 						     "nvidia,tegra186-admaif";
-					reg = <0x0 0x0290f000 0x0 0x1000>;
+					reg = <0x0290f000 0x1000>;
 					dmas = <&adma 1>, <&adma 1>,
 					       <&adma 2>, <&adma 2>,
 					       <&adma 3>, <&adma 3>,
@@ -1650,7 +1650,7 @@
 				tegra_asrc: asrc@2910000 {
 					compatible = "nvidia,tegra234-asrc",
 						     "nvidia,tegra186-asrc";
-					reg = <0x0 0x2910000 0x0 0x2000>;
+					reg = <0x2910000 0x2000>;
 					sound-name-prefix = "ASRC1";
 
 					ports {
@@ -4694,8 +4694,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE10AR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_PCIE10AW &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE10 0x1000>;
-			iommu-map-mask = <0x0>;
+			iommus = <&smmu_niso1 TEGRA234_SID_PCIE10>;
 			dma-coherent;
 
 			status = "disabled";
@@ -5099,8 +5098,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE5R &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_PCIE5W &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE5 0x1000>;
-			iommu-map-mask = <0x0>;
+			iommus = <&smmu_niso0 TEGRA234_SID_PCIE5>;
 			dma-coherent;
 
 			status = "disabled";
@@ -5195,8 +5193,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE6AR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_PCIE6AW &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE6 0x1000>;
-			iommu-map-mask = <0x0>;
+			iommus = <&smmu_niso0 TEGRA234_SID_PCIE6>;
 			dma-coherent;
 
 			status = "disabled";
@@ -5291,8 +5288,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE7AR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_PCIE7AW &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE7 0x1000>;
-			iommu-map-mask = <0x0>;
+			iommus = <&smmu_niso1 TEGRA234_SID_PCIE7>;
 			dma-coherent;
 
 			status = "disabled";
