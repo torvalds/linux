@@ -121,9 +121,9 @@ static void rt721_sdca_jack_detect_handler(struct work_struct *work)
 			return;
 		}
 
-			rt_sdca_index_read(rt721->mbq_regmap, RT721_JD_CTRL,
-				RT721_JD_1PIN_GAT_STA1, &real_JD);
-			real_JD &= 0x1;
+		rt_sdca_index_read(rt721->mbq_regmap, RT721_JD_CTRL,
+			RT721_JD_1PIN_GAT_STA1, &real_JD);
+		real_JD &= 0x1;
 		if (real_JD == 0x0)
 			rt721_sdca_jack_reset_state(rt721);
 
