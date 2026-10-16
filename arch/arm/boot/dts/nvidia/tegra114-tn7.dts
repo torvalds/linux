@@ -95,7 +95,7 @@
 						regulator-boot-on;
 					};
 
-					smps45 {
+					vdd_core: smps45 {
 						regulator-name = "vd-soc";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <1100000>;
@@ -241,6 +241,8 @@
 	};
 
 	pmc@7000e400 {
+		core-supply = <&vdd_core>;
+
 		nvidia,invert-interrupt;
 	};
 

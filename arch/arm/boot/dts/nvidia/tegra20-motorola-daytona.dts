@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra20-motorola-mot.dtsi"
+
+/ {
+	model = "Motorola Droid X2 (MB870)";
+	compatible = "motorola,daytona", "nvidia,tegra20";
+
+	i2c@7000c000 {
+		touchscreen@4a {
+			touchscreen-size-x = <1010>;
+			touchscreen-size-y = <1023>;
+			touchscreen-min-x = <25>;
+		};
+	};
+
+	i2c@7000d000 {
+		accelerometer@f {
+			mount-matrix =	"-1",  "0",  "0",
+					 "0", "-1",  "0",
+					 "0",  "0", "-1";
+		};
+
+		light-sensor@44 {
+			compatible = "isil,isl29030";
+			reg = <0x44>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(E, 1) IRQ_TYPE_LEVEL_LOW>;
+
+			vdd-supply = <&vdd_hvio>;
+		};
+	};
+
+	/* Motorola BH5X battery cell */
+	battery: battery-cell {
+		compatible = "simple-battery";
+		device-chemistry = "lithium-ion";
+
+		voltage-min-design-microvolt = <3200000>;
+		voltage-max-design-microvolt = <4200000>;
+
+		charge-full-design-microamp-hours = <1500000>;
+		energy-full-design-microwatt-hours = <5600000>;
+
+		constant-charge-voltage-max-microvolt = <4200000>;
+		operating-range-celsius = <0 45>;
+	};
+
+	extcon-keys {
+		compatible = "gpio-keys";
+
+		switch-dock-hall-sensor-north {
+			label = "Dock Hall sensor (north)";
+			gpios = <&gpio TEGRA_GPIO(S, 2) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_DOCK>;
+			debounce-interval = <500>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		switch-dock-hall-sensor-south {
+			label = "Dock Hall sensor (south)";
+			gpios = <&gpio TEGRA_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_DOCK>;
+			debounce-interval = <500>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
+	matrix-keypad {
+		compatible = "gpio-matrix-keypad";
+
+		debounce-delay-ms = <10>;
+		col-scan-delay-us = <5>;
+
+		row-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_LOW
+			     &gpio TEGRA_GPIO(R, 1) GPIO_ACTIVE_LOW
+			     &gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_LOW
+			     &gpio TEGRA_GPIO(R, 3) GPIO_ACTIVE_LOW>;
+		col-gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW
+			     &gpio TEGRA_GPIO(Q, 1) GPIO_ACTIVE_LOW
+			     &gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_LOW>;
+
+		gpio-activelow;
+
+		linux,keymap = <MATRIX_KEY(0x00, 0x00, KEY_VOLUMEUP)
+
+				MATRIX_KEY(0x01, 0x00, KEY_VOLUMEDOWN)
+
+				MATRIX_KEY(0x02, 0x00, KEY_BACK)
+				MATRIX_KEY(0x02, 0x01, KEY_SEARCH)
+				MATRIX_KEY(0x02, 0x02, KEY_HOME)
+
+				MATRIX_KEY(0x03, 0x01, KEY_MENU)>;
+
+		wakeup-source;
+	};
+
+	sound {
+		nvidia,model = "Motorola Droid X2 (MB870) CPCAP";
+	};
+};
