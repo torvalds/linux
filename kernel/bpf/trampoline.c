@@ -1629,8 +1629,8 @@ static void ftrace_hash_add(struct ftrace_hash *hash, struct ftrace_func_entry *
 static int register_fentry_multi(struct bpf_trampoline *tr, struct bpf_tramp_image *im, void *ptr)
 {
 	unsigned long addr = (unsigned long) im->image;
-	unsigned long ip = ftrace_location(tr->ip);
 	struct bpf_tracing_multi_data *data = ptr;
+	unsigned long ip = tr->ip;
 
 	/*
 	 * Different BTF ids get different trampolines, but they can still
@@ -1651,13 +1651,12 @@ static int register_fentry_multi(struct bpf_trampoline *tr, struct bpf_tramp_ima
 static int unregister_fentry_multi(struct bpf_trampoline *tr, u32 orig_flags, void *ptr)
 {
 	unsigned long addr = (unsigned long) tr->cur_image->image;
-	unsigned long ip = ftrace_location(tr->ip);
 	struct bpf_tracing_multi_data *data = ptr;
 
 	if (bpf_trampoline_use_jmp(tr->flags))
 		addr = ftrace_jmp_set(addr);
 
-	ftrace_hash_add(data->unreg, data->entry, ip, addr);
+	ftrace_hash_add(data->unreg, data->entry, tr->ip, addr);
 	tr->cur_image = NULL;
 	return 0;
 }
@@ -1666,13 +1665,12 @@ static int modify_fentry_multi(struct bpf_trampoline *tr, u32 orig_flags, struct
 			       bool lock_direct_mutex, void *ptr)
 {
 	unsigned long addr = (unsigned long) im->image;
-	unsigned long ip = ftrace_location(tr->ip);
 	struct bpf_tracing_multi_data *data = ptr;
 
 	if (bpf_trampoline_use_jmp(tr->flags))
 		addr = ftrace_jmp_set(addr);
 
-	ftrace_hash_add(data->modify, data->entry, ip, addr);
+	ftrace_hash_add(data->modify, data->entry, tr->ip, addr);
 	tr->cur_image = im;
 	return 0;
 }
