@@ -37,6 +37,8 @@ struct ksmbd_session {
 	char				ClientGUID[SMB2_CLIENT_GUID_SIZE];
 
 	struct ksmbd_user		*user;
+	/* Holds the connection slot until an SMB3 channel takes it over. */
+	struct ksmbd_conn		*setup_conn;
 	unsigned int			sequence_number;
 	unsigned int			flags;
 
@@ -89,7 +91,9 @@ static inline void clear_session_flag(struct ksmbd_session *sess, int bit)
 	sess->flags &= ~bit;
 }
 
-struct ksmbd_session *ksmbd_smb2_session_create(void);
+struct ksmbd_session *ksmbd_smb2_session_create(struct ksmbd_conn *conn);
+int ksmbd_session_reserve_slot(struct ksmbd_conn *conn);
+void ksmbd_session_release_slot(struct ksmbd_conn *conn);
 
 void ksmbd_session_destroy(struct ksmbd_session *sess);
 

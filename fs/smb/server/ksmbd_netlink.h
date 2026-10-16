@@ -114,7 +114,8 @@ struct ksmbd_startup_request {
 	__s8	bind_interfaces_only;
 	__u32	max_ip_connections;	/* Number of maximum connection per ip address */
 	__s8	aapl_model[32];		/* AAPL model string for Finder icon, e.g. "Xserve" */
-	__s8	reserved[467];		/* Reserved room */
+	__u32	max_sessions_per_connection; /* Maximum sessions per connection */
+	__s8	reserved[463];		/* Reserved room */
 	__u32	ifc_list_sz;		/* interfaces list size */
 	__s8	____payload[];
 } __packed;

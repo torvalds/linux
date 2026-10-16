@@ -113,14 +113,28 @@ static int register_session_channel(struct ksmbd_session *sess,
 		goto out;
 	}
 
+	if (sess->setup_conn != conn) {
+		rc = ksmbd_session_reserve_slot(conn);
+		if (rc) {
+			kfree_sensitive(chann);
+			goto out;
+		}
+	}
+
 	chann->conn = ksmbd_conn_get(conn);
 	memcpy(chann->sess_key, sess_key, sizeof(chann->sess_key));
 	old = xa_store(&sess->ksmbd_chann_list, (long)conn, chann,
 		       KSMBD_DEFAULT_GFP);
 	if (xa_is_err(old)) {
+		if (sess->setup_conn != conn)
+			ksmbd_session_release_slot(conn);
 		ksmbd_conn_put(chann->conn);
 		kfree_sensitive(chann);
 		rc = xa_err(old);
+	} else if (sess->setup_conn == conn) {
+		/* Transfer the initial reservation and reference to this channel. */
+		sess->setup_conn = NULL;
+		ksmbd_conn_put(conn);
 	}
 out:
 	up_write(&sess->chann_lock);
@@ -2550,7 +2564,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 	ksmbd_conn_lock(conn);
 	if (!req->hdr.SessionId) {
-		sess = ksmbd_smb2_session_create();
+		sess = ksmbd_smb2_session_create(conn);
 		if (!sess) {
 			rc = -ENOMEM;
 			goto out_err;

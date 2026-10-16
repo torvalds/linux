@@ -3,6 +3,7 @@
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  */
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/rwsem.h>
@@ -18,6 +19,7 @@
 #include "../vfs_cache.h"
 #include "../misc.h"
 #include "../stats.h"
+#include "../server.h"
 
 static DEFINE_IDA(session_ida);
 
@@ -25,6 +27,21 @@ static DEFINE_IDA(session_ida);
 #define KSMBD_MAX_PENDING_SESSIONS	1
 static DEFINE_HASHTABLE(sessions_table, SESSION_HASH_BITS);
 static DECLARE_RWSEM(sessions_table_lock);
+
+int ksmbd_session_reserve_slot(struct ksmbd_conn *conn)
+{
+	if (atomic64_inc_return(&conn->session_count) >
+	    READ_ONCE(server_conf.max_sessions_per_connection)) {
+		atomic64_dec(&conn->session_count);
+		return -ENOSPC;
+	}
+	return 0;
+}
+
+void ksmbd_session_release_slot(struct ksmbd_conn *conn)
+{
+	atomic64_dec(&conn->session_count);
+}
 
 struct ksmbd_session_rpc {
 	int			id;
@@ -271,6 +288,7 @@ static void free_channel_list(struct ksmbd_session *sess)
 	down_write(&sess->chann_lock);
 	xa_for_each(&sess->ksmbd_chann_list, index, chann) {
 		xa_erase(&sess->ksmbd_chann_list, index);
+		ksmbd_session_release_slot(chann->conn);
 		ksmbd_conn_put(chann->conn);
 		kfree_sensitive(chann);
 	}
@@ -398,9 +416,12 @@ int ksmbd_session_rpc_method(struct ksmbd_session *sess, int id)
 
 void ksmbd_session_destroy(struct ksmbd_session *sess)
 {
+	struct ksmbd_conn *setup_conn;
+
 	if (!sess)
 		return;
 
+	setup_conn = sess->setup_conn;
 	delete_proc_session(sess);
 	ksmbd_tree_conn_session_logoff(sess);
 	ksmbd_destroy_file_table(sess);
@@ -410,9 +431,14 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	ksmbd_session_rpc_clear_list(sess);
 	free_channel_list(sess);
 	kfree_sensitive(sess->Preauth_HashValue);
-	ksmbd_release_id(&session_ida, sess->id);
+	if (sess->id)
+		ksmbd_release_id(&session_ida, sess->id);
 	ida_destroy(&sess->tree_conn_ida);
 	kfree_sensitive(sess);
+	if (setup_conn) {
+		ksmbd_session_release_slot(setup_conn);
+		ksmbd_conn_put(setup_conn);
+	}
 }
 
 static void ksmbd_session_remove_from_table(struct ksmbd_session *sess)
@@ -599,6 +625,7 @@ static int ksmbd_chann_del(struct ksmbd_conn *conn, struct ksmbd_session *sess)
 	if (!chann)
 		return -ENOENT;
 
+	ksmbd_session_release_slot(chann->conn);
 	ksmbd_conn_put(chann->conn);
 	kfree_sensitive(chann);
 	return 0;
@@ -884,7 +911,7 @@ static int __init_smb2_session(struct ksmbd_session *sess)
 	return 0;
 }
 
-static struct ksmbd_session *__session_create(int protocol)
+static struct ksmbd_session *__session_create(struct ksmbd_conn *conn, int protocol)
 {
 	struct ksmbd_session *sess;
 	int ret;
@@ -892,15 +919,17 @@ static struct ksmbd_session *__session_create(int protocol)
 	if (protocol != CIFDS_SESSION_FLAG_SMB2)
 		return NULL;
 
-	sess = kzalloc_obj(struct ksmbd_session, KSMBD_DEFAULT_GFP);
-	if (!sess)
+	if (ksmbd_session_reserve_slot(conn))
 		return NULL;
 
+	sess = kzalloc_obj(struct ksmbd_session, KSMBD_DEFAULT_GFP);
+	if (!sess) {
+		ksmbd_session_release_slot(conn);
+		return NULL;
+	}
+
+	sess->setup_conn = ksmbd_conn_get(conn);
 	ida_init(&sess->tree_conn_ida);
-
-	if (ksmbd_init_file_table(&sess->file_table))
-		goto error;
-
 	sess->last_active = jiffies;
 	sess->state = SMB2_SESSION_IN_PROGRESS;
 	set_session_flag(sess, protocol);
@@ -912,6 +941,9 @@ static struct ksmbd_session *__session_create(int protocol)
 	init_rwsem(&sess->tree_conns_lock);
 	init_rwsem(&sess->rpc_lock);
 	init_rwsem(&sess->chann_lock);
+
+	if (ksmbd_init_file_table(&sess->file_table))
+		goto error;
 
 	ret = __init_smb2_session(sess);
 	if (ret)
@@ -931,9 +963,9 @@ error:
 	return NULL;
 }
 
-struct ksmbd_session *ksmbd_smb2_session_create(void)
+struct ksmbd_session *ksmbd_smb2_session_create(struct ksmbd_conn *conn)
 {
-	return __session_create(CIFDS_SESSION_FLAG_SMB2);
+	return __session_create(conn, CIFDS_SESSION_FLAG_SMB2);
 }
 
 int ksmbd_acquire_tree_conn_id(struct ksmbd_session *sess)

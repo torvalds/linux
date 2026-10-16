@@ -80,6 +80,8 @@ struct ksmbd_conn {
 	struct rw_semaphore		session_lock;
 	/* smb session 1 per user */
 	struct xarray			sessions;
+	/* New sessions and SMB3 channels each reserve one connection slot. */
+	atomic64_t			session_count;
 	unsigned long			creation_time;
 	unsigned long			last_active;
 	/* How many request are running currently */
