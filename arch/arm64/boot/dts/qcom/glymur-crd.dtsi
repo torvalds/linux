@@ -899,6 +899,22 @@
 	vdd3-supply = <&vreg_l7b_e0_2p79>;
 };
 
+&sdhc_2 {
+	vmmc-supply = <&vreg_l9b_e0_2p9>;
+	vqmmc-supply = <&vreg_l2b_e0_2p9>;
+
+	pinctrl-0 = <&sdc2_default_state &sdc2_card_det_n>;
+	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
+	pinctrl-names = "default", "sleep";
+
+	cd-gpios = <&tlmm 221 GPIO_ACTIVE_LOW>;
+
+	no-mmc;
+	no-sdio;
+
+	status = "okay";
+};
+
 &swr0 {
 	status = "okay";
 
@@ -1088,6 +1104,13 @@
 			drive-strength = <2>;
 			bias-pull-up;
 		};
+	};
+
+	sdc2_card_det_n: sd-card-det-n-state {
+		pins = "gpio221";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	tpad_default: tpad-default-state {

@@ -232,6 +232,9 @@ properties:
           - qcom,oryon-2-1
           - qcom,oryon-2-2
           - qcom,oryon-2-3
+          - qcom,oryon-3-0
+          - qcom,oryon-3-1
+          - qcom,oryon-3-2
           - qcom,scorpion
           - samsung,mongoose-m2
           - samsung,mongoose-m3

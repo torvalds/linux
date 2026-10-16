@@ -970,6 +970,7 @@
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK_A>,
 				 <&sleep_clk>;
+			power-domains = <&rpmhpd RPMHPD_CX>;
 		};
 
 		ipcc: mailbox@408000 {
@@ -2206,12 +2207,6 @@
 
 			power-domains = <&gcc PCIE_0_GDSC>;
 
-			phys = <&pcie0_phy>;
-			phy-names = "pciephy";
-
-			perst-gpios = <&tlmm 79 GPIO_ACTIVE_LOW>;
-			wake-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
-
 			pinctrl-names = "default";
 			pinctrl-0 = <&pcie0_default_state>;
 			dma-coherent;
@@ -2222,6 +2217,10 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie0_phy>;
+				reset-gpios = <&tlmm 79 GPIO_ACTIVE_LOW>;
+				wake-gpios = <&tlmm 81 GPIO_ACTIVE_LOW>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -2333,12 +2332,6 @@
 
 			power-domains = <&gcc PCIE_1_GDSC>;
 
-			phys = <&pcie1_phy>;
-			phy-names = "pciephy";
-
-			perst-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
-			wake-gpios = <&tlmm 84 GPIO_ACTIVE_HIGH>;
-
 			pinctrl-names = "default";
 			pinctrl-0 = <&pcie1_default_state>;
 			dma-coherent;
@@ -2349,6 +2342,10 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie1_phy>;
+				reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
+				wake-gpios = <&tlmm 84 GPIO_ACTIVE_LOW>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -2460,12 +2457,6 @@
 
 			power-domains = <&gcc PCIE_2_GDSC>;
 
-			phys = <&pcie2_phy>;
-			phy-names = "pciephy";
-
-			perst-gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
-			wake-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
-
 			pinctrl-names = "default";
 			pinctrl-0 = <&pcie2_default_state>;
 			dma-coherent;
@@ -2476,6 +2467,10 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie2_phy>;
+				reset-gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
+				wake-gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -3289,7 +3284,7 @@
 				port@4 {
 					reg = <4>;
 					funnel_in1_in_funnel_apss_merg: endpoint {
-					remote-endpoint = <&funnel_apss_merg_out_funnel_in1>;
+						remote-endpoint = <&funnel_apss_merg_out_funnel_in1>;
 					};
 				};
 			};
@@ -3305,7 +3300,7 @@
 			out-ports {
 				port {
 					funnel_merg_out_funnel_swao: endpoint {
-					remote-endpoint = <&funnel_swao_in_funnel_merg>;
+						remote-endpoint = <&funnel_swao_in_funnel_merg>;
 					};
 				};
 			};
@@ -3317,14 +3312,14 @@
 				port@0 {
 					reg = <0>;
 					funnel_merg_in_funnel_in0: endpoint {
-					remote-endpoint = <&funnel_in0_out_funnel_merg>;
+						remote-endpoint = <&funnel_in0_out_funnel_merg>;
 					};
 				};
 
 				port@1 {
 					reg = <1>;
 					funnel_merg_in_funnel_in1: endpoint {
-					remote-endpoint = <&funnel_in1_out_funnel_merg>;
+						remote-endpoint = <&funnel_in1_out_funnel_merg>;
 					};
 				};
 			};
@@ -3492,7 +3487,7 @@
 			out-ports {
 				port {
 					funnel_dl_mm_out_funnel_dl_center: endpoint {
-					remote-endpoint = <&funnel_dl_center_in_funnel_dl_mm>;
+						remote-endpoint = <&funnel_dl_center_in_funnel_dl_mm>;
 					};
 				};
 			};
@@ -3532,7 +3527,7 @@
 				port@2 {
 					reg = <2>;
 					funnel_dl_center_in_funnel_dl_mm: endpoint {
-					remote-endpoint = <&funnel_dl_mm_out_funnel_dl_center>;
+						remote-endpoint = <&funnel_dl_mm_out_funnel_dl_center>;
 					};
 				};
 			};
@@ -3700,7 +3695,7 @@
 			out-ports {
 				port {
 					funnel_apss_out_funnel_apss_merg: endpoint {
-					remote-endpoint = <&funnel_apss_merg_in_funnel_apss>;
+						remote-endpoint = <&funnel_apss_merg_in_funnel_apss>;
 					};
 				};
 			};
@@ -3777,7 +3772,7 @@
 			out-ports {
 				port {
 					funnel_apss_merg_out_funnel_in1: endpoint {
-					remote-endpoint = <&funnel_in1_in_funnel_apss_merg>;
+						remote-endpoint = <&funnel_in1_in_funnel_apss_merg>;
 					};
 				};
 			};
@@ -3785,7 +3780,7 @@
 			in-ports {
 				port {
 					funnel_apss_merg_in_funnel_apss: endpoint {
-					remote-endpoint = <&funnel_apss_out_funnel_apss_merg>;
+						remote-endpoint = <&funnel_apss_out_funnel_apss_merg>;
 					};
 				};
 			};

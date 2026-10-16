@@ -1665,7 +1665,7 @@
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
-			 /* TODO: USB<->IPA path */
+			/* TODO: USB<->IPA path */
 			interconnects = <&system_noc MASTER_USB3 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_AMPSS_M0 RPM_ALWAYS_TAG

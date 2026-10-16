@@ -91,6 +91,7 @@ properties:
               - hp,elitebook-x-g2q
               - lenovo,yoga-slim7x-gen11
               - qcom,glymur-crd
+              - qcom,glymur-qcb
           - const: qcom,glymur
 
       - items:
@@ -180,12 +181,24 @@ properties:
 
       - items:
           - enum:
+              - qcom,kalambo-crd
+          - const: qcom,kalambo
+
+      - items:
+          - enum:
               - qcom,kuno-idp
           - const: qcom,kuno
 
       - items:
           - enum:
               - qcom,mahua-crd
+          - const: qcom,mahua
+
+      - items:
+          - enum:
+              - lenovo,thinkpad-t14s-gen7-lcd
+              - lenovo,thinkpad-t14s-gen7-oled
+          - const: lenovo,thinkpad-t14s-gen7
           - const: qcom,mahua
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
@@ -299,7 +312,13 @@ properties:
 
       - items:
           - enum:
+              - generalmobile,shamrock
+          - const: qcom,msm8952
+
+      - items:
+          - enum:
               - flipkart,rimob
+              - motorola,deen
               - motorola,potter
               - xiaomi,daisy
               - xiaomi,mido
@@ -355,6 +374,7 @@ properties:
 
       - items:
           - enum:
+              - leeco,s2
               - longcheer,l9360
           - const: qcom,msm8976
 
@@ -1048,6 +1068,7 @@ properties:
       - items:
           - enum:
               - fxtec,pro1x
+              - xiaomi,lemon
           - const: qcom,sm6115
 
       - items:
@@ -1083,6 +1104,8 @@ properties:
 
       - items:
           - enum:
+              - samsung,a52q
+              - samsung,a72q
               - xiaomi,curtana
               - xiaomi,joyeuse
           - const: qcom,sm7125
@@ -1101,6 +1124,7 @@ properties:
           - enum:
               - motorola,dubai
               - nothing,spacewar
+              - xiaomi,lisa
               - xiaomi,taoyao
           - const: qcom,sm7325
 
@@ -1169,6 +1193,18 @@ properties:
 
       - items:
           - enum:
+              - ayntec,odin2
+              - ayntec,odin2mini
+              - ayntec,odin2portal
+              - ayntec,thor
+              - retroidpocket,nova
+              - retroidpocket,rp6
+          - const: qcom,qcs8550
+          - const: qcom,sm8550
+
+      - items:
+          - enum:
+              - ayaneo,pocket-ds
               - qcom,qcs8550-rb5gen2
           - const: qcom,qcs8550
           - const: qcom,sm8550
@@ -1179,6 +1215,7 @@ properties:
               - qcom,sm8650-hdk
               - qcom,sm8650-mtp
               - qcom,sm8650-qrd
+              - valve,deckard
           - const: qcom,sm8650
 
       - items:
@@ -1236,6 +1273,13 @@ properties:
           - enum:
               - qcom,hamoa-iot-evk
           - const: qcom,hamoa-iot-som
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
+              - advantech,som-db5830
+          - const: advantech,som-6820
+          - const: qcom,iq-x7181-evk-som
           - const: qcom,x1e80100
 
       - items:
@@ -1348,6 +1392,7 @@ allOf:
               - qcom,msm8917
               - qcom,msm8937
               - qcom,msm8939
+              - qcom,msm8952
               - qcom,msm8953
               - qcom,msm8956
               - qcom,msm8992

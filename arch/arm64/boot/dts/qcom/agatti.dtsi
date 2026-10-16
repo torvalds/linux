@@ -381,6 +381,14 @@
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA QCOM_SCM_VMID_NAV>;
 		};
+
+		adsp_rpc_remote_heap_mem: adsp-rpc-remote-heap {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0x0 0x0 0x1 0x0>;
+			reusable;
+			alignment = <0x0 0x400000>;
+			size = <0x0 0x800000>;
+		};
 	};
 
 	smp2p-adsp {
@@ -1915,7 +1923,7 @@
 				 <&gcc GCC_CAMSS_TFE_0_CLK>,
 				 <&gcc GCC_CAMSS_TFE_0_CPHY_RX_CLK>,
 				 <&gcc GCC_CAMSS_TFE_1_CLK>,
-				 <&gcc GCC_CAMSS_TFE_1_CPHY_RX_CLK> ;
+				 <&gcc GCC_CAMSS_TFE_1_CPHY_RX_CLK>;
 			clock-names = "ahb",
 				      "axi",
 				      "camnoc_nrt_axi",
@@ -2346,6 +2354,9 @@
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 					label = "adsp";
+					memory-region = <&adsp_rpc_remote_heap_mem>;
+					qcom,vmids = <QCOM_SCM_VMID_LPASS
+						      QCOM_SCM_VMID_ADSP_HEAP>;
 
 					qcom,non-secure-domain;
 

@@ -20,8 +20,11 @@ properties:
     oneOf:
       - items:
           - enum:
+              - lenovo,yoga-slim7x-ec
               - qcom,glymur-crd-ec
+              - qcom,glymur-qcb-ec
               - qcom,hamoa-iot-evk-ec
+              - qcom,purwa-iot-evk-ec
           - const: qcom,hamoa-crd-ec
       - enum:
           - qcom,hamoa-crd-ec

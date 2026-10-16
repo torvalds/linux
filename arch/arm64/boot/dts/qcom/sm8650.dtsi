@@ -1906,7 +1906,7 @@
 		};
 	};
 
-	smp2p-adsp {
+	smp2p_adsp: smp2p-adsp {
 		compatible = "qcom,smp2p";
 
 		interrupts-extended = <&ipcc IPCC_CLIENT_LPASS
@@ -1932,7 +1932,7 @@
 		};
 	};
 
-	smp2p-cdsp {
+	smp2p_cdsp: smp2p-cdsp {
 		compatible = "qcom,smp2p";
 
 		interrupts-extended = <&ipcc IPCC_CLIENT_CDSP
@@ -1958,7 +1958,7 @@
 		};
 	};
 
-	smp2p-modem {
+	smp2p_modem: smp2p-modem {
 		compatible = "qcom,smp2p";
 
 		interrupts-extended = <&ipcc IPCC_CLIENT_MPSS
@@ -2017,6 +2017,8 @@
 				 <&ufs_mem_phy 1>,
 				 <&ufs_mem_phy 2>,
 				 <&usb_dp_qmpphy QMP_USB43DP_USB3_PIPE_CLK>;
+
+			power-domains = <&rpmhpd RPMHPD_CX>;
 
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -3699,9 +3701,6 @@
 			num-lanes = <2>;
 			bus-range = <0 0xff>;
 
-			phys = <&pcie0_phy>;
-			phy-names = "pciephy";
-
 			#address-cells = <3>;
 			#size-cells = <2>;
 			ranges = <0x01000000 0 0x00000000 0 0x60200000 0 0x100000>,
@@ -3767,6 +3766,8 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie0_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -3892,9 +3893,6 @@
 			num-lanes = <2>;
 			bus-range = <0 0xff>;
 
-			phys = <&pcie1_phy>;
-			phy-names = "pciephy";
-
 			dma-coherent;
 
 			#address-cells = <3>;
@@ -3976,6 +3974,8 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie1_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;

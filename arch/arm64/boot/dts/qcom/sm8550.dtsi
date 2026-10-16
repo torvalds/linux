@@ -1194,6 +1194,7 @@
 				 <&ufs_mem_phy 1>,
 				 <&ufs_mem_phy 2>,
 				 <&usb_dp_qmpphy QMP_USB43DP_USB3_PIPE_CLK>;
+			power-domains = <&rpmhpd RPMHPD_CX>;
 		};
 
 		ipcc: mailbox@408000 {
@@ -1438,6 +1439,24 @@
 				operating-points-v2 = <&qup_opp_table_120mhz>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			uart11: serial@88c000 {
+				compatible = "qcom,geni-uart";
+				reg = <0 0x0088c000 0 0x4000>;
+				clock-names = "se";
+				clocks = <&gcc GCC_QUPV3_WRAP2_S3_CLK>;
+				interrupts = <GIC_SPI 585 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&qup_uart11_default>;
+				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
+						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
+						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ACTIVE_ONLY>;
+				interconnect-names = "qup-core", "qup-config";
+				operating-points-v2 = <&qup_opp_table_120mhz>;
+				power-domains = <&rpmhpd RPMHPD_CX>;
 				status = "disabled";
 			};
 
@@ -2396,9 +2415,6 @@
 
 			power-domains = <&gcc PCIE_0_GDSC>;
 
-			phys = <&pcie0_phy>;
-			phy-names = "pciephy";
-
 			operating-points-v2 = <&pcie0_opp_table>;
 
 			status = "disabled";
@@ -2459,6 +2475,8 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie0_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -2582,9 +2600,6 @@
 
 			power-domains = <&gcc PCIE_1_GDSC>;
 
-			phys = <&pcie1_phy>;
-			phy-names = "pciephy";
-
 			operating-points-v2 = <&pcie1_opp_table>;
 
 			status = "disabled";
@@ -2661,6 +2676,8 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie1_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -5476,6 +5493,14 @@
 				bias-disable;
 			};
 
+			qup_uart11_default: qup-uart11-default-state {
+				/* TX, RX */
+				pins = "gpio70", "gpio71";
+				function = "qup2_se3";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
 			qup_uart14_default: qup-uart14-default-state {
 				/* TX, RX */
 				pins = "gpio78", "gpio79";
@@ -6152,7 +6177,7 @@
 			};
 		};
 
-		cpuss0-thermal {
+		thermal_cpuss0: cpuss0-thermal {
 			thermal-sensors = <&tsens0 1>;
 
 			trips {
@@ -6170,7 +6195,7 @@
 			};
 		};
 
-		cpuss1-thermal {
+		thermal_cpuss1: cpuss1-thermal {
 			thermal-sensors = <&tsens0 2>;
 
 			trips {
@@ -6188,7 +6213,7 @@
 			};
 		};
 
-		cpuss2-thermal {
+		thermal_cpuss2: cpuss2-thermal {
 			thermal-sensors = <&tsens0 3>;
 
 			trips {
@@ -6206,7 +6231,7 @@
 			};
 		};
 
-		cpuss3-thermal {
+		thermal_cpuss3: cpuss3-thermal {
 			thermal-sensors = <&tsens0 4>;
 
 			trips {
@@ -6416,7 +6441,7 @@
 			};
 		};
 
-		cpu7-top-thermal {
+		thermal_cpu7_top: cpu7-top-thermal {
 			thermal-sensors = <&tsens0 13>;
 
 			trips {
@@ -6924,7 +6949,7 @@
 			};
 		};
 
-		gpuss-0-thermal {
+		thermal_gpuss0: gpuss-0-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 1>;
@@ -6957,7 +6982,7 @@
 			};
 		};
 
-		gpuss-1-thermal {
+		thermal_gpuss1: gpuss-1-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 2>;
@@ -6990,7 +7015,7 @@
 			};
 		};
 
-		gpuss-2-thermal {
+		thermal_gpuss2: gpuss-2-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 3>;
@@ -7023,7 +7048,7 @@
 			};
 		};
 
-		gpuss-3-thermal {
+		thermal_gpuss3: gpuss-3-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 4>;
@@ -7056,7 +7081,7 @@
 			};
 		};
 
-		gpuss-4-thermal {
+		thermal_gpuss4: gpuss-4-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 5>;
@@ -7089,7 +7114,7 @@
 			};
 		};
 
-		gpuss-5-thermal {
+		thermal_gpuss5: gpuss-5-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 6>;
@@ -7122,7 +7147,7 @@
 			};
 		};
 
-		gpuss-6-thermal {
+		thermal_gpuss6: gpuss-6-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 7>;
@@ -7155,7 +7180,7 @@
 			};
 		};
 
-		gpuss-7-thermal {
+		thermal_gpuss7: gpuss-7-thermal {
 			polling-delay-passive = <10>;
 
 			thermal-sensors = <&tsens2 8>;

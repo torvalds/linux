@@ -1039,7 +1039,7 @@
 	status = "okay";
 
 	aux-bus {
-		panel {
+		panel: panel {
 			compatible = "edp-panel";
 			enable-gpios = <&tlmm 74 GPIO_ACTIVE_HIGH>;
 			power-supply = <&vreg_edp_3p3>;
@@ -1324,6 +1324,7 @@
 
 &tlmm {
 	gpio-reserved-ranges = <44 4>,  /* SPI11 (TPM) */
+			       <65 1>,  /* EC reset */
 			       <76 4>,  /* SPI19 (TZ Protected) */
 			       <80 2>,  /* I2C20 (Battery SMBus) */
 			       <238 1>; /* UFS Reset */

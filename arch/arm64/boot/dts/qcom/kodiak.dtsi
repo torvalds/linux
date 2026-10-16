@@ -1054,6 +1054,8 @@
 			qcom,dll-config = <0x0007642c>;
 			qcom,ddr-config = <0x80040868>;
 
+			qcom,ice = <&sdhc_ice>;
+
 			mmc-ddr-1_8v;
 			mmc-hs200-1_8v;
 			mmc-hs400-1_8v;
@@ -1078,6 +1080,17 @@
 					opp-avg-kBps = <390000 0>;
 				};
 			};
+		};
+
+		sdhc_ice: crypto@7c8000 {
+			compatible = "qcom,sc7280-inline-crypto-engine",
+				     "qcom,inline-crypto-engine";
+			reg = <0x0 0x007c8000 0x0 0x18000>;
+			clocks = <&gcc GCC_SDCC1_ICE_CORE_CLK>,
+				 <&gcc GCC_SDCC1_AHB_CLK>;
+			clock-names = "core",
+				      "iface";
+			power-domains = <&rpmhpd SC7280_CX>;
 		};
 
 		gpi_dma0: dma-controller@900000 {
@@ -7045,39 +7058,39 @@
 				rpmhpd_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					rpmhpd_opp_ret: opp1 {
+					rpmhpd_opp_ret: opp-1 {
 						opp-level = <RPMH_REGULATOR_LEVEL_RETENTION>;
 					};
 
-					rpmhpd_opp_low_svs: opp2 {
+					rpmhpd_opp_low_svs: opp-2 {
 						opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
 					};
 
-					rpmhpd_opp_svs: opp3 {
+					rpmhpd_opp_svs: opp-3 {
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
 					};
 
-					rpmhpd_opp_svs_l1: opp4 {
+					rpmhpd_opp_svs_l1: opp-4 {
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_svs_l2: opp5 {
+					rpmhpd_opp_svs_l2: opp-5 {
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L2>;
 					};
 
-					rpmhpd_opp_nom: opp6 {
+					rpmhpd_opp_nom: opp-6 {
 						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp7 {
+					rpmhpd_opp_nom_l1: opp-7 {
 						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
 					};
 
-					rpmhpd_opp_turbo: opp8 {
+					rpmhpd_opp_turbo: opp-8 {
 						opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
 					};
 
-					rpmhpd_opp_turbo_l1: opp9 {
+					rpmhpd_opp_turbo_l1: opp-9 {
 						opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
 					};
 				};

@@ -592,8 +592,6 @@
 };
 
 &pcie1 {
-	perst-gpios = <&tlmm 175 GPIO_ACTIVE_LOW>;
-	wake-gpios = <&tlmm 177 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie2_default_state>;
 
@@ -605,6 +603,11 @@
 	vdda-pll-supply = <&vreg_l3c_1p2>;
 
 	status = "okay";
+};
+
+&pcie1_port0 {
+	reset-gpios = <&tlmm 175 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 177 GPIO_ACTIVE_LOW>;
 };
 
 &pmc8180_pwrkey {

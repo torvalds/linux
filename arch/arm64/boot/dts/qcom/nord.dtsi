@@ -375,6 +375,11 @@
 		reg = <0x0 0x80000000 0x0 0x0>;
 	};
 
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -2070,6 +2075,46 @@
 			reg = <0x0 0x17826000 0x0 0x1000>;
 			clocks = <&sleep_clk>;
 			interrupts = <GIC_ESPI 848 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		llcc: system-cache-controller@21800000 {
+			compatible = "qcom,nord-llcc";
+			reg = <0x0 0x21800000 0x0 0x100000>,
+			      <0x0 0x21a00000 0x0 0x100000>,
+			      <0x0 0x21c00000 0x0 0x100000>,
+			      <0x0 0x21e00000 0x0 0x100000>,
+			      <0x0 0x22800000 0x0 0x100000>,
+			      <0x0 0x22a00000 0x0 0x100000>,
+			      <0x0 0x22c00000 0x0 0x100000>,
+			      <0x0 0x22e00000 0x0 0x100000>,
+			      <0x0 0x23800000 0x0 0x100000>,
+			      <0x0 0x23a00000 0x0 0x100000>,
+			      <0x0 0x23c00000 0x0 0x100000>,
+			      <0x0 0x23e00000 0x0 0x100000>,
+			      <0x0 0x24800000 0x0 0x100000>,
+			      <0x0 0x24a00000 0x0 0x100000>,
+			      <0x0 0x24c00000 0x0 0x100000>,
+			      <0x0 0x24e00000 0x0 0x100000>,
+			      <0x0 0x20400000 0x0 0x100000>,
+			      <0x0 0x20600000 0x0 0x100000>;
+			reg-names = "llcc0_base",
+				    "llcc1_base",
+				    "llcc2_base",
+				    "llcc3_base",
+				    "llcc4_base",
+				    "llcc5_base",
+				    "llcc6_base",
+				    "llcc7_base",
+				    "llcc8_base",
+				    "llcc9_base",
+				    "llcc10_base",
+				    "llcc11_base",
+				    "llcc12_base",
+				    "llcc13_base",
+				    "llcc14_base",
+				    "llcc15_base",
+				    "llcc_broadcast_base",
+				    "llcc_broadcast_and_base";
 		};
 	};
 

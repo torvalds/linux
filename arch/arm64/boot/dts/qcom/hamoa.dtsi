@@ -2112,7 +2112,7 @@
 			};
 		};
 
-		gpi_dma0: dma-controller@b00000  {
+		gpi_dma0: dma-controller@b00000 {
 			compatible = "qcom,x1e80100-gpi-dma", "qcom,sm6350-gpi-dma";
 			reg = <0 0x00b00000 0 0x60000>;
 
@@ -3721,7 +3721,7 @@
 			      <0 0x7c100000 0 0x100000>,
 			      <0 0x01c0b000 0 0x1000>;
 			reg-names = "parf",
-			            "dbi",
+				    "dbi",
 				    "elbi",
 				    "atu",
 				    "config",
