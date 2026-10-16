@@ -1499,7 +1499,7 @@ static int do_run(int argc, char **argv)
 
 	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
-		p_err("failed to run program: %s", strerror(errno));
+		p_err("failed to run program: %s", bpf_strerror(errno));
 		goto free_ctx_out;
 	}
 
