@@ -2555,8 +2555,14 @@ static int mpage_submit_partial_folio(struct mpage_da_data *mpd)
 	 */
 	pos = ((loff_t)mpd->map.m_lblk) << inode->i_blkbits;
 	if (WARN_ON_ONCE((folio_pos(folio) == pos) ||
-			 !folio_contains(folio, pos >> PAGE_SHIFT)))
+			 !folio_contains(folio, pos >> PAGE_SHIFT))) {
+		/*
+		 * Leave the folio locked so that the caller can invalidate
+		 * and unlock it through mpage_release_unused_pages().
+		 */
+		folio_put(folio);
 		return -EINVAL;
+	}
 
 	mpage_submit_folio(mpd, folio);
 	/*
