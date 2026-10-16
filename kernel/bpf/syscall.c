@@ -5448,7 +5448,11 @@ static int bpf_map_get_info_by_fd(struct file *file,
 	info_len = min_t(u32, sizeof(info), info_len);
 
 	memset(&info, 0, sizeof(info));
-	if (copy_from_user(&info, uinfo, info_len))
+	if (info_len >= offsetofend(struct bpf_map_info, hash) &&
+	    get_user(info.hash, &uinfo->hash))
+		return -EFAULT;
+	if (info_len >= offsetofend(struct bpf_map_info, hash_size) &&
+	    get_user(info.hash_size, &uinfo->hash_size))
 		return -EFAULT;
 
 	info.type = map->map_type;
