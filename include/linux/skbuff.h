@@ -358,6 +358,12 @@ struct sk_buff;
  */
 #define GSO_BY_FRAGS	0xFFFF
 
+/* All frags in an skb must either all be struct page-backed or all belong to
+ * the same memory provider instance (e.g. the same devmem binding or io_uring
+ * area). Mixing page and memory-provider frags, or mixing frags from different
+ * memory providers within a single skb (including via coalescing), is not
+ * allowed.
+ */
 typedef struct skb_frag {
 	netmem_ref netmem;
 	unsigned int len;

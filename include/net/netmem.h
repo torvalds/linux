@@ -70,16 +70,18 @@ enum net_iov_type {
 	NET_IOV_IOURING,
 };
 
-/* A memory descriptor representing abstract networking I/O vectors,
- * generally for non-pages memory that doesn't have its corresponding
- * struct page and needs to be explicitly allocated through slab.
+/* A memory descriptor representing abstract networking I/O vectors.
  *
  * net_iovs are allocated and used by networking code, and the size of
  * the chunk is PAGE_SIZE.
  *
- * This memory can be any form of non-struct paged memory.  Examples
- * include imported dmabuf memory and imported io_uring memory.  See
- * net_iov_type for all the supported types.
+ * Examples include imported dmabuf memory and imported io_uring memory. See
+ * net_iov_type for all the supported types. While current net_iov types are
+ * unreadable by the CPU, net_iov has no inherent restrictions and may be
+ * CPU-readable or unreadable. New code must not assume net_iov implies
+ * unreadable memory (check readability via netmem_address() or
+ * skb_frags_readable() instead) and should, as much as possible, generalize
+ * existing limitations to match the design principles.
  *
  * @pp_magic:	pp field, similar to the one in struct page/struct
  *		netmem_desc.
@@ -131,8 +133,17 @@ static inline void net_iov_init(struct net_iov *niov,
  * network memory.
  *
  * A netmem_ref can be a struct page* or a struct net_iov* underneath.
+ * Memory providers (or the default page_pool allocator) allocate struct
+ * net_iov or struct page, cast them to netmem_ref, and hand them to
+ * page_pool.
  *
- * Use the supplied helpers to obtain the underlying memory pointer and fields.
+ * The page_pool, drivers, and core networking stack should operate on
+ * netmem_ref rather than struct page or struct net_iov. Downcasting
+ * netmem_ref via netmem_to_page() or netmem_to_net_iov() in callers is
+ * not allowed unless a code path strictly requires a specific backing
+ * type (e.g., kmap_local_page()). In such cases, add a netmem helper here
+ * that handles both page and net_iov cases and returns an error if the
+ * underlying type cannot support the operation.
  */
 typedef unsigned long __bitwise netmem_ref;
 
@@ -297,9 +308,8 @@ static inline atomic_long_t *netmem_get_pp_ref_count_ref(netmem_ref netmem)
 
 static inline bool netmem_is_pref_nid(netmem_ref netmem, int pref_nid)
 {
-	/* NUMA node preference only makes sense if we're allocating
-	 * system memory. Memory providers (which give us net_iovs)
-	 * choose for us.
+	/* NUMA node preference only applies to struct page; net_iovs are
+	 * managed by their memory provider.
 	 */
 	if (netmem_is_net_iov(netmem))
 		return true;
