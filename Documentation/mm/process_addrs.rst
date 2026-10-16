@@ -819,9 +819,17 @@ All this is achieved by the use of per-mm and per-VMA sequence counts, which are
 used in order to reduce complexity, especially for operations which write-lock
 multiple VMAs at once.
 
-If the mm sequence count, :c:member:`!mm->mm_lock_seq` is equal to the VMA
-sequence count :c:member:`!vma->vm_lock_seq` then the VMA is write-locked. If
-they differ, then it is not.
+The mm sequence count :c:member:`!mm->mm_lock_seq` is incremented on both mmap
+write lock and unlock, so it is odd while the mmap write lock is held. If it is
+equal to the VMA sequence count :c:member:`!vma->vm_lock_seq`, and that value
+is odd, then the VMA is write-locked. If they differ, then it is not.
+
+A VMA's sequence count is not updated on unlock, so after 2^31 write lock/unlock
+cycles the mm sequence count would wrap and match stale VMA values again. To
+prevent this, when the mm sequence count wraps to zero,
+:c:func:`!vma_end_write_all` invokes :c:func:`!__mm_reset_vma_seqcounts` to
+reset every VMA's sequence count to zero, an even value which can never
+indicate a write lock.
 
 Each time the mmap write lock is released in :c:func:`!mmap_write_unlock` or
 :c:func:`!mmap_write_downgrade`, :c:func:`!vma_end_write_all` is invoked which
