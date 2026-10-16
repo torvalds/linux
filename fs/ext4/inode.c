@@ -2648,6 +2648,12 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 				ext4_print_free_blocks(inode);
 		invalidate_dirty_pages:
 			*give_up_on_write = true;
+			/*
+			 * Record the error so that a subsequent fsync()
+			 * / errseq check can observe the data loss that
+			 * discarding these dirty pages implies.
+			 */
+			mapping_set_error(inode->i_mapping, err);
 			return err;
 		}
 		progress = 1;
@@ -2917,7 +2923,6 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 	int needed_blocks, rsv_blocks = 0, ret = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 	struct blk_plug plug;
-	bool give_up_on_write = false;
 
 	trace_ext4_writepages(inode, wbc);
 
@@ -3042,6 +3047,8 @@ retry:
 		goto unplug;
 
 	while (!mpd->scanned_until_end && wbc->nr_to_write > 0) {
+		bool give_up_on_write = false;
+
 		/* For each extent of pages we use new io_end */
 		mpd->io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
 		if (!mpd->io_submit.io_end) {
