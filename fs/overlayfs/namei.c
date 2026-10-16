@@ -712,7 +712,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 		if (err)
 			goto fail;
 
-		if (ovl_get_nlink(ofs, origin.dentry, index, 0) == 0)
+		if (ovl_get_nlink(ofs, origin.dentry, index, true, 0) == 0)
 			goto orphan;
 	}
 
