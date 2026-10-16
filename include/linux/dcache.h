@@ -117,7 +117,7 @@ struct dentry {
 					 */
 
 	/* lockdep tracking of DCACHE_PAR_LOOKUP locks */
-	struct lockdep_map		lookup_map;
+	struct lockdep_map		dep_map;
 	struct list_head d_lru;		/* LRU list */
 	struct hlist_node d_sib;	/* child of parent list */
 	struct hlist_head d_children;	/* our children */
@@ -571,7 +571,7 @@ unsigned long vfs_pressure_ratio(unsigned long val);
 static inline void d_lookup_release(struct dentry *dentry)
 {
 	if (d_in_lookup(dentry))
-		lock_map_release(&dentry->lookup_map);
+		lock_map_release(&dentry->dep_map);
 }
 
 /**
@@ -585,7 +585,7 @@ static inline void d_lookup_release(struct dentry *dentry)
 static inline void d_lookup_acquire(struct dentry *dentry)
 {
 	if (d_in_lookup(dentry))
-		lock_map_acquire_try(&dentry->lookup_map);
+		lock_map_acquire_try(&dentry->dep_map);
 }
 
 /**
