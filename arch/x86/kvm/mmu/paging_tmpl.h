@@ -778,8 +778,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 					     fault->req_level >= it.level);
 	}
 
-	if (WARN_ON_ONCE(it.level != fault->goal_level))
-		return -EFAULT;
+	if (KVM_BUG_ON(it.level != fault->goal_level, vcpu->kvm))
+		return -EIO;
 
 	ret = mmu_set_spte(vcpu, fault->slot, it.sptep, gw->pte_access,
 			   base_gfn, fault->pfn, fault);
