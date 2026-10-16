@@ -7,6 +7,7 @@
 
 void *bpf_arena_alloc_pages(void *map, void *addr, __u32 page_cnt, int node_id,
 			    __u64 flags) __ksym;
+void bpf_arena_free_pages(void *map, void *ptr, __u32 page_cnt) __ksym;
 
 #ifdef __TARGET_ARCH_arm64
 #define ARENA_VM_START (1ull << 32)
@@ -35,6 +36,7 @@ struct {
 void __kfunc_btf_root(void)
 {
 	bpf_arena_alloc_pages(0, 0, 0, 0, 0);
+	bpf_arena_free_pages(0, 0, 0);
 }
 
 /* Tests start with r6 = address of a new page as the user space sees it, a number */
@@ -253,6 +255,260 @@ __naked void atomics(void)
 						   BPF_REG_6, BPF_REG_1, 8)),
 	  __imm_insn(xchg_insn, BPF_ATOMIC_OP(BPF_DW, BPF_XCHG, BPF_REG_6, BPF_REG_1, 8)),
 	  __imm_insn(cmpxchg_insn, BPF_ATOMIC_OP(BPF_DW, BPF_CMPXCHG, BPF_REG_6, BPF_REG_1, 8))
+	: __clobber_all);
+}
+
+SEC("syscall")
+__arena_scalar
+__description("arena_scalar: fetching and/or/xor")
+__success __retval(0)
+__load_if_JITed()
+__naked void fetch_and_or_xor(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r2 = 0;						\
+	r3 = 1;						\
+	r4 = -1;					\
+	r5 = 0;						\
+	call %[bpf_arena_alloc_pages];			\
+	r6 = r0;					\
+	r0 = 100;					\
+	if r6 == 0 goto 9f;				\
+	r7 = 0x11000000110 ll;				\
+	*(u64 *)(r6 + 8) = r7;				\
+	r0 = r6;					\
+	r0 ^= 0x55;					\
+	r1 = 0x1100000011 ll;				\
+	.8byte %[fetch_or_dw]; /* r1 = atomic_fetch_or((u64 *)(r6 + 8), r1) */ \
+	r2 = r6;					\
+	r2 ^= 0x55;					\
+	if r0 == r2 goto 1f;				\
+	r0 = 99;					\
+	goto 9f;					\
+1:	r0 = 1;						\
+	if r1 != r7 goto 9f;				\
+	r7 = 0x11100000111 ll;				\
+	r1 = 0x11000000111 ll;				\
+	.8byte %[fetch_and_dw]; /* r1 = atomic_fetch_and((u64 *)(r6 + 8), r1) */ \
+	r0 = 2;						\
+	if r1 != r7 goto 9f;				\
+	r7 = 0x11000000111 ll;				\
+	r1 = 0x101 ll;					\
+	.8byte %[fetch_xor_dw]; /* r1 = atomic_fetch_xor((u64 *)(r6 + 8), r1) */ \
+	r0 = 3;						\
+	if r1 != r7 goto 9f;				\
+	r7 = 0x11000000010 ll;				\
+	r2 = *(u64 *)(r6 + 8);				\
+	r0 = 4;						\
+	if r2 != r7 goto 9f;				\
+	*(u32 *)(r6 + 16) = 0x110;			\
+	r1 = 0xdead000000000011 ll;			\
+	.8byte %[fetch_or_w]; /* r1 = atomic_fetch_or((u32 *)(r6 + 16), r1) */ \
+	r0 = 5;						\
+	if r1 != 0x110 goto 9f;				\
+	r1 = 0xdead000000000101 ll;			\
+	.8byte %[fetch_and_w]; /* r1 = atomic_fetch_and((u32 *)(r6 + 16), r1) */ \
+	r0 = 6;						\
+	if r1 != 0x111 goto 9f;				\
+	r1 = 0xdead000000000011 ll;			\
+	.8byte %[fetch_xor_w]; /* r1 = atomic_fetch_xor((u32 *)(r6 + 16), r1) */ \
+	r0 = 7;						\
+	if r1 != 0x101 goto 9f;				\
+	r2 = *(u32 *)(r6 + 16);				\
+	r0 = 8;						\
+	if r2 != 0x110 goto 9f;				\
+	r0 = 0;						\
+9:	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm(bpf_arena_alloc_pages),
+	  __imm_insn(fetch_or_dw, BPF_ATOMIC_OP(BPF_DW, BPF_OR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_1, 8)),
+	  __imm_insn(fetch_and_dw, BPF_ATOMIC_OP(BPF_DW, BPF_AND | BPF_FETCH,
+						 BPF_REG_6, BPF_REG_1, 8)),
+	  __imm_insn(fetch_xor_dw, BPF_ATOMIC_OP(BPF_DW, BPF_XOR | BPF_FETCH,
+						 BPF_REG_6, BPF_REG_1, 8)),
+	  __imm_insn(fetch_or_w, BPF_ATOMIC_OP(BPF_W, BPF_OR | BPF_FETCH,
+					       BPF_REG_6, BPF_REG_1, 16)),
+	  __imm_insn(fetch_and_w, BPF_ATOMIC_OP(BPF_W, BPF_AND | BPF_FETCH,
+						BPF_REG_6, BPF_REG_1, 16)),
+	  __imm_insn(fetch_xor_w, BPF_ATOMIC_OP(BPF_W, BPF_XOR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_1, 16))
+	: __clobber_all);
+}
+
+SEC("syscall")
+__arena_scalar
+__description("arena_scalar: fetching and/or/xor with the operand in r0")
+__success __retval(0)
+__load_if_JITed()
+__naked void fetch_and_or_xor_r0(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r2 = 0;						\
+	r3 = 1;						\
+	r4 = -1;					\
+	r5 = 0;						\
+	call %[bpf_arena_alloc_pages];			\
+	r6 = r0;					\
+	r0 = 100;					\
+	if r6 == 0 goto 9f;				\
+	r7 = 0x11000000110 ll;				\
+	*(u64 *)(r6 + 8) = r7;				\
+	r0 = 0x1100000011 ll;				\
+	.8byte %[fetch_or_dw]; /* r0 = atomic_fetch_or((u64 *)(r6 + 8), r0) */ \
+	r2 = r0;					\
+	r0 = 1;						\
+	if r2 != r7 goto 9f;				\
+	r7 = 0x11100000111 ll;				\
+	r0 = 0x11000000111 ll;				\
+	.8byte %[fetch_and_dw]; /* r0 = atomic_fetch_and((u64 *)(r6 + 8), r0) */ \
+	r2 = r0;					\
+	r0 = 2;						\
+	if r2 != r7 goto 9f;				\
+	r7 = 0x11000000111 ll;				\
+	r0 = 0x101 ll;					\
+	.8byte %[fetch_xor_dw]; /* r0 = atomic_fetch_xor((u64 *)(r6 + 8), r0) */ \
+	r2 = r0;					\
+	r0 = 3;						\
+	if r2 != r7 goto 9f;				\
+	r7 = 0x11000000010 ll;				\
+	r2 = *(u64 *)(r6 + 8);				\
+	r0 = 4;						\
+	if r2 != r7 goto 9f;				\
+	*(u32 *)(r6 + 16) = 0x110;			\
+	r0 = 0xdead000000000011 ll;			\
+	.8byte %[fetch_or_w]; /* r0 = atomic_fetch_or((u32 *)(r6 + 16), r0) */ \
+	r2 = r0;					\
+	r0 = 5;						\
+	if r2 != 0x110 goto 9f;				\
+	r0 = 0xdead000000000101 ll;			\
+	.8byte %[fetch_and_w]; /* r0 = atomic_fetch_and((u32 *)(r6 + 16), r0) */ \
+	r2 = r0;					\
+	r0 = 6;						\
+	if r2 != 0x111 goto 9f;				\
+	r0 = 0xdead000000000011 ll;			\
+	.8byte %[fetch_xor_w]; /* r0 = atomic_fetch_xor((u32 *)(r6 + 16), r0) */ \
+	r2 = r0;					\
+	r0 = 7;						\
+	if r2 != 0x101 goto 9f;				\
+	r2 = *(u32 *)(r6 + 16);				\
+	r0 = 8;						\
+	if r2 != 0x110 goto 9f;				\
+	r0 = 0;						\
+9:	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm(bpf_arena_alloc_pages),
+	  __imm_insn(fetch_or_dw, BPF_ATOMIC_OP(BPF_DW, BPF_OR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_0, 8)),
+	  __imm_insn(fetch_and_dw, BPF_ATOMIC_OP(BPF_DW, BPF_AND | BPF_FETCH,
+						 BPF_REG_6, BPF_REG_0, 8)),
+	  __imm_insn(fetch_xor_dw, BPF_ATOMIC_OP(BPF_DW, BPF_XOR | BPF_FETCH,
+						 BPF_REG_6, BPF_REG_0, 8)),
+	  __imm_insn(fetch_or_w, BPF_ATOMIC_OP(BPF_W, BPF_OR | BPF_FETCH,
+					       BPF_REG_6, BPF_REG_0, 16)),
+	  __imm_insn(fetch_and_w, BPF_ATOMIC_OP(BPF_W, BPF_AND | BPF_FETCH,
+						BPF_REG_6, BPF_REG_0, 16)),
+	  __imm_insn(fetch_xor_w, BPF_ATOMIC_OP(BPF_W, BPF_XOR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_0, 16))
+	: __clobber_all);
+}
+
+/*
+ * The page is gone, so the access faults. The fetched register has to come back
+ * 0 and everything else has to be left alone, r0 included. Reading the address
+ * again has to give 0 as well: had the fault been recovered by the arena mapping
+ * its zeroed scratch page instead of by the JIT's exception table entry, the
+ * access would have succeeded and left a 1 there.
+ */
+SEC("syscall")
+__arena_scalar
+__description("arena_scalar: fetching or through a number to a freed page")
+__success __retval(0)
+__load_if_JITed()
+__naked void fetch_or_freed_page(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r2 = 0;						\
+	r3 = 1;						\
+	r4 = -1;					\
+	r5 = 0;						\
+	call %[bpf_arena_alloc_pages];			\
+	r6 = r0;					\
+	r0 = 100;					\
+	if r6 == 0 goto 9f;				\
+	*(u64 *)(r6 + 8) = 0x55;			\
+	r1 = %[arena] ll;				\
+	r2 = r6;					\
+	r3 = 1;						\
+	call %[bpf_arena_free_pages];			\
+	r0 = r6;					\
+	r0 ^= 0x55;					\
+	r1 = 1;						\
+	.8byte %[fetch_or_dw]; /* faults: r1 = atomic_fetch_or((u64 *)(r6 + 8), r1) */ \
+	r2 = r6;					\
+	r2 ^= 0x55;					\
+	if r0 == r2 goto 1f;				\
+	r0 = 1;						\
+	goto 9f;					\
+1:	r0 = 2;						\
+	if r1 != 0 goto 9f;				\
+	r3 = *(u64 *)(r6 + 8);				\
+	r0 = 3;						\
+	if r3 != 0 goto 9f;				\
+	r0 = 0;						\
+9:	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm(bpf_arena_alloc_pages),
+	  __imm(bpf_arena_free_pages),
+	  __imm_insn(fetch_or_dw, BPF_ATOMIC_OP(BPF_DW, BPF_OR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_1, 8))
+	: __clobber_all);
+}
+
+SEC("syscall")
+__arena_scalar
+__description("arena_scalar: fetching or with the operand in r0 to a freed page")
+__success __retval(0)
+__load_if_JITed()
+__naked void fetch_or_r0_freed_page(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r2 = 0;						\
+	r3 = 1;						\
+	r4 = -1;					\
+	r5 = 0;						\
+	call %[bpf_arena_alloc_pages];			\
+	r6 = r0;					\
+	r0 = 100;					\
+	if r6 == 0 goto 9f;				\
+	*(u64 *)(r6 + 8) = 0x55;			\
+	r1 = %[arena] ll;				\
+	r2 = r6;					\
+	r3 = 1;						\
+	call %[bpf_arena_free_pages];			\
+	r0 = 1;						\
+	.8byte %[fetch_or_dw]; /* faults: r0 = atomic_fetch_or((u64 *)(r6 + 8), r0) */ \
+	r2 = r0;					\
+	r0 = 1;						\
+	if r2 != 0 goto 9f;				\
+	r3 = *(u64 *)(r6 + 8);				\
+	r0 = 2;						\
+	if r3 != 0 goto 9f;				\
+	r0 = 0;						\
+9:	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm(bpf_arena_alloc_pages),
+	  __imm(bpf_arena_free_pages),
+	  __imm_insn(fetch_or_dw, BPF_ATOMIC_OP(BPF_DW, BPF_OR | BPF_FETCH,
+						BPF_REG_6, BPF_REG_0, 8))
 	: __clobber_all);
 }
 
