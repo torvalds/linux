@@ -246,6 +246,10 @@ int trace_event_get_offsets(struct trace_event_call *call)
 	struct list_head *head;
 
 	head = trace_get_fields(call);
+
+	if (list_empty(head))
+		return sizeof(struct trace_entry);
+
 	/*
 	 * head->next points to the last field with the largest offset,
 	 * since it was added last by trace_define_field()
