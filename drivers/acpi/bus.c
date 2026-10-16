@@ -1120,11 +1120,6 @@ EXPORT_SYMBOL_GPL(acpi_driver_match_device);
                               ACPI Bus operations
    -------------------------------------------------------------------------- */
 
-static int acpi_bus_match(struct device *dev, const struct device_driver *drv)
-{
-	return 0;
-}
-
 static int acpi_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return __acpi_device_uevent_modalias(to_acpi_device(dev), env);
@@ -1132,7 +1127,6 @@ static int acpi_device_uevent(const struct device *dev, struct kobj_uevent_env *
 
 const struct bus_type acpi_bus_type = {
 	.name		= "acpi",
-	.match		= acpi_bus_match,
 	.uevent		= acpi_device_uevent,
 };
 
@@ -1451,7 +1445,7 @@ static int __init acpi_bus_init(void)
 	 */
 	acpi_root_dir = proc_mkdir(ACPI_BUS_FILE_ROOT, NULL);
 
-	result = bus_register(&acpi_bus_type);
+	result = companion_bus_register(&acpi_bus_type);
 	if (!result)
 		return 0;
 

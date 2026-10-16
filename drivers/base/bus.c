@@ -738,6 +738,11 @@ int bus_add_driver(struct device_driver *drv)
 	if (!sp)
 		return -EINVAL;
 
+	if (sp->no_drivers) {
+		error = -ENXIO;
+		goto out_put_bus;
+	}
+
 	/*
 	 * Reference in sp is now incremented and will be dropped when
 	 * the driver is removed from the bus
@@ -930,15 +935,7 @@ static ssize_t bus_uevent_store(const struct bus_type *bus,
 static struct bus_attribute bus_attr_uevent = __ATTR(uevent, 0200, NULL,
 						     bus_uevent_store);
 
-/**
- * bus_register - register a driver-core subsystem
- * @bus: bus to register
- *
- * Once we have that, we register the bus with the kobject
- * infrastructure, then register the children subsystems it has:
- * the devices and drivers that belong to the subsystem.
- */
-int bus_register(const struct bus_type *bus)
+static int bus_register_internal(const struct bus_type *bus, bool use_drivers)
 {
 	int retval;
 	struct subsys_private *priv;
@@ -960,7 +957,8 @@ int bus_register(const struct bus_type *bus)
 
 	bus_kobj->kset = bus_kset;
 	bus_kobj->ktype = &bus_ktype;
-	priv->drivers_autoprobe = 1;
+	priv->drivers_autoprobe = use_drivers;
+	priv->no_drivers = !use_drivers;
 
 	retval = kset_register(&priv->subsys);
 	if (retval)
@@ -976,6 +974,10 @@ int bus_register(const struct bus_type *bus)
 		goto bus_devices_fail;
 	}
 
+	/*
+	 * Create the drivers kset even if use_drivers is unset to prevent some
+	 * older versions of systemd from failing.
+	 */
 	priv->drivers_kset = kset_create_and_add("drivers", NULL, bus_kobj);
 	if (!priv->drivers_kset) {
 		retval = -ENOMEM;
@@ -989,9 +991,11 @@ int bus_register(const struct bus_type *bus)
 	klist_init(&priv->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&priv->klist_drivers, NULL, NULL);
 
-	retval = add_probe_files(bus);
-	if (retval)
-		goto bus_probe_files_fail;
+	if (use_drivers) {
+		retval = add_probe_files(bus);
+		if (retval)
+			goto bus_probe_files_fail;
+	}
 
 	retval = sysfs_create_groups(bus_kobj, bus->bus_groups);
 	if (retval)
@@ -1016,7 +1020,39 @@ out:
 	kfree(priv);
 	return retval;
 }
+
+/**
+ * bus_register - register a driver-core subsystem
+ * @bus: bus to register
+ *
+ * Once we have that, we register the bus with the kobject
+ * infrastructure, then register the children subsystems it has:
+ * the devices and drivers that belong to the subsystem.
+ */
+int bus_register(const struct bus_type *bus)
+{
+	return bus_register_internal(bus, true);
+}
 EXPORT_SYMBOL_GPL(bus_register);
+
+/**
+ * companion_bus_register - register a companion bus type
+ * @bus: companion bus to register
+ *
+ * A companion bus is a bus without drivers.  Devices that belong to it can be
+ * bound to other devices as their "companions" and represent interfaces that
+ * can be used by the drivers of those other devices.  They may also be used for
+ * the enumeration of those other devices.
+ *
+ * The ACPI bus is a specific example of a companion bus.
+ *
+ * Registering a companion bus is like registering a regular bus except that it
+ * skips the creation of sysfs interfaces related to drivers for @bus.
+ */
+int companion_bus_register(const struct bus_type *bus)
+{
+	return bus_register_internal(bus, false);
+}
 
 /**
  * bus_unregister - remove a bus from the system
@@ -1414,6 +1450,11 @@ struct device_driver *driver_find(const char *name, const struct bus_type *bus)
 
 	if (!sp)
 		return NULL;
+
+	if (sp->no_drivers) {
+		subsys_put(sp);
+		return NULL;
+	}
 
 	k = kset_find_obj(sp->drivers_kset, name);
 	subsys_put(sp);
