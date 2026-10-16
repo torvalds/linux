@@ -47,4 +47,31 @@ int stack_exit(unsigned long long *ctx)
 	return 0;
 }
 
+long split_e, split_lo, split_hi, split_i, split_ret;
+
+SEC("fentry/callee_split")
+int BPF_PROG2(split_entry, __u64, a, __u64, b, __u64, c, __u64, d, __u64, e,
+	      struct int128_arg, h, __u64, i)
+{
+	split_e = e;
+	split_lo = (__u64)h.v;
+	split_hi = (unsigned __int128)h.v >> 64;
+	split_i = i;
+	return 0;
+}
+
+SEC("fexit/callee_split")
+int split_exit(unsigned long long *ctx)
+{
+	split_ret = ctx[8];
+	return 0;
+}
+
+/* Refused: the trampoline would lose the stack argument. */
+SEC("?fentry/callee_unreliable")
+int unreliable_entry(unsigned long long *ctx)
+{
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

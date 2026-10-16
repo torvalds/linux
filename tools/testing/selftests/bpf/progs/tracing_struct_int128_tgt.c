@@ -8,7 +8,7 @@ struct int128_arg {
 };
 
 __u64 base;
-__u64 ret_odd, ret_stack;
+__u64 ret_odd, ret_stack, ret_split, ret_unreliable;
 
 #if defined(__clang__)
 
@@ -46,6 +46,28 @@ static __noinline __u64 callee_stack(__u64 a, __u64 b, __u64 c, __u64 d,
 	       i * 10;
 }
 
+/*
+ * x86-64 BPF code passes h split between r9 and its first stack slot;
+ * arm64 passes it in x5 and x6, so nothing is split there.
+ */
+static __noinline __u64 callee_split(__u64 a, __u64 b, __u64 c, __u64 d,
+				     __u64 e, struct int128_arg h, __u64 i)
+{
+	return a + b * 2 + c * 3 + d * 4 + e * 5 + (__u64)h.v * 6 +
+	       (__u64)((unsigned __int128)h.v >> 64) * 7 + i * 8;
+}
+
+/*
+ * A plain pointer makes the BTF of a static function unreliable, but f is
+ * still passed on the stack. The store keeps p a pointer.
+ */
+static __noinline __u64 callee_unreliable(__u64 *p, __u64 b, __u64 c, __u64 d,
+					  __u64 e, __u64 f)
+{
+	*p += 1;
+	return *p + b * 2 + c * 3 + d * 4 + e * 5 + f * 6;
+}
+
 #else
 
 const volatile bool has_stack_arg = false;
@@ -63,6 +85,14 @@ int run(void *ctx)
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 	ret_stack = callee_stack(base + 1, base + 2, base + 3, base + 4,
 				 base + 5, base + 6, base + 7, v, base + 10);
+	ret_split = callee_split(base + 1, base + 2, base + 3, base + 4,
+				 base + 5, v, base + 10);
+	{
+		__u64 x = base;
+
+		ret_unreliable = callee_unreliable(&x, base + 2, base + 3,
+						   base + 4, base + 5, base + 6);
+	}
 #endif
 #endif
 	return 0;
