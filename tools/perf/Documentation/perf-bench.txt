@@ -58,6 +58,9 @@ SUBSYSTEM
 'numa'::
 	NUMA scheduling and MM benchmarks.
 
+'atomic'::
+	Atomic operation benchmarks.
+
 'futex'::
 	Futex stressing benchmarks.
 
@@ -282,6 +285,41 @@ SUITES FOR 'numa'
 ~~~~~~~~~~~~~~~~~
 *mem*::
 Suite for evaluating NUMA workloads.
+
+SUITES FOR 'atomic'
+~~~~~~~~~~~~~~~~~~~
+*cas*::
+Suite for evaluating compare-and-swap (CAS) atomic operations under
+multi-threaded contention.
+
+*inc*::
+Suite for evaluating atomic fetch-add (increment) operations under
+multi-threaded contention.
+
+Options of *cas* and *inc*
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+-T::
+--threads=::
+Number of threads contending for the shared counter (default: 2, or
+1 on a single-CPU machine).
+
+-R::
+--runtime=::
+Runtime of each repeat in seconds (default: 2).
+
+The per-thread fastest/slowest/avg ops summary is only printed when
+running with more than one thread.
+
+The average throughput is annotated with its relative deviation
+("+- x%"), i.e. the standard error of the mean over the measured
+repeats. A small value means the average is reproducible; it does not
+reflect per-thread fairness, which the per-thread ops summary shows.
+
+Note that the cas benchmark counts successful compare-and-swap
+operations only; retries and the loads between them are additional
+atomic instructions not included in the ops/sec count, so cas and
+inc throughputs are not directly comparable at the instruction
+level.
 
 SUITES FOR 'futex'
 ~~~~~~~~~~~~~~~~~~
