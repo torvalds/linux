@@ -4239,6 +4239,7 @@ static int snp_handle_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_
 	struct kvm *kvm = svm->vcpu.kvm;
 	struct kvm_sev_info *sev = to_kvm_sev_info(kvm);
 	sev_ret_code fw_err = 0;
+	u8 tickle = 0;
 	int ret;
 
 	if (!is_sev_snp_guest(&svm->vcpu))
@@ -4246,8 +4247,21 @@ static int snp_handle_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_
 
 	guard(mutex)(&sev->guest_req_mutex);
 
-	if (kvm_read_guest(kvm, req_gpa, sev->guest_req_buf, PAGE_SIZE))
-		return -EIO;
+	if (kvm_read_guest(kvm, req_gpa, sev->guest_req_buf, PAGE_SIZE)) {
+		svm_vmgexit_bad_input(svm, GHCB_ERR_INVALID_INPUT);
+		return 1;
+	}
+
+	/*
+	 * "Tickle" the response buffer to verify it's writable before sending
+	 * the request to firmware, which will modify the VMPCK sequence number.
+	 * Note, this is a best effort check and doesn't guard against TOCTOU
+	 * issues.  See below for more information.
+	 */
+	if (kvm_write_guest(kvm, resp_gpa, &tickle, sizeof(tickle))) {
+		svm_vmgexit_bad_input(svm, GHCB_ERR_INVALID_INPUT);
+		return 1;
+	}
 
 	data.gctx_paddr = __psp_pa(sev->snp_context);
 	data.req_paddr = __psp_pa(sev->guest_req_buf);
@@ -4262,6 +4276,13 @@ static int snp_handle_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_
 	if (ret && !fw_err)
 		return ret;
 
+	/*
+	 * Exit to userspace if writing the response fails, e.g. if the mapping
+	 * changed between the initial tickle and the actual write, to avoid
+	 * creating an ambiguous failure ABI with the guest.  Don't return an
+	 * error to the guest because firmware already incremented the VMPCK
+	 * sequence number, but there's no way to communicate that to the guest.
+	 */
 	if (kvm_write_guest(kvm, resp_gpa, sev->guest_resp_buf, PAGE_SIZE))
 		return -EIO;
 
@@ -4313,8 +4334,10 @@ static int snp_handle_ext_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t r
 		return -EINVAL;
 
 	if (kvm_read_guest(kvm, req_gpa + offsetof(struct snp_guest_msg_hdr, msg_type),
-			   &msg_type, 1))
-		return -EIO;
+			   &msg_type, 1)) {
+		svm_vmgexit_bad_input(svm, GHCB_ERR_INVALID_INPUT);
+		return 1;
+	}
 
 	/*
 	 * As per GHCB spec, requests of type MSG_REPORT_REQ also allow for
@@ -4353,8 +4376,10 @@ static int snp_handle_ext_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t r
 		 * As per GHCB spec (see "SNP Extended Guest Request"), the
 		 * certificate table is terminated by 24-bytes of zeroes.
 		 */
-		if (data_npages && kvm_clear_guest(kvm, data_gpa, 24))
-			return -EIO;
+		if (data_npages && kvm_clear_guest(kvm, data_gpa, 24)) {
+			svm_vmgexit_bad_input(svm, GHCB_ERR_INVALID_INPUT);
+			return 1;
+		}
 	}
 
 	return snp_handle_guest_req(svm, req_gpa, resp_gpa);
