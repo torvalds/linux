@@ -22006,6 +22006,32 @@ static bool attach_uses_trampoline_retval(enum bpf_attach_type type)
 	}
 }
 
+/*
+ * BPF code passes argument slot N where the kernel convention passes its Nth
+ * u64 argument, so describe a BPF function to its trampoline as one u64 per
+ * slot, and every arch places its arguments right.
+ */
+static int flatten_bpf_func_model(struct bpf_verifier_log *log, const char *tname,
+				  struct btf_func_model *m)
+{
+	u32 i, nslots = 0;
+
+	for (i = 0; i < m->nr_args; i++)
+		nslots += btf_func_model_arg_slots(m, i);
+	if (nslots > MAX_BPF_FUNC_ARGS) {
+		bpf_log(log, "The function %s has %u argument slots. Too many.\n",
+			tname, nslots);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nslots; i++) {
+		m->arg_size[i] = sizeof(u64);
+		m->arg_flags[i] = 0;
+	}
+	m->nr_args = nslots;
+	return 0;
+}
+
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,
@@ -22279,6 +22305,11 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 		ret = btf_distill_func_proto(log, btf, t, tname, &tgt_info->fmodel);
 		if (ret < 0)
 			return ret;
+		if (tgt_prog) {
+			ret = flatten_bpf_func_model(log, tname, &tgt_info->fmodel);
+			if (ret < 0)
+				return ret;
+		}
 
 		if (tgt_info->fmodel.ret_size > 8 &&
 		    attach_uses_trampoline_retval(prog->expected_attach_type)) {
