@@ -5,6 +5,8 @@
 #include "tracing_struct.skel.h"
 #include "tracing_struct_many_args.skel.h"
 #include "tracing_struct_int128.skel.h"
+#include "tracing_stack_arg_tailcall_tgt.skel.h"
+#include "tracing_stack_arg_tailcall_tracer.skel.h"
 
 static void test_struct_args(void)
 {
@@ -146,6 +148,61 @@ destroy_skel:
 #endif
 }
 
+/*
+ * A trampoline on a function of a tail_call_reachable program keeps the tail
+ * call counter pointer on its stack, and has to hand the function its stack
+ * arguments past it.
+ */
+static void test_stack_arg_tailcall(void)
+{
+#if defined(__x86_64__) || defined(__aarch64__)
+	struct tracing_stack_arg_tailcall_tracer *tracer = NULL;
+	struct tracing_stack_arg_tailcall_tgt *tgt;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, fd;
+
+	tgt = tracing_stack_arg_tailcall_tgt__open_and_load();
+	if (!ASSERT_OK_PTR(tgt, "tgt__open_and_load"))
+		return;
+	if (!tgt->rodata->has_stack_arg) {
+		test__skip();
+		goto out;
+	}
+	fd = bpf_program__fd(tgt->progs.run);
+
+	tracer = tracing_stack_arg_tailcall_tracer__open();
+	if (!ASSERT_OK_PTR(tracer, "tracer__open"))
+		goto out;
+
+	err = bpf_program__set_attach_target(tracer->progs.stack_entry, fd, "callee_stack");
+	err = err ?: bpf_program__set_attach_target(tracer->progs.stack_exit, fd, "callee_stack");
+	if (!ASSERT_OK(err, "set_attach_target"))
+		goto out;
+
+	err = tracing_stack_arg_tailcall_tracer__load(tracer);
+	if (!ASSERT_OK(err, "tracer__load"))
+		goto out;
+	err = tracing_stack_arg_tailcall_tracer__attach(tracer);
+	if (!ASSERT_OK(err, "tracer__attach"))
+		goto out;
+
+	err = bpf_prog_test_run_opts(fd, &topts);
+	if (!ASSERT_OK(err, "test_run") || !ASSERT_EQ(topts.retval, 0, "retval"))
+		goto out;
+
+	ASSERT_EQ(tracer->bss->stack_g, 7, "stack:g");
+	ASSERT_EQ(tracer->bss->stack_h, 8, "stack:h");
+	ASSERT_EQ(tgt->bss->ret_stack, 204, "stack ret");
+	ASSERT_EQ(tracer->bss->stack_ret, 204, "stack fexit ret");
+
+out:
+	tracing_stack_arg_tailcall_tracer__destroy(tracer);
+	tracing_stack_arg_tailcall_tgt__destroy(tgt);
+#else
+	test__skip();
+#endif
+}
+
 static void test_union_args(void)
 {
 	struct tracing_struct *skel;
@@ -181,6 +238,8 @@ void test_tracing_struct(void)
 		test_struct_many_args();
 	if (test__start_subtest("int128_args"))
 		test_int128_args();
+	if (test__start_subtest("stack_arg_tailcall"))
+		test_stack_arg_tailcall();
 	if (test__start_subtest("union_args"))
 		test_union_args();
 }
