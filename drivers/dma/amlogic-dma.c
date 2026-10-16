@@ -632,7 +632,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 
 	aml_dma->regmap = devm_regmap_init_mmio(&pdev->dev, aml_dma->base,
 						&aml_regmap_config);
-	if (IS_ERR_OR_NULL(aml_dma->regmap))
+	if (IS_ERR(aml_dma->regmap))
 		return PTR_ERR(aml_dma->regmap);
 
 	aml_dma->clk = devm_clk_get_enabled(&pdev->dev, NULL);
