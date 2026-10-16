@@ -433,6 +433,8 @@ struct smu_table_context {
 	void                            *boot_overdrive_table;
 	void				*user_overdrive_table;
 
+	uint32_t			user_od_feature_mask;
+
 	struct smu_driver_table driver_tables[SMU_DRIVER_TABLE_COUNT];
 };
 
