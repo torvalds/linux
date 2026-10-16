@@ -24,7 +24,7 @@
 
 #define ENETC_EMDIO_CFG \
 	(MDIO_CFG_HOLD(2) | \
-	 MDIO_CFG_CLKDIV(66) | \
+	 MDIO_CFG_CLKDIV(258) | \
 	 MDIO_CFG_NEG)
 
 #define MDIO_CTL_DEV_ADDR(x)	((x) & 0x1f)
