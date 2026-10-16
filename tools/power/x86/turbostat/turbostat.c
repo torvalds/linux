@@ -399,6 +399,11 @@ static void bic_groups_init(void)
 	SET_BIC(BIC_CorWatt, &bic_group_thermal_pwr);
 	SET_BIC(BIC_GFXWatt, &bic_group_thermal_pwr);
 	SET_BIC(BIC_RAMWatt, &bic_group_thermal_pwr);
+	SET_BIC(BIC_Pkg_J, &bic_group_thermal_pwr);
+	SET_BIC(BIC_Cor_J, &bic_group_thermal_pwr);
+	SET_BIC(BIC_GFX_J, &bic_group_thermal_pwr);
+	SET_BIC(BIC_RAM_J, &bic_group_thermal_pwr);
+	SET_BIC(BIC_Sys_J, &bic_group_thermal_pwr);
 	SET_BIC(BIC_PKG__, &bic_group_thermal_pwr);
 	SET_BIC(BIC_RAM__, &bic_group_thermal_pwr);
 	SET_BIC(BIC_SysWatt, &bic_group_thermal_pwr);
@@ -2496,8 +2501,7 @@ int has_allowed_lower_ht_sibling(int cpu)
 	return 0;
 }
 
-int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pkg_data *),
-		 struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
+int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pkg_data *), struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
 	int cpu, retval;
 
@@ -2582,8 +2586,7 @@ int get_msr_fd(int cpu)
 	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r %s, "
-		    "or run with --no-msr, or run as root", pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
+		err(-1, "%s open failed, try chown or chmod +r %s, " "or run with --no-msr, or run as root", pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
 	fd_percpu[cpu] = fd;
 
 	return fd;
@@ -2790,8 +2793,7 @@ void help(void)
 		"  -T, --TCC temperature\n"
 		"		sets the Thermal Control Circuit temperature in\n"
 		"		  degrees Celsius\n"
-		"  -h, --help\n"
-		"		print this help message\n  -v, --version\n\t\tprint version information\n\nFor more help, run \"man turbostat\"\n");
+		"  -h, --help\n" "		print this help message\n  -v, --version\n\t\tprint version information\n\nFor more help, run \"man turbostat\"\n");
 }
 
 /*
@@ -4006,8 +4008,7 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 
 	/* check for TSC < 1 Mcycles over interval */
 	if (old->tsc < (1000 * 1000))
-		errx(-3, "Insanely slow TSC rate, TSC stops in idle?\n"
-		     "You can disable all c-states by booting with \"idle=poll\"\nor just the deep ones with \"processor.max_cstate=1\"");
+		errx(-3, "Insanely slow TSC rate, TSC stops in idle?\n" "You can disable all c-states by booting with \"idle=poll\"\nor just the deep ones with \"processor.max_cstate=1\"");
 
 	old->c1 = new->c1 - old->c1;
 
@@ -4900,8 +4901,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 			assert(rci->fd_perf != -1);
 
 			if (debug >= 2)
-				fprintf(stderr, "Reading rapl counter via perf at %u (%llu %e %lf)\n",
-					i, perf_data[pi], rci->scale[i], perf_data[pi] * rci->scale[i]);
+				fprintf(stderr, "Reading rapl counter via perf at %u (%llu %e %lf)\n", i, perf_data[pi], rci->scale[i], perf_data[pi] * rci->scale[i]);
 
 			rci->data[i] = perf_data[pi];
 
@@ -5725,8 +5725,7 @@ static void dump_cst_cfg(void)
 		(msr & SNB_C3_AUTO_UNDEMOTE) ? "UNdemote-C3, " : "",
 		(msr & SNB_C1_AUTO_UNDEMOTE) ? "UNdemote-C1, " : "",
 		(msr & NHM_C3_AUTO_DEMOTE) ? "demote-C3, " : "",
-		(msr & NHM_C1_AUTO_DEMOTE) ? "demote-C1, " : "",
-		(msr & (1 << 15)) ? "" : "UN", (unsigned int)msr & 0xF, pkg_cstate_limit_strings[pkg_cstate_limit]);
+		(msr & NHM_C1_AUTO_DEMOTE) ? "demote-C1, " : "", (msr & (1 << 15)) ? "" : "UN", (unsigned int)msr & 0xF, pkg_cstate_limit_strings[pkg_cstate_limit]);
 
 #define AUTOMATIC_CSTATE_CONVERSION		(1UL << 16)
 	if (platform->has_cst_auto_convension) {
@@ -6223,8 +6222,7 @@ static int parse_cpu_str(char *cpu_str, cpu_set_t *cpu_set, int cpu_set_size)
 int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 			       struct pkg_data *, struct thread_data *, struct core_data *,
 			       struct pkg_data *), struct thread_data *thread_base,
-		   struct core_data *core_base, struct pkg_data *pkg_base,
-		   struct thread_data *thread_base2, struct core_data *core_base2, struct pkg_data *pkg_base2)
+		   struct core_data *core_base, struct pkg_data *pkg_base, struct thread_data *thread_base2, struct core_data *core_base2, struct pkg_data *pkg_base2)
 {
 	int cpu, retval;
 
@@ -7014,8 +7012,7 @@ void check_msr_permission(void)
 	}
 
 	if (failed) {
-		warnx("Failed to access %s. Some of the counters may not be available\n"
-		      "\tRun as root to enable them or use %s to disable the access explicitly", pathname, "--no-msr");
+		warnx("Failed to access %s. Some of the counters may not be available\n" "\tRun as root to enable them or use %s to disable the access explicitly", pathname, "--no-msr");
 		no_msr = 1;
 	}
 }
@@ -7592,9 +7589,7 @@ int print_hwp(PER_THREAD_PARAMS)
 	get_msr(cpu, MSR_HWP_CAPABILITIES, &msr);
 	fprintf(outf, "cpu%d: MSR_HWP_CAPABILITIES: 0x%08llx "
 		"(high %d guar %d eff %d low %d)\n",
-		cpu, msr,
-		(unsigned int)HWP_HIGHEST_PERF(msr),
-		(unsigned int)HWP_GUARANTEED_PERF(msr), (unsigned int)HWP_MOSTEFFICIENT_PERF(msr), (unsigned int)HWP_LOWEST_PERF(msr));
+		cpu, msr, (unsigned int)HWP_HIGHEST_PERF(msr), (unsigned int)HWP_GUARANTEED_PERF(msr), (unsigned int)HWP_MOSTEFFICIENT_PERF(msr), (unsigned int)HWP_LOWEST_PERF(msr));
 
 	get_msr(cpu, MSR_HWP_REQUEST, &msr);
 	fprintf(outf, "cpu%d: MSR_HWP_REQUEST: 0x%08llx "
@@ -7602,8 +7597,7 @@ int print_hwp(PER_THREAD_PARAMS)
 		cpu, msr,
 		(unsigned int)(((msr) >> 0) & 0xff),
 		(unsigned int)(((msr) >> 8) & 0xff),
-		(unsigned int)(((msr) >> 16) & 0xff),
-		(unsigned int)(((msr) >> 24) & 0xff), (unsigned int)(((msr) >> 32) & 0xff3), (unsigned int)(((msr) >> 42) & 0x1));
+		(unsigned int)(((msr) >> 16) & 0xff), (unsigned int)(((msr) >> 24) & 0xff), (unsigned int)(((msr) >> 32) & 0xff3), (unsigned int)(((msr) >> 42) & 0x1));
 
 	if (has_hwp_pkg) {
 		get_msr(cpu, MSR_HWP_REQUEST_PKG, &msr);
@@ -7611,17 +7605,14 @@ int print_hwp(PER_THREAD_PARAMS)
 			"(min %d max %d des %d epp 0x%x window 0x%x)\n",
 			cpu, msr,
 			(unsigned int)(((msr) >> 0) & 0xff),
-			(unsigned int)(((msr) >> 8) & 0xff),
-			(unsigned int)(((msr) >> 16) & 0xff), (unsigned int)(((msr) >> 24) & 0xff), (unsigned int)(((msr) >> 32) & 0xff3));
+			(unsigned int)(((msr) >> 8) & 0xff), (unsigned int)(((msr) >> 16) & 0xff), (unsigned int)(((msr) >> 24) & 0xff), (unsigned int)(((msr) >> 32) & 0xff3));
 	}
 	if (has_hwp_notify) {
 		get_msr(cpu, MSR_HWP_INTERRUPT, &msr);
-		fprintf(outf, "cpu%d: MSR_HWP_INTERRUPT: 0x%08llx "
-			"(%s_Guaranteed_Perf_Change, %s_Excursion_Min)\n", cpu, msr, ((msr) & 0x1) ? "EN" : "Dis", ((msr) & 0x2) ? "EN" : "Dis");
+		fprintf(outf, "cpu%d: MSR_HWP_INTERRUPT: 0x%08llx " "(%s_Guaranteed_Perf_Change, %s_Excursion_Min)\n", cpu, msr, ((msr) & 0x1) ? "EN" : "Dis", ((msr) & 0x2) ? "EN" : "Dis");
 	}
 	get_msr(cpu, MSR_HWP_STATUS, &msr);
-	fprintf(outf, "cpu%d: MSR_HWP_STATUS: 0x%08llx "
-		"(%sGuaranteed_Perf_Change, %sExcursion_Min)\n", cpu, msr, ((msr) & 0x1) ? "" : "No-", ((msr) & 0x4) ? "" : "No-");
+	fprintf(outf, "cpu%d: MSR_HWP_STATUS: 0x%08llx " "(%sGuaranteed_Perf_Change, %sExcursion_Min)\n", cpu, msr, ((msr) & 0x1) ? "" : "No-", ((msr) & 0x4) ? "" : "No-");
 
 	return 0;
 }
@@ -7665,8 +7656,7 @@ int print_perf_limit(PER_THREAD_PARAMS)
 			(msr & 1 << 8) ? "Amps, " : "",
 			(msr & 1 << 6) ? "VR-Therm, " : "",
 			(msr & 1 << 5) ? "Auto-HWP, " : "",
-			(msr & 1 << 4) ? "Graphics, " : "",
-			(msr & 1 << 2) ? "bit2, " : "", (msr & 1 << 1) ? "ThermStatus, " : "", (msr & 1 << 0) ? "PROCHOT, " : "");
+			(msr & 1 << 4) ? "Graphics, " : "", (msr & 1 << 2) ? "bit2, " : "", (msr & 1 << 1) ? "ThermStatus, " : "", (msr & 1 << 0) ? "PROCHOT, " : "");
 		fprintf(outf, " (Logged: %s%s%s%s%s%s%s%s%s%s%s%s%s%s)\n",
 			(msr & 1 << 31) ? "bit31, " : "",
 			(msr & 1 << 30) ? "bit30, " : "",
@@ -7678,8 +7668,7 @@ int print_perf_limit(PER_THREAD_PARAMS)
 			(msr & 1 << 24) ? "Amps, " : "",
 			(msr & 1 << 22) ? "VR-Therm, " : "",
 			(msr & 1 << 21) ? "Auto-HWP, " : "",
-			(msr & 1 << 20) ? "Graphics, " : "",
-			(msr & 1 << 18) ? "bit18, " : "", (msr & 1 << 17) ? "ThermStatus, " : "", (msr & 1 << 16) ? "PROCHOT, " : "");
+			(msr & 1 << 20) ? "Graphics, " : "", (msr & 1 << 18) ? "bit18, " : "", (msr & 1 << 17) ? "ThermStatus, " : "", (msr & 1 << 16) ? "PROCHOT, " : "");
 
 	}
 	if (platform->plr_msrs & PLR_GFX) {
@@ -7690,15 +7679,13 @@ int print_perf_limit(PER_THREAD_PARAMS)
 			(msr & 1 << 1) ? "ThermStatus, " : "",
 			(msr & 1 << 4) ? "Graphics, " : "",
 			(msr & 1 << 6) ? "VR-Therm, " : "",
-			(msr & 1 << 8) ? "Amps, " : "",
-			(msr & 1 << 9) ? "GFXPwr, " : "", (msr & 1 << 10) ? "PkgPwrL1, " : "", (msr & 1 << 11) ? "PkgPwrL2, " : "");
+			(msr & 1 << 8) ? "Amps, " : "", (msr & 1 << 9) ? "GFXPwr, " : "", (msr & 1 << 10) ? "PkgPwrL1, " : "", (msr & 1 << 11) ? "PkgPwrL2, " : "");
 		fprintf(outf, " (Logged: %s%s%s%s%s%s%s%s)\n",
 			(msr & 1 << 16) ? "PROCHOT, " : "",
 			(msr & 1 << 17) ? "ThermStatus, " : "",
 			(msr & 1 << 20) ? "Graphics, " : "",
 			(msr & 1 << 22) ? "VR-Therm, " : "",
-			(msr & 1 << 24) ? "Amps, " : "",
-			(msr & 1 << 25) ? "GFXPwr, " : "", (msr & 1 << 26) ? "PkgPwrL1, " : "", (msr & 1 << 27) ? "PkgPwrL2, " : "");
+			(msr & 1 << 24) ? "Amps, " : "", (msr & 1 << 25) ? "GFXPwr, " : "", (msr & 1 << 26) ? "PkgPwrL1, " : "", (msr & 1 << 27) ? "PkgPwrL2, " : "");
 	}
 	if (platform->plr_msrs & PLR_RING) {
 		get_msr(cpu, MSR_RING_PERF_LIMIT_REASONS, &msr);
@@ -7706,13 +7693,11 @@ int print_perf_limit(PER_THREAD_PARAMS)
 		fprintf(outf, " (Active: %s%s%s%s%s%s)",
 			(msr & 1 << 0) ? "PROCHOT, " : "",
 			(msr & 1 << 1) ? "ThermStatus, " : "",
-			(msr & 1 << 6) ? "VR-Therm, " : "",
-			(msr & 1 << 8) ? "Amps, " : "", (msr & 1 << 10) ? "PkgPwrL1, " : "", (msr & 1 << 11) ? "PkgPwrL2, " : "");
+			(msr & 1 << 6) ? "VR-Therm, " : "", (msr & 1 << 8) ? "Amps, " : "", (msr & 1 << 10) ? "PkgPwrL1, " : "", (msr & 1 << 11) ? "PkgPwrL2, " : "");
 		fprintf(outf, " (Logged: %s%s%s%s%s%s)\n",
 			(msr & 1 << 16) ? "PROCHOT, " : "",
 			(msr & 1 << 17) ? "ThermStatus, " : "",
-			(msr & 1 << 22) ? "VR-Therm, " : "",
-			(msr & 1 << 24) ? "Amps, " : "", (msr & 1 << 26) ? "PkgPwrL1, " : "", (msr & 1 << 27) ? "PkgPwrL2, " : "");
+			(msr & 1 << 22) ? "VR-Therm, " : "", (msr & 1 << 24) ? "Amps, " : "", (msr & 1 << 26) ? "PkgPwrL1, " : "", (msr & 1 << 27) ? "PkgPwrL2, " : "");
 	}
 	return 0;
 }
@@ -7837,8 +7822,7 @@ void print_power_limit_msr(int cpu, unsigned long long msr, char *label)
 	fprintf(outf, "cpu%d: %s: %sabled (%0.3f Watts, %f sec, clamp %sabled)\n",
 		cpu, label,
 		((msr >> 15) & 1) ? "EN" : "DIS",
-		((msr >> 0) & 0x7FFF) * rapl_power_units,
-		(1.0 + (((msr >> 22) & 0x3) / 4.0)) * (1 << ((msr >> 17) & 0x1F)) * rapl_time_units, (((msr >> 16) & 1) ? "EN" : "DIS"));
+		((msr >> 0) & 0x7FFF) * rapl_power_units, (1.0 + (((msr >> 22) & 0x3) / 4.0)) * (1 << ((msr >> 17) & 0x1F)) * rapl_time_units, (((msr >> 16) & 1) ? "EN" : "DIS"));
 
 	return;
 }
@@ -8046,8 +8030,7 @@ int print_rapl(PER_THREAD_PARAMS)
 		fprintf(outf, "cpu%d: PKG Limit #2: %sabled (%0.3f Watts, %f* sec, clamp %sabled)\n",
 			cpu,
 			((msr >> 47) & 1) ? "EN" : "DIS",
-			((msr >> 32) & 0x7FFF) * rapl_power_units,
-			(1.0 + (((msr >> 54) & 0x3) / 4.0)) * (1 << ((msr >> 49) & 0x1F)) * rapl_time_units, ((msr >> 48) & 1) ? "EN" : "DIS");
+			((msr >> 32) & 0x7FFF) * rapl_power_units, (1.0 + (((msr >> 54) & 0x3) / 4.0)) * (1 << ((msr >> 49) & 0x1F)) * rapl_time_units, ((msr >> 48) & 1) ? "EN" : "DIS");
 
 		get_msr(cpu, MSR_VR_CURRENT_CONFIG, &msr);
 		fprintf(outf, "cpu%d: MSR_VR_CURRENT_CONFIG: 0x%08llx\n", cpu, msr);
@@ -8203,8 +8186,7 @@ int set_temperature_target(PER_THREAD_PARAMS)
 
 		if (bits && enabled) {
 			tcc_offset = (msr >> 24) & GENMASK(bits - 1, 0);
-			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
-				cpu, msr, tcc_default - tcc_offset, tcc_default, tcc_offset);
+			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n", cpu, msr, tcc_default - tcc_offset, tcc_default, tcc_offset);
 		} else {
 			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n", cpu, msr, tcc_default);
 		}
@@ -8326,8 +8308,7 @@ void decode_feature_control_msr(void)
 		return;
 
 	get_msr(master_cpu, MSR_IA32_FEAT_CTL, &msr);
-	fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
-		master_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
+	fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n", master_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
 }
 
 void decode_misc_enable_msr(void)
@@ -8345,8 +8326,7 @@ void decode_misc_enable_msr(void)
 		master_cpu, msr,
 		msr & MSR_IA32_MISC_ENABLE_TM1 ? "" : "No-",
 		msr & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP ? "" : "No-",
-		msr & MSR_IA32_MISC_ENABLE_MWAIT ? "" : "No-",
-		msr & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE ? "No-" : "", msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
+		msr & MSR_IA32_MISC_ENABLE_MWAIT ? "" : "No-", msr & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE ? "No-" : "", msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
 }
 
 void decode_misc_feature_control(void)
@@ -8448,8 +8428,7 @@ static int has_perf_instr_count_access(void)
 
 	if (fd == -1)
 		warnx("Failed to access %s. Some of the counters may not be available\n"
-		      "\tRun as root to enable them or use %s to disable the access explicitly", "perf instructions retired counter",
-		      "'--hide IPC' or '--no-perf'");
+		      "\tRun as root to enable them or use %s to disable the access explicitly", "perf instructions retired counter", "'--hide IPC' or '--no-perf'");
 
 	return (fd != -1);
 }
@@ -8495,8 +8474,7 @@ end:
 	return ret;
 }
 
-int initialize_cpu_set_from_sysfs(cpu_set_t *cpu_set, const char *sysfs_path,
-				  const char *sysfs_file)
+int initialize_cpu_set_from_sysfs(cpu_set_t *cpu_set, const char *sysfs_path, const char *sysfs_file)
 {
 	FILE *fp;
 	char *cpuset_buf = NULL;
@@ -9122,8 +9100,7 @@ void dump_rdt_a_leaf(int leaf)
 		has_rp_thread = eax & (1 << 0);
 		has_rp_package = eax & (1 << 1);
 
-		fprintf(outf, "cpu%d: CPUID(0x%x).%d: %sRP_THREAD, %sRP_PKG",
-			cpu, leaf, RDT_RP_INDEX, has_rp_thread ? "" : "No-", has_rp_package ? "" : "No-");
+		fprintf(outf, "cpu%d: CPUID(0x%x).%d: %sRP_THREAD, %sRP_PKG", cpu, leaf, RDT_RP_INDEX, has_rp_thread ? "" : "No-", has_rp_package ? "" : "No-");
 		if (has_rp_thread && !no_msr) {
 			unsigned long long msr;
 
@@ -9217,8 +9194,7 @@ void process_cpuid()
 			ecx_flags & (1 << 8) ? "" : "No-",
 			cpuid_has_hv ? "" : "No-",
 			edx_flags & (1 << 4) ? "" : "No-",
-			edx_flags & (1 << 5) ? "" : "No-",
-			edx_flags & (1 << 22) ? "" : "No-", edx_flags & (1 << 28) ? "" : "No-", edx_flags & (1 << 29) ? "" : "No-");
+			edx_flags & (1 << 5) ? "" : "No-", edx_flags & (1 << 22) ? "" : "No-", edx_flags & (1 << 28) ? "" : "No-", edx_flags & (1 << 29) ? "" : "No-");
 	}
 	if (!quiet && cpuid_has_hv)
 		dump_cpuid_hypervisor();
@@ -9267,9 +9243,7 @@ void process_cpuid()
 			has_turbo ? "" : "No-",
 			do_dts ? "" : "No-",
 			do_ptm ? "" : "No-",
-			has_hwp ? "" : "No-",
-			has_hwp_notify ? "" : "No-",
-			has_hwp_activity_window ? "" : "No-", has_hwp_epp ? "" : "No-", has_hwp_pkg ? "" : "No-", has_epb ? "" : "No-");
+			has_hwp ? "" : "No-", has_hwp_notify ? "" : "No-", has_hwp_activity_window ? "" : "No-", has_hwp_epp ? "" : "No-", has_hwp_pkg ? "" : "No-", has_epb ? "" : "No-");
 
 	if (!quiet)
 		decode_misc_enable_msr();
@@ -9294,8 +9268,7 @@ void process_cpuid()
 			has_ardt_a = ecx & (1 << 1);
 
 			fprintf(outf, "CPUID(7): %sSGX %sRDT_M %sRDT_A %sARDT_M %sARDT_A %sHybrid\n",
-				has_sgx ? "" : "No-", has_rdt_m ? "" : "No-", has_rdt_a ? "" : "No-", has_ardt_m ? "" : "No-", has_ardt_a ? "" : "No-",
-				is_hybrid ? "" : "No-");
+				has_sgx ? "" : "No-", has_rdt_m ? "" : "No-", has_rdt_a ? "" : "No-", has_ardt_m ? "" : "No-", has_ardt_a ? "" : "No-", is_hybrid ? "" : "No-");
 
 			if (has_sgx)
 				decode_feature_control_msr();
@@ -9837,8 +9810,7 @@ void topology_probe(bool startup)
 			continue;
 		fprintf(outf,
 			"cpu %d pkg %d die %d l3 %d node %d lnode %d module 0x%x core %d ht_id %d",
-			i, cpus[i].package_id, cpus[i].die_id, cpus[i].l3_id,
-			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].module_id, cpus[i].core_id, cpus[i].ht_id);
+			i, cpus[i].package_id, cpus[i].die_id, cpus[i].l3_id, cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].module_id, cpus[i].core_id, cpus[i].ht_id);
 		fprintf(outf, " siblings");
 		for (ht_id = 0; ht_id <= MAX_HT_ID; ++ht_id)
 			fprintf(outf, " %d", cpus[i].ht_sibling_cpu_id[ht_id]);
@@ -10444,8 +10416,7 @@ void pmt_counter_add_domain(struct pmt_counter *pcounter, unsigned long *pmmio, 
 }
 
 int pmt_add_counter(unsigned int guid, unsigned int seq, const char *name, enum pmt_datatype type,
-		    unsigned int lsb, unsigned int msb, unsigned int offset, enum counter_scope scope,
-		    enum counter_format format, unsigned int domain_id, enum pmt_open_mode mode)
+		    unsigned int lsb, unsigned int msb, unsigned int offset, enum counter_scope scope, enum counter_format format, unsigned int domain_id, enum pmt_open_mode mode)
 {
 	struct pmt_mmio *mmio;
 	struct pmt_counter *pcounter;
@@ -10744,8 +10715,7 @@ struct msr_counter *find_msrp_by_name(struct msr_counter *head, const char *name
 	return NULL;
 }
 
-int add_counter(unsigned int msr_num, const char *path, const char *name,
-		unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format, int flags, int id)
+int add_counter(unsigned int msr_num, const char *path, const char *name, unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format, int flags, int id)
 {
 	struct msr_counter *msrp;
 
@@ -10753,8 +10723,7 @@ int add_counter(unsigned int msr_num, const char *path, const char *name,
 		errx(1, "Requested MSR counter 0x%x, but in --no-msr mode", msr_num);
 
 	if (debug)
-		fprintf(stderr, "%s(msr%d, %s, %s, width%d, scope%d, type%d, format%d, flags%x, id%d)\n",
-			__func__, msr_num, path, name, width, scope, type, format, flags, id);
+		fprintf(stderr, "%s(msr%d, %s, %s, width%d, scope%d, type%d, format%d, flags%x, id%d)\n", __func__, msr_num, path, name, width, scope, type, format, flags, id);
 
 	switch (scope) {
 
@@ -10853,9 +10822,7 @@ int add_counter(unsigned int msr_num, const char *path, const char *name,
  * easily call re_initialize().
  */
 struct perf_counter_info *make_perf_counter_info(const char *perf_device,
-						 const char *perf_event,
-						 const char *name,
-						 unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format)
+						 const char *perf_event, const char *name, unsigned int width, enum counter_scope scope, enum counter_type type, enum counter_format format)
 {
 	struct perf_counter_info *pinfo;
 
