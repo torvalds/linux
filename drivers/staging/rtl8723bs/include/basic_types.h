@@ -143,16 +143,11 @@
 		((((u8)__val) & BIT_LEN_MASK_8(__bitlen)) << (__bitoffset)) \
 		))
 
-#define LE_BITS_CLEARED_TO_1BYTE_8BIT(__pStart, __BitOffset, __BitLen) \
-	(\
-		LE_P1BYTE_TO_HOST_1BYTE(__pStart) \
-	)
-
 #define SET_BITS_TO_LE_1BYTE_8BIT(__pStart, __BitOffset, __BitLen, __Value) \
 { \
 	*((u8 *)(__pStart)) = \
 		EF1Byte(\
-			LE_BITS_CLEARED_TO_1BYTE_8BIT(__pStart, __BitOffset, __BitLen) \
+			LE_P1BYTE_TO_HOST_1BYTE(__pStart) \
 			| \
 			((u8)__Value) \
 		); \
