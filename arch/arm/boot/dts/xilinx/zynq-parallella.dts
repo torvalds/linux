@@ -44,10 +44,10 @@
 	ethernet_phy: ethernet-phy@0 {
 		/* Marvell 88E1318 */
 		compatible = "ethernet-phy-id0141.0e90",
-		             "ethernet-phy-ieee802.3-c22";
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 		marvell,reg-init = <0x3 0x10 0xff00 0x1e>,
-		                   <0x3 0x11 0xfff0 0xa>;
+				   <0x3 0x11 0xfff0 0xa>;
 	};
 };
 
