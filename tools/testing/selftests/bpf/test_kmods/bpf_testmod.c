@@ -197,6 +197,43 @@ bpf_testmod_test_int128_arg(__int128 a, int b, long c)
 	bpf_testmod_test_struct_arg_result = (long)a + b + c;
 	return bpf_testmod_test_struct_arg_result;
 }
+
+struct bpf_testmod_struct_int128 {
+	__int128 a;
+};
+
+/*
+ * x86-64 puts g in the first stack slot and h, aligned to 16 bytes, in
+ * the third and fourth, leaving a hole. arm64 leaves x7 empty and puts h
+ * in the first two stack slots. Either way h and i are not where the BPF
+ * convention packs them, right after g.
+ */
+noinline long
+bpf_testmod_test_int128_stack(u64 a, u64 b, u64 c, u64 d, u64 e, u64 f,
+			      u64 g, struct bpf_testmod_struct_int128 h, u64 i)
+{
+	bpf_testmod_test_struct_arg_result = a + b * 2 + c * 3 + d * 4 + e * 5 +
+		f * 6 + g * 7 + (u64)h.a * 8 +
+		(u64)((unsigned __int128)h.a >> 64) * 9 + i * 10;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+/*
+ * x86-64 has no register left for f after e, so f goes to the stack and g
+ * takes R9 back; h goes to the third stack slot and i, aligned to 16
+ * bytes, to the fifth and sixth. arm64 has registers up to g, puts h in
+ * the first stack slot and i in the third and fourth.
+ */
+noinline long
+bpf_testmod_test_int128_backfill(u64 a, u64 b, u64 c, u64 d, u64 e,
+				 struct bpf_testmod_struct_arg_2 f, u64 g, u64 h,
+				 struct bpf_testmod_struct_int128 i)
+{
+	bpf_testmod_test_struct_arg_result = a + b * 2 + c * 3 + d * 4 + e * 5 +
+		f.a * 6 + f.b * 7 + g * 8 + h * 9 + (u64)i.a * 10 +
+		(u64)((unsigned __int128)i.a >> 64) * 11;
+	return bpf_testmod_test_struct_arg_result;
+}
 #endif
 
 __weak noinline void bpf_testmod_looooooooooooooooooooooooooooooong_name(void)
@@ -683,6 +720,12 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 #ifdef __SIZEOF_INT128__
 	(void)bpf_testmod_test_int128_ret(i);
 	(void)bpf_testmod_test_int128_arg((__int128)1, 2, 3);
+	(void)bpf_testmod_test_int128_stack(1, 2, 3, 4, 5, 6, 7,
+		(struct bpf_testmod_struct_int128){ .a = ((__int128)9 << 64) | 8 },
+		10);
+	(void)bpf_testmod_test_int128_backfill(1, 2, 3, 4, 5,
+		(struct bpf_testmod_struct_arg_2){ .a = 6, .b = 7 }, 8, 9,
+		(struct bpf_testmod_struct_int128){ .a = ((__int128)11 << 64) | 10 });
 #endif
 
 	(void)trace_bpf_testmod_test_raw_tp_null_tp(NULL);
@@ -1045,6 +1088,29 @@ __bpf_kfunc u64 bpf_kfunc_call_test_pair_arg(u64 a, struct prog_test_pair_arg s,
 __bpf_kfunc u64 bpf_kfunc_call_test_i128_arg(u64 a, u64 b, __int128 v)
 {
 	return a + b * 2 + (u64)v * 3 + (u64)((unsigned __int128)v >> 64) * 4;
+}
+
+__bpf_kfunc u64 bpf_kfunc_call_test_i128_arg_odd(u64 a, __int128 v, u64 b)
+{
+	return a + (u64)v * 2 + (u64)((unsigned __int128)v >> 64) * 3 + b * 4;
+}
+
+__bpf_kfunc u64 bpf_kfunc_call_test_i128_arg_odd_many(u64 a, __int128 v, u64 b, u64 c,
+						      u64 d, u64 e, u64 f, __int128 w)
+{
+	return a + (u64)v * 2 + (u64)((unsigned __int128)v >> 64) * 3 +
+	       b * 4 + c * 5 + d * 6 + e * 7 + f * 8 +
+	       (u64)w * 9 + (u64)((unsigned __int128)w >> 64) * 10;
+}
+
+__bpf_kfunc u64 bpf_kfunc_call_test_i128_arg_stack_hole(u64 a, u64 b, u64 c, u64 d, u64 e,
+							struct prog_test_pair_arg s,
+							u64 f, u64 g,
+							struct prog_test_i128_arg w)
+{
+	return a + b * 2 + c * 3 + d * 4 + e * 5 + s.lo * 6 + s.hi * 7 +
+	       f * 8 + g * 9 + (u64)w.v * 10 +
+	       (u64)((unsigned __int128)w.v >> 64) * 11;
 }
 
 __bpf_kfunc u64 bpf_kfunc_call_test_i128_arg_pad(u64 a, u64 b, u64 c, u64 d, u64 e,
@@ -1770,6 +1836,9 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_ret_deep)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_ret_ii)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_pair_arg)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_i128_arg)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_i128_arg_odd)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_i128_arg_odd_many)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_i128_arg_stack_hole)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_i128_arg_pad)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_pair_arg_nofit)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_pair_arg_tail)

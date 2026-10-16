@@ -22006,6 +22006,59 @@ static bool attach_uses_trampoline_retval(enum bpf_attach_type type)
 	}
 }
 
+/*
+ * BPF code passes argument slot N where the kernel convention passes its Nth
+ * u64 argument, so describe a BPF function to its trampoline as one u64 per
+ * slot, and every arch places its arguments right.
+ */
+static int flatten_bpf_func_model(struct bpf_verifier_log *log, const char *tname,
+				  struct btf_func_model *m)
+{
+	u32 i, nslots = 0;
+
+	for (i = 0; i < m->nr_args; i++)
+		nslots += btf_func_model_arg_slots(m, i);
+	if (nslots > MAX_BPF_FUNC_ARGS) {
+		bpf_log(log, "The function %s has %u argument slots. Too many.\n",
+			tname, nslots);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nslots; i++) {
+		m->arg_size[i] = sizeof(u64);
+		m->arg_flags[i] = 0;
+	}
+	m->nr_args = nslots;
+	return 0;
+}
+
+/*
+ * The verifier lets a static function use stack arguments counted from its
+ * BTF, even if that BTF turns out unreliable. A trampoline on the function is
+ * then given only MAX_BPF_FUNC_REG_ARGS u64 arguments and would lose the
+ * stack arguments, so such a function cannot be attached to.
+ */
+static int check_unreliable_func_args(struct bpf_verifier_log *log, struct btf *btf,
+				      const struct btf_type *func_proto, const char *tname)
+{
+	struct btf_func_model m;
+	u32 i, nslots = 0;
+
+	if (btf_distill_func_proto(NULL, btf, func_proto, tname, &m)) {
+		/* at least a slot for each argument */
+		nslots = btf_type_vlen(func_proto);
+	} else {
+		for (i = 0; i < m.nr_args; i++)
+			nslots += btf_func_model_arg_slots(&m, i);
+	}
+	if (nslots <= MAX_BPF_FUNC_REG_ARGS)
+		return 0;
+
+	bpf_log(log, "Cannot attach to static function %s: unreliable BTF and stack arguments\n",
+		tname);
+	return -EINVAL;
+}
+
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,
@@ -22273,12 +22326,23 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 		     prog->aux->saved_dst_attach_type != tgt_prog->expected_attach_type))
 			return -EINVAL;
 
-		if (tgt_prog && conservative)
+		if (tgt_prog && conservative) {
+			if (subprog > 0) {
+				ret = check_unreliable_func_args(log, btf, t, tname);
+				if (ret)
+					return ret;
+			}
 			t = NULL;
+		}
 
 		ret = btf_distill_func_proto(log, btf, t, tname, &tgt_info->fmodel);
 		if (ret < 0)
 			return ret;
+		if (tgt_prog) {
+			ret = flatten_bpf_func_model(log, tname, &tgt_info->fmodel);
+			if (ret < 0)
+				return ret;
+		}
 
 		if (tgt_info->fmodel.ret_size > 8 &&
 		    attach_uses_trampoline_retval(prog->expected_attach_type)) {
