@@ -26,6 +26,7 @@
 #include <linux/string.h>
 #include <linux/xattr.h>
 #include <linux/msg.h>
+#include <linux/ns_common.h>
 #include <linux/overflow.h>
 #include <linux/perf_event.h>
 #include <linux/fs.h>
@@ -379,6 +380,19 @@ static int lsm_superblock_alloc(struct super_block *sb)
 {
 	return lsm_blob_alloc(&sb->s_security, blob_sizes.lbs_superblock,
 			      GFP_KERNEL);
+}
+
+/**
+ * lsm_ns_alloc - allocate a composite namespace blob
+ * @ns: the namespace that needs a blob
+ *
+ * Allocate the namespace blob for all the modules
+ *
+ * Returns 0, or -ENOMEM if memory can't be allocated.
+ */
+static int lsm_ns_alloc(struct ns_common *ns)
+{
+	return lsm_blob_alloc(&ns->ns_security, blob_sizes.lbs_ns, GFP_KERNEL);
 }
 
 /**
@@ -1614,6 +1628,7 @@ int security_path_chroot(const struct path *path)
 
 /**
  * security_inode_create() - Check if creating a file is allowed
+ * @idmap: idmap of the mount
  * @dir: the parent directory
  * @dentry: the file being created
  * @mode: requested file mode
@@ -1622,12 +1637,12 @@ int security_path_chroot(const struct path *path)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_create(struct inode *dir, struct dentry *dentry,
-			  umode_t mode)
+int security_inode_create(struct mnt_idmap *idmap, struct inode *dir,
+			  struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_create, dir, dentry, mode);
+	return call_int_hook(inode_create, idmap, dir, dentry, mode);
 }
 EXPORT_SYMBOL_GPL(security_inode_create);
 
@@ -1648,6 +1663,7 @@ void security_inode_post_create_tmpfile(struct mnt_idmap *idmap,
 
 /**
  * security_inode_link() - Check if creating a hard link is allowed
+ * @idmap: idmap of the mount
  * @old_dentry: existing file
  * @dir: new parent directory
  * @new_dentry: new link
@@ -1656,12 +1672,12 @@ void security_inode_post_create_tmpfile(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_link(struct dentry *old_dentry, struct inode *dir,
-			struct dentry *new_dentry)
+int security_inode_link(struct mnt_idmap *idmap, struct dentry *old_dentry,
+			struct inode *dir, struct dentry *new_dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
 		return 0;
-	return call_int_hook(inode_link, old_dentry, dir, new_dentry);
+	return call_int_hook(inode_link, idmap, old_dentry, dir, new_dentry);
 }
 
 /**
@@ -1682,6 +1698,7 @@ int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 
 /**
  * security_inode_symlink() - Check if creating a symbolic link is allowed
+ * @idmap: idmap of the mount
  * @dir: parent directory
  * @dentry: symbolic link
  * @old_name: existing filename
@@ -1690,16 +1707,17 @@ int security_inode_unlink(struct inode *dir, struct dentry *dentry)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_symlink(struct inode *dir, struct dentry *dentry,
-			   const char *old_name)
+int security_inode_symlink(struct mnt_idmap *idmap, struct inode *dir,
+			   struct dentry *dentry, const char *old_name)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_symlink, dir, dentry, old_name);
+	return call_int_hook(inode_symlink, idmap, dir, dentry, old_name);
 }
 
 /**
  * security_inode_mkdir() - Check if creating a new directory is allowed
+ * @idmap: idmap of the mount
  * @dir: parent directory
  * @dentry: new directory
  * @mode: new directory mode
@@ -1709,11 +1727,12 @@ int security_inode_symlink(struct inode *dir, struct dentry *dentry,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_inode_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+			 struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mkdir, dir, dentry, mode);
+	return call_int_hook(inode_mkdir, idmap, dir, dentry, mode);
 }
 EXPORT_SYMBOL_GPL(security_inode_mkdir);
 
@@ -1735,6 +1754,7 @@ int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 
 /**
  * security_inode_mknod() - Check if creating a special file is allowed
+ * @idmap: idmap of the mount
  * @dir: parent directory
  * @dentry: new file
  * @mode: new file mode
@@ -1747,12 +1767,12 @@ int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_mknod(struct inode *dir, struct dentry *dentry,
-			 umode_t mode, dev_t dev)
+int security_inode_mknod(struct mnt_idmap *idmap, struct inode *dir,
+			 struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mknod, dir, dentry, mode, dev);
+	return call_int_hook(inode_mknod, idmap, dir, dentry, mode, dev);
 }
 
 /**
@@ -1823,6 +1843,7 @@ int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
 
 /**
  * security_inode_permission() - Check if accessing an inode is allowed
+ * @idmap: idmap of the mount
  * @inode: inode
  * @mask: access mask
  *
@@ -1835,11 +1856,12 @@ int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_permission(struct inode *inode, int mask)
+int security_inode_permission(struct mnt_idmap *idmap, struct inode *inode,
+			      int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return call_int_hook(inode_permission, inode, mask);
+	return call_int_hook(inode_permission, idmap, inode, mask);
 }
 
 /**
@@ -2486,9 +2508,8 @@ void security_backing_file_free(struct file *backing_file)
 {
 	void *blob = backing_file_security(backing_file);
 
-	call_void_hook(backing_file_free, backing_file);
-
 	if (blob) {
+		call_void_hook(backing_file_free, backing_file);
 		backing_file_set_security(backing_file, NULL);
 		kmem_cache_free(lsm_backing_file_cache, blob);
 	}
@@ -3355,6 +3376,64 @@ void security_task_to_inode(struct task_struct *p, struct inode *inode)
 int security_create_user_ns(const struct cred *cred)
 {
 	return call_int_hook(userns_create, cred);
+}
+
+/**
+ * security_namespace_init() - Initialize LSM security data for a namespace
+ * @ns: the namespace being initialized
+ *
+ * Initialize the LSM security blob attached to the namespace. The namespace type
+ * is available via ns->ns_type, and the owning user namespace (if any)
+ * via ns->ops->owner(ns).
+ *
+ * Return: Returns 0 if successful, otherwise < 0 error code.
+ */
+int security_namespace_init(struct ns_common *ns)
+{
+	int rc;
+
+	rc = lsm_ns_alloc(ns);
+	if (unlikely(rc))
+		return rc;
+
+	rc = call_int_hook(namespace_init, ns);
+	if (unlikely(rc))
+		security_namespace_free(ns);
+
+	return rc;
+}
+
+/**
+ * security_namespace_free() - Release LSM security data from a namespace
+ * @ns: the namespace being freed
+ *
+ * Release security data attached to the namespace. Called before the
+ * namespace structure is freed.
+ */
+void security_namespace_free(struct ns_common *ns)
+{
+	if (!ns->ns_security)
+		return;
+
+	call_void_hook(namespace_free, ns);
+
+	kfree(ns->ns_security);
+	ns->ns_security = NULL;
+}
+
+/**
+ * security_namespace_install() - Check permission to install a namespace
+ * @nsset: the target nsset being configured
+ * @ns: the namespace being installed
+ *
+ * Check permission before allowing a namespace to be installed into the
+ * process's set of namespaces via setns(2).
+ *
+ * Return: Returns 0 if permission is granted, otherwise < 0 error code.
+ */
+int security_namespace_install(const struct nsset *nsset, struct ns_common *ns)
+{
+	return call_int_hook(namespace_install, nsset, ns);
 }
 
 /**

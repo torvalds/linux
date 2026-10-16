@@ -1089,14 +1089,15 @@ instant_inode:
 
 /**
  * smack_inode_link - Smack check on link
+ * @idmap: idmap of the mount
  * @old_dentry: the existing object
  * @dir: unused
  * @new_dentry: the new object
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
-			    struct dentry *new_dentry)
+static int smack_inode_link(struct mnt_idmap *idmap, struct dentry *old_dentry,
+			    struct inode *dir, struct dentry *new_dentry)
 {
 	struct smack_known *isp;
 	struct smk_audit_info ad;
@@ -1226,6 +1227,7 @@ static int smack_inode_rename(struct inode *old_inode,
 
 /**
  * smack_inode_permission - Smack version of permission()
+ * @idmap: idmap of the mount
  * @inode: the inode in question
  * @mask: the access requested
  *
@@ -1233,7 +1235,8 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask)
+static int smack_inode_permission(struct mnt_idmap *idmap, struct inode *inode,
+				  int mask)
 {
 	struct superblock_smack *sbsp = smack_superblock(inode->i_sb);
 	struct smk_audit_info ad;
