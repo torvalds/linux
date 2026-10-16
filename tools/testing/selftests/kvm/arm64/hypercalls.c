@@ -187,7 +187,7 @@ struct st_time {
 
 static void steal_time_init(struct kvm_vcpu *vcpu)
 {
-	u64 st_ipa = (ulong)ST_GPA_BASE;
+	u64 st_ipa = (unsigned long)ST_GPA_BASE;
 	unsigned int gpages;
 
 	gpages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, STEAL_TIME_SIZE);

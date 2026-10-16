@@ -533,6 +533,15 @@ static int svm_check_processor_compat(void)
 
 static void __svm_write_tsc_multiplier(u64 multiplier)
 {
+	/*
+	 * Fallback to the default ratio if KVM is buggy and tries to program
+	 * an unsupported scaling ratio, e.g. so that the guest has a chance of
+	 * surviving, so that the cache isn't stale/corrupted, and so that KVM
+	 * doesn't leak state across VMs.
+	 */
+	if (WARN_ON_ONCE(multiplier & SVM_TSC_RATIO_RSVD))
+		multiplier = SVM_TSC_RATIO_DEFAULT;
+
 	if (multiplier == __this_cpu_read(current_tsc_ratio))
 		return;
 

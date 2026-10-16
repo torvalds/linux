@@ -93,8 +93,8 @@ void l1_vmx_code(struct vmx_pages *vmx)
 	void *l2_rip;
 
 	GUEST_ASSERT(vmx->vmcs_gpa);
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
-	GUEST_ASSERT(load_vmcs(vmx));
+	prepare_for_vmx_operation(vmx);
+	load_vmcs(vmx);
 
 	if (vmx->eptp_gpa)
 		l2_rip = l2_guest_code_tdp_enabled;
@@ -104,9 +104,9 @@ void l1_vmx_code(struct vmx_pages *vmx)
 	prepare_vmcs(vmx, l2_rip);
 
 	GUEST_SYNC(TEST_SYNC_NO_FAULT);
-	GUEST_ASSERT(!vmlaunch());
+	vmlaunch();
 	GUEST_SYNC(TEST_SYNC_NO_FAULT);
-	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_VMCALL);
+	GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_VMCALL);
 	GUEST_DONE();
 }
 

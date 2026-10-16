@@ -1200,11 +1200,58 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_calc_nested_tsc_offset);
 
 u64 kvm_calc_nested_tsc_multiplier(u64 l1_multiplier, u64 l2_multiplier)
 {
-	if (l2_multiplier != kvm_caps.default_tsc_scaling_ratio)
-		return mul_u64_u64_shr(l1_multiplier, l2_multiplier,
-				       kvm_caps.tsc_scaling_ratio_frac_bits);
+	u8 frac_bits = kvm_caps.tsc_scaling_ratio_frac_bits;
+	u64 nested_multiplier;
 
-	return l1_multiplier;
+	if (l2_multiplier == kvm_caps.default_tsc_scaling_ratio)
+		return l1_multiplier;
+
+	/*
+	 * The shift is fixed on both AMD and Intel, and operates on a 64-bit
+	 * value.  I.e. a shift greater than 63 is completely nonsensical.
+	 */
+	if (WARN_ON_ONCE(frac_bits > 63))
+		return l1_multiplier;
+
+	/*
+	 * If the resulting multiplier can't be programmed into hardware, run
+	 * L2 at the minimum/maximum frequency supported by hardware, i.e.
+	 * saturate L2's frequency on both sides.  Because L2's frequency needs
+	 * to be distilled down to a single multiplier to get from:
+	 *
+	 *     L2 = (((L0 * L1_mult) >> frac) * L2_mult) >> frac)
+	 *
+	 * to:
+	 *
+	 *     L2 = (L0 * mult) >> frac
+	 *
+	 * very small/large L1 and L2 multipliers can underflow/overflow the
+	 * minimum/maximum multiplier supported by hardware when combined into
+	 * a single value.
+	 *
+	 * Manually check for the case where the result would overflow a u64,
+	 * i.e. if the multiplier would be silently truncated before the "too
+	 * large" check.  Avoid doing the multiply twice in the common case
+	 * where the compiler natively supports 128-bit values.
+	 */
+#ifdef CONFIG_ARCH_SUPPORTS_INT128
+	unsigned __int128 m = (unsigned __int128)l1_multiplier * l2_multiplier;
+
+	if (m >> (64 + frac_bits))
+		return kvm_caps.max_tsc_scaling_ratio;
+
+	nested_multiplier = m >> frac_bits;
+#else
+	if (mul_u64_u64_shr(l1_multiplier, l2_multiplier, 64 + frac_bits))
+		return kvm_caps.max_tsc_scaling_ratio;
+
+	nested_multiplier = mul_u64_u64_shr(l1_multiplier, l2_multiplier, frac_bits);
+#endif
+	if (nested_multiplier > kvm_caps.max_tsc_scaling_ratio)
+		return kvm_caps.max_tsc_scaling_ratio;
+
+	/* The minimum multiplier is '1' on both AMD and Intel. */
+	return nested_multiplier ?: 1;
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_calc_nested_tsc_multiplier);
 
@@ -3681,7 +3728,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		user_tsc_khz = (u32)arg;
 
 		if (kvm_caps.has_tsc_control &&
-		    user_tsc_khz >= kvm_caps.max_guest_tsc_khz)
+		    user_tsc_khz > kvm_caps.max_guest_tsc_khz)
 			goto out;
 
 		if (user_tsc_khz == 0)
@@ -4648,7 +4695,7 @@ set_pit2_out:
 		user_tsc_khz = (u32)arg;
 
 		if (kvm_caps.has_tsc_control &&
-		    user_tsc_khz >= kvm_caps.max_guest_tsc_khz)
+		    user_tsc_khz > kvm_caps.max_guest_tsc_khz)
 			goto out;
 
 		if (user_tsc_khz == 0)
@@ -7144,7 +7191,8 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	if (kvm_caps.has_tsc_control) {
 		/*
 		 * Make sure the user can only configure tsc_khz values that
-		 * fit into a signed integer.
+		 * fit into a signed integer, otherwise KVM_GET_TSC_KHZ would
+		 * return a negative value and confuse userspace.
 		 * A min value is not calculated because it will always
 		 * be 1 on all machines.
 		 */

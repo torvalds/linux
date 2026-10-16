@@ -245,32 +245,18 @@ static inline void evmcs_enable(void)
 	enable_evmcs = true;
 }
 
-static inline int evmcs_vmptrld(u64 vmcs_pa, void *vmcs)
+static inline void evmcs_vmptrld(u64 vmcs_pa, void *vmcs)
 {
 	current_vp_assist->current_nested_vmcs = vmcs_pa;
 	current_vp_assist->enlighten_vmentry = 1;
 
 	current_evmcs = vmcs;
-
-	return 0;
 }
 
-static inline bool load_evmcs(struct hyperv_test_pages *hv)
+static inline void load_evmcs(struct hyperv_test_pages *hv)
 {
-	if (evmcs_vmptrld(hv->enlightened_vmcs_gpa, hv->enlightened_vmcs))
-		return false;
-
+	evmcs_vmptrld(hv->enlightened_vmcs_gpa, hv->enlightened_vmcs);
 	current_evmcs->revision_id = EVMCS_VERSION;
-
-	return true;
-}
-
-static inline int evmcs_vmptrst(u64 *value)
-{
-	*value = current_vp_assist->current_nested_vmcs &
-		~HV_X64_MSR_VP_ASSIST_PAGE_ENABLE;
-
-	return 0;
 }
 
 static inline int evmcs_vmread(u64 encoding, u64 *value)
@@ -1199,64 +1185,6 @@ static inline int evmcs_vmwrite(u64 encoding, u64 value)
 	}
 
 	return 0;
-}
-
-static inline int evmcs_vmlaunch(void)
-{
-	int ret;
-
-	current_evmcs->hv_clean_fields = 0;
-
-	__asm__ __volatile__("push $0;"
-			     "mov %%rsp, (%[host_rsp]);"
-			     "lea 1f(%%rip), %%rax;"
-			     "mov %%rax, (%[host_rip]);"
-			     VMX_SWITCH_GPRS_ASM
-			     "vmlaunch;"
-			     "incq (%%rsp);"
-			     "1: ;"
-			     VMX_SWITCH_GPRS_ASM
-			     "pop %%rax;"
-			     : [ret]"=&a"(ret)
-			     : [host_rsp]"r"
-			       ((u64)&current_evmcs->host_rsp),
-			       [host_rip]"r"
-			       ((u64)&current_evmcs->host_rip),
-			       GUEST_REGS_OFFSETS
-			     : "memory", "cc");
-	return ret;
-}
-
-/*
- * No guest state (e.g. GPRs) is established by this vmresume.
- */
-static inline int evmcs_vmresume(void)
-{
-	int ret;
-
-	/* HOST_RIP */
-	current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1;
-	/* HOST_RSP */
-	current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_POINTER;
-
-	__asm__ __volatile__("push $0;"
-			     "mov %%rsp, (%[host_rsp]);"
-			     "lea 1f(%%rip), %%rax;"
-			     "mov %%rax, (%[host_rip]);"
-			     VMX_SWITCH_GPRS_ASM
-			     "vmresume;"
-			     "incq (%%rsp);"
-			     "1: ;"
-			     VMX_SWITCH_GPRS_ASM
-			     "pop %%rax;"
-			     : [ret]"=&a"(ret)
-			     : [host_rsp]"r"
-			       ((u64)&current_evmcs->host_rsp),
-			       [host_rip]"r"
-			       ((u64)&current_evmcs->host_rip),
-			       GUEST_REGS_OFFSETS
-			     : "memory", "cc");
-	return ret;
 }
 
 #endif /* !SELFTEST_KVM_EVMCS_H */

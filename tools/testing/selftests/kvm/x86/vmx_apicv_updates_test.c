@@ -33,12 +33,12 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 {
 	u32 control;
 
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
-	GUEST_ASSERT(load_vmcs(vmx_pages));
+	prepare_for_vmx_operation(vmx_pages);
+	load_vmcs(vmx_pages);
 
 	/* Prepare the VMCS for L2 execution. */
 	prepare_vmcs(vmx_pages, l2_guest_code);
-	control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
+	control = vmread(CPU_BASED_VM_EXEC_CONTROL);
 	control |= CPU_BASED_USE_MSR_BITMAPS;
 	vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);
 
@@ -62,9 +62,9 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	 * Run L2 to switch to x2APIC mode, which in turn will uninhibit APICv,
 	 * as KVM should force the APIC ID back to its default.
 	 */
-	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
-	vmwrite(GUEST_RIP, vmreadz(GUEST_RIP) + vmreadz(VM_EXIT_INSTRUCTION_LEN));
+	vmlaunch();
+	GUEST_ASSERT(vmread(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	vmwrite(GUEST_RIP, vmread(GUEST_RIP) + vmread(VM_EXIT_INSTRUCTION_LEN));
 	GUEST_ASSERT(rdmsr(MSR_IA32_APICBASE) & MSR_IA32_APICBASE_EXTD);
 
 	/*
@@ -90,8 +90,8 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	 * handles the x2APIC => xAPIC transition and inhibits APICv while L2
 	 * is active.
 	 */
-	GUEST_ASSERT(!vmresume());
-	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	vmresume();
+	GUEST_ASSERT(vmread(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	GUEST_ASSERT(!(rdmsr(MSR_IA32_APICBASE) & MSR_IA32_APICBASE_EXTD));
 
 	xapic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_DM_FIXED | GOOD_IPI_VECTOR);
