@@ -17,9 +17,11 @@ properties:
     const: '/'
   compatible:
     oneOf:
-      - description: BeagleV Ahead single board computer
+      - description: TH1520 single board computers
         items:
-          - const: beagle,beaglev-ahead
+          - enum:
+              - beagle,beaglev-ahead
+              - milkv,meles
           - const: thead,th1520
       - description: Sipeed Lichee Pi 4A board for the Sipeed Lichee Module 4A
         items:
