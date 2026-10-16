@@ -1580,6 +1580,9 @@ static void phy_del_port(struct phy_device *phydev, struct phy_port *port)
 
 	list_del(&port->head);
 
+	if (phydev->attached_dev)
+		phy_link_topo_del_port(phydev->attached_dev, port);
+
 	phydev->n_ports--;
 }
 
