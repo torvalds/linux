@@ -6017,7 +6017,9 @@ static int ext4_journal_bmap(journal_t *journal, sector_t *block)
 		ext4_msg(journal->j_inode->i_sb, KERN_CRIT,
 			 "journal bmap failed: block %llu ret %d\n",
 			 *block, ret);
-		jbd2_journal_abort(journal, ret ? ret : -EFSCORRUPTED);
+		if (!ret)
+			ret = -EFSCORRUPTED;
+		jbd2_journal_abort(journal, ret);
 		return ret;
 	}
 	*block = map.m_pblk;
