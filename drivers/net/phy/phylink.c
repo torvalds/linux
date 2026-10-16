@@ -96,6 +96,7 @@ struct phylink {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
 	u8 sfp_port;
 	struct phy_port *sfp_cage_port;
+	struct phy_port *mod_port;
 
 	struct eee_config eee_cfg;
 
@@ -1794,10 +1795,15 @@ static int phylink_create_sfp_cage_port(struct phylink *pl)
 	ret = phy_link_topo_add_port(pl->netdev, port);
 	rtnl_unlock();
 	if (ret)
-		phy_port_destroy(port);
-	else
-		pl->sfp_cage_port = port;
+		goto out_destroy_port;
 
+	pl->sfp_cage_port = port;
+
+	return 0;
+
+out_destroy_port:
+	phy_port_destroy(port);
+	pl->sfp_cage_port = NULL;
 	return ret;
 }
 
@@ -4014,14 +4020,68 @@ static void phylink_sfp_module_remove(void *upstream)
 	phy_interface_zero(pl->sfp_interfaces);
 }
 
+static int phylink_add_sfp_mod_port(struct phylink *pl)
+{
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
+	const struct sfp_module_caps *caps;
+	struct phy_port *port;
+	int ret = 0;
+
+	if (!pl->sfp_cage_port)
+		return 0;
+
+	/* Create mod port */
+	port = phy_port_alloc();
+	if (!port)
+		return -ENOMEM;
+
+	port->active = true;
+
+	caps = sfp_get_module_caps(pl->sfp_bus);
+
+	phy_interface_and(interfaces, pl->sfp_cage_port->interfaces,
+			  caps->interfaces);
+	phy_caps_linkmode_filter_ifaces(port->supported, caps->link_modes,
+					interfaces);
+
+	if (pl->netdev) {
+		ret = phy_link_topo_add_port(pl->netdev, port);
+		if (ret) {
+			phy_port_destroy(port);
+			return ret;
+		}
+	}
+
+	pl->mod_port = port;
+
+	return 0;
+}
+
+static void phylink_del_sfp_mod_port(struct phylink *pl)
+{
+	if (!pl->mod_port)
+		return;
+
+	if (pl->netdev)
+		phy_link_topo_del_port(pl->netdev, pl->mod_port);
+
+	phy_port_destroy(pl->mod_port);
+	pl->mod_port = NULL;
+}
+
 static int phylink_sfp_module_start(void *upstream)
 {
 	struct phylink *pl = upstream;
+	int ret;
 
 	/* If this SFP module has a PHY, start the PHY now. */
 	if (pl->phydev) {
 		phy_start(pl->phydev);
 		return 0;
+	} else {
+		ret = phylink_add_sfp_mod_port(pl);
+		if (ret)
+			return ret;
 	}
 
 	/* If the module may have a PHY but we didn't detect one we
@@ -4030,7 +4090,16 @@ static int phylink_sfp_module_start(void *upstream)
 	if (!pl->sfp_may_have_phy)
 		return 0;
 
-	return phylink_sfp_config_optical(pl);
+	ret = phylink_sfp_config_optical(pl);
+	if (ret)
+		goto del_mod_port;
+
+	return 0;
+
+del_mod_port:
+	phylink_del_sfp_mod_port(pl);
+
+	return ret;
 }
 
 static void phylink_sfp_module_stop(void *upstream)
@@ -4040,6 +4109,8 @@ static void phylink_sfp_module_stop(void *upstream)
 	/* If this SFP module has a PHY, stop it. */
 	if (pl->phydev)
 		phy_stop(pl->phydev);
+	else
+		phylink_del_sfp_mod_port(pl);
 }
 
 static void phylink_sfp_link_down(void *upstream)

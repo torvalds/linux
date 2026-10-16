@@ -612,7 +612,10 @@ struct phy_oatc14_sqi_capability {
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
  * @phylink: Pointer to phylink instance for this PHY
  * @sfp_bus_attached: Flag indicating whether the SFP bus has been attached
+ * @has_sfp_mod_phy: Set true if downstream SFP bus's module contains a PHY
  * @sfp_bus: SFP bus attached to this PHY's fiber port
+ * @sfp_cage_port: The phy_port connected to the downstream SFP cage
+ * @mod_port: phy_port representing the SFP module, if it is phy-less
  * @attached_dev: The attached enet driver's device instance ptr
  * @adjust_link: Callback for the enet controller to respond to changes: in the
  *               link state.
@@ -804,7 +807,10 @@ struct phy_device {
 
 	/* This may be modified under the rtnl lock */
 	bool sfp_bus_attached;
+	bool has_sfp_mod_phy;
 	struct sfp_bus *sfp_bus;
+	struct phy_port *sfp_cage_port;
+	struct phy_port *mod_port;
 	struct phylink *phylink;
 	struct net_device *attached_dev;
 	struct mii_timestamper *mii_ts;
