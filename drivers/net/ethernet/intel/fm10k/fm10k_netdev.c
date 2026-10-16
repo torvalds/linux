@@ -561,13 +561,8 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* The minimum packet size for a single buffer is 17B so pad the skb
 	 * in order to meet this minimum size requirement.
 	 */
-	if (unlikely(skb->len < 17)) {
-		int pad_len = 17 - skb->len;
-
-		if (skb_pad(skb, pad_len))
-			return NETDEV_TX_OK;
-		__skb_put(skb, pad_len);
-	}
+	if (skb_put_padto(skb, 17))
+		return NETDEV_TX_OK;
 
 	if (r_idx >= num_tx_queues)
 		r_idx %= num_tx_queues;
