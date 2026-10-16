@@ -271,6 +271,7 @@ static void free_channel_list(struct ksmbd_session *sess)
 	down_write(&sess->chann_lock);
 	xa_for_each(&sess->ksmbd_chann_list, index, chann) {
 		xa_erase(&sess->ksmbd_chann_list, index);
+		ksmbd_conn_put(chann->conn);
 		kfree_sensitive(chann);
 	}
 
@@ -598,6 +599,7 @@ static int ksmbd_chann_del(struct ksmbd_conn *conn, struct ksmbd_session *sess)
 	if (!chann)
 		return -ENOENT;
 
+	ksmbd_conn_put(chann->conn);
 	kfree_sensitive(chann);
 	return 0;
 }
