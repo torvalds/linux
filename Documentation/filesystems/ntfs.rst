@@ -38,14 +38,19 @@ The project is available at:
 Linux file attributes
 =====================
 
-The driver supports lsattr(1) and chattr(1). Immutable, append-only and
-nodump are stored in a private ``$LINUXFLAGS`` extended attribute within the
+The driver supports lsattr(1) and chattr(1). Immutable, append-only, nodump
+and noatime are stored in a private ``$LINUXFLAGS`` extended attribute within the
 standard NTFS ``$EA``/``$EA_INFORMATION`` attributes. Its value is a
 32-bit little-endian bitmask: bit 0 is immutable, bit 1 is append-only,
-and bit 2 is nodump. Unknown bits are preserved when updating the flags;
-the entry is removed when the entire value becomes zero. These settings
+bit 2 is nodump, and bit 3 is noatime. Unknown bits are preserved when updating
+the flags; the entry is removed when the entire value becomes zero. These settings
 survive inode eviction, unmount and reboot. Direct writes to this EA
 through setxattr(2) or removexattr(2) are rejected; use chattr(1) instead.
+
+The noatime attribute (``chattr +A``) suppresses automatic access-time
+updates for the inode, including when mounted with ``strictatime``. It
+applies to directories as well as files, but is not inherited by newly
+created children. Use ``chattr -A`` to restore the mount's access-time policy.
 
 System metadata files and files protected by the ``sys_immutable`` mount
 option cannot have their immutable protection cleared with chattr(1).
@@ -55,7 +60,7 @@ configured per file. Compression and encryption are reported but cannot
 be changed through chattr(1).
 
 These Linux flags are enforced by Linux. Storing them in an NTFS EA does
-not make Windows enforce immutable, append-only or nodump semantics.
+not make Windows enforce immutable, append-only, nodump or noatime semantics.
 
 
 Supported mount options

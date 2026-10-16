@@ -167,6 +167,8 @@ int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 		flags |= FS_IMMUTABLE_FL;
 	if (vi->i_flags & S_APPEND)
 		flags |= FS_APPEND_FL;
+	if (vi->i_flags & S_NOATIME)
+		flags |= FS_NOATIME_FL;
 	if (ni->linuxflags & NTFS_LINUXFLAGS_NODUMP)
 		flags |= FS_NODUMP_FL;
 	if (!NVolCaseSensitive(ni->vol))
@@ -200,7 +202,8 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	struct inode *vi = d_inode(dentry);
 	struct ntfs_inode *ni = NTFS_I(vi);
-	u32 allowed = FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL;
+	u32 allowed = FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL |
+		      FS_NOATIME_FL;
 	u32 readonly = 0;
 	u32 linuxflags = ni->linuxflags & ~NTFS_LINUXFLAGS_MASK;
 	unsigned int new_fl = 0;
@@ -245,6 +248,10 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 	if (fa->flags & FS_NODUMP_FL)
 		linuxflags |= NTFS_LINUXFLAGS_NODUMP;
+	if (fa->flags & FS_NOATIME_FL) {
+		new_fl |= S_NOATIME;
+		linuxflags |= NTFS_LINUXFLAGS_NOATIME;
+	}
 
 	mutex_lock(&ni->mrec_lock);
 	err = ntfs_ea_set_linuxflags(vi, linuxflags);
@@ -252,7 +259,7 @@ int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 	if (err)
 		return err;
 
-	inode_set_flags(vi, new_fl, S_IMMUTABLE | S_APPEND);
+	inode_set_flags(vi, new_fl, S_IMMUTABLE | S_APPEND | S_NOATIME);
 	inode_set_ctime_current(vi);
 	mark_inode_dirty(vi);
 	return 0;

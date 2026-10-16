@@ -501,6 +501,8 @@ int ntfs_ea_get_linuxflags(struct inode *inode)
 		inode->i_flags |= S_IMMUTABLE;
 	if (ni->linuxflags & NTFS_LINUXFLAGS_APPEND)
 		inode->i_flags |= S_APPEND;
+	if (ni->linuxflags & NTFS_LINUXFLAGS_NOATIME)
+		inode->i_flags |= S_NOATIME;
 	return 0;
 }
 
