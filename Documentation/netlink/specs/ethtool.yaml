@@ -212,6 +212,11 @@ definitions:
       -
         name: discard
         value: 31
+  -
+    name: port-type
+    doc: type of physical connector
+    type: enum
+    entries: [mdi, sfp]
 
 attribute-sets:
   -
@@ -1907,6 +1912,32 @@ attribute-sets:
         name: link
         type: nest
         nested-attributes: mse-snapshot
+  -
+    name: port
+    attr-cnt-name: --ethtool-a-port-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: id
+        type: u32
+      -
+        name: supported-modes
+        type: nest
+        nested-attributes: bitset
+      -
+        name: supported-interfaces
+        type: nest
+        nested-attributes: bitset
+      -
+        name: type
+        type: u32
+        enum: port-type
+      -
+        name: upstream-port
+        type: u32
 
 operations:
   enum-model: directional
@@ -2861,6 +2892,30 @@ operations:
             - worst-channel
             - link
       dump: *mse-get-op
+    -
+      name: port-get
+      doc: Get ports attached to an interface
+
+      attribute-set: port
+
+      do:
+        request:
+          attributes:
+            - header
+            - id
+        reply: &port-get-op-reply
+          attributes:
+            - header
+            - id
+            - supported-modes
+            - supported-interfaces
+            - type
+            - upstream-port
+      dump:
+        request:
+          attributes:
+            - header
+        reply: *port-get-op-reply
 
 mcast-groups:
   list:
