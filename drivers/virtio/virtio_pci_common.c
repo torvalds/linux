@@ -47,7 +47,7 @@ void vp_synchronize_vectors(struct virtio_device *vdev)
 		synchronize_irq(pci_irq_vector(vp_dev->pci_dev, i));
 }
 
-/* the notify function used when creating a virt queue */
+/* the notify function used when creating a virtqueue */
 bool vp_notify(struct virtqueue *vq)
 {
 	/* we write the queue's selector into the notification register to

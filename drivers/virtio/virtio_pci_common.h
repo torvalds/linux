@@ -127,7 +127,7 @@ static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
 
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev);
-/* the notify function used when creating a virt queue */
+/* the notify function used when creating a virtqueue */
 bool vp_notify(struct virtqueue *vq);
 /* the config->del_vqs() implementation */
 void vp_del_vqs(struct virtio_device *vdev);
