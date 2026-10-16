@@ -548,7 +548,7 @@ static inline void audit_openat2_how(struct open_how *how)
 
 static inline void audit_log_kern_module(const char *name)
 {
-	if (!audit_dummy_context())
+	if (unlikely(!audit_dummy_context()))
 		__audit_log_kern_module(name);
 }
 
@@ -564,7 +564,7 @@ static inline void audit_tk_injoffset(struct timespec64 offset)
 	if (offset.tv_sec == 0 && offset.tv_nsec == 0)
 		return;
 
-	if (!audit_dummy_context())
+	if (unlikely(!audit_dummy_context()))
 		__audit_tk_injoffset(offset);
 }
 
@@ -587,7 +587,7 @@ static inline void audit_ntp_set_new(struct audit_ntp_data *ad,
 
 static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 {
-	if (!audit_dummy_context())
+	if (unlikely(!audit_dummy_context()))
 		__audit_ntp_log(ad);
 }
 

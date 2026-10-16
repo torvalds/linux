@@ -871,7 +871,7 @@ static void kauditd_send_multicast_skb(struct sk_buff *skb)
 	if (!copy)
 		return;
 	nlh = nlmsg_hdr(copy);
-	nlh->nlmsg_len = skb->len;
+	nlh->nlmsg_len = copy->len;
 
 	nlmsg_multicast(sock, copy, 0, AUDIT_NLGRP_READLOG, GFP_KERNEL);
 }

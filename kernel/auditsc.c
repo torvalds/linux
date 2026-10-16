@@ -107,7 +107,7 @@ struct audit_aux_data_pids {
 
 struct audit_aux_data_bprm_fcaps {
 	struct audit_aux_data	d;
-	struct audit_cap_data	fcap;
+	struct audit_file_caps	fcap;
 	unsigned int		fcap_ver;
 	struct audit_cap_data	old_pcap;
 	struct audit_cap_data	new_pcap;
@@ -2601,6 +2601,8 @@ void __audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_context *context = audit_context();
 
+	/* clear proctitle in audit context to allow replacement */
+	audit_proctitle_free(context);
 	context->type = AUDIT_EXECVE;
 	context->execve.argc = bprm->argc;
 }
