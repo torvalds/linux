@@ -477,11 +477,7 @@ static int adjust_subprog_starts_after_remove(struct bpf_verifier_env *env,
 
 	if (j > i) {
 		struct bpf_prog_aux *aux = env->prog->aux;
-		int move, k;
-
-		/* The removed subprogs own their jump tables. */
-		for (k = i; k < j; k++)
-			kvfree(env->subprog_info[k].jt);
+		int move;
 
 		/* move fake 'exit' subprog as well */
 		move = env->subprog_cnt + 1 - j;
@@ -489,9 +485,6 @@ static int adjust_subprog_starts_after_remove(struct bpf_verifier_env *env,
 		memmove(env->subprog_info + i,
 			env->subprog_info + j,
 			sizeof(*env->subprog_info) * move);
-		/* The vacated tail still holds copies of the moved entries. */
-		memset(env->subprog_info + i + move, 0,
-		       sizeof(*env->subprog_info) * (j - i));
 		env->subprog_cnt -= j - i;
 
 		/* remove func_info and its aux */
