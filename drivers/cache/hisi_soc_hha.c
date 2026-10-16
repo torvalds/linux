@@ -170,7 +170,7 @@ static void hisi_soc_hha_remove(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id hisi_soc_hha_ids[] = {
-	{ "HISI0511", },
+	{ .id = "HISI0511" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, hisi_soc_hha_ids);
