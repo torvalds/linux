@@ -29,6 +29,8 @@ struct irq_domain_ops;
 
 #ifdef	CONFIG_ACPI
 
+DEFINE_FREE(acpi_object_free, union acpi_object *, if (_T) ACPI_FREE(_T));
+
 #include <linux/list.h>
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
