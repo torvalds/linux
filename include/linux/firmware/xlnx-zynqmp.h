@@ -277,11 +277,6 @@ enum rpu_oper_mode {
 	PM_RPU_MODE_SPLIT = 1,
 };
 
-enum rpu_boot_mem {
-	PM_RPU_BOOTMEM_LOVEC = 0,
-	PM_RPU_BOOTMEM_HIVEC = 1,
-};
-
 enum rpu_tcm_comb {
 	PM_RPU_TCM_SPLIT = 0,
 	PM_RPU_TCM_COMB = 1,

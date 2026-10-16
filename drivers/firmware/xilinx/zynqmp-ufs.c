@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Advanced Micro Devices, Inc.
  */
 
+#include <linux/delay.h>
 #include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/module.h>
 
@@ -33,7 +34,7 @@
  *
  * Return:	Returns 0 on success or error value on failure.
  */
-int zynqmp_pm_is_mphy_tx_rx_config_ready(bool *is_ready)
+static int zynqmp_pm_is_mphy_tx_rx_config_ready(bool *is_ready)
 {
 	u32 regval;
 	int ret;
@@ -53,7 +54,6 @@ int zynqmp_pm_is_mphy_tx_rx_config_ready(bool *is_ready)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(zynqmp_pm_is_mphy_tx_rx_config_ready);
 
 /**
  * zynqmp_pm_is_sram_init_done - check SRAM initialization
@@ -61,7 +61,7 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_is_mphy_tx_rx_config_ready);
  *
  * Return:	Returns 0 on success or error value on failure.
  */
-int zynqmp_pm_is_sram_init_done(bool *is_done)
+static int zynqmp_pm_is_sram_init_done(bool *is_done)
 {
 	u32 regval;
 	int ret;
@@ -81,7 +81,69 @@ int zynqmp_pm_is_sram_init_done(bool *is_done)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(zynqmp_pm_is_sram_init_done);
+
+/**
+ * zynqmp_pm_wait_mphy_tx_rx_config_ready - wait for M-PHY TX-RX config ready
+ * @timeout_us:	Caller-supplied timeout budget in microseconds
+ *
+ * Poll the M-PHY TX-RX configuration-ready status until it settles or the
+ * timeout elapses. The poll loop is EEMI-specific (legacy firmware only offers
+ * the per-read status primitive), so it lives here in the firmware driver
+ * rather than in the UFS controller driver; an SCMI-based backend can instead
+ * offload the wait to the platform in a single call. The timeout budget is
+ * owned by the caller (UFS driver), keeping the policy with the consumer.
+ *
+ * Return:	Returns 0 once ready, -ETIMEDOUT on timeout, or error value.
+ */
+int zynqmp_pm_wait_mphy_tx_rx_config_ready(u32 timeout_us)
+{
+	bool is_ready;
+	int ret;
+
+	while (timeout_us--) {
+		ret = zynqmp_pm_is_mphy_tx_rx_config_ready(&is_ready);
+		if (ret)
+			return ret;
+
+		if (!is_ready)
+			return 0;
+
+		usleep_range(1, 5);
+	}
+
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_wait_mphy_tx_rx_config_ready);
+
+/**
+ * zynqmp_pm_wait_sram_init_done - wait for SRAM initialization to complete
+ * @timeout_us:	Caller-supplied timeout budget in microseconds
+ *
+ * Poll the SRAM initialization-done status until it is set or the timeout
+ * elapses. As with the M-PHY wait, the poll loop is EEMI-specific and kept in
+ * the firmware driver so the UFS controller driver stays backend-agnostic.
+ *
+ * Return:	Returns 0 once done, -ETIMEDOUT on timeout, or error value.
+ */
+int zynqmp_pm_wait_sram_init_done(u32 timeout_us)
+{
+	bool is_done;
+	int ret;
+
+	while (timeout_us--) {
+		ret = zynqmp_pm_is_sram_init_done(&is_done);
+		if (ret)
+			return ret;
+
+		if (is_done)
+			return 0;
+
+		usleep_range(1, 5);
+	}
+
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_wait_sram_init_done);
 
 /**
  * zynqmp_pm_set_sram_bypass - Set SRAM bypass Control
