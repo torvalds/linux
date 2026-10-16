@@ -532,7 +532,12 @@ bool ksmbd_conn_has_valid_or_expired_session(struct ksmbd_conn *conn)
 	int state, bkt;
 	bool found = false;
 
-	down_read(&conn->session_lock);
+	/*
+	 * The expiration worker holds conn_list_lock, which session teardown
+	 * takes after the session locks. Defer scavenging if either is busy.
+	 */
+	if (!down_read_trylock(&conn->session_lock))
+		return true;
 	xa_for_each(&conn->sessions, id, sess) {
 		state = READ_ONCE(sess->state);
 		if (state == SMB2_SESSION_VALID ||
@@ -546,7 +551,8 @@ bool ksmbd_conn_has_valid_or_expired_session(struct ksmbd_conn *conn)
 		return true;
 
 	/* A session bound through SMB3 multichannel is not in conn->sessions. */
-	down_read(&sessions_table_lock);
+	if (!down_read_trylock(&sessions_table_lock))
+		return true;
 	hash_for_each(sessions_table, bkt, sess, hlist) {
 		state = READ_ONCE(sess->state);
 		if (state != SMB2_SESSION_VALID &&
