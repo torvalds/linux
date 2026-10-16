@@ -433,8 +433,12 @@ snd_seq_oss_event_input(struct snd_seq_event *ev, int direct, void *private_data
 
 	rec = (union evrec*)&ev->data;
 	if (rec->s.code == SEQ_SYNCTIMER) {
+		struct seq_oss_writeq *writeq = READ_ONCE(dp->writeq);
+
+		if (!writeq)
+			return 0;
 		/* sync echo back */
-		snd_seq_oss_writeq_wakeup(dp->writeq, rec->t.time);
+		snd_seq_oss_writeq_wakeup(writeq, rec->t.time);
 		
 	} else {
 		/* echo back event */
