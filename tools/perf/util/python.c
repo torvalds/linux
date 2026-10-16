@@ -3824,10 +3824,12 @@ static PyObject *pyrf__parse_events(PyObject *self, PyObject *args)
 	perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 	if (parse_events(evlist, input, &err)) {
 		parse_events_error__print(&err, input);
+		parse_events_error__exit(&err);
 		PyErr_SetFromErrno(PyExc_OSError);
 		evlist__put(evlist);
 		return NULL;
 	}
+	parse_events_error__exit(&err);
 	result = pyrf_evlist__from_evlist(evlist);
 	evlist__put(evlist);
 	return result;
