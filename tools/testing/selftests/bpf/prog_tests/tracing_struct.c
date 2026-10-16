@@ -5,6 +5,8 @@
 #include "tracing_struct.skel.h"
 #include "tracing_struct_many_args.skel.h"
 #include "tracing_struct_int128.skel.h"
+#include "tracing_struct_int128_tgt.skel.h"
+#include "tracing_struct_int128_tracer.skel.h"
 #include "tracing_stack_arg_tailcall_tgt.skel.h"
 #include "tracing_stack_arg_tailcall_tracer.skel.h"
 
@@ -164,6 +166,76 @@ destroy_skel:
 #endif
 }
 
+static void test_int128_tgt_prog(void)
+{
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__)
+	struct tracing_struct_int128_tracer *tracer = NULL;
+	struct tracing_struct_int128_tgt *tgt;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, fd;
+
+	tgt = tracing_struct_int128_tgt__open_and_load();
+	if (!ASSERT_OK_PTR(tgt, "tgt__open_and_load"))
+		return;
+	if (!tgt->rodata->has_struct_arg) {
+		test__skip();
+		goto out;
+	}
+	fd = bpf_program__fd(tgt->progs.run);
+
+	tracer = tracing_struct_int128_tracer__open();
+	if (!ASSERT_OK_PTR(tracer, "tracer__open"))
+		goto out;
+
+	err = bpf_program__set_attach_target(tracer->progs.odd_entry, fd, "callee_odd");
+	err = err ?: bpf_program__set_attach_target(tracer->progs.odd_exit, fd, "callee_odd");
+	if (tgt->rodata->has_stack_arg) {
+		err = err ?: bpf_program__set_attach_target(tracer->progs.stack_entry, fd,
+							     "callee_stack");
+		err = err ?: bpf_program__set_attach_target(tracer->progs.stack_exit, fd,
+							     "callee_stack");
+	} else {
+		bpf_program__set_autoload(tracer->progs.stack_entry, false);
+		bpf_program__set_autoload(tracer->progs.stack_exit, false);
+	}
+	if (!ASSERT_OK(err, "set_attach_target"))
+		goto out;
+
+	err = tracing_struct_int128_tracer__load(tracer);
+	if (!ASSERT_OK(err, "tracer__load"))
+		goto out;
+	err = tracing_struct_int128_tracer__attach(tracer);
+	if (!ASSERT_OK(err, "tracer__attach"))
+		goto out;
+
+	err = bpf_prog_test_run_opts(fd, &topts);
+	if (!ASSERT_OK(err, "test_run") || !ASSERT_EQ(topts.retval, 0, "retval"))
+		goto out;
+
+	ASSERT_EQ(tracer->bss->odd_a, 1, "odd:a");
+	ASSERT_EQ(tracer->bss->odd_lo, 8, "odd:v.lo");
+	ASSERT_EQ(tracer->bss->odd_hi, 9, "odd:v.hi");
+	ASSERT_EQ(tracer->bss->odd_b, 2, "odd:b");
+	ASSERT_EQ(tgt->bss->ret_odd, 52, "odd ret");
+	ASSERT_EQ(tracer->bss->odd_ret, 52, "odd fexit ret");
+
+	if (tgt->rodata->has_stack_arg) {
+		ASSERT_EQ(tracer->bss->stack_g, 7, "stack:g");
+		ASSERT_EQ(tracer->bss->stack_lo, 8, "stack:h.lo");
+		ASSERT_EQ(tracer->bss->stack_hi, 9, "stack:h.hi");
+		ASSERT_EQ(tracer->bss->stack_i, 10, "stack:i");
+		ASSERT_EQ(tgt->bss->ret_stack, 385, "stack ret");
+		ASSERT_EQ(tracer->bss->stack_ret, 385, "stack fexit ret");
+	}
+
+out:
+	tracing_struct_int128_tracer__destroy(tracer);
+	tracing_struct_int128_tgt__destroy(tgt);
+#else
+	test__skip();
+#endif
+}
+
 /*
  * A trampoline on a function of a tail_call_reachable program keeps the tail
  * call counter pointer on its stack, and has to hand the function its stack
@@ -254,6 +326,8 @@ void test_tracing_struct(void)
 		test_struct_many_args();
 	if (test__start_subtest("int128_args"))
 		test_int128_args();
+	if (test__start_subtest("int128_tgt_prog"))
+		test_int128_tgt_prog();
 	if (test__start_subtest("stack_arg_tailcall"))
 		test_stack_arg_tailcall();
 	if (test__start_subtest("union_args"))
