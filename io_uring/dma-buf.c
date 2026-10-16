@@ -18,6 +18,11 @@ int __io_register_dmabuf(struct io_ring_ctx *ctx,
 	struct dma_buf *dmabuf = NULL;
 	int ret;
 
+	/*
+	 * We have to drop the dma-buf map early when IO is finished. Disable
+	 * IOPOLL for now as we can't wait potentially infintely for a task
+	 * to do that.
+	 */
 	if (ctx->flags & IORING_SETUP_IOPOLL)
 		return -EOPNOTSUPP;
 	if (desc->uaddr || desc->size)
@@ -51,7 +56,7 @@ int __io_register_dmabuf(struct io_ring_ctx *ctx,
 	imu->len = dmabuf->size;
 	imu->release = io_release_dmabuf;
 	imu->priv = bd;
-	imu->flags = IO_REGBUF_F_DMABUF | IO_REGBUF_F_UNCLONEABLE;
+	imu->flags = IO_REGBUF_F_DMABUF;
 	imu->dir = IO_BUF_DEST | IO_BUF_SOURCE;
 	dma_buf_put(dmabuf);
 	return 0;
