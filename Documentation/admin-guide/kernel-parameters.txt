@@ -3159,6 +3159,32 @@ Kernel parameters
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
 
+	kvm.gmem_in_place_conversion=
+			[KVM] Controls whether KVM enables in-place conversion
+			support for guest_memfd and tracks the private/shared
+			state of memory per guest_memfd instead of per VM.
+
+			If enabled, KVM enables the KVM_SET_MEMORY_ATTRIBUTES2
+			ioctl on guest_memfd file descriptors and disables the
+			legacy VM-scoped KVM_SET_MEMORY_ATTRIBUTES ioctl for
+			private memory state tracking. Only the
+			KVM_MEMORY_ATTRIBUTE_PRIVATE attribute moves to
+			per-guest_memfd tracking; other attributes remain
+			per-VM.
+
+			This parameter toggles KVM's in-place conversion
+			capability support. Whether a VMM uses separate backends
+			or out-of-place memory management is determined by
+			userspace VMM design.
+
+			Note, this parameter is only available when
+			CONFIG_KVM_VM_MEMORY_ATTRIBUTES=y. When
+			CONFIG_KVM_VM_MEMORY_ATTRIBUTES is not set, in-place
+			conversion is enabled (and cannot be disabled) if KVM
+			is built with private memory support.
+
+			Default is N (off).
+
 	kvm.nx_huge_pages=
 			[KVM] Controls the software workaround for the
 			X86_BUG_ITLB_MULTIHIT bug.
