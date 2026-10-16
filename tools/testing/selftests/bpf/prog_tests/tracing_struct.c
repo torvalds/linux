@@ -119,9 +119,11 @@ static void test_int128_args(void)
 {
 	/*
 	 * __int128 arguments are passed in a register pair on x86_64 and
-	 * arm64, which the trampoline packs into two context slots. Other
-	 * architectures pass a __int128 differently (e.g. s390x passes larger
-	 * arguments by reference), so only exercise this on x86_64 and arm64.
+	 * arm64, which the trampoline packs into two context slots. Past the
+	 * registers, both start an argument aligned to 16 bytes at an even
+	 * stack slot, which the trampoline packs too. Other architectures
+	 * pass a __int128 differently (e.g. s390x passes larger arguments by
+	 * reference), so only exercise this on x86_64 and arm64.
 	 */
 #if defined(__x86_64__) || defined(__aarch64__)
 	struct tracing_struct_int128 *skel;
@@ -140,6 +142,20 @@ static void test_int128_args(void)
 	ASSERT_EQ(skel->bss->t_b, 2, "t:b");
 	ASSERT_EQ(skel->bss->t_c, 3, "t:c");
 	ASSERT_EQ(skel->bss->t_ret, 6, "t ret");
+
+	ASSERT_EQ(skel->bss->s_g, 7, "s:g");
+	ASSERT_EQ(skel->bss->s_h_lo, 8, "s:h.lo");
+	ASSERT_EQ(skel->bss->s_h_hi, 9, "s:h.hi");
+	ASSERT_EQ(skel->bss->s_i, 10, "s:i");
+	ASSERT_EQ(skel->bss->s_ret, 385, "s ret");
+
+	ASSERT_EQ(skel->bss->b_f_a, 6, "b:f.a");
+	ASSERT_EQ(skel->bss->b_f_b, 7, "b:f.b");
+	ASSERT_EQ(skel->bss->b_g, 8, "b:g");
+	ASSERT_EQ(skel->bss->b_h, 9, "b:h");
+	ASSERT_EQ(skel->bss->b_i_lo, 10, "b:i.lo");
+	ASSERT_EQ(skel->bss->b_i_hi, 11, "b:i.hi");
+	ASSERT_EQ(skel->bss->b_ret, 506, "b ret");
 
 destroy_skel:
 	tracing_struct_int128__destroy(skel);
