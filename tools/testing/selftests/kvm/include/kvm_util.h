@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 #include "linux/rbtree.h"
 #include <linux/types.h>
+#include <unistd.h>
 
 #include <asm/atomic.h>
 #include <asm/kvm.h>
@@ -241,6 +242,9 @@ enum vm_guest_mode {
 	VM_MODE_P41V48_4K,
 	VM_MODE_P41V39_4K,
 
+	VM_MODE_P52V52_4K,	/* For powerpc64 */
+	VM_MODE_P52V52_64K,
+
 	NUM_VM_MODES,
 };
 
@@ -297,6 +301,12 @@ extern enum vm_guest_mode vm_mode_default;
 
 #elif defined(__loongarch__)
 #define VM_MODE_DEFAULT			VM_MODE_P47V47_16K
+#define MIN_PAGE_SHIFT			12U
+#define ptes_per_page(page_size)	((page_size) / 8)
+
+#elif defined(__powerpc64__)
+
+#define VM_MODE_DEFAULT			vm_mode_default
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 
@@ -1161,6 +1171,22 @@ void kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
 const char *exit_reason_str(unsigned int exit_reason);
 
 bool kvm_arch_needs_naturally_aligned_page_tables(void);
+
+/*
+ * True on powerpc when this host is a pseries LPAR (nested case).
+ * PowerPC's PAPR L0 does not guarantee H_GUEST_CREATE / H_GUEST_CREATE_VCPU up
+ * to MAX_VCPUS or creating hundreds of VMs - due to limited resouces at L0 for
+ * guest management space. This helper allows us to skip such tests when we are
+ * running nested.
+ */
+static inline bool kvm_is_ppc_pseries_lpar(void)
+{
+#ifdef __powerpc64__
+	return !access("/proc/device-tree/rtas/ibm,hypertas-functions", F_OK);
+#else
+	return false;
+#endif
+}
 
 gpa_t ____vm_phy_pages_alloc(struct kvm_vm *vm, size_t nr_pages, gpa_t min_gpa,
 			     u32 memslot, bool protected, bool naturally_aligned);
