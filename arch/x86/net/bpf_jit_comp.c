@@ -4233,9 +4233,9 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
 	return 0;
 }
 
-/* mov rax, qword ptr [rbp - rounded_stack_depth - 8] */
-#define LOAD_TRAMP_TAIL_CALL_CNT_PTR(stack)	\
-	__LOAD_TCC_PTR(-round_up(stack, 8) - 8)
+/* mov rax, qword ptr [rbp - off] */
+#define LOAD_TRAMP_TAIL_CALL_CNT_PTR(off)	\
+	__LOAD_TCC_PTR(-(off))
 
 /* Example:
  * __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
@@ -4305,6 +4305,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 {
 	int i, ret, nr_regs = m->nr_args, stack_size = 0;
 	int regs_off, func_meta_off, ip_off, run_ctx_off, arg_stack_off, rbx_off;
+	int tcc_off = 0;
 	struct bpf_tramp_nodes *fentry = &tnodes[BPF_TRAMP_FENTRY];
 	struct bpf_tramp_nodes *fexit = &tnodes[BPF_TRAMP_FEXIT];
 	struct bpf_tramp_nodes *fmod_ret = &tnodes[BPF_TRAMP_MODIFY_RETURN];
@@ -4355,11 +4356,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	 *
 	 * RBP - run_ctx_off [ bpf_tramp_run_ctx ]
 	 *
+	 * RBP - tcc_off   [ tail_call_cnt_ptr ]  BPF_TRAMP_F_TAIL_CALL_CTX
+	 *
 	 *                     [ stack_argN ]  BPF_TRAMP_F_CALL_ORIG
 	 *                     [ ...        ]
 	 *                     [ stack_arg2 ]
 	 * RBP - arg_stack_off [ stack_arg1 ]
-	 * RSP                 [ tail_call_cnt_ptr ] BPF_TRAMP_F_TAIL_CALL_CTX
 	 */
 
 	/* room for return value of orig_call or fentry prog */
@@ -4389,6 +4391,11 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 
 	stack_size += (sizeof(struct bpf_tramp_run_ctx) + 7) & ~0x7;
 	run_ctx_off = stack_size;
+
+	if (flags & BPF_TRAMP_F_TAIL_CALL_CTX) {
+		stack_size += 8;
+		tcc_off = stack_size;
+	}
 
 	if (nr_regs > 6 && (flags & BPF_TRAMP_F_CALL_ORIG)) {
 		/* the space that used to pass arguments on-stack */
@@ -4442,7 +4449,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	/* sub rsp, stack_size */
 	emit_sub_rsp(&prog, stack_size);
 	if (flags & BPF_TRAMP_F_TAIL_CALL_CTX)
-		EMIT1(0x50);		/* push rax */
+		/* mov QWORD PTR [rbp - tcc_off], rax */
+		emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -tcc_off);
 	/* mov QWORD PTR [rbp - rbx_off], rbx */
 	emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_6, -rbx_off);
 
@@ -4503,7 +4511,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 			/* Before calling the original function, load the
 			 * tail_call_cnt_ptr from stack to rax.
 			 */
-			LOAD_TRAMP_TAIL_CALL_CNT_PTR(stack_size);
+			LOAD_TRAMP_TAIL_CALL_CNT_PTR(tcc_off);
 		}
 
 		if (flags & BPF_TRAMP_F_ORIG_STACK) {
@@ -4567,7 +4575,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 		/* Before running the original function, load the
 		 * tail_call_cnt_ptr from stack to rax.
 		 */
-		LOAD_TRAMP_TAIL_CALL_CNT_PTR(stack_size);
+		LOAD_TRAMP_TAIL_CALL_CNT_PTR(tcc_off);
 	}
 
 	/* restore return value of orig_call or fentry prog back into RAX */
