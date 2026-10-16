@@ -1619,7 +1619,13 @@ static int copy_exec_state(u64 clone_flags, struct task_struct *tsk)
 	return task_exec_state_copy(tsk);
 }
 
-static int copy_fs(u64 clone_flags, struct task_struct *tsk, bool umh)
+enum copy_fs_flags_t {
+	COPY_FS_UMH	= (1 << 0),
+	COPY_FS_IDLE	= (1 << 1),
+};
+
+static int copy_fs(u64 clone_flags, struct task_struct *tsk,
+		   enum copy_fs_flags_t flags)
 {
 	struct fs_struct *fs;
 
@@ -1629,19 +1635,20 @@ static int copy_fs(u64 clone_flags, struct task_struct *tsk, bool umh)
 	 * filesystem state, or be started from a non-initial mount
 	 * namespace.
 	 */
-	if (umh) {
+	if (flags & COPY_FS_UMH) {
 		if (clone_flags & (CLONE_NEWNS | CLONE_FS))
 			return -EINVAL;
 		if (current->nsproxy->mnt_ns != &init_mnt_ns)
 			return -EINVAL;
 		fs = userspace_init_fs;
+	} else if (flags & COPY_FS_IDLE) {
+		fs = &init_fs;
 	} else {
 		fs = current->fs;
 		VFS_WARN_ON_ONCE(current->fs != current->real_fs);
 	}
 
 	if (clone_flags & CLONE_FS) {
-		/* tsk->fs is already what we want */
 		read_seqlock_excl(&fs->seq);
 		/* "users" and "in_exec" locked for check_unsafe_exec() */
 		if (fs->in_exec) {
@@ -1650,6 +1657,7 @@ static int copy_fs(u64 clone_flags, struct task_struct *tsk, bool umh)
 		}
 		fs->users++;
 		read_sequnlock_excl(&fs->seq);
+		tsk->real_fs = tsk->fs = fs;
 		return 0;
 	}
 	tsk->real_fs = tsk->fs = copy_fs_struct(fs);
@@ -2299,7 +2307,9 @@ __latent_entropy struct task_struct *copy_process(
 	retval = copy_files(clone_flags, p, args->no_files);
 	if (retval)
 		goto bad_fork_cleanup_semundo;
-	retval = copy_fs(clone_flags, p, args->umh);
+	retval = copy_fs(clone_flags, p,
+			 (args->umh ? COPY_FS_UMH : 0) |
+			 (args->idle ? COPY_FS_IDLE : 0));
 	if (retval)
 		goto bad_fork_cleanup_files;
 	retval = copy_sighand(clone_flags, p);
@@ -2671,7 +2681,7 @@ struct task_struct * __init fork_idle(int cpu)
 {
 	struct task_struct *task;
 	struct kernel_clone_args args = {
-		.flags		= CLONE_VM,
+		.flags		= CLONE_VM | CLONE_FS,
 		.fn		= &idle_dummy,
 		.fn_arg		= NULL,
 		.kthread	= 1,

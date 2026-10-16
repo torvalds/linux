@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
+#include <stdbool.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +28,12 @@
 #endif
 #ifndef MOVE_MOUNT_BENEATH
 #define MOVE_MOUNT_BENEATH	0x00000200
+#endif
+#ifndef OPEN_TREE_CLONE
+#define OPEN_TREE_CLONE		1
+#endif
+#ifndef OPEN_TREE_CLOEXEC
+#define OPEN_TREE_CLOEXEC	O_CLOEXEC
 #endif
 
 #define DIR_LEN		64
@@ -118,6 +126,35 @@ static bool covered(const char *path)
 	if (fd >= 0)
 		close(fd);
 	return fd < 0;
+}
+
+/* What @path reads, "" if it can't be read. */
+static int read_word(const char *path, char *buf, size_t len)
+{
+	ssize_t n = 0;
+	int fd;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd >= 0) {
+		n = read(fd, buf, len - 1);
+		close(fd);
+	}
+	buf[n > 0 ? n : 0] = 0;
+	return fd < 0 ? -1 : 0;
+}
+
+/* Put a clone of the mount at @src beneath the top mount at @where. */
+static int move_beneath(const char *src, const char *where)
+{
+	int fd, ret;
+
+	fd = syscall(__NR_open_tree, AT_FDCWD, src, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (fd < 0)
+		return -1;
+	ret = syscall(__NR_move_mount, fd, "", AT_FDCWD, where,
+		      MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_BENEATH);
+	close(fd);
+	return ret;
 }
 
 FIXTURE(locked_mount) {
@@ -424,6 +461,91 @@ TEST_F(locked_mount, propagated_copy_keeps_the_cover_locked)
 	ASSERT_EQ(umount2(p, 0), 0);
 
 	ASSERT_EQ(send_byte(from_host[1]), 0);
+	ret = wait_child(pid);
+	TH_LOG("child exit code %d", ret);
+	EXPECT_EQ(ret, CHILD_OK);
+}
+
+/*
+ * A mount of a mount namespace file is left out of the copy that
+ * unshare(CLONE_NEWNS) makes, together with everything mounted on it, so
+ * it can't take over the lock of a cover it is moved beneath. The child
+ * tries just that with the namespace file of a grandchild and gets EINVAL.
+ * A bind of an ordinary file takes the lock over, and the file is still
+ * covered in the next copy of the mount namespace.
+ */
+static int ns_file_child(const char *base)
+{
+	char secret[PATH_LEN], mine[PATH_LEN], nsfile[PATH_LEN], buf[32];
+	int ret = CHILD_OK, pfd[2];
+	pid_t pid;
+
+	snprintf(secret, sizeof(secret), "%s/P/secret", base);
+	snprintf(mine, sizeof(mine), "%s/mine", base);
+
+	if (enter_userns() || pipe(pfd))
+		return CHILD_SETUP;
+	/* the cover is locked */
+	if (!umount2(secret, 0) || errno != EINVAL)
+		return CHILD_STEP1;
+
+	/* a mount namespace newer than our own, so that a bind of it is allowed */
+	pid = fork();
+	if (pid < 0)
+		return CHILD_SETUP;
+	if (pid == 0) {
+		if (unshare(CLONE_NEWNS) || send_byte(pfd[1]))
+			_exit(1);
+		pause();
+		_exit(0);
+	}
+	if (wait_byte(pfd[0]))
+		return CHILD_SETUP;
+	snprintf(nsfile, sizeof(nsfile), "/proc/%d/ns/mnt", pid);
+	if (!move_beneath(nsfile, secret) || errno != EINVAL)
+		ret = CHILD_STEP2;
+	kill(pid, SIGKILL);
+	waitpid(pid, NULL, 0);
+	if (ret)
+		return ret;
+
+	/* an ordinary file beneath the cover takes the lock over */
+	if (move_beneath(mine, secret))
+		return CHILD_STEP3;
+	if (umount2(secret, 0))
+		return CHILD_STEP3;
+	if (!umount2(secret, 0) || errno != EINVAL)
+		return CHILD_STEP3;
+	/* and it is in the next copy of the namespace */
+	if (unshare(CLONE_NEWNS))
+		return CHILD_SETUP;
+	if (read_word(secret, buf, sizeof(buf)) || strcmp(buf, "mine"))
+		return CHILD_STEP4;
+	return CHILD_OK;
+}
+
+TEST_F(locked_mount, mount_namespace_file_cant_take_the_lock)
+{
+	char p[PATH_LEN], q[PATH_LEN];
+	pid_t pid;
+	int ret;
+
+	snprintf(p, sizeof(p), "%s/P", self->base);
+	ASSERT_EQ(mkdir(p, 0755), 0);
+	ASSERT_EQ(mount("tmpfs", p, "tmpfs", 0, "mode=0755"), 0);
+	snprintf(p, sizeof(p), "%s/P/secret", self->base);
+	ASSERT_EQ(create_file(p, "covered-by-root\n"), 0);
+	snprintf(q, sizeof(q), "%s/P/empty", self->base);
+	ASSERT_EQ(create_file(q, ""), 0);
+	/* the cover: an empty file over the secret */
+	ASSERT_EQ(mount(q, p, NULL, MS_BIND, NULL), 0);
+	snprintf(q, sizeof(q), "%s/mine", self->base);
+	ASSERT_EQ(create_file(q, "mine"), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+	if (pid == 0)
+		_exit(ns_file_child(self->base));
 	ret = wait_child(pid);
 	TH_LOG("child exit code %d", ret);
 	EXPECT_EQ(ret, CHILD_OK);
