@@ -2013,6 +2013,66 @@ static void vsock_update_buffer_size(struct vsock_sock *vsk,
 	vsk->buffer_size = val;
 }
 
+static bool vsock_sol_socket_custom(int optname)
+{
+	switch (optname) {
+	case SO_ZEROCOPY:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int vsock_sol_socket_get_bool(sockptr_t optval, unsigned int optlen,
+				     int *val)
+{
+	/* Use 'int' type here, because variable to set these options usually
+	 * has this type.
+	 */
+	if (optlen < sizeof(*val))
+		return -EINVAL;
+
+	if (copy_from_sockptr(val, optval, sizeof(*val)))
+		return -EFAULT;
+
+	if (*val < 0 || *val > 1)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int vsock_sol_socket_setsockopt(struct sock *sk, int optname,
+				       sockptr_t optval, unsigned int optlen)
+{
+	struct vsock_sock *vsk = vsock_sk(sk);
+	int err;
+	int val;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case SO_ZEROCOPY:
+		err = vsock_sol_socket_get_bool(optval, optlen, &val);
+		if (err)
+			break;
+
+		if (vsk->transport && !vsock_msgzerocopy_allow(vsk->transport)) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+
+		sock_valbool_flag(sk, SOCK_ZEROCOPY, val);
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
 static int vsock_connectible_setsockopt(struct socket *sock,
 					int level,
 					int optname,
@@ -2044,36 +2104,16 @@ static int vsock_connectible_setsockopt(struct socket *sock,
 	sk = sock->sk;
 	vsk = vsock_sk(sk);
 
+	if (level == SOL_SOCKET) {
+		if (!vsock_sol_socket_custom(optname))
+			return sock_setsockopt(sock, level, optname, optval, optlen);
+
+		return vsock_sol_socket_setsockopt(sk, optname, optval, optlen);
+	}
+
 	lock_sock(sk);
 
 	transport = vsk->transport;
-
-	if (level == SOL_SOCKET) {
-		int zerocopy;
-
-		if (optname != SO_ZEROCOPY) {
-			release_sock(sk);
-			return sock_setsockopt(sock, level, optname, optval, optlen);
-		}
-
-		/* Use 'int' type here, because variable to
-		 * set this option usually has this type.
-		 */
-		COPY_IN(zerocopy);
-
-		if (zerocopy < 0 || zerocopy > 1) {
-			err = -EINVAL;
-			goto exit;
-		}
-
-		if (transport && !vsock_msgzerocopy_allow(transport)) {
-			err = -EOPNOTSUPP;
-			goto exit;
-		}
-
-		sock_valbool_flag(sk, SOCK_ZEROCOPY, zerocopy);
-		goto exit;
-	}
 
 	switch (optname) {
 	case SO_VM_SOCKETS_BUFFER_SIZE:
