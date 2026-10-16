@@ -23509,7 +23509,8 @@ F:	drivers/iommu/riscv/
 
 RISC-V MICROCHIP SUPPORT
 M:	Conor Dooley <conor.dooley@microchip.com>
-M:	Daire McNamara <daire.mcnamara@microchip.com>
+R:	Valentina Fernandez <valentina.fernandezalanis@microchip.com>
+R:	Daire McNamara <daire.mcnamara@microchip.com>
 L:	linux-riscv@lists.infradead.org
 S:	Supported
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/ (dts, soc, firmware)
