@@ -859,6 +859,14 @@ static int bpf_jit_probe_post(struct bpf_jit *jit, struct bpf_prog *fp,
 	return 0;
 }
 
+static void emit_shift_count32(struct bpf_jit *jit, u32 src_reg)
+{
+	/* risbg %w1,%src,59,128+63,0 */
+	_EMIT6(0xec000000 | reg(REG_W1, src_reg) << 16 | 59 << 8 | (0x80 | 63), 0x0055);
+	REG_SET_SEEN(REG_W1);
+	REG_SET_SEEN(src_reg);
+}
+
 static int emit_ldx(struct bpf_jit *jit, struct bpf_prog *fp, struct bpf_insn *insn)
 {
 	struct bpf_jit_probe probe;
@@ -1431,9 +1439,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_LSH
 	 */
-	case BPF_ALU | BPF_LSH | BPF_X: /* dst = (u32) dst << (u32) src */
-		/* sll %dst,0(%src) */
-		EMIT4_DISP(0x89000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_LSH | BPF_X: /* dst = (u32) dst << ((u32) src & 31) */
+		emit_shift_count32(jit, src_reg);
+		/* sll %dst,0(%w1) */
+		EMIT4_DISP(0x89000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_LSH | BPF_X: /* dst = dst << src */
@@ -1456,9 +1465,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_RSH
 	 */
-	case BPF_ALU | BPF_RSH | BPF_X: /* dst = (u32) dst >> (u32) src */
-		/* srl %dst,0(%src) */
-		EMIT4_DISP(0x88000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_RSH | BPF_X: /* dst = (u32) dst >> ((u32) src & 31) */
+		emit_shift_count32(jit, src_reg);
+		/* srl %dst,0(%w1) */
+		EMIT4_DISP(0x88000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_RSH | BPF_X: /* dst = dst >> src */
@@ -1481,9 +1491,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_ARSH
 	 */
-	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= src */
-		/* sra %dst,%dst,0(%src) */
-		EMIT4_DISP(0x8a000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= (u32) src & 31 */
+		emit_shift_count32(jit, src_reg);
+		/* sra %dst,0(%w1) */
+		EMIT4_DISP(0x8a000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_X: /* ((s64) dst) >>= src */
