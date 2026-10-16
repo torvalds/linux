@@ -165,7 +165,10 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u8 reserved_9[22];
 	u64 allowed_sev_features;	/* Offset 0x138 */
 	u64 guest_sev_features;		/* Offset 0x140 */
-	u8 reserved_10[664];
+	u8 reserved_10[128];
+	u64 pml_addr;			/* Offset 0x1c8 */
+	u16 pml_index;			/* Offset 0x1d0 */
+	u8 reserved_11[526];
 	/*
 	 * Offset 0x3e0, 32 bytes reserved
 	 * for use by hypervisor/software.
@@ -240,10 +243,11 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define SVM_IOIO_SIZE_MASK (7 << SVM_IOIO_SIZE_SHIFT)
 #define SVM_IOIO_ASIZE_MASK (7 << SVM_IOIO_ASIZE_SHIFT)
 
-#define SVM_MISC_ENABLE_NP		BIT(0)
-#define SVM_MISC_ENABLE_SEV		BIT(1)
-#define SVM_MISC_ENABLE_SEV_ES	BIT(2)
-#define SVM_MISC_ENABLE_GMET	BIT(3)
+#define SVM_MISC_ENABLE_NP		BIT_ULL(0)
+#define SVM_MISC_ENABLE_SEV		BIT_ULL(1)
+#define SVM_MISC_ENABLE_SEV_ES		BIT_ULL(2)
+#define SVM_MISC_ENABLE_GMET		BIT_ULL(3)
+#define SVM_MISC_ENABLE_PML		BIT_ULL(11)
 
 #define SVM_MISC2_ENABLE_V_LBR	BIT_ULL(0)
 #define SVM_MISC2_ENABLE_V_VMLOAD_VMSAVE	BIT_ULL(1)

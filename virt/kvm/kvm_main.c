@@ -2175,7 +2175,7 @@ out:
 int kvm_set_internal_memslot(struct kvm *kvm,
 			     const struct kvm_userspace_memory_region2 *mem)
 {
-	if (WARN_ON_ONCE(mem->slot < KVM_USER_MEM_SLOTS))
+	if (WARN_ON_ONCE((u16)mem->slot < KVM_USER_MEM_SLOTS))
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(mem->flags))

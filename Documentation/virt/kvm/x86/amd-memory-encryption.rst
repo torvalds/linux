@@ -170,7 +170,7 @@ Returns: 0 on success, -negative on error
 
 ::
 
-        struct kvm_sev_launch_update {
+        struct kvm_sev_launch_update_data {
                 __u64 uaddr;    /* userspace address to be encrypted (must be 16-byte aligned) */
                 __u32 len;      /* length of the data to be encrypted (must be 16-byte aligned) */
         };
@@ -316,7 +316,7 @@ used by the guest owner with the KVM_SEV_LAUNCH_MEASURE.
 If len is zero on entry, the measurement blob length is written to len and
 uaddr is unused.
 
-Parameters (in): struct kvm_sev_attestation
+Parameters (in): struct kvm_sev_attestation_report
 
 Returns: 0 on success, -negative on error
 
@@ -377,7 +377,7 @@ Returns: 0 on success, -negative on error
 
 ::
 
-        struct kvm_sev_launch_send_update_data {
+        struct kvm_sev_send_update_data {
                 __u64 hdr_uaddr;        /* userspace address containing the packet header */
                 __u32 hdr_len;
 
@@ -447,7 +447,7 @@ Returns: 0 on success, -negative on error
 
 ::
 
-        struct kvm_sev_launch_receive_update_data {
+        struct kvm_sev_receive_update_data {
                 __u64 hdr_uaddr;        /* userspace address containing the packet header */
                 __u32 hdr_len;
 

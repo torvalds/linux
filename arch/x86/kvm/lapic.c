@@ -1552,7 +1552,7 @@ static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
 	return test_bit(vector, apic->vcpu->arch.ioapic_handled_vectors);
 }
 
-static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
+static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, u8 vector)
 {
 	int __maybe_unused trigger_mode;
 
@@ -1622,7 +1622,7 @@ static int apic_set_eoi(struct kvm_lapic *apic)
  * this interface assumes a trap-like exit, which has already finished
  * desired side effect including vISR and vPPR update.
  */
-void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector)
+void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, u8 vector)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 

@@ -109,7 +109,7 @@ The template for each hypercall is:
 Usage:
 
 a0: guest physical address where host copies
-"struct kvm_clock_offset" structure.
+"struct kvm_clock_pairing" structure.
 
 a1: clock_type, ATM only KVM_CLOCK_PAIRING_WALLCLOCK (0)
 is supported (corresponding to the host's CLOCK_REALTIME clock).

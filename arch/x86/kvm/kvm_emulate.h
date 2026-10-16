@@ -354,8 +354,8 @@ struct x86_emulate_ctxt {
 	bool have_exception;
 	struct x86_exception exception;
 
-	/* GPA available */
-	bool gpa_available;
+	/* Saved GPA and permitted emulated accesses. */
+	u64 gpa_access;
 	gpa_t gpa_val;
 
 	/*
