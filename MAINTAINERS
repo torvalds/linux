@@ -11867,7 +11867,7 @@ M:	Chengchang Tang <tangchengchang@huawei.com>
 M:	Junxian Huang <huangjunxian6@hisilicon.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/infiniband/hisilicon-hns-roce.txt
+F:	Documentation/devicetree/bindings/infiniband/hisilicon,hns-roce-v1.yaml
 F:	drivers/infiniband/hw/hns/
 
 HISILICON SAS Controller

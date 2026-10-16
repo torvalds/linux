@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/infiniband/hisilicon,hns-roce-v1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon HNS RoCE
+
+maintainers:
+  - Chengchang Tang <tangchengchang@huawei.com>
+  - Junxian Huang <huangjunxian6@hisilicon.com>
+
+description:
+  Hisilicon RoCE engine is a part of network subsystem. It works depending on
+  other part of network subsystem, such as gmac and dsa fabric.
+
+properties:
+  compatible:
+    const: hisilicon,hns-roce-v1
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 2
+
+  dma-coherent: true
+
+  interrupts:
+    items:
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Completion event IRQ
+      - description: Async event IRQ
+      - description: Event overflow IRQ
+
+  interrupt-names:
+    items:
+      - const: hns-roce-comp-0
+      - const: hns-roce-comp-1
+      - const: hns-roce-comp-2
+      - const: hns-roce-comp-3
+      - const: hns-roce-comp-4
+      - const: hns-roce-comp-5
+      - const: hns-roce-comp-6
+      - const: hns-roce-comp-7
+      - const: hns-roce-comp-8
+      - const: hns-roce-comp-9
+      - const: hns-roce-comp-10
+      - const: hns-roce-comp-11
+      - const: hns-roce-comp-12
+      - const: hns-roce-comp-13
+      - const: hns-roce-comp-14
+      - const: hns-roce-comp-15
+      - const: hns-roce-comp-16
+      - const: hns-roce-comp-17
+      - const: hns-roce-comp-18
+      - const: hns-roce-comp-19
+      - const: hns-roce-comp-20
+      - const: hns-roce-comp-21
+      - const: hns-roce-comp-22
+      - const: hns-roce-comp-23
+      - const: hns-roce-comp-24
+      - const: hns-roce-comp-25
+      - const: hns-roce-comp-26
+      - const: hns-roce-comp-27
+      - const: hns-roce-comp-28
+      - const: hns-roce-comp-29
+      - const: hns-roce-comp-30
+      - const: hns-roce-comp-31
+      - const: hns-roce-async
+      - const: hns-roce-common
+
+  eth-handle:
+    description: References to one or more Ethernet devices.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
+
+  dsaf-handle:
+    description: Reference to a dsaf device.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  node-guid:
+    description: A number that uniquely identifies a device or component.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - eth-handle
+  - dsaf-handle
+  - node-guid
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        infiniband@c4000000 {
+            compatible = "hisilicon,hns-roce-v1";
+            reg = <0x0 0xc4000000 0x0 0x100000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            dma-coherent;
+            eth-handle = <&eth2 &eth3 &eth4 &eth5 &eth6 &eth7>;
+            dsaf-handle = <&soc0_dsa>;
+            node-guid = [00 9A CD 00 00 01 02 03];
+            interrupts = <722 1>, <723 1>, <724 1>, <725 1>,
+                         <726 1>, <727 1>, <728 1>, <729 1>,
+                         <730 1>, <731 1>, <732 1>, <733 1>,
+                         <734 1>, <735 1>, <736 1>, <737 1>,
+                         <738 1>, <739 1>, <740 1>, <741 1>,
+                         <742 1>, <743 1>, <744 1>, <745 1>,
+                         <746 1>, <747 1>, <748 1>, <749 1>,
+                         <750 1>, <751 1>, <752 1>, <753 1>,
+                         <785 1>, <754 4>;
+            interrupt-names = "hns-roce-comp-0", "hns-roce-comp-1",
+                              "hns-roce-comp-2", "hns-roce-comp-3",
+                              "hns-roce-comp-4", "hns-roce-comp-5",
+                              "hns-roce-comp-6", "hns-roce-comp-7",
+                              "hns-roce-comp-8", "hns-roce-comp-9",
+                              "hns-roce-comp-10", "hns-roce-comp-11",
+                              "hns-roce-comp-12", "hns-roce-comp-13",
+                              "hns-roce-comp-14", "hns-roce-comp-15",
+                              "hns-roce-comp-16", "hns-roce-comp-17",
+                              "hns-roce-comp-18", "hns-roce-comp-19",
+                              "hns-roce-comp-20", "hns-roce-comp-21",
+                              "hns-roce-comp-22", "hns-roce-comp-23",
+                              "hns-roce-comp-24", "hns-roce-comp-25",
+                              "hns-roce-comp-26", "hns-roce-comp-27",
+                              "hns-roce-comp-28", "hns-roce-comp-29",
+                              "hns-roce-comp-30", "hns-roce-comp-31",
+                              "hns-roce-async", "hns-roce-common";
+        };
+    };
