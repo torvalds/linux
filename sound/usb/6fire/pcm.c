@@ -612,6 +612,28 @@ static void usb6fire_pcm_free(struct pcm_runtime *rt)
 	kfree(rt);
 }
 
+/*
+ * playback channel map: channel n goes to analog output n, which the
+ * manual of the card assigns to FL FR FC LFE RL RR for n = 1..6; a
+ * 1-channel stream is MONO, as in snd_pcm_std_chmaps, and plays on
+ * analog output 1 only
+ */
+static const struct snd_pcm_chmap_elem usb6fire_pcm_chmaps[] = {
+	{ .channels = 1, .map = { SNDRV_CHMAP_MONO } },
+	{ .channels = 2, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 3, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC } },
+	{ .channels = 4, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ .channels = 5, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL } },
+	{ .channels = 6, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ }
+};
+
 int usb6fire_pcm_init(struct sfire_chip *chip)
 {
 	int i;
@@ -665,6 +687,14 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	rt->instance = pcm;
 
 	chip->pcm = rt;
+
+	/* on error, rt is freed with the card */
+	ret = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			usb6fire_pcm_chmaps, OUT_N_CHANNELS, 0, NULL);
+	if (ret < 0) {
+		dev_err(&chip->dev->dev, "cannot add channel map.\n");
+		return ret;
+	}
 	return 0;
 
  error:
