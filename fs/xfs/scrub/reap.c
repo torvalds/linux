@@ -172,7 +172,7 @@ static inline bool xreap_is_dirty(const struct xreap_state *rs)
 }
 
 /*
- * Decide if we need to roll the transaction to clear out the the log
+ * Decide if we need to roll the transaction to clear out the log
  * reservation that we allocated to buffer invalidations.
  */
 static inline bool xreap_want_binval_roll(const struct xreap_state *rs)

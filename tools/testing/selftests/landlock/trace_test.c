@@ -49,8 +49,10 @@ FIXTURE_SETUP(trace)
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CREATE_RULESET_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CREATE_DOMAIN_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ENFORCE_DOMAIN_ENABLE, true));
-	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_FS_ENABLE, true));
-	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_NET_ENABLE, true));
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE,
+					  true));
+	ASSERT_EQ(0,
+		  tracefs_enable_event(TRACEFS_ADD_RULE_NET_PORT_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CHECK_RULE_NET_ENABLE, true));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_DENY_ACCESS_FS_ENABLE, true));
@@ -72,8 +74,8 @@ FIXTURE_TEARDOWN(trace)
 	tracefs_enable_event(TRACEFS_CREATE_RULESET_ENABLE, false);
 	tracefs_enable_event(TRACEFS_CREATE_DOMAIN_ENABLE, false);
 	tracefs_enable_event(TRACEFS_ENFORCE_DOMAIN_ENABLE, false);
-	tracefs_enable_event(TRACEFS_ADD_RULE_FS_ENABLE, false);
-	tracefs_enable_event(TRACEFS_ADD_RULE_NET_ENABLE, false);
+	tracefs_enable_event(TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE, false);
+	tracefs_enable_event(TRACEFS_ADD_RULE_NET_PORT_ENABLE, false);
 	tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, false);
 	tracefs_enable_event(TRACEFS_CHECK_RULE_NET_ENABLE, false);
 	tracefs_enable_event(TRACEFS_DENY_ACCESS_FS_ENABLE, false);
@@ -103,8 +105,10 @@ TEST_F(trace, no_trace_when_disabled)
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CREATE_DOMAIN_ENABLE, false));
 	ASSERT_EQ(0,
 		  tracefs_enable_event(TRACEFS_ENFORCE_DOMAIN_ENABLE, false));
-	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_FS_ENABLE, false));
-	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_NET_ENABLE, false));
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_PATH_BENEATH_ENABLE,
+					  false));
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_ADD_RULE_NET_PORT_ENABLE,
+					  false));
 	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, false));
 	ASSERT_EQ(0,
 		  tracefs_enable_event(TRACEFS_CHECK_RULE_NET_ENABLE, false));
@@ -265,10 +269,11 @@ TEST_F(trace, ruleset_version)
 	ASSERT_NE(0, !!dot);
 	EXPECT_STREQ("0", dot + 1);
 
-	/* Verify 2 add_rule_fs events were emitted. */
-	EXPECT_EQ(2, tracefs_count_matches(buf, REGEX_ADD_RULE_FS(TRACE_TASK)))
+	/* Verify two add_rule_path_beneath events were emitted. */
+	EXPECT_EQ(2, tracefs_count_matches(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK)))
 	{
-		TH_LOG("Expected 2 add_rule_fs events\n%s", buf);
+		TH_LOG("Expected 2 add_rule_path_beneath events\n%s", buf);
 	}
 
 	/*
@@ -373,7 +378,7 @@ TEST_F(trace, create_domain)
 		tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
 	ASSERT_LE(1, check_count)
 	{
-		TH_LOG("Expected check_rule_fs events\n%s", buf);
+		TH_LOG("Expected check_rule_inode events\n%s", buf);
 	}
 
 	EXPECT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
@@ -508,9 +513,11 @@ TEST_F(trace, add_rule_invalid_fd)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	EXPECT_EQ(0, tracefs_count_matches(buf, REGEX_ADD_RULE_FS(TRACE_TASK)))
+	EXPECT_EQ(0, tracefs_count_matches(
+			     buf, REGEX_ADD_RULE_PATH_BENEATH(TRACE_TASK)))
 	{
-		TH_LOG("No add_rule_fs event expected on invalid fd\n%s", buf);
+		TH_LOG("No add_rule_path_beneath event expected on invalid fd\n%s",
+		       buf);
 	}
 
 	free(buf);
@@ -902,10 +909,10 @@ TEST_F(trace, non_audit_visible_denial_counting)
 }
 
 /*
- * Verifies that landlock_add_rule_net emits a trace event with the correct port
- * and allowed access mask fields.
+ * Verifies that landlock_add_rule_net_port emits a trace event with the correct
+ * port and allowed access mask fields.
  */
-TEST_F(trace, add_rule_net_fields)
+TEST_F(trace, add_rule_net_port_fields)
 {
 	struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
@@ -931,9 +938,10 @@ TEST_F(trace, add_rule_net_fields)
 	buf = tracefs_read_buf();
 	ASSERT_NE(NULL, buf);
 
-	EXPECT_EQ(1, tracefs_count_matches(buf, REGEX_ADD_RULE_NET(TRACE_TASK)))
+	EXPECT_EQ(1, tracefs_count_matches(buf,
+					   REGEX_ADD_RULE_NET_PORT(TRACE_TASK)))
 	{
-		TH_LOG("Expected 1 add_rule_net event\n%s", buf);
+		TH_LOG("Expected 1 add_rule_net_port event\n%s", buf);
 	}
 
 	/*
@@ -941,7 +949,8 @@ TEST_F(trace, add_rule_net_fields)
 	 * (landlock_net_port_attr.port).  On little-endian, htons(8080) is
 	 * 36895, so this comparison catches byte-order bugs.
 	 */
-	EXPECT_EQ(0, tracefs_extract_field(buf, REGEX_ADD_RULE_NET(TRACE_TASK),
+	EXPECT_EQ(0, tracefs_extract_field(buf,
+					   REGEX_ADD_RULE_NET_PORT(TRACE_TASK),
 					   "port", field, sizeof(field)));
 	EXPECT_STREQ("8080", field);
 	/*
@@ -950,9 +959,9 @@ TEST_F(trace, add_rule_net_fields)
 	 * net access bits are unhandled because the ruleset only handles
 	 * BIND_TCP).
 	 */
-	EXPECT_EQ(0,
-		  tracefs_extract_field(buf, REGEX_ADD_RULE_NET(TRACE_TASK),
-					"access_rights", field, sizeof(field)));
+	EXPECT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_ADD_RULE_NET_PORT(TRACE_TASK),
+			     "access_rights", field, sizeof(field)));
 	EXPECT_STREQ("bind_tcp|connect_tcp|bind_udp|connect_send_udp", field);
 
 	free(buf);

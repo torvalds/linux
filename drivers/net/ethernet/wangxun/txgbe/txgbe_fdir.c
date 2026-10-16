@@ -591,15 +591,24 @@ static void txgbe_fdir_filter_restore(struct wx *wx)
 			queue = TXGBE_RDB_FDIR_DROP_QUEUE;
 		} else {
 			u32 ring = ethtool_get_flow_spec_ring(filter->action);
+			u8 vf = ethtool_get_flow_spec_ring_vf(filter->action);
 
-			if (ring >= wx->num_rx_queues) {
+			if (!vf && ring >= wx->num_rx_queues) {
 				wx_err(wx, "FDIR restore failed, ring:%u\n",
 				       ring);
+				continue;
+			} else if (vf && (vf > wx->num_vfs ||
+				  ring >= wx->num_rx_queues_per_pool)) {
+				wx_err(wx, "FDIR restore failed, vf:%u, ring:%u\n",
+				       vf, ring);
 				continue;
 			}
 
 			/* Map the ring onto the absolute queue index */
-			queue = wx->rx_ring[ring]->reg_idx;
+			if (!vf)
+				queue = wx->rx_ring[ring]->reg_idx;
+			else
+				queue = ((vf - 1) * wx->num_rx_queues_per_pool) + ring;
 		}
 
 		ret = txgbe_fdir_write_perfect_filter(wx,

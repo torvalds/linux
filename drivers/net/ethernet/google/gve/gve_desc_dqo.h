@@ -14,6 +14,11 @@
 #define GVE_TX_MAX_HDR_SIZE_DQO 255
 #define GVE_TX_MIN_TSO_MSS_DQO 88
 
+/* HW limit. This also has to fit in the 14 bits of the mss field of
+ * struct gve_tx_tso_context_desc_dqo.
+ */
+#define GVE_TX_MAX_TSO_MSS_DQO 9728
+
 #ifndef __LITTLE_ENDIAN_BITFIELD
 #error "Only little endian supported"
 #endif

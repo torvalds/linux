@@ -2018,12 +2018,17 @@ static int disk_revalidate_zone_resources(struct gendisk *disk,
 				struct blk_revalidate_zone_args *args)
 {
 	struct queue_limits *lim = &disk->queue->limits;
+	unsigned long long nr_zones;
 	unsigned int pool_size;
 	int ret = 0;
 
 	args->disk = disk;
-	args->nr_zones =
-		DIV_ROUND_UP_ULL(get_capacity(disk), lim->chunk_sectors);
+	nr_zones = DIV_ROUND_UP_ULL(get_capacity(disk), lim->chunk_sectors);
+	if (nr_zones > UINT_MAX) {
+		pr_warn("%s: Too many zones (%llu)\n", disk->disk_name, nr_zones);
+		return -EINVAL;
+	}
+	args->nr_zones = nr_zones;
 
 	/* Cached zone conditions: 1 byte per zone */
 	args->zones_cond = kzalloc(args->nr_zones, GFP_NOIO);
@@ -2130,6 +2135,12 @@ static int blk_revalidate_zone_cond(struct blk_zone *zone, unsigned int idx,
 				    struct blk_revalidate_zone_args *args)
 {
 	enum blk_zone_cond cond = zone->cond;
+
+	if (idx >= args->nr_zones) {
+		pr_warn("%s: Zone report index %u exceeds zone count %u\n",
+			args->disk->disk_name, idx, args->nr_zones);
+		return -EINVAL;
+	}
 
 	/* Check that the zone condition is consistent with the zone type. */
 	switch (cond) {

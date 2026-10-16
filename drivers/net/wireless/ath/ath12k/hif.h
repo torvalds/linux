@@ -30,7 +30,6 @@ struct ath12k_hif_ops {
 	void (*ce_irq_enable)(struct ath12k_base *ab);
 	void (*ce_irq_disable)(struct ath12k_base *ab);
 	void (*get_ce_msi_idx)(struct ath12k_base *ab, u32 ce_id, u32 *msi_idx);
-	int (*panic_handler)(struct ath12k_base *ab);
 	void (*coredump_download)(struct ath12k_base *ab);
 };
 
@@ -147,14 +146,6 @@ static inline void ath12k_hif_power_down(struct ath12k_base *ab, bool is_suspend
 		return;
 
 	ab->hif.ops->power_down(ab, is_suspend);
-}
-
-static inline int ath12k_hif_panic_handler(struct ath12k_base *ab)
-{
-	if (!ab->hif.ops->panic_handler)
-		return NOTIFY_DONE;
-
-	return ab->hif.ops->panic_handler(ab);
 }
 
 static inline void ath12k_hif_coredump_download(struct ath12k_base *ab)

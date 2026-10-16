@@ -199,6 +199,7 @@ TEST_GEN_PROGS := \
 	tap \
 	tcp_port_share \
 	tls \
+	udp_splice_checksum \
 # end of TEST_GEN_PROGS
 
 TEST_FILES := \

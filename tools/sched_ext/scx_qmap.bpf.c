@@ -961,9 +961,6 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init_task, struct task_struct *p,
 	taskc->highpri = false;
 	taskc->core_sched_seq = 0;
 	cmask_init(&taskc->cpus_allowed, 0, scx_bpf_nr_cids());
-	bpf_rcu_read_lock();
-	cmask_from_cpumask(&taskc->cpus_allowed, p->cpus_ptr);
-	bpf_rcu_read_unlock();
 
 	v = bpf_task_storage_get(&task_ctx_stor, p, NULL,
 				 BPF_LOCAL_STORAGE_GET_F_CREATE);

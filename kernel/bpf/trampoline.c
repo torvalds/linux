@@ -401,6 +401,7 @@ static struct bpf_trampoline *bpf_trampoline_lookup(u64 key, unsigned long ip)
 	head = &trampoline_ip_table[hash_64(tr->ip, TRAMPOLINE_HASH_BITS)];
 	hlist_add_head(&tr->hlist_ip, head);
 	refcount_set(&tr->refcnt, 1);
+	INIT_LIST_HEAD(&tr->images);
 	for (i = 0; i < BPF_TRAMP_MAX; i++)
 		INIT_HLIST_HEAD(&tr->progs_hlist[i]);
 out:
@@ -565,15 +566,22 @@ static void bpf_tramp_image_free(struct bpf_tramp_image *im)
 	arch_free_bpf_trampoline(im->image, im->size);
 	bpf_jit_uncharge_modmem(im->size);
 	percpu_ref_exit(&im->pcref);
+	kfree(im->skips);
 	kfree_rcu(im, rcu);
 }
 
 static void __bpf_tramp_image_put_deferred(struct work_struct *work)
 {
 	struct bpf_tramp_image *im;
+	struct bpf_trampoline *tr;
 
 	im = container_of(work, struct bpf_tramp_image, work);
+	tr = im->tr;
+	trampoline_lock(tr);
+	list_del(&im->list);
+	trampoline_unlock(tr);
 	bpf_tramp_image_free(im);
+	bpf_trampoline_put(tr);
 }
 
 /* callback, fexit step 3 or fentry step 2 */
@@ -601,7 +609,7 @@ static void __bpf_tramp_image_put_rcu_tasks(struct rcu_head *rcu)
 	struct bpf_tramp_image *im;
 
 	im = container_of(rcu, struct bpf_tramp_image, rcu);
-	if (im->ip_after_call)
+	if (im->call_orig)
 		/* the case of fmod_ret/fexit trampoline and CONFIG_PREEMPTION=y */
 		percpu_ref_kill(&im->pcref);
 	else
@@ -621,9 +629,9 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	 *
 	 * The trampoline is unreachable before bpf_tramp_image_put().
 	 *
-	 * First, patch the trampoline to avoid calling into fexit progs.
-	 * The progs will be freed even if the original function is still
-	 * executing or sleeping.
+	 * Progs are patched out of the image when they are detached, see
+	 * bpf_trampoline_skip_prog(), so they can be freed even if a task is
+	 * still in the image.
 	 * In case of CONFIG_PREEMPT=y use call_rcu_tasks() to wait on
 	 * first few asm instructions to execute and call into
 	 * __bpf_tramp_enter->percpu_ref_get.
@@ -637,11 +645,7 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	 * percpu_ref_kill will be waiting for. Hence the first
 	 * call_rcu_tasks() is not necessary.
 	 */
-	if (im->ip_after_call) {
-		int err = bpf_arch_text_poke(im->ip_after_call, BPF_MOD_NOP,
-					     BPF_MOD_JUMP, NULL,
-					     im->ip_epilogue);
-		WARN_ON(err);
+	if (im->call_orig) {
 		if (IS_ENABLED(CONFIG_TASKS_RCU))
 			call_rcu_tasks(&im->rcu, __bpf_tramp_image_put_rcu_tasks);
 		else
@@ -658,7 +662,7 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	call_rcu_tasks_trace(&im->rcu, __bpf_tramp_image_put_rcu_tasks);
 }
 
-static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
+static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size, int nr_progs)
 {
 	struct bpf_tramp_image *im;
 	struct bpf_ksym *ksym;
@@ -668,6 +672,10 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
 	im = kzalloc_obj(*im);
 	if (!im)
 		goto out;
+
+	im->skips = kzalloc_objs(*im->skips, nr_progs);
+	if (!im->skips)
+		goto out_free_im;
 
 	err = bpf_jit_charge_modmem(size);
 	if (err)
@@ -695,6 +703,7 @@ out_free_image:
 out_uncharge:
 	bpf_jit_uncharge_modmem(size);
 out_free_im:
+	kfree(im->skips);
 	kfree(im);
 out:
 	return ERR_PTR(err);
@@ -771,11 +780,12 @@ again:
 		goto out;
 	}
 
-	im = bpf_tramp_image_alloc(tr->key, size);
+	im = bpf_tramp_image_alloc(tr->key, size, total);
 	if (IS_ERR(im)) {
 		err = PTR_ERR(im);
 		goto out;
 	}
+	im->call_orig = tr->flags & BPF_TRAMP_F_CALL_ORIG;
 
 	err = arch_prepare_bpf_trampoline(im, im->image, im->image + size,
 					  &tr->func.model, tr->flags, tnodes,
@@ -806,8 +816,14 @@ again:
 #endif
 
 out_free:
-	if (err)
+	if (err) {
 		bpf_tramp_image_free(im);
+	} else {
+		/* track the image until it is freed, for bpf_trampoline_skip_prog() */
+		refcount_inc(&tr->refcnt);
+		im->tr = tr;
+		list_add(&im->list, &tr->images);
+	}
 out:
 	/* If any error happens, restore previous flags */
 	if (err)
@@ -907,6 +923,7 @@ static int bpf_trampoline_add_prog(struct bpf_trampoline *tr,
 	}
 
 	hlist_add_head(&node->tramp_hlist, prog_list);
+	node->link->prog->aux->tramp_linked = true;
 	if (kind == BPF_TRAMP_FSESSION) {
 		tr->progs_cnt[BPF_TRAMP_FENTRY]++;
 		fexit = fsession_exit(node);
@@ -918,6 +935,41 @@ static int bpf_trampoline_add_prog(struct bpf_trampoline *tr,
 		tr->progs_cnt[kind]++;
 	}
 	return 0;
+}
+
+/*
+ * Patch the nop in front of a prog call to a jump over it. A task can be
+ * preempted anywhere in the image, so archs that need several instructions for
+ * a jump of any range patch a single near branch here instead.
+ */
+int __weak arch_bpf_trampoline_skip(void *nop, void *target)
+{
+	return bpf_arch_text_poke(nop, BPF_MOD_NOP, BPF_MOD_JUMP, NULL, target);
+}
+
+/*
+ * prog was detached and can be freed, but tasks may still be running in images
+ * that call it, sleeping in an earlier prog for example. They can be in any
+ * image that is not freed yet, not only in cur_image, so patch all of them to
+ * jump over prog.
+ */
+static void bpf_trampoline_skip_prog(struct bpf_trampoline *tr, struct bpf_prog *prog)
+{
+	struct bpf_tramp_image *im;
+	int i, err;
+
+	list_for_each_entry(im, &tr->images, list) {
+		for (i = 0; i < im->nr_skips; i++) {
+			struct bpf_tramp_skip *skip = &im->skips[i];
+
+			if (skip->prog != prog)
+				continue;
+			err = arch_bpf_trampoline_skip(skip->nop, skip->target);
+			WARN_ON_ONCE(err);
+			/* not a nop anymore, and prog's address can be reused */
+			skip->prog = NULL;
+		}
+	}
 }
 
 static void bpf_trampoline_remove_prog(struct bpf_trampoline *tr,
@@ -937,6 +989,7 @@ static void bpf_trampoline_remove_prog(struct bpf_trampoline *tr,
 	}
 	hlist_del_init(&node->tramp_hlist);
 	tr->progs_cnt[kind]--;
+	bpf_trampoline_skip_prog(tr, node->link->prog);
 }
 
 static int __bpf_trampoline_link_prog(struct bpf_tramp_node *node,
@@ -1245,11 +1298,9 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 		if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[i])))
 			goto out;
 
-	/* This code will be executed even when the last bpf_tramp_image
-	 * is alive. All progs are detached from the trampoline and the
-	 * trampoline image is patched with jmp into epilogue to skip
-	 * fexit progs. The fentry-only trampoline will be freed via
-	 * multiple rcu callbacks.
+	/*
+	 * All progs are detached and the last image has been freed, images
+	 * hold a reference on the trampoline until then.
 	 */
 	hlist_del(&tr->hlist_key);
 	hlist_del(&tr->hlist_ip);

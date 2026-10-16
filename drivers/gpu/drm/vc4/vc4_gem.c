@@ -877,10 +877,16 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		drm_gem_object_put(&bo->base.base);
 	}
 
-	/* Free up the allocation of any bin slots we used. */
+	/* Free up the allocation of any bin slots we used. Jobs that ran to
+	 * completion had their slots released in vc4_irq_finish_render_job().
+	 * Only jobs that never completed still have slots to be released here.
+	 */
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	vc4->bin_alloc_used &= ~exec->bin_slots;
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	/* Let anyone waiting on the binner pool retry. */
+	wake_up_all(&vc4->job_wait_queue);
 
 	/* Release the reference on the binner BO if needed. */
 	if (exec->bin_bo_used)

@@ -73,6 +73,9 @@ static int bd79703_write_raw(struct iio_dev *idev,
 {
 	struct bd79703_data *data = iio_priv(idev);
 
+	if (mask != IIO_CHAN_INFO_RAW)
+		return -EINVAL;
+
 	if (val < 0 || val >= 1 << BD79703_DAC_BITS)
 		return -EINVAL;
 

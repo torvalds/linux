@@ -470,6 +470,8 @@ struct bcmgenet_rx_stats64 {
 struct enet_cb {
 	struct sk_buff      *skb;
 	struct page         *rx_page;
+	unsigned int        rx_offset;
+	unsigned int        rx_size;
 	void __iomem *bd_addr;
 	DEFINE_DMA_UNMAP_ADDR(dma_addr);
 	DEFINE_DMA_UNMAP_LEN(dma_len);

@@ -156,6 +156,12 @@ static inline u64 __arch_cmpxchg64_relaxed(volatile void *ptr, u64 old, u64 new)
 }
 #define arch_cmpxchg64_relaxed __arch_cmpxchg64_relaxed
 
+static inline s64 arch_atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
+{
+	return arch_cmpxchg64_relaxed(&v->counter, old, new);
+}
+#define arch_atomic64_cmpxchg_relaxed arch_atomic64_cmpxchg_relaxed
+
 static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 {
 	s64 prev;

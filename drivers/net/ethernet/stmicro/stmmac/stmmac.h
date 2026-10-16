@@ -344,7 +344,7 @@ struct stmmac_priv {
 	void __iomem *ptpaddr;
 	void __iomem *estaddr;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	unsigned int num_double_vlans;
+	unsigned int num_svlans;
 	int sfty_irq;
 	struct stmmac_msi *msi;
 

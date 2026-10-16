@@ -491,8 +491,7 @@ bool kvm_riscv_vcpu_has_interrupts(struct kvm_vcpu *vcpu, u64 mask)
 	bool ret;
 
 	raw_spin_lock_irqsave(&vcpu->arch.irqs_pending_lock, flags);
-	ie = ((vcpu->arch.guest_csr.vsie & VSIP_VALID_MASK)
-		<< VSIP_TO_HVIP_SHIFT) & (unsigned long)mask;
+	ie = vsip_to_hvip(vcpu->arch.guest_csr.vsie) & (unsigned long)mask;
 	ie |= vcpu->arch.guest_csr.vsie & ~IRQ_LOCAL_MASK &
 		(unsigned long)mask;
 	ret = vcpu->arch.irqs_pending[0] & ie;

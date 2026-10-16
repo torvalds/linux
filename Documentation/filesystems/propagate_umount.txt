@@ -32,12 +32,12 @@ of set.  They can be reparented to the place where the bottom of
 stack is attached to a mount that will survive.  NOTE: doing that
 will violate a constraint on having no more than one mount with
 the same parent/mountpoint pair; however, the caller (umount_tree())
-will immediately remedy that - it may keep unmounted element attached
-to parent, but only if the parent itself is unmounted.  Since all
-conflicts created by reparenting have common parent *not* in the
-set and one side of the conflict (bottom of the stack of overmounts)
-is in the set, it will be resolved.  However, we rely upon umount_tree()
-doing that pretty much immediately after the call of propagate_umount().
+will immediately remedy that - it detaches every element of the set
+from its parent.  Since all conflicts created by reparenting have
+common parent *not* in the set and one side of the conflict (bottom
+of the stack of overmounts) is in the set, it will be resolved.
+However, we rely upon umount_tree() doing that pretty much immediately
+after the call of propagate_umount().
 
 Algorithm is based on two statements:
 	1) for any set S, there is a maximal non-shifting subset of S

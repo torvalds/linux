@@ -47,6 +47,54 @@ DEFINE_SIMPLE_JUMP_TABLE_PROG(reserved_field_src_reg,      BPF_REG_1, 0, 0, __fa
 DEFINE_SIMPLE_JUMP_TABLE_PROG(reserved_field_non_zero_off, BPF_REG_0, 1, 0, __failure __msg("BPF_JA|BPF_X uses reserved fields"))
 DEFINE_SIMPLE_JUMP_TABLE_PROG(reserved_field_non_zero_imm, BPF_REG_0, 0, 1, __failure __msg("BPF_JA|BPF_X uses reserved fields"))
 
+#define DEFINE_TERMINAL_GOTOX_PROG(NAME, BASE)			\
+	__naked void NAME(void)					\
+	{							\
+	asm volatile ("						\
+	.pushsection .jumptables,\"\",@progbits;		\
+jt0_%=:							\
+	.quad ret0_%= - " BASE ";				\
+	.size jt0_%=, 8;					\
+	.global jt0_%=;						\
+	.popsection;						\
+								\
+	r0 = jt0_%= ll;						\
+	r0 = *(u64 *)(r0 + 0);					\
+	goto end_%=;						\
+ret0_%=:							\
+	r0 = 0;							\
+	exit;							\
+end_%=:							\
+	.8byte %[gotox_r0];					\
+"	:							\
+	: __imm_insn(gotox_r0, BPF_RAW_INSN(BPF_JMP | BPF_JA | BPF_X,	\
+					    BPF_REG_0, 0, 0, 0))	\
+	: __clobber_all);					\
+	}
+
+SEC("socket")
+__success __retval(0)
+DEFINE_TERMINAL_GOTOX_PROG(jump_table_terminal_gotox, "socket")
+
+static __noinline __used
+DEFINE_TERMINAL_GOTOX_PROG(terminal_gotox_subprog1, ".text")
+
+static __noinline __used int terminal_gotox_subprog2(void)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __retval(0)
+__naked void jump_table_terminal_gotox_subprog(void)
+{
+	asm volatile ("						\
+	call terminal_gotox_subprog1;				\
+	call terminal_gotox_subprog2;				\
+	exit;							\
+"	::: __clobber_all);
+}
+
 /*
  * Gotox is forbidden when there is no jump table loaded
  * which points to the sub-function where the gotox is used

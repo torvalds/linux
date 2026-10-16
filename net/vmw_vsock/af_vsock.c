@@ -1048,6 +1048,8 @@ static void vsock_sk_destruct(struct sock *sk)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
+	/* Socket buffers may remain in the queue in VMCI datagram mode */
+	__skb_queue_purge(&sk->sk_receive_queue);
 	/* Flush MSG_ZEROCOPY leftovers. */
 	__skb_queue_purge(&sk->sk_error_queue);
 
@@ -2888,6 +2890,9 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 	int ret;
 
 	net = container_of(table->data, struct net, vsock.child_ns_mode);
+
+	if (!*lenp)
+		return 0;
 
 	ret = __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				      vsock_net_child_mode(net), &new_mode);

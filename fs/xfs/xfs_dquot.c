@@ -139,10 +139,14 @@ xfs_qm_adjust_dqlimits(
 		dq->q_ino.softlimit = defq->ino.soft;
 	if (!dq->q_ino.hardlimit)
 		dq->q_ino.hardlimit = defq->ino.hard;
-	if (!dq->q_rtb.softlimit)
+	if (!dq->q_rtb.softlimit) {
 		dq->q_rtb.softlimit = defq->rtb.soft;
-	if (!dq->q_rtb.hardlimit)
+		prealloc = 1;
+	}
+	if (!dq->q_rtb.hardlimit) {
 		dq->q_rtb.hardlimit = defq->rtb.hard;
+		prealloc = 1;
+	}
 
 	if (prealloc)
 		xfs_dquot_set_prealloc_limits(dq);

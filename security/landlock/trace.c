@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/lsm_audit.h>
+#include <linux/socket.h>
 #include <net/sock.h>
 
 #include "access.h"
@@ -61,8 +62,8 @@ void landlock_trace_free_domain(const struct landlock_hierarchy *const hierarchy
  *
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
- * @missing: The set of denied access rights.
- * @same_exec: Whether the current task is the same executable that called
+ * @missing: The final missing access subset, when applicable.
+ * @same_exec: Whether the policy subject is the same executable that called
  *             landlock_restrict_self() for the denying domain, as computed
  *             by landlock_log_denial().
  * @logged: Whether the domain's policy selects this denial for logging, as
@@ -83,6 +84,10 @@ void landlock_trace_denial(
 	case LANDLOCK_REQUEST_FS_ACCESS:
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 		if (trace_landlock_deny_access_fs_enabled()) {
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
 			char *buf __free(__putname) = __getname();
 			struct path dentry_path;
 			const char *pathname;
@@ -147,29 +152,67 @@ void landlock_trace_denial(
 
 			trace_landlock_deny_access_fs(youngest_denied,
 						      same_exec, logged,
-						      missing, path, pathname);
+						      &blockers, path,
+						      pathname);
 		}
 		break;
 	case LANDLOCK_REQUEST_NET_ACCESS:
-		if (trace_landlock_deny_access_net_enabled())
+		if (trace_landlock_deny_access_net_enabled()) {
+			const struct landlock_net_trace *const trace_net =
+				request->trace_net;
+			const struct landlock_blockers blockers = {
+				.access = missing,
+				.type = request->type,
+			};
+			struct sockaddr_storage address = {};
+
+			if (WARN_ON_ONCE(!trace_net || !trace_net->address))
+				return;
+
+			if (WARN_ON_ONCE(
+				    trace_net->addrlen <
+					    (int)offsetofend(struct sockaddr,
+							     sa_family) ||
+				    trace_net->addrlen > (int)sizeof(address)))
+				return;
+
+			memcpy(&address, trace_net->address,
+			       trace_net->addrlen);
 			trace_landlock_deny_access_net(
-				youngest_denied, same_exec, logged, missing,
+				youngest_denied, same_exec, logged, &blockers,
 				request->audit.u.net->sk,
-				ntohs(request->audit.u.net->sport),
-				ntohs(request->audit.u.net->dport));
+				trace_net->socket_family, &address,
+				trace_net->addrlen);
+		}
 		break;
 	case LANDLOCK_REQUEST_PTRACE:
-		if (trace_landlock_deny_ptrace_enabled())
-			trace_landlock_deny_ptrace(youngest_denied, same_exec,
-						   logged,
-						   request->other_domain_id,
-						   request->audit.u.tsk);
+		if (trace_landlock_deny_ptrace_enabled()) {
+			const struct landlock_ptrace_trace *const trace_ptrace =
+				request->trace_ptrace;
+
+			if (WARN_ON_ONCE(!trace_ptrace ||
+					 !trace_ptrace->tracer))
+				return;
+
+			trace_landlock_deny_ptrace(
+				youngest_denied, same_exec, logged,
+				trace_ptrace->tracee_domain_id,
+				request->audit.u.tsk, trace_ptrace->tracer);
+		}
 		break;
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
-		if (trace_landlock_deny_scope_signal_enabled())
+		if (trace_landlock_deny_scope_signal_enabled()) {
+			const struct landlock_signal_trace *const trace_signal =
+				request->trace_signal;
+
+			if (WARN_ON_ONCE(!trace_signal))
+				return;
+
 			trace_landlock_deny_scope_signal(
 				youngest_denied, same_exec, logged,
-				request->other_domain_id, request->audit.u.tsk);
+				trace_signal->target_domain_id,
+				request->audit.u.tsk, trace_signal->signal);
+		}
 		break;
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 		if (trace_landlock_deny_scope_abstract_unix_socket_enabled())

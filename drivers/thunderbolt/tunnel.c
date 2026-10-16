@@ -510,6 +510,7 @@ struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down,
 		goto err_deactivate;
 	}
 
+	tb_tunnel_set_active(tunnel, true);
 	tb_tunnel_dbg(tunnel, "discovered\n");
 	return tunnel;
 
@@ -1093,8 +1094,14 @@ static void tb_dp_dprx_work(struct work_struct *work)
 	struct tb_tunnel *tunnel = container_of(work, typeof(*tunnel), dprx_work.work);
 	struct tb *tb = tunnel->tb;
 
+	/*
+	 * The DPRX read can be canceled while this work is waiting for
+	 * tb->lock. Check the flag only once it is held: while the lock is
+	 * held the tunnel cannot be torn down under us and the adapters are
+	 * safe to access.
+	 */
+	mutex_lock(&tb->lock);
 	if (!tunnel->dprx_canceled) {
-		mutex_lock(&tb->lock);
 		if (tb_dp_is_usb4(tunnel->src_port->sw) &&
 		    tb_dp_wait_dprx(tunnel, TB_DPRX_WAIT_TIMEOUT)) {
 			if (ktime_before(ktime_get(), tunnel->dprx_timeout)) {
@@ -1106,41 +1113,42 @@ static void tb_dp_dprx_work(struct work_struct *work)
 		} else {
 			tb_tunnel_set_active(tunnel, true);
 		}
-		mutex_unlock(&tb->lock);
 	}
+	mutex_unlock(&tb->lock);
 
-	if (tunnel->callback)
-		tunnel->callback(tunnel, tunnel->callback_data);
+	tunnel->callback(tunnel, tunnel->callback_data);
 	tb_tunnel_put(tunnel);
+	tb_domain_put(tb);
 }
 
 static int tb_dp_dprx_start(struct tb_tunnel *tunnel)
 {
 	/*
-	 * Bump up the reference to keep the tunnel around. It will be
-	 * dropped in tb_dp_dprx_stop() once the tunnel is deactivated.
+	 * Bump up the references to keep the tunnel and the domain around
+	 * until the work has run or has been canceled.
 	 */
 	tb_tunnel_get(tunnel);
+	tb_domain_get(tunnel->tb);
 
 	tunnel->dprx_started = true;
+	tunnel->dprx_canceled = false;
+	tunnel->dprx_timeout = dprx_timeout_to_ktime(dprx_timeout);
+	queue_delayed_work(tunnel->tb->wq, &tunnel->dprx_work, 0);
 
-	if (tunnel->callback) {
-		tunnel->dprx_timeout = dprx_timeout_to_ktime(dprx_timeout);
-		queue_delayed_work(tunnel->tb->wq, &tunnel->dprx_work, 0);
-		return -EINPROGRESS;
-	}
-
-	return tb_dp_is_usb4(tunnel->src_port->sw) ?
-		tb_dp_wait_dprx(tunnel, dprx_timeout) : 0;
+	return -EINPROGRESS;
 }
 
 static void tb_dp_dprx_stop(struct tb_tunnel *tunnel)
 {
+	struct tb *tb = tunnel->tb;
+
 	if (tunnel->dprx_started) {
 		tunnel->dprx_started = false;
 		tunnel->dprx_canceled = true;
-		if (cancel_delayed_work(&tunnel->dprx_work))
+		if (cancel_delayed_work(&tunnel->dprx_work)) {
 			tb_tunnel_put(tunnel);
+			tb_domain_put(tb);
+		}
 	}
 }
 
@@ -1582,19 +1590,27 @@ static void tb_dp_dump(struct tb_tunnel *tunnel)
  * @tb: Pointer to the domain structure
  * @in: DP in adapter
  * @alloc_hopid: Allocate HopIDs from visited ports
+ * @callback: Callback that is called when the DP tunnel is fully
+ *	      activated (or there is an error)
+ * @callback_data: Data for @callback
  *
  * If @in adapter is active, follows the tunnel to the DP out adapter
  * and back. Returns the discovered tunnel or %NULL if there was no
- * tunnel.
+ * tunnel. See tb_tunnel_alloc_dp() for @callback.
  *
  * Return: Pointer to &struct tb_tunnel or %NULL if no tunnel found.
  */
 struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
-					bool alloc_hopid)
+					bool alloc_hopid,
+					void (*callback)(struct tb_tunnel *, void *),
+					void *callback_data)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_port *port;
 	struct tb_path *path;
+
+	if (WARN_ON(!callback))
+		return NULL;
 
 	if (!tb_dp_port_is_enabled(in))
 		return NULL;
@@ -1611,6 +1627,9 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 	tunnel->alloc_bandwidth = tb_dp_alloc_bandwidth;
 	tunnel->consumed_bandwidth = tb_dp_consumed_bandwidth;
 	tunnel->src_port = in;
+	tunnel->callback = callback;
+	tunnel->callback_data = callback_data;
+	INIT_DELAYED_WORK(&tunnel->dprx_work, tb_dp_dprx_work);
 
 	path = tb_path_discover(in, TB_DP_VIDEO_HOPID, NULL, -1,
 				&tunnel->dst_port, "Video", alloc_hopid);
@@ -1656,6 +1675,7 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 
 	tb_dp_dump(tunnel);
 
+	tb_tunnel_set_active(tunnel, true);
 	tb_tunnel_dbg(tunnel, "discovered\n");
 	return tunnel;
 
@@ -1677,16 +1697,16 @@ err_free:
  *	    %0 if no available bandwidth.
  * @max_down: Maximum available downstream bandwidth for the DP tunnel.
  *	      %0 if no available bandwidth.
- * @callback: Optional callback that is called when the DP tunnel is
- *	      fully activated (or there is an error)
- * @callback_data: Optional data for @callback
+ * @callback: Callback that is called when the DP tunnel is fully
+ *	      activated (or there is an error)
+ * @callback_data: Data for @callback
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
- * Display Port traffic. If @callback is not %NULL it will be called
- * after tb_tunnel_activate() once the tunnel has been fully activated.
- * It can call tb_tunnel_is_active() to check if activation was
- * successful (or if it returns %false there was some sort of issue).
- * The @callback is called without @tb->lock held.
+ * Display Port traffic. The @callback is called after tb_tunnel_activate()
+ * once the tunnel has been fully activated. It can call
+ * tb_tunnel_is_active() to check if activation was successful (or if it
+ * returns %false there was some sort of issue). The @callback is called
+ * without @tb->lock held.
  *
  * Return: Pointer to @struct tb_tunnel or %NULL in case of failure.
  */
@@ -1701,7 +1721,7 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 	struct tb_path *path;
 	bool pm_support;
 
-	if (WARN_ON(!in->cap_adap || !out->cap_adap))
+	if (WARN_ON(!in->cap_adap || !out->cap_adap || !callback))
 		return NULL;
 
 	tunnel = tb_tunnel_alloc(tb, 3, TB_TUNNEL_DP);
@@ -2288,6 +2308,7 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down,
 			tb_usb3_reclaim_available_bandwidth;
 	}
 
+	tb_tunnel_set_active(tunnel, true);
 	tb_tunnel_dbg(tunnel, "discovered\n");
 	return tunnel;
 

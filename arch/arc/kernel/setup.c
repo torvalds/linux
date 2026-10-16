@@ -593,6 +593,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   cpu_id);
 	} else {
 		freq = clk_get_rate(cpu_clk);
+		clk_put(cpu_clk);
 	}
 	if (freq)
 		seq_printf(m, "CPU speed\t: %lu.%02lu Mhz\n",
