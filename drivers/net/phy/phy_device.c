@@ -1403,6 +1403,7 @@ static int phy_sfp_connect_phy(void *upstream, struct phy_device *phy)
 	int ret;
 
 	phydev->has_sfp_mod_phy = true;
+	phy_set_upstream_port(phy, phydev->sfp_cage_port);
 
 	/* If we aren't attached to a netdev, we can't add the SFP PHY to its
 	 * topology.
@@ -1436,6 +1437,8 @@ static void phy_sfp_disconnect_phy(void *upstream, struct phy_device *phy)
 
 	if (dev)
 		phy_link_topo_del_phy(dev, phy);
+
+	phy_set_upstream_port(phy, NULL);
 }
 
 /**
@@ -1573,6 +1576,8 @@ static int phy_add_sfp_mod_port(struct phy_device *phydev)
 	 * is already represented by its own phy_port
 	 */
 	phydev->mod_port = port;
+
+	port->upstream_port = phydev->sfp_cage_port;
 
 	return 0;
 }
@@ -3702,6 +3707,25 @@ struct phy_port *phy_get_sfp_port(struct phy_device *phydev)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(phy_get_sfp_port);
+
+/**
+ * phy_set_upstream_port() - Sets the phy_port controlling the MII this PHY is
+ *			     attached to.
+ * @phydev: pointer to the PHY device we set the upstream of.
+ * @port: The phy_port upstream of this PHY, can be NULL.
+ */
+void phy_set_upstream_port(struct phy_device *phydev, struct phy_port *port)
+{
+	struct phy_port *local_port;
+
+	ASSERT_RTNL();
+
+	phydev->upstream_port = port;
+
+	phy_for_each_port(phydev, local_port)
+		local_port->upstream_port = port;
+}
+EXPORT_SYMBOL_GPL(phy_set_upstream_port);
 
 /**
  * fwnode_mdio_find_device - Given a fwnode, find the mdio_device
