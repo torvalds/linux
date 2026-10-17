@@ -440,7 +440,7 @@ enum yt921x_fdb_entry_status {
 #define YT921X_TAG_LEN	8
 
 #define YT921X_ACL_BLK_NUM	48
-#define YT921X_UDF_NUM		8
+#define YT921X_UDF_NUM		16
 
 #define YT921X_LED_GROUP_NUM	3
 #define YT921X_LED_PORT_NUM	10

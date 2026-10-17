@@ -543,6 +543,24 @@ yt921x_acl_rule_set_ports(struct yt921x_acl_rule *aclrule, u16 ord,
 	}
 }
 
+struct yt921x_udf_entry {
+	unsigned char type;
+	unsigned char offset;
+	u8 key;
+	u8 mask;
+};
+
+struct yt921x_udf_map {
+	unsigned char type;
+	unsigned char offset;
+};
+
+/* UDF windows are preselected - that's enough for now. */
+static struct yt921x_udf_map yt921x_udf_maps[] = {
+	{YT921X_UDF_TYPE_L3, 7},
+	{YT921X_UDF_TYPE_L4, 0},
+};
+
 struct yt921x_acl_rule_ext {
 	struct yt921x_acl_rule r;
 
@@ -556,9 +574,13 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 	const struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct yt921x_acl_entry *entries = ruleext->r.entries;
 	struct netlink_ext_ack *extack = cls->common.extack;
+	struct yt921x_udf_entry udfs[YT921X_UDF_NUM];
 	const struct flow_dissector *dissector;
 	struct yt921x_acl_entry *entry;
+	unsigned int udfs_cnt = 0;
 	unsigned int size = 0;
+	__be16 n_proto = 0;
+	u8 ip_proto = 0;
 	bool use_dport;
 	bool use_sport;
 
@@ -575,7 +597,8 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP) |
-	      BIT_ULL(FLOW_DISSECTOR_KEY_TCP))) {
+	      BIT_ULL(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ICMP))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported keys used");
 		return -EOPNOTSUPP;
 	}
@@ -741,7 +764,9 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 		if (match.mask->n_proto) {
 			enum yt921x_l3_type l3type = YT921X_L3_TYPE_OTHER;
 
-			if (match.mask->n_proto == htons(~0))
+			if (match.mask->n_proto == htons(~0)) {
+				n_proto = match.key->n_proto;
+
 				switch (match.key->n_proto) {
 				case htons(ETH_P_IP):
 					l3type = YT921X_L3_TYPE_IPV4;
@@ -762,6 +787,7 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 					l3type = YT921X_L3_TYPE_ERP;
 					break;
 				}
+			}
 
 			if (l3type != YT921X_L3_TYPE_OTHER) {
 				size = yt921x_acl_entries_set_l3_type(entries,
@@ -783,7 +809,9 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 		if (match.mask->ip_proto) {
 			enum yt921x_l4_type l4type = YT921X_L4_TYPE_OTHER;
 
-			if (match.mask->ip_proto == (u8)~0)
+			if (match.mask->ip_proto == (u8)~0) {
+				ip_proto = match.key->ip_proto;
+
 				switch (match.key->ip_proto) {
 				case IPPROTO_TCP:
 					l4type = YT921X_L4_TYPE_TCP;
@@ -801,6 +829,7 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 					l4type = YT921X_L4_TYPE_IGMP;
 					break;
 				}
+			}
 
 			if (l4type != YT921X_L4_TYPE_OTHER) {
 				size = yt921x_acl_entries_set_l4_type(entries,
@@ -852,10 +881,25 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 		struct flow_match_ip match;
 
 		flow_rule_match_ip(rule, &match);
+
 		if (match.mask->ttl) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on TTL not supported");
-			return -EOPNOTSUPP;
+			if (n_proto != htons(ETH_P_IP) &&
+			    n_proto != htons(ETH_P_IPV6)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Matching on TTL requires protocol ip or ipv6");
+				return -EOPNOTSUPP;
+			}
+
+			if (udfs_cnt >= YT921X_UDF_NUM)
+				goto err;
+
+			udfs[udfs_cnt] = (struct yt921x_udf_entry){
+				.type = YT921X_UDF_TYPE_L3,
+				.offset = n_proto == htons(ETH_P_IP) ? 8 : 7,
+				.key = match.key->ttl,
+				.mask = match.mask->ttl,
+			};
+			udfs_cnt++;
 		}
 
 		if (match.mask->tos) {
@@ -887,6 +931,82 @@ yt921x_acl_rule_ext_parse_flow_entries(struct yt921x_acl_rule_ext *ruleext,
 			entry->key[0] |= YT921X_ACL_BINa_MISC_TCP_FLAGS(ntohs(match.key->flags));
 			entry->mask[0] |= YT921X_ACL_BINa_MISC_TCP_FLAGS(ntohs(match.mask->flags));
 		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP)) {
+		struct flow_match_icmp match;
+
+		flow_rule_match_icmp(rule, &match);
+
+		if (match.mask->type || match.mask->code) {
+			if (ip_proto != IPPROTO_ICMP &&
+			    ip_proto != IPPROTO_ICMPV6) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Matching on ICMP type/code requires ip_proto icmp or icmpv6");
+				return -EOPNOTSUPP;
+			}
+
+			if (match.mask->type) {
+				if (udfs_cnt >= YT921X_UDF_NUM)
+					goto err;
+
+				udfs[udfs_cnt] = (struct yt921x_udf_entry){
+					.type = YT921X_UDF_TYPE_L4,
+					.offset = 0,
+					.key = match.key->type,
+					.mask = match.mask->type,
+				};
+				udfs_cnt++;
+			}
+
+			if (match.mask->code) {
+				if (udfs_cnt >= YT921X_UDF_NUM)
+					goto err;
+
+				udfs[udfs_cnt] = (struct yt921x_udf_entry){
+					.type = YT921X_UDF_TYPE_L4,
+					.offset = 1,
+					.key = match.key->code,
+					.mask = match.mask->code,
+				};
+				udfs_cnt++;
+			}
+		}
+	}
+
+	/* Compile UDFs */
+	for (unsigned int i = 0; i < udfs_cnt; i++) {
+		unsigned int o;
+		u32 mask;
+		u32 key;
+
+		for (o = 0; o < ARRAY_SIZE(yt921x_udf_maps); o++)
+			if (udfs[i].type == yt921x_udf_maps[o].type &&
+			    (udfs[i].offset == yt921x_udf_maps[o].offset ||
+			     udfs[i].offset == yt921x_udf_maps[o].offset + 1))
+				break;
+
+		if (WARN_ON(o == ARRAY_SIZE(yt921x_udf_maps)))
+			return -EOPNOTSUPP;
+
+		entry = yt921x_acl_entries_find(entries, &size,
+						YT921X_ACL_TYPE_UDF0 + o / 2);
+		if (!entry)
+			goto err;
+
+		key = udfs[i].key;
+		mask = udfs[i].mask;
+		if (udfs[i].offset == yt921x_udf_maps[o].offset) {
+			key <<= 8;
+			mask <<= 8;
+		}
+		if (!(o % 2)) {
+			key <<= 16;
+			mask <<= 16;
+		}
+
+		entry->key[0] |= key;
+		entry->mask[0] |= mask;
 	}
 
 	if (!size) {
@@ -1578,6 +1698,14 @@ int yt921x_chip_setup_acl(struct yt921x_priv *priv)
 	res = yt921x_reg_write(priv, YT921X_ACL_PORT, 0);
 	if (res)
 		return res;
+
+	for (unsigned int o = 0; o < ARRAY_SIZE(yt921x_udf_maps); o++) {
+		ctrl = YT921X_UDF_CTRL_UDF_OFFSET(yt921x_udf_maps[o].offset) |
+		       YT921X_UDF_CTRL_UDF_TYPE(yt921x_udf_maps[o].type);
+		res = yt921x_reg_write(priv, YT921X_UDFn_CTRL(o), ctrl);
+		if (res)
+			return res;
+	}
 
 	return 0;
 }
