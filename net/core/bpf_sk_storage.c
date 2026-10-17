@@ -925,7 +925,7 @@ static int bpf_iter_map_check_prog(const struct bpf_prog *prog,
 	if (prog->aux->max_rdwr_access > aux->map->value_size)
 		return -EACCES;
 
-	return 0;
+	return bpf_iter_map_check_value_write(prog, aux->map);
 }
 
 static int bpf_iter_attach_map(struct bpf_prog *prog,
