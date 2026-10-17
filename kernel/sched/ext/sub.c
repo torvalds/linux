@@ -916,18 +916,21 @@ struct scx_dispatch_q *__scx_resolve_local_dsq(struct scx_sched *sch, struct rq 
 /* @p lost the caps needed to stay on @rq's local DSQ? Record reason if so. */
 bool scx_task_reenq_on_cap_revoke(struct rq *rq, struct task_struct *p)
 {
+	s32 cpu = cpu_of(rq);
 	u64 missing;
 
 	/* migration-disabled tasks and the rescuee are admitted capless */
 	if (is_migration_disabled(p) || p == scx_rescuee(rq))
 		return false;
 
-	missing = scx_missing_caps(scx_task_sched(p), cpu_of(rq), scx_caps_for_task(p));
+	/* check caps against the sched running a bypassed task */
+	missing = scx_missing_caps(scx_exec_sched(scx_task_sched(p), cpu), cpu,
+				   scx_caps_for_task(p));
 	if (likely(!missing))
 		return false;
 
 	p->scx.reenq_reason_caps = missing;
-	p->scx.reenq_reason_cid = __scx_cpu_to_cid(cpu_of(rq));
+	p->scx.reenq_reason_cid = __scx_cpu_to_cid(cpu);
 	return true;
 }
 

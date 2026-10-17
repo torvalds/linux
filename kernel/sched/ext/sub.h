@@ -223,6 +223,8 @@ static inline u64 scx_caps_implied(u64 cap)
 /* may @p keep running on @rq's cpu? requires baseline cpu access */
 static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p)
 {
+	s32 cpu = cpu_of(rq);
+
 	if (!scx_has_subs())
 		return true;
 
@@ -230,7 +232,9 @@ static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p
 	if (unlikely(is_migration_disabled(p)))
 		return true;
 
-	return likely(!scx_missing_caps(scx_task_sched(p), cpu_of(rq), SCX_CAP_BASE));
+	/* check caps against the sched running a bypassed task */
+	return likely(!scx_missing_caps(scx_exec_sched(scx_task_sched(p), cpu), cpu,
+					SCX_CAP_BASE));
 }
 
 /* the task admitted for rescue on @rq, NULL if none */

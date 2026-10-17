@@ -390,7 +390,6 @@ static const struct sched_class *scx_setscheduler_class(struct task_struct *p)
 
 static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 cpu)
 {
-#ifdef CONFIG_EXT_SUB_SCHED
 	/*
 	 * If @sch is a sub-sched which is bypassing, its tasks should go into
 	 * the bypass DSQs of the nearest ancestor which is not bypassing. The
@@ -402,11 +401,7 @@ static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 c
 	 * are re-enqueued after scx_bypassing() is turned on, guaranteeing that
 	 * all tasks are transferred to the right DSQs.
 	 */
-	while (scx_parent(sch) && scx_bypassing(sch, cpu))
-		sch = scx_parent(sch);
-#endif	/* CONFIG_EXT_SUB_SCHED */
-
-	return scx_bypass_dsq(sch, cpu);
+	return scx_bypass_dsq(scx_exec_sched(sch, cpu), cpu);
 }
 
 /**
@@ -1228,6 +1223,18 @@ void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 
 	if (dsq->id == SCX_DSQ_LOCAL) {
 		rq = container_of(dsq, struct rq, scx.local_dsq);
+
+		/*
+		 * An inactive cpu's local DSQ holds only tasks that are bound
+		 * to it or are being moved off, so a reenq of it is pointless.
+		 * Once balance push is installed, queue_balance_callback() also
+		 * drops the callback that would run a reenq requested from
+		 * dispatch, and irq_work_queue_on() can't reach an offline cpu.
+		 * The reenq's node would then stay on this rq's list after
+		 * @sch's pcpu is freed.
+		 */
+		if (unlikely(!cpu_active(cpu_of(rq))))
+			return;
 
 		/*
 		 * A sub-sched lacking baseline access on the target cid has no
@@ -6805,6 +6812,24 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 		}
 
 		/*
+		 * Bypass trumps protection. Cycling the queued tasks below
+		 * clears theirs. The current donor isn't on the runnable list,
+		 * so strip its protection here.
+		 *
+		 * When bypass lifts, the current donor keeps running on its
+		 * slice without a cap check. Evict it if it can't stay on the
+		 * cpu.
+		 */
+		p = rq->donor;
+		if (p->sched_class == &ext_sched_class &&
+		    scx_is_descendant(scx_task_sched(p), sch)) {
+			if (bypass)
+				scx_task_slice_ended(rq, p);
+			else if (!scx_task_can_stay_on_cpu(rq, p))
+				scx_set_task_slice(p, 0);
+		}
+
+		/*
 		 * The use of list_for_each_entry_safe_reverse() is required
 		 * because each task is going to be removed from and added back
 		 * to the runnable_list during iteration. Because they're added
@@ -6815,13 +6840,6 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 						 scx.runnable_node) {
 			if (!scx_is_descendant(scx_task_sched(p), sch))
 				continue;
-
-			/*
-			 * Bypass trumps protection. Cycling clears for queued
-			 * tasks but the current donor needs explicit stripping.
-			 */
-			if (bypass && task_current_donor(rq, p))
-				scx_task_slice_ended(rq, p);
 
 			/* cycling deq/enq is enough, see the function comment */
 			scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE) {
@@ -10621,7 +10639,8 @@ __bpf_kfunc struct task_struct *scx_bpf_dsq_peek(u64 dsq_id,
  * - Local DSQs (%SCX_DSQ_LOCAL or %SCX_DSQ_LOCAL_ON | $cpu)
  * - User DSQs
  *
- * Re-enqueues are performed asynchronously. Can be called from anywhere.
+ * Re-enqueues are performed asynchronously. Can be called from anywhere. A
+ * re-enqueue of an inactive cpu's local DSQ is ignored.
  *
  * %SCX_DSQ_LOCAL resolves to the local DSQ of the rq the current scheduler
  * operation is locked to - e.g. the rq being dispatched for in ops.dispatch() -

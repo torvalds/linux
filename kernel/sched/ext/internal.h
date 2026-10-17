@@ -2702,4 +2702,21 @@ static inline struct scx_sched *scx_parent(struct scx_sched *sch) { return NULL;
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
+/**
+ * scx_exec_sched - Find the sched running @sch's tasks on @cpu
+ * @sch: sched owning the tasks
+ * @cpu: cpu of interest
+ *
+ * A bypassing sched's tasks are run by its nearest ancestor that isn't
+ * bypassing. Return @sch if it isn't bypassing on @cpu, otherwise that
+ * ancestor, or the root if every ancestor is bypassing. Hold @cpu's rq lock for
+ * a stable answer.
+ */
+static inline struct scx_sched *scx_exec_sched(struct scx_sched *sch, s32 cpu)
+{
+	while (scx_parent(sch) && scx_bypassing(sch, cpu))
+		sch = scx_parent(sch);
+	return sch;
+}
+
 #endif /* _KERNEL_SCHED_EXT_INTERNAL_H */
