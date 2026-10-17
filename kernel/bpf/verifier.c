@@ -15683,6 +15683,14 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	    bpf_is_kfunc_pkt_changing(&meta))
 		clear_all_pkt_pointers(env);
 
+	/*
+	 * These kfuncs write to the head of the skb in place if what they write
+	 * to is linear. Like a direct write that takes bpf_unclone_prologue().
+	 */
+	if (is_kfunc_dynptr_write(&meta) &&
+	    dynptr_write_changes_pkt_data(meta.dynptr_write_type))
+		may_access_direct_pkt_data(env, NULL, BPF_WRITE);
+
 	proto_slots = kfunc_abi_slots(&desc->func_model);
 	if (proto_slots > MAX_BPF_FUNC_REG_ARGS) {
 		struct bpf_func_state *caller = cur_func(env);
