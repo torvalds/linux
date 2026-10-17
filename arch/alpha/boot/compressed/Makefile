@@ -7,7 +7,10 @@
 OBJECTS := head.o misc.o trampoline.o piggy.o
 OBJECTS += memcpy.o memmove.o memset.o
 OBJECTS += __divqu.o __remqu.o __divlu.o __remlu.o
-targets := vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz
+targets := vmlinux.lds vmlinux vmlinux.bin
+targets += vmlinux.bin.bz2 vmlinux.bin.gz vmlinux.bin.lz4
+targets += vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.xz
+targets += vmlinux.bin.zst
 targets += $(OBJECTS)
 
 # The stub runs before the kernel has identified the CPU it booted on, so
@@ -44,18 +47,42 @@ AFLAGS___remlu.o := -DREM -DINTSIZE
 $(addprefix $(obj)/,__divqu.o __remqu.o __divlu.o __remlu.o): $(srctree)/arch/alpha/lib/divide.S FORCE
 	$(call if_changed_dep,as_o_S)
 
+# zstd's decompressor uses __builtin_ctzll()/__builtin_clzll(). Those are
+# inline code only with the CIX extension, which the base instruction set
+# the stub is built for does not have, so they become calls to libgcc's
+# __ctzdi2/__clzdi2.
+LIBGCC := $(shell $(CC) -print-libgcc-file-name)
+
 LDFLAGS_vmlinux := -X --orphan-handling=warn -T
-$(obj)/vmlinux: $(obj)/vmlinux.lds $(addprefix $(obj)/, $(OBJECTS)) FORCE
+$(obj)/vmlinux: $(obj)/vmlinux.lds $(addprefix $(obj)/, $(OBJECTS)) $(LIBGCC) FORCE
 	$(call if_changed,ld)
 
 OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .note -S
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
+suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
 suffix-$(CONFIG_KERNEL_GZIP)	:= gz
+suffix-$(CONFIG_KERNEL_LZ4)	:= lz4
+suffix-$(CONFIG_KERNEL_LZMA)	:= lzma
+suffix-$(CONFIG_KERNEL_LZO)	:= lzo
+suffix-$(CONFIG_KERNEL_XZ)	:= xz
+suffix-$(CONFIG_KERNEL_ZSTD)	:= zst
 
+$(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,bzip2_with_size)
 $(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
+$(obj)/vmlinux.bin.lz4: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lz4_with_size)
+$(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzma_with_size)
+$(obj)/vmlinux.bin.lzo: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzo_with_size)
+$(obj)/vmlinux.bin.xz: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,xzkern_with_size)
+$(obj)/vmlinux.bin.zst: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,zstd22_with_size)
 
 LDFLAGS_piggy.o := -r --format binary --oformat elf64-alpha -T
 $(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE

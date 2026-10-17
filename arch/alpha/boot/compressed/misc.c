@@ -23,6 +23,13 @@
 #define STATIC static
 #define memzero(s, n) memset((s), 0, (n))
 
+/*
+ * decompress_unxz.c supplies its own memmove() unless the identifier is
+ * already a macro. We link our own build of arch/alpha/lib/memmove.S,
+ * which is better, so take that instead.
+ */
+#define memmove memmove
+
 extern char input_data[];
 extern int input_len;
 /* output_len is inserted by the linker, possibly at an unaligned address */
@@ -42,8 +49,32 @@ void __noreturn error(char *m)
 		__halt();
 }
 
+#ifdef CONFIG_KERNEL_BZIP2
+#include "../../../../lib/decompress_bunzip2.c"
+#endif
+
 #ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZ4
+#include "../../../../lib/decompress_unlz4.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZMA
+#include "../../../../lib/decompress_unlzma.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
+
+#ifdef CONFIG_KERNEL_XZ
+#include "../../../../lib/decompress_unxz.c"
+#endif
+
+#ifdef CONFIG_KERNEL_ZSTD
+#include "../../../../lib/decompress_unzstd.c"
 #endif
 
 /* Scratch heap for the decompressors, larger than any of them needs. */
