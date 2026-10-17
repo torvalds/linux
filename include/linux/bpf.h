@@ -1742,12 +1742,20 @@ static inline void bpf_trampoline_multi_detach(struct bpf_prog *prog,
 static inline void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags) {}
 #endif
 
+/* The contexts that a global function is called in, and is verified for. */
+enum bpf_func_context {
+	BPF_FUNC_CTX_NON_SLEEPABLE,
+	BPF_FUNC_CTX_SLEEPABLE,
+	/* Sleepable code has disabled preemption or interrupts: no RCU read lock. */
+	BPF_FUNC_CTX_NO_RCU_LOCK,
+	BPF_FUNC_CTX_CNT,
+};
+
 struct bpf_func_info_aux {
 	u16 linkage;
 	bool unreliable;
-	/* Indexed by in_sleepable. */
-	bool called[2];
-	bool verified[2];
+	bool called[BPF_FUNC_CTX_CNT];
+	bool verified[BPF_FUNC_CTX_CNT];
 };
 
 enum bpf_jit_poke_reason {

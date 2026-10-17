@@ -1090,6 +1090,8 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	/* a global function is verified for BPF_FUNC_CTX_NO_RCU_LOCK */
+	bool no_rcu_read_lock;
 	bool seen_exception;
 	bool signature;
 	u32 insn_aux_data_len;
