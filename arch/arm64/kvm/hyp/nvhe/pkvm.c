@@ -38,7 +38,10 @@ unsigned int kvm_host_sve_max_vl;
  */
 static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
 
-/* The PKVM_HCR_EL2_HOST_{PVM,NPVM} bits of this value come from the host on each entry. */
+/*
+ * The PKVM_HCR_EL2_HOST_{PVM,NPVM} bits of this value come from the host on
+ * each entry, and a protected vCPU's TWI and TWE at vCPU load.
+ */
 static void pkvm_vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
