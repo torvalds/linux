@@ -2261,14 +2261,19 @@ int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 void ksmbd_destroy_file_table(struct ksmbd_session *sess)
 {
 	struct ksmbd_file_table *ft = &sess->file_table;
+	struct idr *idr;
 
 	if (!ft->idr)
 		return;
 
 	__close_file_table_ids(sess, NULL, session_fd_check, true);
-	idr_destroy(ft->idr);
-	kfree(ft->idr);
+	/* Stop procfs readers before freeing the detached file table. */
+	write_lock(&ft->lock);
+	idr = ft->idr;
 	ft->idr = NULL;
+	write_unlock(&ft->lock);
+	idr_destroy(idr);
+	kfree(idr);
 }
 
 int ksmbd_init_file_cache(void)
