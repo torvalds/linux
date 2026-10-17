@@ -440,6 +440,95 @@ int smb2_set_rsp_credits(struct ksmbd_work *work)
 	return 0;
 }
 
+static bool smb2_get_file_ids(struct smb2_hdr *hdr, u64 *volatile_id,
+			      u64 *persistent_id)
+{
+	unsigned int offset;
+
+	switch (hdr->Command) {
+	case SMB2_CLOSE:
+		offset = offsetof(struct smb2_close_req, PersistentFileId);
+		break;
+	case SMB2_FLUSH:
+		offset = offsetof(struct smb2_flush_req, PersistentFileId);
+		break;
+	case SMB2_READ:
+		offset = offsetof(struct smb2_read_req, PersistentFileId);
+		break;
+	case SMB2_WRITE:
+		offset = offsetof(struct smb2_write_req, PersistentFileId);
+		break;
+	case SMB2_LOCK:
+		offset = offsetof(struct smb2_lock_req, PersistentFileId);
+		break;
+	case SMB2_IOCTL: {
+		struct smb2_ioctl_req *req = (struct smb2_ioctl_req *)hdr;
+
+		switch (le32_to_cpu(req->CtlCode)) {
+		case FSCTL_DFS_GET_REFERRALS:
+		case FSCTL_DFS_GET_REFERRALS_EX:
+		case FSCTL_QUERY_NETWORK_INTERFACE_INFO:
+		case FSCTL_VALIDATE_NEGOTIATE_INFO:
+		case FSCTL_PIPE_WAIT:
+			return false;
+		}
+		offset = offsetof(struct smb2_ioctl_req, PersistentFileId);
+		break;
+	}
+	case SMB2_QUERY_DIRECTORY:
+		offset = offsetof(struct smb2_query_directory_req, PersistentFileId);
+		break;
+	case SMB2_CHANGE_NOTIFY:
+		offset = offsetof(struct smb2_change_notify_req, PersistentFileId);
+		break;
+	case SMB2_QUERY_INFO:
+		offset = offsetof(struct smb2_query_info_req, PersistentFileId);
+		break;
+	case SMB2_SET_INFO:
+		offset = offsetof(struct smb2_set_info_req, PersistentFileId);
+		break;
+	case SMB2_OPLOCK_BREAK:
+		if (((struct smb2_oplock_break *)hdr)->StructureSize !=
+		    cpu_to_le16(OP_BREAK_STRUCT_SIZE_20))
+			return false;
+		offset = offsetof(struct smb2_oplock_break, PersistentFid);
+		break;
+	default:
+		return false;
+	}
+
+	/* FileId contains consecutive persistent and volatile opaque values. */
+	memcpy(persistent_id, (char *)hdr + offset, sizeof(*persistent_id));
+	memcpy(volatile_id, (char *)hdr + offset + sizeof(*persistent_id),
+	       sizeof(*volatile_id));
+	return true;
+}
+
+/* Called after message validation and signature verification. */
+bool smb2_check_compound_fid(struct ksmbd_work *work)
+{
+	struct smb2_hdr *req = ksmbd_req_buf_next(work);
+	struct smb2_hdr *rsp = ksmbd_resp_buf_next(work);
+	u64 volatile_id, persistent_id;
+
+	if (!work->next_smb2_rcv_hdr_off ||
+	    !(req->Flags & SMB2_FLAGS_RELATED_OPERATIONS))
+		return false;
+
+	if (!work->compound_fid_missing &&
+	    !work->compound_fid_present &&
+	    smb2_get_file_ids(req, &volatile_id, &persistent_id))
+		work->compound_fid_missing = true;
+
+	if (!work->compound_fid_missing)
+		return false;
+
+	/* MS-SMB2 3.3.5.2.7.2 requires all subsequent operations to fail too. */
+	rsp->Status = STATUS_INVALID_HANDLE;
+	smb2_set_err_rsp(work);
+	return true;
+}
+
 /**
  * init_chained_smb2_rsp() - initialize smb2 chained response
  * @work:	smb work containing smb response buffer
@@ -452,6 +541,21 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 	struct smb2_hdr *rcv_hdr;
 	int next_hdr_offset = 0;
 	int len, new_len;
+	u64 volatile_id = KSMBD_NO_FID, persistent_id = KSMBD_NO_FID;
+	bool req_has_fid;
+
+	req_has_fid = smb2_get_file_ids(req, &volatile_id, &persistent_id);
+	/* A failed CREATE is handled through compound_status instead. */
+	work->compound_fid_present = req_has_fid || req->Command == SMB2_CREATE;
+	if (!work->compound_fid_present) {
+		work->compound_fid = KSMBD_NO_FID;
+		work->compound_pfid = KSMBD_NO_FID;
+	}
+
+	/* Related requests keep the inherited SessionId. */
+	if (!work->next_smb2_rcv_hdr_off ||
+	    !(req->Flags & SMB2_FLAGS_RELATED_OPERATIONS))
+		work->compound_sid = le64_to_cpu(rsp->SessionId);
 
 	/* Len of this response = updated RFC len - offset of previous cmd
 	 * in the compound rsp
@@ -463,48 +567,24 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 	if (req->Command == SMB2_CREATE && rsp->Status == STATUS_SUCCESS) {
 		work->compound_fid = ((struct smb2_create_rsp *)rsp)->VolatileFileId;
 		work->compound_pfid = ((struct smb2_create_rsp *)rsp)->PersistentFileId;
-		work->compound_sid = le64_to_cpu(rsp->SessionId);
 		work->compound_status = STATUS_SUCCESS;
-	} else if ((req->Command == SMB2_FLUSH ||
-		    req->Command == SMB2_READ ||
-		    req->Command == SMB2_WRITE) &&
-		   rsp->Status == STATUS_SUCCESS) {
-		u64 volatile_id = KSMBD_NO_FID;
-		u64 persistent_id = KSMBD_NO_FID;
-
-		if (req->Command == SMB2_FLUSH) {
-			struct smb2_flush_req *flush_req =
-				(struct smb2_flush_req *)req;
-
-			volatile_id = flush_req->VolatileFileId;
-			persistent_id = flush_req->PersistentFileId;
-		} else if (req->Command == SMB2_READ) {
-			struct smb2_read_req *read_req =
-				(struct smb2_read_req *)req;
-
-			volatile_id = read_req->VolatileFileId;
-			persistent_id = read_req->PersistentFileId;
+	} else if (rsp->Status == STATUS_SUCCESS) {
+		if (req_has_fid && req->Command != SMB2_CLOSE) {
+			/* Preserve the inherited FID when the request uses all ones. */
+			if (has_file_id(volatile_id)) {
+				work->compound_fid = volatile_id;
+				work->compound_pfid = persistent_id;
+			}
 		} else {
-			struct smb2_write_req *write_req =
-				(struct smb2_write_req *)req;
-
-			volatile_id = write_req->VolatileFileId;
-			persistent_id = write_req->PersistentFileId;
+			work->compound_fid = KSMBD_NO_FID;
+			work->compound_pfid = KSMBD_NO_FID;
 		}
-
-		if (has_file_id(volatile_id)) {
-			work->compound_fid = volatile_id;
-			work->compound_pfid = persistent_id;
-			work->compound_sid = le64_to_cpu(rsp->SessionId);
-			work->compound_status = STATUS_SUCCESS;
-		}
+		work->compound_status = STATUS_SUCCESS;
 	} else if (req->Command == SMB2_CREATE) {
 		work->compound_fid = KSMBD_NO_FID;
 		work->compound_pfid = KSMBD_NO_FID;
-		work->compound_sid = le64_to_cpu(rsp->SessionId);
 		work->compound_status = rsp->Status;
 	} else if (rsp->Status != STATUS_SUCCESS) {
-		work->compound_sid = le64_to_cpu(rsp->SessionId);
 		/*
 		 * Only carry the failed status forward when the failing command
 		 * was itself part of the related chain. An unrelated command
@@ -543,6 +623,8 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 		work->compound_fid = KSMBD_NO_FID;
 		work->compound_pfid = KSMBD_NO_FID;
 		work->compound_status = STATUS_SUCCESS;
+		work->compound_fid_present = false;
+		work->compound_fid_missing = false;
 	}
 	memset((char *)rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;

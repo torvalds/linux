@@ -54,10 +54,7 @@ struct ksmbd_work {
 	/* Current cmd hdr in compound rsp buf*/
 	int                             curr_smb2_rsp_hdr_off;
 
-	/*
-	 * Current Local FID assigned compound response if SMB2 CREATE
-	 * command is present in compound request
-	 */
+	/* FileId generated or used by the previous operation in a compound. */
 	u64				compound_fid;
 	u64				compound_pfid;
 	u64				compound_sid;
@@ -93,6 +90,10 @@ struct ksmbd_work {
 	bool                            asynchronous:1;
 	bool                            need_invalidate_rkey:1;
 	bool				request_open_chseq_tracked:1;
+	/* The previous command carries a FileId or is a CREATE. */
+	bool				compound_fid_present:1;
+	/* A related command failed because there was no FileId to inherit. */
+	bool				compound_fid_missing:1;
 	bool				session_setup_reauth:1;
 	/* Retain the binding decision for response signing and preauth hashing. */
 	bool				session_setup_binding:1;

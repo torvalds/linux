@@ -157,7 +157,10 @@ andx_again:
 		}
 	}
 
-	ret = cmds->proc(work);
+	if (smb2_check_compound_fid(work))
+		ret = -EBADF;
+	else
+		ret = cmds->proc(work);
 	if (conn->ops->inc_reqs) {
 		struct smb2_hdr *rsp = ksmbd_resp_buf_curr(work);
 
