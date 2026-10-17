@@ -6319,6 +6319,16 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 		}
 
 		/*
+		 * Bypass trumps protection. Cycling the queued tasks below
+		 * clears theirs. The current task isn't on the runnable list,
+		 * so strip its protection here.
+		 */
+		p = rq->curr;
+		if (bypass && p->sched_class == &ext_sched_class &&
+		    scx_is_descendant(scx_task_sched(p), sch))
+			scx_task_slice_ended(rq, p);
+
+		/*
 		 * The use of list_for_each_entry_safe_reverse() is required
 		 * because each task is going to be removed from and added back
 		 * to the runnable_list during iteration. Because they're added
@@ -6329,13 +6339,6 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 						 scx.runnable_node) {
 			if (!scx_is_descendant(scx_task_sched(p), sch))
 				continue;
-
-			/*
-			 * Bypass trumps protection. Cycling clears for queued
-			 * tasks but current task needs explicit stripping.
-			 */
-			if (bypass && task_current(rq, p))
-				scx_task_slice_ended(rq, p);
 
 			/* cycling deq/enq is enough, see the function comment */
 			scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE) {
