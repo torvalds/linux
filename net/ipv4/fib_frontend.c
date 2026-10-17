@@ -54,11 +54,11 @@ static int __net_init fib4_rules_init(struct net *net)
 {
 	struct fib_table *local_table, *main_table;
 
-	main_table  = fib_trie_table(RT_TABLE_MAIN, NULL);
+	main_table = fib_trie_table(net, RT_TABLE_MAIN, NULL);
 	if (!main_table)
 		return -ENOMEM;
 
-	local_table = fib_trie_table(RT_TABLE_LOCAL, main_table);
+	local_table = fib_trie_table(net, RT_TABLE_LOCAL, main_table);
 	if (!local_table)
 		goto fail;
 
@@ -91,7 +91,7 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	if (id == RT_TABLE_LOCAL && !net->ipv4.fib_has_custom_rules)
 		alias = fib_new_table(net, RT_TABLE_MAIN);
 
-	new_tb = fib_trie_table(id, alias);
+	new_tb = fib_trie_table(net, id, alias);
 	if (!new_tb)
 		return NULL;
 
@@ -243,8 +243,7 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	table = fib_get_table(net, tb_id);
 	if (table) {
 		ret = RTN_UNICAST;
-		if (!fib_table_lookup(net, table, &fl4, &res,
-				      FIB_LOOKUP_NOREF)) {
+		if (!fib_table_lookup(table, &fl4, &res, FIB_LOOKUP_NOREF)) {
 			struct fib_nh_common *nhc = fib_info_nhc(res.fi, 0);
 
 			if (!dev || dev == nhc->nhc_dev)
@@ -1401,8 +1400,7 @@ static void nl_fib_lookup(struct net *net, struct fib_result_nl *frn)
 		local_bh_disable();
 
 		frn->tb_id = tb->tb_id;
-		frn->err = fib_table_lookup(net, tb, &fl4, &res,
-					    FIB_LOOKUP_NOREF);
+		frn->err = fib_table_lookup(tb, &fl4, &res, FIB_LOOKUP_NOREF);
 
 		if (!frn->err) {
 			frn->prefixlen = res.prefixlen;
