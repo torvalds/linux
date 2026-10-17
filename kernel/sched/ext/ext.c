@@ -5111,7 +5111,7 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 	struct scx_sched *sch = dsq->sched;
 	struct scx_dsq_list_node cursor = INIT_DSQ_LIST_CURSOR(cursor, dsq, 0);
 	struct task_struct *p;
-	s32 nr_enqueued = 0;
+	s32 nr_visited = 0;
 
 	lockdep_assert_rq_held(rq);
 
@@ -5120,6 +5120,21 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 	while (likely(!READ_ONCE(sch->bypass_depth))) {
 		struct rq *task_rq;
 		u32 reason;
+
+		/*
+		 * Count skipped tasks too so that a long walk doesn't hold the
+		 * locks throughout. The cursor keeps the position.
+		 */
+		if (!(++nr_visited % SCX_TASK_ITER_BATCH)) {
+			raw_spin_unlock(&dsq->lock);
+			if (locked_rq) {
+				scx_rq_lock_drop(locked_rq);
+				raw_spin_rq_unlock(locked_rq);
+				locked_rq = NULL;
+			}
+			cpu_relax();
+			raw_spin_lock(&dsq->lock);
+		}
 
 		p = nldsq_cursor_next_task(&cursor, dsq);
 		if (!p)
@@ -5156,13 +5171,6 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 		p->scx.flags |= reason;
 
 		scx_do_enqueue_task(task_rq, p, SCX_ENQ_REENQ, -1);
-
-		if (!(++nr_enqueued % SCX_TASK_ITER_BATCH)) {
-			scx_rq_lock_drop(locked_rq);
-			raw_spin_rq_unlock(locked_rq);
-			locked_rq = NULL;
-			cpu_relax();
-		}
 
 		raw_spin_lock(&dsq->lock);
 	}
