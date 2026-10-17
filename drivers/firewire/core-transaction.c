@@ -133,7 +133,7 @@ __must_not_hold(&card->transactions.lock)
 
 	// Cancel the packet transmission if it's still queued. That will schedule the packet
 	// transmission callback which cancels the transaction.
-	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
+	if (smp_load_acquire(&card->driver)->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
 	// If the request packet has already been sent, we need to see if the transaction is still
@@ -462,7 +462,7 @@ __must_not_hold(&card->transactions.lock)
 					      t->packet.header, payload,
 					      tcode_is_read_request(tcode) ? 0 : length / 4);
 
-	card->driver->send_request(card, &t->packet);
+	smp_load_acquire(&card->driver)->send_request(card, &t->packet);
 }
 EXPORT_SYMBOL_GPL(__fw_send_request);
 
@@ -559,7 +559,7 @@ void fw_send_phy_config(struct fw_card *card,
 	}
 
 	if (gap_count == FW_PHY_CONFIG_CURRENT_GAP_COUNT) {
-		gap_count = card->driver->read_phy_reg(card, 1);
+		gap_count = smp_load_acquire(&card->driver)->read_phy_reg(card, 1);
 		if (gap_count < 0)
 			return;
 
@@ -582,7 +582,7 @@ void fw_send_phy_config(struct fw_card *card,
 					  phy_config_packet.generation, phy_config_packet.header[1],
 					  phy_config_packet.header[2]);
 
-	card->driver->send_request(card, &phy_config_packet);
+	smp_load_acquire(&card->driver)->send_request(card, &phy_config_packet);
 	wait_for_completion_timeout(&phy_config_done, timeout);
 }
 
@@ -991,7 +991,7 @@ void fw_send_response(struct fw_card *card,
 					       request->response.header, data,
 					       data ? data_length / 4 : 0);
 
-	card->driver->send_response(card, &request->response);
+	smp_load_acquire(&card->driver)->send_response(card, &request->response);
 }
 EXPORT_SYMBOL(fw_send_response);
 
@@ -1242,7 +1242,7 @@ __must_not_hold(&card->transactions.lock)
 	 * The response handler may be executed while the request handler
 	 * is still pending.  Cancel the request handler.
 	 */
-	card->driver->cancel_packet(card, &t->packet);
+	smp_load_acquire(&card->driver)->cancel_packet(card, &t->packet);
 
 	invoke_callback(t, rcode, p->timestamp, data, data_length);
 }
@@ -1361,17 +1361,17 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	case CSR_BUS_TIME:
 	case CSR_BUSY_TIMEOUT:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->read_csr(card, reg));
+			*data = cpu_to_be32(smp_load_acquire(&card->driver)->read_csr(card, reg));
 		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr(card, reg, be32_to_cpu(*data));
+			smp_load_acquire(&card->driver)->write_csr(card, reg, be32_to_cpu(*data));
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
 	case CSR_RESET_START:
 		if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr(card, CSR_STATE_CLEAR,
-						CSR_STATE_BIT_ABDICATE);
+			smp_load_acquire(&card->driver)->write_csr(card, CSR_STATE_CLEAR,
+								   CSR_STATE_BIT_ABDICATE);
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;

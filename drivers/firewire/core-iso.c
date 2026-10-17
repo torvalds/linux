@@ -144,8 +144,8 @@ struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, i
 {
 	struct fw_iso_context *ctx;
 
-	ctx = card->driver->allocate_iso_context(card, type, channel, header_size,
-						 header_storage_size);
+	ctx = smp_load_acquire(&card->driver)->allocate_iso_context(card, type, channel,
+							header_size, header_storage_size);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -173,7 +173,9 @@ void fw_iso_context_destroy(struct fw_iso_context *ctx)
 	trace_isoc_inbound_single_destroy(ctx);
 	trace_isoc_inbound_multiple_destroy(ctx);
 
-	ctx->card->driver->free_iso_context(ctx);
+	struct fw_card *card = ctx->card;
+
+	smp_load_acquire(&card->driver)->free_iso_context(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_destroy);
 
@@ -184,7 +186,9 @@ int fw_iso_context_start(struct fw_iso_context *ctx,
 	trace_isoc_inbound_single_start(ctx, cycle, sync, tags);
 	trace_isoc_inbound_multiple_start(ctx, cycle, sync, tags);
 
-	return ctx->card->driver->start_iso(ctx, cycle, sync, tags);
+	struct fw_card *card = ctx->card;
+
+	return smp_load_acquire(&card->driver)->start_iso(ctx, cycle, sync, tags);
 }
 EXPORT_SYMBOL(fw_iso_context_start);
 
@@ -192,7 +196,9 @@ int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels)
 {
 	trace_isoc_inbound_multiple_channels(ctx, *channels);
 
-	return ctx->card->driver->set_iso_channels(ctx, channels);
+	struct fw_card *card = ctx->card;
+
+	return smp_load_acquire(&card->driver)->set_iso_channels(ctx, channels);
 }
 
 int fw_iso_context_queue(struct fw_iso_context *ctx,
@@ -204,7 +210,9 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 	trace_isoc_inbound_single_queue(ctx, payload, packet);
 	trace_isoc_inbound_multiple_queue(ctx, payload, packet);
 
-	return ctx->card->driver->queue_iso(ctx, packet, buffer, payload);
+	struct fw_card *card = ctx->card;
+
+	return smp_load_acquire(&card->driver)->queue_iso(ctx, packet, buffer, payload);
 }
 EXPORT_SYMBOL(fw_iso_context_queue);
 
@@ -214,7 +222,9 @@ void fw_iso_context_queue_flush(struct fw_iso_context *ctx)
 	trace_isoc_inbound_single_flush(ctx);
 	trace_isoc_inbound_multiple_flush(ctx);
 
-	ctx->card->driver->flush_queue_iso(ctx);
+	struct fw_card *card = ctx->card;
+
+	smp_load_acquire(&card->driver)->flush_queue_iso(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_queue_flush);
 
@@ -248,7 +258,9 @@ int fw_iso_context_flush_completions(struct fw_iso_context *ctx)
 
 	disable_work_sync(&ctx->work);
 
-	err = ctx->card->driver->flush_iso_completions(ctx);
+	struct fw_card *card = ctx->card;
+
+	err = smp_load_acquire(&card->driver)->flush_iso_completions(ctx);
 
 	enable_work(&ctx->work);
 
@@ -270,7 +282,9 @@ int fw_iso_context_stop(struct fw_iso_context *ctx)
 	if (WARN_ON_ONCE(current_work() == &ctx->work))
 		return 0;
 
-	err = ctx->card->driver->stop_iso(ctx);
+	struct fw_card *card = ctx->card;
+
+	err = smp_load_acquire(&card->driver)->stop_iso(ctx);
 
 	cancel_work_sync(&ctx->work);
 

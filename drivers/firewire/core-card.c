@@ -153,8 +153,8 @@ static void update_config_roms(void)
 
 	list_for_each_entry (card, &card_list, link) {
 		generate_config_rom(card, tmp_config_rom);
-		card->driver->set_config_rom(card, tmp_config_rom,
-					     config_rom_length);
+		smp_load_acquire(&card->driver)->set_config_rom(card, tmp_config_rom,
+								config_rom_length);
 	}
 }
 
@@ -231,7 +231,7 @@ static int reset_bus(struct fw_card *card, bool short_reset)
 
 	trace_bus_reset_initiate(card->index, card->generation, short_reset);
 
-	return card->driver->update_phy_reg(card, reg, 0, bit);
+	return smp_load_acquire(&card->driver)->update_phy_reg(card, reg, 0, bit);
 }
 
 void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset)
@@ -660,7 +660,8 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 
 	scoped_guard(mutex, &card_mutex) {
 		generate_config_rom(card, tmp_config_rom);
-		ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
+		ret = smp_load_acquire(&card->driver)->enable(card, tmp_config_rom,
+							      config_rom_length);
 		if (ret < 0) {
 			card->isoc_wq = NULL;
 			card->async_wq = NULL;
@@ -804,7 +805,8 @@ void fw_core_remove_card(struct fw_card *card)
 	dummy_driver.free_iso_context	= card->driver->free_iso_context;
 	dummy_driver.stop_iso		= card->driver->stop_iso;
 	dummy_driver.disable		= card->driver->disable;
-	card->driver = &dummy_driver;
+	// Ensure the entire contents of the driver are visible to other CPUs.
+	smp_store_release(&card->driver, &dummy_driver);
 
 	drain_workqueue(card->isoc_wq);
 	drain_workqueue(card->async_wq);
@@ -843,12 +845,12 @@ EXPORT_SYMBOL(fw_core_remove_card);
  */
 int fw_card_read_cycle_time(struct fw_card *card, u32 *cycle_time)
 {
-	if (card->driver->read_csr == dummy_read_csr)
+	if (smp_load_acquire(&card->driver)->read_csr == dummy_read_csr)
 		return -ENODEV;
 
 	// It's possible to switch to dummy driver between the above and the below. This is the best
 	// effort to return -ENODEV.
-	*cycle_time = card->driver->read_csr(card, CSR_CYCLE_TIME);
+	*cycle_time = smp_load_acquire(&card->driver)->read_csr(card, CSR_CYCLE_TIME);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fw_card_read_cycle_time);
