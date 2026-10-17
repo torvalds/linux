@@ -1728,8 +1728,8 @@ static void phy_detach_internal(struct phy_device *phydev, bool notify_bus)
 	phydev->phy_link_change = NULL;
 	phydev->phylink = NULL;
 
-	if (phydev->mdio.dev.driver)
-		module_put(phydev->mdio.dev.driver->owner);
+	module_put(phydev->drv_owner);
+	phydev->drv_owner = NULL;
 
 	/* If the device had no specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
@@ -1794,6 +1794,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
 	struct module *ndev_owner = NULL;
+	struct module *drv_owner;
 	int irq = phydev->irq;
 	int err;
 
@@ -1811,6 +1812,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	get_device(d);
 
+	/* Set by every attach, with or without a netdev */
+	if (phydev->phy_link_change) {
+		phydev_err(phydev, "PHY already attached\n");
+		err = -EBUSY;
+		goto error_put_device;
+	}
+
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver.
 	 */
@@ -1823,11 +1831,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		phydev->is_genphy_driven = 1;
 	}
 
-	if (!try_module_get(d->driver->owner)) {
+	drv_owner = d->driver->owner;
+	if (!try_module_get(drv_owner)) {
 		phydev_err(phydev, "failed to get the device driver module\n");
 		err = -EIO;
 		goto error_put_device;
 	}
+	phydev->drv_owner = drv_owner;
 
 	if (phydev->is_genphy_driven) {
 		err = d->driver->probe(d);
@@ -1836,12 +1846,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 		if (err)
 			goto error_module_put;
-	}
-
-	if (phydev->attached_dev) {
-		dev_err(&dev->dev, "PHY already attached\n");
-		err = -EBUSY;
-		goto error;
 	}
 
 	phydev->phy_link_change = phy_link_change;
@@ -1941,7 +1945,8 @@ error:
 	return err;
 
 error_module_put:
-	module_put(d->driver->owner);
+	module_put(phydev->drv_owner);
+	phydev->drv_owner = NULL;
 	phydev->irq = irq;
 	phydev->is_genphy_driven = 0;
 	d->driver = NULL;
