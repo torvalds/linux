@@ -22,7 +22,8 @@
  * The function checks the given frequency is valid for the device. For input
  * pins it checks that the frequency can be factorized using supported base
  * frequencies. For output pins it checks that the frequency divides connected
- * synth frequency without remainder.
+ * synth frequency without remainder and that the resulting divisor is not
+ * below the minimum the driver supports.
  *
  * Return: true if the frequency is valid, false if not.
  */
@@ -30,7 +31,7 @@ static bool
 zl3073x_pin_check_freq(struct zl3073x_dev *zldev, enum dpll_pin_direction dir,
 		       u8 id, u64 freq)
 {
-	if (freq > U32_MAX)
+	if (!freq || freq > U32_MAX)
 		goto err_inv_freq;
 
 	if (dir == DPLL_PIN_DIRECTION_INPUT) {
@@ -41,18 +42,38 @@ zl3073x_pin_check_freq(struct zl3073x_dev *zldev, enum dpll_pin_direction dir,
 		if (rc)
 			goto err_inv_freq;
 	} else {
-		u32 synth_freq;
-		u8 out, synth;
+		u32 synth_freq, div, min_div, rem;
+		const struct zl3073x_out *out;
+		u8 out_id, synth;
 
 		/* Get output pin synthesizer */
-		out = zl3073x_output_pin_out_get(id);
-		synth = zl3073x_dev_out_synth_get(zldev, out);
+		out_id = zl3073x_output_pin_out_get(id);
+		synth = zl3073x_dev_out_synth_get(zldev, out_id);
 
 		/* Get synth frequency */
 		synth_freq = zl3073x_dev_synth_freq_get(zldev, synth);
 
 		/* Check the frequency divides synth frequency */
-		if (synth_freq % (u32)freq)
+		div = div_u64_rem(synth_freq, freq, &rem);
+		if (rem)
+			goto err_inv_freq;
+
+		/* The driver requires an output divisor of at least 2 -
+		 * below that the hardware bypasses the divider and ignores
+		 * the pulse width and eSync registers the driver programs.
+		 * For the N-pin of an N-divided output the effective divisor
+		 * also includes the N divider (>= 2), so the minimum is 4.
+		 * For N-divided outputs this is only a necessary condition -
+		 * whether the frequency can be set also depends on the output
+		 * divisor shared by both pins, which is checked when the
+		 * frequency is set.
+		 */
+		out = zl3073x_out_state_get(zldev, out_id);
+		if (zl3073x_out_is_ndiv(out) && zl3073x_is_n_pin(id))
+			min_div = 4;
+		else
+			min_div = 2;
+		if (div < min_div)
 			goto err_inv_freq;
 	}
 
@@ -295,13 +316,20 @@ skip_fwnode_props:
 		goto err_alloc_ranges;
 	}
 
-	/* Start with current frequency at index 0 */
-	ranges[0] = (struct dpll_pin_frequency)DPLL_PIN_FREQUENCY(curr_freq);
+	/* Start with current frequency at index 0. A sub-Hz frequency is
+	 * read back as 0 Hz and cannot be set, so it is not offered.
+	 */
+	j = 0;
+	if (curr_freq) {
+		struct dpll_pin_frequency freq = DPLL_PIN_FREQUENCY(curr_freq);
+
+		ranges[j++] = freq;
+	}
 
 	/* Add frequencies from firmware node, skipping current frequency
 	 * and filtering out frequencies not representable by device
 	 */
-	for (i = 0, j = 1; i < num_freqs; i++) {
+	for (i = 0; i < num_freqs; i++) {
 		struct dpll_pin_frequency freq = DPLL_PIN_FREQUENCY(freqs[i]);
 
 		if (freqs[i] == curr_freq)
@@ -310,6 +338,14 @@ skip_fwnode_props:
 			ranges[j] = freq;
 			j++;
 		}
+	}
+
+	/* The DPLL core rejects a non-NULL list without entries, so do
+	 * not publish the array at all when nothing is settable.
+	 */
+	if (!j) {
+		kfree(ranges);
+		ranges = NULL;
 	}
 
 	/* Save number of freq ranges and pointer to them into pin properties */
