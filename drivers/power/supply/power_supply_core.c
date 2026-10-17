@@ -1422,6 +1422,12 @@ static int __power_supply_get_property(struct power_supply *psy, enum power_supp
 int power_supply_get_property(struct power_supply *psy, enum power_supply_property psp,
 			      union power_supply_propval *val)
 {
+	/* Protect driver data from being free'd */
+	guard(rwsem_read)(&psy->epc_sem);
+
+	if (psy->removing)
+		return -ENODEV;
+
 	return __power_supply_get_property(psy, psp, val, true);
 }
 EXPORT_SYMBOL_GPL(power_supply_get_property);
@@ -1479,6 +1485,12 @@ static int __power_supply_set_property(struct power_supply *psy, enum power_supp
 int power_supply_set_property(struct power_supply *psy, enum power_supply_property psp,
 			      const union power_supply_propval *val)
 {
+	/* Protect driver data from being free'd */
+	guard(rwsem_read)(&psy->epc_sem);
+
+	if (psy->removing)
+		return -ENODEV;
+
 	return __power_supply_set_property(psy, psp, val, true);
 }
 EXPORT_SYMBOL_GPL(power_supply_set_property);
