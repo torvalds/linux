@@ -54,11 +54,13 @@ bool erofs_ishare_fill_inode(struct inode *inode)
 		si->i_mapping->a_ops = aops;
 		si->i_mode = 0444 | S_IFREG;
 		si->i_size = inode->i_size;
+		si->i_blkbits = inode->i_blkbits;
 		mapping_set_large_folios(si->i_mapping);
 		unlock_new_inode(si);
 	} else {
 		kfree(fp.opaque);
-		if (!si || aops != si->i_mapping->a_ops) {
+		if (!si || aops != si->i_mapping->a_ops ||
+		    si->i_blkbits != inode->i_blkbits) {
 			iput(si);
 			return false;
 		}
