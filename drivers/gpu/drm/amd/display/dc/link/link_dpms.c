@@ -2306,8 +2306,13 @@ static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, i
 {
 	ASSERT(stream->sink);
 
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link;
 	int req_bw = stream_bw;
+
+	if (!stream->sink)
+		return false;
+
+	link = stream->sink->link;
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -2355,9 +2360,13 @@ static bool allocate_usb4_bandwidth(struct dc_stream_state *stream)
 	ASSERT(stream->sink);
 
 	bool ret;
+	int bw;
 
-	int bw = dc_bandwidth_in_kbps_from_timing(&stream->timing,
-			dc_link_get_highest_encoding_format(stream->sink->link));
+	if (!stream->sink)
+		return false;
+
+	bw = dc_bandwidth_in_kbps_from_timing(&stream->timing,
+					      dc_link_get_highest_encoding_format(stream->sink->link));
 
 	ret = allocate_usb4_bandwidth_for_stream(stream, bw);
 
@@ -2419,7 +2428,8 @@ enum dc_status link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);
 
-	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation)
+	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation &&
+	    stream->sink)
 		deallocate_usb4_bandwidth(stream);
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)

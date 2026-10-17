@@ -8013,6 +8013,7 @@ F:	include/uapi/drm/ivpu_accel.h
 
 DRM ACCEL DRIVER FOR ROCKCHIP NPU
 M:	Tomeu Vizoso <tomeu@tomeuvizoso.net>
+R:	Heiko Stuebner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -8574,7 +8575,7 @@ F:	Documentation/devicetree/bindings/display/panel/synaptics,r63353.yaml
 F:	drivers/gpu/drm/panel/panel-synaptics-r63353.c
 
 DRM DRIVER FOR SYNOPSYS DESIGNWARE DISPLAYPORT BRIDGE
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/rockchip/rockchip,dw-dp.yaml
@@ -8927,7 +8928,7 @@ F:	include/linux/platform_data/shmob_drm.h
 DRM DRIVERS FOR ROCKCHIP
 M:	Sandy Huang <hjc@rock-chips.com>
 M:	Heiko Stübner <heiko@sntech.de>
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
@@ -12879,7 +12880,7 @@ S:	Maintained
 F:	drivers/power/supply/ip5xxx_power.c
 
 INNOSILICON HDMI BRIDGE DRIVER
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
