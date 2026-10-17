@@ -44,7 +44,7 @@ static int try_cancel_split_timeout(struct fw_transaction *t)
 	lockdep_assert_held(&t->card->transactions.lock);
 
 	if (t->is_split_transaction)
-		return timer_delete(&t->split_timeout_timer) || disable_work(&t->error_work);
+		return timer_delete(&t->split_timeout_timer);
 	else
 		return 1;
 }
@@ -150,15 +150,21 @@ __must_not_hold(&card->transactions.lock)
 	transaction->response_timestamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 	transaction->rcode = RCODE_CANCELLED;
 
-	enable_and_queue_work(card->async_wq, &transaction->error_work);
+	queue_work(card->async_wq, &transaction->error_work);
 
 	return 0;
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
+// Ensure that the transaction is not on the pending list when scheduling this work. Cancelling
+// the work after scheduling makes no sense, as the initiator must be notified of the transaction
+// result.
 static void error_callback_work(struct work_struct *work)
 {
 	struct fw_transaction *t = from_work(t, work, error_work);
+
+	// To detect programming mistakes.
+	WARN_ON(!list_empty(&t->link));
 
 	invoke_callback(t, t->rcode, t->response_timestamp, NULL, 0);
 }
@@ -418,6 +424,7 @@ __must_not_hold(&card->transactions.lock)
 	t->with_tstamp = with_tstamp;
 	t->callback_data = callback_data;
 	INIT_WORK(&t->error_work, error_callback_work);
+	INIT_LIST_HEAD(&t->link);
 
 	/*
 	 * Allocate tlabel from the bitmap and put the transaction on
