@@ -199,7 +199,7 @@ static void bpf_selem_unlink_storage_nolock_misc(struct bpf_local_storage_elem *
 	}
 
 	if (pin_owner)
-		refcount_dec(&local_storage->owner_refcnt);
+		bpf_local_storage_unpin_owner(local_storage);
 }
 
 /* local_storage->lock must be held and selem->local_storage == local_storage.
@@ -753,8 +753,8 @@ u32 bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 		while (refcount_read(&local_storage->owner_refcnt))
 			cpu_relax();
 		/*
-		 * Paired with refcount_dec() in bpf_selem_unlink_nofail()
-		 * to make sure destroy() sees the correct local_storage->mem_charge.
+		 * Paired with bpf_local_storage_unpin_owner() to make sure
+		 * destroy() sees the correct local_storage->mem_charge.
 		 */
 		smp_mb();
 	}
