@@ -352,7 +352,8 @@ out:
 static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 				    struct bpf_local_storage_map_bucket *b)
 {
-	bool in_map_free = !!b, free_storage = false;
+	bool in_map_free = !!b, free_storage = false, sleepable_users = false;
+	bool keep_fields = false;
 	struct bpf_local_storage *local_storage;
 	struct bpf_local_storage_map *smap;
 	unsigned long flags;
@@ -362,17 +363,26 @@ static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
 
 	if (smap) {
+		/* A map that is freed, or NULL here, has no program left. */
+		sleepable_users = !in_map_free &&
+				  (atomic64_read(&smap->map.sleepable_refcnt) ||
+				   READ_ONCE(smap->map.was_inner_map));
 		b = b ? : select_bucket(smap, local_storage);
 		err = raw_res_spin_lock_irqsave(&b->lock, flags);
 		if (!err) {
 			/*
 			 * Call bpf_obj_free_fields() under b->lock to make sure it is done
 			 * exactly once for an selem. Safe to free special fields immediately
-			 * as no BPF program should be referencing the selem.
+			 * as no BPF program should be referencing the selem, unless it
+			 * is sleepable: see below.
 			 */
 			if (likely(selem_linked_to_map(selem))) {
 				hlist_del_init_rcu(&selem->map_node);
-				bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+				if (sleepable_users)
+					keep_fields = true;
+				else
+					bpf_obj_free_fields(smap->map.record,
+							    SDATA(selem)->data);
 				unlink++;
 			}
 			raw_res_spin_unlock_irqrestore(&b->lock, flags);
@@ -387,7 +397,15 @@ static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 		 * with selem1 as raw_res_spin_lock_irqsave() returns -ETIMEDOUT.
 		 */
 		WARN_ON_ONCE(err && in_map_free);
-		if (!err || in_map_free)
+		/*
+		 * A sleepable program can still use, and fill, the fields of a value
+		 * that it got before it let go of the owner. As for bpf_selem_unlink(),
+		 * bpf_selem_free_trace_rcu() frees them, and takes smap for that:
+		 * map_free() waits for this RCU read side critical section and then
+		 * for the callback. It must not take smap away from an selem that
+		 * destroy() has unlinked from the map.
+		 */
+		if (in_map_free ? err || unlink : !err && !keep_fields)
 			RCU_INIT_POINTER(SDATA(selem)->smap, NULL);
 	}
 
@@ -434,11 +452,12 @@ static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 	 *
 	 * The owner that map_free() takes an selem from is alive: sleepable code, which
 	 * is in no RCU read side critical section, may be walking its list for another
-	 * map.
+	 * map.  And it can still use a value that it got before it let go of an owner
+	 * that destroy() is called for.
 	 */
 	if (unlink == 2 ||
 	    atomic_cmpxchg(&selem->state, SELEM_UNLINKED, SELEM_TOFREE) == SELEM_UNLINKED)
-		bpf_selem_free(selem, !in_map_free);
+		bpf_selem_free(selem, !in_map_free && !sleepable_users);
 
 	if (free_storage)
 		bpf_local_storage_free(local_storage, !in_map_free);
