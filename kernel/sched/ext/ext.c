@@ -322,7 +322,6 @@ static const struct sched_class *scx_setscheduler_class(struct task_struct *p)
 
 static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 cpu)
 {
-#ifdef CONFIG_EXT_SUB_SCHED
 	/*
 	 * If @sch is a sub-sched which is bypassing, its tasks should go into
 	 * the bypass DSQs of the nearest ancestor which is not bypassing. The
@@ -334,11 +333,7 @@ static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 c
 	 * are re-enqueued after scx_bypassing() is turned on, guaranteeing that
 	 * all tasks are transferred to the right DSQs.
 	 */
-	while (scx_parent(sch) && scx_bypassing(sch, cpu))
-		sch = scx_parent(sch);
-#endif	/* CONFIG_EXT_SUB_SCHED */
-
-	return scx_bypass_dsq(sch, cpu);
+	return scx_bypass_dsq(scx_exec_sched(sch, cpu), cpu);
 }
 
 /**
@@ -6322,11 +6317,19 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 		 * Bypass trumps protection. Cycling the queued tasks below
 		 * clears theirs. The current task isn't on the runnable list,
 		 * so strip its protection here.
+		 *
+		 * When bypass lifts, the current task keeps running on its
+		 * slice without a cap check. Evict it if it can't stay on the
+		 * cpu.
 		 */
 		p = rq->curr;
-		if (bypass && p->sched_class == &ext_sched_class &&
-		    scx_is_descendant(scx_task_sched(p), sch))
-			scx_task_slice_ended(rq, p);
+		if (p->sched_class == &ext_sched_class &&
+		    scx_is_descendant(scx_task_sched(p), sch)) {
+			if (bypass)
+				scx_task_slice_ended(rq, p);
+			else if (!scx_task_can_stay_on_cpu(rq, p))
+				scx_set_task_slice(p, 0);
+		}
 
 		/*
 		 * The use of list_for_each_entry_safe_reverse() is required
