@@ -5323,7 +5323,11 @@ int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
  */
 static bool irdma_cqp_ring_full(struct irdma_sc_cqp *cqp)
 {
-	return IRDMA_RING_FULL_ERR(cqp->sq_ring);
+	u64 in_flight = cqp->requested_ops -
+			atomic64_read(&cqp->completed_ops);
+
+	return IRDMA_RING_FULL_ERR(cqp->sq_ring) ||
+	       in_flight >= (cqp->sq_size - 1);
 }
 
 /**
