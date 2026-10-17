@@ -498,6 +498,12 @@ static inline bool __COMPAT_has_generic_reenq(void)
 	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
 }
 
+/* v7.4: Add scx_bpf_dsq_reenq_task(). */
+static inline bool __COMPAT_has_dsq_reenq_task(void)
+{
+	return bpf_ksym_exists(scx_bpf_dsq_reenq_task);
+}
+
 /*
  * v6.19: The new void variant can be called from anywhere while the older v1
  * variant can only be called from ops.cpu_release(). The double ___ prefixes on

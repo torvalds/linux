@@ -1946,6 +1946,8 @@ enum scx_reenq_flags {
 
 	/* internal: kernel-issued on cap revoke, not accepted from BPF */
 	SCX_REENQ_CAP_REVOKE	= 1LLU << 1,
+	/* internal: tasks marked by scx_bpf_dsq_reenq_task() */
+	SCX_REENQ_MARKED	= 1LLU << 2,
 
 	__SCX_REENQ_FILTER_MASK	= 0xffffLLU,
 

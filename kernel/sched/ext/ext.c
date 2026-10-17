@@ -555,11 +555,13 @@ enum scx_dsq_iter_flags {
 	/* iterate in the reverse dispatch order */
 	SCX_DSQ_ITER_REV		= 1U << 16,
 
+	__SCX_DSQ_ITER_HAS_REENQ	= 1U << 29,
 	__SCX_DSQ_ITER_HAS_SLICE	= 1U << 30,
 	__SCX_DSQ_ITER_HAS_VTIME	= 1U << 31,
 
 	__SCX_DSQ_ITER_USER_FLAGS	= SCX_DSQ_ITER_REV,
 	__SCX_DSQ_ITER_ALL_FLAGS	= __SCX_DSQ_ITER_USER_FLAGS |
+					  __SCX_DSQ_ITER_HAS_REENQ |
 					  __SCX_DSQ_ITER_HAS_SLICE |
 					  __SCX_DSQ_ITER_HAS_VTIME,
 };
@@ -1292,7 +1294,9 @@ void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 			WRITE_ONCE(dru->flags, dru->flags | reenq_flags);
 		}
 	} else {
-		scx_error(sch, "DSQ 0x%llx not allowed for reenq", dsq->id);
+		/* destroyed since the caller resolved it, nothing to reenq */
+		if (READ_ONCE(dsq->id) != SCX_DSQ_INVALID)
+			scx_error(sch, "DSQ 0x%llx not allowed for reenq", dsq->id);
 		return;
 	}
 
@@ -1918,6 +1922,7 @@ void scx_task_unlink_from_dsq(struct task_struct *p, struct scx_dispatch_q *dsq)
 		RB_CLEAR_NODE(&p->scx.dsq_priq);
 		p->scx.dsq_flags &= ~SCX_TASK_DSQ_ON_PRIQ;
 	}
+	p->scx.dsq_flags &= ~SCX_TASK_DSQ_REENQ;
 
 	list_del_init(&p->scx.dsq_list.node);
 	dsq_dec_nr(dsq, p);
@@ -5095,7 +5100,9 @@ static void process_deferred_reenq_locals(struct rq *rq)
 static bool user_task_should_reenq(struct task_struct *p, u64 reenq_flags, u32 *reason)
 {
 	*reason = SCX_TASK_REENQ_KFUNC;
-	return reenq_flags & SCX_REENQ_ANY;
+	if (reenq_flags & SCX_REENQ_ANY)
+		return true;
+	return (reenq_flags & SCX_REENQ_MARKED) && (p->scx.dsq_flags & SCX_TASK_DSQ_REENQ);
 }
 
 static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flags)
@@ -10087,6 +10094,8 @@ BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
+/* also in scx_kfunc_ids_unlocked, same contexts as scx_bpf_dsq_move() */
+BTF_ID_FLAGS(func, scx_bpf_dsq_reenq_task, KF_RCU)
 #ifdef CONFIG_EXT_SUB_SCHED
 BTF_ID_FLAGS(func, scx_bpf_sub_dispatch, KF_IMPLICIT_ARGS)
 #endif
@@ -10202,6 +10211,7 @@ BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_reenq_task, KF_RCU)
 /* also in scx_kfunc_ids_select_cpu: also callable from ops.select_cpu()/ops.enqueue() */
 BTF_ID_FLAGS(func, __scx_bpf_select_cpu_and, KF_IMPLICIT_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_select_cpu_and, KF_RCU)
@@ -10610,7 +10620,8 @@ __bpf_kfunc struct task_struct *bpf_iter_scx_dsq_next(struct bpf_iter_scx_dsq *i
  * bpf_iter_scx_dsq_destroy - Destroy a DSQ iterator
  * @it: iterator to destroy
  *
- * Undo bpf_iter_scx_dsq_new().
+ * Undo bpf_iter_scx_dsq_new(). If the iteration marked tasks with
+ * scx_bpf_dsq_reenq_task(), schedule their re-enqueue.
  */
 __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
 {
@@ -10626,6 +10637,13 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
 		list_del_init(&kit->cursor.node);
 		raw_spin_unlock_irqrestore(&kit->dsq->lock, flags);
 	}
+
+	if (kit->cursor.flags & __SCX_DSQ_ITER_HAS_REENQ) {
+		guard(preempt)();
+		schedule_dsq_reenq(kit->dsq->sched, kit->dsq, SCX_REENQ_MARKED,
+				   scx_locked_rq());
+	}
+
 	kit->dsq = NULL;
 }
 
@@ -10712,6 +10730,64 @@ __bpf_kfunc void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags,
 
 	dsq = find_dsq_for_dispatch(sch, locked_rq ?: this_rq(), dsq_id, smp_processor_id());
 	schedule_dsq_reenq(sch, dsq, reenq_flags, locked_rq);
+}
+
+/**
+ * scx_bpf_dsq_reenq_task - Re-enqueue a task from a DSQ iteration
+ * @it__iter: DSQ iterator in progress
+ * @p: task to re-enqueue
+ *
+ * Mark @p, which is on the DSQ iterated by @it__iter and was queued before the
+ * iteration started, for re-enqueue. When the iteration ends, the DSQ's marked
+ * tasks go through ops.enqueue() with %SCX_ENQ_REENQ in DSQ order and the other
+ * tasks on the DSQ keep their positions. A marked task that leaves the DSQ in
+ * the meantime is not re-enqueued. The mark belongs to @p, so a re-enqueue
+ * scheduled by another iteration of the DSQ may re-enqueue @p before this
+ * iteration ends. @p must be on the DSQ's scheduler.
+ *
+ * Re-enqueues are performed asynchronously. Can be called from ops.dispatch()
+ * or any BPF context which doesn't hold a rq lock (e.g. BPF timers or SYSCALL
+ * programs).
+ *
+ * Return %true if @p was marked, %false if @p left the DSQ or was queued after
+ * the iteration started, @p is on another scheduler, or the iterator holds no
+ * DSQ.
+ */
+__bpf_kfunc bool scx_bpf_dsq_reenq_task(struct bpf_iter_scx_dsq *it__iter,
+					struct task_struct *p)
+{
+	struct bpf_iter_scx_dsq_kern *kit = (void *)it__iter;
+	struct scx_dispatch_q *dsq = kit->dsq;
+	struct rq *src_rq, *entry_rq;
+	unsigned long flags;
+	bool marked = false;
+
+	/* NULL after a failed bpf_iter_scx_dsq_new(), see scx_dsq_move() */
+	if (unlikely(!dsq))
+		return false;
+
+	/* the cursor check needs @p's rq locked */
+	src_rq = task_rq(p);
+	entry_rq = kf_switch_rq_lock(src_rq, &flags);
+
+	scoped_guard (raw_spinlock, &dsq->lock) {
+		if (nldsq_cursor_lost_task(&kit->cursor, src_rq, dsq, p))
+			break;
+
+		if (unlikely(!scx_task_on_sched(dsq->sched, p))) {
+			scx_error(dsq->sched, "scx_bpf_dsq_reenq_task() on %s[%d] but the task belongs to a different scheduler",
+				  p->comm, p->pid);
+			break;
+		}
+
+		p->scx.dsq_flags |= SCX_TASK_DSQ_REENQ;
+		/* the walk is scheduled once, by bpf_iter_scx_dsq_destroy() */
+		kit->cursor.flags |= __SCX_DSQ_ITER_HAS_REENQ;
+		marked = true;
+	}
+
+	kf_restore_rq_lock(src_rq, entry_rq, flags);
+	return marked;
 }
 
 /**
