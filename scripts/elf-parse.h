@@ -37,10 +37,12 @@ struct elf_funcs {
 	uint64_t (*shdr_offset)(Elf_Shdr *shdr);
 	uint64_t (*shdr_size)(Elf_Shdr *shdr);
 	uint64_t (*shdr_entsize)(Elf_Shdr *shdr);
+	uint64_t (*shdr_flags)(Elf_Shdr *shdr);
 	uint32_t (*shdr_link)(Elf_Shdr *shdr);
 	uint32_t (*shdr_name)(Elf_Shdr *shdr);
 	uint32_t (*shdr_type)(Elf_Shdr *shdr);
 	uint8_t (*sym_type)(Elf_Sym *sym);
+	uint8_t (*sym_bind)(Elf_Sym *sym);
 	uint32_t (*sym_name)(Elf_Sym *sym);
 	uint64_t (*sym_value)(Elf_Sym *sym);
 	uint16_t (*sym_shndx)(Elf_Sym *sym);
@@ -143,6 +145,7 @@ SHDR_ADDR(addr)
 SHDR_ADDR(offset)
 SHDR_ADDR(size)
 SHDR_ADDR(entsize)
+SHDR_ADDR(flags)
 
 SHDR_WORD(link)
 SHDR_WORD(name)
@@ -209,6 +212,21 @@ static inline uint8_t sym32_type(Elf_Sym *sym)
 static inline uint8_t sym_type(Elf_Sym *sym)
 {
 	return elf_parser.sym_type(sym);
+}
+
+static inline uint8_t sym64_bind(Elf_Sym *sym)
+{
+	return ELF64_ST_BIND(sym->e64.st_info);
+}
+
+static inline uint8_t sym32_bind(Elf_Sym *sym)
+{
+	return ELF32_ST_BIND(sym->e32.st_info);
+}
+
+static inline uint8_t sym_bind(Elf_Sym *sym)
+{
+	return elf_parser.sym_bind(sym);
 }
 
 SYM_ADDR(value)
@@ -298,8 +316,44 @@ static inline void w8le(uint64_t val, uint64_t *x)
 }
 
 void *elf_map(char const *fname, size_t *size, uint32_t types);
+void *elf_map_ro(char const *fname, size_t *size, uint32_t types);
 void elf_unmap(void *addr, size_t size);
 int elf_map_machine(void *addr);
 int elf_map_long_size(void *addr);
+
+/* A mapped file with its section headers, section names and symbol table. */
+struct elf_file {
+	void *base;
+	size_t size;
+	const char *shdrs;
+	unsigned int shnum, shentsize;
+	const char *shstrtab;
+	Elf_Shdr *symtab;
+	const char *strtab;
+	size_t nr_syms;
+};
+
+int elf_open_ro(char const *fname, uint32_t types, struct elf_file *elf);
+void elf_close(struct elf_file *elf);
+
+static inline Elf_Shdr *elf_section(const struct elf_file *elf,
+				    unsigned int index)
+{
+	return (Elf_Shdr *)(elf->shdrs + (size_t)index * elf->shentsize);
+}
+
+static inline const char *elf_section_name(const struct elf_file *elf,
+					   Elf_Shdr *shdr)
+{
+	return elf->shstrtab + shdr_name(shdr);
+}
+
+static inline Elf_Sym *elf_symbol(const struct elf_file *elf, size_t index)
+{
+	const char *base = elf->base;
+
+	return (Elf_Sym *)(base + shdr_offset(elf->symtab) +
+			   index * shdr_entsize(elf->symtab));
+}
 
 #endif /* _SCRIPTS_ELF_PARSE_H */

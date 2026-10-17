@@ -855,7 +855,7 @@
 		KLP_SYMID
 
 #define MODINFO								\
-		.modinfo : { *(.modinfo) }
+		.modinfo (INFO) : { KEEP(*(.modinfo)) }
 
 #ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\

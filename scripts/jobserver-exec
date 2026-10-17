@@ -4,7 +4,8 @@
 """
 Determines how many parallel tasks "make" is expecting, as it is
 not exposed via any special variables, reserves them all, runs a subprocess
-with PARALLELISM environment variable set, and releases the jobs back again.
+with PARALLELISM environment variable set and any %PARALLELISM% in its
+arguments replaced by the count, and releases the jobs back again.
 
 See:
     https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html#POSIX-Jobserver

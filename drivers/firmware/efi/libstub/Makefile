@@ -40,7 +40,7 @@ KBUILD_CFLAGS			:= $(subst $(CC_FLAGS_FTRACE),,$(cflags-y)) \
 				   -D__NO_FORTIFY \
 				   -ffreestanding \
 				   -fno-stack-protector \
-				   $(call cc-option,-fno-addrsig) \
+				   $(CONFIG_CC_OPT_NO_ADDRSIG) \
 				   -D__DISABLE_EXPORTS
 
 #

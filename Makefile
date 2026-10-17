@@ -569,6 +569,9 @@ LZMA		= lzma
 LZ4		= lz4
 XZ		= xz
 ZSTD		= zstd
+# The kernel image is compressed with pigz, on the job slots make has free,
+# if it is installed. Everything else uses KGZIP.
+KPGZIP		:= $(if $(shell command -v pigz 2>/dev/null),$(PYTHON3) $(abs_srctree)/scripts/jobserver-exec pigz -p %PARALLELISM%,$(KGZIP))
 TAR		= tar
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
@@ -649,7 +652,7 @@ export RUSTC RUSTDOC RUSTFMT RUSTC_OR_CLIPPY_QUIET RUSTC_OR_CLIPPY BINDGEN LLVM_
 export HOSTRUSTC KBUILD_HOSTRUSTFLAGS
 export CPP AR NM STRIP OBJCOPY OBJDUMP READELF PAHOLE RESOLVE_BTFIDS LEX YACC AWK INSTALLKERNEL
 export PERL PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
-export KGZIP KBZIP2 KLZOP LZMA LZ4 XZ ZSTD TAR
+export KGZIP KPGZIP KBZIP2 KLZOP LZMA LZ4 XZ ZSTD TAR
 export KBUILD_HOSTCXXFLAGS KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS KBUILD_PROCMACROLDFLAGS LDFLAGS_MODULE
 export KBUILD_USERCFLAGS KBUILD_USERLDFLAGS
 
@@ -947,8 +950,8 @@ KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
 ifdef CONFIG_CC_IS_GCC
 # gcc-10 renamed --param=allow-store-data-races=0 to
 # -fno-allow-store-data-races.
-KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
-KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
+KBUILD_CFLAGS	+= $(CONFIG_CC_OPT_ALLOW_STORE_DATA_RACES_PARAM)
+KBUILD_CFLAGS	+= $(CONFIG_CC_OPT_NO_ALLOW_STORE_DATA_RACES)
 endif
 
 ifdef CONFIG_READABLE_ASM
@@ -1012,18 +1015,20 @@ endif
 endif
 
 # Explicitly clear padding bits during variable initialization
-KBUILD_CFLAGS += $(call cc-option,-fzero-init-padding-bits=all)
+KBUILD_CFLAGS += $(CONFIG_CC_OPT_ZERO_INIT_PADDING_BITS)
 
 # While VLAs have been removed, GCC produces unreachable stack probes
 # for the randomize_kstack_offset feature. Disable it for all compilers.
+# Probed here rather than in Kconfig as clang only accepts it for some
+# sub-targets, so the architecture's flags matter.
 KBUILD_CFLAGS	+= $(call cc-option, -fno-stack-clash-protection)
 
 # Get details on warnings generated due to GCC value tracking.
-KBUILD_CFLAGS	+= $(call cc-option, -fdiagnostics-show-context=2)
+KBUILD_CFLAGS	+= $(CONFIG_CC_OPT_DIAGNOSTICS_SHOW_CONTEXT)
 
 # Show inlining notes for __attribute__((warning/error)) call chains.
 # GCC supports this unconditionally while Clang 23+ provides a flag.
-KBUILD_CFLAGS	+= $(call cc-option, -fdiagnostics-show-inlining-chain)
+KBUILD_CFLAGS	+= $(CONFIG_CC_OPT_DIAGNOSTICS_SHOW_INLINING_CHAIN)
 
 # Clear used registers at func exit (to reduce data lifetime and ROP gadgets).
 ifdef CONFIG_ZERO_CALL_USED_REGS
@@ -1034,7 +1039,7 @@ ifdef CONFIG_FUNCTION_TRACER
 ifdef CONFIG_FTRACE_MCOUNT_USE_CC
   CC_FLAGS_FTRACE	+= -mrecord-mcount
   ifdef CONFIG_HAVE_NOP_MCOUNT
-    ifeq ($(call cc-option-yn, -mnop-mcount),y)
+    ifdef CONFIG_CC_HAS_MNOP_MCOUNT
       CC_FLAGS_FTRACE	+= -mnop-mcount
       CC_FLAGS_USING	+= -DCC_USING_NOP_MCOUNT
     endif
@@ -1052,8 +1057,7 @@ ifdef CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
   endif
 endif
 ifdef CONFIG_HAVE_FENTRY
-  # s390-linux-gnu-gcc did not support -mfentry until gcc-9.
-  ifeq ($(call cc-option-yn, -mfentry),y)
+  ifdef CONFIG_CC_HAS_MFENTRY
     CC_FLAGS_FTRACE	+= -mfentry
     CC_FLAGS_USING	+= -DCC_USING_FENTRY
   endif
@@ -1161,7 +1165,7 @@ NOSTDINC_FLAGS += -nostdinc
 # the kernel uses only C99 flexible arrays for dynamically sized trailing
 # arrays. Enforce this for everything that may examine structure sizes and
 # perform bounds checking.
-KBUILD_CFLAGS += $(call cc-option, -fstrict-flex-arrays=3)
+KBUILD_CFLAGS += $(CONFIG_CC_OPT_STRICT_FLEX_ARRAYS)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= -fno-strict-overflow
@@ -1244,11 +1248,11 @@ LDFLAGS_vmlinux += --build-id=sha1
 # COMDAT-deduplicated sections. Use --force-group-allocation to resolve these
 # groups when linking modules. The option is available from ld.bfd 2.29 and
 # ld.lld 19.1.0.
-KBUILD_LDFLAGS_MODULE += $(call ld-option,--force-group-allocation)
+KBUILD_LDFLAGS_MODULE += $(CONFIG_LD_OPT_FORCE_GROUP_ALLOCATION)
 
 KBUILD_LDFLAGS	+= -z noexecstack
 ifeq ($(CONFIG_LD_IS_BFD),y)
-KBUILD_LDFLAGS	+= $(call ld-option,--no-warn-rwx-segments)
+KBUILD_LDFLAGS	+= $(CONFIG_LD_OPT_NO_WARN_RWX_SEGMENTS)
 endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
@@ -1266,8 +1270,9 @@ ifdef CONFIG_LD_ORPHAN_WARN
 LDFLAGS_vmlinux += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 endif
 
+# --emit-relocs is added by scripts/link-vmlinux.sh, for the final link only.
 ifneq ($(CONFIG_ARCH_VMLINUX_NEEDS_RELOCS),)
-LDFLAGS_vmlinux	+= --emit-relocs --discard-none
+LDFLAGS_vmlinux	+= --discard-none
 endif
 
 # Align the architecture of userspace programs with the kernel

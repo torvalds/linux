@@ -153,9 +153,13 @@ obj-$(CONFIG_SCF_TORTURE_TEST) += scftorture.o
 
 $(obj)/configs.o: $(obj)/config_data.gz
 
+# .config is small, so it is compressed with gzip rather than the image compressor.
+quiet_cmd_gzip_config = GZIP    $@
+      cmd_gzip_config = cat $(real-prereqs) | $(KGZIP) -n -f -9 > $@
+
 targets += config_data config_data.gz
 $(obj)/config_data.gz: $(obj)/config_data FORCE
-	$(call if_changed,gzip)
+	$(call if_changed,gzip_config)
 
 filechk_cat = cat $<
 

@@ -76,7 +76,7 @@ $(obj)/initramfs_data.cpio: $(srctree)/scripts/gen_initramfs.sh scripts/gen_init
 endif
 
 $(obj)/initramfs_inc_data: $(cpio-data) FORCE
-	$(call if_changed,$(compress-y))
+	+$(call if_changed,$(compress-y))
 
 targets += initramfs_data.cpio initramfs_inc_data
 

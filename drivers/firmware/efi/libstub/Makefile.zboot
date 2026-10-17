@@ -24,7 +24,7 @@ zboot-method-$(CONFIG_KERNEL_ZSTD)	:= zstd22_with_size
 zboot-size-len-$(CONFIG_KERNEL_ZSTD)	:= 4
 
 $(obj)/vmlinuz: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,$(zboot-method-y))
+	+$(call if_changed,$(zboot-method-y))
 
 # avoid eager evaluation to prevent references to non-existent build artifacts
 OBJCOPYFLAGS_vmlinuz.o = -I binary -O $(EFI_ZBOOT_BFD_TARGET) $(EFI_ZBOOT_OBJCOPY_FLAGS) \

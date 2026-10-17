@@ -55,6 +55,7 @@ nfs-utils              1.0.5            showmount --version
 openssl & libcrypto    1.0.0            openssl version
 pahole                 1.26             pahole --version
 pcmciautils            004              pccardctl -V
+pigz (optional)        2.4              pigz --version
 PPP                    2.4.0            pppd --version
 procps                 3.2.0            ps --version
 Python                 3.9.x            python3 --version
@@ -205,6 +206,13 @@ GNU AWK
 
 GNU AWK is needed if you want kernel builds to generate address range data for
 builtin modules (CONFIG_BUILTIN_MODULE_RANGES).
+
+pigz (optional)
+---------------
+
+pigz is a parallel implementation of gzip. If it is installed the compressed
+kernel image is produced with it rather than with gzip, see ``KPGZIP`` in
+Documentation/kbuild/kbuild.rst.
 
 System utilities
 ****************

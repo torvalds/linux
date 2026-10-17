@@ -26,7 +26,7 @@ failure = $(if-success,$(1),n,y)
 # $(cc-probe,<flag>)
 # The command $(cc-option) and $(cc-option-str) test <flag> with. Not meant
 # to be called directly; use one of those two instead.
-cc-probe = trap "rm -rf .tmp_$$" EXIT; mkdir .tmp_$$; $(CC) -Werror $(CLANG_FLAGS) $(1) -c -x c /dev/null -o .tmp_$$/tmp.o
+cc-probe = trap "rm -rf .tmp_$$" EXIT; mkdir .tmp_$$; $(CC) -Werror $(CLANG_FLAGS) $(shell,echo $(1) | sed "s;^-Wno-;-W;") -c -x c /dev/null -o .tmp_$$/tmp.o
 
 # $(cc-option,<flag>)
 # Return y if the compiler supports <flag>, n otherwise

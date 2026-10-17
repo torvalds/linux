@@ -18,7 +18,7 @@ $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/vmlinux.gz: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 $(obj)/vmImage: $(obj)/vmlinux.gz FORCE
 	$(call if_changed,uimage)
