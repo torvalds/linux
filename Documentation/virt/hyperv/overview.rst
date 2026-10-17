@@ -134,11 +134,11 @@ Starting in Windows Server 2022 Hyper-V, the ACPI tables reflect
 only the CPUs actually present in the VM, so Linux does not report
 any hot-add CPUs.
 
-A Linux guest CPU may be taken offline using the normal Linux
-mechanisms, provided no VMBus channel interrupts are assigned to
-the CPU.  See the section on VMBus Interrupts for more details
-on how VMBus channel interrupts can be re-assigned to permit
-taking a CPU offline.
+A Linux guest CPU may be taken offline, and subsequently brought
+back online, using the normal Linux mechanisms. See the "VMBus
+Interrupts" section of Documentation/virt/hyperv/vmbus.rst
+documentation for how VMBus channel interrupts are automatically
+re-assigned if necessary when taking a CPU offline.
 
 32-bit and 64-bit
 -----------------
