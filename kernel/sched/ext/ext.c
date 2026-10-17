@@ -9745,6 +9745,40 @@ static const struct btf_kfunc_id_set scx_kfunc_set_enqueue_dispatch = {
 	.filter			= scx_kfunc_context_filter,
 };
 
+/*
+ * Lock @rq from a kfunc called either from ops.dispatch(), which holds the
+ * dispatched rq's lock, or from a context holding no rq lock. Under core
+ * scheduling, dispatch can run for a sibling rq, so the locked rq is not
+ * necessarily this CPU's. Return the rq locked on entry, NULL if none.
+ */
+static struct rq *kf_switch_rq_lock(struct rq *rq, unsigned long *flags)
+{
+	struct rq *entry_rq;
+
+	local_irq_save(*flags);
+
+	entry_rq = scx_locked_rq();
+	if (entry_rq) {
+		if (entry_rq != rq)
+			switch_rq_lock(entry_rq, rq);
+	} else {
+		raw_spin_rq_lock(rq);
+	}
+	return entry_rq;
+}
+
+/* undo kf_switch_rq_lock(), @rq is the rq locked now */
+static void kf_restore_rq_lock(struct rq *rq, struct rq *entry_rq, unsigned long flags)
+{
+	if (entry_rq) {
+		if (entry_rq != rq)
+			switch_rq_lock(rq, entry_rq);
+	} else {
+		scx_rq_lock_drop(rq);
+		raw_spin_rq_unlock_irqrestore(rq, flags);
+	}
+}
+
 static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 			 struct task_struct *p, u64 dsq_id, u64 enq_flags,
 			 bool priq)
@@ -9779,27 +9813,8 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	if (unlikely(READ_ONCE(sch->aborting)))
 		return false;
 
-	/*
-	 * Can be called from either ops.dispatch() holding the dispatched rq's
-	 * lock or any context where no rq lock is held. If latter, lock @p's
-	 * task_rq which we'll likely need anyway.
-	 */
 	src_rq = task_rq(p);
-
-	local_irq_save(flags);
-
-	/*
-	 * Under core scheduling, dispatch can run for a sibling rq, so the
-	 * locked rq is not necessarily this CPU's.
-	 */
-	locked_rq = scx_locked_rq();
-
-	if (locked_rq) {
-		if (locked_rq != src_rq)
-			switch_rq_lock(locked_rq, src_rq);
-	} else {
-		raw_spin_rq_lock(src_rq);
-	}
+	locked_rq = kf_switch_rq_lock(src_rq, &flags);
 
 	p_rq = src_rq;
 	raw_spin_lock(&src_dsq->lock);
@@ -9838,13 +9853,7 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	p_rq = move_task_between_dsqs(sch, p, enq_flags, src_dsq, dst_dsq);
 	dispatched = true;
 out:
-	if (locked_rq) {
-		if (locked_rq != p_rq)
-			switch_rq_lock(p_rq, locked_rq);
-	} else {
-		scx_rq_lock_drop(p_rq);
-		raw_spin_rq_unlock_irqrestore(p_rq, flags);
-	}
+	kf_restore_rq_lock(p_rq, locked_rq, flags);
 
 	kit->cursor.flags &= ~(__SCX_DSQ_ITER_HAS_SLICE |
 			       __SCX_DSQ_ITER_HAS_VTIME);
