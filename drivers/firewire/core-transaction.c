@@ -110,6 +110,14 @@ __must_not_hold(&card->transactions.lock)
 	__t;								\
 })
 
+static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 response_timestamp)
+{
+	t->rcode = rcode;
+	t->response_timestamp = response_timestamp;
+
+	queue_work(t->card->async_wq, &t->error_work);
+}
+
 /**
  * fw_cancel_transaction: cancel transaction.
  * @card:		interface where the transaction has been requested
@@ -147,10 +155,9 @@ __must_not_hold(&card->transactions.lock)
 
 	// Timestamping on behalf of hardware.
 	(void)fw_card_read_cycle_time(card, &curr_cycle_time);
-	transaction->response_timestamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
-	transaction->rcode = RCODE_CANCELLED;
 
-	queue_work(card->async_wq, &transaction->error_work);
+	schedule_error_callback(transaction, RCODE_CANCELLED,
+				cycle_time_to_ohci_tstamp(curr_cycle_time));
 
 	return 0;
 }
@@ -167,14 +174,6 @@ static void error_callback_work(struct work_struct *work)
 	WARN_ON(!list_empty(&t->link));
 
 	invoke_callback(t, t->rcode, t->response_timestamp, NULL, 0);
-}
-
-static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 response_timestamp)
-{
-	t->rcode = rcode;
-	t->response_timestamp = response_timestamp;
-
-	queue_work(t->card->async_wq, &t->error_work);
 }
 
 // card->transactions.lock must be released in advance.
