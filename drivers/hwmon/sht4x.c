@@ -287,6 +287,8 @@ static ssize_t heater_enable_store(struct device *dev,
 	ret = i2c_master_send(data->client, &cmd, SHT4X_CMD_LEN);
 	if (ret < 0)
 		return ret;
+	if (ret != SHT4X_CMD_LEN)
+		return -EIO;
 
 	data->heating_complete = get_jiffies_64() + msecs_to_jiffies(heating_time_bound);
 	data->data_pending = true;
