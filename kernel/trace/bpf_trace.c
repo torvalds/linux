@@ -2209,6 +2209,7 @@ int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_raw_tp_link *
 	return tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, link);
 }
 
+/* On success the caller releases *buf with kfree_const() */
 int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 			    u32 *fd_type, const char **buf,
 			    u64 *probe_offset, u64 *probe_addr,
@@ -2217,6 +2218,12 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 	bool is_tracepoint, is_syscall_tp;
 	struct bpf_prog *prog;
 	int flags, err = 0;
+
+	/*
+	 * The list of dynamic events is walked, and a probe which has siblings
+	 * can be deleted, with its strings, while its event is in use.
+	 */
+	guard(mutex)(&event_mutex);
 
 	prog = event->prog;
 	if (!prog)
@@ -2256,6 +2263,12 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 						  probe_offset, probe_addr,
 						  event->attr.type == PERF_TYPE_TRACEPOINT);
 #endif
+	}
+
+	if (!err && *buf) {
+		*buf = kstrdup_const(*buf, GFP_KERNEL);
+		if (!*buf)
+			err = -ENOMEM;
 	}
 
 	return err;

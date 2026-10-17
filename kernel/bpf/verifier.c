@@ -219,6 +219,7 @@ static int ref_set_non_owning(struct bpf_verifier_env *env,
 			      struct bpf_reg_state *reg);
 static bool is_trusted_reg(struct bpf_verifier_env *env, const struct bpf_reg_state *reg);
 static inline bool in_sleepable_context(struct bpf_verifier_env *env);
+static bool in_rcu_callback(struct bpf_verifier_env *env);
 static const char *non_sleepable_context_description(struct bpf_verifier_env *env);
 static void scalar32_min_max_add(struct bpf_reg_state *dst_reg, struct bpf_reg_state *src_reg);
 static void scalar_min_max_add(struct bpf_reg_state *dst_reg, struct bpf_reg_state *src_reg);
@@ -591,6 +592,19 @@ static bool is_async_cb_sleepable(struct bpf_verifier_env *env, struct bpf_insn 
 
 	verifier_bug(env, "unhandled async callback in is_async_cb_sleepable");
 	return false;
+}
+
+/* From here on the maps of the program count it as a sleepable user. */
+static void mark_sleepable_async_cb(struct bpf_verifier_env *env)
+{
+	int i;
+
+	if (bpf_prog_runs_sleepable(env->prog))
+		return;
+
+	env->prog->aux->sleepable_async_cb = true;
+	for (i = 0; i < env->used_map_cnt; i++)
+		atomic64_inc(&env->used_maps[i]->sleepable_refcnt);
 }
 
 bool bpf_is_may_goto_insn(struct bpf_insn *insn)
@@ -6039,9 +6053,10 @@ static int check_buffer_access(struct bpf_verifier_env *env,
 			       const struct bpf_reg_state *reg,
 			       argno_t argno, int off, int size,
 			       bool zero_size_allowed,
-			       u32 *max_access)
+			       u32 *max_access, bool write)
 {
 	const char *buf_info = type_is_rdonly_mem(reg->type) ? "rdonly" : "rdwr";
+	struct bpf_prog_aux *aux = env->prog->aux;
 	u32 access_end;
 	int err;
 
@@ -6050,6 +6065,11 @@ static int check_buffer_access(struct bpf_verifier_env *env,
 		return err;
 
 	*max_access = max(access_end, *max_access);
+	if (write && size) {
+		if (!aux->max_rdwr_write || access_end - size < aux->min_rdwr_write)
+			aux->min_rdwr_write = access_end - size;
+		aux->max_rdwr_write = max(access_end, aux->max_rdwr_write);
+	}
 
 	return 0;
 }
@@ -7325,7 +7345,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, struct b
 		}
 
 		err = check_buffer_access(env, reg, argno, off, size, false,
-					  max_access);
+					  max_access, t == BPF_WRITE);
 
 		if (!err && value_regno >= 0 && (rdonly_mem || t == BPF_READ))
 			mark_reg_unknown(env, regs, value_regno);
@@ -7838,7 +7858,7 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, struct bpf_reg_
 		}
 		return check_buffer_access(env, reg, argno, 0,
 					   access_size, zero_size_allowed,
-					   max_access);
+					   max_access, access_type == BPF_WRITE);
 	case PTR_TO_STACK:
 		return check_stack_range_initialized(
 				env, reg,
@@ -10366,11 +10386,70 @@ bool bpf_allow_tail_call_in_subprogs(struct bpf_verifier_env *env)
 	       bpf_jit_supports_subprog_tailcalls();
 }
 
+/*
+ * Is rcu_read_lock_held() true at run time? Unlike for in_rcu_cs(), disabled
+ * preemption or interrupts will not do.
+ */
+static bool has_rcu_read_lock(struct bpf_verifier_env *env)
+{
+	struct bpf_verifier_state *state = env->cur_state;
+
+	if (state->active_rcu_locks || in_rcu_callback(env))
+		return true;
+	if (in_sleepable(env))
+		return false;
+	return !env->no_rcu_read_lock || state->frame[0]->in_async_callback_fn;
+}
+
+/* May the map be used outside of an RCU read side critical section? */
+static bool map_needs_no_rcu(const struct bpf_map *map)
+{
+	switch (map->map_type) {
+	case BPF_MAP_TYPE_HASH:
+	case BPF_MAP_TYPE_RHASH:
+	case BPF_MAP_TYPE_LRU_HASH:
+	case BPF_MAP_TYPE_ARRAY:
+	case BPF_MAP_TYPE_PERCPU_HASH:
+	case BPF_MAP_TYPE_PERCPU_ARRAY:
+	case BPF_MAP_TYPE_LRU_PERCPU_HASH:
+	case BPF_MAP_TYPE_LPM_TRIE:
+	case BPF_MAP_TYPE_ARRAY_OF_MAPS:
+	case BPF_MAP_TYPE_HASH_OF_MAPS:
+	case BPF_MAP_TYPE_RINGBUF:
+	case BPF_MAP_TYPE_USER_RINGBUF:
+	case BPF_MAP_TYPE_INODE_STORAGE:
+	case BPF_MAP_TYPE_SK_STORAGE:
+	case BPF_MAP_TYPE_TASK_STORAGE:
+	case BPF_MAP_TYPE_CGRP_STORAGE:
+	case BPF_MAP_TYPE_QUEUE:
+	case BPF_MAP_TYPE_STACK:
+	case BPF_MAP_TYPE_ARENA:
+	case BPF_MAP_TYPE_INSN_ARRAY:
+	case BPF_MAP_TYPE_PROG_ARRAY:
+	case BPF_MAP_TYPE_BLOOM_FILTER:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int check_map_func_compatibility(struct bpf_verifier_env *env,
 					struct bpf_map *map, int func_id)
 {
 	if (!map)
 		return 0;
+
+	/*
+	 * check_map_prog_compatibility() asks the program.  That misses the
+	 * sleepable callback of another program, and an inner map.  They may
+	 * use any map under the RCU read lock.  Disabled preemption or
+	 * interrupts will not do: the maps ask for rcu_read_lock_held().
+	 */
+	if (!has_rcu_read_lock(env) && !map_needs_no_rcu(map)) {
+		verbose(env, "map '%s' needs bpf_rcu_read_lock() in sleepable context\n",
+			map->name);
+		return -EINVAL;
+	}
 
 	/* We need a two way check, first is from map perspective ... */
 	switch (map->map_type) {
@@ -11211,6 +11290,8 @@ static int push_callback_call(struct bpf_verifier_env *env, struct bpf_insn *ins
 					 is_async_cb_sleepable(env, insn));
 		if (IS_ERR(async_cb))
 			return PTR_ERR(async_cb);
+		if (is_async_cb_sleepable(env, insn))
+			mark_sleepable_async_cb(env);
 		callee = async_cb->frame[0];
 		callee->async_entry_cnt = state->frame[0]->async_entry_cnt + 1;
 
@@ -11358,7 +11439,12 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		if (env->log.level & BPF_LOG_LEVEL)
 			verbose(env, "Func#%d ('%s') is global and assumed valid.\n",
 				subprog, sub_name);
-		sub_aux->called[in_sleepable_context(env)] = true;
+		if (in_sleepable_context(env))
+			sub_aux->called[BPF_FUNC_CTX_SLEEPABLE] = true;
+		else if (has_rcu_read_lock(env))
+			sub_aux->called[BPF_FUNC_CTX_NON_SLEEPABLE] = true;
+		else
+			sub_aux->called[BPF_FUNC_CTX_NO_RCU_LOCK] = true;
 		returns_void = subprog_returns_void(env, subprog);
 		if (env->subprog_info[subprog].changes_pkt_data)
 			clear_all_pkt_pointers(env);
@@ -11530,6 +11616,19 @@ static int set_map_elem_callback_state(struct bpf_verifier_env *env,
 	if (err)
 		return err;
 
+	switch (map->map_type) {
+	case BPF_MAP_TYPE_HASH:
+	case BPF_MAP_TYPE_PERCPU_HASH:
+	case BPF_MAP_TYPE_LRU_HASH:
+	case BPF_MAP_TYPE_LRU_PERCPU_HASH:
+	case BPF_MAP_TYPE_RHASH:
+		/* Hash tables run the callback under rcu_read_lock(). */
+		callee->in_rcu_callback_fn = true;
+		break;
+	default:
+		break;
+	}
+
 	callee->in_callback_fn = true;
 	callee->callback_ret_range = retval_range(0, 1);
 	return 0;
@@ -11616,6 +11715,8 @@ static int set_find_vma_callback_state(struct bpf_verifier_env *env,
 	bpf_mark_reg_not_init(env, &callee->regs[BPF_REG_4]);
 	bpf_mark_reg_not_init(env, &callee->regs[BPF_REG_5]);
 	callee->in_callback_fn = true;
+	/* bpf_find_vma() runs the callback under mmap_lock and RCU. */
+	callee->in_rcu_callback_fn = true;
 	callee->callback_ret_range = retval_range(0, 1);
 	return 0;
 }
@@ -12273,10 +12374,22 @@ int bpf_get_helper_proto(struct bpf_verifier_env *env, int func_id,
 	return *ptr && (*ptr)->func ? 0 : -EINVAL;
 }
 
+/* Is any frame on the current path a callback that runs under RCU? */
+static bool in_rcu_callback(struct bpf_verifier_env *env)
+{
+	struct bpf_verifier_state *state = env->cur_state;
+	int i;
+
+	for (i = 0; i <= state->curframe; i++)
+		if (state->frame[i]->in_rcu_callback_fn)
+			return true;
+	return false;
+}
+
 /* Check if we're in a sleepable context. */
 static inline bool in_sleepable_context(struct bpf_verifier_env *env)
 {
-	return !in_rcu_cs(env);
+	return !in_rcu_cs(env) && !in_rcu_callback(env);
 }
 
 static const char *non_sleepable_context_description(struct bpf_verifier_env *env)
@@ -12290,6 +12403,7 @@ static const char *non_sleepable_context_description(struct bpf_verifier_env *en
 			return "IRQ-disabled region";
 		if (env->cur_state->active_locks)
 			return "lock region";
+		return "callback running under rcu_read_lock";
 	}
 	return "non-sleepable prog";
 }
@@ -18117,7 +18231,7 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
 		 * this restriction. I.e., !(r1 & 0x3) means neither bit 0 nor
 		 * bit 1 is set, which we can readily use in adjustments.
 		 */
-		if (!is_power_of_2(val))
+		if (hweight64(val) != 1)
 			break;
 		if (is_jmp32) {
 			t = tnum_or(tnum_subreg(reg1->var_off), tnum_const(val));
@@ -20633,35 +20747,11 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (prog->sleepable)
-		switch (map->map_type) {
-		case BPF_MAP_TYPE_HASH:
-		case BPF_MAP_TYPE_RHASH:
-		case BPF_MAP_TYPE_LRU_HASH:
-		case BPF_MAP_TYPE_ARRAY:
-		case BPF_MAP_TYPE_PERCPU_HASH:
-		case BPF_MAP_TYPE_PERCPU_ARRAY:
-		case BPF_MAP_TYPE_LRU_PERCPU_HASH:
-		case BPF_MAP_TYPE_LPM_TRIE:
-		case BPF_MAP_TYPE_ARRAY_OF_MAPS:
-		case BPF_MAP_TYPE_HASH_OF_MAPS:
-		case BPF_MAP_TYPE_RINGBUF:
-		case BPF_MAP_TYPE_USER_RINGBUF:
-		case BPF_MAP_TYPE_INODE_STORAGE:
-		case BPF_MAP_TYPE_SK_STORAGE:
-		case BPF_MAP_TYPE_TASK_STORAGE:
-		case BPF_MAP_TYPE_CGRP_STORAGE:
-		case BPF_MAP_TYPE_QUEUE:
-		case BPF_MAP_TYPE_STACK:
-		case BPF_MAP_TYPE_ARENA:
-		case BPF_MAP_TYPE_INSN_ARRAY:
-		case BPF_MAP_TYPE_PROG_ARRAY:
-			break;
-		default:
-			verbose(env,
-				"Sleepable programs can only use array, hash, ringbuf and local storage maps\n");
-			return -EINVAL;
-		}
+	if (prog->sleepable && !map_needs_no_rcu(map)) {
+		verbose(env,
+			"Sleepable programs can only use array, hash, ringbuf and local storage maps\n");
+		return -EINVAL;
+	}
 
 	if (bpf_map_is_cgroup_storage(map) &&
 	    bpf_cgroup_storage_assign(env->prog->aux, map)) {
@@ -20746,7 +20836,7 @@ static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 	if (err)
 		return err;
 
-	if (env->prog->sleepable)
+	if (bpf_prog_runs_sleepable(env->prog))
 		atomic64_inc(&map->sleepable_refcnt);
 
 	/* hold the map. If the program is rejected by verifier,
@@ -21383,7 +21473,8 @@ static void free_states(struct bpf_verifier_env *env)
 	}
 }
 
-static int do_check_common(struct bpf_verifier_env *env, int subprog, bool is_sleepable)
+static int do_check_common(struct bpf_verifier_env *env, int subprog,
+			   enum bpf_func_context context)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
 	struct bpf_subprog_info *sub = subprog_info(env, subprog);
@@ -21403,7 +21494,8 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog, bool is_sl
 	state->curframe = 0;
 	state->speculative = false;
 	state->branches = 1;
-	state->in_sleepable = is_sleepable;
+	state->in_sleepable = context == BPF_FUNC_CTX_SLEEPABLE;
+	env->no_rcu_read_lock = context == BPF_FUNC_CTX_NO_RCU_LOCK;
 	state->frame[0] = kzalloc_obj(struct bpf_func_state, GFP_KERNEL_ACCOUNT);
 	if (!state->frame[0]) {
 		kfree(state);
@@ -21620,7 +21712,7 @@ again:
 
 	/*
 	 * We can't loop forever as each pass verifies at least one new context,
-	 * and there are only two contexts per global subprog.
+	 * and there are only three contexts per global subprog.
 	 */
 	if (new_cnt)
 		goto again;
@@ -22144,6 +22236,15 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			if (!prog->jit_requested) {
 				bpf_log(log,
 					"Extension programs should be JITed\n");
+				return -EINVAL;
+			}
+			/*
+			 * How much of the buffer of the tracepoint is used
+			 * is checked for the program that is attached to it.
+			 */
+			if (tgt_prog->type == BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE) {
+				bpf_log(log,
+					"Cannot extend a writable raw tracepoint program\n");
 				return -EINVAL;
 			}
 			tgt_changes_pkt_data = aux->func

@@ -379,6 +379,11 @@ struct bpf_func_state {
 	bool in_async_callback_fn;
 	bool in_exception_callback_fn;
 	bool no_stack_arg_load;
+	/*
+	 * The helper invokes this callback under rcu_read_lock(), so the
+	 * callback and its callees run in an RCU read-side critical section.
+	 */
+	bool in_rcu_callback_fn;
 	/* For callback calling functions that limit number of possible
 	 * callback executions (e.g. bpf_loop) keeps track of current
 	 * simulated iteration number.
@@ -1085,6 +1090,8 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	/* a global function is verified for BPF_FUNC_CTX_NO_RCU_LOCK */
+	bool no_rcu_read_lock;
 	bool seen_exception;
 	bool signature;
 	u32 insn_aux_data_len;
