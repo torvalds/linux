@@ -652,9 +652,34 @@ static void update_core_sched_head_seq(struct task_struct *p)
 }
 
 /*
+ * Send @p, stranded on the DSQ @it iterates, to the kernel rescue path. To
+ * exercise both kfuncs, move tasks with an even pid there with
+ * scx_bpf_dsq_move() and re-enqueue the others with scx_bpf_dsq_reenq_task(),
+ * which takes them through qmap_enqueue()'s rescue. The choice is per task so
+ * that a marked task isn't moved by another scan before the re-enqueue reaches
+ * it.
+ */
+static __always_inline void rescue_stranded(struct bpf_iter_scx_dsq *it,
+					    struct task_struct *p, task_ctx_t *taskc)
+{
+	s32 c;
+
+	if (p->pid & 1) {
+		scx_bpf_dsq_reenq_task(it, p);
+		return;
+	}
+
+	c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
+	if (c >= 0 && c < scx_bpf_nr_cids()) {
+		__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
+		scx_bpf_dsq_move(it, p, SCX_DSQ_LOCAL_ON | c, SCX_ENQ_RESCUE);
+	}
+}
+
+/*
  * One pass over SHARED_DSQ: rescue stranded tasks and boost highpri ones. A
  * task whose cids were lost while it was queued in the fifos would strand on
- * SHARED_DSQ, which is consumed only on self cids it can't run on - move it to
+ * SHARED_DSQ, which is consumed only on self cids it can't run on - send it to
  * the kernel rescue path. One whose cids were lost after the highpri cull is
  * likewise rescued out of HIGHPRI_DSQ below.
  *
@@ -663,9 +688,9 @@ static void update_core_sched_head_seq(struct task_struct *p)
  * consuming them first. This makes minor difference only when dsp_batch is
  * larger than 1.
  *
- * scx_bpf_dsq_move[_vtime]() are allowed both from ops.dispatch() and
- * non-rq-lock holding BPF programs. As demonstration, this function is called
- * from qmap_dispatch() and monitor_timerfn().
+ * scx_bpf_dsq_move[_vtime]() and scx_bpf_dsq_reenq_task() are allowed both from
+ * ops.dispatch() and non-rq-lock holding BPF programs. As demonstration, this
+ * function is called from qmap_dispatch() and monitor_timerfn().
  */
 static bool scan_shared_dsq(bool from_timer)
 {
@@ -677,19 +702,13 @@ static bool scan_shared_dsq(bool from_timer)
 	bpf_for_each(scx_dsq, p, SHARED_DSQ, 0) {
 		static u64 highpri_seq;
 		task_ctx_t *taskc;
-		s32 c;
 
 		if (!(taskc = lookup_task_ctx(p)))
 			return false;
 
 		/* stranded? rescue - it can't be dispatched here either way */
 		if (!cmask_intersects(&taskc->cpus_allowed, &qa.self_cids.mask)) {
-			c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
-			if (c >= 0 && c < scx_bpf_nr_cids()) {
-				__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
-				scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | c,
-						 SCX_ENQ_RESCUE);
-			}
+			rescue_stranded(BPF_FOR_EACH_ITER, p, taskc);
 			continue;
 		}
 
@@ -723,19 +742,12 @@ static bool scan_shared_dsq(bool from_timer)
 						      &qa.usable_cids.mask,
 						      this_cid + 1);
 		if (cid >= nr_cids) {
-			s32 c;
-
 			/* self cids lack caps in effect yet, leave it queued */
 			if (cmask_intersects(&taskc->cpus_allowed, &qa.self_cids.mask))
 				continue;
 
 			/* stranded after the cull - rescue it from here */
-			c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
-			if (c >= 0 && c < nr_cids) {
-				__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
-				scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | c,
-						 SCX_ENQ_RESCUE);
-			}
+			rescue_stranded(BPF_FOR_EACH_ITER, p, taskc);
 			continue;
 		}
 
