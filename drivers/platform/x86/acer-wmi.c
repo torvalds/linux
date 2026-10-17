@@ -2564,8 +2564,13 @@ static void acer_wmi_notify(union acpi_object *obj, void *context)
 		acer_kbd_dock_event(&return_value);
 		break;
 	case WMID_GAMING_TURBO_KEY_EVENT:
-		if (return_value.key_num == 0x4)
-			acer_toggle_turbo();
+		if (return_value.key_num == 0x4) {
+			/* Models without a turbo button report their mode key as 0x4 */
+			if (has_cap(ACER_CAP_TURBO_LED))
+				acer_toggle_turbo();
+			else if (has_cap(ACER_CAP_PLATFORM_PROFILE))
+				acer_thermal_profile_change();
+		}
 		if (return_value.key_num == 0x5 && has_cap(ACER_CAP_PLATFORM_PROFILE))
 			acer_thermal_profile_change();
 		break;
