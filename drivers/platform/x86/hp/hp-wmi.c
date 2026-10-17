@@ -651,6 +651,7 @@ enum pwm_modes {
 
 struct hp_wmi_hwmon_priv {
 	struct mutex lock;	/* protects mode, pwm */
+	int fan_count;
 	u8 min_rpm;
 	u8 max_rpm;
 	u8 mode;
@@ -2950,12 +2951,18 @@ static umode_t hp_wmi_hwmon_is_visible(const void *data,
 				       enum hwmon_sensor_types type,
 				       u32 attr, int channel)
 {
+	const struct hp_wmi_hwmon_priv *priv = data;
+
 	switch (type) {
 	case hwmon_pwm:
+		if (priv->fan_count <= 0)
+			return 0;
 		if (attr == hwmon_pwm_input && !hp_wmi_fan_control_supported())
 			return 0;
 		return 0644;
 	case hwmon_fan:
+		if (priv->fan_count <= 0)
+			return 0;
 		if (hp_wmi_fan_control_supported()) {
 			if (hp_wmi_get_active_fan_speed(channel) >= 0)
 				return 0444;
@@ -3124,6 +3131,7 @@ static int hp_wmi_setup_fan_settings(struct hp_wmi_hwmon_priv *priv)
 
 	/* Default behaviour on hwmon init is automatic mode */
 	priv->mode = PWM_MODE_AUTO;
+	priv->fan_count = hp_wmi_get_fan_count_userdefine_trigger();
 
 	/* Bypass devices without fan control support. */
 	if (!hp_wmi_fan_table_supported())
@@ -3206,6 +3214,11 @@ static int hp_wmi_hwmon_init(void)
 	if (IS_ERR(hwmon)) {
 		dev_err(dev, "Could not register hp hwmon device\n");
 		return PTR_ERR(hwmon);
+	}
+
+	if (priv->fan_count <= 0) {
+		dev_info(dev, "No usable fans reported by WMI, disabling fan support\n");
+		return 0;
 	}
 
 	ret = hp_wmi_apply_fan_settings(priv);
