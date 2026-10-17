@@ -228,7 +228,7 @@ print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
 		print_hex_data_json(key, map_info->key_size);
 		jsonw_name(json_wtr, "value");
 		jsonw_start_object(json_wtr);	/* error */
-		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
+		jsonw_string_field(json_wtr, "error", bpf_strerror(lookup_errno));
 		jsonw_end_object(json_wtr);	/* error */
 		jsonw_end_object(json_wtr);	/* entry */
 	} else {
@@ -241,7 +241,7 @@ print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
 			msg = "<cannot read>";
 
 		print_entry_error_msg(map_info, key,
-				      msg ? : strerror(lookup_errno));
+				      msg ? : bpf_strerror(lookup_errno));
 	}
 }
 
@@ -856,6 +856,21 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 		}
 	}
 
+	/* Fail early to avoid an empty dump if map type cannot be iterated */
+	if (bpf_map_get_next_key(fd, NULL, key) && errno != ENOENT) {
+		const char *map_type_str, *err_str;
+
+		err_str = bpf_strerror(errno);
+		map_type_str = libbpf_bpf_map_type_str(info->type);
+		if (map_type_str)
+			p_err("can't dump %s map: %s", map_type_str, err_str);
+		else
+			p_err("can't dump map of type %u: %s", info->type,
+			      err_str);
+		err = -1;
+		goto exit_free;
+	}
+
 	if (wtr) {
 		err = get_map_kv_btf(info, &btf);
 		if (err) {
@@ -883,8 +898,11 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
-			if (errno == ENOENT)
+			if (errno == ENOENT) {
 				err = 0;
+				break;
+			}
+			p_err("can't get next key: %s", bpf_strerror(errno));
 			break;
 		}
 		if (!dump_map_elem(fd, key, value, info, btf, wtr,
@@ -897,7 +915,7 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 		jsonw_end_array(wtr);	/* elements */
 		if (show_header)
 			jsonw_end_object(wtr);	/* map object */
-	} else {
+	} else if (!err) {
 		printf("Found %u element%s\n", num_elems,
 		       num_elems != 1 ? "s" : "");
 	}
@@ -1032,7 +1050,7 @@ static int do_update(int argc, char **argv)
 
 	err = bpf_map_update_elem(fd, key, value, flags);
 	if (err) {
-		p_err("update failed: %s", strerror(errno));
+		p_err("update failed: %s", bpf_strerror(errno));
 		goto exit_free;
 	}
 
@@ -1136,7 +1154,7 @@ static int do_lookup(int argc, char **argv)
 				printf("\n\nNot found\n");
 			}
 		} else {
-			p_err("lookup failed: %s", strerror(errno));
+			p_err("lookup failed: %s", bpf_strerror(errno));
 		}
 
 		goto exit_free;
@@ -1188,7 +1206,7 @@ static int do_getnext(int argc, char **argv)
 
 	err = bpf_map_get_next_key(fd, key, nextkey);
 	if (err) {
-		p_err("can't get next key: %s", strerror(errno));
+		p_err("can't get next key: %s", bpf_strerror(errno));
 		goto exit_free;
 	}
 
@@ -1253,7 +1271,7 @@ static int do_delete(int argc, char **argv)
 
 	err = bpf_map_delete_elem(fd, key);
 	if (err)
-		p_err("delete failed: %s", strerror(errno));
+		p_err("delete failed: %s", bpf_strerror(errno));
 
 exit_free:
 	free(key);
@@ -1381,7 +1399,7 @@ offload_dev:
 
 	fd = bpf_map_create(map_type, map_name, key_size, value_size, max_entries, &attr);
 	if (fd < 0) {
-		p_err("map create failed: %s", strerror(errno));
+		p_err("map create failed: %s", bpf_strerror(errno));
 		goto exit;
 	}
 
@@ -1427,7 +1445,7 @@ static int do_pop_dequeue(int argc, char **argv)
 			else
 				printf("Error: empty map\n");
 		} else {
-			p_err("pop failed: %s", strerror(errno));
+			p_err("pop failed: %s", bpf_strerror(errno));
 		}
 
 		goto exit_free;
@@ -1462,7 +1480,7 @@ static int do_freeze(int argc, char **argv)
 	err = bpf_map_freeze(fd);
 	close(fd);
 	if (err) {
-		p_err("failed to freeze map: %s", strerror(errno));
+		p_err("failed to freeze map: %s", bpf_strerror(errno));
 		return err;
 	}
 

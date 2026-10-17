@@ -72,6 +72,17 @@ void p_info(const char *fmt, ...)
 	va_end(ap);
 }
 
+/*
+ * Like strerror(), but also knows ENOTSUPP (524), which the kernel returns
+ * to user space from some BPF commands although it is not a userspace errno.
+ */
+const char *bpf_strerror(int err)
+{
+	if (err == 524 /* ENOTSUPP */)
+		return "Operation not supported";
+	return strerror(err);
+}
+
 static bool is_bpffs(const char *path)
 {
 	struct statfs st_fs;
