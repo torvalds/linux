@@ -509,8 +509,6 @@ int bpf_local_storage_alloc(void *owner,
 	if (err)
 		goto uncharge;
 
-	bpf_selem_link_map_nolock(b, first_selem);
-
 	owner_storage_ptr =
 		(struct bpf_local_storage **)owner_storage(smap, owner);
 	/* Publish storage to the owner.
@@ -525,11 +523,17 @@ int bpf_local_storage_alloc(void *owner,
 	 */
 	prev_storage = cmpxchg(owner_storage_ptr, NULL, storage);
 	if (unlikely(prev_storage)) {
-		bpf_selem_unlink_map_nolock(first_selem);
 		raw_res_spin_unlock_irqrestore(&b->lock, flags);
 		err = -EAGAIN;
 		goto uncharge;
 	}
+	/*
+	 * Not before the storage is published: the owner does not wait for
+	 * users of a storage that it knows nothing of, so that nobody may find
+	 * such a storage through the map. b->lock holds off those who find
+	 * first_selem through the owner and want to unlink it.
+	 */
+	bpf_selem_link_map_nolock(b, first_selem);
 	raw_res_spin_unlock_irqrestore(&b->lock, flags);
 
 	return 0;
