@@ -431,13 +431,17 @@ static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 	 * then freed after an RCU grace period. However, if destroy() and map_free() are
 	 * racing or rqspinlock returns errors in unlikely situations (unlink != 2), free
 	 * the selem only after both map_free() and destroy() see the selem.
+	 *
+	 * The owner that map_free() takes an selem from is alive: sleepable code, which
+	 * is in no RCU read side critical section, may be walking its list for another
+	 * map.
 	 */
 	if (unlink == 2 ||
 	    atomic_cmpxchg(&selem->state, SELEM_UNLINKED, SELEM_TOFREE) == SELEM_UNLINKED)
-		bpf_selem_free(selem, true);
+		bpf_selem_free(selem, !in_map_free);
 
 	if (free_storage)
-		bpf_local_storage_free(local_storage, true);
+		bpf_local_storage_free(local_storage, !in_map_free);
 }
 
 void __bpf_local_storage_insert_cache(struct bpf_local_storage *local_storage,
