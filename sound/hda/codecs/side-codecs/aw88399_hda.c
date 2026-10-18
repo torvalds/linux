@@ -129,7 +129,7 @@ static int aw88399_hda_init(struct aw88399_hda *aw88399)
 	if (core->aw_pa)
 		aw88399_dev_set_channel(core, aw88399->channel);
 
-	ret = aw88399_request_firmware_file(core);
+	ret = aw88399_request_firmware_file(core, AW88399_ACF_FILE);
 	if (ret)
 		return ret;
 

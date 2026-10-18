@@ -1284,21 +1284,21 @@ static int aw88399_dev_init(struct aw88399 *aw88399, struct aw_container *aw_cfg
 	return 0;
 }
 
-int aw88399_request_firmware_file(struct aw88399 *aw88399)
+int aw88399_request_firmware_file(struct aw88399 *aw88399, const char *fw_name)
 {
 	const struct firmware *cont __free(firmware) = NULL;
 	int ret;
 
 	aw88399->aw_pa->fw_status = AW88399_DEV_FW_FAILED;
 
-	ret = request_firmware(&cont, AW88399_ACF_FILE, aw88399->aw_pa->dev);
+	ret = request_firmware(&cont, fw_name, aw88399->aw_pa->dev);
 	if (ret) {
-		dev_err(aw88399->aw_pa->dev, "request [%s] failed!", AW88399_ACF_FILE);
+		dev_err(aw88399->aw_pa->dev, "request [%s] failed!\n", fw_name);
 		return ret;
 	}
 
 	dev_dbg(aw88399->aw_pa->dev, "loaded %s - size: %zu\n",
-			AW88399_ACF_FILE, cont ? cont->size : 0);
+			fw_name, cont ? cont->size : 0);
 
 	aw88399->aw_cfg = devm_kzalloc(aw88399->aw_pa->dev,
 			struct_size(aw88399->aw_cfg, data, cont->size), GFP_KERNEL);
@@ -1310,7 +1310,7 @@ int aw88399_request_firmware_file(struct aw88399 *aw88399)
 
 	ret = aw88395_dev_load_acf_check(aw88399->aw_pa, aw88399->aw_cfg);
 	if (ret) {
-		dev_err(aw88399->aw_pa->dev, "load [%s] failed!", AW88399_ACF_FILE);
+		dev_err(aw88399->aw_pa->dev, "load [%s] failed!\n", fw_name);
 		return ret;
 	}
 
