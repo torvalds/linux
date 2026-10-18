@@ -618,30 +618,24 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 {
 	struct snd_card *card = chip->card;
 	const struct usb_audio_device_name *preset;
-	const char *s = NULL;
 
+	*card->shortname = 0;
 	preset = lookup_device_name(chip->usb_id);
 	if (preset && preset->product_name)
-		s = preset->product_name;
+		strscpy(card->shortname, preset->product_name);
 	else if (quirk && quirk->product_name)
-		s = quirk->product_name;
-	if (s && *s) {
-		strscpy(card->shortname, s, sizeof(card->shortname));
+		strscpy(card->shortname, quirk->product_name);
+	if (*card->shortname)
+		return;
+
+	if (dev->product && *dev->product) {
+		strscpy(card->shortname, dev->product);
+		strim(card->shortname);
 		return;
 	}
 
-	/* retrieve the device string as shortname */
-	if (dev->product && *dev->product) {
-		strscpy(card->shortname, dev->product);
-	} else {
-		/* no name available from anywhere, so use ID */
-		scnprintf(card->shortname, sizeof(card->shortname),
-			  "USB Device %#04x:%#04x",
-			  USB_ID_VENDOR(chip->usb_id),
-			  USB_ID_PRODUCT(chip->usb_id));
-	}
-
-	strim(card->shortname);
+	scnprintf(card->shortname, sizeof(card->shortname), "USB Device %#04x:%#04x",
+		  USB_ID_VENDOR(chip->usb_id), USB_ID_PRODUCT(chip->usb_id));
 }
 
 static void usb_audio_make_longname(struct usb_device *dev,
