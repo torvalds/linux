@@ -1063,6 +1063,12 @@ static void discard_queued_syncs(struct rq *rq)
 		init_llist_node(pos);
 }
 
+/* the pshard holding @sch's caps on @cid */
+static struct scx_pshard *cid_pshard(struct scx_sched *sch, s32 cid)
+{
+	return sch->pshard[rcu_dereference_all(scx_cid_to_shard)[cid]];
+}
+
 /**
  * __scx_process_sync_ecaps - Sync this cpu's ecaps to pshard->caps[]
  * @rq: the cid's cpu rq
@@ -1079,7 +1085,7 @@ static void discard_queued_syncs(struct rq *rq)
 void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 {
 	s32 cpu = cpu_of(rq);
-	s32 cid, shard;
+	s32 cid;
 	struct llist_node *batch, *pos, *tmp;
 	u64 lost_all = 0;
 
@@ -1101,13 +1107,12 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 
 	/* @cid is valid here: the cpu is active with queued syncs */
 	cid = __scx_cpu_to_cid(cpu);
-	shard = rcu_dereference_all(scx_cid_to_shard)[cid];
 
 	batch = llist_del_all(&rq->scx.ecaps_to_sync);
 	llist_for_each_safe(pos, tmp, batch) {
 		struct scx_sched_pcpu *pcpu =
 			container_of(pos, struct scx_sched_pcpu, ecaps_to_sync_node);
-		struct scx_pshard *ps = pcpu->sch->pshard[shard];
+		struct scx_pshard *ps = cid_pshard(pcpu->sch, cid);
 		u64 old, ecaps, lost, gained;
 
 		init_llist_node(pos);
@@ -1229,7 +1234,7 @@ void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch)
 void scx_online_ecaps(struct rq *rq)
 {
 	struct scx_sched *root, *pos;
-	s32 cid, shard;
+	s32 cid;
 
 	/*
 	 * Only a live hierarchy can have ecaps to reseed. This also keeps the
@@ -1244,7 +1249,6 @@ void scx_online_ecaps(struct rq *rq)
 
 	root = scx_root_protected();
 	cid = __scx_cpu_to_cid(cpu_of(rq));
-	shard = rcu_dereference_all(scx_cid_to_shard)[cid];
 
 	scx_for_each_descendant_pre(pos, root) {
 		struct scx_pshard *ps;
@@ -1253,7 +1257,7 @@ void scx_online_ecaps(struct rq *rq)
 		if (!pos->level)
 			continue;
 
-		ps = pos->pshard[shard];
+		ps = cid_pshard(pos, cid);
 		guard(raw_spinlock)(&ps->lock);
 		queue_sync_ecaps(pos, cid);
 	}
