@@ -763,23 +763,6 @@ static int dummy_flush_iso_completions(struct fw_iso_context *ctx)
 	return -ENODEV;
 }
 
-static const struct fw_card_driver dummy_driver_template = {
-	.read_phy_reg		= dummy_read_phy_reg,
-	.update_phy_reg		= dummy_update_phy_reg,
-	.send_request		= dummy_send_request,
-	.send_response		= dummy_send_response,
-	.cancel_packet		= dummy_cancel_packet,
-	.enable_phys_dma	= dummy_enable_phys_dma,
-	.read_csr		= dummy_read_csr,
-	.write_csr		= dummy_write_csr,
-	.allocate_iso_context	= dummy_allocate_iso_context,
-	.start_iso		= dummy_start_iso,
-	.set_iso_channels	= dummy_set_iso_channels,
-	.queue_iso		= dummy_queue_iso,
-	.flush_queue_iso	= dummy_flush_queue_iso,
-	.flush_iso_completions	= dummy_flush_iso_completions,
-};
-
 void fw_card_release(struct kref *kref)
 {
 	struct fw_card *card = container_of(kref, struct fw_card, kref);
@@ -790,7 +773,28 @@ EXPORT_SYMBOL_GPL(fw_card_release);
 
 void fw_core_remove_card(struct fw_card *card)
 {
-	struct fw_card_driver dummy_driver = dummy_driver_template;
+	// Switch off most of the card driver interface.
+	const struct fw_card_driver dummy_driver = {
+		.enable			= NULL,
+		.disable		= card->driver->disable,
+		.read_phy_reg		= dummy_read_phy_reg,
+		.update_phy_reg		= dummy_update_phy_reg,
+		.set_config_rom		= NULL,
+		.send_request		= dummy_send_request,
+		.send_response		= dummy_send_response,
+		.cancel_packet		= dummy_cancel_packet,
+		.enable_phys_dma	= dummy_enable_phys_dma,
+		.read_csr		= dummy_read_csr,
+		.write_csr		= dummy_write_csr,
+		.allocate_iso_context	= dummy_allocate_iso_context,
+		.free_iso_context	= card->driver->free_iso_context,
+		.start_iso		= dummy_start_iso,
+		.set_iso_channels	= dummy_set_iso_channels,
+		.queue_iso		= dummy_queue_iso,
+		.flush_queue_iso	= dummy_flush_queue_iso,
+		.flush_iso_completions	= dummy_flush_iso_completions,
+		.stop_iso		= card->driver->stop_iso,
+	};
 
 	might_sleep();
 
@@ -801,10 +805,6 @@ void fw_core_remove_card(struct fw_card *card)
 	scoped_guard(mutex, &card_mutex)
 		list_del_init(&card->link);
 
-	/* Switch off most of the card driver interface. */
-	dummy_driver.free_iso_context	= card->driver->free_iso_context;
-	dummy_driver.stop_iso		= card->driver->stop_iso;
-	dummy_driver.disable		= card->driver->disable;
 	// Ensure the entire contents of the driver are visible to other CPUs.
 	smp_store_release(&card->driver, &dummy_driver);
 
