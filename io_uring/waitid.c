@@ -10,6 +10,7 @@
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
+#include <uapi/linux/wait.h>
 
 #include "io_uring.h"
 #include "cancel.h"
@@ -368,6 +369,9 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 
 	hlist_del_init(&req->hash_node);
 	io_waitid_remove_wq(req);
+	/* a non-blocking pidfd implies WNOHANG, report it as waitid(2) does */
+	if (!ret && !(iw->options & WNOHANG) && (iwa->wo.wo_flags & WNOHANG))
+		ret = -EAGAIN;
 	ret = io_waitid_finish(req, ret);
 
 	io_ring_submit_unlock(ctx, issue_flags);
