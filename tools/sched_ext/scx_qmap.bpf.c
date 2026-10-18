@@ -2180,34 +2180,15 @@ s32 BPF_STRUCT_OPS(qmap_sub_attach, struct scx_sub_attach_args *args)
 void BPF_STRUCT_OPS(qmap_sub_detach, struct scx_sub_detach_args *args)
 {
 	u64 cgid = args->ops->sub_cgroup_id;
-	s32 nr_cids = qa.nr_cids;
-	s32 pos = qa.part.rr_pos;
-	u64 holder_cgid;
-	bool reset_pool;
-	s32 i, cid;
-
-	if (nr_cids < 0 || nr_cids > SCX_QMAP_MAX_CPUS || pos < 0 || pos >= MAX_PARTS) {
-		scx_bpf_error("-ERANGE");
-		return;
-	}
+	s32 i;
 
 	/*
-	 * The child's caps are gone without a report, see ops.sub_detach().
-	 * cpuperf targets persist until the next write. Reset the child's excl
-	 * cids, and the pool unless another child holds it: that child's revoke
-	 * report or its own detach resets it then.
+	 * qmap_sub_child_ecaps_updated() has reset the cpuperf targets on the
+	 * loss reports.
 	 */
-	holder_cgid = qa.part.rr_slots[pos];
-	reset_pool = !holder_cgid || holder_cgid == cgid;
-
 	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
 		if (qa.sub_sched_ctxs[i].cgroup_id != cgid)
 			continue;
-
-		bpf_arena_for(cid, 0, nr_cids)
-			if (cmask_test(cid, &qa.sub_sched_ctxs[i].granted_cids.mask) ||
-			    (reset_pool && cmask_test(cid, &qa.rr_cids.mask)))
-				scx_bpf_cidperf_set(cid, SCX_CPUPERF_ONE);
 
 		qa.sub_sched_ctxs[i].cgroup_id = 0;
 		qa.sub_sched_ctxs[i].weight = 100;

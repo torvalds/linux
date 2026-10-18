@@ -880,12 +880,11 @@ struct sched_ext_ops {
 	 * The sub-scheduler holds no caps by this point and can no longer
 	 * affect any cid. Every cap reported through
 	 * ops.sub_child_ecaps_updated() was also reported lost there before the
-	 * sub-scheduler's tasks came back to this sched, except on a cpu that
-	 * went offline. Nothing is reported for a sub-scheduler whose enable
-	 * failed before its tasks were handed over. If this sched is being
-	 * disabled too, it can miss these reports. On a cpu whose loss wasn't
-	 * reported, whatever was delegated, e.g. cpuperf targets, is the
-	 * parent's to restore here.
+	 * sub-scheduler's tasks came back to this sched. Nothing is reported
+	 * for a sub-scheduler whose enable failed before its tasks were handed
+	 * over. If this sched is being disabled too, it can miss these reports.
+	 * On a cpu whose loss wasn't reported, whatever was delegated, e.g.
+	 * cpuperf targets, is the parent's to restore here.
 	 */
 	void (*sub_detach)(struct scx_sub_detach_args *args);
 
@@ -928,9 +927,14 @@ struct sched_ext_ops {
 	 * the bypass DSQs, where this op can't insert or move them. Deliveries
 	 * stop once this sched is being disabled.
 	 *
+	 * Until this sched is being disabled, whenever an op of this sched runs
+	 * under a cid's rq lock, its effective caps on the cid are the @after
+	 * of the last invocation for the cid.
+	 *
 	 * Deliveries for a cid happen only while the root considers the cid's
 	 * cpu online, never before the root's ops.cpu_online() or after its
-	 * ops.cpu_offline() for the cpu.
+	 * ops.cpu_offline() for the cpu. A cpu going offline reports the loss
+	 * of every cap on it, and a cpu coming back reports the regain.
 	 */
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
 
@@ -961,12 +965,15 @@ struct sched_ext_ops {
 	 * change is in effect on the cpu. From here on the parent can act on a
 	 * cap the child lost, e.g. reset the cpuperf target or schedule on the
 	 * cid. A disabling child gets no ops.sub_ecaps_updated(), so only this
-	 * op is invoked for its loss. A cpu going offline drops caps without a
-	 * report.
+	 * op is invoked for its loss. A parent other than the root loses its
+	 * own caps on the cid too when the cpu goes offline, possibly before
+	 * this op is invoked, and regains them when the cpu comes back,
+	 * possibly after. It can't act on the cid while it holds no caps there.
 	 *
 	 * Deliveries start as for the child's ops.sub_ecaps_updated(), continue
 	 * while either sched bypasses and stop once this sched is being
-	 * disabled.
+	 * disabled. A cpu going offline or coming back is reported as for the
+	 * child's ops.sub_ecaps_updated().
 	 *
 	 * Runs in dispatch context with rq lock held, and can perform all
 	 * operations allowed in ops.dispatch() including inserting/moving
@@ -1442,6 +1449,8 @@ enum scx_sched_pcpu_flags {
 	SCX_SCHED_PCPU_ECAPS_ENABLED	= 1LLU << 1,
 	/* a report is pending, see ecaps_report() */
 	SCX_SCHED_PCPU_ECAPS_REPORT	= 1LLU << 2,
+	/* a cpu going down waits for this sync, see scx_offline_ecaps() */
+	SCX_SCHED_PCPU_ECAPS_OFFLINE	= 1LLU << 3,
 };
 
 /* dispatch buf */
@@ -1512,11 +1521,6 @@ struct scx_sched_pcpu {
 	 * under pshard->lock.
 	 */
 	bool			had_caps;
-	/*
-	 * ecaps as of the last sub_ecaps_updated() and
-	 * sub_child_ecaps_updated() delivery. See __scx_process_sync_ecaps().
-	 */
-	u64			reported_ecaps;
 
 	/*
 	 * Decaying rescue runtime consumed on this cpu, see

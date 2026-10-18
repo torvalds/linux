@@ -53,6 +53,9 @@ static unsigned long scx_rescue_overload_after;
  */
 static struct rcuwait ecaps_report_wait = __RCUWAIT_INITIALIZER(ecaps_report_wait);
 
+/* a cpu going down waits here for its marked syncs, see scx_offline_ecaps() */
+static DECLARE_WAIT_QUEUE_HEAD(ecaps_offline_waitq);
+
 /**
  * scx_skip_subtree_pre - Skip @pos's subtree in a pre-order walk
  * @pos: current position
@@ -1042,11 +1045,12 @@ static u64 calc_effective_caps(struct scx_pshard *ps, s32 cid)
  * @cid: cid to update
  *
  * Queue an ecaps update for @sch's @cid and reschedule the cpu so that it syncs
- * in dispatch_one(). The cpu isn't rescheduled while it is offline or the root
- * bypasses. Its next scheduling event processes the sync then, and a cpu coming
- * back syncs again in the reseed. A grant or revoke can run in the PM syscore
- * phase, where irq work can malfunction, see scx_kick_cpu(), and the root
- * bypasses throughout PM. ecaps_report() reschedules the cpu itself.
+ * in dispatch_one(). The cpu isn't rescheduled while it is inactive or the root
+ * bypasses, and its next scheduling event processes the sync then. A grant or
+ * revoke can run in the PM syscore phase, where irq work can malfunction, see
+ * scx_kick_cpu(), and the root bypasses throughout PM. Callers that need the
+ * sync processed promptly reschedule the cpu themselves, see
+ * resched_sync_ecaps().
  */
 static void queue_sync_ecaps(struct scx_sched *sch, s32 cid)
 {
@@ -1054,9 +1058,10 @@ static void queue_sync_ecaps(struct scx_sched *sch, s32 cid)
 	struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
 
 	/*
-	 * Pairs with smp_mb() in __scx_process_sync_ecaps(). Either the check
-	 * below sees the node off the list and queues it, or the in-flight sync
-	 * sees the caps[] update made before this call.
+	 * Pairs with smp_mb() in __scx_process_sync_ecaps(). The caller has
+	 * written the state a sync reads, caps[] or cpu_active(). Either the
+	 * check below finds the node off the list and queues a sync, or a sync
+	 * in flight is still ahead of its reads and sees the new state.
 	 */
 	smp_mb();
 
@@ -1065,24 +1070,16 @@ static void queue_sync_ecaps(struct scx_sched *sch, s32 cid)
 		return;
 
 	/*
-	 * The irq work needs an online cpu. An online cpu stays online here, as
-	 * @cid's pshard->lock keeps preemption off, which holds off the
-	 * stop_machine() that takes a cpu offline.
+	 * A cpu going down processes its syncs in its own picks, see
+	 * scx_offline_ecaps(), and a resched for every change on the cid would
+	 * only keep preempting its hotplug thread. The irq work needs an online
+	 * cpu. An active cpu stays online here, as @cid's pshard->lock keeps
+	 * preemption off, which holds off the stop_machine() that takes a cpu
+	 * offline.
 	 */
 	if (llist_add(&pcpu->ecaps_to_sync_node, &cpu_rq(cpu)->scx.ecaps_to_sync) &&
-	    cpu_online(cpu) && !scx_bypassing(sch->ancestors[0], smp_processor_id()))
+	    cpu_active(cpu) && !scx_bypassing(sch->ancestors[0], smp_processor_id()))
 		scx_resched_curr_deferred(cpu_rq(cpu));
-}
-
-/* discard @rq's queued ecaps syncs */
-static void discard_queued_syncs(struct rq *rq)
-{
-	struct llist_node *pos, *tmp;
-
-	lockdep_assert_rq_held(rq);
-
-	llist_for_each_safe(pos, tmp, llist_del_all(&rq->scx.ecaps_to_sync))
-		init_llist_node(pos);
 }
 
 /* the pshard holding @sch's caps on @cid */
@@ -1109,13 +1106,43 @@ static void ecaps_report_done(struct scx_sched_pcpu *pcpu)
 		irq_work_queue(&ecaps_report_irq_work);
 }
 
+static void ecaps_offline_irq_workfn(struct irq_work *irq_work)
+{
+	wake_up(&ecaps_offline_waitq);
+}
+
+static DEFINE_IRQ_WORK(ecaps_offline_irq_work, ecaps_offline_irq_workfn);
+
+/*
+ * @pcpu's sync marked by scx_offline_ecaps() has been processed or discarded.
+ * The waiter can't be woken under the rq lock, so the last completion wakes it
+ * through irq_work. The marks are all done while the cpu's hotplug thread waits
+ * in scx_offline_ecaps(), before hotplug parks any irq_work thread, so a
+ * regular irq_work is enough.
+ */
+static void ecaps_offline_done(struct rq *rq, struct scx_sched_pcpu *pcpu)
+{
+	lockdep_assert_rq_held(rq);
+
+	pcpu->flags &= ~SCX_SCHED_PCPU_ECAPS_OFFLINE;
+	WRITE_ONCE(rq->scx.nr_ecaps_offline, rq->scx.nr_ecaps_offline - 1);
+	if (!rq->scx.nr_ecaps_offline)
+		irq_work_queue(&ecaps_offline_irq_work);
+}
+
 /**
  * __scx_process_sync_ecaps - Sync this cpu's ecaps to pshard->caps[]
  * @rq: the cid's cpu rq
  * @prev: @rq's previous task from the in-progress dispatch
  *
  * pshard->caps[] is the target configuration. pcpu->ecaps is the effective
- * transposed copy owned by the cid's cpu and written under @rq's lock.
+ * transposed copy owned by the cid's cpu and written only here under @rq's
+ * lock.
+ *
+ * A sched's ecaps change only with a delivery, so that whenever an op of the
+ * sched runs under @rq's lock, its ecaps are what its deliveries reported. A
+ * sync that can't deliver leaves them alone, and a later one that can reports
+ * the net change.
  *
  * A sched that newly gains baseline access here is owed an update_idle() so it
  * learns the cid's idle state. Such a gain arms the per-rq
@@ -1131,20 +1158,7 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 	if (likely(llist_empty(&rq->scx.ecaps_to_sync)))
 		return;
 
-	/*
-	 * ecaps are zeroed while the cpu is inactive and must stay zero.
-	 * Discard queued syncs instead of processing them - the
-	 * scx_online_ecaps() reseed re-syncs every sched on activation.
-	 * cpu_active() clears before the offline zeroing and sets before the
-	 * reseed is queued, so this test can neither miss a racing sync nor
-	 * eat the reseed.
-	 */
-	if (unlikely(!cpu_active(cpu))) {
-		discard_queued_syncs(rq);
-		return;
-	}
-
-	/* @cid is valid here: the cpu is active with queued syncs */
+	/* @cid stays valid while a root is enabled */
 	cid = __scx_cpu_to_cid(cpu);
 
 	batch = llist_del_all(&rq->scx.ecaps_to_sync);
@@ -1153,6 +1167,7 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 			container_of(pos, struct scx_sched_pcpu, ecaps_to_sync_node);
 		struct scx_pshard *ps = cid_pshard(pcpu->sch, cid);
 		bool report = pcpu->flags & SCX_SCHED_PCPU_ECAPS_REPORT;
+		bool offline = pcpu->flags & SCX_SCHED_PCPU_ECAPS_OFFLINE;
 		u64 old, ecaps, lost, gained;
 
 		init_llist_node(pos);
@@ -1167,6 +1182,10 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * set. Deliveries also need the cpu online to the root, see
 		 * handle_hotplug().
 		 *
+		 * An inactive cpu that can deliver is going down and reads as
+		 * capless. A delivery below can drop the rq lock and the cpu's
+		 * active state can change between syncs, so test it per sync.
+		 *
 		 * A sync that can't deliver leaves the ecaps alone. It may
 		 * still carry a mark that is cleared below. Don't skip the rest
 		 * of the loop for it.
@@ -1175,8 +1194,10 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		if (!(pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED) ||
 		    !(rq->scx.flags & SCX_RQ_OPS_ONLINE))
 			ecaps = old;
-		else
+		else if (cpu_active(cpu))
 			ecaps = calc_effective_caps(ps, cid);
+		else
+			ecaps = 0;
 		WRITE_ONCE(pcpu->ecaps, ecaps);
 
 		lost = old & ~ecaps;
@@ -1193,13 +1214,8 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * scheduling can differ from @rq's cpu, so the context is set
 		 * up there. The rq recorded in it keeps the dispatches
 		 * targeting @rq.
-		 *
-		 * Both report the same before value, so one reported_ecaps
-		 * covers them.
 		 */
-		if (ecaps != pcpu->reported_ecaps &&
-		    (pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED) &&
-		    (rq->scx.flags & SCX_RQ_OPS_ONLINE)) {
+		if (ecaps != old) {
 			struct scx_sched *parent = scx_parent(pcpu->sch);
 			struct scx_dsp_ctx *dspc;
 
@@ -1212,7 +1228,7 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 				dspc = &this_cpu_ptr(pcpu->sch->pcpu)->dsp_ctx;
 				dspc->rq = rq;
 				SCX_CALL_OP(pcpu->sch, sub_ecaps_updated, rq,
-					    scx_cpu_arg(cpu), pcpu->reported_ecaps, ecaps);
+					    scx_cpu_arg(cpu), old, ecaps);
 				scx_flush_dispatch_buf(pcpu->sch, rq);
 			}
 			if (SCX_HAS_OP(parent, sub_child_ecaps_updated) &&
@@ -1221,15 +1237,16 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 				dspc->rq = rq;
 				SCX_CALL_OP(parent, sub_child_ecaps_updated, rq,
 					    pcpu->sch->ops.sub_cgroup_id, scx_cpu_arg(cpu),
-					    pcpu->reported_ecaps, ecaps);
+					    old, ecaps);
 				scx_flush_dispatch_buf(parent, rq);
 			}
 			rq->scx.sub_dispatch_prev = NULL;
-			pcpu->reported_ecaps = ecaps;
 		}
 
 		if (report)
 			ecaps_report_done(pcpu);
+		if (offline)
+			ecaps_offline_done(rq, pcpu);
 
 		/*
 		 * Gaining baseline access owes an update_idle() so the sched
@@ -1276,10 +1293,27 @@ void scx_init_rq_ops_online(void)
 }
 
 /*
+ * Make @rq's cpu dispatch through the ext class to process its ecaps syncs.
+ * queue_sync_ecaps() reschedules only when the cpu has no sync queued yet,
+ * never an inactive cpu, and not while the root bypasses, so reschedule here.
+ * The callers run on the cpu's hotplug thread or in ecaps_report(), never in
+ * the PM syscore phase. A higher class task can hold the cpu, so also start the
+ * ext server, which picks the ext class within its period.
+ */
+static void resched_sync_ecaps(struct rq *rq)
+{
+	lockdep_assert_rq_held(rq);
+
+	update_rq_clock(rq);
+	dl_server_start(&rq->ext_server);
+	scx_resched_curr_deferred(rq);
+}
+
+/*
  * A cpu came back and the root's ops.cpu_online() has run. Let the cpu deliver
  * ecaps again and reseed each sub-sched's ecaps on its cid. The sync recomputes
- * effective caps from the pshard and fires ops.sub_ecaps_updated() only on a
- * real change since offline.
+ * effective caps from the pshard and reports any change since the last
+ * delivery.
  */
 void scx_online_ecaps(struct rq *rq)
 {
@@ -1313,40 +1347,69 @@ void scx_online_ecaps(struct rq *rq)
 		guard(raw_spinlock)(&ps->lock);
 		queue_sync_ecaps(pos, cid);
 	}
+
+	resched_sync_ecaps(rq);
 }
 
 /*
- * A cpu is going down, and the root's ops.cpu_offline() follows. Stop the cpu's
- * ecaps deliveries and zero each sub-sched's in-effect ecaps so cap checks
- * treat the cpu as capless while offline. Pending and late-queued syncs are
- * discarded at consumption by scx_process_sync_ecaps() while the cpu is
- * inactive. Leave reported_ecaps. Ownership is unchanged, so the
- * scx_online_ecaps() reseed reports only a genuine delta. No callback fires
- * here.
+ * A cpu is going down, and the root's ops.cpu_offline() follows. Queue a marked
+ * sync for each sub-sched to report the loss and wait until each has been
+ * processed. Then stop the cpu's ecaps deliveries, so that none comes after
+ * ops.cpu_offline().
+ *
+ * This runs on the cpu's hotplug thread. While it sleeps, the cpu keeps
+ * scheduling, and a pick through the ext class processes the syncs, see
+ * resched_sync_ecaps(). Only the marked syncs count, so a flood of changes on
+ * the cid can't hold up the hotplug. After the wait, every sub-sched's ecaps on
+ * the cpu are zero, and the later syncs have nothing to deliver.
  */
 void scx_offline_ecaps(struct rq *rq)
 {
 	s32 cpu = cpu_of(rq);
 	struct scx_sched *root, *pos;
+	u32 nr = 0;
+	s32 cid;
 
-	guard(rq_lock_irqsave)(rq);
+	/*
+	 * ecaps and the tables need a live root, see scx_online_ecaps(). The
+	 * ext class isn't picked without one, so the syncs wouldn't be
+	 * processed and the wait would never end. scx_enabled() can't change
+	 * during hotplug.
+	 */
+	if (scx_enabled()) {
+		scoped_guard (rq_lock_irqsave, rq) {
+			root = scx_root_protected();
+			cid = __scx_cpu_to_cid(cpu);
 
-	root = scx_root_protected();
+			scx_for_each_descendant_pre(pos, root) {
+				struct scx_sched_pcpu *pcpu = per_cpu_ptr(pos->pcpu, cpu);
+				struct scx_pshard *ps;
 
-	scx_for_each_descendant_pre(pos, root) {
-		struct scx_sched_pcpu *pcpu = per_cpu_ptr(pos->pcpu, cpu);
+				/* root holds every cap and never uses ecaps */
+				if (!pos->level)
+					continue;
 
-		/* root holds every cap and never uses ecaps */
-		if (!pos->level)
-			continue;
+				/*
+				 * A batch that has yet to reach the sync sees
+				 * the mark. A sync already being processed has
+				 * left the list and is queued again below.
+				 */
+				pcpu->flags |= SCX_SCHED_PCPU_ECAPS_OFFLINE;
+				nr++;
 
-		WRITE_ONCE(pcpu->ecaps, 0);
+				ps = cid_pshard(pos, cid);
+				guard(raw_spinlock)(&ps->lock);
+				queue_sync_ecaps(pos, cid);
+			}
 
-		/* deliveries have stopped on this cpu, clear its mark */
-		if (pcpu->flags & SCX_SCHED_PCPU_ECAPS_REPORT)
-			ecaps_report_done(pcpu);
+			WRITE_ONCE(rq->scx.nr_ecaps_offline, nr);
+			resched_sync_ecaps(rq);
+		}
+
+		wait_event(ecaps_offline_waitq, !READ_ONCE(rq->scx.nr_ecaps_offline));
 	}
 
+	guard(rq_lock_irqsave)(rq);
 	rq->scx.flags &= ~SCX_RQ_OPS_ONLINE;
 }
 
@@ -1357,7 +1420,7 @@ void scx_offline_ecaps(struct rq *rq)
  */
 static void clear_all_caps(struct scx_sched *sch)
 {
-	s32 si, cpu;
+	s32 si;
 	u32 cap_bit;
 
 	lockdep_assert_cpus_held();
@@ -1372,16 +1435,6 @@ static void clear_all_caps(struct scx_sched *sch)
 		guard(raw_spinlock_irqsave)(&ps->lock);
 		for (cap_bit = 0; cap_bit < __SCX_NR_CAPS; cap_bit++)
 			scx_cmask_clear(&ps->caps[cap_bit].cmask);
-	}
-
-	for_each_possible_cpu(cpu) {
-		struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
-
-		guard(rq_lock_irqsave)(cpu_rq(cpu));
-
-		/* drop an unreported loss, as the report skips inactive cpus */
-		if (!cpu_active(cpu))
-			pcpu->reported_ecaps = 0;
 	}
 }
 
@@ -1413,6 +1466,9 @@ void scx_discard_ecaps_to_sync(s32 cpu, struct scx_sched_pcpu *pcpu)
 	llist_for_each_safe(pos, tmp, llist_del_all(&rq->scx.ecaps_to_sync)) {
 		if (pos == &pcpu->ecaps_to_sync_node) {
 			init_llist_node(pos);
+			/* a cpu going down may be waiting for the sync */
+			if (pcpu->flags & SCX_SCHED_PCPU_ECAPS_OFFLINE)
+				ecaps_offline_done(rq, pcpu);
 		} else {
 			pos->next = head;
 			head = pos;
@@ -1440,9 +1496,11 @@ void scx_discard_stale_ecaps_syncs(void)
 
 	for_each_possible_cpu(cpu) {
 		struct rq *rq = cpu_rq(cpu);
+		struct llist_node *pos, *tmp;
 
 		guard(rq_lock_irqsave)(rq);
-		discard_queued_syncs(rq);
+		llist_for_each_safe(pos, tmp, llist_del_all(&rq->scx.ecaps_to_sync))
+			init_llist_node(pos);
 	}
 }
 
@@ -1748,8 +1806,14 @@ static void ecaps_enable(struct scx_sched *sch)
  * @sch: sub-scheduler to report
  *
  * Mark every cpu @sch was ever granted a cap on, deliver its pending change
- * through the dispatch path and wait for it. An inactive cpu is skipped. A cpu
- * going down meanwhile has its mark cleared by scx_offline_ecaps().
+ * through the dispatch path and wait for it. An inactive cpu is skipped. It may
+ * already be offline, where the mark would never be processed and the wait
+ * would never end. On attach, the reseed at its activation reports its caps. On
+ * detach, its loss was reported as it went down.
+ *
+ * If a marked cpu goes down meanwhile, it clears the mark while still online,
+ * as ecaps_report_irq_work would never run on an offline cpu. A cpu going down
+ * waits for the marked sync in scx_offline_ecaps().
  *
  * Called with scx_enable_mutex held. A sched's attach and detach reports must
  * not overlap, as the mark is one bit per pcpu.
@@ -1768,7 +1832,6 @@ static void ecaps_report(struct scx_sched *sch)
 
 		guard(rq_lock_irqsave)(rq);
 
-		/* syncs on an inactive cpu are discarded */
 		if (!cpu_active(cpu))
 			continue;
 
@@ -1782,15 +1845,7 @@ static void ecaps_report(struct scx_sched *sch)
 		pcpu->flags |= SCX_SCHED_PCPU_ECAPS_REPORT;
 		atomic_inc(&sch->nr_ecaps_reports);
 		queue_sync_ecaps(sch, cid);
-
-		/*
-		 * The report needs an ext dispatch on this cpu. A higher class
-		 * task can hold the cpu, so also start the ext server, which
-		 * picks the ext class within its period.
-		 */
-		update_rq_clock(rq);
-		dl_server_start(&rq->ext_server);
-		scx_resched_curr_deferred(rq);
+		resched_sync_ecaps(rq);
 	}
 
 	rcuwait_wait_event(&ecaps_report_wait, !atomic_read(&sch->nr_ecaps_reports),
@@ -1822,9 +1877,9 @@ void scx_sub_disable(struct scx_sched *sch)
 	/*
 	 * Clear @sch's caps and report the loss before any task goes back to
 	 * the parent. A disabling sched is granted nothing, so the caps stay
-	 * cleared. Hold off cpu hotplug across both. The report covers every
-	 * active cpu and the clear drops the unreported loss on the rest, so
-	 * that no loss reaches the parent after ops.sub_detach().
+	 * cleared. Hold off cpu hotplug across both so that a cpu the report
+	 * skips has finished going down. Its loss was reported as it went down,
+	 * see scx_offline_ecaps().
 	 *
 	 * An enable that failed before its attach report has nothing to report.
 	 * If it failed before scx_link_sched(), the root's disable doesn't wait

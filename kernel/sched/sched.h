@@ -847,9 +847,10 @@ struct scx_rq {
 	struct scx_sched	*sched;
 	struct llist_head	ecaps_to_sync;		/* pending ecaps syncs */
 	struct task_struct	*sub_dispatch_prev;
+	u32			nr_ecaps_offline;	/* marked syncs a down waits for */
 #endif
-	cpumask_var_t		cpus_to_sync;
 	bool			kick_sync_pending;
+	cpumask_var_t		cpus_to_sync;
 	unsigned long		kick_sync;
 
 	struct list_head	sched_pcpus_to_kick;	/* see kick_cpus_irq_workfn() */
