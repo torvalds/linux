@@ -59,6 +59,8 @@
 	_prev_;								\
 })
 
+#define arch_cmpxchg_local	arch_cmpxchg_relaxed
+
 #else
 
 #define arch_cmpxchg(ptr, old, new)				        \
@@ -79,6 +81,8 @@
 	atomic_ops_unlock(__flags);					\
 	_prev_;								\
 })
+
+#define arch_cmpxchg_local	arch_cmpxchg
 
 #endif
 
