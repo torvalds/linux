@@ -2080,7 +2080,7 @@ struct bpf_div_magic {
  */
 static void bpf_magic_udiv(u64 d, int lz, struct bpf_div_magic *mag)
 {
-	u64 mask = ~0ULL >> lz;
+	u64 mask = ~0ULL >> (lz & 63);
 	u64 nc, delta, q1, r1, q2, r2;
 	int p;
 
@@ -2200,7 +2200,7 @@ static bool emit_div_const(u8 **pprog, const struct bpf_insn *insn, u32 dst_reg)
 		 * the add sequence.
 		 */
 		if (mag.add && !(imm32 & 1)) {
-			pre = __ffs(imm32);
+			pre = __ffs(imm32) & 31;
 			bpf_magic_udiv(imm32 >> pre, pre, &mag);
 			if (mag.add)
 				return false;
