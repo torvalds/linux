@@ -35,7 +35,7 @@ _pending_metrics: list["JsonEvent"] = []
 # Name of metrics table to be written out
 _pending_metrics_tblname: Optional[str] = None
 # Global BigCString shared by all structures.
-_bcs = None
+_bcs: "BigCString"
 # Map from the name of a metric group to a description of the group.
 _metricgroups: Dict[str, str] = {}
 # Order specific JsonEvent attributes will be visited.
@@ -262,7 +262,7 @@ class JsonEvent:
         return fixed[name.lower()]
       return event
 
-    def unit_to_pmu(unit: Optional[str]) -> Optional[str]:
+    def unit_to_pmu(unit: Optional[str]) -> str:
       """Convert a JSON Unit to Linux PMU name."""
       if not unit:
         return 'default_core'
