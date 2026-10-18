@@ -91,8 +91,12 @@ static void invoke_callback(struct fw_transaction *t, int rcode, u32 response_ts
 // Ensure that the transaction is not on the pending list when scheduling this work. Cancelling
 // the work after scheduling makes no sense, as the initiator must be notified of the transaction
 // result.
-static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 response_timestamp)
+static void schedule_error_callback(struct fw_card *card, struct fw_transaction *t, int rcode,
+				    u32 response_timestamp)
+__must_hold(&card->transactions.lock)
 {
+	lockdep_assert_held(&card->transactions.lock);
+
 	// To detect programming mistakes.
 	WARN_ON(!list_empty(&t->link));
 
@@ -112,7 +116,7 @@ __must_hold(&card->transactions.lock)
 	list_for_each_entry_safe(t, tmp, &card->transactions.list, link) {
 		if (try_cancel_split_timeout(t)) {
 			remove_transaction_entry(card, t);
-			schedule_error_callback(t, RCODE_CANCELLED, 0);
+			schedule_error_callback(card, t, RCODE_CANCELLED, 0);
 		}
 	}
 }
@@ -143,20 +147,20 @@ __must_not_hold(&card->transactions.lock)
 	if (smp_load_acquire(&card->driver)->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
-	// If the request packet has already been sent, we need to see if the transaction is still
-	// pending and remove it in that case (e.g. the split transaction).
-	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		if (!find_and_pop_transaction_entry(card, iter == transaction))
-			return -ENOENT;
-	}
-
 	u32 curr_cycle_time = 0;
 
 	// Timestamping on behalf of hardware.
 	(void)fw_card_read_cycle_time(card, &curr_cycle_time);
 
-	schedule_error_callback(transaction, RCODE_CANCELLED,
-				cycle_time_to_ohci_tstamp(curr_cycle_time));
+	u32 tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
+
+	// If the request packet has already been sent, we need to see if the transaction is still
+	// pending and remove it in that case (e.g. the split transaction).
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		if (!find_and_pop_transaction_entry(card, iter == transaction))
+			return -ENOENT;
+		schedule_error_callback(card, transaction, RCODE_CANCELLED, tstamp);
+	}
 
 	return 0;
 }
@@ -181,9 +185,9 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 		if (list_empty(&t->link))
 			return;
 		remove_transaction_entry(card, t);
+		schedule_error_callback(card, t, RCODE_CANCELLED, t->split_timeout_cycle);
 	}
 
-	schedule_error_callback(t, RCODE_CANCELLED, t->split_timeout_cycle);
 }
 
 // card->transactions.lock should be acquired in advance for the linked list.
@@ -434,7 +438,7 @@ __must_not_hold(&card->transactions.lock)
 		tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 
 		t->packet.timestamp = tstamp;
-		schedule_error_callback(t, RCODE_SEND_ERROR, tstamp);
+		context_unsafe(schedule_error_callback(card, t, RCODE_SEND_ERROR, tstamp));
 
 		return;
 	}
