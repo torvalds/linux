@@ -88,8 +88,14 @@ static void invoke_callback(struct fw_transaction *t, int rcode, u32 response_ts
 	__t;								\
 })
 
+// Ensure that the transaction is not on the pending list when scheduling this work. Cancelling
+// the work after scheduling makes no sense, as the initiator must be notified of the transaction
+// result.
 static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 response_timestamp)
 {
+	// To detect programming mistakes.
+	WARN_ON(!list_empty(&t->link));
+
 	t->rcode = rcode;
 	t->response_timestamp = response_timestamp;
 
@@ -156,15 +162,9 @@ __must_not_hold(&card->transactions.lock)
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
-// Ensure that the transaction is not on the pending list when scheduling this work. Cancelling
-// the work after scheduling makes no sense, as the initiator must be notified of the transaction
-// result.
 static void error_callback_work(struct work_struct *work)
 {
 	struct fw_transaction *t = from_work(t, work, error_work);
-
-	// To detect programming mistakes.
-	WARN_ON(!list_empty(&t->link));
 
 	invoke_callback(t, t->rcode, t->response_timestamp, NULL, 0);
 }
