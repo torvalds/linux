@@ -447,16 +447,18 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 
 			/* Check for poison and drop or pass the packet */
 			if (len == 0xdead && flags == 0xbeef) {
-				netdev_err(bgmac->net_dev, "Found poisoned packet at slot %d, DMA issue!\n",
-					   ring->start);
+				if (net_ratelimit())
+					netdev_err(bgmac->net_dev, "Found poisoned packet at slot %d, DMA issue!\n",
+						   ring->start);
 				put_page(virt_to_head_page(buf));
 				bgmac->net_dev->stats.rx_errors++;
 				break;
 			}
 
 			if (len > BGMAC_RX_ALLOC_SIZE) {
-				netdev_err(bgmac->net_dev, "Found oversized packet at slot %d, DMA issue!\n",
-					   ring->start);
+				if (net_ratelimit())
+					netdev_err(bgmac->net_dev, "Found oversized packet at slot %d, DMA issue!\n",
+						   ring->start);
 				put_page(virt_to_head_page(buf));
 				bgmac->net_dev->stats.rx_length_errors++;
 				bgmac->net_dev->stats.rx_errors++;
