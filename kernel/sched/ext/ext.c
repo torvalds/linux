@@ -3422,6 +3422,8 @@ static void scx_start_task_running(struct rq *rq, struct task_struct *p)
 	p->scx.flags |= SCX_TASK_RUN_TRACKED;
 }
 
+static void kick_sync_wait_bal_cb(struct rq *rq);
+
 static void set_next_task_scx(struct rq *rq, struct task_struct *p, enum snt_e type)
 {
 	bool first = type == SNT_PICK;
@@ -3436,6 +3438,20 @@ static void set_next_task_scx(struct rq *rq, struct task_struct *p, enum snt_e t
 	if (sched_proxy_exec() && p->is_blocked &&
 	    (type == SNT_PICK || type == SNT_REPICK))
 		rq->scx.flags |= SCX_RQ_PROXY_PENDING;
+
+	/*
+	 * Defer the kick_sync wait to a balance callback which can drop rq lock
+	 * and enable IRQs. Waiting directly in the pick path would deadlock
+	 * against CPUs sending us IPIs (e.g., TLB flushes) while we wait for
+	 * them.
+	 *
+	 * Queue it only once the pick is final, so that the rq lock can't be
+	 * released with the callback queued (e.g., by another dispatch during
+	 * a core-wide selection). If no SCX task gets picked, there's nothing
+	 * to wait for and kick_sync_pending stays set for the next SCX pick.
+	 */
+	if (unlikely(rq->scx.kick_sync_pending) && (type == SNT_PICK || type == SNT_REPICK))
+		queue_balance_callback(rq, &rq->scx.kick_sync_bal_cb, kick_sync_wait_bal_cb);
 
 	if (type == SNT_REPICK)
 		return;
@@ -3717,16 +3733,21 @@ static void kick_sync_wait_bal_cb(struct rq *rq)
 	s32 cpu;
 
 	/*
-	 * This callback is queued and normally flushed within @rq's own
-	 * scheduling pass. However, dispatch can drop the rq lock while it sits
-	 * queued, and lock takers in that window (the sched class change paths,
-	 * the scx task iterator) flush pending balance callbacks on release,
-	 * running this one on a foreign CPU whose snapshots are unrelated. The
-	 * kicked CPUs are already on their way to advance the kick_syncs being
-	 * waited on. Don't get in the way.
+	 * This callback is queued once the pick is final and flushed within
+	 * @rq's own scheduling pass. If a lock taker on a foreign CPU ever
+	 * flushes it, the snapshots are unrelated to that CPU. Don't get in the
+	 * way and leave the wait pending for @rq's next pick.
 	 */
 	if (unlikely(cpu_of(rq) != smp_processor_id()))
 		return;
+
+	/*
+	 * Clear only when the wait actually runs. The callback can be dropped
+	 * without running (e.g., proxy exec zaps the balance callbacks and
+	 * picks again when find_proxy_task() fails), in which case the next
+	 * pick must queue it again.
+	 */
+	rq->scx.kick_sync_pending = false;
 
 	ks = __this_cpu_read(scx_kick_syncs);
 	ksyncs = rcu_dereference_sched(ks)->syncs;
@@ -3926,25 +3947,12 @@ out:
 	 * NULL pick from the dl_server, the core continues picking and can
 	 * release the rq lock (e.g., prev_balance() or another dispatch). In
 	 * that case, run the deferred work from irq_work, which doesn't depend
-	 * on the current rq lock section, and leave the kick sync wait pending
-	 * for the next pick.
+	 * on the current rq lock section.
 	 */
 	if (p != RETRY_TASK && (p || !force_scx)) {
 		/* under core scheduling, see dispatch_core_pick() */
 		if (!core_sched)
 			maybe_queue_balance_callback(rq);
-
-		/*
-		 * Defer to a balance callback which can drop rq lock and enable
-		 * IRQs. Waiting directly in the pick path would deadlock against
-		 * CPUs sending us IPIs (e.g., TLB flushes) while we wait for
-		 * them.
-		 */
-		if (unlikely(rq->scx.kick_sync_pending)) {
-			rq->scx.kick_sync_pending = false;
-			queue_balance_callback(rq, &rq->scx.kick_sync_bal_cb,
-					       kick_sync_wait_bal_cb);
-		}
 	} else if (!core_sched && (rq->scx.flags & SCX_RQ_BAL_CB_PENDING)) {
 		rq->scx.flags &= ~SCX_RQ_BAL_CB_PENDING;
 		schedule_deferred(rq);
