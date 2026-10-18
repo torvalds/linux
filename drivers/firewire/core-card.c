@@ -689,6 +689,15 @@ EXPORT_SYMBOL(fw_card_add);
  * .set_config_rom() is never called since the card is taken out of card_list
  * before switching to the dummy driver.
  */
+struct fw_card_driver_closer {
+	const struct fw_card_driver driver;
+
+	// For shutdown operations.
+	struct fw_card *card;
+	struct list_head packet_list;
+	spinlock_t packet_list_lock;
+	struct work_struct work;
+};
 
 static int dummy_read_phy_reg(struct fw_card *card, int address)
 {
@@ -701,14 +710,31 @@ static int dummy_update_phy_reg(struct fw_card *card, int address,
 	return -ENODEV;
 }
 
-static void dummy_send_request(struct fw_card *card, struct fw_packet *packet)
+static void dummy_packet_callback_work(struct work_struct *work)
 {
-	packet->callback(packet, card, RCODE_CANCELLED);
+	struct fw_card_driver_closer *closer = container_of(work, typeof(*closer), work);
+	unsigned long flags;
+	struct fw_packet *p;
+
+	spin_lock_irqsave(&closer->packet_list_lock, flags);
+	while ((p = list_first_entry_or_null(&closer->packet_list, typeof(*p), link_for_local))) {
+		list_del(&p->link_for_local);
+		spin_unlock_irqrestore(&closer->packet_list_lock, flags);
+
+		p->callback(p, closer->card, RCODE_CANCELLED);
+
+		spin_lock_irqsave(&closer->packet_list_lock, flags);
+	}
+	spin_unlock_irqrestore(&closer->packet_list_lock, flags);
 }
 
-static void dummy_send_response(struct fw_card *card, struct fw_packet *packet)
+static void dummy_schedule_packet_callback(struct fw_card *card, struct fw_packet *packet)
 {
-	packet->callback(packet, card, RCODE_CANCELLED);
+	struct fw_card_driver_closer *closer = container_of(card->driver, typeof(*closer), driver);
+
+	scoped_guard(spinlock_irqsave, &closer->packet_list_lock)
+		list_add_tail(&packet->link_for_local, &closer->packet_list);
+	queue_work(card->async_wq, &closer->work);
 }
 
 static int dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
@@ -773,27 +799,30 @@ EXPORT_SYMBOL_GPL(fw_card_release);
 
 void fw_core_remove_card(struct fw_card *card)
 {
-	// Switch off most of the card driver interface.
-	const struct fw_card_driver dummy_driver = {
-		.enable			= NULL,
-		.disable		= card->driver->disable,
-		.read_phy_reg		= dummy_read_phy_reg,
-		.update_phy_reg		= dummy_update_phy_reg,
-		.set_config_rom		= NULL,
-		.send_request		= dummy_send_request,
-		.send_response		= dummy_send_response,
-		.cancel_packet		= dummy_cancel_packet,
-		.enable_phys_dma	= dummy_enable_phys_dma,
-		.read_csr		= dummy_read_csr,
-		.write_csr		= dummy_write_csr,
-		.allocate_iso_context	= dummy_allocate_iso_context,
-		.free_iso_context	= card->driver->free_iso_context,
-		.start_iso		= dummy_start_iso,
-		.set_iso_channels	= dummy_set_iso_channels,
-		.queue_iso		= dummy_queue_iso,
-		.flush_queue_iso	= dummy_flush_queue_iso,
-		.flush_iso_completions	= dummy_flush_iso_completions,
-		.stop_iso		= card->driver->stop_iso,
+	struct fw_card_driver_closer closer = {
+		// Switch off most of the card driver interface.
+		.driver = {
+			.enable			= NULL,
+			.disable		= card->driver->disable,
+			.read_phy_reg		= dummy_read_phy_reg,
+			.update_phy_reg		= dummy_update_phy_reg,
+			.set_config_rom		= NULL,
+			.send_request		= dummy_schedule_packet_callback,
+			.send_response		= dummy_schedule_packet_callback,
+			.cancel_packet		= dummy_cancel_packet,
+			.enable_phys_dma	= dummy_enable_phys_dma,
+			.read_csr		= dummy_read_csr,
+			.write_csr		= dummy_write_csr,
+			.allocate_iso_context	= dummy_allocate_iso_context,
+			.free_iso_context	= card->driver->free_iso_context,
+			.start_iso		= dummy_start_iso,
+			.set_iso_channels	= dummy_set_iso_channels,
+			.queue_iso		= dummy_queue_iso,
+			.flush_queue_iso	= dummy_flush_queue_iso,
+			.flush_iso_completions	= dummy_flush_iso_completions,
+			.stop_iso		= card->driver->stop_iso,
+		},
+		.card = card,
 	};
 
 	might_sleep();
@@ -805,8 +834,12 @@ void fw_core_remove_card(struct fw_card *card)
 	scoped_guard(mutex, &card_mutex)
 		list_del_init(&card->link);
 
+	INIT_LIST_HEAD(&closer.packet_list);
+	spin_lock_init(&closer.packet_list_lock);
+	INIT_WORK_ONSTACK(&closer.work, dummy_packet_callback_work);
+
 	// Ensure the entire contents of the driver are visible to other CPUs.
-	smp_store_release(&card->driver, &dummy_driver);
+	smp_store_release(&card->driver, &closer.driver);
 
 	drain_workqueue(card->isoc_wq);
 	drain_workqueue(card->async_wq);
@@ -825,6 +858,10 @@ void fw_core_remove_card(struct fw_card *card)
 	destroy_workqueue(card->isoc_wq);
 	destroy_workqueue(card->async_wq);
 
+	disable_work_sync(&closer.work);
+	destroy_work_on_stack(&closer.work);
+
+	WARN_ON(!list_empty(&closer.packet_list));
 	WARN_ON(!list_empty(&card->transactions.list));
 }
 EXPORT_SYMBOL(fw_core_remove_card);
