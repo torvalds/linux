@@ -1164,13 +1164,19 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * Before the sched's has_op is set, only the parent's op would
 		 * run, and the change would never reach the sched.
 		 * ecaps_enable() enables deliveries on each cpu once has_op is
-		 * set. Until then, a sync leaves the ecaps alone.
+		 * set. Deliveries also need the cpu online to the root, see
+		 * handle_hotplug().
+		 *
+		 * A sync that can't deliver leaves the ecaps alone. It may
+		 * still carry a mark that is cleared below. Don't skip the rest
+		 * of the loop for it.
 		 */
 		old = READ_ONCE(pcpu->ecaps);
-		if (pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED)
-			ecaps = calc_effective_caps(ps, cid);
-		else
+		if (!(pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED) ||
+		    !(rq->scx.flags & SCX_RQ_OPS_ONLINE))
 			ecaps = old;
+		else
+			ecaps = calc_effective_caps(ps, cid);
 		WRITE_ONCE(pcpu->ecaps, ecaps);
 
 		lost = old & ~ecaps;
@@ -1192,7 +1198,8 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * covers them.
 		 */
 		if (ecaps != pcpu->reported_ecaps &&
-		    (pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED)) {
+		    (pcpu->flags & SCX_SCHED_PCPU_ECAPS_ENABLED) &&
+		    (rq->scx.flags & SCX_RQ_OPS_ONLINE)) {
 			struct scx_sched *parent = scx_parent(pcpu->sch);
 			struct scx_dsp_ctx *dspc;
 
@@ -1247,14 +1254,41 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 }
 
 /*
- * A cpu came back. Re-seed each sub-sched's ecaps on the cpu's cid. The sync
- * recomputes effective caps from the pshard and fires ops.sub_ecaps_updated()
- * only on a real change since offline.
+ * Called with cpus_read_lock() held before the root is published. The cpus
+ * active now are online to the root without ops.cpu_online(), so they can
+ * deliver ecaps. handle_hotplug() maintains %SCX_RQ_OPS_ONLINE from here on.
+ */
+void scx_init_rq_ops_online(void)
+{
+	s32 cpu;
+
+	lockdep_assert_cpus_held();
+
+	for_each_possible_cpu(cpu) {
+		struct rq *rq = cpu_rq(cpu);
+
+		guard(rq_lock_irqsave)(rq);
+		if (cpu_active(cpu))
+			rq->scx.flags |= SCX_RQ_OPS_ONLINE;
+		else
+			rq->scx.flags &= ~SCX_RQ_OPS_ONLINE;
+	}
+}
+
+/*
+ * A cpu came back and the root's ops.cpu_online() has run. Let the cpu deliver
+ * ecaps again and reseed each sub-sched's ecaps on its cid. The sync recomputes
+ * effective caps from the pshard and fires ops.sub_ecaps_updated() only on a
+ * real change since offline.
  */
 void scx_online_ecaps(struct rq *rq)
 {
 	struct scx_sched *root, *pos;
 	s32 cid;
+
+	guard(rq_lock_irqsave)(rq);
+
+	rq->scx.flags |= SCX_RQ_OPS_ONLINE;
 
 	/*
 	 * Only a live hierarchy can have ecaps to reseed. This also keeps the
@@ -1264,8 +1298,6 @@ void scx_online_ecaps(struct rq *rq)
 	 */
 	if (!scx_enabled())
 		return;
-
-	guard(rq_lock_irqsave)(rq);
 
 	root = scx_root_protected();
 	cid = __scx_cpu_to_cid(cpu_of(rq));
@@ -1284,7 +1316,8 @@ void scx_online_ecaps(struct rq *rq)
 }
 
 /*
- * A cpu is going down. Zero each sub-sched's in-effect ecaps so cap checks
+ * A cpu is going down, and the root's ops.cpu_offline() follows. Stop the cpu's
+ * ecaps deliveries and zero each sub-sched's in-effect ecaps so cap checks
  * treat the cpu as capless while offline. Pending and late-queued syncs are
  * discarded at consumption by scx_process_sync_ecaps() while the cpu is
  * inactive. Leave reported_ecaps. Ownership is unchanged, so the
@@ -1313,6 +1346,8 @@ void scx_offline_ecaps(struct rq *rq)
 		if (pcpu->flags & SCX_SCHED_PCPU_ECAPS_REPORT)
 			ecaps_report_done(pcpu);
 	}
+
+	rq->scx.flags &= ~SCX_RQ_OPS_ONLINE;
 }
 
 /*

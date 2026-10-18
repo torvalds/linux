@@ -927,6 +927,10 @@ struct sched_ext_ops {
 	 * Deliveries continue while this sched bypasses. Its tasks are then on
 	 * the bypass DSQs, where this op can't insert or move them. Deliveries
 	 * stop once this sched is being disabled.
+	 *
+	 * Deliveries for a cid happen only while the root considers the cid's
+	 * cpu online, never before the root's ops.cpu_online() or after its
+	 * ops.cpu_offline() for the cpu.
 	 */
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
 
@@ -980,6 +984,7 @@ struct sched_ext_ops {
 	 *
 	 * @cpu just came online. @cpu will not call ops.enqueue() or
 	 * ops.dispatch(), nor run tasks associated with other CPUs beforehand.
+	 * ops.sub_child_ecaps_updated() runs for @cpu only after this op.
 	 */
 	void (*cpu_online)(s32 cpu);
 
@@ -989,6 +994,7 @@ struct sched_ext_ops {
 	 *
 	 * @cpu is going offline. @cpu will not call ops.enqueue() or
 	 * ops.dispatch(), nor run tasks associated with other CPUs afterwards.
+	 * ops.sub_child_ecaps_updated() runs for @cpu only before this op.
 	 */
 	void (*cpu_offline)(s32 cpu);
 

@@ -781,12 +781,21 @@ struct cfs_rq {
 /* scx_rq->flags, protected by the rq lock */
 enum scx_rq_flags {
 	/*
-	 * A hotplugged CPU starts scheduling before rq_online_scx(). Track
-	 * ops.cpu_on/offline() state so that ops.enqueue/dispatch() are called
-	 * only while the BPF scheduler considers the CPU to be online.
+	 * Set while the core has the rq online, see rq_online_scx() and
+	 * rq_offline_scx(). A hotplugged cpu starts scheduling before
+	 * rq_online_scx(). ops.enqueue() and ops.dispatch() are called for the
+	 * cpu only while it is set, see scx_rq_online() and
+	 * scx_dispatch_sched().
 	 */
 	SCX_RQ_ONLINE		= 1 << 0,
 	SCX_RQ_CAN_STOP_TICK	= 1 << 1,
+	/*
+	 * Set while the root considers the cpu online, from its
+	 * ops.cpu_online() until its ops.cpu_offline(). ecaps are delivered
+	 * only while it is set. %SCX_RQ_ONLINE follows the core's rq state
+	 * instead, which changes ahead of the root's view on both edges.
+	 */
+	SCX_RQ_OPS_ONLINE	= 1 << 2,
 	SCX_RQ_CLK_VALID	= 1 << 5, /* RQ clock is fresh and valid */
 	SCX_RQ_BAL_CB_PENDING	= 1 << 6, /* must queue a cb after dispatching */
 	SCX_RQ_SUB_IDLE_RENOTIFY	= 1 << 7, /* sub-scheds are owed update_idle() */
