@@ -4170,6 +4170,7 @@ static void handle_hotplug(struct rq *rq, bool online)
 	s32 cpu_or_cid = cpu;
 
 	atomic_long_inc(&scx_hotplug_seq);
+	scx_update_frozen_cpus(cpu, online);
 
 	/*
 	 * scx_root updates are protected by cpus_read_lock() and will stay
@@ -9481,6 +9482,20 @@ void print_scx_info(const char *log_lvl, struct task_struct *p)
 static int scx_pm_handler(struct notifier_block *nb, unsigned long event, void *ptr)
 {
 	struct scx_sched *sch;
+
+	/* track the PM cycle whether or not a root is loaded */
+	switch (event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+	case PM_RESTORE_PREPARE:
+		scx_sub_pm_begin();
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+	case PM_POST_RESTORE:
+		scx_sub_pm_end();
+		break;
+	}
 
 	guard(rcu)();
 

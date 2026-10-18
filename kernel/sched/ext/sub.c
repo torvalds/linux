@@ -56,6 +56,19 @@ static struct rcuwait ecaps_report_wait = __RCUWAIT_INITIALIZER(ecaps_report_wai
 /* a cpu going down waits here for its marked syncs, see scx_offline_ecaps() */
 static DECLARE_WAIT_QUEUE_HEAD(ecaps_offline_waitq);
 
+/*
+ * The cpus that suspend or hibernation took down and that haven't come back.
+ * Their losses are not delivered, see scx_offline_ecaps(). Hotplug updates the
+ * set under cpus_write_lock(), and scx_sub_pm_end() clears it under
+ * cpus_read_lock(). A cpu that fails to come back stays in the set until
+ * regular hotplug brings it back or the PM cycle ends.
+ */
+static struct cpumask scx_frozen_cpus;
+static DECLARE_WAIT_QUEUE_HEAD(scx_frozen_cpus_waitq);
+
+/* between the PREPARE and POST notifications of a PM cycle */
+static bool scx_pm_in_progress;
+
 /**
  * scx_skip_subtree_pre - Skip @pos's subtree in a pre-order walk
  * @pos: current position
@@ -1130,6 +1143,17 @@ static void ecaps_offline_done(struct rq *rq, struct scx_sched_pcpu *pcpu)
 		irq_work_queue(&ecaps_offline_irq_work);
 }
 
+/*
+ * Test whether the hotplug operation in progress is suspend or hibernation
+ * taking a cpu down or bringing it back. A kexec jump also sets
+ * cpuhp_tasks_frozen but sends no PM notification, so outside a PM cycle its
+ * cpu downs deliver their losses as in regular hotplug.
+ */
+static bool scx_pm_frozen(void)
+{
+	return cpuhp_tasks_frozen && READ_ONCE(scx_pm_in_progress);
+}
+
 /**
  * __scx_process_sync_ecaps - Sync this cpu's ecaps to pshard->caps[]
  * @rq: the cid's cpu rq
@@ -1185,6 +1209,8 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * An inactive cpu that can deliver is going down and reads as
 		 * capless. A delivery below can drop the rq lock and the cpu's
 		 * active state can change between syncs, so test it per sync.
+		 * Suspend and hibernation don't deliver the loss of a cpu they
+		 * take down, see scx_offline_ecaps().
 		 *
 		 * A sync that can't deliver leaves the ecaps alone. It may
 		 * still carry a mark that is cleared below. Don't skip the rest
@@ -1196,6 +1222,8 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 			ecaps = old;
 		else if (cpu_active(cpu))
 			ecaps = calc_effective_caps(ps, cid);
+		else if (scx_pm_frozen())
+			ecaps = old;
 		else
 			ecaps = 0;
 		WRITE_ONCE(pcpu->ecaps, ecaps);
@@ -1268,6 +1296,64 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 	 */
 	if (lost_all & SCX_CAPS_REENQ_ON_LOSS)
 		scx_schedule_reenq_local(rq, SCX_REENQ_CAP_REVOKE);
+}
+
+void scx_sub_pm_begin(void)
+{
+	WRITE_ONCE(scx_pm_in_progress, true);
+}
+
+/*
+ * Called on every cpu down and up whether or not a root is loaded, so that the
+ * set stays exact when a root is enabled or disabled during a PM cycle. A cpu
+ * that failed to come back from suspend or hibernation can come back through
+ * regular hotplug before the PM cycle ends, e.g. through the SMT control. The
+ * reseed at its activation reports the net change, so any up removes the cpu
+ * from the set.
+ */
+void scx_update_frozen_cpus(s32 cpu, bool online)
+{
+	if (online) {
+		if (!cpumask_test_cpu(cpu, &scx_frozen_cpus))
+			return;
+		__cpumask_clear_cpu(cpu, &scx_frozen_cpus);
+		if (cpumask_empty(&scx_frozen_cpus))
+			wake_up_all(&scx_frozen_cpus_waitq);
+	} else if (scx_pm_frozen()) {
+		__cpumask_set_cpu(cpu, &scx_frozen_cpus);
+	}
+}
+
+/*
+ * The PM cycle is over. A cpu still in the set failed to come back, and its
+ * loss can't be delivered anymore. That breaks the guarantee that every ecaps
+ * change reaches the sub-scheds and their parents, so abort every sched. A root
+ * without sub-scheds is owed no reports and keeps running.
+ *
+ * Abort before clearing the set and waking the detaches in scx_sub_disable(),
+ * so that a parent whose ops.sub_detach() runs with that loss unreported is
+ * already being disabled, which ops.sub_detach() allows for. No exit cpu is
+ * recorded, as the cpu running this isn't the one that failed.
+ */
+void scx_sub_pm_end(void)
+{
+	/* hotplug updates the set under cpus_write_lock() */
+	guard(cpus_read_lock)();
+
+	if (unlikely(!cpumask_empty(&scx_frozen_cpus)) && scx_has_subs()) {
+		struct scx_sched *root;
+
+		guard(rcu)();
+		root = rcu_dereference(scx_root);
+		if (root)
+			__scx_exit(root, SCX_EXIT_ERROR, 0, -1,
+				   "%u cpu(s) failed to come back after suspend or hibernation",
+				   cpumask_weight(&scx_frozen_cpus));
+	}
+
+	WRITE_ONCE(scx_pm_in_progress, false);
+	cpumask_clear(&scx_frozen_cpus);
+	wake_up_all(&scx_frozen_cpus_waitq);
 }
 
 /*
@@ -1362,6 +1448,11 @@ void scx_online_ecaps(struct rq *rq)
  * resched_sync_ecaps(). Only the marked syncs count, so a flood of changes on
  * the cid can't hold up the hotplug. After the wait, every sub-sched's ecaps on
  * the cpu are zero, and the later syncs have nothing to deliver.
+ *
+ * The loss on a cpu that suspend or hibernation takes down is not delivered, so
+ * that the scheds don't see a PM cycle as cpus leaving and coming back. The cpu
+ * keeps the caps last delivered until it comes back, and the reseed then
+ * reports the net change.
  */
 void scx_offline_ecaps(struct rq *rq)
 {
@@ -1376,7 +1467,7 @@ void scx_offline_ecaps(struct rq *rq)
 	 * processed and the wait would never end. scx_enabled() can't change
 	 * during hotplug.
 	 */
-	if (scx_enabled()) {
+	if (scx_enabled() && !scx_pm_frozen()) {
 		scoped_guard (rq_lock_irqsave, rq) {
 			root = scx_root_protected();
 			cid = __scx_cpu_to_cid(cpu);
@@ -1809,11 +1900,16 @@ static void ecaps_enable(struct scx_sched *sch)
  * through the dispatch path and wait for it. An inactive cpu is skipped. It may
  * already be offline, where the mark would never be processed and the wait
  * would never end. On attach, the reseed at its activation reports its caps. On
- * detach, its loss was reported as it went down.
+ * detach, its loss was reported as it went down. A cpu that suspend or
+ * hibernation took down is back by then, or the hierarchy is aborting, see
+ * scx_sub_disable().
  *
- * If a marked cpu goes down meanwhile, it clears the mark while still online,
- * as ecaps_report_irq_work would never run on an offline cpu. A cpu going down
- * waits for the marked sync in scx_offline_ecaps().
+ * If a marked cpu goes down meanwhile, a regular down waits for the marked sync
+ * in scx_offline_ecaps() while the cpu is still online, as
+ * ecaps_report_irq_work would never run on an offline cpu. Suspend and
+ * hibernation don't wait, but no report runs across their downs. The attach
+ * report runs while the attaching task waits uninterruptibly, which holds off
+ * the freezer, and the detach report holds cpus_read_lock().
  *
  * Called with scx_enable_mutex held. A sched's attach and detach reports must
  * not overlap, as the mark is one bit per pcpu.
@@ -1881,15 +1977,41 @@ void scx_sub_disable(struct scx_sched *sch)
 	 * skips has finished going down. Its loss was reported as it went down,
 	 * see scx_offline_ecaps().
 	 *
-	 * An enable that failed before its attach report has nothing to report.
-	 * If it failed before scx_link_sched(), the root's disable doesn't wait
-	 * for it and may have retired the cid tables that the report reads.
+	 * The loss on a cpu that suspend or hibernation took down is not
+	 * delivered. Wait for such cpus to come back so that the report reaches
+	 * them. They go down only after the freezer has frozen the tasks and
+	 * come back before the tasks thaw, so the wait doesn't hold up the
+	 * freezer. If one fails to come back, the wait can last until the PM
+	 * cycle ends, and scx_sub_pm_end() aborts every sched first.
+	 *
+	 * The check and the report run in one cpus_read_lock() section so that
+	 * no cpu goes down for PM between them. scx_sub_pm_end() can still
+	 * clear the set meanwhile, which is fine, as it aborts every sched
+	 * first. The report also needs scx_enable_mutex, see ecaps_report(). A
+	 * cpu coming back takes cpus_write_lock(), so the wait drops
+	 * cpus_read_lock(). It drops scx_enable_mutex too so that other enables
+	 * and disables don't wait behind the PM cycle, and retakes both in
+	 * order.
+	 *
+	 * An enable that failed before its attach report has nothing to report
+	 * and doesn't wait. If it failed before scx_link_sched(), the root's
+	 * disable doesn't wait for it and may have retired the cid tables that
+	 * the report reads.
 	 */
-	scoped_guard(cpus_read_lock) {
-		clear_all_caps(sch);
-		if (sch->ecaps_enabled)
-			ecaps_report(sch);
+	cpus_read_lock();
+	while (sch->ecaps_enabled && !data_race(cpumask_empty(&scx_frozen_cpus))) {
+		cpus_read_unlock();
+		mutex_unlock(&scx_enable_mutex);
+		/* lockless hint, the loop retests */
+		wait_event_idle(scx_frozen_cpus_waitq,
+				data_race(cpumask_empty(&scx_frozen_cpus)));
+		mutex_lock(&scx_enable_mutex);
+		cpus_read_lock();
 	}
+	clear_all_caps(sch);
+	if (sch->ecaps_enabled)
+		ecaps_report(sch);
+	cpus_read_unlock();
 
 	percpu_down_write(&scx_fork_rwsem);
 	scx_cgroup_lock();

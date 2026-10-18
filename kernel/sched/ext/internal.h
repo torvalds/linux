@@ -934,7 +934,10 @@ struct sched_ext_ops {
 	 * Deliveries for a cid happen only while the root considers the cid's
 	 * cpu online, never before the root's ops.cpu_online() or after its
 	 * ops.cpu_offline() for the cpu. A cpu going offline reports the loss
-	 * of every cap on it, and a cpu coming back reports the regain.
+	 * of every cap on it, and a cpu coming back reports the regain. A cpu
+	 * that suspend or hibernation takes down reports no loss and keeps its
+	 * caps while down. Only its net change, if any, is reported once it is
+	 * back.
 	 */
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
 
