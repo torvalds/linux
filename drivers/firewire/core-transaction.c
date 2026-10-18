@@ -69,28 +69,6 @@ static void invoke_callback(struct fw_transaction *t, int rcode, u32 response_ts
 	}
 }
 
-// Must be called without holding card->transactions.lock.
-void fw_cancel_pending_transactions(struct fw_card *card)
-__must_not_hold(&card->transactions.lock)
-{
-	struct fw_transaction *t, *tmp;
-	LIST_HEAD(pending_list);
-
-	lockdep_assert_not_held(&card->transactions.lock);
-
-	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		list_for_each_entry_safe(t, tmp, &card->transactions.list, link) {
-			if (try_cancel_split_timeout(t))
-				list_move(&t->link, &pending_list);
-		}
-	}
-
-	list_for_each_entry_safe(t, tmp, &pending_list, link) {
-		list_del(&t->link);
-		invoke_callback(t, RCODE_CANCELLED, 0, NULL, 0);
-	}
-}
-
 // card->transactions.lock must be acquired in advance.
 #define find_and_pop_transaction_entry(card, condition)			\
 ({									\
@@ -116,6 +94,21 @@ static void schedule_error_callback(struct fw_transaction *t, int rcode, u32 res
 	t->response_timestamp = response_timestamp;
 
 	queue_work(t->card->async_wq, &t->error_work);
+}
+
+void fw_cancel_pending_transactions(struct fw_card *card)
+__must_hold(&card->transactions.lock)
+{
+	struct fw_transaction *t, *tmp;
+
+	lockdep_assert_held(&card->transactions.lock);
+
+	list_for_each_entry_safe(t, tmp, &card->transactions.list, link) {
+		if (try_cancel_split_timeout(t)) {
+			remove_transaction_entry(card, t);
+			schedule_error_callback(t, RCODE_CANCELLED, 0);
+		}
+	}
 }
 
 /**

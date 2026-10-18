@@ -811,7 +811,9 @@ void fw_core_remove_card(struct fw_card *card)
 	drain_workqueue(card->isoc_wq);
 	drain_workqueue(card->async_wq);
 	card->driver->disable(card);
-	fw_cancel_pending_transactions(card);
+
+	scoped_guard(spinlock_irqsave, &card->transactions.lock)
+		fw_cancel_pending_transactions(card);
 
 	scoped_guard(spinlock_irqsave, &card->lock)
 		fw_destroy_nodes(card);
