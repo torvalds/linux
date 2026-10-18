@@ -1318,8 +1318,10 @@ static void clear_all_caps(struct scx_sched *sch)
 }
 
 /*
- * @pcpu's sched was unhashed before the grace period, so nothing re-queues its
- * sync node. Remove the node from @rq's pending list so the pcpu can be freed.
+ * Remove @pcpu's ecaps sync node from @cpu's pending list. The first grace
+ * period has passed, so nothing queues the node again. The second grace period
+ * waits for a sync batch that took the node earlier, see
+ * scx_sched_quiesce_rcu_work().
  */
 void scx_discard_ecaps_to_sync(s32 cpu, struct scx_sched_pcpu *pcpu)
 {
@@ -1327,43 +1329,28 @@ void scx_discard_ecaps_to_sync(s32 cpu, struct scx_sched_pcpu *pcpu)
 	struct llist_node *head = NULL, *tail = NULL;
 	struct llist_node *pos, *tmp;
 
+	guard(rq_lock_irqsave)(rq);
+
+	if (!llist_on_list(&pcpu->ecaps_to_sync_node))
+		return;
+
 	/*
 	 * llist can't unlink a single node. Take all queued nodes, drop @pcpu's
 	 * and resplice the rest. Nodes in the taken batch read as on-list
 	 * throughout, so queue_sync_ecaps() stays correct.
 	 */
-	if (llist_on_list(&pcpu->ecaps_to_sync_node)) {
-		scoped_guard (rq_lock_irqsave, rq) {
-			llist_for_each_safe(pos, tmp, llist_del_all(&rq->scx.ecaps_to_sync)) {
-				if (pos == &pcpu->ecaps_to_sync_node) {
-					init_llist_node(pos);
-				} else {
-					pos->next = head;
-					head = pos;
-					if (!tail)
-						tail = pos;
-				}
-			}
-			if (head)
-				llist_add_batch(head, tail, &rq->scx.ecaps_to_sync);
+	llist_for_each_safe(pos, tmp, llist_del_all(&rq->scx.ecaps_to_sync)) {
+		if (pos == &pcpu->ecaps_to_sync_node) {
+			init_llist_node(pos);
+		} else {
+			pos->next = head;
+			head = pos;
+			if (!tail)
+				tail = pos;
 		}
 	}
-
-	/*
-	 * An in-flight scx_process_sync_ecaps() batch may still hold the node
-	 * privately across dispatch-induced rq unlocks, reading as on-list.
-	 *
-	 * Because a bypassing sched gets no op call, init_llist_node() and all
-	 * @pcpu accesses share one contiguous lock hold, off-list under the rq
-	 * lock means @pcpu won't be accessed again.
-	 */
-	while (true) {
-		scoped_guard (rq_lock_irqsave, rq) {
-			if (!llist_on_list(&pcpu->ecaps_to_sync_node))
-				return;
-		}
-		cpu_relax();
-	}
+	if (head)
+		llist_add_batch(head, tail, &rq->scx.ecaps_to_sync);
 }
 
 /**
