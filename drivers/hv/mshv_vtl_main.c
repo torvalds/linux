@@ -95,7 +95,7 @@ union hv_synic_overlay_page_msr {
 	} __packed;
 };
 
-static struct mutex mshv_vtl_poll_file_lock;
+static DEFINE_MUTEX(mshv_vtl_poll_file_lock);
 static union hv_register_vsm_page_offsets mshv_vsm_page_offsets;
 static union hv_register_vsm_capabilities mshv_vsm_capabilities;
 
@@ -1369,8 +1369,6 @@ static int __init mshv_vtl_init(void)
 		ret = -ENOMEM;
 		goto free_low;
 	}
-
-	mutex_init(&mshv_vtl_poll_file_lock);
 
 	device_initialize(mem_dev);
 	dev_set_name(mem_dev, "mshv vtl mem dev");
