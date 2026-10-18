@@ -878,9 +878,14 @@ struct sched_ext_ops {
 	 * @args: argument container, see the struct definition
 	 *
 	 * The sub-scheduler holds no caps by this point and can no longer
-	 * affect any cid. Its caps went away without a
-	 * sub_child_ecaps_updated() report, so whatever was delegated to it,
-	 * e.g. cpuperf targets, is the parent's to restore here.
+	 * affect any cid. Every cap reported through
+	 * ops.sub_child_ecaps_updated() was also reported lost there before the
+	 * sub-scheduler's tasks came back to this sched, except on a cpu that
+	 * went offline. Nothing is reported for a sub-scheduler whose enable
+	 * failed before its tasks were handed over. If this sched is being
+	 * disabled too, it can miss these reports. On a cpu whose loss wasn't
+	 * reported, whatever was delegated, e.g. cpuperf targets, is the
+	 * parent's to restore here.
 	 */
 	void (*sub_detach)(struct scx_sub_detach_args *args);
 
@@ -914,6 +919,14 @@ struct sched_ext_ops {
 	 * change is in effect on the cpu. Runs in dispatch context with rq lock
 	 * held, and can perform all operations allowed in ops.dispatch()
 	 * including inserting/moving tasks.
+	 *
+	 * Deliveries start after this sched's tasks are handed to it and before
+	 * it makes its first scheduling decision. The caps granted from
+	 * ops.sub_attach() and any change since are reported then. A cpu that
+	 * isn't online at that point reports them once it comes online.
+	 * Deliveries continue while this sched bypasses. Its tasks are then on
+	 * the bypass DSQs, where this op can't insert or move them. Deliveries
+	 * stop once this sched is being disabled.
 	 */
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
 
@@ -940,11 +953,16 @@ struct sched_ext_ops {
 	 * @before: the child's effective caps as of the last delivery
 	 * @after: the child's effective caps now
 	 *
-	 * Invoked right after the child's sub_ecaps_updated(), once a grant or
-	 * revoke is in effect on the cpu. From here on the parent can act on a
+	 * Invoked right after the child's ops.sub_ecaps_updated(), once a
+	 * change is in effect on the cpu. From here on the parent can act on a
 	 * cap the child lost, e.g. reset the cpuperf target or schedule on the
-	 * cid. A detaching child's caps go away without a report, see
-	 * sub_detach(). A cpu going offline drops caps without a report.
+	 * cid. A disabling child gets no ops.sub_ecaps_updated(), so only this
+	 * op is invoked for its loss. A cpu going offline drops caps without a
+	 * report.
+	 *
+	 * Deliveries start as for the child's ops.sub_ecaps_updated(), continue
+	 * while either sched bypasses and stop once this sched is being
+	 * disabled.
 	 *
 	 * Runs in dispatch context with rq lock held, and can perform all
 	 * operations allowed in ops.dispatch() including inserting/moving
@@ -1414,6 +1432,10 @@ struct scx_sched;
 
 enum scx_sched_pcpu_flags {
 	SCX_SCHED_PCPU_BYPASSING	= 1LLU << 0,
+	/* ecaps deliveries are enabled, see ecaps_enable() */
+	SCX_SCHED_PCPU_ECAPS_ENABLED	= 1LLU << 1,
+	/* a report is pending, see ecaps_report() */
+	SCX_SCHED_PCPU_ECAPS_REPORT	= 1LLU << 2,
 };
 
 /* dispatch buf */
@@ -1474,6 +1496,16 @@ struct scx_sched_pcpu {
 	struct llist_node	ecaps_to_sync_node;
 	/* owed a forced update_idle() re-notify on this cpu */
 	bool			idle_renotify;
+	/*
+	 * The sched was granted a cap on this cpu at some point. ecaps_report()
+	 * reschedules only these cpus, as rescheduling every cpu on each
+	 * sub-sched enable and disable would disrupt a large machine split many
+	 * ways. Exactly which cpus owe a delivery is hard to track, as
+	 * deliveries are asynchronous and reading caps[] and ecaps doesn't
+	 * tell. A cpu granted a cap at some point is a simple superset. Written
+	 * under pshard->lock.
+	 */
+	bool			had_caps;
 	/*
 	 * ecaps as of the last sub_ecaps_updated() and
 	 * sub_child_ecaps_updated() delivery. See __scx_process_sync_ecaps().
@@ -1751,6 +1783,11 @@ struct scx_sched {
 
 	bool			linked;		/* on ->children, see scx_link_sched() */
 	bool			sub_attached;
+	/* ecaps_enable() has run, under scx_enable_mutex */
+	bool			ecaps_enabled;
+
+	/* marked cpus whose sync is pending, see ecaps_report() */
+	atomic_t		nr_ecaps_reports;
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
 	/*
@@ -2260,6 +2297,7 @@ void scx_flush_dispatch_buf(struct scx_sched *sch, struct rq *rq);
 s32 scx_init_dsq(struct scx_dispatch_q *dsq, u64 dsq_id, struct scx_sched *sch);
 __printf(2, 3) void scx_dump_line(struct seq_buf *s, const char *fmt, ...);
 void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags);
+void scx_resched_curr_deferred(struct rq *rq);
 u64 __scx_bpf_now(struct rq *rq);
 void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 			u64 reenq_flags, struct rq *locked_rq);

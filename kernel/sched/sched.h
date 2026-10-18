@@ -855,6 +855,7 @@ struct scx_rq {
 #endif
 	struct irq_work		deferred_irq_work;
 	struct irq_work		kick_cpus_irq_work;
+	struct irq_work		resched_irq_work;
 };
 #endif /* CONFIG_SCHED_CLASS_EXT */
 

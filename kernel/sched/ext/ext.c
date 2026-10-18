@@ -1152,6 +1152,36 @@ static void schedule_deferred_locked(struct rq *rq)
 	schedule_deferred(rq);
 }
 
+static void resched_irq_workfn(struct irq_work *irq_work)
+{
+	struct rq *rq = container_of(irq_work, struct rq, scx.resched_irq_work);
+
+	guard(rq_lock)(rq);
+	/* a higher class task would only be picked again, see kick_one_cpu() */
+	if (!sched_class_above(rq->donor->sched_class, &ext_sched_class))
+		resched_curr(rq);
+	scx_rq_lock_drop(rq);
+}
+
+/**
+ * scx_resched_curr_deferred - Reschedule @rq's cpu from hard irq work on it
+ * @rq: rq to reschedule
+ *
+ * A kick, like a direct resched, only guarantees that a scheduling event on the
+ * cpu completes after it, and that can be the one in progress. Work that a pick
+ * processes only at the start of its dispatch, such as the ecaps syncs, can be
+ * queued after that point and miss the pick. A pick on @rq's cpu runs with IRQs
+ * off, so the irq work runs after it, and the scheduling event its resched
+ * triggers starts after this call. A sibling's core scheduling pick for @rq
+ * isn't covered. A cpu running a task of a higher class isn't rescheduled, as
+ * its pick would return that task again. @rq's cpu must stay online until the
+ * irq work is queued.
+ */
+void scx_resched_curr_deferred(struct rq *rq)
+{
+	irq_work_queue_on(&rq->scx.resched_irq_work, cpu_of(rq));
+}
+
 #ifdef CONFIG_NO_HZ_FULL
 static void scx_proxy_tick_bal_cb(struct rq *rq)
 {
@@ -6791,6 +6821,9 @@ static void unbypass_renotify_idle(struct rq *rq, struct scx_sched *pos,
  *
  * - ops.dispatch() is ignored.
  *
+ * - ops.sub_ecaps_updated() and ops.sub_child_ecaps_updated() are still called.
+ *   The bypassed tasks are on the bypass DSQs, out of their reach.
+ *
  * - dispatch_one() does not report %SCX_DSP_PREV on non-zero slice as slice
  *   can't be trusted. Whenever a tick triggers, the running task is rotated to
  *   the tail of the queue.
@@ -6870,10 +6903,8 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 				pcpu->flags |= SCX_SCHED_PCPU_BYPASSING;
 			} else {
 				pcpu->flags &= ~SCX_SCHED_PCPU_BYPASSING;
-				if (was_bypassing) {
+				if (was_bypassing)
 					unbypass_renotify_idle(rq, pos, pcpu);
-					scx_unbypass_replay_ecaps(rq, pos);
-				}
 			}
 		}
 
@@ -9510,6 +9541,7 @@ void __init init_sched_ext_class(void)
 		INIT_LIST_HEAD(&rq->scx.deferred_reenq_users);
 		rq->scx.deferred_irq_work = IRQ_WORK_INIT_HARD(deferred_irq_workfn);
 		rq->scx.kick_cpus_irq_work = IRQ_WORK_INIT_HARD(kick_cpus_irq_workfn);
+		rq->scx.resched_irq_work = IRQ_WORK_INIT_HARD(resched_irq_workfn);
 
 		if (cpu_online(cpu))
 			cpu_rq(cpu)->scx.flags |= SCX_RQ_ONLINE;
