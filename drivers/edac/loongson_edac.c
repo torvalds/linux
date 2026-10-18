@@ -137,8 +137,8 @@ static void edac_remove(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id loongson_edac_acpi_match[] = {
-	{"LOON0010", 0},
-	{}
+	{ .id = "LOON0010" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, loongson_edac_acpi_match);
 
