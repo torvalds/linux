@@ -1043,6 +1043,42 @@ struct zone {
 	 * cma pages is present pages that are assigned for CMA use
 	 * (MIGRATE_CMA).
 	 *
+	 * pages_with_online_memmap tracks pages within the zone that have
+	 * an online memory map: present pages and memory holes whose
+	 * memory map has been initialized and pfn_to_online_page()
+	 * succeeds. When spanned_pages == pages_with_online_memmap,
+	 * pfn_to_page() can be performed without further checks on any
+	 * PFN within the zone span.
+	 *
+	 * Note: this counter may temporarily undercount when pages with an
+	 * online memory map exist outside the current zone span. Such pages
+	 * are only created during boot, when initializing the memory map of
+	 * pages that do not fall into any zone span. The undercount itself
+	 * can only happen after boot, during memory hotplug, when growing
+	 * the zone to cover such pages and later shrinking it back, which
+	 * may result in a "too small" value. This is safe: it merely
+	 * prevents detecting a contiguous zone.
+	 *
+	 * Here is an example (page numbers are just for illustration
+	 * purposes):
+	 *   after boot:
+	 *       [  zone span  ]
+	 *       [   zone pages   ]
+	 *       spanned=10, initialized=15, online=10
+	 *       online == spanned  ->  contiguous
+	 *
+	 *   growing after hotplug (hotplug 5):
+	 *       [  zone span                          ]
+	 *       [   zone pages   ]   [   zone pages   ]
+	 *       spanned=30, initialized=20, online=15
+	 *       online != spanned  ->  not contiguous
+	 *
+	 *   shrinking after hotunplug (hotunplug 5 again):
+	 *       [  zone span     ]
+	 *       [   zone pages   ]
+	 *       spanned=15, initialized=15, online=10
+	 *       online != spanned  ->  not contiguous although contiguous
+	 *
 	 * So present_pages may be used by memory hotplug or memory power
 	 * management logic to figure out unmanaged pages by checking
 	 * (present_pages - managed_pages). And managed_pages should be used
@@ -1067,6 +1103,7 @@ struct zone {
 	atomic_long_t		managed_pages;
 	unsigned long		spanned_pages;
 	unsigned long		present_pages;
+	unsigned long		pages_with_online_memmap;
 #if defined(CONFIG_MEMORY_HOTPLUG)
 	unsigned long		present_early_pages;
 #endif
@@ -1693,6 +1730,38 @@ static inline bool zone_is_zone_device(const struct zone *zone)
 	return false;
 }
 #endif
+
+/**
+ * zone_is_contiguous - test whether a zone is contiguous
+ * @zone: the zone to test.
+ *
+ * In a contiguous zone, it is valid to call pfn_to_page() on any PFN in the
+ * spanned zone without requiring pfn_valid() or pfn_to_online_page() checks.
+ *
+ * Note that missing synchronization with memory offlining makes any PFN
+ * traversal prone to races.
+ *
+ * ZONE_DEVICE zones are always marked non-contiguous.
+ *
+ * Return: true if contiguous, otherwise false.
+ */
+static inline bool zone_is_contiguous(const struct zone *zone)
+{
+	return READ_ONCE(zone->contiguous);
+}
+
+static inline void set_zone_contiguous(struct zone *zone)
+{
+	if (zone_is_zone_device(zone))
+		return;
+	if (zone->spanned_pages == zone->pages_with_online_memmap)
+		WRITE_ONCE(zone->contiguous, true);
+}
+
+static inline void clear_zone_contiguous(struct zone *zone)
+{
+	WRITE_ONCE(zone->contiguous, false);
+}
 
 /*
  * Returns true if a zone has pages managed by the buddy allocator.
