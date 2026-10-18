@@ -2697,6 +2697,32 @@ static const struct dmi_system_id power_limits[] = {
 			},
 		},
 	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "RC74XA"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 7,
+				.ppt_pl1_spl_max = 35,
+				.ppt_pl2_sppt_min = 13,
+				.ppt_pl2_sppt_max = 45,
+				.ppt_pl3_fppt_min = 19,
+				.ppt_pl3_fppt_max = 55,
+			},
+			.dc_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 7,
+				.ppt_pl1_spl_def = 17,
+				.ppt_pl1_spl_max = 35,
+				.ppt_pl2_sppt_min = 13,
+				.ppt_pl2_sppt_def = 21,
+				.ppt_pl2_sppt_max = 45,
+				.ppt_pl3_fppt_min = 19,
+				.ppt_pl3_fppt_def = 26,
+				.ppt_pl3_fppt_max = 55,
+			},
+		},
+	},
 	{}
 };
 
