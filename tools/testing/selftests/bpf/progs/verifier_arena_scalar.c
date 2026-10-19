@@ -993,19 +993,6 @@ __naked void no_flag(void)
 
 SEC("syscall")
 __arena_scalar
-__description("arena_scalar: no arena, no access through a number")
-__failure __msg("R6 invalid mem access 'scalar'")
-__naked void no_arena(void)
-{
-	asm volatile ("					\
-	r6 = 0x100000000000 ll;				\
-	r0 = *(u64 *)(r6 + 0);				\
-	exit;						\
-"	::: __clobber_all);
-}
-
-SEC("syscall")
-__arena_scalar
 __description("arena_scalar: pointer that is NULL is an address in arena")
 __success __retval(0)
 __load_if_JITed()

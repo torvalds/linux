@@ -195,16 +195,6 @@ int arena_arg_unpopulated(void *ctx)
 SEC("syscall")
 __arch_x86_64
 __arch_arm64
-__failure __msg("arena pointer requires a program with an associated arena")
-int arena_arg_no_arena(void *ctx)
-{
-	bpf_kfunc_arena_arg_test((u64 *)1);
-	return 0;
-}
-
-SEC("syscall")
-__arch_x86_64
-__arch_arm64
 __failure __msg("R1 type=fp expected=arena, scalar")
 int arena_arg_bad_reg(void *ctx)
 {
