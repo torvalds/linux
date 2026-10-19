@@ -6754,6 +6754,16 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		clear_trusted_flags(&flag);
 	}
 
+	/*
+	 * A __nullable member only matters where NULL would otherwise be
+	 * assumed away, which is anywhere but on a plain or an untrusted
+	 * pointer: those are probed on a dereference, which tolerates NULL, and
+	 * the BTF_TYPE_SAFE_*_OR_NULL lists never applied to them either. A
+	 * per-CPU pointer counts, per_cpu_ptr() does not check for NULL.
+	 */
+	if (bpf_may_fault_on_deref(PTR_TO_BTF_ID | (flag & ~PTR_MAYBE_NULL)))
+		flag &= ~PTR_MAYBE_NULL;
+
 	if (atype == BPF_READ && value_regno >= 0) {
 		ret = mark_btf_ld_reg(env, regs, value_regno, ret, reg->btf, btf_id, flag);
 		if (ret < 0)
