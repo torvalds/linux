@@ -841,8 +841,8 @@ void fw_core_remove_card(struct fw_card *card)
 	// Ensure the entire contents of the driver are visible to other CPUs.
 	smp_store_release(&card->driver, &closer.driver);
 
-	drain_workqueue(card->isoc_wq);
-	drain_workqueue(card->async_wq);
+	flush_workqueue(card->isoc_wq);
+	flush_workqueue(card->async_wq);
 	card->driver->disable(card);
 
 	scoped_guard(spinlock_irqsave, &card->transactions.lock)
