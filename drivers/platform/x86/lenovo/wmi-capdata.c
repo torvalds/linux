@@ -49,6 +49,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 #include <linux/wmi.h>
 
 #include <asm/barrier.h>
@@ -75,14 +76,19 @@ enum lwmi_cd_type {
 	CD_TYPE_NONE = -1,
 };
 
-#define LWMI_CD_TABLE_ITEM(_type)		\
-	[_type] = {				\
-		.name = #_type,			\
-		.type = _type,			\
+static const struct wmi_device_id lwmi_cd_id_table[];
+
+/* Save some .rodata space by reusing the GUID strings from the id table. */
+#define LWMI_CD_TABLE_ITEM(_type)					\
+	[_type] = {							\
+		.name = #_type,						\
+		.guid_string = lwmi_cd_id_table[_type].guid_string,	\
+		.type = _type,						\
 	}
 
 static const struct lwmi_cd_info {
 	const char *name;
+	const char *guid_string;
 	enum lwmi_cd_type type;
 } lwmi_cd_table[] = {
 	LWMI_CD_TABLE_ITEM(LENOVO_CAPABILITY_DATA_00),
@@ -153,24 +159,49 @@ static int lwmi_cd_match(struct device *dev, void *type)
  *
  * Adds all component matches to the list stored in @matchptr for the @master
  * device. @matchptr must be initialized to NULL.
+ *
+ * Missing components are not added to the match list, or else the master waits
+ * for them forever. For some components, their existence can be determined by
+ * querying other components, so they are handled as sub-components and thus not
+ * matched here. For components with no existence declaration, wmidev_exists()
+ * is used to determine their existence.
+ *
+ * If all components are missing, ERR_PTR(-ENXIO) is returned through @matchptr.
  */
 void lwmi_cd_match_add_all(struct device *master, struct component_match **matchptr)
 {
-	int i;
+	bool matched = false;
+	int ret, i;
 
 	if (WARN_ON(*matchptr))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(lwmi_cd_table); i++) {
+		guid_t guid;
+
 		/* Skip sub-components. */
 		if (lwmi_cd_table[i].type == LENOVO_FAN_TEST_DATA)
+			continue;
+
+		ret = guid_parse(lwmi_cd_table[i].guid_string, &guid);
+		if (ret < 0) {
+			*matchptr = ERR_PTR(ret);
+			return;
+		}
+
+		if (!wmidev_exists(&guid))
 			continue;
 
 		component_match_add(master, matchptr, lwmi_cd_match,
 				    (void *)&lwmi_cd_table[i].type);
 		if (IS_ERR(*matchptr))
 			return;
+
+		matched = true;
 	}
+
+	if (!matched)
+		*matchptr = ERR_PTR(-ENXIO);
 }
 EXPORT_SYMBOL_NS_GPL(lwmi_cd_match_add_all, "LENOVO_WMI_CAPDATA");
 
