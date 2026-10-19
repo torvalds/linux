@@ -258,7 +258,12 @@ BTF_ID_FLAGS(func, bpf_ksock_send, KF_SLEEPABLE)
 BTF_KFUNCS_END(ksock_kfunc_btf_ids)
 
 #ifdef CONFIG_BPF_LSM
-BTF_ID_LIST_SINGLE(bpf_lsm_socket_sendmsg_id, func, bpf_lsm_socket_sendmsg)
+BTF_ID_LIST(bpf_lsm_socket_sendmsg_id)
+#ifdef CONFIG_SECURITY_NETWORK
+BTF_ID(func, bpf_lsm_socket_sendmsg)
+#else
+BTF_ID_UNUSED
+#endif
 #endif
 
 static int bpf_ksock_kfunc_filter(const struct bpf_prog *prog, u32 kfunc_id)
