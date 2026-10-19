@@ -670,6 +670,7 @@ static void dspi_dma_xfer(struct fsl_dspi *dspi)
 static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 {
 	struct device *dev = &dspi->pdev->dev;
+	struct device *tx_dev, *rx_dev;
 	struct dma_slave_config cfg;
 	struct fsl_dspi_dma *dma;
 	int ret;
@@ -688,20 +689,23 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		goto err_tx_channel;
 	}
 
+	tx_dev = dmaengine_get_dma_device(dma->chan_tx);
+	rx_dev = dmaengine_get_dma_device(dma->chan_rx);
+
 	if (spi_controller_is_target(dspi->ctlr)) {
 		/*
 		 * In target mode we have to be ready to receive the maximum
 		 * that can possibly be transferred at once by EDMA without any
 		 * FIFO underflows.
 		 */
-		dma->bufsize = min(dma_get_max_seg_size(dma->chan_rx->device->dev),
-				   dma_get_max_seg_size(dma->chan_tx->device->dev)) *
+		dma->bufsize = min(dma_get_max_seg_size(rx_dev),
+				   dma_get_max_seg_size(tx_dev)) *
 			       DMA_SLAVE_BUSWIDTH_4_BYTES;
 	} else {
 		dma->bufsize = PAGE_SIZE;
 	}
 
-	dma->tx_dma_buf = dma_alloc_noncoherent(dma->chan_tx->device->dev,
+	dma->tx_dma_buf = dma_alloc_noncoherent(tx_dev,
 						dma->bufsize, &dma->tx_dma_phys,
 						DMA_TO_DEVICE, GFP_KERNEL);
 	if (!dma->tx_dma_buf) {
@@ -709,7 +713,7 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		goto err_tx_dma_buf;
 	}
 
-	dma->rx_dma_buf = dma_alloc_noncoherent(dma->chan_rx->device->dev,
+	dma->rx_dma_buf = dma_alloc_noncoherent(rx_dev,
 						dma->bufsize, &dma->rx_dma_phys,
 						DMA_FROM_DEVICE, GFP_KERNEL);
 	if (!dma->rx_dma_buf) {
@@ -746,12 +750,11 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	return 0;
 
 err_slave_config:
-	dma_free_noncoherent(dma->chan_rx->device->dev, dma->bufsize,
-			     dma->rx_dma_buf, dma->rx_dma_phys,
-			     DMA_FROM_DEVICE);
+	dma_free_noncoherent(rx_dev, dma->bufsize, dma->rx_dma_buf,
+			     dma->rx_dma_phys, DMA_FROM_DEVICE);
 err_rx_dma_buf:
-	dma_free_noncoherent(dma->chan_tx->device->dev, dma->bufsize,
-			     dma->tx_dma_buf, dma->tx_dma_phys, DMA_TO_DEVICE);
+	dma_free_noncoherent(tx_dev, dma->bufsize, dma->tx_dma_buf,
+			     dma->tx_dma_phys, DMA_TO_DEVICE);
 err_tx_dma_buf:
 	dma_release_channel(dma->chan_tx);
 err_tx_channel:
@@ -771,16 +774,18 @@ static void dspi_release_dma(struct fsl_dspi *dspi)
 		return;
 
 	if (dma->chan_tx) {
-		dma_free_noncoherent(dma->chan_tx->device->dev, dma->bufsize,
-				     dma->tx_dma_buf, dma->tx_dma_phys,
-				     DMA_TO_DEVICE);
+		struct device *tx_dev = dmaengine_get_dma_device(dma->chan_tx);
+
+		dma_free_noncoherent(tx_dev, dma->bufsize, dma->tx_dma_buf,
+				     dma->tx_dma_phys, DMA_TO_DEVICE);
 		dma_release_channel(dma->chan_tx);
 	}
 
 	if (dma->chan_rx) {
-		dma_free_noncoherent(dma->chan_rx->device->dev, dma->bufsize,
-				     dma->rx_dma_buf, dma->rx_dma_phys,
-				     DMA_FROM_DEVICE);
+		struct device *rx_dev = dmaengine_get_dma_device(dma->chan_rx);
+
+		dma_free_noncoherent(rx_dev, dma->bufsize, dma->rx_dma_buf,
+				     dma->rx_dma_phys, DMA_FROM_DEVICE);
 		dma_release_channel(dma->chan_rx);
 	}
 }

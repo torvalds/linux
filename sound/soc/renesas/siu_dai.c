@@ -688,12 +688,18 @@ epclkget:
 	return ret;
 }
 
+static const u64 siu_dai_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops siu_dai_ops = {
 	.startup	= siu_dai_startup,
 	.shutdown	= siu_dai_shutdown,
 	.prepare	= siu_dai_prepare,
 	.set_sysclk	= siu_dai_set_sysclk,
 	.set_fmt	= siu_dai_set_fmt,
+	.auto_selectable_formats	= &siu_dai_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver siu_i2s_dai = {

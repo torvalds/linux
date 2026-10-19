@@ -118,7 +118,6 @@ static int aw88399_hda_init(struct aw88399_hda *aw88399)
 	mutex_init(&core->lock);
 	core->reset_gpio = aw88399->reset_gpio;
 	core->regmap = aw88399->regmap;
-	core->bsts_unreliable = aw88399->bsts_unreliable;
 
 	aw88399_hw_reset(core);
 
@@ -155,41 +154,20 @@ static int aw88399_swap_channels(struct aw88399_hda *aw88399)
 	return 0;
 }
 
-static int aw88399_skip_bsts_check(struct aw88399_hda *aw88399)
-{
-	/*
-	 * BSTS (boost-finished) status bit does not reliably report on
-	 * some hardware. On certain Lenovo Legion laptops, both amps
-	 * report BSTS=0 (boost not finished) during normal playback
-	 * despite clean audio output. Skip BSTS in the startup status
-	 * check to avoid false init failures.
-	 */
-	aw88399->bsts_unreliable = true;
-	dev_dbg(aw88399->dev, "BSTS status check disabled\n");
-	return 0;
-}
-
-static int aw88399_apply_legion_quirks(struct aw88399_hda *aw88399)
-{
-	aw88399_swap_channels(aw88399);
-	aw88399_skip_bsts_check(aw88399);
-	return 0;
-}
-
 struct aw88399_prop_model {
 	const char *ssid;
 	int (*apply_prop)(struct aw88399_hda *aw88399);
 };
 
 static const struct aw88399_prop_model aw88399_prop_model_table[] = {
-	{ "17AA3906", aw88399_apply_legion_quirks },
-	{ "17AA3907", aw88399_apply_legion_quirks },
-	{ "17AA3927", aw88399_apply_legion_quirks },
-	{ "17AA3928", aw88399_apply_legion_quirks },
-	{ "17AA3936", aw88399_apply_legion_quirks },
-	{ "17AA3937", aw88399_apply_legion_quirks },
-	{ "17AA3938", aw88399_apply_legion_quirks },
-	{ "17AA3939", aw88399_apply_legion_quirks },
+	{ "17AA3906", aw88399_swap_channels },
+	{ "17AA3907", aw88399_swap_channels },
+	{ "17AA3927", aw88399_swap_channels },
+	{ "17AA3928", aw88399_swap_channels },
+	{ "17AA3936", aw88399_swap_channels },
+	{ "17AA3937", aw88399_swap_channels },
+	{ "17AA3938", aw88399_swap_channels },
+	{ "17AA3939", aw88399_swap_channels },
 	{ }
 };
 

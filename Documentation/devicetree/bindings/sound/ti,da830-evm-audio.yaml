@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,da830-evm-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments SoC audio setups with TLV320AIC3X Codec
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+properties:
+  compatible:
+    const: ti,da830-evm-audio
+
+  ti,model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: The user-visible name of this sound complex.
+
+  ti,audio-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle of the TLV320AIC3x audio codec
+
+  ti,mcasp-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle of the McASP controller
+
+  ti,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description:
+      A list of the connections between audio components. Each entry is a
+      pair of strings, the first being the connection's sink, the second
+      being the connection's source. Valid names for sources and sinks
+      are the codec's pins, and the jacks on the board (Headphone Jack,
+      Line Out, Mic Jack, Line In).
+
+  ti,codec-clock-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The Codec Clock rate (in Hz) applied to the Codec.
+
+  clocks:
+    maxItems: 1
+    description: Reference to the master clock
+
+  clock-names:
+    const: mclk
+
+required:
+  - compatible
+  - ti,model
+  - ti,audio-codec
+  - ti,mcasp-controller
+  - ti,audio-routing
+
+anyOf:
+  - required:
+      - ti,codec-clock-rate
+  - required:
+      - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "ti,da830-evm-audio";
+        ti,model = "DA830 EVM";
+        ti,audio-codec = <&tlv320aic3x>;
+        ti,mcasp-controller = <&mcasp1>;
+        ti,codec-clock-rate = <12000000>;
+        ti,audio-routing =
+            "Headphone Jack",       "HPLOUT",
+            "Headphone Jack",       "HPROUT",
+            "Line Out",             "LLOUT",
+            "Line Out",             "RLOUT",
+            "MIC3L",                "Mic Bias 2V",
+            "MIC3R",                "Mic Bias 2V",
+            "Mic Bias 2V",          "Mic Jack",
+            "LINE1L",               "Line In",
+            "LINE2L",               "Line In",
+            "LINE1R",               "Line In",
+            "LINE2R",               "Line In";
+    };

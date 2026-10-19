@@ -1216,7 +1216,7 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 		0, rt5640_spk_l_mix, ARRAY_SIZE(rt5640_spk_l_mix)),
 	SND_SOC_DAPM_MIXER("SPK MIXR", RT5640_PWR_MIXER, RT5640_PWR_SM_R_BIT,
 		0, rt5640_spk_r_mix, ARRAY_SIZE(rt5640_spk_r_mix)),
-	/* Ouput Volume */
+	/* Output Volume */
 	SND_SOC_DAPM_PGA("SPKVOL L", RT5640_PWR_VOL,
 		RT5640_PWR_SV_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SPKVOL R", RT5640_PWR_VOL,
@@ -2667,11 +2667,6 @@ static int rt5640_probe(struct snd_soc_component *component)
 	bool dmic_en = false;
 	u32 val;
 
-	/* Check if MCLK provided */
-	rt5640->mclk = devm_clk_get_optional(component->dev, "mclk");
-	if (IS_ERR(rt5640->mclk))
-		return PTR_ERR(rt5640->mclk);
-
 	rt5640->component = component;
 
 	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
@@ -2877,11 +2872,21 @@ static int rt5640_resume(struct snd_soc_component *component)
 #define RT5640_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
+static const u64 rt5640_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops rt5640_aif_dai_ops = {
 	.hw_params = rt5640_hw_params,
 	.set_fmt = rt5640_set_dai_fmt,
 	.set_sysclk = rt5640_set_dai_sysclk,
 	.set_pll = rt5640_set_dai_pll,
+	.auto_selectable_formats	= &rt5640_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver rt5640_dai[] = {
@@ -3001,6 +3006,11 @@ static int rt5640_i2c_probe(struct i2c_client *i2c)
 	if (NULL == rt5640)
 		return -ENOMEM;
 	i2c_set_clientdata(i2c, rt5640);
+
+	/* Check if MCLK provided */
+	rt5640->mclk = devm_clk_get_optional(&i2c->dev, "mclk");
+	if (IS_ERR(rt5640->mclk))
+		return PTR_ERR(rt5640->mclk);
 
 	rt5640->ldo1_en = devm_gpiod_get_optional(&i2c->dev,
 						  "realtek,ldo1-en",

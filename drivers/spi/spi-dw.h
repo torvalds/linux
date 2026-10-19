@@ -183,6 +183,12 @@ struct dw_spi_dma_ops {
 			struct spi_transfer *xfer);
 	int (*dma_transfer)(struct dw_spi *dws, struct spi_transfer *xfer);
 	void (*dma_stop)(struct dw_spi *dws);
+
+	/* enh mem dma ops */
+	int (*dma_enh_mem_get_chan)(struct device *dev, struct dw_spi *dws);
+	int (*dma_enh_mem_setup)(struct dw_spi *dws);
+	bool (*can_dma_enh_mem)(struct spi_controller *ctlr);
+	int (*dma_enh_mem_transfer)(struct spi_mem *mem, const struct spi_mem_op *op);
 };
 
 struct dw_spi {
@@ -227,6 +233,8 @@ struct dw_spi {
 	u32			txburst;
 	struct dma_chan		*rxchan;
 	u32			rxburst;
+	unsigned int		dma_nr_chans;
+	bool			tx_dir;
 	u32			dma_sg_burst;
 	u32			dma_addr_widths;
 	unsigned long		dma_chan_busy;

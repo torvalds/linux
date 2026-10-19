@@ -633,18 +633,23 @@ static int nuvoton_qspi_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to deassert reset\n");
 
 	ret = device_property_read_u32(dev, "num-cs", &num_cs);
-	if (ret && ret != -EINVAL)
-		return dev_err_probe(dev, ret, "failed to read num-cs\n");
+	if (ret && ret != -EINVAL) {
+		ret = dev_err_probe(dev, ret, "failed to read num-cs\n");
+		goto err_assert;
+	}
 
-	if (!num_cs || num_cs > NUVOTON_QSPI_MAX_NUM_CS)
-		return dev_err_probe(dev, -EINVAL, "invalid num-cs %u\n",
+	if (!num_cs || num_cs > NUVOTON_QSPI_MAX_NUM_CS) {
+		ret = dev_err_probe(dev, -EINVAL, "invalid num-cs %u\n",
 				     num_cs);
+		goto err_assert;
+	}
 
 	ctlr->num_chipselect = num_cs;
 	ctlr->max_transfer_size = nuvoton_qspi_max_transfer_size;
 	ctlr->max_message_size = nuvoton_qspi_max_message_size;
 	ctlr->mem_ops = &nuvoton_qspi_mem_ops;
 	ctlr->mem_caps = &nuvoton_qspi_mem_caps;
+	ctlr->dtr_caps = true;
 	ctlr->set_cs = nuvoton_qspi_set_cs;
 	ctlr->transfer_one = nuvoton_qspi_transfer_one;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
@@ -655,14 +660,20 @@ static int nuvoton_qspi_probe(struct platform_device *pdev)
 
 	ret = nuvoton_qspi_hw_init(qspi);
 	if (ret)
-		return ret;
+		goto err_assert;
 
 	ret = devm_spi_register_controller(dev, ctlr);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to register spi controller\n");
+	if (ret) {
+		ret = dev_err_probe(dev, ret,
+				    "failed to register spi controller\n");
+		goto err_assert;
+	}
 
 	return 0;
+
+err_assert:
+	reset_control_assert(rst);
+	return ret;
 }
 
 static const struct of_device_id nuvoton_qspi_of_match[] = {

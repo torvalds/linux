@@ -18,6 +18,7 @@ properties:
       - items:
           - enum:
               - qcom,sdm660-wcd-digital-codec
+              - qcom,sdm670-wcd-digital-codec
           - const: qcom,msm8916-wcd-digital-codec
 
       - const: qcom,msm8916-wcd-digital-codec

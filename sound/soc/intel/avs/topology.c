@@ -1720,6 +1720,10 @@ static int avs_tplg_parse_initial_configs(struct snd_soc_component *comp,
 					       AVS_TKN_INIT_CONFIG_ID_U32,
 					       mod_init_config_parsers,
 					       ARRAY_SIZE(mod_init_config_parsers));
+		if (ret)
+			return ret;
+		if (config->length > block_size)
+			return -EINVAL;
 
 		block_size -= esize;
 
@@ -1789,6 +1793,8 @@ static int avs_tplg_parse_nhlt_configs(struct snd_soc_component *comp,
 			return ret;
 		/* With tuples parsed, the blob shall be allocated. */
 		if (!config->blob)
+			return -EINVAL;
+		if (config->blob->capabilities_size > block_size)
 			return -EINVAL;
 
 		/* Consume the raw data and move to the next entry. */
@@ -2225,29 +2231,4 @@ struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp)
 	INIT_LIST_HEAD(&tplg->path_tmpl_list);
 
 	return tplg;
-}
-
-int avs_load_topology(struct snd_soc_component *comp, const char *filename)
-{
-	const struct firmware *fw __free(firmware) = NULL;
-	int ret;
-
-	ret = request_firmware(&fw, filename, comp->dev);
-	if (ret < 0) {
-		dev_err(comp->dev, "request topology \"%s\" failed: %d\n", filename, ret);
-		return ret;
-	}
-
-	ret = snd_soc_tplg_component_load(comp, &avs_tplg_ops, fw);
-	if (ret < 0)
-		dev_err(comp->dev, "load topology \"%s\" failed: %d\n", filename, ret);
-
-	return ret;
-}
-
-int avs_remove_topology(struct snd_soc_component *comp)
-{
-	snd_soc_tplg_component_remove(comp);
-
-	return 0;
 }

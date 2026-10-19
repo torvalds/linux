@@ -70,6 +70,7 @@ static void test_snd_soc_card_get_kcontrol(struct kunit *test)
 static int soc_card_test_case_init(struct kunit *test)
 {
 	struct soc_card_test_priv *priv;
+	struct device *dev;
 	int ret;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
@@ -82,8 +83,10 @@ static int soc_card_test_case_init(struct kunit *test)
 	if (!priv->card)
 		return -ENOMEM;
 
-	priv->card_dev = kunit_device_register(test, "sound-soc-card-test");
-	priv->card_dev = get_device(priv->card_dev);
+	dev = kunit_device_register(test, "sound-soc-card-test");
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	priv->card_dev = get_device(dev);
 	if (!priv->card_dev)
 		return -ENODEV;
 

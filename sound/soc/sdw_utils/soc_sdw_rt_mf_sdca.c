@@ -33,6 +33,11 @@ static const struct snd_soc_dapm_route rt722_spk_map[] = {
 	{ "Speaker", NULL, "rt722 SPK" },
 };
 
+static const struct snd_soc_dapm_route rt766_spk_map[] = {
+	{ "Speaker", NULL, "rt766 SPOL" },
+	{ "Speaker", NULL, "rt766 SPOR" },
+};
+
 /* Structure to map codec names to respective route arrays and sizes */
 struct codec_route_map {
 	const char *codec_name;
@@ -45,6 +50,7 @@ static const struct codec_route_map codec_routes[] = {
 	{ "rt712", rt712_spk_map, ARRAY_SIZE(rt712_spk_map) },
 	{ "rt721", rt721_spk_map, ARRAY_SIZE(rt721_spk_map) },
 	{ "rt722", rt722_spk_map, ARRAY_SIZE(rt722_spk_map) },
+	{ "rt766", rt766_spk_map, ARRAY_SIZE(rt766_spk_map) },
 };
 
 static const struct codec_route_map *get_codec_route_map(const char *codec_name)

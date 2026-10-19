@@ -8,18 +8,18 @@ snd-sof-y := core.o ops.o loader.o ipc.o pcm.o pm.o debug.o topology.o\
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
 snd-sof-y +=	ipc3.o ipc3-loader.o ipc3-topology.o ipc3-control.o ipc3-pcm.o\
 		ipc3-dtrace.o
+snd-sof-$(CONFIG_SND_SOC_SOF_COMPRESS) += ipc3-compress.o
 endif
 ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
 snd-sof-y += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o\
 		ipc4-mtrace.o ipc4-telemetry.o
+snd-sof-$(CONFIG_SND_SOC_SOF_COMPRESS) += ipc4-compress.o
 endif
 
 # SOF client support
 ifneq ($(CONFIG_SND_SOC_SOF_CLIENT),)
 snd-sof-y += sof-client.o
 endif
-
-snd-sof-$(CONFIG_SND_SOC_SOF_COMPRESS) += compress.o
 
 snd-sof-pci-y := sof-pci-dev.o
 snd-sof-acpi-y := sof-acpi-dev.o

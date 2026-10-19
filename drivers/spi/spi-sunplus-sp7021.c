@@ -337,10 +337,15 @@ static int sp7021_spi_host_transfer_one(struct spi_controller *ctlr, struct spi_
 				      SP7021_SPI_START_FD;
 		writel(reg_temp, pspim->m_base + SP7021_SPI_STATUS_REG);
 
-		if (!wait_for_completion_interruptible_timeout(&pspim->isr_done, timeout)) {
-			dev_err(&spi->dev, "wait_for_completion err\n");
-			mutex_unlock(&pspim->buf_lock);
-			return -ETIMEDOUT;
+		{
+			long ret = wait_for_completion_interruptible_timeout(
+						&pspim->isr_done, timeout);
+			if (ret <= 0) {
+				dev_err(&spi->dev, ret == 0 ? "SPI transfer timeout\n"
+							    : "SPI transfer interrupted\n");
+				mutex_unlock(&pspim->buf_lock);
+				return ret == 0 ? -ETIMEDOUT : -EINTR;
+			}
 		}
 
 		reg_temp = readl(pspim->m_base + SP7021_SPI_STATUS_REG);

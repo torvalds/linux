@@ -527,7 +527,7 @@ static void bcm2835_spi_transfer_prologue(struct spi_controller *ctlr,
 						  | BCM2835_SPI_CS_CLEAR_TX
 						  | BCM2835_SPI_CS_DONE);
 
-		dma_sync_single_for_device(ctlr->dma_rx->device->dev,
+		dma_sync_single_for_device(dmaengine_get_dma_device(ctlr->dma_rx),
 					   sg_dma_address(&tfr->rx_sg.sgl[0]),
 					   bs->rx_prologue, DMA_FROM_DEVICE);
 
@@ -871,7 +871,7 @@ static void bcm2835_dma_release(struct spi_controller *ctlr,
 			dmaengine_desc_free(bs->fill_tx_desc);
 
 		if (bs->fill_tx_addr)
-			dma_unmap_page_attrs(ctlr->dma_tx->device->dev,
+			dma_unmap_page_attrs(dmaengine_get_dma_device(ctlr->dma_tx),
 					     bs->fill_tx_addr, sizeof(u32),
 					     DMA_TO_DEVICE,
 					     DMA_ATTR_SKIP_CPU_SYNC);
@@ -891,6 +891,7 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 			    struct bcm2835_spi *bs)
 {
 	struct dma_slave_config slave_config;
+	struct device *tx_dma_dev;
 	const __be32 *addr;
 	dma_addr_t dma_reg_base;
 	int ret;
@@ -932,11 +933,13 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	if (ret)
 		goto err_config;
 
-	bs->fill_tx_addr = dma_map_page_attrs(ctlr->dma_tx->device->dev,
+	tx_dma_dev = dmaengine_get_dma_device(ctlr->dma_tx);
+
+	bs->fill_tx_addr = dma_map_page_attrs(tx_dma_dev,
 					      ZERO_PAGE(0), 0, sizeof(u32),
 					      DMA_TO_DEVICE,
 					      DMA_ATTR_SKIP_CPU_SYNC);
-	if (dma_mapping_error(ctlr->dma_tx->device->dev, bs->fill_tx_addr)) {
+	if (dma_mapping_error(tx_dma_dev, bs->fill_tx_addr)) {
 		dev_err(dev, "cannot map zero page - not using DMA mode\n");
 		bs->fill_tx_addr = 0;
 		ret = -ENOMEM;
@@ -1157,7 +1160,7 @@ static void bcm2835_spi_cleanup(struct spi_device *spi)
 		dmaengine_desc_free(target->clear_rx_desc);
 
 	if (target->clear_rx_addr)
-		dma_unmap_single(ctlr->dma_rx->device->dev,
+		dma_unmap_single(dmaengine_get_dma_device(ctlr->dma_rx),
 				 target->clear_rx_addr,
 				 sizeof(u32),
 				 DMA_TO_DEVICE);
@@ -1174,16 +1177,16 @@ static int bcm2835_spi_setup_dma(struct spi_controller *ctlr,
 				 struct bcm2835_spi *bs,
 				 struct bcm2835_spidev *target)
 {
+	struct device *rx_dev;
 	int ret;
 
 	if (!ctlr->dma_rx)
 		return 0;
 
-	target->clear_rx_addr = dma_map_single(ctlr->dma_rx->device->dev,
-					       &target->clear_rx_cs,
-					       sizeof(u32),
-					       DMA_TO_DEVICE);
-	if (dma_mapping_error(ctlr->dma_rx->device->dev, target->clear_rx_addr)) {
+	rx_dev = dmaengine_get_dma_device(ctlr->dma_rx);
+	target->clear_rx_addr = dma_map_single(rx_dev, &target->clear_rx_cs,
+					       sizeof(u32), DMA_TO_DEVICE);
+	if (dma_mapping_error(rx_dev, target->clear_rx_addr)) {
 		dev_err(&spi->dev, "cannot map clear_rx_cs\n");
 		target->clear_rx_addr = 0;
 		return -ENOMEM;
@@ -1268,7 +1271,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 		target->clear_rx_cs = cs | BCM2835_SPI_CS_TA |
 					BCM2835_SPI_CS_DMAEN |
 					BCM2835_SPI_CS_CLEAR_RX;
-		dma_sync_single_for_device(ctlr->dma_rx->device->dev,
+		dma_sync_single_for_device(dmaengine_get_dma_device(ctlr->dma_rx),
 					   target->clear_rx_addr,
 					   sizeof(u32),
 					   DMA_TO_DEVICE);
@@ -1297,7 +1300,9 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pinctrl_compats); i++) {
-		if (of_find_compatible_node(NULL, NULL, pinctrl_compats[i]))
+		struct device_node *np __free(device_node) =
+			of_find_compatible_node(NULL, NULL, pinctrl_compats[i]);
+		if (np)
 			break;
 	}
 

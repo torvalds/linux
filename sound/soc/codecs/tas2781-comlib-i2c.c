@@ -2,7 +2,7 @@
 //
 // TAS2563/TAS2781 Common functions for HDA and ASoC Audio drivers based on I2C
 //
-// Copyright 2025 Texas Instruments, Inc.
+// Copyright 2025 - 2026 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 
@@ -131,7 +131,7 @@ int tasdevice_dev_update_bits(
 		ret = regmap_update_bits(map, TASDEVICE_PGRG(reg),
 			mask, value);
 		if (ret < 0)
-			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
+			TAS_REG_ERR_LOG(tas_priv->dev, chn, reg, ret);
 	} else {
 		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
 			chn);

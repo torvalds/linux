@@ -239,6 +239,16 @@ config SND_SOC_TEGRA_WM8962
 	  boards using the WM8962 codec. Currently, the supported boards are
 	  Microsoft Surface RT.
 
+config SND_SOC_TEGRA_WM8994
+	tristate "SoC Audio support for Tegra boards using a WM8994 codec"
+	depends on I2C && GPIOLIB && MFD_WM8994
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_WM8994
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8994 codec. Currently, the supported boards are
+	  LG Optimus X2 P990.
+
 config SND_SOC_TEGRA_WM9712
 	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
 	depends on GPIOLIB

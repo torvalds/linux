@@ -1026,12 +1026,24 @@ static int nau8822_set_bias_level(struct snd_soc_component *component,
 #define NAU8822_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 nau8822_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops nau8822_dai_ops = {
 	.hw_params	= nau8822_hw_params,
 	.mute_stream	= nau8822_mute,
 	.set_fmt	= nau8822_set_dai_fmt,
 	.set_sysclk	= nau8822_set_dai_sysclk,
 	.set_pll	= nau8822_set_pll,
+	.auto_selectable_formats	= &nau8822_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 
@@ -1059,10 +1071,14 @@ static int nau8822_suspend(struct snd_soc_component *component)
 {
 	struct nau8822 *nau8822 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	int ret;
 
 	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
-	regulator_bulk_disable(NAU8822_NUM_SUPPLIES, nau8822->supplies);
+	ret = regulator_bulk_disable(NAU8822_NUM_SUPPLIES, nau8822->supplies);
+	if (ret)
+		return ret;
 
+	regcache_cache_only(nau8822->regmap, true);
 	regcache_mark_dirty(nau8822->regmap);
 
 	return 0;
@@ -1072,7 +1088,9 @@ static int nau8822_resume(struct snd_soc_component *component)
 {
 	struct nau8822 *nau8822 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
-	int ret = regulator_bulk_enable(NAU8822_NUM_SUPPLIES, nau8822->supplies);
+	int ret;
+
+	ret = regulator_bulk_enable(NAU8822_NUM_SUPPLIES, nau8822->supplies);
 
 	if (ret) {
 		dev_err(component->dev,
@@ -1082,7 +1100,10 @@ static int nau8822_resume(struct snd_soc_component *component)
 
 	fsleep(100);
 
-	regcache_sync(nau8822->regmap);
+	regcache_cache_only(nau8822->regmap, false);
+	ret = regcache_sync(nau8822->regmap);
+	if (ret)
+		return ret;
 
 	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 

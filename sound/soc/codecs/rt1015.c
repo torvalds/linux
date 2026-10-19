@@ -488,35 +488,72 @@ static int rt1015_bypass_boost_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static void rt1015_calibrate(struct rt1015_priv *rt1015)
+static int rt1015_calibrate(struct rt1015_priv *rt1015)
 {
 	struct snd_soc_component *component = rt1015->component;
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct regmap *regmap = rt1015->regmap;
+	int ret, sync_ret;
 
 	snd_soc_dapm_mutex_lock(dapm);
 	regcache_cache_bypass(regmap, true);
 
-	regmap_write(regmap, RT1015_CLK_DET, 0x0000);
-	regmap_write(regmap, RT1015_PWR4, 0x00B2);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0009);
+	ret = regmap_write(regmap, RT1015_CLK_DET, 0x0000);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_PWR4, 0x00B2);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0009);
+	if (ret)
+		goto restore_cache;
+
 	msleep(100);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000A);
+	ret = regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000A);
+	if (ret)
+		goto restore_cache;
+
 	msleep(100);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000C);
+	ret = regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000C);
+	if (ret)
+		goto restore_cache;
+
 	msleep(100);
-	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2028);
-	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0140);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000D);
+	ret = regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2028);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0140);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000D);
+	if (ret)
+		goto restore_cache;
+
 	msleep(300);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0008);
-	regmap_write(regmap, RT1015_SYS_RST1, 0x05F5);
-	regmap_write(regmap, RT1015_CLK_DET, 0x8000);
+	ret = regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0008);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_SYS_RST1, 0x05F5);
+	if (ret)
+		goto restore_cache;
+
+	ret = regmap_write(regmap, RT1015_CLK_DET, 0x8000);
+
+restore_cache:
 
 	regcache_cache_bypass(regmap, false);
 	regcache_mark_dirty(regmap);
-	regcache_sync(regmap);
+	sync_ret = regcache_sync(regmap);
+	if (!ret)
+		ret = sync_ret;
 	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
 }
 
 static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
@@ -525,6 +562,8 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
+	int bypass_boost = rt1015->bypass_boost;
+	int ret;
 
 	if (rt1015->dac_is_used) {
 		dev_err(component->dev, "DAC is being used!\n");
@@ -534,13 +573,23 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	rt1015->bypass_boost = ucontrol->value.integer.value[0];
 	if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
 			!rt1015->cali_done) {
-		rt1015_calibrate(rt1015);
-		rt1015->cali_done = 1;
+		ret = rt1015_calibrate(rt1015);
+		if (ret)
+			goto restore_boost;
 
-		regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
+		ret = regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL,
+				   0x0010);
+		if (ret)
+			goto restore_boost;
+
+		rt1015->cali_done = 1;
 	}
 
 	return 0;
+
+restore_boost:
+	rt1015->bypass_boost = bypass_boost;
+	return ret;
 }
 
 static const char * const rt1015_dac_output_vol_select[] = {
@@ -1016,10 +1065,20 @@ static void rt1015_remove(struct snd_soc_component *component)
 #define RT1015_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
+static const u64 rt1015_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops rt1015_aif_dai_ops = {
 	.hw_params = rt1015_hw_params,
 	.set_fmt = rt1015_set_dai_fmt,
 	.set_tdm_slot = rt1015_set_tdm_slot,
+	.auto_selectable_formats = &rt1015_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver rt1015_dai[] = {

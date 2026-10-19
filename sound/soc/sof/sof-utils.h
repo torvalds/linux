@@ -12,8 +12,17 @@
 struct snd_dma_buffer;
 struct device;
 
+/*
+ * Number of PFNs which can be stored in a page table of @bytes size.
+ * The PFNs are compressed to 2.5 bytes each but they are written with 32 bit
+ * accesses, therefore the last PFN can reach up to 3 bytes past the space it
+ * needs for itself.
+ */
+#define SOF_PAGE_TABLE_MAX_PFNS(bytes)	\
+	(((((bytes) - sizeof(u32)) << 1) + 1) / 5 + 1)
+
 int snd_sof_create_page_table(struct device *dev,
 			      struct snd_dma_buffer *dmab,
-			      unsigned char *page_table, size_t size);
+			      struct snd_dma_buffer *page_table, size_t size);
 
 #endif

@@ -122,6 +122,8 @@ static const struct snd_soc_dapm_widget tegra_machine_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("Line In Jack", NULL),
 	SND_SOC_DAPM_LINE("Line In", NULL),
 	SND_SOC_DAPM_LINE("LineIn", NULL),
+	SND_SOC_DAPM_LINE("Line Out", NULL),
+	SND_SOC_DAPM_INPUT("FM Radio"),
 };
 
 static const struct snd_kcontrol_new tegra_machine_controls[] = {
@@ -549,6 +551,10 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 
 	if (asoc->add_common_snd_ops)
 		card->dai_link->ops = &tegra_machine_snd_ops;
+
+	err = snd_soc_of_parse_aux_devs(card, "nvidia,aux-devs");
+	if (err)
+		return err;
 
 	if (!card->owner)
 		card->owner = THIS_MODULE;

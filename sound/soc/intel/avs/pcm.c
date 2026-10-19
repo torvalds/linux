@@ -461,6 +461,8 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 	link_stream = data->link_stream;
 	p = &be->dpcm[substream->stream].hw_params;
 
+	if (substream->runtime->state != SNDRV_PCM_STATE_PREPARED)
+		link_stream->link_prepared = false;
 	if (link_stream->link_prepared)
 		return 0;
 
@@ -1065,7 +1067,7 @@ finalize:
 	return 0;
 
 err_load_libs:
-	avs_remove_topology(component);
+	snd_soc_tplg_component_remove(component);
 	return ret;
 }
 
@@ -1083,7 +1085,7 @@ static void avs_component_remove(struct snd_soc_component *component)
 	mutex_unlock(&adev->comp_list_mutex);
 
 	if (mach->tplg_filename) {
-		ret = avs_remove_topology(component);
+		ret = snd_soc_tplg_component_remove(component);
 		if (ret < 0)
 			dev_err(component->dev, "unload topology failed: %d\n", ret);
 	}
@@ -1399,10 +1401,6 @@ int avs_register_component(struct device *dev, const char *name,
 	if (!acomp)
 		return -ENOMEM;
 
-	acomp->base = snd_soc_component_alloc(dev);
-	if (!acomp->base)
-		return -ENOMEM;
-
 	comp_name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!comp_name)
 		return -ENOMEM;
@@ -1411,10 +1409,13 @@ int avs_register_component(struct device *dev, const char *name,
 
 	drv->use_dai_pcm_id = !obsolete_card_names;
 
-	snd_soc_component_set_name(acomp->base, comp_name);
+	acomp->base = snd_soc_component_new(dev, comp_name, drv);
+	if (IS_ERR(acomp->base))
+		return PTR_ERR(acomp->base);
+
 	snd_soc_component_set_priv(acomp->base, acomp);
 
-	return snd_soc_register_component(acomp->base, drv, cpu_dais, num_cpu_dais);
+	return snd_soc_component_register(acomp->base, cpu_dais, num_cpu_dais);
 }
 
 static struct snd_soc_dai_driver dmic_cpu_dais[] = {
@@ -1614,7 +1615,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 	struct hda_codec *codec;
 	struct hda_pcm *pcm;
 	const char *cname;
-	int pcm_count = 0, ret, i;
+	int pcm_count, ret, i;
 
 	mach = dev_get_platdata(component->card->dev);
 	if (!mach)
@@ -1622,10 +1623,9 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 
 	pdata = mach->pdata;
 	codec = pdata->codec;
-	if (list_empty(&codec->pcm_list_head))
+	pcm_count = list_count_nodes(&codec->pcm_list_head);
+	if (!pcm_count)
 		return -EINVAL;
-	list_for_each_entry(pcm, &codec->pcm_list_head, list)
-		pcm_count++;
 
 	dais = devm_kcalloc(component->dev, pcm_count, sizeof(*dais),
 			    GFP_KERNEL);

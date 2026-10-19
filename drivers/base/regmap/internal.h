@@ -322,6 +322,7 @@ static inline unsigned int regcache_get_index_by_order(const struct regmap *map,
 }
 
 struct regmap_ram_data {
+	unsigned int base_reg;
 	unsigned int *vals;  /* Allocatd by caller */
 	bool *read;
 	bool *written;

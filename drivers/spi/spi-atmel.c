@@ -877,8 +877,8 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_controller *host,
 	cookie = txdesc->tx_submit(txdesc);
 	if (dma_submit_error(cookie))
 		goto err_dma;
-	rxchan->device->device_issue_pending(rxchan);
-	txchan->device->device_issue_pending(txchan);
+	dma_async_issue_pending(rxchan);
+	dma_async_issue_pending(txchan);
 
 	return 0;
 

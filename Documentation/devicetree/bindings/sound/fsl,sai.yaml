@@ -260,13 +260,13 @@ examples:
                 playback-only;
 
                 sai1_endpoint0: endpoint {
-                   dai-tdm-slot-num = <8>;
-                   dai-tdm-slot-width = <32>;
-                   dai-tdm-slot-width-map = <32 8 32>;
-                   dai-format = "dsp_a";
-                   bitclock-master;
-                   frame-master;
-                   remote-endpoint = <&mcodec01_ep>;
+                    dai-tdm-slot-num = <8>;
+                    dai-tdm-slot-width = <32>;
+                    dai-tdm-slot-width-map = <32 8 32>;
+                    dai-format = "dsp_a";
+                    bitclock-master;
+                    frame-master;
+                    remote-endpoint = <&mcodec01_ep>;
                 };
             };
 

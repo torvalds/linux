@@ -233,10 +233,19 @@ static int cs40l50_set_dai_bclk_ratio(struct snd_soc_dai *dai, unsigned int rati
 	return 0;
 }
 
+static const u64 cs40l50_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops cs40l50_dai_ops = {
 	.set_fmt = cs40l50_set_dai_fmt,
 	.set_bclk_ratio = cs40l50_set_dai_bclk_ratio,
 	.hw_params = cs40l50_hw_params,
+	.auto_selectable_formats = &cs40l50_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver cs40l50_dai[] = {

@@ -167,30 +167,30 @@ examples:
                 "HDMI1", "TX";
 
         hs-playback-dai-link {
-                link-name = "I2S0";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&da7219>;
-                };
+            link-name = "I2S0";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&da7219>;
+            };
         };
 
         hs-capture-dai-link {
-                link-name = "I2S1";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&da7219>;
-                };
+            link-name = "I2S1";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&da7219>;
+            };
         };
 
         spk-dp-playback-dai-link {
-                link-name = "I2S3";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&anx_bridge_dp>, <&max98357a>;
-                };
+            link-name = "I2S3";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&anx_bridge_dp>, <&max98357a>;
+            };
         };
     };
 

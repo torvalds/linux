@@ -292,4 +292,24 @@ int asoc_sdw_es9356_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai
 int asoc_sdw_es9356_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_es9356_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 
+/* Senary SN624x SDCA */
+int asoc_sdw_senary_sdca_jack_init(struct snd_soc_card *card,
+				   struct snd_soc_dai_link *dai_links,
+				   struct asoc_sdw_codec_info *info,
+				   bool playback);
+int asoc_sdw_senary_sdca_jack_exit(struct snd_soc_card *card,
+				   struct snd_soc_dai_link *dai_link);
+int asoc_sdw_senary_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd,
+				       struct snd_soc_dai *dai);
+int asoc_sdw_senary_amp_init(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_links,
+			     struct asoc_sdw_codec_info *info,
+			     bool playback);
+int asoc_sdw_senary_amp_exit(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link);
+int asoc_sdw_senary_sdca_spk_rtd_init(struct snd_soc_pcm_runtime *rtd,
+				      struct snd_soc_dai *dai);
+int asoc_sdw_senary_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_soc_dai *dai);
+
 #endif

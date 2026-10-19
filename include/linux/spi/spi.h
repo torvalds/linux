@@ -169,6 +169,12 @@ extern void spi_transfer_cs_change_delay_exec(struct spi_message *msg,
  * @cs_inactive: delay to be introduced by the controller after CS is
  *	deasserted. If @cs_change_delay is used from @spi_transfer, then the
  *	two delays will be added up.
+ * @rx_sample_delay_ns: Delay in nanoseconds by which the controller should
+ *	postpone sampling the incoming data, relative to the sampling point it
+ *	uses by default. Describes the board rather than the device, namely the
+ *	flight time of the clock and data signals between controller and
+ *	device, and comes from the "rx-sample-delay-ns" property. Zero when the
+ *	property is absent.
  * @chip_select: Array of physical chipselect, spi->chipselect[i] gives
  *	the corresponding physical CS for logical CS i.
  * @num_chipselect: Number of physical chipselects used.
@@ -234,6 +240,9 @@ struct spi_device {
 	struct spi_delay	cs_setup;
 	struct spi_delay	cs_hold;
 	struct spi_delay	cs_inactive;
+
+	/* Additional delay before the incoming data is sampled, in ns */
+	u32			rx_sample_delay_ns;
 
 	u8			chip_select[SPI_DEVICE_CS_CNT_MAX];
 	u8			num_chipselect;

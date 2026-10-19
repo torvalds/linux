@@ -113,6 +113,138 @@ static void rt712_sdca_clk_patch2(struct rt712_sdca_priv *rt712)
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, 0x65, 0x0000);
 }
 
+static int rt712_sdca_gpio_request(struct gpio_chip *chip, unsigned int offset)
+{
+	struct rt712_sdca_priv *rt712 = gpiochip_get_data(chip);
+	struct device *dev = &rt712->slave->dev;
+	unsigned int gpio_pin = offset + 3;
+	int ret;
+
+	dev_dbg(&rt712->slave->dev, "%s: gpio_pin=%d\n", __func__, gpio_pin);
+
+	mutex_lock(&rt712->gc_lock);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0 && ret != -EACCES)
+		goto io_error;
+
+	/*
+	 * Only support GPIO3 and GPIO4 for now
+	 */
+	switch (gpio_pin) {
+	case 3:
+		break;
+	case 4:
+		ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+			RT712_HDA_LEGACY_CONFIG_CTL0, 0x000c, 0x0004);
+		if (ret < 0)
+			goto io_error;
+		break;
+	default:
+		ret = -EINVAL;
+		goto io_error;
+	}
+
+	ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+		RT712_HDA_GPIO_EN_CTL, (1 << gpio_pin), (1 << gpio_pin));
+	if (ret < 0)
+		goto io_error;
+	ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+		RT712_HDA_GPIO_DIRECTION_CTL, (1 << gpio_pin), (1 << gpio_pin));
+
+io_error:
+	mutex_unlock(&rt712->gc_lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+	return ret;
+}
+
+static int rt712_sdca_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
+{
+	struct rt712_sdca_priv *rt712 = gpiochip_get_data(chip);
+	struct device *dev = &rt712->slave->dev;
+	unsigned int gpio_pin = offset + 3;
+	int ret;
+
+	dev_dbg(&rt712->slave->dev, "%s: gpio_pin=%d, value=%d\n", __func__, gpio_pin, value);
+
+	mutex_lock(&rt712->gc_lock);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0 && ret != -EACCES)
+		goto io_error;
+
+	ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+			RT712_HDA_GPIO_SET_CTL, (1 << gpio_pin), (!!value << gpio_pin));
+
+io_error:
+	mutex_unlock(&rt712->gc_lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+	return ret;
+}
+
+static int rt712_sdca_gpio_direction_out(struct gpio_chip *chip,
+				     unsigned offset, int value)
+{
+	struct rt712_sdca_priv *rt712 = gpiochip_get_data(chip);
+	struct device *dev = &rt712->slave->dev;
+	unsigned int gpio_pin = offset + 3;
+	int ret;
+
+	dev_dbg(&rt712->slave->dev, "%s: gpio_pin=%d, value=%d\n", __func__, gpio_pin, value);
+
+	mutex_lock(&rt712->gc_lock);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0 && ret != -EACCES)
+		goto io_error;
+
+	switch (gpio_pin) {
+	case 3:
+	case 4:
+		ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+			RT712_HDA_GPIO_DIRECTION_CTL, (1 << gpio_pin), (1 << gpio_pin));
+		if (ret < 0)
+			goto io_error;
+		ret = rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+			RT712_HDA_GPIO_SET_CTL, (1 << gpio_pin), (!!value << gpio_pin));
+		break;
+	default:
+		ret = -EINVAL;
+		goto io_error;
+	}
+
+io_error:
+	mutex_unlock(&rt712->gc_lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+	return ret;
+}
+
+static const struct gpio_chip rt712_sdca_template_chip = {
+	.label = "rt712-sdca",
+	.owner = THIS_MODULE,
+	.request = rt712_sdca_gpio_request,
+	.direction_output = rt712_sdca_gpio_direction_out,
+	.set = rt712_sdca_gpio_set,
+	.ngpio = 2,
+	.can_sleep = true,
+	.base = -1,
+};
+
+static void rt712_sdca_gpio_init(struct rt712_sdca_priv *rt712)
+{
+	int ret;
+
+	mutex_init(&rt712->gc_lock);
+	rt712->gpio_chip = rt712_sdca_template_chip;
+	rt712->gpio_chip.parent = &rt712->slave->dev;
+	rt712->gpio_chip.fwnode = dev_fwnode(&rt712->slave->dev);
+
+	ret = devm_gpiochip_add_data(&rt712->slave->dev, &rt712->gpio_chip, rt712);
+	if (ret != 0)
+		dev_err(&rt712->slave->dev, "Failed to add GPIOs: %d\n", ret);
+}
+
 static int rt712_sdca_calibration(struct rt712_sdca_priv *rt712)
 {
 	unsigned int val, loop_rc = 0, loop_dc = 0;
@@ -1724,6 +1856,10 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	INIT_DELAYED_WORK(&rt712->jack_detect_work, rt712_sdca_jack_detect_handler);
 	INIT_DELAYED_WORK(&rt712->jack_btn_check_work, rt712_sdca_btn_check_handler);
 
+	/* initialize GPIOs */
+	if (IS_ENABLED(CONFIG_GPIOLIB))
+		rt712_sdca_gpio_init(rt712);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -1952,7 +2088,8 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 	pm_runtime_get_noresume(&slave->dev);
 
-	rt712_sdca_reset(rt712);
+	if (!rt712->first_hw_init)
+		rt712_sdca_reset(rt712);
 
 	rt712_sdca_index_read(rt712, RT712_VENDOR_REG, RT712_JD_PRODUCT_NUM, &val);
 	rt712->hw_id = (val & 0xf000) >> 12;
@@ -1981,7 +2118,7 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	 * if set_jack callback occurred early than io_init,
 	 * we set up the jack detection function now
 	 */
-	if (rt712->hs_jack)
+	if (rt712->hs_jack && (!rt712->first_hw_init))
 		rt712_sdca_jack_init(rt712);
 
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_SW_CONFIG1, 0x0001);

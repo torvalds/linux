@@ -117,6 +117,42 @@ static const struct snd_soc_acpi_adr_device rt722_0_single_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_endpoint es9356_endpoints[] = {
+	{ /* Jack Playback Endpoint */
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* DMIC Capture Endpoint */
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Jack Capture Endpoint */
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Speaker Playback Endpoint */
+		.num = 3,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
+static const struct snd_soc_acpi_adr_device es9356_0_adr[] = {
+	{
+		.adr = 0x00003004b3935601ull,
+		.num_endpoints = ARRAY_SIZE(es9356_endpoints),
+		.endpoints = es9356_endpoints,
+		.name_prefix = "es9356"
+	}
+};
+
 static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
 	{ /* Jack Playback Endpoint */
 		.num = 0,
@@ -465,6 +501,15 @@ static const struct snd_soc_acpi_link_adr acp63_rt722_only[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr acp63_es9356_only[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(es9356_0_adr),
+		.adr_d = es9356_0_adr,
+	},
+	{}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(1),
@@ -478,6 +523,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_sdw_machines[] = {
 EXPORT_SYMBOL(snd_soc_acpi_amd_acp63_sof_sdw_machines);
 
 struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sdw_machines[] = {
+	{
+		.link_mask = BIT(0),
+		.links = acp63_es9356_only,
+		.drv_name = "amd_sdw",
+	},
 	{
 		.link_mask = BIT(0),
 		.links = acp63_rt722_only,

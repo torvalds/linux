@@ -75,37 +75,37 @@ unevaluatedProperties: false
 examples:
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      codec@48 {
-          compatible = "cirrus,cs42888";
-          reg = <0x48>;
-          clocks = <&codec_mclk 0>;
-          clock-names = "mclk";
-          VA-supply = <&reg_audio>;
-          VD-supply = <&reg_audio>;
-          VLS-supply = <&reg_audio>;
-          VLC-supply = <&reg_audio>;
-          reset-gpios = <&gpio 1>;
-      };
+        codec@48 {
+            compatible = "cirrus,cs42888";
+            reg = <0x48>;
+            clocks = <&codec_mclk 0>;
+            clock-names = "mclk";
+            VA-supply = <&reg_audio>;
+            VD-supply = <&reg_audio>;
+            VLS-supply = <&reg_audio>;
+            VLC-supply = <&reg_audio>;
+            reset-gpios = <&gpio 1>;
+        };
     };
 
     spi {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      cs-gpios = <&gpio 8 0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cs-gpios = <&gpio 8 0>;
 
-      codec@0 {
-          compatible = "cirrus,cs42888";
-          reg = <0>;
-          spi-max-frequency = <6000000>;
-          clocks = <&codec_mclk 0>;
-          clock-names = "mclk";
-          VA-supply = <&reg_audio>;
-          VD-supply = <&reg_audio>;
-          VLS-supply = <&reg_audio>;
-          VLC-supply = <&reg_audio>;
-          reset-gpios = <&gpio 1>;
-      };
+        codec@0 {
+            compatible = "cirrus,cs42888";
+            reg = <0>;
+            spi-max-frequency = <6000000>;
+            clocks = <&codec_mclk 0>;
+            clock-names = "mclk";
+            VA-supply = <&reg_audio>;
+            VD-supply = <&reg_audio>;
+            VLS-supply = <&reg_audio>;
+            VLC-supply = <&reg_audio>;
+            reset-gpios = <&gpio 1>;
+        };
     };

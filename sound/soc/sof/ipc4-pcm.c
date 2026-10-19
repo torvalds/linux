@@ -16,29 +16,6 @@
 #include "ipc4-fw-reg.h"
 
 /**
- * struct sof_ipc4_timestamp_info - IPC4 timestamp info
- * @host_copier: the host copier of the pcm stream
- * @dai_copier: the dai copier of the pcm stream
- * @stream_start_offset: reported by fw in memory window (converted to
- *                       frames at host_copier sampling rate)
- * @stream_end_offset: reported by fw in memory window (converted to
- *                     frames at host_copier sampling rate)
- * @llp_offset: llp offset in memory window
- * @delay: Calculated and stored in pointer callback. The stored value is
- *         returned in the delay callback. Expressed in frames at host copier
- *         sampling rate.
- */
-struct sof_ipc4_timestamp_info {
-	struct sof_ipc4_copier *host_copier;
-	struct sof_ipc4_copier *dai_copier;
-	u64 stream_start_offset;
-	u64 stream_end_offset;
-	u32 llp_offset;
-
-	snd_pcm_sframes_t delay;
-};
-
-/**
  * struct sof_ipc4_pcm_stream_priv - IPC4 specific private data
  * @time_info: pointer to time info struct if it is supported, otherwise NULL
  * @chain_dma_allocated: indicates the ChainDMA allocation state
@@ -61,7 +38,7 @@ struct sof_ipc4_pcm_stream_priv {
 
 #define DELAY_MAX		(DELAY_BOUNDARY >> 1)
 
-static inline struct sof_ipc4_timestamp_info *
+struct sof_ipc4_timestamp_info *
 sof_ipc4_sps_to_time_info(struct snd_sof_pcm_stream *sps)
 {
 	struct sof_ipc4_pcm_stream_priv *stream_priv = sps->private;
@@ -176,7 +153,8 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 	struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
-	if (pipeline->skip_during_fe_trigger && state != SOF_IPC4_PIPE_RESET)
+	if (pipeline->skip_during_fe_trigger && state != SOF_IPC4_PIPE_RESET &&
+	    state != SOF_IPC4_PIPE_EOS)
 		return;
 
 	switch (state) {
@@ -196,7 +174,12 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 							  true);
 		break;
 	case SOF_IPC4_PIPE_PAUSED:
-		/* Pause the pipeline only when its started_count is 1 more than paused_count */
+	case SOF_IPC4_PIPE_EOS:
+		/*
+		 * Pause the pipeline only when its started_count is 1 more than
+		 * paused_count.
+		 * Same rule applies to EOS state.
+		 */
 		if (spipe->paused_count == (spipe->started_count - 1))
 			sof_ipc4_add_pipeline_by_priority(trigger_list, pipe_widget, pipe_priority,
 							  true);
@@ -412,28 +395,24 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 }
 
 static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
-				      struct snd_pcm_substream *substream, int state, int cmd)
+				      struct snd_pcm_substream *substream, int state, int cmd,
+				      struct snd_sof_pcm *spcm, int dir)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct ipc4_pipeline_set_state_data *trigger_list;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_pipeline *spipe;
-	struct snd_sof_pcm *spcm;
 	u8 *pipe_priority;
 	int ret;
 	int i;
 
-	spcm = snd_sof_find_spcm_dai(component, rtd);
-	if (!spcm)
-		return -EINVAL;
+	spcm_dbg(spcm, dir, "cmd: %d, state: %d\n", cmd, state);
 
-	spcm_dbg(spcm, substream->stream, "cmd: %d, state: %d\n", cmd, state);
-
-	pipeline_list = &spcm->stream[substream->stream].pipeline_list;
+	pipeline_list = &spcm->stream[dir].pipeline_list;
+	guard(mutex)(&ipc4_data->pipeline_state_mutex);
 
 	/* nothing to trigger if the list is empty */
 	if (!pipeline_list->pipelines || !pipeline_list->count)
@@ -450,9 +429,9 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	if (pipeline->use_chain_dma) {
 		struct sof_ipc4_timestamp_info *time_info;
 
-		time_info = sof_ipc4_sps_to_time_info(&spcm->stream[substream->stream]);
+		time_info = sof_ipc4_sps_to_time_info(&spcm->stream[dir]);
 
-		ret = sof_ipc4_chain_dma_trigger(sdev, spcm, substream->stream,
+		ret = sof_ipc4_chain_dma_trigger(sdev, spcm, dir,
 						 pipeline_list, state, cmd);
 		if (ret || !time_info)
 			return ret;
@@ -461,12 +440,16 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 			/*
 			 * Record the DAI position for delay reporting
 			 * To handle multiple pause/resume/xrun we need to add
-			 * the positions to simulate how the firmware behaves
+			 * the positions to simulate how the firmware behaves.
+			 * Chained DMA does not support compress streams. We should
+			 * never get here with compress.
 			 */
-			u64 pos = snd_sof_pcm_get_dai_frame_counter(sdev, component,
-								    substream);
+			if (substream) {
+				u64 pos = snd_sof_pcm_get_dai_frame_counter(sdev, component,
+									    substream);
 
-			time_info->stream_end_offset += pos;
+				time_info->stream_end_offset += pos;
+			}
 		} else if (state == SOF_IPC4_PIPE_RESET) {
 			/* Reset the end offset as the stream is stopped */
 			time_info->stream_end_offset = 0;
@@ -486,8 +469,6 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		kfree(trigger_list);
 		return -ENOMEM;
 	}
-
-	guard(mutex)(&ipc4_data->pipeline_state_mutex);
 
 	/*
 	 * IPC4 requires pipelines to be triggered in order starting at the sink and
@@ -517,8 +498,9 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		goto free;
 	}
 
-	/* no need to pause before reset or before pause release */
-	if (state == SOF_IPC4_PIPE_RESET || cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
+	/* no need to pause before reset, EOS or before pause release */
+	if (state == SOF_IPC4_PIPE_RESET || state == SOF_IPC4_PIPE_EOS ||
+	    cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
 		goto skip_pause_transition;
 
 	/*
@@ -527,7 +509,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 */
 	ret = sof_ipc4_set_multi_pipeline_state(sdev, SOF_IPC4_PIPE_PAUSED, trigger_list);
 	if (ret < 0) {
-		spcm_err(spcm, substream->stream, "failed to pause all pipelines\n");
+		spcm_err(spcm, dir, "failed to pause all pipelines\n");
 		/*
 		 * workaround: if the firmware is crashed or the IPC timed out
 		 * while setting the pipeline state we must ignore the error
@@ -558,7 +540,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		 * Invalidate the stream_start_offset to make sure that it is
 		 * going to be updated if the stream resumes
 		 */
-		time_info = sof_ipc4_sps_to_time_info(&spcm->stream[substream->stream]);
+		time_info = sof_ipc4_sps_to_time_info(&spcm->stream[dir]);
 		if (time_info)
 			time_info->stream_start_offset = SOF_IPC4_INVALID_STREAM_POSITION;
 
@@ -568,7 +550,7 @@ skip_pause_transition:
 	/* else set the RUNNING/RESET state in the DSP */
 	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, trigger_list);
 	if (ret < 0) {
-		spcm_err(spcm, substream->stream,
+		spcm_err(spcm, dir,
 			 "failed to set final state %d for all pipelines\n",
 			 state);
 		/*
@@ -599,7 +581,8 @@ free:
 }
 
 static int sof_ipc4_pcm_trigger(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream, int cmd)
+				struct snd_pcm_substream *substream,
+				struct snd_sof_pcm *spcm, int cmd, int dir)
 {
 	int state;
 
@@ -615,20 +598,25 @@ static int sof_ipc4_pcm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_STOP:
 		state = SOF_IPC4_PIPE_PAUSED;
 		break;
+	case SND_COMPR_TRIGGER_DRAIN:
+	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
+		state = SOF_IPC4_PIPE_EOS;
+		break;
 	default:
 		dev_err(component->dev, "%s: unhandled trigger cmd %d\n", __func__, cmd);
 		return -EINVAL;
 	}
 
 	/* set the pipeline state */
-	return sof_ipc4_trigger_pipelines(component, substream, state, cmd);
+	return sof_ipc4_trigger_pipelines(component, substream, state, cmd, spcm, dir);
 }
 
 static int sof_ipc4_pcm_hw_free(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream)
+				struct snd_pcm_substream *substream,
+				struct snd_sof_pcm *spcm, int dir)
 {
 	/* command is not relevant with RESET, so just pass 0 */
-	return sof_ipc4_trigger_pipelines(component, substream, SOF_IPC4_PIPE_RESET, 0);
+	return sof_ipc4_trigger_pipelines(component, substream, SOF_IPC4_PIPE_RESET, 0, spcm, dir);
 }
 
 static int ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev,
@@ -903,13 +891,17 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 static void sof_ipc4_pcm_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm)
 {
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_pcm_stream_priv *stream_priv;
 	int stream;
+
+	guard(mutex)(&ipc4_data->pipeline_state_mutex);
 
 	for_each_pcm_streams(stream) {
 		pipeline_list = &spcm->stream[stream].pipeline_list;
 		kfree(pipeline_list->pipelines);
 		pipeline_list->pipelines = NULL;
+		pipeline_list->count = 0;
 
 		stream_priv = spcm->stream[stream].private;
 		kfree(stream_priv->time_info);
@@ -975,7 +967,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 	return 0;
 }
 
-static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sps)
+void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sps)
 {
 	struct sof_ipc4_copier *host_copier = NULL;
 	struct sof_ipc4_copier *dai_copier = NULL;
@@ -1073,7 +1065,7 @@ static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
-static u64 sof_ipc4_frames_dai_to_host(struct sof_ipc4_timestamp_info *time_info, u64 value)
+u64 sof_ipc4_frames_dai_to_host(struct sof_ipc4_timestamp_info *time_info, u64 value)
 {
 	u64 dai_rate, host_rate;
 
@@ -1102,10 +1094,10 @@ static u64 sof_ipc4_frames_dai_to_host(struct sof_ipc4_timestamp_info *time_info
 	return value;
 }
 
-static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
-					    struct snd_pcm_substream *substream,
-					    struct snd_sof_pcm_stream *sps,
-					    struct sof_ipc4_timestamp_info *time_info)
+int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
+				     struct snd_pcm_substream *substream,
+				     struct snd_sof_pcm_stream *sps,
+				     struct sof_ipc4_timestamp_info *time_info)
 {
 	struct sof_ipc4_copier *host_copier = time_info->host_copier;
 	struct sof_ipc4_copier *dai_copier = time_info->dai_copier;
@@ -1119,7 +1111,8 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 
 	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID) {
 		return -EINVAL;
-	} else if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_CHAIN_DMA_NODE_ID) {
+	} else if (substream &&
+		   host_copier->data.gtw_cfg.node_id == SOF_IPC4_CHAIN_DMA_NODE_ID) {
 		/*
 		 * While the firmware does not support time_info reporting for
 		 * streams using ChainDMA, it is granted that ChainDMA can only
@@ -1332,4 +1325,7 @@ const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
 	.delay = sof_ipc4_pcm_delay,
 	.ipc_first_on_start = true,
 	.platform_stop_during_hw_free = true,
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
+	.compress_ops =	&sof_ipc4_compressed_ops,
+#endif
 };
