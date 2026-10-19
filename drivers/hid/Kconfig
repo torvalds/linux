@@ -867,6 +867,7 @@ config HID_NINTENDO
 	tristate "Nintendo Joy-Con, NSO, and Pro Controller support"
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
+	depends on USB_HID
 	select POWER_SUPPLY
 	help
 	Adds support for the Nintendo Switch Joy-Cons, NSO, Pro Controller, as
