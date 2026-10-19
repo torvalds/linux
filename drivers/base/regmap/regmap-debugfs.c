@@ -645,6 +645,7 @@ void regmap_debugfs_exit(struct regmap *map)
 
 	if (map->debugfs) {
 		debugfs_remove_recursive(map->debugfs);
+		map->debugfs = NULL;
 		scoped_guard(mutex, &map->cache_lock)
 			regmap_debugfs_free_dump_cache(map);
 		if (map->debugfs_dummy_id >= 0) {

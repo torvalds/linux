@@ -3143,6 +3143,9 @@ static int cadence_nand_init(struct cdns_nand_ctrl *cdns_ctrl)
 		goto free_buf_desc;
 	}
 
+	spin_lock_init(&cdns_ctrl->irq_lock);
+	init_completion(&cdns_ctrl->complete);
+
 	if (devm_request_irq(cdns_ctrl->dev, cdns_ctrl->irq, cadence_nand_isr,
 			     IRQF_SHARED, "cadence-nand-controller",
 			     cdns_ctrl)) {
@@ -3150,9 +3153,6 @@ static int cadence_nand_init(struct cdns_nand_ctrl *cdns_ctrl)
 		ret = -ENODEV;
 		goto free_buf;
 	}
-
-	spin_lock_init(&cdns_ctrl->irq_lock);
-	init_completion(&cdns_ctrl->complete);
 
 	ret = cadence_nand_hw_init(cdns_ctrl);
 	if (ret)

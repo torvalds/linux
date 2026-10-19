@@ -2342,7 +2342,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 void amdgpu_ttm_enable_buffer_funcs(struct amdgpu_device *adev)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-	u32 num_clear_entities, num_move_entities;
+	u32 num_clear_entities, num_move_entities, sdma_ip_version;
 	int r, i, j;
 
 	if (!adev->mman.initialized || amdgpu_in_reset(adev) ||
@@ -2367,6 +2367,12 @@ void amdgpu_ttm_enable_buffer_funcs(struct amdgpu_device *adev)
 
 	num_clear_entities = MIN(adev->mman.num_buffer_funcs_scheds, TTM_NUM_MOVE_FENCES);
 	num_move_entities = MIN(adev->mman.num_buffer_funcs_scheds, TTM_NUM_MOVE_FENCES);
+	/* TODO: workaround for DCC corruption when moving BOs from multiple queues at
+	 * the same time: use a single queue until the root cause is identified and fixed.
+	 */
+	sdma_ip_version = amdgpu_ip_version(adev, SDMA0_HWIP, 0);
+	if (sdma_ip_version == IP_VERSION(7, 0, 0) || sdma_ip_version == IP_VERSION(7, 0, 1))
+		num_move_entities = 1;
 
 	adev->mman.clear_entities = kzalloc_objs(struct amdgpu_ttm_buffer_entity,
 						 num_clear_entities);

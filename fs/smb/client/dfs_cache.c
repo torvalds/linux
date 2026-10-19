@@ -798,13 +798,13 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 	INIT_LIST_HEAD(head);
 
 	list_for_each_entry(t, &ce->tlist, list) {
-		it = kzalloc_obj(*it, GFP_ATOMIC);
+		it = kzalloc_obj(*it, GFP_KERNEL);
 		if (!it) {
 			rc = -ENOMEM;
 			goto err_free_it;
 		}
 
-		it->it_name = kstrdup(t->name, GFP_ATOMIC);
+		it->it_name = kstrdup(t->name, GFP_KERNEL);
 		if (!it->it_name) {
 			kfree(it);
 			rc = -ENOMEM;

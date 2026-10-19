@@ -138,16 +138,6 @@ static int regcache_locked_op(struct regmap *map,
 	return op(map);
 }
 
-static void regcache_locked_exit(struct regmap *map)
-{
-	if (!map->cache_ops->exit)
-		return;
-
-	dev_dbg(map->dev, "Destroying %s cache\n", map->cache_ops->name);
-	guard(regmap)(map);
-	map->cache_ops->exit(map);
-}
-
 static int __regcache_sync(struct regmap *map, unsigned int min, unsigned int max)
 {
 	if (!map->cache_dirty)
@@ -251,9 +241,13 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		map->max_register_is_set = true;
 	}
 
-	ret = regcache_locked_op(map, map->cache_ops->init, "Initializing");
-	if (ret)
-		goto err_free_reg_defaults;
+	if (map->cache_ops->init) {
+		dev_dbg(map->dev, "Initializing %s cache\n",
+			map->cache_ops->name);
+		ret = map->cache_ops->init(map);
+		if (ret)
+			goto err_free_reg_defaults;
+	}
 
 	/*
 	 * Some devices such as PMICs don't have cache defaults,
@@ -276,7 +270,10 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 err_free:
 	regcache_hw_exit(map);
 err_exit:
-	regcache_locked_exit(map);
+	if (map->cache_ops->exit) {
+		dev_dbg(map->dev, "Destroying %s cache\n", map->cache_ops->name);
+		map->cache_ops->exit(map);
+	}
 err_free_reg_defaults:
 	kfree(map->reg_defaults);
 
@@ -291,7 +288,11 @@ void regcache_exit(struct regmap *map)
 	BUG_ON(!map->cache_ops);
 
 	regcache_hw_exit(map);
-	regcache_locked_exit(map);
+	if (map->cache_ops->exit) {
+		dev_dbg(map->dev, "Destroying %s cache\n",
+			map->cache_ops->name);
+		map->cache_ops->exit(map);
+	}
 
 	kfree(map->reg_defaults);
 	map->reg_defaults = NULL;

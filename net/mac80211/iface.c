@@ -998,8 +998,8 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 
 	len_rthdr = ieee80211_get_radiotap_len(skb->data);
 	hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);
-	if (skb->len < len_rthdr + 2 ||
-	    skb->len < len_rthdr + ieee80211_hdrlen(hdr->frame_control))
+	if (skb_headlen(skb) < len_rthdr + 2 ||
+	    skb_headlen(skb) < len_rthdr + ieee80211_hdrlen(hdr->frame_control))
 		return 0; /* doesn't matter, frame will be dropped */
 
 	return ieee80211_select_queue_80211(sdata, skb, hdr);
@@ -1022,6 +1022,13 @@ static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
 	struct ieee80211_local *local;
 	struct sta_info *sta;
 	int ret = -ENOENT;
+
+	if (ctx->ieee80211) {
+		path->type = DEV_PATH_IEEE80211;
+		path->dev = ctx->dev;
+		ctx->dev = NULL;
+		return 0;
+	}
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ctx->dev);
 	local = sdata->local;

@@ -451,7 +451,7 @@ void
 nxpwifi_11n_delete_tx_ba_stream_tbl_entry(struct nxpwifi_private *priv,
 					  struct nxpwifi_tx_ba_stream_tbl *tbl)
 {
-	if (!tbl || nxpwifi_is_tx_ba_stream_ptr_valid(priv, tbl))
+	if (!tbl || !nxpwifi_is_tx_ba_stream_ptr_valid(priv, tbl))
 		return;
 
 	nxpwifi_dbg(priv->adapter, INFO,

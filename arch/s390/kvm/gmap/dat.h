@@ -547,8 +547,7 @@ long dat_reset_skeys(union asce asce, gfn_t start);
 unsigned long dat_get_ptval(struct page_table *table, struct ptval_param param);
 void dat_set_ptval(struct page_table *table, struct ptval_param param, unsigned long val);
 
-int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gfn_t end,
-		 u16 type, u16 param);
+int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gfn_t end);
 
 #if KVM_S390_MANAGES_S390_GUEST
 int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn);
@@ -973,16 +972,15 @@ static inline int get_level(union crste *crstep, union pte *ptep)
 	return ptep ? TABLE_TYPE_PAGE_TABLE : crstep->h.tt;
 }
 
-static inline int dat_delete_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start,
-				  unsigned long npages)
+static inline int dat_delete_slot(union asce asce, gfn_t start, unsigned long npages)
 {
-	return dat_set_slot(mc, asce, start, start + npages, _DAT_TOKEN_PIC, PGM_ADDRESSING);
+	return dat_set_slot(NULL, asce, start, start + npages);
 }
 
 static inline int dat_create_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start,
 				  unsigned long npages)
 {
-	return dat_set_slot(mc, asce, start, start + npages, _DAT_TOKEN_NONE, 0);
+	return dat_set_slot(mc, asce, start, start + npages);
 }
 
 static inline bool crste_is_ucas(union crste crste)

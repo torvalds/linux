@@ -927,10 +927,8 @@ struct xfs_xmi_log_format {
  */
 #define XFS_EXCHMAPS_INO1_WRITTEN	(1ULL << 2)
 
-/* Clear the reflink flag from inode1 after the operation. */
+/* No longer set, but older intents may carry them; keep them valid. */
 #define XFS_EXCHMAPS_CLEAR_INO1_REFLINK	(1ULL << 3)
-
-/* Clear the reflink flag from inode2 after the operation. */
 #define XFS_EXCHMAPS_CLEAR_INO2_REFLINK	(1ULL << 4)
 
 #define XFS_EXCHMAPS_LOGGED_FLAGS	(XFS_EXCHMAPS_ATTR_FORK | \

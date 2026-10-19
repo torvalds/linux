@@ -9,6 +9,8 @@ readonly DST=1
 readonly DST_NAT=100
 readonly NS_SRC=$BASE$SRC
 readonly NS_DST=$BASE$DST
+# shellcheck disable=SC2155 # prefer RO variable over return value from cmd
+readonly YNL="$(dirname "$(readlink -f "$0")")/../../../net/ynl/pyynl/cli.py"
 
 # "baremetal" network used for raw UDP traffic
 readonly BM_NET_V4=192.168.1.
@@ -72,6 +74,37 @@ chk_gro_flag() {
 
 chk_tso_flag() {
 	__chk_flag "$1" $2 $3 tcp-segmentation-offload
+}
+
+chk_xdp_feature() {
+	local msg="$1"
+	local target=$2
+	local expected=$3
+	local feature=$4
+	local ifindex
+	local out
+	local st
+	local flag
+
+	ifindex=`ip netns exec $BASE$target cat /sys/class/net/veth$target/ifindex`
+	out=`ip netns exec $BASE$target "$YNL" --family netdev --do dev-get \
+		--output-json --json "{\"ifindex\": $ifindex}" 2>&1`
+	st=$?
+
+	printf "%-60s" "$msg"
+	if [ $st -ne 0 ]; then
+		echo " fail - ynl cli error: $out"
+		ret=1
+		return
+	fi
+
+	flag=`echo "$out" | grep -c "\"$feature\""`
+	if [ "$flag" = "$expected" ]; then
+		echo " ok "
+	else
+		echo " fail - expected $expected found $flag"
+		ret=1
+	fi
 }
 
 chk_channels() {
@@ -222,6 +255,7 @@ fi
 
 [ $CPUS -lt 2 ] && echo "Only one CPU available, some tests will be skipped"
 [ $STRESS -gt 0 -a $CPUS -lt 3 ] && echo " stress test will be skipped, too"
+[ ! -f "$YNL" ] && echo "ynl cli not found, ndo-xmit tests will be skipped"
 
 create_ns
 chk_gro_flag "default - gro flag" $SRC off
@@ -283,6 +317,18 @@ chk_gro_flag "        - peer gro flag" $SRC off
 chk_tso_flag "        - tso flag" $SRC on
 chk_tso_flag "        - peer tso flag" $DST on
 ip -n $NS_DST link set dev veth$DST up
+if [ -f "$YNL" ]; then
+	chk_xdp_feature "        - peer ndo-xmit" $SRC 1 ndo-xmit
+	# make sure the peer flag is set before disabling gro while down
+	ip netns exec $NS_DST ethtool -K veth$DST gro off
+	ip netns exec $NS_DST ethtool -K veth$DST gro on
+	chk_xdp_feature "        - peer ndo-xmit re-armed" $SRC 1 ndo-xmit
+	ip -n $NS_DST link set dev veth$DST down
+	ip netns exec $NS_DST ethtool -K veth$DST gro off
+	ip -n $NS_DST link set dev veth$DST up
+	chk_xdp_feature "        - peer ndo-xmit cleared" $SRC 0 ndo-xmit
+	ip netns exec $NS_DST ethtool -K veth$DST gro on
+fi
 ip netns exec $NS_SRC ethtool -K veth$SRC tx-udp-segmentation off
 ip netns exec $NS_DST ethtool -K veth$DST rx-udp-gro-forwarding on
 chk_gro "        - aggregation with TSO off" 1

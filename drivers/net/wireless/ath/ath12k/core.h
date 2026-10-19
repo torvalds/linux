@@ -15,7 +15,6 @@
 #include <linux/ctype.h>
 #include <linux/firmware.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/panic_notifier.h>
 #include <linux/average.h>
 #include <linux/of.h>
 #include <linux/rhashtable.h>
@@ -1138,8 +1137,6 @@ struct ath12k_base {
 	} acpi;
 
 #endif /* CONFIG_ACPI */
-
-	struct notifier_block panic_nb;
 
 	struct ath12k_hw_group *ag;
 	struct ath12k_wsi_info wsi_info;

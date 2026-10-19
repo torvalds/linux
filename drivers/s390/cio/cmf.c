@@ -183,7 +183,7 @@ static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 	sch->config.mbfc = mbfc;
 	/* address can be either a block address or a block index */
 	if (mbfc)
-		sch->config.mba = address;
+		sch->config.mba = address ? virt_to_dma64((void *)address) : 0;
 	else
 		sch->config.mbi = address;
 

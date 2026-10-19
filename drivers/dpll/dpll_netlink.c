@@ -1210,8 +1210,7 @@ dpll_pin_ref_sync_state_set(struct dpll_pin *pin,
 	struct dpll_device *dpll;
 	int ret;
 
-	ref_sync_pin = xa_find(&pin->ref_sync_pins, &ref_sync_pin_idx,
-			       ULONG_MAX, XA_PRESENT);
+	ref_sync_pin = xa_load(&pin->ref_sync_pins, ref_sync_pin_idx);
 	if (!ref_sync_pin) {
 		NL_SET_ERR_MSG(extack, "reference sync pin not found");
 		return -EINVAL;
