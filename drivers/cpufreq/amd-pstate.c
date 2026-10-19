@@ -544,7 +544,11 @@ static int shmem_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 			     u8 des_perf, u8 max_perf, u8 epp, bool fast_switch)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
-	struct cppc_perf_ctrls perf_ctrls;
+	struct cppc_perf_ctrls perf_ctrls = {
+		.max_perf = max_perf,
+		.min_perf = min_perf,
+		.desired_perf = des_perf,
+	};
 	u64 value, prev;
 	int ret;
 
@@ -576,10 +580,6 @@ static int shmem_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 
 	if (value == prev)
 		return 0;
-
-	perf_ctrls.max_perf = max_perf;
-	perf_ctrls.min_perf = min_perf;
-	perf_ctrls.desired_perf = des_perf;
 
 	ret = cppc_set_perf(cpudata->cpu, &perf_ctrls);
 	if (ret)
@@ -1794,7 +1794,7 @@ EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_status);
 
 int amd_pstate_update_status(const char *buf, size_t size)
 {
-	int mode_idx;
+	int cpu, mode_idx;
 
 	if (size > strlen("passive") || size < strlen("active"))
 		return -EINVAL;
@@ -1803,12 +1803,23 @@ int amd_pstate_update_status(const char *buf, size_t size)
 	if (mode_idx < 0)
 		return mode_idx;
 
-	if (mode_state_machine[cppc_state][mode_idx]) {
-		guard(mutex)(&amd_pstate_driver_lock);
-		return mode_state_machine[cppc_state][mode_idx](mode_idx);
+	guard(mutex)(&amd_pstate_driver_lock);
+
+	if (!mode_state_machine[cppc_state][mode_idx])
+		return 0;
+
+	if (mode_idx == AMD_PSTATE_PASSIVE &&
+	    !cpu_feature_enabled(X86_FEATURE_CPPC)) {
+		guard(cpus_read_lock)();
+
+		/* Check offline CPUs too, before changing or removing the driver. */
+		for_each_present_cpu(cpu) {
+			if (cppc_auto_sel_is_immutable(cpu))
+				return -EOPNOTSUPP;
+		}
 	}
 
-	return 0;
+	return mode_state_machine[cppc_state][mode_idx](mode_idx);
 }
 EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_update_status);
 

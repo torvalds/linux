@@ -327,6 +327,17 @@ F:	drivers/acpi/acpica/
 F:	include/acpi/
 F:	tools/power/acpi/
 
+ACPI CPPC
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
+M:	Christian Loehle <christian.loehle@arm.com>
+L:	linux-acpi@vger.kernel.org
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+F:	Documentation/admin-guide/acpi/cppc_sysfs.rst
+F:	drivers/acpi/cppc_acpi.c
+F:	include/acpi/cppc_acpi.h
+
 ACPI FOR ARM64 (ACPI/arm64)
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 M:	Hanjun Guo <guohanjun@huawei.com>
@@ -6765,7 +6776,7 @@ M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 R:	Jie Zhan <zhanjie9@hisilicon.com>
 R:	Lifeng Zheng <zhenglifeng1@huawei.com>
-R:	Pierre Gondois <pierre.gondois@arm.com>
+R:	Christian Loehle <christian.loehle@arm.com>
 R:	Sumit Gupta <sumitg@nvidia.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained

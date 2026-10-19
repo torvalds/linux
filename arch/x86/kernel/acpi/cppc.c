@@ -5,6 +5,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/limits.h>
 
 #include <acpi/cppc_acpi.h>
 #include <asm/msr.h>
@@ -45,9 +46,19 @@ bool cpc_ffh_supported(void)
 	return true;
 }
 
+static bool cpc_ffh_reg_valid(const struct cpc_reg *reg)
+{
+	return reg->address <= U32_MAX && reg->bit_width &&
+	       reg->bit_width <= 64 &&
+	       reg->bit_offset <= 64 - reg->bit_width;
+}
+
 int cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val)
 {
 	int err;
+
+	if (!cpc_ffh_reg_valid(reg))
+		return -EINVAL;
 
 	err = rdmsrq_safe_on_cpu(cpunum, reg->address, val);
 	if (!err) {
@@ -64,6 +75,9 @@ int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 {
 	u64 rd_val;
 	int err;
+
+	if (!cpc_ffh_reg_valid(reg))
+		return -EINVAL;
 
 	err = rdmsrq_safe_on_cpu(cpunum, reg->address, &rd_val);
 	if (!err) {
