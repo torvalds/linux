@@ -1524,6 +1524,23 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	return ret;
 }
 
+static void cpsw_unregister_ports(struct cpsw_common *cpsw)
+{
+	struct net_device *ndev;
+	struct cpsw_priv *priv;
+	int i;
+
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		ndev = cpsw->slaves[i].ndev;
+		if (!ndev || ndev->reg_state != NETREG_REGISTERED)
+			continue;
+
+		priv = netdev_priv(ndev);
+		unregister_netdev(ndev);
+		disable_work_sync(&priv->rx_mode_work);
+	}
+}
+
 static const struct of_device_id cpsw_of_mtable[] = {
 	{ .compatible = "ti,cpsw"},
 	{ .compatible = "ti,am335x-cpsw"},
@@ -1764,7 +1781,7 @@ skip_cpts:
 	return 0;
 
 clean_unregister_netdev_ret:
-	unregister_netdev(ndev);
+	cpsw_unregister_ports(cpsw);
 clean_cpts:
 	cpts_release(cpsw->cpts);
 	cpdma_ctlr_destroy(cpsw->dma);
@@ -1779,9 +1796,7 @@ clean_runtime_disable_ret:
 static void cpsw_remove(struct platform_device *pdev)
 {
 	struct cpsw_common *cpsw = platform_get_drvdata(pdev);
-	struct net_device *ndev;
-	struct cpsw_priv *priv;
-	int i, ret;
+	int ret;
 
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0) {
@@ -1793,15 +1808,7 @@ static void cpsw_remove(struct platform_device *pdev)
 		return;
 	}
 
-	for (i = 0; i < cpsw->data.slaves; i++) {
-		ndev = cpsw->slaves[i].ndev;
-		if (!ndev)
-			continue;
-
-		priv = netdev_priv(ndev);
-		unregister_netdev(ndev);
-		disable_work_sync(&priv->rx_mode_work);
-	}
+	cpsw_unregister_ports(cpsw);
 
 	cpts_release(cpsw->cpts);
 	cpdma_ctlr_destroy(cpsw->dma);
