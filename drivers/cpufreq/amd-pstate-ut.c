@@ -216,7 +216,14 @@ static int amd_pstate_ut_check_perf(u32 index)
 
 /*
  * Check if frequency values are reasonable.
- * max_freq >= nominal_freq > lowest_nonlinear_freq > min_freq > 0
+ * nominal_freq > lowest_nonlinear_freq >= min_freq > 0
+ * max_freq >= lowest_nonlinear_freq
+ *
+ * On most parts the boost frequency is the highest, i.e.
+ * max_freq >= nominal_freq. On heterogeneous designs (e.g. Zen6) a
+ * low-power core can have a maximum frequency below the shared nominal
+ * reference frequency, so only require the boost frequency to sit above
+ * the lowest nonlinear frequency here.
  * check max freq when set support boost mode.
  */
 static int amd_pstate_ut_check_freq(u32 index)
@@ -226,23 +233,44 @@ static int amd_pstate_ut_check_freq(u32 index)
 	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
 		struct amd_cpudata *cpudata;
+		union perf_cached perf;
 
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
-		cpudata = policy->driver_data;
 
-		if (!((policy->cpuinfo.max_freq >= cpudata->nominal_freq) &&
+		cpudata = policy->driver_data;
+		perf = READ_ONCE(cpudata->perf);
+
+		if (!((policy->cpuinfo.max_freq >= cpudata->lowest_nonlinear_freq) &&
 			(cpudata->nominal_freq > cpudata->lowest_nonlinear_freq) &&
 			(cpudata->lowest_nonlinear_freq >= policy->cpuinfo.min_freq) &&
 			(policy->cpuinfo.min_freq > 0))) {
-			pr_err("%s cpu%d max=%d >= nominal=%d > lowest_nonlinear=%d > min=%d > 0, the formula is incorrect!\n",
+			pr_err("%s cpu%d max=%d, nominal=%d, lowest_nonlinear=%d, min=%d, the formula is incorrect!\n",
 				__func__, cpu, policy->cpuinfo.max_freq, cpudata->nominal_freq,
 				cpudata->lowest_nonlinear_freq, policy->cpuinfo.min_freq);
 			return -EINVAL;
 		}
 
-		if (cpudata->lowest_nonlinear_freq != policy->min) {
+		if (perf.bios_min_perf) {
+			u32 bios_min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+							 perf.bios_min_perf);
+
+			/*
+			 * User set bios_min_freq cannot be trusted to
+			 * be within the driver limits. Clamp it similar
+			 * to cpufreq_verify_within_cpu_limits().
+			 */
+			bios_min_freq = clamp_t(u32, bios_min_freq,
+						     policy->cpuinfo.min_freq,
+						     policy->cpuinfo.max_freq);
+
+			if (bios_min_freq != policy->min) {
+				pr_err("%s cpu%d bios_min_freq=%d policy_min=%d, they should be equal!\n",
+					__func__, cpu, bios_min_freq, policy->min);
+				return -EINVAL;
+			}
+		} else if (cpudata->lowest_nonlinear_freq != policy->min) {
 			pr_err("%s cpu%d cpudata_lowest_nonlinear_freq=%d policy_min=%d, they should be equal!\n",
 				__func__, cpu, cpudata->lowest_nonlinear_freq, policy->min);
 			return -EINVAL;
@@ -276,12 +304,12 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 
 static int amd_pstate_ut_epp(u32 index)
 {
-	static const char * const epp_strings[] = {
-		"dynamic",
-		"power",
-		"balance_power",
-		"balance_performance",
-		"performance",
+	enum energy_perf_value_index epp_modes[] = {
+		EPP_INDEX_DYNAMIC,
+		EPP_INDEX_POWERSAVE,
+		EPP_INDEX_BALANCE_POWERSAVE,
+		EPP_INDEX_BALANCE_PERFORMANCE,
+		EPP_INDEX_PERFORMANCE,
 	};
 	char *buf __free(cleanup_page) = NULL;
 	struct cpufreq_policy *policy = NULL;
@@ -350,9 +378,9 @@ static int amd_pstate_ut_epp(u32 index)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(epp_strings); i++) {
+	for (i = 0; i < ARRAY_SIZE(epp_modes); i++) {
 		memset(buf, 0, PAGE_SIZE);
-		snprintf(buf, PAGE_SIZE, "%s", epp_strings[i]);
+		snprintf(buf, PAGE_SIZE, "%s", energy_perf_strings[epp_modes[i]]);
 		ret = store_energy_performance_preference(policy, buf, strlen(buf));
 		if (ret < 0)
 			goto out;
@@ -368,8 +396,24 @@ static int amd_pstate_ut_epp(u32 index)
 		 */
 		strreplace(buf, '(', '\0');
 
-		if (strcmp(buf, epp_strings[i])) {
-			pr_err("String EPP value mismatch: %s != %s\n", buf, epp_strings[i]);
+		if (strcmp(buf, energy_perf_strings[epp_modes[i]])) {
+			u8 epp = FIELD_GET(AMD_CPPC_EPP_PERF_MASK, cpudata->cppc_req_cached);
+
+			/*
+			 * The preference read back may legitimately differ from the one
+			 * written: some platforms (e.g. Zen6) program the same raw EPP
+			 * value for more than one named preference, so show() reports the
+			 * first name that matches that value.
+			 *
+			 * If strings mismatch, confirm the CPU is programmed with the correct
+			 * EPP value for the mode. This verifies hardware programming while
+			 * tolerating such aliasing in driver.
+			 */
+			if (epp == amd_pstate_cpu_epp_values(cpudata->cpu_type)[epp_modes[i]])
+				continue;
+
+			pr_err("String EPP value mismatch: %s != %s\n",
+			       buf, energy_perf_strings[epp_modes[i]]);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -385,11 +429,12 @@ out:
 		 * restore it here before dropping policy reference.
 		 */
 		if (orig_dynamic_epp) {
+			const char * const dynamic_string = energy_perf_strings[epp_modes[0]];
 			int ret2;
 
 			ret2 = store_energy_performance_preference(policy,
-								  epp_strings[0],
-								  strlen(epp_strings[0]));
+								  dynamic_string,
+								  strlen(dynamic_string));
 			if (!ret && (ret2 < 0))
 				ret = ret2;
 		}

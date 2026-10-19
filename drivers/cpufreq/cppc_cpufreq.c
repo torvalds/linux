@@ -247,8 +247,7 @@ static int cppc_fie_kworker_init(void)
 
 	worker = kthread_run_worker(0, "cppc_fie");
 	if (IS_ERR(worker)) {
-		pr_warn("%s: failed to create kworker_fie: %ld\n", __func__,
-			PTR_ERR(worker));
+		pr_warn("%s: failed to create kworker_fie: %pe\n", __func__, worker);
 		return PTR_ERR(worker);
 	}
 
