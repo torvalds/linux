@@ -24,6 +24,7 @@ struct {
 } flow_map SEC(".maps");
 
 __uint64_t target_rate;
+__uint64_t tx_start_ns;
 
 static inline int throttle_flow(struct __sk_buff *skb)
 {
@@ -62,7 +63,8 @@ static inline int throttle_flow(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-static inline int handle_tcp(struct __sk_buff *skb, struct tcphdr *tcp)
+static inline int handle_tcp(struct __sk_buff *skb, struct tcphdr *tcp,
+			     uint32_t hdr_len)
 {
 	void *data_end = (void *)(long)skb->data_end;
 
@@ -70,8 +72,12 @@ static inline int handle_tcp(struct __sk_buff *skb, struct tcphdr *tcp)
 	if ((void *)(tcp + 1) > data_end)
 		return TC_ACT_SHOT;
 
-	if (tcp->source == bpf_htons(9000))
+	if (tcp->source == bpf_htons(9000)) {
+		/* Note when the first packet with data goes out */
+		if (!tx_start_ns && skb->len > hdr_len + tcp->doff * 4)
+			tx_start_ns = bpf_ktime_get_ns();
 		return throttle_flow(skb);
+	}
 
 	return TC_ACT_OK;
 }
@@ -94,7 +100,8 @@ static inline int handle_ipv4(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 
 	if (iph->protocol == IPPROTO_TCP)
-		return handle_tcp(skb, (struct tcphdr *)(((void *)iph) + ihl));
+		return handle_tcp(skb, (struct tcphdr *)(((void *)iph) + ihl),
+				  sizeof(struct ethhdr) + ihl);
 
 	return TC_ACT_OK;
 }
