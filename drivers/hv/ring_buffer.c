@@ -75,7 +75,7 @@ static inline void
 hv_set_next_write_location(struct hv_ring_buffer_info *ring_info,
 		     u32 next_write_location)
 {
-	ring_info->ring_buffer->write_index = next_write_location;
+	WRITE_ONCE(ring_info->ring_buffer->write_index, next_write_location);
 }
 
 /* Get the size of the ring buffer. */
@@ -83,13 +83,6 @@ static inline u32
 hv_get_ring_buffersize(const struct hv_ring_buffer_info *ring_info)
 {
 	return ring_info->ring_datasize;
-}
-
-/* Get the read and write indices as u64 of the specified ring buffer. */
-static inline u64
-hv_get_ring_bufferindices(struct hv_ring_buffer_info *ring_info)
-{
-	return (u64)ring_info->ring_buffer->write_index << 32;
 }
 
 /*
@@ -358,7 +351,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 		*trans_id = __trans_id;
 
 	/* Set previous packet start */
-	prev_indices = hv_get_ring_bufferindices(outring_info);
+	prev_indices = (u64)old_write << 32;
 
 	next_write_location = hv_copyto_ringbuffer(outring_info,
 					     next_write_location,
@@ -582,8 +575,8 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	 * is updated.
 	 */
 	virt_rmb();
-	start_read_index = rbi->ring_buffer->read_index;
-	rbi->ring_buffer->read_index = rbi->priv_read_index;
+	start_read_index = READ_ONCE(rbi->ring_buffer->read_index);
+	WRITE_ONCE(rbi->ring_buffer->read_index, rbi->priv_read_index);
 
 	/*
 	 * Older versions of Hyper-V (before WS2102 and Win8) do not
