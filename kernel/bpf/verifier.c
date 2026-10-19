@@ -23501,6 +23501,15 @@ static int bpf_prog_verify_signature(struct bpf_verifier_env *env,
 	u64 data_sz;
 	int err = 0;
 
+	/*
+	 * The signature covers the insns as submitted. CO-RE relocations would
+	 * have the kernel rewrite them afterwards, with values the loader picks
+	 * through the BTF it supplies, see bpf_check_core_relo().
+	 */
+	if (attr->core_relo_cnt) {
+		verbose(env, "signed program cannot carry CO-RE relocations\n");
+		return -EACCES;
+	}
 	if (!attr->signature_size ||
 	    attr->signature_size > BPF_PROG_MAX_SIGNATURE_SIZE)
 		return -EINVAL;
