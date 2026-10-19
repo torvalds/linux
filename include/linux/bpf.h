@@ -1757,6 +1757,7 @@ struct bpf_func_info_aux {
 	bool unreliable;
 	bool called[BPF_FUNC_CTX_CNT];
 	bool verified[BPF_FUNC_CTX_CNT];
+	bool called_with_pkt_ptrs;
 };
 
 enum bpf_jit_poke_reason {
@@ -1894,6 +1895,7 @@ struct bpf_prog_aux {
 	bool jits_use_priv_stack;
 	bool priv_stack_requested;
 	bool changes_pkt_data;
+	bool has_prologue;
 	bool might_sleep;
 	bool kprobe_write_ctx;
 	struct {

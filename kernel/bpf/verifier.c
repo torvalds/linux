@@ -10878,6 +10878,20 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 	}));
 }
 
+static bool holds_pkt_pointers(struct bpf_verifier_env *env)
+{
+	struct bpf_func_state *state;
+	struct bpf_reg_state *reg;
+	bool ret = false;
+
+	bpf_for_each_reg_in_vstate(env->cur_state, state, reg, ({
+		if (reg_is_pkt_pointer_any(reg) || reg_is_dynptr_slice_pkt(reg))
+			ret = true;
+	}));
+
+	return ret;
+}
+
 enum {
 	AT_PKT_END = -1,
 	BEYOND_PKT_END = -2,
@@ -11483,6 +11497,13 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			bpf_diag_mod_begin(env, &caller->regs[BPF_REG_0], NULL, BPF_DIAG_MOD_WRITE);
 		clear_caller_saved_regs(env, caller->regs);
 		invalidate_outgoing_stack_args(env, cur_func(env));
+		/*
+		 * What the callers of a global function hold is not known
+		 * while it is verified.
+		 */
+		if (!env->subprog_info[subprog].changes_pkt_data &&
+		    (state->frame[0]->subprogno || holds_pkt_pointers(env)))
+			sub_aux->called_with_pkt_ptrs = true;
 
 		/*
 		 * A non-void global function returns a 64-bit SCALAR_VALUE in
@@ -22222,6 +22243,41 @@ static int check_unreliable_func_args(struct bpf_verifier_log *log, struct btf *
 	return -EINVAL;
 }
 
+/* Functions may share a type id. The first of them is attached to. */
+static int find_tgt_subprog(const struct bpf_prog *tgt_prog, u32 btf_id)
+{
+	const struct bpf_prog_aux *aux = tgt_prog->aux;
+	int i;
+
+	for (i = 0; i < aux->func_info_cnt; i++)
+		if (aux->func_info[i].type_id == btf_id)
+			return i;
+
+	return -1;
+}
+
+/*
+ * The prologue of an extension gives a cloned skb a new head, unless the
+ * prologue of the target program has done that. The callers of the function
+ * that it replaces must not hold on to the old head.
+ */
+int bpf_check_ext_prologue(struct bpf_verifier_log *log,
+			   const struct bpf_prog *tgt_prog, u32 btf_id)
+{
+	const struct bpf_prog_aux *aux = tgt_prog->aux;
+	int subprog = find_tgt_subprog(tgt_prog, btf_id);
+
+	if (aux->has_prologue)
+		return 0;
+
+	if (subprog >= 0 && !aux->func_info_aux[subprog].called_with_pkt_ptrs)
+		return 0;
+
+	bpf_log(log,
+		"Extension writing packet data cannot replace a function whose callers keep packet pointers\n");
+	return -EINVAL;
+}
+
 /*
  * An extension is verified as a program that runs under the RCU read lock. Does
  * the function that it is to replace?
@@ -22248,7 +22304,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 	char trace_symbol[KSYM_SYMBOL_LEN];
 	const char prefix[] = "btf_trace_";
 	struct bpf_raw_event_map *btp;
-	int ret = 0, subprog = -1, i;
+	int ret = 0, subprog = -1;
 	const struct btf_type *t;
 	bool conservative = true;
 	const char *tname, *fname;
@@ -22287,11 +22343,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 
-		for (i = 0; i < aux->func_info_cnt; i++)
-			if (aux->func_info[i].type_id == btf_id) {
-				subprog = i;
-				break;
-			}
+		subprog = find_tgt_subprog(tgt_prog, btf_id);
 		if (subprog == -1) {
 			bpf_log(log, "Subprog %s doesn't exist\n", tname);
 			return -EINVAL;
@@ -22347,6 +22399,9 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 					"Extension program changes packet data, while original does not\n");
 				return -EINVAL;
 			}
+			if (prog->aux->has_prologue &&
+			    bpf_check_ext_prologue(log, tgt_prog, btf_id))
+				return -EINVAL;
 
 			tgt_might_sleep = aux->func
 					  ? aux->func[subprog]->aux->might_sleep

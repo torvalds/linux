@@ -940,6 +940,12 @@ int bpf_convert_ctx_accesses(struct bpf_verifier_env *env)
 					"Extension writing packet data must take ctx and scalars only\n");
 				return -EINVAL;
 			}
+			if (env->prog->type == BPF_PROG_TYPE_EXT &&
+			    bpf_check_ext_prologue(&env->log,
+						   env->prog->aux->dst_prog,
+						   env->prog->aux->attach_btf_id))
+				return -EINVAL;
+			env->prog->aux->has_prologue = true;
 			new_prog = __bpf_patch_insn_data(env, 0, insn_buf, cnt,
 							 BPF_PATCH_MOVE_TARGET);
 			if (!new_prog)
