@@ -101,3 +101,6 @@ config HAVE_KVM_ARCH_GMEM_INVALIDATE
 config HAVE_KVM_ARCH_GMEM_POPULATE
        bool
        depends on KVM_GUEST_MEMFD
+
+config KVM_VM_MEMORY_ATTRIBUTES
+       bool

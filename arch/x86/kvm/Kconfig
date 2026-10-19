@@ -76,9 +76,10 @@ config KVM_WERROR
 
 	  If in doubt, say "N".
 
-config KVM_VM_MEMORY_ATTRIBUTES
+config KVM_PRIVATE_MEMATTR_VM
 	bool "Enable per-VM PRIVATE vs. SHARED attributes (for CoCo VMs)"
 	depends on KVM_SW_PROTECTED_VM || KVM_INTEL_TDX || KVM_AMD_SEV
+	select KVM_VM_MEMORY_ATTRIBUTES
 	help
 	  Enable support for tracking PRIVATE vs. SHARED memory using per-VM
 	  memory attributes.  Using per-VM attributes is deprecated in favor of

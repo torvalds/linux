@@ -2582,12 +2582,14 @@ bool kvm_arch_pre_set_vm_memory_attributes(struct kvm *kvm,
 					   struct kvm_gfn_range *range);
 bool kvm_arch_post_set_vm_memory_attributes(struct kvm *kvm,
 					    struct kvm_gfn_range *range);
+#endif  /* CONFIG_KVM_VM_MEMORY_ATTRIBUTES */
 
+#ifdef CONFIG_KVM_PRIVATE_MEMATTR_VM
 static inline bool kvm_vm_is_private_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	return kvm_get_vm_memory_attributes(kvm, gfn) & KVM_MEMORY_ATTRIBUTE_PRIVATE;
 }
-#endif  /* CONFIG_KVM_VM_MEMORY_ATTRIBUTES */
+#endif  /* CONFIG_KVM_PRIVATE_MEMATTR_VM */
 
 #ifdef kvm_arch_has_private_mem
 extern bool gmem_in_place_conversion;
