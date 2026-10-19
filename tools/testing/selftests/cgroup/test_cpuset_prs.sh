@@ -67,6 +67,30 @@ then
 	echo Y > /sys/kernel/debug/sched/verbose
 fi
 
+cleanup()
+{
+	online_cpus
+	cd $CGROUP2
+	rmdir A1/A2/A3 A1/A2 A1 B1 test/A1 test/B1 test > /dev/null 2>&1
+	rmdir rtest/p1/c11 rtest/p1/c12 rtest/p2/c21 \
+	      rtest/p2/c22 rtest/p1 rtest/p2 rtest > /dev/null 2>&1
+	[[ -n "$SCHED_DEBUG" ]] &&
+		echo "$SCHED_DEBUG" > /sys/kernel/debug/sched/verbose
+}
+
+online_cpus()
+{
+	[[ -n "$OFFLINE_CPUS" ]] && {
+		for C in $OFFLINE_CPUS
+		do
+			write_cpu_online ${C}=1
+		done
+	}
+}
+
+# Clean up the cgroupfs directory if the test is aborted.
+trap cleanup 0 2 3 6
+
 cd $CGROUP2
 echo +cpuset > cgroup.subtree_control
 
@@ -143,16 +167,25 @@ TEST_ISOLCPUS=
 		skip_test "Current isolated CPUs ($CURRENT_ISOLCPUS) don't match boot isolated CPUs!"
 }
 
-cleanup()
-{
-	online_cpus
-	cd $CGROUP2
-	rmdir A1/A2/A3 A1/A2 A1 B1 test/A1 test/B1 test > /dev/null 2>&1
-	rmdir rtest/p1/c11 rtest/p1/c12 rtest/p2/c21 \
-	      rtest/p2/c22 rtest/p1 rtest/p2 rtest > /dev/null 2>&1
-	[[ -n "$SCHED_DEBUG" ]] &&
-		echo "$SCHED_DEBUG" > /sys/kernel/debug/sched/verbose
-}
+#
+# This test assumes that all the relevant CPUs being tested are online.
+# If some of them are offline, some of the tests may fail. So we are going to
+# skip running this test script if some of the required CPUs may be offline.
+# The required CPUs include CPUs 0-7 and the first boot time isolated CPU if
+# present. However the check below is not exhaustive and can be a false
+# positive, but users should not run this test if some CPUs are offline.
+#
+ONLINE_CPUS=$(cat /sys/devices/system/cpu/online | sed -e "s/,.*//")
+ONLINE_FIRST=$(echo $ONLINE_CPUS | sed -e "s/-.*//")
+ONLINE_LAST=$(echo $ONLINE_CPUS | sed -e "s/.*-//")
+if [[ -n "$FIRST_ISOLCPUS" ]]
+then
+	LAST_REQUIRED_CPU=$FIRST_ISOLCPUS
+else
+	LAST_REQUIRED_CPU=7
+fi
+[[ $ONLINE_FIRST != 0 || $ONLINE_LAST -lt $LAST_REQUIRED_CPU ]] &&
+	skip_test "Some of the required CPUs are offline or not present!"
 
 # Pause in ms
 pause()
@@ -751,16 +784,6 @@ set_ctrl_state_noerr()
 	[[ $? -ne 0 ]] && {
 		echo "ERROR: Failed to set $2 to cgroup $1!"
 		exit 1
-	}
-}
-
-online_cpus()
-{
-	[[ -n "$OFFLINE_CPUS" ]] && {
-		for C in $OFFLINE_CPUS
-		do
-			write_cpu_online ${C}=1
-		done
 	}
 }
 
@@ -1397,7 +1420,6 @@ test_inotify()
 	echo "" > cpuset.cpus
 }
 
-trap cleanup 0 2 3 6
 run_state_test TEST_MATRIX
 run_remote_state_test REMOTE_TEST_MATRIX
 TEST_ISOLCPUS=1 run_state_test ISOLCPUS_TEST_MATRIX
