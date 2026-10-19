@@ -633,6 +633,7 @@ static ssize_t pattern_read(struct file *file, char __user *u_buff, size_t len, 
 }
 
 static const struct file_operations fill_pattern_fops = {
+	.owner = THIS_MODULE,
 	.read = pattern_read,
 	.write = pattern_write,
 };
