@@ -353,12 +353,16 @@ int io_futex_wait(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 done_unlock:
+	if (ifd) {
+		/* As in io_futex_complete(), or failed arms would drain it. */
+		io_cache_free(&ctx->futex_cache, ifd);
+		io_req_async_data_clear(req, 0);
+	}
 	io_ring_submit_unlock(ctx, issue_flags);
 done:
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	io_req_async_data_free(req);
 	return IOU_COMPLETE;
 }
 
