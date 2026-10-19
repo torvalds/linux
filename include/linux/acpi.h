@@ -25,6 +25,7 @@ struct irq_domain_ops;
 #define _LINUX
 #endif
 #include <acpi/acpi.h>
+#include <acpi/acpi_bus.h>
 #include <acpi/acpi_numa.h>
 
 #ifdef	CONFIG_ACPI
@@ -37,7 +38,6 @@ DEFINE_FREE(acpi_object_free, union acpi_object *, if (_T) ACPI_FREE(_T));
 #include <linux/mutex.h>
 #include <linux/fw_table.h>
 
-#include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_io.h>
 #include <asm/acpi.h>
@@ -106,8 +106,6 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
 	return dev_name(&adev->dev);
 }
-
-struct device *acpi_get_first_physical_node(struct acpi_device *adev);
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -936,11 +934,6 @@ static inline void acpi_preset_companion(struct device *dev,
 static inline void acpi_device_clear_deps(struct device *dev) {}
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)
-{
-	return NULL;
-}
-
-static inline struct device *acpi_get_first_physical_node(struct acpi_device *adev)
 {
 	return NULL;
 }

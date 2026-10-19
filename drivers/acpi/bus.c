@@ -809,24 +809,14 @@ struct device *acpi_bus_get_primary_device(struct acpi_device *adev)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_get_primary_device);
 
-/**
- * acpi_get_first_physical_node - Find first physical node of an ACPI device
- * @adev:	ACPI device in question
- *
- * Return: First physical node of ACPI device @adev
- */
-struct device *acpi_get_first_physical_node(struct acpi_device *adev)
-{
-	guard(mutex)(&adev->physical_node_lock);
-
-	return primary_physical_device(adev);
-}
-EXPORT_SYMBOL_GPL(acpi_get_first_physical_node);
-
 static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
 						      const struct device *dev)
 {
-	const struct device *phys_dev = acpi_get_first_physical_node(adev);
+	const struct device *phys_dev;
+
+	guard(mutex)(&adev->physical_node_lock);
+
+	phys_dev = primary_physical_device(adev);
 
 	return phys_dev && phys_dev == dev ? adev : NULL;
 }

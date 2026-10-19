@@ -9,6 +9,8 @@
 #ifndef __ACPI_BUS_H__
 #define __ACPI_BUS_H__
 
+#ifdef CONFIG_ACPI
+
 #include <linux/completion.h>
 #include <linux/container_of.h>
 #include <linux/device.h>
@@ -58,7 +60,6 @@ bool acpi_dock_match(acpi_handle handle);
 bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs);
 union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid,
 			u64 rev, u64 func, union acpi_object *argv4);
-#ifdef CONFIG_ACPI
 bool
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
 
@@ -77,7 +78,6 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
 
 	return obj;
 }
-#endif
 
 #define	ACPI_INIT_DSM_ARGV4(cnt, eles)			\
 	{						\
@@ -89,8 +89,6 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
 bool acpi_dev_found(const char *hid);
 bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 bool acpi_reduced_hardware(void);
-
-#ifdef CONFIG_ACPI
 
 struct proc_dir_entry;
 
@@ -953,7 +951,20 @@ int acpi_wait_for_acpi_ipmi(void);
 
 int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices);
 u32 arch_acpi_add_auto_dep(acpi_handle handle);
+
 #else	/* CONFIG_ACPI */
+
+static inline struct acpi_device *
+acpi_find_child_device(struct acpi_device *parent, u64 address,
+		       bool check_children)
+{
+	return NULL;
+}
+
+static inline bool acpi_has_method(acpi_handle handle, char *name)
+{
+	return false;
+}
 
 static inline struct device *acpi_bus_get_primary_device(struct acpi_device *adev)
 {
@@ -968,6 +979,11 @@ static inline int acpi_wait_for_acpi_ipmi(void) { return 0; }
 static inline const char *acpi_device_hid(struct acpi_device *device)
 {
 	return "";
+}
+
+static inline char *acpi_device_uid(struct acpi_device *device)
+{
+	return NULL;
 }
 
 static inline bool
