@@ -87,6 +87,7 @@ static const struct lwmi_cd_info {
 
 struct lwmi_cd_priv {
 	struct notifier_block acpi_nb; /* ACPI events */
+	const struct lwmi_cd_info *info;
 	struct wmi_device *wdev;
 	struct cd_list *list;
 	struct dentry *debugfs_dir;
@@ -108,7 +109,6 @@ struct lwmi_cd_priv {
 
 struct cd_list {
 	struct mutex list_mutex; /* list R/W mutex */
-	enum lwmi_cd_type type;
 	u8 count;
 
 	union {
@@ -137,7 +137,7 @@ static int lwmi_cd_match(struct device *dev, void *type)
 		return false;
 
 	priv = dev_get_drvdata(dev);
-	return priv->list->type == *(enum lwmi_cd_type *)type;
+	return priv->info->type == *(enum lwmi_cd_type *)type;
 }
 
 /**
@@ -254,7 +254,7 @@ static int lwmi_cd_component_bind(struct device *cd_dev,
 	struct lwmi_cd_priv *priv = dev_get_drvdata(cd_dev);
 	struct lwmi_cd_binder *binder = data;
 
-	switch (priv->list->type) {
+	switch (priv->info->type) {
 	case LENOVO_CAPABILITY_DATA_00:
 		binder->cd00_list = priv->list;
 
@@ -452,13 +452,10 @@ static const struct component_ops lwmi_cd_sub_component_ops = {
  *
  * Return: 0 on success, or -EINVAL.
  */
-#define DEF_LWMI_CDXX_GET_DATA(_cdxx, _cd_type, _output_t)					\
+#define DEF_LWMI_CDXX_GET_DATA(_cdxx, _output_t)						\
 	int lwmi_##_cdxx##_get_data(struct cd_list *list, u32 attribute_id, _output_t *output)	\
 	{											\
 		u8 idx;										\
-												\
-		if (WARN_ON(list->type != _cd_type))						\
-			return -EINVAL;								\
 												\
 		guard(mutex)(&list->list_mutex);						\
 		for (idx = 0; idx < list->count; idx++) {					\
@@ -470,13 +467,13 @@ static const struct component_ops lwmi_cd_sub_component_ops = {
 		return -EINVAL;									\
 	}
 
-DEF_LWMI_CDXX_GET_DATA(cd00, LENOVO_CAPABILITY_DATA_00, struct capdata00);
+DEF_LWMI_CDXX_GET_DATA(cd00, struct capdata00);
 EXPORT_SYMBOL_NS_GPL(lwmi_cd00_get_data, "LENOVO_WMI_CAPDATA");
 
-DEF_LWMI_CDXX_GET_DATA(cd01, LENOVO_CAPABILITY_DATA_01, struct capdata01);
+DEF_LWMI_CDXX_GET_DATA(cd01, struct capdata01);
 EXPORT_SYMBOL_NS_GPL(lwmi_cd01_get_data, "LENOVO_WMI_CAPDATA");
 
-DEF_LWMI_CDXX_GET_DATA(cd_fan, LENOVO_FAN_TEST_DATA, struct capdata_fan);
+DEF_LWMI_CDXX_GET_DATA(cd_fan, struct capdata_fan);
 EXPORT_SYMBOL_NS_GPL(lwmi_cd_fan_get_data, "LENOVO_WMI_CAPDATA");
 
 /* ======== debugfs ======== */
@@ -550,15 +547,14 @@ static int lwmi_cd_debugfs_show(struct seq_file *s, void *data)
 
 	guard(mutex)(&priv->list->list_mutex);
 
-	/* lwmi_cd_alloc() ensured priv->list->type must be a valid type. */
 	for (idx = 0; idx < priv->list->count; idx++) {
-		seq_printf(s, "%s[%u]:\n", lwmi_cd_table[priv->list->type].name, idx);
+		seq_printf(s, "%s[%u]:\n", priv->info->name, idx);
 
-		if (priv->list->type == LENOVO_CAPABILITY_DATA_00)
+		if (priv->info->type == LENOVO_CAPABILITY_DATA_00)
 			lwmi_cd00_show(s, &priv->list->cd00[idx]);
-		else if (priv->list->type == LENOVO_CAPABILITY_DATA_01)
+		else if (priv->info->type == LENOVO_CAPABILITY_DATA_01)
 			lwmi_cd01_show(s, &priv->list->cd01[idx]);
-		else if (priv->list->type == LENOVO_FAN_TEST_DATA)
+		else if (priv->info->type == LENOVO_FAN_TEST_DATA)
 			lwmi_cd_fan_show(s, &priv->list->cd_fan[idx]);
 	}
 
@@ -603,7 +599,7 @@ static int lwmi_cd_cache(struct lwmi_cd_priv *priv)
 	int idx;
 	void *p;
 
-	switch (priv->list->type) {
+	switch (priv->info->type) {
 	case LENOVO_CAPABILITY_DATA_00:
 		p = &priv->list->cd00[0];
 		size = sizeof(priv->list->cd00[0]);
@@ -706,14 +702,13 @@ static int lwmi_cd_fan_list_alloc_cache(struct lwmi_cd_priv *priv, struct cd_lis
 /**
  * lwmi_cd_alloc() - Allocate a cd_list struct in drvdata
  * @priv: lenovo-wmi-capdata driver data.
- * @type: The type of capability data.
  *
  * Allocate a cd_list struct large enough to contain data from all WMI data
  * blocks provided by the interface.
  *
  * Return: 0 on success, or an error.
  */
-static int lwmi_cd_alloc(struct lwmi_cd_priv *priv, enum lwmi_cd_type type)
+static int lwmi_cd_alloc(struct lwmi_cd_priv *priv)
 {
 	struct cd_list *list;
 	size_t list_size;
@@ -721,7 +716,7 @@ static int lwmi_cd_alloc(struct lwmi_cd_priv *priv, enum lwmi_cd_type type)
 
 	count = wmidev_instance_count(priv->wdev);
 
-	switch (type) {
+	switch (priv->info->type) {
 	case LENOVO_CAPABILITY_DATA_00:
 		list_size = struct_size(list, cd00, count);
 		break;
@@ -747,7 +742,6 @@ got_list:
 	if (ret)
 		return ret;
 
-	list->type = type;
 	list->count = count;
 	priv->list = list;
 
@@ -757,7 +751,6 @@ got_list:
 /**
  * lwmi_cd_setup() - Cache all WMI data block information
  * @priv: lenovo-wmi-capdata driver data.
- * @type: The type of capability data.
  *
  * Allocate a cd_list struct large enough to contain data from all WMI data
  * blocks provided by the interface. Then loop through each data block and
@@ -765,11 +758,11 @@ got_list:
  *
  * Return: 0 on success, or an error code.
  */
-static int lwmi_cd_setup(struct lwmi_cd_priv *priv, enum lwmi_cd_type type)
+static int lwmi_cd_setup(struct lwmi_cd_priv *priv)
 {
 	int ret;
 
-	ret = lwmi_cd_alloc(priv, type);
+	ret = lwmi_cd_alloc(priv);
 	if (ret)
 		return ret;
 
@@ -842,10 +835,11 @@ static int lwmi_cd_probe(struct wmi_device *wdev, const void *context)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->info = info;
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
 
-	ret = lwmi_cd_setup(priv, info->type);
+	ret = lwmi_cd_setup(priv);
 	if (ret)
 		goto out;
 
@@ -911,7 +905,7 @@ static void lwmi_cd_remove(struct wmi_device *wdev)
 
 	lwmi_cd_debugfs_remove(priv);
 
-	switch (priv->list->type) {
+	switch (priv->info->type) {
 	case LENOVO_CAPABILITY_DATA_00:
 		lwmi_cd_sub_master_del(priv);
 		fallthrough;
