@@ -438,7 +438,8 @@ __must_not_hold(&card->transactions.lock)
 		tstamp = cycle_time_to_ohci_tstamp(curr_cycle_time);
 
 		t->packet.timestamp = tstamp;
-		context_unsafe(schedule_error_callback(card, t, RCODE_SEND_ERROR, tstamp));
+		scoped_guard(spinlock_irqsave, &card->transactions.lock)
+			schedule_error_callback(card, t, RCODE_SEND_ERROR, tstamp);
 
 		return;
 	}
