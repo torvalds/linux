@@ -27,7 +27,8 @@ int should_have_access(void *ctx)
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int should_not_have_access(void *ctx)
 {
-	int key = 0, value = 0xdeadbeef;
+	/* a different value, so that the two programs do not share a digest */
+	int key = 0, value = 0xbaadf00d;
 
 	bpf_map_update_elem(&excl_map, &key, &value, 0);
 	return 0;

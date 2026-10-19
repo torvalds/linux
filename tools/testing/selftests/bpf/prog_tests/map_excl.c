@@ -161,12 +161,49 @@ static void test_map_excl_create_validation(void)
 	ASSERT_EQ(fd, -EINVAL, "reject size with NULL hash pointer");
 }
 
+/*
+ * The exclusive map bound through a continuous fd_array rather than by an
+ * insn. The kernel resolves the array before it verifies the program, so it
+ * has to have the digest of the program at hand by then.
+ */
+static void test_map_excl_fd_array(void)
+{
+	struct map_excl *skel = map_excl__open();
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+	int err, fd, map_fd;
+
+	if (!ASSERT_OK_PTR(skel, "map_excl__open"))
+		return;
+	err = bpf_map__set_exclusive_program(skel->maps.excl_map, skel->progs.should_have_access);
+	if (!ASSERT_OK(err, "bpf_map__set_exclusive_program"))
+		goto out;
+
+	bpf_program__set_autoload(skel->progs.should_have_access, true);
+	bpf_program__set_autoload(skel->progs.should_not_have_access, true);
+	err = bpf_object__prepare(skel->obj);
+	if (!ASSERT_OK(err, "map_excl prepare"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.excl_map);
+	opts.fd_array = &map_fd;
+	opts.fd_array_cnt = 1;
+	fd = bpf_program__clone(skel->progs.should_have_access, &opts);
+	if (ASSERT_GE(fd, 0, "exclusive program with the map in fd_array"))
+		close(fd);
+	fd = bpf_program__clone(skel->progs.should_not_have_access, &opts);
+	ASSERT_EQ(fd, -EACCES, "other program with the map in fd_array");
+out:
+	map_excl__destroy(skel);
+}
+
 void test_map_excl(void)
 {
 	if (test__start_subtest("map_excl_allowed"))
 		test_map_excl_allowed();
 	if (test__start_subtest("map_excl_denied"))
 		test_map_excl_denied();
+	if (test__start_subtest("map_excl_fd_array"))
+		test_map_excl_fd_array();
 	if (test__start_subtest("map_excl_no_map_in_map"))
 		test_map_excl_no_map_in_map();
 	if (test__start_subtest("map_excl_no_map_iter"))

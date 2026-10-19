@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include <alloca.h>
 #include <bpf/bpf.h>
+#include <bpf/btf.h>
 #include <bpf/libbpf.h>
 #include "disasm.h"
 #include "test_progs.h"
@@ -643,4 +644,48 @@ out:
 		unlink(act_path);
 	}
 	return -1;
+}
+
+int testmod_member_has_type_tag(const char *struct_name, const char *member, const char *tag)
+{
+	struct btf *vmlinux_btf, *module_btf = NULL;
+	const struct btf_member *m;
+	const struct btf_type *t;
+	int err = 0, id, i;
+
+	vmlinux_btf = btf__load_vmlinux_btf();
+	if (!vmlinux_btf)
+		return -errno;
+	module_btf = btf__load_module_btf("bpf_testmod", vmlinux_btf);
+	if (!module_btf) {
+		err = -errno;
+		goto out;
+	}
+	id = btf__find_by_name_kind_own(module_btf, struct_name, BTF_KIND_STRUCT);
+	if (id < 0) {
+		err = id;
+		goto out;
+	}
+	t = btf__type_by_id(module_btf, id);
+	err = -ENOENT;
+	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
+		if (strcmp(btf__name_by_offset(module_btf, m->name_off), member))
+			continue;
+		err = 0;
+		/* the tag sits on the pointee, behind the pointer and other modifiers */
+		for (id = m->type; id; id = t->type) {
+			t = btf__type_by_id(module_btf, id);
+			if (btf_is_type_tag(t) && !strcmp(btf__name_by_offset(module_btf, t->name_off), tag)) {
+				err = 1;
+				break;
+			}
+			if (!btf_is_ptr(t) && !btf_is_mod(t) && !btf_is_typedef(t))
+				break;
+		}
+		break;
+	}
+out:
+	btf__free(module_btf);
+	btf__free(vmlinux_btf);
+	return err;
 }
