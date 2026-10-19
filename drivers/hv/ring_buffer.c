@@ -408,8 +408,9 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
  * This is similar to hv_get_bytes_to_read but with private
  * read index instead.
  */
-static u32 hv_pkt_iter_avail(const struct hv_ring_buffer_info *rbi)
+static u32 hv_pkt_iter_avail(const struct vmbus_channel *channel)
 {
+	const struct hv_ring_buffer_info *rbi = &channel->inbound;
 	u32 priv_read_loc = rbi->priv_read_index;
 	u32 write_loc;
 
@@ -421,6 +422,13 @@ static u32 hv_pkt_iter_avail(const struct hv_ring_buffer_info *rbi)
 	 * stale data.
 	 */
 	write_loc = virt_load_acquire(&rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, priv_read_loc,
+						   write_loc))) {
+		pr_err_ratelimited("inbound write index out of range: relid %u write %u size %u\n",
+				   channel->offermsg.child_relid, write_loc,
+				   rbi->ring_datasize);
+		return 0;
+	}
 
 	return hv_ringbuffer_avail_read(rbi, priv_read_loc, write_loc);
 }
@@ -438,7 +446,7 @@ struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 
 	hv_debug_delay_test(channel, MESSAGE_DELAY);
 
-	bytes_avail = hv_pkt_iter_avail(rbi);
+	bytes_avail = hv_pkt_iter_avail(channel);
 	if (bytes_avail < sizeof(struct vmpacket_descriptor))
 		return NULL;
 	bytes_avail = min(rbi->pkt_buffer_size, bytes_avail);
@@ -587,6 +595,10 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	 */
 	virt_rmb();
 	write_index = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, start_read_index,
+						   write_index)))
+		return;
+
 	curr_write_sz = hv_ringbuffer_avail_write(rbi, rbi->priv_read_index,
 						  write_index);
 	bytes_read = hv_pkt_iter_bytes_read(rbi, start_read_index);
