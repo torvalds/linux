@@ -13,6 +13,7 @@
 #include <linux/acpi.h>
 #include <linux/device-id/wmi.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 /**
  * struct wmi_device - WMI device structure
@@ -82,6 +83,8 @@ union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance);
 acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct acpi_buffer *in);
 
 u8 wmidev_instance_count(struct wmi_device *wdev);
+
+bool wmidev_exists(const guid_t *guid);
 
 /**
  * struct wmi_driver - WMI driver structure
