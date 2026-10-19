@@ -4,9 +4,9 @@ Documentation for userland software suspend interface
 
 	(C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
 
-First, the warnings at the beginning of swsusp.txt still apply.
+First, the warnings at the beginning of swsusp.rst still apply.
 
-Second, you should read the FAQ in swsusp.txt _now_ if you have not
+Second, you should read the FAQ in swsusp.rst _now_ if you have not
 done it already.
 
 Now, to use the userland interface for software suspend you need special

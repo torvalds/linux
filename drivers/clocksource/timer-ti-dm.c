@@ -1528,7 +1528,7 @@ err_disable:
  */
 static void omap_dm_timer_remove(struct platform_device *pdev)
 {
-	struct dmtimer *timer;
+	struct dmtimer *timer, *found = NULL;
 	unsigned long flags;
 	int ret = -EINVAL;
 
@@ -1536,13 +1536,16 @@ static void omap_dm_timer_remove(struct platform_device *pdev)
 	list_for_each_entry(timer, &omap_timer_list, node)
 		if (!strcmp(dev_name(&timer->pdev->dev),
 			    dev_name(&pdev->dev))) {
-			if (!(timer->capability & OMAP_TIMER_ALWON))
-				cpu_pm_unregister_notifier(&timer->nb);
 			list_del(&timer->node);
+			found = timer;
 			ret = 0;
 			break;
 		}
 	spin_unlock_irqrestore(&dm_timer_lock, flags);
+
+	/* Unregister outside the lock: cpu_pm_unregister_notifier() may sleep. */
+	if (found && !(found->capability & OMAP_TIMER_ALWON))
+		cpu_pm_unregister_notifier(&found->nb);
 
 	pm_runtime_disable(&pdev->dev);
 
