@@ -183,8 +183,8 @@ static int ufshcd_mcq_config_nr_queues(struct ufs_hba *hba)
 	}
 
 	/*
-	 * Device should support at least one I/O queue to handle device
-	 * commands via hba->dev_cmd_queue.
+	 * At least one non-poll (HCTX_TYPE_DEFAULT) queue is required for
+	 * non-polled SCSI commands and UFS device management commands.
 	 */
 	if (hba_maxq == poll_queues) {
 		dev_err(hba->dev, "At least one non-poll queue required\n");
