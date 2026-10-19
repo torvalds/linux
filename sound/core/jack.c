@@ -38,6 +38,7 @@ static const int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
 };
 #endif /* CONFIG_SND_JACK_INPUT_DEV */
 
+static void snd_jack_add_debugfs(struct snd_jack *jack);
 static void snd_jack_remove_debugfs(struct snd_jack *jack);
 
 static int snd_jack_dev_disconnect(struct snd_device *device)
@@ -68,6 +69,9 @@ static int snd_jack_dev_free(struct snd_device *device)
 	struct snd_card *card = device->card;
 	struct snd_jack_kctl *jack_kctl, *tmp_jack_kctl;
 
+	/* Remove debugfs while the controls are still linked. */
+	snd_jack_remove_debugfs(jack);
+
 	list_for_each_entry_safe(jack_kctl, tmp_jack_kctl, &jack->kctl_list, list) {
 		list_del_init(&jack_kctl->list);
 		snd_ctl_remove(card, jack_kctl->kctl);
@@ -85,11 +89,10 @@ static int snd_jack_dev_free(struct snd_device *device)
 }
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
-static int snd_jack_dev_register(struct snd_device *device)
+static int snd_jack_input_dev_register(struct snd_card *card,
+				       struct snd_jack *jack)
 {
-	struct snd_jack *jack = device->device_data;
-	struct snd_card *card = device->card;
-	int err, i;
+	int i;
 
 	snprintf(jack->name, sizeof(jack->name), "%s %s",
 		 card->shortname, jack->id);
@@ -117,13 +120,31 @@ static int snd_jack_dev_register(struct snd_device *device)
 		input_set_capability(jack->input_dev, EV_KEY, jack->key[i]);
 	}
 
-	err = input_register_device(jack->input_dev);
-	if (err == 0)
-		jack->registered = 1;
-
-	return err;
+	return input_register_device(jack->input_dev);
+}
+#else
+static inline int snd_jack_input_dev_register(struct snd_card *card,
+					      struct snd_jack *jack)
+{
+	return 0;
 }
 #endif /* CONFIG_SND_JACK_INPUT_DEV */
+
+static int snd_jack_dev_register(struct snd_device *device)
+{
+	struct snd_card *card = device->card;
+	struct snd_jack *jack = device->device_data;
+	int err;
+
+	err = snd_jack_input_dev_register(card, jack);
+	if (err < 0)
+		return err;
+
+	snd_jack_add_debugfs(jack);
+
+	jack->registered = true;
+	return 0;
+}
 
 #ifdef CONFIG_SND_JACK_INJECTION_DEBUG
 static void snd_jack_inject_report(struct snd_jack_kctl *jack_kctl, int status)
@@ -346,6 +367,9 @@ static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
 	char *tname;
 	int i;
 
+	if (jack_kctl->jack_debugfs_root)
+		return 0;
+
 	/* Don't create injection interface for Phantom jacks */
 	if (strstr(jack_kctl->kctl->id.name, "Phantom"))
 		return 0;
@@ -384,6 +408,14 @@ static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
 	return 0;
 }
 
+static void snd_jack_add_debugfs(struct snd_jack *jack)
+{
+	struct snd_jack_kctl *jack_kctl;
+
+	list_for_each_entry(jack_kctl, &jack->kctl_list, list)
+		snd_jack_debugfs_add_inject_node(jack, jack_kctl);
+}
+
 static void snd_jack_remove_debugfs(struct snd_jack *jack)
 {
 	struct snd_jack_kctl *jack_kctl;
@@ -398,6 +430,10 @@ static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
 					    struct snd_jack_kctl *jack_kctl)
 {
 	return 0;
+}
+
+static void snd_jack_add_debugfs(struct snd_jack *jack)
+{
 }
 
 static void snd_jack_remove_debugfs(struct snd_jack *jack)
@@ -420,7 +456,8 @@ static void snd_jack_kctl_add(struct snd_jack *jack, struct snd_jack_kctl *jack_
 {
 	jack_kctl->jack = jack;
 	list_add_tail(&jack_kctl->list, &jack->kctl_list);
-	snd_jack_debugfs_add_inject_node(jack, jack_kctl);
+	if (jack->registered)
+		snd_jack_debugfs_add_inject_node(jack, jack_kctl);
 }
 
 static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const char *name, unsigned int mask)
@@ -450,7 +487,7 @@ static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const cha
 
 	return jack_kctl;
 error:
-	snd_ctl_free_one(kctl);
+	snd_ctl_remove(card, kctl);
 	return NULL;
 }
 
@@ -501,9 +538,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	int err;
 	static const struct snd_device_ops ops = {
 		.dev_free = snd_jack_dev_free,
-#ifdef CONFIG_SND_JACK_INPUT_DEV
 		.dev_register = snd_jack_dev_register,
-#endif /* CONFIG_SND_JACK_INPUT_DEV */
 		.dev_disconnect = snd_jack_dev_disconnect,
 	};
 

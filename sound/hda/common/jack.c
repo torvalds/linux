@@ -76,12 +76,11 @@ static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 struct hda_jack_tbl *
 snd_hda_jack_tbl_get_mst(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack;
 
-	if (!nid || !jack)
+	if (!nid)
 		return NULL;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->nid == nid && jack->dev_id == dev_id)
 			return jack;
 	return NULL;
@@ -98,12 +97,11 @@ struct hda_jack_tbl *
 snd_hda_jack_tbl_get_from_tag(struct hda_codec *codec,
 			      unsigned char tag, int dev_id)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack;
 
-	if (!tag || !jack)
+	if (!tag)
 		return NULL;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->tag == tag && jack->dev_id == dev_id)
 			return jack;
 	return NULL;
@@ -113,12 +111,11 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_tbl_get_from_tag);
 static struct hda_jack_tbl *
 any_jack_tbl_get_from_nid(struct hda_codec *codec, hda_nid_t nid)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack;
 
-	if (!nid || !jack)
+	if (!nid)
 		return NULL;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->nid == nid)
 			return jack;
 	return NULL;
@@ -142,12 +139,19 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 
 	if (jack)
 		return jack;
-	jack = snd_array_new(&codec->jacktbl);
+	jack = kzalloc_obj(*jack);
 	if (!jack)
 		return NULL;
 	jack->nid = nid;
 	jack->dev_id = dev_id;
 	jack->jack_dirty = 1;
+	if (!codec->jacktbl)
+		codec->jacktbl = jack;
+	else
+		codec->jacktbl_last->next = jack;
+	codec->jacktbl_last = jack;
+	codec->jacktbl_used++;
+
 	if (existing_nid_jack) {
 		jack->tag = existing_nid_jack->tag;
 
@@ -158,7 +162,7 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 		 */
 		jack->jack_detect = existing_nid_jack->jack_detect;
 	} else {
-		jack->tag = codec->jacktbl.used;
+		jack->tag = codec->jacktbl_used;
 	}
 
 	return jack;
@@ -166,10 +170,9 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 
 void snd_hda_jack_tbl_disconnect(struct hda_codec *codec)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack;
 
-	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+	for (jack = codec->jacktbl; jack; jack = jack->next) {
 		if (!codec->bus->shutdown && jack->jack)
 			snd_device_disconnect(codec->card, jack->jack);
 	}
@@ -177,22 +180,31 @@ void snd_hda_jack_tbl_disconnect(struct hda_codec *codec)
 
 void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack, *jack_next;
 
-	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+	for (jack = codec->jacktbl; jack; jack = jack_next) {
 		struct hda_jack_callback *cb, *next;
 
-		/* free jack instances manually when clearing/reconfiguring */
-		if (!codec->bus->shutdown && jack->jack)
-			snd_device_free(codec->card, jack->jack);
+		jack_next = jack->next;
+
+		if (jack->jack) {
+			/* fingers away from stale data */
+			jack->jack->private_data = NULL;
+			jack->jack->private_free = NULL;
+			/* free jack instances manually when clearing/reconfiguring */
+			if (!codec->bus->shutdown)
+				snd_device_free(codec->card, jack->jack);
+		}
 
 		for (cb = jack->callback; cb; cb = next) {
 			next = cb->next;
 			kfree(cb);
 		}
+		kfree(jack);
 	}
-	snd_array_free(&codec->jacktbl);
+
+	codec->jacktbl = codec->jacktbl_last = NULL;
+	codec->jacktbl_used = 0;
 }
 
 #define get_jack_plug_state(sense) !!(sense & AC_PINSENSE_PRESENCE)
@@ -238,10 +250,9 @@ static void jack_detect_update(struct hda_codec *codec,
  */
 void snd_hda_jack_set_dirty_all(struct hda_codec *codec)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i;
+	struct hda_jack_tbl *jack;
 
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->nid)
 			jack->jack_dirty = 1;
 }
@@ -389,12 +400,15 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable);
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid)
 {
-	struct hda_jack_tbl *gated = snd_hda_jack_tbl_new(codec, gated_nid, 0);
-	struct hda_jack_tbl *gating =
-		snd_hda_jack_tbl_new(codec, gating_nid, 0);
+	struct hda_jack_tbl *gated, *gating;
 
 	WARN_ON(codec->dp_mst);
+	if (!snd_hda_jack_tbl_new(codec, gated_nid, 0) ||
+	    !snd_hda_jack_tbl_new(codec, gating_nid, 0))
+		return -ENOMEM;
 
+	gated = snd_hda_jack_tbl_get_mst(codec, gated_nid, 0);
+	gating = snd_hda_jack_tbl_get_mst(codec, gating_nid, 0);
 	if (!gated || !gating)
 		return -EINVAL;
 
@@ -475,19 +489,17 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_set_button_state);
 void snd_hda_jack_report_sync(struct hda_codec *codec)
 {
 	struct hda_jack_tbl *jack;
-	int i, state;
+	int state;
 
 	/* update all jacks at first */
-	jack = codec->jacktbl.list;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->nid)
 			jack_detect_update(codec, jack);
 
 	/* report the updated jacks; it's done after updating all jacks
 	 * to make sure that all gating jacks properly have been set
 	 */
-	jack = codec->jacktbl.list;
-	for (i = 0; i < codec->jacktbl.used; i++, jack++)
+	for (jack = codec->jacktbl; jack; jack = jack->next)
 		if (jack->nid) {
 			if (!jack->jack || jack->block_report)
 				continue;
@@ -755,10 +767,10 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_unsol_event);
  */
 void snd_hda_jack_poll_all(struct hda_codec *codec)
 {
-	struct hda_jack_tbl *jack = codec->jacktbl.list;
-	int i, changes = 0;
+	struct hda_jack_tbl *jack;
+	int changes = 0;
 
-	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+	for (jack = codec->jacktbl; jack; jack = jack->next) {
 		unsigned int old_sense;
 		if (!jack->nid || !jack->jack_dirty || jack->phantom_jack)
 			continue;

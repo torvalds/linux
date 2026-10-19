@@ -8,7 +8,7 @@
 /*
  * This codes give three functionality.
  *
- * 1.get firewire node infomation
+ * 1.get firewire node information
  * 2.get notification about starting/stopping stream
  * 3.lock/unlock stream
  */

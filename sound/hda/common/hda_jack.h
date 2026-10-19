@@ -44,6 +44,7 @@ struct hda_jack_tbl {
 	int type;
 	int button_state;
 	struct snd_jack *jack;
+	struct hda_jack_tbl *next;
 };
 
 struct hda_jack_keymap {

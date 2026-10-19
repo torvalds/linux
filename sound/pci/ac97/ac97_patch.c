@@ -430,7 +430,7 @@ static int patch_yamaha_ymf753(struct snd_ac97 * ac97)
 	/* Patch for Yamaha YMF753, Copyright (c) by David Shust, dshust@shustring.com.
 	   This chip has nonstandard and extended behaviour with regard to its S/PDIF output.
 	   The AC'97 spec states that the S/PDIF signal is to be output at pin 48.
-	   The YMF753 will ouput the S/PDIF signal to pin 43, 47 (EAPD), or 48.
+	   The YMF753 will output the S/PDIF signal to pin 43, 47 (EAPD), or 48.
 	   By default, no output pin is selected, and the S/PDIF signal is not output.
 	   There is also a bit to mute S/PDIF output in a vendor-specific register.
 	*/

@@ -292,7 +292,7 @@ static int forte_get_ctl_value(struct usb_mixer_elem_info *elem, int *value)
 	/* Device may not support reading input controls.
 	 * Return cached value or default to avoid blocking module load.
 	 */
-	if (elem->cached)
+	if (test_bit(0, elem->cached))
 		*value = elem->cache_val[0];
 	else
 		*value = 0;  /* Default: first option */
@@ -353,7 +353,7 @@ static int forte_input_gain_put(struct snd_kcontrol *kctl,
 		err = forte_set_ctl_value(elem, val);
 		if (err < 0)
 			return err;
-		elem->cached |= 1;
+		set_bit(0, elem->cached);
 		elem->cache_val[0] = val;
 		return 1;
 	}
@@ -364,7 +364,7 @@ static int forte_input_gain_resume(struct usb_mixer_elem_list *list)
 {
 	struct usb_mixer_elem_info *elem = mixer_elem_list_to_info(list);
 
-	if (elem->cached)
+	if (test_bit(0, elem->cached))
 		forte_set_ctl_value(elem, *elem->cache_val);
 	return 0;
 }
@@ -405,7 +405,7 @@ static int forte_ctl_enum_put(struct snd_kcontrol *kctl,
 		err = forte_set_ctl_value(elem, val);
 		if (err < 0)
 			return err;
-		elem->cached |= 1;
+		set_bit(0, elem->cached);
 		elem->cache_val[0] = val;
 		return 1;
 	}
@@ -416,7 +416,7 @@ static int forte_ctl_enum_resume(struct usb_mixer_elem_list *list)
 {
 	struct usb_mixer_elem_info *elem = mixer_elem_list_to_info(list);
 
-	if (elem->cached)
+	if (test_bit(0, elem->cached))
 		forte_set_ctl_value(elem, *elem->cache_val);
 	return 0;
 }
@@ -454,7 +454,7 @@ static int forte_ctl_switch_put(struct snd_kcontrol *kctl,
 		err = forte_set_ctl_value(elem, val);
 		if (err < 0)
 			return err;
-		elem->cached |= 1;
+		set_bit(0, elem->cached);
 		elem->cache_val[0] = val;
 		return 1;
 	}
@@ -465,7 +465,7 @@ static int forte_ctl_switch_resume(struct usb_mixer_elem_list *list)
 {
 	struct usb_mixer_elem_info *elem = mixer_elem_list_to_info(list);
 
-	if (elem->cached)
+	if (test_bit(0, elem->cached))
 		forte_set_ctl_value(elem, *elem->cache_val);
 	return 0;
 }
@@ -532,7 +532,7 @@ static int scarlett_ctl_resume(struct usb_mixer_elem_list *list)
 	int i;
 
 	for (i = 0; i < elem->channels; i++)
-		if (elem->cached & (1 << i))
+		if (test_bit(i, elem->cached))
 			snd_usb_set_cur_mix_value(elem, i, i,
 						  elem->cache_val[i]);
 	return 0;
@@ -692,7 +692,7 @@ static int scarlett_ctl_enum_resume(struct usb_mixer_elem_list *list)
 {
 	struct usb_mixer_elem_info *elem = mixer_elem_list_to_info(list);
 
-	if (elem->cached)
+	if (test_bit(0, elem->cached))
 		snd_usb_set_cur_mix_value(elem, 0, 0, *elem->cache_val);
 	return 0;
 }

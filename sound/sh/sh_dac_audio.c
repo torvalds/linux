@@ -236,12 +236,6 @@ static int snd_sh_dac_pcm(struct snd_sh_dac *chip, int device)
 /* END OF PCM INTERFACE */
 
 
-/* driver .remove  --  destructor */
-static void snd_sh_dac_remove(struct platform_device *devptr)
-{
-	snd_card_free(platform_get_drvdata(devptr));
-}
-
 /* free -- it has been defined by create */
 static int snd_sh_dac_free(struct snd_sh_dac *chip)
 {
@@ -341,10 +335,10 @@ static int snd_sh_dac_create(struct snd_card *card,
 static int snd_sh_dac_probe(struct platform_device *devptr)
 {
 	struct snd_sh_dac *chip;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	int err;
 
-	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
+	err = snd_devm_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0) {
 		dev_err(&devptr->dev, "cannot allocate the card\n");
 		return err;
@@ -352,11 +346,11 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 
 	err = snd_sh_dac_create(card, devptr, &chip);
 	if (err < 0)
-		goto probe_error;
+		return err;
 
 	err = snd_sh_dac_pcm(chip, 0);
 	if (err < 0)
-		goto probe_error;
+		return err;
 
 	strscpy(card->driver, "snd_sh_dac");
 	strscpy(card->shortname, "SuperH DAC audio driver");
@@ -364,16 +358,13 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto probe_error;
+		return err;
 
 	dev_info(&devptr->dev, "ALSA driver for SuperH DAC audio\n");
 
 	platform_set_drvdata(devptr, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	return 0;
-
-probe_error:
-	snd_card_free(card);
-	return err;
 }
 
 /*
@@ -381,7 +372,6 @@ probe_error:
  */
 static struct platform_driver sh_dac_driver = {
 	.probe	= snd_sh_dac_probe,
-	.remove = snd_sh_dac_remove,
 	.driver = {
 		.name = "dac_audio",
 	},

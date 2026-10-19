@@ -798,11 +798,11 @@ static void snd_card_als4000_free( struct snd_card *card )
 	snd_als4000_free_gameport(acard);
 }
 
-static int __snd_card_als4000_probe(struct pci_dev *pci,
-				    const struct pci_device_id *pci_id)
+static int snd_card_als4000_probe(struct pci_dev *pci,
+				  const struct pci_device_id *pci_id)
 {
 	static int dev;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct snd_card_als4000 *acard;
 	unsigned long iobase;
 	struct snd_sb *chip;
@@ -918,14 +918,9 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 		return err;
 
 	pci_set_drvdata(pci, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	dev++;
 	return 0;
-}
-
-static int snd_card_als4000_probe(struct pci_dev *pci,
-				  const struct pci_device_id *pci_id)
-{
-	return snd_card_free_on_error(&pci->dev, __snd_card_als4000_probe(pci, pci_id));
 }
 
 static int snd_als4000_suspend(struct device *dev)

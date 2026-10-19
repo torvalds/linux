@@ -49,6 +49,7 @@ struct snd_seq_client_port {
 	struct module *owner;		/* owner of this port */
 	char name[64];			/* port name */	
 	struct list_head list;		/* port list */
+	struct list_head delete_list;	/* used by snd_seq_delete_all_ports() */
 	snd_use_lock_t use_lock;
 
 	/* subscribers */

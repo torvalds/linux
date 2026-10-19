@@ -550,6 +550,30 @@ static int get_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 }
 
 /*
+ * Return the partner rate in the other base-rate family.
+ * See QUIRK_FLAG_SWAP_RATES.
+ */
+static unsigned int swap_base_rate(unsigned int rate)
+{
+	switch (rate) {
+	case 44100:
+		return 48000;
+	case 48000:
+		return 44100;
+	case 88200:
+		return 96000;
+	case 96000:
+		return 88200;
+	case 176400:
+		return 192000;
+	case 192000:
+		return 176400;
+	default:
+		return rate;
+	}
+}
+
+/*
  * Try to set the given sample rate:
  *
  * Return 0 if the clock source is read-only, the actual rate on success,
@@ -584,6 +608,9 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 						  UAC2_CS_CONTROL_SAM_FREQ);
 	if (!writeable)
 		return 0;
+
+	if (chip->quirk_flags & QUIRK_FLAG_SWAP_RATES)
+		rate = swap_base_rate(rate);
 
 	data = cpu_to_le32(rate);
 	err = snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0), UAC2_CS_CUR,

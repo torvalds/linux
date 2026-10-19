@@ -27,7 +27,7 @@
 #if PAGE_SIZE == 4096
 /* page size == SNDRV_TRIDENT_PAGE_SIZE */
 #define ALIGN_PAGE_SIZE		PAGE_SIZE	/* minimum page size for allocation */
-#define MAX_ALIGN_PAGES		SNDRV_TRIDENT_MAX_PAGES	/* maxmium aligned pages */
+#define MAX_ALIGN_PAGES		SNDRV_TRIDENT_MAX_PAGES	/* maximum aligned pages */
 /* fill TLB entrie(s) corresponding to page with ptr */
 #define set_tlb_bus(trident,page,addr) __set_tlb_bus(trident,page,addr)
 /* fill TLB entrie(s) corresponding to page with silence pointer */

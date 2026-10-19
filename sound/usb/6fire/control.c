@@ -20,6 +20,7 @@
 #include "control.h"
 #include "comm.h"
 #include "chip.h"
+#include "pcm.h"
 
 static const char * const opt_coax_texts[2] = { "Optical", "Coax" };
 static const char * const line_phono_texts[2] = { "Line", "Phono" };
@@ -148,9 +149,14 @@ static int usb6fire_control_set_channels(
 	if (ret < 0)
 		return ret;
 
-	/* disable digital inputs and outputs */
-	/* TODO: use spdif_x to enable/disable digital channels */
-	ret = comm_rt->write16(comm_rt, 0x02, 0x03, 0x00, 0x00);
+	/*
+	 * digital (S/PDIF) input and output: bit 0 adds four slots (4-7) to
+	 * the capture frame, which carry the subframes of the receiver; up to
+	 * two receiver frames arrive per card frame; bit 1 enables the
+	 * transmitter, which encodes the playback pair in slots 6/7 (pcm.c)
+	 */
+	ret = comm_rt->write16(comm_rt, 0x02, 0x03, 0x00,
+			(spdif_in ? 0x01 : 0x00) | (spdif_out ? 0x02 : 0x00));
 	if (ret < 0)
 		return ret;
 
@@ -160,14 +166,26 @@ static int usb6fire_control_set_channels(
 static int usb6fire_control_streaming_update(struct control_runtime *rt)
 {
 	struct comm_runtime *comm_rt = rt->chip->comm;
+	int err = 0;
+	int ret;
 
 	if (comm_rt) {
+		/*
+		 * the digital pairs are enabled only while a stream runs; the
+		 * streaming register is written even if this write fails.
+		 * usb6fire_control_digital_thru_put() holds stream_mutex, so
+		 * this write cannot run after set_channels() and before
+		 * streaming starts in usb6fire_pcm_set_rate()
+		 */
+		if (!rt->usb_streaming)
+			err = comm_rt->write16(comm_rt, 0x02, 0x03, 0x00, 0x00);
 		if (!rt->usb_streaming && rt->digital_thru_switch)
 			usb6fire_control_set_rate(rt,
 				DIGITAL_THRU_ONLY_SAMPLERATE);
-		return comm_rt->write16(comm_rt, 0x02, 0x00, 0x00,
+		ret = comm_rt->write16(comm_rt, 0x02, 0x00, 0x00,
 			(rt->usb_streaming ? 0x01 : 0x00) |
 			(rt->digital_thru_switch ? 0x08 : 0x00));
+		return err < 0 ? err : ret;
 	}
 	return -EINVAL;
 }
@@ -383,6 +401,12 @@ static int usb6fire_control_digital_thru_put(struct snd_kcontrol *kcontrol,
 	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
 
+	/*
+	 * with Digital Thru on, streaming_update() selects the altsetting and
+	 * writes the clock register of an idle card; prepare does the same
+	 * under stream_mutex
+	 */
+	guard(mutex)(&rt->chip->pcm->stream_mutex);
 	if (rt->digital_thru_switch != ucontrol->value.integer.value[0]) {
 		rt->digital_thru_switch = ucontrol->value.integer.value[0];
 		usb6fire_control_streaming_update(rt);

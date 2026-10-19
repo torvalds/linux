@@ -802,7 +802,7 @@ static int pcxhr_prepair_pipe_start(struct pcxhr_mgr *mgr,
 					   err);
 				return err;
 			}
-			/* if the pipe couldn't be prepaired for start,
+			/* if the pipe couldn't be prepared for start,
 			 * retry it later
 			 */
 			if (rmh.stat[0] == 0)
@@ -913,7 +913,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 			if (err)
 				return err;
 			if (state == 0)
-				break;	/* success, all pipes prepaired */
+				break;	/* success, all pipes prepared */
 			mdelay(1);	/* wait 1 millisecond and retry */
 		}
 	} else {

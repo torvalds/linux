@@ -4346,6 +4346,13 @@ F:	drivers/net/ieee802154/at86rf230.h
 F:	drivers/net/ieee802154/atusb.c
 F:	drivers/net/ieee802154/atusb.h
 
+AUDIENT EVO MIXER DRIVER
+M:	Christian Ruppert <arc@gmx.li>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	sound/usb/mixer_evo.c
+F:	sound/usb/mixer_evo.h
+
 AUDIT SUBSYSTEM
 M:	Paul Moore <paul@paul-moore.com>
 M:	Eric Paris <eparis@redhat.com>
@@ -4418,6 +4425,12 @@ M:	Ben Hoff <hoff.benjamin.k@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/pci/hws/
+
+AWINIC AW88399 HDA SIDE CODEC DRIVER
+M:	Marco Giunta <marco_giunta@outlook.it>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	sound/hda/codecs/side-codecs/aw88399*
 
 AWINIC AW99706 WLED BACKLIGHT DRIVER
 M:	Junjie Cao <junjie.cao@linux.dev>

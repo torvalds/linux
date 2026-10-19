@@ -315,7 +315,7 @@ enum stream_flags {
 #define ED_XILINX_ERROR                 (ED_RT | 0x07)
 #define ED_COBRANET_ITF_NOT_RESPONDING  (ED_RT | 0x08)
 
-/* Complete BOARD error code for the invaid standard object class */
+/* Complete BOARD error code for the invalid standard object class */
 #define EB_ISO          (ERROR_VALUE | E_SOURCE_BOARD | \
 			 E_CLASS_INVALID_STD_OBJECT)
 #define EB_INVALID_EFFECT               (EB_ISO | 0x00)

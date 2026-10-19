@@ -2960,7 +2960,7 @@ int snd_ac97_tune_hardware(struct snd_ac97 *ac97,
 {
 	int result;
 
-	/* quirk overriden? */
+	/* quirk overridden? */
 	if (override && strcmp(override, "-1") && strcmp(override, "default")) {
 		result = apply_quirk_str(ac97, override);
 		if (result < 0)

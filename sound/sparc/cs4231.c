@@ -1497,8 +1497,8 @@ static int cs4231_attach_begin(struct platform_device *op,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_cs4231), &card);
+	err = snd_devm_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_cs4231), &card);
 	if (err < 0)
 		return err;
 
@@ -1519,28 +1519,24 @@ static int cs4231_attach_finish(struct snd_card *card)
 
 	err = snd_cs4231_pcm(card);
 	if (err < 0)
-		goto out_err;
+		return err;
 
 	err = snd_cs4231_mixer(card);
 	if (err < 0)
-		goto out_err;
+		return err;
 
 	err = snd_cs4231_timer(card);
 	if (err < 0)
-		goto out_err;
+		return err;
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto out_err;
+		return err;
 
 	dev_set_drvdata(&chip->op->dev, chip);
 
 	dev++;
 	return 0;
-
-out_err:
-	snd_card_free(card);
-	return err;
 }
 
 #ifdef SBUS_SUPPORT
@@ -1771,7 +1767,7 @@ static int snd_cs4231_sbus_create(struct snd_card *card,
 static int cs4231_sbus_probe(struct platform_device *op)
 {
 	struct resource *rp = &op->resource[0];
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	int err;
 
 	err = cs4231_attach_begin(op, &card);
@@ -1785,12 +1781,14 @@ static int cs4231_sbus_probe(struct platform_device *op)
 		op->archdata.irqs[0]);
 
 	err = snd_cs4231_sbus_create(card, op, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
-	return cs4231_attach_finish(card);
+	err = cs4231_attach_finish(card);
+	if (err < 0)
+		return err;
+	card = NULL; /* probe succeeded, don't release as error */
+	return 0;
 }
 #endif
 
@@ -1968,7 +1966,7 @@ static int snd_cs4231_ebus_create(struct snd_card *card,
 
 static int cs4231_ebus_probe(struct platform_device *op)
 {
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	int err;
 
 	err = cs4231_attach_begin(op, &card);
@@ -1981,12 +1979,15 @@ static int cs4231_ebus_probe(struct platform_device *op)
 		op->archdata.irqs[0]);
 
 	err = snd_cs4231_ebus_create(card, op, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
-	return cs4231_attach_finish(card);
+	err = cs4231_attach_finish(card);
+	if (err < 0)
+		return err;
+
+	card = NULL; /* probe succeeded, don't release as error */
+	return 0;
 }
 #endif
 
@@ -2002,13 +2003,6 @@ static int cs4231_probe(struct platform_device *op)
 		return cs4231_sbus_probe(op);
 #endif
 	return -ENODEV;
-}
-
-static void cs4231_remove(struct platform_device *op)
-{
-	struct snd_cs4231 *chip = dev_get_drvdata(&op->dev);
-
-	snd_card_free(chip->card);
 }
 
 static const struct of_device_id cs4231_match[] = {
@@ -2030,7 +2024,6 @@ static struct platform_driver cs4231_driver = {
 		.of_match_table = cs4231_match,
 	},
 	.probe		= cs4231_probe,
-	.remove		= cs4231_remove,
 };
 
 module_platform_driver(cs4231_driver);
