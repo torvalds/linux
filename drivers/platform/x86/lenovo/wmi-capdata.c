@@ -29,6 +29,7 @@
 #include <linux/acpi.h>
 #include <linux/bug.h>
 #include <linux/cleanup.h>
+#include <linux/compiler.h>
 #include <linux/component.h>
 #include <linux/container_of.h>
 #include <linux/debugfs.h>
@@ -38,6 +39,7 @@
 #include <linux/export.h>
 #include <linux/gfp_types.h>
 #include <linux/limits.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mutex_types.h>
@@ -45,6 +47,7 @@
 #include <linux/overflow.h>
 #include <linux/seq_file.h>
 #include <linux/stddef.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/wmi.h>
 
@@ -447,7 +450,7 @@ static const struct component_ops lwmi_cd_sub_component_ops = {
 /*
  * lwmi_cd*_get_data - Get the data of the specified attribute
  * @list: The lenovo-wmi-capdata pointer to its cd_list struct.
- * @attribute_id: The capdata attribute ID to be found.
+ * @attribute_id: The capdata attribute ID (non-zero) to be found.
  * @output: Pointer to a capdata* struct to return the data.
  *
  * Retrieves the capability data struct pointer for the given
@@ -460,7 +463,7 @@ static const struct component_ops lwmi_cd_sub_component_ops = {
 	{											\
 		u8 idx;										\
 												\
-		if (WARN_ON(!list))								\
+		if (WARN_ON(!list || !attribute_id))						\
 			return -EINVAL;								\
 												\
 		guard(mutex)(&list->list_mutex);						\
@@ -596,6 +599,89 @@ static void lwmi_cd_debugfs_remove(struct lwmi_cd_priv *priv)
 /* ======== WMI interface ======== */
 
 /**
+ * lwmi_cd_stub() - Stub the device by not providing any capability data
+ * @priv: lenovo-wmi-capdata driver data.
+ * @err: The occurred error.
+ *
+ * The Other Mode driver binds to both Capability Data 00 and 01. If either 00
+ * or 01 fails to probe, the Other Mode device will fail to provide fw-attr or
+ * hwmon/power_supply_ext devices for the other functional capdata device.
+ *
+ * Therefore, errors must be non-fatal in order not to break the assumptions
+ * made by the device component framework, so that the Other Mode device can
+ * provide whatever is functional.
+ *
+ * After stubbing the device, a NULL list will be passed to the Other Mode
+ * device on bind.
+ *
+ * Return: 0 if the @err is suppressed, otherwise its propagated as is.
+ */
+static int lwmi_cd_stub(struct lwmi_cd_priv *priv, int err)
+{
+	/*
+	 * No barrier is required in any possible code paths:
+	 * - called from lwmi_cd_cache(): a proper barrier has been employed
+	 * - called from lwmi_cd_fan_list_alloc_cache(): early setup does not
+	 *   require synchronization, and priv->initialized must be false
+	 */
+	bool initialized = READ_ONCE(priv->initialized);
+
+	dev_warn(&priv->wdev->dev, "%s %s (%u items) due to error: %d\n",
+		 initialized ? "clearing" : "stubbing", priv->info->name,
+		 priv->list ? priv->list->count : 0, err);
+
+	/* Simply print the warning message. */
+	if (!priv->list)
+		return initialized ? err : 0;
+
+	/*
+	 * Stub the device on initialization errors.
+	 *
+	 * Note that if a transient error occurs during initialization, there is
+	 * nothing we can do to re-enable the functionalities of the Other Mode
+	 * driver even if a successful runtime notifier call making the relevant
+	 * capdata emerge, as registering functionalities without the protection
+	 * of the component framework is unsafe. Therefore, registering the
+	 * notifier for a stubbed device is meaningless, and we don't need to
+	 * distinguish transient and pernament errors during initialization.
+	 *
+	 * For runtime errors (see below), the registered functionalities
+	 * (fw-attr) become temporarily unavailable due to the unavailablilty of
+	 * the relevant capdata, and will recover after a successful runtime
+	 * notifier call.
+	 */
+	if (!initialized) {
+		devm_kfree(&priv->wdev->dev, priv->list);
+		priv->list = NULL;
+
+		return 0;
+	}
+
+	/*
+	 * Runtime errors are transient. Simply clear all cached data and
+	 * propagate the error.
+	 *
+	 * Since a valid attribute id is never 0 (the firmware also untilize the
+	 * fact to stub some capabilities according to platform metadata),
+	 * clearing the cached data effectively makes all attributes temporarily
+	 * unavailable until the next notifier call.
+	 */
+
+	lockdep_assert_held(&priv->list->list_mutex);
+
+	switch (priv->info->type) {
+	case LENOVO_CAPABILITY_DATA_01:
+		memset(priv->list->cd01, 0,
+		       flex_array_size(priv->list, cd01, priv->list->count));
+		break;
+	default:
+		unreachable();
+	}
+
+	return err;
+}
+
+/**
  * __lwmi_cd_cache() - Cache all WMI data block information locklessly
  * @priv: lenovo-wmi-capdata driver data.
  *
@@ -633,7 +719,7 @@ static int __lwmi_cd_cache(struct lwmi_cd_priv *priv)
 		if (ret == -ENODATA) /* The block is too short, probably stubbed. */
 			continue;
 		if (ret)
-			return ret;
+			return lwmi_cd_stub(priv, ret);
 
 		/* Capdata 01 is an extension to capdata 00. */
 		struct capdata00 *capdata __free(kfree) = wbuf.data;
@@ -694,7 +780,7 @@ static int lwmi_cd_fan_list_alloc_cache(struct lwmi_cd_priv *priv)
 	if (ret == -ENODATA) /* The block is too short, probably stubbed. */
 		return 0;
 	if (ret)
-		return ret;
+		return lwmi_cd_stub(priv, ret); /* Print the warning message. */
 
 	struct lwmi_cd_fan_block *block __free(kfree) = wbuf.data;
 
