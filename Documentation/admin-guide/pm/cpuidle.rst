@@ -316,7 +316,7 @@ interval" value.
 
 Now, the governor is ready to walk the list of idle states and choose one of
 them.  For this purpose, it compares the target residency of each state with
-the predicted idle duration and the exit latency of it with the with the latency
+the predicted idle duration and the exit latency of it with the latency
 limit coming from the power management quality of service, or `PM QoS <cpu-pm-qos_>`_,
 framework.  It selects the state with the target residency closest to the predicted
 idle duration, but still below it, and exit latency that does not exceed the
