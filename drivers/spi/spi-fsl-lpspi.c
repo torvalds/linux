@@ -550,11 +550,8 @@ static int fsl_lpspi_target_abort(struct spi_controller *controller)
 	return 0;
 }
 
-static int fsl_lpspi_wait_for_completion(struct spi_controller *controller)
+static int fsl_lpspi_wait_for_completion(struct fsl_lpspi_data *fsl_lpspi)
 {
-	struct fsl_lpspi_data *fsl_lpspi =
-				spi_controller_get_devdata(controller);
-
 	if (fsl_lpspi->is_target) {
 		if (wait_for_completion_interruptible(&fsl_lpspi->xfer_done) ||
 			fsl_lpspi->target_aborted) {
@@ -758,11 +755,9 @@ err:
 	return ret;
 }
 
-static int fsl_lpspi_pio_transfer(struct spi_controller *controller,
+static int fsl_lpspi_pio_transfer(struct fsl_lpspi_data *fsl_lpspi,
 				  struct spi_transfer *t)
 {
-	struct fsl_lpspi_data *fsl_lpspi =
-				spi_controller_get_devdata(controller);
 	int ret;
 
 	fsl_lpspi->tx_buf = t->tx_buf;
@@ -774,7 +769,7 @@ static int fsl_lpspi_pio_transfer(struct spi_controller *controller,
 
 	fsl_lpspi_write_tx_fifo(fsl_lpspi);
 
-	ret = fsl_lpspi_wait_for_completion(controller);
+	ret = fsl_lpspi_wait_for_completion(fsl_lpspi);
 
 	fsl_lpspi_reset(fsl_lpspi);
 
@@ -803,11 +798,9 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 	if (fsl_lpspi->usedma)
 		ret = fsl_lpspi_dma_transfer(controller, fsl_lpspi, t);
 	else
-		ret = fsl_lpspi_pio_transfer(controller, t);
-	if (ret < 0)
-		return ret;
+		ret = fsl_lpspi_pio_transfer(fsl_lpspi, t);
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
