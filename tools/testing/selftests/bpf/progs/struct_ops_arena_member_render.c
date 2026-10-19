@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2026 Meta Platforms, Inc. and affiliates. */
+
+#define BPF_NO_KFUNC_PROTOTYPES
+#include <vmlinux.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include "bpf_experimental.h"
+#include <bpf_arena_common.h>
+
+char _license[] SEC("license") = "GPL";
+
+/*
+ * The module types as vmlinux.h renders them: the tag is an attribute on a
+ * pointer in the kernel address space, so the program has to cast the member
+ * to the arena address space before using it. That is what a program built
+ * against vmlinux.h sees for a kernel struct with an __arena member.
+ */
+#define __arena_tag	__attribute__((btf_type_tag("arena")))
+#define __nullable_tag	__attribute__((btf_type_tag("nullable")))
+
+struct bpf_testmod_arena_member_args {
+	__u64 __arena_tag *ptr;
+	__u64 __arena_tag __nullable_tag *null_ptr;
+	struct {
+		__u64 __arena_tag *ptr;
+	} nested;
+} __attribute__((preserve_access_index));
+
+struct bpf_testmod_ops3 {
+	int (*test_arena_member)(struct bpf_testmod_arena_member_args *args);
+};
+
+int bpf_testmod_ops3_call_test_arena_member(__u64 *ptr__arena) __ksym;
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARENA);
+	__uint(map_flags, BPF_F_MMAPABLE);
+	__uint(max_entries, 2);
+} arena SEC(".maps");
+
+/* also associates the callback with the arena */
+u64 __arena arena_touch;
+
+SEC("struct_ops/test_arena_member")
+int BPF_PROG(test_arena_member_render_cb, struct bpf_testmod_arena_member_args *args)
+{
+	u64 __arena *ptr = (u64 __arena *)args->ptr;
+
+	arena_touch++;
+	*ptr += 1;
+	if (args->null_ptr)
+		return 0xbad;
+	*(u64 __arena *)args->nested.ptr += 1;
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct bpf_testmod_ops3 testmod_arena_member_render = {
+	.test_arena_member = (void *)test_arena_member_render_cb,
+};
+
+SEC("syscall")
+int trigger(void *ctx)
+{
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
+	u64 __arena *val;
+	int ret;
+
+	val = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (!val)
+		return 1;
+
+	*val = 41;
+	ret = bpf_testmod_ops3_call_test_arena_member((u64 *)val);
+	if (ret)
+		return 2;
+	/* ptr and nested.ptr each added one */
+	if (*val != 43)
+		return 3;
+
+	bpf_arena_free_pages(&arena, (void __arena *)val, 1);
+#endif
+	return 0;
+}

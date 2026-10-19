@@ -506,6 +506,11 @@ static int bpf_testmod_ops3__test_arena_multislot(struct bpf_testmod_arena_pair 
 	return 0;
 }
 
+static int bpf_testmod_ops3__test_arena_member(struct bpf_testmod_arena_member_args *args)
+{
+	return 0;
+}
+
 static int bpf_testmod_ops3__test_nullable(struct bpf_testmod_nullable_args *args)
 {
 	return 0;
@@ -518,6 +523,7 @@ static struct bpf_testmod_ops3 __bpf_testmod_ops3 = {
 	.test_arena_nullable = bpf_testmod_ops3__test_arena_nullable,
 	.test_arena_stack = bpf_testmod_ops3__test_arena_stack,
 	.test_arena_multislot = bpf_testmod_ops3__test_arena_multislot,
+	.test_arena_member = bpf_testmod_ops3__test_arena_member,
 	.test_nullable = bpf_testmod_ops3__test_nullable,
 };
 
@@ -557,6 +563,23 @@ __bpf_kfunc int bpf_testmod_ops3_call_test_arena_multislot(u64 *ptr__arena)
 	struct bpf_testmod_arena_pair p = { .a = 11, .b = 22 };
 
 	return st_ops3->test_arena_multislot(p, ptr__arena);
+}
+
+/* The callback gets the kernel address of @ptr__arena behind each __arena member. */
+__bpf_kfunc int bpf_testmod_ops3_call_test_arena_member(u64 *ptr__arena)
+{
+	struct bpf_testmod_arena_member_args args = {
+		.ptr = ptr__arena,
+		.nested.ptr = ptr__arena,
+		.u.ptr = ptr__arena,
+		.cookie = 0xc00c1e,
+		/* in the first page, which is never mapped */
+		.faulting = (void *)16,
+	};
+
+	if (!st_ops3 || !st_ops3->test_arena_member)
+		return -EOPNOTSUPP;
+	return st_ops3->test_arena_member(&args);
 }
 
 /*
@@ -1021,6 +1044,7 @@ BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_nullable)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_stack)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_multislot)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_member)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_nullable)
 BTF_ID_FLAGS(func, bpf_kfunc_get_default_trusted_ptr_test);
 BTF_ID_FLAGS(func, bpf_kfunc_put_default_trusted_ptr_test);

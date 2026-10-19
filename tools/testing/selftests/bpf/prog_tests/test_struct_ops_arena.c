@@ -5,6 +5,14 @@
 #include "struct_ops_arena.skel.h"
 #include "struct_ops_arena_attach.skel.h"
 #include "struct_ops_arena_fail.skel.h"
+#include "struct_ops_arena_member.skel.h"
+#include "struct_ops_arena_member_render.skel.h"
+#include "struct_ops_arena_member_fail__union.skel.h"
+#include "struct_ops_arena_member_fail__xchg.skel.h"
+#include "struct_ops_arena_member_fail__mismatch.skel.h"
+#include "struct_ops_arena_member_fail__mismatch_mem.skel.h"
+#include "struct_ops_arena_member_fail__write.skel.h"
+#include "struct_ops_arena_member_fail__no_arena.skel.h"
 
 #if defined(__x86_64__) || defined(__aarch64__)
 /*
@@ -101,6 +109,54 @@ static void arena_arg_attach(void)
 
 	struct_ops_arena__destroy(skel);
 }
+
+/* Attach @st_ops and run @trigger once, it returns 0 when everything checked out. */
+static void attach_and_trigger(struct bpf_map *st_ops, struct bpf_program *trigger)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct bpf_link *link;
+	int err;
+
+	link = bpf_map__attach_struct_ops(st_ops);
+	if (!ASSERT_OK_PTR(link, "attach_struct_ops"))
+		return;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(trigger), &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "trigger_retval");
+
+	bpf_link__destroy(link);
+}
+
+/*
+ * Attach a callback that reads arena pointers out of its argument struct.
+ * The header is shared with the module, so the members are arena pointers
+ * on the program side as well.
+ */
+static void arena_member(void)
+{
+	struct struct_ops_arena_member *skel;
+
+	skel = struct_ops_arena_member__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_arena_member__open_and_load"))
+		return;
+
+	attach_and_trigger(skel->maps.testmod_arena_member, skel->progs.trigger);
+	struct_ops_arena_member__destroy(skel);
+}
+
+/* The same through the vmlinux.h rendering of the members, which takes casts. */
+static void arena_member_render(void)
+{
+	struct struct_ops_arena_member_render *skel;
+
+	skel = struct_ops_arena_member_render__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_arena_member_render__open_and_load"))
+		return;
+
+	attach_and_trigger(skel->maps.testmod_arena_member_render, skel->progs.trigger);
+	struct_ops_arena_member_render__destroy(skel);
+}
 #endif
 
 /*
@@ -116,12 +172,31 @@ void serial_test_struct_ops_arena(void)
 	 * arena arguments", so the programs cannot even load.
 	 */
 #if defined(__x86_64__) || defined(__aarch64__)
+	int has_tag;
+
 	if (test__start_subtest("arena_arg"))
 		arena_arg();
 	if (test__start_subtest("arena_arg_fail"))
 		arena_arg_fail();
 	if (test__start_subtest("arena_arg_attach"))
 		arena_arg_attach();
+	/* the tags reach the module BTF only from a toolchain with btf_type_tag support */
+	has_tag = testmod_member_has_type_tag("bpf_testmod_arena_member_args", "ptr", "arena");
+	if (ASSERT_GE(has_tag, 0, "testmod_btf") && has_tag) {
+		if (test__start_subtest("arena_member"))
+			arena_member();
+		if (test__start_subtest("arena_member_render"))
+			arena_member_render();
+		RUN_TESTS(struct_ops_arena_member_fail__union);
+		RUN_TESTS(struct_ops_arena_member_fail__xchg);
+		RUN_TESTS(struct_ops_arena_member_fail__mismatch);
+		RUN_TESTS(struct_ops_arena_member_fail__mismatch_mem);
+		RUN_TESTS(struct_ops_arena_member_fail__write);
+		RUN_TESTS(struct_ops_arena_member_fail__no_arena);
+	} else if (test__start_subtest("arena_member")) {
+		/* so that the missing member tests show up as skipped */
+		test__skip();
+	}
 #else
 	test__skip();
 #endif

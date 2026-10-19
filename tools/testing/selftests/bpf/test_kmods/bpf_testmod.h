@@ -115,11 +115,24 @@ struct bpf_testmod_arena_pair {
 };
 
 /*
- * The qualifiers are BTF type tags for the verifier. The module gets them
- * from bpf_compiler_types.h, user space and BPF programs need them empty.
+ * The qualifiers are BTF type tags for the verifier. The module gets __arena
+ * and __nullable from bpf_compiler_types.h. A BPF program gets __arena from
+ * bpf_arena_common.h, and the same definition here when it includes this
+ * header first, and needs __nullable and __percpu empty. User space needs all
+ * of them empty.
  */
 #ifdef __KERNEL__
 #include <linux/bpf_compiler_types.h>
+#endif
+#if defined(__BPF__) && !defined(__arena)
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST) && !defined(BPF_ARENA_FORCE_ASM)
+#define __arena __attribute__((address_space(1))) __attribute__((btf_type_tag("arena")))
+#else
+#define __arena __attribute__((btf_type_tag("arena")))
+#endif
+#endif
+#ifndef __arena
+#define __arena
 #endif
 #ifndef __nullable
 #define __nullable
@@ -130,6 +143,31 @@ struct bpf_testmod_arena_pair {
 
 struct bpf_testmod_pcpu {
 	int val;
+};
+
+struct bpf_testmod_arena_nested {
+	u64 __arena *ptr;
+};
+
+union bpf_testmod_arena_union {
+	u64 __arena *ptr;
+	u64 raw;
+};
+
+/* Arguments of test_arena_member(), the pointers hold kernel addresses of arena memory */
+struct bpf_testmod_arena_member_args {
+	/* the value the caller passed, never NULL */
+	u64 __arena *ptr;
+	/* always NULL */
+	u64 __arena __nullable *null_ptr;
+	/* the same value again, behind a nested struct */
+	struct bpf_testmod_arena_nested nested;
+	/* the same value again, but a load from a union is rejected */
+	union bpf_testmod_arena_union u;
+	/* a scalar, loaded by the same insn as @ptr in a verifier test */
+	u64 cookie;
+	/* a bad pointer to a struct like this one, a load through it faults */
+	struct bpf_testmod_arena_member_args *faulting;
 };
 
 /* Arguments of test_nullable(), trusted through the __safe_trusted alias in the module */
@@ -157,6 +195,8 @@ struct bpf_testmod_ops3 {
 				u64 g, u64 h, u64 *ptr);
 	/* a multi-slot leading arg, so @ptr is not at the slot its arg index suggests */
 	int (*test_arena_multislot)(struct bpf_testmod_arena_pair p, u64 *ptr);
+	/* Used to test __arena pointer members. */
+	int (*test_arena_member)(struct bpf_testmod_arena_member_args *args);
 	/* Used to test __nullable pointer members. */
 	int (*test_nullable)(struct bpf_testmod_nullable_args *args);
 };
