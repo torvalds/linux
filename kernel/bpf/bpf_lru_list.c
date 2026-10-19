@@ -71,7 +71,7 @@ static void __bpf_lru_node_move_in(struct bpf_lru_list *l,
 		return;
 
 	bpf_lru_list_count_inc(l, tgt_type);
-	node->type = tgt_type;
+	WRITE_ONCE(node->type, tgt_type);
 	bpf_lru_node_clear_ref(node);
 	/* Reset pending_free only when moving to the free list */
 	if (tgt_type == BPF_LRU_LIST_T_FREE)
@@ -94,7 +94,7 @@ static void __bpf_lru_node_move(struct bpf_lru_list *l,
 	if (node->type != tgt_type) {
 		bpf_lru_list_count_dec(l, node->type);
 		bpf_lru_list_count_inc(l, tgt_type);
-		node->type = tgt_type;
+		WRITE_ONCE(node->type, tgt_type);
 	}
 	bpf_lru_node_clear_ref(node);
 
@@ -297,9 +297,6 @@ static void bpf_lru_list_push_free(struct bpf_lru_list *l,
 				   struct bpf_lru_node *node)
 {
 	unsigned long flags;
-
-	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(node->type)))
-		return;
 
 	if (raw_res_spin_lock_irqsave(&l->lock, flags)) {
 		WRITE_ONCE(node->pending_free, 1);
@@ -542,7 +539,7 @@ static void bpf_common_lru_push_free(struct bpf_lru *lru,
 			return;
 		}
 
-		if (unlikely(node->type != BPF_LRU_LOCAL_LIST_T_PENDING)) {
+		if (unlikely(READ_ONCE(node->type) != BPF_LRU_LOCAL_LIST_T_PENDING)) {
 			raw_res_spin_unlock_irqrestore(&loc_l->lock,
 						       flags);
 			goto check_lru_list;
