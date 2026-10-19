@@ -584,8 +584,22 @@ out:
 	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
 	if (new_page)
 		free_pages_nolock(new_page, 0);
-	vmf->page = page;
-	return 0;
+
+	/*
+	 * A free clears the kernel pte and then takes the page lock before it
+	 * zaps user vma-s. Either it waits for this fault and zaps its pte, or
+	 * the page is gone from here.
+	 */
+	lock_page(page);
+	if (vmalloc_to_page((void *)kaddr) == page && !PageHWPoison(page)) {
+		vmf->page = page;
+		return VM_FAULT_LOCKED;
+	}
+	/* The page was freed meanwhile. Let the fault start over. */
+	fault_ret = PageHWPoison(page) ? VM_FAULT_HWPOISON : VM_FAULT_NOPAGE;
+	unlock_page(page);
+	put_page(page);
+	return fault_ret;
 
 out_err_locked_memcg:
 	bpf_map_memcg_exit(old_memcg, new_memcg);
