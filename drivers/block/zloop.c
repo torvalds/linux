@@ -318,22 +318,23 @@ static int zloop_update_seq_zone(struct zloop_device *zlo, unsigned int zone_no)
 
 	ret = vfs_getattr(&zone->file->f_path, &stat, STATX_SIZE, 0);
 	if (ret < 0) {
-		pr_err("Failed to get zone %u file stat (err=%d)\n",
-		       zone_no, ret);
+		pr_err("%pg: Failed to get zone %u file stat (err=%d)\n",
+		       zlo->disk->part0, zone_no, ret);
 		set_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
 		return ret;
 	}
 
 	file_sectors = stat.size >> SECTOR_SHIFT;
 	if (file_sectors > zlo->zone_capacity) {
-		pr_err("Zone %u file too large (%llu sectors > %llu)\n",
-		       zone_no, file_sectors, zlo->zone_capacity);
+		pr_err("%pg: Zone %u file too large (%llu sectors > %llu)\n",
+		       zlo->disk->part0, zone_no, file_sectors,
+		       zlo->zone_capacity);
 		return -EINVAL;
 	}
 
 	if (!IS_ALIGNED(stat.size, zlo->block_size)) {
-		pr_err("Zone %u file size (%llu) not aligned to block size %u\n",
-		       zone_no, stat.size, zlo->block_size);
+		pr_err("%pg: Zone %u file size (%llu) not aligned to block size %u\n",
+		       zlo->disk->part0, zone_no, stat.size, zlo->block_size);
 		return -EINVAL;
 	}
 
@@ -604,12 +605,14 @@ static int zloop_seq_write_prep(struct zloop_cmd *cmd)
 	} else {
 		if (cmd->sector != zone->wp) {
 			if (zone->wp == ULLONG_MAX)
-				pr_err("Zone %u: write to %s zone: sect %llu\n",
-				       zone_no, blk_zone_cond_str(zone->cond),
+				pr_err("%pg: Zone %u: write to %s zone: sect %llu\n",
+				       zlo->disk->part0, zone_no,
+				       blk_zone_cond_str(zone->cond),
 				       cmd->sector);
 			else
-				pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
-				       zone_no, cmd->sector, zone->wp);
+				pr_err("%pg: Zone %u: unaligned write: sect %llu, wp %llu\n",
+				       zlo->disk->part0, zone_no, cmd->sector,
+				       zone->wp);
 			ret = -EIO;
 			goto out_unlock;
 		}
@@ -816,8 +819,9 @@ static void zloop_complete_rq(struct request *rq)
 	switch (req_op(rq)) {
 	case REQ_OP_READ:
 		if (cmd->ret < 0)
-			pr_err("Zone %u: failed read sector %llu, %llu sectors\n",
-			       zone_no, cmd->sector, cmd->nr_sectors);
+			pr_err("%pg: Zone %u: failed read sector %llu, %llu sectors\n",
+			       zlo->disk->part0, zone_no, cmd->sector,
+			       cmd->nr_sectors);
 
 		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq)) {
 			/* short read */
@@ -830,14 +834,15 @@ static void zloop_complete_rq(struct request *rq)
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_APPEND:
 		if (cmd->ret < 0)
-			pr_err("Zone %u: failed %swrite sector %llu, %llu sectors\n",
-			       zone_no,
+			pr_err("%pg: Zone %u: failed %swrite sector %llu, %llu sectors\n",
+			       zlo->disk->part0, zone_no,
 			       req_op(rq) == REQ_OP_WRITE ? "" : "append ",
 			       cmd->sector, cmd->nr_sectors);
 
 		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq)) {
-			pr_err("Zone %u: partial write %ld/%u B\n",
-			       zone_no, cmd->ret, blk_rq_bytes(rq));
+			pr_err("%pg: Zone %u: partial write %ld/%u B\n",
+			       zlo->disk->part0, zone_no, cmd->ret,
+			       blk_rq_bytes(rq));
 			cmd->ret = -EIO;
 		}
 
