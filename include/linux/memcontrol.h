@@ -1717,6 +1717,7 @@ static inline u64 mem_cgroup_get_socket_pressure(const struct mem_cgroup *memcg)
 }
 #endif
 
+void shrinker_unit_cache_init(void);
 int alloc_shrinker_info(struct mem_cgroup *memcg);
 void free_shrinker_info(struct mem_cgroup *memcg);
 void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id);
