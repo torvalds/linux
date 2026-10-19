@@ -1356,19 +1356,19 @@ static void partition_xcpus_del(int old_prs, struct cpuset *parent,
  * prstate_housekeeping_conflict - check for partition & housekeeping conflicts
  * @new_prs: new partition root state to be checked
  * @parent_prs: Parent partition root state
- * @add_cpus: additional CPUs to be added to current cpuset
- * @del_cpus: CPUs to be removed from current cpuset, can be NULL
+ * @new_cpus: the set of new effective xcpus in the current cpuset
+ * @del_cpus: old CPUs going to be removed from current cpuset, can be NULL
  * Return: true if there is conflict, false otherwise
  *
  * There are two different housekeeping conflicts to be checked:
- * 1) If new_prs is PRS_ROOT, none of the @add_cpus can be a boot-time isolated
- *    CPU. IOW, the whole @add_cpus must be a subset of HK_TYPE_DOMAIN_BOOT.
+ * 1) If new_prs is PRS_ROOT, none of the @new_cpus can be a boot-time isolated
+ *    CPU. IOW, the whole @new_cpus must be a subset of HK_TYPE_DOMAIN_BOOT.
  * 2) If nohz_full is enabled and we have isolated CPUs, their combination must
  *    still leave housekeeping CPUs. This check is only needed if new_prs
  *    differs from parent_prs and one of them is PRS_ISOLATED.
  */
 static bool prstate_housekeeping_conflict(int new_prs, int parent_prs,
-					  struct cpumask *add_cpus,
+					  struct cpumask *new_cpus,
 					  struct cpumask *del_cpus)
 {
 	cpumask_var_t full_hk_cpus;
@@ -1393,7 +1393,7 @@ static bool prstate_housekeeping_conflict(int new_prs, int parent_prs,
 		new_prs = -new_prs;
 
 	if (housekeeping_enabled(HK_TYPE_DOMAIN_BOOT) && (new_prs == PRS_ROOT) &&
-	    !cpumask_subset(add_cpus, housekeeping_cpumask(HK_TYPE_DOMAIN_BOOT)))
+	    !cpumask_subset(new_cpus, housekeeping_cpumask(HK_TYPE_DOMAIN_BOOT)))
 		return true;
 
 	/*
@@ -1409,12 +1409,12 @@ static bool prstate_housekeeping_conflict(int new_prs, int parent_prs,
 		return false;
 
 	/*
-	 * Now make sure that @add_cpus contains new CPUs to be isolated and
+	 * Now make sure that @new_cpus contains new CPUs to be isolated and
 	 * @del_cpus contains isolated CPUs to be un-isolated.
-	 * With the guards above, @add_cpus can't be NULL after the swap.
+	 * With the guards above, @new_cpus can't be NULL after the swap.
 	 */
 	if (parent_prs == PRS_ISOLATED)
-		swap(add_cpus, del_cpus);
+		swap(new_cpus, del_cpus);
 
 	if (del_cpus &&
 	   (cpumask_first_and_and(del_cpus, housekeeping_cpumask(HK_TYPE_KERNEL_NOISE),
@@ -1428,7 +1428,7 @@ static bool prstate_housekeeping_conflict(int new_prs, int parent_prs,
 		    housekeeping_cpumask(HK_TYPE_DOMAIN));
 	cpumask_andnot(full_hk_cpus, full_hk_cpus, isolated_cpus);
 	cpumask_and(full_hk_cpus, full_hk_cpus, cpu_active_mask);
-	res = !cpumask_weight_andnot(full_hk_cpus, add_cpus);
+	res = !cpumask_weight_andnot(full_hk_cpus, new_cpus);
 
 	free_cpumask_var(full_hk_cpus);
 	return res;
@@ -1718,7 +1718,7 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 			 cpumask_subset(top_cpuset.effective_cpus, tmp->addmask))
 			WRITE_ONCE(cs->prs_err, PERR_NOCPUS);
 		else if (prstate_housekeeping_conflict(prs, PRS_ROOT,
-						       tmp->addmask, tmp->delmask))
+						       excpus, tmp->delmask))
 			WRITE_ONCE(cs->prs_err, PERR_HKEEPING);
 		if (cs->prs_err)
 			goto invalidate;
@@ -1931,14 +1931,6 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			deleting = cpumask_and(tmp->delmask, tmp->delmask,
 					       parent->effective_xcpus);
 		}
-
-		/*
-		 * Check for housekeeping conflicts
-		 */
-		if (is_partition_valid(cs) &&
-		    prstate_housekeeping_conflict(old_prs, parent_prs,
-						  tmp->delmask, tmp->addmask))
-			part_error = PERR_HKEEPING;
 
 		/*
 		 * The new CPUs to be removed from parent's effective CPUs
@@ -2470,6 +2462,22 @@ static void partition_cpus_change(struct cpuset *cs, struct cpuset *trialcs,
 		return;
 
 	prs_err = validate_partition(cs, trialcs);
+	if (!prs_err && !cpumask_empty(trialcs->effective_xcpus)) {
+		int prs = cs->partition_root_state;
+		int parent_prs = is_remote_partition(cs)
+			       ? PRS_ROOT : parent_cs(cs)->partition_root_state;
+		/*
+		 * Check for housekeeping conflict by passing the whole
+		 * effective_xcpus as well as those CPUs that are to be
+		 * removed from cs as delmask.
+		 */
+		cpumask_andnot(tmp->delmask, cs->effective_xcpus, trialcs->effective_xcpus);
+		if (parent_prs > 0 &&
+		    prstate_housekeeping_conflict(prs, parent_prs,
+						  trialcs->effective_xcpus, tmp->delmask))
+			prs_err = PERR_HKEEPING;
+	}
+
 	if (prs_err) {
 		WRITE_ONCE(cs->prs_err, prs_err);
 		trialcs->prs_err = prs_err;
