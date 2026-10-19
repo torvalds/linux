@@ -8013,6 +8013,7 @@ F:	include/uapi/drm/ivpu_accel.h
 
 DRM ACCEL DRIVER FOR ROCKCHIP NPU
 M:	Tomeu Vizoso <tomeu@tomeuvizoso.net>
+R:	Heiko Stuebner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -8170,7 +8171,6 @@ F:	drivers/gpu/drm/tiny/hx8357d.c
 
 DRM DRIVER FOR HYPERV SYNTHETIC VIDEO DEVICE
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 M:	Saurabh Sengar <ssengar@linux.microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
@@ -8575,7 +8575,7 @@ F:	Documentation/devicetree/bindings/display/panel/synaptics,r63353.yaml
 F:	drivers/gpu/drm/panel/panel-synaptics-r63353.c
 
 DRM DRIVER FOR SYNOPSYS DESIGNWARE DISPLAYPORT BRIDGE
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/rockchip/rockchip,dw-dp.yaml
@@ -8928,7 +8928,7 @@ F:	include/linux/platform_data/shmob_drm.h
 DRM DRIVERS FOR ROCKCHIP
 M:	Sandy Huang <hjc@rock-chips.com>
 M:	Heiko Stübner <heiko@sntech.de>
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
@@ -10102,7 +10102,6 @@ F:	tools/testing/selftests/mount_setattr/
 
 FILESYSTEMS [IOMAP]
 M:	Christian Brauner <brauner@kernel.org>
-R:	Darrick J. Wong <djwong@kernel.org>
 L:	linux-xfs@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
@@ -12161,11 +12160,9 @@ S:	Maintained
 F:	drivers/media/i2c/hi847.c
 
 Hyper-V/Azure CORE AND DRIVERS
-M:	"K. Y. Srinivasan" <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
 M:	Wei Liu <wei.liu@kernel.org>
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
@@ -12883,7 +12880,7 @@ S:	Maintained
 F:	drivers/power/supply/ip5xxx_power.c
 
 INNOSILICON HDMI BRIDGE DRIVER
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -18818,6 +18815,7 @@ F:	drivers/hwmon/nct7363.c
 
 NETCONSOLE
 M:	Breno Leitao <leitao@debian.org>
+R:	Gustavo Luiz Duarte <gustavold@gmail.com>
 S:	Maintained
 F:	Documentation/networking/netconsole.rst
 F:	drivers/net/netconsole.c

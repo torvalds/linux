@@ -10,11 +10,11 @@
 #include <asm/insn-eval.h>
 
 /*
- * Returns the target address and the expected type when regs->ip points
+ * Returns the target address and the expected type when addr points
  * to a compiler-generated CFI trap.
  */
-static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
-			    u32 *type)
+static bool decode_cfi_insn(struct pt_regs *regs, unsigned long addr,
+			    unsigned long *target, u32 *type)
 {
 	char buffer[MAX_INSN_SIZE];
 	struct insn insn;
@@ -29,13 +29,13 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 	 *   movl    -<id>, %r10d       ; 6 bytes
 	 *   addl    -<pos>(%reg), %r10d; 4 bytes
 	 *   je      .Ltmp1             ; 2 bytes
-	 *   ud2                        ; <- regs->ip
+	 *   ud2                        ; <- addr
 	 *   .Ltmp1:
 	 *
 	 * We can decode the expected type and the target address from the
 	 * movl/addl instructions.
 	 */
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip - 12, MAX_INSN_SIZE))
+	if (copy_from_kernel_nofault(buffer, (void *)addr - 12, MAX_INSN_SIZE))
 		return false;
 	if (insn_decode_kernel(&insn, &buffer[offset]))
 		return false;
@@ -44,7 +44,7 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 
 	*type = -(u32)insn.immediate.value;
 
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip - 6, MAX_INSN_SIZE))
+	if (copy_from_kernel_nofault(buffer, (void *)addr - 6, MAX_INSN_SIZE))
 		return false;
 	if (insn_decode_kernel(&insn, &buffer[offset]))
 		return false;
@@ -82,7 +82,7 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 				return BUG_TRAP_TYPE_NONE;
 		}
 
-		if (!decode_cfi_insn(regs, &target, &type))
+		if (!decode_cfi_insn(regs, addr, &target, &type))
 			return report_cfi_failure_noaddr(regs, addr);
 
 		break;

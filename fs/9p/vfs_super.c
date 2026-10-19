@@ -173,8 +173,8 @@ static void v9fs_kill_super(struct super_block *s)
 
 	v9fs_session_cancel(v9ses);
 	v9fs_session_close(v9ses);
-	kfree(v9ses);
-	s->s_fs_info = NULL;
+	/* v9fs_vfs_get_link_dotl() may still read ->cache in rcu pathwalk */
+	kfree_rcu(v9ses, rcu);
 	p9_debug(P9_DEBUG_VFS, "exiting kill_super\n");
 }
 

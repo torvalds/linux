@@ -47,6 +47,7 @@
 		.intr_wakeup_present_bit = 6,	\
 		.intr_wakeup_enable_bit = 7,	\
 		.intr_target_bit = 8,			\
+		.intr_target_width = 4,		\
 		.intr_target_kpss_val = 3,		\
 		.intr_raw_status_bit = 4,		\
 		.intr_polarity_bit = 1,			\
