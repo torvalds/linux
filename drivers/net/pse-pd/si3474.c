@@ -312,8 +312,13 @@ static int si3474_pi_enable(struct pse_controller_dev *pcdev, int id)
 	/* DETECT_CLASS_ENABLE must be set when using AUTO mode,
 	 * otherwise PI does not power up - datasheet section 2.10.2
 	 */
-	val = CHAN_BIT(chan0) | CHAN_UPPER_BIT(chan0) |
-	      CHAN_BIT(chan1) | CHAN_UPPER_BIT(chan1);
+	ret = i2c_smbus_read_byte_data(client, DETECT_CLASS_ENABLE_REG);
+	if (ret < 0)
+		return ret;
+
+	val = (u8)ret;
+	val |= CHAN_BIT(chan0) | CHAN_UPPER_BIT(chan0) |
+	       CHAN_BIT(chan1) | CHAN_UPPER_BIT(chan1);
 
 	ret = i2c_smbus_write_byte_data(client, DETECT_CLASS_ENABLE_REG, val);
 	if (ret)
