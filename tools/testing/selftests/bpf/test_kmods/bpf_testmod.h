@@ -114,6 +114,38 @@ struct bpf_testmod_arena_pair {
 	u64 b;
 };
 
+/*
+ * The qualifiers are BTF type tags for the verifier. The module gets them
+ * from bpf_compiler_types.h, user space and BPF programs need them empty.
+ */
+#ifdef __KERNEL__
+#include <linux/bpf_compiler_types.h>
+#endif
+#ifndef __nullable
+#define __nullable
+#endif
+#ifndef __percpu
+#define __percpu
+#endif
+
+struct bpf_testmod_pcpu {
+	int val;
+};
+
+/* Arguments of test_nullable(), trusted through the __safe_trusted alias in the module */
+struct bpf_testmod_nullable_args {
+	/* never NULL */
+	struct task_struct *task;
+	/* NULL on the first call, set on the second */
+	struct task_struct __nullable *task_or_null;
+	/* NULL on the first call, a per-CPU variable on the second */
+	struct bpf_testmod_pcpu __percpu __nullable *pcpu_or_null;
+	/* NULL on the first call, set on the second */
+	int __nullable *int_or_null;
+	/* this struct again, through a plain pointer, which the verifier probes */
+	struct bpf_testmod_nullable_args *self;
+};
+
 struct bpf_testmod_ops3 {
 	int (*test_1)(void);
 	int (*test_2)(void);
@@ -125,6 +157,8 @@ struct bpf_testmod_ops3 {
 				u64 g, u64 h, u64 *ptr);
 	/* a multi-slot leading arg, so @ptr is not at the slot its arg index suggests */
 	int (*test_arena_multislot)(struct bpf_testmod_arena_pair p, u64 *ptr);
+	/* Used to test __nullable pointer members. */
+	int (*test_nullable)(struct bpf_testmod_nullable_args *args);
 };
 
 struct st_ops_args {
