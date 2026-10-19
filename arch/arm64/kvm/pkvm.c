@@ -333,7 +333,7 @@ static int __init pkvm_drop_host_privileges(void)
 	return ret;
 }
 
-void __init pkvm_selftests(void)
+static void __init pkvm_selftests(void)
 {
 #ifdef CONFIG_NVHE_EL2_DEBUG
 	int ret = pkvm_call_hyp_req(__pkvm_hyp_alloc_selftest);
@@ -386,6 +386,8 @@ static int __init finalize_pkvm(void)
 
 	if (!is_protected_kvm_enabled() || !is_kvm_arm_initialised())
 		return 0;
+
+	pkvm_selftests();
 
 	/*
 	 * Exclude HYP sections from kmemleak so that they don't get peeked

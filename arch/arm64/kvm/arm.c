@@ -3109,8 +3109,6 @@ static int __init init_hyp_mode(void)
 			kvm_err("Failed to init hyp memory protection\n");
 			goto out_err;
 		}
-
-		pkvm_selftests();
 	}
 
 	return 0;
