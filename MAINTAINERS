@@ -17162,9 +17162,6 @@ F:	mm/mmzone.c
 F:	mm/pagewalk.c
 F:	mm/pgtable-generic.c
 F:	mm/ptdump.c
-F:	mm/sparse-vmemmap.c
-F:	mm/sparse.c
-F:	mm/sparse.h
 F:	mm/util.c
 F:	mm/vmpressure.c
 F:	mm/vmstat.c
@@ -17211,6 +17208,21 @@ F:	include/linux/ksm.h
 F:	include/trace/events/ksm.h
 F:	mm/ksm.c
 F:	mm/mm_slot.h
+
+MEMORY MANAGEMENT - MEMORY MAP
+M:	Muchun Song <muchun.song@linux.dev>
+M:	Mike Rapoport <rppt@kernel.org>
+M:	David Hildenbrand <david@kernel.org>
+L:	linux-mm@kvack.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mm/core.git memmap
+F:	Documentation/mm/memory-model.rst
+F:	arch/*/include/asm/sparsemem.h
+F:	include/asm-generic/memory_model.h
+F:	mm/sparse-vmemmap.c
+F:	mm/sparse.c
+F:	mm/sparse.h
+K:	(?i:vmemmap)
 
 MEMORY MANAGEMENT - MGLRU (MULTI-GEN LRU)
 M:	Andrew Morton <akpm@linux-foundation.org>
