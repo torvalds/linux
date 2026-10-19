@@ -13,6 +13,7 @@
 #include "struct_ops_arena_member_fail__mismatch_mem.skel.h"
 #include "struct_ops_arena_member_fail__write.skel.h"
 #include "struct_ops_arena_member_fail__no_arena.skel.h"
+#include "struct_ops_arena_autobind.skel.h"
 
 #if defined(__x86_64__) || defined(__aarch64__)
 /*
@@ -145,6 +146,119 @@ static void arena_member(void)
 	struct_ops_arena_member__destroy(skel);
 }
 
+/* @prog_fd lists exactly one map, the one with @map_id. */
+static void assert_prog_map(int prog_fd, __u32 map_id, const char *name)
+{
+	__u32 map_ids[2] = {}, len = sizeof(struct bpf_prog_info);
+	struct bpf_prog_info info = {
+		.nr_map_ids = ARRAY_SIZE(map_ids),
+		.map_ids = ptr_to_u64(map_ids),
+	};
+	int err;
+
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
+	if (!ASSERT_OK(err, name))
+		return;
+	if (!ASSERT_EQ(info.nr_map_ids, 1, name))
+		return;
+	ASSERT_EQ(map_ids[0], map_id, name);
+}
+
+/*
+ * libbpf binds the arena of an object to every program in it: a callback
+ * with an __arena argument loads without referring to the arena, and an
+ * unrelated program gets the arena as well.
+ */
+static void arena_autobind(void)
+{
+	struct struct_ops_arena_autobind *skel;
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	int err;
+
+	skel = struct_ops_arena_autobind__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_arena_autobind__open_and_load"))
+		return;
+
+	err = bpf_map_get_info_by_fd(bpf_map__fd(skel->maps.arena), &info, &len);
+	if (!ASSERT_OK(err, "arena_info"))
+		goto out;
+	assert_prog_map(bpf_program__fd(skel->progs.test_arena_cb), info.id, "test_arena_cb");
+	assert_prog_map(bpf_program__fd(skel->progs.unrelated), info.id, "unrelated");
+
+	attach_and_trigger(skel->maps.testmod_arena_autobind, skel->progs.trigger);
+out:
+	struct_ops_arena_autobind__destroy(skel);
+}
+
+/*
+ * The same binding through bpf_object__prepare() and bpf_program__clone(), the
+ * way veristat loads a program: the arena takes slot 0 of a continuous
+ * fd_array, next to the module BTF of the kfunc the trigger calls.
+ */
+static void arena_autobind_clone(void)
+{
+	struct struct_ops_arena_autobind *skel;
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	struct bpf_program *prog;
+	int err, fd;
+
+	skel = struct_ops_arena_autobind__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_arena_autobind__open"))
+		return;
+
+	err = bpf_object__prepare(skel->obj);
+	if (!ASSERT_OK(err, "prepare"))
+		goto out;
+	err = bpf_map_get_info_by_fd(bpf_map__fd(skel->maps.arena), &info, &len);
+	if (!ASSERT_OK(err, "arena_info"))
+		goto out;
+	bpf_object__for_each_program(prog, skel->obj) {
+		fd = bpf_program__clone(prog, NULL);
+		if (!ASSERT_GE(fd, 0, bpf_program__name(prog)))
+			continue;
+		assert_prog_map(fd, info.id, bpf_program__name(prog));
+		close(fd);
+	}
+out:
+	struct_ops_arena_autobind__destroy(skel);
+}
+
+/*
+ * An arena exclusive to a program is bound to that program all the same: the
+ * kernel checks an exclusive map against the digest of the final program, so
+ * the binding through the fd_array passes for the program the map is
+ * exclusive to.
+ */
+static void arena_autobind_excl(void)
+{
+	struct struct_ops_arena_autobind *skel;
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	int err;
+
+	skel = struct_ops_arena_autobind__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_arena_autobind__open"))
+		return;
+	/* the other programs need the arena too, and cannot have it */
+	bpf_map__set_autocreate(skel->maps.testmod_arena_autobind, false);
+	bpf_program__set_autoload(skel->progs.trigger, false);
+	err = bpf_map__set_exclusive_program(skel->maps.arena, skel->progs.unrelated);
+	if (!ASSERT_OK(err, "set_exclusive_program"))
+		goto out;
+
+	err = struct_ops_arena_autobind__load(skel);
+	if (!ASSERT_OK(err, "load"))
+		goto out;
+	err = bpf_map_get_info_by_fd(bpf_map__fd(skel->maps.arena), &info, &len);
+	if (!ASSERT_OK(err, "arena_info"))
+		goto out;
+	assert_prog_map(bpf_program__fd(skel->progs.unrelated), info.id, "unrelated");
+out:
+	struct_ops_arena_autobind__destroy(skel);
+}
+
 /* The same through the vmlinux.h rendering of the members, which takes casts. */
 static void arena_member_render(void)
 {
@@ -197,6 +311,12 @@ void serial_test_struct_ops_arena(void)
 		/* so that the missing member tests show up as skipped */
 		test__skip();
 	}
+	if (test__start_subtest("arena_autobind"))
+		arena_autobind();
+	if (test__start_subtest("arena_autobind_clone"))
+		arena_autobind_clone();
+	if (test__start_subtest("arena_autobind_excl"))
+		arena_autobind_excl();
 #else
 	test__skip();
 #endif
