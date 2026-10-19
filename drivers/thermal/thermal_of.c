@@ -561,7 +561,7 @@ thermal_of_cooling_device_register(struct device_node *np, u32 cdev_id,
 	cdev->np = np;
 	cdev->cdev_id = cdev_id;
 
-	ret = thermal_cooling_device_add(cdev, devdata);
+	ret = thermal_cooling_device_add(cdev, NULL, devdata);
 	if (ret)
 		return ERR_PTR(ret);
 

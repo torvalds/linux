@@ -1005,7 +1005,8 @@ out_kfree_cdev:
 	return ERR_PTR(ret);
 }
 
-int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdata)
+int thermal_cooling_device_add(struct thermal_cooling_device *cdev,
+			       struct device *parent, void *devdata)
 {
 	unsigned long current_state;
 	int ret;
@@ -1013,6 +1014,7 @@ int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdat
 	mutex_init(&cdev->lock);
 	INIT_LIST_HEAD(&cdev->thermal_instances);
 	cdev->updated = false;
+	cdev->device.parent = parent;
 	cdev->device.class = &thermal_class;
 	cdev->device.release = thermal_cdev_release;
 	device_initialize(&cdev->device);
@@ -1062,21 +1064,23 @@ out_put_device:
 }
 
 /**
- * thermal_cooling_device_register() - register a new thermal cooling device
+ * thermal_cooling_device_create() - register a new thermal cooling device
+ * @parent:	parent device (optional).
  * @type:	the thermal cooling device type.
  * @devdata:	device private data.
  * @ops:	standard thermal cooling devices callbacks.
  *
- * This interface function adds a new thermal cooling device (fan/processor/...)
- * to /sys/class/thermal/ folder as cooling_device[0-*]. It tries to bind itself
- * to all the thermal zone devices registered at the same time.
+ * Allocate and register a new thermal cooling device under the given parent (if
+ * not NULL) and with the given type, device data, and operations.  During the
+ * registration, it will be matched against all of the registered thermal zones
+ * and it will be bound to the matching ones.
  *
- * Return: a pointer to the created struct thermal_cooling_device or an
- * ERR_PTR. Caller must check return value with IS_ERR*() helpers.
+ * Return: A pointer to the created struct thermal_cooling_device or an ERR_PTR.
+ * Callers must use IS_ERR*() helpers to check the return value.
  */
-struct thermal_cooling_device *
-thermal_cooling_device_register(const char *type, void *devdata,
-				const struct thermal_cooling_device_ops *ops)
+struct thermal_cooling_device *thermal_cooling_device_create(
+			struct device *parent, const char *type, void *devdata,
+			const struct thermal_cooling_device_ops *ops)
 {
 	struct thermal_cooling_device *cdev;
 	int ret;
@@ -1085,13 +1089,13 @@ thermal_cooling_device_register(const char *type, void *devdata,
 	if (IS_ERR(cdev))
 		return cdev;
 
-	ret = thermal_cooling_device_add(cdev, devdata);
+	ret = thermal_cooling_device_add(cdev, parent, devdata);
 	if (ret)
 		return ERR_PTR(ret);
 
 	return cdev;
 }
-EXPORT_SYMBOL_GPL(thermal_cooling_device_register);
+EXPORT_SYMBOL_GPL(thermal_cooling_device_create);
 
 static void thermal_cooling_device_release(void *data)
 {
