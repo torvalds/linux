@@ -1873,26 +1873,32 @@ void nxpwifi_cancel_scan(struct nxpwifi_adapter *adapter)
 {
 	struct nxpwifi_private *priv;
 	int i;
+	bool cancel = false;
 
 	nxpwifi_cancel_pending_scan_cmd(adapter);
 
+	spin_lock_bh(&adapter->nxpwifi_cmd_lock);
 	if (adapter->scan_processing) {
-		spin_lock_bh(&adapter->nxpwifi_cmd_lock);
 		adapter->scan_processing = false;
-		spin_unlock_bh(&adapter->nxpwifi_cmd_lock);
-		for (i = 0; i < adapter->priv_num; i++) {
-			priv = adapter->priv[i];
-			if (priv->scan_request) {
-				struct cfg80211_scan_info info = {
-					.aborted = true,
-				};
+		cancel = true;
+	}
+	spin_unlock_bh(&adapter->nxpwifi_cmd_lock);
 
-				nxpwifi_dbg(adapter, INFO,
-					    "info: aborting scan\n");
-				cfg80211_scan_done(priv->scan_request, &info);
-				priv->scan_request = NULL;
-				priv->scan_aborting = false;
-			}
+	if (!cancel)
+		return;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (priv->scan_request) {
+			struct cfg80211_scan_info info = {
+				.aborted = true,
+			};
+
+			nxpwifi_dbg(adapter, INFO,
+				    "info: aborting scan\n");
+			cfg80211_scan_done(priv->scan_request, &info);
+			priv->scan_request = NULL;
+			priv->scan_aborting = false;
 		}
 	}
 }
