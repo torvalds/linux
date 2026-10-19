@@ -104,7 +104,7 @@ __cold struct io_uring_task *io_uring_alloc_task_context(struct task_struct *tas
 	}
 
 	tctx->task = task;
-	xa_init(&tctx->xa);
+	xa_init_flags(&tctx->xa, XA_FLAGS_ACCOUNT);
 	init_waitqueue_head(&tctx->wait);
 	atomic_set(&tctx->in_cancel, 0);
 	atomic_set(&tctx->inflight_tracked, 0);
@@ -123,7 +123,7 @@ static int io_tctx_install_node(struct io_ring_ctx *ctx,
 	if (xa_load(&tctx->xa, (unsigned long)ctx))
 		return 0;
 
-	node = kmalloc_obj(*node);
+	node = kmalloc_obj(*node, GFP_KERNEL_ACCOUNT);
 	if (!node)
 		return -ENOMEM;
 	node->ctx = ctx;
