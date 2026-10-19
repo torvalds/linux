@@ -18,6 +18,7 @@ include ../Makefile.deps
 
 YNL_GEN_ARG_ethtool:=--user-header linux/ethtool_netlink.h \
 	--exclude-op stats-get
+YNL_GEN_ARG_rt-nexthop:=--exclude-op newnexthopbucket-ntf
 
 TOOL:=../pyynl/ynl_gen_c.py
 TOOL_RST:=../pyynl/ynl_gen_rst.py
