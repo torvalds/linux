@@ -30,15 +30,22 @@ config KVM
 	select KVM_MMU_LOCKLESS_AGING
 	select KVM_GENERIC_PRE_FAULT_MEMORY
 	help
-	  Support hosting paravirtualized guest machines using the SIE
-	  virtualization capability on the mainframe. This should work
-	  on any 64bit machine.
+	  Enable support for hosting virtualized, hardware-accelerated
+	  virtual machines via two modules: kvm and kvm_arm64.
 
-	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  The kvm module provides access to host hardware-accelerated s390
+	  guests using the Start Interpretive Execution (SIE) instruction via a
+	  character device node named /dev/kvm. This requires a 64-bit machine
+	  (hardware model).
 
-	  To compile this as a module, choose M here: the module
-	  will be called kvm.
+	  The kvm_arm64 module provides access to host hardware-accelerated
+	  arm64 guests using the Start ARM Execution (SAE) instruction via a
+	  character device node named /dev/kvm_arm64. This requires hardware
+	  models that support the Arm execution facility (AEF).
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called kvm for the SIE acceleration and kvm_arm64 for the SAE
+	  acceleration.
 
 	  If unsure, say N.
 

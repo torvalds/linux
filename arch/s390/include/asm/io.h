@@ -27,13 +27,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 /*
  * I/O memory mapping functions.
  */
-#define ioremap_prot ioremap_prot
-#define iounmap iounmap
-
 #define _PAGE_IOREMAP pgprot_val(PAGE_KERNEL)
-
-#define ioremap_wc(addr, size)  \
-	ioremap_prot((addr), (size), pgprot_writecombine(PAGE_KERNEL))
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
@@ -45,6 +39,12 @@ static inline void ioport_unmap(void __iomem *p)
 }
 
 #ifdef CONFIG_PCI
+
+#define ioremap_prot ioremap_prot
+#define iounmap iounmap
+
+#define ioremap_wc(addr, size)  \
+	ioremap_prot((addr), (size), pgprot_writecombine(PAGE_KERNEL))
 
 /*
  * s390 needs a private implementation of pci_iomap since ioremap with its
