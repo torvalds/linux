@@ -434,7 +434,7 @@ extern acpi_handle ec_get_handle(void);
 
 extern bool acpi_is_pnp_device(struct acpi_device *);
 
-#if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
+#if IS_ENABLED(CONFIG_ACPI_WMI)
 
 typedef void (*wmi_notify_handler) (union acpi_object *data, void *context);
 
