@@ -6,6 +6,7 @@
 # some combinations of arguments.
 
 source lib.sh
+ret=0
 
 FLUSH_BY_STATE_TESTS="
 	vxlan_test_flush_by_permanent
@@ -778,3 +779,5 @@ for t in $TESTS
 do
 	setup; $t; cleanup;
 done
+
+exit $ret

@@ -269,3 +269,4 @@ if [ $ret -eq 0 ]; then
 fi
 
 cleanup
+exit $ret

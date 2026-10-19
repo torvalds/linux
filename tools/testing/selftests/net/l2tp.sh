@@ -16,6 +16,7 @@
 source lib.sh
 VERBOSE=0
 PAUSE_ON_FAIL=no
+ret=0
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
@@ -357,3 +358,5 @@ cleanup
 
 printf "\nTests passed: %3d\n" ${nsuccess}
 printf "Tests failed: %3d\n"   ${nfail}
+
+exit $ret

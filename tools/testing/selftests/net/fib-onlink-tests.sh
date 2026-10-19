@@ -6,6 +6,7 @@
 source lib.sh
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 VERBOSE=0
+ret=0
 
 # Network interfaces
 # - odd in current namespace; even in peer ns
@@ -473,3 +474,5 @@ if [ "$TESTS" != "none" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi
+
+exit $ret
