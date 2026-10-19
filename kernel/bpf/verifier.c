@@ -20796,12 +20796,6 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(prog);
 
-	if (map->excl_prog_sha &&
-	    memcmp(map->excl_prog_sha, prog->digest, SHA256_DIGEST_SIZE)) {
-		verbose(env, "program's hash doesn't match map's excl_prog_hash\n");
-		return -EACCES;
-	}
-
 	if (btf_record_has_field(map->record, BPF_LIST_HEAD) ||
 	    btf_record_has_field(map->record, BPF_RB_ROOT)) {
 		if (is_tracing_prog_type(prog_type)) {
@@ -20899,6 +20893,61 @@ static int bpf_map_claim(struct bpf_verifier_env *env, struct bpf_map *map)
 	}
 }
 
+/*
+ * An exclusive map is bound to the digest of its program. The digest covers
+ * the insns as they are verified, after the CO-RE relocations the kernel
+ * applies, so it exists only once check_and_resolve_insns() has computed it,
+ * and the maps are checked against it there, whether an insn referred to
+ * them or a continuous fd_array bound them before.
+ */
+static int check_excl_maps(struct bpf_verifier_env *env)
+{
+	int i;
+
+	for (i = 0; i < env->used_map_cnt; i++) {
+		struct bpf_map *map = env->used_maps[i];
+
+		if (map->excl_prog_sha &&
+		    memcmp(map->excl_prog_sha, env->prog->digest, SHA256_DIGEST_SIZE)) {
+			verbose(env, "program's hash doesn't match map's excl_prog_hash\n");
+			return -EACCES;
+		}
+	}
+	return 0;
+}
+
+/*
+ * The program may use every map it referred to, see check_excl_maps(). Only now
+ * does it leave a trace on them: it claims each as its user, see
+ * bpf_map_claim(), and takes over its insn arrays. A program rejected before
+ * this point, one that is not the owner of an exclusive map in particular,
+ * leaves the maps as it found them. Nothing consults a claim before
+ * resolve_func_ptrs() and the fixup passes, which run later.
+ */
+static int claim_used_maps(struct bpf_verifier_env *env)
+{
+	int i, err;
+
+	for (i = 0; i < env->used_map_cnt; i++) {
+		struct bpf_map *map = env->used_maps[i];
+
+		err = bpf_map_claim(env, map);
+		if (err)
+			return err;
+
+		if (map->map_type != BPF_MAP_TYPE_INSN_ARRAY)
+			continue;
+		err = bpf_insn_array_init(map, env->prog);
+		if (err) {
+			verbose(env, "Failed to properly initialize insn array\n");
+			return err;
+		}
+		env->insn_array_maps[env->insn_array_map_cnt++] = map;
+		env->prog->jit_required = true;
+	}
+	return 0;
+}
+
 static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 {
 	int i, err;
@@ -20935,20 +20984,6 @@ static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 	bpf_map_inc(map);
 
 	env->used_maps[env->used_map_cnt++] = map;
-
-	err = bpf_map_claim(env, map);
-	if (err)
-		return err;
-
-	if (map->map_type == BPF_MAP_TYPE_INSN_ARRAY) {
-		err = bpf_insn_array_init(map, env->prog);
-		if (err) {
-			verbose(env, "Failed to properly initialize insn array\n");
-			return err;
-		}
-		env->insn_array_maps[env->insn_array_map_cnt++] = map;
-		env->prog->jit_required = true;
-	}
 
 	return env->used_map_cnt - 1;
 }
@@ -21353,7 +21388,10 @@ next_insn:
 	 * 'struct bpf_map *' into a register instead of user map_fd.
 	 * These pointers will be used later by verifier to validate map access.
 	 */
-	return 0;
+	err = check_excl_maps(env);
+	if (err)
+		return err;
+	return claim_used_maps(env);
 }
 
 /* that many pointers to functions are recognized in the maps of a program at most */
@@ -23618,11 +23656,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 		verbose(env, "invalid bpf_ld_imm64 insn\n");
 		ret = -EINVAL;
 		goto err_prep;
-	}
-	if (env->signature) {
-		ret = bpf_prog_calc_tag(env->prog);
-		if (ret < 0)
-			goto err_prep;
 	}
 
 	ret = process_fd_array(env, attr, uattr);
