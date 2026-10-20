@@ -849,13 +849,13 @@ static int gntdev_copy(struct gntdev_copy_batch *batch)
 		if (status == GNTST_okay)
 			continue;
 
-		if (__get_user(old_status, batch->status[i]))
+		if (get_user(old_status, batch->status[i]))
 			return -EFAULT;
 
 		if (old_status != GNTST_okay)
 			continue;
 
-		if (__put_user(status, batch->status[i]))
+		if (put_user(status, batch->status[i]))
 			return -EFAULT;
 	}
 
