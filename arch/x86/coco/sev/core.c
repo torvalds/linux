@@ -1431,15 +1431,22 @@ static ssize_t vmpl_show(struct kobject *kobj,
 	return sysfs_emit(buf, "%d\n", snp_vmpl);
 }
 
-static struct kobj_attribute vmpl_attr = __ATTR_RO(vmpl);
+static ssize_t sev_status_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "0x%llx\n", sev_status);
+}
 
-static struct attribute *vmpl_attrs[] = {
-	&vmpl_attr.attr,
+static struct kobj_attribute vmpl_attr = __ATTR_RO(vmpl);
+static struct kobj_attribute sev_status_attr = __ATTR_RO(sev_status);
+
+static struct attribute *sev_status_attrs[] = {
+	&sev_status_attr.attr,
 	NULL
 };
 
 static struct attribute_group sev_attr_group = {
-	.attrs = vmpl_attrs,
+	.attrs = sev_status_attrs,
 };
 
 static int __init sev_sysfs_init(void)
@@ -1448,7 +1455,7 @@ static int __init sev_sysfs_init(void)
 	struct device *dev_root;
 	int ret;
 
-	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
+	if (!(sev_status & MSR_AMD64_SEV_ENABLED))
 		return -ENODEV;
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
@@ -1463,7 +1470,20 @@ static int __init sev_sysfs_init(void)
 
 	ret = sysfs_create_group(sev_kobj, &sev_attr_group);
 	if (ret)
-		kobject_put(sev_kobj);
+		goto drop_kobj;
+
+	if (sev_status & MSR_AMD64_SEV_SNP_ENABLED) {
+		ret = sysfs_add_file_to_group(sev_kobj, &vmpl_attr.attr, NULL);
+		if (ret)
+			goto drop_sysfs;
+	}
+
+	return 0;
+
+drop_sysfs:
+	sysfs_remove_group(sev_kobj, &sev_attr_group);
+drop_kobj:
+	kobject_put(sev_kobj);
 
 	return ret;
 }
