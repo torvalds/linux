@@ -163,10 +163,28 @@ static int ovl_dentry_weak_revalidate(struct dentry *dentry, unsigned int flags)
 	return ovl_dentry_revalidate_common(dentry, flags, true);
 }
 
+#ifdef CONFIG_LOCKDEP
+static int ovl_dentry_init(struct dentry *dentry)
+{
+	static struct lock_class_key ovl_d_lock_key[OVL_MAX_NESTING];
+	int depth = dentry->d_sb->s_stack_depth - 1;
+
+	if (WARN_ON_ONCE(depth < 0 || depth >= OVL_MAX_NESTING))
+		depth = 0;
+
+	lockdep_set_class(dentry, &ovl_d_lock_key[depth]);
+
+	return 0;
+}
+#else
+#define ovl_dentry_init NULL
+#endif
+
 static const struct dentry_operations ovl_dentry_operations = {
 	.d_real = ovl_d_real,
 	.d_revalidate = ovl_dentry_revalidate,
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
+	.d_init = ovl_dentry_init,
 };
 
 #if IS_ENABLED(CONFIG_UNICODE)
@@ -176,6 +194,7 @@ static const struct dentry_operations ovl_dentry_ci_operations = {
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 	.d_hash = generic_ci_d_hash,
 	.d_compare = generic_ci_d_compare,
+	.d_init = ovl_dentry_init,
 };
 #endif
 

@@ -116,6 +116,8 @@ struct dentry {
 					 * possible!
 					 */
 
+	/* lockdep tracking of DCACHE_PAR_LOOKUP locks */
+	struct lockdep_map		dep_map;
 	struct list_head d_lru;		/* LRU list */
 	struct hlist_node d_sib;	/* child of parent list */
 	struct hlist_head d_children;	/* our children */
@@ -236,7 +238,9 @@ enum dentry_flags {
 	DCACHE_PAR_LOOKUP		= BIT(24),	/* being looked up (with parent locked shared) */
 	DCACHE_DENTRY_CURSOR		= BIT(25),
 	DCACHE_NORCU			= BIT(26),	/* No RCU delay for freeing */
-	DCACHE_PERSISTENT		= BIT(27)
+	DCACHE_PERSISTENT		= BIT(27),
+/* 28, 29, 30 free */
+	DCACHE_PRIVATE			= BIT(31)	/* fs-specific flag */
 };
 
 #define DCACHE_MANAGED_DENTRY \
@@ -257,7 +261,9 @@ extern void d_delete(struct dentry *);
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_anon(struct super_block *);
 extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *);
+extern struct dentry * d_alloc_trylock(struct dentry *, struct qstr *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
+struct dentry *d_duplicate(struct dentry *dentry);
 /* weird procfs mess; *NOT* exported */
 extern struct dentry * d_splice_alias_ops(struct inode *, struct dentry *,
 					  const struct dentry_operations *);
@@ -551,6 +557,36 @@ static inline int simple_positive(const struct dentry *dentry)
 }
 
 unsigned long vfs_pressure_ratio(unsigned long val);
+
+/**
+ * d_lookup_release - release ownership of DCACHE_PAR_LOOKUP lock
+ * @dentry: dentry that is locked
+ *
+ * If an in-lookup dentry is to be passed to another thread which
+ * will drop the in-lookup lock, then d_lookup_release() must be called
+ * to tell lockdep that this thread no lock holds the lock.  The
+ * thread that receives the lock must call d_lookup_acquire() to
+ * acquire the lock.
+ */
+static inline void d_lookup_release(struct dentry *dentry)
+{
+	if (d_in_lookup(dentry))
+		lock_map_release(&dentry->dep_map);
+}
+
+/**
+ * d_lookup_acquire - acquire ownership of DCACHE_PAR_LOOKUP lock
+ * @dentry: dentry that is locked
+ *
+ * If an in-lookup dentry was passed to this thread, the
+ * d_lookup_acquire() must be called to tell lockdep that this
+ * thread now owns the DCACHE_PAR_LOOKUP lock.
+ */
+static inline void d_lookup_acquire(struct dentry *dentry)
+{
+	if (d_in_lookup(dentry))
+		lock_map_acquire_try(&dentry->dep_map);
+}
 
 /**
  * d_inode - Get the actual inode of this dentry
