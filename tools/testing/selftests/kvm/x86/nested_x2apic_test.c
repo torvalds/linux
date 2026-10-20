@@ -86,7 +86,7 @@ static void l1_vmx_code(struct vmx_pages *vmx, struct hyperv_test_pages *hv_page
 		   SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		   SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
 	control &= (rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2) >> 32);
-	vmwrite(SECONDARY_VM_EXEC_CONTROL, control), 0;
+	vmwrite(SECONDARY_VM_EXEC_CONTROL, control);
 
 	vmlaunch();
 	GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_CPUID);
