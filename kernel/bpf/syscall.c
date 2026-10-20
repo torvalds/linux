@@ -5087,6 +5087,12 @@ static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog,
 			insns[i].imm = BPF_FUNC_tail_call;
 			/* fall-through */
 		}
+		/*
+		 * BPF_JCOND is the same opcode as BPF_CALL_ARGS. The latter is for
+		 * the interpreter, and a prog with unwind_goto is always JITed.
+		 */
+		if (prog->jited && bpf_is_unwind_goto(&insns[i]))
+			continue;
 		if (code == (BPF_JMP | BPF_CALL) ||
 		    code == (BPF_JMP | BPF_CALL_ARGS)) {
 			/* Restore the legacy xlated dump layout. */

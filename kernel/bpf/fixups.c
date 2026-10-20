@@ -658,6 +658,7 @@ void bpf_opt_hard_wire_dead_code_branches(struct bpf_verifier_env *env)
 {
 	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
 	struct bpf_insn ja = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+	struct bpf_insn trap = BPF_JMP_IMM(BPF_JA, 0, 0, -1);
 	struct bpf_insn *insn = env->prog->insnsi;
 	const int insn_cnt = env->prog->len;
 	int i;
@@ -665,6 +666,20 @@ void bpf_opt_hard_wire_dead_code_branches(struct bpf_verifier_env *env)
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		if (!bpf_insn_is_cond_jump(insn->code))
 			continue;
+
+		if (bpf_is_unwind_goto(insn) && aux_data[i + 1 + insn->off].seen) {
+			/*
+			 * The callee never exits. Its unwind_exit needs
+			 * unwind_goto all the same, and the cpu predicts that it
+			 * returns to what follows. Don't let the removal of dead
+			 * code put something else there.
+			 */
+			if (!aux_data[i + 1].seen) {
+				memcpy(insn + 1, &trap, sizeof(trap));
+				aux_data[i + 1].seen = env->pass_cnt;
+			}
+			continue;
+		}
 
 		if (!aux_data[i + 1].seen)
 			ja.off = insn->off;
@@ -1467,12 +1482,15 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			if (BPF_CLASS(insn->code) == BPF_STX &&
 			     BPF_MODE(insn->code) == BPF_PROBE_ATOMIC)
 				num_exentries++;
+			if (bpf_is_unwind_goto(insn))
+				num_exentries++;
 		}
 		func[i]->aux->num_exentries = num_exentries;
 		func[i]->aux->tail_call_reachable = env->subprog_info[i].tail_call_reachable;
 		func[i]->aux->exception_cb = env->subprog_info[i].is_exception_cb;
 		func[i]->aux->changes_pkt_data = env->subprog_info[i].changes_pkt_data;
 		func[i]->aux->might_sleep = env->subprog_info[i].might_sleep;
+		func[i]->aux->can_unwind = env->subprog_info[i].can_unwind;
 		func[i]->aux->token = prog->aux->token;
 		if (!i)
 			func[i]->aux->exception_boundary = env->seen_exception;

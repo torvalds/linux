@@ -56,6 +56,19 @@
 
 enum bpf_cond_pseudo_jmp {
 	BPF_MAY_GOTO = 0,
+	/*
+	 * Follows a call of a bpf subprog. Taken when the subprog left with
+	 * BPF_EXIT that has src_reg == BPF_UNWIND_EXIT.
+	 */
+	BPF_UNWIND_GOTO = 1,
+};
+
+enum bpf_pseudo_exit {
+	/*
+	 * When bpf_exit->src_reg == BPF_UNWIND_EXIT, it's the same as bpf_exit,
+	 * except that BPF_UNWIND_GOTO after the call is taken.
+	 */
+	BPF_UNWIND_EXIT = 1,
 };
 
 /* Register numbers */

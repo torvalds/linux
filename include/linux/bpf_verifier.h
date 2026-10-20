@@ -532,6 +532,8 @@ struct bpf_verifier_state {
 
 	bool speculative;
 	bool in_sleepable;
+	/* The callee left with unwind_exit. Next insn is unwind_goto. */
+	bool unwound;
 
 	/*
 	 * First and last insn idx of this verifier state.
@@ -957,6 +959,7 @@ struct bpf_subprog_info {
 	s16 fastcall_stack_off;
 	bool has_tail_call: 1;
 	bool might_throw: 1;
+	bool can_unwind: 1; /* has unwind_exit */
 	bool tail_call_reachable: 1;
 	bool has_ld_abs: 1;
 	bool is_cb: 1;
