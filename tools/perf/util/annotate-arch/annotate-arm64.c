@@ -9,6 +9,10 @@
 #include <regex.h>
 #include "../annotate.h"
 #include "../disasm.h"
+#include "../annotate-data.h"
+#include "../debug.h"
+#include "../map.h"
+#include "../symbol.h"
 
 struct arch_arm64 {
 	struct arch arch;
@@ -448,6 +452,86 @@ check_modifiers:
 	}
 }
 
+#ifdef HAVE_LIBDW_SUPPORT
+/* Check if the instruction is read-only (does not modify register state). */
+static bool is_readonly_insn(const char *name)
+{
+	return !strncmp(name, "cb", 2) || !strncmp(name, "tb", 2) ||
+	       !strcmp(name, "tst") || !strcmp(name, "teq") ||
+	       !strcmp(name, "cmp") || !strcmp(name, "cmn") ||
+	       !strcmp(name, "ccmp") || !strcmp(name, "ccmn");
+}
+
+static void update_call_insn_state(struct type_state *state,
+				   struct data_loc_info *dloc,
+				   struct disasm_line *dl)
+{
+	struct symbol *func = dl->ops.target.sym;
+	const char *call_name;
+	u64 call_addr;
+	u32 insn_offset = dl->al.offset;
+
+	call_name = func ? func->name : dl->ops.target.name;
+	pr_debug_dtp("call [%x] %s\n", insn_offset, call_name ?: "<unknown>");
+
+	/* Invalidate caller-saved registers after call */
+	call_addr = map__rip_2objdump(dloc->ms->map,
+				      dloc->ms->sym->start + dl->al.offset);
+	for (unsigned int i = 0; i < ARRAY_SIZE(state->regs); i++) {
+		struct type_state_reg *reg = &state->regs[i];
+
+		if (!reg->caller_saved)
+			continue;
+		/* Keep register valid within DWARF location lifetime */
+		if (reg->lifetime_active && call_addr < reg->lifetime_end)
+			continue;
+		invalidate_reg_state(reg);
+	}
+}
+
+/* Invalidate registers explicitly written by an unhandled instruction. */
+static void invalidate_unhandled_insn_regs(struct type_state *state,
+					   struct disasm_line *dl,
+					   struct annotated_op_loc *dst)
+{
+	u32 insn_offset = dl->al.offset;
+
+	/* Invalidate destination registers */
+	if (has_reg_type(state, dst->reg1) && !dst->mem_ref) {
+		pr_debug_dtp("%s [%x] invalidate reg%d",
+			     dl->ins.name, insn_offset, dst->reg1);
+		invalidate_reg_state(&state->regs[dst->reg1]);
+
+		if (dst->multi_regs && has_reg_type(state, dst->reg2)) {
+			pr_debug_dtp(" and reg%d", dst->reg2);
+			invalidate_reg_state(&state->regs[dst->reg2]);
+		}
+		pr_debug_dtp("\n");
+	}
+
+	/* TODO: Extend invalidation support to more special instructions. */
+}
+
+static void update_insn_state_arm64(struct type_state *state,
+				    struct data_loc_info *dloc, Dwarf_Die *cu_die __maybe_unused,
+				    struct disasm_line *dl)
+{
+	struct annotated_insn_loc loc;
+	struct annotated_op_loc *dst = &loc.ops[INSN_OP_TARGET];
+
+	if (is_readonly_insn(dl->ins.name))
+		return;
+
+	if (annotate_get_insn_location(dloc->arch, dl, &loc) < 0)
+		return;
+
+	if (ins__is_call(&dl->ins))
+		update_call_insn_state(state, dloc, dl);
+	else
+		invalidate_unhandled_insn_regs(state, dl, dst);
+}
+#endif
+
 const struct arch *arch__new_arm64(const struct e_machine_and_e_flags *id,
 				   const char *cpuid __maybe_unused)
 {
@@ -467,6 +551,9 @@ const struct arch *arch__new_arm64(const struct e_machine_and_e_flags *id,
 	arch->objdump.imm_char		  = '#';
 	arch->associate_instruction_ops   = arm64__associate_instruction_ops;
 	arch->extract_op_location	  = extract_op_location_arm64;
+#ifdef HAVE_LIBDW_SUPPORT
+	arch->update_insn_state		  = update_insn_state_arm64;
+#endif
 
 	/* bl, blr */
 	err = regcomp(&arm->call_insn, "^blr?$", REG_EXTENDED);
