@@ -2,12 +2,8 @@
 /* PTP classifier
  */
 
-/* The below program is the bpf_asm (tools/net/) representation of
- * the opcode array in the ptp_filter structure.
- *
- * For convenience, this can easily be altered and reviewed with
- * bpf_asm and bpf_dbg, e.g. `./bpf_asm -c prog` where prog is a
- * simple file containing the below program:
+/* The below program is the classic BPF assembly representation of
+ * the opcode array in the ptp_filter structure:
  *
  * ldh [12]                        ; load ethertype
  *
