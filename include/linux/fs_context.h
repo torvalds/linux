@@ -150,6 +150,10 @@ extern int vfs_parse_fs_param_source(struct fs_context *fc,
 				     struct fs_parameter *param);
 extern void fc_drop_locked(struct fs_context *fc);
 
+int get_tree_super(struct fs_context *fc,
+		   int (*test)(struct super_block *, struct fs_context *),
+		   int (*fill_super)(struct super_block *sb,
+				     struct fs_context *fc));
 extern int get_tree_nodev(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
