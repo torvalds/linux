@@ -37,6 +37,49 @@ static void ksock_release_work_fn(struct work_struct *work)
 	kfree(ks);
 }
 
+static int bpf_ksock_addr_to_sockaddr(const union bpf_ksock_addr *addr,
+				      u32 addr_sz, struct sockaddr_storage *sa)
+{
+	if (!addr || addr_sz != sizeof(*addr))
+		return -EINVAL;
+
+	/* Kfunc memory arguments may be unaligned. */
+	memcpy(sa, addr, sizeof(*addr));
+
+	switch (sa->ss_family) {
+	case AF_INET:
+		return sizeof(struct sockaddr_in);
+	case AF_INET6:
+		return sizeof(struct sockaddr_in6);
+	default:
+		return -EAFNOSUPPORT;
+	}
+}
+
+static int ksock_sendto(struct bpf_ksock *ks, const void *data, u32 data_sz,
+			const union bpf_ksock_addr *addr, u32 addr_sz)
+{
+	struct sockaddr_storage sa;
+	struct msghdr msg = {
+		.msg_flags = MSG_DONTWAIT,
+	};
+	struct kvec iov = {
+		.iov_base = (void *)data,
+		.iov_len = data_sz,
+	};
+	int addrlen;
+
+	if (addr) {
+		addrlen = bpf_ksock_addr_to_sockaddr(addr, addr_sz, &sa);
+		if (addrlen < 0)
+			return addrlen;
+		msg.msg_name = &sa;
+		msg.msg_namelen = addrlen;
+	}
+
+	return kernel_sendmsg(ks->sock, &msg, &iov, 1, data_sz);
+}
+
 __bpf_kfunc_start_defs();
 
 /**
@@ -155,22 +198,9 @@ __bpf_kfunc int bpf_ksock_connect(struct bpf_ksock *ks,
 	struct sockaddr_storage sa;
 	int addrlen;
 
-	if (!addr || addr__sz != sizeof(*addr))
-		return -EINVAL;
-
-	/* Kfunc memory arguments may be unaligned. */
-	memcpy(&sa, addr, sizeof(*addr));
-
-	switch (sa.ss_family) {
-	case AF_INET:
-		addrlen = sizeof(struct sockaddr_in);
-		break;
-	case AF_INET6:
-		addrlen = sizeof(struct sockaddr_in6);
-		break;
-	default:
-		return -EAFNOSUPPORT;
-	}
+	addrlen = bpf_ksock_addr_to_sockaddr(addr, addr__sz, &sa);
+	if (addrlen < 0)
+		return addrlen;
 
 	return connect_socket(ks->sock, &sa, addrlen, 0);
 }
@@ -225,18 +255,29 @@ CFI_NOSEAL(bpf_ksock_release_dtor);
 __bpf_kfunc int bpf_ksock_send(struct bpf_ksock *ks, const void *data,
 			       u32 data__sz)
 {
-	struct msghdr msg = {
-		.msg_flags = MSG_DONTWAIT,
-	};
-	struct kvec iov = {
-		.iov_base = (void *)data,
-		.iov_len = data__sz,
-	};
-	int ret;
+	return ksock_sendto(ks, data, data__sz, NULL, 0);
+}
 
-	ret = kernel_sendmsg(ks->sock, &msg, &iov, 1, data__sz);
-
-	return ret;
+/**
+ * bpf_ksock_sendto() - Send data through a BPF kernel socket to a remote address.
+ * @ks:		The BPF kernel socket context. Must be an acquired reference.
+ * @data:	Pointer to the data to send.
+ * @data__sz:	Size of the data to send.
+ * @addr__nullable: Pointer to an IPv4 or IPv6 socket address, or NULL to use
+ *		   the connected destination.
+ * @addr__sz:	Size of the address union, ignored when the address is NULL.
+ *
+ * Sends data to the specified address, or to the connected destination when
+ * the address is NULL, best-effort and nonblocking. This may sleep
+ * (kernel_sendmsg), so it can only be called from sleepable BPF programs.
+ *
+ * Return: Number of bytes sent on success, negative errno on error.
+ */
+__bpf_kfunc int bpf_ksock_sendto(struct bpf_ksock *ks, const void *data, u32 data__sz,
+				 const union bpf_ksock_addr *addr__nullable,
+				 u32 addr__sz)
+{
+	return ksock_sendto(ks, data, data__sz, addr__nullable, addr__sz);
 }
 
 __bpf_kfunc_end_defs();
@@ -255,6 +296,7 @@ BTF_KFUNCS_START(ksock_kfunc_btf_ids)
 BTF_ID_FLAGS(func, bpf_ksock_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_ksock_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_ksock_send, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_ksock_sendto, KF_SLEEPABLE)
 BTF_KFUNCS_END(ksock_kfunc_btf_ids)
 
 #ifdef CONFIG_BPF_LSM
