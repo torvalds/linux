@@ -186,6 +186,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
+	if (!access_ok(frame, sizeof(*frame)))
+		goto give_sigsegv;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
