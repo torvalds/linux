@@ -1173,7 +1173,7 @@ extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 void afs_fetch_data_async_rx(struct work_struct *work);
 void afs_fetch_data_immediate_cancel(struct afs_call *call);
-void afs_set_i_size(struct afs_vnode *vnode, loff_t new_i_size);
+void afs_set_i_size(struct afs_vnode *vnode, uoff_t new_i_size);
 
 /*
  * flock.c

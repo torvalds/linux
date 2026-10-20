@@ -3097,7 +3097,7 @@ void cifs_resize_file_locked(struct inode *inode, loff_t old_size,
 		return;
 
 	fscache_use_cookie(cookie, true);
-	fscache_resize_cookie(cookie, offset);
+	fscache_resize_cookie(cookie, offset, offset < old_size);
 	cifs_fscache_unuse_inode_cookie(inode, true);
 }
 

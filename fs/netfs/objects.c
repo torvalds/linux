@@ -16,7 +16,7 @@ static void netfs_free_request(struct work_struct *work);
  */
 struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 					     struct file *file,
-					     loff_t start, size_t len,
+					     uoff_t start, size_t len,
 					     enum netfs_io_origin origin)
 {
 	static atomic_t debug_ids;
@@ -44,6 +44,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	rreq->gfp		= gfp;
 	rreq->start		= start;
 	rreq->collected_to	= start;
+	rreq->cache_coll_to	= start;
 	rreq->cleaned_to	= start;
 	rreq->len		= len;
 	rreq->progress_at	= 0;
@@ -207,7 +208,8 @@ void netfs_put_failed_request(struct netfs_io_request *rreq)
 /*
  * Allocate and partially initialise an I/O request structure.
  */
-struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq)
+struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq,
+						   enum netfs_io_source source)
 {
 	struct netfs_io_subrequest *subreq;
 	mempool_t *mempool = rreq->netfs_ops->subrequest_pool ?: &netfs_subrequest_pool;
@@ -224,6 +226,7 @@ struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq
 	INIT_WORK(&subreq->work, NULL);
 	INIT_LIST_HEAD(&subreq->rreq_link);
 	refcount_set(&subreq->ref, 2);
+	subreq->source = source;
 	subreq->rreq = rreq;
 	subreq->debug_index = atomic_inc_return(&rreq->subreq_counter);
 	netfs_get_request(rreq, netfs_rreq_trace_get_subreq);

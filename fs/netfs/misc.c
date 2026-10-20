@@ -194,7 +194,7 @@ void netfs_clear_inode_writeback(struct inode *inode, const void *aux)
 	struct fscache_cookie *cookie = netfs_i_cookie(netfs_inode(inode));
 
 	if (inode_state_read_once(inode) & I_PINNING_NETFS_WB) {
-		loff_t i_size = i_size_read(inode);
+		uoff_t i_size = i_size_read(inode);
 		fscache_unuse_cookie(cookie, aux, &i_size);
 	}
 }
@@ -219,8 +219,8 @@ void netfs_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 	_enter("{%lx},%zx,%zx", folio->index, offset, length);
 
 	if (offset == 0 && length == flen) {
-		unsigned long long i_size, remote_i_size, zero_point;
-		unsigned long long fpos = folio_pos(folio), end;
+		uoff_t i_size, remote_i_size, zero_point;
+		uoff_t fpos = folio_pos(folio), end;
 
 		netfs_read_sizes(inode, &i_size, &remote_i_size, &zero_point);
 		end = umin(fpos + flen, i_size);
@@ -306,7 +306,7 @@ bool netfs_release_folio(struct folio *folio, gfp_t gfp)
 {
 	struct inode *inode = folio_inode(folio);
 	struct netfs_inode *ctx = netfs_inode(inode);
-	unsigned long long i_size, remote_i_size, zero_point, end;
+	uoff_t i_size, remote_i_size, zero_point, end;
 
 	if (folio_test_dirty(folio))
 		return false;
@@ -425,7 +425,7 @@ static int netfs_collect_in_app(struct netfs_io_request *rreq,
 			need_collect = true;
 			break;
 		}
-		if (subreq || !test_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags))
+		if (subreq || !netfs_are_all_subreqs_queued(rreq))
 			done = false;
 	}
 

@@ -744,7 +744,7 @@ static void afs_setattr_edit_file(struct afs_operation *op)
 		if (size != old) {
 			truncate_pagecache(inode, size);
 			netfs_resize_file(&vnode->netfs, size, true);
-			fscache_resize_cookie(afs_vnode_cache(vnode), size);
+			fscache_resize_cookie(afs_vnode_cache(vnode), size, size < old);
 		}
 	}
 }
@@ -817,7 +817,7 @@ int afs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			truncate_setsize(inode, attr->ia_size);
 			netfs_resize_file(&vnode->netfs, size, false);
 			fscache_resize_cookie(afs_vnode_cache(vnode),
-					      attr->ia_size);
+					      attr->ia_size, attr->ia_size < i_size);
 			ret = 0;
 			goto out_unlock;
 		}

@@ -400,7 +400,6 @@ static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 		}
 		break;
 	case NETFS_WRITEBACK:
-	case NETFS_WRITETHROUGH:
 	case NETFS_UNBUFFERED_WRITE:
 	case NETFS_DIO_WRITE:
 		if (S_ISREG(rreq->inode->i_mode))
@@ -413,7 +412,7 @@ static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 	return 0;
 }
 
-static int afs_check_write_begin(struct file *file, loff_t pos, unsigned len,
+static int afs_check_write_begin(struct file *file, uoff_t pos, unsigned len,
 				 struct folio **foliop, void **_fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
@@ -434,7 +433,7 @@ static void afs_free_request(struct netfs_io_request *rreq)
  * Also, estimate the number of 512 bytes blocks used, rounded up to nearest 1K
  * for consistency with other AFS clients.
  */
-void afs_set_i_size(struct afs_vnode *vnode, loff_t new_i_size)
+void afs_set_i_size(struct afs_vnode *vnode, uoff_t new_i_size)
 {
 	struct inode *inode = &vnode->netfs.inode;
 	loff_t i_size;
@@ -448,10 +447,9 @@ void afs_set_i_size(struct afs_vnode *vnode, loff_t new_i_size)
 	}
 	spin_unlock(&inode->i_lock);
 	write_sequnlock(&vnode->cb_lock);
-	fscache_update_cookie(afs_vnode_cache(vnode), NULL, &new_i_size);
 }
 
-static void afs_update_i_size(struct inode *inode, loff_t new_i_size)
+static void afs_update_i_size(struct inode *inode, uoff_t new_i_size)
 {
 	afs_set_i_size(AFS_FS_I(inode), new_i_size);
 }

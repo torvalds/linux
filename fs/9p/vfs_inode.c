@@ -1022,6 +1022,9 @@ static int v9fs_vfs_setattr(const struct mnt_idmap *idmap,
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL;
 	struct p9_wstat wstat;
+#ifdef CONFIG_9P_FSCACHE
+	uoff_t old_size = i_size_read(inode);
+#endif
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 	retval = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
@@ -1086,7 +1089,8 @@ static int v9fs_vfs_setattr(const struct mnt_idmap *idmap,
 		if (v9ses->cache & CACHE_FSCACHE) {
 			struct v9fs_inode *v9inode = V9FS_I(inode);
 
-			fscache_resize_cookie(v9fs_inode_cookie(v9inode), iattr->ia_size);
+			fscache_resize_cookie(v9fs_inode_cookie(v9inode),
+					      iattr->ia_size, iattr->ia_size < old_size);
 		}
 #endif
 	}

@@ -519,6 +519,9 @@ int v9fs_vfs_setattr_dotl(const struct mnt_idmap *idmap,
 		.uid = INVALID_UID,
 		.gid = INVALID_GID,
 	};
+#ifdef CONFIG_9P_FSCACHE
+	uoff_t old_size = i_size_read(inode);
+#endif
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
@@ -580,7 +583,7 @@ int v9fs_vfs_setattr_dotl(const struct mnt_idmap *idmap,
 #ifdef CONFIG_9P_FSCACHE
 		if (v9ses->cache & CACHE_FSCACHE)
 			fscache_resize_cookie(v9fs_inode_cookie(V9FS_I(inode)),
-				iattr->ia_size);
+					      iattr->ia_size, iattr->ia_size < old_size);
 #endif
 	}
 
