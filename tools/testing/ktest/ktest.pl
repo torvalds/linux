@@ -3030,7 +3030,7 @@ sub run_git_bisect {
     doprint "SUCCESS\n";
     if ($output =~ m/^(Bisecting: .*\(roughly \d+ steps?\))\s+\[([[:xdigit:]]+)\]/) {
 	doprint "$1 [$2]\n";
-    } elsif ($output =~ m/^([[:xdigit:]]+) is the first bad commit/) {
+    } elsif ($output =~ m/^([[:xdigit:]]+) is the first (bad|'bad') commit/) {
 	$bisect_bad_commit = $1;
 	doprint "Found bad commit... $1\n";
 	return 0;
