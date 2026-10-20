@@ -298,7 +298,7 @@ int fix_alignment(struct pt_regs *regs)
 	if (is_kernel_addr(regs->nip))
 		r = copy_inst_from_kernel_nofault(&instr, (void *)regs->nip);
 	else
-		r = __get_user_instr(instr, (void __user *)regs->nip);
+		r = get_user_instr(instr, (void __user *)regs->nip);
 
 	if (unlikely(r))
 		return -EFAULT;
