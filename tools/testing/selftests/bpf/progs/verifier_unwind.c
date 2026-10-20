@@ -611,6 +611,35 @@ __naked int calls_global_never_unwinds(void)
 	);
 }
 
+/*
+ * The verifier gets to the pad from the first call only, with r6 = 1. The second
+ * unwind_goto stays, since the pad is not dead code.
+ */
+SEC("tc")
+__description("unwind: a pad shared with a call of a subprog that cannot unwind")
+__arch_x86_64
+__arch_arm64
+__load_if_JITed()
+__success __retval(7)
+__naked int shared_pad(void)
+{
+	asm volatile (
+		"r6 = 1;"
+		"call global_returns;"
+		unwind_goto(4)
+		"r6 = 2;"
+		"call global_never_unwinds;"
+		unwind_goto(1)
+		"exit;"
+		"r0 = r6;"
+		"exit;"
+		:
+		: __imm_unwind_goto(4),
+		  __imm_unwind_goto(1)
+		: __clobber_all
+	);
+}
+
 SEC("tc")
 __description("unwind: no unwind_goto after a call of a global subprog")
 __arch_x86_64
