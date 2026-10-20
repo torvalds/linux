@@ -24,7 +24,7 @@
 #define CTA_FILTER_FLAG(ctattr) CTA_FILTER_F_ ## ctattr
 
 /* nf_queue.c */
-void nf_queue_nf_hook_drop(struct net *net);
+void nf_queue_nf_hook_drop(struct net *net, const struct nf_hook_ops *ops);
 
 /* nf_log.c */
 int __init netfilter_log_init(void);

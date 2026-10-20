@@ -277,8 +277,9 @@ Netfilter
 =========
 
 The bridge netfilter module is a legacy feature that allows to filter bridged
-packets with iptables and ip6tables. Its use is discouraged. Users should
-consider using nftables for packet filtering.
+packets with iptables and ip6tables. This feature is scheduled for removal and
+not available in user namespaces. Consider using nftables for packet filtering
+instead.
 
 The older ebtables tool is more feature-limited compared to nftables, but
 just like nftables it doesn't need this module either to function.

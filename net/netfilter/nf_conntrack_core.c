@@ -2410,7 +2410,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 
 		if (atomic_read(&cnet->count) == 0)
 			continue;
-		nf_queue_nf_hook_drop(net);
+		nf_queue_nf_hook_drop(net, NULL);
 	}
 	up_read(&net_rwsem);
 
@@ -2505,6 +2505,11 @@ i_see_dead_people:
 		schedule();
 		goto i_see_dead_people;
 	}
+
+	/* must wait for current scan loop, worker also looks at
+	 * struct nf_conntrack_net, which is about to be free'd.
+	 */
+	flush_work(&conntrack_gc_work.dwork.work);
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
 		warn_on_keymap_list_leak(net);
