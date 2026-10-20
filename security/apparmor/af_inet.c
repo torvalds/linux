@@ -425,7 +425,7 @@ int aa_inet_connect_perm(struct socket *sock, struct sockaddr *addr,
 	if (addrlen < offsetofend(struct sockaddr, sa_family))
 		return -EINVAL;
 	if (addr->sa_family == AF_UNSPEC)
-		return 0;
+		return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk);
 
 	/* do we need early bailout for !family ... */
 	return sk_has_perm2(sock->sk, OP_CONNECT, AA_MAY_CONNECT, profile, ad,
