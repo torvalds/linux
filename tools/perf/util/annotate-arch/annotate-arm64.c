@@ -12,6 +12,7 @@
 #include "../disasm.h"
 #include "../annotate-data.h"
 #include "../debug.h"
+#include "../dso.h"
 #include "../map.h"
 #include "../symbol.h"
 
@@ -727,13 +728,23 @@ retry:
 		u64 ip = dloc->ms->sym->start + dl->al.offset;
 		u64 addr = src_tsr->imm_value + reg_offset;
 		int offset;
+		u8 kind;
+		const char *var_name = NULL;
+
+		/* it might be per-cpu offset */
+		if (dso__kernel(map__dso(dloc->ms->map)) &&
+		    get_global_var_info(dloc, addr, &var_name, &offset) &&
+		    !strcmp(var_name, "__per_cpu_offset"))
+			kind = TSR_KIND_PERCPU_BASE;
+		else
+			kind = TSR_KIND_TYPE;
 
 		if (!get_global_var_type(cu_die, dloc, ip, addr, &offset, &type_die) ||
 		    !die_get_member_type(&type_die, offset, &type_die))
 			return -1;
 
 		tsr->type = type_die;
-		tsr->kind = TSR_KIND_TYPE;
+		tsr->kind = kind;
 		tsr->offset = 0;
 		tsr->imm_value = 0;
 		tsr->ok = true;
@@ -748,6 +759,12 @@ retry:
 		pr_debug_type_name(&tsr->type, tsr->kind);
 		return 0;
 	}
+
+	/*
+	 * If src_tsr->kind is TSR_KIND_PERCPU_BASE, treat it as an array.
+	 * No special handling is needed here; just fall through to retry
+	 * and resolve the type from the second register.
+	 */
 
 load_non_regoff:
 	/* Try another register if any */
@@ -1045,6 +1062,12 @@ retry:
 		pr_debug_type_name(&tsr->type, tsr->kind);
 		return;
 	}
+
+	/*
+	 * If src_tsr->kind is TSR_KIND_PERCPU_BASE, treat it as an array.
+	 * No special handling is needed here; just fall through to retry
+	 * and resolve the type from the second register.
+	 */
 
 add_non_regoff:
 	/* Try another register if any */

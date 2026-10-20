@@ -1307,13 +1307,17 @@ int arch_get_reg_offset(const struct arch *arch, struct annotated_op_loc *op_loc
 
 		/*
 		 * For register-based addressing without shift/extension,
-		 * reg2 may be a constant offset. Use its value as the offset
-		 * from the base register.
+		 * derive the offset from the type of reg2.
 		 */
 		reg2 = op_loc->reg1 == breg ? op_loc->reg2 : op_loc->reg1;
-		if (has_reg_type(state, reg2) && state->regs[reg2].ok &&
-			state->regs[reg2].kind == TSR_KIND_CONST) {
-			*offset = (s64)state->regs[reg2].imm_value;
+		if (has_reg_type(state, reg2) && state->regs[reg2].ok) {
+			if (state->regs[reg2].kind == TSR_KIND_CONST)
+				*offset = (s64)state->regs[reg2].imm_value;
+			else if (state->regs[reg2].kind == TSR_KIND_PERCPU_BASE)
+				*offset = 0;  /* it does not contribute to the offset */
+			else
+				return -1;
+
 			return 0;
 		}
 
@@ -1448,10 +1452,30 @@ again:
 	}
 
 	if (state->regs[reg].kind == TSR_KIND_PERCPU_BASE) {
-		u64 var_addr = (s64) offset;
+		u64 var_addr;
 		int var_offset;
 
 		pr_debug_dtp("percpu var");
+
+		if (arch__is_arm64(dloc->arch)) {
+			int reg2;
+
+			if (!retry || !dloc->op->multi_regs ||
+			    dloc->op->reg1 == dloc->op->reg2 ||
+			    dloc->op->extend_type || dloc->op->shift_type)
+				return PERF_TMR_BAIL_OUT;
+
+			reg2 = dloc->op->reg2;
+			if (!has_reg_type(state, reg2) || !state->regs[reg2].ok)
+				return PERF_TMR_NO_TYPE;
+
+			pr_debug_dtp(" : retry\n");
+			retry = false;
+			reg = reg2;
+			goto again;
+		}
+
+		var_addr = (s64) offset;
 
 		if (dloc->op->multi_regs) {
 			int reg2 = dloc->op->reg2;
