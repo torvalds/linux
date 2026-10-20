@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <bpf/bpf_helpers.h>
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
@@ -53,6 +54,12 @@ __naked void name(void)                                                         
 
 #define PRE__COND_TEST2(name, op, initial, step, bound, msg)                     \
 	PRE__COND_TEST(name, op, initial, step, bound, msg, LIMIT_ITERATIONS)
+
+#define POST_COND_TEST32(name, op, initial, step, bound, msg)                    \
+	COND_TEST(name, initial, step, bound, msg,                              \
+		"1: r8 = %[step] ll;" LIMIT_ITERATIONS                           \
+		"w6 += w8;"                                                     \
+		"if w6 " op " w7 goto 1b;")
 
 #define ITER_U64_MAX (~0ULL)
 #define ITER_S64_MAX ((1ULL << 63) - 1)
@@ -969,6 +976,42 @@ PRE__COND_TEST (pre_ne_step_min,   "==",                 0, ITER_S64_MIN,     IT
  */
 PRE__COND_TEST2(pre_lt_zero_step,  ">=",                 1,            0,                7, "can't compute iterations count")
 
+/*
+ * Signed JMP32 comparisons sign-extend the initial value, bound and step.
+ * Encode negative operands as positive u32 constants so the conversion matters.
+ * post32_sgt also checks that an exit exactly at S32_MIN is accepted.
+ */
+/*              name               op                 initial  step             bound  expected message */
+POST_COND_TEST32(post32_slt,       "s<",                  -7u,    2,              -1u, "header_count is [0..3] ")
+POST_COND_TEST32(post32_sle,       "s<=",                 -7u,    2,              -1u, "header_count is [0..4] ")
+POST_COND_TEST32(post32_sgt,       "s>", (__u32)INT32_MIN + 6,  -2u, (__u32)INT32_MIN, "header_count is [0..3] ")
+POST_COND_TEST32(post32_sge,       "s>=",                 -1u,  -2u,              -7u, "header_count is [0..4] ")
+
+/*
+ * When computing 32-bit iteration bounds, scev.c:compute_max_iters() does
+ * the computation in the 64-bit domain first. For unsigned JMP32 comparisons,
+ * it zero-extends the initial value and bound, but sign-extends the step.
+ * Hence pick negative 64-bit initial values and bounds, and encode negative
+ * steps as positive u32 constants, so both conversions affect the computation.
+ * post32_lt also checks that an exit exactly at U32_MAX is accepted.
+ */
+POST_COND_TEST32(post32_lt,        "<",                    -7,    2,               -1, "header_count is [0..3] ")
+POST_COND_TEST32(post32_le,        "<=",                   -9,    2,               -3, "header_count is [0..4] ")
+POST_COND_TEST32(post32_gt,        ">",                    -1,  -2u,               -7, "header_count is [0..3] ")
+POST_COND_TEST32(post32_ge,        ">=",                   -1,  -2u,               -7, "header_count is [0..4] ")
+POST_COND_TEST32(post32_ne,        "!=",                   -1,  -2u,               -7, "header_count is [0..3] ")
+
+/* An exit exactly at S32_MAX is accepted as well. */
+POST_COND_TEST32(post32_slt_max,   "s<",        INT32_MAX - 6,    2,        INT32_MAX, "header_count is [0..3] ")
+
+/*
+ * The first iteration fits in 32 bits, but the predicted exit overshoots the bound
+ * by one and wraps.
+ */
+POST_COND_TEST32(post32_slt_wrap,  "s<",        INT32_MAX - 3,    2,        INT32_MAX, "can't compute iterations count")
+POST_COND_TEST32(post32_sgt_wrap,  "s>", (__u32)INT32_MIN + 3,  -2u, (__u32)INT32_MIN, "can't compute iterations count")
+POST_COND_TEST32(post32_lt_wrap,   "<",                    -4,    2,               -1, "can't compute iterations count")
+
 SEC("xdp")
 __success
 __log_level(2)
@@ -1549,7 +1592,7 @@ __msg_next("  r0=(+ r0 -1) / (linear (+ r0 -1) -1)")
 __msg("loop header at 1, header_count is 3 ")
 __msg("loop header at 1, widening r0 to 1..3 step 1")
 __msg("1: R0=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=3,var_off=(0x0; 0x3)) loop_stack=1")
-__msg("loop header at 1, clamping r0 to 1..2 step 1")
+__msg("loop header at 1, clamping r0 to 1..2 (s32 1..2) step 1")
 __msg("processed 5 insns")
 __naked void post_cond_jne_neg_step(void)
 {
@@ -1588,6 +1631,234 @@ __naked void pre_cond_je1(void)
 	r0 += 1;					\
 	goto 1b;					\
 2:	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg_next("scev at header 1:")
+__msg_next("  r0=(zext32 (+ r0 1)) / (zext32 (linear r0 1))")
+__msg_next(" scev at latch 2:")
+__msg_next("  r0=(zext32 (+ r0 1)) / (zext32 (linear (+ r0 1) 1))")
+__msg("loop header at 1, widening r0")
+__msg("1: R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=2,{{.*}})")
+__msg("1: (04) w0 += 1                       ; R0=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=3,{{.*}})")
+__msg("2: (56) if w0 != 0x3 goto pc-2")
+__msg("3: (95) exit")
+__msg("loop header at 1, clamping r0")
+__msg("from 2 to 1: safe")
+__msg("processed 5 insns")
+__naked void post_cond_jne32(void)
+{
+	asm volatile ("					\
+	w0 = 0;						\
+1:	w0 += 1;					\
+	if w0 != 3 goto 1b;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/* w0 ∈ {0xffffffff, 2, 5}, w0 % 3 ∈ {0, 2, 2} ⇒ step 3 can't be preserved */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("scev at header 1:")
+__msg_next("  r0=(zext32 (+ r0 3)) / (zext32 (linear r0 3))")
+__msg_next(" scev at latch 2:")
+__msg_next("  r0=(zext32 (+ r0 3)) / (zext32 (linear (+ r0 3) 3))")
+__msg("entering loop 1")
+__msg_next("loop header at 1, header_count is 2")
+__msg("loop header at 1, widening r0 to 0..0xffffffff (s32 -1..2) step 1")
+__msg("1: R0=scalar(smin=0,smax=umax=0xffffffff,smin32=-1,smax32=2,{{.*}})")
+__naked void post_cond_jne32_overflow(void)
+{
+	asm volatile ("					\
+	w0 = 0xffffffff;				\
+1:	w0 += 3;					\
+	if w0 != 5 goto 1b;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * w0 ∈ {0, 3, ..., 0xffffffff, 2, 5}, w0 % 3 ∈ {0, 0, ..., 0, 2, 2}
+ * ⇒ step 3 can't be preserved.
+ */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 2, header_count is 1431655767")
+__msg("loop header at 2, widening r0 to 0..0xffffffff step 1")
+__naked void post_cond_jne32_full_range(void)
+{
+	asm volatile ("					\
+	w0 = 0;						\
+	w1 = 0;						\
+1:	w0 += 3;					\
+	w1 += 1;					\
+	if w1 != 1431655767 goto 1b;			\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/* r0 ∈ {-6, 0xfffffff7, 0xfffffff4}, r0 % 3 ∈ {0, 1, 1} ⇒ step 3 can't be preserved. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 1, header_count is 2")
+__msg("loop header at 1, widening r0 to -6..0xfffffffa (s32 -9..-6) step 1")
+__naked void post_cond_jne32_base_mismatch(void)
+{
+	asm volatile ("					\
+	r0 = -6;					\
+1:	w0 += -3;					\
+	if w0 != -12 goto 1b;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * r0 ∈ {0, 0xffffffff, 0xfffffffe},
+ * ⇒ the 64-bit header bounds are [0, U32_MAX], 32-bit header bounds are [-1, 0].
+ */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 1, header_count is 2")
+__msg("loop header at 1, widening r0 to 0..0xffffffff (s32 -1..0) step 1")
+__naked void post_cond_jne32_neg_step(void)
+{
+	asm volatile ("					\
+	w0 = 0;						\
+1:	w0 += -1;					\
+	if w0 != -2 goto 1b;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * r0 ∈ {S64_MIN + 1, 3, 5}, r0 % 2 ∈ {1, 1, 1}
+ * ⇒ step 2 and base 1 can be preserved.
+ */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 2, header_count is 2")
+__msg("loop header at 2, widening r0 to 0x8000000000000000..0x7fffffffffffffff (s32 1..3) step 2")
+__msg("2: R0=scalar({{.*}}step=1+2)")
+__naked void post_cond_jne32_signed_boundary(void)
+{
+	asm volatile ("					\
+	r0 = %[initial] ll;				\
+1:	w0 += 2;					\
+	if w0 != 5 goto 1b;				\
+	exit;						\
+"	:
+	: __imm_const(initial, ITER_S64_MIN + 1)
+	: __clobber_all);
+}
+
+/* The pre-condition also visits the header with the terminating value 3. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 1, header_count is 4")
+__msg("loop header at 1, widening r0 to 0..3 (s32 0..3) step 1")
+__msg("loop header at 1, clamping r0")
+__msg("4: R0=3")
+__naked void pre_cond_je32(void)
+{
+	asm volatile ("					\
+	w0 = 0;						\
+1:	if w0 == 3 goto 2f;				\
+	w0 += 1;					\
+	goto 1b;					\
+2:	exit;						\
+"	::: __clobber_all);
+}
+
+/* ALU32 keeps r0 in [0, U32_MAX], so the 64-bit comparison never becomes false. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 4, can't compute iterations count")
+__naked void post_cond_alu32_jmp64(void)
+{
+	asm volatile ("					\
+	w0 = 0;						\
+	r1 = 0x100000003 ll;				\
+	r9 = 0;						\
+1:	"
+	LIMIT_ITERATIONS
+	"w0 += 1;					\
+	if r0 != r1 goto 1b;				\
+2:	exit;						\
+"	::: __clobber_all);
+}
+
+/* The signed 32-bit comparison is always true, even when r0 exceeds INT32_MAX. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 2, can't compute iterations count")
+__naked void post_cond_alu64_jmp32(void)
+{
+	asm volatile ("					\
+	r0 = %[initial];				\
+	r9 = 0;						\
+1:	"
+	LIMIT_ITERATIONS
+	"r0 += 1;					\
+	if w0 s<= %[bound] goto 1b;			\
+2:	exit;						\
+"	:
+	: __imm_const(initial, INT32_MAX - 1),
+	  __imm_const(bound, INT32_MAX)
+	: __clobber_all);
+}
+
+/* ALU32 values above INT32_MAX remain positive in a signed 64-bit comparison. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 3, header_count is 3")
+__msg("loop header at 3, widening r0 to 0xfffffffc..0xfffffffe (s32 -4..-2) step 1")
+__naked void post_cond_alu32_jmp64_bounded(void)
+{
+	asm volatile ("					\
+	w0 = -4;					\
+	r1 = 0xffffffff ll;				\
+1:	w0 += 1;					\
+	if r0 s< r1 goto 1b;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/* The negative 64-bit counter and its exit value fit in the signed 32-bit range. */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 1, header_count is 3")
+__msg("loop header at 1, widening r0 to -6..-2 step 2")
+__naked void post_cond_alu64_jmp32_bounded(void)
+{
+	asm volatile ("					\
+	r0 = -6;					\
+1:	r0 += 2;					\
+	if w0 s< 0 goto 1b;				\
+	exit;						\
 "	::: __clobber_all);
 }
 
