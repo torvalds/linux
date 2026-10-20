@@ -265,17 +265,8 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 	instrumentation_begin();
 	local_irq_enable();
 	/* Fetch EBP from where the vDSO stashed it. */
-	if (IS_ENABLED(CONFIG_X86_64)) {
-		/*
-		 * Micro-optimization: the pointer we're following is
-		 * explicitly 32 bits, so it can't be out of range.
-		 */
-		res = __get_user(*(u32 *)&regs->bp,
-			 (u32 __user __force *)(unsigned long)(u32)regs->sp);
-	} else {
-		res = get_user(*(u32 *)&regs->bp,
+	res = get_user(*(u32 *)&regs->bp,
 		       (u32 __user __force *)(unsigned long)(u32)regs->sp);
-	}
 
 	if (res) {
 		/* User code screwed up. */
