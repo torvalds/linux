@@ -43,6 +43,7 @@ struct cs35l56_private {
 	bool soft_resetting;
 	bool sdw_attached;
 	bool component_registered;
+	bool needs_wait_for_fw_idle;
 	struct completion init_completion;
 
 	int speaker_id;

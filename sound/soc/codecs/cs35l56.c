@@ -1703,6 +1703,10 @@ int cs35l56_system_resume(struct device *dev)
 
 	dev_dbg(dev, "system_resume\n");
 
+	/* Assume the firmware reset to default until we can check it */
+	if (cs35l56->base.init_done)
+		cs35l56->needs_wait_for_fw_idle = true;
+
 	/*
 	 * We might have done a hard reset or the CS35L56 was power-cycled
 	 * so wait for control port to be ready.
@@ -1716,6 +1720,16 @@ int cs35l56_system_resume(struct device *dev)
 
 	if (ret)
 		return ret;
+
+	if (cs35l56->sdw_peripheral && cs35l56->base.init_done) {
+		ret = pm_runtime_resume_and_get(cs35l56->base.dev);
+		if (ret < 0)
+			return ret;
+
+		cs35l56->needs_wait_for_fw_idle =
+			cs35l56_needs_wait_for_firmware_timer_expiry(&cs35l56->base);
+		pm_runtime_put_autosuspend(cs35l56->base.dev);
+	}
 
 	/* Firmware won't have been loaded if the component hasn't probed */
 	if (!cs35l56->component)
@@ -2240,6 +2254,9 @@ post_soft_reset:
 			      CS35L56_ASP1_DOUT_HIZ_CTRL_MASK);
 	if (ret)
 		return dev_err_probe(cs35l56->base.dev, ret, "Failed to write ASP1_CONTROL3\n");
+
+	cs35l56->needs_wait_for_fw_idle =
+		cs35l56_needs_wait_for_firmware_timer_expiry(&cs35l56->base);
 
 	cs35l56->base.init_done = true;
 	complete_all(&cs35l56->init_completion);

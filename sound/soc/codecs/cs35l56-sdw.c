@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
@@ -35,6 +36,9 @@
 
 #define CS35L56_LATE_READ_POLL_US	10
 #define CS35L56_LATE_READ_TIMEOUT_US	1000
+
+static DEFINE_MUTEX(cs35l56_fw_idle_wait_lock);
+static bool cs35l56_fw_idle_wait_pending;
 
 static int cs35l56_sdw_poll_mem_status(struct sdw_slave *peripheral,
 				       unsigned int mask,
@@ -387,14 +391,34 @@ static int __maybe_unused cs35l56_sdw_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int cs35l56_sdw_system_suspend_prepare(struct device *dev)
+{
+	cs35l56_fw_idle_wait_pending = true;
+
+	return 0;
+}
+
 static int __maybe_unused cs35l56_sdw_system_suspend(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
 
 	if (cs35l56->sdw_attached)
 		cs35l56_mask_soundwire_interrupts(cs35l56);
 
-	return cs35l56_system_suspend(dev);
+	ret = cs35l56_system_suspend(dev);
+	if (ret < 0)
+		return ret;
+
+	scoped_guard(mutex, &cs35l56_fw_idle_wait_lock) {
+		if (cs35l56_fw_idle_wait_pending && cs35l56->needs_wait_for_fw_idle) {
+			dev_dbg(cs35l56->base.dev, "Wait for FW timer expiry\n");
+			msleep(CS35L56_FW_REQ_ACTIVE_TIMEOUT_MS + 10);
+			cs35l56_fw_idle_wait_pending = false;
+		}
+	}
+
+	return 0;
 }
 
 static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_device_id *id)
@@ -460,6 +484,7 @@ static void cs35l56_sdw_remove(struct sdw_slave *peripheral)
 }
 
 static const struct dev_pm_ops cs35l56_sdw_pm = {
+	.prepare = cs35l56_sdw_system_suspend_prepare,
 	SET_RUNTIME_PM_OPS(cs35l56_sdw_runtime_suspend, cs35l56_sdw_runtime_resume, NULL)
 	SYSTEM_SLEEP_PM_OPS(cs35l56_sdw_system_suspend, cs35l56_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
