@@ -81,6 +81,28 @@ __load_new_mm_context(struct mm_struct *next_mm)
 	(((unsigned long *)regs)[(r) <= 8 ? (r) : (r) <= 15 ? (r)-17 :	\
 				 (r) <= 18 ? (r)+11 : (r)-10])
 
+/*
+ * As of EV6, a load into $31/$f31 is a prefetch, and never faults
+ * (or is suppressed by the PALcode).  Support that for older CPUs
+ * by ignoring such an instruction.
+ */
+static bool is_prefetch(struct pt_regs *regs)
+{
+	unsigned int insn;
+	int err;
+
+	if (user_mode(regs))
+		err = get_user(insn, (unsigned int __user *)regs->pc);
+	else
+		err = get_kernel_nofault(insn, (unsigned int *)regs->pc);
+	if (err)
+		return false;
+
+	/* ldq ldl ldt lds ldg ldf ldwu ldbu */
+	return (insn >> 21 & 0x1f) == 0x1f &&
+	       (1ul << (insn >> 26) & 0x30f00001400ul);
+}
+
 asmlinkage void
 do_page_fault(unsigned long address, unsigned long mmcsr,
 	      long cause, struct pt_regs *regs)
@@ -92,18 +114,9 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_DEFAULT;
 
-	/* As of EV6, a load into $31/$f31 is a prefetch, and never faults
-	   (or is suppressed by the PALcode).  Support that for older CPUs
-	   by ignoring such an instruction.  */
-	if (cause == 0) {
-		unsigned int insn;
-		__get_user(insn, (unsigned int __user *)regs->pc);
-		if ((insn >> 21 & 0x1f) == 0x1f &&
-		    /* ldq ldl ldt lds ldg ldf ldwu ldbu */
-		    (1ul << (insn >> 26) & 0x30f00001400ul)) {
-			regs->pc += 4;
-			return;
-		}
+	if (cause == 0 && is_prefetch(regs)) {
+		regs->pc += 4;
+		return;
 	}
 
 	/* If we're in an interrupt context, or have no user context,
