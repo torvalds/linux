@@ -1562,6 +1562,19 @@ int filp_close(struct file *filp, fl_owner_t id)
 }
 EXPORT_SYMBOL(filp_close);
 
+/* Like filp_close() but the last reference is put right here. */
+int filp_close_sync(struct file *filp, fl_owner_t id)
+{
+	int retval;
+
+	/* Kernel threads must never put their final reference here. */
+	VFS_WARN_ON_ONCE(current->flags & PF_KTHREAD);
+	retval = filp_flush(filp, id);
+	fput_close_sync(filp);
+
+	return retval;
+}
+
 /*
  * Careful here! We test whether the file pointer is NULL before
  * releasing the fd. This ensures that one clone task can't release
@@ -1576,13 +1589,11 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	if (!file)
 		return -EBADF;
 
-	retval = filp_flush(file, current->files);
-
 	/*
 	 * We're returning to user space. Don't bother
 	 * with any delayed fput() cases.
 	 */
-	fput_close_sync(file);
+	retval = filp_close_sync(file, current->files);
 
 	if (likely(retval == 0))
 		return 0;

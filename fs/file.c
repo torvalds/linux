@@ -364,7 +364,7 @@ static unsigned long fd_range_word(struct fd_range *range, unsigned int i)
 		       max(range->from, first) - first);
 }
 
-/* Bits of word @i that dup_fd() leaves behind. */
+/* Bits of word @i that dup_fd() leaves behind and __range_close() closes. */
 static unsigned long dup_fd_dropped_word(struct fdtable *fdt, unsigned int i,
 					 struct fd_range *range)
 {
@@ -531,7 +531,25 @@ struct files_struct *dup_fd(struct files_struct *oldf, struct fd_range *range)
 	return newf;
 }
 
-static struct fdtable *close_files(struct files_struct * files)
+/*
+ * Unshare file descriptor table if it is being shared
+ */
+int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp)
+{
+	struct files_struct *fd = current->files;
+
+	if ((unshare_flags & CLONE_FILES) &&
+	    (fd && atomic_read(&fd->count) > 1)) {
+		fd = dup_fd(fd, NULL);
+		if (IS_ERR(fd))
+			return PTR_ERR(fd);
+		*new_fdp = fd;
+	}
+
+	return 0;
+}
+
+static struct fdtable *close_files(struct files_struct *files)
 {
 	/*
 	 * It is safe to dereference the fd table without RCU or
@@ -539,24 +557,21 @@ static struct fdtable *close_files(struct files_struct * files)
 	 * files structure.
 	 */
 	struct fdtable *fdt = rcu_dereference_raw(files->fdt);
-	unsigned int i, j = 0;
+	unsigned int j = fdt->max_fds / BITS_PER_LONG;
 
-	for (;;) {
-		unsigned long set;
-		i = j * BITS_PER_LONG;
-		if (i >= fdt->max_fds)
-			break;
-		set = fdt->open_fds[j++];
+	/* Highest fd first, the order the deferred puts ran in. */
+	while (j--) {
+		unsigned long set = fdt->open_fds[j];
+
 		while (set) {
-			if (set & 1) {
-				struct file *file = fdt->fd[i];
-				if (file) {
-					filp_close(file, files);
-					cond_resched();
-				}
+			unsigned int bit = __fls(set);
+			struct file *file = fdt->fd[j * BITS_PER_LONG + bit];
+
+			set ^= 1UL << bit;
+			if (file) {
+				filp_close_sync(file, files);
+				cond_resched();
 			}
-			i++;
-			set >>= 1;
 		}
 	}
 
@@ -575,16 +590,18 @@ void put_files_struct(struct files_struct *files)
 	}
 }
 
+/* Install @files on @tsk, consuming the reference, and put the old table. */
+void switch_files_struct(struct task_struct *tsk, struct files_struct *files)
+{
+	scoped_guard(task_lock, tsk)
+		swap(tsk->files, files);
+	put_files_struct(files);
+}
+
 void exit_files(struct task_struct *tsk)
 {
-	struct files_struct * files = tsk->files;
-
-	if (files) {
-		task_lock(tsk);
-		tsk->files = NULL;
-		task_unlock(tsk);
-		put_files_struct(files);
-	}
+	if (tsk->files)
+		switch_files_struct(tsk, NULL);
 }
 
 struct files_struct init_files = {
@@ -792,16 +809,13 @@ struct file *file_close_fd_locked(struct files_struct *files, unsigned fd)
 
 int close_fd(unsigned fd)
 {
-	struct files_struct *files = current->files;
 	struct file *file;
 
-	spin_lock(&files->file_lock);
-	file = file_close_fd_locked(files, fd);
-	spin_unlock(&files->file_lock);
+	file = file_close_fd(fd);
 	if (!file)
 		return -EBADF;
 
-	return filp_close(file, files);
+	return filp_close(file, current->files);
 }
 EXPORT_SYMBOL(close_fd);
 
@@ -843,31 +857,42 @@ static inline void __range_cloexec(struct files_struct *cur_fds,
 	spin_unlock(&cur_fds->file_lock);
 }
 
-/* Next open descriptor in [fd, max_fd], or the next close-on-exec one. */
-static inline unsigned int next_open_fd(struct fdtable *fdt, unsigned int fd,
-					unsigned int max_fd,
-					struct fd_range *range)
-{
-	if (range->flags & FD_RANGE_CLOEXEC_ONLY)
-		return find_next_and_bit(fdt->open_fds, fdt->close_on_exec,
-					 max_fd + 1, fd);
-	return find_next_bit(fdt->open_fds, max_fd + 1, fd);
-}
-
-/* Next open descriptor in [fd, max_fd] that @range selects. */
-static inline unsigned int next_fd_to_close(struct fdtable *fdt,
-					    unsigned int fd, unsigned int max_fd,
+/* Highest open descriptor below @n that @range selects, or @n. */
+static inline unsigned int last_fd_to_close(struct fdtable *fdt, unsigned int n,
 					    struct fd_range *range)
 {
-	fd = next_open_fd(fdt, fd, max_fd, range);
-	/* Hop over the window the range keeps. */
-	if ((range->flags & FD_RANGE_EXCEPT) &&
-	    fd >= range->from && fd <= range->to) {
-		if (range->to >= max_fd)
-			return max_fd + 1;
-		fd = next_open_fd(fdt, range->to + 1, max_fd, range);
+	unsigned int i, lo = 0;
+
+	if (!(range->flags & FD_RANGE_EXCEPT))
+		lo = range->from / BITS_PER_LONG;
+	for (i = n ? (n - 1) / BITS_PER_LONG + 1 : 0; i-- > lo; ) {
+		unsigned long set = fdt->open_fds[i];
+
+		if (!set) {
+			/* Skip the empty stretch at find_last_bit() speed. */
+			unsigned int last = find_last_bit(fdt->open_fds, i * BITS_PER_LONG);
+
+			if (last >= i * BITS_PER_LONG)
+				break;
+			i = last / BITS_PER_LONG + 1;
+			continue;
+		}
+		/* Hop below the kept window in one step. */
+		if ((range->flags & FD_RANGE_EXCEPT) &&
+		    i * BITS_PER_LONG >= range->from &&
+		    i * BITS_PER_LONG + BITS_PER_LONG - 1 <= range->to) {
+			if (!range->from)
+				break;
+			i = (range->from - 1) / BITS_PER_LONG + 1;
+			continue;
+		}
+		set &= dup_fd_dropped_word(fdt, i, range);
+		if (i == (n - 1) / BITS_PER_LONG)
+			set &= BITMAP_LAST_WORD_MASK(n);
+		if (set)
+			return i * BITS_PER_LONG + __fls(set);
 	}
-	return fd;
+	return n;
 }
 
 static inline void __range_close(struct files_struct *files,
@@ -875,26 +900,23 @@ static inline void __range_close(struct files_struct *files,
 {
 	struct file *file;
 	struct fdtable *fdt;
-	unsigned int fd, max_fd;
+	unsigned int fd, n;
 
 	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
-	if (range->flags & FD_RANGE_EXCEPT) {
+	if (range->flags & FD_RANGE_EXCEPT)
 		/* Outside of the range means the whole table. */
-		fd = 0;
-		max_fd = last_fd(fdt);
-	} else {
-		fd = range->from;
-		max_fd = min(range->to, last_fd(fdt));
-	}
+		n = fdt->max_fds;
+	else
+		n = min(range->to, last_fd(fdt)) + 1;
 
-	for (fd = next_fd_to_close(fdt, fd, max_fd, range);
-	     fd <= max_fd;
-	     fd = next_fd_to_close(fdt, fd + 1, max_fd, range)) {
+	/* Highest fd first, see close_files(). */
+	while ((fd = last_fd_to_close(fdt, n, range)) < n) {
+		n = fd;
 		file = file_close_fd_locked(files, fd);
 		if (file) {
 			spin_unlock(&files->file_lock);
-			filp_close(file, files);
+			filp_close_sync(file, files);
 			cond_resched();
 			spin_lock(&files->file_lock);
 			fdt = files_fdtable(files);
@@ -986,10 +1008,7 @@ SYSCALL_DEFINE3(close_range, unsigned int, fd, unsigned int, max_fd,
 		 * We're done closing the files we were supposed to. Time to install
 		 * the new file descriptor table and drop the old one.
 		 */
-		task_lock(me);
-		me->files = cur_fds;
-		task_unlock(me);
-		put_files_struct(fds);
+		switch_files_struct(me, cur_fds);
 	}
 
 	return 0;
@@ -1015,34 +1034,36 @@ struct file *file_close_fd(unsigned int fd)
 	return file;
 }
 
-void do_close_on_exec(struct files_struct *files)
+void close_cloexec_files(struct files_struct *files)
 {
 	unsigned i;
 	struct fdtable *fdt;
 
 	/* exec unshares first */
 	spin_lock(&files->file_lock);
-	for (i = 0; ; i++) {
+	fdt = files_fdtable(files);
+	/* Highest fd first, see close_files(). */
+	for (i = fdt->max_fds / BITS_PER_LONG; i--; ) {
 		unsigned long set;
-		unsigned fd = i * BITS_PER_LONG;
+
 		fdt = files_fdtable(files);
-		if (fd >= fdt->max_fds)
-			break;
 		set = fdt->close_on_exec[i];
 		if (!set)
 			continue;
 		fdt->close_on_exec[i] = 0;
-		for ( ; set ; fd++, set >>= 1) {
+		while (set) {
+			unsigned int bit = __fls(set);
+			unsigned fd = i * BITS_PER_LONG + bit;
 			struct file *file;
-			if (!(set & 1))
-				continue;
+
+			set ^= 1UL << bit;
 			file = fdt->fd[fd];
 			if (!file)
 				continue;
 			rcu_assign_pointer(fdt->fd[fd], NULL);
 			__put_unused_fd(files, fd);
 			spin_unlock(&files->file_lock);
-			filp_close(file, files);
+			filp_close_sync(file, files);
 			cond_resched();
 			spin_lock(&files->file_lock);
 		}

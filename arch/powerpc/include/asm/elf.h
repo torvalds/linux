@@ -123,12 +123,6 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 	(0x7ff >> (PAGE_SHIFT - 12)) : \
 	(0x3ffff >> (PAGE_SHIFT - 12)))
 
-#ifdef CONFIG_SPU_BASE
-/* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
-#define NT_SPU		1
-
-#endif /* CONFIG_SPU_BASE */
-
 #ifdef CONFIG_PPC64
 
 #define get_cache_geometry(level) \

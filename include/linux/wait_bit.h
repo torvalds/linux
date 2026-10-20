@@ -433,6 +433,32 @@ do {									\
 })
 
 /**
+ * wait_var_event_state - wait for a variable to be updated and notified
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ * @state: the task state to sleep in, %TASK_UNINTERRUPTIBLE etc.
+ *
+ * Wait for a @condition to be true, only re-checking when a wake up is
+ * received for the given @var (an arbitrary kernel address which need
+ * not be directly related to the given condition, but usually is).
+ *
+ * Returns 0 if the condition became true, or %-ERESTARTSYS if a signal
+ * arrived which @state allows to interrupt.
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
+#define wait_var_event_state(var, condition, state)					\
+({											\
+	int __ret = 0;									\
+	might_sleep();									\
+	if (!(condition))								\
+		__ret = ___wait_var_event(var, condition, (state), 0, 0, schedule());	\
+	__ret;										\
+})
+
+/**
  * wait_var_event_any_lock - wait for a variable to be updated under a lock
  * @var: the address of the variable being waited on
  * @condition: condition to wait for

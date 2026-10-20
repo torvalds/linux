@@ -1504,7 +1504,7 @@ static bool elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!psinfo)
 		goto end_coredump;
 
-	for (ct = current->signal->core_state->dumper.next;
+	for (ct = current->signal->core_state->tasks;
 					ct; ct = ct->next) {
 		tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
 					     ct->task, &thread_status_size);

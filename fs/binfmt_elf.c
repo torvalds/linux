@@ -1875,7 +1875,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		return 0;
 
 	info->thread->task = dump_task;
-	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
+	for (ct = dump_task->signal->core_state->tasks; ct; ct = ct->next) {
 		t = kzalloc_flex(*t, notes, info->thread_notes);
 		if (unlikely(!t))
 			return 0;
@@ -2029,7 +2029,7 @@ static bool elf_core_dump(struct coredump_params *cprm)
 	{
 		size_t sz = info.size;
 
-		/* For cell spufs and x86 xstate */
+		/* For x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
 		phdr4note = kmalloc_obj(*phdr4note);
@@ -2093,7 +2093,7 @@ static bool elf_core_dump(struct coredump_params *cprm)
 	if (!write_note_info(&info, cprm))
 		goto end_coredump;
 
-	/* For cell spufs and x86 xstate */
+	/* For x86 xstate */
 	if (elf_coredump_extra_notes_write(cprm))
 		goto end_coredump;
 
