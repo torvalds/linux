@@ -121,6 +121,11 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		goto out_unlock;
 	}
 
+	if (kvm->arch.vgic.its_model && kvm->arch.vgic.its_model != type) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
 	if (kvm_id_regs_final(kvm))
 		goto out_unlock;
 	ret = 0;
@@ -433,6 +438,8 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		return ret;
 
 	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		break;
 	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		/*
 		 * If we are creating a VCPU with a GICv3 we must also register
@@ -451,6 +458,9 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		 */
 		if (vcpu->vcpu_id >= kvm_vgic_global_state.max_gicv5_vcpus)
 			return -EINVAL;
+		break;
+	default:
+		unreachable();
 	}
 
 	return ret;
@@ -550,6 +560,10 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	dist->nr_spis = 0;
 	dist->vgic_dist_base = VGIC_ADDR_UNDEF;
 
+	/* A VM may be destroyed without ever creating a VGIC. */
+	if (!dist->vgic_model)
+		goto out;
+
 	switch (dist->vgic_model) {
 	case KVM_DEV_TYPE_ARM_VGIC_V2:
 		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
@@ -567,8 +581,11 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 		kfree(dist->vgic_v5_irs_data);
 		dist->vgic_v5_irs_data = NULL;
 		break;
+	default:
+		unreachable();
 	}
 
+out:
 	xa_destroy(&dist->lpi_xa);
 }
 

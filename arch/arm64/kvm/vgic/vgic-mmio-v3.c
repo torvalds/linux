@@ -42,10 +42,7 @@ bool vgic_has_its(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	if (dist->vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
-		return false;
-
-	return dist->has_its;
+	return dist->its_model && dist->its_model == dist->vgic_model;
 }
 
 bool vgic_supports_direct_msis(struct kvm *kvm)
