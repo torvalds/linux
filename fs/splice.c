@@ -177,9 +177,9 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 
 static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
 {
-	smp_mb();
-	if (waitqueue_active(&pipe->rd_wait))
-		wake_up_interruptible(&pipe->rd_wait);
+	if (wq_has_sleeper(&pipe->rd_wait))
+		wake_up_interruptible_poll(&pipe->rd_wait,
+					   EPOLLIN | EPOLLRDNORM);
 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 }
 
@@ -413,9 +413,9 @@ EXPORT_SYMBOL(nosteal_pipe_buf_ops);
 
 static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
 {
-	smp_mb();
-	if (waitqueue_active(&pipe->wr_wait))
-		wake_up_interruptible(&pipe->wr_wait);
+	if (wq_has_sleeper(&pipe->wr_wait))
+		wake_up_interruptible_poll(&pipe->wr_wait,
+					   EPOLLOUT | EPOLLWRNORM);
 	kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 }
 
@@ -1009,21 +1009,14 @@ ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
 }
 EXPORT_SYMBOL_GPL(vfs_splice_read);
 
-/**
- * splice_direct_to_actor - splices data directly between two non-pipes
- * @in:		file to splice from
- * @sd:		actor information on where to splice to
- * @actor:	handles the data splicing
- *
- * Description:
- *    This is a special case helper to splice directly between two
- *    points, without requiring an explicit pipe. Internally an allocated
- *    pipe is cached in the process, and reused during the lifetime of
- *    that process.
- *
+/*
+ * This is a special case helper to splice directly between two
+ * points, without requiring an explicit pipe. Internally an allocated
+ * pipe is cached in the process, and reused during the lifetime of
+ * that process.
  */
-ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
-			       splice_direct_actor *actor)
+static ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
+				      splice_direct_actor *actor)
 {
 	struct pipe_inode_info *pipe;
 	ssize_t ret, bytes;
@@ -1147,7 +1140,42 @@ out_release:
 
 	goto done;
 }
-EXPORT_SYMBOL(splice_direct_to_actor);
+
+/**
+ * vfs_splice_to_actor - call an actor on data read from a file
+ * @in:		file to read from
+ * @pos:	file offset
+ * @count:	maximum number of bytes to read
+ * @actor:	callback to process a pipe's worth of data
+ * @private:	private data passed to @actor
+ *
+ * Read up to @count worth of data from @in at @pos, and call @actor
+ * when the hidden pipe used to buffer the data is full. Ensures the
+ * read is allowed using rw_verify_area() and emits fsnotify access
+ * events. @in must be seekable (FMODE_LSEEK).
+ *
+ * Return: The number of bytes spliced, or a negative errno.
+ */
+ssize_t vfs_splice_to_actor(struct file *in, loff_t pos, size_t count,
+			    splice_direct_actor *actor, void *private)
+{
+	struct splice_desc sd = {
+		.total_len	= count,
+		.pos		= pos,
+		.u.data		= private,
+	};
+	ssize_t ret;
+
+	ret = rw_verify_area(READ, in, &sd.pos, sd.total_len);
+	if (ret < 0)
+		return ret;
+
+	ret = splice_direct_to_actor(in, &sd, actor);
+	if (ret >= 0)
+		fsnotify_access(in);
+	return ret;
+}
+EXPORT_SYMBOL(vfs_splice_to_actor);
 
 static int direct_splice_actor(struct pipe_inode_info *pipe,
 			       struct splice_desc *sd)

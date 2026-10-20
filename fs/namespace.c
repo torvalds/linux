@@ -4272,7 +4272,7 @@ int path_mount(const char *dev_name, const struct path *path,
 	if (flags & SB_MANDLOCK)
 		warn_mandlock();
 
-	/* Default to relatime unless overriden */
+	/* Default to relatime unless overridden */
 	if (!(flags & MS_NOATIME))
 		mnt_flags |= MNT_RELATIME;
 

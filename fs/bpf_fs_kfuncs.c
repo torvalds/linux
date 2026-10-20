@@ -237,7 +237,7 @@ int bpf_set_dentry_xattr_locked(struct dentry *dentry, const char *name__str,
  * @dentry: dentry to get xattr from
  * @name__str: name of the xattr
  *
- * Rmove xattr *name__str* of *dentry*.
+ * Remove xattr *name__str* of *dentry*.
  *
  * For security reasons, only *name__str* with prefix "security.bpf."
  * is allowed.
@@ -305,7 +305,7 @@ __bpf_kfunc int bpf_set_dentry_xattr(struct dentry *dentry, const char *name__st
  * @dentry: dentry to get xattr from
  * @name__str: name of the xattr
  *
- * Rmove xattr *name__str* of *dentry*.
+ * Remove xattr *name__str* of *dentry*.
  *
  * For security reasons, only *name__str* with prefix "security.bpf."
  * is allowed.

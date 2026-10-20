@@ -383,6 +383,24 @@ static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
 {
 	struct orangefs_kernel_op_s *op;
 	int r;
+
+	/*
+	 * If someone reboots linux without unmounting orangefs first,
+	 * don't bother firing off an unmount service operation that
+	 * will never complete, or the whole system shutdown
+	 * stalls for ORANGEFS_DEFAULT_OP_TIMEOUT_SECS.
+	 */
+
+	if (!__is_daemon_in_service() ||
+		system_state == SYSTEM_HALT ||
+		system_state == SYSTEM_POWER_OFF ||
+		system_state == SYSTEM_RESTART) {
+			gossip_debug(GOSSIP_SUPER_DEBUG,
+				"%s: dirty unmount.\n",
+				__func__);
+			return 0;
+	}
+
 	op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
 	if (!op)
 		return -ENOMEM;

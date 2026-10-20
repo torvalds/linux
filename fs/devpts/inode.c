@@ -249,6 +249,8 @@ static int devpts_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_max:
 		if (result.uint_32 > NR_UNIX98_PTY_MAX)
 			return invalf(fc, "max out of range");
+		if (result.uint_32 == 0)
+			return invalf(fc, "max must be greater than 0");
 		opts->max = result.uint_32;
 		break;
 	}

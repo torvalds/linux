@@ -117,7 +117,7 @@ members are defined:
 		const struct fs_parameter_spec *parameters;
 		void (*kill_sb) (struct super_block *);
 		struct module *owner;
-		struct file_system_type * next;
+		struct hlist_node list;
 		struct hlist_head fs_supers;
 
 		struct lock_class_key s_lock_key;

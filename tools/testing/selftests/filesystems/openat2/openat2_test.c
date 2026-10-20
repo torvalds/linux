@@ -23,8 +23,16 @@
  * XXX: This is wrong on {mips, parisc, powerpc, sparc}.
  */
 #undef	O_LARGEFILE
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__alpha__)
 #define	O_LARGEFILE 0x20000
+#elif defined(__powerpc__) || defined(__ppc__)
+#define	O_LARGEFILE 0x10000
+#elif defined(__sparc__)
+#define O_LARGEFILE 0x40000
+#elif defined(__mips__)
+#define O_LARGEFILE 0x2000
+#elif defined(__parisc__)
+#define O_LARGEFILE 0x800
 #else
 #define	O_LARGEFILE 0x8000
 #endif

@@ -155,8 +155,6 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 		struct dax_device *dax_dev, struct writeback_control *wbc);
 int dax_folio_reset_order(struct folio *folio);
 
-struct page *dax_layout_busy_page(struct address_space *mapping);
-struct page *dax_layout_busy_page_range(struct address_space *mapping, loff_t start, loff_t end);
 dax_entry_t dax_lock_folio(struct folio *folio);
 void dax_unlock_folio(struct folio *folio, dax_entry_t cookie);
 dax_entry_t dax_lock_mapping_entry(struct address_space *mapping,
@@ -173,16 +171,6 @@ static inline int fs_dax_get(struct dax_device *dax_dev, void *holder,
 {
 	return -EOPNOTSUPP;
 }
-static inline struct page *dax_layout_busy_page(struct address_space *mapping)
-{
-	return NULL;
-}
-
-static inline struct page *dax_layout_busy_page_range(struct address_space *mapping, pgoff_t start, pgoff_t nr_pages)
-{
-	return NULL;
-}
-
 static inline int dax_writeback_mapping_range(struct address_space *mapping,
 		struct dax_device *dax_dev, struct writeback_control *wbc)
 {

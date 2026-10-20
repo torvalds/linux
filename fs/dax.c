@@ -469,8 +469,6 @@ static void dax_folio_init(void *entry)
 
 	if (order > 0) {
 		prep_compound_page(&folio->page, order);
-		if (order > 1)
-			INIT_LIST_HEAD(&folio->_deferred_list);
 		WARN_ON_ONCE(folio_ref_count(folio));
 	}
 }
@@ -775,24 +773,23 @@ fallback:
 
 /**
  * dax_layout_busy_page_range - find first pinned page in @mapping
- * @mapping: address space to scan for a page with ref count > 1
+ * @mapping: address space to scan for a pinned page
  * @start: Starting offset. Page containing 'start' is included.
  * @end: End offset. Page containing 'end' is included. If 'end' is LLONG_MAX,
  *       pages from 'start' till the end of file are included.
  *
- * DAX requires ZONE_DEVICE mapped pages. These pages are never
- * 'onlined' to the page allocator so they are considered idle when
- * page->count == 1. A filesystem uses this interface to determine if
- * any page in the mapping is busy, i.e. for DMA, or other
- * get_user_pages() usages.
+ * DAX requires ZONE_DEVICE mapped pages. A page is considered busy when
+ * folio_ref_count(folio) exceeds folio_mapcount(folio). This helper is
+ * used to determine if any page in the mapping is busy, i.e. for DMA,
+ * or other get_user_pages() usages.
  *
  * It is expected that the filesystem is holding locks to block the
  * establishment of new mappings in this address_space. I.e. it expects
- * to be able to run unmap_mapping_range() and subsequently not race
+ * to be able to run unmap_mapping_pages() and subsequently not race
  * mapping_mapped() becoming true.
  */
-struct page *dax_layout_busy_page_range(struct address_space *mapping,
-					loff_t start, loff_t end)
+static struct page *dax_layout_busy_page_range(struct address_space *mapping,
+					       loff_t start, loff_t end)
 {
 	void *entry;
 	unsigned int scanned = 0;
@@ -844,13 +841,6 @@ struct page *dax_layout_busy_page_range(struct address_space *mapping,
 	xas_unlock_irq(&xas);
 	return page;
 }
-EXPORT_SYMBOL_GPL(dax_layout_busy_page_range);
-
-struct page *dax_layout_busy_page(struct address_space *mapping)
-{
-	return dax_layout_busy_page_range(mapping, 0, LLONG_MAX);
-}
-EXPORT_SYMBOL_GPL(dax_layout_busy_page);
 
 static int __dax_invalidate_entry(struct address_space *mapping,
 				  pgoff_t index, bool trunc)

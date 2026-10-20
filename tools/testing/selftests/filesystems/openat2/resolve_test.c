@@ -140,9 +140,12 @@ FIXTURE_SETUP(openat2_resolve)
 	if (!openat2_supported)
 		SKIP(return, "openat2(2) not supported");
 
-	/* Unshare and make /tmp a new directory. */
+	/* Unshare and make the mount tree private. */
 	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
-	ASSERT_EQ(mount("", "/tmp", "", MS_PRIVATE, ""), 0);
+	ASSERT_EQ(mount("", "/", "", MS_PRIVATE | MS_REC, ""), 0);
+
+	/* Ensure /tmp is a mountpoint for RESOLVE_NO_XDEV test crossing into /tmp. */
+	ASSERT_EQ(mount("/tmp", "/tmp", NULL, MS_BIND, NULL), 0);
 
 	/* Make the top-level directory. */
 	ASSERT_NE(mkdtemp(dirname), NULL);

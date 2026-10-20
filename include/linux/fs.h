@@ -1436,7 +1436,7 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
  * @idmap: idmap of the mount the inode was found from
  * @inode: inode to map
  *
- * Return: whe inode's i_uid mapped down according to @idmap.
+ * Return: the inode's i_uid mapped down according to @idmap.
  * If the inode's i_uid has no mapping INVALID_VFSUID is returned.
  */
 static inline vfsuid_t i_uid_into_vfsuid(const struct mnt_idmap *idmap,
@@ -3657,23 +3657,6 @@ extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
 		       int advice);
 extern int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 			   int advice);
-
-static inline bool vfs_empty_path(int dfd, const char __user *path)
-{
-	char c;
-
-	if (dfd < 0)
-		return false;
-
-	/* We now allow NULL to be used for empty path. */
-	if (!path)
-		return true;
-
-	if (unlikely(get_user(c, path)))
-		return false;
-
-	return !c;
-}
 
 int generic_atomic_write_valid(struct kiocb *iocb, struct iov_iter *iter);
 

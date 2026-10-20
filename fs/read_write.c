@@ -274,7 +274,7 @@ loff_t fixed_size_llseek(struct file *file, loff_t offset, int whence, loff_t si
 EXPORT_SYMBOL(fixed_size_llseek);
 
 /**
- * no_seek_end_llseek - llseek implementation for fixed-sized devices
+ * no_seek_end_llseek - llseek implementation for files without SEEK_END
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
@@ -293,7 +293,7 @@ loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
 EXPORT_SYMBOL(no_seek_end_llseek);
 
 /**
- * no_seek_end_llseek_size - llseek implementation for fixed-sized devices
+ * no_seek_end_llseek_size - llseek implementation for files without SEEK_END
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
@@ -1761,8 +1761,8 @@ EXPORT_SYMBOL(generic_write_checks_count);
  * Performs necessary checks before doing a write
  *
  * Can adjust writing position or amount of bytes to write.
- * Returns appropriate error code that caller should return or
- * zero in case that write should be allowed.
+ * Returns the number of bytes that may be written on success (which
+ * may be less than requested if truncated), or a negative error code.
  */
 ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 {
