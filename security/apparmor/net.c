@@ -260,7 +260,6 @@ int aa_profile_af_perm(struct aa_profile *profile,
 
 	AA_BUG(family >= AF_MAX);
 	AA_BUG(type < 0 || type >= SOCK_MAX);
-	AA_BUG(profile_unconfined(profile));
 
 	state = RULE_MEDIATES_NET(rules);
 	if (state) {
@@ -268,7 +267,7 @@ int aa_profile_af_perm(struct aa_profile *profile,
 					 type, protocol, &p, &ad->info);
 		return aa_do_perms(profile, rules->policy, state, request, p,
 				   ad);
-	} /* else */
+	} /* else - not mediated this covers the profile_unconfined() case */
 
 	return 0;
 }
