@@ -507,6 +507,7 @@ static void update_call_insn_state(struct type_state *state,
 /* Invalidate registers explicitly written by an unhandled instruction. */
 static void invalidate_unhandled_insn_regs(struct type_state *state,
 					   struct disasm_line *dl,
+					   struct annotated_op_loc *src,
 					   struct annotated_op_loc *dst)
 {
 	u32 insn_offset = dl->al.offset;
@@ -522,6 +523,21 @@ static void invalidate_unhandled_insn_regs(struct type_state *state,
 			invalidate_reg_state(&state->regs[dst->reg2]);
 		}
 		pr_debug_dtp("\n");
+	}
+
+	/*
+	 * Exclusive store instructions (stxr, stxp, stlxr, stlxp, etc.)
+	 * write their execution status (0 or 1) into the status register
+	 * (parsed into src->reg1). Invalidate this status register to prevent
+	 * stale type propagation.
+	 */
+	if (!strncmp(dl->ins.name, "stx", 3) ||  /* stxr, stxp, stxrb, stxrh */
+	    !strncmp(dl->ins.name, "stlx", 4)) { /* stlxr, stlxp, stlxrb, stlxrh */
+		if (has_reg_type(state, src->reg1)) {
+			pr_debug_dtp("%s [%x] invalidate reg%d\n",
+				     dl->ins.name, insn_offset, src->reg1);
+			invalidate_reg_state(&state->regs[src->reg1]);
+		}
 	}
 
 	/* TODO: Extend invalidation support to more special instructions. */
@@ -727,6 +743,35 @@ out_adjust:
 	adjust_reg_index_state(state, dloc, dl, src);
 }
 
+/*
+ * Match standard store variants (str, stur, stlr, stp) that follow
+ * straightforward store semantics: source registers on the left (read-only)
+ * and memory target on the right. Excludes exclusive stores (stxr, stxp, etc.)
+ * which have status/result register side effects.
+ */
+static bool is_standard_store_insn(const char *name)
+{
+	return !strncmp(name, "str", 3)  ||  /* str, strb, strh */
+	       !strncmp(name, "stur", 4) ||  /* stur, sturb, sturh */
+	       !strncmp(name, "stlr", 4) ||  /* stlr, stlrb, stlrh */
+	       !strncmp(name, "stp", 3);     /* stp */
+}
+
+static void update_store_insn_state(struct type_state *state,
+				    struct data_loc_info *dloc,
+				    struct disasm_line *dl,
+				    struct annotated_op_loc *dst)
+{
+	/*
+	 * Ignore transfers since it'd set a value in a struct
+	 * and won't change the type.
+	 *
+	 * Needs to update the pre-index and post-index addressing
+	 * modes for the destination register.
+	 */
+	adjust_reg_index_state(state, dloc, dl, dst);
+}
+
 static void update_insn_state_arm64(struct type_state *state,
 				    struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				    struct disasm_line *dl)
@@ -746,8 +791,11 @@ static void update_insn_state_arm64(struct type_state *state,
 	/* Memory to register transfers */
 	else if (is_standard_load_insn(dl->ins.name))
 		update_load_insn_state(state, dloc, dl, src, dst);
+	/* Register to memory transfers */
+	else if (is_standard_store_insn(dl->ins.name))
+		update_store_insn_state(state, dloc, dl, dst);
 	else
-		invalidate_unhandled_insn_regs(state, dl, dst);
+		invalidate_unhandled_insn_regs(state, dl, src, dst);
 }
 #endif
 
