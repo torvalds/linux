@@ -3226,8 +3226,7 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 						       READ_ONCE(flow->cvars.drop_next))));
 		}
 
-		if (nla_nest_end(d->skb, stats) < 0)
-			return -1;
+		nla_nest_end(d->skb, stats);
 	}
 
 	return 0;
