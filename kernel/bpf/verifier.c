@@ -17716,10 +17716,10 @@ bool bpf_same_memory_origin(const struct bpf_reg_state *reg_a,
 }
 
 int bpf_set_reg_range(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-		      struct cnum64 range, u16 base, u16 step)
+		      struct cnum64 r64, struct cnum32 r32, u16 base, u16 step)
 {
-	reg->r64 = range;
-	reg->r32 = CNUM32_UNBOUNDED;
+	reg->r64 = r64;
+	reg->r32 = r32;
 	reg->step = step;
 	reg->base = base;
 	reg->var_off = tnum_unknown;
