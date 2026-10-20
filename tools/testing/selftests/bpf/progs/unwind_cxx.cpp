@@ -67,6 +67,17 @@ struct rcu_guard {
 	}
 };
 
+struct plain_rcu_guard {
+	__always_inline plain_rcu_guard()
+	{
+		bpf_rcu_read_lock();
+	}
+	__always_inline ~plain_rcu_guard()
+	{
+		bpf_rcu_read_unlock();
+	}
+};
+
 struct preempt_guard {
 	__always_inline preempt_guard()
 	{
@@ -95,6 +106,18 @@ static __noinline int middle(int len)
 	return inner(len) + 1;
 }
 
+using u128 = unsigned __int128;
+
+/* Global subprogs returning 16 bytes use R0:R2, including unwind exits. */
+extern "C" __noinline u128 aggregate_return(int len)
+{
+	plain_rcu_guard guard;
+
+	if (len > 100)
+		throw 1;
+	return (static_cast<u128>(len) << 64) | 7;
+}
+
 extern "C" SEC("tc") int catches(struct __sk_buff *skb)
 {
 	try {
@@ -108,6 +131,18 @@ extern "C" SEC("tc") int catches(struct __sk_buff *skb)
 extern "C" SEC("tc") int does_not_catch(struct __sk_buff *skb)
 {
 	return middle(skb->len);
+}
+
+extern "C" SEC("tc") int catches_aggregate(struct __sk_buff *skb)
+{
+	try {
+		u128 value = aggregate_return(skb->len);
+
+		return static_cast<unsigned long>(value) +
+		       static_cast<unsigned long>(value >> 64);
+	} catch (...) {
+		return 42;
+	}
 }
 
 #endif

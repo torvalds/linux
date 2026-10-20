@@ -38,7 +38,8 @@ void test_unwind_cxx(void)
 {
 	const char *file = "./unwind_cxx.bpf.o";
 	struct bpf_object *obj;
-	int err;
+	struct bpf_program *prog;
+	int err = -EINVAL;
 
 	if (access(file, R_OK)) {
 		printf("%s:SKIP:gcc doesn't build %s\n", __func__, file);
@@ -58,6 +59,10 @@ void test_unwind_cxx(void)
 	obj = bpf_object__open_file(file, NULL);
 	if (!ASSERT_OK_PTR(obj, "open"))
 		return;
+	prog = bpf_object__find_program_by_name(obj, "catches_aggregate");
+	if (!ASSERT_OK_PTR(prog, "catches_aggregate"))
+		goto out;
+	bpf_program__set_autoload(prog, false);
 	err = bpf_object__load(obj);
 	if (err == -ENOTSUPP) {
 		printf("%s:SKIP:JIT does not support unwinding\n", __func__);
@@ -73,5 +78,22 @@ void test_unwind_cxx(void)
 	run(obj, "does_not_catch", 64, 65, 12);
 	run(obj, "does_not_catch", 200, 0, 12);
 out:
+	bpf_object__close(obj);
+	if (err)
+		return;
+
+	if (!test__start_subtest("aggregate_return"))
+		return;
+	obj = bpf_object__open_file(file, NULL);
+	if (!ASSERT_OK_PTR(obj, "open_aggregate"))
+		return;
+	bpf_object__for_each_program(prog, obj)
+		bpf_program__set_autoload(prog,
+					 strcmp(bpf_program__name(prog), "catches_aggregate") == 0);
+	if (!ASSERT_OK(bpf_object__load(obj), "load_aggregate"))
+		goto out_aggregate;
+	run(obj, "catches_aggregate", 64, 71, 0);
+	run(obj, "catches_aggregate", 200, 42, 0);
+out_aggregate:
 	bpf_object__close(obj);
 }
