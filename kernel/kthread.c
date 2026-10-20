@@ -343,7 +343,7 @@ static void kthread_fetch_affinity(struct kthread *kthread, struct cpumask *cpum
 	}
 
 	cpumask_and(cpumask, pref, housekeeping_cpumask(HK_TYPE_DOMAIN));
-	if (cpumask_empty(cpumask))
+	if (!cpumask_intersects(cpumask, cpu_online_mask))
 		cpumask_copy(cpumask, housekeeping_cpumask(HK_TYPE_DOMAIN));
 }
 
