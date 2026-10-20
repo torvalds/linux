@@ -372,7 +372,7 @@ static ssize_t read_port(struct file *file, char __user *buf,
 	if (!access_ok(buf, count))
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
-		if (__put_user(inb(i), tmp) < 0)
+		if (put_user(inb(i), tmp) < 0)
 			return -EFAULT;
 		i++;
 		tmp++;
@@ -392,7 +392,7 @@ static ssize_t write_port(struct file *file, const char __user *buf,
 	while (count-- > 0 && i < 65536) {
 		char c;
 
-		if (__get_user(c, tmp)) {
+		if (get_user(c, tmp)) {
 			if (tmp > buf)
 				break;
 			return -EFAULT;
