@@ -28,6 +28,7 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	pr_notice("Machine power off...\n");
+	do_kernel_power_off();
 	while (1)
 		;
 }
@@ -40,3 +41,24 @@ void machine_restart(char *cmd)
 	pr_emerg("Reboot failed -- System halted\n");
 	while (1);
 }
+
+#ifdef CONFIG_MB_POWER_OFF_THROUGH_UNALIGNED_PC
+static int unaligned_pc_sys_off(struct sys_off_data *data)
+{
+	__asm__(
+		"bri 1\n"
+	);
+
+	return NOTIFY_DONE;
+}
+
+static int __init register_unaligned_pc_sys_off(void)
+{
+	struct sys_off_handler *sys_off;
+
+	sys_off = register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_LOW,
+					   unaligned_pc_sys_off, NULL);
+	return PTR_ERR_OR_ZERO(sys_off);
+}
+device_initcall(register_unaligned_pc_sys_off);
+#endif /* CONFIG_MB_POWER_OFF_THROUGH_UNALIGNED_PC */

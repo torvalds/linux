@@ -3,6 +3,7 @@ config MICROBLAZE
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_NO_SWAP
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
@@ -216,3 +217,22 @@ config MB_MANAGER
 	  Say N here unless you know what you are doing.
 
 endmenu
+
+config MB_POWER_OFF_THROUGH_UNALIGNED_PC
+	bool "Power off through unaligned PC"
+	help
+	  This options adds a power off handler which executes an unaligned PC
+	  so the machine resets in a generic way. This works for the
+	  petalogix-s3adsp1800 QEMU machine.
+
+	  Say N here unless you know what you are doing.
+
+config ARCH_CC_CAN_LINK
+	bool
+	default $(cc_can_link_user,-mlittle-endian) if CPU_LITTLE_ENDIAN
+	default $(cc_can_link_user,-mbig-endian) if CPU_BIG_ENDIAN
+
+config ARCH_USERFLAGS
+	string
+	default "-mlittle-endian" if CPU_LITTLE_ENDIAN
+	default "-mbig-endian" if CPU_BIG_ENDIAN
