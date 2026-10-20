@@ -108,7 +108,7 @@ DECLARE_PER_CPU(unsigned int, nmi_nesting);
 #define __preempt_count_nmi_enter()				\
 	do {							\
 		__preempt_count_add(HARDIRQ_OFFSET);		\
-		/* Maximum NMI nesting is 15. */		\
+		/* NMI nesting is represented in 4 bits. */	\
 		BUG_ON(__this_cpu_read(nmi_nesting) >= 15);	\
 		__this_cpu_inc(nmi_nesting);			\
 		preempt_count_set(preempt_count() | NMI_MASK);  \
