@@ -73,11 +73,11 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 
 	if (act) {
 		old_sigset_t mask;
-		if (!access_ok(act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
+		scoped_user_read_access(act, Efault) {
+			unsafe_get_user(new_ka.sa.sa_handler, &act->sa_handler, Efault);
+			unsafe_get_user(new_ka.sa.sa_flags, &act->sa_flags, Efault);
+			unsafe_get_user(mask, &act->sa_mask, Efault);
+		}
 		siginitset(&new_ka.sa.sa_mask, mask);
 		new_ka.ka_restorer = NULL;
 	}
@@ -85,14 +85,17 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
+		scoped_user_write_access(oact, Efault) {
+			unsafe_put_user(old_ka.sa.sa_handler, &oact->sa_handler, Efault);
+			unsafe_put_user(old_ka.sa.sa_flags, &oact->sa_flags, Efault);
+			unsafe_put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask, Efault);
+		}
 	}
 
 	return ret;
+
+Efault:
+	return -EFAULT;
 }
 
 SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
