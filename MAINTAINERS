@@ -24865,7 +24865,7 @@ SIS I2C TOUCHSCREEN DRIVER
 M:	Mika Penttilä <mpenttil@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/input/touchscreen/sis_i2c.txt
+F:	Documentation/devicetree/bindings/input/touchscreen/sis,9200-ts.yaml
 F:	drivers/input/touchscreen/sis_i2c.c
 
 SIS USB2VGA DRIVER

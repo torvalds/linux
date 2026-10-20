@@ -1292,7 +1292,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
 
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			     0, tsdata->num_x * 64 - 1, 0, 0);

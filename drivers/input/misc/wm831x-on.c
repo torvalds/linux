@@ -96,7 +96,6 @@ static int wm831x_on_probe(struct platform_device *pdev)
 	wm831x_on->dev->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
 	wm831x_on->dev->name = "wm831x_on";
 	wm831x_on->dev->phys = "wm831x_on/input0";
-	wm831x_on->dev->dev.parent = &pdev->dev;
 
 	ret = request_threaded_irq(irq, NULL, wm831x_on_irq,
 				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,

@@ -202,7 +202,6 @@ static int icn8318_probe(struct i2c_client *client)
 	input->id.bustype = BUS_I2C;
 	input->open = icn8318_start;
 	input->close = icn8318_stop;
-	input->dev.parent = dev;
 
 	input_set_capability(input, EV_ABS, ABS_MT_POSITION_X);
 	input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);

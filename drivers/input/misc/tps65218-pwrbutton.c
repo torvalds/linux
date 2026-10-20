@@ -105,7 +105,6 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	snprintf(pwr->phys, sizeof(pwr->phys), "%s/input0",
 		pwr->data->name);
 	idev->phys = pwr->phys;
-	idev->dev.parent = dev;
 	idev->id.bustype = BUS_I2C;
 
 	input_set_capability(idev, EV_KEY, KEY_POWER);

@@ -246,7 +246,6 @@ static int pm860x_touch_probe(struct platform_device *pdev)
 	touch->idev->name = "88pm860x-touch";
 	touch->idev->phys = "88pm860x/input0";
 	touch->idev->id.bustype = BUS_I2C;
-	touch->idev->dev.parent = &pdev->dev;
 	touch->idev->open = pm860x_touch_open;
 	touch->idev->close = pm860x_touch_close;
 	touch->chip = chip;

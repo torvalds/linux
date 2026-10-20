@@ -186,7 +186,6 @@ static int max11801_ts_probe(struct i2c_client *client)
 
 	input_dev->name = "max11801_ts";
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(EV_KEY, input_dev->evbit);

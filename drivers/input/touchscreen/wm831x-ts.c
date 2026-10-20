@@ -356,7 +356,6 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 4095, 5, 0);
 
 	input_set_drvdata(input_dev, wm831x_ts);
-	input_dev->dev.parent = &pdev->dev;
 
 	error = input_register_device(input_dev);
 	if (error)
