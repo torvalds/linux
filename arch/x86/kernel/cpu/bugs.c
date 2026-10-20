@@ -1175,6 +1175,7 @@ enum srso_mitigation {
 	SRSO_MITIGATION_IBPB,
 	SRSO_MITIGATION_IBPB_ON_VMEXIT,
 	SRSO_MITIGATION_BP_SPEC_REDUCE,
+	SRSO_MITIGATION_USER_IBPB,
 };
 
 static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_AUTO;
@@ -1957,7 +1958,7 @@ early_param("spectre_v2", spectre_v2_parse_cmdline);
 static enum spectre_v2_mitigation __init spectre_v2_select_retpoline(void)
 {
 	if (!IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)) {
-		pr_err("Kernel not compiled with retpoline; no mitigation available!");
+		pr_err("Kernel not compiled with retpoline");
 		return SPECTRE_V2_NONE;
 	}
 
@@ -2908,7 +2909,8 @@ static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_SAFE_RET]		= "Mitigation: Safe RET",
 	[SRSO_MITIGATION_IBPB]			= "Mitigation: IBPB",
 	[SRSO_MITIGATION_IBPB_ON_VMEXIT]	= "Mitigation: IBPB on VMEXIT only",
-	[SRSO_MITIGATION_BP_SPEC_REDUCE]	= "Mitigation: Reduced Speculation"
+	[SRSO_MITIGATION_BP_SPEC_REDUCE]	= "Mitigation: Reduced Speculation",
+	[SRSO_MITIGATION_USER_IBPB]		= "Mitigation: IBPB on context switch",
 };
 
 static int __init srso_parse_cmdline(char *str)
@@ -2948,7 +2950,9 @@ static void __init srso_select_mitigation(void)
 		 * required.  Otherwise the 'microcode' mitigation is sufficient
 		 * to protect the user->user and guest->guest vectors.
 		 */
-		if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		if ((cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) &&
+		    !boot_cpu_has(X86_FEATURE_BTB_CTX_ISOLATION))
+					||
 		    (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) &&
 		     !boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO))) {
 			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
@@ -3023,6 +3027,16 @@ static void __init srso_update_mitigation(void)
 	if (retbleed_mitigation == RETBLEED_MITIGATION_IBPB &&
 	    boot_cpu_has(X86_FEATURE_IBPB_BRTYPE))
 		srso_mitigation = SRSO_MITIGATION_IBPB;
+
+	/*
+	 * See if IBPB on context switch is the only thing needed to address
+	 * GUEST/GUEST and USER/USER vectors.
+	 */
+	if (srso_mitigation == SRSO_MITIGATION_MICROCODE  &&
+	    boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO) &&
+	    boot_cpu_has(X86_FEATURE_BTB_CTX_ISOLATION) &&
+	    spectre_v2_user_ibpb != SPECTRE_V2_USER_NONE)
+		srso_mitigation = SRSO_MITIGATION_USER_IBPB;
 
 	pr_info("%s\n", srso_strings[srso_mitigation]);
 }
