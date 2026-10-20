@@ -17,7 +17,7 @@
 
 static const char *const known_fs[] = {
 	"9p", "adfs", "affs", "afs", "aio", "anon_inodefs", "apparmorfs",
-	"autofs", "bcachefs", "bdev", "befs", "bfs", "binder", "binfmt_misc",
+	"autofs", "bcachefs", "bdev", "befs", "binder", "binfmt_misc",
 	"bpf", "btrfs", "btrfs_test_fs", "ceph", "cgroup", "cgroup2", "cifs",
 	"coda", "configfs", "cpuset", "cramfs", "cxl", "dax", "debugfs",
 	"devpts", "devtmpfs", "dmabuf", "drm", "ecryptfs", "efivarfs", "efs",

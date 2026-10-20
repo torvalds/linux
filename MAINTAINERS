@@ -4627,13 +4627,6 @@ S:	Odd Fixes
 F:	Documentation/block/bfq-iosched.rst
 F:	block/bfq-*
 
-BFS FILE SYSTEM
-M:	"Tigran A. Aivazian" <aivazian.tigran@gmail.com>
-S:	Maintained
-F:	Documentation/filesystems/bfs.rst
-F:	fs/bfs/
-F:	include/uapi/linux/bfs_fs.h
-
 BITMAP API
 M:	Yury Norov <yury.norov@gmail.com>
 R:	Rasmus Villemoes <linux@rasmusvillemoes.dk>
