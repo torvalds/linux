@@ -379,6 +379,51 @@ static void signature_enforced(void)
 	gen_loader_fixture_fini(&f);
 }
 
+/*
+ * CO-RE relocations would have the kernel rewrite the insns after the
+ * signature was checked over them, with values the loader picks through the
+ * BTF it supplies. A signed load that carries any is rejected before the
+ * signature is examined, so junk serves as one.
+ */
+static void signed_core_relo_rejected(void)
+{
+	static const __u8 junk[64] = { 0x30, 0x42, 0x13, 0x37, };
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	struct bpf_core_relo relo = {
+		.insn_off = 0,
+		.type_id = 1,
+		.kind = BPF_CORE_TYPE_ID_LOCAL,
+	};
+	char log_buf[1024] = {};
+	union bpf_attr attr;
+	int fd;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SYSCALL;
+	attr.insns = ptr_to_u64(insns);
+	attr.insn_cnt = ARRAY_SIZE(insns);
+	attr.license = ptr_to_u64("Dual BSD/GPL");
+	attr.prog_flags = BPF_F_SLEEPABLE;
+	attr.signature = ptr_to_u64(junk);
+	attr.signature_size = sizeof(junk);
+	attr.keyring_id = KEY_SPEC_SESSION_KEYRING;
+	attr.core_relos = ptr_to_u64(&relo);
+	attr.core_relo_cnt = 1;
+	attr.core_relo_rec_size = sizeof(relo);
+	attr.log_level = 1;
+	attr.log_buf = ptr_to_u64(log_buf);
+	attr.log_size = sizeof(log_buf);
+	fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, offsetofend(union bpf_attr, keyring_id));
+	fd = fd < 0 ? -errno : fd;
+	ASSERT_EQ(fd, -EACCES, "signed load with CO-RE relocations rejected");
+	ASSERT_HAS_SUBSTR(log_buf, "signed program cannot carry CO-RE relocations", "log");
+	if (fd >= 0)
+		close(fd);
+}
+
 static void signed_nonexcl_fd_array_rejected(void)
 {
 	static const __u8 junk[64] = { 0x30, 0x42, 0x13, 0x37, };
@@ -2187,6 +2232,7 @@ static const struct {
 	{ "signed_unfrozen_fd_array_rejected", signed_unfrozen_fd_array_rejected, BOOT_SEALED },
 	{ "signed_nonarray_fd_array_rejected", signed_nonarray_fd_array_rejected, BOOT_SEALED },
 	{ "signed_btf_fd_array_rejected", signed_btf_fd_array_rejected, BOOT_ANY },
+	{ "signed_core_relo_rejected", signed_core_relo_rejected, BOOT_ANY },
 	{ "signed_module_kfunc_rejected", signed_module_kfunc_rejected, BOOT_SEALED },
 	{ "signature_failure_logs", signature_failure_logs, BOOT_SEALED },
 	{ "signature_too_large", signature_too_large, BOOT_ANY },
