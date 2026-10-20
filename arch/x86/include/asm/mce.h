@@ -13,6 +13,7 @@
 #define MCG_CTL_P		BIT_ULL(8)   /* MCG_CTL register available */
 #define MCG_EXT_P		BIT_ULL(9)   /* Extended registers available */
 #define MCG_CMCI_P		BIT_ULL(10)  /* CMCI supported */
+#define MCG_TES_P		BIT_ULL(11)  /* Threshold-based error status supported */
 #define MCG_SEAM_NR		BIT_ULL(12)  /* MCG_STATUS_SEAM_NR supported */
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
@@ -41,6 +42,10 @@
 #define MCI_STATUS_PCC		BIT_ULL(57)  /* processor context corrupt */
 #define MCI_STATUS_S		BIT_ULL(56)  /* Signaled machine check */
 #define MCI_STATUS_AR		BIT_ULL(55)  /* Action required */
+#define MCI_STATUS_TES_MASK	GENMASK_ULL(54, 53)
+#define MCI_STATUS_TES(s)	FIELD_GET(MCI_STATUS_TES_MASK, s)
+#define  MCI_STATUS_TES_GREEN	1	     /* Threshold-based errors below threshold */
+#define  MCI_STATUS_TES_YELLOW	2	     /* Threshold-based errors above threshold */
 #define MCI_STATUS_CEC_SHIFT	38           /* Corrected Error Count */
 #define MCI_STATUS_CEC_MASK	GENMASK_ULL(52,38)
 #define MCI_STATUS_CEC(c)	(((c) & MCI_STATUS_CEC_MASK) >> MCI_STATUS_CEC_SHIFT)

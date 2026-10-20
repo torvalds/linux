@@ -356,7 +356,7 @@ sad_found:
 			break;
 		case 2:
 			lchan = (addr >> shift) % 2;
-			lchan = (lchan << 1) | !lchan;
+			lchan = (lchan << 1) | (lchan ^ 1);
 			break;
 		case 3:
 			lchan = ((addr >> shift) % 2) << 1;

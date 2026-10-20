@@ -82,6 +82,7 @@ struct cpu_cacheinfo {
 };
 
 struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu);
+int get_cpu_cacheinfo_id(int cpu, int level);
 int early_cache_level(unsigned int cpu);
 int init_cache_level(unsigned int cpu);
 int init_of_cache_level(unsigned int cpu);
@@ -135,17 +136,6 @@ static inline struct cacheinfo *get_cpu_cacheinfo_level(int cpu, int level)
 	}
 
 	return NULL;
-}
-
-/*
- * Get the id of the cache associated with @cpu at level @level.
- * cpuhp lock must be held.
- */
-static inline int get_cpu_cacheinfo_id(int cpu, int level)
-{
-	struct cacheinfo *ci = get_cpu_cacheinfo_level(cpu, level);
-
-	return ci ? ci->id : -1;
 }
 
 #if defined(CONFIG_ARM64) || defined(CONFIG_ARM)

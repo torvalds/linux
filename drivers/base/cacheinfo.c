@@ -38,6 +38,23 @@ struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu)
 	return ci_cacheinfo(cpu);
 }
 
+/**
+ * get_cpu_cacheinfo_id - Return the cache ID for a CPU and cache level
+ * @cpu: CPU number
+ * @level: Cache level
+ *
+ * The caller must hold the cpuhp lock.
+ *
+ * Return: Cache ID on success, or -1 if no matching cache exists.
+ */
+int get_cpu_cacheinfo_id(int cpu, int level)
+{
+	struct cacheinfo *ci = get_cpu_cacheinfo_level(cpu, level);
+
+	return ci ? ci->id : -1;
+}
+EXPORT_SYMBOL_GPL(get_cpu_cacheinfo_id);
+
 static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 					   struct cacheinfo *sib_leaf)
 {

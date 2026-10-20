@@ -280,6 +280,19 @@ config EDAC_IMH
 	  first used on the Diamond Rapids servers but may appear on
 	  others in the future.
 
+config EDAC_INTEL_BFF_RESET
+	tristate "Intel bitfix filter reset driver"
+	depends on X86_64 && X86_MCE_INTEL
+	help
+	  Support for Intel systems that implement bitfix filters to
+	  suppress repeated logging and signaling of the same corrected
+	  error. Those filters can become clogged with transient errors
+	  over time. Clearing the filter may make space for additional
+	  hard errors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_bff.
+
 config EDAC_PND2
 	tristate "Intel Pondicherry2"
 	depends on PCI && X86_64 && X86_MCE_INTEL
@@ -581,4 +594,13 @@ config EDAC_VERSALNET
 	  and other system errors from various IP subsystems like RPU, NOCs,
 	  HNICX, PL on the AMD Versal NET DDR memory controller.
 
+config EDAC_DUMMY
+	tristate "Dummy EDAC driver"
+	default n
+	help
+	  A dummy EDAC driver is useful for testing purposes in a VM when one
+	  doesn't have all the hardware needed to test aspects of the EDAC
+	  subsystem code.
+
+	  You definitely wanna say N here.
 endif # EDAC

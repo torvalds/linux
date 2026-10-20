@@ -2076,8 +2076,7 @@ S:	Supported
 F:	arch/arm64/boot/dts/apm/
 
 APPLIED MICRO (APM) X-GENE SOC EDAC
-M:	Khuong Dinh <khuong@os.amperecomputing.com>
-S:	Supported
+S:	Orphan
 F:	Documentation/devicetree/bindings/edac/apm,xgene-edac.yaml
 F:	drivers/edac/xgene_edac.c
 
@@ -9450,6 +9449,11 @@ L:	linux-edac@vger.kernel.org
 S:	Orphan
 F:	drivers/edac/i3000_edac.c
 
+EDAC-I3200
+L:	linux-edac@vger.kernel.org
+S:	Orphan
+F:	drivers/edac/i3200_edac.c
+
 EDAC-I5000
 L:	linux-edac@vger.kernel.org
 S:	Maintained
@@ -9474,9 +9478,8 @@ S:	Maintained
 F:	drivers/edac/i7core_edac.c
 
 EDAC-I82975X
-M:	"Arvind R." <arvino55@gmail.com>
 L:	linux-edac@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/edac/i82975x_edac.c
 
 EDAC-IE31200
@@ -9487,10 +9490,16 @@ F:	drivers/edac/ie31200_edac.c
 
 EDAC-IGEN6
 M:	Tony Luck <tony.luck@intel.com>
-R:	Qiuxu Zhuo <qiuxu.zhuo@intel.com>
+R:	Qiuxu Zhuo <qzhuo@nvidia.com>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/igen6_edac.c
+
+EDAC-INTEL-BFF-RESET
+M:	Tony Luck <tony.luck@intel.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/intel-bff.c
 
 EDAC-MPC85XX
 L:	linux-edac@vger.kernel.org
@@ -9526,7 +9535,7 @@ F:	drivers/edac/qcom_edac.c
 
 EDAC-SBRIDGE
 M:	Tony Luck <tony.luck@intel.com>
-R:	Qiuxu Zhuo <qiuxu.zhuo@intel.com>
+R:	Qiuxu Zhuo <qzhuo@nvidia.com>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/sb_edac.c
@@ -9542,6 +9551,11 @@ M:	Tero Kristo <kristo@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/edac/ti_edac.c
+
+EDAC-X38
+L:	linux-edac@vger.kernel.org
+S:	Orphan
+F:	drivers/edac/x38_edac.c
 
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
