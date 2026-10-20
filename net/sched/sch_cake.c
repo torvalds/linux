@@ -63,6 +63,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/reciprocal_div.h>
+#include <linux/u64_stats_sync.h>
 #include <net/netlink.h>
 #include <linux/if_vlan.h>
 #include <net/gso.h>
@@ -234,8 +235,10 @@ struct cake_sched_data {
 	u16		tin_cnt;
 
 	/* resource tracking */
-	u32		buffer_used;
-	u32		buffer_max_used;
+
+	struct u64_stats_sync buffer_max_used_sync;
+	u64_stats_t	buffer_max_used;
+	u64		buffer_used;
 	u32		buffer_limit;
 
 	/* indices for dequeue */
@@ -1850,7 +1853,8 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			qdisc_qstats_drop(sch);
 			ack_pkt_len = qdisc_pkt_len(ack);
 			WRITE_ONCE(b->bytes, b->bytes + ack_pkt_len);
-			q->buffer_used += skb->truesize - ack->truesize;
+			q->buffer_used += skb->truesize;
+			q->buffer_used -= ack->truesize;
 			if (q->config->rate_flags & CAKE_FLAG_INGRESS)
 				cake_advance_shaper(q, b, ack, now, true);
 
@@ -1941,8 +1945,11 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		cake_inc_dsthost_bulk_flow_count(b, flow, q->config->flow_mode);
 	}
 
-	if (q->buffer_used > q->buffer_max_used)
-		WRITE_ONCE(q->buffer_max_used, q->buffer_used);
+	if (q->buffer_used > u64_stats_read(&q->buffer_max_used)) {
+		u64_stats_update_begin(&q->buffer_max_used_sync);
+		u64_stats_set(&q->buffer_max_used, q->buffer_used);
+		u64_stats_update_end(&q->buffer_max_used_sync);
+	}
 
 	if (q->buffer_used <= q->buffer_limit)
 		return NET_XMIT_SUCCESS;
@@ -2862,6 +2869,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	qd->cur_flow  = 0;
 	qd->config = q;
 
+	u64_stats_init(&qd->buffer_max_used_sync);
 	qdisc_watchdog_init(&qd->watchdog, sch);
 
 	if (opt) {
@@ -3012,6 +3020,8 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	struct nlattr *stats = nla_nest_start_noflag(d->skb, TCA_STATS_APP);
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tstats, *ts;
+	u64 buffer_max_used;
+	unsigned int start;
 	int i;
 
 	if (!stats)
@@ -3027,9 +3037,14 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 			goto nla_put_failure;			       \
 	} while (0)
 
+	do {
+		start = u64_stats_fetch_begin(&q->buffer_max_used_sync);
+		buffer_max_used = u64_stats_read(&q->buffer_max_used);
+	} while (u64_stats_fetch_retry(&q->buffer_max_used_sync, start));
+
 	PUT_STAT_U64(CAPACITY_ESTIMATE64, READ_ONCE(q->avg_peak_bandwidth));
 	PUT_STAT_U32(MEMORY_LIMIT, READ_ONCE(q->buffer_limit));
-	PUT_STAT_U32(MEMORY_USED, READ_ONCE(q->buffer_max_used));
+	PUT_STAT_U32(MEMORY_USED, min_t(u64, buffer_max_used, U32_MAX));
 	PUT_STAT_U32(AVG_NETOFF, ((READ_ONCE(q->avg_netoff) + 0x8000) >> 16));
 	PUT_STAT_U32(MAX_NETLEN, READ_ONCE(q->max_netlen));
 	PUT_STAT_U32(MAX_ADJLEN, READ_ONCE(q->max_adjlen));
