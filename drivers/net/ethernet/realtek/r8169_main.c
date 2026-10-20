@@ -6428,6 +6428,8 @@ static void rtl_mac_link_up(struct phylink_config *config,
 
 	tp->speed = speed;
 	rtl_link_chg_patch(tp, speed);
+	if (tp->mac_version == RTL_GIGA_MAC_VER_46)
+		rtl_enable_tx_lpi(tp, false);
 
 	/*
 	 * Note: This hardware does not support forcing flow control.
