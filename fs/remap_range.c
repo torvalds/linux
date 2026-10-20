@@ -415,7 +415,7 @@ EXPORT_SYMBOL(vfs_clone_file_range);
 /* Check whether we are allowed to dedupe the destination file */
 static bool may_dedupe_file(struct file *file)
 {
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct inode *inode = file_inode(file);
 
 	if (capable(CAP_SYS_ADMIN))

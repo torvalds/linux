@@ -42,7 +42,7 @@ static bool debugfs_enabled __ro_after_init = IS_ENABLED(CONFIG_DEBUG_FS_ALLOW_A
  * so that we can use the file mode as part of a heuristic to determine whether
  * to lock down individual files.
  */
-static int debugfs_setattr(struct mnt_idmap *idmap,
+static int debugfs_setattr(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *ia)
 {
 	int ret;

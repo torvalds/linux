@@ -143,7 +143,7 @@ error:
 	return err;
 }
 
-static bool exfat_allow_set_time(struct mnt_idmap *idmap,
+static bool exfat_allow_set_time(const struct mnt_idmap *idmap,
 				 struct exfat_sb_info *sbi, struct inode *inode)
 {
 	mode_t allow_utime = sbi->options.allow_utime;
@@ -319,7 +319,7 @@ write_size:
 	mutex_unlock(&sbi->s_lock);
 }
 
-int exfat_getattr(struct mnt_idmap *idmap, const struct path *path,
+int exfat_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, unsigned int request_mask,
 		  unsigned int query_flags)
 {
@@ -347,7 +347,7 @@ int exfat_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int exfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int exfat_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(dentry->d_sb);

@@ -391,7 +391,7 @@ static int ntfs_sd_add_everyone(struct ntfs_inode *ni)
 	return ret;
 }
 
-static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		__le16 *name, u8 name_len, mode_t mode, dev_t dev,
 		const char *target, int target_len)
 {
@@ -732,7 +732,7 @@ err_out:
 	return ERR_PTR(err);
 }
 
-static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, umode_t mode)
 {
 	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
@@ -1049,7 +1049,7 @@ out:
 	return err;
 }
 
-static struct dentry *ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ntfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
@@ -1248,7 +1248,7 @@ err_out:
 	return err;
 }
 
-static int ntfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int ntfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		struct dentry *old_dentry, struct inode *new_dir,
 		struct dentry *new_dentry, unsigned int flags)
 {
@@ -1399,7 +1399,7 @@ err_out:
 	return err;
 }
 
-static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, const char *symname)
 {
 	struct super_block *sb = dir->i_sb;
@@ -1447,7 +1447,7 @@ out:
 	return err;
 }
 
-static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct super_block *sb = dir->i_sb;

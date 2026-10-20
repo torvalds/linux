@@ -3278,7 +3278,7 @@ static bool smb2_is_private_ea(const char *name, size_t name_len)
 static int smb2_set_ea(struct smb2_ea_info *eabuf, unsigned int buf_len,
 		       const struct path *path, bool get_write)
 {
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	char *attr_name = NULL, *value;
 	int rc = 0;
 	unsigned int next = 0;
@@ -3379,7 +3379,7 @@ static noinline int smb2_set_stream_name_xattr(const struct path *path,
 					       struct ksmbd_file *fp,
 					       char *stream_name, int s_type)
 {
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	size_t xattr_stream_size;
 	char *xattr_stream_name;
 	int rc;
@@ -3455,7 +3455,7 @@ static loff_t ksmbd_stream_eof(struct ksmbd_file *fp)
 
 static int smb2_remove_smb_xattrs(const struct path *path)
 {
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	char *name, *xattr_list = NULL;
 	ssize_t xattr_list_len;
 	int err = 0;
@@ -3648,7 +3648,7 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 }
 
 static void ksmbd_acls_fattr(struct smb_fattr *fattr,
-			     struct mnt_idmap *idmap,
+			     const struct mnt_idmap *idmap,
 			     struct inode *inode)
 {
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
@@ -4132,7 +4132,7 @@ int smb2_open(struct ksmbd_work *work)
 	struct ksmbd_share_config *share = tcon->share_conf;
 	struct ksmbd_file *fp = NULL;
 	struct file *filp = NULL;
-	struct mnt_idmap *idmap = NULL;
+	const struct mnt_idmap *idmap = NULL;
 	struct kstat stat;
 	struct create_context *context;
 	struct lease_ctx_info *lc = NULL;
@@ -5797,7 +5797,7 @@ struct smb2_query_dir_private {
 
 static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 {
-	struct mnt_idmap	*idmap = file_mnt_idmap(priv->dir_fp->filp);
+	const struct mnt_idmap	*idmap = file_mnt_idmap(priv->dir_fp->filp);
 	struct kstat		kstat;
 	struct ksmbd_kstat	ksmbd_kstat;
 	int			rc;
@@ -6390,7 +6390,7 @@ static int smb2_get_ea(struct ksmbd_work *work, struct ksmbd_file *fp,
 	ssize_t buf_free_len, alignment_bytes, next_offset, rsp_data_cnt = 0;
 	struct smb2_ea_info_req *ea_req = NULL;
 	const struct path *path;
-	struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
 
 	if (!(fp->daccess & FILE_READ_EA_LE)) {
 		pr_err("Not permitted to read ext attr : 0x%x\n",
@@ -7108,7 +7108,7 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 {
 	struct smb311_posix_qinfo *file_info;
 	struct inode *inode = file_inode(fp->filp);
-	struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 	struct kstat stat;
@@ -7600,7 +7600,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 			     struct smb2_query_info_rsp *rsp)
 {
 	struct ksmbd_file *fp;
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct smb_ntsd *pntsd = NULL, *ppntsd = NULL;
 	struct smb_fattr fattr = {{0}};
 	struct inode *inode;
@@ -8113,7 +8113,7 @@ static int set_file_basic_info(struct ksmbd_file *fp,
 	struct iattr attrs;
 	struct file *filp;
 	struct inode *inode;
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	__le32 attrs_mask = FILE_ATTRIBUTE_DIRECTORY_LE |
 		FILE_ATTRIBUTE_COMPRESSED_LE;
 	int rc = 0;
@@ -10715,7 +10715,7 @@ static inline int fsctl_set_sparse(struct ksmbd_work *work, u64 id,
 				   struct file_sparse *sparse)
 {
 	struct ksmbd_file *fp;
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	int ret = 0;
 	__le32 old_fattr;
 

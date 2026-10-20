@@ -213,7 +213,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
+affs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;

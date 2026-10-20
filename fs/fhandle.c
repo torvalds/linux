@@ -201,7 +201,7 @@ static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
 	struct handle_to_path_ctx *ctx = context;
 	struct user_namespace *user_ns = current_user_ns();
 	struct dentry *d, *root = ctx->root.dentry;
-	struct mnt_idmap *idmap = mnt_idmap(ctx->root.mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(ctx->root.mnt);
 	int retval = 0;
 
 	if (!root)

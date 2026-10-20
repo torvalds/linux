@@ -2073,7 +2073,7 @@ fail2:
 	return error;
 }
 
-static struct dentry *ns_mkdir_op(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ns_mkdir_op(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	struct aa_ns *ns, *parent;

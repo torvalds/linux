@@ -302,7 +302,7 @@ static int ubifs_prepare_create(struct inode *dir, struct dentry *dentry,
 	return fscrypt_setup_filename(dir, &dentry->d_name, 0, nm);
 }
 
-static int ubifs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ubifs_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -440,7 +440,7 @@ static void unlock_2_inodes(struct inode *inode1, struct inode *inode2)
 	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 }
 
-static int ubifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int ubifs_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
 	struct dentry *dentry = file->f_path.dentry;
@@ -1002,7 +1002,7 @@ out_fname:
 	return err;
 }
 
-static struct dentry *ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ubifs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -1077,7 +1077,7 @@ out_budg:
 	return ERR_PTR(err);
 }
 
-static int ubifs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ubifs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
@@ -1170,7 +1170,7 @@ out_budg:
 	return err;
 }
 
-static int ubifs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ubifs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	struct inode *inode;
@@ -1642,7 +1642,7 @@ out:
 	return err;
 }
 
-static int ubifs_rename(struct mnt_idmap *idmap,
+static int ubifs_rename(const struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
@@ -1667,7 +1667,7 @@ static int ubifs_rename(struct mnt_idmap *idmap,
 	return do_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
-int ubifs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ubifs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	loff_t size;

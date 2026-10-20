@@ -552,7 +552,7 @@ out:
 	return ret;
 }
 
-static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
+static int exfat_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
@@ -825,7 +825,7 @@ unlock:
 	return err;
 }
 
-static struct dentry *exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *exfat_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
@@ -1263,7 +1263,7 @@ out:
 	return ret;
 }
 
-static int exfat_rename(struct mnt_idmap *idmap,
+static int exfat_rename(const struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)

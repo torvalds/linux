@@ -33,7 +33,7 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int minix_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int minix_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
@@ -50,7 +50,7 @@ static int minix_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return add_nondir(dentry, inode);
 }
 
-static int minix_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int minix_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
 	struct inode *inode = minix_new_inode(dir, mode);
@@ -63,13 +63,13 @@ static int minix_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	return finish_open_simple(file, 0);
 }
 
-static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
+static int minix_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	return minix_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
-static int minix_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int minix_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int i = strlen(symname)+1;
@@ -104,7 +104,7 @@ static int minix_link(struct dentry * old_dentry, struct inode * dir,
 	return add_nondir(dentry, inode);
 }
 
-static struct dentry *minix_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *minix_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	struct inode * inode;
@@ -187,7 +187,7 @@ out:
 	return err;
 }
 
-static int minix_rename(struct mnt_idmap *idmap,
+static int minix_rename(const struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)

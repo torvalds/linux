@@ -596,7 +596,7 @@ error:
 /*
  * read the attributes of an inode
  */
-int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int afs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -759,7 +759,7 @@ static const struct afs_operation_ops afs_setattr_operation = {
 /*
  * set the attributes of an inode
  */
-int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int afs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
 	const unsigned int supported =

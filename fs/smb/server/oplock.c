@@ -2270,7 +2270,7 @@ void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp)
 {
 	struct create_posix_rsp *buf;
 	struct inode *inode = file_inode(fp->filp);
-	struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 

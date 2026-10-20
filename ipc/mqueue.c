@@ -614,7 +614,7 @@ out_unlock:
 	return error;
 }
 
-static int mqueue_create(struct mnt_idmap *idmap, struct inode *dir,
+static int mqueue_create(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode)
 {
 	return mqueue_create_attr(dentry, mode, NULL);

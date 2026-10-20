@@ -257,7 +257,7 @@ void id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 	ssid->num_subauth++;
 }
 
-static int sid_to_id(struct mnt_idmap *idmap,
+static int sid_to_id(const struct mnt_idmap *idmap,
 		     struct smb_sid *psid, uint sidtype,
 		     struct smb_fattr *fattr)
 {
@@ -383,7 +383,7 @@ void free_acl_state(struct posix_acl_state *state)
 	kfree(state->groups);
 }
 
-static int parse_dacl(struct mnt_idmap *idmap,
+static int parse_dacl(const struct mnt_idmap *idmap,
 		      struct smb_acl *pdacl, char *end_of_acl,
 		      struct smb_sid *pownersid, struct smb_sid *pgrpsid,
 		      struct smb_fattr *fattr)
@@ -619,7 +619,7 @@ out:
 	return ret;
 }
 
-static void set_posix_acl_entries_dacl(struct mnt_idmap *idmap,
+static void set_posix_acl_entries_dacl(const struct mnt_idmap *idmap,
 				       struct smb_ace *pndace,
 				       struct smb_fattr *fattr, u16 *num_aces,
 				       u16 *size, u16 existing_nt_aces,
@@ -750,7 +750,7 @@ posix_default_acl:
 	}
 }
 
-static void set_ntacl_dacl(struct mnt_idmap *idmap,
+static void set_ntacl_dacl(const struct mnt_idmap *idmap,
 			   struct smb_acl *pndacl,
 			   struct smb_acl *nt_dacl,
 			   unsigned int aces_size,
@@ -809,7 +809,7 @@ next_ace:
 	pndacl->size = cpu_to_le16(le16_to_cpu(pndacl->size) + size);
 }
 
-static void set_mode_dacl(struct mnt_idmap *idmap,
+static void set_mode_dacl(const struct mnt_idmap *idmap,
 			  struct smb_acl *pndacl, struct smb_fattr *fattr)
 {
 	struct smb_ace *pace, *pndace;
@@ -895,7 +895,7 @@ static int parse_sid(struct smb_sid *psid, char *end_of_acl)
 }
 
 /* Convert CIFS ACL to POSIX form */
-int parse_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
+int parse_sec_desc(const struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   int acl_len, struct smb_fattr *fattr)
 {
 	int rc = 0;
@@ -1030,7 +1030,7 @@ size_t smb_acl_sec_desc_scratch_len(struct smb_fattr *fattr,
 }
 
 /* Convert permission bits from mode to equivalent CIFS ACL */
-int build_sec_desc(struct mnt_idmap *idmap,
+int build_sec_desc(const struct mnt_idmap *idmap,
 		   struct smb_ntsd *pntsd, struct smb_ntsd *ppntsd,
 		   int ppntsd_size, int addition_info, __u32 *secdesclen,
 		   struct smb_fattr *fattr)
@@ -1196,7 +1196,7 @@ int smb_inherit_dacl(struct ksmbd_conn *conn,
 	struct smb_ntsd *parent_pntsd = NULL;
 	struct smb_sid owner_sid, group_sid;
 	struct dentry *parent = path->dentry->d_parent;
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	int inherited_flags = 0, flags = 0, i, nt_size = 0, pdacl_size;
 	int rc = 0, pntsd_type, ppntsd_size, acl_len, aces_size;
 	unsigned int dacloffset;
@@ -1451,7 +1451,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 			__le32 *pdaccess, __le32 raw_daccess, int uid,
 			bool strict)
 {
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	struct smb_ntsd *pntsd = NULL;
 	struct smb_acl *pdacl;
 	struct posix_acl *posix_acls;
@@ -1673,7 +1673,7 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	int rc;
 	struct smb_fattr fattr = {{0}};
 	struct inode *inode = d_inode(path->dentry);
-	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	struct iattr newattrs;
 
 	fattr.cf_uid = INVALID_UID;

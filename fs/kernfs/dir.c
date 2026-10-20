@@ -1288,7 +1288,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	return d_splice_alias(inode, dentry);
 }
 
-static struct dentry *kernfs_iop_mkdir(struct mnt_idmap *idmap,
+static struct dentry *kernfs_iop_mkdir(const struct mnt_idmap *idmap,
 				       struct inode *dir, struct dentry *dentry,
 				       umode_t mode)
 {
@@ -1326,7 +1326,7 @@ static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int kernfs_iop_rename(struct mnt_idmap *idmap,
+static int kernfs_iop_rename(const struct mnt_idmap *idmap,
 			     struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)

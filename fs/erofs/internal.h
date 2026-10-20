@@ -417,7 +417,7 @@ void erofs_onlinefolio_init(struct folio *folio);
 void erofs_onlinefolio_split(struct folio *folio);
 void erofs_onlinefolio_end(struct folio *folio, int err, bool dirty);
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid);
-int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int erofs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask,
 		  unsigned int query_flags);
 int erofs_namei(struct inode *dir, const struct qstr *name,

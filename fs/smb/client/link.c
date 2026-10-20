@@ -533,7 +533,7 @@ cifs_hl_exit:
 }
 
 int
-cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
+cifs_symlink(const struct mnt_idmap *idmap, struct inode *inode,
 	     struct dentry *direntry, const char *symname)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode);

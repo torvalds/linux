@@ -2336,7 +2336,7 @@ EXPORT_SYMBOL(touch_atime);
  * response to write or truncate. Return 0 if nothing has to be changed.
  * Negative value on error (change should be denied).
  */
-int dentry_needs_remove_privs(struct mnt_idmap *idmap,
+int dentry_needs_remove_privs(const struct mnt_idmap *idmap,
 			      struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
@@ -2355,7 +2355,7 @@ int dentry_needs_remove_privs(struct mnt_idmap *idmap,
 	return mask;
 }
 
-static int __remove_privs(struct mnt_idmap *idmap,
+static int __remove_privs(const struct mnt_idmap *idmap,
 			  struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
@@ -2715,7 +2715,7 @@ EXPORT_SYMBOL(init_special_inode);
  * and initializing i_uid and i_gid. On non-idmapped mounts or if permission
  * checking is to be performed on the raw inode simply pass @nop_mnt_idmap.
  */
-void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
+void inode_init_owner(const struct mnt_idmap *idmap, struct inode *inode,
 		      const struct inode *dir, umode_t mode)
 {
 	inode_fsuid_set(inode, idmap);
@@ -2745,7 +2745,7 @@ EXPORT_SYMBOL(inode_init_owner);
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply pass @nop_mnt_idmap.
  */
-bool inode_owner_or_capable(struct mnt_idmap *idmap,
+bool inode_owner_or_capable(const struct mnt_idmap *idmap,
 			    const struct inode *inode)
 {
 	vfsuid_t vfsuid;
@@ -3032,7 +3032,7 @@ EXPORT_SYMBOL(inode_set_ctime_deleg);
  *
  * Return: true if the caller is sufficiently privileged, false if not.
  */
-bool in_group_or_capable(struct mnt_idmap *idmap,
+bool in_group_or_capable(const struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid)
 {
 	if (vfsgid_in_group_p(vfsgid))
@@ -3057,7 +3057,7 @@ EXPORT_SYMBOL(in_group_or_capable);
  *
  * Return: the new mode to use for the file
  */
-umode_t mode_strip_sgid(struct mnt_idmap *idmap,
+umode_t mode_strip_sgid(const struct mnt_idmap *idmap,
 			const struct inode *dir, umode_t mode)
 {
 	if ((mode & (S_ISGID | S_IXGRP)) != (S_ISGID | S_IXGRP))

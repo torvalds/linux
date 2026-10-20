@@ -21,7 +21,7 @@ xfs_fileattr_get(
 
 extern int
 xfs_fileattr_set(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct file_kattr	*fa);
 

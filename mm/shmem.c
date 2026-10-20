@@ -1292,7 +1292,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, uoff_t lend)
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
-static int shmem_getattr(struct mnt_idmap *idmap,
+static int shmem_getattr(const struct mnt_idmap *idmap,
 			 const struct path *path, struct kstat *stat,
 			 u32 request_mask, unsigned int query_flags)
 {
@@ -1326,7 +1326,7 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int shmem_setattr(struct mnt_idmap *idmap,
+static int shmem_setattr(const struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -3025,7 +3025,7 @@ static struct offset_ctx *shmem_get_offset_ctx(struct inode *inode)
 	return &SHMEM_I(inode)->dir_offsets;
 }
 
-static struct inode *__shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *__shmem_get_inode(const struct mnt_idmap *idmap,
 				       struct super_block *sb,
 				       struct inode *dir, umode_t mode,
 				       dev_t dev, vma_flags_t flags)
@@ -3105,7 +3105,7 @@ static struct inode *__shmem_get_inode(struct mnt_idmap *idmap,
 }
 
 #ifdef CONFIG_TMPFS_QUOTA
-static struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				     struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, vma_flags_t flags)
 {
@@ -3133,7 +3133,7 @@ errout:
 	return ERR_PTR(err);
 }
 #else
-static struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				     struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, vma_flags_t flags)
 {
@@ -3821,7 +3821,7 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
  * File creation. Allocate an inode, and we're done..
  */
 static int
-shmem_mknod(struct mnt_idmap *idmap, struct inode *dir,
+shmem_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -3860,7 +3860,7 @@ out_iput:
 }
 
 static int
-shmem_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+shmem_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 	      struct file *file, umode_t mode)
 {
 	struct inode *inode;
@@ -3888,7 +3888,7 @@ out_iput:
 	return error;
 }
 
-static struct dentry *shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *shmem_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	int error;
@@ -3900,7 +3900,7 @@ static struct dentry *shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return NULL;
 }
 
-static int shmem_create(struct mnt_idmap *idmap, struct inode *dir,
+static int shmem_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	return shmem_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
@@ -3973,7 +3973,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 	return shmem_unlink(dir, dentry);
 }
 
-static int shmem_whiteout(struct mnt_idmap *idmap,
+static int shmem_whiteout(const struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry)
 {
 	struct dentry *whiteout;
@@ -3994,7 +3994,7 @@ static int shmem_whiteout(struct mnt_idmap *idmap,
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename2(struct mnt_idmap *idmap,
+static int shmem_rename2(const struct mnt_idmap *idmap,
 			 struct inode *old_dir, struct dentry *old_dentry,
 			 struct inode *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
@@ -4050,7 +4050,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int shmem_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int error;
@@ -4162,7 +4162,7 @@ static int shmem_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-static int shmem_fileattr_set(struct mnt_idmap *idmap,
+static int shmem_fileattr_set(const struct mnt_idmap *idmap,
 			      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -4267,7 +4267,7 @@ static int shmem_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *value,
 				   size_t size, int flags)
@@ -5795,7 +5795,7 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
 {
 }
 
-static inline struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static inline struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				struct super_block *sb, struct inode *dir,
 				umode_t mode, dev_t dev, vma_flags_t flags)
 {

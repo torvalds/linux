@@ -278,7 +278,7 @@ int btrfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int btrfs_fileattr_set(struct mnt_idmap *idmap,
+int btrfs_fileattr_set(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct file_kattr *fa)
 {
 	struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
@@ -549,7 +549,7 @@ static unsigned int create_subvol_num_items(const struct btrfs_qgroup_inherit *i
 	return num_items;
 }
 
-static noinline int create_subvol(struct mnt_idmap *idmap,
+static noinline int create_subvol(const struct mnt_idmap *idmap,
 				  struct inode *dir, struct dentry *dentry,
 				  struct btrfs_qgroup_inherit *inherit)
 {
@@ -879,7 +879,7 @@ free_pending:
  * inside this filesystem so it's quite a bit simpler.
  */
 static noinline int btrfs_mksubvol(struct dentry *parent,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct qstr *qname, struct btrfs_root *snap_src,
 				   bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
@@ -926,7 +926,7 @@ out_dput:
 }
 
 static noinline int btrfs_mksnapshot(struct dentry *parent,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct qstr *qname,
 				   struct btrfs_root *root,
 				   bool readonly,
@@ -1164,7 +1164,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 {
 	int ret;
 	struct qstr qname = QSTR(name);
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 
 	if (!S_ISDIR(file_inode(file)->i_mode))
 		return -ENOTDIR;
@@ -1741,7 +1741,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_root *root, u64 dirid
 	return 0;
 }
 
-static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
+static int btrfs_search_path_in_tree_user(const struct mnt_idmap *idmap,
 				struct inode *inode,
 				struct btrfs_ioctl_ino_lookup_user_args *args)
 {
@@ -2241,7 +2241,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct btrfs_root *dest = NULL;
 	struct btrfs_ioctl_vol_args AUTO_KFREE(vol_args);
 	struct btrfs_ioctl_vol_args_v2 AUTO_KFREE(vol_args2);
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 	char *subvol_name, *subvol_name_ptr = NULL;
 	int ret = 0;
 	bool destroy_parent = false;
@@ -3901,7 +3901,7 @@ static long btrfs_ioctl_quota_rescan_wait(struct btrfs_fs_info *fs_info)
 }
 
 static long _btrfs_ioctl_set_received_subvol(struct file *file,
-					    struct mnt_idmap *idmap,
+					    const struct mnt_idmap *idmap,
 					    struct btrfs_ioctl_received_subvol_args *sa)
 {
 	struct inode *inode = file_inode(file);

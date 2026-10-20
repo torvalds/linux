@@ -2084,7 +2084,7 @@ xfs_sort_inodes(
  */
 static int
 xfs_rename_alloc_whiteout(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_name		*src_name,
 	struct xfs_inode	*dp,
 	struct xfs_inode	**wip)
@@ -2130,7 +2130,7 @@ xfs_rename_alloc_whiteout(
  */
 int
 xfs_rename(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_inode	*src_dp,
 	struct xfs_name		*src_name,
 	struct xfs_inode	*src_ip,

@@ -76,7 +76,7 @@ extern int configfs_make_dirent(struct configfs_dirent *, struct dentry *,
 extern int configfs_dirent_is_ready(struct configfs_dirent *);
 
 extern const unsigned char * configfs_get_name(struct configfs_dirent *sd);
-extern int configfs_setattr(struct mnt_idmap *idmap,
+extern int configfs_setattr(const struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct iattr *iattr);
 
 extern struct dentry *configfs_pin_fs(void);
@@ -90,7 +90,7 @@ extern const struct inode_operations configfs_root_inode_operations;
 extern const struct inode_operations configfs_symlink_inode_operations;
 extern const struct dentry_operations configfs_dentry_ops;
 
-extern int configfs_symlink(struct mnt_idmap *idmap,
+extern int configfs_symlink(const struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    const char *symname);
 extern int configfs_unlink(struct inode *dir, struct dentry *dentry);

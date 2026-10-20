@@ -81,9 +81,9 @@ struct posix_acl_state {
 	struct posix_ace_state_array *groups;
 };
 
-int parse_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
+int parse_sec_desc(const struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   int acl_len, struct smb_fattr *fattr);
-int build_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
+int build_sec_desc(const struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   struct smb_ntsd *ppntsd, int ppntsd_size, int addition_info,
 		   __u32 *secdesclen, struct smb_fattr *fattr);
 int init_acl_state(struct posix_acl_state *state, u16 cnt);
@@ -105,7 +105,7 @@ void ksmbd_init_domain(u32 *sub_auth);
 size_t smb_acl_sec_desc_scratch_len(struct smb_fattr *fattr,
 		struct smb_ntsd *ppntsd, int ppntsd_size, int addition_info);
 
-static inline uid_t posix_acl_uid_translate(struct mnt_idmap *idmap,
+static inline uid_t posix_acl_uid_translate(const struct mnt_idmap *idmap,
 					    struct posix_acl_entry *pace)
 {
 	vfsuid_t vfsuid;
@@ -117,7 +117,7 @@ static inline uid_t posix_acl_uid_translate(struct mnt_idmap *idmap,
 	return from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid));
 }
 
-static inline gid_t posix_acl_gid_translate(struct mnt_idmap *idmap,
+static inline gid_t posix_acl_gid_translate(const struct mnt_idmap *idmap,
 					    struct posix_acl_entry *pace)
 {
 	vfsgid_t vfsgid;

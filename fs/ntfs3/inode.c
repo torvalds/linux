@@ -1381,7 +1381,7 @@ out:
  *
  * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+int ntfs_create_inode(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, const struct cpu_str *uni,
 		      umode_t mode, dev_t dev, const char *symname, u32 size,
 		      struct ntfs_fnd *fnd)

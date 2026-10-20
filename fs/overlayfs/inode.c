@@ -18,7 +18,7 @@
 #include "overlayfs.h"
 
 
-int ovl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ovl_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
 	int err;
@@ -168,7 +168,7 @@ static inline int ovl_real_getattr_nosec(struct super_block *sb,
 		return vfs_getattr_nosec(path, stat, request_mask, flags);
 }
 
-int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ovl_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
@@ -303,7 +303,7 @@ int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return err;
 }
 
-int ovl_permission(struct mnt_idmap *idmap,
+int ovl_permission(const struct mnt_idmap *idmap,
 		   struct inode *inode, int mask)
 {
 	struct inode *upperinode = ovl_inode_upper(inode);
@@ -355,7 +355,7 @@ static const char *ovl_get_link(struct dentry *dentry,
  * alter the POSIX ACLs for the underlying filesystem.
  */
 static void ovl_idmap_posix_acl(const struct inode *realinode,
-				struct mnt_idmap *idmap,
+				const struct mnt_idmap *idmap,
 				struct posix_acl *acl)
 {
 	struct user_namespace *fs_userns = i_user_ns(realinode);
@@ -406,7 +406,7 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
 				   const char *acl_name, bool noperm)
 {
 	struct posix_acl *real_acl, *clone;
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct inode *realinode = d_inode(path->dentry);
 
 	idmap = mnt_idmap(path->mnt);
@@ -447,7 +447,7 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
  *
  * This is obviously only relevant when idmapped layers are used.
  */
-struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
+struct posix_acl *do_ovl_get_acl(const struct mnt_idmap *idmap,
 				 struct inode *inode, int type,
 				 bool rcu, bool noperm)
 {
@@ -536,7 +536,7 @@ out:
 	return err;
 }
 
-int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int ovl_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct posix_acl *acl, int type)
 {
 	int err;
@@ -650,7 +650,7 @@ int ovl_real_fileattr_set(const struct path *realpath, struct file_kattr *fa)
 	return vfs_fileattr_set(mnt_idmap(realpath->mnt), realpath->dentry, fa);
 }
 
-int ovl_fileattr_set(struct mnt_idmap *idmap,
+int ovl_fileattr_set(const struct mnt_idmap *idmap,
 		     struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

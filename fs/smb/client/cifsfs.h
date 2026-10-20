@@ -53,23 +53,23 @@ void cifs_sb_deactive(struct super_block *sb);
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
 struct inode *cifs_root_iget(struct super_block *sb);
-int cifs_create(struct mnt_idmap *idmap, struct inode *dir,
+int cifs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *direntry, umode_t mode);
 int cifs_atomic_open(struct inode *dir, struct dentry *direntry,
 		     struct file *file, unsigned int oflags, umode_t mode);
-int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+int cifs_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 		 struct file *file, umode_t mode);
 struct dentry *cifs_lookup(struct inode *parent_dir_inode,
 			   struct dentry *direntry, unsigned int flags);
 int cifs_unlink(struct inode *dir, struct dentry *dentry);
 int cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		  struct dentry *direntry);
-int cifs_mknod(struct mnt_idmap *idmap, struct inode *inode,
+int cifs_mknod(const struct mnt_idmap *idmap, struct inode *inode,
 	       struct dentry *direntry, umode_t mode, dev_t device_number);
-struct dentry *cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
+struct dentry *cifs_mkdir(const struct mnt_idmap *idmap, struct inode *inode,
 			  struct dentry *direntry, umode_t mode);
 int cifs_rmdir(struct inode *inode, struct dentry *direntry);
-int cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
+int cifs_rename2(const struct mnt_idmap *idmap, struct inode *source_dir,
 		 struct dentry *source_dentry, struct inode *target_dir,
 		 struct dentry *target_dentry, unsigned int flags);
 int cifs_revalidate_file_attr(struct file *filp);
@@ -78,9 +78,9 @@ int cifs_revalidate_file(struct file *filp);
 int cifs_revalidate_dentry(struct dentry *dentry);
 int cifs_revalidate_mapping(struct inode *inode);
 int cifs_zap_mapping(struct inode *inode);
-int cifs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int cifs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags);
-int cifs_setattr(struct mnt_idmap *idmap, struct dentry *direntry,
+int cifs_setattr(const struct mnt_idmap *idmap, struct dentry *direntry,
 		 struct iattr *attrs);
 int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 		u64 len);
@@ -129,7 +129,7 @@ struct vfsmount *cifs_d_automount(struct path *path);
 /* Functions related to symlinks */
 const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
 			  struct delayed_call *done);
-int cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
+int cifs_symlink(const struct mnt_idmap *idmap, struct inode *inode,
 		 struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR

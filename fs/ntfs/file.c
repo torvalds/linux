@@ -302,7 +302,7 @@ static int ntfs_setattr_size(struct inode *vi, struct iattr *attr)
  * NOTE: Changes in inode size are not supported yet for compressed or
  * encrypted files.
  */
-int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ntfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *vi = d_inode(dentry);
@@ -372,7 +372,7 @@ out:
 	return err;
 }
 
-int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ntfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, unsigned int request_mask,
 		unsigned int query_flags)
 {

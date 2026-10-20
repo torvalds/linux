@@ -1362,7 +1362,7 @@ EXPORT_SYMBOL(begin_new_exec);
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 	if (inode_permission(idmap, inode, MAY_READ) < 0) {
 		struct user_namespace *old, *user_ns;
 		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
@@ -1646,7 +1646,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 {
 	/* Handle suid and sgid on files */
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct inode *inode = file_inode(file);
 	unsigned int mode;
 	vfsuid_t vfsuid;

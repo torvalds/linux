@@ -1591,7 +1591,7 @@ out:
 	return err;
 }
 
-int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ext2_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1617,7 +1617,7 @@ int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return 0;
 }
 
-int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ext2_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);

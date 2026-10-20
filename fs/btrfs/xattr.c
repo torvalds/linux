@@ -360,7 +360,7 @@ static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *buffer,
 				   size_t size, int flags)
@@ -402,7 +402,7 @@ static int btrfs_xattr_handler_get_security(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set_security(const struct xattr_handler *handler,
-					    struct mnt_idmap *idmap,
+					    const struct mnt_idmap *idmap,
 					    struct dentry *unused,
 					    struct inode *inode,
 					    const char *name,
@@ -420,7 +420,7 @@ static int btrfs_xattr_handler_set_security(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
-					struct mnt_idmap *idmap,
+					const struct mnt_idmap *idmap,
 					struct dentry *unused, struct inode *inode,
 					const char *name, const void *value,
 					size_t size, int flags)

@@ -130,9 +130,9 @@ static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid)
 	return from_kgid(ns, gid) != (gid_t) -1;
 }
 
-u32 map_id_down(struct uid_gid_map *map, u32 id);
-u32 map_id_up(struct uid_gid_map *map, u32 id);
-u32 map_id_range_up(struct uid_gid_map *map, u32 id, u32 count);
+u32 map_id_down(const struct uid_gid_map *map, u32 id);
+u32 map_id_up(const struct uid_gid_map *map, u32 id);
+u32 map_id_range_up(const struct uid_gid_map *map, u32 id, u32 count);
 
 #else
 
@@ -182,17 +182,17 @@ static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid)
 	return gid_valid(gid);
 }
 
-static inline u32 map_id_down(struct uid_gid_map *map, u32 id)
+static inline u32 map_id_down(const struct uid_gid_map *map, u32 id)
 {
 	return id;
 }
 
-static inline u32 map_id_range_up(struct uid_gid_map *map, u32 id, u32 count)
+static inline u32 map_id_range_up(const struct uid_gid_map *map, u32 id, u32 count)
 {
 	return id;
 }
 
-static inline u32 map_id_up(struct uid_gid_map *map, u32 id)
+static inline u32 map_id_up(const struct uid_gid_map *map, u32 id)
 {
 	return id;
 }

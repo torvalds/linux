@@ -2283,7 +2283,7 @@ posix_mkdir_get_info:
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
-struct dentry *cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
+struct dentry *cifs_mkdir(const struct mnt_idmap *idmap, struct inode *inode,
 			  struct dentry *direntry, umode_t mode)
 {
 	int rc = 0;
@@ -2533,7 +2533,7 @@ do_rename_exit:
 }
 
 int
-cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
+cifs_rename2(const struct mnt_idmap *idmap, struct inode *source_dir,
 	     struct dentry *source_dentry, struct inode *target_dir,
 	     struct dentry *target_dentry, unsigned int flags)
 {
@@ -2939,7 +2939,7 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	return cifs_revalidate_mapping(inode);
 }
 
-int cifs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int cifs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(path->dentry);
@@ -3562,7 +3562,7 @@ cifs_setattr_exit:
 }
 
 int
-cifs_setattr(struct mnt_idmap *idmap, struct dentry *direntry,
+cifs_setattr(const struct mnt_idmap *idmap, struct dentry *direntry,
 	     struct iattr *attrs)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);

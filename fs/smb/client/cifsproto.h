@@ -212,9 +212,9 @@ struct smb_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 struct smb_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 				     const struct cifs_fid *cifsfid,
 				     u32 *pacllen, u32 info);
-struct posix_acl *cifs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+struct posix_acl *cifs_get_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 			       int type);
-int cifs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int cifs_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 int set_cifs_acl(struct smb_ntsd *pnntsd, __u32 acllen, struct inode *inode,
 		 const char *path, int aclflag);

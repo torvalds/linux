@@ -823,13 +823,13 @@ static struct vfsmount *pidfs_mnt __ro_after_init;
  * implemented. Let's reject it completely until we have a clean
  * permission concept for pidfds.
  */
-static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int pidfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			 struct iattr *attr)
 {
 	return anon_inode_setattr(idmap, dentry, attr);
 }
 
-static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+static int pidfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 			 struct kstat *stat, u32 request_mask,
 			 unsigned int query_flags)
 {
@@ -1102,7 +1102,7 @@ static int pidfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int pidfs_xattr_set(const struct xattr_handler *handler,
-			   struct mnt_idmap *idmap, struct dentry *unused,
+			   const struct mnt_idmap *idmap, struct dentry *unused,
 			   struct inode *inode, const char *suffix,
 			   const void *value, size_t size, int flags)
 {

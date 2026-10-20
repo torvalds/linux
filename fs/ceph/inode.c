@@ -2398,7 +2398,7 @@ static const char *ceph_encrypted_get_link(struct dentry *dentry,
 				   done);
 }
 
-static int ceph_encrypted_symlink_getattr(struct mnt_idmap *idmap,
+static int ceph_encrypted_symlink_getattr(const struct mnt_idmap *idmap,
 					  const struct path *path,
 					  struct kstat *stat, u32 request_mask,
 					  unsigned int query_flags)
@@ -2568,7 +2568,7 @@ out:
 	return ret;
 }
 
-int __ceph_setattr(struct mnt_idmap *idmap, struct inode *inode,
+int __ceph_setattr(const struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *attr, struct ceph_iattr *cia)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -2921,7 +2921,7 @@ out:
 /*
  * setattr
  */
-int ceph_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ceph_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -3098,7 +3098,7 @@ out:
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct mnt_idmap *idmap, struct inode *inode,
+int ceph_permission(const struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int err;
@@ -3145,7 +3145,7 @@ static int statx_to_caps(u32 want, umode_t mode)
  * Get all the attributes. If we have sufficient caps for the requested attrs,
  * then we can avoid talking to the MDS at all.
  */
-int ceph_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ceph_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);

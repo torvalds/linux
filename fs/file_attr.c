@@ -265,7 +265,7 @@ static int fileattr_set_prepare(struct inode *inode,
  *
  * Return: 0 on success, or a negative error on failure.
  */
-int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+int vfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -323,7 +323,7 @@ int ioctl_getflags(struct file *file, unsigned int __user *argp)
 
 int ioctl_setflags(struct file *file, unsigned int __user *argp)
 {
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
 	struct file_kattr fa = {};
 	unsigned int flags;
@@ -355,7 +355,7 @@ int ioctl_fsgetxattr(struct file *file, void __user *argp)
 
 int ioctl_fssetxattr(struct file *file, void __user *argp)
 {
-	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	const struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
 	struct file_kattr fa = {};
 	int err;

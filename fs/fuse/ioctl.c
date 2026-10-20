@@ -540,7 +540,7 @@ cleanup:
 	return err;
 }
 
-int fuse_fileattr_set(struct mnt_idmap *idmap,
+int fuse_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

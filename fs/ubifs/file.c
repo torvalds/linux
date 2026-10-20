@@ -1251,7 +1251,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	return err;
 }
 
-int ubifs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ubifs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
 	int err;
@@ -1611,7 +1611,7 @@ static const char *ubifs_get_link(struct dentry *dentry,
 	return fscrypt_get_symlink(inode, ui->data, ui->data_len, done);
 }
 
-static int ubifs_symlink_getattr(struct mnt_idmap *idmap,
+static int ubifs_symlink_getattr(const struct mnt_idmap *idmap,
 				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int query_flags)
 {

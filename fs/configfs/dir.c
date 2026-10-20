@@ -1295,7 +1295,7 @@ out_root_unlock:
 }
 EXPORT_SYMBOL(configfs_depend_item_unlocked);
 
-static struct dentry *configfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *configfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				     struct dentry *dentry, umode_t mode)
 {
 	int ret = 0;

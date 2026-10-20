@@ -188,7 +188,7 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
+int ima_get_action(const struct mnt_idmap *idmap, struct inode *inode,
 		   const struct cred *cred, struct lsm_prop *prop, int mask,
 		   enum ima_hooks func, int *pcr,
 		   struct ima_template_desc **template_desc,

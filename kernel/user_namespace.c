@@ -276,8 +276,8 @@ static int cmp_map_id(const void *k, const void *e)
  * map_id_range_down_max - Find idmap via binary search in ordered idmap array.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static struct uid_gid_extent *
-map_id_range_down_max(unsigned extents, struct uid_gid_map *map, u32 id, u32 count)
+static const struct uid_gid_extent *
+map_id_range_down_max(unsigned extents, const struct uid_gid_map *map, u32 id, u32 count)
 {
 	struct idmap_key key;
 
@@ -294,8 +294,8 @@ map_id_range_down_max(unsigned extents, struct uid_gid_map *map, u32 id, u32 cou
  * Can only be called if number of mappings is equal or less than
  * UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static struct uid_gid_extent *
-map_id_range_down_base(unsigned extents, struct uid_gid_map *map, u32 id, u32 count)
+static const struct uid_gid_extent *
+map_id_range_down_base(unsigned extents, const struct uid_gid_map *map, u32 id, u32 count)
 {
 	unsigned idx;
 	u32 first, last, id2;
@@ -313,9 +313,9 @@ map_id_range_down_base(unsigned extents, struct uid_gid_map *map, u32 id, u32 co
 	return NULL;
 }
 
-static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
+static u32 map_id_range_down(const struct uid_gid_map *map, u32 id, u32 count)
 {
-	struct uid_gid_extent *extent;
+	const struct uid_gid_extent *extent;
 	unsigned extents = map->nr_extents;
 	smp_rmb();
 
@@ -333,7 +333,7 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 	return id;
 }
 
-u32 map_id_down(struct uid_gid_map *map, u32 id)
+u32 map_id_down(const struct uid_gid_map *map, u32 id)
 {
 	return map_id_range_down(map, id, 1);
 }
@@ -343,8 +343,8 @@ u32 map_id_down(struct uid_gid_map *map, u32 id)
  * Can only be called if number of mappings is equal or less than
  * UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static struct uid_gid_extent *
-map_id_range_up_base(unsigned extents, struct uid_gid_map *map, u32 id, u32 count)
+static const struct uid_gid_extent *
+map_id_range_up_base(unsigned extents, const struct uid_gid_map *map, u32 id, u32 count)
 {
 	unsigned idx;
 	u32 first, last, id2;
@@ -366,8 +366,8 @@ map_id_range_up_base(unsigned extents, struct uid_gid_map *map, u32 id, u32 coun
  * map_id_up_max - Find idmap via binary search in ordered idmap array.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static struct uid_gid_extent *
-map_id_range_up_max(unsigned extents, struct uid_gid_map *map, u32 id, u32 count)
+static const struct uid_gid_extent *
+map_id_range_up_max(unsigned extents, const struct uid_gid_map *map, u32 id, u32 count)
 {
 	struct idmap_key key;
 
@@ -379,9 +379,9 @@ map_id_range_up_max(unsigned extents, struct uid_gid_map *map, u32 id, u32 count
 		       sizeof(struct uid_gid_extent), cmp_map_id);
 }
 
-u32 map_id_range_up(struct uid_gid_map *map, u32 id, u32 count)
+u32 map_id_range_up(const struct uid_gid_map *map, u32 id, u32 count)
 {
-	struct uid_gid_extent *extent;
+	const struct uid_gid_extent *extent;
 	unsigned extents = map->nr_extents;
 	smp_rmb();
 
@@ -399,7 +399,7 @@ u32 map_id_range_up(struct uid_gid_map *map, u32 id, u32 count)
 	return id;
 }
 
-u32 map_id_up(struct uid_gid_map *map, u32 id)
+u32 map_id_up(const struct uid_gid_map *map, u32 id)
 {
 	return map_id_range_up(map, id, 1);
 }

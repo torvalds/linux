@@ -559,7 +559,7 @@ int btrfs_new_inode_prepare(struct btrfs_new_inode_args *args,
 int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_new_inode_args *args);
 void btrfs_new_inode_args_destroy(struct btrfs_new_inode_args *args);
-struct inode *btrfs_new_subvol_inode(struct mnt_idmap *idmap,
+struct inode *btrfs_new_subvol_inode(const struct mnt_idmap *idmap,
 				     struct inode *dir);
  void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *state,
 			        u32 bits);

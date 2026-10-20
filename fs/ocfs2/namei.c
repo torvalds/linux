@@ -227,7 +227,7 @@ static void ocfs2_cleanup_add_entry_failure(struct ocfs2_super *osb,
 	iput(inode);
 }
 
-static int ocfs2_mknod(struct mnt_idmap *idmap,
+static int ocfs2_mknod(const struct mnt_idmap *idmap,
 		       struct inode *dir,
 		       struct dentry *dentry,
 		       umode_t mode,
@@ -650,7 +650,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 				    suballoc_loc, suballoc_bit);
 }
 
-static struct dentry *ocfs2_mkdir(struct mnt_idmap *idmap,
+static struct dentry *ocfs2_mkdir(const struct mnt_idmap *idmap,
 				  struct inode *dir,
 				  struct dentry *dentry,
 				  umode_t mode)
@@ -666,7 +666,7 @@ static struct dentry *ocfs2_mkdir(struct mnt_idmap *idmap,
 	return ERR_PTR(ret);
 }
 
-static int ocfs2_create(struct mnt_idmap *idmap,
+static int ocfs2_create(const struct mnt_idmap *idmap,
 			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode)
@@ -1206,7 +1206,7 @@ static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
 		ocfs2_inode_unlock(inode2, 1);
 }
 
-static int ocfs2_rename(struct mnt_idmap *idmap,
+static int ocfs2_rename(const struct mnt_idmap *idmap,
 			struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
@@ -1810,7 +1810,7 @@ bail:
 	return status;
 }
 
-static int ocfs2_symlink(struct mnt_idmap *idmap,
+static int ocfs2_symlink(const struct mnt_idmap *idmap,
 			 struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)

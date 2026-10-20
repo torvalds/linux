@@ -29,7 +29,7 @@
 #include "acl.h"
 
 static int
-v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_mknod_dotl(const struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev);
 
 /**
@@ -216,7 +216,7 @@ int v9fs_open_to_dotl_flags(int flags)
  *
  */
 static int
-v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_create_dotl(const struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t omode)
 {
 	return v9fs_vfs_mknod_dotl(idmap, dir, dentry, omode, 0);
@@ -344,7 +344,7 @@ out:
  *
  */
 
-static struct dentry *v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
+static struct dentry *v9fs_vfs_mkdir_dotl(const struct mnt_idmap *idmap,
 					  struct inode *dir, struct dentry *dentry,
 					  umode_t omode)
 {
@@ -414,7 +414,7 @@ error:
 }
 
 static int
-v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
+v9fs_vfs_getattr_dotl(const struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int flags)
 {
@@ -508,7 +508,7 @@ static int v9fs_mapped_iattr_valid(int iattr_valid)
  *
  */
 
-int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
+int v9fs_vfs_setattr_dotl(const struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *iattr)
 {
 	int retval, use_dentry = 0;
@@ -682,7 +682,7 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
 }
 
 static int
-v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_symlink_dotl(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, const char *symname)
 {
 	int err;
@@ -809,7 +809,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
  *
  */
 static int
-v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_mknod_dotl(const struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev)
 {
 	int err;

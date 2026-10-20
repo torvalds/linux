@@ -275,7 +275,7 @@ out:
 	return error;
 }
 
-int gfs2_fileattr_set(struct mnt_idmap *idmap,
+int gfs2_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

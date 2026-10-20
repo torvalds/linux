@@ -974,7 +974,7 @@ static inline bool coredump_force_suid_safe(const struct coredump_params *cprm)
 static bool coredump_file(struct core_name *cn, struct coredump_params *cprm,
 			  const struct linux_binfmt *binfmt)
 {
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct inode *inode;
 	struct file *file __free(fput) = NULL;
 	int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW | O_LARGEFILE | O_EXCL;

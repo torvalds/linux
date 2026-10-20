@@ -140,7 +140,7 @@ struct posix_acl *v9fs_iop_get_inode_acl(struct inode *inode, int type, bool rcu
 
 }
 
-struct posix_acl *v9fs_iop_get_acl(struct mnt_idmap *idmap,
+struct posix_acl *v9fs_iop_get_acl(const struct mnt_idmap *idmap,
 				   struct dentry *dentry, int type)
 {
 	struct v9fs_session_info *v9ses;
@@ -152,7 +152,7 @@ struct posix_acl *v9fs_iop_get_acl(struct mnt_idmap *idmap,
 	return v9fs_get_cached_acl(d_inode(dentry), type);
 }
 
-int v9fs_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int v9fs_iop_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct posix_acl *acl, int type)
 {
 	int retval;

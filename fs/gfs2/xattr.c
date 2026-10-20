@@ -1229,7 +1229,7 @@ int __gfs2_xattr_set(struct inode *inode, const char *name,
 }
 
 static int gfs2_xattr_set(const struct xattr_handler *handler,
-			  struct mnt_idmap *idmap,
+			  const struct mnt_idmap *idmap,
 			  struct dentry *unused, struct inode *inode,
 			  const char *name, const void *value,
 			  size_t size, int flags)

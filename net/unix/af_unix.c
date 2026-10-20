@@ -1361,7 +1361,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	struct unix_sock *u = unix_sk(sk);
 	unsigned int new_hash, old_hash;
 	struct net *net = sock_net(sk);
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct unix_address *addr;
 	struct dentry *dentry;
 	struct path parent;

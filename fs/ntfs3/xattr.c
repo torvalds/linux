@@ -543,7 +543,7 @@ out:
 /*
  * ntfs_get_acl - inode_operations::get_acl
  */
-struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+struct posix_acl *ntfs_get_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 			       int type)
 {
 	struct inode *inode = d_inode(dentry);
@@ -595,7 +595,7 @@ struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	return acl;
 }
 
-static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
+static noinline int ntfs_set_acl_ex(const struct mnt_idmap *idmap,
 				    struct inode *inode, struct posix_acl *acl,
 				    int type, bool init_acl)
 {
@@ -677,7 +677,7 @@ out:
 /*
  * ntfs_set_acl - inode_operations::set_acl
  */
-int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int ntfs_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	return ntfs_set_acl_ex(idmap, d_inode(dentry), acl, type, false);
@@ -688,7 +688,7 @@ int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
  *
  * Called from ntfs_create_inode().
  */
-int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
+int ntfs_init_acl(const struct mnt_idmap *idmap, struct inode *inode,
 		  struct inode *dir)
 {
 	struct posix_acl *default_acl, *acl;
@@ -722,7 +722,7 @@ int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
 /*
  * ntfs_acl_chmod - Helper for ntfs_setattr().
  */
-int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry)
+int ntfs_acl_chmod(const struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
@@ -863,7 +863,7 @@ static bool ntfs_is_reserved_lxattr(const char *name)
  * ntfs_setxattr - inode_operations::setxattr
  */
 static noinline int ntfs_setxattr(const struct xattr_handler *handler,
-				  struct mnt_idmap *idmap, struct dentry *de,
+				  const struct mnt_idmap *idmap, struct dentry *de,
 				  struct inode *inode, const char *name,
 				  const void *value, size_t size, int flags)
 {

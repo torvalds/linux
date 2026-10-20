@@ -233,7 +233,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 	return 0;
 }
 
-int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
+int vboxsf_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		   struct kstat *kstat, u32 request_mask, unsigned int flags)
 {
 	int err;
@@ -258,7 +258,7 @@ int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return 0;
 }
 
-int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int vboxsf_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr)
 {
 	struct vboxsf_inode *sf_i = VBOXSF_I(d_inode(dentry));

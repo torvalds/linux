@@ -94,7 +94,7 @@ static struct tracefs_dir_ops {
 	int (*rmdir)(const char *name);
 } tracefs_ops __ro_after_init;
 
-static struct dentry *tracefs_syscall_mkdir(struct mnt_idmap *idmap,
+static struct dentry *tracefs_syscall_mkdir(const struct mnt_idmap *idmap,
 					    struct inode *inode, struct dentry *dentry,
 					    umode_t mode)
 {
@@ -189,14 +189,14 @@ static void set_tracefs_inode_owner(struct inode *inode)
 		inode->i_gid = gid;
 }
 
-static int tracefs_permission(struct mnt_idmap *idmap,
+static int tracefs_permission(const struct mnt_idmap *idmap,
 			      struct inode *inode, int mask)
 {
 	set_tracefs_inode_owner(inode);
 	return generic_permission(idmap, inode, mask);
 }
 
-static int tracefs_getattr(struct mnt_idmap *idmap,
+static int tracefs_getattr(const struct mnt_idmap *idmap,
 			   const struct path *path, struct kstat *stat,
 			   u32 request_mask, unsigned int flags)
 {
@@ -207,7 +207,7 @@ static int tracefs_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int tracefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int tracefs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			   struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;

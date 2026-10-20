@@ -59,10 +59,10 @@ struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
 	int mnt_flags;
-	struct mnt_idmap *mnt_idmap;
+	const struct mnt_idmap *mnt_idmap;
 } __randomize_layout;
 
-static inline struct mnt_idmap *mnt_idmap(const struct vfsmount *mnt)
+static inline const struct mnt_idmap *mnt_idmap(const struct vfsmount *mnt)
 {
 	/* Pairs with smp_store_release() in do_idmap_mount(). */
 	return READ_ONCE(mnt->mnt_idmap);

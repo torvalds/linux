@@ -432,7 +432,7 @@ int fat_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 }
 EXPORT_SYMBOL_GPL(fat_fileattr_get);
 
-int fat_getattr(struct mnt_idmap *idmap, const struct path *path,
+int fat_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -493,7 +493,7 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 	return 0;
 }
 
-static int fat_allow_set_time(struct mnt_idmap *idmap,
+static int fat_allow_set_time(const struct mnt_idmap *idmap,
 			      struct msdos_sb_info *sbi, struct inode *inode)
 {
 	umode_t allow_utime = sbi->options.allow_utime;
@@ -514,7 +514,7 @@ static int fat_allow_set_time(struct mnt_idmap *idmap,
 /* valid file mode bits */
 #define FAT_VALID_MODE	(S_IFREG | S_IFDIR | S_IRWXUGO)
 
-int fat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int fat_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);

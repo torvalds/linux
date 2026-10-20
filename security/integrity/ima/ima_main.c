@@ -846,7 +846,7 @@ EXPORT_SYMBOL_GPL(ima_inode_hash);
  * Skip calling process_measurement(), but indicate which newly, created
  * tmpfiles are in policy.
  */
-static void ima_post_create_tmpfile(struct mnt_idmap *idmap,
+static void ima_post_create_tmpfile(const struct mnt_idmap *idmap,
 				    struct inode *inode)
 
 {
@@ -879,7 +879,7 @@ static void ima_post_create_tmpfile(struct mnt_idmap *idmap,
  * Mark files created via the mknodat syscall as new, so that the
  * file data can be written later.
  */
-static void ima_post_path_mknod(struct mnt_idmap *idmap, struct dentry *dentry)
+static void ima_post_path_mknod(const struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	struct ima_iint_cache *iint;
 	struct inode *inode = dentry->d_inode;
@@ -1095,7 +1095,7 @@ static int ima_post_load_data(char *buf, loff_t size,
  * has been written to the passed location but not added to a measurement entry,
  * a negative value otherwise.
  */
-int process_buffer_measurement(struct mnt_idmap *idmap,
+int process_buffer_measurement(const struct mnt_idmap *idmap,
 			       struct inode *inode, const void *buf, int size,
 			       const char *eventname, enum ima_hooks func,
 			       int pcr, const char *func_data,

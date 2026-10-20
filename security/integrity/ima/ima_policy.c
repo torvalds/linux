@@ -580,7 +580,7 @@ static bool ima_match_rule_data(struct ima_rule_entry *rule,
  * Returns true on rule match, false on failure.
  */
 static bool ima_match_rules(struct ima_rule_entry *rule,
-			    struct mnt_idmap *idmap,
+			    const struct mnt_idmap *idmap,
 			    struct inode *inode, const struct cred *cred,
 			    struct lsm_prop *prop, enum ima_hooks func, int mask,
 			    const char *func_data)
@@ -762,7 +762,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * list when walking it.  Reads are many orders of magnitude more numerous
  * than writes so ima_match_policy() is classical RCU candidate.
  */
-int ima_match_policy(struct mnt_idmap *idmap, struct inode *inode,
+int ima_match_policy(const struct mnt_idmap *idmap, struct inode *inode,
 		     const struct cred *cred, struct lsm_prop *prop,
 		     enum ima_hooks func, int mask, int flags, int *pcr,
 		     struct ima_template_desc **template_desc,

@@ -112,7 +112,7 @@ int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	return error;
 }
 
-int orangefs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int orangefs_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct posix_acl *acl, int type)
 {
 	int error;

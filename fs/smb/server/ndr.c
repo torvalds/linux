@@ -338,7 +338,7 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 }
 
 int ndr_encode_posix_acl(struct ndr *n,
-			 struct mnt_idmap *idmap,
+			 const struct mnt_idmap *idmap,
 			 struct inode *inode,
 			 struct xattr_smb_acl *acl,
 			 struct xattr_smb_acl *def_acl)
