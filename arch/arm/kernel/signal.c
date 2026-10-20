@@ -332,8 +332,8 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 	if (fdpic) {
 		unsigned long __user *fdpic_func_desc =
 					(unsigned long __user *)handler;
-		if (__get_user(handler, &fdpic_func_desc[0]) ||
-		    __get_user(handler_fdpic_GOT, &fdpic_func_desc[1]))
+		if (get_user(handler, &fdpic_func_desc[0]) ||
+		    get_user(handler_fdpic_GOT, &fdpic_func_desc[1]))
 			return 1;
 	}
 
