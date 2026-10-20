@@ -1129,9 +1129,10 @@ static void schedule_deferred_locked(struct rq *rq)
 		return;
 
 	/*
-	 * If in dispatch, the balance callbacks will be called before rq lock
-	 * is released. Schedule one.
-	 *
+	 * If in dispatch without proxy execution, the balance callbacks will
+	 * be called before rq lock is released. Schedule one. With proxy
+	 * execution, proxy resolution can zap the callbacks without another
+	 * SCX dispatch to requeue them, so use irq_work instead.
 	 *
 	 * We can't directly insert the callback into the
 	 * rq's list: The call can drop its lock and make the pending balance
@@ -1139,7 +1140,7 @@ static void schedule_deferred_locked(struct rq *rq)
 	 *
 	 * Just let dispatch_one() know that it must do it itself.
 	 */
-	if (rq->scx.flags & SCX_RQ_IN_DISPATCH) {
+	if ((rq->scx.flags & SCX_RQ_IN_DISPATCH) && !sched_proxy_exec()) {
 		rq->scx.flags |= SCX_RQ_BAL_CB_PENDING;
 		return;
 	}
