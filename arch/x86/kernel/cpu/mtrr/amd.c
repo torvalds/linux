@@ -51,11 +51,10 @@ amd_get_mtrr(unsigned int reg, unsigned long *base,
 
 /**
  * amd_set_mtrr - Set variable MTRR register on the local CPU.
- *
- * @reg The register to set.
- * @base The base address of the region.
- * @size The size of the region. If this is 0 the region is disabled.
- * @type The type of the region.
+ * @reg: The register to set.
+ * @base: The base address of the region.
+ * @size: The size of the region. If this is 0 the region is disabled.
+ * @type: The type of the region.
  *
  * Returns nothing.
  */

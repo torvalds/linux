@@ -1427,7 +1427,7 @@ static bool __init vulnerable_to_its(u64 x86_arch_cap_msr)
 	return false;
 }
 
-static struct x86_cpu_id cpu_latest_microcode[] = {
+static const struct x86_cpu_id cpu_latest_microcode[] __initconst = {
 #include "microcode/intel-ucode-defs.h"
 	{}
 };

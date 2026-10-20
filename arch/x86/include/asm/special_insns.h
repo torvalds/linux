@@ -46,20 +46,7 @@ static __always_inline void native_write_cr3(unsigned long val)
 static inline unsigned long native_read_cr4(void)
 {
 	unsigned long val;
-#ifdef CONFIG_X86_32
-	/*
-	 * This could fault if CR4 does not exist.  Non-existent CR4
-	 * is functionally equivalent to CR4 == 0.  Keep it simple and pretend
-	 * that CR4 == 0 on CPUs that don't have CR4.
-	 */
-	asm volatile("1: mov %%cr4, %0\n"
-		     "2:\n"
-		     _ASM_EXTABLE(1b, 2b)
-		     : "=r" (val) : "0" (0));
-#else
-	/* CR4 always exists on x86_64. */
 	asm volatile("mov %%cr4,%0" : "=r" (val));
-#endif
 	return val;
 }
 
