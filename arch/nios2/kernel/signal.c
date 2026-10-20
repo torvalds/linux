@@ -39,60 +39,60 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 					struct ucontext __user *uc, int *pr2)
 {
 	int temp;
-	unsigned long __user *gregs = uc->uc_mcontext.gregs;
-	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
 
-	err = __get_user(temp, &uc->uc_mcontext.version);
-	if (temp != MCONTEXT_VERSION)
-		goto badframe;
-	/* restore passed registers */
-	err |= __get_user(regs->r1, &gregs[0]);
-	err |= __get_user(regs->r2, &gregs[1]);
-	err |= __get_user(regs->r3, &gregs[2]);
-	err |= __get_user(regs->r4, &gregs[3]);
-	err |= __get_user(regs->r5, &gregs[4]);
-	err |= __get_user(regs->r6, &gregs[5]);
-	err |= __get_user(regs->r7, &gregs[6]);
-	err |= __get_user(regs->r8, &gregs[7]);
-	err |= __get_user(regs->r9, &gregs[8]);
-	err |= __get_user(regs->r10, &gregs[9]);
-	err |= __get_user(regs->r11, &gregs[10]);
-	err |= __get_user(regs->r12, &gregs[11]);
-	err |= __get_user(regs->r13, &gregs[12]);
-	err |= __get_user(regs->r14, &gregs[13]);
-	err |= __get_user(regs->r15, &gregs[14]);
-	err |= __get_user(sw->r16, &gregs[15]);
-	err |= __get_user(sw->r17, &gregs[16]);
-	err |= __get_user(sw->r18, &gregs[17]);
-	err |= __get_user(sw->r19, &gregs[18]);
-	err |= __get_user(sw->r20, &gregs[19]);
-	err |= __get_user(sw->r21, &gregs[20]);
-	err |= __get_user(sw->r22, &gregs[21]);
-	err |= __get_user(sw->r23, &gregs[22]);
-	/* gregs[23] is handled below */
-	err |= __get_user(sw->fp, &gregs[24]);  /* Verify, should this be
-							settable */
-	err |= __get_user(sw->gp, &gregs[25]);  /* Verify, should this be
-							settable */
+	scoped_user_read_access(uc, badframe) {
+		unsigned long __user *gregs = uc->uc_mcontext.gregs;
 
-	err |= __get_user(temp, &gregs[26]);  /* Not really necessary no user
-							settable bits */
-	err |= __get_user(regs->ea, &gregs[27]);
+		unsafe_get_user(temp, &uc->uc_mcontext.version, badframe);
+		if (temp != MCONTEXT_VERSION)
+			goto badframe;
+		/* restore passed registers */
+		unsafe_get_user(regs->r1, &gregs[0], badframe);
+		unsafe_get_user(regs->r2, &gregs[1], badframe);
+		unsafe_get_user(regs->r3, &gregs[2], badframe);
+		unsafe_get_user(regs->r4, &gregs[3], badframe);
+		unsafe_get_user(regs->r5, &gregs[4], badframe);
+		unsafe_get_user(regs->r6, &gregs[5], badframe);
+		unsafe_get_user(regs->r7, &gregs[6], badframe);
+		unsafe_get_user(regs->r8, &gregs[7], badframe);
+		unsafe_get_user(regs->r9, &gregs[8], badframe);
+		unsafe_get_user(regs->r10, &gregs[9], badframe);
+		unsafe_get_user(regs->r11, &gregs[10], badframe);
+		unsafe_get_user(regs->r12, &gregs[11], badframe);
+		unsafe_get_user(regs->r13, &gregs[12], badframe);
+		unsafe_get_user(regs->r14, &gregs[13], badframe);
+		unsafe_get_user(regs->r15, &gregs[14], badframe);
+		unsafe_get_user(sw->r16, &gregs[15], badframe);
+		unsafe_get_user(sw->r17, &gregs[16], badframe);
+		unsafe_get_user(sw->r18, &gregs[17], badframe);
+		unsafe_get_user(sw->r19, &gregs[18], badframe);
+		unsafe_get_user(sw->r20, &gregs[19], badframe);
+		unsafe_get_user(sw->r21, &gregs[20], badframe);
+		unsafe_get_user(sw->r22, &gregs[21], badframe);
+		unsafe_get_user(sw->r23, &gregs[22], badframe);
+		/* gregs[23] is handled below */
+		/* Verify, should these be settable */
+		unsafe_get_user(sw->fp, &gregs[24], badframe);
+		unsafe_get_user(sw->gp, &gregs[25], badframe);
 
-	err |= __get_user(regs->ra, &gregs[23]);
-	err |= __get_user(regs->sp, &gregs[28]);
+		/* Not really necessary no user settable bits */
+		unsafe_get_user(temp, &gregs[26], badframe);
+		unsafe_get_user(regs->ea, &gregs[27], badframe);
+
+		unsafe_get_user(regs->ra, &gregs[23], badframe);
+		unsafe_get_user(regs->sp, &gregs[28], badframe);
+	}
 
 	regs->orig_r2 = -1;		/* disable syscall checks */
 
-	err |= restore_altstack(&uc->uc_stack);
-	if (err)
+	if (restore_altstack(&uc->uc_stack))
 		goto badframe;
 
 	*pr2 = regs->r2;
-	return err;
+	return 0;
 
 badframe:
 	return 1;
@@ -128,39 +128,44 @@ badframe:
 static inline int rt_setup_ucontext(struct ucontext __user *uc, struct pt_regs *regs)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	unsigned long __user *gregs = uc->uc_mcontext.gregs;
-	int err = 0;
 
-	err |= __put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version);
-	err |= __put_user(regs->r1, &gregs[0]);
-	err |= __put_user(regs->r2, &gregs[1]);
-	err |= __put_user(regs->r3, &gregs[2]);
-	err |= __put_user(regs->r4, &gregs[3]);
-	err |= __put_user(regs->r5, &gregs[4]);
-	err |= __put_user(regs->r6, &gregs[5]);
-	err |= __put_user(regs->r7, &gregs[6]);
-	err |= __put_user(regs->r8, &gregs[7]);
-	err |= __put_user(regs->r9, &gregs[8]);
-	err |= __put_user(regs->r10, &gregs[9]);
-	err |= __put_user(regs->r11, &gregs[10]);
-	err |= __put_user(regs->r12, &gregs[11]);
-	err |= __put_user(regs->r13, &gregs[12]);
-	err |= __put_user(regs->r14, &gregs[13]);
-	err |= __put_user(regs->r15, &gregs[14]);
-	err |= __put_user(sw->r16, &gregs[15]);
-	err |= __put_user(sw->r17, &gregs[16]);
-	err |= __put_user(sw->r18, &gregs[17]);
-	err |= __put_user(sw->r19, &gregs[18]);
-	err |= __put_user(sw->r20, &gregs[19]);
-	err |= __put_user(sw->r21, &gregs[20]);
-	err |= __put_user(sw->r22, &gregs[21]);
-	err |= __put_user(sw->r23, &gregs[22]);
-	err |= __put_user(regs->ra, &gregs[23]);
-	err |= __put_user(sw->fp, &gregs[24]);
-	err |= __put_user(sw->gp, &gregs[25]);
-	err |= __put_user(regs->ea, &gregs[27]);
-	err |= __put_user(regs->sp, &gregs[28]);
-	return err;
+	scoped_user_write_access(uc, Efault) {
+		unsigned long __user *gregs = uc->uc_mcontext.gregs;
+
+		unsafe_put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version, Efault);
+		unsafe_put_user(regs->r1, &gregs[0], Efault);
+		unsafe_put_user(regs->r2, &gregs[1], Efault);
+		unsafe_put_user(regs->r3, &gregs[2], Efault);
+		unsafe_put_user(regs->r4, &gregs[3], Efault);
+		unsafe_put_user(regs->r5, &gregs[4], Efault);
+		unsafe_put_user(regs->r6, &gregs[5], Efault);
+		unsafe_put_user(regs->r7, &gregs[6], Efault);
+		unsafe_put_user(regs->r8, &gregs[7], Efault);
+		unsafe_put_user(regs->r9, &gregs[8], Efault);
+		unsafe_put_user(regs->r10, &gregs[9], Efault);
+		unsafe_put_user(regs->r11, &gregs[10], Efault);
+		unsafe_put_user(regs->r12, &gregs[11], Efault);
+		unsafe_put_user(regs->r13, &gregs[12], Efault);
+		unsafe_put_user(regs->r14, &gregs[13], Efault);
+		unsafe_put_user(regs->r15, &gregs[14], Efault);
+		unsafe_put_user(sw->r16, &gregs[15], Efault);
+		unsafe_put_user(sw->r17, &gregs[16], Efault);
+		unsafe_put_user(sw->r18, &gregs[17], Efault);
+		unsafe_put_user(sw->r19, &gregs[18], Efault);
+		unsafe_put_user(sw->r20, &gregs[19], Efault);
+		unsafe_put_user(sw->r21, &gregs[20], Efault);
+		unsafe_put_user(sw->r22, &gregs[21], Efault);
+		unsafe_put_user(sw->r23, &gregs[22], Efault);
+		unsafe_put_user(regs->ra, &gregs[23], Efault);
+		unsafe_put_user(sw->fp, &gregs[24], Efault);
+		unsafe_put_user(sw->gp, &gregs[25], Efault);
+		unsafe_put_user(regs->ea, &gregs[27], Efault);
+		unsafe_put_user(regs->sp, &gregs[28], Efault);
+	}
+	return 0;
+
+Efault:
+	return -EFAULT;
 }
 
 static inline void __user *get_sigframe(struct ksignal *ksig,
@@ -193,8 +198,10 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
 	/* Create the ucontext.  */
-	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
+	scoped_user_write_access(frame, give_sigsegv) {
+		unsafe_put_user(0, &frame->uc.uc_flags, give_sigsegv);
+		unsafe_put_user(0, &frame->uc.uc_link, give_sigsegv);
+	}
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= rt_setup_ucontext(&frame->uc, regs);
 	err |= copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
