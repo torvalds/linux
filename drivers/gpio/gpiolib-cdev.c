@@ -377,11 +377,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	FD_PREPARE(fdf, O_RDONLY | O_CLOEXEC,
 		   anon_inode_getfile("gpio-linehandle", &linehandle_fileops,
 				      lh, O_RDONLY | O_CLOEXEC));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 	retain_and_null_ptr(lh);
 
-	handlereq.fd = fd_prepare_fd(fdf);
+	handlereq.fd = fdf->fd;
 	if (copy_to_user(ip, &handlereq, sizeof(handlereq)))
 		return -EFAULT;
 
@@ -1715,11 +1715,11 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	FD_PREPARE(fdf, O_RDONLY | O_CLOEXEC,
 		   anon_inode_getfile("gpio-line", &line_fileops, lr,
 				      O_RDONLY | O_CLOEXEC));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 	retain_and_null_ptr(lr);
 
-	ulr.fd = fd_prepare_fd(fdf);
+	ulr.fd = fdf->fd;
 	if (copy_to_user(ip, &ulr, sizeof(ulr)))
 		return -EFAULT;
 
@@ -2115,11 +2115,11 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	FD_PREPARE(fdf, O_RDONLY | O_CLOEXEC,
 		   anon_inode_getfile("gpio-event", &lineevent_fileops, le,
 				      O_RDONLY | O_CLOEXEC));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 	retain_and_null_ptr(le);
 
-	eventreq.fd = fd_prepare_fd(fdf);
+	eventreq.fd = fdf->fd;
 	if (copy_to_user(ip, &eventreq, sizeof(eventreq)))
 		return -EFAULT;
 

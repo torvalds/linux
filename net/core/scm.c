@@ -364,14 +364,14 @@ int scm_recv_one_fd(struct file *f, int __user *ufd, unsigned int flags,
 		return notrunc ? put_user(error, ufd) : error;
 
 	FD_PREPARE(fdf, flags, get_file(f));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
-	error = put_user(fd_prepare_fd(fdf), ufd);
+	error = put_user(fdf->fd, ufd);
 	if (error)
 		return error;
 
-	__receive_sock(fd_prepare_file(fdf));
+	__receive_sock(fdf->file);
 	return fd_publish(fdf);
 }
 

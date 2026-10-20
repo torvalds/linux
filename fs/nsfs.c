@@ -348,8 +348,8 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			return ret;
 
 		FD_PREPARE(fdf, O_CLOEXEC, dentry_open(&path, O_RDONLY, current_cred()));
-		if (fdf.err)
-			return fdf.err;
+		if (fdf->fd < 0)
+			return fdf->fd;
 		/*
 		 * If @uinfo is passed return all information about the
 		 * mount namespace as well.

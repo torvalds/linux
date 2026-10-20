@@ -1519,17 +1519,17 @@ int receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 		return error;
 
 	FD_PREPARE(fdf, o_flags, file);
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 	get_file(file);
 
 	if (ufd) {
-		error = put_user(fd_prepare_fd(fdf), ufd);
+		error = put_user(fdf->fd, ufd);
 		if (error)
 			return error;
 	}
 
-	__receive_sock(fd_prepare_file(fdf));
+	__receive_sock(fdf->file);
 	return fd_publish(fdf);
 }
 EXPORT_SYMBOL_GPL(receive_fd);
@@ -1657,3 +1657,7 @@ int iterate_fd(struct files_struct *files, unsigned n,
 	return res;
 }
 EXPORT_SYMBOL(iterate_fd);
+
+#ifdef CONFIG_FDTABLE_KUNIT_TEST
+#include "tests/fdtable_kunit.c"
+#endif

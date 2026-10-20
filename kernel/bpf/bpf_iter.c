@@ -643,11 +643,11 @@ int bpf_iter_new_fd(struct bpf_link *link)
 	flags = O_RDONLY | O_CLOEXEC;
 
 	FD_PREPARE(fdf, flags, anon_inode_getfile("bpf_iter", &bpf_iter_fops, NULL, flags));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	iter_link = container_of(link, struct bpf_iter_link, link);
-	err = prepare_seq_file(fd_prepare_file(fdf), iter_link);
+	err = prepare_seq_file(fdf->file, iter_link);
 	if (err)
 		return err; /* Automatic cleanup handles fput */
 
