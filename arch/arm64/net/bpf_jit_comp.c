@@ -11,6 +11,7 @@
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/cfi.h>
+#include <linux/extable.h>
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <linux/printk.h>
@@ -1044,8 +1045,9 @@ static void __maybe_unused build_bhb_mitigation(struct jit_ctx *ctx)
 	}
 }
 
-static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
+static void build_epilogue(struct jit_ctx *ctx, bool was_classic, bool unwind)
 {
+	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 r0 = bpf2a64[BPF_REG_0];
 	const u8 ptr = bpf2a64[TCCNT_PTR];
 
@@ -1072,6 +1074,10 @@ static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
 	/* Authenticate lr */
 	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
 		emit(A64_AUTIASP, ctx);
+
+	/* tmp is the offset of the pad, see emit_unwind_exit() */
+	if (unwind)
+		emit(A64_ADD(1, A64_LR, A64_LR, tmp), ctx);
 
 	emit(A64_RET(A64_LR), ctx);
 }
@@ -1219,6 +1225,76 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	ctx->exentry_idx++;
 	return 0;
+}
+
+/*
+ * There is no branch for unwind_goto, only an extable entry
+ *   { .insn = ret_addr - 1, .fixup = pad - ret_addr }
+ * where ret_addr is the return address of the call in front of it. unwind_exit
+ * adds .fixup to its LR.
+ * ret_addr - 1, because what follows the call can have an entry of its own.
+ * No insn starts there, so a fault cannot hit the entry.
+ * 'bl foo; mov x8, x0' is in front of unwind_goto. The pad doesn't miss the mov:
+ * r0 is x8 and the epilogue of the callee copies it to x0 and leaves x8 as it is.
+ */
+static int add_unwind_exentry(struct jit_ctx *ctx, int pad)
+{
+	int ret_addr = ctx->idx - 1;
+	struct exception_table_entry *ex;
+	off_t ins_offset;
+
+	if (!ctx->image)
+		/* First pass */
+		return 0;
+
+	if (!ctx->prog->aux->extable ||
+	    WARN_ON_ONCE(ctx->exentry_idx >= ctx->prog->aux->num_exentries))
+		return -EINVAL;
+
+	ex = &ctx->prog->aux->extable[ctx->exentry_idx];
+	ins_offset = (long)&ctx->ro_image[ret_addr] - 1 - (long)&ex->insn;
+	if (WARN_ON_ONCE(ins_offset >= 0 || ins_offset < INT_MIN))
+		return -ERANGE;
+
+	/* switch ex to rw buffer for writing */
+	ex = (void *)ctx->image + ((void *)ex - (void *)ctx->ro_image);
+	ex->insn = ins_offset;
+	ex->fixup = (ctx->offset[pad] - ret_addr) * AARCH64_INSN_SIZE;
+	ex->type = EX_TYPE_BPF;
+
+	ctx->exentry_idx++;
+	return 0;
+}
+
+static long bpf_unwind_fixup(u64 lr)
+{
+	const struct exception_table_entry *e;
+
+	e = search_bpf_extables(ptrauth_strip_kernel_insn_pac(lr) - 1);
+	/*
+	 * The verifier made sure that unwind_goto follows a call in a prog. When
+	 * the kernel called an async or an exception callback, it's exit.
+	 */
+	return e ? e->fixup : 0;
+}
+
+/*
+ * unwind_exit: return to the pad. LR in the frame record is signed. Instead of
+ * signing the address of the pad, let the epilogue authenticate LR as it is and
+ * add the offset of the pad to it. r0 and r2 are returned.
+ */
+static void emit_unwind_exit(struct jit_ctx *ctx)
+{
+	const u8 tmp = bpf2a64[TMP_REG_1];
+	const u8 r0 = bpf2a64[BPF_REG_0];
+	const u8 r2 = bpf2a64[BPF_REG_2];
+
+	emit(A64_PUSH(r0, r2, A64_SP), ctx);
+	emit(A64_LDR64I(A64_R(0), A64_FP, 8), ctx);
+	emit_call((u64)bpf_unwind_fixup, ctx);
+	emit(A64_MOV(1, tmp, A64_R(0)), ctx);
+	emit(A64_POP(r0, r2, A64_SP), ctx);
+	build_epilogue(ctx, false, true);
 }
 
 static const struct bpf_jit_arg_abi arm64_arg_abi = {
@@ -1806,8 +1882,18 @@ emit_cond_jmp:
 		if (emit_bpf_tail_call(ctx))
 			return -EFAULT;
 		break;
+	/* unwind_goto. The verifier expanded may_goto. */
+	case BPF_JMP | BPF_JCOND:
+		ret = add_unwind_exentry(ctx, i + 1 + off);
+		if (ret)
+			return ret;
+		break;
 	/* function return */
 	case BPF_JMP | BPF_EXIT:
+		if (bpf_is_unwind_exit(insn) && bpf_prog_can_unwind(ctx->prog)) {
+			emit_unwind_exit(ctx);
+			break;
+		}
 		/* Optimization: when last instruction is EXIT,
 		   simply fallthrough to epilogue. */
 		if (i == ctx->prog->len - 1)
@@ -2312,7 +2398,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 		goto out_off;
 
 	ctx.epilogue_offset = ctx.idx;
-	build_epilogue(&ctx, was_classic);
+	build_epilogue(&ctx, was_classic, false);
 	build_plt(&ctx);
 
 	extable_align = __alignof__(struct exception_table_entry);
@@ -2369,7 +2455,7 @@ skip_init_ctx:
 		WARN_ON_ONCE(ctx.idx != ctx.epilogue_offset))
 		goto out_free_hdr;
 
-	build_epilogue(&ctx, was_classic);
+	build_epilogue(&ctx, was_classic, false);
 	build_plt(&ctx);
 
 	/* Extra pass to validate JITed code. */
@@ -2462,6 +2548,11 @@ bool bpf_jit_supports_kfunc_call(void)
 }
 
 bool bpf_jit_supports_kfunc_ret_reg_pair(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_unwind(void)
 {
 	return true;
 }
