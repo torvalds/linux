@@ -59,10 +59,7 @@ struct address_space;
 struct buffer_head {
 	unsigned long b_state;		/* buffer state bitmap (see above) */
 	struct buffer_head *b_this_page;/* circular list of page's buffers */
-	union {
-		struct page *b_page;	/* the page this bh is mapped to */
-		struct folio *b_folio;	/* the folio this bh is mapped to */
-	};
+	struct folio *b_folio;		/* the folio this bh is mapped to */
 
 	sector_t b_blocknr;		/* start block number */
 	size_t b_size;			/* size of mapping */
@@ -172,7 +169,36 @@ static __always_inline int buffer_uptodate(const struct buffer_head *bh)
 
 static inline unsigned long bh_offset(const struct buffer_head *bh)
 {
-	return (unsigned long)(bh)->b_data & (page_size(bh->b_page) - 1);
+	return (unsigned long)(bh)->b_data & (folio_size(bh->b_folio) - 1);
+}
+
+/**
+ * kmap_local_bh - Map the data of a buffer.
+ * @bh: The buffer.
+ *
+ * Buffers usually live in the page cache, but a few are built over memory
+ * which is not.  Those carry no folio and b_data is already a kernel address
+ * which is always mapped, so there is nothing to do for them.  Pair with
+ * kunmap_local_bh().
+ *
+ * Return: A pointer to the buffer's data.
+ */
+static inline void *kmap_local_bh(const struct buffer_head *bh)
+{
+	if (!bh->b_folio)
+		return bh->b_data;
+	return kmap_local_folio(bh->b_folio, bh_offset(bh));
+}
+
+/**
+ * kunmap_local_bh - Unmap the data of a buffer.
+ * @bh: The buffer.
+ * @addr: The address returned by kmap_local_bh().
+ */
+static inline void kunmap_local_bh(const struct buffer_head *bh, void *addr)
+{
+	if (bh->b_folio)
+		kunmap_local(addr);
 }
 
 /* If we *know* page->private refers to buffer_heads */
@@ -338,20 +364,58 @@ static inline void bforget(struct buffer_head *bh)
 		__bforget(bh);
 }
 
-static inline struct buffer_head *
-sb_bread(struct super_block *sb, sector_t block)
+/**
+ * sb_bread - Read a block.
+ * @sb: The superblock to read from.
+ * @block: Block number in units of block size.
+ *
+ * Read a specified block, and return the buffer head that refers
+ * to it.  The memory is allocated from the movable area so that it can
+ * be migrated.  The returned buffer head has its refcount increased.
+ * The caller should call brelse() when it has finished with the buffer.
+ *
+ * Context: May sleep waiting for I/O.
+ * Return: NULL if the block was unreadable.
+ */
+static inline
+struct buffer_head *sb_bread(struct super_block *sb, sector_t block)
 {
 	return __bread_gfp(sb->s_bdev, block, sb->s_blocksize, __GFP_MOVABLE);
 }
 
-static inline struct buffer_head *
-sb_bread_unmovable(struct super_block *sb, sector_t block)
+/**
+ * sb_bread_unmovable - Read a block.
+ * @sb: The superblock to read from.
+ * @block: Block number in units of block size.
+ *
+ * Read a specified block, and return the buffer head that refers to it.
+ * The memory is allocated from the unmovable area so that pointers into
+ * it remain valid after compaction runs.  The returned buffer head has
+ * its refcount increased.  The caller should call brelse() when it has
+ * finished with the buffer.
+ *
+ * Context: May sleep waiting for I/O.
+ * Return: NULL if the block was unreadable.
+ */
+static inline
+struct buffer_head *sb_bread_unmovable(struct super_block *sb, sector_t block)
 {
 	return __bread_gfp(sb->s_bdev, block, sb->s_blocksize, 0);
 }
 
-static inline void
-sb_breadahead(struct super_block *sb, sector_t block)
+/**
+ * sb_breadahead - Start readahead.
+ * @sb: Superblock identifying the block device.
+ * @block: The block to read.
+ *
+ * Read this block.  The I/O will be flagged as being readahead rather
+ * than immediate read, but (unlike the page cache), surrounding blocks
+ * will not be read.
+ *
+ * Context: May sleep in order to allocate memory.
+ */
+static inline
+void sb_breadahead(struct super_block *sb, sector_t block)
 {
 	__breadahead(sb->s_bdev, block, sb->s_blocksize);
 }

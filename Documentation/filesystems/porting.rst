@@ -348,7 +348,7 @@ simply of return 1.  Note that all actual eviction work is done by caller after
 As before, clear_inode() must be called exactly once on each call of
 ->evict_inode() (as it used to be for each call of ->delete_inode()).  Unlike
 before, if you are using inode-associated metadata buffers (i.e.
-mark_buffer_dirty_inode()), it's your responsibility to call
+mmb_mark_buffer_dirty()), it's your responsibility to call
 invalidate_inode_buffers() before clear_inode().
 
 NOTE: checking i_nlink in the beginning of ->write_inode() and bailing out
