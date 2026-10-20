@@ -308,10 +308,10 @@ int __init pv_time_init(void)
 
 	static_call_update(pv_steal_clock, paravt_steal_clock);
 
-	static_key_slow_inc(&paravirt_steal_enabled);
+	static_branch_inc(&paravirt_steal_enabled);
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
 	if (steal_acc)
-		static_key_slow_inc(&paravirt_steal_rq_enabled);
+		static_branch_inc(&paravirt_steal_rq_enabled);
 #endif
 
 	if (static_key_enabled(&virt_preempt_key))

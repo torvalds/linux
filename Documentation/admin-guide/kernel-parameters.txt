@@ -6801,6 +6801,18 @@ Kernel parameters
 			solution to mutex-based priority inversion.
 			Format: <bool>
 
+	sched_smt_asym_packing= [KNL,SMP]
+			Format: on
+			Force asymmetric packing at the SMT scheduling domain.
+			Idle CPU selection prefers siblings with a higher
+			arch_asym_cpu_priority(). The default implementation
+			prefers lower-numbered logical CPUs, but architecture
+			overrides remain authoritative. Equal priorities do
+			not establish a sibling preference. For example, x86
+			with CONFIG_SCHED_MC_PRIO normally assigns the same
+			core priority to both SMT siblings, so this option
+			does not favor either sibling.
+
 	sched_verbose	[KNL,EARLY] Enables verbose scheduler debug messages.
 
 	schedstats=	[KNL,X86] Enable or disable scheduled statistics.

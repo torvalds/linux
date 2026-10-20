@@ -24,6 +24,11 @@
 
 DEFINE_RAW_SPINLOCK(scx_sched_lock);
 
+bool scx_allow_proxy_exec(const struct task_struct *p)
+{
+	return true;
+}
+
 /*
  * NOTE: sched_ext is in the process of growing multiple scheduler support and
  * scx_root usage is in a transitional state. Naked dereferences are safe if the
@@ -1085,6 +1090,10 @@ static void schedule_deferred_locked(struct rq *rq)
 	 * the time to IRQ re-enable shouldn't be long.
 	 */
 	schedule_deferred(rq);
+}
+
+void scx_proxy_reenqueue_retry(struct rq *rq, struct task_struct *next)
+{
 }
 
 void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
@@ -3044,9 +3053,12 @@ has_tasks:
 	return verdict;
 }
 
-static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
+static void set_next_task_scx(struct rq *rq, struct task_struct *p, enum snt_e type)
 {
 	struct scx_sched *sch = scx_task_sched(p);
+
+	if (type == SNT_REPICK)
+		return;
 
 	if (p->scx.flags & SCX_TASK_QUEUED) {
 		/*
@@ -3103,6 +3115,10 @@ static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 		if (tick_nohz_full_cpu(cpu_of(rq)))
 			tick_nohz_dep_set_cpu(cpu_of(rq), TICK_DEP_BIT_SCHED);
 	}
+}
+
+void scx_proxy_donor_start(struct rq *rq)
+{
 }
 
 static enum scx_cpu_preempt_reason

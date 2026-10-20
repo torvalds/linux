@@ -498,21 +498,11 @@ DEFINE_LOCK_GUARD_0(preempt_notrace, preempt_disable_notrace(), preempt_enable_n
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 
-extern bool preempt_model_none(void);
-extern bool preempt_model_voluntary(void);
 extern bool preempt_model_full(void);
 extern bool preempt_model_lazy(void);
 
 #else
 
-static inline bool preempt_model_none(void)
-{
-	return IS_ENABLED(CONFIG_PREEMPT_NONE);
-}
-static inline bool preempt_model_voluntary(void)
-{
-	return IS_ENABLED(CONFIG_PREEMPT_VOLUNTARY);
-}
 static inline bool preempt_model_full(void)
 {
 	return IS_ENABLED(CONFIG_PREEMPT);
@@ -524,6 +514,16 @@ static inline bool preempt_model_lazy(void)
 }
 
 #endif
+
+static inline bool preempt_model_none(void)
+{
+	return IS_ENABLED(CONFIG_PREEMPT_NONE);
+}
+
+static inline bool preempt_model_voluntary(void)
+{
+	return IS_ENABLED(CONFIG_PREEMPT_VOLUNTARY);
+}
 
 static inline bool preempt_model_rt(void)
 {

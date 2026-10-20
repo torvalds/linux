@@ -554,6 +554,7 @@ struct sched_statistics {
 	u64				nr_failed_migrations_running;
 	u64				nr_failed_migrations_hot;
 	u64				nr_forced_migrations;
+	u64				nr_migrations_cpu_non_preferred;
 
 	u64				nr_wakeups;
 	u64				nr_wakeups_sync;
@@ -2105,10 +2106,9 @@ static inline int test_tsk_thread_flag(struct task_struct *tsk, int flag)
 
 static inline void set_tsk_need_resched(struct task_struct *tsk)
 {
-	if (tracepoint_enabled(sched_set_need_resched_tp) &&
-	    !test_tsk_thread_flag(tsk, TIF_NEED_RESCHED))
+	if (!test_and_set_tsk_thread_flag(tsk, TIF_NEED_RESCHED) &&
+	    tracepoint_enabled(sched_set_need_resched_tp))
 		__trace_set_need_resched(tsk, TIF_NEED_RESCHED);
-	set_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
 }
 
 static inline void clear_tsk_need_resched(struct task_struct *tsk)
@@ -2135,44 +2135,19 @@ static inline void set_need_resched_current(void)
  * value indicates whether a reschedule was done in fact.
  * cond_resched_lock() will drop the spinlock before scheduling,
  */
-#if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
+#if !defined(CONFIG_PREEMPTION)
 extern int __cond_resched(void);
-
-#if defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
-
-DECLARE_STATIC_CALL(cond_resched, __cond_resched);
-
-static __always_inline int _cond_resched(void)
-{
-	return static_call_mod(cond_resched)();
-}
-
-#elif defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
-
-extern int dynamic_cond_resched(void);
-
-static __always_inline int _cond_resched(void)
-{
-	return dynamic_cond_resched();
-}
-
-#else /* !CONFIG_PREEMPTION */
 
 static inline int _cond_resched(void)
 {
 	return __cond_resched();
 }
-
-#endif /* PREEMPT_DYNAMIC && CONFIG_HAVE_PREEMPT_DYNAMIC_CALL */
-
-#else /* CONFIG_PREEMPTION && !CONFIG_PREEMPT_DYNAMIC */
-
+#else
 static inline int _cond_resched(void)
 {
 	return 0;
 }
-
-#endif /* !CONFIG_PREEMPTION || CONFIG_PREEMPT_DYNAMIC */
+#endif
 
 #define cond_resched() ({			\
 	__might_resched(__FILE__, __LINE__, 0);	\

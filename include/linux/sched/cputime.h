@@ -182,9 +182,9 @@ extern unsigned long long
 task_sched_runtime(struct task_struct *task);
 
 #ifdef CONFIG_PARAVIRT
-struct static_key;
-extern struct static_key paravirt_steal_enabled;
-extern struct static_key paravirt_steal_rq_enabled;
+#include <linux/jump_label.h>
+DECLARE_STATIC_KEY_FALSE(paravirt_steal_enabled);
+DECLARE_STATIC_KEY_FALSE(paravirt_steal_rq_enabled);
 
 #ifdef CONFIG_HAVE_PV_STEAL_CLOCK_GEN
 u64 dummy_steal_clock(int cpu);

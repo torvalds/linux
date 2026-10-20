@@ -87,6 +87,7 @@ int smpcfd_dead_cpu(unsigned int cpu)
 
 	free_cpumask_var(cfd->cpumask);
 	free_cpumask_var(cfd->cpumask_ipi);
+	irq_work_run_cpu(cpu);
 	return 0;
 }
 
