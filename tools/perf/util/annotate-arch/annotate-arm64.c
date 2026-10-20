@@ -463,12 +463,14 @@ static bool is_readonly_insn(const char *name)
 }
 
 static void update_call_insn_state(struct type_state *state,
-				   struct data_loc_info *dloc,
+				   struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				   struct disasm_line *dl)
 {
 	struct symbol *func = dl->ops.target.sym;
 	const char *call_name;
 	u64 call_addr;
+	struct type_state_reg *tsr;
+	Dwarf_Die type_die;
 	u32 insn_offset = dl->al.offset;
 
 	call_name = func ? func->name : dl->ops.target.name;
@@ -486,6 +488,19 @@ static void update_call_insn_state(struct type_state *state,
 		if (reg->lifetime_active && call_addr < reg->lifetime_end)
 			continue;
 		invalidate_reg_state(reg);
+	}
+
+	/* Update register with the return type (if any) */
+	if (call_name && die_find_func_rettype(cu_die, call_name, &type_die)) {
+		tsr = &state->regs[state->ret_reg];
+		invalidate_reg_state(tsr);
+		tsr->type = type_die;
+		tsr->kind = TSR_KIND_TYPE;
+		tsr->offset = 0;
+		tsr->ok = true;
+
+		pr_debug_dtp("call [%x] return -> reg%d", insn_offset, state->ret_reg);
+		pr_debug_type_name(&type_die, tsr->kind);
 	}
 }
 
@@ -513,7 +528,7 @@ static void invalidate_unhandled_insn_regs(struct type_state *state,
 }
 
 static void update_insn_state_arm64(struct type_state *state,
-				    struct data_loc_info *dloc, Dwarf_Die *cu_die __maybe_unused,
+				    struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				    struct disasm_line *dl)
 {
 	struct annotated_insn_loc loc;
@@ -526,7 +541,7 @@ static void update_insn_state_arm64(struct type_state *state,
 		return;
 
 	if (ins__is_call(&dl->ins))
-		update_call_insn_state(state, dloc, dl);
+		update_call_insn_state(state, dloc, cu_die, dl);
 	else
 		invalidate_unhandled_insn_regs(state, dl, dst);
 }
