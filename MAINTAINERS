@@ -24576,8 +24576,11 @@ F:	include/uapi/scsi/
 F:	include/ufs/
 
 SCSI TAPE DRIVER
+M:	Laurence Oberman <loberman@redhat.com>
+M:	John Meneghini <jmeneghi@redhat.com>
 L:	linux-scsi@vger.kernel.org
-S:	Orphan
+S:	Maintained
+W:	https://github.com/johnmeneghini/tape_tests
 F:	Documentation/scsi/st.rst
 F:	drivers/scsi/st.*
 F:	drivers/scsi/st_*.h
