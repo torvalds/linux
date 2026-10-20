@@ -624,24 +624,27 @@ static long restore_tm_sigcontexts(struct task_struct *tsk, struct sigcontext __
 static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 {
 	int i;
-	long err = 0;
 
-	/* Call the handler and pop the dummy stackframe*/
-	err |= __put_user(PPC_RAW_BCTRL(), &tramp[0]);
-	err |= __put_user(PPC_RAW_ADDI(_R1, _R1, __SIGNAL_FRAMESIZE), &tramp[1]);
+	scoped_user_write_access_size(tramp, TRAMP_SIZE * sizeof(*tramp), efault) {
+		/* Call the handler and pop the dummy stackframe*/
+		unsafe_put_user(PPC_RAW_BCTRL(), &tramp[0], efault);
+		unsafe_put_user(PPC_RAW_ADDI(_R1, _R1, __SIGNAL_FRAMESIZE), &tramp[1], efault);
 
-	err |= __put_user(PPC_RAW_LI(_R0, syscall), &tramp[2]);
-	err |= __put_user(PPC_RAW_SC(), &tramp[3]);
+		unsafe_put_user(PPC_RAW_LI(_R0, syscall), &tramp[2], efault);
+		unsafe_put_user(PPC_RAW_SC(), &tramp[3], efault);
 
-	/* Minimal traceback info */
-	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
-		err |= __put_user(0, &tramp[i]);
+		/* Minimal traceback info */
+		for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
+			unsafe_put_user(0, &tramp[i], efault);
+	}
 
-	if (!err)
-		flush_icache_range((unsigned long) &tramp[0],
+	flush_icache_range((unsigned long) &tramp[0],
 			   (unsigned long) &tramp[TRAMP_SIZE]);
 
-	return err;
+	return 0;
+
+efault:
+	return -EFAULT;
 }
 
 /*
