@@ -297,7 +297,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		return -EFAULT;
 
 	/* Set up backchain. */
-	if (__put_user(regs->gprs[15], (addr_t __user *) frame))
+	if (put_user(regs->gprs[15], (addr_t __user *) frame))
 		return -EFAULT;
 
 	/* Create struct sigcontext on the signal stack */
@@ -314,7 +314,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		return -EFAULT;
 
 	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __user *) &frame->signo))
+	if (put_user(regs->gprs[2], (int __user *) &frame->signo))
 		return -EFAULT;
 
 	/* Create _sigregs_ext on the signal stack */
@@ -370,7 +370,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 
 	/* Set up backchain. */
-	if (__put_user(regs->gprs[15], (addr_t __user *) frame))
+	if (put_user(regs->gprs[15], (addr_t __user *) frame))
 		return -EFAULT;
 
 	/* Set up to return from userspace.  If provided, use a stub
@@ -388,8 +388,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	store_sigregs();
 
 	/* Create ucontext on the signal stack. */
-	if (__put_user(uc_flags, &frame->uc.uc_flags) ||
-	    __put_user(NULL, &frame->uc.uc_link) ||
+	if (put_user(uc_flags, &frame->uc.uc_flags) ||
+	    put_user(NULL, &frame->uc.uc_link) ||
 	    __save_altstack(&frame->uc.uc_stack, regs->gprs[15]) ||
 	    save_sigregs(regs, &frame->uc.uc_mcontext) ||
 	    __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set)) ||

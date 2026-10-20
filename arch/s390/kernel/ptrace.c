@@ -540,7 +540,7 @@ static int s390_regs_set(struct task_struct *target,
 		const unsigned long  __user *u = ubuf;
 		while (count > 0 && !rc) {
 			unsigned long word;
-			rc = __get_user(word, u++);
+			rc = get_user(word, u++);
 			if (rc)
 				break;
 			rc = __poke_user(target, pos, word);
