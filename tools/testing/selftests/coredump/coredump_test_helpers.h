@@ -39,6 +39,7 @@
 /* Shared helper function declarations */
 void *do_nothing(void *arg);
 void crashing_child(void);
+void crashing_child_thread(void);
 void crashing_child_sparse(size_t size);
 void crashing_child_memory(__u64 task_filter, int fd_addr);
 bool find_coredump_segment(int fd, __u64 vaddr, ElfW(Phdr) *segment);
@@ -59,6 +60,7 @@ int create_detached_tmpfs(void);
 int create_and_listen_unix_socket(const char *path);
 bool set_core_pattern(const char *pattern);
 int get_peer_pidfd(int fd);
+int get_peer_pidfd_thread(int fd);
 bool get_pidfd_info(int fd_peer_pidfd, struct pidfd_info *info);
 
 /* Protocol helper function declarations */

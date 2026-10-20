@@ -1037,7 +1037,7 @@ TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
 		 * updates.  The peer socket keeps a reference to sk_peer_pid
 		 * through pid_nr(); sun_path is the reliable identifier.
 		 */
-		peer_pid		= READ_ONCE(peer->sk_peer_pid);
+		peer_pid		= READ_ONCE(peer->sk_peer_pid[PIDTYPE_TGID]);
 		__entry->peer_pid	= peer_pid ? pid_nr(peer_pid) : 0;
 		__assign_str(sun_path);
 	),
