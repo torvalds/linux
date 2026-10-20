@@ -750,24 +750,36 @@ static void intel_pmu_cleanup(struct kvm_vcpu *vcpu)
 		intel_pmu_release_guest_lbr_event(vcpu);
 }
 
-void intel_pmu_cross_mapped_check(struct kvm_pmu *pmu)
+u64 __intel_pmu_compute_pebs_enable(struct kvm_pmu *pmu)
 {
-	struct kvm_pmc *pmc = NULL;
+	u64 guest_pebs_enable = pmu->pebs_enable & pmu->global_ctrl;
+	u64 pebs_enable = 0;
+	struct kvm_pmc *pmc;
 	int bit, hw_idx;
 
-	kvm_for_each_pmc(pmu, pmc, bit, (unsigned long *)&pmu->global_ctrl) {
-		if (!pmc_is_locally_enabled(pmc) ||
-		    !pmc_is_globally_enabled(pmc) || !pmc->perf_event)
+	/*
+	 * Omit counters that are locally disabled, don't have a perf event, or
+	 * ended up with a perf event that is using a different counter than
+	 * the guest, i.e. where the guest PMC is different than the host PMC
+	 * being used on behalf of the guest.  PEBS records include
+	 * PERF_GLOBAL_STATUS, and so using a counter with a different index
+	 * means the guest will see overflow status for the wrong counter(s).
+	 */
+	kvm_for_each_pmc(pmu, pmc, bit, (unsigned long *)&guest_pebs_enable) {
+		if (!pmc_is_locally_enabled(pmc) || !pmc->perf_event)
 			continue;
 
 		/*
-		 * A negative index indicates the event isn't mapped to a
+		 * Note, a negative index indicates the event isn't mapped to a
 		 * physical counter in the host, e.g. due to contention.
 		 */
 		hw_idx = pmc->perf_event->hw.idx;
-		if (hw_idx != pmc->idx && hw_idx > -1)
-			pmu->host_cross_mapped_mask |= BIT_ULL(hw_idx);
+		if (hw_idx != pmc->idx)
+			continue;
+
+		pebs_enable |= BIT_ULL(pmc->idx);
 	}
+	return pebs_enable;
 }
 
 static bool intel_pmu_is_mediated_pmu_supported(struct x86_pmu_capability *host_pmu)

@@ -664,7 +664,20 @@ static __always_inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
 
-void intel_pmu_cross_mapped_check(struct kvm_pmu *pmu);
+u64 __intel_pmu_compute_pebs_enable(struct kvm_pmu *pmu);
+
+static inline u64 intel_pmu_compute_pebs_enable(struct kvm_pmu *pmu)
+{
+	/*
+	 * Avoid the function call overhead in the common case that the guest
+	 * isn't using PEBS.
+	 */
+	if (!(pmu->pebs_enable & pmu->global_ctrl))
+		return 0;
+
+	return __intel_pmu_compute_pebs_enable(pmu);
+}
+
 int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu);
 void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu);
 

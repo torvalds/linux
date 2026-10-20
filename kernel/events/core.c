@@ -7831,19 +7831,79 @@ unsigned long perf_instruction_pointer(struct perf_event *event,
 		0 : perf_arch_instruction_pointer(regs);
 }
 
+u64 __weak perf_reg_value(struct pt_regs *regs, int idx)
+{
+	return 0;
+}
+
+int __weak perf_reg_validate(u64 mask, bool simd_enabled)
+{
+	return mask ? -ENOSYS : 0;
+}
+
+u64 __weak perf_reg_abi(struct task_struct *task)
+{
+	return PERF_SAMPLE_REGS_ABI_NONE;
+}
+
+void __weak perf_get_regs_user(struct perf_regs *regs_user,
+			       struct pt_regs *regs)
+{
+	regs_user->regs = task_pt_regs(current);
+	regs_user->abi = perf_reg_abi(current);
+}
+
+#define word_for_each_set_bit(bit, val)			\
+	for (unsigned long long __v = (val);		\
+	     __v && ((bit = __builtin_ctzll(__v)), 1);	\
+	     __v &= __v - 1)
+
 static void
 perf_output_sample_regs(struct perf_output_handle *handle,
 			struct pt_regs *regs, u64 mask)
 {
 	int bit;
-	DECLARE_BITMAP(_mask, 64);
 
-	bitmap_from_u64(_mask, mask);
-	for_each_set_bit(bit, _mask, sizeof(mask) * BITS_PER_BYTE) {
-		u64 val;
-
-		val = perf_reg_value(regs, bit);
+	word_for_each_set_bit(bit, mask) {
+		u64 val = perf_reg_value(regs, bit);
 		perf_output_put(handle, val);
+	}
+}
+
+static void
+perf_output_sample_simd_regs(struct perf_output_handle *handle,
+			     struct perf_event *event,
+			     struct pt_regs *regs,
+			     u64 mask, u32 pred_mask)
+{
+	u64 pred_qwords = event->attr.sample_simd_pred_reg_qwords;
+	u64 vec_qwords = event->attr.sample_simd_vec_reg_qwords;
+	u64 nr_vectors = hweight64(mask);
+	u64 nr_pred = hweight32(pred_mask);
+	int bit;
+
+	perf_output_put(handle, nr_vectors);
+	perf_output_put(handle, vec_qwords);
+	perf_output_put(handle, nr_pred);
+	perf_output_put(handle, pred_qwords);
+
+	if (nr_vectors) {
+		word_for_each_set_bit(bit, mask) {
+			for (int i = 0; i < vec_qwords; i++) {
+				u64 val = perf_simd_reg_value(regs, bit,
+							      i, false);
+				perf_output_put(handle, val);
+			}
+		}
+	}
+	if (nr_pred) {
+		word_for_each_set_bit(bit, pred_mask) {
+			for (int i = 0; i < pred_qwords; i++) {
+				u64 val = perf_simd_reg_value(regs, bit,
+							      i, true);
+				perf_output_put(handle, val);
+			}
+		}
 	}
 }
 
@@ -7880,6 +7940,17 @@ static void perf_sample_regs_intr(struct perf_regs *regs_intr,
 	}
 }
 
+int __weak perf_simd_reg_validate(u16 vec_qwords, u64 vec_mask,
+				  u16 pred_qwords, u32 pred_mask)
+{
+	return -EINVAL;
+}
+
+u64 __weak perf_simd_reg_value(struct pt_regs *regs, int idx,
+			       u16 qwords_idx, bool pred)
+{
+	return 0;
+}
 
 /*
  * Get remaining task size from user stack pointer.
@@ -8415,10 +8486,17 @@ void perf_output_sample(struct perf_output_handle *handle,
 		perf_output_put(handle, abi);
 
 		if (abi) {
-			u64 mask = event->attr.sample_regs_user;
+			struct perf_event_attr *attr = &event->attr;
+			u64 mask = attr->sample_regs_user;
 			perf_output_sample_regs(handle,
 						data->regs_user.regs,
 						mask);
+			if (abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				perf_output_sample_simd_regs(handle, event,
+							     data->regs_user.regs,
+							     attr->sample_simd_vec_reg_user,
+							     attr->sample_simd_pred_reg_user);
+			}
 		}
 	}
 
@@ -8446,11 +8524,18 @@ void perf_output_sample(struct perf_output_handle *handle,
 		perf_output_put(handle, abi);
 
 		if (abi) {
-			u64 mask = event->attr.sample_regs_intr;
+			struct perf_event_attr *attr = &event->attr;
+			u64 mask = attr->sample_regs_intr;
 
 			perf_output_sample_regs(handle,
 						data->regs_intr.regs,
 						mask);
+			if (abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				perf_output_sample_simd_regs(handle, event,
+							     data->regs_intr.regs,
+							     attr->sample_simd_vec_reg_intr,
+							     attr->sample_simd_pred_reg_intr);
+			}
 		}
 	}
 
@@ -8653,6 +8738,29 @@ static __always_inline u64 __cond_set(u64 flags, u64 s, u64 d)
 	return d * !!(flags & s);
 }
 
+u64 perf_update_xregs_size(struct perf_event *event, bool intr)
+{
+	u16 pred_qwords = event->attr.sample_simd_pred_reg_qwords;
+	u16 vec_qwords = event->attr.sample_simd_vec_reg_qwords;
+	u64 pred_mask;
+	u64 mask;
+	int size;
+
+	if (intr) {
+		mask = event->attr.sample_simd_vec_reg_intr;
+		pred_mask = event->attr.sample_simd_pred_reg_intr;
+	} else {
+		mask = event->attr.sample_simd_vec_reg_user;
+		pred_mask = event->attr.sample_simd_pred_reg_user;
+	}
+
+	size = sizeof(u64) * 4;
+	size += (hweight64(mask) * vec_qwords +
+		 hweight64(pred_mask) * pred_qwords) * sizeof(u64);
+
+	return size;
+}
+
 void perf_prepare_sample(struct perf_sample_data *data,
 			 struct perf_event *event,
 			 struct pt_regs *regs)
@@ -8715,7 +8823,12 @@ void perf_prepare_sample(struct perf_sample_data *data,
 
 		if (data->regs_user.regs) {
 			u64 mask = event->attr.sample_regs_user;
+
 			size += hweight64(mask) * sizeof(u64);
+			if (event_has_simd_regs(event)) {
+				size += perf_update_xregs_size(event, false);
+				data->regs_user.abi |= PERF_SAMPLE_REGS_ABI_SIMD;
+			}
 		}
 
 		data->dyn_size += size;
@@ -8780,6 +8893,10 @@ void perf_prepare_sample(struct perf_sample_data *data,
 			u64 mask = event->attr.sample_regs_intr;
 
 			size += hweight64(mask) * sizeof(u64);
+			if (event_has_simd_regs(event)) {
+				size += perf_update_xregs_size(event, true);
+				data->regs_intr.abi |= PERF_SAMPLE_REGS_ABI_SIMD;
+			}
 		}
 
 		data->dyn_size += size;
@@ -13071,12 +13188,6 @@ int perf_pmu_unregister(struct pmu *pmu)
 }
 EXPORT_SYMBOL_GPL(perf_pmu_unregister);
 
-static inline bool has_extended_regs(struct perf_event *event)
-{
-	return (event->attr.sample_regs_user & PERF_REG_EXTENDED_MASK) ||
-	       (event->attr.sample_regs_intr & PERF_REG_EXTENDED_MASK);
-}
-
 static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 {
 	struct perf_event_context *ctx = NULL;
@@ -13110,8 +13221,14 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 	if (ret)
 		goto err_pmu;
 
+	if (!(pmu->capabilities & PERF_PMU_CAP_SIMD_REGS) &&
+	    event_has_simd_regs(event)) {
+		ret = -EOPNOTSUPP;
+		goto err_destroy;
+	}
+
 	if (!(pmu->capabilities & PERF_PMU_CAP_EXTENDED_REGS) &&
-	    has_extended_regs(event)) {
+	    event_has_extended_regs(event)) {
 		ret = -EOPNOTSUPP;
 		goto err_destroy;
 	}
@@ -13605,7 +13722,8 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 
 	attr->size = size;
 
-	if (attr->__reserved_1 || attr->__reserved_2 || attr->__reserved_3)
+	if (attr->__reserved_1 || attr->__reserved_2 ||
+	    attr->__reserved_3 || attr->__reserved_4)
 		return -EINVAL;
 
 	if (attr->sample_type & ~(PERF_SAMPLE_MAX-1))
@@ -13651,9 +13769,18 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 	}
 
 	if (attr->sample_type & PERF_SAMPLE_REGS_USER) {
-		ret = perf_reg_validate(attr->sample_regs_user);
+		ret = perf_reg_validate(attr->sample_regs_user,
+					attr->sample_simd_regs_enabled);
 		if (ret)
 			return ret;
+		if (attr->sample_simd_regs_enabled) {
+			ret = perf_simd_reg_validate(attr->sample_simd_vec_reg_qwords,
+						     attr->sample_simd_vec_reg_user,
+						     attr->sample_simd_pred_reg_qwords,
+						     attr->sample_simd_pred_reg_user);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (attr->sample_type & PERF_SAMPLE_STACK_USER) {
@@ -13674,8 +13801,20 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 	if (!attr->sample_max_stack)
 		attr->sample_max_stack = sysctl_perf_event_max_stack;
 
-	if (attr->sample_type & PERF_SAMPLE_REGS_INTR)
-		ret = perf_reg_validate(attr->sample_regs_intr);
+	if (attr->sample_type & PERF_SAMPLE_REGS_INTR) {
+		ret = perf_reg_validate(attr->sample_regs_intr,
+					attr->sample_simd_regs_enabled);
+		if (ret)
+			return ret;
+		if (attr->sample_simd_regs_enabled) {
+			ret = perf_simd_reg_validate(attr->sample_simd_vec_reg_qwords,
+						     attr->sample_simd_vec_reg_intr,
+						     attr->sample_simd_pred_reg_qwords,
+						     attr->sample_simd_pred_reg_intr);
+			if (ret)
+				return ret;
+		}
+	}
 
 #ifndef CONFIG_CGROUP_PERF
 	if (attr->sample_type & PERF_SAMPLE_CGROUP)
