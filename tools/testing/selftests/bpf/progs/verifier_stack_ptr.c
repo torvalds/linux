@@ -605,7 +605,7 @@ __msg("R7=fp(smin=smin32=-64,smax=smax32=-8")
  * back-edge state is clamped to the remaining iterations and pruned
  * at the header, because [-64, -16] is within the widened [-72, -16]
  */
-__msg("loop header at 3, clamping r7 to -64..-16 step 8")
+__msg("loop header at 3, clamping r7 to -64..-16 (s32 -64..-8) step 8")
 __msg("from 5 to 3: safe")
 __msg("processed 9 insns")
 __naked void stack_ptr_subrange_in_loop(void)
