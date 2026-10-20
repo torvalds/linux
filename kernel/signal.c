@@ -4539,11 +4539,12 @@ int restore_altstack(const stack_t __user *uss)
 
 int __save_altstack(stack_t __user *uss, unsigned long sp)
 {
-	struct task_struct *t = current;
-	int err = __put_user((void __user *)t->sas_ss_sp, &uss->ss_sp) |
-		__put_user(t->sas_ss_flags, &uss->ss_flags) |
-		__put_user(t->sas_ss_size, &uss->ss_size);
-	return err;
+	scoped_user_write_access(uss, Efault)
+		unsafe_save_altstack(uss, sp, Efault);
+	return 0;
+
+Efault:
+	return -EFAULT;
 }
 
 #ifdef CONFIG_COMPAT
@@ -4592,13 +4593,12 @@ int compat_restore_altstack(const compat_stack_t __user *uss)
 
 int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
 {
-	int err;
-	struct task_struct *t = current;
-	err = __put_user(ptr_to_compat((void __user *)t->sas_ss_sp),
-			 &uss->ss_sp) |
-		__put_user(t->sas_ss_flags, &uss->ss_flags) |
-		__put_user(t->sas_ss_size, &uss->ss_size);
-	return err;
+	scoped_user_write_access(uss, Efault)
+		unsafe_compat_save_altstack(uss, sp, Efault);
+	return 0;
+
+Efault:
+	return -EFAULT;
 }
 #endif
 
