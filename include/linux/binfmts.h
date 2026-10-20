@@ -128,7 +128,8 @@ struct linux_binfmt {
 	struct module *module;
 	int (*load_binary)(struct linux_binprm *);
 #ifdef CONFIG_COREDUMP
-	int (*core_dump)(struct coredump_params *cprm);
+	/* Returns true if the whole coredump was written. */
+	bool (*core_dump)(struct coredump_params *cprm);
 	unsigned long min_coredump;	/* minimal dump size */
 #endif
 } __randomize_layout;

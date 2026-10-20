@@ -81,7 +81,7 @@ enum KTHREAD_BITS {
 
 static inline struct kthread *to_kthread(struct task_struct *k)
 {
-	WARN_ON(!(k->flags & PF_KTHREAD));
+	WARN_ON(!(READ_ONCE(k->flags) & PF_KTHREAD));
 	return k->worker_private;
 }
 
