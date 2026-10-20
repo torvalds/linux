@@ -59,7 +59,7 @@ struct file *backing_tmpfile_open(const struct file *user_file, int flags,
 				  const struct path *real_parentpath,
 				  umode_t mode, const struct cred *cred)
 {
-	struct mnt_idmap *real_idmap = mnt_idmap(real_parentpath->mnt);
+	const struct mnt_idmap *real_idmap = mnt_idmap(real_parentpath->mnt);
 	const struct path *user_path = &user_file->f_path;
 	struct file *f;
 	int error;

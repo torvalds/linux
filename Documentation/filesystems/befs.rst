@@ -44,8 +44,8 @@ implementation.
 Which is it, BFS or BEFS?
 =========================
 Be, Inc said, "BeOS Filesystem is officially called BFS, not BeFS".
-But Unixware Boot Filesystem is called bfs, too. And they are already in
-the kernel. Because of this naming conflict, on Linux the BeOS
+But the UnixWare Boot Filesystem is called bfs, too, and it was already
+in the kernel. Because of this naming conflict, on Linux the BeOS
 filesystem is called befs.
 
 How to Install

@@ -596,7 +596,7 @@ error:
 /*
  * read the attributes of an inode
  */
-int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int afs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -744,7 +744,7 @@ static void afs_setattr_edit_file(struct afs_operation *op)
 		if (size != old) {
 			truncate_pagecache(inode, size);
 			netfs_resize_file(&vnode->netfs, size, true);
-			fscache_resize_cookie(afs_vnode_cache(vnode), size);
+			fscache_resize_cookie(afs_vnode_cache(vnode), size, size < old);
 		}
 	}
 }
@@ -759,7 +759,7 @@ static const struct afs_operation_ops afs_setattr_operation = {
 /*
  * set the attributes of an inode
  */
-int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int afs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
 	const unsigned int supported =
@@ -817,7 +817,7 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			truncate_setsize(inode, attr->ia_size);
 			netfs_resize_file(&vnode->netfs, size, false);
 			fscache_resize_cookie(afs_vnode_cache(vnode),
-					      attr->ia_size);
+					      attr->ia_size, attr->ia_size < i_size);
 			ret = 0;
 			goto out_unlock;
 		}

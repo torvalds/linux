@@ -6006,7 +6006,7 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  *
  * Called with inode->i_rwsem down.
  */
-int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ext4_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -6263,7 +6263,7 @@ u32 ext4_dio_alignment(struct inode *inode)
 	return 1; /* use the iomap defaults */
 }
 
-int ext4_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ext4_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -6332,7 +6332,7 @@ int ext4_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return 0;
 }
 
-int ext4_file_getattr(struct mnt_idmap *idmap,
+int ext4_file_getattr(const struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
@@ -6456,9 +6456,10 @@ int ext4_chunk_trans_blocks(struct inode *inode, int nrblocks)
 int ext4_mark_iloc_dirty(handle_t *handle,
 			 struct inode *inode, struct ext4_iloc *iloc)
 {
+	struct super_block *sb = inode->i_sb;
 	int err = 0;
 
-	err = ext4_emergency_state(inode->i_sb);
+	err = ext4_emergency_state(sb);
 	if (unlikely(err)) {
 		put_bh(iloc->bh);
 		return err;
@@ -6473,9 +6474,13 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	put_bh(iloc->bh);
 	/*
 	 * Mark that there's metadata writeout pending for the inode so that it
-	 * gets properly flushed on fsync(2) and similar.
+	 * gets properly flushed on fsync(2) and similar. We don't bother for
+	 * fastcommit replay as that flushes the whole bdev afterwards anyway.
+	 * It is faster this way and we avoid entering fs writeback paths which
+	 * aren't fully initialized yet.
 	 */
-	if (!EXT4_SB(inode->i_sb)->s_journal) {
+	if (!ext4_handle_valid(handle) &&
+	    !(EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY)) {
 		/*
 		 * Inode didn't need to go through dirtying, make sure it is
 		 * attached to wb so that writeback can handle it.

@@ -231,7 +231,7 @@ static void set_file_temperature(struct f2fs_sb_info *sbi, struct inode *inode,
 		file_set_hot(inode);
 }
 
-static struct inode *f2fs_new_inode(struct mnt_idmap *idmap,
+static struct inode *f2fs_new_inode(const struct mnt_idmap *idmap,
 						struct inode *dir, umode_t mode,
 						const char *name)
 {
@@ -365,7 +365,7 @@ fail_drop:
 	return ERR_PTR(err);
 }
 
-static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int f2fs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -662,7 +662,7 @@ static const char *f2fs_get_link(struct dentry *dentry,
 	return link;
 }
 
-static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int f2fs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -751,7 +751,7 @@ free_inode:
 	goto out;
 }
 
-static struct dentry *f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *f2fs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -810,7 +810,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 	return -ENOTEMPTY;
 }
 
-static int f2fs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int f2fs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -857,7 +857,7 @@ out:
 	return err;
 }
 
-static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int __f2fs_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 			  struct file *file, umode_t mode, bool is_whiteout,
 			  struct inode **new_inode, struct f2fs_filename *fname)
 {
@@ -928,7 +928,7 @@ out:
 	return err;
 }
 
-static int f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int f2fs_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 			struct file *file, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -944,7 +944,7 @@ static int f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	return finish_open_simple(file, err);
 }
 
-static int f2fs_create_whiteout(struct mnt_idmap *idmap,
+static int f2fs_create_whiteout(const struct mnt_idmap *idmap,
 				struct inode *dir, struct inode **whiteout,
 				struct f2fs_filename *fname)
 {
@@ -952,14 +952,14 @@ static int f2fs_create_whiteout(struct mnt_idmap *idmap,
 						true, whiteout, fname);
 }
 
-int f2fs_get_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+int f2fs_get_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 		     struct inode **new_inode)
 {
 	return __f2fs_tmpfile(idmap, dir, NULL, S_IFREG,
 				false, new_inode, NULL);
 }
 
-static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int f2fs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 			struct dentry *old_dentry, struct inode *new_dir,
 			struct dentry *new_dentry, unsigned int flags)
 {
@@ -1341,7 +1341,7 @@ out:
 	return err;
 }
 
-static int f2fs_rename2(struct mnt_idmap *idmap,
+static int f2fs_rename2(const struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
@@ -1394,7 +1394,7 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	return target;
 }
 
-static int f2fs_encrypted_symlink_getattr(struct mnt_idmap *idmap,
+static int f2fs_encrypted_symlink_getattr(const struct mnt_idmap *idmap,
 					  const struct path *path,
 					  struct kstat *stat, u32 request_mask,
 					  unsigned int query_flags)

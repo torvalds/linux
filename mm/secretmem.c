@@ -238,7 +238,7 @@ const struct address_space_operations secretmem_aops = {
 	.migrate_folio	= secretmem_migrate_folio,
 };
 
-static int secretmem_setattr(struct mnt_idmap *idmap,
+static int secretmem_setattr(const struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);

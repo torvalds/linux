@@ -89,8 +89,12 @@ void fw_cancel_pending_transactions(struct fw_card *card)
 			break;						\
 		}							\
 	}								\
-	if (t && try_cancel_split_timeout(t))				\
-		remove_transaction_entry(card, t);			\
+	if (t) {							\
+		if (try_cancel_split_timeout(t))			\
+			remove_transaction_entry(card, t);		\
+		else							\
+			t = NULL;					\
+	}								\
 	t;								\
 })
 

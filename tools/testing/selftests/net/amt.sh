@@ -150,6 +150,13 @@ setup_interface()
 	ip netns exec "${RELAY}" ip a a 10.0.0.2/24 dev relay_gw
 	ip netns exec "${RELAY}" ip link add amtr type amt mode relay \
 		local 10.0.0.2 dev relay_gw relay_port 2268 max_tunnels 4
+	# Count the IGMP and MLD queries that leave the relay through its own
+	# amt device; test_query_egress expects none.
+	ip netns exec "${RELAY}" tc qdisc add dev amtr clsact
+	ip netns exec "${RELAY}" tc filter add dev amtr egress pref 1 \
+		protocol ip flower ip_proto 0x2 action pass
+	ip netns exec "${RELAY}" tc filter add dev amtr egress pref 2 \
+		protocol ipv6 flower ip_proto icmpv6 type 130 action pass
 	ip netns exec "${RELAY}" ip a a 172.17.0.1/24 dev relay_src
 	ip netns exec "${RELAY}" ip a a 2001:db8:3::1/64 dev relay_src
 	ip netns exec "${SOURCE}" ip a a 172.17.0.2/24 dev src_relay
@@ -246,6 +253,27 @@ test_ipv6_forward()
 	fi
 }
 
+# The relay sends its General Queries straight from the receive path, in
+# the same context that found the tunnel. A query queued on the amt device
+# instead could outlive the tunnel it was built for. The forwarding tests
+# above show that the gateway got its queries.
+test_query_egress()
+{
+	local n4 n6
+
+	n4=$(ip netns exec "${RELAY}" tc -s -j filter show dev amtr egress \
+		pref 1 | jq '[.[].options.actions[0].stats.packets // empty] | add // 0')
+	n6=$(ip netns exec "${RELAY}" tc -s -j filter show dev amtr egress \
+		pref 2 | jq '[.[].options.actions[0].stats.packets // empty] | add // 0')
+	if [ "$n4" -eq 0 ] && [ "$n6" -eq 0 ]; then
+		printf "TEST: %-60s  [ OK ]\n" "amt relay queries bypass the amt device"
+	else
+		printf "TEST: %-60s  [FAIL]\n" "amt relay queries bypass the amt device"
+		echo "IGMP queries on amtr egress: $n4, MLD queries: $n6" >&2
+		ERR=1
+	fi
+}
+
 send_mcast4()
 {
 	sleep 5
@@ -287,6 +315,7 @@ wait $pid || err=$?
 if [ $err -eq 1 ]; then
 	ERR=1
 fi
+test_query_egress
 printf "TEST: %-50s" "IPv4 amt traffic forwarding torture"
 send_mcast_torture4
 printf "  [ OK ]\n"

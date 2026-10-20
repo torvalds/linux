@@ -213,10 +213,12 @@ static bool __futex_pivot_hash(struct mm_struct *mm, struct futex_private_hash *
 		futex_rehash_private(fph, new);
 	}
 	new->state = FR_PERCPU;
-	scoped_guard(rcu) {
-		mmph->batches = get_state_synchronize_rcu();
-		rcu_assign_pointer(mmph->hash, new);
-	}
+	rcu_assign_pointer(mmph->hash, new);
+	/*
+	 * mmph->batches must reference a grace period which started after
+	 * mmph->hash was assigned. See futex_ref_drop().
+	 */
+	mmph->batches = get_state_synchronize_rcu();
 	kvfree_rcu(fph, rcu);
 	return true;
 }
@@ -437,12 +439,35 @@ struct hrtimer_sleeper *futex_setup_timer(ktime_t *time, struct hrtimer_sleeper 
 }
 
 /*
- * Generate a machine wide unique identifier for this inode.
+ * Generate a machine wide unique identifier for this object (inode or mm).
  *
  * This relies on u64 not wrapping in the life-time of the machine; which with
  * 1ns resolution means almost 585 years.
- *
- * This further relies on the fact that a well formed program will not unmap
+ */
+static u64 get_object_id(atomic64_t *object_seq)
+{
+	static atomic64_t last_assigned_seq;
+	u64 old;
+
+	/* Does the object already have a sequence number? */
+	old = atomic64_read(object_seq);
+	if (likely(old))
+		return old;
+
+	for (;;) {
+		u64 new = atomic64_inc_return(&last_assigned_seq);
+		if (WARN_ON_ONCE(!new))
+			continue;
+
+		old = 0;
+		if (!atomic64_try_cmpxchg_relaxed(object_seq, &old, new))
+			return old;
+		return new;
+	}
+}
+
+/*
+ * This relies on the fact that a well formed program will not unmap
  * the file while it has a (shared) futex waiting on it. This mapping will have
  * a file reference which pins the mount and inode.
  *
@@ -456,24 +481,7 @@ struct hrtimer_sleeper *futex_setup_timer(ktime_t *time, struct hrtimer_sleeper 
  */
 static u64 get_inode_sequence_number(struct inode *inode)
 {
-	static atomic64_t i_seq;
-	u64 old;
-
-	/* Does the inode already have a sequence number? */
-	old = atomic64_read(&inode->i_sequence);
-	if (likely(old))
-		return old;
-
-	for (;;) {
-		u64 new = atomic64_inc_return(&i_seq);
-		if (WARN_ON_ONCE(!new))
-			continue;
-
-		old = 0;
-		if (!atomic64_try_cmpxchg_relaxed(&inode->i_sequence, &old, new))
-			return old;
-		return new;
-	}
+	return get_object_id(&inode->i_sequence);
 }
 
 /**
@@ -681,8 +689,8 @@ again:
 			goto out;
 		}
 
-		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
-		key->private.mm = mm;
+		key->both.offset |= FUT_OFF_MMSHARED;
+		key->private.mm_seq = get_object_id(&mm->futex.unique_id);
 		key->private.address = address;
 
 	} else {
@@ -2053,13 +2061,12 @@ static void futex_robust_unlock_init_mm(struct futex_mm_data *fd)
 static inline void futex_robust_unlock_init_mm(struct futex_mm_data *fd) { }
 #endif /* !CONFIG_FUTEX_ROBUST_UNLOCK */
 
-#if defined(CONFIG_FUTEX_PRIVATE_HASH) || defined(CONFIG_FUTEX_ROBUST_UNLOCK)
 void futex_mm_init(struct mm_struct *mm)
 {
+	atomic64_set(&mm->futex.unique_id, 0);
 	futex_hash_init_mm(&mm->futex);
 	futex_robust_unlock_init_mm(&mm->futex);
 }
-#endif
 
 int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4)
 {

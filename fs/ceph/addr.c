@@ -65,7 +65,7 @@
 	(CONGESTION_ON_THRESH(congestion_kb) -				\
 	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
 
-static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
+static int ceph_netfs_check_write_begin(struct file *file, uoff_t pos, unsigned int len,
 					struct folio **foliop, void **_fsdata);
 
 static inline struct ceph_snap_context *page_snap_context(struct page *page)
@@ -1868,7 +1868,7 @@ ceph_find_incompatible(struct folio *folio)
 	return NULL;
 }
 
-static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
+static int ceph_netfs_check_write_begin(struct file *file, uoff_t pos, unsigned int len,
 					struct folio **foliop, void **_fsdata)
 {
 	struct inode *inode = file_inode(file);

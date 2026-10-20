@@ -592,7 +592,7 @@ static struct inode *hostfs_iget(struct super_block *sb, char *name)
 	return inode;
 }
 
-static int hostfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int hostfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -673,7 +673,7 @@ static int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 	return err;
 }
 
-static int hostfs_symlink(struct mnt_idmap *idmap, struct inode *ino,
+static int hostfs_symlink(const struct mnt_idmap *idmap, struct inode *ino,
 			  struct dentry *dentry, const char *to)
 {
 	char *file;
@@ -686,7 +686,7 @@ static int hostfs_symlink(struct mnt_idmap *idmap, struct inode *ino,
 	return err;
 }
 
-static struct dentry *hostfs_mkdir(struct mnt_idmap *idmap, struct inode *ino,
+static struct dentry *hostfs_mkdir(const struct mnt_idmap *idmap, struct inode *ino,
 				   struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -719,7 +719,7 @@ static int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
 	return err;
 }
 
-static int hostfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int hostfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -745,7 +745,7 @@ static int hostfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return 0;
 }
 
-static int hostfs_rename2(struct mnt_idmap *idmap,
+static int hostfs_rename2(const struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry,
 			  unsigned int flags)
@@ -774,7 +774,7 @@ static int hostfs_rename2(struct mnt_idmap *idmap,
 	return err;
 }
 
-static int hostfs_permission(struct mnt_idmap *idmap,
+static int hostfs_permission(const struct mnt_idmap *idmap,
 			     struct inode *ino, int desired)
 {
 	char *name;
@@ -801,7 +801,7 @@ static int hostfs_permission(struct mnt_idmap *idmap,
 	return err;
 }
 
-static int hostfs_setattr(struct mnt_idmap *idmap,
+static int hostfs_setattr(const struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);

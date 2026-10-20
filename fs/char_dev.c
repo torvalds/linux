@@ -280,7 +280,9 @@ int __register_chrdev(unsigned int major, unsigned int baseminor,
 
 	cdev->owner = fops->owner;
 	cdev->ops = fops;
-	kobject_set_name(&cdev->kobj, "%s", name);
+	err = kobject_set_name(&cdev->kobj, "%s", name);
+	if (err)
+		goto out;
 
 	err = cdev_add(cdev, MKDEV(cd->major, baseminor), count);
 	if (err)

@@ -143,8 +143,8 @@ static unsigned ifs_next_clean_block(struct folio *folio,
 			blks + start_blk) - blks;
 }
 
-static unsigned ifs_find_dirty_range(struct folio *folio,
-		struct iomap_folio_state *ifs, u64 *range_start, u64 range_end)
+static unsigned ifs_find_dirty_range(struct folio *folio, u64 *range_start,
+		u64 range_end)
 {
 	struct inode *inode = folio->mapping->host;
 	unsigned start_blk =
@@ -176,7 +176,7 @@ static unsigned iomap_find_dirty_range(struct folio *folio, u64 *range_start,
 		return 0;
 
 	if (ifs)
-		return ifs_find_dirty_range(folio, ifs, range_start, range_end);
+		return ifs_find_dirty_range(folio, range_start, range_end);
 	return range_end - *range_start;
 }
 
@@ -1708,7 +1708,7 @@ static int iomap_zero_iter(struct iomap_iter *iter, bool *did_zero,
  * @iomap_flags: Flags to set on the associated iomap to track the batch.
  *
  * Returns the folio count directly. Also returns the associated control flag if
- * the the batch lookup is performed and the expected offset of a subsequent
+ * the batch lookup is performed and the expected offset of a subsequent
  * lookup via out params. The caller is responsible to set the flag on the
  * associated iomap.
  */

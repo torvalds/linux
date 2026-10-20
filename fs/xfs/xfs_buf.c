@@ -5,6 +5,7 @@
  */
 #include "xfs_platform.h"
 #include <linux/backing-dev.h>
+#include <linux/blk-integrity.h>
 #include <linux/dax.h>
 
 #include "xfs_shared.h"
@@ -139,7 +140,7 @@ xfs_buf_free(
 	ASSERT(list_empty(&bp->b_lru));
 
 	if (!xfs_buftarg_is_mem(bp->b_target) && size >= PAGE_SIZE)
-		mm_account_reclaimed_pages(howmany(size, PAGE_SHIFT));
+		mm_account_reclaimed_pages(howmany(size, PAGE_SIZE));
 
 	if (is_vmalloc_addr(bp->b_addr))
 		vfree(bp->b_addr);
@@ -176,7 +177,7 @@ xfs_buf_alloc_kmem(
 	ASSERT(is_power_of_2(size));
 	ASSERT(size < PAGE_SIZE);
 
-	bp->b_addr = kmalloc(size, gfp_mask);
+	bp->b_addr = kmalloc(size, gfp_mask | __GFP_RECLAIMABLE);
 	if (!bp->b_addr)
 		return -ENOMEM;
 
@@ -1694,6 +1695,7 @@ xfs_configure_buftarg(
 	struct xfs_mount	*mp = btp->bt_mount;
 
 	if (btp->bt_bdev) {
+		struct blk_integrity *bi = bdev_get_integrity(btp->bt_bdev);
 		int		error;
 
 		error = bdev_validate_blocksize(btp->bt_bdev, sectorsize);
@@ -1706,6 +1708,15 @@ xfs_configure_buftarg(
 
 		if (bdev_can_atomic_write(btp->bt_bdev))
 			xfs_configure_buftarg_atomic_writes(btp);
+
+		if (!bi)
+			;
+		else if (btp->bt_bdev == btp->bt_mount->m_super->s_bdev)
+			xfs_info(mp, "using %s integrity profile",
+				blk_integrity_profile_name(bi));
+		else
+			xfs_info(mp, "using %s integrity profile for %pg",
+				blk_integrity_profile_name(bi), btp->bt_bdev);
 	}
 
 	btp->bt_meta_sectorsize = sectorsize;

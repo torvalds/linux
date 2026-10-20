@@ -55,7 +55,7 @@ extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
 			   struct path *path, const struct path *root);
 int filename_rmdir(int dfd, struct filename *name);
 int filename_unlinkat(int dfd, struct filename *name);
-int may_linkat(struct mnt_idmap *idmap, const struct path *link);
+int may_linkat(const struct mnt_idmap *idmap, const struct path *link);
 int filename_renameat2(int olddfd, struct filename *oldname, int newdfd,
 		 struct filename *newname, unsigned int flags);
 int filename_mkdirat(int dfd, struct filename *name, umode_t mode);
@@ -63,7 +63,7 @@ int filename_mknodat(int dfd, struct filename *name, umode_t mode, unsigned int 
 int filename_symlinkat(struct filename *from, int newdfd, struct filename *to);
 int filename_linkat(int olddfd, struct filename *old, int newdfd,
 			struct filename *new, int flags);
-int vfs_tmpfile(struct mnt_idmap *idmap,
+int vfs_tmpfile(const struct mnt_idmap *idmap,
 		const struct path *parentpath,
 		struct file *file, umode_t mode);
 struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
@@ -198,6 +198,7 @@ extern struct file *do_file_open_root(const struct path *,
 extern struct open_how build_open_how(int flags, umode_t mode);
 extern int build_open_flags(const struct open_how *how, struct open_flags *op);
 struct file *file_close_fd_locked(struct files_struct *files, unsigned fd);
+int filp_close_sync(struct file *filp, fl_owner_t id);
 
 int do_ftruncate(struct file *file, loff_t length, unsigned int flags);
 int chmod_common(const struct path *path, umode_t mode);
@@ -205,13 +206,14 @@ int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
 		int flag);
 int chown_common(const struct path *path, uid_t user, gid_t group);
 extern int vfs_open(const struct path *, struct file *);
+int vfs_open_consume(struct path *, struct file *);
 
 /*
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
-bool in_group_or_capable(struct mnt_idmap *idmap,
+int dentry_needs_remove_privs(const struct mnt_idmap *, struct dentry *dentry);
+bool in_group_or_capable(const struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid);
 
 /*
@@ -299,21 +301,21 @@ int filename_setxattr(int dfd, struct filename *filename,
 int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx);
 int import_xattr_name(struct xattr_name *kname, const char __user *name);
 
-int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
+int may_write_xattr(const struct mnt_idmap *idmap, struct inode *inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
-int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int do_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 	       const char *acl_name, const void *kvalue, size_t size);
-ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+ssize_t do_get_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		   const char *acl_name, void *kvalue, size_t size);
 #else
-static inline int do_set_acl(struct mnt_idmap *idmap,
+static inline int do_set_acl(const struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     const void *kvalue, size_t size)
 {
 	return -EOPNOTSUPP;
 }
-static inline ssize_t do_get_acl(struct mnt_idmap *idmap,
+static inline ssize_t do_get_acl(const struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name,
 				 void *kvalue, size_t size)
 {
@@ -327,8 +329,8 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
  * fs/attr.c
  */
 struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
-struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
-void mnt_idmap_put(struct mnt_idmap *idmap);
+const struct mnt_idmap *mnt_idmap_get(const struct mnt_idmap *idmap);
+void mnt_idmap_put(const struct mnt_idmap *idmap);
 struct stashed_operations {
 	struct dentry *(*stash_dentry)(struct dentry **stashed,
 				       struct dentry *dentry);
@@ -354,12 +356,12 @@ static inline bool path_mounted(const struct path *path)
 }
 void file_f_owner_release(struct file *file);
 bool file_seek_cur_needs_f_lock(struct file *file);
-int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map);
+int statmount_mnt_idmap(const struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map);
 struct dentry *find_next_child(struct dentry *parent, struct dentry *prev);
-int anon_inode_getattr(struct mnt_idmap *idmap, const struct path *path,
+int anon_inode_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		       struct kstat *stat, u32 request_mask,
 		       unsigned int query_flags);
-int anon_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int anon_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 void pidfs_get_root(struct path *path);
 void nsfs_get_root(struct path *path);

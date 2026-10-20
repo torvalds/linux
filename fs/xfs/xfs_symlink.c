@@ -82,7 +82,7 @@ xfs_readlink(
 
 int
 xfs_symlink(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_inode	*dp,
 	struct xfs_name		*link_name,
 	const char		*target_path,

@@ -270,9 +270,14 @@ static int bnep_rx_extension(struct bnep_session *s, struct sk_buff *skb)
 
 		BT_DBG("type 0x%x len %u", h->type, h->len);
 
+		if (skb->len < h->len) {
+			err = -EILSEQ;
+			break;
+		}
+
 		switch (h->type & BNEP_TYPE_MASK) {
 		case BNEP_EXT_CONTROL:
-			bnep_rx_control(s, skb->data, skb->len);
+			bnep_rx_control(s, skb->data, h->len);
 			break;
 
 		default:
@@ -373,6 +378,11 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 			goto badframe;
 	}
 
+	if ((type & BNEP_TYPE_MASK) == BNEP_CONTROL) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	/* Strip 802.1p header */
 	if (ntohs(s->eh.h_proto) == ETH_P_8021Q) {
 		if (!skb_pull(skb, 4))
@@ -449,6 +459,11 @@ static int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 	if (!skb->dev) {
 		/* Control frame sent by us */
 		goto send;
+	}
+
+	if (skb->len < ETH_HLEN) {
+		kfree_skb(skb);
+		return 0;
 	}
 
 	iv[il++] = (struct kvec) { &type, 1 };

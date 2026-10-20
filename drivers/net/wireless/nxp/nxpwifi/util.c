@@ -1041,19 +1041,23 @@ nxpwifi_set_sta_ht_cap(struct nxpwifi_private *priv, const u8 *ies,
 	}
 }
 
-/* Delete a station from list; called under cfg80211 mutex. */
+/* Delete a station from list. */
 
 void nxpwifi_del_sta_entry(struct nxpwifi_private *priv, const u8 *mac)
 {
 	struct nxpwifi_sta_node *node;
 
-	list_for_each_entry_rcu(node, &priv->sta_list, list) {
+	spin_lock_bh(&priv->sta_list_spinlock);
+
+	list_for_each_entry(node, &priv->sta_list, list) {
 		if (!memcmp(node->mac_addr, mac, ETH_ALEN)) {
 			list_del_rcu(&node->list);
 			kfree_rcu(node, rcu);
 			break;
 		}
 	}
+
+	spin_unlock_bh(&priv->sta_list_spinlock);
 }
 
 /* Delete all stations from list. */

@@ -1385,7 +1385,7 @@ err_out4:
 err_out3:
 	qdisc_lock_uninit(sch, ops);
 	netdev_put(dev, &sch->dev_tracker);
-	qdisc_free(sch);
+	qdisc_free_rcu(sch);
 err_out2:
 	bpf_module_put(ops, ops->owner);
 err_out:

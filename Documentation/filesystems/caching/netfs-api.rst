@@ -226,7 +226,7 @@ If a network filesystem file is resized locally by truncation, the following
 should be called to notify the cache::
 
 	void fscache_resize_cookie(struct fscache_cookie *cookie,
-				   loff_t new_size);
+				   loff_t new_size, bool shrank);
 
 The caller must have first marked the cookie in-use.  The cookie and the new
 size are passed in and the cache is synchronously resized.  This is expected to

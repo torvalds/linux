@@ -460,13 +460,13 @@ TRACE_EVENT(fscache_relinquish,
 	    );
 
 TRACE_EVENT(fscache_invalidate,
-	    TP_PROTO(struct fscache_cookie *cookie, loff_t new_size),
+	    TP_PROTO(struct fscache_cookie *cookie, uoff_t new_size),
 
 	    TP_ARGS(cookie, new_size),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		cookie		)
-		    __field(loff_t,			new_size	)
+		    __field(uoff_t,			new_size	)
 			     ),
 
 	    TP_fast_assign(
@@ -479,14 +479,14 @@ TRACE_EVENT(fscache_invalidate,
 	    );
 
 TRACE_EVENT(fscache_resize,
-	    TP_PROTO(struct fscache_cookie *cookie, loff_t new_size),
+	    TP_PROTO(struct fscache_cookie *cookie, uoff_t new_size),
 
 	    TP_ARGS(cookie, new_size),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		cookie		)
-		    __field(loff_t,			old_size	)
-		    __field(loff_t,			new_size	)
+		    __field(uoff_t,			old_size	)
+		    __field(uoff_t,			new_size	)
 			     ),
 
 	    TP_fast_assign(

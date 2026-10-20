@@ -75,7 +75,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *,
 					     struct file *, struct mm_struct *);
 
 #ifdef CONFIG_ELF_CORE
-static int elf_fdpic_core_dump(struct coredump_params *cprm);
+static bool elf_fdpic_core_dump(struct coredump_params *cprm);
 #endif
 
 static struct linux_binfmt elf_fdpic_format = {
@@ -1477,9 +1477,9 @@ static bool elf_fdpic_dump_segments(struct coredump_params *cprm,
  * and then they are actually written out.  If we run out of core limit
  * we just truncate.
  */
-static int elf_fdpic_core_dump(struct coredump_params *cprm)
+static bool elf_fdpic_core_dump(struct coredump_params *cprm)
 {
-	int has_dumped = 0;
+	bool ret = false;
 	int segs;
 	int i;
 	struct elfhdr *elf = NULL;
@@ -1504,7 +1504,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!psinfo)
 		goto end_coredump;
 
-	for (ct = current->signal->core_state->dumper.next;
+	for (ct = current->signal->core_state->tasks;
 					ct; ct = ct->next) {
 		tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
 					     ct->task, &thread_status_size);
@@ -1536,7 +1536,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	/* Set up header */
 	fill_elf_fdpic_header(elf, e_phnum);
 
-	has_dumped = 1;
+	cprm->state |= COREDUMP_STATE_STARTED;
 	/*
 	 * Set up the notes in similar form to SVR4 core dumps made
 	 * with info from their /proc.
@@ -1656,6 +1656,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		       cprm->file->f_pos, offset);
 	}
 
+	ret = true;
+
 end_coredump:
 	while (thread_list) {
 		tmp = thread_list;
@@ -1666,7 +1668,7 @@ end_coredump:
 	kfree(elf);
 	kfree(psinfo);
 	kfree(shdr4extnum);
-	return has_dumped;
+	return ret;
 }
 
 #endif		/* CONFIG_ELF_CORE */

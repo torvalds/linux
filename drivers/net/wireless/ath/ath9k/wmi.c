@@ -146,6 +146,12 @@ void ath9k_wmi_event_tasklet(struct tasklet_struct *t)
 	unsigned long flags;
 	u16 cmd_id;
 
+	/* Check if ath9k_init_device() completed. */
+	if (!smp_load_acquire(&priv->initialized)) {
+		tasklet_schedule(t);
+		return;
+	}
+
 	do {
 		spin_lock_irqsave(&wmi->wmi_lock, flags);
 		skb = __skb_dequeue(&wmi->wmi_event_queue);
@@ -154,12 +160,6 @@ void ath9k_wmi_event_tasklet(struct tasklet_struct *t)
 			return;
 		}
 		spin_unlock_irqrestore(&wmi->wmi_lock, flags);
-
-		/* Check if ath9k_htc_probe_device() completed. */
-		if (!data_race(priv->initialized)) {
-			kfree_skb(skb);
-			continue;
-		}
 
 		hdr = (struct wmi_cmd_hdr *) skb->data;
 		cmd_id = be16_to_cpu(hdr->command_id);

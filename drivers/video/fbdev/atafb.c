@@ -3360,7 +3360,11 @@ static int __init atafb_probe(struct platform_device *pdev)
 		memset (screen_base, 0, external_len);
 
 		/* framebuffer in SV RAM: enable the SuperBlitter */
-		if (external_addr >= 0xa0000000) {
+		if (external_addr >= 0xa0000000 &&
+		    ((external_pmode == FB_TYPE_PACKED_PIXELS &&
+		      external_depth == 8) ||
+		     (external_pmode == -1 &&
+		      (external_depth == 16 || external_depth == 32)))) {
 			svblit_regs = ioremap(SVBLIT_REGS_PHYS, 0x100);
 			if (svblit_regs) {
 				svblit_fw = svblit_rd(SVBLIT_VERSION) & 0x1ff;

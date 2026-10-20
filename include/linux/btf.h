@@ -80,6 +80,7 @@
 #define KF_ARENA_ARG2   (1 << 15) /* kfunc takes an arena pointer as its second argument */
 #define KF_IMPLICIT_ARGS (1 << 16) /* kfunc has implicit arguments supplied by the verifier */
 #define KF_SPINLOCK_SAFE (1 << 17) /* kfunc is allowed inside bpf_spin_lock-ed region */
+#define KF_PERFMON      (1 << 18) /* kfunc requires CAP_PERFMON */
 
 /*
  * Tag marking a kernel function as a kfunc. This is meant to minimize the

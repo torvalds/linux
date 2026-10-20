@@ -1032,7 +1032,7 @@ static bool f2fs_force_buffered_io(struct inode *inode, int rw)
 	return false;
 }
 
-int f2fs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int f2fs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1096,7 +1096,7 @@ int f2fs_getattr(struct mnt_idmap *idmap, const struct path *path,
 }
 
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
-static void __setattr_copy(struct mnt_idmap *idmap,
+static void __setattr_copy(const struct mnt_idmap *idmap,
 			   struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
@@ -1121,7 +1121,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
 #define __setattr_copy setattr_copy
 #endif
 
-int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int f2fs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -2361,7 +2361,7 @@ static int f2fs_ioc_getversion(struct file *filp, unsigned long arg)
 static int f2fs_ioc_start_atomic_write(struct file *filp, bool truncate)
 {
 	struct inode *inode = file_inode(filp);
-	struct mnt_idmap *idmap = file_mnt_idmap(filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t isize;
@@ -2473,7 +2473,7 @@ out:
 static int f2fs_ioc_commit_atomic_write(struct file *filp)
 {
 	struct inode *inode = file_inode(filp);
-	struct mnt_idmap *idmap = file_mnt_idmap(filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(filp);
 	int ret;
 
 	if (!(filp->f_mode & FMODE_WRITE))
@@ -2508,7 +2508,7 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 static int f2fs_ioc_abort_atomic_write(struct file *filp)
 {
 	struct inode *inode = file_inode(filp);
-	struct mnt_idmap *idmap = file_mnt_idmap(filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(filp);
 	int ret;
 
 	if (!(filp->f_mode & FMODE_WRITE))
@@ -3580,7 +3580,7 @@ int f2fs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int f2fs_fileattr_set(struct mnt_idmap *idmap,
+int f2fs_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

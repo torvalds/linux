@@ -506,7 +506,7 @@ static const struct address_space_operations kvm_gmem_aops = {
 #endif
 };
 
-static int kvm_gmem_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int kvm_gmem_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			    struct iattr *attr)
 {
 	return -EINVAL;

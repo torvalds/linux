@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/completion.h>
+#include <linux/wait_bit.h>
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/iocontext.h>
@@ -261,8 +262,11 @@ repeat:
 	pidfs_exit(p);
 	cgroup_task_release(p);
 
-	/* Retrieve @thread_pid before __unhash_process() may set it to NULL. */
-	thread_pid = task_pid(p);
+	/*
+	 * Pin @thread_pid before __unhash_process() clears it. The last
+	 * PIDTYPE detach can otherwise free it before proc_flush_pid().
+	 */
+	thread_pid = get_pid(task_pid(p));
 
 	write_lock_irq(&tasklist_lock);
 	ptrace_release_task(p);
@@ -291,20 +295,21 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
-	/* @thread_pid can't go away until free_pids() below */
 	proc_flush_pid(thread_pid);
+	put_pid(thread_pid);
 	exit_cred_namespaces(p);
 	add_device_randomness(&p->se.sum_exec_runtime,
 			      sizeof(p->se.sum_exec_runtime));
 	free_pids(post.pids);
 	release_thread(p);
 	/*
-	 * This task was already removed from the process/thread/pid lists
-	 * and lock_task_sighand(p) can't succeed. Nobody else can touch
-	 * ->pending or, if group dead, signal->shared_pending. We can call
-	 * flush_sigqueue() lockless.
+	 * This task was already removed from the process/thread/pid lists and
+	 * lock_task_sighand(p) can't succeed. If it's the group leader then
+	 * flush tsk->signal->shared_pending. tsk->pending has been flushed
+	 * already in exit_signals(). Nothing else can touch
+	 * signal->shared_pending anymore, so flush_sigqueue() can be invoked
+	 * lockless.
 	 */
-	flush_sigqueue(&p->pending);
 	if (thread_group_leader(p))
 		flush_sigqueue(&p->signal->shared_pending);
 
@@ -432,15 +437,14 @@ static void coredump_task_exit(struct task_struct *tsk,
 
 	self.task = tsk;
 	if (self.task->flags & PF_SIGNALED)
-		self.next = xchg(&core_state->dumper.next, &self);
+		self.next = xchg(&core_state->tasks, &self);
 	else
 		self.task = NULL;
 	/*
 	 * Implies mb(), the result of xchg() must be visible
-	 * to core_state->dumper.
+	 * to the dumper.
 	 */
-	if (atomic_dec_and_test(&core_state->nr_threads))
-		complete(&core_state->startup);
+	atomic_dec_and_wake_up(&core_state->threads_remaining);
 
 	for (;;) {
 		set_current_state(TASK_IDLE|TASK_FREEZABLE);
@@ -547,32 +551,6 @@ void mm_update_next_owner(struct mm_struct *mm)
 }
 #endif /* CONFIG_MEMCG */
 
-#if defined(CONFIG_SCHED_CACHE) && defined(CONFIG_NUMA_BALANCING)
-/*
- * Subtract the memory footprint of the current task from
- * mm.
- */
-static void exit_mm_sched_cache(struct mm_struct *mm)
-{
-	unsigned long fp, sub;
-
-	if (!current->total_numa_faults)
-		return;
-	/*
-	 * No lock protection due to performance considerations.
-	 * Make sure mm->sc_stat.footprint does not become
-	 * negative.
-	 */
-	fp = READ_ONCE(mm->sc_stat.footprint);
-	sub = min(fp, current->total_numa_faults);
-	WRITE_ONCE(mm->sc_stat.footprint, fp - sub);
-}
-#else
-static inline void exit_mm_sched_cache(struct mm_struct *mm)
-{
-}
-#endif /* CONFIG_SCHED_CACHE CONFIG_NUMA_BALANCING */
-
 /*
  * Turn us into a lazy TLB process if we
  * aren't already..
@@ -585,7 +563,7 @@ static void exit_mm(void)
 	if (!mm)
 		return;
 
-	exit_mm_sched_cache(mm);
+	sched_cache_exit_mm(current);
 
 	mmap_read_lock(mm);
 	mmgrab_lazy_tlb(mm);
@@ -914,7 +892,7 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
 	 * Serialize with any possible pending coredump.
 	 * We must hold siglock around checking core_state
 	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
-	 * will increment ->nr_threads for each thread in the
+	 * will increment ->threads_remaining for each thread in the
 	 * group without PF_POSTCOREDUMP set.
 	 */
 	tsk->flags |= PF_POSTCOREDUMP;
@@ -1000,10 +978,11 @@ void __noreturn do_exit(long code)
 
 	exit_sem(tsk);
 	exit_shm(tsk);
-	exit_files(tsk);
-	exit_fs(tsk);
+	/* Hang the tty up before the last close of it can clear the session. */
 	if (group_dead)
 		disassociate_ctty(1);
+	exit_files(tsk);
+	exit_fs(tsk);
 	exit_nsproxy_namespaces(tsk);
 	exit_task_work(tsk);
 	exit_thread(tsk);
@@ -1751,7 +1730,7 @@ static long do_wait(struct wait_opts *wo)
 	add_wait_queue(&current->signal->wait_chldexit, &wo->child_wait);
 
 	do {
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE | TASK_FREEZABLE);
 		retval = __do_wait(wo);
 		if (retval != -ERESTARTSYS)
 			break;

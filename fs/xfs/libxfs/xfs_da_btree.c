@@ -130,7 +130,7 @@ xfs_da_state_reset(
 	state->mp = state->args->dp->i_mount;
 }
 
-static inline int xfs_dabuf_nfsb(struct xfs_mount *mp, int whichfork)
+inline int xfs_dabuf_nfsb(struct xfs_mount *mp, int whichfork)
 {
 	if (whichfork == XFS_DATA_FORK)
 		return mp->m_dir_geo->fsbcount;
@@ -2384,6 +2384,7 @@ xfs_da_grow_inode_int(
 	}
 
 	/* account for newly allocated blocks in reserved blocks total */
+	ASSERT(args->total >= dp->i_nblocks - nblks);
 	args->total -= dp->i_nblocks - nblks;
 
 out_free_map:

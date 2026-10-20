@@ -45,8 +45,10 @@ static __always_inline void *patch_map(void *addr, const unsigned int fixmap)
 	phys_addr_t phys;
 
 	if (core_kernel_text(uintaddr) || is_kernel_exittext(uintaddr)) {
+		if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
+			return addr;
 		phys = __pa_symbol(addr);
-	} else if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX)) {
+	} else if (IS_ENABLED(CONFIG_EXECMEM)) {
 		struct page *page = vmalloc_to_page(addr);
 
 		BUG_ON(!page);

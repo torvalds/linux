@@ -793,9 +793,9 @@ void pidfs_exit(struct task_struct *tsk)
 }
 
 #ifdef CONFIG_COREDUMP
-void pidfs_coredump(const struct coredump_params *cprm)
+static void pidfs_coredump_pid(struct pid *pid,
+			       const struct coredump_params *cprm)
 {
-	struct pid *pid = cprm->pid;
 	struct pidfs_attr *attr;
 
 	attr = READ_ONCE(pid->attr);
@@ -814,6 +814,13 @@ void pidfs_coredump(const struct coredump_params *cprm)
 	smp_wmb();
 	set_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask);
 }
+
+void pidfs_coredump(const struct coredump_params *cprm)
+{
+	/* The dumping thread's pidfd reports the coredump as well. */
+	for (enum pid_type type = PIDTYPE_PID; type <= pids_last(cprm->pid); type++)
+		pidfs_coredump_pid(cprm->pid[type], cprm);
+}
 #endif
 
 static struct vfsmount *pidfs_mnt __ro_after_init;
@@ -823,13 +830,13 @@ static struct vfsmount *pidfs_mnt __ro_after_init;
  * implemented. Let's reject it completely until we have a clean
  * permission concept for pidfds.
  */
-static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int pidfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			 struct iattr *attr)
 {
 	return anon_inode_setattr(idmap, dentry, attr);
 }
 
-static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+static int pidfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 			 struct kstat *stat, u32 request_mask,
 			 unsigned int query_flags)
 {
@@ -1070,6 +1077,22 @@ int pidfs_register_pid_gfp(struct pid *pid, gfp_t gfp)
 	return 0;
 }
 
+/* Register the pids up to pid type @last of @pids in pidfs. */
+int __pidfs_register_pids(struct pid *const *pids, enum pid_type last)
+{
+	if (WARN_ON_ONCE(last >= PIDTYPE_MAX))
+		return -EINVAL;
+
+	for (enum pid_type type = PIDTYPE_PID; type <= last; type++) {
+		int ret = pidfs_register_pid(pids[type]);
+
+		if (unlikely(ret))
+			return ret;
+	}
+
+	return 0;
+}
+
 static struct dentry *pidfs_stash_dentry(struct dentry **stashed,
 					 struct dentry *dentry)
 {
@@ -1102,7 +1125,7 @@ static int pidfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int pidfs_xattr_set(const struct xattr_handler *handler,
-			   struct mnt_idmap *idmap, struct dentry *unused,
+			   const struct mnt_idmap *idmap, struct dentry *unused,
 			   struct inode *inode, const char *suffix,
 			   const void *value, size_t size, int flags)
 {

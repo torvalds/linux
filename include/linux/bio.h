@@ -479,6 +479,7 @@ static inline void bio_init_inline(struct bio *bio, struct block_device *bdev,
 extern void bio_uninit(struct bio *);
 void bio_reset(struct bio *bio, struct block_device *bdev, blk_opf_t opf);
 void bio_reuse(struct bio *bio, blk_opf_t opf);
+void bio_prepare_reissue(struct bio *bio, struct block_device *bdev);
 void bio_chain(struct bio *, struct bio *);
 void bio_await(struct bio *bio, void *priv,
 	       void (*submit)(struct bio *bio, void *priv));
@@ -516,16 +517,18 @@ int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
 		size_t len, enum req_op op);
 
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
-		unsigned mem_align_mask, unsigned len_align_mask);
+		unsigned maxlen, unsigned mem_align_mask,
+		unsigned len_align_mask);
 
 bool bio_iov_iter_set(struct bio *bio, const struct iov_iter *iter);
 void __bio_release_pages(struct bio *bio, bool mark_dirty);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 
-int bio_iov_iter_bounce(struct bio *bio, struct iov_iter *iter, size_t maxlen,
-		size_t minsize);
-void bio_iov_iter_unbounce(struct bio *bio, bool is_error, bool mark_dirty);
+int bio_alloc_bounce_folios(struct bio *bio, size_t total_len, size_t minsize);
+void bio_free_folios(struct bio *bio);
+int bio_iov_iter_bounce_write(struct bio *bio, struct iov_iter *iter,
+		size_t maxlen, size_t minsize);
 
 extern void bio_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);

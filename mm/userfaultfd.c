@@ -4811,12 +4811,12 @@ static int new_userfaultfd(int flags)
 		   anon_inode_create_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
 					     O_RDONLY | (flags & UFFD_SHARED_FCNTL_FLAGS),
 					     NULL));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	/* prevent the mm struct to be freed */
 	mmgrab(ctx->mm);
-	fd_prepare_file(fdf)->f_mode |= FMODE_NOWAIT;
+	fdf->file->f_mode |= FMODE_NOWAIT;
 	retain_and_null_ptr(ctx);
 	return fd_publish(fdf);
 }

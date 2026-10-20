@@ -10,7 +10,7 @@ extern const struct inode_operations proc_fd_inode_operations;
 extern const struct file_operations proc_fdinfo_operations;
 extern const struct inode_operations proc_fdinfo_inode_operations;
 
-extern int proc_fd_permission(struct mnt_idmap *idmap,
+extern int proc_fd_permission(const struct mnt_idmap *idmap,
 			      struct inode *inode, int mask);
 
 static inline unsigned int proc_fd(struct inode *inode)

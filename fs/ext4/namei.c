@@ -2812,7 +2812,7 @@ static int ext4_add_nondir(handle_t *handle,
  * If the create succeeds, we fill in the inode information
  * with d_instantiate().
  */
-static int ext4_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ext4_create(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	handle_t *handle;
@@ -2847,7 +2847,7 @@ retry:
 	return err;
 }
 
-static int ext4_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ext4_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	handle_t *handle;
@@ -2881,7 +2881,7 @@ retry:
 	return err;
 }
 
-static int ext4_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int ext4_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 			struct file *file, umode_t mode)
 {
 	handle_t *handle;
@@ -2994,7 +2994,7 @@ out:
 	return err;
 }
 
-static struct dentry *ext4_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ext4_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
 	handle_t *handle;
@@ -3360,7 +3360,7 @@ out:
 	return err;
 }
 
-static int ext4_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ext4_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	handle_t *handle;
@@ -3753,7 +3753,7 @@ static void ext4_update_dir_count(handle_t *handle, struct ext4_renament *ent)
 	}
 }
 
-static struct inode *ext4_whiteout_for_rename(struct mnt_idmap *idmap,
+static struct inode *ext4_whiteout_for_rename(const struct mnt_idmap *idmap,
 					      struct ext4_renament *ent,
 					      int credits, handle_t **h)
 {
@@ -3796,7 +3796,7 @@ retry:
  * while new_{dentry,inode) refers to the destination dentry/inode
  * This comes from rename(const char *oldpath, const char *newpath)
  */
-static int ext4_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int ext4_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		       struct dentry *old_dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, unsigned int flags)
 {
@@ -4191,7 +4191,7 @@ end_rename:
 	return retval;
 }
 
-static int ext4_rename2(struct mnt_idmap *idmap,
+static int ext4_rename2(const struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)

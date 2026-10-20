@@ -373,7 +373,7 @@ void ext4_reset_inode_seed(struct inode *inode)
  *
  */
 static long swap_inode_boot_loader(struct super_block *sb,
-				struct mnt_idmap *idmap,
+				const struct mnt_idmap *idmap,
 				struct inode *inode)
 {
 	handle_t *handle;
@@ -1008,7 +1008,7 @@ int ext4_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int ext4_fileattr_set(struct mnt_idmap *idmap,
+int ext4_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1539,7 +1539,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
-	struct mnt_idmap *idmap = file_mnt_idmap(filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(filp);
 
 	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
 

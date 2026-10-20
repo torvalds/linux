@@ -533,7 +533,7 @@ static int zonefs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
-static int zonefs_inode_setattr(struct mnt_idmap *idmap,
+static int zonefs_inode_setattr(const struct mnt_idmap *idmap,
 				struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);

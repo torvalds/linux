@@ -1076,9 +1076,6 @@ static void iommu_poll_ga_log(struct amd_iommu *iommu)
 {
 	u32 head, tail;
 
-	if (iommu->ga_log == NULL)
-		return;
-
 	head = readl(iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
 	tail = readl(iommu->mmio_base + MMIO_GA_TAIL_OFFSET);
 

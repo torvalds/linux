@@ -266,7 +266,7 @@ out:
  * Returns zero on success; non-zero on error condition
  */
 static int
-ecryptfs_create(struct mnt_idmap *idmap,
+ecryptfs_create(const struct mnt_idmap *idmap,
 		struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 		umode_t mode)
 {
@@ -462,7 +462,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	return ecryptfs_do_unlink(dir, dentry, d_inode(dentry));
 }
 
-static int ecryptfs_symlink(struct mnt_idmap *idmap,
+static int ecryptfs_symlink(const struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    const char *symname)
 {
@@ -503,7 +503,7 @@ out_lock:
 	return rc;
 }
 
-static struct dentry *ecryptfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ecryptfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				     struct dentry *dentry, umode_t mode)
 {
 	int rc;
@@ -562,7 +562,7 @@ static int ecryptfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int
-ecryptfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ecryptfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	int rc;
@@ -590,7 +590,7 @@ out:
 }
 
 static int
-ecryptfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ecryptfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		struct dentry *old_dentry, struct inode *new_dir,
 		struct dentry *new_dentry, unsigned int flags)
 {
@@ -849,7 +849,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 }
 
 static int
-ecryptfs_permission(struct mnt_idmap *idmap, struct inode *inode,
+ecryptfs_permission(const struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	return inode_permission(&nop_mnt_idmap,
@@ -869,7 +869,7 @@ ecryptfs_permission(struct mnt_idmap *idmap, struct inode *inode,
  * All other metadata changes will be passed right to the lower filesystem,
  * and we will just update our inode to look like the lower.
  */
-static int ecryptfs_setattr(struct mnt_idmap *idmap,
+static int ecryptfs_setattr(const struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct iattr *ia)
 {
 	struct inode *inode = d_inode(dentry);
@@ -939,7 +939,7 @@ out:
 	return rc;
 }
 
-static int ecryptfs_getattr_link(struct mnt_idmap *idmap,
+static int ecryptfs_getattr_link(const struct mnt_idmap *idmap,
 				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int flags)
 {
@@ -965,7 +965,7 @@ static int ecryptfs_getattr_link(struct mnt_idmap *idmap,
 	return rc;
 }
 
-static int ecryptfs_getattr(struct mnt_idmap *idmap,
+static int ecryptfs_getattr(const struct mnt_idmap *idmap,
 			    const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int flags)
 {
@@ -1078,7 +1078,7 @@ static int ecryptfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return vfs_fileattr_get(ecryptfs_dentry_to_lower(dentry), fa);
 }
 
-static int ecryptfs_fileattr_set(struct mnt_idmap *idmap,
+static int ecryptfs_fileattr_set(const struct mnt_idmap *idmap,
 				 struct dentry *dentry, struct file_kattr *fa)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
@@ -1090,14 +1090,14 @@ static int ecryptfs_fileattr_set(struct mnt_idmap *idmap,
 	return rc;
 }
 
-static struct posix_acl *ecryptfs_get_acl(struct mnt_idmap *idmap,
+static struct posix_acl *ecryptfs_get_acl(const struct mnt_idmap *idmap,
 					  struct dentry *dentry, int type)
 {
 	return vfs_get_acl(idmap, ecryptfs_dentry_to_lower(dentry),
 			   posix_acl_xattr_name(type));
 }
 
-static int ecryptfs_set_acl(struct mnt_idmap *idmap,
+static int ecryptfs_set_acl(const struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct posix_acl *acl,
 			    int type)
 {
@@ -1158,7 +1158,7 @@ static int ecryptfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ecryptfs_xattr_set(const struct xattr_handler *handler,
-			      struct mnt_idmap *idmap,
+			      const struct mnt_idmap *idmap,
 			      struct dentry *dentry, struct inode *inode,
 			      const char *name, const void *value, size_t size,
 			      int flags)

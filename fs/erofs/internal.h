@@ -71,12 +71,8 @@ struct erofs_dev_context {
 	bool flatdev;
 };
 
-/* all filesystem-wide lz4 configurations */
 struct erofs_sb_lz4_info {
-	/* # of pages needed for EROFS lz4 rolling decompression */
-	u16 max_distance_pages;
-	/* maximum possible blocks for pclusters in the filesystem */
-	u16 max_pclusterblks;
+	u16 max_pclusterblks;	/* maximum physical blocks for LZ4 pclusters */
 };
 
 struct erofs_xattr_prefix_item {
@@ -421,7 +417,7 @@ void erofs_onlinefolio_init(struct folio *folio);
 void erofs_onlinefolio_split(struct folio *folio);
 void erofs_onlinefolio_end(struct folio *folio, int err, bool dirty);
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid);
-int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int erofs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask,
 		  unsigned int query_flags);
 int erofs_namei(struct inode *dir, const struct qstr *name,

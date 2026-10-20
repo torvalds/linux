@@ -161,6 +161,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		const u16 old_data_len = btrfs_dir_data_len(leaf, di);
 		const u32 item_size = btrfs_item_size(leaf, slot);
 		const u32 data_size = sizeof(*di) + name_len + size;
+		unsigned long name_ptr;
 		unsigned long data_ptr;
 		char *ptr;
 
@@ -189,8 +190,16 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		ptr = btrfs_item_ptr(leaf, slot, char);
 		ptr += btrfs_item_size(leaf, slot) - data_size;
 		di = (struct btrfs_dir_item *)ptr;
+		memzero_extent_buffer(leaf, (unsigned long)ptr +
+				      offsetof(struct btrfs_dir_item, location),
+				      sizeof(struct btrfs_disk_key));
+		btrfs_set_dir_flags(leaf, di, BTRFS_FT_XATTR);
+		btrfs_set_dir_transid(leaf, di, trans->transid);
+		btrfs_set_dir_name_len(leaf, di, name_len);
 		btrfs_set_dir_data_len(leaf, di, size);
+		name_ptr = (unsigned long)(di + 1);
 		data_ptr = ((unsigned long)(di + 1)) + name_len;
+		write_extent_buffer(leaf, name, name_ptr, name_len);
 		write_extent_buffer(leaf, value, data_ptr, size);
 	} else {
 		/*
@@ -320,10 +329,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			if (!size)
 				goto next;
 
-			if (!buffer || (name_len + 1) > size_left) {
-			        iter_ret = -ERANGE;
-				break;
-			}
+			if (!buffer || (name_len + 1) > size_left)
+				return -ERANGE;
 
 			read_extent_buffer(leaf, buffer, name_ptr, name_len);
 			buffer[name_len] = '\0';
@@ -353,7 +360,7 @@ static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *buffer,
 				   size_t size, int flags)
@@ -395,7 +402,7 @@ static int btrfs_xattr_handler_get_security(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set_security(const struct xattr_handler *handler,
-					    struct mnt_idmap *idmap,
+					    const struct mnt_idmap *idmap,
 					    struct dentry *unused,
 					    struct inode *inode,
 					    const char *name,
@@ -413,7 +420,7 @@ static int btrfs_xattr_handler_set_security(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
-					struct mnt_idmap *idmap,
+					const struct mnt_idmap *idmap,
 					struct dentry *unused, struct inode *inode,
 					const char *name, const void *value,
 					size_t size, int flags)

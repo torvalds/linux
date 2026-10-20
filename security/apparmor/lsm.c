@@ -397,7 +397,7 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 
 	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
-		struct mnt_idmap *idmap = mnt_idmap(old_dir->mnt);
+		const struct mnt_idmap *idmap = mnt_idmap(old_dir->mnt);
 		vfsuid_t vfsuid;
 		struct path old_path = { .mnt = old_dir->mnt,
 					 .dentry = old_dentry };
@@ -485,7 +485,7 @@ static int apparmor_file_open(struct file *file)
 
 	label = aa_get_newest_cred_label_condref(file->f_cred, &needput);
 	if (!unconfined(label)) {
-		struct mnt_idmap *idmap = file_mnt_idmap(file);
+		const struct mnt_idmap *idmap = file_mnt_idmap(file);
 		struct inode *inode = file_inode(file);
 		vfsuid_t vfsuid;
 		struct path_cond cond = {

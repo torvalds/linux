@@ -404,10 +404,10 @@ extern long fat_generic_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern const struct file_operations fat_file_operations;
 extern const struct inode_operations fat_file_inode_operations;
-extern int fat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+extern int fat_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 extern void fat_truncate_blocks(struct inode *inode, loff_t offset);
-extern int fat_getattr(struct mnt_idmap *idmap,
+extern int fat_getattr(const struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int flags);
 int fat_fileattr_get(struct dentry *dentry, struct file_kattr *fa);

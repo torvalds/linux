@@ -690,7 +690,7 @@ EXPORT_SYMBOL_GPL(nfs_update_delegated_mtime);
 #define NFS_VALID_ATTRS (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE|ATTR_ATIME|ATTR_ATIME_SET|ATTR_MTIME|ATTR_MTIME_SET|ATTR_FILE|ATTR_OPEN)
 
 int
-nfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+nfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 	    struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -955,7 +955,7 @@ static u32 nfs_get_valid_attrmask(struct inode *inode)
 	return reply_mask;
 }
 
-int nfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int nfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);

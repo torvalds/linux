@@ -7,6 +7,7 @@
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <net/netdev_queues.h>
+#include <net/netdev_rx_queue.h>
 #include <net/page_pool/helpers.h>
 #include <net/tcp.h>
 #include <net/xdp.h>
@@ -311,6 +312,29 @@ fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq,
 	}
 }
 
+static void fbnic_tx_doorbell(struct fbnic_ring *ring, __le64 *meta)
+{
+	*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_COMPLETION);
+	ring->deferred_meta = -1;
+
+	/* Force DMA writes to flush before writing to tail */
+	dma_wmb();
+
+	writel(ring->tail, ring->doorbell);
+}
+
+/* Packets handed to us with xmit_more set are left in the ring without a
+ * doorbell, and without a completion request, in the expectation that the
+ * packet ending the burst will ring for all of them. If that packet gets
+ * dropped instead we have to ring here, otherwise the descriptors sit in
+ * the ring until the next transmit, which may never come.
+ */
+static void fbnic_tx_flush_doorbell(struct fbnic_ring *ring)
+{
+	if (ring->deferred_meta >= 0)
+		fbnic_tx_doorbell(ring, &ring->desc[ring->deferred_meta]);
+}
+
 static bool
 fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 {
@@ -378,14 +402,10 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	/* Verify there is room for another packet */
 	fbnic_maybe_stop_tx(skb->dev, ring, FBNIC_MAX_SKB_DESC);
 
-	if (fbnic_tx_sent_queue(skb, ring)) {
-		*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_COMPLETION);
-
-		/* Force DMA writes to flush before writing to tail */
-		dma_wmb();
-
-		writel(tail, ring->doorbell);
-	}
+	if (fbnic_tx_sent_queue(skb, ring))
+		fbnic_tx_doorbell(ring, meta);
+	else
+		ring->deferred_meta = meta - ring->desc;
 
 	return false;
 dma_error:
@@ -425,8 +445,10 @@ fbnic_xmit_frame_ring(struct sk_buff *skb, struct fbnic_ring *ring)
 	 * otherwise try next time
 	 */
 	desc_needed = skb_shinfo(skb)->nr_frags + 10;
-	if (fbnic_maybe_stop_tx(skb->dev, ring, desc_needed))
+	if (fbnic_maybe_stop_tx(skb->dev, ring, desc_needed)) {
+		fbnic_tx_flush_doorbell(ring);
 		return NETDEV_TX_BUSY;
+	}
 
 	*meta = cpu_to_le64(FBNIC_TWD_FLAG_DEST_MAC);
 
@@ -447,6 +469,8 @@ fbnic_xmit_frame_ring(struct sk_buff *skb, struct fbnic_ring *ring)
 err_free:
 	dev_kfree_skb_any(skb);
 err_count:
+	fbnic_tx_flush_doorbell(ring);
+
 	u64_stats_update_begin(&ring->stats.syncp);
 	ring->stats.dropped++;
 	u64_stats_update_end(&ring->stats.syncp);
@@ -1599,7 +1623,7 @@ fbnic_alloc_qt_page_pools(struct fbnic_net *fbn, struct fbnic_q_triad *qt,
 	return 0;
 
 err_destroy_sub0:
-	page_pool_destroy(pp);
+	page_pool_destroy(qt->sub0.page_pool);
 	return PTR_ERR(pp);
 }
 
@@ -1768,7 +1792,7 @@ int fbnic_alloc_napi_vectors(struct fbnic_net *fbn)
 	int err;
 
 	/* Allocate 1 Tx queue per napi vector */
-	if (num_napi < FBNIC_MAX_TXQS && num_napi == num_tx + num_rx) {
+	if (num_napi <= FBNIC_MAX_TXQS && num_napi == num_tx + num_rx) {
 		while (num_tx) {
 			err = fbnic_alloc_napi_vector(fbd, fbn,
 						      num_napi, v_idx,
@@ -2491,6 +2515,7 @@ static void fbnic_enable_twq0(struct fbnic_ring *twq)
 	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ0_CTL, FBNIC_QUEUE_TWQ_CTL_RESET);
 	twq->tail = 0;
 	twq->head = 0;
+	twq->deferred_meta = -1;
 
 	/* Store descriptor ring address and size */
 	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ0_BAL, lower_32_bits(twq->dma));
@@ -2829,6 +2854,17 @@ void fbnic_napi_depletion_check(struct net_device *netdev)
 	fbnic_wrfl(fbd);
 }
 
+/* Returns the napi vector servicing an Rx queue, or NULL if the datapath
+ * is torn down.  The association is published by fbnic_set_netif_napi()
+ * and cleared by fbnic_reset_netif_napi(), both under the instance lock.
+ */
+static struct fbnic_napi_vector *fbnic_rxq_nv(struct net_device *dev, int idx)
+{
+	struct napi_struct *napi = __netif_get_rx_queue(dev, idx)->napi;
+
+	return napi ? container_of(napi, struct fbnic_napi_vector, napi) : NULL;
+}
+
 static int fbnic_queue_mem_alloc(struct net_device *dev,
 				 struct netdev_queue_config *qcfg,
 				 void *qmem, int idx)
@@ -2841,8 +2877,16 @@ static int fbnic_queue_mem_alloc(struct net_device *dev,
 	if (!netif_running(dev))
 		return fbnic_alloc_qt_page_pools(fbn, qt, idx);
 
+	/* A failed PCIe recovery or resume can leave the datapath torn down
+	 * while netif_running() is still true.  This ndo runs before
+	 * netdev_rx_queue_restart() checks netif_running(), so bail out
+	 * rather than touching rings and vectors that are already freed.
+	 */
+	nv = fbnic_rxq_nv(dev, idx);
+	if (!nv)
+		return -ENETDOWN;
+
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
-	nv = fbn->napi[idx % fbn->num_napi];
 
 	fbnic_ring_init(&qt->sub0, real->sub0.doorbell, real->sub0.q_idx,
 			real->sub0.flags);
@@ -2893,7 +2937,7 @@ static int fbnic_queue_start(struct net_device *dev,
 	struct fbnic_q_triad *real;
 
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
-	nv = fbn->napi[idx % fbn->num_napi];
+	nv = fbnic_rxq_nv(dev, idx);
 
 	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub0);
 	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub1);
@@ -2915,7 +2959,7 @@ static int fbnic_queue_stop(struct net_device *dev, void *qmem, int idx)
 	int err;
 
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
-	nv = fbn->napi[idx % fbn->num_napi];
+	nv = fbnic_rxq_nv(dev, idx);
 	fbnic_dbg_nv_exit(nv);
 
 	napi_disable_locked(&nv->napi);

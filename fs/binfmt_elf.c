@@ -74,7 +74,7 @@ static int load_elf_binary(struct linux_binprm *bprm);
  * don't even try.
  */
 #ifdef CONFIG_ELF_CORE
-static int elf_core_dump(struct coredump_params *cprm);
+static bool elf_core_dump(struct coredump_params *cprm);
 #else
 #define elf_core_dump	NULL
 #endif
@@ -1875,7 +1875,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		return 0;
 
 	info->thread->task = dump_task;
-	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
+	for (ct = dump_task->signal->core_state->tasks; ct; ct = ct->next) {
 		t = kzalloc_flex(*t, notes, info->thread_notes);
 		if (unlikely(!t))
 			return 0;
@@ -1987,9 +1987,9 @@ static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
  * and then they are actually written out.  If we run out of core limit
  * we just truncate.
  */
-static int elf_core_dump(struct coredump_params *cprm)
+static bool elf_core_dump(struct coredump_params *cprm)
 {
-	int has_dumped = 0;
+	bool ret = false;
 	int segs, i;
 	struct elfhdr elf;
 	loff_t offset = 0, dataoff;
@@ -2020,7 +2020,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!fill_note_info(&elf, e_phnum, &info, cprm))
 		goto end_coredump;
 
-	has_dumped = 1;
+	cprm->state |= COREDUMP_STATE_STARTED;
 
 	offset += sizeof(elf);				/* ELF header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
@@ -2029,7 +2029,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	{
 		size_t sz = info.size;
 
-		/* For cell spufs and x86 xstate */
+		/* For x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
 		phdr4note = kmalloc_obj(*phdr4note);
@@ -2093,7 +2093,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!write_note_info(&info, cprm))
 		goto end_coredump;
 
-	/* For cell spufs and x86 xstate */
+	/* For x86 xstate */
 	if (elf_coredump_extra_notes_write(cprm))
 		goto end_coredump;
 
@@ -2115,11 +2115,13 @@ static int elf_core_dump(struct coredump_params *cprm)
 			goto end_coredump;
 	}
 
+	ret = true;
+
 end_coredump:
 	free_note_info(&info);
 	kfree(shdr4extnum);
 	kfree(phdr4note);
-	return has_dumped;
+	return ret;
 }
 
 #endif		/* CONFIG_ELF_CORE */

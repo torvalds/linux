@@ -55,7 +55,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 	do {
 		struct netfs_io_subrequest *subreq = NULL, *from, *to, *tmp;
 		struct iov_iter source;
-		unsigned long long start, len;
+		uoff_t start, len;
 		size_t part;
 		bool boundary = false;
 
@@ -149,8 +149,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 		 * and insert them after.
 		 */
 		do {
-			subreq = netfs_alloc_subrequest(wreq);
-			subreq->source		= to->source;
+			subreq = netfs_alloc_subrequest(wreq, stream->source);
 			subreq->start		= start;
 			subreq->stream_nr	= to->stream_nr;
 			subreq->retry_count	= 1;
@@ -211,6 +210,7 @@ void netfs_retry_writes(struct netfs_io_request *wreq)
 	int s;
 
 	netfs_stat(&netfs_n_wh_retry_write_req);
+	trace_netfs_rreq(wreq, netfs_rreq_trace_retry_begin);
 
 	/* Wait for all outstanding I/O to quiesce before performing retries as
 	 * we may need to renegotiate the I/O sizes.
@@ -235,4 +235,6 @@ void netfs_retry_writes(struct netfs_io_request *wreq)
 			netfs_retry_write_stream(wreq, stream);
 		}
 	}
+
+	trace_netfs_rreq(wreq, netfs_rreq_trace_retry_end);
 }

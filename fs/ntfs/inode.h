@@ -330,9 +330,9 @@ int ntfs_read_inode_mount(struct inode *vi);
 int ntfs_show_options(struct seq_file *sf, struct dentry *root);
 int ntfs_truncate_vfs(struct inode *vi, loff_t new_size, loff_t i_size);
 
-int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ntfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr);
-int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ntfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, unsigned int request_mask,
 		unsigned int query_flags);
 

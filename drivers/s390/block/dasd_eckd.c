@@ -2060,7 +2060,7 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav,
 }
 
 /*
- * Valide storage server of current device.
+ * Valid storage server of current device.
  */
 static int dasd_eckd_validate_server(struct dasd_device *device,
 				     unsigned long flags)
@@ -5672,7 +5672,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	char *dst;
 
 	/*
-	 * raw track access needs to be mutiple of 64k and on 64k boundary
+	 * raw track access needs to be multiple of 64k and on 64k boundary
 	 * For read requests we can fix an incorrect alignment by padding
 	 * the request with dummy pages.
 	 */

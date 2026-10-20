@@ -967,7 +967,7 @@ fail:
  * Returns: errno
  */
 
-static int gfs2_create(struct mnt_idmap *idmap, struct inode *dir,
+static int gfs2_create(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, 1);
@@ -1323,7 +1323,7 @@ out_inodes:
  * Returns: errno
  */
 
-static int gfs2_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int gfs2_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	unsigned int size;
@@ -1345,7 +1345,7 @@ static int gfs2_symlink(struct mnt_idmap *idmap, struct inode *dir,
  * Returns: the dentry, or ERR_PTR(errno)
  */
 
-static struct dentry *gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *gfs2_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
 	unsigned dsize = gfs2_max_stuffed_size(GFS2_I(dir));
@@ -1363,7 +1363,7 @@ static struct dentry *gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
  *
  */
 
-static int gfs2_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int gfs2_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	return gfs2_create_inode(dir, dentry, NULL, mode, dev, NULL, 0, 0);
@@ -1877,7 +1877,7 @@ out:
 	return error;
 }
 
-static int gfs2_rename2(struct mnt_idmap *idmap, struct inode *odir,
+static int gfs2_rename2(const struct mnt_idmap *idmap, struct inode *odir,
 			struct dentry *odentry, struct inode *ndir,
 			struct dentry *ndentry, unsigned int flags)
 {
@@ -1963,7 +1963,7 @@ out:
  * Returns: errno
  */
 
-int gfs2_permission(struct mnt_idmap *idmap, struct inode *inode,
+int gfs2_permission(const struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int may_not_block = mask & MAY_NOT_BLOCK;
@@ -2095,7 +2095,7 @@ out:
  * Returns: errno
  */
 
-static int gfs2_setattr(struct mnt_idmap *idmap,
+static int gfs2_setattr(const struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -2156,7 +2156,7 @@ out:
  * Returns: errno
  */
 
-static int gfs2_getattr(struct mnt_idmap *idmap,
+static int gfs2_getattr(const struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int flags)
 {

@@ -477,7 +477,7 @@ void *scmi_notification_instance_data_get(const struct scmi_handle *handle)
  *  - exactly 'next_token' may be NOT available so pick xfer_id >= next_token
  *    using find_next_zero_bit() starting from candidate next_token bit
  *
- *  - all tokens ahead upto (MSG_TOKEN_ID_MASK - 1) are used in-flight but we
+ *  - all tokens ahead up to (MSG_TOKEN_ID_MASK - 1) are used in-flight but we
  *    are plenty of free tokens at start, so try a second pass using
  *    find_next_zero_bit() and starting from 0.
  *

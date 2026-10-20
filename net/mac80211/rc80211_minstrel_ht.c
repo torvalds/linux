@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/debugfs.h>
+#include <linux/limits.h>
 #include <linux/random.h>
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
@@ -1193,6 +1194,54 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	mi->sample_time = jiffies;
 }
 
+/*
+ * Check whether an HT/VHT rate from a TX status entry maps to an entry
+ * in the minstrel_ht rate tables.  Values that cannot be represented
+ * there must not be used for indexing mi->groups[] and the MCS groups.
+ */
+static bool
+minstrel_ht_txstat_rate_valid(struct ieee80211_tx_rate *rate)
+{
+	unsigned int bw;
+
+	if (!(rate->flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS)))
+		return true;
+
+	if (rate->flags & IEEE80211_TX_RC_MCS) {
+		/* minstrel_ht supports up to MINSTREL_MAX_STREAMS streams */
+		return rate->idx < MINSTREL_MAX_STREAMS * 8;
+	}
+
+	/* minstrel_ht has no VHT groups for 160 MHz and wider */
+	bw = !!(rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) +
+	     2 * !!(rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH);
+	if ((rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH) || bw > BW_80)
+		return false;
+
+	return ieee80211_rate_get_vht_nss(rate) <= MINSTREL_MAX_STREAMS &&
+	       ieee80211_rate_get_vht_mcs(rate) < MCS_GROUP_RATES;
+}
+
+static bool
+minstrel_ht_ri_txstat_rate_valid(struct rate_info *rate)
+{
+	if (!(rate->flags & (RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_VHT_MCS)))
+		return true;
+
+	if (rate->flags & RATE_INFO_FLAGS_MCS) {
+		/* minstrel_ht supports up to MINSTREL_MAX_STREAMS streams */
+		return rate->mcs < MINSTREL_MAX_STREAMS * 8;
+	}
+
+	/* minstrel_ht has VHT groups only for 20/40/80 MHz */
+	if (rate->bw != RATE_INFO_BW_20 && rate->bw != RATE_INFO_BW_40 &&
+	    rate->bw != RATE_INFO_BW_80)
+		return false;
+
+	return rate->nss <= MINSTREL_MAX_STREAMS &&
+	       rate->mcs < MCS_GROUP_RATES;
+}
+
 static bool
 minstrel_ht_txstat_valid(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 			 struct ieee80211_tx_rate *rate)
@@ -1205,9 +1254,8 @@ minstrel_ht_txstat_valid(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (!rate->count)
 		return false;
 
-	if (rate->flags & IEEE80211_TX_RC_MCS ||
-	    rate->flags & IEEE80211_TX_RC_VHT_MCS)
-		return true;
+	if (rate->flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
+		return minstrel_ht_txstat_rate_valid(rate);
 
 	for (i = 0; i < ARRAY_SIZE(mp->cck_rates); i++)
 		if (rate->idx == mp->cck_rates[i])
@@ -1235,9 +1283,9 @@ minstrel_ht_ri_txstat_valid(struct minstrel_priv *mp,
 	if (!rate_status->try_count)
 		return false;
 
-	if (rate_status->rate_idx.flags & RATE_INFO_FLAGS_MCS ||
-	    rate_status->rate_idx.flags & RATE_INFO_FLAGS_VHT_MCS)
-		return true;
+	if (rate_status->rate_idx.flags &
+	    (RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_VHT_MCS))
+		return minstrel_ht_ri_txstat_rate_valid(&rate_status->rate_idx);
 
 	for (i = 0; i < ARRAY_SIZE(mp->cck_rates); i++) {
 		if (rate_status->rate_idx.legacy ==
@@ -1947,14 +1995,39 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+static int minstrel_ht_fixed_rate_idx_get(void *data, u64 *val)
+{
+	*val = *(u32 *)data;
+	return 0;
+}
+
+static int minstrel_ht_fixed_rate_idx_set(void *data, u64 val)
+{
+	u32 idx = val;
+
+	/* U32_MAX is the default and keeps fixed rate processing disabled */
+	if (val != U32_MAX &&
+	    (val > U16_MAX ||
+	     MI_RATE_GROUP(idx) >= ARRAY_SIZE(minstrel_mcs_groups) ||
+	     MI_RATE_IDX(idx) >= MCS_GROUP_RATES))
+		return -EINVAL;
+
+	*(u32 *)data = idx;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(minstrel_ht_fixed_rate_idx_fops,
+			 minstrel_ht_fixed_rate_idx_get,
+			 minstrel_ht_fixed_rate_idx_set, "%llu\n");
+
 static void minstrel_ht_add_debugfs(struct ieee80211_hw *hw, void *priv,
 				    struct dentry *debugfsdir)
 {
 	struct minstrel_priv *mp = priv;
 
 	mp->fixed_rate_idx = (u32) -1;
-	debugfs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
-			   &mp->fixed_rate_idx);
+	debugfs_create_file("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
+			    &mp->fixed_rate_idx, &minstrel_ht_fixed_rate_idx_fops);
 }
 #endif
 

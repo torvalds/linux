@@ -481,7 +481,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
  *
  * Returns 1 if passed xattr value differs from current value, 0 otherwise.
  */
-static int evm_xattr_change(struct mnt_idmap *idmap,
+static int evm_xattr_change(const struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *xattr_name,
 			    const void *xattr_value, size_t xattr_value_len)
 {
@@ -517,7 +517,7 @@ out:
  * For posix xattr acls only, permit security.evm, even if it currently
  * doesn't exist, to be updated unless the EVM signature is immutable.
  */
-static int evm_protect_xattr(struct mnt_idmap *idmap,
+static int evm_protect_xattr(const struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
@@ -607,7 +607,7 @@ out:
  * userspace from writing HMAC value.  Writing 'security.evm' requires
  * requires CAP_SYS_ADMIN privileges.
  */
-static int evm_inode_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int evm_inode_setxattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			      const char *xattr_name, const void *xattr_value,
 			      size_t xattr_value_len, int flags)
 {
@@ -639,7 +639,7 @@ static int evm_inode_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
  * Removing 'security.evm' requires CAP_SYS_ADMIN privileges and that
  * the current value is valid.
  */
-static int evm_inode_removexattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int evm_inode_removexattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 				 const char *xattr_name)
 {
 	/* Policy permits modification of the protected xattrs even though
@@ -652,7 +652,7 @@ static int evm_inode_removexattr(struct mnt_idmap *idmap, struct dentry *dentry,
 }
 
 #ifdef CONFIG_FS_POSIX_ACL
-static int evm_inode_set_acl_change(struct mnt_idmap *idmap,
+static int evm_inode_set_acl_change(const struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *name,
 				    struct posix_acl *kacl)
 {
@@ -671,7 +671,7 @@ static int evm_inode_set_acl_change(struct mnt_idmap *idmap,
 	return 0;
 }
 #else
-static inline int evm_inode_set_acl_change(struct mnt_idmap *idmap,
+static inline int evm_inode_set_acl_change(const struct mnt_idmap *idmap,
 					   struct dentry *dentry,
 					   const char *name,
 					   struct posix_acl *kacl)
@@ -693,7 +693,7 @@ static inline int evm_inode_set_acl_change(struct mnt_idmap *idmap,
  *
  * Return: zero on success, -EPERM on failure.
  */
-static int evm_inode_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+static int evm_inode_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 			     const char *acl_name, struct posix_acl *kacl)
 {
 	enum integrity_status evm_status;
@@ -745,7 +745,7 @@ static int evm_inode_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
  *
  * Return: zero on success, -EPERM on failure.
  */
-static int evm_inode_remove_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+static int evm_inode_remove_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 				const char *acl_name)
 {
 	return evm_inode_set_acl(idmap, dentry, acl_name, NULL);
@@ -926,14 +926,14 @@ static void evm_inode_post_removexattr(struct dentry *dentry,
  * Update the 'security.evm' xattr with the EVM HMAC re-calculated after
  * removing posix acls.
  */
-static inline void evm_inode_post_remove_acl(struct mnt_idmap *idmap,
+static inline void evm_inode_post_remove_acl(const struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *acl_name)
 {
 	evm_inode_post_removexattr(dentry, acl_name);
 }
 
-static int evm_attr_change(struct mnt_idmap *idmap,
+static int evm_attr_change(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_backing_inode(dentry);
@@ -956,7 +956,7 @@ static int evm_attr_change(struct mnt_idmap *idmap,
  * Permit update of file attributes when files have a valid EVM signature,
  * except in the case of them having an immutable portable signature.
  */
-static int evm_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int evm_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			     struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
@@ -1008,7 +1008,7 @@ static int evm_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
  * This function is called from notify_change(), which expects the caller
  * to lock the inode's i_mutex.
  */
-static void evm_inode_post_setattr(struct mnt_idmap *idmap,
+static void evm_inode_post_setattr(const struct mnt_idmap *idmap,
 				   struct dentry *dentry, int ia_valid)
 {
 	if (!evm_revalidate_status(NULL))
@@ -1140,7 +1140,7 @@ static void evm_file_release(struct file *file)
 		iint->flags &= ~EVM_NEW_FILE;
 }
 
-static void evm_post_path_mknod(struct mnt_idmap *idmap, struct dentry *dentry)
+static void evm_post_path_mknod(const struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	struct evm_iint_cache *iint = evm_iint_inode(inode);

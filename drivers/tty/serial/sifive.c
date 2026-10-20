@@ -821,7 +821,7 @@ static void sifive_serial_console_write_atomic(struct console *co,
 	ier = __ssp_readl(ssp, SIFIVE_SERIAL_IE_OFFS);
 	__ssp_writel(0, SIFIVE_SERIAL_IE_OFFS, ssp);
 
-	if (!ssp->console_line_ended)
+	if (unlikely(!ssp->console_line_ended && !nbcon_is_braille(co)))
 		uart_console_write(port, "\n", 1, sifive_serial_console_putchar);
 	uart_console_write(port, wctxt->outbuf, wctxt->len,
 			   sifive_serial_console_putchar);

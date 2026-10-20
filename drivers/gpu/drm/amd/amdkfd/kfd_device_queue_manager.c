@@ -572,12 +572,32 @@ static int allocate_doorbell(struct qcm_process_device *qpd,
 		 * we need the physical sdma engine id in order to get the
 		 * correct doorbell offset.
 		 */
-		uint32_t valid_id = idx_offset[qpd->dqm->dev->node_id *
-					       get_num_all_sdma_engines(qpd->dqm) +
-					       q->properties.sdma_engine_id]
-						+ (q->properties.sdma_queue_id & 1)
-						* KFD_QUEUE_DOORBELL_MIRROR_OFFSET
-						+ (q->properties.sdma_queue_id >> 1);
+		u32 engine_base = idx_offset[dev->node_id *
+					     get_num_all_sdma_engines(qpd->dqm) +
+					     q->properties.sdma_engine_id];
+		u32 valid_id;
+
+		/*
+		 * With the aqua_vanjaram doorbell layout, a shader doorbell
+		 * write whose 32-byte block starts in the previous engine's
+		 * range rings that engine instead. Engine ranges are 10
+		 * indices apart (sdma_doorbell_range = 20 dwords, halved for
+		 * 8-byte doorbells, in aqua_vanjaram_doorbell_index_init()),
+		 * which puts odd engines 2 indices into a shared block.
+		 * Aligning costs at most 2 indices, and 8 queues per engine use
+		 * only 4 of the 10, so the aligned base stays in range. The
+		 * 512-index mirror offset keeps the alignment.
+		 */
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0))
+			engine_base = ALIGN(engine_base,
+					    KFD_SDMA_SHADER_DOORBELL_GRANULARITY);
+
+		valid_id = engine_base +
+			   (q->properties.sdma_queue_id & 1) *
+			   KFD_QUEUE_DOORBELL_MIRROR_OFFSET +
+			   (q->properties.sdma_queue_id >> 1);
 
 		if (restore_id && *restore_id != valid_id)
 			return -EINVAL;
@@ -770,10 +790,12 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto deallocate_vmid;
 	}
+
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		retval = allocate_hqd(dqm, q);
 		if (retval)
@@ -2250,7 +2272,8 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	if (qd && !mqd_mgr->restore_mqd) {
-		pr_debug("restore_mqd not implemented for this GPU\n");
+		pr_debug("restore_mqd not implemented for queue type %d\n",
+			 q->properties.type);
 		retval = -EOPNOTSUPP;
 		goto out_deallocate_doorbell;
 	}

@@ -1816,9 +1816,11 @@ static inline int bio_split_rw_at(struct bio *bio,
  */
 static inline unsigned int max_integrity_io_size(struct queue_limits *lim)
 {
-	return min_t(unsigned int, lim->max_segment_size,
-		(BLK_INTEGRITY_MAX_SIZE / lim->integrity.metadata_size) <<
-			lim->integrity.interval_exp);
+	u64 max_intervals;
+
+	max_intervals = BLK_INTEGRITY_MAX_SIZE / lim->integrity.metadata_size;
+	return min_t(u64, lim->max_segment_size,
+		max_intervals << lim->integrity.interval_exp);
 }
 
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }

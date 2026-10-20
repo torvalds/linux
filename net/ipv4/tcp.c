@@ -1169,8 +1169,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			zc = MSG_SPLICE_PAGES;
 	}
 
-	if (!sockc_err && sockc.dmabuf_id &&
-	    (!(flags & MSG_ZEROCOPY) || !sock_flag(sk, SOCK_ZEROCOPY))) {
+	if (!sockc_err && sockc.dmabuf_id && (zc != MSG_ZEROCOPY || !binding)) {
 		err = -EINVAL;
 		goto out_err;
 	}
@@ -1908,6 +1907,8 @@ static bool can_map_frag(const skb_frag_t *frag)
 	struct page *page;
 
 	if (skb_frag_size(frag) != PAGE_SIZE || skb_frag_off(frag))
+		return false;
+	if (skb_frag_is_net_iov(frag))
 		return false;
 
 	page = skb_frag_page(frag);

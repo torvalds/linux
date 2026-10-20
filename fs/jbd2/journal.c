@@ -328,8 +328,6 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 {
 	int do_escape = 0;
 	struct buffer_head *new_bh;
-	struct folio *new_folio;
-	unsigned int new_offset;
 	struct buffer_head *bh_in = jh2bh(jh_in);
 	journal_t *journal = transaction->t_journal;
 
@@ -349,24 +347,31 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	/* keep subsequent assertions sane */
 	atomic_set(&new_bh->b_count, 1);
 
+	/*
+	 * b_frozen_data is slab memory, not page cache, so when we use it the
+	 * shadow buffer gets no folio at all: b_folio stays NULL from the
+	 * allocation and b_data points straight at the copy.  Pointing it at
+	 * the slab folio instead would hand its overloaded ->mapping to
+	 * anything that goes looking for an address_space.
+	 */
+
 	spin_lock(&jh_in->b_state_lock);
 	/*
 	 * If a new transaction has already done a buffer copy-out, then
 	 * we use that version of the data for the commit.
 	 */
 	if (jh_in->b_frozen_data) {
-		new_folio = virt_to_folio(jh_in->b_frozen_data);
-		new_offset = offset_in_folio(new_folio, jh_in->b_frozen_data);
 		do_escape = jbd2_data_needs_escaping(jh_in->b_frozen_data);
 		if (do_escape)
 			jbd2_data_do_escape(jh_in->b_frozen_data);
+		new_bh->b_data = jh_in->b_frozen_data;
 	} else {
+		struct folio *folio = bh_in->b_folio;
+		unsigned int offset = offset_in_folio(folio, bh_in->b_data);
 		char *tmp;
 		char *mapped_data;
 
-		new_folio = bh_in->b_folio;
-		new_offset = offset_in_folio(new_folio, bh_in->b_data);
-		mapped_data = kmap_local_folio(new_folio, new_offset);
+		mapped_data = kmap_local_folio(folio, offset);
 		/*
 		 * Fire data frozen trigger if data already wasn't frozen. Do
 		 * this before checking for escaping, as the trigger may modify
@@ -380,8 +385,10 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 		/*
 		 * Do we need to do a data copy?
 		 */
-		if (!do_escape)
+		if (!do_escape) {
+			folio_set_bh(new_bh, folio, offset);
 			goto escape_done;
+		}
 
 		spin_unlock(&jh_in->b_state_lock);
 		tmp = kmalloc(bh_in->b_size, GFP_NOFS | __GFP_NOFAIL);
@@ -392,7 +399,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 		}
 
 		jh_in->b_frozen_data = tmp;
-		memcpy_from_folio(tmp, new_folio, new_offset, bh_in->b_size);
+		memcpy_from_folio(tmp, folio, offset, bh_in->b_size);
 		/*
 		 * This isn't strictly necessary, as we're using frozen
 		 * data for the escaping, but it keeps consistency with
@@ -401,13 +408,11 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 		jh_in->b_frozen_triggers = jh_in->b_triggers;
 
 copy_done:
-		new_folio = virt_to_folio(jh_in->b_frozen_data);
-		new_offset = offset_in_folio(new_folio, jh_in->b_frozen_data);
 		jbd2_data_do_escape(jh_in->b_frozen_data);
+		new_bh->b_data = jh_in->b_frozen_data;
 	}
 
 escape_done:
-	folio_set_bh(new_bh, new_folio, new_offset);
 	new_bh->b_size = bh_in->b_size;
 	new_bh->b_bdev = journal->j_dev;
 	new_bh->b_blocknr = blocknr;
@@ -882,7 +887,7 @@ int jbd2_fc_wait_bufs(journal_t *journal, int num_blks)
 		 * Update j_fc_off so jbd2_fc_release_bufs can release remain
 		 * buffer head.
 		 */
-		if (unlikely(!buffer_uptodate(bh))) {
+		if (unlikely(buffer_write_io_error(bh))) {
 			journal->j_fc_off = i + 1;
 			return -EIO;
 		}

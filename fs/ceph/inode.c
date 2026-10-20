@@ -680,7 +680,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	mutex_init(&ci->i_truncate_mutex);
 	ci->i_truncate_seq = 0;
 	ci->i_truncate_size = 0;
-	ci->i_truncate_pending = 0;
+	ci->i_truncate_pending = false;
+	ci->i_truncate_shrank = false;
 	ci->i_truncate_pagecache_size = 0;
 
 	ci->i_max_size = 0;
@@ -847,7 +848,9 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 				       CEPH_CAP_FILE_BUFFER)) ||
 			    mapping_mapped(inode->i_mapping) ||
 			    __ceph_is_file_opened(ci)) {
-				ci->i_truncate_pending++;
+				ci->i_truncate_pending = true;
+				if (size < isize)
+					ci->i_truncate_shrank = true;
 				queue_trunc = 1;
 			}
 		}
@@ -2304,12 +2307,13 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 	struct ceph_client *cl = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
+	bool shrank;
 	int wrbuffer_refs, finish = 0;
 
 	mutex_lock(&ci->i_truncate_mutex);
 retry:
 	spin_lock(&ci->i_ceph_lock);
-	if (ci->i_truncate_pending == 0) {
+	if (!ci->i_truncate_pending) {
 		doutc(cl, "%p %llx.%llx none pending\n", inode,
 		      ceph_vinop(inode));
 		spin_unlock(&ci->i_ceph_lock);
@@ -2333,18 +2337,20 @@ retry:
 	/* there should be no reader or writer */
 	WARN_ON_ONCE(ci->i_rd_ref || ci->i_wr_ref);
 
+	shrank = ci->i_truncate_shrank;
 	to = ci->i_truncate_pagecache_size;
 	wrbuffer_refs = ci->i_wrbuffer_ref;
 	doutc(cl, "%p %llx.%llx (%d) to %lld\n", inode, ceph_vinop(inode),
 	      ci->i_truncate_pending, to);
 	spin_unlock(&ci->i_ceph_lock);
 
-	ceph_fscache_resize(inode, to);
+	ceph_fscache_resize(inode, to, shrank);
 	truncate_pagecache(inode, to);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (to == ci->i_truncate_pagecache_size) {
-		ci->i_truncate_pending = 0;
+		ci->i_truncate_shrank = false;
+		ci->i_truncate_pending = false;
 		finish = 1;
 	}
 	spin_unlock(&ci->i_ceph_lock);
@@ -2398,7 +2404,7 @@ static const char *ceph_encrypted_get_link(struct dentry *dentry,
 				   done);
 }
 
-static int ceph_encrypted_symlink_getattr(struct mnt_idmap *idmap,
+static int ceph_encrypted_symlink_getattr(const struct mnt_idmap *idmap,
 					  const struct path *path,
 					  struct kstat *stat, u32 request_mask,
 					  unsigned int query_flags)
@@ -2568,7 +2574,7 @@ out:
 	return ret;
 }
 
-int __ceph_setattr(struct mnt_idmap *idmap, struct inode *inode,
+int __ceph_setattr(const struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *attr, struct ceph_iattr *cia)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -2921,7 +2927,7 @@ out:
 /*
  * setattr
  */
-int ceph_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ceph_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -3098,7 +3104,7 @@ out:
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct mnt_idmap *idmap, struct inode *inode,
+int ceph_permission(const struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int err;
@@ -3145,7 +3151,7 @@ static int statx_to_caps(u32 want, umode_t mode)
  * Get all the attributes. If we have sufficient caps for the requested attrs,
  * then we can avoid talking to the MDS at all.
  */
-int ceph_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ceph_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);

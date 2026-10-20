@@ -544,7 +544,7 @@ static int aqr_gen1_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
+	if (!phydev->link)
 		return 0;
 
 	/* The status register is not immediately correct on line side link up.
@@ -593,6 +593,9 @@ static int aqr_gen1_read_status(struct phy_device *phydev)
 	}
 
 	phydev->interface = aqr_translate_interface(phydev, interface);
+
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		return 0;
 
 	/* Read rate from vendor register */
 	return aqr_gen1_read_rate(phydev);

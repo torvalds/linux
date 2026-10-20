@@ -225,7 +225,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 }
 
 int
-ext4_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+ext4_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 	     struct posix_acl *acl, int type)
 {
 	handle_t *handle;

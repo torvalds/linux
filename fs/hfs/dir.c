@@ -183,7 +183,7 @@ static int hfs_dir_release(struct inode *inode, struct file *file)
  * a directory and return a corresponding inode, given the inode for
  * the directory and the name (and its length) of the new file.
  */
-static int hfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int hfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -213,7 +213,7 @@ static int hfs_create(struct mnt_idmap *idmap, struct inode *dir,
  * in a directory, given the inode for the parent directory and the
  * name (and its length) of the new directory.
  */
-static struct dentry *hfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *hfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -281,7 +281,7 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
  * new file/directory.
  * XXX: how do you handle must_be dir?
  */
-static int hfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int hfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {

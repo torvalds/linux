@@ -30,7 +30,7 @@
  *
  * Return: ATTR_KILL_SGID if setgid bit needs to be removed, 0 otherwise.
  */
-int setattr_should_drop_sgid(struct mnt_idmap *idmap,
+int setattr_should_drop_sgid(const struct mnt_idmap *idmap,
 			     const struct inode *inode)
 {
 	umode_t mode = inode->i_mode;
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(setattr_should_drop_sgid);
  * Return: A mask of ATTR_KILL_S{G,U}ID indicating which - if any - setid bits
  * to remove, 0 otherwise.
  */
-int setattr_should_drop_suidgid(struct mnt_idmap *idmap,
+int setattr_should_drop_suidgid(const struct mnt_idmap *idmap,
 				struct inode *inode)
 {
 	umode_t mode = inode->i_mode;
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(setattr_should_drop_suidgid);
  * permissions. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-static bool chown_ok(struct mnt_idmap *idmap,
+static bool chown_ok(const struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsuid_t ia_vfsuid)
 {
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
@@ -118,7 +118,7 @@ static bool chown_ok(struct mnt_idmap *idmap,
  * permissions. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-static bool chgrp_ok(struct mnt_idmap *idmap,
+static bool chgrp_ok(const struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsgid_t ia_vfsgid)
 {
 	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
@@ -158,7 +158,7 @@ static bool chgrp_ok(struct mnt_idmap *idmap,
  * Should be called as the first thing in ->setattr implementations,
  * possibly after taking additional locks.
  */
-int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
+int setattr_prepare(const struct mnt_idmap *idmap, struct dentry *dentry,
 		    struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -339,7 +339,7 @@ static void setattr_copy_mgtime(struct inode *inode, const struct iattr *attr)
  * that for "simple" filesystems, the struct inode is the inode storage.
  * The caller is free to mark the inode dirty afterwards if needed.
  */
-void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
+void setattr_copy(const struct mnt_idmap *idmap, struct inode *inode,
 		  const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
@@ -369,7 +369,7 @@ void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 }
 EXPORT_SYMBOL(setattr_copy);
 
-int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
+int may_setattr(const struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid)
 {
 	int error;
@@ -424,7 +424,7 @@ EXPORT_SYMBOL(may_setattr);
  * permissions. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
+int notify_change(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr, struct delegated_inode *delegated_inode)
 {
 	struct inode *inode = dentry->d_inode;

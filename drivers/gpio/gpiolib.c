@@ -1029,6 +1029,13 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
 			if (ret)
 				return ret;
+
+			/*
+			 * If no line-name property is present, fall back to the OF
+			 * node name as in the previous implementation.
+			 */
+			if (!name)
+				name = to_of_node(fwnode)->name;
 		} else {
 			/*
 			 * GPIO_ACTIVE_LOW is currently the only lookup flag
@@ -3947,16 +3954,17 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 		} while ((i < array_size) &&
 			 gpio_device_chip_cmp(desc_array[i]->gdev, guard.gc));
 		/* push collected bits to outputs */
-		if (count != 0) {
+		ret = 0;
+		if (count != 0)
 			ret = gpiochip_set_multiple(guard.gc, mask, bits);
-			if (ret)
-				return ret;
-		}
 
 		if (mask != fastpath_mask)
 			bitmap_free(mask);
 		if (bits != fastpath_bits)
 			bitmap_free(bits);
+
+		if (ret)
+			return ret;
 	}
 	return 0;
 }

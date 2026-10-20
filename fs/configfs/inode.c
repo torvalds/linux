@@ -32,7 +32,7 @@ static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
 
-int configfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int configfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	struct inode * inode = d_inode(dentry);

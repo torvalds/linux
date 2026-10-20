@@ -623,6 +623,19 @@ static void qrtr_hello_work(struct work_struct *work)
 	qrtr_port_put(ctrl);
 }
 
+/* Trigger the HELLO handshake after the remote has been reset, eg on resume */
+void qrtr_endpoint_hello(struct qrtr_endpoint *ep)
+{
+	struct qrtr_node *node = ep->node;
+
+	mutex_lock(&node->ep_lock);
+	node->hello_sent = false;
+	mutex_unlock(&node->ep_lock);
+
+	schedule_delayed_work(&node->say_hello, 0);
+}
+EXPORT_SYMBOL_GPL(qrtr_endpoint_hello);
+
 /**
  * qrtr_endpoint_register() - register a new endpoint
  * @ep: endpoint to register

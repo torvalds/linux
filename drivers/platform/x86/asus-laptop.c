@@ -1882,7 +1882,7 @@ static int asus_acpi_probe(struct platform_device *pdev)
 	if (result && result != -ENODEV)
 		goto fail_pega_rfkill;
 
-	result = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
+	result = acpi_dev_install_notify_handler(device, ACPI_ALL_NOTIFY,
 						 asus_acpi_notify, asus);
 	if (result)
 		goto fail_pega_rfkill;
@@ -1912,7 +1912,7 @@ static void asus_acpi_remove(struct platform_device *pdev)
 {
 	struct asus_laptop *asus = platform_get_drvdata(pdev);
 
-	acpi_dev_remove_notify_handler(asus->device, ACPI_DEVICE_NOTIFY,
+	acpi_dev_remove_notify_handler(asus->device, ACPI_ALL_NOTIFY,
 				       asus_acpi_notify);
 	asus_backlight_exit(asus);
 	asus_rfkill_exit(asus);

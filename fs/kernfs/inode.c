@@ -107,7 +107,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 	return ret;
 }
 
-int kernfs_iop_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int kernfs_iop_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -179,7 +179,7 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(struct mnt_idmap *idmap,
+int kernfs_iop_getattr(const struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
@@ -270,7 +270,7 @@ void kernfs_evict_inode(struct inode *inode)
 	kernfs_put(kn);
 }
 
-int kernfs_iop_permission(struct mnt_idmap *idmap,
+int kernfs_iop_permission(const struct mnt_idmap *idmap,
 			  struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
@@ -342,7 +342,7 @@ static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
-				struct mnt_idmap *idmap,
+				const struct mnt_idmap *idmap,
 				struct dentry *unused, struct inode *inode,
 				const char *suffix, const void *value,
 				size_t size, int flags)
@@ -354,7 +354,7 @@ static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
 }
 
 static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
-				     struct mnt_idmap *idmap,
+				     const struct mnt_idmap *idmap,
 				     struct dentry *unused, struct inode *inode,
 				     const char *suffix, const void *value,
 				     size_t size, int flags)

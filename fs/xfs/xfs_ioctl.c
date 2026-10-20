@@ -748,7 +748,7 @@ xfs_ioctl_setattr_check_projid(
 
 int
 xfs_fileattr_set(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct file_kattr	*fa)
 {

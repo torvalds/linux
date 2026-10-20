@@ -32,8 +32,9 @@ enum { MAX_NESTED_LINKS = 8 };
 #define LOOKUP_CREATE		BIT(17)	/* ... in object creation */
 #define LOOKUP_EXCL		BIT(18)	/* ... in target must not exist */
 #define LOOKUP_RENAME_TARGET	BIT(19)	/* ... in destination of rename() */
+#define LOOKUP_SHARED		BIT(20) /* Parent lock is held shared */
 
-/* 4 spare bits for intent */
+/* 3 spare bits for intent */
 
 /* Scoping flags for lookup. */
 #define LOOKUP_NO_SYMLINKS	BIT(24) /* No symlink crossing. */
@@ -70,24 +71,24 @@ extern struct dentry *try_lookup_noperm(struct qstr *, struct dentry *);
 extern struct dentry *lookup_noperm(struct qstr *, struct dentry *);
 extern struct dentry *lookup_noperm_unlocked(struct qstr *, struct dentry *);
 extern struct dentry *lookup_noperm_positive_unlocked(struct qstr *, struct dentry *);
-struct dentry *lookup_one(struct mnt_idmap *, struct qstr *, struct dentry *);
-struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
+struct dentry *lookup_one(const struct mnt_idmap *, struct qstr *, struct dentry *);
+struct dentry *lookup_one_unlocked(const struct mnt_idmap *idmap,
 				   struct qstr *name, struct dentry *base);
-struct dentry *lookup_one_positive_unlocked(struct mnt_idmap *idmap,
+struct dentry *lookup_one_positive_unlocked(const struct mnt_idmap *idmap,
 					    struct qstr *name,
 					    struct dentry *base);
-struct dentry *lookup_one_positive_killable(struct mnt_idmap *idmap,
+struct dentry *lookup_one_positive_killable(const struct mnt_idmap *idmap,
 					    struct qstr *name,
 					    struct dentry *base);
 
-struct dentry *start_creating(struct mnt_idmap *idmap, struct dentry *parent,
+struct dentry *start_creating(const struct mnt_idmap *idmap, struct dentry *parent,
 			      struct qstr *name);
-struct dentry *start_removing(struct mnt_idmap *idmap, struct dentry *parent,
+struct dentry *start_removing(const struct mnt_idmap *idmap, struct dentry *parent,
 			      struct qstr *name);
-struct dentry *start_creating_killable(struct mnt_idmap *idmap,
+struct dentry *start_creating_killable(const struct mnt_idmap *idmap,
 				       struct dentry *parent,
 				       struct qstr *name);
-struct dentry *start_removing_killable(struct mnt_idmap *idmap,
+struct dentry *start_removing_killable(const struct mnt_idmap *idmap,
 				       struct dentry *parent,
 				       struct qstr *name);
 struct dentry *start_creating_noperm(struct dentry *parent, struct qstr *name);

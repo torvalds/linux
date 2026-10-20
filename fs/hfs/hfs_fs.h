@@ -212,7 +212,7 @@ extern struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name,
 extern void hfs_inode_write_fork(struct inode *inode, struct hfs_extent *ext,
 				 __be32 *log_size, __be32 *phys_size);
 extern int hfs_write_inode(struct inode *inode, struct writeback_control *wbc);
-extern int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+extern int hfs_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			     struct iattr *attr);
 extern void hfs_inode_read_fork(struct inode *inode, struct hfs_extent *ext,
 				__be32 __log_size, __be32 phys_size,

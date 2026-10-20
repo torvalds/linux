@@ -222,7 +222,7 @@ out_fc:
 }
 
 static int
-nfs_namespace_getattr(struct mnt_idmap *idmap,
+nfs_namespace_getattr(const struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
@@ -235,7 +235,7 @@ nfs_namespace_getattr(struct mnt_idmap *idmap,
 }
 
 static int
-nfs_namespace_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+nfs_namespace_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
 	if (NFS_FH(d_inode(dentry))->size != 0)

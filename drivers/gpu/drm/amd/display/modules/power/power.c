@@ -328,6 +328,7 @@ bool mod_power_add_stream(struct mod_power *mod_power,
 		core_power->map[core_power->num_entities].psr_enabled = 0;
 		core_power->map[core_power->num_entities].psr_events = psr_event_vsync;
 		core_power->map[core_power->num_entities].psr_power_opt = 0;
+		core_power->map[core_power->num_entities].replay_events = replay_event_vsync;
 		core_power->num_entities++;
 		return true;
 	}
@@ -387,6 +388,7 @@ bool mod_power_remove_stream(struct mod_power *mod_power,
 		core_power->map[i].psr_enabled = core_power->map[i + 1].psr_enabled;
 		core_power->map[i].psr_events = core_power->map[i + 1].psr_events;
 		core_power->map[i].psr_power_opt = core_power->map[i + 1].psr_power_opt;
+		core_power->map[i].replay_events = core_power->map[i + 1].replay_events;
 
 		memcpy(core_power->map[i].psr_context, core_power->map[i + 1].psr_context, sizeof(struct mod_power_psr_context));
 		memset(core_power->map[i + 1].psr_context, 0, sizeof(struct mod_power_psr_context));

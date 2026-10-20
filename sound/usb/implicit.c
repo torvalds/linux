@@ -76,6 +76,7 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 
 /* Implicit feedback quirk table for capture: only FIXED type */
 static const struct snd_usb_implicit_fb_match capture_implicit_fb_quirks[] = {
+	IMPLICIT_FB_FIXED_DEV(0x1397, 0x0004, 0x01, 1), /* Behringer FCA1616 */
 	{} /* terminator */
 };
 

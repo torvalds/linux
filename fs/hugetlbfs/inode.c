@@ -828,7 +828,7 @@ out_nolock:
 	return error;
 }
 
-static int hugetlbfs_setattr(struct mnt_idmap *idmap,
+static int hugetlbfs_setattr(const struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -892,7 +892,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 static struct lock_class_key hugetlbfs_i_mmap_rwsem_key;
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb,
-					struct mnt_idmap *idmap,
+					const struct mnt_idmap *idmap,
 					struct inode *dir,
 					umode_t mode, dev_t dev)
 {
@@ -954,7 +954,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 /*
  * File creation. Allocate an inode, and we're done..
  */
-static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int hugetlbfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -967,7 +967,7 @@ static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return 0;
 }
 
-static struct dentry *hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *hugetlbfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				      struct dentry *dentry, umode_t mode)
 {
 	int retval = hugetlbfs_mknod(idmap, dir, dentry,
@@ -977,14 +977,14 @@ static struct dentry *hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir
 	return ERR_PTR(retval);
 }
 
-static int hugetlbfs_create(struct mnt_idmap *idmap,
+static int hugetlbfs_create(const struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {
 	return hugetlbfs_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
+static int hugetlbfs_tmpfile(const struct mnt_idmap *idmap,
 			     struct inode *dir, struct file *file,
 			     umode_t mode)
 {
@@ -998,7 +998,7 @@ static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
 	return finish_open_simple(file, 0);
 }
 
-static int hugetlbfs_symlink(struct mnt_idmap *idmap,
+static int hugetlbfs_symlink(const struct mnt_idmap *idmap,
 			     struct inode *dir, struct dentry *dentry,
 			     const char *symname)
 {

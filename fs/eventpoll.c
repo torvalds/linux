@@ -2514,11 +2514,11 @@ static int do_epoll_create(int flags)
 	FD_PREPARE(fdf, O_RDWR | (flags & O_CLOEXEC),
 		   anon_inode_getfile("[eventpoll]", &eventpoll_fops, ep,
 				      O_RDWR | (flags & O_CLOEXEC)));
-	if (fdf.err) {
+	if (fdf->fd < 0) {
 		ep_clear_and_put(ep);
-		return fdf.err;
+		return fdf->fd;
 	}
-	ep->file = fd_prepare_file(fdf);
+	ep->file = fdf->file;
 	return fd_publish(fdf);
 }
 

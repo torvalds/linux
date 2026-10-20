@@ -176,7 +176,7 @@ static void bpf_dentry_finalize(struct dentry *dentry, struct inode *inode,
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 }
 
-static struct dentry *bpf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *bpf_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -424,7 +424,7 @@ bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 	return simple_lookup(dir, dentry, flags);
 }
 
-static int bpf_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int bpf_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *target)
 {
 	struct inode *inode;
@@ -874,7 +874,7 @@ enum {
 };
 
 static int bpf_fs_xattr_set(const struct xattr_handler *handler,
-			    struct mnt_idmap *idmap, struct dentry *unused,
+			    const struct mnt_idmap *idmap, struct dentry *unused,
 			    struct inode *inode, const char *name,
 			    const void *value, size_t size, int flags)
 {

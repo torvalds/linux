@@ -97,10 +97,10 @@ static void qcomtee_get_async_buffer(struct qcomtee_object_invoke_ctx *oic,
 /**
  * async_release() - Process QTEE async release requests.
  * @oic: context used for the current invocation.
- * @msg: async message for object release.
+ * @async_msg: async message for object release.
  * @size: size of the async buffer available.
  *
- * Return: Size of the outbound buffer used when processing @msg.
+ * Return: Size of the outbound buffer used when processing @async_msg.
  */
 static size_t async_release(struct qcomtee_object_invoke_ctx *oic,
 			    struct qcomtee_async_msg_hdr *async_msg,

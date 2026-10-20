@@ -299,7 +299,7 @@ out:
  * later.
  */
 int
-adfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
+adfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;

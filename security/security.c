@@ -1425,7 +1425,7 @@ EXPORT_SYMBOL(security_path_mknod);
  *
  * Update inode security field after a regular file has been created.
  */
-void security_path_post_mknod(struct mnt_idmap *idmap, struct dentry *dentry)
+void security_path_post_mknod(const struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return;
@@ -1638,7 +1638,7 @@ EXPORT_SYMBOL_GPL(security_inode_create);
  *
  * Update inode security data after a tmpfile has been created.
  */
-void security_inode_post_create_tmpfile(struct mnt_idmap *idmap,
+void security_inode_post_create_tmpfile(const struct mnt_idmap *idmap,
 					struct inode *inode)
 {
 	if (unlikely(IS_PRIVATE(inode)))
@@ -1855,7 +1855,7 @@ int security_inode_permission(struct inode *inode, int mask)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_setattr(struct mnt_idmap *idmap,
+int security_inode_setattr(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1872,7 +1872,7 @@ EXPORT_SYMBOL_GPL(security_inode_setattr);
  *
  * Update inode security field after successful setting file attributes.
  */
-void security_inode_post_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+void security_inode_post_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 				 int ia_valid)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1921,7 +1921,7 @@ int security_inode_getattr(const struct path *path)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_setxattr(struct mnt_idmap *idmap,
+int security_inode_setxattr(const struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
@@ -1953,7 +1953,7 @@ int security_inode_setxattr(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_set_acl(struct mnt_idmap *idmap,
+int security_inode_set_acl(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl)
 {
@@ -1990,7 +1990,7 @@ void security_inode_post_set_acl(struct dentry *dentry, const char *acl_name,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_get_acl(struct mnt_idmap *idmap,
+int security_inode_get_acl(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -2009,7 +2009,7 @@ int security_inode_get_acl(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_remove_acl(struct mnt_idmap *idmap,
+int security_inode_remove_acl(const struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -2026,7 +2026,7 @@ int security_inode_remove_acl(struct mnt_idmap *idmap,
  * Update inode security data after successfully removing posix acls on
  * @dentry in @idmap. The posix acls are identified by @acl_name.
  */
-void security_inode_post_remove_acl(struct mnt_idmap *idmap,
+void security_inode_post_remove_acl(const struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -2108,7 +2108,7 @@ int security_inode_listxattr(struct dentry *dentry)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_removexattr(struct mnt_idmap *idmap,
+int security_inode_removexattr(const struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
 	int rc;
@@ -2197,7 +2197,7 @@ int security_inode_need_killpriv(struct dentry *dentry)
  * Return: Return 0 on success.  If error is returned, then the operation
  *         causing setuid bit removal is failed.
  */
-int security_inode_killpriv(struct mnt_idmap *idmap,
+int security_inode_killpriv(const struct mnt_idmap *idmap,
 			    struct dentry *dentry)
 {
 	return call_int_hook(inode_killpriv, idmap, dentry);
@@ -2219,7 +2219,7 @@ int security_inode_killpriv(struct mnt_idmap *idmap,
  *
  * Return: Returns size of buffer on success.
  */
-int security_inode_getsecurity(struct mnt_idmap *idmap,
+int security_inode_getsecurity(const struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc)
 {

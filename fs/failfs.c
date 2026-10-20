@@ -22,7 +22,7 @@ bool failfs_mnt(const struct vfsmount *mnt)
 	return mnt->mnt_sb == failfs_root_path.mnt->mnt_sb;
 }
 
-static int failfs_permission(struct mnt_idmap *idmap, struct inode *inode,
+static int failfs_permission(const struct mnt_idmap *idmap, struct inode *inode,
 			     int mask)
 {
 	return -EOPNOTSUPP;
@@ -35,7 +35,7 @@ static struct dentry *failfs_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static int failfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+static int failfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 			  struct kstat *stat, u32 request_mask,
 			  unsigned int query_flags)
 {

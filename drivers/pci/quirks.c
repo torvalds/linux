@@ -2575,6 +2575,17 @@ static void quirk_p64h2_1k_io(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1460, quirk_p64h2_1k_io);
 
 /*
+ * Unmasking Advisory Non-Fatal Errors on the Apple T2 Secure Enclave
+ * causes a MacBookPro16,1 to lose power.  Set this before pci_aer_init()
+ * so that it leaves the ANFE mask bit unchanged.
+ */
+static void quirk_no_aer_anfe(struct pci_dev *dev)
+{
+	dev->no_aer_anfe = 1;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_APPLE, 0x1802, quirk_no_aer_anfe);
+
+/*
  * Under some circumstances, AER is not linked with extended capabilities.
  * Force it to be linked by setting the corresponding control bit in the
  * config space.
@@ -5622,6 +5633,18 @@ static void quirk_no_flr_snet(struct pci_dev *dev)
 		quirk_no_flr(dev);
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SOLIDRUN, 0x1000, quirk_no_flr_snet);
+
+/* Some Samsung SSDs advertise Immediate Readiness but aren't ready after FLR */
+static void quirk_no_imm_ready(struct pci_dev *dev)
+{
+	if (!dev->imm_ready)
+		return;
+
+	pci_info(dev, "Ignoring incorrectly advertised Immediate Readiness support\n");
+	dev->imm_ready = 0;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SAMSUNG, 0xa80c, quirk_no_imm_ready);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SAMSUNG, 0xa80d, quirk_no_imm_ready);
 
 static void quirk_no_ext_tags(struct pci_dev *pdev)
 {

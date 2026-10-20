@@ -1963,6 +1963,10 @@ For example::
   $ echo 0x7 > /proc/self/coredump_filter
   $ ./some_program
 
+If the coredump socket protocol is used a coredump server can select memory
+types to include dynamically. See COREDUMP_MEMORY_TYPES in
+include/uapi/linux/coredump.h.
+
 3.5	/proc/<pid>/mountinfo - Information about mounts
 --------------------------------------------------------
 

@@ -434,6 +434,7 @@ static int fbnic_pm_suspend(struct device *dev)
 {
 	struct fbnic_dev *fbd = dev_get_drvdata(dev);
 	struct net_device *netdev = fbd->netdev;
+	struct fbnic_net *fbn;
 
 	if (fbnic_init_failure(fbd))
 		goto null_uc_addr;
@@ -441,10 +442,15 @@ static int fbnic_pm_suspend(struct device *dev)
 	rtnl_lock();
 	netdev_lock(netdev);
 
+	fbn = netdev_priv(netdev);
+
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_stop(netdev);
+
+	/* The IRQs are about to be freed, so drop the napi vector count */
+	fbn->num_napi = 0;
 
 	netdev_unlock(netdev);
 	rtnl_unlock();
@@ -508,16 +514,20 @@ static int __fbnic_pm_resume(struct device *dev)
 	if (fbnic_init_failure(fbd))
 		return 0;
 
+	rtnl_lock();
+	netdev_lock(netdev);
+
 	fbn = netdev_priv(netdev);
 
 	/* Reset the queues if needed */
 	fbnic_reset_queues(fbn, fbn->num_tx_queues, fbn->num_rx_queues);
 
-	rtnl_lock();
-	netdev_lock(netdev);
-
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
 		err = __fbnic_open(fbn);
+		/* On failure the vectors are freed, so drop the count */
+		if (err)
+			fbn->num_napi = 0;
+	}
 
 	netdev_unlock(netdev);
 	rtnl_unlock();

@@ -850,12 +850,9 @@ static int xr_get_rs485_config(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct xr_data *data = usb_get_serial_port_data(port);
 
-	down_read(&tty->termios_rwsem);
-	if (copy_to_user(argp, &data->rs485, sizeof(data->rs485))) {
-		up_read(&tty->termios_rwsem);
+	/* core holds port mutex */
+	if (copy_to_user(argp, &data->rs485, sizeof(data->rs485)))
 		return -EFAULT;
-	}
-	up_read(&tty->termios_rwsem);
 
 	return 0;
 }
@@ -871,10 +868,9 @@ static int xr_set_rs485_config(struct tty_struct *tty,
 		return -EFAULT;
 	xr_sanitize_serial_rs485(&rs485);
 
-	down_write(&tty->termios_rwsem);
+	/* core holds termios rwsem and port mutex */
 	data->rs485 = rs485;
 	xr_set_flow_mode(tty, port, NULL);
-	up_write(&tty->termios_rwsem);
 
 	if (copy_to_user(argp, &rs485, sizeof(rs485)))
 		return -EFAULT;

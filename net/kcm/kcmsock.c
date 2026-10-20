@@ -1580,10 +1580,10 @@ static int kcm_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		struct kcm_clone info;
 
 		FD_PREPARE(fdf, 0, kcm_clone(sock));
-		if (fdf.err)
-			return fdf.err;
+		if (fdf->fd < 0)
+			return fdf->fd;
 
-		info.fd = fd_prepare_fd(fdf);
+		info.fd = fdf->fd;
 		if (copy_to_user((void __user *)arg, &info, sizeof(info)))
 			return -EFAULT;
 

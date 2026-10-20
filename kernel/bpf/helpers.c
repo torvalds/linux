@@ -4883,7 +4883,7 @@ BTF_ID(func, bpf_cgroup_release_dtor)
 
 BTF_KFUNCS_START(common_btf_ids)
 BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx, KF_FASTCALL)
-BTF_ID_FLAGS(func, bpf_rdonly_cast, KF_FASTCALL)
+BTF_ID_FLAGS(func, bpf_rdonly_cast, KF_FASTCALL | KF_PERFMON)
 BTF_ID_FLAGS(func, bpf_rcu_read_lock)
 BTF_ID_FLAGS(func, bpf_rcu_read_unlock)
 BTF_ID_FLAGS(func, bpf_dynptr_slice, KF_RET_NULL)
@@ -4920,26 +4920,26 @@ BTF_ID_FLAGS(func, bpf_wq_set_callback, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_wq_start)
 BTF_ID_FLAGS(func, bpf_preempt_disable)
 BTF_ID_FLAGS(func, bpf_preempt_enable)
-BTF_ID_FLAGS(func, bpf_iter_bits_new, KF_ITER_NEW)
+BTF_ID_FLAGS(func, bpf_iter_bits_new, KF_ITER_NEW | KF_PERFMON)
 BTF_ID_FLAGS(func, bpf_iter_bits_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_bits_destroy, KF_ITER_DESTROY)
-BTF_ID_FLAGS(func, bpf_copy_from_user_str, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_copy_from_user_task_str, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_get_kmem_cache)
+BTF_ID_FLAGS(func, bpf_copy_from_user_str, KF_SLEEPABLE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_copy_from_user_task_str, KF_SLEEPABLE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_get_kmem_cache, KF_PERFMON)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_new, KF_ITER_NEW | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_next, KF_ITER_NEXT | KF_RET_NULL | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_destroy, KF_ITER_DESTROY | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_local_irq_save)
 BTF_ID_FLAGS(func, bpf_local_irq_restore)
 #ifdef CONFIG_BPF_EVENTS
-BTF_ID_FLAGS(func, bpf_probe_read_user_dynptr)
-BTF_ID_FLAGS(func, bpf_probe_read_kernel_dynptr)
-BTF_ID_FLAGS(func, bpf_probe_read_user_str_dynptr)
-BTF_ID_FLAGS(func, bpf_probe_read_kernel_str_dynptr)
-BTF_ID_FLAGS(func, bpf_copy_from_user_dynptr, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_copy_from_user_str_dynptr, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_copy_from_user_task_dynptr, KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_copy_from_user_task_str_dynptr, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_probe_read_user_dynptr, KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_probe_read_kernel_dynptr, KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_probe_read_user_str_dynptr, KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_probe_read_kernel_str_dynptr, KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_copy_from_user_dynptr, KF_SLEEPABLE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_copy_from_user_str_dynptr, KF_SLEEPABLE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_copy_from_user_task_dynptr, KF_SLEEPABLE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_copy_from_user_task_str_dynptr, KF_SLEEPABLE | KF_PERFMON)
 #endif
 #ifdef CONFIG_DMA_SHARED_BUFFER
 BTF_ID_FLAGS(func, bpf_iter_dmabuf_new, KF_ITER_NEW | KF_SLEEPABLE)
@@ -4947,26 +4947,26 @@ BTF_ID_FLAGS(func, bpf_iter_dmabuf_next, KF_ITER_NEXT | KF_RET_NULL | KF_SLEEPAB
 BTF_ID_FLAGS(func, bpf_iter_dmabuf_destroy, KF_ITER_DESTROY | KF_SLEEPABLE)
 #endif
 BTF_ID_FLAGS(func, __bpf_trap)
-BTF_ID_FLAGS(func, bpf_strcmp);
-BTF_ID_FLAGS(func, bpf_strcasecmp);
-BTF_ID_FLAGS(func, bpf_strncasecmp);
-BTF_ID_FLAGS(func, bpf_strchr);
-BTF_ID_FLAGS(func, bpf_strchrnul);
-BTF_ID_FLAGS(func, bpf_strnchr);
-BTF_ID_FLAGS(func, bpf_strrchr);
-BTF_ID_FLAGS(func, bpf_strlen);
-BTF_ID_FLAGS(func, bpf_strnlen);
-BTF_ID_FLAGS(func, bpf_strspn);
-BTF_ID_FLAGS(func, bpf_strcspn);
-BTF_ID_FLAGS(func, bpf_strstr);
-BTF_ID_FLAGS(func, bpf_strcasestr);
-BTF_ID_FLAGS(func, bpf_strnstr);
-BTF_ID_FLAGS(func, bpf_strncasestr);
+BTF_ID_FLAGS(func, bpf_strcmp, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strcasecmp, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strncasecmp, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strchr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strchrnul, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strnchr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strrchr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strlen, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strnlen, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strspn, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strcspn, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strstr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strcasestr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strnstr, KF_PERFMON);
+BTF_ID_FLAGS(func, bpf_strncasestr, KF_PERFMON);
 #if defined(CONFIG_BPF_LSM) && defined(CONFIG_CGROUPS)
 BTF_ID_FLAGS(func, bpf_cgroup_read_xattr, KF_RCU)
 #endif
-BTF_ID_FLAGS(func, bpf_stream_vprintk, KF_IMPLICIT_ARGS | KF_SPINLOCK_SAFE)
-BTF_ID_FLAGS(func, bpf_stream_print_stack, KF_IMPLICIT_ARGS | KF_SPINLOCK_SAFE)
+BTF_ID_FLAGS(func, bpf_stream_vprintk, KF_IMPLICIT_ARGS | KF_SPINLOCK_SAFE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_stream_print_stack, KF_IMPLICIT_ARGS | KF_SPINLOCK_SAFE | KF_PERFMON)
 BTF_ID_FLAGS(func, bpf_task_work_schedule_signal, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_task_work_schedule_resume, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_dynptr_from_file)

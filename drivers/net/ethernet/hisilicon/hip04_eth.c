@@ -976,6 +976,8 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
+	ndev->netdev_ops = &hip04_netdev_ops;
+
 	priv->phy_node = of_parse_phandle(node, "phy-handle", 0);
 	if (priv->phy_node) {
 		priv->phy = of_phy_connect(ndev, priv->phy_node,
@@ -989,7 +991,6 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	INIT_WORK(&priv->tx_timeout_task, hip04_tx_timeout_task);
 
-	ndev->netdev_ops = &hip04_netdev_ops;
 	ndev->ethtool_ops = &hip04_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 	ndev->priv_flags |= IFF_UNICAST_FLT;

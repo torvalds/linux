@@ -339,7 +339,7 @@ pointers to methods to allow fscache to request management of the cache:
    * Change the size of a data storage object [mandatory]::
 
 	void (*resize_cookie)(struct netfs_cache_resources *cres,
-			      loff_t new_size);
+			      loff_t new_size, bool shrank);
 
      This method is called to inform the cache backend of a change in size of
      the netfs file due to local truncation.  The cache backend should make all

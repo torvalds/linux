@@ -3012,7 +3012,7 @@ F:	arch/arm/boot/dts/ti/omap/omap3-igep*
 
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
-M:	Imre Kaloz <kaloz@openwrt.org>
+M:	Imre Kaloz <kaloz@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/intel-ixp4xx.yaml
@@ -4512,7 +4512,7 @@ AYANEO PLATFORM EC DRIVER
 M:	Antheas Kapenekakis <lkml@antheas.dev>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	Documentation/ABI/testing/sysfs-platform-ayaneo
+F:	Documentation/ABI/testing/sysfs-platform-ayaneo-ec
 F:	drivers/platform/x86/ayaneo-ec.c
 
 AZ6007 DVB DRIVER
@@ -4626,13 +4626,6 @@ L:	linux-block@vger.kernel.org
 S:	Odd Fixes
 F:	Documentation/block/bfq-iosched.rst
 F:	block/bfq-*
-
-BFS FILE SYSTEM
-M:	"Tigran A. Aivazian" <aivazian.tigran@gmail.com>
-S:	Maintained
-F:	Documentation/filesystems/bfs.rst
-F:	fs/bfs/
-F:	include/uapi/linux/bfs_fs.h
 
 BITMAP API
 M:	Yury Norov <yury.norov@gmail.com>
@@ -5143,6 +5136,7 @@ L:	netdev@vger.kernel.org
 L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Supported
 F:	Documentation/devicetree/bindings/net/dsa/brcm,b53.yaml
+F:	Documentation/networking/dsa/b53.rst
 F:	drivers/net/dsa/b53/*
 F:	drivers/net/dsa/bcm_sf2*
 F:	include/linux/dsa/brcm.h
@@ -5454,6 +5448,7 @@ F:	include/linux/brcmphy.h
 BROADCOM GENET ETHERNET DRIVER
 M:	Doug Berger <opendmb@gmail.com>
 M:	Florian Fainelli <florian.fainelli@broadcom.com>
+M:	Nicolai Buchwitz <nb@tipi-net.de>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -8011,6 +8006,7 @@ F:	include/uapi/drm/ivpu_accel.h
 
 DRM ACCEL DRIVER FOR ROCKCHIP NPU
 M:	Tomeu Vizoso <tomeu@tomeuvizoso.net>
+R:	Heiko Stuebner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -8168,7 +8164,6 @@ F:	drivers/gpu/drm/tiny/hx8357d.c
 
 DRM DRIVER FOR HYPERV SYNTHETIC VIDEO DEVICE
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 M:	Saurabh Sengar <ssengar@linux.microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
@@ -8573,7 +8568,7 @@ F:	Documentation/devicetree/bindings/display/panel/synaptics,r63353.yaml
 F:	drivers/gpu/drm/panel/panel-synaptics-r63353.c
 
 DRM DRIVER FOR SYNOPSYS DESIGNWARE DISPLAYPORT BRIDGE
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/rockchip/rockchip,dw-dp.yaml
@@ -8926,7 +8921,7 @@ F:	include/linux/platform_data/shmob_drm.h
 DRM DRIVERS FOR ROCKCHIP
 M:	Sandy Huang <hjc@rock-chips.com>
 M:	Heiko Stübner <heiko@sntech.de>
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
@@ -9324,6 +9319,7 @@ F:	Documentation/devicetree/bindings/interrupt-controller/econet,en751221-intc.y
 F:	Documentation/devicetree/bindings/mips/econet.yaml
 F:	Documentation/devicetree/bindings/timer/econet,en751221-timer.yaml
 F:	arch/mips/boot/dts/econet/
+F:	arch/mips/configs/econet_en751221_defconfig
 F:	arch/mips/econet/
 F:	drivers/clocksource/timer-econet-en751221.c
 F:	drivers/irqchip/irq-econet-en751221.c
@@ -9858,7 +9854,7 @@ L:	linux-ext4@vger.kernel.org
 S:	Maintained
 W:	http://ext4.wiki.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git dev
 F:	Documentation/filesystems/ext4/
 F:	fs/ext4/
 F:	include/trace/events/ext4.h
@@ -10099,7 +10095,6 @@ F:	tools/testing/selftests/mount_setattr/
 
 FILESYSTEMS [IOMAP]
 M:	Christian Brauner <brauner@kernel.org>
-R:	Darrick J. Wong <djwong@kernel.org>
 L:	linux-xfs@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
@@ -12158,11 +12153,9 @@ S:	Maintained
 F:	drivers/media/i2c/hi847.c
 
 Hyper-V/Azure CORE AND DRIVERS
-M:	"K. Y. Srinivasan" <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
 M:	Wei Liu <wei.liu@kernel.org>
 M:	Dexuan Cui <decui@microsoft.com>
-M:	Long Li <longli@microsoft.com>
 L:	linux-hyperv@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
@@ -12880,7 +12873,7 @@ S:	Maintained
 F:	drivers/power/supply/ip5xxx_power.c
 
 INNOSILICON HDMI BRIDGE DRIVER
-M:	Andy Yan <andy.yan@rock-chips.com>
+M:	Andy Yan <andyshrk@163.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -14412,6 +14405,7 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	fs/kernfs/
 F:	include/linux/kernfs.h
+F:	tools/testing/selftests/filesystems/kernfs_test.c
 
 KEXEC
 M:	Andrew Morton <akpm@linux-foundation.org>
@@ -14904,7 +14898,7 @@ M:	Damien Le Moal <dlemoal@kernel.org>
 M:	Niklas Cassel <cassel@kernel.org>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/libata/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/libata/linux.git for-next
 F:	Documentation/ABI/testing/sysfs-ata
 F:	Documentation/devicetree/bindings/ata/
 F:	drivers/ata/
@@ -17031,8 +17025,8 @@ MEMBLOCK AND MEMORY MANAGEMENT INITIALIZATION
 M:	Mike Rapoport <rppt@kernel.org>
 L:	linux-mm@kvack.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rppt/memblock.git for-next
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rppt/memblock.git fixes
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mm/memblock.git for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mm/memblock.git fixes
 F:	Documentation/core-api/boot-time-mm.rst
 F:	include/linux/kho/abi/memblock.h
 F:	include/linux/memblock.h
@@ -17193,7 +17187,7 @@ F:	tools/testing/selftests/mm/gup_test.c
 MEMORY MANAGEMENT - KSM (Kernel Samepage Merging)
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
-R:	Xu Xin <xu.xin16@zte.com.cn>
+R:	Xu Xin <xu.xin@linux.dev>
 R:	Chengming Zhou <chengming.zhou@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -17207,31 +17201,6 @@ F:	include/trace/events/ksm.h
 F:	mm/ksm.c
 F:	mm/mm_slot.h
 
-MEMORY MANAGEMENT - MEMORY POLICY AND MIGRATION
-M:	Andrew Morton <akpm@linux-foundation.org>
-M:	David Hildenbrand <david@kernel.org>
-R:	Zi Yan <ziy@nvidia.com>
-R:	Matthew Brost <matthew.brost@intel.com>
-R:	Joshua Hahn <joshua.hahnjy@gmail.com>
-R:	Rakie Kim <rakie.kim@sk.com>
-R:	Byungchul Park <byungchul@sk.com>
-R:	Gregory Price <gourry@gourry.net>
-R:	Ying Huang <ying.huang@linux.alibaba.com>
-R:	Alistair Popple <apopple@nvidia.com>
-L:	linux-mm@kvack.org
-S:	Maintained
-W:	http://www.linux-mm.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
-F:	Documentation/ABI/testing/sysfs-kernel-mm-mempolicy
-F:	Documentation/ABI/testing/sysfs-kernel-mm-mempolicy-weighted-interleave
-F:	include/linux/mempolicy.h
-F:	include/uapi/linux/mempolicy.h
-F:	include/linux/migrate.h
-F:	include/linux/migrate_mode.h
-F:	mm/mempolicy.c
-F:	mm/migrate.c
-F:	mm/migrate_device.c
-
 MEMORY MANAGEMENT - MGLRU (MULTI-GEN LRU)
 M:	Andrew Morton <akpm@linux-foundation.org>
 R:	Kairui Song <kasong@tencent.com>
@@ -17241,6 +17210,8 @@ R:	Barry Song <baohua@kernel.org>
 R:	Axel Rasmussen <axelrasmussen@google.com>
 R:	Yuanchu Xie <yuanchu@google.com>
 R:	Wei Xu <weixugc@google.com>
+R:	Baoquan He <baoquan.he@linux.dev>
+R:	Baolin Wang <baolin.wang@linux.alibaba.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 W:	http://www.linux-mm.org
@@ -17251,6 +17222,25 @@ F:	include/linux/mm_inline.h
 F:	include/linux/mmzone.h
 F:	mm/vmscan.c
 F:	mm/workingset.c
+
+MEMORY MANAGEMENT - MIGRATION
+M:	Andrew Morton <akpm@linux-foundation.org>
+M:	David Hildenbrand <david@kernel.org>
+R:	Zi Yan <ziy@nvidia.com>
+R:	Matthew Brost <matthew.brost@intel.com>
+R:	Joshua Hahn <joshua.hahnjy@gmail.com>
+R:	Byungchul Park <byungchul@sk.com>
+R:	Gregory Price <gourry@gourry.net>
+R:	Ying Huang <ying.huang@linux.alibaba.com>
+R:	Alistair Popple <apopple@nvidia.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+W:	http://www.linux-mm.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
+F:	include/linux/migrate.h
+F:	include/linux/migrate_mode.h
+F:	mm/migrate.c
+F:	mm/migrate_device.c
 
 MEMORY MANAGEMENT - MISC
 M:	Andrew Morton <akpm@linux-foundation.org>
@@ -17267,7 +17257,6 @@ W:	http://www.linux-mm.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
 F:	Documentation/ABI/testing/sysfs-kernel-mm
 F:	Documentation/ABI/testing/sysfs-kernel-mm-cma
-F:	Documentation/ABI/testing/sysfs-kernel-mm-memory-tiers
 F:	Documentation/ABI/testing/sysfs-kernel-mm-numa
 F:	Documentation/admin-guide/mm/
 F:	Documentation/mm/
@@ -17275,7 +17264,6 @@ F:	drivers/char/mem.c
 F:	include/linux/cma.h
 F:	include/linux/dmapool.h
 F:	include/linux/ioremap.h
-F:	include/linux/memory-tiers.h
 F:	include/linux/page_idle.h
 F:	mm/backing-dev.c
 F:	mm/cma.c
@@ -17287,7 +17275,6 @@ F:	mm/early_ioremap.c
 F:	mm/fadvise.c
 F:	mm/ioremap.c
 F:	mm/mapping_dirty_helpers.c
-F:	mm/memory-tiers.c
 F:	mm/page_idle.c
 F:	mm/pgalloc-track.h
 F:	mm/process_vm_access.c
@@ -17303,6 +17290,27 @@ F:	include/linux/numa_memblks.h
 F:	mm/numa.c
 F:	mm/numa_emulation.c
 F:	mm/numa_memblks.c
+
+MEMORY MANAGEMENT - NUMA PLACEMENT
+M:	Andrew Morton <akpm@linux-foundation.org>
+M:	David Hildenbrand <david@kernel.org>
+M:	Gregory Price <gourry@gourry.net>
+R:	Zi Yan <ziy@nvidia.com>
+R:	Joshua Hahn <joshua.hahnjy@gmail.com>
+R:	Rakie Kim <rakie.kim@sk.com>
+R:	Ying Huang <ying.huang@linux.alibaba.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+W:	http://www.linux-mm.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
+F:	Documentation/ABI/testing/sysfs-kernel-mm-memory-tiers
+F:	Documentation/ABI/testing/sysfs-kernel-mm-mempolicy
+F:	Documentation/ABI/testing/sysfs-kernel-mm-mempolicy-weighted-interleave
+F:	include/linux/memory-tiers.h
+F:	include/linux/mempolicy.h
+F:	include/uapi/linux/mempolicy.h
+F:	mm/memory-tiers.c
+F:	mm/mempolicy.c
 
 MEMORY MANAGEMENT - OOM KILLER
 M:	Michal Hocko <mhocko@suse.com>
@@ -18801,6 +18809,7 @@ F:	drivers/hwmon/nct7363.c
 
 NETCONSOLE
 M:	Breno Leitao <leitao@debian.org>
+R:	Gustavo Luiz Duarte <gustavold@gmail.com>
 S:	Maintained
 F:	Documentation/networking/netconsole.rst
 F:	drivers/net/netconsole.c
@@ -18881,7 +18890,7 @@ F:	net/core/drop_monitor.c
 NETWORKING DRIVERS
 M:	Andrew Lunn <andrew+netdev@lunn.ch>
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
 L:	netdev@vger.kernel.org
@@ -18998,7 +19007,7 @@ K:	struct\s+phy_port|phy_port_
 
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
 R:	Simon Horman <horms@kernel.org>
@@ -19224,7 +19233,7 @@ F:	net/ipv6/seg6*
 F:	tools/testing/selftests/net/srv6*
 
 NETWORKING [TCP]
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Neal Cardwell <ncardwell@google.com>
 R:	Kuniyuki Iwashima <kuniyu@google.com>
 L:	netdev@vger.kernel.org
@@ -19257,7 +19266,7 @@ F:	net/tls/
 F:	tools/testing/selftests/net/tls.c
 
 NETWORKING [SOCKETS]
-M:	Eric Dumazet <edumazet@google.com>
+M:	Eric Dumazet <edumazet@kernel.org>
 M:	Kuniyuki Iwashima <kuniyu@google.com>
 M:	Paolo Abeni <pabeni@redhat.com>
 M:	Willem de Bruijn <willemb@google.com>
@@ -20553,6 +20562,7 @@ ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mark@fasheh.com>
 M:	Joel Becker <jlbec@evilplan.org>
 M:	Joseph Qi <joseph.qi@linux.alibaba.com>
+R:	Heming Zhao <heming.zhao@suse.com>
 L:	ocfs2-devel@lists.linux.dev
 S:	Supported
 W:	http://ocfs2.wiki.kernel.org
@@ -24471,6 +24481,11 @@ R:	Marc Murphy <marc.murphy@sancloud.com>
 S:	Supported
 F:	arch/arm/boot/dts/ti/omap/am335x-sancloud*
 
+SB1250-DUART BROADCOM SOC SERIAL DRIVER
+M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
+S:	Maintained
+F:	drivers/tty/serial/sb1250-duart.c
+
 SBOM
 M:	Luis Augenstein <luis.augenstein@tngtech.com>
 M:	Maximilian Huber <maximilian.huber@tngtech.com>
@@ -25181,7 +25196,7 @@ R:	David Rientjes <rientjes@google.com>
 R:	Roman Gushchin <roman.gushchin@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vbabka/slab.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mm/slab.git
 F:	Documentation/admin-guide/mm/slab.rst
 F:	Documentation/mm/slab.rst
 F:	include/linux/mempool.h
@@ -25336,8 +25351,8 @@ F:	Documentation/networking/timestamping.rst
 F:	include/linux/net_tstamp.h
 F:	include/uapi/linux/net_tstamp.h
 F:	tools/testing/selftests/bpf/*/net_timestamping*
+F:	tools/testing/selftests/drivers/net/so_txtime.*
 F:	tools/testing/selftests/net/*timestamp*
-F:	tools/testing/selftests/net/so_txtime.c
 
 SOEKRIS NET48XX LED SUPPORT
 M:	Chris Boot <bootc@bootc.net>
@@ -28609,7 +28624,6 @@ L:	iommu@lists.linux.dev
 S:	Maintained
 F:	Documentation/devicetree/bindings/iommu/verisilicon,iommu.yaml
 F:	drivers/iommu/vsi-iommu.c
-F:	include/linux/vsi-iommu.h
 
 VF610 NAND DRIVER
 M:	Stefan Agner <stefan@agner.ch>
@@ -28869,8 +28883,8 @@ F:	include/uapi/linux/virtio_console.h
 VIRTIO CORE
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowangio@gmail.com>
+M:	Eugenio Pérez <eperezma@redhat.com>
 R:	Xuan Zhuo <xuanzhuo@linux.alibaba.com>
-R:	Eugenio Pérez <eperezma@redhat.com>
 L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-vdpa
@@ -28947,7 +28961,7 @@ F:	include/uapi/linux/virtio_gpu.h
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowangio@gmail.com>
-R:	Eugenio Pérez <eperezma@redhat.com>
+M:	Eugenio Pérez <eperezma@redhat.com>
 L:	kvm@vger.kernel.org
 L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
@@ -29002,8 +29016,8 @@ F:	include/uapi/linux/virtio_mem.h
 VIRTIO NET DRIVER
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowangio@gmail.com>
+M:	Eugenio Pérez <eperezma@redhat.com>
 R:	Xuan Zhuo <xuanzhuo@linux.alibaba.com>
-R:	Eugenio Pérez <eperezma@redhat.com>
 L:	netdev@vger.kernel.org
 L:	virtualization@lists.linux.dev
 S:	Maintained
@@ -29018,6 +29032,13 @@ L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/nvdimm/nd_virtio.c
 F:	drivers/nvdimm/virtio_pmem.c
+
+VIRTIO RNG DRIVER
+M:	Laurent Vivier <lvivier@redhat.com>
+L:	virtualization@lists.linux.dev
+S:	Maintained
+F:	drivers/char/hw_random/virtio-rng.c
+F:	include/uapi/linux/virtio_rng.h
 
 VIRTIO RTC DRIVER
 M:	Peter Hilber <peter.hilber@oss.qualcomm.com>
@@ -29350,7 +29371,7 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-watchdog@vger.kernel.org
 S:	Maintained
 W:	http://www.linux-watchdog.org/
-T:	git git://www.linux-watchdog.org/linux-watchdog.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 F:	Documentation/devicetree/bindings/watchdog/
 F:	Documentation/watchdog/
 F:	drivers/watchdog/

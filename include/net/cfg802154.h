@@ -376,6 +376,7 @@ struct cfg802154_mac_pkt {
 	struct list_head node;
 	struct sk_buff *skb;
 	struct ieee802154_sub_if_data *sdata;
+	netdevice_tracker dev_tracker;
 	u8 page;
 	u8 channel;
 };

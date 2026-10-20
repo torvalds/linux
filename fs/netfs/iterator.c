@@ -209,7 +209,7 @@ static size_t netfs_limit_xarray(const struct iov_iter *iter, size_t start_offse
 {
 	struct folio *folio;
 	unsigned int nsegs = 0;
-	loff_t pos = iter->xarray_start + iter->iov_offset;
+	uoff_t pos = iter->xarray_start + iter->iov_offset;
 	pgoff_t index = pos / PAGE_SIZE;
 	size_t span = 0, n = iter->count;
 

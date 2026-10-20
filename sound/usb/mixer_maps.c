@@ -532,6 +532,15 @@ static const struct usbmix_name_map audient_id24_map[] = {
 };
 
 /*
+ * The GC553Pro returns no data for GET_CUR on its advertised mute control.
+ * SET_CUR succeeds but does not mute capture, so skip the control entirely.
+ */
+static const struct usbmix_name_map avermedia_gc553pro_map[] = {
+	{ 3, NULL, UAC_FU_MUTE },
+	{}
+};
+
+/*
  * Control map entries
  */
 
@@ -576,6 +585,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x0763, 0x2031),
 		.selector_map = c400_selectors,
+	},
+	{
+		.id = USB_ID(0x07ca, 0x1553),
+		.map = avermedia_gc553pro_map,
 	},
 	{
 		.id = USB_ID(0x08bb, 0x2702),
@@ -734,6 +747,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	},
 	{	/* MSI MAG X570S Torpedo Max */
 		.id = USB_ID(0x0db0, 0xa073),
+		.map = msi_mpg_x570s_carbon_max_wifi_alc4080_map,
+	},
+	{	/* MSI MAG B850M MORTAR WIFI */
+		.id = USB_ID(0x0db0, 0xcc78),
 		.map = msi_mpg_x570s_carbon_max_wifi_alc4080_map,
 	},
 	{	/* MSI TRX40 */

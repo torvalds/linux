@@ -1709,6 +1709,24 @@ static void vmcore_free_device_dumps(void)
 #endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 }
 
+#define VMCOREINFO_OSRELEASE_KEY	"OSRELEASE="
+
+static void __init vmcore_report_crashed_release(void)
+{
+	const char *ver, *eol;
+
+	ver = strnstr(elfnotes_buf, VMCOREINFO_OSRELEASE_KEY, elfnotes_sz);
+	if (!ver)
+		return;
+
+	ver += sizeof(VMCOREINFO_OSRELEASE_KEY) - 1;
+	eol = memchr(ver, '\n', elfnotes_buf + elfnotes_sz - ver);
+	if (!eol)
+		return;
+
+	pr_notice("dump is from kernel %.*s\n", (int)(eol - ver), ver);
+}
+
 /* Init function for vmcore module. */
 static int __init vmcore_init(void)
 {
@@ -1732,6 +1750,8 @@ static int __init vmcore_init(void)
 	}
 	elfcorehdr_free(elfcorehdr_addr);
 	elfcorehdr_addr = ELFCORE_ADDR_ERR;
+
+	vmcore_report_crashed_release();
 
 	proc_vmcore = proc_create("vmcore", S_IRUSR, NULL, &vmcore_proc_ops);
 	if (proc_vmcore)

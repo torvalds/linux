@@ -702,7 +702,7 @@ static int proc_pid_syscall(struct seq_file *m, struct pid_namespace *ns,
 /*                       Here the fs part begins                        */
 /************************************************************************/
 
-int proc_nochmod_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int proc_nochmod_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	int error;
@@ -743,7 +743,7 @@ static bool has_pid_permissions(struct proc_fs_info *fs_info,
 }
 
 
-static int proc_pid_permission(struct mnt_idmap *idmap,
+static int proc_pid_permission(const struct mnt_idmap *idmap,
 			       struct inode *inode, int mask)
 {
 	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
@@ -1994,7 +1994,7 @@ static struct inode *proc_pid_make_base_inode(struct super_block *sb,
 	return inode;
 }
 
-int pid_getattr(struct mnt_idmap *idmap, const struct path *path,
+int pid_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -3607,7 +3607,7 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
  * This function makes sure that the node is always accessible for members of
  * same thread group.
  */
-static int proc_tid_comm_permission(struct mnt_idmap *idmap,
+static int proc_tid_comm_permission(const struct mnt_idmap *idmap,
 				    struct inode *inode, int mask)
 {
 	bool is_same_tgroup;
@@ -3936,7 +3936,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static int proc_task_getattr(struct mnt_idmap *idmap,
+static int proc_task_getattr(const struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {

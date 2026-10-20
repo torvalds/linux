@@ -101,7 +101,7 @@ int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 	return 0;
 }
 
-int btrfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+int btrfs_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct posix_acl *acl, int type)
 {
 	int ret;

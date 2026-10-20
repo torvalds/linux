@@ -497,7 +497,8 @@ xfs_iget_cache_hit(
 	struct xfs_inode	*ip,
 	xfs_ino_t		ino,
 	int			flags,
-	int			lock_flags) __releases(RCU)
+	int			lock_flags)
+		__releases_shared(RCU)
 {
 	struct inode		*inode = VFS_I(ip);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1652,7 +1653,7 @@ xfs_blockgc_free_dquots(
 		do_work = true;
 	}
 
-	if (XFS_IS_UQUOTA_ENFORCED(mp) && gdqp && xfs_dquot_lowsp(gdqp)) {
+	if (XFS_IS_GQUOTA_ENFORCED(mp) && gdqp && xfs_dquot_lowsp(gdqp)) {
 		icw.icw_gid = make_kgid(mp->m_super->s_user_ns, gdqp->q_id);
 		icw.icw_flags |= XFS_ICWALK_FLAG_GID;
 		do_work = true;

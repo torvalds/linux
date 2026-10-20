@@ -171,7 +171,7 @@ struct rethook_node *rethook_try_get(struct rethook *rh)
 	 * This expects the caller will set up a rethook on a function entry.
 	 * When the function returns, the rethook will eventually be reclaimed
 	 * or released in the rethook_recycle() with call_rcu().
-	 * This means the caller must be run in the RCU-availabe context.
+	 * This means the caller must be run in the RCU-available context.
 	 */
 	if (unlikely(!rcu_is_watching()))
 		return NULL;

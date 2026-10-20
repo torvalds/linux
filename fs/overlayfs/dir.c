@@ -688,7 +688,7 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 	return err;
 }
 
-static int ovl_create_object(struct mnt_idmap *idmap, struct dentry *dentry,
+static int ovl_create_object(const struct mnt_idmap *idmap, struct dentry *dentry,
 			     int mode, dev_t rdev, const char *link)
 {
 	int err;
@@ -730,19 +730,19 @@ out:
 	return err;
 }
 
-static int ovl_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ovl_create(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	return ovl_create_object(idmap, dentry, (mode & 07777) | S_IFREG, 0, NULL);
 }
 
-static struct dentry *ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ovl_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode)
 {
 	return ERR_PTR(ovl_create_object(idmap, dentry, (mode & 07777) | S_IFDIR, 0, NULL));
 }
 
-static int ovl_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ovl_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	/* Don't allow creation of "whiteout" on overlay */
@@ -752,7 +752,7 @@ static int ovl_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return ovl_create_object(idmap, dentry, mode, rdev, NULL);
 }
 
-static int ovl_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ovl_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *link)
 {
 	return ovl_create_object(idmap, dentry, S_IFLNK, 0, link);
@@ -1344,7 +1344,7 @@ static void ovl_rename_end(struct ovl_renamedata *ovlrd)
 		ovl_drop_write(ovlrd->old_dentry);
 }
 
-static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
+static int ovl_rename(const struct mnt_idmap *idmap, struct inode *olddir,
 		      struct dentry *old, struct inode *newdir,
 		      struct dentry *new, unsigned int flags)
 {
@@ -1420,7 +1420,7 @@ static int ovl_dummy_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ovl_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+static int ovl_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct file *file, umode_t mode)
 {
 	int err;

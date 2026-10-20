@@ -1003,7 +1003,7 @@ void __exit fuse_ctl_cleanup(void);
 /*
  * Simple request sending that does request allocation and freeing
  */
-ssize_t __fuse_simple_request(struct mnt_idmap *idmap,
+ssize_t __fuse_simple_request(const struct mnt_idmap *idmap,
 			      struct fuse_mount *fm,
 			      struct fuse_args *args);
 
@@ -1012,7 +1012,7 @@ static inline ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_arg
 	return __fuse_simple_request(&invalid_mnt_idmap, fm, args);
 }
 
-static inline ssize_t fuse_simple_idmap_request(struct mnt_idmap *idmap,
+static inline ssize_t fuse_simple_idmap_request(const struct mnt_idmap *idmap,
 						struct fuse_mount *fm,
 						struct fuse_args *args)
 {
@@ -1189,7 +1189,7 @@ bool fuse_write_update_attr(struct inode *inode, loff_t pos, ssize_t written);
 int fuse_flush_times(struct inode *inode, struct fuse_file *ff);
 int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
 
-int fuse_do_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int fuse_do_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		    struct iattr *attr, struct file *file);
 
 void fuse_unlock_inode(struct inode *inode, bool locked);
@@ -1205,9 +1205,9 @@ extern const struct xattr_handler * const fuse_xattr_handlers[];
 
 struct posix_acl;
 struct posix_acl *fuse_get_inode_acl(struct inode *inode, int type, bool rcu);
-struct posix_acl *fuse_get_acl(struct mnt_idmap *idmap,
+struct posix_acl *fuse_get_acl(const struct mnt_idmap *idmap,
 			       struct dentry *dentry, int type);
-int fuse_set_acl(struct mnt_idmap *, struct dentry *dentry,
+int fuse_set_acl(const struct mnt_idmap *, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 
 /* readdir.c */
@@ -1238,7 +1238,7 @@ long fuse_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg);
 int fuse_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
-int fuse_fileattr_set(struct mnt_idmap *idmap,
+int fuse_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa);
 
 /* iomode.c */

@@ -11,12 +11,12 @@
 
 #include "autofs_i.h"
 
-static int autofs_dir_permission(struct mnt_idmap *, struct inode *, int);
-static int autofs_dir_symlink(struct mnt_idmap *, struct inode *,
+static int autofs_dir_permission(const struct mnt_idmap *, struct inode *, int);
+static int autofs_dir_symlink(const struct mnt_idmap *, struct inode *,
 			      struct dentry *, const char *);
 static int autofs_dir_unlink(struct inode *, struct dentry *);
 static int autofs_dir_rmdir(struct inode *, struct dentry *);
-static struct dentry *autofs_dir_mkdir(struct mnt_idmap *, struct inode *,
+static struct dentry *autofs_dir_mkdir(const struct mnt_idmap *, struct inode *,
 				       struct dentry *, umode_t);
 static long autofs_root_ioctl(struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
@@ -552,7 +552,7 @@ static struct dentry *autofs_lookup(struct inode *dir,
 	return NULL;
 }
 
-static int autofs_dir_permission(struct mnt_idmap *idmap,
+static int autofs_dir_permission(const struct mnt_idmap *idmap,
 				 struct inode *inode, int mask)
 {
 	if (mask & MAY_WRITE) {
@@ -572,7 +572,7 @@ static int autofs_dir_permission(struct mnt_idmap *idmap,
 	return generic_permission(idmap, inode, mask);
 }
 
-static int autofs_dir_symlink(struct mnt_idmap *idmap,
+static int autofs_dir_symlink(const struct mnt_idmap *idmap,
 			      struct inode *dir, struct dentry *dentry,
 			      const char *symname)
 {
@@ -724,7 +724,7 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static struct dentry *autofs_dir_mkdir(struct mnt_idmap *idmap,
+static struct dentry *autofs_dir_mkdir(const struct mnt_idmap *idmap,
 				       struct inode *dir, struct dentry *dentry,
 				       umode_t mode)
 {

@@ -225,10 +225,15 @@ static void vdpasim_net_work(struct vdpasim *vdpasim)
 			break;
 		}
 
-		++tx_pkts;
 		read = vringh_iov_pull_iotlb(&txq->vring, &txq->out_iov,
 					     net->buffer, PAGE_SIZE);
+		if (read <= 0) {
+			++tx_errors;
+			vdpasim_net_complete(txq, 0);
+			continue;
+		}
 
+		++tx_pkts;
 		tx_bytes += read;
 
 		if (!receive_filter(vdpasim, read)) {

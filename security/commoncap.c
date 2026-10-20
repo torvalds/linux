@@ -348,7 +348,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
  *
  * Return: 0 if successful, -ve on error.
  */
-int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry)
+int cap_inode_killpriv(const struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	int error;
 
@@ -417,7 +417,7 @@ static bool is_v3header(int size, const struct vfs_cap_data *cap)
  * by the integrity subsystem, which really wants the unconverted values -
  * so that's good.
  */
-int cap_inode_getsecurity(struct mnt_idmap *idmap,
+int cap_inode_getsecurity(const struct mnt_idmap *idmap,
 			  struct inode *inode, const char *name, void **buffer,
 			  bool alloc)
 {
@@ -566,7 +566,7 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
  *
  * Return: On success, return the new size; on error, return < 0.
  */
-int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
+int cap_convert_nscap(const struct mnt_idmap *idmap, struct dentry *dentry,
 		      const void **ivalue, size_t size)
 {
 	struct vfs_ns_cap_data *nscap;
@@ -672,7 +672,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  * permissions. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
+int get_vfs_caps_from_disk(const struct mnt_idmap *idmap,
 			   const struct dentry *dentry,
 			   struct cpu_vfs_cap_data *cpu_caps)
 {
@@ -1063,7 +1063,7 @@ int cap_inode_setxattr(struct dentry *dentry, const char *name,
  * This is used to make sure security xattrs don't get removed by those who
  * aren't privileged to remove them.
  */
-int cap_inode_removexattr(struct mnt_idmap *idmap,
+int cap_inode_removexattr(const struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name)
 {
 	struct user_namespace *user_ns = dentry->d_sb->s_user_ns;

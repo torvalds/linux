@@ -467,7 +467,7 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
 {
 	int i, rc = 0;
 	struct ksmbd_conn *conn = work->conn;
-	struct mnt_idmap *idmap = file_mnt_idmap(dir->filp);
+	const struct mnt_idmap *idmap = file_mnt_idmap(dir->filp);
 
 	for (i = 0; i < 2; i++) {
 		struct kstat kstat;

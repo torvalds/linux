@@ -79,7 +79,7 @@ EXPORT_SYMBOL(fill_mg_cmtime);
  * uid and gid filds. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-void generic_fillattr(struct mnt_idmap *idmap, u32 request_mask,
+void generic_fillattr(const struct mnt_idmap *idmap, u32 request_mask,
 		      struct inode *inode, struct kstat *stat)
 {
 	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(generic_fill_statx_atomic_writes);
 int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	struct inode *inode = d_backing_inode(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));

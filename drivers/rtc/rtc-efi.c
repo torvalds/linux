@@ -52,6 +52,7 @@ compute_wday(efi_time_t *eft, int yday)
 static void
 convert_to_efi_time(struct rtc_time *wtime, efi_time_t *eft)
 {
+	memset(eft, 0, sizeof(*eft));
 	eft->year	= wtime->tm_year + 1900;
 	eft->month	= wtime->tm_mon + 1;
 	eft->day	= wtime->tm_mday;
@@ -112,6 +113,35 @@ convert_from_efi_time(efi_time_t *eft, struct rtc_time *wtime)
 	return true;
 }
 
+static int efi_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
+{
+	efi_time_t eft;
+	efi_status_t status;
+
+	memset(&eft, 0, sizeof(eft));
+	status = efi.get_wakeup_time((efi_bool_t *)&wkalrm->enabled,
+				     (efi_bool_t *)&wkalrm->pending, &eft);
+	if (status != EFI_SUCCESS)
+		return -EINVAL;
+
+	if (!convert_from_efi_time(&eft, &wkalrm->time))
+		return -EIO;
+
+	return rtc_valid_tm(&wkalrm->time);
+}
+
+static int efi_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
+{
+	efi_time_t eft;
+	efi_status_t status;
+
+	convert_to_efi_time(&wkalrm->time, &eft);
+
+	status = efi.set_wakeup_time((efi_bool_t)!!wkalrm->enabled, &eft);
+
+	return status == EFI_SUCCESS ? 0 : -EINVAL;
+}
+
 static int efi_read_time(struct device *dev, struct rtc_time *tm)
 {
 	efi_status_t status;
@@ -146,13 +176,21 @@ static int efi_set_time(struct device *dev, struct rtc_time *tm)
 
 static int efi_procfs(struct device *dev, struct seq_file *seq)
 {
-	efi_time_t        eft;
+	efi_time_t        eft, alm;
 	efi_time_cap_t    cap;
+	efi_bool_t        enabled, pending;
+	struct rtc_device *rtc = dev_get_drvdata(dev);
 
 	memset(&eft, 0, sizeof(eft));
+	memset(&alm, 0, sizeof(alm));
 	memset(&cap, 0, sizeof(cap));
 
 	efi.get_time(&eft, &cap);
+	if (test_bit(RTC_FEATURE_ALARM, rtc->features) &&
+	    efi.get_wakeup_time(&enabled, &pending, &alm) != EFI_SUCCESS) {
+		enabled = 0;
+		pending = 0;
+	}
 
 	seq_printf(seq,
 		   "Time\t\t: %u:%u:%u.%09u\n"
@@ -167,6 +205,25 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 	else
 		/* XXX fixme: convert to string? */
 		seq_printf(seq, "Timezone\t: %u\n", eft.timezone);
+
+	if (test_bit(RTC_FEATURE_ALARM, rtc->features)) {
+		seq_printf(seq,
+			   "Alarm Time\t: %u:%u:%u.%09u\n"
+			   "Alarm Date\t: %u-%u-%u\n"
+			   "Alarm Daylight\t: %u\n"
+			   "Enabled\t\t: %s\n"
+			   "Pending\t\t: %s\n",
+			   alm.hour, alm.minute, alm.second, alm.nanosecond,
+			   alm.year, alm.month, alm.day,
+			   alm.daylight,
+			   enabled == 1 ? "yes" : "no",
+			   pending == 1 ? "yes" : "no");
+
+		if (alm.timezone == EFI_UNSPECIFIED_TIMEZONE)
+			seq_puts(seq, "Alarm Timezone\t: unspecified\n");
+		else
+			seq_printf(seq, "Alarm Timezone\t: %d\n", alm.timezone);
+	}
 
 	/*
 	 * now prints the capabilities
@@ -183,6 +240,8 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 static const struct rtc_class_ops efi_rtc_ops = {
 	.read_time	= efi_read_time,
 	.set_time	= efi_set_time,
+	.read_alarm	= efi_read_alarm,
+	.set_alarm	= efi_set_alarm,
 	.proc		= efi_procfs,
 };
 
@@ -191,6 +250,7 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	struct rtc_device *rtc;
 	efi_time_t eft;
 	efi_time_cap_t cap;
+	efi_bool_t enabled, pending;
 
 	/* First check if the RTC is usable */
 	if (efi.get_time(&eft, &cap) != EFI_SUCCESS)
@@ -203,7 +263,23 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, rtc);
 
 	rtc->ops = &efi_rtc_ops;
-	clear_bit(RTC_FEATURE_ALARM, rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
+
+	/*
+	 * The EFI_RT_SUPPORTED_WAKEUP_SERVICES bit defaults to enabled
+	 * and only gets cleared when the RT_PROP table explicitly says
+	 * wakeup is unsupported. Many platforms lack an RT_PROP table
+	 * even though they don't implement the wakeup runtime service,
+	 * so probe by actually calling GetWakeupTime() to avoid exposing
+	 * a broken alarm to userspace.
+	 */
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_WAKEUP_SERVICES) &&
+	    efi.get_wakeup_time(&enabled, &pending, &eft) == EFI_SUCCESS) {
+		set_bit(RTC_FEATURE_ALARM, rtc->features);
+		set_bit(RTC_FEATURE_ALARM_WAKEUP_ONLY, rtc->features);
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
+	}
 
 	device_init_wakeup(&dev->dev, true);
 

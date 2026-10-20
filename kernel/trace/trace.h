@@ -227,6 +227,7 @@ struct array_buffer {
 struct trace_options {
 	struct tracer			*tracer;
 	struct trace_option_dentry	*topts;
+	int				nr_topts;
 };
 
 struct trace_pid_list *trace_pid_list_alloc(void);
@@ -1952,6 +1953,7 @@ struct event_trigger_data {
 
 struct enable_trigger_data {
 	struct trace_event_file		*file;
+	struct trace_event_call		*call;
 	bool				enable;
 	bool				hist;
 };

@@ -2326,7 +2326,7 @@ il_dealloc_bcast_stations(struct il_priv *il)
 		if (!(il->stations[i].used & IL_STA_BCAST))
 			continue;
 
-		il->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
+		il->stations[i].used = 0;
 		il->num_stations--;
 		if (WARN_ON(il->num_stations < 0))
 			il->num_stations = 0;

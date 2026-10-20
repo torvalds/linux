@@ -405,6 +405,7 @@ static int qcom_pas_stop(struct rproc *rproc)
 {
 	struct qcom_pas *pas = rproc->priv;
 	int handover;
+	int dtb_ret;
 	int ret;
 
 	ret = qcom_q6v5_request_stop(&pas->q6v5, pas->sysmon);
@@ -419,9 +420,12 @@ static int qcom_pas_stop(struct rproc *rproc)
 		dev_err(pas->dev, "failed to shutdown: %d\n", ret);
 
 	if (pas->dtb_pas_id) {
-		ret = qcom_pas_shutdown(pas->dtb_pas_id);
-		if (ret)
-			dev_err(pas->dev, "failed to shutdown dtb: %d\n", ret);
+		dtb_ret = qcom_pas_shutdown(pas->dtb_pas_id);
+		if (dtb_ret)
+			dev_err(pas->dev, "failed to shutdown dtb: %d\n", dtb_ret);
+
+		if (!ret && dtb_ret)
+			ret = dtb_ret;
 
 		qcom_pas_unmap_carveout(rproc, pas->dtb_mem_phys, pas->dtb_mem_size);
 	}
@@ -524,7 +528,6 @@ static int qcom_pas_attach(struct rproc *rproc)
 	int ret;
 
 	pas->q6v5.handover_issued = true;
-	enable_irq(pas->q6v5.handover_irq);
 
 	pas->q6v5.running = true;
 	ret = irq_get_irqchip_state(pas->q6v5.fatal_irq,
@@ -570,7 +573,6 @@ unroll_attach:
 	pas->rproc->state = RPROC_OFFLINE;
 	ret = -EINVAL;
 disable_running:
-	disable_irq(pas->q6v5.handover_irq);
 	pas->q6v5.running = false;
 
 	return ret;

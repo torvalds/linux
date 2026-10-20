@@ -172,7 +172,8 @@ When mounting an ext4 filesystem, the following option are accepted:
   data=journal
         All data are committed into the journal prior to being written into the
         main file system.  Enabling this mode will disable delayed allocation
-        and O_DIRECT support.
+        and O_DIRECT support.  This feature is deprecated and support
+	will be removed in January 2028.
 
   data=ordered	(*)
         All data are forced directly out to the main file system prior to its
@@ -418,7 +419,8 @@ There are 3 different data modes:
   consistent state.  This mode is the slowest except when data needs to be read
   from and written to disk at the same time where it outperforms all others
   modes.  Enabling this mode will disable delayed allocation and O_DIRECT
-  support.
+  support.  The data=journal feature is deprecated and support will be
+  removed in January 2028.
 
 /proc entries
 =============

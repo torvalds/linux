@@ -15,7 +15,7 @@
 /*
  * Get a newly allocated inode to go with a negative dentry.
  */
-static int orangefs_create(struct mnt_idmap *idmap,
+static int orangefs_create(const struct mnt_idmap *idmap,
 			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode)
@@ -211,7 +211,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int orangefs_symlink(struct mnt_idmap *idmap,
+static int orangefs_symlink(const struct mnt_idmap *idmap,
 		         struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)
@@ -296,7 +296,7 @@ out:
 	return ret;
 }
 
-static struct dentry *orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *orangefs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				     struct dentry *dentry, umode_t mode)
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
@@ -364,7 +364,7 @@ out:
 	return ret ? ERR_PTR(ret) : NULL;
 }
 
-static int orangefs_rename(struct mnt_idmap *idmap,
+static int orangefs_rename(const struct mnt_idmap *idmap,
 			struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,

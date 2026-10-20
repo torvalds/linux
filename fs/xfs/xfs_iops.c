@@ -169,7 +169,7 @@ xfs_create_need_xattr(
 
 STATIC int
 xfs_generic_create(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode,
@@ -279,7 +279,7 @@ xfs_generic_create(
 
 STATIC int
 xfs_vn_mknod(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode,
@@ -290,7 +290,7 @@ xfs_vn_mknod(
 
 STATIC int
 xfs_vn_create(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode)
@@ -300,7 +300,7 @@ xfs_vn_create(
 
 STATIC struct dentry *
 xfs_vn_mkdir(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode)
@@ -425,7 +425,7 @@ xfs_vn_unlink(
 
 STATIC int
 xfs_vn_symlink(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	const char		*symname)
@@ -466,7 +466,7 @@ xfs_vn_symlink(
 
 STATIC int
 xfs_vn_rename(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*odir,
 	struct dentry		*odentry,
 	struct inode		*ndir,
@@ -679,7 +679,7 @@ xfs_report_atomic_write(
 
 STATIC int
 xfs_vn_getattr(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	const struct path	*path,
 	struct kstat		*stat,
 	u32			request_mask,
@@ -754,7 +754,7 @@ xfs_vn_getattr(
 
 static int
 xfs_vn_change_ok(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -777,7 +777,7 @@ xfs_vn_change_ok(
  */
 static int
 xfs_setattr_nonsize(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
@@ -903,7 +903,7 @@ out_dqrele:
  */
 int
 xfs_vn_setattr_size(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -1130,7 +1130,7 @@ out_trans_cancel:
 
 STATIC int
 xfs_vn_setattr(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -1250,7 +1250,7 @@ xfs_vn_fiemap(
 
 STATIC int
 xfs_vn_tmpfile(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct file		*file,
 	umode_t			mode)

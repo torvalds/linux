@@ -135,7 +135,7 @@ int nilfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
  *
  * Return: 0 on success, or a negative error code on failure.
  */
-int nilfs_fileattr_set(struct mnt_idmap *idmap,
+int nilfs_fileattr_set(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

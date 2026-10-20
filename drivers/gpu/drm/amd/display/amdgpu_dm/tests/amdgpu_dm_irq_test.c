@@ -268,7 +268,7 @@ static bool dm_test_irq_src_ack(struct irq_service *irq_service,
 	return true;
 }
 
-/* Per-source funcs let dc_interrupt_set() succeed without register access. */
+/* Per-source funcs let amdgpu_dm_irq_set() succeed without register access. */
 static struct irq_source_info_funcs dm_test_irq_src_funcs = {
 	.set = dm_test_irq_src_set,
 	.ack = dm_test_irq_src_ack,
@@ -290,7 +290,7 @@ static struct dc *dm_test_alloc_dc_with_irq_service(struct kunit *test,
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, irqs);
 
 	/*
-	 * Populate the per-source info table so dc_interrupt_set()/_ack()
+	 * Populate the per-source info table so amdgpu_dm_irq_set()/_ack()
 	 * succeed without touching hardware registers.
 	 */
 	info = kunit_kzalloc(test, sizeof(*info) * DAL_IRQ_SOURCES_NUMBER,
@@ -1227,7 +1227,7 @@ static void dm_test_irq_suspend_empty(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, amdgpu_dm_irq_init(adev), 0);
 
 	/*
-	 * With no registered handlers the HW dc_interrupt_set() calls are
+	 * With no registered handlers the amdgpu_dm_irq_set() calls are
 	 * skipped, so suspend must complete without touching the (absent) DC.
 	 */
 	amdgpu_dm_irq_suspend(adev);
@@ -1275,11 +1275,11 @@ static void dm_test_irq_resume_late_empty(struct kunit *test)
 }
 
 /**
- * dm_test_irq_suspend_registered - Test suspend reaches the dc_interrupt_set path
+ * dm_test_irq_suspend_registered - Test suspend reaches the irq set path
  * @test: The KUnit test context
  *
  * Registers a low-context HPD handler so the handler list is non-empty,
- * forcing amdgpu_dm_irq_suspend() to call dc_interrupt_set() (NULL-safe with
+ * forcing amdgpu_dm_irq_suspend() to call amdgpu_dm_irq_set() (NULL-safe with
  * no DC) and flush_work() on the registered handler.
  */
 static void dm_test_irq_suspend_registered(struct kunit *test)
@@ -1330,11 +1330,11 @@ static void dm_test_irq_suspend_disables_polling(struct kunit *test)
 }
 
 /**
- * dm_test_irq_resume_early_registered - Test early resume reaches dc_interrupt_set
+ * dm_test_irq_resume_early_registered - Test early resume reaches irq set
  * @test: The KUnit test context
  *
  * Registers a low-context HPD RX handler so early resume calls
- * dc_interrupt_set() for the short-pulse interrupt source.
+ * amdgpu_dm_irq_set() for the short-pulse interrupt source.
  */
 static void dm_test_irq_resume_early_registered(struct kunit *test)
 {
@@ -1358,10 +1358,10 @@ static void dm_test_irq_resume_early_registered(struct kunit *test)
 }
 
 /**
- * dm_test_irq_resume_late_registered - Test late resume reaches dc_interrupt_set
+ * dm_test_irq_resume_late_registered - Test late resume reaches irq set
  * @test: The KUnit test context
  *
- * Registers a low-context HPD handler so late resume calls dc_interrupt_set()
+ * Registers a low-context HPD handler so late resume calls amdgpu_dm_irq_set()
  * for the HPD interrupt source.
  */
 static void dm_test_irq_resume_late_registered(struct kunit *test)
@@ -1592,7 +1592,7 @@ static void dm_test_set_crtc_irq_state_enable(struct kunit *test)
 
 	/*
 	 * otg_inst >= 0 computes the irq source and reaches the NULL-safe
-	 * dc_interrupt_set(); the ips_support branch is skipped (dc == NULL).
+	 * amdgpu_dm_irq_set(); the ips_support branch is skipped (dc == NULL).
 	 */
 	acrtc->otg_inst = 3;
 	adev->mode_info.crtcs[0] = acrtc;
@@ -1671,8 +1671,8 @@ static void dm_test_set_vupdate_irq_state_enable(struct kunit *test)
  *
  * With a non-NULL DC that advertises IPS support and currently allows idle
  * optimizations, dm_irq_state() must call dc_allow_idle_optimizations() before
- * dc_interrupt_set(). disable_idle_power_optimizations makes that call a safe
- * early return, and per-source stub funcs let dc_interrupt_set() succeed.
+ * amdgpu_dm_irq_set(). disable_idle_power_optimizations makes that call a safe
+ * early return, and per-source stub funcs let amdgpu_dm_irq_set() succeed.
  */
 static void dm_test_set_crtc_irq_state_allows_idle(struct kunit *test)
 {
@@ -1891,7 +1891,7 @@ static void dm_test_set_hpd_irq_state_null_dc(struct kunit *test)
 	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
 
-	/* dc_interrupt_set() is a no-op when dc is NULL, so both states
+	/* amdgpu_dm_irq_set() is a no-op when dc is NULL, so both states
 	 * return 0 without dereferencing the (absent) DC.
 	 */
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_set_hpd_irq_state(adev, NULL, AMDGPU_HPD_1,
@@ -1951,7 +1951,7 @@ static void dm_test_outbox_init_null_dc(struct kunit *test)
 	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
 
-	/* Single dc_interrupt_set() call must be skipped when dc is NULL. */
+	/* Single amdgpu_dm_irq_set() call must be skipped when dc is NULL. */
 	amdgpu_dm_outbox_init(adev);
 }
 
@@ -1969,7 +1969,7 @@ static void dm_test_hpd_init_empty_connectors(struct kunit *test)
 
 	/*
 	 * With an empty connector list the per-connector loop is skipped and
-	 * the initial clear loop relies on dc_interrupt_set() being a no-op
+	 * the initial clear loop relies on amdgpu_dm_irq_set() being a no-op
 	 * for a NULL dc, so init must complete without touching the DC.
 	 */
 	amdgpu_dm_hpd_init(adev);
@@ -2004,7 +2004,7 @@ static void dm_test_hpd_init_fini_with_connectors(struct kunit *test)
 
 	/*
 	 * num_hpd = 0 forces irq_type >= num_hpd so the loop takes the HW
-	 * fallback (dc_interrupt_set()) instead of amdgpu_irq_get(); with a
+	 * fallback (amdgpu_dm_irq_set()) instead of amdgpu_irq_get(); with a
 	 * NULL dc that fallback is a safe no-op.
 	 */
 	adev->mode_info.num_hpd = 0;
@@ -2090,7 +2090,7 @@ static void dm_test_hpd_init_fini_irq_ref(struct kunit *test)
 	/*
 	 * num_hpd >= 1 makes irq_type (0) < num_hpd, so the loop takes the
 	 * amdgpu_irq_get()/amdgpu_irq_put() branch instead of the
-	 * dc_interrupt_set() fallback. The mock device has irq.installed ==
+	 * amdgpu_dm_irq_set() fallback. The mock device has irq.installed ==
 	 * false, so both calls fail early with -ENOENT (logging an error)
 	 * without touching the base-driver irq state.
 	 */

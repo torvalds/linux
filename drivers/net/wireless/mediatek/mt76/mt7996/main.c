@@ -310,7 +310,14 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		if (vif->type == NL80211_IFTYPE_AP)
 			return mt7996_mcu_mld_link_oper(dev, link_conf, link,
 							true);
-		return 0;
+
+		/* update the link address */
+		ret = mt7996_mcu_add_dev_info(phy, vif, link_conf, mlink, true);
+		if (ret)
+			return ret;
+
+		return mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink,
+					       msta_link, true);
 	}
 
 	mlink->idx = __ffs64(~dev->mt76.vif_mask);
@@ -1426,6 +1433,7 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 			else if (sta->mlo && links == BIT(link_id)) /* last link */
 				mt7996_mcu_teardown_mld_sta(dev, link,
 							    msta_link);
+			msta_link->wcid.tx_info &= ~MT_WCID_TX_INFO_SET;
 			msta_link->wcid.sta_disabled = 1;
 			msta_link->wcid.sta = 0;
 			links = links & ~BIT(link_id);

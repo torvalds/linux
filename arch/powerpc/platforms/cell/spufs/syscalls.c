@@ -82,8 +82,4 @@ struct spufs_calls spufs_calls = {
 	.spu_run = do_spu_run,
 	.notify_spus_active = do_notify_spus_active,
 	.owner = THIS_MODULE,
-#ifdef CONFIG_COREDUMP
-	.coredump_extra_notes_size = spufs_coredump_extra_notes_size,
-	.coredump_extra_notes_write = spufs_coredump_extra_notes_write,
-#endif
 };

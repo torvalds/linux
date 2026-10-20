@@ -9,4 +9,17 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	bus@0 {
+		pwm@c6a0000 {
+			status = "okay";
+		};
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		cooling-levels = <77 102 140 192 255>;
+		pwms = <&pwm4 0 40000>;
+		#cooling-cells = <2>;
+	};
 };

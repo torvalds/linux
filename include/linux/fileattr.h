@@ -74,7 +74,7 @@ static inline bool fileattr_has_fsx(const struct file_kattr *fa)
 }
 
 int vfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
-int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+int vfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct file_kattr *fa);
 int ioctl_getflags(struct file *file, unsigned int __user *argp);
 int ioctl_setflags(struct file *file, unsigned int __user *argp);

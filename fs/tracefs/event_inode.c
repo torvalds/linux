@@ -91,6 +91,14 @@ static void free_ei_rcu(struct rcu_head *rcu)
 	}
 }
 
+/* read under eventfs_srcu and, by tracefs_d_revalidate(), in rcu pathwalk */
+static void free_ei_srcu(struct rcu_head *rcu)
+{
+	struct eventfs_inode *ei = container_of(rcu, struct eventfs_inode, rcu);
+
+	call_rcu(&ei->rcu, free_ei_rcu);
+}
+
 /*
  * eventfs_inode reference count management.
  *
@@ -112,7 +120,7 @@ static void release_ei(struct kref *ref)
 			entry->release(entry->name, ei->data);
 	}
 
-	call_srcu(&eventfs_srcu, &ei->rcu, free_ei_rcu);
+	call_srcu(&eventfs_srcu, &ei->rcu, free_ei_srcu);
 }
 
 static inline void put_ei(struct eventfs_inode *ei)
@@ -182,7 +190,7 @@ static void update_attr(struct eventfs_attr *attr, struct iattr *iattr)
 	}
 }
 
-static int eventfs_set_attr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int eventfs_set_attr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			    struct iattr *iattr)
 {
 	const struct eventfs_entry *entry;
