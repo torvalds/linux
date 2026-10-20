@@ -15,6 +15,7 @@
 #include <linux/memory.h>
 #include <linux/sort.h>
 #include <linux/execmem.h>
+#include <linux/extable.h>
 #include <asm/extable.h>
 #include <asm/ftrace.h>
 #include <asm/set_memory.h>
@@ -2511,6 +2512,68 @@ static void adjust_cmp_imm(u32 *op, s32 *imm)
 	}
 }
 
+/*
+ * There is no branch for unwind_goto, only an extable entry
+ *   { .insn = ret_addr - 1, .fixup = target - ret_addr }
+ * where ret_addr is the return address of the call in front of it. unwind_exit
+ * replaces the return address of its frame with bpf_unwind_target() of it.
+ * ret_addr - 1, because what follows the call can have an entry of its own.
+ * No insn starts there, so a fault cannot hit the entry.
+ */
+static int add_unwind_exentry(struct bpf_prog *prog, u8 *image, u8 *rw_image, int *excnt,
+			      int ret_addr, int target)
+{
+	struct exception_table_entry *ex;
+	s64 delta;
+
+	if (!prog->aux->extable)
+		return 0;
+	if (*excnt >= prog->aux->num_exentries) {
+		pr_err("unwind extable bug\n");
+		return -EFAULT;
+	}
+	ex = &prog->aux->extable[(*excnt)++];
+	delta = image + ret_addr - 1 - (u8 *)&ex->insn;
+	if (!is_simm32(delta)) {
+		pr_err("extable->insn doesn't fit into 32-bit\n");
+		return -EFAULT;
+	}
+	/* switch ex to rw buffer for writes */
+	ex = (void *)rw_image + ((void *)ex - (void *)image);
+	ex->insn = delta;
+	ex->fixup = target - ret_addr;
+	ex->data = EX_TYPE_BPF;
+	return 0;
+}
+
+static u64 bpf_unwind_target(u64 ret_addr)
+{
+	const struct exception_table_entry *e = search_bpf_extables(ret_addr - 1);
+
+	/*
+	 * The verifier made sure that unwind_goto follows a call in a prog. When
+	 * the kernel called an async or an exception callback, it's exit.
+	 */
+	return e ? ret_addr + e->fixup : ret_addr;
+}
+
+/* unwind_exit: fix the return address of this frame. r0 and r2 are returned. */
+static int emit_unwind_ret_addr(u8 **pprog, u8 *ip)
+{
+	u8 *prog = *pprog, *start = prog;
+
+	EMIT2(0x50, 0x56);			/* push rax; push rsi */
+	EMIT4(0x48, 0x8B, 0x7D, 0x08);		/* mov rdi, [rbp + 8] */
+	ip += prog - start;
+	ip += x86_call_depth_emit_accounting(&prog, bpf_unwind_target, ip);
+	if (emit_call(&prog, bpf_unwind_target, ip))
+		return -EINVAL;
+	EMIT4(0x48, 0x89, 0x45, 0x08);		/* mov [rbp + 8], rax */
+	EMIT2(0x5E, 0x58);			/* pop rsi; pop rax */
+	*pprog = prog;
+	return 0;
+}
+
 static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		  u8 *rw_image, int oldproglen, struct jit_context *ctx, bool jmp_padding)
 {
@@ -3493,6 +3556,34 @@ populate_extable:
 				pop_r9(&prog);
 			break;
 
+			/* unwind_goto. The verifier expanded may_goto. */
+		case BPF_JMP | BPF_JCOND:
+			if (!priv_frame_ptr) {
+				err = add_unwind_exentry(bpf_prog, image, rw_image, &excnt,
+							 addrs[i - 1], addrs[i + insn->off]);
+				if (err)
+					return err;
+				break;
+			}
+			/*
+			 * 'pop r9' after the call has to be done on the way to
+			 * the pad too:
+			 *   call foo
+			 *   pop r9      <- exit returns here
+			 *   jmp 1f
+			 *   pop r9      <- unwind_exit returns here
+			 *   jmp pad
+			 * 1:
+			 */
+			err = add_unwind_exentry(bpf_prog, image, rw_image, &excnt,
+						 addrs[i - 1] - 2, addrs[i - 1] + 2);
+			if (err)
+				return err;
+			EMIT2(0xEB, 7);
+			pop_r9(&prog);
+			EMIT1_off32(0xE9, addrs[i + insn->off] - (addrs[i - 1] + 9));
+			break;
+
 		case BPF_JMP | BPF_TAIL_CALL:
 			if (imm32)
 				emit_bpf_tail_call_direct(bpf_prog,
@@ -3774,13 +3865,16 @@ emit_jmp:
 			break;
 
 		case BPF_JMP | BPF_EXIT:
+			if (src_reg == BPF_UNWIND_EXIT && bpf_prog_can_unwind(bpf_prog) &&
+			    emit_unwind_ret_addr(&prog, ip))
+				return -EINVAL;
 			if (seen_exit) {
 				jmp_offset = ctx->cleanup_addr - addrs[i];
 				goto emit_jmp;
 			}
 			seen_exit = true;
 			/* Update cleanup_addr */
-			ctx->cleanup_addr = proglen;
+			ctx->cleanup_addr = proglen + (prog - temp);
 			if (bpf_prog_was_classic(bpf_prog) &&
 			    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN)) {
 				if (emit_spectre_bhb_barrier(&prog, ip, bpf_prog))
@@ -5023,6 +5117,11 @@ bool bpf_jit_supports_kfunc_call(void)
 }
 
 bool bpf_jit_supports_kfunc_ret_reg_pair(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_unwind(void)
 {
 	return true;
 }

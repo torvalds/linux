@@ -357,7 +357,7 @@ int bpf_prune_dead_branches(struct bpf_verifier_env *env)
 
 		if (!bpf_insn_is_cond_jump(insn->code))
 			continue;
-		if (bpf_is_may_goto_insn(insn))
+		if (BPF_OP(insn->code) == BPF_JCOND)
 			continue;
 
 		if (!(aux->const_reg_mask & BIT(insn->dst_reg)))
