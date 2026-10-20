@@ -153,6 +153,19 @@ clean: $(LIBSUBCMD)-clean
 mrproper: clean
 	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
 
+# The kernel's own Makefile sets OBJCOPY, to llvm-objcopy under LLVM and to
+# $(CROSS_COMPILE)objcopy otherwise; tools/scripts/Makefile.include names only
+# LLVM_OBJCOPY and leaves OBJCOPY unset.  Forwarding it unset would hand the
+# tests an empty string, and they would fall back to GNU objcopy even when
+# asked for an LLVM toolchain.
+OBJCOPY ?= $(if $(LLVM),$(LLVM_OBJCOPY),$(CROSS_COMPILE)objcopy)
+
+tests: $(OBJTOOL)
+	$(Q)OBJTOOL=$(abspath $(OBJTOOL)) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
+		CC='$(CC) $(CLANG_CROSS_FLAGS)' LD='$(LD)' \
+		READELF='$(READELF)' OBJCOPY='$(OBJCOPY)' \
+		KEEP=$(KEEP) $(srctree)/tools/objtool/tests/run-tests.sh
+
 FORCE:
 
-.PHONY: clean mrproper FORCE
+.PHONY: clean mrproper tests FORCE

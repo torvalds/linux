@@ -1,0 +1,286 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======================================
+Design of the objtool klp test harness
+======================================
+
+tools/objtool/tests/ holds unit tests for the klp subcommands of
+objtool -- ``klp checksum``, ``klp diff``, ``klp post-link`` and
+``--klp-symids`` -- which together turn two builds of the kernel into a
+livepatch module.
+
+This document explains how the harness is built and why.  For the rules to
+follow when adding a test, see klp-write-tests.txt.
+
+
+TL;DR
+=====
+
+One run covers one compiler and one architecture; CI runs the combinations.
+Build objtool first -- it needs libelf and libxxhash -- and the same ARCH is
+used for both steps.
+
+Natively, with gcc::
+
+    make -C tools/objtool
+    make -C tools/objtool tests
+
+Natively, with clang -- LLVM=1 additionally selects the LLVM binutils::
+
+    CC=clang make -C tools/objtool tests
+    LLVM=1 make -C tools/objtool tests
+
+Cross, with gcc -- an arm64 host running the x86 tests::
+
+    ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu- make -C tools/objtool
+    ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu- make -C tools/objtool tests
+
+Cross, with clang.  It defaults to the host triple however it is invoked, so
+--target= is what makes it emit x86; OBJCOPY is needed because BFD's is
+usually built for the host's target alone::
+
+    ARCH=x86_64 make -C tools/objtool
+    ARCH=x86_64 CC="clang --target=x86_64-linux-gnu" OBJCOPY=llvm-objcopy \
+            make -C tools/objtool tests
+
+A run ends with a totals line; anything other than fail:0 is a real result::
+
+    # pass:48 fail:0 static-skip:1 probe-skip:0 xfail:0 xpass:0
+
+Useful extras::
+
+    tools/objtool/tests/run-tests.sh basic          # one test, by name
+    tools/objtool/tests/run-tests.sh --keep basic   # and keep what it built
+
+
+Why unit tests are possible at all
+==================================
+
+klp-build is a pipeline: build the kernel twice, checksum both, diff them,
+link the result.  Testing that end to end means two kernel builds per case,
+which is too slow to run often and too heavy to keep in the tree.
+
+Three properties make a much cheaper test possible.
+
+**objtool has no configuration-dependent logic.**  It never reads ``.config``.
+Every ``CONFIG_`` string in its source is a comment or one error message, and
+its only build-time conditionals are driven by host libraries and the target
+architecture.  Configuration reaches objtool through exactly two channels: the
+``objtool-args-$(CONFIG_*)`` lines in scripts/Makefile.lib, and the
+contents of the object handed to it.
+
+**The klp subcommands use none of the first channel.**  Of objtool's options
+they consult three -- ``checksum``, ``debug_checksum``, ``dryrun`` -- all from
+their own command line.  So klp behaviour varies with configuration *only*
+through the input object.
+
+**Therefore a test can reproduce any configuration's behaviour by reproducing
+its input.**  Compile a small freestanding fixture with the flags that
+configuration would have used, and objtool cannot tell the difference.  No
+kernel, no ``.config``, no object cache.
+
+The whole suite runs in a few seconds.
+
+
+Shape of a test
+===============
+
+Each test compiles one fixture twice -- once plain, once with ``-DPATCHED`` --
+runs ``klp checksum`` over both, diffs them, and asserts on properties of the
+output object::
+
+    . "$(dirname "$0")/../lib.sh"
+
+    setup
+    build_pair basic.c
+
+    assert_input_symbol changed
+    run_diff
+
+    assert_patched changed
+    assert_not_patched untouched
+
+    pass "changed function cloned, unchanged function left alone"
+
+Assertions check properties, never recorded output.  Codegen varies between
+compilers and versions, so a golden file would report churn rather than
+regressions.
+
+
+Layout
+======
+
+::
+
+    tools/objtool/tests/
+        lib.sh              the harness: everything a test may call
+        run-tests.sh        selects, runs and classifies
+        generic/
+            test-*.sh
+            fixtures/*.c
+        x86/
+            test-*.sh
+            fixtures/*.c
+
+Which architecture a test is for is expressed by where it lives.  The runner
+executes ``generic/`` plus the directory matching this architecture, so a test
+which cannot apply is not run rather than running in order to report that it
+did not.  There is no ``x86_only`` helper, and no lookup letting an
+architecture fixture shadow a generic one: an architecture-specific test
+carries its own fixtures.
+
+Compilers cannot be expressed the same way, because CI varies ``CC`` over the
+same tree.  A compiler requirement stays a declaration inside the test
+(``gcc_only``, ``clang_only``).
+
+
+The environment is established once
+===================================
+
+Sourcing lib.sh runs ``klp_preflight``, which checks that objtool
+exists and has klp support, that ``$CC`` works, that the binutils are present,
+and which architecture this is.  The answers are exported, so:
+
+* ``run-tests.sh`` sources lib.sh too, and therefore knows the
+  architecture before it chooses which tests to run;
+* each test inherits the answers rather than repeating the work;
+* a test run on its own establishes them for itself.
+
+Preflight answers only whether the suite can run at all.  A suite which cannot
+run must not exit 0 looking like one which passed, so a missing objtool fails
+the whole run with a TAP ``Bail out!`` rather than skipping each test in turn.
+What a *particular* compiler can do is a different question, left to the test
+which cares.
+
+
+Outcomes
+========
+
+Output is TAP.  The distinction the harness cares most about is between kinds
+of skip, because a skip is how a suite quietly stops testing anything:
+
+``declared``
+    The test said in advance it does not apply -- ``gcc_only`` on a clang run.
+    Expected indefinitely.
+
+``probe``
+    The construct did not turn up in the built object this time.  Weaker: one
+    which becomes permanent is a fixture that has stopped testing anything.
+
+``undeclared``
+    Counted as a **failure**.  A test which gives up for a reason it never
+    declared is a hole, not an outcome.
+
+``xfail``/``xpass`` come with them, so a known failure is reported rather than
+commented out, and one which starts passing says so instead of going quietly
+green.
+
+The runner classifies the TAP result line, not everything a test printed:
+objtool warns on stderr and that output is captured, so a stray line ahead of
+the result would otherwise leave the exit status to decide -- and an expected
+failure exits 0.
+
+A run ends with a totals line::
+
+    # pass:48 fail:0 static-skip:1 probe-skip:0 xfail:0 xpass:0
+
+and reports what it left out::
+
+    # not run: 5 tests in x86/ (this run is arm64)
+
+
+Working directories
+===================
+
+A run gets one directory; each test gets a subdirectory of it, mirroring the
+source layout::
+
+    /tmp/klp-tests.XXXXXXXX/
+        generic/test-basic/{orig.o,patched.o,out.o,Module.symvers,...}
+        x86/test-kcfi/...
+
+By default (``KEEP=failed``) only failing tests keep their directories; the
+runner reports where they are.  ``KEEP=all`` keeps every test's directory;
+``KEEP=none`` removes them all.  The runner ``rmdir``s the run directory when
+it is empty -- which fails if anything was left behind unexpectedly, so a test
+which dies without cleaning up is reported rather than silently leaking.
+
+
+Running
+=======
+
+::
+
+    make -C tools/objtool                 # needs libelf and libxxhash
+    make -C tools/objtool tests
+
+    CC=clang make -C tools/objtool tests  # the other toolchain
+    LLVM=1 make -C tools/objtool tests    # and its binutils too
+
+    make -C tools/objtool tests KEEP=all    # keep every test's workdir
+    make -C tools/objtool tests KEEP=none   # remove all workdirs
+
+    tools/objtool/tests/run-tests.sh basic  # one test; failures kept by default
+
+A run covers one compiler and one architecture; CI runs the combinations.
+
+Cross-compiled runs
+-------------------
+
+objtool klp is built only where ARCH_HAS_KLP is set, which today means x86 --
+so an arm64 machine cannot run any of this natively.  It can run all of it
+cross, because objtool is a host tool that only reads and rewrites ELF, and
+the tests only compile fixtures and inspect the objects.  Nothing has to
+execute target code.
+
+::
+
+    ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu- make -C tools/objtool
+    ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu- make -C tools/objtool tests
+
+objtool itself stays a native binary: it is built with HOSTCC, not CC, so
+setting a cross compiler cannot produce one the host is unable to run.  ARCH
+selects both the objtool target and the directory of tests to run.
+
+clang needs telling, since it defaults to the host triple however it is
+invoked.  LLVM=1 with CROSS_COMPILE does that for you -- the --target= it
+derives is forwarded to the tests -- and the fixtures include no kernel
+headers, so no sysroot is needed:
+
+::
+
+    ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu- LLVM=1 \
+            make -C tools/objtool tests
+
+Naming the compiler by hand works too, and is what to reach for when the
+target triple is not the one CROSS_COMPILE implies:
+
+::
+
+    ARCH=x86_64 CC="clang --target=x86_64-linux-gnu" \
+            OBJCOPY=llvm-objcopy make -C tools/objtool tests
+
+CROSS_COMPILE picks the binutils, and each can be overridden on its own.
+readelf reads any target and rarely needs overriding; BFD's objcopy is usually
+built for the host's alone, hence OBJCOPY=llvm-objcopy above, or install
+binutils-multiarch.
+
+Either readelf will do.  The assertions read readelf's output, and the two
+spell some of it differently -- GNU prints "OS [0xff20]" for SHN_LIVEPATCH
+where llvm-readelf prints "OS[0xff20]" -- so they accept both.
+
+Getting this wrong is easy and the harness refuses rather than producing a
+misleading result.  "CC=clang ARCH=x86_64" alone selects the x86 tests and
+then builds arm64 objects; preflight compiles a probe object, hands it to
+objtool, and stops the run if they disagree about the architecture, or if
+ARCH does not match what the compiler emits.
+
+
+What this does not cover
+========================
+
+These are unit tests for objtool's klp subcommands.  They do not build a
+kernel, do not run scripts/livepatch/klp-build, and do not load a
+livepatch.  Behaviour which only appears when the kernel applies a patch --
+the module loader refusing a relocation, late module patching ordering -- has
+to be tested by booting, and is out of scope here.
