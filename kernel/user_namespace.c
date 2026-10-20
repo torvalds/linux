@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <kunit/visibility.h>
 #include <linux/export.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
@@ -162,9 +163,6 @@ int create_user_ns(struct cred *new)
 	ns_tree_add(ns);
 	return 0;
 fail_keyring:
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	key_put(ns->persistent_keyring_register);
-#endif
 	ns_common_free(ns);
 fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
@@ -782,11 +780,13 @@ static bool mappings_overlap(struct uid_gid_map *new_map,
 }
 
 /*
- * insert_extent - Safely insert a new idmap extent into struct uid_gid_map.
+ * uid_gid_map_insert_extent - Safely insert a new idmap extent into
+ * struct uid_gid_map.
  * Takes care to allocate a 4K block of memory if the number of mappings exceeds
  * UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
+VISIBLE_IF_KUNIT int uid_gid_map_insert_extent(struct uid_gid_map *map,
+					       struct uid_gid_extent *extent)
 {
 	struct uid_gid_extent *dest;
 
@@ -809,15 +809,20 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 		map->reverse = NULL;
 	}
 
-	if (map->nr_extents < UID_GID_MAP_MAX_BASE_EXTENTS)
-		dest = &map->extent[map->nr_extents];
+	/*
+	 * nr_extents must be updated before the extent and forward arrays are
+	 * accessed, otherwise KSAN will assert an out-of-bounds error.
+	 */
+	map->nr_extents++;
+	if (map->nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
+		dest = &map->extent[map->nr_extents - 1];
 	else
-		dest = &map->forward[map->nr_extents];
+		dest = &map->forward[map->nr_extents - 1];
 
 	*dest = *extent;
-	map->nr_extents++;
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(uid_gid_map_insert_extent);
 
 /* cmp function to sort() forward mappings */
 static int cmp_extents_forward(const void *a, const void *b)
@@ -850,10 +855,10 @@ static int cmp_extents_reverse(const void *a, const void *b)
 }
 
 /*
- * sort_idmaps - Sorts an array of idmap entries.
+ * uid_gid_map_sort - Sorts an array of idmap entries.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */
-static int sort_idmaps(struct uid_gid_map *map)
+VISIBLE_IF_KUNIT int uid_gid_map_sort(struct uid_gid_map *map)
 {
 	if (map->nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
 		return 0;
@@ -874,6 +879,7 @@ static int sort_idmaps(struct uid_gid_map *map)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(uid_gid_map_sort);
 
 /**
  * verify_root_map() - check the uid 0 mapping
@@ -927,6 +933,26 @@ static bool verify_root_map(const struct file *file,
 	}
 
 	return true;
+}
+
+/*
+ * Parse the decimal u32 at *pos, up to the next whitespace or NUL, and
+ * leave *pos pointing at that character.
+ */
+static int map_parse_u32(char **pos, u32 *res)
+{
+	char *end = *pos;
+	char c;
+	int ret;
+
+	while (*end && !isspace(*end))
+		end++;
+	c = *end;
+	*end = '\0';
+	ret = kstrtou32(*pos, 10, res);
+	*end = c;
+	*pos = end;
+	return ret;
 }
 
 static ssize_t map_write(struct file *file, const char __user *buf,
@@ -1001,17 +1027,20 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		}
 
 		pos = skip_spaces(pos);
-		extent.first = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.first))
+			goto out;
 		if (!isspace(*pos))
 			goto out;
 
 		pos = skip_spaces(pos);
-		extent.lower_first = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.lower_first))
+			goto out;
 		if (!isspace(*pos))
 			goto out;
 
 		pos = skip_spaces(pos);
-		extent.count = simple_strtoul(pos, &pos, 10);
+		if (map_parse_u32(&pos, &extent.count))
+			goto out;
 		if (*pos && !isspace(*pos))
 			goto out;
 
@@ -1042,7 +1071,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		    (next_line != NULL))
 			goto out;
 
-		ret = insert_extent(&new_map, &extent);
+		ret = uid_gid_map_insert_extent(&new_map, &extent);
 		if (ret < 0)
 			goto out;
 		ret = -EINVAL;
@@ -1086,7 +1115,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 * If we want to use binary search for lookup, this clones the extent
 	 * array and sorts both copies.
 	 */
-	ret = sort_idmaps(&new_map);
+	ret = uid_gid_map_sort(&new_map);
 	if (ret < 0)
 		goto out;
 

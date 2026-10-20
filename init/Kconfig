@@ -1462,6 +1462,17 @@ config USER_NS
 
 	  If unsure, say N.
 
+config USER_NS_MAP_KUNIT_TEST
+	tristate "KUint test for user namespace map insertion" if !KUNIT_ALL_TESTS
+	depends on USER_NS && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit test for user namespace uid/gid map insertion.
+	  It validates map insertion, limits, dynamic allocation of the
+	  extended extents array, and mapping sorting functions.
+
+	  If unsure, say N.
+
 config PID_NS
 	bool "PID Namespaces"
 	default y

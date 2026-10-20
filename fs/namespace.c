@@ -4406,8 +4406,6 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 	struct mount *new;
 	int copy_flags;
 
-	BUG_ON(!ns);
-
 	if (likely(!(flags & CLONE_NEWNS))) {
 		get_mnt_ns(ns);
 		return ns;
