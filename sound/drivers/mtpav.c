@@ -443,7 +443,7 @@ static void snd_mtpav_output_trigger(struct snd_rawmidi_substream *substream, in
 
 	scoped_guard(spinlock_irqsave, &mtp_card->spinlock) {
 		if (up) {
-			if ((portp->mode & MTPAV_MODE_OUTPUT_TRIGGERED)) {
+			if (!(portp->mode & MTPAV_MODE_OUTPUT_TRIGGERED)) {
 				if (mtp_card->istimer++ == 0)
 					snd_mtpav_add_output_timer(mtp_card);
 				portp->mode |= MTPAV_MODE_OUTPUT_TRIGGERED;
