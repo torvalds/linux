@@ -66,7 +66,11 @@ extern pmdval_t early_pmd_flags;
 
 #ifndef __PAGETABLE_P4D_FOLDED
 #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
-#define pgd_clear(pgd)			(pgtable_l5_enabled() ? native_pgd_clear(pgd) : 0)
+#define pgd_clear(pgdp)			\
+do {					\
+	if (pgtable_l5_enabled())	\
+		native_pgd_clear(pgdp);	\
+} while (0)
 #endif
 
 #ifndef set_p4d
