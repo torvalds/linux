@@ -5883,6 +5883,8 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 	if (kvm_vm_has_ran_once(kvm))
 		return 0;
 
+	kvm_idregs_enforce_dependencies(kvm);
+
 	/*
 	 * This hacks into the ID registers, so only perform it when the
 	 * first vcpu runs, or the kvm_set_vm_id_reg() helper will scream.
