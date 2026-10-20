@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * __get_user functions.
+ * The out-of-line helpers for get_user().
  *
  * (C) Copyright 1998 Linus Torvalds
  * (C) Copyright 2005 Andi Kleen
@@ -36,8 +36,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/runtime-const.h>
-
-#define ASM_BARRIER_NOSPEC ALTERNATIVE "", "lfence", X86_FEATURE_LFENCE_RDTSC
 
 .macro check_range size:req
 .if IS_ENABLED(CONFIG_X86_64)
@@ -110,58 +108,6 @@ SYM_FUNC_START(__get_user_8)
 	RET
 SYM_FUNC_END(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
-
-/* .. and the same for __get_user, just without the range checks */
-SYM_FUNC_START(__get_user_nocheck_1)
-	ANNOTATE_NOENDBR
-	ASM_STAC
-	ASM_BARRIER_NOSPEC
-	UACCESS movzbl (%_ASM_AX),%edx
-	xor %eax,%eax
-	ASM_CLAC
-	RET
-SYM_FUNC_END(__get_user_nocheck_1)
-EXPORT_SYMBOL(__get_user_nocheck_1)
-
-SYM_FUNC_START(__get_user_nocheck_2)
-	ANNOTATE_NOENDBR
-	ASM_STAC
-	ASM_BARRIER_NOSPEC
-	UACCESS movzwl (%_ASM_AX),%edx
-	xor %eax,%eax
-	ASM_CLAC
-	RET
-SYM_FUNC_END(__get_user_nocheck_2)
-EXPORT_SYMBOL(__get_user_nocheck_2)
-
-SYM_FUNC_START(__get_user_nocheck_4)
-	ANNOTATE_NOENDBR
-	ASM_STAC
-	ASM_BARRIER_NOSPEC
-	UACCESS movl (%_ASM_AX),%edx
-	xor %eax,%eax
-	ASM_CLAC
-	RET
-SYM_FUNC_END(__get_user_nocheck_4)
-EXPORT_SYMBOL(__get_user_nocheck_4)
-
-SYM_FUNC_START(__get_user_nocheck_8)
-	ANNOTATE_NOENDBR
-	ASM_STAC
-	ASM_BARRIER_NOSPEC
-#ifdef CONFIG_X86_64
-	UACCESS movq (%_ASM_AX),%rdx
-#else
-	xor %ecx,%ecx
-	UACCESS movl (%_ASM_AX),%edx
-	UACCESS movl 4(%_ASM_AX),%ecx
-#endif
-	xor %eax,%eax
-	ASM_CLAC
-	RET
-SYM_FUNC_END(__get_user_nocheck_8)
-EXPORT_SYMBOL(__get_user_nocheck_8)
-
 
 SYM_CODE_START_LOCAL(__get_user_handle_exception)
 	ASM_CLAC

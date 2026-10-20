@@ -28,10 +28,6 @@ extern int __get_user_1(void);
 extern int __get_user_2(void);
 extern int __get_user_4(void);
 extern int __get_user_8(void);
-extern int __get_user_nocheck_1(void);
-extern int __get_user_nocheck_2(void);
-extern int __get_user_nocheck_4(void);
-extern int __get_user_nocheck_8(void);
 extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
@@ -56,10 +52,9 @@ extern int __get_user_bad(void);
 	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
 
 /*
- * This is used for both get_user() and __get_user() to expand to
- * the proper special function call that has odd calling conventions
- * due to returning both a value and an error, and that depends on
- * the size of the pointer passed in.
+ * This is used by get_user() to expand to the proper special function
+ * call that has odd calling conventions due to returning both a value
+ * and an error, and that depends on the size of the pointer passed in.
  *
  * Careful: we have to cast the result to the type of the pointer
  * for sign reasons.
@@ -107,29 +102,6 @@ extern int __get_user_bad(void);
  */
 #define get_user(x,ptr) ({ might_fault(); do_get_user_call(get_user,x,ptr); })
 
-/**
- * __get_user - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
- * @ptr: Source address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and the result of
- * dereferencing @ptr must be assignable to @x without a cast.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- * On error, the variable @x is set to zero.
- */
-#define __get_user(x,ptr) do_get_user_call(get_user_nocheck,x,ptr)
-
 
 #ifdef CONFIG_X86_32
 #define __put_user_goto_u64(x, addr, label)			\
@@ -156,10 +128,6 @@ extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
-extern void __put_user_nocheck_1(void);
-extern void __put_user_nocheck_2(void);
-extern void __put_user_nocheck_4(void);
-extern void __put_user_nocheck_8(void);
 
 /*
  * ptr must be evaluated and assigned to the temporary __ptr_pu before
@@ -206,28 +174,6 @@ extern void __put_user_nocheck_8(void);
  * Return: zero on success, or -EFAULT on error.
  */
 #define put_user(x, ptr) ({ might_fault(); do_put_user_call(put_user,x,ptr); })
-
-/**
- * __put_user - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
- * @ptr: Destination address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and @x must be assignable
- * to the result of dereferencing @ptr.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- */
-#define __put_user(x, ptr) do_put_user_call(put_user_nocheck,x,ptr)
 
 #define __put_user_size(x, ptr, size, label)				\
 do {									\
