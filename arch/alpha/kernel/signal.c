@@ -161,51 +161,54 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
 	unsigned long usp;
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	long err = __get_user(regs->pc, &sc->sc_pc);
 
 	current->restart_block.fn = do_no_restart_syscall;
 	current_thread_info()->status |= TS_SAVED_FP | TS_RESTORE_FP;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
 
-	err |= __get_user(regs->r0, sc->sc_regs+0);
-	err |= __get_user(regs->r1, sc->sc_regs+1);
-	err |= __get_user(regs->r2, sc->sc_regs+2);
-	err |= __get_user(regs->r3, sc->sc_regs+3);
-	err |= __get_user(regs->r4, sc->sc_regs+4);
-	err |= __get_user(regs->r5, sc->sc_regs+5);
-	err |= __get_user(regs->r6, sc->sc_regs+6);
-	err |= __get_user(regs->r7, sc->sc_regs+7);
-	err |= __get_user(regs->r8, sc->sc_regs+8);
-	err |= __get_user(sw->r9, sc->sc_regs+9);
-	err |= __get_user(sw->r10, sc->sc_regs+10);
-	err |= __get_user(sw->r11, sc->sc_regs+11);
-	err |= __get_user(sw->r12, sc->sc_regs+12);
-	err |= __get_user(sw->r13, sc->sc_regs+13);
-	err |= __get_user(sw->r14, sc->sc_regs+14);
-	err |= __get_user(sw->r15, sc->sc_regs+15);
-	err |= __get_user(regs->r16, sc->sc_regs+16);
-	err |= __get_user(regs->r17, sc->sc_regs+17);
-	err |= __get_user(regs->r18, sc->sc_regs+18);
-	err |= __get_user(regs->r19, sc->sc_regs+19);
-	err |= __get_user(regs->r20, sc->sc_regs+20);
-	err |= __get_user(regs->r21, sc->sc_regs+21);
-	err |= __get_user(regs->r22, sc->sc_regs+22);
-	err |= __get_user(regs->r23, sc->sc_regs+23);
-	err |= __get_user(regs->r24, sc->sc_regs+24);
-	err |= __get_user(regs->r25, sc->sc_regs+25);
-	err |= __get_user(regs->r26, sc->sc_regs+26);
-	err |= __get_user(regs->r27, sc->sc_regs+27);
-	err |= __get_user(regs->r28, sc->sc_regs+28);
-	err |= __get_user(regs->gp, sc->sc_regs+29);
-	err |= __get_user(usp, sc->sc_regs+30);
+	scoped_user_read_access(sc, Efault) {
+		unsafe_get_user(regs->pc, &sc->sc_pc, Efault);
+		unsafe_get_user(regs->r0, sc->sc_regs+0, Efault);
+		unsafe_get_user(regs->r1, sc->sc_regs+1, Efault);
+		unsafe_get_user(regs->r2, sc->sc_regs+2, Efault);
+		unsafe_get_user(regs->r3, sc->sc_regs+3, Efault);
+		unsafe_get_user(regs->r4, sc->sc_regs+4, Efault);
+		unsafe_get_user(regs->r5, sc->sc_regs+5, Efault);
+		unsafe_get_user(regs->r6, sc->sc_regs+6, Efault);
+		unsafe_get_user(regs->r7, sc->sc_regs+7, Efault);
+		unsafe_get_user(regs->r8, sc->sc_regs+8, Efault);
+		unsafe_get_user(sw->r9, sc->sc_regs+9, Efault);
+		unsafe_get_user(sw->r10, sc->sc_regs+10, Efault);
+		unsafe_get_user(sw->r11, sc->sc_regs+11, Efault);
+		unsafe_get_user(sw->r12, sc->sc_regs+12, Efault);
+		unsafe_get_user(sw->r13, sc->sc_regs+13, Efault);
+		unsafe_get_user(sw->r14, sc->sc_regs+14, Efault);
+		unsafe_get_user(sw->r15, sc->sc_regs+15, Efault);
+		unsafe_get_user(regs->r16, sc->sc_regs+16, Efault);
+		unsafe_get_user(regs->r17, sc->sc_regs+17, Efault);
+		unsafe_get_user(regs->r18, sc->sc_regs+18, Efault);
+		unsafe_get_user(regs->r19, sc->sc_regs+19, Efault);
+		unsafe_get_user(regs->r20, sc->sc_regs+20, Efault);
+		unsafe_get_user(regs->r21, sc->sc_regs+21, Efault);
+		unsafe_get_user(regs->r22, sc->sc_regs+22, Efault);
+		unsafe_get_user(regs->r23, sc->sc_regs+23, Efault);
+		unsafe_get_user(regs->r24, sc->sc_regs+24, Efault);
+		unsafe_get_user(regs->r25, sc->sc_regs+25, Efault);
+		unsafe_get_user(regs->r26, sc->sc_regs+26, Efault);
+		unsafe_get_user(regs->r27, sc->sc_regs+27, Efault);
+		unsafe_get_user(regs->r28, sc->sc_regs+28, Efault);
+		unsafe_get_user(regs->gp, sc->sc_regs+29, Efault);
+		unsafe_get_user(usp, sc->sc_regs+30, Efault);
+		unsafe_copy_from_user(current_thread_info()->fp,
+				      sc->sc_fpregs, 31 * 8, Efault);
+		unsafe_get_user(current_thread_info()->fp[31], &sc->sc_fpcr, Efault);
+	}
 	wrusp(usp);
+	return 0;
 
-	err |= __copy_from_user(current_thread_info()->fp,
-				sc->sc_fpregs, 31 * 8);
-	err |= __get_user(current_thread_info()->fp[31], &sc->sc_fpcr);
-
-	return err;
+Efault:
+	return -EFAULT;
 }
 
 /* Note that this syscall is also used by setcontext(3) to install
@@ -218,11 +221,8 @@ do_sigreturn(struct sigcontext __user *sc)
 	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
-	/* Verify that it's a good sigcontext before using it */
-	if (!access_ok(sc, sizeof(*sc)))
-		goto give_sigsegv;
-	if (__get_user(set.sig[0], &sc->sc_mask))
-		goto give_sigsegv;
+	scoped_user_read_access(sc, give_sigsegv)
+		unsafe_get_user(set.sig[0], &sc->sc_mask, give_sigsegv);
 
 	set_current_blocked(&set);
 
