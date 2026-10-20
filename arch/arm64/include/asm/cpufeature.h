@@ -187,6 +187,10 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *	b) SCOPE_LOCAL_CPU, SCOPE_SYSTEM: All CPUs hotplugged on by the
  *	user after the kernel boot are verified against the capability.
  *
+ *    SCOPE_BOOT_CPU and SCOPE_SYSTEM capabilities with
+ *    ARM64_CPUCAP_PROBE_ONCE are not matched again on these CPUs. They
+ *    take the state already detected, so there cannot be a conflict.
+ *
  *    If there is a conflict, the kernel takes an action, based on the
  *    severity (e.g, a CPU could be prevented from booting or cause a
  *    kernel panic). The CPU is allowed to "affect" the state of the
@@ -267,6 +271,13 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 #define SCOPE_ALL				ARM64_CPUCAP_SCOPE_MASK
 
 /*
+ * matches() is called only once, when the capability is detected, and the
+ * result applies to all CPUs. Secondary and late CPUs are not checked for
+ * conflicts but cpu_enable() is still called on each of them. It has no
+ * effect on SCOPE_LOCAL_CPU capabilities.
+ */
+#define ARM64_CPUCAP_PROBE_ONCE			((u16)BIT(3))
+/*
  * Is it permitted for a late CPU to have this capability when system
  * hasn't already enabled it ?
  */
@@ -293,6 +304,13 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  */
 #define ARM64_CPUCAP_LOCAL_CPU_ERRATUM		\
 	(ARM64_CPUCAP_SCOPE_LOCAL_CPU | ARM64_CPUCAP_OPTIONAL_FOR_LATE_CPU)
+/*
+ * SoC (not CPU) errata workarounds. The erratum is probed once on the boot
+ * CPU, before the secondary CPUs are brought up, and no secondary or late CPU
+ * can conflict with it.
+ */
+#define ARM64_CPUCAP_SOC_ERRATUM			\
+	(ARM64_CPUCAP_SCOPE_BOOT_CPU | ARM64_CPUCAP_PROBE_ONCE)
 /*
  * CPU feature detected at boot time based on system-wide value of a
  * feature. It is safe for a late CPU to have this feature even though
@@ -412,6 +430,12 @@ static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
 static inline bool cpucap_match_all_early_cpus(const struct arm64_cpu_capabilities *cap)
 {
 	return cap->type & ARM64_CPUCAP_MATCH_ALL_EARLY_CPUS;
+}
+
+static inline bool cpucap_probe_once(const struct arm64_cpu_capabilities *cap)
+{
+	return (cap->type & ARM64_CPUCAP_PROBE_ONCE) &&
+	       !(cap->type & ARM64_CPUCAP_SCOPE_LOCAL_CPU);
 }
 
 /*
@@ -625,6 +649,13 @@ static inline bool id_aa64pfr1_mpamfrac(u64 pfr1)
 	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_MPAM_frac_SHIFT);
 
 	return val > 0;
+}
+
+static inline bool id_aa64pfr1_mte(u64 pfr1)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_MTE_SHIFT);
+
+	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
 void __init setup_boot_cpu_features(void);
@@ -957,6 +988,10 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 
 s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new, s64 cur);
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
+u64 arm64_ftr_reg_override(u32 sys_id, u64 val);
+
+/* Read this CPU's ID register with each valid command-line override applied. */
+#define read_cpuid_with_overrides(reg)	arm64_ftr_reg_override(SYS_##reg, read_cpuid(reg))
 
 extern struct arm64_ftr_override id_aa64mmfr0_override;
 extern struct arm64_ftr_override id_aa64mmfr1_override;

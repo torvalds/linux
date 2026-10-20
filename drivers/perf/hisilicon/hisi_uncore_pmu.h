@@ -171,4 +171,6 @@ int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 void hisi_uncore_pmu_init_topology(struct hisi_pmu *hisi_pmu, struct device *dev);
 
 void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module);
+
+extern enum cpuhp_state hisi_uncore_pmu_cpuhp_state;
 #endif /* __HISI_UNCORE_PMU_H__ */

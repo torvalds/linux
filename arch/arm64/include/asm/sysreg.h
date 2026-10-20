@@ -62,19 +62,10 @@
 
 #else  /* CONFIG_BROKEN_GAS_INST */
 
-#ifndef CONFIG_CPU_BIG_ENDIAN
-#define __INSTR_BSWAP(x)		(x)
-#else  /* CONFIG_CPU_BIG_ENDIAN */
-#define __INSTR_BSWAP(x)		((((x) << 24) & 0xff000000)	| \
-					 (((x) <<  8) & 0x00ff0000)	| \
-					 (((x) >>  8) & 0x0000ff00)	| \
-					 (((x) >> 24) & 0x000000ff))
-#endif	/* CONFIG_CPU_BIG_ENDIAN */
-
 #ifdef __ASSEMBLER__
-#define __emit_inst(x)			.long __INSTR_BSWAP(x)
+#define __emit_inst(x)			.long (x)
 #else  /* __ASSEMBLER__ */
-#define __emit_inst(x)			".long " __stringify(__INSTR_BSWAP(x)) "\n\t"
+#define __emit_inst(x)			".long " __stringify(x) "\n\t"
 #endif	/* __ASSEMBLER__ */
 
 #endif	/* CONFIG_BROKEN_GAS_INST */
@@ -173,7 +164,7 @@
  * come from here. The header relies on the definition of sys_reg()
  * earlier in this file.
  */
-#include "asm/sysreg-defs.h"
+#include <asm/sysreg-defs.h>
 
 /*
  * System registers, organised loosely by encoding but grouped together
@@ -835,39 +826,26 @@
 #define SCTLR_ELx_A	 (BIT(1))
 #define SCTLR_ELx_M	 (BIT(0))
 
-#ifdef CONFIG_CPU_BIG_ENDIAN
-#define ENDIAN_SET_EL2		SCTLR_ELx_EE
-#else
-#define ENDIAN_SET_EL2		0
-#endif
-
 #define INIT_SCTLR_EL2_MMU_ON						\
 	(SCTLR_ELx_M  | SCTLR_ELx_C | SCTLR_ELx_SA | SCTLR_ELx_I |	\
-	 SCTLR_ELx_IESB | SCTLR_ELx_WXN | ENDIAN_SET_EL2 |		\
-	 SCTLR_ELx_ITFSB | SCTLR_ELx_EIS | SCTLR_ELx_EOS | SCTLR_EL2_RES1)
+	 SCTLR_ELx_IESB | SCTLR_ELx_WXN | SCTLR_ELx_ITFSB |		\
+	 SCTLR_ELx_EIS | SCTLR_ELx_EOS | SCTLR_EL2_RES1)
 
-#define INIT_SCTLR_EL2_MMU_OFF \
-	(SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
+#define INIT_SCTLR_EL2_MMU_OFF	(SCTLR_EL2_RES1)
 
 /* SCTLR_EL1 specific flags. */
-#ifdef CONFIG_CPU_BIG_ENDIAN
-#define ENDIAN_SET_EL1		(SCTLR_EL1_E0E | SCTLR_ELx_EE)
-#else
-#define ENDIAN_SET_EL1		0
-#endif
-
 #define INIT_SCTLR_EL1_MMU_OFF \
-	(ENDIAN_SET_EL1 | SCTLR_EL1_LSMAOE | SCTLR_EL1_nTLSMD | \
-	 SCTLR_EL1_EIS  | SCTLR_EL1_TSCXT  | SCTLR_EL1_EOS)
+	(SCTLR_EL1_LSMAOE | SCTLR_EL1_nTLSMD | SCTLR_EL1_EIS  |		\
+	 SCTLR_EL1_TSCXT  | SCTLR_EL1_EOS)
 
 #define INIT_SCTLR_EL1_MMU_ON \
-	(SCTLR_ELx_M      | SCTLR_ELx_C      | SCTLR_ELx_SA    | \
-	 SCTLR_EL1_SA0    | SCTLR_EL1_SED    | SCTLR_ELx_I     | \
-	 SCTLR_EL1_DZE    | SCTLR_EL1_UCT    | SCTLR_EL1_nTWE  | \
-	 SCTLR_ELx_IESB   | SCTLR_EL1_SPAN   | SCTLR_ELx_ITFSB | \
-	 ENDIAN_SET_EL1   | SCTLR_EL1_UCI    | SCTLR_EL1_EPAN  | \
-	 SCTLR_EL1_LSMAOE | SCTLR_EL1_nTLSMD | SCTLR_EL1_EIS   | \
-	 SCTLR_EL1_TSCXT  | SCTLR_EL1_EOS)
+	(SCTLR_ELx_M      | SCTLR_ELx_C      | SCTLR_ELx_SA     | \
+	 SCTLR_EL1_SA0    | SCTLR_EL1_SED    | SCTLR_ELx_I      | \
+	 SCTLR_EL1_DZE    | SCTLR_EL1_UCT    | SCTLR_EL1_nTWE   | \
+	 SCTLR_ELx_IESB   | SCTLR_EL1_SPAN   | SCTLR_ELx_ITFSB  | \
+	 SCTLR_EL1_UCI    | SCTLR_EL1_EPAN   | SCTLR_EL1_LSMAOE | \
+	 SCTLR_EL1_nTLSMD | SCTLR_EL1_EIS    | SCTLR_EL1_TSCXT  | \
+	 SCTLR_EL1_EOS)
 
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)

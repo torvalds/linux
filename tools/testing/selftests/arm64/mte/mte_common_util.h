@@ -64,6 +64,10 @@ void mte_restore_setup(void);
 int mte_switch_mode(int mte_option, unsigned long incl_mask, bool stonly);
 void mte_initialize_current_context(int mode, uintptr_t ptr, ssize_t range);
 
+/* Safe memory access functions */
+void *memset_safe(void *s, int c, size_t n);
+void *memcpy_safe(void *dest, const void *src, size_t n);
+
 /* Common utility functions */
 int create_temp_file(void);
 

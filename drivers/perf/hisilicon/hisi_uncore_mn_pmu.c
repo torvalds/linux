@@ -13,9 +13,6 @@
 
 #include "hisi_uncore_pmu.h"
 
-/* Dynamic CPU hotplug state used by MN PMU */
-static enum cpuhp_state hisi_mn_pmu_online;
-
 /* MN register definition */
 #define HISI_MN_DYNAMIC_CTRL_REG	0x400
 #define   HISI_MN_DYNAMIC_CTRL_EN	BIT(0)
@@ -191,7 +188,7 @@ static const struct attribute_group hisi_mn_pmu_format_group = {
 	.attrs = hisi_mn_pmu_format_attr,
 };
 
-static struct attribute *hisi_mn_pmu_events_attr[] = {
+static struct attribute *hisi_mn_pmu_events_attr_v1[] = {
 	HISI_PMU_EVENT_ATTR(req_eobarrier_num,		0x00),
 	HISI_PMU_EVENT_ATTR(req_ecbarrier_num,		0x01),
 	HISI_PMU_EVENT_ATTR(req_dvmop_num,		0x02),
@@ -218,14 +215,55 @@ static struct attribute *hisi_mn_pmu_events_attr[] = {
 	NULL
 };
 
-static const struct attribute_group hisi_mn_pmu_events_group = {
+static const struct attribute_group hisi_mn_pmu_events_group_v1 = {
 	.name = "events",
-	.attrs = hisi_mn_pmu_events_attr,
+	.attrs = hisi_mn_pmu_events_attr_v1,
 };
 
-static const struct attribute_group *hisi_mn_pmu_attr_groups[] = {
+static const struct attribute_group *hisi_mn_pmu_attr_groups_v1[] = {
 	&hisi_mn_pmu_format_group,
-	&hisi_mn_pmu_events_group,
+	&hisi_mn_pmu_events_group_v1,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
+	NULL
+};
+
+static struct attribute *hisi_mn_pmu_events_attr_v2[] = {
+	HISI_PMU_EVENT_ATTR(req_eobarrier_num,		0x00),
+	HISI_PMU_EVENT_ATTR(req_ecbarrier_num,		0x01),
+	HISI_PMU_EVENT_ATTR(req_dvmop_num,		0x02),
+	HISI_PMU_EVENT_ATTR(req_dvmsync_num,		0x03),
+	HISI_PMU_EVENT_ATTR(req_retry_num,		0x04),
+	HISI_PMU_EVENT_ATTR(req_writenosnp_num,		0x05),
+	HISI_PMU_EVENT_ATTR(req_readnosnp_num,		0x06),
+	HISI_PMU_EVENT_ATTR(snp_dvm_num,		0x07),
+	HISI_PMU_EVENT_ATTR(snp_dvmsync_num,		0x08),
+	HISI_PMU_EVENT_ATTR(l3t_req_dvm_num,		0x09),
+	HISI_PMU_EVENT_ATTR(l3t_req_dvmsync_num,	0x0A),
+	HISI_PMU_EVENT_ATTR(mn_req_dvm_num,		0x0B),
+	HISI_PMU_EVENT_ATTR(mn_req_dvmsync_num,		0x0C),
+	HISI_PMU_EVENT_ATTR(pa_req_dvm_num,		0x0D),
+	HISI_PMU_EVENT_ATTR(pa_req_dvmsync_num,		0x0E),
+	HISI_PMU_EVENT_ATTR(cycles,					0x0F),
+	HISI_PMU_EVENT_ATTR(snp_dvm_latency,		0x80),
+	HISI_PMU_EVENT_ATTR(snp_dvmsync_latency,	0x81),
+	HISI_PMU_EVENT_ATTR(l3t_req_dvm_latency,	0x82),
+	HISI_PMU_EVENT_ATTR(l3t_req_dvmsync_latency,	0x83),
+	HISI_PMU_EVENT_ATTR(mn_req_dvm_latency,		0x84),
+	HISI_PMU_EVENT_ATTR(mn_req_dvmsync_latency,	0x85),
+	HISI_PMU_EVENT_ATTR(pa_req_dvm_latency,		0x86),
+	HISI_PMU_EVENT_ATTR(pa_req_dvmsync_latency,	0x87),
+	NULL
+};
+
+static const struct attribute_group hisi_mn_pmu_events_group_v2 = {
+	.name = "events",
+	.attrs = hisi_mn_pmu_events_attr_v2,
+};
+
+static const struct attribute_group *hisi_mn_pmu_attr_groups_v2[] = {
+	&hisi_mn_pmu_format_group,
+	&hisi_mn_pmu_events_group_v2,
 	&hisi_pmu_cpumask_attr_group,
 	&hisi_pmu_identifier_group,
 	NULL
@@ -291,7 +329,7 @@ static int hisi_mn_pmu_dev_init(struct platform_device *pdev,
 
 static void hisi_mn_pmu_remove_cpuhp(void *hotplug_node)
 {
-	cpuhp_state_remove_instance_nocalls(hisi_mn_pmu_online, hotplug_node);
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state, hotplug_node);
 }
 
 static void hisi_mn_pmu_unregister(void *pmu)
@@ -320,7 +358,7 @@ static int hisi_mn_pmu_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	ret = cpuhp_state_add_instance(hisi_mn_pmu_online, &mn_pmu->node);
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state, &mn_pmu->node);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register cpu hotplug\n");
 
@@ -350,14 +388,22 @@ static struct hisi_mn_pmu_regs hisi_mn_v1_pmu_regs = {
 };
 
 static const struct hisi_pmu_dev_info hisi_mn_v1 = {
-	.attr_groups = hisi_mn_pmu_attr_groups,
+	.attr_groups = hisi_mn_pmu_attr_groups_v1,
+	.counter_bits = 48,
+	.check_event = HISI_MN_EVTYPE_MASK,
+	.private = &hisi_mn_v1_pmu_regs,
+};
+
+static const struct hisi_pmu_dev_info hisi_mn_v2 = {
+	.attr_groups = hisi_mn_pmu_attr_groups_v2,
 	.counter_bits = 48,
 	.check_event = HISI_MN_EVTYPE_MASK,
 	.private = &hisi_mn_v1_pmu_regs,
 };
 
 static const struct acpi_device_id hisi_mn_pmu_acpi_match[] = {
-	{ "HISI0222", (kernel_ulong_t) &hisi_mn_v1 },
+	{ "HISI0222", (kernel_ulong_t)&hisi_mn_v1 },
+	{ "HISI0224", (kernel_ulong_t)&hisi_mn_v2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, hisi_mn_pmu_acpi_match);
@@ -376,33 +422,7 @@ static struct platform_driver hisi_mn_pmu_driver = {
 	.probe = hisi_mn_pmu_probe,
 };
 
-static int __init hisi_mn_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "perf/hisi/mn:online",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret < 0) {
-		pr_err("hisi_mn_pmu: Failed to setup MN PMU hotplug: %d\n", ret);
-		return ret;
-	}
-	hisi_mn_pmu_online = ret;
-
-	ret = platform_driver_register(&hisi_mn_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(hisi_mn_pmu_online);
-
-	return ret;
-}
-module_init(hisi_mn_pmu_module_init);
-
-static void __exit hisi_mn_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_mn_pmu_driver);
-	cpuhp_remove_multi_state(hisi_mn_pmu_online);
-}
-module_exit(hisi_mn_pmu_module_exit);
+module_platform_driver(hisi_mn_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC MN uncore PMU driver");

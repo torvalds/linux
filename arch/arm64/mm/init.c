@@ -34,6 +34,8 @@
 #include <linux/acpi_iort.h>
 #include <linux/kmemleak.h>
 #include <linux/execmem.h>
+#include <linux/arm-rsi-cmds.h>
+
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -43,7 +45,6 @@
 #include <asm/kvm_host.h>
 #include <asm/memory.h>
 #include <asm/numa.h>
-#include <asm/rsi.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <linux/sizes.h>

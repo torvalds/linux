@@ -139,27 +139,11 @@ static struct {
 	const char	*sh_string;
 } elf;
 
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
-
 #define elf16toh(x)	le16toh(x)
 #define elf32toh(x)	le32toh(x)
 #define elf64toh(x)	le64toh(x)
 
 #define ELFENDIAN	ELFDATA2LSB
-
-#elif defined(CONFIG_CPU_BIG_ENDIAN)
-
-#define elf16toh(x)	be16toh(x)
-#define elf32toh(x)	be32toh(x)
-#define elf64toh(x)	be64toh(x)
-
-#define ELFENDIAN	ELFDATA2MSB
-
-#else
-
-#error PDP-endian sadly unsupported...
-
-#endif
 
 #define fatal_error(fmt, ...)						\
 	({								\

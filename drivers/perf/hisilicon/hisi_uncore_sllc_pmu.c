@@ -503,7 +503,7 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state,
 				       &sllc_pmu->node);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
@@ -515,7 +515,7 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&sllc_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(sllc_pmu->dev, "PMU register failed, ret = %d\n", ret);
-		cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
+		cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state,
 						    &sllc_pmu->node);
 		return ret;
 	}
@@ -530,7 +530,7 @@ static void hisi_sllc_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *sllc_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&sllc_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state,
 					    &sllc_pmu->node);
 }
 
@@ -551,33 +551,7 @@ static struct platform_driver hisi_sllc_pmu_driver = {
 	.remove = hisi_sllc_pmu_remove,
 };
 
-static int __init hisi_sllc_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
-				      "AP_PERF_ARM_HISI_SLLC_ONLINE",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret) {
-		pr_err("SLLC PMU: cpuhp state setup failed, ret = %d\n", ret);
-		return ret;
-	}
-
-	ret = platform_driver_register(&hisi_sllc_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE);
-
-	return ret;
-}
-module_init(hisi_sllc_pmu_module_init);
-
-static void __exit hisi_sllc_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_sllc_pmu_driver);
-	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE);
-}
-module_exit(hisi_sllc_pmu_module_exit);
+module_platform_driver(hisi_sllc_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SLLC uncore PMU driver");

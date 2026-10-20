@@ -8,6 +8,7 @@
 #ifndef __ASM_IO_H
 #define __ASM_IO_H
 
+#include <linux/arm-rsi-cmds.h>
 #include <linux/types.h>
 #include <linux/pgtable.h>
 
@@ -17,7 +18,6 @@
 #include <asm/early_ioremap.h>
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
-#include <asm/rsi.h>
 
 /*
  * Generic IO read/write.  These perform native-endian accesses.

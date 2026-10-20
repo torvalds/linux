@@ -63,7 +63,7 @@ L(byte_loop):
 	sub	srcin, srcin, #1
 	ret
 L(found_word):
-CPU_LE(	rev	tmp, tmp)
+	rev	tmp, tmp
 	clz	tmp, tmp
 	sub	tmp, tmp, #64
 	add	result, srcin, tmp, asr #3

@@ -113,7 +113,7 @@ struct user_hwdebug_state {
 
 struct user_sve_header {
 	__u32 size; /* total meaningful regset content in bytes */
-	__u32 max_size; /* maxmium possible size for this thread */
+	__u32 max_size; /* maximum possible size for this thread */
 	__u16 vl; /* current vector length */
 	__u16 max_vl; /* maximum possible vector length */
 	__u16 flags;
@@ -272,7 +272,7 @@ struct user_pac_generic_keys {
 
 struct user_za_header {
 	__u32 size; /* total meaningful regset content in bytes */
-	__u32 max_size; /* maxmium possible size for this thread */
+	__u32 max_size; /* maximum possible size for this thread */
 	__u16 vl; /* current vector length */
 	__u16 max_vl; /* maximum possible vector length */
 	__u16 flags;

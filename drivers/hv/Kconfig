@@ -4,8 +4,7 @@ menu "Microsoft Hyper-V guest support"
 
 config HYPERV
 	bool "Microsoft Hyper-V core hypervisor support"
-	depends on (X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
-		|| (ARM64 && !CPU_BIG_ENDIAN)
+	depends on (X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) || ARM64
 	select PARAVIRT
 	select X86_HV_CALLBACK_VECTOR if X86
 	select OF_EARLY_FLATTREE if OF

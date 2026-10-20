@@ -291,15 +291,13 @@ __lse__cmpxchg128##name(volatile u128 *ptr, u128 old, u128 new)		\
 	register unsigned long x1 asm ("x1") = o.high;			\
 	register unsigned long x2 asm ("x2") = n.low;			\
 	register unsigned long x3 asm ("x3") = n.high;			\
-	register unsigned long x4 asm ("x4") = (unsigned long)ptr;	\
 									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
 	"	casp" #mb "\t%[old1], %[old2], %[new1], %[new2], %[v]\n"\
 	: [old1] "+&r" (x0), [old2] "+&r" (x1),				\
 	  [v] "+Q" (*(u128 *)ptr)					\
-	: [new1] "r" (x2), [new2] "r" (x3), [ptr] "r" (x4),		\
-	  [oldval1] "r" (o.low), [oldval2] "r" (o.high)			\
+	: [new1] "r" (x2), [new2] "r" (x3)				\
 	: cl);								\
 									\
 	r.low = x0; r.high = x1;					\

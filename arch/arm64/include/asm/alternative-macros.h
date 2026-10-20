@@ -53,8 +53,7 @@
  *
  * Alternatives with callbacks do not generate replacement instructions.
  */
-#define __ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, cfg_enabled)	\
-	".if "__stringify(cfg_enabled)" == 1\n"				\
+#define __ALTERNATIVE(oldinstr, newinstr, cpucap)			\
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
@@ -68,10 +67,8 @@
 	".org	. - (664b-663b) + (662b-661b)\n\t"			\
 	".org	. - (662b-661b) + (664b-663b)\n\t"			\
 	".previous\n"							\
-	".endif\n"
 
-#define __ALTERNATIVE_CFG_CB(oldinstr, cpucap, cfg_enabled, cb)	\
-	".if "__stringify(cfg_enabled)" == 1\n"				\
+#define __ALTERNATIVE_CB(oldinstr, cpucap, cb)				\
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
@@ -80,13 +77,12 @@
 	".popsection\n"							\
 	"663:\n\t"							\
 	"664:\n\t"							\
-	".endif\n"
 
-#define _ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, cfg, ...)	\
-	__ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, IS_ENABLED(cfg))
+#define _ALTERNATIVE(oldinstr, newinstr, cpucap)			\
+	__ALTERNATIVE(oldinstr, newinstr, cpucap)
 
 #define ALTERNATIVE_CB(oldinstr, cpucap, cb) \
-	__ALTERNATIVE_CFG_CB(oldinstr, (1 << ARM64_CB_SHIFT) | (cpucap), 1, cb)
+	__ALTERNATIVE_CB(oldinstr, (1 << ARM64_CB_SHIFT) | (cpucap), cb)
 #else
 
 #include <asm/assembler.h>
@@ -99,8 +95,7 @@
 	.byte \alt_len
 .endm
 
-.macro alternative_insn insn1, insn2, cap, enable = 1
-	.if \enable
+.macro alternative_insn insn1, insn2, cap
 661:	\insn1
 662:	.pushsection .altinstructions, "a"
 	altinstruction_entry 661b, 663f, \cap, 662b-661b, 664f-663f
@@ -110,7 +105,6 @@
 664:	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
 	.previous
-	.endif
 .endm
 
 /*
@@ -204,20 +198,16 @@ alternative_else
 alternative_endif
 .endm
 
-#define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
-	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
+#define _ALTERNATIVE(insn1, insn2, cap)	\
+	alternative_insn insn1, insn2, cap
 
 #endif  /*  __ASSEMBLER__  */
 
 /*
  * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap));
- *
- * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap, CONFIG_FOO));
- * N.B. If CONFIG_FOO is specified, but not selected, the whole block
- *      will be omitted, including oldinstr.
  */
-#define ALTERNATIVE(oldinstr, newinstr, ...)   \
-	_ALTERNATIVE_CFG(oldinstr, newinstr, __VA_ARGS__, 1)
+#define ALTERNATIVE(oldinstr, newinstr, cpucap)   \
+	_ALTERNATIVE(oldinstr, newinstr, cpucap)
 
 #ifndef __ASSEMBLER__
 

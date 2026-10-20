@@ -24,28 +24,14 @@
  * when PIE is in effect. So we need to split them up in 32-bit high and low
  * words.
  */
-#ifdef CONFIG_CPU_BIG_ENDIAN
-#define DATA_LE32(data)				\
-	((((data) & 0x000000ff) << 24) |	\
-	 (((data) & 0x0000ff00) << 8)  |	\
-	 (((data) & 0x00ff0000) >> 8)  |	\
-	 (((data) & 0xff000000) >> 24))
-#else
-#define DATA_LE32(data) ((data) & 0xffffffff)
-#endif
-
 #define DEFINE_IMAGE_LE64(sym, data)				\
-	sym##_lo32 = DATA_LE32((data) & 0xffffffff);		\
-	sym##_hi32 = DATA_LE32((data) >> 32)
+	sym##_lo32 = (data) & 0xffffffff;			\
+	sym##_hi32 = (data) >> 32
 
 #define __HEAD_FLAG(field)	(__HEAD_FLAG_##field << \
 					ARM64_IMAGE_FLAG_##field##_SHIFT)
 
-#ifdef CONFIG_CPU_BIG_ENDIAN
-#define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_BE
-#else
 #define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_LE
-#endif
 
 #define __HEAD_FLAG_PAGE_SIZE	((PAGE_SHIFT - 10) / 2)
 

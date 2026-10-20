@@ -117,6 +117,7 @@ EXPORT_SYMBOL(system_cpucaps);
 static struct arm64_cpu_capabilities const __ro_after_init *cpucap_ptrs[ARM64_NCAPS];
 
 DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
+static struct cpuinfo_arm64 boot_cpu_data;
 
 /*
  * arm64_use_ng_mappings must be placed in the .data section, otherwise it
@@ -293,6 +294,7 @@ static const struct arm64_ftr_bits ftr_id_aa64isar3[] = {
 static const struct arm64_ftr_bits ftr_id_aa64pfr0[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV3_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV2_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_RME_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_DIT_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_AMU_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_MPAM_SHIFT, 4, 0),
@@ -888,7 +890,7 @@ static int search_cmp_ftr_reg(const void *id, const void *regp)
  * entry.
  *
  * returns - Upon success,  matching ftr_reg entry for id.
- *         - NULL on failure. It is upto the caller to decide
+ *         - NULL on failure. It is up to the caller to decide
  *	     the impact of a failure.
  */
 static struct arm64_ftr_reg *get_arm64_ftr_reg_nowarn(u32 sys_id)
@@ -962,7 +964,33 @@ s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 	return ret;
 }
 
-static void __init sort_ftr_regs(void)
+u64 arm64_ftr_reg_override(u32 sys_id, u64 val)
+{
+	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_id);
+	const struct arm64_ftr_bits *ftrp;
+
+	if (!reg || !reg->override->mask)
+		return val;
+
+	for (ftrp = reg->ftr_bits; ftrp->width; ftrp++) {
+		u64 ftr_mask = arm64_ftr_mask(ftrp);
+		s64 ftr_new, ftr_ovr;
+
+		if ((ftr_mask & reg->override->mask) != ftr_mask)
+			continue;
+
+		ftr_new = arm64_ftr_value(ftrp, val);
+		ftr_ovr = arm64_ftr_value(ftrp, reg->override->val);
+
+		/* An unsafe override is left for init_cpu_ftr_reg() to remove. */
+		if (arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new) == ftr_ovr)
+			val = arm64_ftr_set_value(ftrp, val, ftr_ovr);
+	}
+
+	return val;
+}
+
+void __init validate_ftr_regs(void)
 {
 	unsigned int i;
 
@@ -1017,6 +1045,8 @@ static void __init sort_ftr_regs(void)
  * Also initialises the strict_mask for the register.
  * Any bits that are not covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
+ * @new has been through arm64_ftr_reg_override(), so a valid override is
+ * already applied to it. Only an unsafe one is left to remove here.
  */
 static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 {
@@ -1037,29 +1067,20 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 		s64 ftr_ovr = arm64_ftr_value(ftrp, reg->override->val);
 
 		if ((ftr_mask & reg->override->mask) == ftr_mask) {
-			s64 tmp = arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new);
-			char *str = NULL;
+			char *str = "forced";
 
-			if (ftr_ovr != tmp) {
+			if (arm64_ftr_safe_value(ftrp, ftr_ovr, ftr_new) != ftr_ovr) {
 				/* Unsafe, remove the override */
 				reg->override->mask &= ~ftr_mask;
 				reg->override->val &= ~ftr_mask;
-				tmp = ftr_ovr;
 				str = "ignoring override";
-			} else if (ftr_new != tmp) {
-				/* Override was valid */
-				ftr_new = tmp;
-				str = "forced";
-			} else {
-				/* Override was the safe value */
-				str = "already set";
 			}
 
 			pr_warn("%s[%d:%d]: %s to %llx\n",
 				reg->name,
 				ftrp->shift + ftrp->width - 1,
 				ftrp->shift, str,
-				tmp & (BIT(ftrp->width) - 1));
+				ftr_ovr & (BIT(ftrp->width) - 1));
 		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
 			reg->override->val &= ~ftr_mask;
 			pr_warn("%s[%d:%d]: impossible override, ignored\n",
@@ -1178,37 +1199,15 @@ static bool detect_ftr_has_mpam(void)
 	return id_aa64pfr0_mpam(pfr0) || id_aa64pfr1_mpamfrac(pfr1);
 }
 
-bool gmid_el1_accessible(const struct cpuinfo_arm64 *info)
+static void __init init_cpu_features(void)
 {
-	const struct arm64_ftr_bits *ftrp;
-	s64 mte, ovr;
-	u64 ftr_mask;
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, 0);
 
-	/* No ID register reflects CONFIG_ARM64_MTE. */
-	if (!IS_ENABLED(CONFIG_ARM64_MTE))
-		return false;
-
-	for (ftrp = ftr_id_aa64pfr1; ftrp->width; ftrp++) {
-		if (ftrp->shift == ID_AA64PFR1_EL1_MTE_SHIFT)
-			break;
-	}
-
-	ftr_mask = arm64_ftr_mask(ftrp);
-	mte = arm64_ftr_value(ftrp, info->reg_id_aa64pfr1);
-
-	/* The boot CPU runs before init_cpu_ftr_reg() strips unsafe overrides. */
-	if ((id_aa64pfr1_override.mask & ftr_mask) == ftr_mask) {
-		ovr = arm64_ftr_value(ftrp, id_aa64pfr1_override.val);
-		mte = arm64_ftr_safe_value(ftrp, ovr, mte);
-	}
-
-	return mte >= ID_AA64PFR1_EL1_MTE_MTE2;
-}
-
-void __init init_cpu_features(struct cpuinfo_arm64 *info)
-{
-	/* Before we start using the tables, make sure it is sorted */
-	sort_ftr_regs();
+	/*
+	 * We keep a copy of the boot CPU registers so that physical hotplug
+	 * of CPU 0 can still be properly checked.
+	 */
+	boot_cpu_data = *info;
 
 	init_cpu_ftr_reg(SYS_CTR_EL0, info->reg_ctr);
 	init_cpu_ftr_reg(SYS_DCZID_EL0, info->reg_dczid);
@@ -1252,12 +1251,10 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 		cpacr_restore(cpacr);
 	}
 
-	if (detect_ftr_has_mpam()) {
-		info->reg_mpamidr = read_cpuid(MPAMIDR_EL1);
+	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0) || id_aa64pfr1_mpamfrac(info->reg_id_aa64pfr1))
 		init_cpu_ftr_reg(SYS_MPAMIDR_EL1, info->reg_mpamidr);
-	}
 
-	if (gmid_el1_accessible(info))
+	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
 		init_cpu_ftr_reg(SYS_GMID_EL1, info->reg_gmid);
 }
 
@@ -1397,154 +1394,6 @@ static int update_32bit_cpu_features(int cpu, struct cpuinfo_32bit *info,
 				      info->reg_mvfr2, boot->reg_mvfr2);
 
 	return taint;
-}
-
-/*
- * Update system wide CPU feature registers with the values from a
- * non-boot CPU. Also performs SANITY checks to make sure that there
- * aren't any insane variations from that of the boot CPU.
- */
-void update_cpu_features(int cpu,
-			 struct cpuinfo_arm64 *info,
-			 struct cpuinfo_arm64 *boot)
-{
-	int taint = 0;
-
-	/*
-	 * The kernel can handle differing I-cache policies, but otherwise
-	 * caches should look identical. Userspace JITs will make use of
-	 * *minLine.
-	 */
-	taint |= check_update_ftr_reg(SYS_CTR_EL0, cpu,
-				      info->reg_ctr, boot->reg_ctr);
-
-	/*
-	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
-	 * could result in too much or too little memory being zeroed if a
-	 * process is preempted and migrated between CPUs.
-	 */
-	taint |= check_update_ftr_reg(SYS_DCZID_EL0, cpu,
-				      info->reg_dczid, boot->reg_dczid);
-
-	/* If different, timekeeping will be broken (especially with KVM) */
-	taint |= check_update_ftr_reg(SYS_CNTFRQ_EL0, cpu,
-				      info->reg_cntfrq, boot->reg_cntfrq);
-
-	/*
-	 * The kernel uses self-hosted debug features and expects CPUs to
-	 * support identical debug features. We presently need CTX_CMPs, WRPs,
-	 * and BRPs to be identical.
-	 * ID_AA64DFR1 is currently RES0.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64DFR0_EL1, cpu,
-				      info->reg_id_aa64dfr0, boot->reg_id_aa64dfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64DFR1_EL1, cpu,
-				      info->reg_id_aa64dfr1, boot->reg_id_aa64dfr1);
-	/*
-	 * Even in big.LITTLE, processors should be identical instruction-set
-	 * wise.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR0_EL1, cpu,
-				      info->reg_id_aa64isar0, boot->reg_id_aa64isar0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR1_EL1, cpu,
-				      info->reg_id_aa64isar1, boot->reg_id_aa64isar1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR2_EL1, cpu,
-				      info->reg_id_aa64isar2, boot->reg_id_aa64isar2);
-	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR3_EL1, cpu,
-				      info->reg_id_aa64isar3, boot->reg_id_aa64isar3);
-
-	/*
-	 * Differing PARange support is fine as long as all peripherals and
-	 * memory are mapped within the minimum PARange of all CPUs.
-	 * Linux should not care about secure memory.
-	 */
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
-				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
-				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR2_EL1, cpu,
-				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR3_EL1, cpu,
-				      info->reg_id_aa64mmfr3, boot->reg_id_aa64mmfr3);
-	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR4_EL1, cpu,
-				      info->reg_id_aa64mmfr4, boot->reg_id_aa64mmfr4);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
-				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR1_EL1, cpu,
-				      info->reg_id_aa64pfr1, boot->reg_id_aa64pfr1);
-	taint |= check_update_ftr_reg(SYS_ID_AA64PFR2_EL1, cpu,
-				      info->reg_id_aa64pfr2, boot->reg_id_aa64pfr2);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64ZFR0_EL1, cpu,
-				      info->reg_id_aa64zfr0, boot->reg_id_aa64zfr0);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
-				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
-
-	taint |= check_update_ftr_reg(SYS_ID_AA64FPFR0_EL1, cpu,
-				      info->reg_id_aa64fpfr0, boot->reg_id_aa64fpfr0);
-
-	/* Probe vector lengths */
-	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
-	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
-		if (!system_capabilities_finalized()) {
-			unsigned long cpacr = cpacr_save_enable_kernel_sve();
-
-			vec_update_vq_map(ARM64_VEC_SVE);
-
-			cpacr_restore(cpacr);
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_ARM64_SME) &&
-	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		unsigned long cpacr = cpacr_save_enable_kernel_sme();
-
-		/* Probe vector lengths */
-		if (!system_capabilities_finalized())
-			vec_update_vq_map(ARM64_VEC_SME);
-
-		cpacr_restore(cpacr);
-	}
-
-	if (detect_ftr_has_mpam()) {
-		info->reg_mpamidr = read_cpuid(MPAMIDR_EL1);
-		taint |= check_update_ftr_reg(SYS_MPAMIDR_EL1, cpu,
-					info->reg_mpamidr, boot->reg_mpamidr);
-	}
-
-	/*
-	 * The kernel uses the LDGM/STGM instructions and the number of tags
-	 * they read/write depends on the GMID_EL1.BS field. Check that the
-	 * value is the same on all CPUs.
-	 */
-	if (gmid_el1_accessible(info))
-		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
-					      info->reg_gmid, boot->reg_gmid);
-
-	/*
-	 * If we don't have AArch32 at all then skip the checks entirely
-	 * as the register values may be UNKNOWN and we're not going to be
-	 * using them for anything.
-	 *
-	 * This relies on a sanitised view of the AArch64 ID registers
-	 * (e.g. SYS_ID_AA64PFR0_EL1), so we call it last.
-	 */
-	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
-		lazy_init_32bit_cpu_features(info, boot);
-		taint |= update_32bit_cpu_features(cpu, &info->aarch32,
-						   &boot->aarch32);
-	}
-
-	/*
-	 * Mismatched CPU features are a recipe for disaster. Don't even
-	 * pretend to support them.
-	 */
-	if (taint) {
-		pr_warn_once("Unsupported CPU feature variation detected.\n");
-		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
-	}
 }
 
 u64 read_sanitised_ftr_reg(u32 id)
@@ -1931,7 +1780,7 @@ static bool has_nv1(const struct arm64_cpu_capabilities *entry, int scope)
 		  is_midr_in_range_list(nv1_ni_list)));
 }
 
-#if defined(ID_AA64MMFR0_EL1_TGRAN_LPA2) && defined(ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_LPA2)
+#if defined(ID_AA64MMFR0_EL1_TGRAN_LPA2)
 static bool has_lpa2_at_stage1(u64 mmfr0)
 {
 	unsigned int tgran;
@@ -2166,6 +2015,7 @@ bool cpu_supports_bbml3(void)
 		MIDR_REV_RANGE(MIDR_NEOVERSE_V3, 0, 2, 0xf),
 		MIDR_REV_RANGE(MIDR_NEOVERSE_V3AE, 0, 2, 0xf),
 		MIDR_ALL_VERSIONS(MIDR_NVIDIA_OLYMPUS),
+		MIDR_ALL_VERSIONS(MIDR_NVIDIA_RIGEL),
 		MIDR_ALL_VERSIONS(MIDR_AMPERE1),
 		MIDR_ALL_VERSIONS(MIDR_AMPERE1A),
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A520AE),
@@ -3103,7 +2953,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.matches = has_bbml3,
 	},
 	{
-		.desc = "52-bit Virtual Addressing for KVM (LPA2)",
+		.desc = "52-bit Virtual-Physical Addressing for S1 and S2 (LPA2)",
 		.capability = ARM64_HAS_LPA2,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_lpa2,
@@ -3694,8 +3544,11 @@ static void verify_local_cpu_caps(u16 scope_mask)
 		if (!caps || !(caps->type & scope_mask))
 			continue;
 
-		cpu_has_cap = caps->matches(caps, SCOPE_LOCAL_CPU);
 		system_has_cap = cpus_have_cap(caps->capability);
+		if (cpucap_probe_once(caps))
+			cpu_has_cap = system_has_cap;
+		else
+			cpu_has_cap = caps->matches(caps, SCOPE_LOCAL_CPU);
 
 		if (system_has_cap) {
 			/*
@@ -3707,7 +3560,7 @@ static void verify_local_cpu_caps(u16 scope_mask)
 			/*
 			 * We have to issue cpu_enable() irrespective of
 			 * whether the CPU has it or not, as it is enabeld
-			 * system wide. It is upto the call back to take
+			 * system wide. It is up to the call back to take
 			 * appropriate action on this CPU.
 			 */
 			if (caps->cpu_enable)
@@ -3892,15 +3745,166 @@ void check_local_cpu_capabilities(void)
 	check_early_cpu_features();
 
 	/*
+	 * Verify that this CPU has all the system advertised
+	 * capabilities.
+	 */
+	if (system_capabilities_finalized())
+		verify_local_cpu_capabilities();
+}
+
+/*
+ * Update system wide CPU feature registers with the values from a
+ * non-boot CPU. Also performs SANITY checks to make sure that there
+ * aren't any insane variations from that of the boot CPU.
+ */
+void update_cpu_features(int cpu)
+{
+	struct cpuinfo_arm64 *boot, *info;
+	int taint = 0;
+
+	/*
 	 * If we haven't finalised the system capabilities, this CPU gets
 	 * a chance to update the errata work arounds and local features.
-	 * Otherwise, this CPU should verify that it has all the system
-	 * advertised capabilities.
 	 */
 	if (!system_capabilities_finalized())
 		update_cpu_capabilities(SCOPE_LOCAL_CPU);
-	else
-		verify_local_cpu_capabilities();
+
+	boot = &boot_cpu_data;
+	info = per_cpu_ptr(&cpu_data, cpu);
+
+	/*
+	 * The kernel can handle differing I-cache policies, but otherwise
+	 * caches should look identical. Userspace JITs will make use of
+	 * *minLine.
+	 */
+	taint |= check_update_ftr_reg(SYS_CTR_EL0, cpu,
+				      info->reg_ctr, boot->reg_ctr);
+
+	/*
+	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
+	 * could result in too much or too little memory being zeroed if a
+	 * process is preempted and migrated between CPUs.
+	 */
+	taint |= check_update_ftr_reg(SYS_DCZID_EL0, cpu,
+				      info->reg_dczid, boot->reg_dczid);
+
+	/* If different, timekeeping will be broken (especially with KVM) */
+	taint |= check_update_ftr_reg(SYS_CNTFRQ_EL0, cpu,
+				      info->reg_cntfrq, boot->reg_cntfrq);
+
+	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR0_EL1, cpu,
+				      info->reg_id_aa64dfr0, boot->reg_id_aa64dfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR1_EL1, cpu,
+				      info->reg_id_aa64dfr1, boot->reg_id_aa64dfr1);
+	/*
+	 * Even in big.LITTLE, processors should be identical instruction-set
+	 * wise.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR0_EL1, cpu,
+				      info->reg_id_aa64isar0, boot->reg_id_aa64isar0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR1_EL1, cpu,
+				      info->reg_id_aa64isar1, boot->reg_id_aa64isar1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR2_EL1, cpu,
+				      info->reg_id_aa64isar2, boot->reg_id_aa64isar2);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR3_EL1, cpu,
+				      info->reg_id_aa64isar3, boot->reg_id_aa64isar3);
+
+	/*
+	 * Differing PARange support is fine as long as all peripherals and
+	 * memory are mapped within the minimum PARange of all CPUs.
+	 * Linux should not care about secure memory.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
+				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
+				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR2_EL1, cpu,
+				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR3_EL1, cpu,
+				      info->reg_id_aa64mmfr3, boot->reg_id_aa64mmfr3);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR4_EL1, cpu,
+				      info->reg_id_aa64mmfr4, boot->reg_id_aa64mmfr4);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
+				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR1_EL1, cpu,
+				      info->reg_id_aa64pfr1, boot->reg_id_aa64pfr1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR2_EL1, cpu,
+				      info->reg_id_aa64pfr2, boot->reg_id_aa64pfr2);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64ZFR0_EL1, cpu,
+				      info->reg_id_aa64zfr0, boot->reg_id_aa64zfr0);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
+				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
+
+	taint |= check_update_ftr_reg(SYS_ID_AA64FPFR0_EL1, cpu,
+				      info->reg_id_aa64fpfr0, boot->reg_id_aa64fpfr0);
+
+	/* Probe vector lengths */
+	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
+	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
+		if (!system_capabilities_finalized()) {
+			unsigned long cpacr = cpacr_save_enable_kernel_sve();
+
+			vec_update_vq_map(ARM64_VEC_SVE);
+
+			cpacr_restore(cpacr);
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_ARM64_SME) &&
+	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
+		unsigned long cpacr = cpacr_save_enable_kernel_sme();
+
+		/* Probe vector lengths */
+		if (!system_capabilities_finalized())
+			vec_update_vq_map(ARM64_VEC_SME);
+
+		cpacr_restore(cpacr);
+	}
+
+	if (id_aa64pfr0_mpam(info->reg_id_aa64pfr0) || id_aa64pfr1_mpamfrac(info->reg_id_aa64pfr1))
+		taint |= check_update_ftr_reg(SYS_MPAMIDR_EL1, cpu,
+					info->reg_mpamidr, boot->reg_mpamidr);
+
+	/*
+	 * The kernel uses the LDGM/STGM instructions and the number of tags
+	 * they read/write depends on the GMID_EL1.BS field. Check that the
+	 * value is the same on all CPUs.
+	 */
+	if (IS_ENABLED(CONFIG_ARM64_MTE) && id_aa64pfr1_mte(info->reg_id_aa64pfr1))
+		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
+					      info->reg_gmid, boot->reg_gmid);
+
+	/*
+	 * If we don't have AArch32 at all then skip the checks entirely
+	 * as the register values may be UNKNOWN and we're not going to be
+	 * using them for anything.
+	 *
+	 * This relies on a sanitised view of the AArch64 ID registers
+	 * (e.g. SYS_ID_AA64PFR0_EL1), so we call it last.
+	 */
+	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
+		lazy_init_32bit_cpu_features(info, boot);
+		taint |= update_32bit_cpu_features(cpu, &info->aarch32,
+						   &boot->aarch32);
+	}
+
+	/*
+	 * Mismatched CPU features are a recipe for disaster. Don't even
+	 * pretend to support them.
+	 */
+	if (taint) {
+		pr_warn_once("Unsupported CPU feature variation detected.\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+	}
 }
 
 bool this_cpu_has_cap(unsigned int n)
@@ -3978,6 +3982,8 @@ static void __init setup_boot_cpu_capabilities(void)
 
 void __init setup_boot_cpu_features(void)
 {
+	init_cpu_features();
+
 	/*
 	 * Initialize the indirect array of CPU capabilities pointers before we
 	 * handle the boot CPU.

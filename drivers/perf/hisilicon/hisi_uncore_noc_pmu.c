@@ -41,9 +41,6 @@
 HISI_PMU_EVENT_ATTR_EXTRACTOR(ch, config1, 2, 0);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tt_en, config1, 3, 3);
 
-/* Dynamic CPU hotplug state used by this PMU driver */
-static enum cpuhp_state hisi_noc_pmu_cpuhp_state;
-
 struct hisi_noc_pmu_regs {
 	u32 version;
 	u32 pmu_ctrl;
@@ -324,7 +321,7 @@ static int hisi_noc_pmu_dev_init(struct platform_device *pdev, struct hisi_pmu *
 
 static void hisi_noc_pmu_remove_cpuhp_instance(void *hotplug_node)
 {
-	cpuhp_state_remove_instance_nocalls(hisi_noc_pmu_cpuhp_state, hotplug_node);
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state, hotplug_node);
 }
 
 static void hisi_noc_pmu_unregister_pmu(void *pmu)
@@ -353,7 +350,7 @@ static int hisi_noc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = cpuhp_state_add_instance(hisi_noc_pmu_cpuhp_state, &noc_pmu->node);
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state, &noc_pmu->node);
 	if (ret)
 		return dev_err_probe(dev, ret, "Fail to register cpuhp instance\n");
 
@@ -408,33 +405,7 @@ static struct platform_driver hisi_noc_pmu_driver = {
 	.probe = hisi_noc_pmu_probe,
 };
 
-static int __init hisi_noc_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "perf/hisi/noc:online",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret < 0) {
-		pr_err("hisi_noc_pmu: Fail to setup cpuhp callbacks, ret = %d\n", ret);
-		return ret;
-	}
-	hisi_noc_pmu_cpuhp_state = ret;
-
-	ret = platform_driver_register(&hisi_noc_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(hisi_noc_pmu_cpuhp_state);
-
-	return ret;
-}
-module_init(hisi_noc_pmu_module_init);
-
-static void __exit hisi_noc_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_noc_pmu_driver);
-	cpuhp_remove_multi_state(hisi_noc_pmu_cpuhp_state);
-}
-module_exit(hisi_noc_pmu_module_exit);
+module_platform_driver(hisi_noc_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC Uncore NoC PMU driver");
