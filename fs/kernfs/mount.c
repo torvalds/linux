@@ -124,22 +124,32 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 		return NULL;
 	}
 
-	kn = kernfs_find_and_get_node_by_id(info->root, id);
-	if (!kn)
-		return ERR_PTR(-ESTALE);
-
-	if (get_parent) {
-		struct kernfs_node *parent;
-
-		parent = kernfs_get_parent(kn);
-		kernfs_put(kn);
-		kn = parent;
+	/*
+	 * Hold kernfs_rwsem across the lookup as well as kernfs_get_inode().
+	 * __kernfs_remove() deactivates the subtree and clears i_nlink on its
+	 * inodes under the write lock, so under the read lock either
+	 * kernfs_find_and_get_node_by_id() refuses the node, or the inode is
+	 * in the inode hash before the ilookup() pass goes looking for it.
+	 */
+	scoped_guard(rwsem_read, &info->root->kernfs_rwsem) {
+		kn = kernfs_find_and_get_node_by_id(info->root, id);
 		if (!kn)
 			return ERR_PTR(-ESTALE);
+
+		if (get_parent) {
+			struct kernfs_node *parent;
+
+			parent = kernfs_get_parent(kn);
+			kernfs_put(kn);
+			kn = parent;
+			if (!kn)
+				return ERR_PTR(-ESTALE);
+		}
+
+		inode = kernfs_get_inode(sb, kn);
+		kernfs_put(kn);
 	}
 
-	inode = kernfs_get_inode(sb, kn);
-	kernfs_put(kn);
 	return d_obtain_alias(inode);
 }
 

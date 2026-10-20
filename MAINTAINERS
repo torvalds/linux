@@ -14405,6 +14405,7 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	fs/kernfs/
 F:	include/linux/kernfs.h
+F:	tools/testing/selftests/filesystems/kernfs_test.c
 
 KEXEC
 M:	Andrew Morton <akpm@linux-foundation.org>
