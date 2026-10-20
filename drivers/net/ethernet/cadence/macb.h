@@ -834,7 +834,7 @@
  */
 #define macb_or_gem_writel(__bp, __reg, __value) \
 	({ \
-		if (macb_is_gem((__bp))) \
+		if (macb_is_gem(&(__bp)->info)) \
 			gem_writel((__bp), __reg, __value); \
 		else \
 			macb_writel((__bp), __reg, __value); \
@@ -843,7 +843,7 @@
 #define macb_or_gem_readl(__bp, __reg) \
 	({ \
 		u32 __v; \
-		if (macb_is_gem((__bp))) \
+		if (macb_is_gem(&(__bp)->info)) \
 			__v = gem_readl((__bp), __reg); \
 		else \
 			__v = macb_readl((__bp), __reg); \
@@ -1193,11 +1193,12 @@ static const struct gem_statistic queue_statistics[] = {
 
 struct macb;
 struct macb_queue;
+struct macb_context;
 
 struct macb_or_gem_ops {
-	int	(*mog_alloc_rx_buffers)(struct macb *bp);
-	void	(*mog_free_rx_buffers)(struct macb *bp);
-	int	(*mog_init_rings)(struct macb *bp);
+	int	(*mog_alloc_rx_buffers)(struct macb_context *ctx);
+	void	(*mog_free_rx_buffers)(struct macb_context *ctx);
+	int	(*mog_init_rings)(struct macb_context *ctx);
 	int	(*mog_rx)(struct macb_queue *queue, struct napi_struct *napi,
 			  int budget);
 };
@@ -1267,23 +1268,12 @@ struct macb_queue {
 	unsigned int		ENST_ON_TIME;
 	unsigned int		ENST_OFF_TIME;
 
-	/* Lock to protect tx_head and tx_tail */
+	/* Lock to protect ctx->txq[q].head and ctx->txq[q].tail */
 	spinlock_t		tx_ptr_lock;
-	unsigned int		tx_head, tx_tail;
-	struct macb_dma_desc	*tx_ring;
-	struct macb_tx_skb	*tx_skb;
-	dma_addr_t		tx_ring_dma;
 	struct work_struct	tx_error_task;
 	bool			txubr_pending;
 	struct napi_struct	napi_tx;
 
-	dma_addr_t		rx_ring_dma;
-	dma_addr_t		rx_buffers_dma;
-	unsigned int		rx_tail;
-	unsigned int		rx_prepared_head;
-	struct macb_dma_desc	*rx_ring;
-	struct sk_buff		**rx_skbuff;
-	void			*rx_buffers;
 	struct napi_struct	napi_rx;
 	struct queue_stats stats;
 };
@@ -1298,6 +1288,45 @@ struct ethtool_rx_fs_list {
 	unsigned int count;
 };
 
+struct macb_info {
+	struct platform_device	*pdev;
+	struct net_device	*netdev;
+	struct macb_or_gem_ops	macbgem_ops;
+	unsigned int		num_queues;
+	u32			caps;
+	int			rx_bd_rd_prefetch;
+	int			tx_bd_rd_prefetch;
+	struct queue_stats	*queue_stats[MACB_MAX_QUEUES];
+};
+
+struct macb_rxq {
+	struct macb_dma_desc	*ring;		/* MACB & GEM */
+	dma_addr_t		ring_dma;	/* MACB & GEM */
+	unsigned int		tail;		/* MACB & GEM */
+	unsigned int		prepared_head;	/* GEM */
+	struct sk_buff		**skbuff;	/* GEM */
+	dma_addr_t		buffers_dma;	/* MACB */
+	void			*buffers;	/* MACB */
+};
+
+struct macb_txq {
+	unsigned int		head;
+	unsigned int		tail;
+	struct macb_dma_desc	*ring;
+	dma_addr_t		ring_dma;
+	struct macb_tx_skb	*skb;
+};
+
+struct macb_context {
+	const struct macb_info	*info;
+
+	unsigned int		rx_buffer_size;
+	unsigned int		rx_ring_size;
+	unsigned int		tx_ring_size;
+	struct macb_rxq		rxq[MACB_MAX_QUEUES];
+	struct macb_txq		txq[MACB_MAX_QUEUES];
+};
+
 struct macb {
 	void __iomem		*regs;
 	bool			native_io;
@@ -1306,24 +1335,36 @@ struct macb {
 	u32	(*macb_reg_readl)(struct macb *bp, int offset);
 	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
+	/*
+	 * Give direct access (bp->caps) and
+	 * allow taking a pointer to it (&bp->info) for contexts.
+	 */
+	union {
+		struct macb_info;
+		struct macb_info info;
+	};
+
+	/*
+	 * Context stores all its parameters.
+	 * But we must remember them across closure.
+	 */
+	unsigned int		configured_rx_ring_size;
+	unsigned int		configured_tx_ring_size;
+	struct macb_context	*ctx;
+
 	struct macb_dma_desc	*rx_ring_tieoff;
 	dma_addr_t		rx_ring_tieoff_dma;
-	size_t			rx_buffer_size;
 
-	unsigned int		rx_ring_size;
-	unsigned int		tx_ring_size;
-
-	unsigned int		num_queues;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
 
 	spinlock_t		lock;
-	struct platform_device	*pdev;
+	/* Serializes context swap against phylink MAC callbacks. */
+	struct mutex		mac_cfg_lock;
 	struct clk		*pclk;
 	struct clk		*hclk;
 	struct clk		*tx_clk;
 	struct clk		*rx_clk;
 	struct clk		*tsu_clk;
-	struct net_device	*netdev;
 	/* Protects hw_stats and ethtool_stats */
 	spinlock_t		stats_lock;
 	union {
@@ -1331,15 +1372,12 @@ struct macb {
 		struct gem_stats	gem;
 	}			hw_stats;
 
-	struct macb_or_gem_ops	macbgem_ops;
-
 	struct mii_bus		*mii_bus;
 	struct phylink		*phylink;
 	struct phylink_config	phylink_config;
 	struct phylink_pcs	phylink_usx_pcs;
 	struct phylink_pcs	phylink_sgmii_pcs;
 
-	u32			caps;
 	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
@@ -1383,12 +1421,12 @@ struct macb {
 	u32			tx_lpi_timer;
 
 	/* ISR must not drive NAPI & BH mechanisms. True when the interface
-	 * is closed. Protected by bp->lock.
+	 * is closed or during context-swap. Protected by bp->lock.
 	 */
 	bool			irq_quiesced;
 
-	int	rx_bd_rd_prefetch;
-	int	tx_bd_rd_prefetch;
+	/* Redundant to netif_carrier_ok(), but set under bp->mac_cfg_lock. */
+	bool			link_up;
 
 	u32	rx_intr_mask;
 
@@ -1441,14 +1479,15 @@ static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, stru
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 #endif
 
-static inline bool macb_is_gem(struct macb *bp)
+static inline bool macb_is_gem(const struct macb_info *info)
 {
-	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
+	return !!(info->caps & MACB_CAPS_MACB_IS_GEM);
 }
 
-static inline bool gem_has_ptp(struct macb *bp)
+static inline bool gem_has_ptp(const struct macb_info *info)
 {
-	return IS_ENABLED(CONFIG_MACB_USE_HWSTAMP) && (bp->caps & MACB_CAPS_GEM_HAS_PTP);
+	return IS_ENABLED(CONFIG_MACB_USE_HWSTAMP) &&
+	       (info->caps & MACB_CAPS_GEM_HAS_PTP);
 }
 
 /* ENST Helper functions */
@@ -1464,16 +1503,16 @@ static inline u64 enst_max_hw_interval(u32 speed_mbps)
 			    ENST_TIME_GRANULARITY_NS * 1000, (speed_mbps));
 }
 
-static inline bool macb_dma64(struct macb *bp)
+static inline bool macb_dma64(const struct macb_info *info)
 {
 	return IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) &&
-	       bp->caps & MACB_CAPS_DMA_64B;
+	       info->caps & MACB_CAPS_DMA_64B;
 }
 
-static inline bool macb_dma_ptp(struct macb *bp)
+static inline bool macb_dma_ptp(const struct macb_info *info)
 {
 	return IS_ENABLED(CONFIG_MACB_USE_HWSTAMP) &&
-	       bp->caps & MACB_CAPS_DMA_PTP;
+	       info->caps & MACB_CAPS_DMA_PTP;
 }
 
 static inline void macb_queue_isr_clear(struct macb *bp,
