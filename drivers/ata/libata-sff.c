@@ -1196,8 +1196,6 @@ void ata_sff_flush_pio_task(struct ata_port *ap)
 {
 	trace_ata_sff_flush_pio_task(ap);
 
-	cancel_delayed_work_sync(&ap->sff_pio_task);
-
 	/*
 	 * We wanna reset the HSM state to IDLE.  If we do so without
 	 * grabbing the port lock, critical sections protected by it which
@@ -1205,10 +1203,25 @@ void ata_sff_flush_pio_task(struct ata_port *ap)
 	 * example, we may set IDLE in between the time
 	 * __ata_sff_port_intr() checks for HSM_ST_IDLE and before it calls
 	 * ata_sff_hsm_move() causing ata_sff_hsm_move() to BUG().
+	 *
+	 * Reset the state before cancelling the work item: once the state
+	 * is IDLE, __ata_sff_port_intr() can no longer enter
+	 * ata_sff_hsm_move(), which prevents the interrupt handler from
+	 * queueing sff_pio_task when deferring the completion of a PIO
+	 * data-in command.  The SCSI error handler cannot dispatch new
+	 * commands while error handling is in progress, so issue-time
+	 * queuing is not possible either.
 	 */
 	spin_lock_irq(ap->lock);
 	ap->hsm_task_state = HSM_ST_IDLE;
 	spin_unlock_irq(ap->lock);
+
+	/*
+	 * Now that the interrupt handler can no longer queue the pio task,
+	 * cancel it.  This also drains a work item that the interrupt
+	 * handler managed to queue before the HSM state was reset.
+	 */
+	cancel_delayed_work_sync(&ap->sff_pio_task);
 
 	ap->sff_pio_task_link = NULL;
 }
@@ -1233,7 +1246,13 @@ static void ata_sff_pio_task(struct work_struct *work)
 	}
 
 fsm_start:
-	WARN_ON_ONCE(ap->hsm_task_state == HSM_ST_IDLE);
+	/*
+	 * ata_sff_flush_pio_task() may have marked the HSM idle after this
+	 * work item was queued or while it was running.  There is nothing
+	 * left to do.
+	 */
+	if (ap->hsm_task_state == HSM_ST_IDLE)
+		goto out_unlock;
 
 	wait_mask = ATA_BUSY;
 	if (ap->hsm_task_state == HSM_ST_LAST)
@@ -1251,6 +1270,13 @@ fsm_start:
 		spin_unlock_irq(ap->lock);
 		ata_msleep(ap, 2);
 		spin_lock_irq(ap->lock);
+
+		/*
+		 * ata_sff_flush_pio_task() may have marked the HSM idle
+		 * while the port lock was dropped for ata_msleep().
+		 */
+		if (ap->hsm_task_state == HSM_ST_IDLE)
+			goto out_unlock;
 
 		status = ata_sff_busy_wait(ap, wait_mask, 10);
 		if (status & wait_mask) {
