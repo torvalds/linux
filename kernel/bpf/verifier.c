@@ -13612,10 +13612,7 @@ enum special_kfunc_type {
 	KF_bpf_call_rcu_tasks_trace,
 	KF_bpf_arena_alloc_pages,
 	KF_bpf_arena_free_pages,
-	KF_bpf_arena_reserve_pages,
 	KF_bpf_session_is_return,
-	KF_bpf_stream_vprintk,
-	KF_bpf_stream_print_stack,
 };
 
 BTF_ID_LIST(special_kfunc_list)
@@ -13705,16 +13702,18 @@ BTF_ID(func, bpf_task_work_schedule_signal)
 BTF_ID(func, bpf_task_work_schedule_resume)
 BTF_ID(func, bpf_call_rcu)
 BTF_ID(func, bpf_call_rcu_tasks_trace)
+#if defined(CONFIG_MMU) && defined(CONFIG_64BIT)
 BTF_ID(func, bpf_arena_alloc_pages)
 BTF_ID(func, bpf_arena_free_pages)
-BTF_ID(func, bpf_arena_reserve_pages)
+#else
+BTF_ID_UNUSED
+BTF_ID_UNUSED
+#endif
 #ifdef CONFIG_BPF_EVENTS
 BTF_ID(func, bpf_session_is_return)
 #else
 BTF_ID_UNUSED
 #endif
-BTF_ID(func, bpf_stream_vprintk)
-BTF_ID(func, bpf_stream_print_stack)
 
 static bool is_bpf_cast_to_kern_ctx_kfunc(const struct bpf_call_arg_meta *meta)
 {
