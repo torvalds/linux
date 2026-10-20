@@ -9,6 +9,7 @@
 
 #include "../kselftest_harness.h"
 #include "../pidfd/pidfd.h"
+#include "coredump_notify_signal.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096

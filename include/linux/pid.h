@@ -187,6 +187,15 @@ static inline pid_t pid_nr(struct pid *pid)
 pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns);
 pid_t pid_vnr(struct pid *pid);
 
+/*
+ * Needs tasklist_lock if type > PIDTYPE_TGID. A lockless reader can:
+ *
+ * - race with a change_pid() that moves the task to another hlist,
+ *   and continue to scan the wrong list.
+ *
+ * - race with a copy_process() that adds a new task to the start of hlist,
+ *   and miss the new child.
+ */
 #define do_each_pid_task(pid, type, task)				\
 	do {								\
 		if ((pid) != NULL)					\
@@ -264,7 +273,7 @@ static inline pid_t task_tgid_nr(struct task_struct *tsk)
  */
 static inline int pid_alive(const struct task_struct *p)
 {
-	return p->thread_pid != NULL;
+	return READ_ONCE(p->thread_pid) != NULL;
 }
 
 static inline pid_t task_pgrp_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)

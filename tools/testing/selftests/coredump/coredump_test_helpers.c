@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <assert.h>
+#include <elf.h>
+#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <link.h>
+#include <linux/stddef.h>
+#include <linux/io_uring.h>
+#include <linux/swab.h>
 #include <linux/coredump.h>
 #include <linux/fs.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -13,7 +20,9 @@
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
@@ -21,6 +30,7 @@
 
 #include "../filesystems/wrappers.h"
 #include "../pidfd/pidfd.h"
+#include "coredump_notify_signal.h"
 
 /* Forward declarations to avoid including harness header */
 struct __test_metadata;
@@ -380,4 +390,305 @@ out:
 	if (fd_coredump >= 0)
 		close(fd_coredump);
 	_exit(exit_code);
+}
+
+/*
+ * TIF_NOTIFY_SIGNAL coredump helpers.
+ *
+ * __dump_emit() takes anything short of a full write as the end of the
+ * dump, so every emit that blocks on a full transport can lose the rest
+ * of it. The NT_FILE note is the one emit that is certain to block,
+ * because it is the only one larger than the transport, so these helpers
+ * build a note large enough for that and then raise TIF_NOTIFY_SIGNAL on
+ * the dumping task while that write is in flight.
+ */
+
+static int io_uring_setup_raw(unsigned int entries, struct io_uring_params *p)
+{
+	return syscall(__NR_io_uring_setup, entries, p);
+}
+
+/* io_uring reads poll32_events back through swahw32() on big endian. */
+static __u32 notify_poll_mask(__u32 events)
+{
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
+	return __swahw32(events);
+#else
+	return events;
+#endif
+}
+
+bool coredump_io_uring_available(void)
+{
+	struct io_uring_params p = {};
+	int fd;
+
+	fd = io_uring_setup_raw(1, &p);
+	if (fd < 0)
+		return false;
+	close(fd);
+	return true;
+}
+
+/*
+ * Arm a poll on @fd. io_uring leaves ctx->notify_method at TWA_SIGNAL
+ * unless the ring asks for SQPOLL or COOP_TASKRUN, so the completion runs
+ * set_notify_signal() against the task that submitted it. That is us, and
+ * we are about to become the coredumping task.
+ */
+static int arm_poll_notify(int trigger_fd)
+{
+	struct io_uring_params p = {};
+	unsigned int *sq_tail, *sq_array;
+	struct io_uring_sqe *sqes;
+	size_t sqring_sz;
+	void *sq;
+	int ring;
+
+	ring = io_uring_setup_raw(8, &p);
+	if (ring < 0)
+		return -1;
+
+	sqring_sz = p.sq_off.array + p.sq_entries * sizeof(unsigned int);
+	sq = mmap(NULL, sqring_sz, PROT_READ | PROT_WRITE,
+		  MAP_SHARED | MAP_POPULATE, ring, IORING_OFF_SQ_RING);
+	if (sq == MAP_FAILED)
+		return -1;
+
+	sqes = mmap(NULL, p.sq_entries * sizeof(*sqes), PROT_READ | PROT_WRITE,
+		    MAP_SHARED | MAP_POPULATE, ring, IORING_OFF_SQES);
+	if (sqes == MAP_FAILED)
+		return -1;
+
+	sq_tail = (unsigned int *)((char *)sq + p.sq_off.tail);
+	sq_array = (unsigned int *)((char *)sq + p.sq_off.array);
+
+	memset(&sqes[0], 0, sizeof(sqes[0]));
+	sqes[0].opcode = IORING_OP_POLL_ADD;
+	sqes[0].fd = trigger_fd;
+	sqes[0].poll32_events = notify_poll_mask(POLLIN);
+
+	sq_array[0] = 0;
+	__atomic_store_n(sq_tail, 1, __ATOMIC_RELEASE);
+
+	if (syscall(__NR_io_uring_enter, ring, 1, 0, 0, NULL, 0) < 0)
+		return -1;
+
+	/* Deliberately leaked, we are about to crash. */
+	return 0;
+}
+
+/*
+ * Adjacent mappings with identical flags and contiguous file offsets are
+ * merged into one VMA, which would collapse NT_FILE back to nothing, so
+ * alternate the protection to keep every mapping an entry of its own.
+ * Not PROT_EXEC, /tmp is often mounted noexec. Nothing is ever written
+ * through these so they get no anon_vma and stay out of the dump itself.
+ */
+static int make_file_mappings(void)
+{
+	long pgsz = sysconf(_SC_PAGESIZE);
+	int fd, i;
+
+	fd = open(NOTIFY_SIGNAL_MAPFILE,
+		  O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	if (fd < 0)
+		return 0;
+	if (ftruncate(fd, (off_t)NOTIFY_SIGNAL_MAP_COUNT * pgsz)) {
+		close(fd);
+		return 0;
+	}
+
+	for (i = 0; i < NOTIFY_SIGNAL_MAP_COUNT; i++) {
+		int prot = (i & 1) ? PROT_READ : (PROT_READ | PROT_WRITE);
+
+		if (mmap(NULL, pgsz, prot, MAP_PRIVATE, fd,
+			 (off_t)i * pgsz) == MAP_FAILED)
+			break;
+	}
+	close(fd);
+	return i;
+}
+
+void crashing_child_notify_signal(void)
+{
+	long pgsz = sysconf(_SC_PAGESIZE);
+	unsigned char *p;
+	int trigger_fd;
+	unsigned long off;
+
+	/* Open the read side first so the reader's open() cannot block. */
+	trigger_fd = open(NOTIFY_SIGNAL_TRIGGER, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+
+	/* Exit rather than crash: a dump without the poll armed proves nothing. */
+	if (trigger_fd < 0)
+		_exit(EXIT_FAILURE);
+
+	if (make_file_mappings() < NOTIFY_SIGNAL_MAP_COUNT)
+		_exit(EXIT_FAILURE);
+
+	p = mmap(NULL, NOTIFY_SIGNAL_ANON_BYTES, PROT_READ | PROT_WRITE,
+		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (p == MAP_FAILED)
+		_exit(EXIT_FAILURE);
+	for (off = 0; off < NOTIFY_SIGNAL_ANON_BYTES; off += pgsz)
+		p[off] = 1;
+
+	if (arm_poll_notify(trigger_fd))
+		_exit(EXIT_FAILURE);
+
+	/* crash on purpose */
+	*(volatile int *)NULL = 0;
+	_exit(EXIT_FAILURE);
+}
+
+static int pull_trigger(void)
+{
+	int fd;
+
+	fd = open(NOTIFY_SIGNAL_TRIGGER, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		fprintf(stderr, "%s: open failed: %m\n", __func__);
+		return -1;
+	}
+	if (write(fd, "x", 1) != 1) {
+		fprintf(stderr, "%s: write failed: %m\n", __func__);
+		close(fd);
+		return -1;
+	}
+	close(fd);
+	return 0;
+}
+
+/*
+ * phdr[0] is the PT_NOTE entry: elf_core_dump() emits it right after the
+ * ELF header. Its p_offset is where the notes begin.
+ */
+static long long note_offset(const unsigned char *hdr)
+{
+	ElfW(Phdr) ph;
+	ElfW(Ehdr) eh;
+
+	memcpy(&eh, hdr, sizeof(eh));
+	if (memcmp(eh.e_ident, ELFMAG, SELFMAG) || eh.e_type != ET_CORE)
+		return -1;
+	memcpy(&ph, hdr + sizeof(eh), sizeof(ph));
+	if (ph.p_type != PT_NOTE)
+		return -1;
+	return (long long)ph.p_offset;
+}
+
+/*
+ * Drain a coredump off @fd, counting what arrives. Once the notes have
+ * started the kernel is inside the one big note write, so poke the fifo
+ * the crashing task is polling and stop reading, which keeps the
+ * transport full and the write blocked with a partial count when the
+ * wakeup lands. Then carry on to end of file.
+ *
+ * What arrives is written to @fd_out when that is not negative.
+ * Returns the number of bytes received, or -1. Failing to trip the fifo
+ * is an error too: a dump that was never interrupted proves nothing.
+ */
+ssize_t recv_coredump_notify_signal(int fd, int fd_out, bool arm)
+{
+	unsigned char hdr[sizeof(ElfW(Ehdr)) + sizeof(ElfW(Phdr))];
+	static char buf[64 << 10];
+	long pgsz = sysconf(_SC_PAGESIZE);
+	long long note_off = 0;
+	size_t hdrlen = 0;
+	ssize_t total = 0;
+	bool armed = false;
+
+	for (;;) {
+		ssize_t n = read(fd, buf, sizeof(buf));
+
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+		if (n == 0)
+			break;
+		if (fd_out >= 0 && write(fd_out, buf, n) != n)
+			return -1;
+
+		if (hdrlen < sizeof(hdr)) {
+			size_t want = sizeof(hdr) - hdrlen;
+
+			if (want > (size_t)n)
+				want = (size_t)n;
+			memcpy(hdr + hdrlen, buf, want);
+			hdrlen += want;
+			if (hdrlen == sizeof(hdr))
+				note_off = note_offset(hdr);
+		}
+
+		total += n;
+
+		if (arm && !armed && note_off > 0 &&
+		    total > note_off + (long long)pgsz) {
+			if (pull_trigger())
+				return -1;
+			armed = true;
+			usleep(NOTIFY_SIGNAL_STALL_US);
+			continue;
+		}
+	}
+
+	if (arm && !armed)
+		return -1;
+
+	return total;
+}
+
+/*
+ * How large the dump was meant to be. The ELF header and the program
+ * headers are the first thing emitted, so even a truncated dump says how
+ * far it should have run: the end is max(p_offset + p_filesz).
+ *
+ * That end is exact even when the last segment ends in a hole:
+ * coredump_write() flushes the pending cprm->to_skip with a final one
+ * byte emit and __dump_skip() writes zeroes for transports that cannot
+ * seek, so a whole dump carries every byte the headers promise.
+ */
+long long coredump_expected_size(const char *path)
+{
+	ElfW(Phdr) *phdr = NULL;
+	long long expected = 0;
+	unsigned int nphdr, i;
+	ElfW(Ehdr) eh;
+	int fd;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -1;
+	if (read(fd, &eh, sizeof(eh)) != sizeof(eh))
+		goto err;
+	if (memcmp(eh.e_ident, ELFMAG, SELFMAG) || eh.e_type != ET_CORE)
+		goto err;
+	if (!eh.e_phnum || eh.e_phentsize != sizeof(*phdr))
+		goto err;
+
+	nphdr = eh.e_phnum;
+	phdr = calloc(nphdr, sizeof(*phdr));
+	if (!phdr)
+		goto err;
+	if (pread(fd, phdr, (size_t)nphdr * sizeof(*phdr), (off_t)eh.e_phoff) !=
+	    (ssize_t)((size_t)nphdr * sizeof(*phdr)))
+		goto err;
+
+	for (i = 0; i < nphdr; i++) {
+		long long end = (long long)phdr[i].p_offset +
+				(long long)phdr[i].p_filesz;
+		if (end > expected)
+			expected = end;
+	}
+
+	free(phdr);
+	close(fd);
+	return expected;
+err:
+	free(phdr);
+	close(fd);
+	return -1;
 }

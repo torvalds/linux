@@ -3170,6 +3170,10 @@ static void retarget_shared_pending(struct task_struct *tsk, sigset_t *which)
 	sigset_t retarget;
 	struct task_struct *t;
 
+	/* Nobody dequeues them in a dying group, see get_signal(). */
+	if (tsk->signal->flags & SIGNAL_GROUP_EXIT)
+		return;
+
 	sigandsets(&retarget, &tsk->signal->shared_pending.signal, which);
 	if (sigisemptyset(&retarget))
 		return;
@@ -3255,6 +3259,16 @@ long do_no_restart_syscall(struct restart_block *param)
 
 static void __set_task_blocked(struct task_struct *tsk, const sigset_t *newset)
 {
+	sigset_t floor, floored;
+
+	/* A user worker never unblocks anything but SIGKILL and SIGSTOP. */
+	if (unlikely(tsk->flags & PF_USER_WORKER)) {
+		siginitsetinv(&floor, SIG_KERNEL_ONLY_MASK);
+		sigorsets(&floored, newset, &floor);
+		WARN_ON_ONCE(!sigequalsets(&floored, newset));
+		newset = &floored;
+	}
+
 	if (task_sigpending(tsk) && !thread_group_empty(tsk)) {
 		sigset_t newblocked;
 		/* A set of now blocked but previously unblocked signals. */
