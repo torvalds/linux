@@ -292,7 +292,7 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 	if (err == 0)
 		err |= preserve_vfp_context(&aux->vfp);
 #endif
-	err |= __put_user(0, &aux->end_magic);
+	err |= put_user(0, &aux->end_magic);
 
 	return err;
 }
@@ -387,11 +387,12 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 			idx = 6 + thumb * 3;
 			if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 				idx += 5;
-			if (__put_user(sigreturn_codes[idx],   rc  ) ||
-			    __put_user(sigreturn_codes[idx+1], rc+1) ||
-			    __put_user(sigreturn_codes[idx+2], rc+2) ||
-			    __put_user(retcode,                rc+3))
-				return 1;
+			scoped_user_write_access_size(rc, 4 * sizeof(*rc), efault) {
+				unsafe_put_user(sigreturn_codes[idx],   rc,   efault);
+				unsafe_put_user(sigreturn_codes[idx+1], rc+1, efault);
+				unsafe_put_user(sigreturn_codes[idx+2], rc+2, efault);
+				unsafe_put_user(retcode,                rc+3, efault);
+			}
 			goto rc_finish;
 		}
 	} else {
@@ -403,9 +404,10 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 * Put the sigreturn code on the stack no matter which return
 		 * mechanism we use in order to remain ABI compliant
 		 */
-		if (__put_user(sigreturn_codes[idx],   rc) ||
-		    __put_user(sigreturn_codes[idx+1], rc+1))
-			return 1;
+		scoped_user_write_access_size(rc, 2 * sizeof(*rc), efault) {
+			unsafe_put_user(sigreturn_codes[idx],   rc,   efault);
+			unsafe_put_user(sigreturn_codes[idx+1], rc+1, efault);
+		}
 
 rc_finish:
 #ifdef CONFIG_MMU
@@ -442,6 +444,9 @@ rc_finish:
 	regs->ARM_cpsr = cpsr;
 
 	return 0;
+
+efault:
+	return 1;
 }
 
 static int
@@ -456,7 +461,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	/*
 	 * Set uc.uc_flags to a value which sc.trap_no would never have.
 	 */
-	err = __put_user(0x5ac3c35a, &frame->uc.uc_flags);
+	err = put_user(0x5ac3c35a, &frame->uc.uc_flags);
 
 	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
@@ -476,8 +481,10 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
-	err |= __put_user(0, &frame->sig.uc.uc_flags);
-	err |= __put_user(NULL, &frame->sig.uc.uc_link);
+	scoped_user_write_access(frame, efault) {
+		unsafe_put_user(0, &frame->sig.uc.uc_flags, efault);
+		unsafe_put_user(NULL, &frame->sig.uc.uc_link, efault);
+	}
 
 	err |= __save_altstack(&frame->sig.uc.uc_stack, regs->ARM_sp);
 	err |= setup_sigframe(&frame->sig, regs, set);
@@ -495,6 +502,9 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	}
 
 	return err;
+
+efault:
+	return -EFAULT;
 }
 
 /*
