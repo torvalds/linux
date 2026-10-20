@@ -163,7 +163,6 @@ int amd_iommu_gpt_level = PAGE_MODE_4_LEVEL;
 int amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_VAPIC;
 static int amd_iommu_xt_mode = IRQ_REMAP_XAPIC_MODE;
 
-static bool amd_iommu_detected;
 static bool amd_iommu_disabled __initdata;
 static bool amd_iommu_force_enable __initdata;
 static bool amd_iommu_irtcachedis;
@@ -390,7 +389,13 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
 
 	BUG_ON(iommu->mmio_base == NULL);
 
-	if (is_kdump_kernel())
+	/*
+	 * A kdump kernel that reuses the previous kernel's device table must
+	 * leave the base register alone. It already points at that table, and
+	 * with SNP enabled the register is locked. If reuse failed, program
+	 * the freshly allocated table like a normal boot.
+	 */
+	if (iommu->pci_seg->old_dev_tbl_cpy)
 		return;
 
 	entry = iommu_virt_to_phys(dev_table);
@@ -623,8 +628,19 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table, u16 pci_
 /* Allocate per PCI segment device table */
 static inline int __init alloc_dev_table(struct amd_iommu_pci_seg *pci_seg)
 {
-	pci_seg->dev_table = iommu_alloc_pages_sz(GFP_KERNEL | GFP_DMA32,
-						  pci_seg->dev_table_size);
+	gfp_t gfp = GFP_KERNEL;
+
+	/*
+	 * Keep normal kernel device tables below 4G because a later kdump
+	 * kernel only trusts and reuses old tables below that limit. A kdump
+	 * kernel's new table is either discarded when reuse succeeds or
+	 * programmed after the IOMMU is disabled, so the table does not
+	 * need DMA32 memory (which the crashkernel may not have).
+	 */
+	if (!is_kdump_kernel())
+		gfp |= GFP_DMA32;
+
+	pci_seg->dev_table = iommu_alloc_pages_sz(gfp, pci_seg->dev_table_size);
 	if (!pci_seg->dev_table)
 		return -ENOMEM;
 
@@ -916,13 +932,13 @@ static void free_ga_log(struct amd_iommu *iommu)
 }
 
 #ifdef CONFIG_IRQ_REMAP
-static int iommu_ga_log_enable(struct amd_iommu *iommu)
+static bool iommu_ga_log_enable(struct amd_iommu *iommu)
 {
 	u32 status, i;
 	u64 entry;
 
 	if (!iommu->ga_log)
-		return -EINVAL;
+		return false;
 
 	entry = iommu_virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
 	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
@@ -946,35 +962,31 @@ static int iommu_ga_log_enable(struct amd_iommu *iommu)
 	}
 
 	if (WARN_ON(i >= MMIO_STATUS_TIMEOUT))
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
+#endif /* CONFIG_IRQ_REMAP */
 
-static int iommu_init_ga_log(struct amd_iommu *iommu)
+static int alloc_ga_log(struct amd_iommu *iommu)
 {
+#ifdef CONFIG_IRQ_REMAP
 	int nid = iommu->dev ? dev_to_node(&iommu->dev->dev) : NUMA_NO_NODE;
-
-	if (WARN_ON_ONCE(!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir)))
-		return -EINVAL;
-
-	if (iommu->ga_log && iommu->ga_log_tail)
-		return 0;
 
 	iommu->ga_log = iommu_alloc_pages_node_sz(nid, GFP_KERNEL, GA_LOG_SIZE);
 	if (!iommu->ga_log)
-		goto err_out;
+		return -ENOMEM;
 
 	iommu->ga_log_tail = iommu_alloc_pages_node_sz(nid, GFP_KERNEL, 8);
-	if (!iommu->ga_log_tail)
-		goto err_out;
+	if (!iommu->ga_log_tail) {
+		iommu_free_pages(iommu->ga_log);
+		iommu->ga_log = NULL;
+		return -ENOMEM;
+	}
+#endif
 
 	return 0;
-err_out:
-	free_ga_log(iommu);
-	return -EINVAL;
 }
-#endif /* CONFIG_IRQ_REMAP */
 
 static int __init alloc_cwwb_sem(struct amd_iommu *iommu)
 {
@@ -1948,6 +1960,9 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h,
 	if (!iommu->mmio_base)
 		return -ENOMEM;
 
+	if (amd_iommu_perfopt_clear(iommu))
+		pr_err("IOMMU%d: failed to clear PerfOpt\n", iommu->index);
+
 	return init_iommu_from_acpi(iommu, h);
 }
 
@@ -2152,6 +2167,27 @@ static void __init late_iommu_features_init(struct amd_iommu *iommu)
 	}
 }
 
+/* Must be called after SNP support check is complete (iommu_snp_enable()) */
+static bool check_vapic_support(void)
+{
+	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		return false;
+
+	if (!check_feature(FEATURE_GAM_VAPIC)) {
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+		return false;
+	}
+
+	if (amd_iommu_snp_en &&
+	    !FEATURE_SNPAVICSUP_GAM(amd_iommu_efr2)) {
+		pr_warn("Force to disable Virtual APIC due to SNP\n");
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+		return false;
+	}
+
+	return true;
+}
+
 static int __init iommu_init_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
@@ -2195,6 +2231,12 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 	if (check_feature(FEATURE_PPR) && amd_iommu_alloc_ppr_log(iommu))
 		return -ENOMEM;
+
+	if (check_vapic_support()) {
+		ret = alloc_ga_log(iommu);
+		if (ret)
+			return ret;
+	}
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE)) {
 		pr_info("Using strict mode due to virtualization\n");
@@ -3010,22 +3052,9 @@ static void enable_iommus_vapic(void)
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
 		return;
 
-	if (!check_feature(FEATURE_GAM_VAPIC)) {
-		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
-		return;
-	}
-
-	if (amd_iommu_snp_en &&
-	    !FEATURE_SNPAVICSUP_GAM(amd_iommu_efr2)) {
-		pr_warn("Force to disable Virtual APIC due to SNP\n");
-		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
-		return;
-	}
-
 	/* Enabling GAM and SNPAVIC support */
 	for_each_iommu(iommu) {
-		if (iommu_init_ga_log(iommu) ||
-		    iommu_ga_log_enable(iommu))
+		if (!iommu_ga_log_enable(iommu))
 			return;
 
 		iommu_feature_enable(iommu, CONTROL_GAM_EN);
@@ -3038,9 +3067,45 @@ static void enable_iommus_vapic(void)
 #endif
 }
 
+static int clear_perfopt_all(void)
+{
+	struct amd_iommu *iommu;
+	int err, ret = 0;
+
+	for_each_iommu(iommu) {
+		err = amd_iommu_perfopt_clear(iommu);
+		if (err)
+			ret = err;
+	}
+
+	return ret;
+}
+
+static int restore_perfopt_all(void)
+{
+	struct amd_iommu *iommu;
+	int err, ret = 0;
+
+	for_each_iommu(iommu) {
+		err = amd_iommu_perfopt_restore(iommu);
+		if (err)
+			ret = err;
+	}
+
+	return ret;
+}
+
 static void disable_iommus(void)
 {
 	struct amd_iommu *iommu;
+
+	/*
+	 * PerfOpt is an optional performance bit, so a failure to clear it must
+	 * not skip the mandatory disable below. This also runs from the void
+	 * amd_iommu_disable() shutdown/kexec path, which cannot report an error.
+	 */
+	if (clear_perfopt_all())
+		pr_err("Failed to clear PerfOpt while disabling IOMMUs\n");
 
 	for_each_iommu(iommu)
 		iommu_disable(iommu);
@@ -3066,6 +3131,10 @@ static void amd_iommu_resume(void *data)
 	/* re-load the hardware */
 	for_each_iommu(iommu)
 		early_enable_iommu(iommu);
+
+	/* early_enable_iommu() cleared PERF_OPT_EN; re-assert it from the refcount. */
+	if (restore_perfopt_all())
+		pr_err("Failed to restore PerfOpt after IOMMU resume\n");
 
 	iommu_enable_event_buffer();
 	amd_iommu_enable_interrupts();
@@ -3228,9 +3297,6 @@ static int __init early_amd_iommu_init(void)
 	acpi_status status;
 	u8 efr_hats, max_vasize;
 
-	if (!amd_iommu_detected)
-		return -ENODEV;
-
 	status = acpi_get_table("IVRS", 0, &ivrs_base);
 	if (status == AE_NOT_FOUND)
 		return -ENODEV;
@@ -3309,7 +3375,7 @@ static int __init early_amd_iommu_init(void)
 	}
 
 	/* Disable any previously enabled IOMMUs */
-	if (!is_kdump_kernel() || amd_iommu_disabled)
+	if (!is_kdump_kernel())
 		disable_iommus();
 
 	if (amd_iommu_irq_remap)
@@ -3404,12 +3470,6 @@ static __init void iommu_snp_enable(void)
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return;
 
-	/* SNP support required IOMMU to be ON */
-	if (no_iommu) {
-		pr_warn("SNP: IOMMU disabled, SNP cannot be supported.\n");
-		goto disable_snp;
-	}
-
 	amd_iommu_snp_mode0_sup = check_feature2(FEATURE_SNP_PAGE_MODE0_SUP);
 	/*
 	 * If SNP page mode 0 is not enabled, then SNP support requires that IOMMU
@@ -3476,6 +3536,8 @@ static void amd_iommu_apply_erratum_snp(void)
 #endif
 }
 
+static bool amd_iommu_sme_check(void);
+
 /****************************************************************************
  *
  * AMD IOMMU Initialization State Machine
@@ -3488,7 +3550,13 @@ static int __init state_next(void)
 
 	switch (init_state) {
 	case IOMMU_START_STATE:
-		if (!detect_ivrs()) {
+		if (no_iommu || amd_iommu_disabled) {
+			init_state	= IOMMU_CMDLINE_DISABLED;
+			ret		= -EINVAL;
+		} else if (!amd_iommu_sme_check()) {
+			init_state	= IOMMU_INIT_ERROR;
+			ret		= -EINVAL;
+		} else if (!detect_ivrs()) {
 			init_state	= IOMMU_NOT_FOUND;
 			ret		= -ENODEV;
 		} else {
@@ -3496,13 +3564,8 @@ static int __init state_next(void)
 		}
 		break;
 	case IOMMU_IVRS_DETECTED:
-		if (amd_iommu_disabled) {
-			init_state = IOMMU_CMDLINE_DISABLED;
-			ret = -EINVAL;
-		} else {
-			ret = early_amd_iommu_init();
-			init_state = ret ? IOMMU_INIT_ERROR : IOMMU_ACPI_FINISHED;
-		}
+		ret = early_amd_iommu_init();
+		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_ACPI_FINISHED;
 		break;
 	case IOMMU_ACPI_FINISHED:
 		early_enable_iommus();
@@ -3574,6 +3637,19 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 {
 	int ret = -EINVAL;
 
+	/*
+	 * Some essential housekeeping work is done by amd_iommu_detect().
+	 * Skipping calling it implies that the platform (e.g., Xen hypervisor)
+	 * has taken over the hardware. Progressing the state machine in this
+	 * case is worthless and fragile.
+	 *
+	 * There are several paths requesting later states, so disallow implicit
+	 * START_STATE => IVRS_DETECTED transition to prevent these paths from
+	 * accidentally progressing the state machine.
+	 */
+	if (init_state == IOMMU_START_STATE && state != IOMMU_IVRS_DETECTED)
+		goto out;
+
 	while (init_state != state) {
 		if (init_state == IOMMU_NOT_FOUND         ||
 		    init_state == IOMMU_INIT_ERROR        ||
@@ -3582,6 +3658,7 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 		ret = state_next();
 	}
 
+out:
 	/*
 	 * SNP platform initilazation requires IOMMUs to be fully configured.
 	 * If the SNP support on IOMMUs has NOT been checked, simply mark SNP
@@ -3701,17 +3778,10 @@ void __init amd_iommu_detect(void)
 {
 	int ret;
 
-	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
-		goto disable_snp;
-
-	if (!amd_iommu_sme_check())
-		goto disable_snp;
-
 	ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
 	if (ret)
 		goto disable_snp;
 
-	amd_iommu_detected = true;
 	iommu_detected = 1;
 	x86_init.iommu.iommu_init = amd_iommu_init;
 	return;

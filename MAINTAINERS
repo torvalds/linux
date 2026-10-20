@@ -1181,8 +1181,8 @@ F:	drivers/platform/x86/amd/hfi/
 
 AMD IOMMU (AMD-VI)
 M:	Joerg Roedel (AMD) <joro@8bytes.org>
+M:	Vasant Hegde <vasant.hegde@amd.com>
 R:	Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
-R:	Vasant Hegde <vasant.hegde@amd.com>
 L:	iommu@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
@@ -5166,6 +5166,18 @@ N:	bcm2711
 N:	bcm2712
 N:	bcm283*
 N:	raspberrypi
+
+BROADCOM BCM2712 IOMMU DRIVER
+M:	Daniel Drake <dan@reactivated.net>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
+M:	Jim Quinlan <james.quinlan@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
+L:	iommu@lists.linux.dev
+L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/iommu/brcm,bcm2712-iommu*
+F:	drivers/iommu/bcm2712-iommu*
+F:	drivers/iommu/generic_pt/fmt/*bcm2712*
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Florian Fainelli <florian.fainelli@broadcom.com>

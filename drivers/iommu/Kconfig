@@ -195,6 +195,7 @@ config MSM_IOMMU
 source "drivers/iommu/amd/Kconfig"
 source "drivers/iommu/arm/Kconfig"
 source "drivers/iommu/intel/Kconfig"
+source "drivers/iommu/hyperv/Kconfig"
 source "drivers/iommu/iommufd/Kconfig"
 source "drivers/iommu/riscv/Kconfig"
 
@@ -303,7 +304,7 @@ config SPAPR_TCE_IOMMU
 
 config APPLE_DART
 	tristate "Apple DART IOMMU Support"
-	depends on ARCH_APPLE || COMPILE_TEST
+	depends on ARCH_APPLE || (COMPILE_TEST && 64BIT)
 	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_DART
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_DART
@@ -382,6 +383,21 @@ config VSI_IOMMU
 	help
 	  Support for IOMMUs used by Verisilicon sub-systems like video
 	  decoders or encoder hardware blocks.
+
+	  Say Y here if you want to use this IOMMU in front of these
+	  hardware blocks.
+
+config BCM2712_IOMMU
+	bool "BCM2712 IOMMU driver"
+	depends on (ARCH_BCM2835 && ARM64) || COMPILE_TEST
+	select IOMMU_API
+	select GENERIC_PT
+	select IOMMU_PT
+	select IOMMU_PT_BCM2712
+	help
+	  Support for IOMMU on BCM2712 SoC. This IOMMU can be used by the
+	  display controller and various multimedia devices to perform
+	  efficient memory management.
 
 	  Say Y here if you want to use this IOMMU in front of these
 	  hardware blocks.

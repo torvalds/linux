@@ -53,6 +53,7 @@
 #define MMIO_MSI_ADDR_LO_OFFSET	0x015C
 #define MMIO_MSI_ADDR_HI_OFFSET	0x0160
 #define MMIO_MSI_DATA_OFFSET	0x0164
+#define MMIO_PERF_OPT_OFFSET	0x016C
 #define MMIO_INTCAPXT_EVT_OFFSET	0x0170
 #define MMIO_INTCAPXT_PPR_OFFSET	0x0178
 #define MMIO_INTCAPXT_GALOG_OFFSET	0x0180
@@ -87,6 +88,8 @@
 #define FEATURE_GLX		GENMASK_ULL(15, 14)
 #define FEATURE_GAM_VAPIC	BIT_ULL(21)
 #define FEATURE_PASMAX		GENMASK_ULL(36, 32)
+#define FEATURE_PERF_OPT	BIT_ULL(45)
+#define PERF_OPT_EN		BIT(13)
 #define FEATURE_GIOSUP		BIT_ULL(48)
 #define FEATURE_HASUP		BIT_ULL(49)
 #define FEATURE_EPHSUP		BIT_ULL(50)
@@ -657,6 +660,9 @@ struct amd_iommu {
 	/* Extended features 2 */
 	u64 features2;
 
+	/* Devices requesting PerfOpt; the shared PERF_OPT_EN bit is on while >0. Protected by @lock. */
+	int perfopt_refcount;
+
 	/* PCI device id of the IOMMU device */
 	u16 devid;
 
@@ -818,6 +824,7 @@ struct iommu_dev_data {
 	u8 ppr          :1;		  /* Enable device PPR support */
 	bool use_vapic;			  /* Enable device to use vapic mode */
 	bool defer_attach;
+	bool perfopt;
 
 	struct ratelimit_state rs;        /* Ratelimit IOPF messages */
 };
