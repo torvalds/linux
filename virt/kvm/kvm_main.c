@@ -104,11 +104,9 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(halt_poll_ns_shrink);
 static bool __ro_after_init allow_unsafe_mappings;
 module_param(allow_unsafe_mappings, bool, 0444);
 
-#ifdef kvm_arch_has_private_mem
-bool __ro_after_init gmem_in_place_conversion = !IS_ENABLED(CONFIG_KVM_PRIVATE_MEMATTR_VM);
 #ifdef CONFIG_KVM_PRIVATE_MEMATTR_VM
+bool __ro_after_init gmem_in_place_conversion = false;
 module_param(gmem_in_place_conversion, bool, 0444);
-#endif
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(gmem_in_place_conversion);
 #endif
 
@@ -2705,18 +2703,21 @@ static int kvm_vm_ioctl_set_mem_attributes(struct kvm *kvm,
 }
 #endif /* CONFIG_KVM_VM_MEMORY_ATTRIBUTES */
 
-#ifdef kvm_arch_has_private_mem
+#ifdef CONFIG_KVM_PRIVATE_MEMATTR_VM
 DEFINE_STATIC_CALL_RET0(__kvm_is_private_gfn, kvm_is_private_gfn_t);
 EXPORT_STATIC_CALL_GPL(__kvm_is_private_gfn);
+
+static bool kvm_vm_is_private_gfn(struct kvm *kvm, gfn_t gfn)
+{
+	return kvm_get_vm_memory_attributes(kvm, gfn) & KVM_MEMORY_ATTRIBUTE_PRIVATE;
+}
 
 static void kvm_init_memory_attributes(void)
 {
 	if (gmem_in_place_conversion)
 		static_call_update(__kvm_is_private_gfn, kvm_gmem_is_private_gfn);
-#ifdef CONFIG_KVM_PRIVATE_MEMATTR_VM
 	else
 		static_call_update(__kvm_is_private_gfn, kvm_vm_is_private_gfn);
-#endif
 }
 #else
 static void kvm_init_memory_attributes(void) { }

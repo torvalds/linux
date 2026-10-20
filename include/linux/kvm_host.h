@@ -2585,15 +2585,7 @@ bool kvm_arch_post_set_vm_memory_attributes(struct kvm *kvm,
 #endif  /* CONFIG_KVM_VM_MEMORY_ATTRIBUTES */
 
 #ifdef CONFIG_KVM_PRIVATE_MEMATTR_VM
-static inline bool kvm_vm_is_private_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return kvm_get_vm_memory_attributes(kvm, gfn) & KVM_MEMORY_ATTRIBUTE_PRIVATE;
-}
-#endif  /* CONFIG_KVM_PRIVATE_MEMATTR_VM */
-
-#ifdef kvm_arch_has_private_mem
 extern bool gmem_in_place_conversion;
-
 typedef bool (kvm_is_private_gfn_t)(struct kvm *kvm, gfn_t gfn);
 DECLARE_STATIC_CALL(__kvm_is_private_gfn, kvm_is_private_gfn_t);
 
@@ -2601,6 +2593,11 @@ static inline bool kvm_is_private_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	return static_call(__kvm_is_private_gfn)(kvm, gfn);
 }
+
+#elif defined kvm_arch_has_private_mem
+#define gmem_in_place_conversion true
+#define kvm_is_private_gfn kvm_gmem_is_private_gfn
+
 #else
 #define gmem_in_place_conversion false
 
