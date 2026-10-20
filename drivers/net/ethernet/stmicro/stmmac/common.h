@@ -158,7 +158,6 @@ struct stmmac_extra_stats {
 	unsigned long fatal_bus_error_irq;
 	/* Tx/Rx IRQ Events */
 	unsigned long rx_early_irq;
-	unsigned long threshold;
 	unsigned long irq_receive_pmt_irq_n;
 	/* MMC info */
 	unsigned long mmc_tx_irq_n;
