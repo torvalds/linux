@@ -27,7 +27,7 @@ static bool ntfs_check_restart_page_header(struct inode *vi,
 		struct restart_page_header *rp, s64 pos)
 {
 	u32 logfile_system_page_size, logfile_log_page_size;
-	u16 ra_ofs, usa_count, usa_ofs, usa_end = 0;
+	u32 ra_ofs, usa_count, usa_ofs, usa_end = 0;
 	bool have_usa = true;
 
 	ntfs_debug("Entering.");
