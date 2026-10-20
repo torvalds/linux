@@ -711,7 +711,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 
-	if (__get_user_sigset(&set, &new_ctx->uc_sigmask)) {
+	if (get_user_sigset(&set, &new_ctx->uc_sigmask)) {
 		force_exit_sig(SIGSEGV);
 		return -EFAULT;
 	}
@@ -754,7 +754,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
 
-	if (__get_user_sigset(&set, &uc->uc_sigmask))
+	if (get_user_sigset(&set, &uc->uc_sigmask))
 		goto badframe;
 	set_current_blocked(&set);
 
@@ -797,7 +797,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 */
 		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 
-		if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
+		if (get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 			goto badframe;
 	}
 
@@ -809,7 +809,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		if (!cpu_has_feature(CPU_FTR_TM))
 			goto badframe;
 
-		if (__get_user(uc_transact, &uc->uc_link))
+		if (get_user(uc_transact, &uc->uc_link))
 			goto badframe;
 		if (restore_tm_sigcontexts(current, &uc->uc_mcontext,
 					   &uc_transact->uc_mcontext))

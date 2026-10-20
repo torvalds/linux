@@ -16,11 +16,11 @@ extern int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 extern int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 			      struct task_struct *tsk);
 
-static inline int __get_user_sigset(sigset_t *dst, const sigset_t __user *src)
+static inline int get_user_sigset(sigset_t *dst, const sigset_t __user *src)
 {
 	BUILD_BUG_ON(sizeof(sigset_t) != sizeof(u64));
 
-	return __get_user(dst->sig[0], (u64 __user *)&src->sig[0]);
+	return get_user(dst->sig[0], (u64 __user *)&src->sig[0]);
 }
 #define unsafe_get_user_sigset(dst, src, label) do {			\
 	sigset_t *__dst = dst;						\
