@@ -10,7 +10,7 @@ struct mm_struct;
 struct io_bitmap;
 struct vm86;
 
-#include <asm/math_emu.h>
+#include <asm/ptrace.h>
 #include <asm/segment.h>
 #include <asm/types.h>
 #include <uapi/asm/sigcontext.h>

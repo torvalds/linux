@@ -491,7 +491,7 @@ void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 	if (likely(kfpu_mask & KFPU_MXCSR) && boot_cpu_has(X86_FEATURE_XMM))
 		ldmxcsr(MXCSR_DEFAULT);
 
-	if (unlikely(kfpu_mask & KFPU_387) && boot_cpu_has(X86_FEATURE_FPU))
+	if (unlikely(kfpu_mask & KFPU_387))
 		asm volatile ("fninit");
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_begin_mask);
@@ -672,9 +672,6 @@ int fpu_clone(struct task_struct *dst, u64 clone_flags, bool minimal,
 
 	fpstate_reset(dst_fpu);
 
-	if (!cpu_feature_enabled(X86_FEATURE_FPU))
-		return 0;
-
 	/*
 	 * Enforce reload for user space tasks and prevent kernel threads
 	 * from trying to save the FPU registers on context switch.
@@ -833,11 +830,6 @@ void fpu__clear_user_states(struct fpu *fpu)
 	WARN_ON_FPU(fpu != x86_task_fpu(current));
 
 	fpregs_lock();
-	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
-		fpu_reset_fpstate_regs();
-		fpregs_unlock();
-		return;
-	}
 
 	/*
 	 * Ensure that current's supervisor states are loaded into their
@@ -874,9 +866,6 @@ void fpu_flush_thread(void)
  */
 void switch_fpu_return(void)
 {
-	if (!cpu_feature_enabled(X86_FEATURE_FPU))
-		return;
-
 	fpregs_restore_userregs();
 }
 EXPORT_SYMBOL_FOR_KVM(switch_fpu_return);

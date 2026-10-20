@@ -75,30 +75,6 @@ struct fxregs_state {
 #define MXCSR_AND_FLAGS_SIZE sizeof(u64)
 
 /*
- * Software based FPU emulation state. This is arbitrary really,
- * it matches the x87 format to make it easier to understand:
- */
-struct swregs_state {
-	u32			cwd;
-	u32			swd;
-	u32			twd;
-	u32			fip;
-	u32			fcs;
-	u32			foo;
-	u32			fos;
-	/* 8*10 bytes for each FP-reg = 80 bytes: */
-	u32			st_space[20];
-	u8			ftop;
-	u8			changed;
-	u8			lookahead;
-	u8			no_update;
-	u8			rm;
-	u8			alimit;
-	struct math_emu_info	*info;
-	u32			entry_eip;
-};
-
-/*
  * List of XSAVE features Linux knows about:
  */
 enum xfeature {
@@ -369,7 +345,6 @@ struct xregs_state {
 union fpregs_state {
 	struct fregs_state		fsave;
 	struct fxregs_state		fxsave;
-	struct swregs_state		soft;
 	struct xregs_state		xsave;
 	u8 __padding[PAGE_SIZE];
 };

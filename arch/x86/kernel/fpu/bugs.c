@@ -29,10 +29,6 @@ void __init fpu__init_check_bugs(void)
 {
 	s32 fdiv_bug;
 
-	/* kernel_fpu_begin/end() relies on patched alternative instructions. */
-	if (!boot_cpu_has(X86_FEATURE_FPU))
-		return;
-
 	kernel_fpu_begin();
 
 	/*

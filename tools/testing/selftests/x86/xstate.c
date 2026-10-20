@@ -34,18 +34,6 @@
 	 (1 << XFEATURE_XTILEDATA) |	\
 	 (1 << XFEATURE_APX))
 
-static inline uint64_t xgetbv(uint32_t index)
-{
-	uint32_t eax, edx;
-
-	asm volatile("xgetbv" : "=a" (eax), "=d" (edx) : "c" (index));
-	return eax + ((uint64_t)edx << 32);
-}
-
-static inline uint64_t get_xstatebv(struct xsave_buffer *xbuf)
-{
-	return *(uint64_t *)(&xbuf->header);
-}
 
 static struct xstate_info xstate;
 
