@@ -45,6 +45,10 @@ TEST_GEN_FILES += binfmt_transparent_interp
 TEST_GEN_PROGS += binfmt_misc_loader
 TEST_GEN_FILES += binfmt_loader_payload binfmt_loader_payload_static
 
+# Only ASCII punctuation delimits the fields of a register string, so a new
+# flag character cannot change which strings register. No bpf toolchain.
+TEST_GEN_PROGS += binfmt_misc_delim
+
 # binfmt_misc bpf-backed ('B') handler test: a libbpf harness plus its
 # struct_ops objects and the test interpreter/app it routes between. Only
 # built when clang, bpftool, the vmlinux BTF and libbpf are all present

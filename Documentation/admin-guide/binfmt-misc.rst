@@ -19,6 +19,9 @@ To actually register a new binary type, you have to set up a string looking like
 ``:name:type:offset:magic:mask:interpreter:flags`` (where you can choose the
 ``:`` upon your needs) and echo it to ``/proc/sys/fs/binfmt_misc/register``.
 
+The first character of the string is its field delimiter and can be any
+ASCII punctuation character other than the backslash ``\``.
+
 Here is what the fields mean:
 
 - ``name``
