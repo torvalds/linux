@@ -2902,12 +2902,6 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	}
 }
 
-static inline int
-valid_user_frame(const void __user *fp, unsigned long size)
-{
-	return __access_ok(fp, size);
-}
-
 static unsigned long get_segment_base(unsigned int segment)
 {
 	struct desc_struct *desc;
@@ -2971,17 +2965,15 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *ent
 		perf_callchain_store(entry, ret_addr);
 
 	while (entry->nr < entry->max_stack) {
-		if (!valid_user_frame(fp, sizeof(frame)))
-			break;
-
-		if (__get_user(frame.next_frame, &fp->next_frame))
-			break;
-		if (__get_user(frame.return_address, &fp->return_address))
-			break;
+		scoped_user_read_access(fp, out) {
+			unsafe_get_user(frame.next_frame, &fp->next_frame, out);
+			unsafe_get_user(frame.return_address, &fp->return_address, out);
+		}
 
 		perf_callchain_store(entry, cs_base + frame.return_address);
 		fp = compat_ptr(ss_base + frame.next_frame);
 	}
+out:
 	pagefault_enable();
 	return 1;
 }
@@ -3036,17 +3028,15 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 		perf_callchain_store(entry, ret_addr);
 
 	while (entry->nr < entry->max_stack) {
-		if (!valid_user_frame(fp, sizeof(frame)))
-			break;
-
-		if (__get_user(frame.next_frame, &fp->next_frame))
-			break;
-		if (__get_user(frame.return_address, &fp->return_address))
-			break;
+		scoped_user_read_access(fp, out) {
+			unsafe_get_user(frame.next_frame, &fp->next_frame, out);
+			unsafe_get_user(frame.return_address, &fp->return_address, out);
+		}
 
 		perf_callchain_store(entry, frame.return_address);
 		fp = (void __user *)frame.next_frame;
 	}
+out:
 	pagefault_enable();
 }
 
