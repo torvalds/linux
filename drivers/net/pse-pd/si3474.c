@@ -539,10 +539,9 @@ static int si3474_i2c_probe(struct i2c_client *client)
 	priv->pcdev.nr_lines = SI3474_MAX_CHANS;
 
 	ret = devm_pse_controller_register(dev, &priv->pcdev);
-	if (ret) {
-		dev_err(dev, "Failed to register PSE controller: 0x%x\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to register PSE controller\n");
 
 	return 0;
 }
