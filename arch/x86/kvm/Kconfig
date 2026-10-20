@@ -80,6 +80,7 @@ config KVM_PRIVATE_MEMATTR_VM
 	bool "Enable per-VM PRIVATE vs. SHARED attributes (for CoCo VMs)"
 	depends on KVM_SW_PROTECTED_VM || KVM_INTEL_TDX || KVM_AMD_SEV
 	select KVM_VM_MEMORY_ATTRIBUTES
+	default KVM_INTEL_TDX || KVM_AMD_SEV
 	help
 	  Enable support for tracking PRIVATE vs. SHARED memory using per-VM
 	  memory attributes.  Using per-VM attributes is deprecated in favor of
@@ -87,7 +88,7 @@ config KVM_PRIVATE_MEMATTR_VM
 	  CoCo VMs using a VMM that doesn't support guest_memfd memory
 	  attributes.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config KVM_SW_PROTECTED_VM
 	bool "Enable support for KVM software-protected VMs"
