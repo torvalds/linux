@@ -169,10 +169,6 @@ config CC_OPT_NO_ALLOW_STORE_DATA_RACES
 config CC_HAS_MNOP_MCOUNT
 	def_bool $(cc-option,-mnop-mcount)
 
-# s390-linux-gnu-gcc did not support -mfentry until gcc-9.
-config CC_HAS_MFENTRY
-	def_bool $(cc-option,-mfentry)
-
 config LD_OPT_FORCE_GROUP_ALLOCATION
 	def_string "$(ld-option-str,--force-group-allocation)"
 
