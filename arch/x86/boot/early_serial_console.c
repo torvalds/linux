@@ -22,6 +22,7 @@
 #define DLH             1       /*  Divisor latch High        */
 
 #define DEFAULT_BAUD 9600
+#define BASE_BAUD (1843200 / 16)
 
 static void early_serial_init(int port, int baud)
 {
@@ -33,7 +34,7 @@ static void early_serial_init(int port, int baud)
 	outb(0, port + FCR);	/* no fifo */
 	outb(0x3, port + MCR);	/* DTR + RTS */
 
-	divisor	= 115200 / baud;
+	divisor	= BASE_BAUD / baud;
 	c = inb(port + LCR);
 	outb(c | DLAB, port + LCR);
 	outb(divisor & 0xff, port + DLL);
@@ -74,16 +75,13 @@ static void parse_earlyprintk(void)
 			else
 				pos = e - arg;
 		} else if (!strncmp(arg + pos, "ttyS", 4)) {
-			static const int bases[] = { 0x3f8, 0x2f8 };
-			int idx = 0;
-
 			/* += strlen("ttyS"); */
 			pos += 4;
 
 			if (arg[pos++] == '1')
-				idx = 1;
-
-			port = bases[idx];
+				port = 0x2f8; /* ttyS1 */
+			else
+				port = DEFAULT_SERIAL_PORT;
 		}
 
 		if (arg[pos] == ',')
@@ -98,7 +96,6 @@ static void parse_earlyprintk(void)
 		early_serial_init(port, baud);
 }
 
-#define BASE_BAUD (1843200/16)
 static unsigned int probe_baud(int port)
 {
 	unsigned char lcr, dll, dlh;

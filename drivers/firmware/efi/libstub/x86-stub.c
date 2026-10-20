@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/stddef.h>
 
+#include <asm/cpuid/api.h>
 #include <asm/efi.h>
 #include <asm/e820/types.h>
 #include <asm/setup.h>
@@ -17,6 +18,7 @@
 #include <asm/boot.h>
 #include <asm/kaslr.h>
 #include <asm/sev.h>
+#include <asm/shared/tdx.h>
 
 #include "efistub.h"
 #include "x86-stub.h"
@@ -1067,4 +1069,41 @@ extern __alias(efi_handover_entry)
 void efi64_stub_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg,
 		      struct boot_params *boot_params);
 #endif
+#endif
+
+#ifdef CONFIG_UNACCEPTED_MEMORY
+/*
+ * process_unaccepted_memory() is called after ExitBootServices(), and so these
+ * memory acceptance routines cannot rely on EFI protocols for detecting the
+ * presence of TDX or SEV-SNP, or emit any kind of output if any error
+ * conditions are detected.
+ */
+static bool early_is_tdx_guest(void)
+{
+	static bool once;
+	static bool is_tdx;
+
+	if (!IS_ENABLED(CONFIG_INTEL_TDX_GUEST))
+		return false;
+
+	if (!once) {
+		u32 eax = TDX_CPUID_LEAF_ID, sig[3] = {};
+
+		native_cpuid(&eax, &sig[0], &sig[2], &sig[1]);
+		is_tdx = !memcmp(TDX_IDENT, sig, sizeof(sig));
+		once = true;
+	}
+
+	return is_tdx;
+}
+
+void arch_accept_memory(phys_addr_t start, phys_addr_t end)
+{
+	if (early_is_tdx_guest()) {
+		if (!tdx_accept_memory(start, end))
+			tdx_panic("Failed to accept memory");
+	} else if (early_is_sevsnp_guest()) {
+		snp_accept_memory(start, end);
+	}
+}
 #endif

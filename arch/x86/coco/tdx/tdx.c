@@ -198,41 +198,6 @@ u64 tdx_hcall_get_quote(u8 *buf, size_t size)
 }
 EXPORT_SYMBOL_GPL(tdx_hcall_get_quote);
 
-static void __noreturn tdx_panic(const char *msg)
-{
-	struct tdx_module_args args = {
-		.r10 = TDX_HYPERCALL_STANDARD,
-		.r11 = TDVMCALL_REPORT_FATAL_ERROR,
-		.r12 = 0, /* Error code: 0 is Panic */
-	};
-	union {
-		/* Define register order according to the GHCI */
-		struct { u64 r14, r15, rbx, rdi, rsi, r8, r9, rdx; };
-
-		char bytes[64] __nonstring;
-	} message;
-
-	/* VMM assumes '\0' in byte 65, if the message took all 64 bytes */
-	strtomem_pad(message.bytes, msg, '\0');
-
-	args.r8  = message.r8;
-	args.r9  = message.r9;
-	args.r14 = message.r14;
-	args.r15 = message.r15;
-	args.rdi = message.rdi;
-	args.rsi = message.rsi;
-	args.rbx = message.rbx;
-	args.rdx = message.rdx;
-
-	/*
-	 * This hypercall should never return and it is not safe
-	 * to keep the guest running. Call it forever if it
-	 * happens to return.
-	 */
-	while (1)
-		__tdx_hypercall(&args);
-}
-
 /*
  * The kernel cannot handle #VEs when accessing normal kernel memory. Ensure
  * that no #VE will be delivered for accesses to TD-private memory.
