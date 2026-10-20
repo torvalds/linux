@@ -139,7 +139,7 @@ int tdx_mcall_get_report0(u8 *reportdata, u8 *tdreport)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tdx_mcall_get_report0);
+EXPORT_SYMBOL_FOR_MODULES(tdx_mcall_get_report0, "tdx-guest");
 
 /**
  * tdx_mcall_extend_rtmr() - Wrapper to extend RTMR registers using
@@ -175,7 +175,7 @@ int tdx_mcall_extend_rtmr(u8 index, u8 *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tdx_mcall_extend_rtmr);
+EXPORT_SYMBOL_FOR_MODULES(tdx_mcall_extend_rtmr, "tdx-guest");
 
 /**
  * tdx_hcall_get_quote() - Wrapper to request TD Quote using GetQuote
@@ -191,12 +191,29 @@ EXPORT_SYMBOL_GPL(tdx_mcall_extend_rtmr);
  *
  * Return 0 on success or error code on failure.
  */
-u64 tdx_hcall_get_quote(u8 *buf, size_t size)
+u64 tdx_hcall_get_quote(void *buf, size_t size)
 {
 	/* Since buf is a shared memory, set the shared (decrypted) bits */
 	return _tdx_hypercall(TDVMCALL_GET_QUOTE, cc_mkdec(virt_to_phys(buf)), size, 0, 0);
 }
-EXPORT_SYMBOL_GPL(tdx_hcall_get_quote);
+EXPORT_SYMBOL_FOR_MODULES(tdx_hcall_get_quote, "tdx-guest");
+
+/*
+ * Ask the TDX module what the largest Quote on the host platform might be.
+ */
+int tdx_get_max_quote_size(u64 *max_quote_size)
+{
+	u64 err;
+
+	err = tdg_vm_rd(TDCS_QUOTE_MAX_SIZE, max_quote_size);
+
+	/* Old modules do not support this. Tell the caller. */
+	if (err)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_FOR_MODULES(tdx_get_max_quote_size, "tdx-guest");
 
 /*
  * The kernel cannot handle #VEs when accessing normal kernel memory. Ensure
