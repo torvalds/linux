@@ -184,6 +184,15 @@ static void neigh_update_gc_list(struct neighbour *n)
 	}
 }
 
+static void neigh_add_managed_list(struct neighbour *n)
+{
+	list_add_tail(&n->managed_list, &n->tbl->managed_list);
+
+	if (list_is_singular(&n->tbl->managed_list))
+		queue_delayed_work(system_power_efficient_wq,
+				   &n->tbl->managed_work, 0);
+}
+
 static void neigh_update_managed_list(struct neighbour *n)
 {
 	bool on_managed_list, add_to_managed;
@@ -194,7 +203,7 @@ static void neigh_update_managed_list(struct neighbour *n)
 	if (!add_to_managed && on_managed_list)
 		list_del_init(&n->managed_list);
 	else if (add_to_managed && !on_managed_list)
-		list_add_tail(&n->managed_list, &n->tbl->managed_list);
+		neigh_add_managed_list(n);
 }
 
 static void neigh_update_flags(struct neighbour *neigh, u32 flags, int *notify,
@@ -708,7 +717,7 @@ ___neigh_create(struct neigh_table *tbl, const void *pkey,
 	if (!exempt_from_gc)
 		list_add_tail(&n->gc_list, &n->tbl->gc_list);
 	if (n->flags & NTF_MANAGED)
-		list_add_tail(&n->managed_list, &n->tbl->managed_list);
+		neigh_add_managed_list(n);
 	if (want_ref)
 		neigh_hold(n);
 	hlist_add_head_rcu(&n->hash, &nht->hash_heads[hash_val]);
@@ -1033,12 +1042,12 @@ static void neigh_periodic_work(struct work_struct *work)
 						lockdep_is_held(&tbl->lock));
 	}
 out:
-	/* Cycle through all hash buckets every BASE_REACHABLE_TIME/2 ticks.
+	/* Cycle through all hash buckets every max(HZ, BASE_REACHABLE_TIME/2) ticks.
 	 * ARP entry timeouts range from 1/2 BASE_REACHABLE_TIME to 3/2
 	 * BASE_REACHABLE_TIME.
 	 */
 	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
-			      NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME) >> 1);
+			   max(HZ, NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME) >> 1));
 	spin_unlock_bh(&tbl->lock);
 }
 
@@ -1670,10 +1679,14 @@ static void neigh_managed_work(struct work_struct *work)
 	struct neighbour *neigh;
 
 	spin_lock_bh(&tbl->lock);
+
 	list_for_each_entry(neigh, &tbl->managed_list, managed_list)
 		neigh_event_send_probe(neigh, NULL, false);
-	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
-			   NEIGH_VAR(&tbl->parms, INTERVAL_PROBE_TIME_MS));
+
+	if (!list_empty(&tbl->managed_list))
+		queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
+				   NEIGH_VAR(&tbl->parms, INTERVAL_PROBE_TIME_MS));
+
 	spin_unlock_bh(&tbl->lock);
 }
 
@@ -1873,7 +1886,6 @@ static int neigh_table_init(struct net *net, struct neigh_table *tbl)
 
 	INIT_LIST_HEAD(&tbl->managed_list);
 	INIT_DEFERRABLE_WORK(&tbl->managed_work, neigh_managed_work);
-	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work, 0);
 
 	return 0;
 
@@ -2423,10 +2435,11 @@ static const struct nla_policy nl_neightbl_policy[NDTA_MAX+1] = {
 	[NDTA_PARMS]		= { .type = NLA_NESTED },
 };
 
+#define NTBL_PARM_MS_MIN	MSEC_PER_SEC
 #define NTBL_PARM_MS_MAX	(24 * 60 * 60 * MSEC_PER_SEC)
 
 static const struct netlink_range_validation nl_ntbl_parm_ms_range = {
-	.min = 1,
+	.min = NTBL_PARM_MS_MIN,
 	.max = NTBL_PARM_MS_MAX,
 };
 
@@ -3689,7 +3702,7 @@ static int neigh_proc_dointvec_ms_jiffies_positive(const struct ctl_table *ctl, 
 	struct ctl_table tmp = *ctl;
 	int ret, min, max;
 
-	min = msecs_to_jiffies(1);
+	min = msecs_to_jiffies(NTBL_PARM_MS_MIN);
 	max = msecs_to_jiffies(NTBL_PARM_MS_MAX);
 
 	tmp.extra1 = &min;

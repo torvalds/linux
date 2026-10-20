@@ -31,25 +31,6 @@ ret=0
 #   NAT Gateway is supposed to do port reallocation for each of the
 #   connections.
 
-v4gc1=$(sysctl -n net.ipv4.neigh.default.gc_thresh1 2>/dev/null)
-v4gc2=$(sysctl -n net.ipv4.neigh.default.gc_thresh2 2>/dev/null)
-v4gc3=$(sysctl -n net.ipv4.neigh.default.gc_thresh3 2>/dev/null)
-v6gc1=$(sysctl -n net.ipv6.neigh.default.gc_thresh1 2>/dev/null)
-v6gc2=$(sysctl -n net.ipv6.neigh.default.gc_thresh2 2>/dev/null)
-v6gc3=$(sysctl -n net.ipv6.neigh.default.gc_thresh3 2>/dev/null)
-
-cleanup()
-{
-	cleanup_all_ns
-
-	sysctl -q net.ipv4.neigh.default.gc_thresh1="$v4gc1" 2>/dev/null
-	sysctl -q net.ipv4.neigh.default.gc_thresh2="$v4gc2" 2>/dev/null
-	sysctl -q net.ipv4.neigh.default.gc_thresh3="$v4gc3" 2>/dev/null
-	sysctl -q net.ipv6.neigh.default.gc_thresh1="$v6gc1" 2>/dev/null
-	sysctl -q net.ipv6.neigh.default.gc_thresh2="$v6gc2" 2>/dev/null
-	sysctl -q net.ipv6.neigh.default.gc_thresh3="$v6gc3" 2>/dev/null
-}
-
 checktool "nft --version" echo "run test without nft tool"
 checktool "conntrack -V" "run test without conntrack tool"
 
@@ -59,18 +40,19 @@ fi
 
 setup_ns gw srv
 
-trap cleanup EXIT
+trap cleanup_all_ns EXIT
 
 ip link add veth0 netns "$gw" type veth peer name eth0 netns "$srv"
 ip -net "$gw" link set veth0 up
 ip -net "$srv" link set eth0 up
 
-sysctl -q net.ipv6.neigh.default.gc_thresh1=512  2>/dev/null
-sysctl -q net.ipv6.neigh.default.gc_thresh2=1024 2>/dev/null
-sysctl -q net.ipv6.neigh.default.gc_thresh3=4096 2>/dev/null
-sysctl -q net.ipv4.neigh.default.gc_thresh1=512  2>/dev/null
-sysctl -q net.ipv4.neigh.default.gc_thresh2=1024 2>/dev/null
-sysctl -q net.ipv4.neigh.default.gc_thresh3=4096 2>/dev/null
+ip netns exec "$gw" sysctl -q \
+   net.ipv6.neigh.default.gc_thresh1=512 \
+   net.ipv6.neigh.default.gc_thresh2=1024 \
+   net.ipv6.neigh.default.gc_thresh3=4096 \
+   net.ipv4.neigh.default.gc_thresh1=512 \
+   net.ipv4.neigh.default.gc_thresh2=1024 \
+   net.ipv4.neigh.default.gc_thresh3=4096 2>/dev/null
 
 for i in $(seq 1 "$maxclients");do
   setup_ns "cl$i"
