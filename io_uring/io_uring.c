@@ -2342,6 +2342,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	kvfree(ctx->cancel_table.hbs);
 	xa_destroy(&ctx->io_bl_xa);
 	xa_destroy(&ctx->hpage_acct);
+	xa_destroy(&ctx->personalities);
 	kfree(ctx);
 }
 
