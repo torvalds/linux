@@ -1465,7 +1465,7 @@ static int __igt_mmap_access(struct drm_i915_private *i915,
 		return addr;
 	ptr = (unsigned long __user *)addr;
 
-	err = __put_user(A, ptr);
+	err = put_user(A, ptr);
 	if (err) {
 		pr_err("%s(%s): failed to write into user mmap\n",
 		       obj->mm.region->name, repr_mmap_type(type));
@@ -1490,7 +1490,7 @@ static int __igt_mmap_access(struct drm_i915_private *i915,
 
 	intel_gt_flush_ggtt_writes(to_gt(i915));
 
-	err = __get_user(y, ptr);
+	err = get_user(y, ptr);
 	if (err) {
 		pr_err("%s(%s): failed to read from user mmap\n",
 		       obj->mm.region->name, repr_mmap_type(type));
@@ -1738,12 +1738,12 @@ static int prefault_range(u64 start, u64 len)
 	end = addr + len;
 
 	for (; addr < end; addr += PAGE_SIZE) {
-		err = __get_user(c, addr);
+		err = get_user(c, addr);
 		if (err)
 			return err;
 	}
 
-	return __get_user(c, end - 1);
+	return get_user(c, end - 1);
 }
 
 static int __igt_mmap_revoke(struct drm_i915_private *i915,

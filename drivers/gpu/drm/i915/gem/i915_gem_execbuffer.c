@@ -1641,11 +1641,11 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	end = addr + size;
 	for (; addr < end; addr += PAGE_SIZE) {
-		int err = __get_user(c, addr);
+		int err = get_user(c, addr);
 		if (err)
 			return err;
 	}
-	return __get_user(c, end - 1);
+	return get_user(c, end - 1);
 }
 
 static int eb_copy_relocations(const struct i915_execbuffer *eb)
@@ -2843,7 +2843,7 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 		if (user_fence.flags & __I915_EXEC_FENCE_UNKNOWN_FLAGS)
 			return -EINVAL;
 
-		if (__get_user(point, user_values++))
+		if (get_user(point, user_values++))
 			return -EFAULT;
 
 		syncobj = drm_syncobj_find(eb->file, user_fence.handle);
