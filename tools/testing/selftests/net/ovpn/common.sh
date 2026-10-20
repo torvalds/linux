@@ -191,20 +191,14 @@ ovpn_setup_ns() {
 
 ovpn_build_capture_filter() {
 	# match the first four bytes of the openvpn data payload
-	if [ "${OVPN_PROTO}" == "UDP" ]; then
-		# For UDP, libpcap transport indexing only works for IPv4, so
-		# use an explicit IPv4 or IPv6 expression based on the peer
-		# address. The IPv6 branch assumes there are no extension
-		# headers in the outer packet.
-		if [[ "${2}" == *:* ]]; then
-			printf "ip6 and ip6[6] = 17 and ip6[48:4] = %s" "${1}"
-		else
-			printf "ip and udp[8:4] = %s" "${1}"
-		fi
+	# For UDP, libpcap transport indexing only works for IPv4, so
+	# use an explicit IPv4 or IPv6 expression based on the peer
+	# address. The IPv6 branch assumes there are no extension
+	# headers in the outer packet.
+	if [[ "${2}" == *:* ]]; then
+		printf "ip6 and ip6[6] = 17 and ip6[48:4] = %s" "${1}"
 	else
-		# openvpn over TCP prepends a 2-byte packet length ahead of the
-		# DATA_V2 opcode, so skip it before matching the payload header
-		printf "ip and tcp[(((tcp[12] & 0xf0) >> 2) + 2):4] = %s" "${1}"
+		printf "ip and udp[8:4] = %s" "${1}"
 	fi
 }
 
@@ -262,14 +256,19 @@ ovpn_add_peer() {
 		fi
 	else
 		if [ ${1} -eq 0 ]; then
+			OVPN_TCP_KEYS_LOG=$(mktemp)
 			(ip netns exec "${server_ns}" ${OVPN_CLI} listen tun0 \
 				1 ${M_ID} ${OVPN_TCP_PEERS_FILE} && {
+				rc=0
 				for p in $(seq 1 ${OVPN_NUM_PEERS}); do
 					ip netns exec "${server_ns}" \
 						${OVPN_CLI} new_key tun0 ${p} \
-						1 0 ${OVPN_ALG} 0 data64.key
+						1 0 ${OVPN_ALG} 0 data64.key \
+						|| rc=1
 				done
-			}) &
+				exit ${rc}
+			}) >"${OVPN_TCP_KEYS_LOG}" 2>&1 &
+			OVPN_TCP_KEYS_PID=$!
 			sleep 5
 		else
 			peer_ns="ovpn_peer${1}"
@@ -285,6 +284,58 @@ ovpn_add_peer() {
 				${PEER_ID} ${TX_ID} 10.10.${1}.1 1 data64.key
 		fi
 	fi
+}
+
+# In TCP mode the server accepts the peers and installs their data keys from a
+# background subshell. "listen" returns once a connection has been accepted for
+# every entry of the peers file, so the key installation runs after the last
+# ovpn_add_peer() call. Wait for that subshell before generating any traffic,
+# otherwise the first packets may race the key installation and get dropped for
+# lack of a key.
+#
+# The wait is bounded: both the accept loop and the subsequent receive in
+# ovpn-cli are unbounded, so a peer that never connects (for instance when
+# OVPN_NUM_PEERS is smaller than the number of entries in the peers file) would
+# otherwise hang the whole test instead of failing.
+OVPN_TCP_KEYS_TIMEOUT=${OVPN_TCP_KEYS_TIMEOUT:-30}
+
+ovpn_wait_tcp_keys() {
+	local deadline rc
+
+	[ -n "${OVPN_TCP_KEYS_PID:-}" ] || return 0
+
+	deadline=$((SECONDS + OVPN_TCP_KEYS_TIMEOUT))
+	while kill -0 "${OVPN_TCP_KEYS_PID}" 2>/dev/null; do
+		if [ "${SECONDS}" -ge "${deadline}" ]; then
+			printf '%s\n' \
+				"server-side key setup still running after ${OVPN_TCP_KEYS_TIMEOUT}s"
+			kill "${OVPN_TCP_KEYS_PID}" 2>/dev/null
+			wait "${OVPN_TCP_KEYS_PID}" 2>/dev/null
+			ovpn_dump_tcp_keys_log
+			return 1
+		fi
+		sleep 0.2
+	done
+
+	wait "${OVPN_TCP_KEYS_PID}"
+	rc=$?
+
+	# ovpn_cmd_run() has already removed the temporary file this subshell
+	# inherited, so without this its output would be lost and a failed
+	# new_key would only show up later as a ping failure.
+	if [ "${rc}" -ne 0 ]; then
+		ovpn_dump_tcp_keys_log
+	fi
+	rm -f "${OVPN_TCP_KEYS_LOG}"
+
+	return "${rc}"
+}
+
+ovpn_dump_tcp_keys_log() {
+	[ -s "${OVPN_TCP_KEYS_LOG:-}" ] || return 0
+
+	printf '%s\n' "--- server-side key setup output ---"
+	cat "${OVPN_TCP_KEYS_LOG}"
 }
 
 ovpn_compare_ntfs() {

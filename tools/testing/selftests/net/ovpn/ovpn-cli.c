@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <time.h>
 
 #include <linux/ovpn.h>
@@ -470,6 +472,33 @@ static int ovpn_parse_key_direction(const char *dir, struct ovpn_ctx *ctx)
 	return 0;
 }
 
+/* openvpn 2.7.6 and later always set TCP_NODELAY, so mirror that by
+ * default. Peers running 2.7.0 to 2.7.5 still leave Nagle enabled, and
+ * mixed-version deployments will keep doing so for a while, so let the
+ * selftests exercise that configuration too by setting OVPN_TCP_NODELAY=0.
+ */
+static bool ovpn_tcp_nodelay_wanted(void)
+{
+	const char *env = getenv("OVPN_TCP_NODELAY");
+
+	return !env || strcmp(env, "0");
+}
+
+static int ovpn_tcp_nodelay(int socket)
+{
+	int opt = 1;
+	int ret;
+
+	if (!ovpn_tcp_nodelay_wanted())
+		return 0;
+
+	ret = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+	if (ret < 0)
+		perror("setsockopt for TCP_NODELAY");
+
+	return ret;
+}
+
 static int ovpn_socket(struct ovpn_ctx *ctx, sa_family_t family, int proto)
 {
 	struct sockaddr_storage local_sock = { 0 };
@@ -606,6 +635,12 @@ static int ovpn_accept(struct ovpn_ctx *ctx)
 		goto err;
 	}
 
+	if (ovpn_tcp_nodelay(ret) < 0) {
+		close(ret);
+		ret = -1;
+		goto err;
+	}
+
 	return ret;
 err:
 	close(ctx->socket);
@@ -622,6 +657,10 @@ static int ovpn_connect(struct ovpn_ctx *ovpn)
 		perror("cannot create socket");
 		return -1;
 	}
+
+	ret = ovpn_tcp_nodelay(s);
+	if (ret < 0)
+		goto err;
 
 	switch (ovpn->remote.in4.sin_family) {
 	case AF_INET:
