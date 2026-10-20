@@ -46,7 +46,8 @@ static bool blkdev_dio_invalid(struct block_device *bdev, struct kiocb *iocb,
 static inline int blkdev_iov_iter_get_pages(struct bio *bio,
 		struct iov_iter *iter, struct block_device *bdev)
 {
-	return bio_iov_iter_get_pages(bio, iter, bdev_dma_alignment(bdev),
+	return bio_iov_iter_get_pages(bio, iter, BIO_MAX_SIZE,
+			bdev_dma_alignment(bdev),
 			bdev_logical_block_size(bdev) - 1);
 }
 

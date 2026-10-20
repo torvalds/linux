@@ -206,6 +206,12 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 	lim->max_sectors = min(lim->max_sectors,
 		max_integrity_io_size(lim) >> SECTOR_SHIFT);
 
+	if (lim->features & BLK_FEAT_ATOMIC_WRITES) {
+		lim->atomic_write_max_sectors =
+			min(lim->atomic_write_max_sectors,
+				max_integrity_io_size(lim) >> SECTOR_SHIFT);
+	}
+
 	return 0;
 }
 

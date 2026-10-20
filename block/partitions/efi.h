@@ -75,18 +75,12 @@ typedef struct _gpt_header {
 	 */
 } __packed gpt_header;
 
-typedef struct _gpt_entry_attributes {
-	u64 required_to_function:1;
-	u64 reserved:47;
-        u64 type_guid_specific:16;
-} __packed gpt_entry_attributes;
-
 typedef struct _gpt_entry {
 	efi_guid_t partition_type_guid;
 	efi_guid_t unique_partition_guid;
 	__le64 starting_lba;
 	__le64 ending_lba;
-	gpt_entry_attributes attributes;
+	__le64 attributes;
 	__le16 partition_name[72/sizeof(__le16)];
 } __packed gpt_entry;
 

@@ -26,6 +26,7 @@
 #include "xfs_zones.h"
 #include "xfs_trace.h"
 #include "xfs_mru_cache.h"
+#include <linux/bio-integrity.h>
 
 static void
 xfs_open_zone_free_rcu(
@@ -910,6 +911,9 @@ xfs_zone_alloc_and_submit(
 
 	if (xfs_is_shutdown(mp))
 		goto out_error;
+
+	if (ioend->io_flags & IOMAP_IOEND_INTEGRITY)
+		fs_bio_integrity_generate(&ioend->io_bio);
 
 	/*
 	 * If we don't have a locally cached zone in this write context, see if

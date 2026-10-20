@@ -142,6 +142,12 @@ struct xfs_freecounter {
 	uint64_t		res_saved;
 };
 
+enum xfs_read_bounce {
+	XFS_READ_BOUNCE_NEVER,
+	XFS_READ_BOUNCE_ALWAYS,
+	XFS_READ_BOUNCE_LAZY,
+};
+
 /*
  * The struct xfsmount layout is optimised to separate read-mostly variables
  * from variables that are frequently modified. We put the read-mostly variables
@@ -177,6 +183,7 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_sync_workqueue;
 	struct workqueue_struct *m_blockgc_wq;
 	struct workqueue_struct *m_inodegc_wq;
+	enum xfs_read_bounce	m_read_bounce;
 
 	int			m_bsize;	/* fs logical block size */
 	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
@@ -291,6 +298,7 @@ typedef struct xfs_mount {
 	struct xfs_zone_info	*m_zone_info;	/* zone allocator information */
 	struct dentry		*m_debugfs;	/* debugfs parent */
 	struct xfs_kobj		m_kobj;
+	struct xfs_kobj		m_csum_kobj;
 	struct xfs_kobj		m_error_kobj;
 	struct xfs_kobj		m_error_meta_kobj;
 	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
