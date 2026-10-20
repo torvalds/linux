@@ -527,11 +527,212 @@ static void invalidate_unhandled_insn_regs(struct type_state *state,
 	/* TODO: Extend invalidation support to more special instructions. */
 }
 
+static int arm64__reg_size(const char *reg)
+{
+	if (!reg || !*reg || !arm64__is_reg(reg))
+		return -1;
+
+	if (reg[0] == 'w')
+		return 4;
+
+	if (reg[0] == 'x' || !strncmp(reg, "sp", 2))
+		return 8;
+
+	return -1;
+}
+
+/* Apply addressing mode (pre-index, post-index) to register state */
+static void adjust_reg_index_state(struct type_state *state,
+				   struct data_loc_info *dloc,
+				   struct disasm_line *dl,
+				   struct annotated_op_loc *op_loc)
+{
+	struct type_state_reg *tsr;
+	int reg = op_loc->reg1;
+	int offset;
+
+	if (op_loc->addr_mode != PERF_AAM_PRE_INDEX &&
+	    op_loc->addr_mode != PERF_AAM_POST_INDEX)
+		return;
+
+	if (!has_reg_type(state, reg) || !state->regs[reg].ok)
+		return;
+
+	tsr = &state->regs[reg];
+	tsr->copied_from = -1;
+
+	if (arch_get_reg_offset(dloc->arch, op_loc, reg, state, true, &offset)) {
+		invalidate_reg_state(tsr);
+		return;
+	}
+
+	tsr->offset += offset;
+
+	pr_debug_dtp("%s [%x] %s-index %#x(reg%d) -> reg%d", dl->ins.name,
+		     (u32) dl->al.offset, op_loc->addr_mode == PERF_AAM_PRE_INDEX ?
+		     "pre" : "post", offset, reg, reg);
+	pr_debug_type_name(&tsr->type, tsr->kind);
+}
+
+/*
+ * Match standard load variants (ldr, ldur, ldar, ldp) that follow
+ * straightforward load semantics: memory source on the right
+ * and target registers on the left (written). Excludes exclusive loads
+ * (ldxr, ldxp, etc.) and acquire/exclusive combination variants.
+ */
+static bool is_standard_load_insn(const char *name)
+{
+	return !strncmp(name, "ldr", 3)  ||  /* ldr, ldrb, ldrh, ldrsb, ldrsh, ldrsw */
+	       !strncmp(name, "ldur", 4) ||  /* ldur, ldurb, ldurh, ldursb, ldursh, ldursw */
+	       !strncmp(name, "ldar", 4) ||  /* ldar, ldarb, ldarh */
+	       !strncmp(name, "ldp", 3);     /* ldp, ldpsw */
+}
+
+/*
+ * For load insns: propagate type from source reg state @src_states to @dreg.
+ *
+ * @mem_spacing accounts for the additional in-memory spacing between the two
+ * loads when handling multi-reg loads (e.g. the second target reg in 'ldp'),
+ * which is added to the reg offset.
+ */
+static int propagate_load_reg_state(struct type_state *state,
+				    struct data_loc_info *dloc,
+				    struct disasm_line *dl, int dreg,
+				    struct annotated_op_loc *src,
+				    struct type_state_reg **src_states,
+				    int mem_spacing)
+{
+	struct type_state_reg *tsr;
+	struct type_state_reg *src_tsr = src_states[0];
+	Dwarf_Die type_die;
+	u32 insn_offset = dl->al.offset;
+	int sreg = src->reg1;
+	int reg_offset;
+
+	if (!has_reg_type(state, dreg))
+		return -1;
+
+	tsr = &state->regs[dreg];
+	tsr->copied_from = -1;
+	tsr->lifetime_active = false;
+	tsr->lifetime_end = 0;
+
+retry:
+	if (arch_get_reg_offset(dloc->arch, src, sreg, state, false, &reg_offset))
+		goto load_non_regoff;
+
+	reg_offset += mem_spacing;
+
+	if (!src_tsr || !src_tsr->ok)
+		return -1;
+
+	/* Dereference the pointer if it has one */
+	if (src_tsr->kind == TSR_KIND_TYPE &&
+	    die_deref_ptr_type(&src_tsr->type,
+			       src_tsr->offset + reg_offset, &type_die)) {
+		tsr->type = type_die;
+		tsr->kind = TSR_KIND_TYPE;
+		tsr->offset = 0;
+		tsr->ok = true;
+
+		pr_debug_dtp("%s [%x] %#x(reg%d) -> reg%d",
+			     dl->ins.name, insn_offset, reg_offset, sreg, dreg);
+		pr_debug_type_name(&tsr->type, tsr->kind);
+		return 0;
+	}
+
+	/* Handle dereference of TSR_KIND_POINTER registers */
+	if (src_tsr->kind == TSR_KIND_POINTER &&
+	    die_get_member_type(&src_tsr->type,
+				src_tsr->offset + reg_offset, &type_die)) {
+		tsr->type = src_tsr->type;
+		tsr->kind = TSR_KIND_TYPE;
+		tsr->offset = src_tsr->offset + reg_offset;
+		tsr->imm_value = 0;
+		tsr->ok = true;
+
+		pr_debug_dtp("%s [%x] addr %#x(reg%d) -> reg%d",
+			     dl->ins.name, insn_offset, reg_offset, sreg, dreg);
+		pr_debug_type_name(&tsr->type, tsr->kind);
+		return 0;
+	}
+
+load_non_regoff:
+	/* Try another register if any */
+	if (src->multi_regs && src->reg1 != src->reg2 && sreg != src->reg2 &&
+	    !(src->extend_type || src->shift_type)) {
+		sreg = src->reg2;
+		src_tsr = src_states[1];
+		goto retry;
+	}
+
+	return -1;
+}
+
+static void update_load_insn_state(struct type_state *state,
+				   struct data_loc_info *dloc,
+				   struct disasm_line *dl,
+				   struct annotated_op_loc *src,
+				   struct annotated_op_loc *dst)
+{
+	struct type_state_reg snapshots[2];
+	struct type_state_reg *src_states[2] = {};
+	int mem_spacing = 0;
+
+	if (!src->mem_ref ||  /* exclude PC-relative loads */
+	    !has_reg_type(state, src->reg1)) {
+		/* Invalidate tracked destination registers */
+		if (has_reg_type(state, dst->reg1))
+			invalidate_reg_state(&state->regs[dst->reg1]);
+		if (dst->multi_regs && has_reg_type(state, dst->reg2))
+			invalidate_reg_state(&state->regs[dst->reg2]);
+		goto out_adjust;
+	}
+
+	/*
+	 * Snapshot source register states before updating destination registers.
+	 * This preserves the original source state for aliased loads (e.g.,
+	 * ldp x0, x1, [x0]), where updating the first destination may overwrite
+	 * the source register.
+	 */
+	snapshots[0] = state->regs[src->reg1];
+	src_states[0] = &snapshots[0];
+	if (src->multi_regs && has_reg_type(state, src->reg2)) {
+		snapshots[1] = state->regs[src->reg2];
+		src_states[1] = &snapshots[1];
+	}
+
+	/* Handle the first destination register */
+	if (has_reg_type(state, dst->reg1)) {
+		if (propagate_load_reg_state(state, dloc, dl, dst->reg1,
+					     src, src_states, mem_spacing))
+			invalidate_reg_state(&state->regs[dst->reg1]);
+	}
+
+	if (!dst->multi_regs || !has_reg_type(state, dst->reg2))
+		goto out_adjust;
+
+	/* Handle the second destination register */
+	if (!strcmp(dl->ins.name, "ldpsw"))
+		mem_spacing = 4;  /* ldpsw loads two 32-bit signed words (4-byte spacing) */
+	else
+		mem_spacing = arm64__reg_size(dl->ops.target.raw);
+
+	if (mem_spacing < 0 ||
+	    propagate_load_reg_state(state, dloc, dl, dst->reg2,
+				     src, src_states, mem_spacing))
+		invalidate_reg_state(&state->regs[dst->reg2]);
+
+out_adjust:
+	adjust_reg_index_state(state, dloc, dl, src);
+}
+
 static void update_insn_state_arm64(struct type_state *state,
 				    struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				    struct disasm_line *dl)
 {
 	struct annotated_insn_loc loc;
+	struct annotated_op_loc *src = &loc.ops[INSN_OP_SOURCE];
 	struct annotated_op_loc *dst = &loc.ops[INSN_OP_TARGET];
 
 	if (is_readonly_insn(dl->ins.name))
@@ -542,6 +743,9 @@ static void update_insn_state_arm64(struct type_state *state,
 
 	if (ins__is_call(&dl->ins))
 		update_call_insn_state(state, dloc, cu_die, dl);
+	/* Memory to register transfers */
+	else if (is_standard_load_insn(dl->ins.name))
+		update_load_insn_state(state, dloc, dl, src, dst);
 	else
 		invalidate_unhandled_insn_regs(state, dl, dst);
 }
