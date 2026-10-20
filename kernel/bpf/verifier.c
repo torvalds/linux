@@ -3462,7 +3462,7 @@ static int check_unwind_insns(struct bpf_verifier_env *env)
 	}
 	if (!seen)
 		return 0;
-	if (!bpf_jit_supports_unwind()) {
+	if (!bpf_jit_supports_unwind() || bpf_prog_is_offloaded(env->prog->aux)) {
 		verbose(env, "JIT does not support unwinding\n");
 		return -ENOTSUPP;
 	}
