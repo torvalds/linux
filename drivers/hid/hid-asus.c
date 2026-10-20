@@ -1371,6 +1371,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0xe2: /* Mute */
 		case 0xe9: /* Volume up */
 		case 0xea: /* Volume down */
+		case 0x6f: /* Display brightness increment */
+		case 0x70: /* Display brightness decrement */
 			return 0;
 		default:
 			/* Ignore dummy Consumer usages which make the
