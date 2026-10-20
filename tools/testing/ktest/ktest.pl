@@ -227,6 +227,7 @@ my $build_time;
 my $install_time;
 my $reboot_time;
 my $test_time;
+my $start_run_time;
 
 my $warning_found = 0;
 
@@ -1609,6 +1610,14 @@ sub run_post_ktest {
     $post_ktest_done = 1;
 }
 
+sub show_run_time {
+    return if (!$start_run_time);
+    my $end_run_time = time;
+    doprint "\n   Total run time: ";
+    show_time($end_run_time - $start_run_time);
+    doprint "\n";
+}
+
 sub dodie {
     # avoid recursion
     return if ($in_die);
@@ -1630,6 +1639,8 @@ sub dodie {
 	doprint "POWERING OFF\n";
 	`$power_off`;
     }
+
+    show_run_time();
 
     if (defined($opt{"LOG_FILE"})) {
 	print " See $opt{LOG_FILE} for more info.\n";
@@ -4534,6 +4545,8 @@ print_test_preamble 0;
 
 $SIG{INT} = qw(cancel_test);
 
+$start_run_time = time;
+
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
@@ -4765,6 +4778,8 @@ if ($email_when_finished) {
     send_email("KTEST: Your test has finished!",
 	"$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
 }
+
+show_run_time();
 
 if (defined($opt{"LOG_FILE"})) {
     print "\n See $opt{LOG_FILE} for the record of results.\n\n";
