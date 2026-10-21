@@ -503,7 +503,7 @@ static int overwrite_item(struct walk_control *wc)
 			btrfs_release_path(wc->subvol_path);
 			return 0;
 		}
-		src_copy = kmalloc(item_size, GFP_NOFS);
+		src_copy = kvmalloc(item_size, GFP_NOFS);
 		if (!src_copy) {
 			btrfs_abort_log_replay(wc, -ENOMEM,
 			       "failed to allocate memory for log leaf item");
@@ -514,7 +514,7 @@ static int overwrite_item(struct walk_control *wc)
 		dst_ptr = btrfs_item_ptr_offset(dst_eb, dst_slot);
 		ret = memcmp_extent_buffer(dst_eb, src_copy, dst_ptr, item_size);
 
-		kfree(src_copy);
+		kvfree(src_copy);
 		/*
 		 * they have the same contents, just return, this saves
 		 * us from cowing blocks in the destination tree and doing
@@ -1683,7 +1683,7 @@ static noinline int add_inode_ref(struct walk_control *wc)
 			}
 
 			/* insert our name */
-			ret = btrfs_add_link(trans, dir, inode, &name, false, ref_index);
+			ret = btrfs_add_link(trans, dir, inode, &name, false, ref_index, NULL);
 			if (ret) {
 				btrfs_abort_log_replay(wc, ret,
 "failed to add link for inode %llu in dir %llu ref_index %llu name %.*s root %llu",
@@ -2031,7 +2031,7 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 		return PTR_ERR(dir);
 	}
 
-	ret = btrfs_add_link(trans, dir, inode, name, true, index);
+	ret = btrfs_add_link(trans, dir, inode, name, true, index, NULL);
 
 	/* FIXME, put inode into FIXUP list */
 
@@ -5350,7 +5350,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		 * have a bunch of extents we just want to commit since it will
 		 * be faster.
 		 */
-		if (++num > 32768) {
+		if (++num > SZ_16K) {
 			list_del_init(&tree->modified_extents);
 			ret = -EFBIG;
 			goto process;
@@ -5368,7 +5368,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		refcount_inc(&em->refs);
 		em->flags |= EXTENT_FLAG_LOGGING;
 		list_add_tail(&em->list, &extents);
-		num++;
 	}
 
 	list_sort(NULL, &extents, extent_cmp);

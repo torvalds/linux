@@ -730,6 +730,9 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 				      u64 end, bool check_inline)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 blocksize = fs_info->sectorsize;
+
+	ASSERT(IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize));
 
 	if (unlikely(!btrfs_inode_can_compress(inode))) {
 		DEBUG_WARN("BTRFS: unexpected compression for ino %llu", btrfs_ino(inode));
@@ -2331,7 +2334,7 @@ static int run_delalloc_inline(struct btrfs_inode *inode, struct folio *locked_f
 	btrfs_check_folio_write_protected(locked_folio);
 
 	if (btrfs_inode_can_compress(inode) &&
-	    inode_need_compress(inode, 0, blocksize, true)) {
+	    inode_need_compress(inode, 0, blocksize - 1, true)) {
 		if (inode->defrag_compress > 0 &&
 		    inode->defrag_compress < BTRFS_NR_COMPRESS_TYPES) {
 			compress_type = inode->defrag_compress;
@@ -3471,79 +3474,30 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
 	return btrfs_finish_one_ordered(ordered);
 }
 
-/*
- * Calculate the checksum of an fs block at physical memory address @paddr,
- * and save the result to @dest.
- *
- * The folio containing @paddr must be large enough to contain a full fs block.
- */
-void btrfs_calculate_block_csum_folio(struct btrfs_fs_info *fs_info,
-				      const phys_addr_t paddr, u8 *dest)
+/* Generate data checksum for a single fs block, pointed to by @orig_iter. */
+void btrfs_csum_one_bio_block(struct btrfs_fs_info *fs_info, struct bio *bio,
+			      const struct bvec_iter *orig_iter, u8 *csum)
 {
-	struct folio *folio = page_folio(phys_to_page(paddr));
+	struct btrfs_csum_ctx cctx;
+	struct bvec_iter iter = *orig_iter;
 	const u32 blocksize = fs_info->sectorsize;
-	const u32 step = min(blocksize, PAGE_SIZE);
-	const u32 nr_steps = blocksize / step;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
+	u32 cur = 0;
 
-	/* The full block must be inside the folio. */
-	ASSERT(offset_in_folio(folio, paddr) + blocksize <= folio_size(folio));
-
-	for (int i = 0; i < nr_steps; i++) {
-		u32 pindex = offset_in_folio(folio, paddr + i * step) >> PAGE_SHIFT;
-
-		/*
-		 * For bs <= ps cases, we will only run the loop once, so the offset
-		 * inside the page will only added to paddrs[0].
-		 *
-		 * For bs > ps cases, the block must be page aligned, thus offset
-		 * inside the page will always be 0.
-		 */
-		paddrs[i] = page_to_phys(folio_page(folio, pindex)) + offset_in_page(paddr);
-	}
-	return btrfs_calculate_block_csum_pages(fs_info, paddrs, dest);
-}
-
-/*
- * Calculate the checksum of a fs block backed by multiple noncontiguous pages
- * at @paddrs[] and save the result to @dest.
- *
- * The folio containing @paddr must be large enough to contain a full fs block.
- */
-void btrfs_calculate_block_csum_pages(struct btrfs_fs_info *fs_info,
-				      const phys_addr_t paddrs[], u8 *dest)
-{
-	const u32 blocksize = fs_info->sectorsize;
-	const u32 step = min(blocksize, PAGE_SIZE);
-	const u32 nr_steps = blocksize / step;
-	struct btrfs_csum_ctx csum;
-
-	btrfs_csum_init(&csum, fs_info->csum_type);
-	for (int i = 0; i < nr_steps; i++) {
-		const phys_addr_t paddr = paddrs[i];
+	btrfs_csum_init(&cctx, fs_info->csum_type);
+	while (cur < blocksize) {
+		struct page *page = bio_iter_page(bio, iter);
+		const u32 pg_off = bio_iter_offset(bio, iter);
+		const u32 cur_len = min(bio_iter_len(bio, iter), blocksize - cur);
 		void *kaddr;
 
-		ASSERT(offset_in_page(paddr) + step <= PAGE_SIZE);
-		kaddr = kmap_local_page(phys_to_page(paddr)) + offset_in_page(paddr);
-		btrfs_csum_update(&csum, kaddr, step);
+		kaddr = kmap_local_page(page) + pg_off;
+		btrfs_csum_update(&cctx, kaddr, cur_len);
 		kunmap_local(kaddr);
-	}
-	btrfs_csum_final(&csum, dest);
-}
 
-/*
- * Verify the checksum for a single sector without any extra action that depend
- * on the type of I/O.
- *
- * @kaddr must be a properly kmapped address.
- */
-int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
-			   const u8 * const csum_expected)
-{
-	btrfs_calculate_block_csum_folio(fs_info, paddr, csum);
-	if (unlikely(memcmp(csum, csum_expected, fs_info->csum_size) != 0))
-		return -EIO;
-	return 0;
+		bio_advance_iter_single(bio, &iter, cur_len);
+		cur += cur_len;
+	}
+	btrfs_csum_final(&cctx, csum);
 }
 
 /*
@@ -3551,27 +3505,30 @@ int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 
  * different noncontiguous pages.
  *
  * @bbio:	btrfs_io_bio which contains the csum
- * @dev:	device the sector is on
- * @bio_offset:	offset to the beginning of the bio (in bytes)
- * @paddrs:	physical addresses which back the fs block
+ * @orig_iter:	bvec iter pointing to the start of the block
+ * @dev:	device the sector is on (optional)
  *
  * Check if the checksum on a data block is valid.  When a checksum mismatch is
  * detected, report the error and fill the corrupted range with zero.
  *
  * Return %true if the sector is ok or had no checksum to start with, else %false.
  */
-bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
-			u32 bio_offset, const phys_addr_t paddrs[])
+bool btrfs_bio_data_csum_ok(struct btrfs_bio *bbio,
+			    const struct bvec_iter *orig_iter,
+			    struct btrfs_device *dev)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct bvec_iter iter = *orig_iter;
 	const u32 blocksize = fs_info->sectorsize;
-	const u32 step = min(blocksize, PAGE_SIZE);
-	const u32 nr_steps = blocksize / step;
+	const u32 bio_offset = (iter.bi_sector - bbio->saved_iter.bi_sector) << SECTOR_SHIFT;
 	u64 file_offset = bbio->file_offset + bio_offset;
 	u64 end = file_offset + blocksize - 1;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
+	u32 cur = 0;
+
+	ASSERT(iter.bi_sector >= bbio->saved_iter.bi_sector);
 
 	if (!bbio->csum)
 		return true;
@@ -3587,7 +3544,7 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 
 	csum_expected = bbio->csum + (bio_offset >> fs_info->sectorsize_bits) *
 				fs_info->csum_size;
-	btrfs_calculate_block_csum_pages(fs_info, paddrs, csum);
+	btrfs_csum_one_bio_block(fs_info, &bbio->bio, orig_iter, csum);
 	if (unlikely(memcmp(csum, csum_expected, fs_info->csum_size) != 0))
 		goto zeroit;
 	return true;
@@ -3597,8 +3554,16 @@ zeroit:
 				    bbio->mirror_num);
 	if (dev)
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_CORRUPTION_ERRS);
-	for (int i = 0; i < nr_steps; i++)
-		memzero_page(phys_to_page(paddrs[i]), offset_in_page(paddrs[i]), step);
+	while (cur < blocksize) {
+		struct page *page = bio_iter_page(&bbio->bio, iter);
+		const u32 pg_off = bio_iter_offset(&bbio->bio, iter);
+		const u32 cur_len = min(bio_iter_len(&bbio->bio, iter), blocksize - cur);
+
+		memzero_page(page, pg_off, cur_len);
+
+		bio_advance_iter_single(&bbio->bio, &iter, cur_len);
+		cur += cur_len;
+	}
 	return false;
 }
 
@@ -5630,10 +5595,10 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 	 * if we fail to make this reservation we can re-try without the
 	 * delayed_refs_extra so we can make some forward progress.
 	 */
-	ret = btrfs_block_rsv_refill(fs_info, rsv, rsv->size + delayed_refs_extra,
+	ret = btrfs_block_rsv_refill(rsv, rsv->size + delayed_refs_extra,
 				     BTRFS_RESERVE_FLUSH_EVICT);
 	if (ret) {
-		ret = btrfs_block_rsv_refill(fs_info, rsv, rsv->size,
+		ret = btrfs_block_rsv_refill(rsv, rsv->size,
 					     BTRFS_RESERVE_FLUSH_EVICT);
 		if (ret) {
 			btrfs_warn(fs_info,
@@ -6881,8 +6846,28 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		}
 	} else {
 		ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode), name,
-				     false, BTRFS_I(inode)->dir_index);
-		if (unlikely(ret)) {
+				     false, BTRFS_I(inode)->dir_index, NULL);
+		if (ret == -ENOMEM) {
+			/*
+			 * Orphan the new inode instead of aborting. The inode
+			 * item was already written with nlink 1, and discard's
+			 * eviction won't delete a bad inode, so nlink 0 must be
+			 * persisted here or orphan cleanup would see nlink > 0,
+			 * drop the orphan item, and leak the inode.
+			 */
+			clear_nlink(inode);
+			/* btrfs_orphan_add() aborts the transaction on failure. */
+			ret = btrfs_orphan_add(trans, BTRFS_I(inode));
+			if (ret)
+				goto discard;
+			ret = btrfs_update_inode(trans, BTRFS_I(inode));
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto discard;
+			}
+			ret = -ENOMEM;
+			goto discard;
+		} else if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto discard;
 		}
@@ -6913,7 +6898,8 @@ out:
  */
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
-		   const struct fscrypt_str *name, bool add_backref, u64 index)
+		   const struct fscrypt_str *name, bool add_backref, u64 index,
+		   struct btrfs_dir_index_prealloc *prealloc)
 {
 	int ret = 0;
 	struct btrfs_key key;
@@ -6939,12 +6925,14 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	}
 
 	/* Nothing to clean up yet */
-	if (ret)
+	if (ret) {
+		btrfs_free_delayed_dir_index_prealloc(trans, prealloc);
 		return ret;
+	}
 
 	ret = btrfs_insert_dir_item(trans, name, parent_inode, &key,
-				    btrfs_inode_type(inode), index);
-	if (ret == -EEXIST || ret == -EOVERFLOW)
+				    btrfs_inode_type(inode), index, prealloc);
+	if (ret == -EEXIST || ret == -EOVERFLOW || ret == -ENOMEM)
 		goto fail_dir_item;
 	else if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
@@ -7097,7 +7085,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	inode_set_ctime_current(inode);
 
 	ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
-			     &fname.disk_name, true, index);
+			     &fname.disk_name, true, index, NULL);
 	if (ret)
 		goto fail;
 
@@ -7164,7 +7152,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	compress_type = btrfs_file_extent_compression(leaf, item);
 	max_size = btrfs_file_extent_ram_bytes(leaf, item);
 	inline_size = btrfs_file_extent_inline_item_len(leaf, path->slots[0]);
-	tmp = kmalloc(inline_size, GFP_NOFS);
+	tmp = kvmalloc(inline_size, GFP_NOFS);
 	if (!tmp)
 		return -ENOMEM;
 	ptr = btrfs_file_extent_inline_start(item);
@@ -7185,7 +7173,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 
 	if (max_size < blocksize)
 		folio_zero_range(folio, max_size, blocksize - max_size);
-	kfree(tmp);
+	kvfree(tmp);
 	return ret;
 }
 
@@ -8508,14 +8496,14 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	}
 
 	ret = btrfs_add_link(trans, BTRFS_I(new_dir), BTRFS_I(old_inode),
-			     new_name, false, old_idx);
+			     new_name, false, old_idx, NULL);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
 	}
 
 	ret = btrfs_add_link(trans, BTRFS_I(old_dir), BTRFS_I(new_inode),
-			     old_name, false, new_idx);
+			     old_name, false, new_idx, NULL);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
@@ -8588,6 +8576,7 @@ static int btrfs_rename(const struct mnt_idmap *idmap,
 	struct inode *new_inode = d_inode(new_dentry);
 	struct inode *old_inode = d_inode(old_dentry);
 	struct btrfs_rename_ctx rename_ctx;
+	struct btrfs_dir_index_prealloc *prealloc = NULL;
 	u64 index = 0;
 	int ret;
 	int ret2;
@@ -8711,6 +8700,23 @@ static int btrfs_rename(const struct mnt_idmap *idmap,
 	if (ret)
 		goto out_fail;
 
+	/*
+	 * When not overwriting an existing entry, pre-allocate the delayed dir
+	 * index now so that ENOMEM is returned before any btree modifications.
+	 * For the overwrite case, too many btree changes have already happened
+	 * by the time btrfs_add_link() is called.
+	 */
+	if (!new_inode) {
+		prealloc = btrfs_prealloc_delayed_dir_index(BTRFS_I(new_dir),
+							    new_fname.disk_name.name,
+							    new_fname.disk_name.len);
+		if (IS_ERR(prealloc)) {
+			ret = PTR_ERR(prealloc);
+			prealloc = NULL;
+			goto out_fail;
+		}
+	}
+
 	BTRFS_I(old_inode)->dir_index = 0ULL;
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		/* force full log commit if subvolume involved. */
@@ -8806,7 +8812,8 @@ static int btrfs_rename(const struct mnt_idmap *idmap,
 	}
 
 	ret = btrfs_add_link(trans, BTRFS_I(new_dir), BTRFS_I(old_inode),
-			     &new_fname.disk_name, false, index);
+			     &new_fname.disk_name, false, index, prealloc);
+	prealloc = NULL;
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
@@ -8831,6 +8838,7 @@ static int btrfs_rename(const struct mnt_idmap *idmap,
 		}
 	}
 out_fail:
+	btrfs_free_delayed_dir_index_prealloc(trans, prealloc);
 	if (logs_pinned) {
 		btrfs_end_log_trans(root);
 		btrfs_end_log_trans(dest);

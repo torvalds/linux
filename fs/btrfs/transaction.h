@@ -119,24 +119,6 @@ struct btrfs_transaction {
 	wait_queue_head_t pending_wait;
 };
 
-enum {
-	ENUM_BIT(__TRANS_FREEZABLE),
-	ENUM_BIT(__TRANS_START),
-	ENUM_BIT(__TRANS_ATTACH),
-	ENUM_BIT(__TRANS_JOIN),
-	ENUM_BIT(__TRANS_JOIN_NOLOCK),
-	ENUM_BIT(__TRANS_DUMMY),
-	ENUM_BIT(__TRANS_JOIN_NOSTART),
-};
-
-#define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
-#define TRANS_ATTACH		(__TRANS_ATTACH)
-#define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
-#define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
-#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
-
-#define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
-
 /*
  * Number of extent buffers a transaction handle tracks for writeback
  * inhibition. The CLOCK reference bits pack into a u32 so this must not exceed
@@ -288,7 +270,7 @@ do {										\
  * Call btrfs_abort_transaction() as early as possible when an error condition
  * is detected, that way the exact stack trace is reported for some errors.
  *
- * Error number must be negative as it encodes wheather it's the first abort.
+ * Error number must be negative as it encodes whether it's the first abort.
  */
 #define btrfs_abort_transaction(trans, error)		\
 do {								\
@@ -304,6 +286,17 @@ do {								\
 	__btrfs_abort_transaction((trans), __func__,		\
 				  __LINE__, __error);		\
 } while (0)
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+bool btrfs_is_dummy_transaction(const struct btrfs_trans_handle *trans);
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info);
+#else
+static inline bool btrfs_is_dummy_transaction(const struct btrfs_trans_handle *trans)
+{
+	return false;
+}
+#endif
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,

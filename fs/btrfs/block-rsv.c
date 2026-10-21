@@ -111,10 +111,8 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 	u64 ret;
 
 	spin_lock(&block_rsv->lock);
-	if (num_bytes == (u64)-1) {
+	if (num_bytes == (u64)-1)
 		num_bytes = block_rsv->size;
-		qgroup_to_release = block_rsv->qgroup_rsv_size;
-	}
 	block_rsv->size -= num_bytes;
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
@@ -128,8 +126,6 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 		qgroup_to_release = block_rsv->qgroup_rsv_reserved -
 				    block_rsv->qgroup_rsv_size;
 		block_rsv->qgroup_rsv_reserved = block_rsv->qgroup_rsv_size;
-	} else {
-		qgroup_to_release = 0;
 	}
 	spin_unlock(&block_rsv->lock);
 
@@ -209,8 +205,7 @@ void btrfs_free_block_rsv(struct btrfs_fs_info *fs_info,
 	kfree(rsv);
 }
 
-int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
-			struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+int btrfs_block_rsv_add(struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			enum btrfs_reserve_flush_enum flush)
 {
 	int ret;
@@ -239,8 +234,7 @@ int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_percent)
 	return ret;
 }
 
-int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+int btrfs_block_rsv_refill(struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			   enum btrfs_reserve_flush_enum flush)
 {
 	int ret = -ENOSPC;

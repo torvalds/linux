@@ -38,6 +38,22 @@
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
+enum {
+	ENUM_BIT(TRANS_START),
+	ENUM_BIT(TRANS_ATTACH),
+	ENUM_BIT(TRANS_JOIN),
+	ENUM_BIT(TRANS_JOIN_NOLOCK),
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	ENUM_BIT(TRANS_DUMMY),
+#endif
+	ENUM_BIT(TRANS_JOIN_NOSTART),
+};
+
+/* Those types need to hold sb intwrite lock. */
+#define TRANS_SB_INTWRITER_MASK (TRANS_START | TRANS_JOIN)
+
+#define TRANS_EXTWRITERS_MASK	(TRANS_START | TRANS_ATTACH)
+
 /*
  * Transaction states and transitions
  *
@@ -117,27 +133,43 @@ static struct kmem_cache *btrfs_trans_handle_cachep;
 static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 	[TRANS_STATE_RUNNING]		= 0U,
 	[TRANS_STATE_COMMIT_PREP]	= 0U,
-	[TRANS_STATE_COMMIT_START]	= (__TRANS_START | __TRANS_ATTACH),
-	[TRANS_STATE_COMMIT_DOING]	= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_UNBLOCKED]		= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_SUPER_COMMITTED]	= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
-	[TRANS_STATE_COMPLETED]		= (__TRANS_START |
-					   __TRANS_ATTACH |
-					   __TRANS_JOIN |
-					   __TRANS_JOIN_NOLOCK |
-					   __TRANS_JOIN_NOSTART),
+	[TRANS_STATE_COMMIT_START]	= (TRANS_START | TRANS_ATTACH),
+	[TRANS_STATE_COMMIT_DOING]	= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_UNBLOCKED]		= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_SUPER_COMMITTED]	= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
+	[TRANS_STATE_COMPLETED]		= (TRANS_START |
+					   TRANS_ATTACH |
+					   TRANS_JOIN |
+					   TRANS_JOIN_NOLOCK |
+					   TRANS_JOIN_NOSTART),
 };
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+bool btrfs_is_dummy_transaction(const struct btrfs_trans_handle *trans)
+{
+	return trans->type == TRANS_DUMMY;
+}
+
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info)
+{
+	memset(trans, 0, sizeof(*trans));
+	trans->transid = 1;
+	trans->type = TRANS_DUMMY;
+	trans->fs_info = fs_info;
+}
+#endif
 
 void btrfs_put_transaction(struct btrfs_transaction *transaction)
 {
@@ -223,21 +255,21 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 static inline void extwriter_counter_inc(struct btrfs_transaction *trans,
 					 unsigned int type)
 {
-	if (type & TRANS_EXTWRITERS)
+	if (type & TRANS_EXTWRITERS_MASK)
 		atomic_inc(&trans->num_extwriters);
 }
 
 static inline void extwriter_counter_dec(struct btrfs_transaction *trans,
 					 unsigned int type)
 {
-	if (type & TRANS_EXTWRITERS)
+	if (type & TRANS_EXTWRITERS_MASK)
 		atomic_dec(&trans->num_extwriters);
 }
 
 static inline void extwriter_counter_init(struct btrfs_transaction *trans,
 					  unsigned int type)
 {
-	atomic_set(&trans->num_extwriters, ((type & TRANS_EXTWRITERS) ? 1 : 0));
+	atomic_set(&trans->num_extwriters, ((type & TRANS_EXTWRITERS_MASK) ? 1 : 0));
 }
 
 static inline int extwriter_counter_read(struct btrfs_transaction *trans)
@@ -413,6 +445,8 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
 
+	lockdep_assert_held(&fs_info->reloc_mutex);
+
 	if ((test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
 	    btrfs_get_root_last_trans(root) < trans->transid) || force) {
 		WARN_ON(!force && root->commit_root != root->node);
@@ -511,10 +545,11 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 	 * see record_root_in_trans for comments about IN_TRANS_SETUP usage
 	 * and barriers
 	 */
-	smp_rmb();
-	if (btrfs_get_root_last_trans(root) == trans->transid &&
-	    !test_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state))
-		return 0;
+	if (btrfs_get_root_last_trans(root) == trans->transid) {
+		smp_rmb();
+		if (!test_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state))
+			return 0;
+	}
 
 	mutex_lock(&fs_info->reloc_mutex);
 	ret = record_root_in_trans(trans, root, false);
@@ -625,11 +660,14 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	bool do_chunk_alloc = false;
 	int ret;
 
+	/* The type must be a single TRANS_* bit set. */
+	ASSERT(has_single_bit_set(type));
+
 	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return ERR_PTR(-EROFS);
 
 	if (current->journal_info) {
-		WARN_ON(type & TRANS_EXTWRITERS);
+		WARN_ON(type & TRANS_EXTWRITERS_MASK);
 		h = current->journal_info;
 		refcount_inc(&h->use_count);
 		WARN_ON(refcount_read(&h->use_count) > 2);
@@ -711,6 +749,8 @@ again:
 	}
 
 	/*
+	 * Only TRANS_START and TRANS_JOIN require sb intwrite lock.
+	 *
 	 * If we are JOIN_NOLOCK we're already committing a transaction and
 	 * waiting on this guy, so we don't need to do the sb_start_intwrite
 	 * because we're already holding a ref.  We need this because we could
@@ -720,7 +760,7 @@ again:
 	 * If we are ATTACH, it means we just want to catch the current
 	 * transaction and commit it, so we needn't do sb_start_intwrite(). 
 	 */
-	if (type & __TRANS_FREEZABLE)
+	if (type & TRANS_SB_INTWRITER_MASK)
 		sb_start_intwrite(fs_info->sb);
 
 	if (may_wait_transaction(fs_info, type))
@@ -822,7 +862,7 @@ got_it:
 	return h;
 
 join_fail:
-	if (type & __TRANS_FREEZABLE)
+	if (type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 	kmem_cache_free(btrfs_trans_handle_cachep, h);
 alloc_fail:
@@ -1103,7 +1143,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_chunk_metadata(trans);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(info->sb);
 
 	/*
@@ -1727,8 +1767,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		pending->error = btrfs_block_rsv_add(fs_info,
-						     &pending->block_rsv,
+		pending->error = btrfs_block_rsv_add(&pending->block_rsv,
 						     to_reserve,
 						     BTRFS_RESERVE_NO_FLUSH);
 		if (unlikely(pending->error))
@@ -1881,18 +1920,24 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * To co-operate with that hack, we do hack again.
 	 * Or snapshot will be greatly slowed down by a subtree qgroup rescan
 	 */
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL)
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL) {
 		ret = qgroup_account_snapshot(trans, root, parent_root,
 					      pending->inherit, objectid);
-	else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
+	} else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE) {
 		ret = btrfs_qgroup_inherit(trans, btrfs_root_id(root), objectid,
 					   btrfs_root_id(parent_root), pending->inherit);
-	if (unlikely(ret < 0))
-		goto fail;
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
+	}
 
 	ret = btrfs_insert_dir_item(trans, &fname.disk_name,
-				    parent_inode, &key, BTRFS_FT_DIR,
-				    index);
+				    parent_inode, &key, BTRFS_FT_DIR, index, NULL);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -2116,7 +2161,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 		fs_info->running_transaction = NULL;
 	spin_unlock(&fs_info->trans_lock);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 	btrfs_put_transaction(cur_trans);
 	btrfs_put_transaction(cur_trans);
@@ -2648,7 +2693,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	btrfs_put_transaction(cur_trans);
 	btrfs_put_transaction(cur_trans);
 
-	if (trans->type & __TRANS_FREEZABLE)
+	if (trans->type & TRANS_SB_INTWRITER_MASK)
 		sb_end_intwrite(fs_info->sb);
 
 	btrfs_scrub_continue(fs_info);

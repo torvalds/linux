@@ -811,7 +811,7 @@ struct btrfs_fs_info {
 	struct btrfs_discard_ctl discard_ctl;
 
 	/* Is qgroup tracking in a consistent state? */
-	u64 qgroup_flags;
+	unsigned long qgroup_flags;
 
 	/* Holds configuration and tracking. Protected by qgroup_lock. */
 	struct rb_root qgroup_tree;
@@ -857,6 +857,7 @@ struct btrfs_fs_info {
 
 	/* Next backup root to be overwritten */
 	int backup_root_index;
+	int use_backup_slot;
 
 	/* Device replace state */
 	struct btrfs_dev_replace dev_replace;

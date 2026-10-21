@@ -32,6 +32,7 @@ struct btrfs_trans_handle;
 struct btrfs_bio;
 struct btrfs_file_extent;
 struct btrfs_delayed_node;
+struct btrfs_dir_index_prealloc;
 
 /*
  * Since we search a directory based on f_pos (struct dir_context::pos) we have
@@ -98,6 +99,12 @@ enum {
 	 * range).
 	 */
 	BTRFS_INODE_COW_WRITE_ERROR,
+	/*
+	 * Set by reflink while it holds the source's VFS inode lock shared.
+	 * Direct IO writes also take that lock shared; one that finds this bit
+	 * set after acquiring it must retry with the exclusive lock.
+	 */
+	BTRFS_INODE_REFLINK_SRC,
 	/*
 	 * Indicate this is a directory that points to a subvolume for which
 	 * there is no root reference item. That's a case like the following:
@@ -507,14 +514,10 @@ static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
 				      inode->root->fs_info->block_max_order);
 }
 
-void btrfs_calculate_block_csum_folio(struct btrfs_fs_info *fs_info,
-				      const phys_addr_t paddr, u8 *dest);
-void btrfs_calculate_block_csum_pages(struct btrfs_fs_info *fs_info,
-				      const phys_addr_t paddrs[], u8 *dest);
-int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
-			   const u8 * const csum_expected);
-bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
-			u32 bio_offset, const phys_addr_t paddrs[]);
+bool btrfs_bio_data_csum_ok(struct btrfs_bio *bbio, const struct bvec_iter *orig_iter,
+			    struct btrfs_device *dev);
+void btrfs_csum_one_bio_block(struct btrfs_fs_info *fs_info, struct bio *bio,
+			      const struct bvec_iter *orig_iter, u8 *csum);
 noinline int can_nocow_extent(struct btrfs_inode *inode, u64 offset, u64 *len,
 			      struct btrfs_file_extent *file_extent,
 			      bool nowait);
@@ -527,7 +530,8 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       const struct fscrypt_str *name);
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
-		   const struct fscrypt_str *name, bool add_backref, u64 index);
+		   const struct fscrypt_str *name, bool add_backref, u64 index,
+		   struct btrfs_dir_index_prealloc *prealloc);
 int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry);
 int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 end);
 

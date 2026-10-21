@@ -125,15 +125,13 @@ int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid,
 		return 1;
 	}
 
-	if (btrfs_header_generation(eb) != parent_transid) {
-		btrfs_err_rl(eb->fs_info,
+	btrfs_err_rl(eb->fs_info,
 "parent transid verify failed on logical %llu mirror %u wanted %llu found %llu",
-			eb->start, eb->read_mirror,
-			parent_transid, btrfs_header_generation(eb));
-		clear_extent_buffer_uptodate(eb);
-		return 0;
-	}
-	return 1;
+		     eb->start, eb->read_mirror,
+		     parent_transid, btrfs_header_generation(eb));
+	clear_extent_buffer_uptodate(eb);
+
+	return 0;
 }
 
 static bool btrfs_supported_super_csum(u16 csum_type)
@@ -176,19 +174,24 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	const u32 step = min(fs_info->nodesize, PAGE_SIZE);
-	const u32 nr_steps = eb->len / step;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
+	struct btrfs_bio *bbio;
+	int ret;
 
 	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
+	/*
+	 * This bbio is only to queue all pages for btrfs_repair_bbio_failure().
+	 * Thus it will never get its endio called.
+	 */
+	bbio = btrfs_bio_alloc(max(1, fs_info->nodesize >> PAGE_SHIFT), REQ_OP_READ,
+			       BTRFS_I(fs_info->btree_inode), eb->start, NULL, NULL);
+	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
 	for (int i = 0; i < num_extent_pages(eb); i++) {
 		struct folio *folio = eb->folios[i];
 
 		/* No large folio support yet. */
 		ASSERT(folio_order(folio) == 0);
-		ASSERT(i < nr_steps);
 
 		/*
 		 * For nodesize < page size, there is just one paddr, with some
@@ -197,11 +200,17 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 		 * For nodesize >= page size, it's one or more paddrs, and eb->start
 		 * must be aligned to page boundary.
 		 */
-		paddrs[i] = page_to_phys(&folio->page) + offset_in_page(eb->start);
+		ret = bio_add_page(&bbio->bio, &folio->page, min(PAGE_SIZE, fs_info->nodesize),
+				   offset_in_page(eb->start));
+		ASSERT(ret == min(PAGE_SIZE, fs_info->nodesize));
 	}
+	/* Since the bbio is never submitted, we have to save the iter manually. */
+	bbio->saved_iter = bbio->bio.bi_iter;
 
-	return btrfs_repair_io_failure(fs_info, 0, eb->start, eb->len,
-				       eb->start, paddrs, step, mirror_num);
+	ret = btrfs_repair_bbio_failure(bbio, &bbio->saved_iter, fs_info->nodesize,
+					mirror_num);
+	bio_put(&bbio->bio);
+	return ret;
 }
 
 /*
@@ -1485,7 +1494,9 @@ static int cleaner_kthread(void *arg)
 
 		btrfs_run_delayed_iputs(fs_info);
 
+		set_bit(BTRFS_QGROUP_RUNTIME_BIT_REJECT_RESCAN, &fs_info->qgroup_flags);
 		again = btrfs_clean_one_deleted_snapshot(fs_info);
+		clear_bit(BTRFS_QGROUP_RUNTIME_BIT_REJECT_RESCAN, &fs_info->qgroup_flags);
 		mutex_unlock(&fs_info->cleaner_mutex);
 
 		/*
@@ -2374,7 +2385,7 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 		}
 		ret = btrfs_check_chunk_valid(fs_info, NULL, chunk, key.offset,
 					      sectorsize);
-		if (ret < 0)
+		if (unlikely(ret < 0))
 			return ret;
 		cur += btrfs_chunk_item_size(num_stripes);
 	}
@@ -2700,73 +2711,60 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 	int backup_index = find_newest_super_backup(fs_info);
 	struct btrfs_super_block *sb = fs_info->super_copy;
 	struct btrfs_root *tree_root = fs_info->tree_root;
-	bool handle_error = false;
+	bool use_backup = btrfs_test_opt(fs_info, USEBACKUPROOT);
 	int ret = 0;
-	int i;
 
-	for (i = 0; i < BTRFS_NUM_BACKUP_ROOTS; i++) {
-		if (handle_error) {
-			if (!IS_ERR(tree_root->node))
-				free_extent_buffer(tree_root->node);
-			tree_root->node = NULL;
+	if (use_backup) {
+		ASSERT(fs_info->use_backup_slot >= 0 &&
+		       fs_info->use_backup_slot < BTRFS_NUM_BACKUP_ROOTS);
 
-			if (!btrfs_test_opt(fs_info, USEBACKUPROOT))
-				break;
-
-			free_root_pointers(fs_info, 0);
-
-			/*
-			 * Don't use the log in recovery mode, it won't be
-			 * valid
-			 */
-			btrfs_set_super_log_root(sb, 0);
-
-			btrfs_warn(fs_info, "try to load backup roots slot %d", i);
-			ret = read_backup_root(fs_info, i);
-			backup_index = ret;
-			if (ret < 0)
-				return ret;
+		ret = read_backup_root(fs_info, fs_info->use_backup_slot);
+		if (ret < 0) {
+			btrfs_err(fs_info,
+				  "failed to load backup roots at slot %d",
+				  fs_info->use_backup_slot);
+			return ret;
 		}
-
-		ret = load_important_roots(fs_info);
-		if (ret) {
-			handle_error = true;
-			continue;
-		}
-
 		/*
-		 * No need to hold btrfs_root::objectid_mutex since the fs
-		 * hasn't been fully initialised and we are the only user
+		 * Don't use the log in recovery mode, it won't be
+		 * valid
 		 */
-		ret = btrfs_init_root_free_objectid(tree_root);
-		if (ret < 0) {
-			handle_error = true;
-			continue;
-		}
-
-		ASSERT(tree_root->free_objectid <= BTRFS_LAST_FREE_OBJECTID);
-
-		ret = btrfs_read_roots(fs_info);
-		if (ret < 0) {
-			handle_error = true;
-			continue;
-		}
-
-		/* All successful */
-		fs_info->generation = btrfs_header_generation(tree_root->node);
-		btrfs_set_last_trans_committed(fs_info, fs_info->generation);
-		fs_info->last_reloc_trans = 0;
-
-		/* Always begin writing backup roots after the one being used */
-		if (backup_index < 0) {
-			fs_info->backup_root_index = 0;
-		} else {
-			fs_info->backup_root_index = backup_index + 1;
-			fs_info->backup_root_index %= BTRFS_NUM_BACKUP_ROOTS;
-		}
-		break;
+		btrfs_set_super_log_root(sb, 0);
+		backup_index = ret;
+		btrfs_warn(fs_info, "loaded backup roots at slot %d",
+			   fs_info->use_backup_slot);
 	}
 
+	ret = load_important_roots(fs_info);
+	if (ret)
+		return ret;
+
+	/*
+	 * No need to hold btrfs_root::objectid_mutex since the fs
+	 * hasn't been fully initialised and we are the only user
+	 */
+	ret = btrfs_init_root_free_objectid(tree_root);
+	if (ret < 0)
+		return ret;
+
+	ASSERT(tree_root->free_objectid <= BTRFS_LAST_FREE_OBJECTID);
+
+	ret = btrfs_read_roots(fs_info);
+	if (ret < 0)
+		return ret;
+
+	/* All successful */
+	fs_info->generation = btrfs_header_generation(tree_root->node);
+	btrfs_set_last_trans_committed(fs_info, fs_info->generation);
+	fs_info->last_reloc_trans = 0;
+
+	/* Always begin writing backup roots after the one being used */
+	if (backup_index < 0) {
+		fs_info->backup_root_index = 0;
+	} else {
+		fs_info->backup_root_index = backup_index + 1;
+		fs_info->backup_root_index %= BTRFS_NUM_BACKUP_ROOTS;
+	}
 	return ret;
 }
 
@@ -2905,6 +2903,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	init_waitqueue_head(&fs_info->async_submit_wait);
 	init_waitqueue_head(&fs_info->delayed_iputs_wait);
 
+	fs_info->use_backup_slot = -1;
 	/* Usable values until the real ones are cached from the superblock */
 	fs_info->nodesize = 4096;
 	fs_info->sectorsize = 4096;
@@ -3898,8 +3897,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
-		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-		    device->commit_total_bytes)
+		if (bytenr + BTRFS_SUPER_INFO_SIZE > device->commit_total_bytes)
 			break;
 
 		btrfs_set_super_bytenr(sb, bytenr_orig);
@@ -3977,8 +3975,7 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 				primary_failed = true;
 			continue;
 		}
-		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-		    device->commit_total_bytes)
+		if (bytenr + BTRFS_SUPER_INFO_SIZE > device->commit_total_bytes)
 			break;
 
 		folio = filemap_get_folio(device->bdev->bd_mapping,
@@ -4217,8 +4214,6 @@ int write_all_supers(struct btrfs_trans_handle *trans)
 			total_errors++;
 	}
 	if (unlikely(total_errors > max_errors)) {
-		btrfs_err(fs_info, "%d errors while writing supers",
-			  total_errors);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
@@ -4969,6 +4964,16 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans)
 	list_for_each_entry_safe(dev, tmp, &cur_trans->dev_update_list,
 				 post_commit_list) {
 		list_del_init(&dev->post_commit_list);
+	}
+
+	while (!list_empty(&cur_trans->switch_commits)) {
+		struct btrfs_root *root;
+
+		root = list_first_entry(&cur_trans->switch_commits,
+					struct btrfs_root, dirty_list);
+		list_del_init(&root->dirty_list);
+		btrfs_extent_io_tree_release(&root->dirty_log_pages);
+		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
 	btrfs_destroy_delayed_refs(cur_trans);

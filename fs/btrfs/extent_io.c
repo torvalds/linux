@@ -110,14 +110,14 @@ struct btrfs_bio_ctrl {
 	 * make the decision when submitting the bio.
 	 *
 	 * The pattern between do_readpage(), submit_one_bio() and
-	 * submit_extent_folio() is quite subtle, so tracking this is tricky.
+	 * submit_one_block() is quite subtle, so tracking this is tricky.
 	 *
 	 * As we process extent E, we might submit a bio with existing built up
 	 * extents before adding E to a new bio, or we might just add E to the
 	 * bio. As a result, E's generation could apply to the current bio or
 	 * to the next one, so we need to be careful to update the bio_ctrl's
 	 * generation with E's only when we are sure E is added to bio_ctrl->bbio
-	 * in submit_extent_folio().
+	 * in submit_one_block().
 	 *
 	 * See the comment in btrfs_lookup_bio_sums() for more detail on the
 	 * need for this optimization.
@@ -797,118 +797,95 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 }
 
 /*
- * @disk_bytenr: logical bytenr where the write will be
- * @page:	page to add to the bio
- * @size:	portion of page that we want to write to
- * @pg_offset:	offset of the new bio or to check whether we are adding
- *              a contiguous page to the previous one
+ * @disk_bytenr: logical bytenr where the read/write will be
+ * @folio:	 the folio the block belongs to
+ * @pg_offset:	 the offset inside the folio
  * @read_em_generation: generation of the extent_map we are submitting
  *			(only used for read)
  *
- * The will either add the page into the existing @bio_ctrl->bbio, or allocate a
+ * This will either add the block into the existing @bio_ctrl->bbio, or allocate a
  * new one in @bio_ctrl->bbio.
  * The mirror number for this IO should already be initialized in
  * @bio_ctrl->mirror_num.
  *
- * Return the number of bytes that are queued into a bio.
- * If the returned bytes is smaller than @size, it means we hit a critical error
- * for data write, where there is no ordered extent for the range.
+ * Return 0 if the block is queued or submitted.
+ * Return <0 for error.
  */
-static unsigned int submit_extent_folio(struct btrfs_bio_ctrl *bio_ctrl,
-					u64 disk_bytenr, struct folio *folio,
-					size_t size, unsigned long pg_offset,
-					u64 read_em_generation)
+static int submit_one_block(struct btrfs_bio_ctrl *bio_ctrl,
+			    u64 disk_bytenr, struct folio *folio,
+			    unsigned long pg_offset, u64 read_em_generation)
 {
 	struct btrfs_inode *inode = folio_to_inode(folio);
+	const struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 blocksize = fs_info->sectorsize;
 	loff_t file_offset = folio_pos(folio) + pg_offset;
-	unsigned int queued = 0;
 
-	ASSERT(pg_offset + size <= folio_size(folio));
+	ASSERT(pg_offset + blocksize <= folio_size(folio));
 	ASSERT(bio_ctrl->end_io_func);
 
 	if (bio_ctrl->bbio &&
 	    !btrfs_bio_is_contig(bio_ctrl, disk_bytenr, file_offset))
 		submit_one_bio(bio_ctrl);
 
-	do {
-		u32 len = size;
+again:
+	/* Allocate new bio if needed */
+	if (!bio_ctrl->bbio) {
+		int ret;
 
-		/* Allocate new bio if needed */
-		if (!bio_ctrl->bbio) {
-			int ret;
+		ret = alloc_new_bio(inode, bio_ctrl, disk_bytenr, file_offset);
+		if (ret < 0)
+			return ret;
+	}
 
-			ret = alloc_new_bio(inode, bio_ctrl, disk_bytenr, file_offset);
-			if (ret < 0)
-				break;
-		}
+	if (!bio_add_folio(&bio_ctrl->bbio->bio, folio, blocksize, pg_offset)) {
+		/* bio full: move on to a new one */
+		submit_one_bio(bio_ctrl);
+		goto again;
+	}
 
-		/* Cap to the current ordered extent boundary if there is one. */
-		if (len > bio_ctrl->len_to_oe_boundary) {
-			ASSERT(bio_ctrl->compress_type == BTRFS_COMPRESS_NONE);
-			ASSERT(is_data_inode(inode));
-			len = bio_ctrl->len_to_oe_boundary;
-		}
+	/*
+	 * Now that the folio is definitely added to the bio, include its
+	 * generation in the max generation calculation.
+	 */
+	bio_ctrl->generation = max(bio_ctrl->generation, read_em_generation);
+	bio_ctrl->next_file_offset += blocksize;
 
-		if (!bio_add_folio(&bio_ctrl->bbio->bio, folio, len, pg_offset)) {
-			/* bio full: move on to a new one */
-			submit_one_bio(bio_ctrl);
-			continue;
-		}
-		/*
-		 * Now that the folio is definitely added to the bio, include its
-		 * generation in the max generation calculation.
-		 */
-		bio_ctrl->generation = max(bio_ctrl->generation, read_em_generation);
-		bio_ctrl->next_file_offset += len;
+	if (bio_ctrl->wbc)
+		wbc_account_cgroup_owner(bio_ctrl->wbc, folio, blocksize);
 
-		if (bio_ctrl->wbc)
-			wbc_account_cgroup_owner(bio_ctrl->wbc, folio, len);
+	/*
+	 * len_to_oe_boundary defaults to U32_MAX, which isn't folio or sector
+	 * aligned.  alloc_new_bio() then sets it to the end of our ordered
+	 * extent for writes into zoned devices.
+	 *
+	 * When len_to_oe_boundary is tracking an ordered extent, the
+	 * len_to_oe_boundary should follow that OE and never go beyond the max
+	 * extent size (128MiB).
+	 *
+	 * When len_to_oe_boundary is U32_MAX, decreasing the length by
+	 * blocksize will never make it reach 0, thus skipping the later
+	 * submit_one_bio() call.  So if len_to_oe_boundary() is not tracking
+	 * an OE, do not decrease it.
+	 *
+	 * It's pretty hard to make a bio sized U32_MAX, but it can happen when
+	 * the page cache is able to feed us contiguous folios for large
+	 * extents.
+	 */
+	if (bio_ctrl->len_to_oe_boundary != U32_MAX)
+		bio_ctrl->len_to_oe_boundary -= blocksize;
 
-		size -= len;
-		pg_offset += len;
-		disk_bytenr += len;
-		file_offset += len;
-		queued += len;
-
-		/*
-		 * len_to_oe_boundary defaults to U32_MAX, which isn't folio or
-		 * sector aligned.  alloc_new_bio() then sets it to the end of
-		 * our ordered extent for writes into zoned devices.
-		 *
-		 * When len_to_oe_boundary is tracking an ordered extent, we
-		 * trust the ordered extent code to align things properly, and
-		 * the check above to cap our write to the ordered extent
-		 * boundary is correct.
-		 *
-		 * When len_to_oe_boundary is U32_MAX, the cap above would
-		 * result in a 4095 byte IO for the last folio right before
-		 * we hit the bio limit of UINT_MAX.  bio_add_folio() has all
-		 * the checks required to make sure we don't overflow the bio,
-		 * and we should just ignore len_to_oe_boundary completely
-		 * unless we're using it to track an ordered extent.
-		 *
-		 * It's pretty hard to make a bio sized U32_MAX, but it can
-		 * happen when the page cache is able to feed us contiguous
-		 * folios for large extents.
-		 */
-		if (bio_ctrl->len_to_oe_boundary != U32_MAX)
-			bio_ctrl->len_to_oe_boundary -= len;
-
-		/* Ordered extent boundary: move on to a new bio. */
-		if (bio_ctrl->len_to_oe_boundary == 0)
-			submit_one_bio(bio_ctrl);
-		/*
-		 * If we have accumulated decent amount of IO, send it to the
-		 * block layer so that IO can run while we are accumulating
-		 * more folios to write.
-		 */
-		else if (bio_ctrl->wbc &&
-			 bio_ctrl->bbio->bio.bi_iter.bi_size >=
-			    inode->root->fs_info->writeback_bio_size)
-			submit_one_bio(bio_ctrl);
-
-	} while (size);
-	return queued;
+	/* Ordered extent boundary: move on to a new bio. */
+	if (bio_ctrl->len_to_oe_boundary == 0)
+		submit_one_bio(bio_ctrl);
+	/*
+	 * If we have accumulated decent amount of IO, send it to the block
+	 * layer so that IO can run while we are accumulating more folios to
+	 * write.
+	 */
+	else if (bio_ctrl->wbc &&
+		 bio_ctrl->bbio->bio.bi_iter.bi_size >= fs_info->writeback_bio_size)
+		submit_one_bio(bio_ctrl);
+	return 0;
 }
 
 static int attach_extent_buffer_folio(struct extent_buffer *eb,
@@ -1092,7 +1069,6 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 		u64 disk_bytenr;
 		u64 block_start;
 		u64 em_gen;
-		unsigned int queued;
 
 		ASSERT(IS_ALIGNED(cur, fs_info->sectorsize));
 		if (cur >= last_byte) {
@@ -1206,10 +1182,9 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 
 		if (force_bio_submit)
 			submit_one_bio(bio_ctrl);
-		queued = submit_extent_folio(bio_ctrl, disk_bytenr, folio, blocksize,
-					     pg_offset, em_gen);
+		ret = submit_one_block(bio_ctrl, disk_bytenr, folio, pg_offset, em_gen);
 		/* Read submission should not fail. */
-		ASSERT(queued == blocksize);
+		ASSERT(ret == 0);
 	}
 	return 0;
 }
@@ -1808,33 +1783,51 @@ out:
 	return 0;
 }
 
+static struct btrfs_ordered_extent *get_oe_from_bbio(const struct btrfs_bio *bbio,
+						     u64 filepos)
+{
+	struct btrfs_ordered_extent *oe;
+
+	if (!bbio || !bbio->ordered)
+		return NULL;
+
+	oe = bbio->ordered;
+	if (!in_range(filepos, oe->file_offset, oe->num_bytes))
+		return NULL;
+
+	refcount_inc(&oe->refs);
+	return oe;
+}
+
 /*
  * Return 0 if we have submitted or queued the sector for submission.
  * Return <0 for critical errors, and the involved sector will be cleaned up.
  *
  * Caller should make sure filepos < i_size and handle filepos >= i_size case.
  */
-static int submit_one_sector(struct btrfs_inode *inode,
-			     struct folio *folio,
-			     u64 filepos, struct btrfs_bio_ctrl *bio_ctrl,
-			     loff_t i_size)
+static int submit_write_sector(struct btrfs_inode *inode,
+			       struct folio *folio,
+			       u64 filepos, struct btrfs_bio_ctrl *bio_ctrl,
+			       loff_t i_size)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_map *em;
+	struct btrfs_ordered_extent *oe;
 	u64 block_start;
 	u64 disk_bytenr;
 	u64 extent_offset;
-	u64 em_end;
 	const u32 sectorsize = fs_info->sectorsize;
-	unsigned int queued;
+	int ret;
 
 	ASSERT(IS_ALIGNED(filepos, sectorsize));
 
 	/* @filepos >= i_size case should be handled by the caller. */
 	ASSERT(filepos < i_size);
 
-	em = btrfs_get_extent(inode, NULL, filepos, sectorsize);
-	if (IS_ERR(em)) {
+	/* Try to reuse the existing OE from bbio first. */
+	oe = get_oe_from_bbio(bio_ctrl->bbio, filepos);
+	if (!oe)
+		oe = btrfs_lookup_ordered_extent(inode, filepos);
+	if (unlikely(!oe)) {
 		/*
 		 * bio_ctrl may contain a bio crossing several folios.
 		 * Submit it immediately so that the bio has a chance
@@ -1857,31 +1850,25 @@ static int submit_one_sector(struct btrfs_inode *inode,
 		 */
 		btrfs_mark_ordered_io_finished(inode, filepos, fs_info->sectorsize,
 					       false);
-		return PTR_ERR(em);
+		btrfs_err_rl(fs_info,
+		"no ordered extent for root %lld ino %llu filepos %llu",
+			     btrfs_root_id(inode->root), btrfs_ino(inode),
+			     filepos);
+		return -EUCLEAN;
 	}
 
-	extent_offset = filepos - em->start;
-	em_end = btrfs_extent_map_end(em);
-	ASSERT(filepos <= em_end);
-	ASSERT(IS_ALIGNED(em->start, sectorsize));
-	ASSERT(IS_ALIGNED(em->len, sectorsize));
+	extent_offset = filepos - oe->file_offset;
+	ASSERT(filepos < oe->file_offset + oe->num_bytes);
+	ASSERT(IS_ALIGNED(oe->file_offset, sectorsize));
+	ASSERT(IS_ALIGNED(oe->num_bytes, sectorsize));
+	ASSERT(oe->compress_type == BTRFS_COMPRESS_NONE);
+	ASSERT(!test_bit(BTRFS_ORDERED_COMPRESSED, &oe->flags));
 
-	block_start = btrfs_extent_map_block_start(em);
-	disk_bytenr = btrfs_extent_map_block_start(em) + extent_offset;
+	block_start = oe->disk_bytenr + oe->offset;
+	disk_bytenr = block_start + extent_offset;
 
-	ASSERT(!btrfs_extent_map_is_compressed(em));
-	ASSERT(block_start != EXTENT_MAP_HOLE);
-	ASSERT(block_start != EXTENT_MAP_INLINE);
+	btrfs_put_ordered_extent(oe);
 
-	btrfs_free_extent_map(em);
-	em = NULL;
-
-	/*
-	 * Although the PageDirty bit is cleared before entering this
-	 * function, subpage dirty bit is not cleared.
-	 * So clear subpage dirty bit here so next time we won't submit
-	 * a folio for a range already written to disk.
-	 */
 	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
 	btrfs_folio_set_writeback(fs_info, folio, filepos, sectorsize);
 	/*
@@ -1892,13 +1879,17 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	 */
 	ASSERT(folio_test_writeback(folio));
 
-	queued = submit_extent_folio(bio_ctrl, disk_bytenr, folio,
-				     sectorsize, filepos - folio_pos(folio), 0);
-	if (unlikely(queued < sectorsize)) {
+	ret = submit_one_block(bio_ctrl, disk_bytenr, folio,
+			       offset_in_folio(folio, filepos), 0);
+	if (unlikely(ret < 0)) {
 		btrfs_folio_clear_writeback(fs_info, folio, filepos, sectorsize);
 		btrfs_mark_ordered_io_finished(inode, filepos, fs_info->sectorsize,
 					       false);
-		return -EUCLEAN;
+		btrfs_err_rl(fs_info,
+		"failed to queue sector for root %lld ino %llu filepos %llu: %pe",
+			     btrfs_root_id(inode->root),
+			     btrfs_ino(inode), filepos, ERR_PTR(ret));
+		return ret;
 	}
 	return 0;
 }
@@ -1983,7 +1974,7 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 			btrfs_folio_clear_dirty(fs_info, folio, cur, fs_info->sectorsize);
 			continue;
 		}
-		ret = submit_one_sector(inode, folio, cur, bio_ctrl, i_size);
+		ret = submit_write_sector(inode, folio, cur, bio_ctrl, i_size);
 		if (unlikely(ret < 0)) {
 			if (!found_error)
 				found_error = ret;

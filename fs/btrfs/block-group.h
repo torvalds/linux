@@ -135,7 +135,7 @@ struct btrfs_block_group {
 	u64 global_root_id;
 	u64 remap_bytes;
 	u32 identity_remap_count;
-	/* The last commited identity_remap_count value of this block group. */
+	/* The last committed identity_remap_count value of this block group. */
 	u32 last_identity_remap_count;
 	/*
 	 * The last committed used bytes of this block group, if the above @used

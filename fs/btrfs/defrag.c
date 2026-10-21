@@ -530,11 +530,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	if (ret == -EAGAIN) {
-		if (root->defrag_max.objectid > root->defrag_progress.objectid)
-			goto done;
-		if (root->defrag_max.type > root->defrag_progress.type)
-			goto done;
-		if (root->defrag_max.offset > root->defrag_progress.offset)
+		if (btrfs_comp_cpu_keys(&root->defrag_max, &root->defrag_progress) > 0)
 			goto done;
 		ret = 0;
 	}
@@ -815,7 +811,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 	 * If the next extent is at its max capacity, defragging current extent
 	 * makes no sense, as the total number of extents won't change.
 	 */
-	if (next->len >= get_extent_max_capacity(fs_info, em))
+	if (next->len >= get_extent_max_capacity(fs_info, next))
 		goto out;
 	/* Skip older extent */
 	if (next->generation < newer_than)

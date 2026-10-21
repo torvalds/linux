@@ -62,8 +62,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	struct btrfs_dir_item *dir_item;
 	unsigned long name_ptr, data_ptr;
-	struct btrfs_key key, location;
-	struct btrfs_disk_key disk_key;
+	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	u32 data_size;
 
@@ -79,11 +78,11 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 					name, name_len);
 	if (IS_ERR(dir_item))
 		return PTR_ERR(dir_item);
-	memset(&location, 0, sizeof(location));
 
 	leaf = path->nodes[0];
-	btrfs_cpu_key_to_disk(&disk_key, &location);
-	btrfs_set_dir_item_key(leaf, dir_item, &disk_key);
+	memzero_extent_buffer(leaf, (unsigned long)dir_item +
+			      offsetof(struct btrfs_dir_item, location),
+			      sizeof(struct btrfs_disk_key));
 	btrfs_set_dir_flags(leaf, dir_item, BTRFS_FT_XATTR);
 	btrfs_set_dir_name_len(leaf, dir_item, name_len);
 	btrfs_set_dir_transid(leaf, dir_item, trans->transid);
@@ -106,8 +105,11 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  * Will return 0 or -ENOMEM
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
-			  const struct fscrypt_str *name, struct btrfs_inode *dir,
-			  const struct btrfs_key *location, u8 type, u64 index)
+			  const struct fscrypt_str *name,
+			  struct btrfs_inode *dir,
+			  const struct btrfs_key *location, u8 type,
+			  u64 index,
+			  struct btrfs_dir_index_prealloc *prealloc)
 {
 	int ret = 0;
 	int ret2 = 0;
@@ -119,16 +121,26 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	struct btrfs_disk_key disk_key;
 	u32 data_size;
+	const bool need_delayed_index = (root != root->fs_info->tree_root);
 
 	key.objectid = btrfs_ino(dir);
 	key.type = BTRFS_DIR_ITEM_KEY;
 	key.offset = btrfs_name_hash(name->name, name->len);
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		ret = -ENOMEM;
+		goto out_free_prealloc;
+	}
 
 	btrfs_cpu_key_to_disk(&disk_key, location);
+
+	/* Pre-allocate the delayed dir index before modifying the btree. */
+	if (need_delayed_index && !prealloc) {
+		prealloc = btrfs_prealloc_delayed_dir_index(dir, name->name, name->len);
+		if (IS_ERR(prealloc))
+			return PTR_ERR(prealloc);
+	}
 
 	data_size = sizeof(*dir_item) + name->len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
@@ -137,7 +149,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(dir_item);
 		if (ret == -EEXIST)
 			goto second_insert;
-		goto out_free;
+		goto out_free_prealloc;
 	}
 
 	if (IS_ENCRYPTED(&dir->vfs_inode))
@@ -154,21 +166,21 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, name->name, name_ptr, name->len);
 
 second_insert:
-	/* FIXME, use some real flag for selecting the extra index */
-	if (root == root->fs_info->tree_root) {
+	if (!need_delayed_index) {
 		ret = 0;
-		goto out_free;
+		goto out_free_prealloc;
 	}
 	btrfs_release_path(path);
 
-	ret2 = btrfs_insert_delayed_dir_index(trans, name->name, name->len, dir,
-					      &disk_key, type, index);
-out_free:
+	ret2 = btrfs_insert_delayed_dir_index_prealloc(trans, dir, prealloc,
+						       &disk_key, type, index);
 	if (ret)
 		return ret;
-	if (ret2)
-		return ret2;
-	return 0;
+	return ret2;
+
+out_free_prealloc:
+	btrfs_free_delayed_dir_index_prealloc(trans, prealloc);
+	return ret;
 }
 
 static struct btrfs_dir_item *btrfs_lookup_match_dir(

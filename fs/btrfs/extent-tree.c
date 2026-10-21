@@ -1658,7 +1658,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 href->owning_root);
 		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
-			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
+			btrfs_record_squota_delta(trans->fs_info, &delta);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
@@ -3180,11 +3180,7 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_record_squota_delta(trans->fs_info, delta);
-	if (unlikely(ret)) {
-		btrfs_abort_transaction(trans, ret);
-		return ret;
-	}
+	btrfs_record_squota_delta(trans->fs_info, delta);
 
 	/* If remapped, FST has already been taken care of in remove_range_from_remap_tree(). */
 	if (!remapped) {
@@ -5227,7 +5223,8 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 					 offset, ins, 1, root_objectid);
 	if (ret)
 		btrfs_pin_extent(trans, ins->objectid, ins->offset);
-	ret = btrfs_record_squota_delta(fs_info, &delta);
+	else
+		btrfs_record_squota_delta(fs_info, &delta);
 	btrfs_put_block_group(block_group);
 	return ret;
 }
@@ -6315,6 +6312,16 @@ int btrfs_drop_snapshot(struct btrfs_root *root, bool update_ref, bool for_reloc
 	set_bit(BTRFS_ROOT_DELETING, &root->state);
 	unfinished_drop = test_bit(BTRFS_ROOT_UNFINISHED_DROP, &root->state);
 
+	/*
+	 * For subvolume dropping, check if the subvolume is large enough so
+	 * that we need to mark qgroup inconsistent to avoid long qgroup stall.
+	 *
+	 * Even for a subvolume without any snapshot, there can still be
+	 * a lot of qgroup records queued into one transaction.
+	 */
+	if (!for_reloc)
+		btrfs_qgroup_check_tree_drop(fs_info, rootid,
+					     btrfs_header_level(root->node));
 	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
 		level = btrfs_header_level(root->node);
 		path->nodes[level] = btrfs_lock_root_node(root);

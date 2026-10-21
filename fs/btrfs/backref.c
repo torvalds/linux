@@ -1432,7 +1432,7 @@ again:
 		goto out;
 	}
 
-	if (ctx->trans && likely(ctx->trans->type != __TRANS_DUMMY) &&
+	if (ctx->trans && likely(!btrfs_is_dummy_transaction(ctx->trans)) &&
 	    ctx->time_seq != BTRFS_SEQ_LAST) {
 		/*
 		 * We have a specific time_seq we care about and trans which

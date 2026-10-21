@@ -443,8 +443,8 @@ static u64 calc_effective_data_chunk_size(const struct btrfs_fs_info *fs_info)
 	 */
 	data_sinfo = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
 	if (btrfs_is_zoned(fs_info))
-		return data_sinfo->chunk_size;
-	data_chunk_size = min(data_sinfo->chunk_size,
+		return READ_ONCE(data_sinfo->chunk_size);
+	data_chunk_size = min(READ_ONCE(data_sinfo->chunk_size),
 			      mult_perc(fs_info->fs_devices->total_rw_bytes, 10));
 	return min_t(u64, data_chunk_size, SZ_1G);
 }
