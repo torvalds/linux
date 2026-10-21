@@ -116,6 +116,11 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_A_STATS_PHY_CNT,
 		.strings	= stats_phy_names,
 	},
+	[ETH_SS_PHY_INTERFACES] = {
+		.per_dev	= false,
+		.count		= PHY_INTERFACE_MODE_MAX,
+		.strings	= phy_interface_names,
+	},
 };
 
 struct strset_req_info {
