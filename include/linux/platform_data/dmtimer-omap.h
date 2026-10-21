@@ -57,6 +57,8 @@ struct dmtimer_platform_data {
 	u32 timer_errata;
 	int (*get_context_loss_count)(struct device *);
 	const struct omap_dm_timer_ops *timer_ops;
+	/* always-on timers can be used for clocksource/clockevent */
+	bool system_timer_capable;
 };
 
 #endif /* __PLATFORM_DATA_DMTIMER_OMAP_H__ */
