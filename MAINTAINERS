@@ -10010,6 +10010,7 @@ F:	net/core/failover.c
 FANOTIFY
 M:	Jan Kara <jack@suse.cz>
 R:	Amir Goldstein <amir73il@gmail.com>
+R:	Matt Bobrowski <matt@bobrowski.net>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	fs/notify/fanotify/
