@@ -2564,9 +2564,7 @@ static int emit_unwind_ret_addr(u8 **pprog, u8 *ip)
 
 	EMIT2(0x50, 0x56);			/* push rax; push rsi */
 	EMIT4(0x48, 0x8B, 0x7D, 0x08);		/* mov rdi, [rbp + 8] */
-	ip += prog - start;
-	ip += x86_call_depth_emit_accounting(&prog, bpf_unwind_target, ip);
-	if (emit_call(&prog, bpf_unwind_target, ip))
+	if (emit_rsb_call(&prog, bpf_unwind_target, ip + (prog - start)))
 		return -EINVAL;
 	EMIT4(0x48, 0x89, 0x45, 0x08);		/* mov [rbp + 8], rax */
 	EMIT2(0x5E, 0x58);			/* pop rsi; pop rax */
