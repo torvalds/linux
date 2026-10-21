@@ -6371,6 +6371,9 @@ next:
 static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 			   struct btrfs_key *key)
 {
+	BTRFS_PATH_AUTO_FREE(next_path);
+	const u64 cur_extent_end = btrfs_file_extent_end(path);
+	u64 next_offset;
 	int ret = 0;
 
 	if (sctx->cur_ino != key->objectid || !need_send_hole(sctx))
@@ -6397,14 +6400,72 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 		ret = range_is_hole_in_parent(sctx,
 					      sctx->cur_inode_last_extent,
 					      key->offset);
+		if (ret == 0)
+			ret = send_hole(sctx, key->offset);
+		else if (ret == 1)
+			ret = 0;
+
 		if (ret < 0)
 			return ret;
-		else if (ret == 0)
-			ret = send_hole(sctx, key->offset);
-		else
-			ret = 0;
 	}
-	sctx->cur_inode_last_extent = btrfs_file_extent_end(path);
+	sctx->cur_inode_last_extent = cur_extent_end;
+
+	/*
+	 * If we are the last file extent item in a leaf, we may have had a tail
+	 * section that got a hole punched or the extent replaced with a smaller
+	 * one, and if there is no change in the next leaf, we must find out if
+	 * we have such a hole and punch it.
+	 */
+	if (!btrfs_fs_incompat(sctx->send_root->fs_info, NO_HOLES) ||
+	    (sctx->cur_inode_size <= cur_extent_end) ||
+	    (path->slots[0] != btrfs_header_nritems(path->nodes[0]) - 1))
+		return 0;
+
+	next_path = alloc_path_for_send();
+	if (!next_path)
+		return -ENOMEM;
+
+	ret = btrfs_search_slot(NULL, sctx->send_root, key, next_path, 0, 0);
+	if (ret < 0)
+		return ret;
+	if (WARN_ON(ret != 0))
+		return -EUCLEAN;
+
+	ret = btrfs_next_leaf(sctx->send_root, next_path);
+	if (ret < 0) {
+		return ret;
+	} else if (ret > 0) {
+		/*
+		 * No next leaf, must punch hole to i_size and set the path back
+		 * to where it was before.
+		 */
+		next_offset = sctx->cur_inode_size;
+	} else {
+		struct btrfs_key next_key;
+
+		btrfs_item_key_to_cpu(next_path->nodes[0], &next_key,
+				      next_path->slots[0]);
+		if (next_key.objectid != key->objectid ||
+		    next_key.type != BTRFS_EXTENT_DATA_KEY)
+			next_offset = sctx->cur_inode_size;
+		else
+			next_offset = next_key.offset;
+	}
+
+	if (next_offset == cur_extent_end)
+		return 0;
+
+	btrfs_free_path(next_path);
+	next_path = NULL;
+
+	ret = range_is_hole_in_parent(sctx, sctx->cur_inode_last_extent, next_offset);
+	if (ret == 0)
+		ret = send_hole(sctx, next_offset);
+	else if (ret == 1)
+		ret = 0;
+
+	sctx->cur_inode_last_extent = next_offset;
+
 	return ret;
 }
 
