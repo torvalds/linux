@@ -1262,9 +1262,19 @@ rpcrdma_decode_msg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 
 	/* Build the RPC reply's Payload stream in rqst->rq_rcv_buf */
 	base = (char *)xdr_inline_decode(xdr, 0);
-	rpclen = xdr_stream_remaining(xdr);
+	rpclen = rep->rr_hdrbuf.len - xdr_stream_pos(xdr);
+	if (writelist)
+		rpclen &= ~3;
+	if (unlikely(!rpclen))
+		return -EIO;
+	if (writelist && rpclen < rqst->rq_rcv_buf.head[0].iov_len) {
+		rqst->rq_rcv_buf.head[0].iov_len = rpclen;
+		rqst->rq_private_buf.head[0].iov_len = rpclen;
+	}
+
 	r_xprt->rx_stats.fixup_copy_count +=
-		rpcrdma_inline_fixup(rqst, base, rpclen, writelist);
+		rpcrdma_inline_fixup(rqst, base, rpclen,
+				     xdr_pad_size(writelist));
 
 	r_xprt->rx_stats.total_rdma_reply += writelist;
 	return rpclen + xdr_align_size(writelist);

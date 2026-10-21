@@ -2491,6 +2491,8 @@ struct dentry *nfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	trace_nfs_mkdir_enter(dir, dentry);
 	ret = NFS_PROTO(dir)->mkdir(dir, dentry, &attr);
 	trace_nfs_mkdir_exit(dir, dentry, PTR_ERR_OR_ZERO(ret));
+	if (IS_ERR(ret))
+		d_drop(dentry);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_mkdir);
