@@ -1110,6 +1110,13 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 		while ((mask | (mask >> 1)) != mask)
 			mask |= (mask >> 1);
 
+		/* Require at least two entries. A one-entry table rounds up
+		 * to mask == 0, which encodes log == 0 in the tag.
+		 * get_rps_cpu() then computes hash_32(hash, 0), a shift by 32.
+		 */
+		if (!mask)
+			return -EINVAL;
+
 		/* Do not accept too large tables. */
 		if (mask > (INT_MAX / sizeof(*table) - 1))
 			return -EINVAL;
