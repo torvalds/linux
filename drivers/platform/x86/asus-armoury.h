@@ -1229,6 +1229,19 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "G533QS"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_max = 80,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_max = 80,
+				.ppt_pl2_sppt_min = 15,
+			},
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "G713QR"),
 		},
 		.driver_data = &(struct power_data) {
