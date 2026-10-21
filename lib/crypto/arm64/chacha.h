@@ -28,18 +28,18 @@
 asmlinkage void chacha_block_xor_neon(const struct chacha_state *state,
 				      u8 *dst, const u8 *src, int nrounds);
 asmlinkage void chacha_4block_xor_neon(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       int nrounds, int bytes);
+				       u8 *dst, const u8 *src, int nrounds,
+				       size_t bytes);
 asmlinkage void hchacha_block_neon(const struct chacha_state *state,
 				   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 
 static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
-			  unsigned int bytes, int nrounds)
+			  size_t bytes, int nrounds)
 {
 	while (bytes) {
-		int l = min(bytes, CHACHA_BLOCK_SIZE * 5);
+		size_t l = min(bytes, CHACHA_BLOCK_SIZE * 5);
 
 		if (l <= CHACHA_BLOCK_SIZE) {
 			u8 buf[CHACHA_BLOCK_SIZE];
@@ -70,7 +70,7 @@ static void hchacha_block_arch(const struct chacha_state *state,
 }
 
 static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
-			      const u8 *src, unsigned int bytes, int nrounds)
+			      const u8 *src, size_t bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_neon) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())

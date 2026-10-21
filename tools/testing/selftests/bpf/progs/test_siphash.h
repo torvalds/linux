@@ -22,7 +22,7 @@ static inline u64 rol64(u64 word, unsigned int shift)
 #define SIPHASH_CONST_2 0x6c7967656e657261ULL
 #define SIPHASH_CONST_3 0x7465646279746573ULL
 
-/* lib/siphash.c */
+/* lib/crypto/siphash.c */
 #define SIPROUND SIPHASH_PERMUTATION(v0, v1, v2, v3)
 
 #define PREAMBLE(len) \

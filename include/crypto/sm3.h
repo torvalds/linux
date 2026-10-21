@@ -11,6 +11,7 @@
 #define _CRYPTO_SM3_H
 
 #include <linux/types.h>
+#include <linux/string.h>
 
 #define SM3_DIGEST_SIZE	32
 #define SM3_BLOCK_SIZE	64
@@ -40,6 +41,15 @@ struct sm3_ctx {
 	u64 bytecount;
 	u8 buf[SM3_BLOCK_SIZE] __aligned(__alignof__(__be64));
 };
+
+/**
+ * sm3_zeroize_ctx() - Zeroize an sm3_ctx structure
+ * @ctx: The sm3_ctx to zeroize
+ */
+static inline void sm3_zeroize_ctx(struct sm3_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * sm3_init() - Initialize an SM3 context for a new message

@@ -137,9 +137,6 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 		__le64 lens[2];
 	} b;
 
-	if (unlikely(src_len < POLY1305_DIGEST_SIZE))
-		return false;
-
 	chacha20_crypt(chacha_state, b.block0, pad0, sizeof(b.block0));
 	poly1305_init(&poly1305_state, b.block0);
 
@@ -162,6 +159,7 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	if (likely(!ret))
 		chacha20_crypt(chacha_state, dst, src, dst_len);
 
+	chacha_zeroize_state(chacha_state);
 	memzero_explicit(&b, sizeof(b));
 
 	return !ret;
@@ -177,6 +175,9 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	__le64 iv[2];
 	bool ret;
 
+	if (unlikely(src_len < POLY1305_DIGEST_SIZE))
+		return false;
+
 	chacha_load_key(k, key);
 
 	iv[0] = 0;
@@ -186,7 +187,6 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len,
 					 &chacha_state);
 
-	chacha_zeroize_state(&chacha_state);
 	memzero_explicit(iv, sizeof(iv));
 	memzero_explicit(k, sizeof(k));
 	return ret;
@@ -199,6 +199,9 @@ bool xchacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 			       const u8 key[at_least CHACHA20POLY1305_KEY_SIZE])
 {
 	struct chacha_state chacha_state;
+
+	if (unlikely(src_len < POLY1305_DIGEST_SIZE))
+		return false;
 
 	xchacha_init(&chacha_state, key, nonce);
 	return __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len,

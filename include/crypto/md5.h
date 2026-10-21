@@ -4,6 +4,7 @@
 
 #include <crypto/hash.h>
 #include <linux/types.h>
+#include <linux/string.h>
 
 #define MD5_DIGEST_SIZE		16
 #define MD5_HMAC_BLOCK_SIZE	64
@@ -99,6 +100,15 @@ struct hmac_md5_key {
 };
 
 /**
+ * hmac_md5_zeroize_key() - Zeroize an hmac_md5_key structure
+ * @key: The hmac_md5_key to zeroize
+ */
+static inline void hmac_md5_zeroize_key(struct hmac_md5_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct hmac_md5_ctx - Context for computing HMAC-MD5 of a message
  * @hash_ctx: private
  * @ostate: private
@@ -107,6 +117,15 @@ struct hmac_md5_ctx {
 	struct md5_ctx hash_ctx;
 	struct md5_block_state ostate;
 };
+
+/**
+ * hmac_md5_zeroize_ctx() - Zeroize an hmac_md5_ctx structure
+ * @ctx: The hmac_md5_ctx context to zeroize
+ */
+static inline void hmac_md5_zeroize_ctx(struct hmac_md5_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * hmac_md5_preparekey() - Prepare a key for HMAC-MD5

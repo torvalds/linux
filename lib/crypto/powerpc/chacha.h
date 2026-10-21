@@ -13,7 +13,7 @@
 #include <asm/switch_to.h>
 
 asmlinkage void chacha_p10le_8x(const struct chacha_state *state, u8 *dst,
-				const u8 *src, unsigned int len, int nrounds);
+				const u8 *src, size_t len, int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_p10);
 
@@ -30,9 +30,9 @@ static void vsx_end(void)
 }
 
 static void chacha_p10_do_8x(struct chacha_state *state, u8 *dst, const u8 *src,
-			     unsigned int bytes, int nrounds)
+			     size_t bytes, int nrounds)
 {
-	unsigned int l = bytes & ~0x0FF;
+	size_t l = bytes & ~0x0FF;
 
 	if (l > 0) {
 		chacha_p10le_8x(state, dst, src, l, nrounds);
@@ -49,14 +49,14 @@ static void chacha_p10_do_8x(struct chacha_state *state, u8 *dst, const u8 *src,
 #define hchacha_block_arch hchacha_block_generic /* not implemented yet */
 
 static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
-			      const u8 *src, unsigned int bytes, int nrounds)
+			      const u8 *src, size_t bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_p10) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())
 		return chacha_crypt_generic(state, dst, src, bytes, nrounds);
 
 	do {
-		unsigned int todo = min_t(unsigned int, bytes, SZ_4K);
+		size_t todo = min(bytes, SZ_4K);
 
 		vsx_begin();
 		chacha_p10_do_8x(state, dst, src, todo, nrounds);

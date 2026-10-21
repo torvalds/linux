@@ -6995,6 +6995,8 @@ L:	linux-crypto@vger.kernel.org
 S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/linux.git libcrypto-next
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/linux.git libcrypto-fixes
+F:	Documentation/crypto/libcrypto*
+F:	include/linux/siphash.h
 F:	lib/crypto/
 F:	scripts/crypto/
 
@@ -25163,13 +25165,6 @@ S:	Supported
 F:	drivers/gpio/gpio-siox.c
 F:	drivers/siox/*
 F:	include/trace/events/siox.h
-
-SIPHASH PRF ROUTINES
-M:	Jason A. Donenfeld <Jason@zx2c4.com>
-S:	Maintained
-F:	include/linux/siphash.h
-F:	lib/siphash.c
-F:	lib/tests/siphash_kunit.c
 
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>

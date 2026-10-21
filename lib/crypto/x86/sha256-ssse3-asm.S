@@ -352,13 +352,13 @@ a = TMP_
 ########################################################################
 .text
 SYM_FUNC_START(sha256_transform_ssse3)
+	pushq   %rbp
+	mov     %rsp, %rbp
 	pushq   %rbx
 	pushq   %r12
 	pushq   %r13
 	pushq   %r14
 	pushq   %r15
-	pushq   %rbp
-	mov	%rsp, %rbp
 
 	subq    $STACK_SIZE, %rsp
 	and	$~15, %rsp
@@ -456,13 +456,13 @@ SYM_FUNC_START(sha256_transform_ssse3)
 	cmp     _INP_END(%rsp), INP
 	jne     .Lloop0
 
-	mov	%rbp, %rsp
-	popq	%rbp
+	lea     -40(%rbp), %rsp
 	popq    %r15
 	popq    %r14
 	popq    %r13
 	popq    %r12
 	popq    %rbx
+	popq    %rbp
 
 	RET
 SYM_FUNC_END(sha256_transform_ssse3)

@@ -148,7 +148,7 @@ void blake2b_final(struct blake2b_ctx *ctx, u8 *out)
 	blake2b_compress(ctx, ctx->buf, 1, ctx->buflen);
 	cpu_to_le64_array(ctx->h, ARRAY_SIZE(ctx->h));
 	memcpy(out, ctx->h, ctx->outlen);
-	memzero_explicit(ctx, sizeof(*ctx));
+	blake2b_zeroize_ctx(ctx);
 }
 EXPORT_SYMBOL(blake2b_final);
 

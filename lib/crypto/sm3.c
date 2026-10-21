@@ -258,7 +258,7 @@ static void __sm3_final(struct sm3_ctx *ctx, u8 out[SM3_DIGEST_SIZE])
 void sm3_final(struct sm3_ctx *ctx, u8 out[SM3_DIGEST_SIZE])
 {
 	__sm3_final(ctx, out);
-	memzero_explicit(ctx, sizeof(*ctx));
+	sm3_zeroize_ctx(ctx);
 }
 EXPORT_SYMBOL_GPL(sm3_final);
 

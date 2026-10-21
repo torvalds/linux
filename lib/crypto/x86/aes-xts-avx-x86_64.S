@@ -80,14 +80,17 @@
  * any CPUs that support VAES but not VPCLMULQDQ.  If that changes, we might
  * need to start also providing an implementation using VAES alone.
  *
- * The AES-XTS implementations in this file support everything required by the
- * crypto API, including support for arbitrary input lengths and multi-part
- * processing.  However, they are most heavily optimized for the common case of
- * power-of-2 length inputs that are processed in a single part (disk sectors).
+ * These assembly functions don't handle ciphertext stealing, i.e, lengths that
+ * aren't a multiple of 16 bytes.  That case is not actually reached in the
+ * current use cases of AES-XTS in the kernel and is just handled by the C code.
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+
+// Offsets in struct aes_key
+#define OFFSETOF_KEYLEN		0
+#define OFFSETOF_RNDKEYS	16
+#define OFFSETOF_INVRNDKEYS	256
 
 .section .rodata
 .p2align 4
@@ -111,16 +114,6 @@
 .Llshift_amounts:
 	.byte	0, 0, 1, 1, 2, 2, 3, 3
 
-	// This table contains constants for vpshufb and vpblendvb, used to
-	// handle variable byte shifts and blending during ciphertext stealing
-	// on CPUs that don't support AVX512-style masking.
-.Lcts_permute_table:
-	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
-	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
-	.byte	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
-	.byte	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
-	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
 .text
 
 .macro	_define_Vi	i
@@ -149,14 +142,13 @@
 .endif
 
 	// Function parameters
-	.set	KEY,		%rdi	// Initially points to crypto_aes_ctx, then is
-					// advanced to point to 7th-from-last round key
+	.set	DST,		%rdi	// Pointer to next destination data
 	.set	SRC,		%rsi	// Pointer to next source data
-	.set	DST,		%rdx	// Pointer to next destination data
-	.set	LEN,		%ecx	// Remaining length in bytes
-	.set	LEN8,		%cl
-	.set	LEN64,		%rcx
-	.set	TWEAK,		%r8	// Pointer to next tweak
+	.set	NBLOCKS,	%rdx	// Number of blocks remaining
+	.set	NBLOCKS32,	%edx	// Used for improved code density
+	.set	TWEAK,		%rcx	// Pointer to next tweak
+	.set	KEY,		%r8	// Initially points to struct aes_key, then is
+					// advanced to point to 7th-from-last round key
 
 	// %rax holds the AES key length in bytes.
 	.set	KEYLEN,		%eax
@@ -468,9 +460,9 @@
 
 	// Select either the encryption round keys or the decryption round keys.
 .if \enc
-	.set	OFFS, 0
+	.set	OFFS, OFFSETOF_RNDKEYS
 .else
-	.set	OFFS, 240
+	.set	OFFS, OFFSETOF_INVRNDKEYS
 .endif
 
 	// Load the round key for "round 0".
@@ -615,19 +607,8 @@
 .macro	_aes_xts_crypt	enc
 	_define_aliases
 
-.if !\enc
-	// When decrypting a message whose length isn't a multiple of the AES
-	// block length, exclude the last full block from the main loop by
-	// subtracting 16 from LEN.  This is needed because ciphertext stealing
-	// decryption uses the last two tweaks in reverse order.  We'll handle
-	// the last full block and the partial block specially at the end.
-	lea		-16(LEN), %eax
-	test		$15, LEN8
-	cmovnz		%eax, LEN
-.endif
-
 	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
-	movl		480(KEY), KEYLEN
+	movl		OFFSETOF_KEYLEN(KEY), KEYLEN
 
 	// Setup the pointer to the round keys and cache as many as possible.
 	_setup_round_keys	\enc
@@ -635,7 +616,7 @@
 	// Compute the first set of tweaks TWEAK[0-3].
 	_compute_first_set_of_tweaks
 
-	add		$-4*VL, LEN  // shorter than 'sub 4*VL' when VL=32
+	sub		$4*VL/16, NBLOCKS
 	jl		.Lhandle_remainder\@
 
 .Lmain_loop\@:
@@ -715,13 +696,13 @@
 
 	sub		$-4*VL, SRC  // shorter than 'add 4*VL' when VL=32
 	sub		$-4*VL, DST
-	add		$-4*VL, LEN
+	sub		$4*VL/16, NBLOCKS
 	jge		.Lmain_loop\@
 
 	// Check for the uncommon case where the data length isn't a multiple of
 	// 4*VL.  Handle it out-of-line in order to optimize for the common
 	// case.  In the common case, just fall through to the ret.
-	test		$4*VL-1, LEN8
+	test		$(4*VL/16)-1, NBLOCKS32
 	jnz		.Lhandle_remainder\@
 .Ldone\@:
 	// Store the next tweak back to *TWEAK to support continuation calls.
@@ -733,9 +714,9 @@
 
 .Lhandle_remainder\@:
 
-	// En/decrypt any remaining full blocks, one vector at a time.
+	// En/decrypt any remaining blocks, one vector at a time.
 .if VL > 16
-	add		$3*VL, LEN	// Undo extra sub of 4*VL, then sub VL.
+	add		$3*VL/16, NBLOCKS32
 	jl		.Lvec_at_a_time_done\@
 .Lvec_at_a_time\@:
 	_vmovdqu	(SRC), V0
@@ -744,16 +725,16 @@
 	_next_tweakvec	TWEAK0, V0, V1, TWEAK0
 	add		$VL, SRC
 	add		$VL, DST
-	sub		$VL, LEN
+	sub		$VL/16, NBLOCKS32
 	jge		.Lvec_at_a_time\@
 .Lvec_at_a_time_done\@:
-	add		$VL-16, LEN	// Undo extra sub of VL, then sub 16.
+	add		$VL/16, NBLOCKS32
 .else
-	add		$4*VL-16, LEN	// Undo extra sub of 4*VL, then sub 16.
+	add		$4*VL/16, NBLOCKS32
 .endif
 
-	// En/decrypt any remaining full blocks, one at a time.
-	jl		.Lblock_at_a_time_done\@
+	// En/decrypt any remaining blocks, one at a time.
+	jz		.Ldone\@
 .Lblock_at_a_time\@:
 	vmovdqu		(SRC), %xmm0
 	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0, tmp=%xmm1
@@ -761,92 +742,26 @@
 	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK0_XMM
 	add		$16, SRC
 	add		$16, DST
-	sub		$16, LEN
-	jge		.Lblock_at_a_time\@
-.Lblock_at_a_time_done\@:
-	add		$16, LEN	// Undo the extra sub of 16.
-	// Now 0 <= LEN <= 15.  If LEN is zero, we're done.
-	jz		.Ldone\@
-
-	// Otherwise 1 <= LEN <= 15, but the real remaining length is 16 + LEN.
-	// Do ciphertext stealing to process the last 16 + LEN bytes.
-
-.if \enc
-	// If encrypting, the main loop already encrypted the last full block to
-	// create the CTS intermediate ciphertext.  Prepare for the rest of CTS
-	// by rewinding the pointers and loading the intermediate ciphertext.
-	sub		$16, SRC
-	sub		$16, DST
-	vmovdqu		(DST), %xmm0
-.else
-	// If decrypting, the main loop didn't decrypt the last full block
-	// because CTS decryption uses the last two tweaks in reverse order.
-	// Do it now by advancing the tweak and decrypting the last full block.
-	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK1_XMM
-	vmovdqu		(SRC), %xmm0
-	_aes_crypt	\enc, _XMM, TWEAK1_XMM, %xmm0, tmp=%xmm1
-.endif
-
-.if USE_AVX512
-	// Create a mask that has the first LEN bits set.
-	mov		$-1, %r9d
-	bzhi		LEN, %r9d, %r9d
-	kmovd		%r9d, %k1
-
-	// Swap the first LEN bytes of the en/decryption of the last full block
-	// with the partial block.  Note that to support in-place en/decryption,
-	// the load from the src partial block must happen before the store to
-	// the dst partial block.
-	vmovdqa		%xmm0, %xmm1
-	vmovdqu8	16(SRC), %xmm0{%k1}
-	vmovdqu8	%xmm1, 16(DST){%k1}
-.else
-	lea		.Lcts_permute_table(%rip), %r9
-
-	// Load the src partial block, left-aligned.  Note that to support
-	// in-place en/decryption, this must happen before the store to the dst
-	// partial block.
-	vmovdqu		(SRC, LEN64, 1), %xmm1
-
-	// Shift the first LEN bytes of the en/decryption of the last full block
-	// to the end of a register, then store it to DST+LEN.  This stores the
-	// dst partial block.  It also writes to the second part of the dst last
-	// full block, but that part is overwritten later.
-	vpshufb		(%r9, LEN64, 1), %xmm0, %xmm2
-	vmovdqu		%xmm2, (DST, LEN64, 1)
-
-	// Make xmm3 contain [16-LEN,16-LEN+1,...,14,15,0x80,0x80,...].
-	sub		LEN64, %r9
-	vmovdqu		32(%r9), %xmm3
-
-	// Shift the src partial block to the beginning of its register.
-	vpshufb		%xmm3, %xmm1, %xmm1
-
-	// Do a blend to generate the src partial block followed by the second
-	// part of the en/decryption of the last full block.
-	vpblendvb	%xmm3, %xmm0, %xmm1, %xmm0
-.endif
-	// En/decrypt again and store the last full block.
-	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0, tmp=%xmm1
-	vmovdqu		%xmm0, (DST)
+	dec		NBLOCKS32
+	jnz		.Lblock_at_a_time\@
 	jmp		.Ldone\@
 .endm
 
-// void aes_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
+// void aes_xts_encrypt_iv(const struct aes_enckey *tweak_key,
 //			   u8 iv[AES_BLOCK_SIZE]);
 //
 // Encrypt |iv| using the AES key |tweak_key| to get the first tweak.  Assumes
 // that the CPU supports AES-NI and AVX, but not necessarily VAES or AVX512.
-SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
+SYM_FUNC_START(aes_xts_encrypt_iv)
 	.set	TWEAK_KEY,	%rdi
 	.set	IV,		%rsi
 	.set	KEYLEN,		%eax
 	.set	KEYLEN64,	%rax
 
 	vmovdqu		(IV), %xmm0
-	vpxor		(TWEAK_KEY), %xmm0, %xmm0
-	movl		480(TWEAK_KEY), KEYLEN
-	lea		-16(TWEAK_KEY, KEYLEN64, 4), TWEAK_KEY
+	vpxor		OFFSETOF_RNDKEYS(TWEAK_KEY), %xmm0, %xmm0
+	movl		OFFSETOF_KEYLEN(TWEAK_KEY), KEYLEN
+	lea		OFFSETOF_RNDKEYS-16(TWEAK_KEY, KEYLEN64, 4), TWEAK_KEY
 	cmp		$24, KEYLEN
 	jl		.Lencrypt_iv_aes128
 	je		.Lencrypt_iv_aes192
@@ -867,39 +782,37 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // Below are the actual AES-XTS encryption and decryption functions,
 // instantiated from the above macro.  They all have the following prototype:
 //
-// void (*xts_crypt_func)(const struct crypto_aes_ctx *key,
-//			  const u8 *src, u8 *dst, int len,
-//			  u8 tweak[AES_BLOCK_SIZE]);
+// void aes_xts_{en,de}crypt_{cpufeature}(u8 *dst, const u8 *src, long nblocks,
+//					  u8 tweak[AES_BLOCK_SIZE],
+//					  const struct aes_key *key);
 //
-// |key| is the data key.  |tweak| contains the next tweak; the encryption of
-// the original IV with the tweak key was already done.  This function supports
-// incremental computation, but |len| must always be >= 16 (AES_BLOCK_SIZE), and
-// |len| must be a multiple of 16 except on the last call.  If |len| is a
-// multiple of 16, then this function updates |tweak| to contain the next tweak.
+// `tweak` must have already been encrypted by the tweak key; `key` is just the
+// main key.  `tweak` is updated to contain the next tweak, allowing for
+// incremental computation.
 
 .set	VL, 16
 .set	USE_AVX512, 0
-SYM_TYPED_FUNC_START(aes_xts_encrypt_aesni_avx)
+SYM_FUNC_START(aes_xts_encrypt_aesni_avx)
 	_aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_aesni_avx)
-SYM_TYPED_FUNC_START(aes_xts_decrypt_aesni_avx)
+SYM_FUNC_START(aes_xts_decrypt_aesni_avx)
 	_aes_xts_crypt	0
 SYM_FUNC_END(aes_xts_decrypt_aesni_avx)
 
 .set	VL, 32
 .set	USE_AVX512, 0
-SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx2)
+SYM_FUNC_START(aes_xts_encrypt_vaes_avx2)
 	_aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_vaes_avx2)
-SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx2)
+SYM_FUNC_START(aes_xts_decrypt_vaes_avx2)
 	_aes_xts_crypt	0
 SYM_FUNC_END(aes_xts_decrypt_vaes_avx2)
 
 .set	VL, 64
 .set	USE_AVX512, 1
-SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx512)
+SYM_FUNC_START(aes_xts_encrypt_vaes_avx512)
 	_aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_vaes_avx512)
-SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx512)
+SYM_FUNC_START(aes_xts_decrypt_vaes_avx512)
 	_aes_xts_crypt	0
 SYM_FUNC_END(aes_xts_decrypt_vaes_avx512)

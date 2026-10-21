@@ -17,14 +17,14 @@
 asmlinkage void chacha_block_xor_neon(const struct chacha_state *state,
 				      u8 *dst, const u8 *src, int nrounds);
 asmlinkage void chacha_4block_xor_neon(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       int nrounds, unsigned int nbytes);
+				       u8 *dst, const u8 *src, int nrounds,
+				       size_t nbytes);
 asmlinkage void hchacha_block_arm(const struct chacha_state *state,
 				  u32 out[HCHACHA_OUT_WORDS], int nrounds);
 asmlinkage void hchacha_block_neon(const struct chacha_state *state,
 				   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
-asmlinkage void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
+asmlinkage void chacha_doarm(u8 *dst, const u8 *src, size_t bytes,
 			     const struct chacha_state *state, int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_neon);
@@ -35,12 +35,12 @@ static inline bool neon_usable(void)
 }
 
 static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
-			  unsigned int bytes, int nrounds)
+			  size_t bytes, int nrounds)
 {
 	u8 buf[CHACHA_BLOCK_SIZE];
 
 	while (bytes > CHACHA_BLOCK_SIZE) {
-		unsigned int l = min(bytes, CHACHA_BLOCK_SIZE * 4U);
+		size_t l = min(bytes, CHACHA_BLOCK_SIZE * 4U);
 
 		chacha_4block_xor_neon(state, dst, src, nrounds, l);
 		bytes -= l;
@@ -73,17 +73,17 @@ static void hchacha_block_arch(const struct chacha_state *state,
 }
 
 static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
-			      const u8 *src, unsigned int bytes, int nrounds)
+			      const u8 *src, size_t bytes, int nrounds)
 {
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable() ||
 	    bytes <= CHACHA_BLOCK_SIZE) {
 		chacha_doarm(dst, src, bytes, state, nrounds);
-		state->x[12] += DIV_ROUND_UP(bytes, CHACHA_BLOCK_SIZE);
+		state->x[12] += DIV_ROUND_UP_POW2(bytes, CHACHA_BLOCK_SIZE);
 		return;
 	}
 
 	do {
-		unsigned int todo = min_t(unsigned int, bytes, SZ_4K);
+		size_t todo = min(bytes, SZ_4K);
 
 		scoped_ksimd()
 			chacha_doneon(state, dst, src, todo, nrounds);

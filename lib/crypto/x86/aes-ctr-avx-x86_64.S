@@ -53,7 +53,10 @@
 // See the function definitions at the bottom of the file for more information.
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+
+// Offsets in struct aes_enckey
+#define OFFSETOF_KEYLEN		0
+#define OFFSETOF_RNDKEYS	16
 
 .section .rodata
 .p2align 4
@@ -278,24 +281,25 @@
 .endr
 
 	// Function arguments
-	.set	KEY,		%rdi	// Initially points to the start of the
-					// crypto_aes_ctx, then is advanced to
-					// point to the index 1 round key
-	.set	KEY32,		%edi	// Available as temp register after all
-					// keystream blocks have been generated
+	.set	DST,		%rdi	// Pointer to next destination data
 	.set	SRC,		%rsi	// Pointer to next source data
-	.set	DST,		%rdx	// Pointer to next destination data
-	.set	LEN,		%ecx	// Remaining length in bytes.
-					// Note: _load_partial_block relies on
-					// this being in %ecx.
-	.set	LEN64,		%rcx	// Zero-extend LEN before using!
-	.set	LEN8,		%cl
+	.set	LEN,		%rdx	// Remaining length in bytes
+	.set	LEN32,		%edx	// Used for improved code density
 .if \is_xctr
+	.set	XCTR_CTR,	%rcx	// u64 ctr;
 	.set	XCTR_IV_PTR,	%r8	// const u8 iv[AES_BLOCK_SIZE];
-	.set	XCTR_CTR,	%r9	// u64 ctr;
+	.set	KEY,		%r9	// Initially points to the start of the
+					// aes_enckey, then is advanced to
+					// point to the index 1 round key
+	.set	KEY32,		%r9d	// Available as temp register after all
+					// keystream blocks have been generated
 .else
-	.set	LE_CTR_PTR,	%r8	// const u64 le_ctr[2];
+	.set	LE_CTR_PTR,	%rcx	// const u64 le_ctr[2];
+	.set	KEY,		%r8
+	.set	KEY32,		%r8d
 .endif
+	// Note: the use of _load_partial_block and _store_partial_block at the
+	// end of the function assumes %rcx doesn't hold DST, SRC, LEN, or KEY.
 
 	// Additional local variables
 	.set	RNDKEYLAST_PTR,	%r10
@@ -355,17 +359,17 @@
 	vpsllq		$1, LE_CTR_INC1, LE_CTR_INC2
 
 	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
-	movl		480(KEY), %eax
+	movl		OFFSETOF_KEYLEN(KEY), %eax
 
 	// Compute the pointer to the last round key.
-	lea		6*16(KEY, %rax, 4), RNDKEYLAST_PTR
+	lea		OFFSETOF_RNDKEYS+6*16(KEY, %rax, 4), RNDKEYLAST_PTR
 
 	// Load the zero-th and last round keys.
-	_vbroadcast128	(KEY), RNDKEY0
+	_vbroadcast128	OFFSETOF_RNDKEYS(KEY), RNDKEY0
 	_vbroadcast128	(RNDKEYLAST_PTR), RNDKEYLAST
 
 	// Make KEY point to the first round key.
-	add		$16, KEY
+	add		$OFFSETOF_RNDKEYS+16, KEY
 
 	// This is the main loop, which encrypts 8 vectors of data at a time.
 	add		$-8*VL, LEN
@@ -382,7 +386,7 @@
 	add		$-8*VL, LEN
 	jge		.Lloop_8x\@
 .Lloop_8x_done\@:
-	sub		$-8*VL, LEN
+	sub		$-8*VL, LEN32
 	jz		.Ldone\@
 
 	// 1 <= LEN < 8*VL.  Generate 2, 4, or 8 more vectors of keystream
@@ -390,7 +394,7 @@
 
 	_prepare_2_ctr_vecs	\is_xctr, 0, 1
 	_prepare_2_ctr_vecs	\is_xctr, 2, 3
-	cmp		$4*VL, LEN
+	cmp		$4*VL, LEN32
 	jle		.Lenc_tail_atmost4vecs\@
 
 	// 4*VL < LEN < 8*VL.  Generate 8 vectors of keystream blocks.  Use the
@@ -405,23 +409,25 @@
 	vaesenclast	RNDKEYLAST, AESDATA7, AESDATA3
 	sub		$-4*VL, SRC
 	sub		$-4*VL, DST
-	add		$-4*VL, LEN
-	cmp		$1*VL-1, LEN
+	add		$-4*VL, LEN32
+	cmp		$1*VL-1, LEN32
 	jle		.Lxor_tail_partial_vec_0\@
 	_xor_data	0
-	cmp		$2*VL-1, LEN
+	cmp		$2*VL-1, LEN32
 	jle		.Lxor_tail_partial_vec_1\@
 	_xor_data	1
-	cmp		$3*VL-1, LEN
+	cmp		$3*VL-1, LEN32
 	jle		.Lxor_tail_partial_vec_2\@
 	_xor_data	2
-	cmp		$4*VL-1, LEN
-	jle		.Lxor_tail_partial_vec_3\@
-	_xor_data	3
-	jmp		.Ldone\@
+	add		$-3*VL, LEN32
+	jz		.Ldone\@
+	sub		$-3*VL, SRC
+	sub		$-3*VL, DST
+	_vmovdqa	AESDATA3, AESDATA0
+	jmp		.Lxor_tail_partial_vec_0\@
 
 .Lenc_tail_atmost4vecs\@:
-	cmp		$2*VL, LEN
+	cmp		$2*VL, LEN32
 	jle		.Lenc_tail_atmost2vecs\@
 
 	// 2*VL < LEN <= 4*VL.  Generate 4 vectors of keystream blocks.  Use the
@@ -432,7 +438,7 @@
 	vaesenclast	RNDKEYLAST, AESDATA3, AESDATA1
 	sub		$-2*VL, SRC
 	sub		$-2*VL, DST
-	add		$-2*VL, LEN
+	add		$-2*VL, LEN32
 	jmp		.Lxor_tail_upto2vecs\@
 
 .Lenc_tail_atmost2vecs\@:
@@ -443,16 +449,16 @@
 	vaesenclast	RNDKEYLAST, AESDATA1, AESDATA1
 
 .Lxor_tail_upto2vecs\@:
-	cmp		$1*VL-1, LEN
+	cmp		$1*VL-1, LEN32
 	jle		.Lxor_tail_partial_vec_0\@
 	_xor_data	0
-	cmp		$2*VL-1, LEN
+	cmp		$2*VL-1, LEN32
 	jle		.Lxor_tail_partial_vec_1\@
 	_xor_data	1
 	jmp		.Ldone\@
 
 .Lxor_tail_partial_vec_1\@:
-	add		$-1*VL, LEN
+	add		$-1*VL, LEN32
 	jz		.Ldone\@
 	sub		$-1*VL, SRC
 	sub		$-1*VL, DST
@@ -460,47 +466,40 @@
 	jmp		.Lxor_tail_partial_vec_0\@
 
 .Lxor_tail_partial_vec_2\@:
-	add		$-2*VL, LEN
+	add		$-2*VL, LEN32
 	jz		.Ldone\@
 	sub		$-2*VL, SRC
 	sub		$-2*VL, DST
 	_vmovdqa	AESDATA2, AESDATA0
-	jmp		.Lxor_tail_partial_vec_0\@
-
-.Lxor_tail_partial_vec_3\@:
-	add		$-3*VL, LEN
-	jz		.Ldone\@
-	sub		$-3*VL, SRC
-	sub		$-3*VL, DST
-	_vmovdqa	AESDATA3, AESDATA0
 
 .Lxor_tail_partial_vec_0\@:
 	// XOR the remaining 1 <= LEN < VL bytes.  It's easy if masked
 	// loads/stores are available; otherwise it's a bit harder...
 .if USE_AVX512
 	mov		$-1, %rax
-	bzhi		LEN64, %rax, %rax
+	bzhi		LEN, %rax, %rax
 	kmovq		%rax, %k1
 	vmovdqu8	(SRC), AESDATA1{%k1}{z}
 	vpxord		AESDATA1, AESDATA0, AESDATA0
 	vmovdqu8	AESDATA0, (DST){%k1}
 .else
   .if VL == 32
-	cmp		$16, LEN
+	cmp		$16, LEN32
 	jl		1f
 	vpxor		(SRC), AESDATA0_XMM, AESDATA1_XMM
 	vmovdqu		AESDATA1_XMM, (DST)
 	add		$16, SRC
 	add		$16, DST
-	sub		$16, LEN
+	sub		$16, LEN32
 	jz		.Ldone\@
 	vextracti128	$1, AESDATA0, AESDATA0_XMM
 1:
   .endif
-	mov		LEN, %r10d
+	// Note: this assumes %rcx doesn't hold DST, SRC, LEN, or KEY.
+	mov		LEN32, %ecx
 	_load_partial_block	SRC, AESDATA1_XMM, KEY, KEY32
 	vpxor		AESDATA1_XMM, AESDATA0_XMM, AESDATA0_XMM
-	mov		%r10d, %ecx
+	mov		LEN32, %ecx
 	_store_partial_block	AESDATA0_XMM, DST, KEY, KEY32
 .endif
 
@@ -515,13 +514,13 @@
 // They have the following prototypes:
 //
 //
-// void aes_ctr64_crypt_##suffix(const struct crypto_aes_ctx *key,
-//				 const u8 *src, u8 *dst, int len,
-//				 const u64 le_ctr[2]);
+// void aes_ctr64_crypt_##suffix(u8 *dst, const u8 *src, s64 len,
+//				 const u64 le_ctr[2],
+//				 const struct aes_enckey *key);
 //
-// void aes_xctr_crypt_##suffix(const struct crypto_aes_ctx *key,
-//				const u8 *src, u8 *dst, int len,
-//				const u8 iv[AES_BLOCK_SIZE], u64 ctr);
+// void aes_xctr_crypt_##suffix(u8 *dst, const u8 *src, s64 len, u64 ctr,
+//				const u8 iv[AES_BLOCK_SIZE],
+//				const struct aes_enckey *key);
 //
 // Both functions generate |len| bytes of keystream, XOR it with the data from
 // |src|, and write the result to |dst|.  On non-final calls, |len| must be a
@@ -545,27 +544,27 @@
 
 .set	VL, 16
 .set	USE_AVX512, 0
-SYM_TYPED_FUNC_START(aes_ctr64_crypt_aesni_avx)
+SYM_FUNC_START(aes_ctr64_crypt_aesni_avx)
 	_aes_ctr_crypt	0
 SYM_FUNC_END(aes_ctr64_crypt_aesni_avx)
-SYM_TYPED_FUNC_START(aes_xctr_crypt_aesni_avx)
+SYM_FUNC_START(aes_xctr_crypt_aesni_avx)
 	_aes_ctr_crypt	1
 SYM_FUNC_END(aes_xctr_crypt_aesni_avx)
 
 .set	VL, 32
 .set	USE_AVX512, 0
-SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx2)
+SYM_FUNC_START(aes_ctr64_crypt_vaes_avx2)
 	_aes_ctr_crypt	0
 SYM_FUNC_END(aes_ctr64_crypt_vaes_avx2)
-SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx2)
+SYM_FUNC_START(aes_xctr_crypt_vaes_avx2)
 	_aes_ctr_crypt	1
 SYM_FUNC_END(aes_xctr_crypt_vaes_avx2)
 
 .set	VL, 64
 .set	USE_AVX512, 1
-SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx512)
+SYM_FUNC_START(aes_ctr64_crypt_vaes_avx512)
 	_aes_ctr_crypt	0
 SYM_FUNC_END(aes_ctr64_crypt_vaes_avx512)
-SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx512)
+SYM_FUNC_START(aes_xctr_crypt_vaes_avx512)
 	_aes_ctr_crypt	1
 SYM_FUNC_END(aes_xctr_crypt_vaes_avx512)

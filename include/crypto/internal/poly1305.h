@@ -26,7 +26,7 @@ static inline void poly1305_core_init(struct poly1305_state *state)
 
 void poly1305_core_blocks(struct poly1305_state *state,
 			  const struct poly1305_core_key *key, const void *src,
-			  unsigned int nblocks, u32 hibit);
+			  size_t nblocks, u32 hibit);
 void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
 			void *dst);
 
@@ -39,7 +39,7 @@ poly1305_block_init_generic(struct poly1305_block_state *desc,
 }
 
 static inline void poly1305_blocks_generic(struct poly1305_block_state *state,
-					   const u8 *src, unsigned int len,
+					   const u8 *src, size_t len,
 					   u32 padbit)
 {
 	poly1305_core_blocks(&state->h, &state->core_r, src,

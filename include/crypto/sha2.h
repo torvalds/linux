@@ -7,6 +7,7 @@
 #define _CRYPTO_SHA2_H
 
 #include <linux/types.h>
+#include <linux/string.h>
 
 #define SHA224_DIGEST_SIZE	28
 #define SHA224_BLOCK_SIZE	64
@@ -211,12 +212,30 @@ struct hmac_sha224_key {
 };
 
 /**
+ * hmac_sha224_zeroize_key() - Zeroize an hmac_sha224_key structure
+ * @key: The hmac_sha224_key to zeroize
+ */
+static inline void hmac_sha224_zeroize_key(struct hmac_sha224_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct hmac_sha224_ctx - Context for computing HMAC-SHA224 of a message
  * @ctx: private
  */
 struct hmac_sha224_ctx {
 	struct __hmac_sha256_ctx ctx;
 };
+
+/**
+ * hmac_sha224_zeroize_ctx() - Zeroize an hmac_sha224_ctx structure
+ * @ctx: The hmac_sha224_ctx context to zeroize
+ */
+static inline void hmac_sha224_zeroize_ctx(struct hmac_sha224_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * hmac_sha224_preparekey() - Prepare a key for HMAC-SHA224
@@ -415,12 +434,30 @@ struct hmac_sha256_key {
 };
 
 /**
+ * hmac_sha256_zeroize_key() - Zeroize an hmac_sha256_key structure
+ * @key: The hmac_sha256_key to zeroize
+ */
+static inline void hmac_sha256_zeroize_key(struct hmac_sha256_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct hmac_sha256_ctx - Context for computing HMAC-SHA256 of a message
  * @ctx: private
  */
 struct hmac_sha256_ctx {
 	struct __hmac_sha256_ctx ctx;
 };
+
+/**
+ * hmac_sha256_zeroize_ctx() - Zeroize an hmac_sha256_ctx structure
+ * @ctx: The hmac_sha256_ctx context to zeroize
+ */
+static inline void hmac_sha256_zeroize_ctx(struct hmac_sha256_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * hmac_sha256_preparekey() - Prepare a key for HMAC-SHA256
@@ -624,12 +661,30 @@ struct hmac_sha384_key {
 };
 
 /**
+ * hmac_sha384_zeroize_key() - Zeroize an hmac_sha384_key structure
+ * @key: The hmac_sha384_key to zeroize
+ */
+static inline void hmac_sha384_zeroize_key(struct hmac_sha384_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct hmac_sha384_ctx - Context for computing HMAC-SHA384 of a message
  * @ctx: private
  */
 struct hmac_sha384_ctx {
 	struct __hmac_sha512_ctx ctx;
 };
+
+/**
+ * hmac_sha384_zeroize_ctx() - Zeroize an hmac_sha384_ctx structure
+ * @ctx: The hmac_sha384_ctx context to zeroize
+ */
+static inline void hmac_sha384_zeroize_ctx(struct hmac_sha384_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * hmac_sha384_preparekey() - Prepare a key for HMAC-SHA384
@@ -799,12 +854,30 @@ struct hmac_sha512_key {
 };
 
 /**
+ * hmac_sha512_zeroize_key() - Zeroize an hmac_sha512_key structure
+ * @key: The hmac_sha512_key to zeroize
+ */
+static inline void hmac_sha512_zeroize_key(struct hmac_sha512_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct hmac_sha512_ctx - Context for computing HMAC-SHA512 of a message
  * @ctx: private
  */
 struct hmac_sha512_ctx {
 	struct __hmac_sha512_ctx ctx;
 };
+
+/**
+ * hmac_sha512_zeroize_ctx() - Zeroize an hmac_sha512_ctx structure
+ * @ctx: The hmac_sha512_ctx context to zeroize
+ */
+static inline void hmac_sha512_zeroize_ctx(struct hmac_sha512_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
 
 /**
  * hmac_sha512_preparekey() - Prepare a key for HMAC-SHA512

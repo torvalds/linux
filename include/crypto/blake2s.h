@@ -41,6 +41,15 @@ struct blake2s_ctx {
 	unsigned int outlen;
 };
 
+/**
+ * blake2s_zeroize_ctx() - Zeroize a blake2s_ctx structure
+ * @ctx: The blake2s_ctx to zeroize
+ */
+static inline void blake2s_zeroize_ctx(struct blake2s_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+
 enum blake2s_iv {
 	BLAKE2S_IV0 = 0x6A09E667UL,
 	BLAKE2S_IV1 = 0xBB67AE85UL,

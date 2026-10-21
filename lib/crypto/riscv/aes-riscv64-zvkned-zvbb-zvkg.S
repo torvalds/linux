@@ -50,14 +50,13 @@
 
 #include "aes-macros.S"
 
-#define KEYP		a0
-#define INP		a1
-#define OUTP		a2
-#define LEN		a3
-#define TWEAKP		a4
+#define DST		a0
+#define SRC		a1
+#define LEN		a2
+#define TWEAKP		a3
+#define KEYP		a4
 
 #define LEN32		a5
-#define TAIL_LEN	a6
 #define VL		a7
 #define VLMAX		t4
 
@@ -67,9 +66,6 @@
 #define TWEAKS_BREV	v20	// LMUL=4 (most of the time)
 #define MULTS_BREV	v24	// LMUL=4 (most of the time)
 #define TMP0		v28
-#define TMP1		v29
-#define TMP2		v30
-#define TMP3		v31
 
 // xts_init initializes the following values:
 //
@@ -167,24 +163,21 @@
 .endm
 
 .macro	__aes_xts_crypt	enc, keylen
-	// With 16 < len <= 31, there's no main loop, just ciphertext stealing.
-	beqz		LEN32, .Lcts_without_main_loop\@
-
 	vsetvli		VLMAX, zero, e32, m4, ta, ma
 1:
 	vsetvli		VL, LEN32, e32, m4, ta, ma
 2:
 	// Encrypt or decrypt VL/4 blocks.
-	vle32.v		TMP0, (INP)
+	vle32.v		TMP0, (SRC)
 	vxor.vv		TMP0, TMP0, TWEAKS
 	aes_crypt	TMP0, \enc, \keylen
 	vxor.vv		TMP0, TMP0, TWEAKS
-	vse32.v		TMP0, (OUTP)
+	vse32.v		TMP0, (DST)
 
 	// Update the pointers and the remaining length.
 	slli		t0, VL, 2
-	add		INP, INP, t0
-	add		OUTP, OUTP, t0
+	add		SRC, SRC, t0
+	add		DST, DST, t0
 	sub		LEN32, LEN32, VL
 
 	// Check whether more blocks remain.
@@ -217,73 +210,14 @@
 	vsetivli	zero, 4, e32, m1, ta, ma
 	vgmul.vv	TWEAKS_BREV, MULTS_BREV		// Advance to next tweak
 
-	bnez		TAIL_LEN, .Lcts\@
-
 	// Update *TWEAKP to contain the next tweak.
 	vbrev8.v	TWEAKS, TWEAKS_BREV
 	vse32.v		TWEAKS, (TWEAKP)
 	ret
-
-.Lcts_without_main_loop\@:
-	load_x
-.Lcts\@:
-	// TWEAKS_BREV now contains the next tweak.  Compute the one after that.
-	vsetivli	zero, 4, e32, m1, ta, ma
-	vmv.v.v		TMP0, TWEAKS_BREV
-	vgmul.vv	TMP0, MULTS_BREV
-	// Undo the bit reversal of the next two tweaks and store them in TMP1
-	// and TMP2, such that TMP1 is the first needed and TMP2 the second.
-.if \enc
-	vbrev8.v	TMP1, TWEAKS_BREV
-	vbrev8.v	TMP2, TMP0
-.else
-	vbrev8.v	TMP1, TMP0
-	vbrev8.v	TMP2, TWEAKS_BREV
-.endif
-
-	// Encrypt/decrypt the last full block.
-	vle32.v		TMP0, (INP)
-	vxor.vv		TMP0, TMP0, TMP1
-	aes_crypt	TMP0, \enc, \keylen
-	vxor.vv		TMP0, TMP0, TMP1
-
-	// Swap the first TAIL_LEN bytes of the above result with the tail.
-	// Note that to support in-place encryption/decryption, the load from
-	// the input tail must happen before the store to the output tail.
-	addi		t0, INP, 16
-	addi		t1, OUTP, 16
-	vmv.v.v		TMP3, TMP0
-	vsetvli		zero, TAIL_LEN, e8, m1, tu, ma
-	vle8.v		TMP0, (t0)
-	vse8.v		TMP3, (t1)
-
-	// Encrypt/decrypt again and store the last full block.
-	vsetivli	zero, 4, e32, m1, ta, ma
-	vxor.vv		TMP0, TMP0, TMP2
-	aes_crypt	TMP0, \enc, \keylen
-	vxor.vv		TMP0, TMP0, TMP2
-	vse32.v		TMP0, (OUTP)
-
-	ret
 .endm
 
 .macro	aes_xts_crypt	enc
-
-	// Check whether the length is a multiple of the AES block size.
-	andi		TAIL_LEN, LEN, 15
-	beqz		TAIL_LEN, 1f
-
-	// The length isn't a multiple of the AES block size, so ciphertext
-	// stealing will be required.  Ciphertext stealing involves special
-	// handling of the partial block and the last full block, so subtract
-	// the length of both from the length to be processed in the main loop.
-	sub		LEN, LEN, TAIL_LEN
-	addi		LEN, LEN, -16
-1:
 	srli		LEN32, LEN, 2
-	// LEN and LEN32 now contain the total length of the blocks that will be
-	// processed in the main loop, in bytes and 32-bit words respectively.
-
 	xts_init
 	aes_begin	KEYP, 128f, 192f
 	__aes_xts_crypt	\enc, 256
@@ -293,15 +227,14 @@
 	__aes_xts_crypt	\enc, 192
 .endm
 
-// void aes_xts_encrypt_zvkned_zvbb_zvkg(const struct crypto_aes_ctx *key,
-//					 const u8 *in, u8 *out, size_t len,
-//					 u8 tweak[16]);
+// void aes_xts_encrypt_zvkned_zvbb_zvkg(u8 *dst, const u8 *src, size_t len,
+//					 u8 tweak[AES_BLOCK_SIZE],
+//					 const struct aes_key *key);
 //
-// |key| is the data key.  |tweak| contains the next tweak; the encryption of
-// the original IV with the tweak key was already done.  This function supports
-// incremental computation, but |len| must always be >= 16 (AES_BLOCK_SIZE), and
-// |len| must be a multiple of 16 except on the last call.  If |len| is a
-// multiple of 16, then this function updates |tweak| to contain the next tweak.
+// Encrypts `len` bytes of data using AES-XTS using the given `key` and `tweak`.
+// `key` is just the main key; `tweak` is assumed to have already been encrypted
+// by the tweak key.  `len` is assumed to be a multiple of 16.  `tweak` is
+// updated to contain the next tweak, allowing for incremental computation.
 SYM_FUNC_START(aes_xts_encrypt_zvkned_zvbb_zvkg)
 	aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_zvkned_zvbb_zvkg)

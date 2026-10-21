@@ -49,11 +49,11 @@
 
 #include "aes-macros.S"
 
-#define KEYP		a0
-#define INP		a1
-#define OUTP		a2
-#define LEN		a3
-#define IVP		a4
+#define DST		a0
+#define SRC		a1
+#define LEN		a2
+#define IVP		a3
+#define KEYP		a4
 
 #define LEN32		a5
 #define VL_E32		a6
@@ -110,13 +110,13 @@
 
 	// XOR the data with the keystream.
 	vsetvli		t0, LEN, e8, m4, ta, ma
-	vle8.v		v20, (INP)
+	vle8.v		v20, (SRC)
 	vxor.vv		v20, v20, v24
-	vse8.v		v20, (OUTP)
+	vse8.v		v20, (DST)
 
 	// Advance the pointers and update the remaining length.
-	add		INP, INP, t0
-	add		OUTP, OUTP, t0
+	add		SRC, SRC, t0
+	add		DST, DST, t0
 	sub		LEN, LEN, t0
 	sub		LEN32, LEN32, VL_E32
 	srli		VL_BLOCKS, VL_E32, 2
@@ -133,9 +133,8 @@
 	ret
 .endm
 
-// void aes_ctr32_crypt_zvkned_zvkb(const struct crypto_aes_ctx *key,
-//				    const u8 *in, u8 *out, size_t len,
-//				    u8 iv[16]);
+// void aes_ctr32_crypt_zvkned_zvkb(u8 *dst, const u8 *src, size_t len,
+//				    u8 iv[16], const struct aes_enckey *key);
 SYM_FUNC_START(aes_ctr32_crypt_zvkned_zvkb)
 	aes_begin	KEYP, 128f, 192f
 	aes_ctr32_crypt	256
