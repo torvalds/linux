@@ -31,6 +31,11 @@ properties:
     description:
       GPIO controlling the RESX# pin.
 
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
   vdd18-supply: true
 
   vdd09-supply: true
@@ -128,7 +133,7 @@ examples:
             ranges;
             bus-range = <0x01 0xff>;
 
-            pcie@0,0 {
+            tc9563: pcie@0,0 {
                 compatible = "pci1179,0623";
 
                 reg = <0x10000 0x0 0x0 0x0 0x0>;
@@ -149,6 +154,9 @@ examples:
 
                 resx-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 
+                gpio-controller;
+                #gpio-cells = <2>;
+
                 pcie@1,0 {
                     compatible = "pciclass,0604";
                     reg = <0x20800 0x0 0x0 0x0 0x0>;
@@ -157,6 +165,8 @@ examples:
                     device_type = "pci";
                     ranges;
                     bus-range = <0x03 0xff>;
+
+                    reset-gpios = <&tc9563 2 GPIO_ACTIVE_LOW>;
 
                     toshiba,no-dfe-support;
                 };
@@ -169,6 +179,8 @@ examples:
                     device_type = "pci";
                     ranges;
                     bus-range = <0x04 0xff>;
+
+                    reset-gpios = <&tc9563 3 GPIO_ACTIVE_LOW>;
 
                     toshiba,tx-amplitude-microvolt = <10>;
                 };
