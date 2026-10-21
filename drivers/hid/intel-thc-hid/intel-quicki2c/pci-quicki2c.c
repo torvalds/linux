@@ -315,7 +315,7 @@ static int handle_input_report(struct quicki2c_device *qcdev)
 		if (qcdev->state != QUICKI2C_ENABLED)
 			continue;
 
-		quicki2c_hid_send_report(qcdev, pkt->data,
+		quicki2c_hid_send_report(qcdev, pkt->data, qcdev->input_len,
 					 HIDI2C_DATA_LEN(le16_to_cpu(pkt->len)));
 	}
 
@@ -610,6 +610,8 @@ static int quicki2c_alloc_report_buf(struct quicki2c_device *qcdev)
 					HIDI2C_PACKET_LEN(max_report_len), GFP_KERNEL);
 	if (!qcdev->input_buf)
 		return -ENOMEM;
+
+	qcdev->input_len = max_report_len;
 
 	if (!le16_to_cpu(qcdev->dev_desc.max_output_len))
 		qcdev->dev_desc.max_output_len = cpu_to_le16(SZ_4K);

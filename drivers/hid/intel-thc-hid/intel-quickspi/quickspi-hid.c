@@ -148,16 +148,18 @@ void quickspi_hid_remove(struct quickspi_device *qsdev)
  *
  * @qsdev: point to quickspi device
  * @data: point to input report data buffer
+ * @buf_size: the allocated size of the input report data buffer
  * @data_len: the length of input report data
  *
  * Return: 0 on success, non zero on error.
  */
 int quickspi_hid_send_report(struct quickspi_device *qsdev,
-			     void *data, size_t data_len)
+			     void *data, size_t buf_size, size_t data_len)
 {
 	int ret;
 
-	ret = hid_input_report(qsdev->hid_dev, HID_INPUT_REPORT, data, data_len, 1);
+	ret = hid_safe_input_report(qsdev->hid_dev, HID_INPUT_REPORT, data,
+				    buf_size, data_len, 1);
 	if (ret)
 		dev_err(qsdev->dev, "Failed to send HID input report, ret = %d.\n", ret);
 

@@ -181,6 +181,7 @@ struct acpi_device;
  * @low_power_ltr_val: THC low power LTR value
  * @report_descriptor: Store a copy of device report descriptor
  * @input_buf: Store a copy of latest input report data
+ * @input_len: The data size of the input report buffer
  * @report_buf: Store a copy of latest input/output report packet from set/get feature
  * @report_len: The length of input/output report packet
  * @reset_ack_wq: Workqueue for waiting reset response from device
@@ -212,6 +213,7 @@ struct quicki2c_device {
 
 	u8 *report_descriptor;
 	u8 *input_buf;
+	size_t input_len;
 	u8 *report_buf;
 	size_t report_len;
 

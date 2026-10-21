@@ -113,6 +113,7 @@ struct acpi_device;
  * @low_power_ltr_val: THC low power LTR value
  * @report_descriptor: store a copy of device report descriptor
  * @input_buf: store a copy of latest input report data
+ * @input_len: the data size of the input report buffer
  * @report_buf: store a copy of latest input/output report packet from set/get feature
  * @report_len: the length of input/output report packet
  * @reset_ack_wq: workqueue for waiting reset response from device
@@ -159,6 +160,7 @@ struct quickspi_device {
 
 	u8 *report_descriptor;
 	u8 *input_buf;
+	u32 input_len;
 	u8 *report_buf;
 	u32 report_buf_size;
 	u32 report_len;
