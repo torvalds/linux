@@ -341,7 +341,7 @@ static int coreboot_cfr_read_value(const struct coreboot_cfr_setting *setting,
 	int ret;
 
 	if (IS_ERR(efi_name))
-		return PTR_ERR(no_free_ptr(efi_name));
+		return PTR_ERR(efi_name);
 
 	ret = efivar_lock();
 	if (ret)
