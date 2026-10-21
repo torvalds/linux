@@ -738,14 +738,11 @@ bool tick_nohz_tick_stopped_cpu(int cpu)
  */
 static void tick_nohz_update_jiffies(ktime_t now)
 {
-	unsigned long flags;
+	/* Reached only from irq_enter_rcu(), i.e. hard interrupt entry. */
+	lockdep_assert_irqs_disabled();
 
 	__this_cpu_write(tick_cpu_sched.idle_waketime, now);
-
-	local_irq_save(flags);
 	tick_do_update_jiffies64(now);
-	local_irq_restore(flags);
-
 	touch_softlockup_watchdog_sched();
 }
 
@@ -825,7 +822,7 @@ u64 get_jiffies_update(unsigned long *basej)
  */
 static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 {
-	u64 basemono, next_tick, delta, expires;
+	u64 basemono, next_tick, expires;
 	unsigned long basejiff;
 	int tick_cpu;
 
@@ -865,8 +862,7 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 	 * If the tick is due in the next period, keep it ticking or
 	 * force prod the timer.
 	 */
-	delta = next_tick - basemono;
-	if (delta <= (u64)TICK_NSEC) {
+	if (next_tick - basemono <= (u64)TICK_NSEC) {
 		/*
 		 * We've not stopped the tick yet, and there's a timer in the
 		 * next period, so no point in stopping it either, bail.
@@ -882,17 +878,19 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 	 * the sleep time to the timekeeping 'max_deferment' value.
 	 * Otherwise we can sleep as long as we want.
 	 */
-	delta = timekeeping_max_deferment();
 	tick_cpu = READ_ONCE(tick_do_timer_cpu);
 	if (tick_cpu != cpu &&
-	    (tick_cpu != TICK_DO_TIMER_NONE || !tick_sched_flag_test(ts, TS_FLAG_DO_TIMER_LAST)))
-		delta = KTIME_MAX;
-
-	/* Calculate the next expiry time */
-	if (delta < (KTIME_MAX - basemono))
-		expires = basemono + delta;
-	else
+	    (tick_cpu != TICK_DO_TIMER_NONE || !tick_sched_flag_test(ts, TS_FLAG_DO_TIMER_LAST))) {
 		expires = KTIME_MAX;
+	} else {
+		expires = timekeeping_max_deferment();
+
+		/* Calculate the next expiry time */
+		if (expires < (KTIME_MAX - basemono))
+			expires += basemono;
+		else
+			expires = KTIME_MAX;
+	}
 
 	ts->timer_expires = min_t(u64, expires, next_tick);
 

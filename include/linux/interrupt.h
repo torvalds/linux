@@ -575,9 +575,11 @@ enum
  * _ IRQ_POLL: irq_poll_cpu_dead() migrates the queue
  *
  * _ (HR)TIMER_SOFTIRQ: (hr)timers_dead_cpu() migrates the queue
+ *
+ * _ BLOCK_SOFTIRQ: blk_softirq_cpu_dead() completes the remaining requests
  */
-#define SOFTIRQ_HOTPLUG_SAFE_MASK (BIT(TIMER_SOFTIRQ) | BIT(IRQ_POLL_SOFTIRQ) |\
-				   BIT(HRTIMER_SOFTIRQ) | BIT(RCU_SOFTIRQ))
+#define SOFTIRQ_HOTPLUG_SAFE_MASK (BIT(TIMER_SOFTIRQ) | BIT(BLOCK_SOFTIRQ) |\
+				   BIT(IRQ_POLL_SOFTIRQ) | BIT(HRTIMER_SOFTIRQ) | BIT(RCU_SOFTIRQ))
 
 
 /* map softirq index to softirq name. update 'softirq_to_name' in
