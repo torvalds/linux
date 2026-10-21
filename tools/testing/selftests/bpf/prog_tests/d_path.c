@@ -109,8 +109,9 @@ static int trigger_fstat_events(pid_t pid)
 	fstat(indicatorfd, &fileStat);
 
 out_close:
-	/* sys_close no longer triggers filp_close, but we can
-	 * call sys_close_range instead which still does
+	/*
+	 * filp_close_sync() may be inlined into close(2), so use
+	 * close_range(2), which calls it directly.
 	 */
 	syscall_close(pipefd[0]);
 	syscall_close(pipefd[1]);
@@ -165,7 +166,7 @@ static void test_d_path_basic(void)
 
 	if (CHECK(!bss->called_close,
 		  "close",
-		  "trampoline for filp_close was not called\n"))
+		  "trampoline for filp_close_sync was not called\n"))
 		goto cleanup;
 
 	for (int i = 0; i < MAX_FILES; i++) {
