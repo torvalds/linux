@@ -934,23 +934,53 @@ ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 				&ntfs_iomap_folio_ops, NULL);
 out:
 	if (ret < 0 && ret != -EIOCBQUEUED) {
-		if (ni->initialized_size != old_init_size) {
-			struct ntfs_inode *mrec_ni =
-				ntfs_base_inode(ni);
+		int init_err = 0;
+		int data_err = 0;
+
+		/*
+		 * Like ntfs_setattr_size(): __ntfs_attr_truncate_vfs()
+		 * expects the invalidate lock held across the size
+		 * updates.
+		 */
+		filemap_invalidate_lock(vi->i_mapping);
+
+		/* ntfs_attr_set_initialized_size() rejects a resident one. */
+		if (ni->initialized_size != old_init_size &&
+		    NInoNonResident(ni)) {
+			struct ntfs_inode *mrec_ni = ntfs_base_inode(ni);
 
 			mutex_lock(&mrec_ni->mrec_lock);
-			ntfs_attr_set_initialized_size(ni, old_init_size);
+			init_err = ntfs_attr_set_initialized_size(ni,
+					old_init_size);
 			mutex_unlock(&mrec_ni->mrec_lock);
 		}
-		if (ni->data_size != old_data_size) {
-			struct ntfs_inode *mrec_ni =
-				ntfs_base_inode(ni);
+		/*
+		 * The shrink clamps the initialized size to the data size,
+		 * which can sit above the old initialized one and expose
+		 * the uninitialized tail, so skip it unless the rollback
+		 * above restored that size.
+		 */
+		if (ni->data_size != old_data_size && !init_err) {
+			struct ntfs_inode *mrec_ni = ntfs_base_inode(ni);
 
 			truncate_setsize(vi, old_data_size);
 			mutex_lock(&mrec_ni->mrec_lock);
-			ntfs_attr_truncate(ni, old_data_size);
+			data_err = __ntfs_attr_truncate_vfs(ni, old_data_size,
+					old_data_size);
 			mutex_unlock(&mrec_ni->mrec_lock);
+			/* Like ntfs_setattr_size(): stay on the durable size. */
+			if (data_err)
+				i_size_write(vi, ni->data_size);
 		}
+		if (init_err || data_err) {
+			/* The failed sizes stay in the dirty MFT record. */
+			NVolSetErrors(vol);
+			ntfs_error(vi->i_sb,
+				   "Failed to roll back the size update: %d",
+				   init_err ?: data_err);
+		}
+
+		filemap_invalidate_unlock(vi->i_mapping);
 	}
 out_lock:
 	inode_unlock(vi);
