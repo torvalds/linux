@@ -724,6 +724,8 @@ static u8 hci_cc_read_enc_key_size(struct hci_dev *hdev, void *data,
 		goto done;
 	}
 
+	clear_bit(HCI_CONN_ENC_KEY_SIZE_PEND, conn->flags);
+
 	/* While unexpected, the read_enc_key_size command may fail. The most
 	 * secure approach is to then assume the key size is 0 to force a
 	 * disconnection.
@@ -3190,6 +3192,7 @@ static int hci_read_enc_key_size(struct hci_dev *hdev, struct hci_conn *conn)
 {
 	struct hci_cp_read_enc_key_size cp;
 	u8 *key_enc_size = hci_conn_key_enc_size(conn);
+	int err;
 
 	if (!read_key_size_capable(hdev)) {
 		conn->enc_key_size = HCI_LINK_KEY_SIZE;
@@ -3211,7 +3214,14 @@ static int hci_read_enc_key_size(struct hci_dev *hdev, struct hci_conn *conn)
 	else
 		conn->enc_key_size = hdev->min_enc_key_size;
 
-	return hci_send_cmd(hdev, HCI_OP_READ_ENC_KEY_SIZE, sizeof(cp), &cp);
+	/* L2CAP holds incoming data back until the key size is known */
+	set_bit(HCI_CONN_ENC_KEY_SIZE_PEND, conn->flags);
+
+	err = hci_send_cmd(hdev, HCI_OP_READ_ENC_KEY_SIZE, sizeof(cp), &cp);
+	if (err)
+		clear_bit(HCI_CONN_ENC_KEY_SIZE_PEND, conn->flags);
+
+	return err;
 }
 
 static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,

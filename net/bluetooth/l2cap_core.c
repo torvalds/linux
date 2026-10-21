@@ -7389,7 +7389,11 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 	u16 cid, len;
 	__le16 psm;
 
-	if (hcon->state != BT_CONNECTED) {
+	/* Also hold data back while the encryption key size is read, as
+	 * the security of the link, e.g. for SMP over BR/EDR, depends on it.
+	 */
+	if (hcon->state != BT_CONNECTED ||
+	    test_bit(HCI_CONN_ENC_KEY_SIZE_PEND, hcon->flags)) {
 		BT_DBG("queueing pending rx skb");
 		skb_queue_tail(&conn->pending_rx, skb);
 		return;
@@ -7452,7 +7456,11 @@ static void process_pending_rx(struct work_struct *work)
 
 	mutex_lock(&conn->lock);
 
-	while ((skb = skb_dequeue(&conn->pending_rx)))
+	/* l2cap_recv_frame() would queue it all again while the encryption
+	 * key size is read, l2cap_security_cfm() schedules this once known.
+	 */
+	while (!test_bit(HCI_CONN_ENC_KEY_SIZE_PEND, conn->hcon->flags) &&
+	       (skb = skb_dequeue(&conn->pending_rx)))
 		l2cap_recv_frame(conn, skb);
 
 	mutex_unlock(&conn->lock);
@@ -8041,6 +8049,10 @@ static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	}
 
 	mutex_unlock(&conn->lock);
+
+	/* Process data held back while the encryption key size was read */
+	if (!skb_queue_empty(&conn->pending_rx))
+		queue_work(hcon->hdev->workqueue, &conn->pending_rx_work);
 }
 
 /* Append fragment into frame respecting the maximum len of rx_skb */
