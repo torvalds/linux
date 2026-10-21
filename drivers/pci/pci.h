@@ -41,6 +41,15 @@ struct pcie_tlp_log;
 #define PCIE_T_PERST_CLK_US		100
 
 /*
+ * PERST# active time.
+ *
+ * See the "Power Sequencing and Reset Signal Timings" table of the PCI Express
+ * Card Electromechanical Specification, Revision 6.0, Section 2.11.2, Symbol
+ * "T_PERST".
+ */
+#define PCIE_T_PERST_US			100
+
+/*
  * PCIe r6.0, sec 5.3.3.2.1 <PME Synchronization>
  * Recommends 1ms to 10ms timeout to check L2 ready.
  */
