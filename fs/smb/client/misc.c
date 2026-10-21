@@ -215,10 +215,8 @@ cifs_buf_get(void)
 void
 cifs_buf_release(void *buf_to_free)
 {
-	if (buf_to_free == NULL) {
-		/* cifs_dbg(FYI, "Null buffer passed to cifs_buf_release\n");*/
+	if (!buf_to_free)
 		return;
-	}
 	mempool_free(buf_to_free, cifs_req_poolp);
 
 	atomic_dec(&buf_alloc_count);

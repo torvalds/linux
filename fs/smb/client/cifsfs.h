@@ -91,6 +91,8 @@ extern const struct inode_operations cifs_namespace_inode_operations;
 
 struct file_kattr;
 int cifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
+int cifs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct file_kattr *fa);
 
 
 /* Functions related to files and directories */
@@ -167,7 +169,4 @@ char *cifs_silly_fullpath(struct dentry *dentry);
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-/* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 61
-#define CIFS_VERSION   "2.61"
 #endif				/* _CIFSFS_H */

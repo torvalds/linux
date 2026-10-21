@@ -1186,11 +1186,10 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int
-smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
-	    const char *path, const char *ea_name, const void *ea_value,
-	    const __u16 ea_value_len, const struct nls_table *nls_codepage,
-	    struct cifs_sb_info *cifs_sb)
+static int smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
+		       const char *path, const char *ea_name,
+		       const void *ea_value, const __u16 ea_value_len,
+		       struct cifs_sb_info *cifs_sb)
 {
 	struct smb2_compound_vars *vars;
 	struct cifs_ses *ses = tcon->ses;
@@ -1728,7 +1727,7 @@ replay_again:
 					SMB2_O_INFO_FILE, 0, data, size);
 		free_req1_func = SMB2_set_info_free;
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
-		rqst[1].rq_iov = &vars->qi_iov;
+		rqst[1].rq_iov = vars->qi_iov;
 		rqst[1].rq_nvec = 1;
 
 		rc = SMB2_query_info_init(tcon, server,
@@ -3026,7 +3025,7 @@ replay_again:
 		goto qic_exit;
 	smb2_set_next_command(tcon, &rqst[0]);
 
-	rqst[1].rq_iov = &vars->qi_iov;
+	rqst[1].rq_iov = vars->qi_iov;
 	rqst[1].rq_nvec = 1;
 
 	if (cfid) {
@@ -5265,9 +5264,10 @@ static void smb2_decrypt_offload(struct work_struct *work)
 
 	dw->server->lstrp = jiffies;
 	mid = smb2_find_dequeue_mid(dw->server, dw->buf);
-	if (mid == NULL)
+	if (mid == NULL) {
 		cifs_dbg(FYI, "mid not found\n");
-	else {
+		smb2_add_credits_from_hdr(dw->buf, dw->server);
+	} else {
 		mid->decrypted = true;
 		rc = handle_read_data(dw->server, mid, dw->buf,
 				      dw->server->vals->read_rsp_size,
@@ -5398,6 +5398,8 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	*mid = smb2_find_mid(server, buf);
 	if (*mid == NULL) {
 		cifs_dbg(FYI, "mid not found\n");
+		smb2_add_credits_from_hdr(buf, server);
+		rc = -1;
 	} else {
 		cifs_dbg(FYI, "mid found\n");
 		(*mid)->decrypted = true;
@@ -5811,8 +5813,8 @@ struct smb_version_operations smb20_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
-	.query_mf_symlink = smb3_query_mf_symlink,
-	.create_mf_symlink = smb3_create_mf_symlink,
+	.query_mf_symlink = smb2_query_mf_symlink,
+	.create_mf_symlink = smb2_create_mf_symlink,
 	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
@@ -5914,8 +5916,8 @@ struct smb_version_operations smb21_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
-	.query_mf_symlink = smb3_query_mf_symlink,
-	.create_mf_symlink = smb3_create_mf_symlink,
+	.query_mf_symlink = smb2_query_mf_symlink,
+	.create_mf_symlink = smb2_create_mf_symlink,
 	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
@@ -6021,8 +6023,8 @@ struct smb_version_operations smb30_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
-	.query_mf_symlink = smb3_query_mf_symlink,
-	.create_mf_symlink = smb3_create_mf_symlink,
+	.query_mf_symlink = smb2_query_mf_symlink,
+	.create_mf_symlink = smb2_create_mf_symlink,
 	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
@@ -6137,8 +6139,8 @@ struct smb_version_operations smb311_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
-	.query_mf_symlink = smb3_query_mf_symlink,
-	.create_mf_symlink = smb3_create_mf_symlink,
+	.query_mf_symlink = smb2_query_mf_symlink,
+	.create_mf_symlink = smb2_create_mf_symlink,
 	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,

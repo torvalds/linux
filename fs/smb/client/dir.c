@@ -419,7 +419,6 @@ retry_open:
 		 * BB implement mode setting via Windows security
 		 * descriptors e.g.
 		 */
-		/* CIFSSMBWinSetPerms(xid,tcon,path,mode,-1,-1,nls);*/
 
 		/* Could set r/o dos attribute if mode & 0222 == 0 */
 	}

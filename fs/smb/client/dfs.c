@@ -371,7 +371,7 @@ static int tree_connect_dfs_target(const unsigned int xid,
 		dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, tit);
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
 		rc = ops->tree_connect(xid, tcon->ses, tree,
-				       tcon, tcon->ses->local_nls);
+				       tcon);
 		if (islink && !rc && cifs_sb)
 			rc = cifs_update_super_prepath(cifs_sb, prefix);
 		break;
@@ -426,7 +426,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon)
 		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
 		cifs_server_unlock(server);
 		rc = ops->tree_connect(xid, tcon->ses, tree,
-				       tcon, tcon->ses->local_nls);
+				       tcon);
 		goto out;
 	}
 
@@ -438,7 +438,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon)
 	if (!server->leaf_fullpath ||
 	    dfs_cache_noreq_find(server->leaf_fullpath + 1, &ref, &tl)) {
 		rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name,
-				       tcon, tcon->ses->local_nls);
+				       tcon);
 		goto out;
 	}
 

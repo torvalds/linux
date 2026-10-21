@@ -17,6 +17,7 @@
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "smb2proto.h"
+#include "smb2glob.h"
 #include "cifs_ioctl.h"
 #include "fs_context.h"
 #include "reparse.h"
@@ -166,30 +167,34 @@ out:
 	return rc;
 }
 
-int
-check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
-		 struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		 const unsigned char *path)
+int cifs_check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const char *full_path, struct inode *inode,
+			  struct cifs_fattr *fattr)
 {
-	int rc;
-	u8 *buf = NULL;
-	unsigned int link_len = 0;
+	struct TCP_Server_Info *server = tcon->ses->server;
+	char *buf __free(kfree) = NULL;
 	unsigned int bytes_read = 0;
+	unsigned int link_len = 0;
 	char *symlink = NULL;
+	int rc = 0;
 
 	if (!couldbe_mf_symlink(fattr))
-		/* it's not a symlink */
-		return 0;
+		goto out;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
-	if (tcon->ses->server->ops->query_mf_symlink)
-		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
-					      cifs_sb, path, buf, &bytes_read);
-	else
+	if (server->ops->query_mf_symlink) {
+		rc = server->ops->query_mf_symlink(xid, tcon,
+						   cifs_sb, full_path,
+						   inode, buf, &bytes_read);
+	} else {
 		rc = -ENOSYS;
+	}
 
 	if (rc)
 		goto out;
@@ -214,19 +219,17 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	fattr->cf_dtype = DT_LNK;
 	fattr->cf_symlink_target = symlink;
 out:
-	kfree(buf);
-	return rc;
+	cifs_dbg(FYI, "%s: rc = %d\n", __func__, rc);
+	return rc == -ENOMEM ? rc : 0;
 }
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-/*
- * SMB 1.0 Protocol specific functions
- */
-
-int
-cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
-		      struct cifs_sb_info *cifs_sb, const unsigned char *path,
-		      char *pbuf, unsigned int *pbytes_read)
+int cifs_query_mf_symlink(const unsigned int xid,
+			  struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const char *full_path,
+			  struct inode *inode, char *pbuf,
+			  unsigned int *pbytes_read)
 {
 	int rc;
 	int oplock = 0;
@@ -242,7 +245,7 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		.desired_access = GENERIC_READ,
 		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
 		.disposition = FILE_OPEN,
-		.path = path,
+		.path = full_path,
 		.fid = &fid,
 	};
 
@@ -305,65 +308,189 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
-/*
- * SMB 2.1/SMB3 Protocol specific functions
- */
-int
-smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
-		      struct cifs_sb_info *cifs_sb, const unsigned char *path,
-		      char *pbuf, unsigned int *pbytes_read)
+int smb2_query_mf_symlink(const unsigned int xid,
+			  struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const char *full_path,
+			  struct inode *inode, char *pbuf,
+			  unsigned int *pbytes_read)
 {
-	int rc;
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	struct kvec read_iov[2], close_iov;
+	struct cifsFileInfo *cfile = NULL;
+	struct smb2_read_rsp *read_rsp;
+	struct TCP_Server_Info *server;
+	int retries = 0, cur_sleep = 0;
+	struct cifs_io_parms io_parms;
+	struct smb2_read_req *req;
+	struct smb_rqst rqst[3];
+	unsigned int total_len;
+	struct kvec rsp_iov[3];
 	struct cifs_fid fid;
-	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms = {0};
-	int buf_type = CIFS_NO_BUFFER;
-	__le16 *utf16_path;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
-	struct cifs_open_info_data data = {};
+	int rsp_buftype[3];
+	struct kvec *riov;
+	int num_rqst;
+	__u8 oplock;
+	int flags;
+	u32 dlen;
+	int rc;
 
-	oparms = (struct cifs_open_parms) {
-		.tcon = tcon,
-		.cifs_sb = cifs_sb,
-		.path = path,
-		.desired_access = GENERIC_READ,
-		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
-		.disposition = FILE_OPEN,
-		.fid = &fid,
-	};
+	cifs_get_readable_path(tcon, full_path, &cfile);
+	*pbytes_read	= 0;
+again:
+	flags		= 0;
+	num_rqst	= 0;
+	req		= NULL;
+	oplock		= SMB2_OPLOCK_LEVEL_NONE;
+	server		= cifs_pick_channel(tcon->ses);
 
-	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
-	if (utf16_path == NULL)
-		return -ENOMEM;
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, &data, NULL,
-		       NULL, NULL);
-	if (rc)
-		goto qmf_out_open_fail;
+	for (int i = 0; i < ARRAY_SIZE(rsp_buftype); i++)
+		rsp_buftype[i] = CIFS_NO_BUFFER;
 
-	if (data.fi.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
-		/* it's not a symlink */
-		rc = -ENOENT; /* Is there a better rc to return? */
-		goto qmf_out;
+	memset(rqst, 0, sizeof(rqst));
+	memset(rsp_iov, 0, sizeof(rsp_iov));
+
+	if (!cfile) {
+		__le16 *utf16_path __free(kfree) = NULL;
+		struct cifs_open_parms oparms;
+
+		utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
+		if (!utf16_path) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		if (inode && CIFS_I(inode)->lease_granted &&
+		    server->ops->get_lease_key) {
+			oplock = SMB2_OPLOCK_LEVEL_LEASE;
+			server->ops->get_lease_key(inode, &fid);
+		}
+
+		oparms = CIFS_OPARMS(cifs_sb, tcon, full_path, GENERIC_READ,
+				     FILE_OPEN, CREATE_NOT_DIR, ACL_NO_MODE);
+		oparms.fid = &fid;
+
+		memset(open_iov, 0, sizeof(open_iov));
+		rqst[num_rqst].rq_iov = open_iov;
+		rqst[num_rqst].rq_nvec = SMB2_CREATE_IOV_SIZE;
+
+		rc = SMB2_open_init(tcon, server, &rqst[num_rqst],
+				    &oplock, &oparms, utf16_path);
+		if (rc)
+			goto out;
+		smb2_set_next_command(tcon, &rqst[num_rqst++]);
 	}
 
-	io_parms.netfid = fid.netfid;
-	io_parms.pid = current->tgid;
-	io_parms.tcon = tcon;
-	io_parms.offset = 0;
-	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
-	io_parms.persistent_fid = fid.persistent_fid;
-	io_parms.volatile_fid = fid.volatile_fid;
-	rc = SMB2_read(xid, &io_parms, pbytes_read, &pbuf, &buf_type);
-qmf_out:
-	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
-qmf_out_open_fail:
-	kfree(utf16_path);
+	io_parms = (struct cifs_io_parms) {
+		.pid			= current->tgid,
+		.tcon			= tcon,
+		.length			= CIFS_MF_SYMLINK_FILE_SIZE,
+		.server			= server,
+		.persistent_fid		= COMP_PID(cfile),
+		.volatile_fid		= COMP_VID(cfile),
+	};
+
+	rc = smb2_new_read_req((void **)&req, &total_len,
+			       &io_parms, NULL, 0, 0);
+	if (rc)
+		goto out;
+
+	read_iov[0].iov_base = req;
+	read_iov[0].iov_len = total_len;
+	rqst[num_rqst].rq_iov = read_iov;
+	rqst[num_rqst].rq_nvec = 1;
+	if (!cfile) {
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
+		smb2_set_related(&rqst[num_rqst]);
+	}
+	num_rqst++;
+
+	if (!cfile) {
+		flags |= CIFS_CP_CREATE_CLOSE_OP;
+		memset(&close_iov, 0, sizeof(close_iov));
+		rqst[num_rqst].rq_iov = &close_iov;
+		rqst[num_rqst].rq_nvec = 1;
+		rc = SMB2_close_init(tcon, server, &rqst[num_rqst],
+				     COMPOUND_FID, COMPOUND_FID, false);
+		smb2_set_related(&rqst[num_rqst++]);
+		if (rc)
+			goto out;
+	}
+
+	if (retries) {
+		if (cur_sleep)
+			msleep(cur_sleep);
+		for (int i = 0; i < num_rqst; i++)
+			smb2_set_replay(server, &rqst[i]);
+	}
+
+	rc = compound_send_recv(xid, tcon->ses, server, flags,
+				num_rqst, rqst, rsp_buftype, rsp_iov);
+	if (rc) {
+		if (rc != -ENODATA) {
+			if (rc != -ENOENT)
+				cifs_stats_fail_inc(tcon, SMB2_READ_HE);
+			cifs_dbg(FYI, "%s: failed to read file: %d\n",
+				 __func__, rc);
+			trace_smb3_read_err(0, 0, xid, req->PersistentFileId,
+					    tcon->tid, tcon->ses->Suid,
+					    io_parms.offset, io_parms.length,
+					    rc);
+		} else {
+			trace_smb3_read_done(0, 0, xid, req->PersistentFileId,
+					     tcon->tid, tcon->ses->Suid,
+					     io_parms.offset, 0);
+		}
+		rc = rc == -ENODATA ? 0 : rc;
+		goto out;
+	}
+	trace_smb3_read_done(0, 0, xid, req->PersistentFileId,
+			     tcon->tid, tcon->ses->Suid,
+			     io_parms.offset, io_parms.length);
+
+	riov = &rsp_iov[!cfile ? 1 : 0];
+	read_rsp = riov->iov_base;
+	dlen = le32_to_cpu(read_rsp->DataLength);
+	if (dlen > CIFS_MAX_MSGSIZE || dlen > io_parms.length) {
+		cifs_dbg(FYI, "%s: bad length %u for count %u\n",
+			 __func__, dlen, io_parms.length);
+		rc = smb_EIO2(smb_eio_trace_read_overlarge,
+			      dlen, io_parms.length);
+	} else if (dlen != CIFS_MF_SYMLINK_FILE_SIZE) {
+		rc = -ENOENT;
+	} else {
+		rc = smb2_validate_iov(read_rsp->DataOffset, dlen, riov,
+				       CIFS_MF_SYMLINK_FILE_SIZE);
+	}
+
+	if (!rc) {
+		memcpy(pbuf, (u8 *)read_rsp + read_rsp->DataOffset, dlen);
+		*pbytes_read = dlen;
+	}
+
+out:
+	if (!cfile) {
+		SMB2_open_free(&rqst[0]);
+		SMB2_close_free(&rqst[2]);
+	}
+	cifs_small_buf_release(req);
+	for (int i = 0; i < ARRAY_SIZE(rsp_buftype); i++)
+		free_rsp_buf(rsp_buftype[i], rsp_iov[i].iov_base);
+
+	if (is_replayable_error(rc) &&
+	    smb2_should_replay(tcon, &retries, &cur_sleep))
+		goto again;
+
+	if (cfile)
+		cifsFileInfo_put(cfile);
 	return rc;
 }
 
 int
-smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+smb2_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		       struct cifs_sb_info *cifs_sb, const unsigned char *path,
 		       char *pbuf, unsigned int *pbytes_written)
 {

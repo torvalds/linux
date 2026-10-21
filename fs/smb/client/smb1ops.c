@@ -815,7 +815,6 @@ cifs_clear_stats(struct cifs_tcon *tcon)
 	atomic_set(&tcon->stats.cifs_stats.num_symlinks, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_locks, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_acl_get, 0);
-	atomic_set(&tcon->stats.cifs_stats.num_acl_set, 0);
 }
 
 static void
@@ -868,13 +867,12 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 	cifsInode = CIFS_I(inode);
 	dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
 	info.Attributes = cpu_to_le32(dosattrs);
-	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb->local_nls,
-				cifs_sb);
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb);
 	if (rc == -EOPNOTSUPP || rc == -EINVAL)
 		rc = SMBSetInformation(xid, tcon, full_path,
 				       info.Attributes,
 				       0 /* do not change write time */,
-				       cifs_sb->local_nls, cifs_sb);
+				       cifs_sb);
 	if (rc == 0)
 		cifsInode->cifsAttrs = dosattrs;
 }
@@ -892,7 +890,6 @@ static int cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms
 				   oparms->desired_access,
 				   oparms->create_options,
 				   &oparms->fid->netfid, oplock, &fi,
-				   oparms->cifs_sb->local_nls,
 				   cifs_remap(oparms->cifs_sb));
 	else
 		rc = CIFS_open(xid, oparms, oplock, &fi);
@@ -1023,8 +1020,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	if (open_file)
 		goto set_via_filehandle;
 
-	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
-				cifs_sb);
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb);
 	if (rc == 0) {
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 		goto out;
@@ -1073,7 +1069,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 		rc = SMBSetInformation(xid, tcon, full_path,
 				       buf->Attributes != 0 ? buf->Attributes : cpu_to_le32(cinode->cifsAttrs),
 				       write_time,
-				       cifs_sb->local_nls, cifs_sb);
+				       cifs_sb);
 		if (rc == 0)
 			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 		else
@@ -1112,7 +1108,7 @@ set_via_filehandle:
 		SMBSetInformation(xid, tcon, full_path,
 				  buf->Attributes,
 				  0 /* do not change write time */,
-				  cifs_sb->local_nls, cifs_sb);
+				  cifs_sb);
 	}
 out:
 	if (tlink != NULL)

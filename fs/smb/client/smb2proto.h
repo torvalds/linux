@@ -91,13 +91,15 @@ int smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
 int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 			 struct dentry *source_dentry, const char *from_name,
 			 const char *to_name, struct cifs_sb_info *cifs_sb);
-int smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+int smb2_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
-int smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+int smb2_query_mf_symlink(const unsigned int xid,
+			  struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb,
-			  const unsigned char *path, char *pbuf,
+			  const char *full_path,
+			  struct inode *inode, char *pbuf,
 			  unsigned int *pbytes_read);
 int smb2_fix_symlink_target_type(char **target, bool directory,
 				 struct cifs_sb_info *cifs_sb);
@@ -129,11 +131,10 @@ bool smb2_should_replay(struct cifs_tcon *tcon, int *pretries,
 int SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses,
 		   struct TCP_Server_Info *server);
 int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
-		    struct TCP_Server_Info *server,
-		    const struct nls_table *nls_cp);
+		    struct TCP_Server_Info *server);
 int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
 int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
-	      struct cifs_tcon *tcon, const struct nls_table *cp);
+	      struct cifs_tcon *tcon);
 int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 	      __le16 *path, __u8 *oplock, struct cifs_open_info_data *buf,
@@ -172,6 +173,10 @@ int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 		    struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		    u64 persistent_fid, u64 volatile_fid);
 void SMB2_flush_free(struct smb_rqst *rqst);
+int smb2_new_read_req(void **buf, unsigned int *total_len,
+		      struct cifs_io_parms *io_parms,
+		      struct cifs_io_subrequest *rdata,
+		      unsigned int remaining_bytes, int request_type);
 int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		    u64 persistent_fid, u64 volatile_fid,
 		    struct smb2_file_all_info *data);

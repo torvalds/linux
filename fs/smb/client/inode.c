@@ -88,7 +88,9 @@ static void cifs_set_ops(struct inode *inode)
 		else
 			inode->i_data.a_ops = &cifs_addr_ops;
 		mapping_set_large_folios(inode->i_mapping);
-		if (tcon->ses->server->sign)
+		if (tcon->ses->server->sign ||
+		    (tcon->ses->server->compression.enabled &&
+		     (tcon->share_flags & SMB2_SHAREFLAG_COMPRESS_DATA)))
 			mapping_set_stable_writes(inode->i_mapping);
 		break;
 	case S_IFDIR:
@@ -456,7 +458,7 @@ static int cifs_get_unix_fattr(const unsigned char *full_path,
 	FILE_UNIX_BASIC_INFO find_data;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	int rc, tmprc;
+	int rc;
 
 	cifs_dbg(FYI, "Getting info on %s\n", full_path);
 
@@ -486,8 +488,10 @@ static int cifs_get_unix_fattr(const unsigned char *full_path,
 
 	/* check for Minshall+French symlinks */
 	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_MF_SYMLINKS) {
-		tmprc = check_mf_symlink(xid, tcon, cifs_sb, fattr, full_path);
-		cifs_dbg(FYI, "check_mf_symlink: %d\n", tmprc);
+		rc = cifs_check_mf_symlink(xid, tcon, cifs_sb, full_path,
+					   *pinode, fattr);
+		if (rc)
+			return rc;
 	}
 
 	if (S_ISLNK(fattr->cf_mode) && !fattr->cf_symlink_target) {
@@ -1437,8 +1441,8 @@ handle_mnt_opt:
 
 	/* check for Minshall+French symlinks */
 	if (sbflags & CIFS_MOUNT_MF_SYMLINKS) {
-		tmprc = check_mf_symlink(xid, tcon, cifs_sb, fattr, full_path);
-		cifs_dbg(FYI, "check_mf_symlink: %d\n", tmprc);
+		rc = cifs_check_mf_symlink(xid, tcon, cifs_sb, full_path,
+					   *inode, fattr);
 	}
 
 out:
@@ -1475,6 +1479,7 @@ out:
 static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 				  struct cifs_fattr *fattr,
 				  const char *full_path,
+				  struct inode *inode,
 				  struct super_block *sb,
 				  const unsigned int xid)
 {
@@ -1483,7 +1488,6 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	int tmprc;
 	int rc = 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -1537,8 +1541,8 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	 */
 	/* check for Minshall+French symlinks */
 	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_MF_SYMLINKS) {
-		tmprc = check_mf_symlink(xid, tcon, cifs_sb, fattr, full_path);
-		cifs_dbg(FYI, "check_mf_symlink: %d\n", tmprc);
+		rc = cifs_check_mf_symlink(xid, tcon, cifs_sb, full_path,
+					   inode, fattr);
 	}
 
 out:
@@ -1561,7 +1565,7 @@ int smb311_posix_get_inode_info(struct inode **inode,
 		return 0;
 	}
 
-	rc = smb311_posix_get_fattr(data, &fattr, full_path, sb, xid);
+	rc = smb311_posix_get_fattr(data, &fattr, full_path, *inode, sb, xid);
 	if (rc)
 		goto out;
 
@@ -1713,7 +1717,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 
 	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
 	if (tcon->posix_extensions)
-		rc = smb311_posix_get_fattr(NULL, &fattr, path, sb, xid);
+		rc = smb311_posix_get_fattr(NULL, &fattr, path, inode, sb, xid);
 	else
 		rc = cifs_get_fattr(NULL, sb, xid, NULL, &fattr, &inode, path);
 
@@ -1887,7 +1891,6 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 
 	/* rename the file */
 	rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, NULL,
-				   cifs_sb->local_nls,
 				   cifs_remap(cifs_sb));
 	if (rc != 0) {
 		rc = -EBUSY;
@@ -1929,7 +1932,7 @@ out:
 	 */
 undo_rename:
 	CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, dentry->d_name.name,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_remap(cifs_sb));
 undo_setattr:
 	if (dosattr != origattr) {
 		info_buf->Attributes = cpu_to_le32(origattr);
@@ -2017,8 +2020,7 @@ static int __cifs_unlink(struct inode *dir, struct dentry *dentry, bool sillyren
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
-			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
-			cifs_remap(cifs_sb));
+			SMB_POSIX_UNLINK_FILE_TARGET, cifs_remap(cifs_sb));
 		cifs_dbg(FYI, "posix del rc %d\n", rc);
 		if ((rc == 0) || (rc == -ENOENT))
 			goto psx_del_no_retry;
@@ -2239,7 +2241,7 @@ cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
 	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, tcon, SMB_O_DIRECTORY | SMB_O_CREAT, mode,
 			     NULL /* netfid */, info, &oplock, full_path,
-			     cifs_sb->local_nls, cifs_remap(cifs_sb));
+			     cifs_remap(cifs_sb));
 	if (rc == -EOPNOTSUPP)
 		goto posix_mkdir_out;
 	else if (rc) {
@@ -2521,7 +2523,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (rc == 0) {
 		rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid,
 				(const char *) to_dentry->d_name.name,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_remap(cifs_sb));
 		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

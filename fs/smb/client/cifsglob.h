@@ -373,13 +373,12 @@ struct smb_version_operations {
 	unsigned int (*negotiate_rsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* setup smb sessionn */
 	int (*sess_setup)(const unsigned int, struct cifs_ses *,
-			  struct TCP_Server_Info *server,
-			  const struct nls_table *);
+			  struct TCP_Server_Info *server);
 	/* close smb session */
 	int (*logoff)(const unsigned int, struct cifs_ses *);
 	/* connect to a server share */
 	int (*tree_connect)(const unsigned int, struct cifs_ses *, const char *,
-			    struct cifs_tcon *, const struct nls_table *);
+			    struct cifs_tcon *);
 	/* close tree connection */
 	int (*tree_disconnect)(const unsigned int, struct cifs_tcon *);
 	/* get DFS referrals */
@@ -543,9 +542,12 @@ struct smb_version_operations {
 			     struct cifsFileInfo *src_file, void __user *);
 	int (*notify)(const unsigned int xid, struct file *pfile,
 			     void __user *pbuf, bool return_changes);
-	int (*query_mf_symlink)(unsigned int, struct cifs_tcon *,
-				struct cifs_sb_info *, const unsigned char *,
-				char *, unsigned int *);
+	int (*query_mf_symlink)(const unsigned int xid,
+				struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb,
+				const char *full_path,
+				struct inode *inode, char *pbuf,
+				unsigned int *pbytes_read);
 	int (*create_mf_symlink)(unsigned int, struct cifs_tcon *,
 				 struct cifs_sb_info *, const unsigned char *,
 				 char *, unsigned int *);
@@ -571,7 +573,7 @@ struct smb_version_operations {
 			size_t, struct cifs_sb_info *);
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
-			const struct nls_table *, struct cifs_sb_info *);
+			struct cifs_sb_info *);
 	struct smb_ntsd * (*get_acl)(struct cifs_sb_info *cifssb, struct inode *ino,
 			const char *patch, u32 *plen, u32 info);
 	struct smb_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *cifssmb,
@@ -730,9 +732,6 @@ struct TCP_Server_Info {
 	/* message size the server can send or receive for non-raw SMBs */
 	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
 	/* when socket is setup (and during reconnect) before NegProt sent */
-	unsigned int max_rw;	/* maxRw specifies the maximum */
-	/* message size the server can send or receive for */
-	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u64 current_mid;	/* multiplex id - rotating counter, protected by mid_counter_lock */
@@ -752,7 +751,6 @@ struct TCP_Server_Info {
 	char	negflavor;	/* NEGOTIATE response flavor */
 	/* extended security flavors that server supports */
 	bool	sec_ntlmssp;		/* supports NTLMSSP */
-	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	sec_iakerb;		/* supports pass-through auth for Kerberos (krb5 proxy) */
@@ -798,10 +796,10 @@ struct TCP_Server_Info {
 	__le16	cipher_type;
 	 /* save initial negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-	bool	signing_negotiated; /* true if valid signing context rcvd from server */
 	bool	posix_ext_supported;
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
+	bool need_sock_shutdown; /* shutdown socket when need to reconnect */
 	unsigned long echo_interval;
 
 	/*
@@ -1066,7 +1064,6 @@ struct cifs_ses {
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
 	enum ses_status_enum ses_status;  /* updates protected by cifs_tcp_ses_lock */
-	unsigned int overrideSecFlg; /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
@@ -1233,7 +1230,6 @@ struct cifs_tcon {
 			atomic_t num_symlinks;
 			atomic_t num_locks;
 			atomic_t num_acl_get;
-			atomic_t num_acl_set;
 		} cifs_stats;
 		struct {
 			atomic_t smb2_com_sent[NUMBER_OF_SMB2_COMMANDS];
@@ -2259,7 +2255,7 @@ struct smb2_compound_vars {
 	struct kvec rsp_iov[MAX_COMPOUND];
 	struct smb_rqst rqst[MAX_COMPOUND];
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
-	struct kvec qi_iov;
+	struct kvec qi_iov[SMB2_QUERY_INFO_IOV_SIZE];
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec hl_iov[SMB2_SET_INFO_IOV_SIZE];

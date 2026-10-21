@@ -204,9 +204,6 @@ struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	sec += 24 * 60 * 60 * days;
 
 	ts.tv_sec = sec + offset;
-
-	/* cifs_dbg(FYI, "sec after cnvrt dos to unix time %d\n",sec); */
-
 	ts.tv_nsec = 0;
 	return ts;
 }
